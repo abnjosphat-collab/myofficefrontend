@@ -325,7 +325,7 @@ function EmployeeForm({ initialData, onSubmit, onCancel, isSubmitting }: Employe
             ].map(({ f, label }) => (
               <div key={f} className="space-y-1.5">
                 <Label className={LBL}>{label}</Label>
-                <Input value={(form as Record<string, unknown>)[f] as string}
+                <Input value={(form as unknown as Record<string, unknown>)[f] as string}
                   onChange={e => set(f as keyof EmployeeFormData, e.target.value)}
                   placeholder="Optional" className={GIN} />
               </div>
