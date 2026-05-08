@@ -273,7 +273,7 @@ function EmployeeForm({ initialData, onSubmit, onCancel, isSubmitting }: Employe
             ].map(({ f, label, ph, upper, type }) => (
               <div key={f} className="space-y-1.5">
                 <Label htmlFor={f} className={LBL}>{label}</Label>
-                <Input id={f} type={type ?? 'text'} value={(form as Record<string, unknown>)[f] as string}
+                <Input id={f} type={type ?? 'text'} value={(form as unknown as Record<string, unknown>)[f] as string}
                   onChange={e => set(f as keyof EmployeeFormData, upper ? e.target.value.toUpperCase() : e.target.value)}
                   placeholder={ph} className={`${GIN} ${errors[f] ? 'border-red-500/50' : ''}`} />
                 {errors[f] && <p className="text-xs text-red-400">{errors[f]}</p>}
@@ -292,10 +292,9 @@ function EmployeeForm({ initialData, onSubmit, onCancel, isSubmitting }: Employe
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pr-1">
             <div className="space-y-1.5">
               <Label className={LBL}>Engagement Date *</Label>
-              <input type="date" value={form.date_of_engagement}
+              <input type="date" title="Date of engagement" value={form.date_of_engagement}
                 onChange={e => set('date_of_engagement', e.target.value)}
-                style={{ colorScheme: 'dark' }}
-                className={`${textInp} ${errors.date_of_engagement ? 'border-red-500/50' : ''}`} />
+                className={`${textInp} [color-scheme:dark] ${errors.date_of_engagement ? 'border-red-500/50' : ''}`} />
               {errors.date_of_engagement && <p className="text-xs text-red-400">{errors.date_of_engagement}</p>}
             </div>
             <div className="space-y-1.5">
@@ -370,8 +369,8 @@ function EmployeeForm({ initialData, onSubmit, onCancel, isSubmitting }: Employe
               </div>
               <div className="space-y-1.5">
                 <Label className={LBL}>PPE Issue Date</Label>
-                <input type="date" value={form.ppe_issue_date} style={{ colorScheme: 'dark' }}
-                  onChange={e => set('ppe_issue_date', e.target.value)} className={textInp} />
+                <input type="date" title="PPE issue date" value={form.ppe_issue_date}
+                  onChange={e => set('ppe_issue_date', e.target.value)} className={`${textInp} [color-scheme:dark]`} />
               </div>
             </div>
             {([
