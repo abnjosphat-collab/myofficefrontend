@@ -94,6 +94,7 @@ import {
 // ============= Employee search result type =============
 interface EmployeeSearchResult {
   id: number;
+  employee_id: string;
   name: string;
   designation: string;
   phone: string;
@@ -467,14 +468,7 @@ const LeaveCard = ({ leave, onView, onEdit, onDelete }: {
 
   return (
     <div
-      className="group relative hover:shadow-xl transition-all duration-300 overflow-hidden rounded-xl cursor-pointer"
-      style={{
-        background: 'rgba(5,15,28,0.75)',
-        backdropFilter: 'blur(28px)',
-        WebkitBackdropFilter: 'blur(28px)',
-        border: '1px solid rgba(255,255,255,0.10)',
-        borderTop: `4px solid ${leaveType.color}`
-      }}
+      className="group relative hover:shadow-xl transition-all duration-300 overflow-hidden rounded-xl cursor-pointer oz-glass-dark border border-white/[0.09] hover:border-white/[0.16]"
       onClick={() => onView(leave)}
     >
       <div className="p-4">
@@ -491,19 +485,19 @@ const LeaveCard = ({ leave, onView, onEdit, onDelete }: {
           <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="h-7 w-7 flex items-center justify-center rounded-lg bg-white/[0.06] hover:bg-white/[0.15] border border-white/10 text-white/50 transition-all">
+                <button type="button" title="More options" className="h-7 w-7 flex items-center justify-center rounded-lg bg-white/[0.06] hover:bg-white/[0.15] border border-white/10 text-white/50 transition-all">
                   <MoreVertical className="h-3.5 w-3.5" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" style={{ background: 'rgba(5,15,28,0.95)', border: '1px solid rgba(255,255,255,0.15)' }}>
-                <DropdownMenuItem className="text-white/75 hover:bg-white/[0.10] focus:bg-white/[0.10] focus:text-white" onClick={() => onView(leave)}>
+              <DropdownMenuContent align="end" className="bg-[rgba(5,15,28,0.95)] border-white/[0.15]">
+                <DropdownMenuItem className="text-white/75 focus:bg-white/[0.10] focus:text-white cursor-pointer" onClick={() => onView(leave)}>
                   <Eye className="h-4 w-4 mr-2" /> View Details
                 </DropdownMenuItem>
-                <DropdownMenuItem className="text-white/75 hover:bg-white/[0.10] focus:bg-white/[0.10] focus:text-white" onClick={() => onEdit(leave)}>
+                <DropdownMenuItem className="text-white/75 focus:bg-white/[0.10] focus:text-white cursor-pointer" onClick={() => onEdit(leave)}>
                   <Edit className="h-4 w-4 mr-2" /> Edit
                 </DropdownMenuItem>
                 <DropdownMenuSeparator className="bg-white/10" />
-                <DropdownMenuItem className="text-rose-400 hover:bg-rose-500/20 focus:bg-rose-500/20 focus:text-rose-300" onClick={handleDelete} disabled={deleting}>
+                <DropdownMenuItem className="text-rose-400 focus:bg-rose-500/20 focus:text-rose-300 cursor-pointer" onClick={handleDelete} disabled={deleting}>
                   {deleting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Trash2 className="h-4 w-4 mr-2" />}
                   Delete
                 </DropdownMenuItem>
@@ -512,37 +506,36 @@ const LeaveCard = ({ leave, onView, onEdit, onDelete }: {
           </div>
         </div>
 
+        <div className="flex items-center gap-2 mb-3">
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs border border-white/[0.08] bg-white/[0.05] text-white/65">
+            <Icon className="h-3 w-3" style={{ color: leaveType.color }} />
+            {leaveType.shortName}
+          </span>
+          <StatusBadge status={leave.status} />
+        </div>
         <div className="space-y-1.5 text-sm">
           <div className="flex justify-between items-center">
-            <span className="text-white/50">Leave Type</span>
-            <span className="font-medium text-white text-xs">{leaveType.shortName}</span>
-          </div>
-          <div className="flex justify-between items-center">
             <span className="text-white/50">Duration</span>
-            <span className="font-medium text-white">{formatDays(leave.total_days)}</span>
+            <span className="font-semibold text-white">{formatDays(leave.total_days)}</span>
           </div>
           <div className="flex justify-between items-center">
             <span className="text-white/50">Dates</span>
             <span className="font-medium text-white text-xs">{formatDate(leave.start_date)} – {formatDate(leave.end_date)}</span>
           </div>
           <div className="flex justify-between items-center">
-            <span className="text-white/50">Status</span>
-            <StatusBadge status={leave.status} />
-          </div>
-          <div className="flex justify-between items-center">
             <span className="text-white/50">Applied</span>
-            <span className="font-medium text-white/80 text-xs">{formatDateTime(leave.applied_date)}</span>
+            <span className="font-medium text-white/70 text-xs">{formatDateTime(leave.applied_date)}</span>
           </div>
         </div>
 
         {leave.reason && (
-          <div className="mt-3 rounded-lg bg-white/[0.06] border border-white/10 p-2 text-xs text-white/70 line-clamp-2">
+          <div className="mt-3 rounded-lg bg-white/[0.06] border border-white/[0.08] p-2 text-xs text-white/60 line-clamp-2">
             {leave.reason}
           </div>
         )}
       </div>
-      <div className="px-4 py-2.5 bg-white/[0.04] border-t border-white/10">
-        <button className="w-full inline-flex items-center justify-center gap-2 text-xs text-white/60 hover:text-white/90 transition-colors" onClick={(e) => { e.stopPropagation(); onView(leave); }}>
+      <div className="px-4 py-2.5 bg-white/[0.03] border-t border-white/[0.07]">
+        <button type="button" className="w-full inline-flex items-center justify-center gap-2 text-xs text-white/50 hover:text-white/80 transition-colors" onClick={(e) => { e.stopPropagation(); onView(leave); }}>
           <Eye className="h-3.5 w-3.5" /> View Details
         </button>
       </div>
@@ -621,26 +614,28 @@ const LeaveApplicationForm = ({ onClose, onSuccess, editData }: {
         
         // Normalize field names – combine first_name and last_name
         const normalized = employeeList.map((emp: any) => {
-          const id = emp.id || emp.employee_id || 0;
+          const id = typeof emp.id === 'number' ? emp.id : parseInt(emp.id) || 0;
+          const employeeId = emp.employee_id || '';
           let fullName = '';
           if (emp.first_name && emp.last_name) {
             fullName = `${emp.first_name} ${emp.last_name}`;
           } else {
             fullName = emp.name || emp.employee_name || emp.full_name || emp.Name || '';
           }
-          
+
           const designation = emp.designation || emp.position || emp.job_title || '';
           const phone = emp.phone || emp.contact_number || emp.mobile || '';
           const supervisor = emp.supervisor || emp.manager_name || emp.manager || '';
           const department = emp.department || emp.dept || '';
-          
+
           return {
-            id: id,
+            id,
+            employee_id: employeeId,
             name: fullName,
-            designation: designation,
-            phone: phone,
-            supervisor: supervisor,
-            department: department,
+            designation,
+            phone,
+            supervisor,
+            department,
           };
         });
         
@@ -694,8 +689,7 @@ const LeaveApplicationForm = ({ onClose, onSuccess, editData }: {
   const validateForm = (): boolean => {
     const errors: Record<string, string> = {};
     
-    if (!formData.employee_name?.trim()) errors.employee_name = 'Full name is required';
-    if (!formData.position?.trim()) errors.position = 'Position is required';
+    if (!formData.employee_name?.trim()) errors.employee_name = 'Please select an employee';
     if (!formData.start_date) errors.start_date = 'Start date is required';
     if (!formData.end_date) errors.end_date = 'End date is required';
     if (!formData.reason?.trim()) errors.reason = 'Reason is required';
@@ -719,10 +713,9 @@ const LeaveApplicationForm = ({ onClose, onSuccess, editData }: {
   };
 
   const handleEmployeeSelect = (employee: EmployeeSearchResult) => {
-    const numericId = employee.id.toString();
     setFormData({
       ...formData,
-      employee_id: numericId,
+      employee_id: employee.employee_id || employee.id.toString(),
       employee_name: employee.name || `Employee ${employee.id}`,
       position: employee.designation || '',
       contact_number: employee.phone || '',
@@ -762,89 +755,92 @@ const LeaveApplicationForm = ({ onClose, onSuccess, editData }: {
   const filteredEmployees = useMemo(() => {
     if (!employeeSearch.trim()) return employees;
     const term = employeeSearch.toLowerCase();
-    return employees.filter(emp => 
+    return employees.filter(emp =>
       emp.name.toLowerCase().includes(term) ||
+      emp.employee_id.toLowerCase().includes(term) ||
       emp.id.toString().includes(term) ||
       (emp.designation && emp.designation.toLowerCase().includes(term)) ||
       (emp.department && emp.department.toLowerCase().includes(term))
     );
   }, [employees, employeeSearch]);
 
+  const GIN = "bg-white/[0.07] border-white/[0.12] text-white placeholder:text-white/30 focus:border-[#86BBD8]/50 focus:bg-white/[0.10] h-9 text-sm rounded-lg px-3 w-full focus:outline-none transition-all [color-scheme:dark]";
+  const LBL = "text-white/55 text-xs font-medium block mb-1";
+
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white/95 backdrop-blur-sm border-white/30">
-        <DialogHeader>
-          <DialogTitle>{editData ? 'Edit Leave Application' : 'New Leave Request'}</DialogTitle>
-          <DialogDescription>
-            Fill in the details below. All fields marked * are required.
-          </DialogDescription>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-0 gap-0 rounded-2xl bg-[rgba(5,15,28,0.97)] backdrop-blur-2xl border border-white/10 text-white">
+        <DialogHeader className="px-6 pt-5 pb-4 border-b border-white/[0.08]">
+          <DialogTitle className="flex items-center gap-2.5 text-white text-lg font-bold">
+            <div className="bg-[#86BBD8]/20 p-2 rounded-lg border border-[#86BBD8]/25">
+              <CalendarDays className="h-4 w-4 text-[#86BBD8]" />
+            </div>
+            {editData ? 'Edit Leave Request' : 'New Leave Request'}
+          </DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-6">
+
+        <form onSubmit={handleSubmit} className="px-6 pb-6 pt-4 space-y-5">
           {error && (
-            <div className="p-3 bg-destructive/10 border border-destructive rounded-lg flex items-center gap-2 text-destructive">
-              <AlertCircle className="h-4 w-4" />
-              <p className="text-sm font-medium">{error}</p>
+            <div className="p-3 bg-rose-500/10 border border-rose-500/25 rounded-lg flex items-center gap-2 text-rose-400">
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              <p className="text-sm">{error}</p>
             </div>
           )}
 
-          {/* Employee selection dropdown */}
-          <div className="space-y-2">
-            <Label>Employee *</Label>
+          {/* Employee picker */}
+          <div>
+            <span className={LBL}>Employee *</span>
             <Popover open={employeeSelectOpen} onOpenChange={setEmployeeSelectOpen}>
               <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  role="combobox"
-                  className="w-full justify-between bg-white"
+                <button
+                  type="button"
                   disabled={!!editData}
+                  className="w-full h-9 flex items-center justify-between gap-2 px-3 rounded-lg bg-white/[0.07] border border-white/[0.12] text-sm hover:bg-white/[0.10] hover:border-[#86BBD8]/40 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {formData.employee_name ? (
                     <div className="flex items-center gap-2 truncate">
-                      <Avatar className="h-6 w-6">
-                        <AvatarFallback className="text-xs">
-                          {getInitials(formData.employee_name)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="text-left truncate">
-                        <div className="truncate font-medium">{formData.employee_name}</div>
-                        <div className="text-xs text-muted-foreground truncate">
-                          {formData.position} • {formData.employee_id}
-                        </div>
+                      <div className="h-5 w-5 rounded-full bg-gradient-to-br from-[#2A4D69] to-[#86BBD8] flex items-center justify-center text-[9px] font-bold text-white shrink-0">
+                        {getInitials(formData.employee_name)}
                       </div>
+                      <span className="text-white font-medium truncate">{formData.employee_name}</span>
+                      <span className="text-white/40 text-xs shrink-0">• {formData.employee_id}</span>
                     </div>
                   ) : (
-                    <span className="text-muted-foreground">Select employee...</span>
+                    <span className="text-white/35">Select employee...</span>
                   )}
-                </Button>
+                  <ChevronDown className="h-3.5 w-3.5 text-white/35 shrink-0" />
+                </button>
               </PopoverTrigger>
-              <PopoverContent className="w-[--radix-popover-trigger-width] p-0 bg-white/95 backdrop-blur-sm" align="start">
-                <Command>
-                  <CommandInput 
-                    placeholder="Search employees..." 
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0 rounded-xl bg-[rgba(5,15,28,0.97)] backdrop-blur-xl border border-white/[0.12]" align="start">
+                <Command shouldFilter={false} className="bg-transparent">
+                  <CommandInput
+                    placeholder="Search by name or ID..."
                     value={employeeSearch}
                     onValueChange={setEmployeeSearch}
+                    className="border-b border-white/[0.08] text-white placeholder:text-white/30 h-9 text-sm"
                   />
-                  <CommandEmpty>No employee found.</CommandEmpty>
-                  <CommandGroup className="max-h-64 overflow-y-auto">
+                  <CommandEmpty className="text-white/40 text-sm py-6 text-center">No employee found.</CommandEmpty>
+                  <CommandGroup className="max-h-56 overflow-y-auto p-1.5">
                     {loadingEmployees ? (
                       <div className="flex justify-center py-4">
-                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <Loader2 className="h-4 w-4 animate-spin text-white/40" />
                       </div>
                     ) : (
                       filteredEmployees.map((emp) => (
                         <CommandItem
                           key={emp.id}
-                          value={`${emp.name} ${emp.id}`}
                           onSelect={() => handleEmployeeSelect(emp)}
-                          className="flex items-center gap-2"
+                          className="flex items-center gap-2.5 rounded-lg px-2 py-2 cursor-pointer text-white/75 data-[selected=true]:bg-white/[0.10] hover:bg-white/[0.07] hover:text-white"
                         >
-                          <Avatar className="h-6 w-6">
-                            <AvatarFallback className="text-xs">{getInitials(emp.name)}</AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1">
-                            <p className="text-sm font-medium">{emp.name}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {emp.designation} • {emp.department}
+                          <div className="h-6 w-6 rounded-full bg-gradient-to-br from-[#2A4D69] to-[#86BBD8] flex items-center justify-center text-[10px] font-bold text-white shrink-0">
+                            {getInitials(emp.name)}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-white truncate">{emp.name}</p>
+                            <p className="text-xs text-white/40 truncate">
+                              <span className="font-mono text-[#86BBD8]">{emp.employee_id}</span>
+                              {emp.designation ? ` · ${emp.designation}` : ''}
+                              {emp.department ? ` · ${emp.department}` : ''}
                             </p>
                           </div>
                         </CommandItem>
@@ -854,199 +850,182 @@ const LeaveApplicationForm = ({ onClose, onSuccess, editData }: {
                 </Command>
               </PopoverContent>
             </Popover>
+            {validationErrors.employee_name && (
+              <p className="text-rose-400 text-xs mt-1">{validationErrors.employee_name}</p>
+            )}
           </div>
 
-          {/* Auto-filled employee fields */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="employee_id">Employee ID * (add prefix manually)</Label>
-              <Input
-                id="employee_id"
-                required
-                value={formData.employee_id || ''}
-                onChange={(e) => handleChange('employee_id', e.target.value)}
-                placeholder="e.g., C1165"
-                disabled={!!editData}
-                className="bg-white"
-              />
+          {/* Auto-filled employee info — shown once employee selected */}
+          {formData.employee_name && (
+            <div className="bg-white/[0.04] rounded-xl border border-white/[0.06] p-3 grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-2.5">
+              <div>
+                <div className="text-white/35 text-[10px] uppercase tracking-wide mb-0.5">Employee ID</div>
+                <div className="text-white/80 text-sm font-mono">{formData.employee_id || '—'}</div>
+              </div>
+              <div>
+                <div className="text-white/35 text-[10px] uppercase tracking-wide mb-0.5">Position</div>
+                <div className="text-white/80 text-sm">{formData.position || '—'}</div>
+              </div>
+              <div>
+                <div className="text-white/35 text-[10px] uppercase tracking-wide mb-0.5">Department</div>
+                <div className="text-white/80 text-sm">{formData.department || '—'}</div>
+              </div>
+              <div>
+                <div className="text-white/35 text-[10px] uppercase tracking-wide mb-0.5">Supervisor</div>
+                <div className="text-white/80 text-sm">{formData.manager_name || '—'}</div>
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="position">Position</Label>
-              <Input
-                id="position"
-                value={formData.position || ''}
-                readOnly
-                disabled
-                className="bg-muted/50"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="department">Department</Label>
-              <Input
-                id="department"
-                value={formData.department || ''}
-                readOnly
-                disabled
-                className="bg-muted/50"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="contact_number">Contact Number</Label>
-              <Input
-                id="contact_number"
-                value={formData.contact_number || ''}
-                readOnly
-                disabled
-                className="bg-muted/50"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="manager_name">Manager Name</Label>
-              <Input
-                id="manager_name"
-                value={formData.manager_name || ''}
-                readOnly
-                disabled
-                className="bg-muted/50"
-              />
-            </div>
-          </div>
+          )}
 
           {/* Leave Type */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="leave_type">Leave Type *</Label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <span className={LBL}>Leave Type *</span>
               <Select
                 value={formData.leave_type || 'annual'}
                 onValueChange={(val) => handleChange('leave_type', val)}
               >
-                <SelectTrigger className="bg-white">
+                <SelectTrigger className="bg-white/[0.07] border-white/[0.12] text-white focus:border-[#86BBD8]/50 h-9 text-sm focus:ring-0">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(LEAVE_TYPES).map(([key, type]) => (
-                    <SelectItem key={key} value={key}>{type.name}</SelectItem>
-                  ))}
+                <SelectContent className="bg-[rgba(5,15,28,0.97)] border-white/[0.12] text-white">
+                  {Object.entries(LEAVE_TYPES).map(([key, type]) => {
+                    const Icon = type.icon;
+                    return (
+                      <SelectItem key={key} value={key} className="text-white/80 focus:bg-white/[0.10] focus:text-white">
+                        <div className="flex items-center gap-2">
+                          <Icon className="h-3.5 w-3.5 shrink-0" style={{ color: type.color }} />
+                          {type.name}
+                        </div>
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <div className={`p-3 rounded-lg ${selectedLeaveType.bgColor} border ${selectedLeaveType.borderColor}`}>
-                <p className="text-xs font-medium">{selectedLeaveType.description}</p>
+            <div className="flex items-end">
+              <div className="flex items-center gap-2 w-full p-2.5 rounded-lg bg-white/[0.04] border border-white/[0.06]">
+                {React.createElement(selectedLeaveType.icon, { className: 'h-4 w-4 shrink-0', style: { color: selectedLeaveType.color } })}
+                <p className="text-xs text-white/55">{selectedLeaveType.description}</p>
               </div>
             </div>
           </div>
 
           {/* Dates */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="start_date">Start Date *</Label>
-              <Input
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <span className={LBL}>Start Date *</span>
+              <input
                 type="date"
-                id="start_date"
+                title="Start date"
                 required
                 value={formData.start_date || ''}
                 onChange={(e) => handleChange('start_date', e.target.value)}
-                className="bg-white"
+                className={GIN}
               />
-              {validationErrors.start_date && (
-                <p className="text-sm text-destructive">{validationErrors.start_date}</p>
-              )}
+              {validationErrors.start_date && <p className="text-rose-400 text-xs mt-1">{validationErrors.start_date}</p>}
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="end_date">End Date *</Label>
-              <Input
+            <div>
+              <span className={LBL}>End Date *</span>
+              <input
                 type="date"
-                id="end_date"
+                title="End date"
                 required
                 value={formData.end_date || ''}
                 onChange={(e) => handleChange('end_date', e.target.value)}
                 min={formData.start_date}
-                className="bg-white"
+                className={GIN}
               />
-              {validationErrors.end_date && (
-                <p className="text-sm text-destructive">{validationErrors.end_date}</p>
-              )}
+              {validationErrors.end_date && <p className="text-rose-400 text-xs mt-1">{validationErrors.end_date}</p>}
             </div>
           </div>
 
           {calculatedDays > 0 && (
-            <div className="rounded-lg bg-muted/50 p-4 text-center">
-              <p className="text-sm text-muted-foreground">Total Leave Days</p>
-              <p className="text-2xl font-bold">{calculatedDays} days</p>
+            <div className="rounded-xl bg-white/[0.04] border border-white/[0.06] px-4 py-3 flex items-center justify-between">
+              <span className="text-white/50 text-sm">Total leave days</span>
+              <span className="text-2xl font-bold text-white">{calculatedDays}<span className="text-sm text-white/50 ml-1">days</span></span>
             </div>
           )}
 
+          {/* Contact number (editable) */}
+          <div>
+            <span className={LBL}>Contact Number During Leave *</span>
+            <input
+              type="text"
+              value={formData.contact_number || ''}
+              onChange={(e) => handleChange('contact_number', e.target.value)}
+              placeholder="Phone number to reach you"
+              className={GIN}
+            />
+            {validationErrors.contact_number && <p className="text-rose-400 text-xs mt-1">{validationErrors.contact_number}</p>}
+          </div>
+
           {/* Reason with autocomplete */}
-          <div className="space-y-2 relative">
-            <Label htmlFor="reason">Reason for Leave *</Label>
-            <Textarea
-              id="reason"
+          <div className="relative">
+            <span className={LBL}>Reason for Leave *</span>
+            <textarea
+              rows={3}
               required
-              rows={4}
               value={formData.reason || ''}
               onChange={(e) => handleReasonChange(e.target.value)}
               onKeyDown={handleReasonKeyDown}
               placeholder="Type a reason or choose from suggestions..."
-              className="bg-white"
+              className="w-full px-3 py-2 rounded-lg bg-white/[0.07] border border-white/[0.12] text-white placeholder:text-white/30 focus:border-[#86BBD8]/50 focus:bg-white/[0.10] text-sm resize-none focus:outline-none transition-all"
             />
-            {validationErrors.reason && (
-              <p className="text-sm text-destructive">{validationErrors.reason}</p>
-            )}
+            {validationErrors.reason && <p className="text-rose-400 text-xs mt-1">{validationErrors.reason}</p>}
             {suggestions.length > 0 && (
-              <div className="absolute z-10 w-full mt-1 bg-white border rounded-md shadow-lg max-h-48 overflow-y-auto">
+              <div className="absolute z-20 w-full mt-1 rounded-xl bg-[rgba(5,15,28,0.97)] border border-white/[0.12] backdrop-blur-xl overflow-hidden shadow-xl">
                 {suggestions.map((s, index) => (
                   <div
                     key={s}
-                    className={`px-3 py-2 cursor-pointer hover:bg-muted ${
-                      index === selectedSuggestionIndex ? 'bg-muted' : ''
-                    }`}
-                    onClick={() => {
-                      setFormData(prev => ({ ...prev, reason: s }));
-                      setSuggestions([]);
-                    }}
+                    className={`px-3 py-2 cursor-pointer text-sm transition-all ${index === selectedSuggestionIndex ? 'bg-white/[0.12] text-white' : 'text-white/65 hover:bg-white/[0.07] hover:text-white'}`}
+                    onClick={() => { setFormData(prev => ({ ...prev, reason: s })); setSuggestions([]); }}
                   >
                     {s}
                   </div>
                 ))}
               </div>
             )}
-            <p className="text-xs text-muted-foreground mt-1">
-              Press Tab to accept suggestion, Esc to dismiss.
-            </p>
+            <p className="text-[11px] text-white/30 mt-1">Tab to accept suggestion · Esc to dismiss</p>
           </div>
 
           {/* Emergency contact and handover */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="emergency_contact">Emergency Contact</Label>
-              <Input
-                id="emergency_contact"
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <span className={LBL}>Emergency Contact</span>
+              <input
+                type="text"
                 value={formData.emergency_contact || ''}
                 onChange={(e) => handleChange('emergency_contact', e.target.value)}
                 placeholder="Name and phone number"
-                className="bg-white"
+                className={GIN}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="handover_to">Handover To</Label>
-              <Input
-                id="handover_to"
+            <div>
+              <span className={LBL}>Handover To</span>
+              <input
+                type="text"
                 value={formData.handover_to || ''}
                 onChange={(e) => handleChange('handover_to', e.target.value)}
                 placeholder="Colleague's name"
-                className="bg-white"
+                className={GIN}
               />
             </div>
           </div>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-            <Button type="submit" disabled={loading}>
-              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          <div className="flex justify-end gap-2 pt-2">
+            <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-medium bg-white/[0.07] hover:bg-white/[0.14] text-white/70 border border-white/[0.12] transition-all">
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white border border-[#86BBD8]/35 hover:-translate-y-0.5 disabled:opacity-50 transition-all bg-gradient-to-br from-[#2A4D69] to-[#1e3a52]"
+            >
+              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
               {editData ? 'Update Request' : 'Submit Request'}
-            </Button>
-          </DialogFooter>
+            </button>
+          </div>
         </form>
       </DialogContent>
     </Dialog>
@@ -1091,162 +1070,135 @@ const LeaveDetailsModal = ({ leave, onClose, onEdit, onDelete, onStatusUpdate }:
     }
   };
 
+  const IF = ({ label, value }: { label: string; value?: string | null }) => (
+    <div>
+      <div className="text-white/35 text-[10px] uppercase tracking-wide mb-0.5">{label}</div>
+      <div className="text-white/80 text-sm">{value || '—'}</div>
+    </div>
+  );
+
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-white/95 backdrop-blur-sm border-white/30">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <div className={`p-2 rounded-lg ${selectedLeaveType.bgColor} border ${selectedLeaveType.borderColor}`}>
-              {React.createElement(selectedLeaveType.icon, { className: `h-5 w-5 ${selectedLeaveType.textColor}` })}
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-0 gap-0 rounded-2xl bg-[rgba(5,15,28,0.97)] backdrop-blur-2xl border border-white/10 text-white">
+        <DialogHeader className="px-6 pt-5 pb-4 border-b border-white/[0.08]">
+          <DialogTitle className="flex items-center gap-2.5 text-white text-lg font-bold">
+            <div className="p-2 rounded-lg bg-white/[0.07] border border-white/10">
+              {React.createElement(selectedLeaveType.icon, { className: 'h-4 w-4', style: { color: selectedLeaveType.color } })}
             </div>
             Leave Request #{leave.id}
+            <StatusBadge status={leave.status} />
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="px-6 py-5 space-y-4">
           {updating && (
-            <div className="flex items-center justify-center p-4 bg-muted rounded-lg">
-              <Loader2 className="h-5 w-5 animate-spin mr-2" />
-              <span className="text-sm font-medium">Updating...</span>
+            <div className="flex items-center gap-2 p-3 bg-white/[0.05] rounded-lg text-white/60">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span className="text-sm">Updating...</span>
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card className="bg-white">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium flex items-center gap-2">
-                  <User className="h-4 w-4" /> Employee
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm">
-                <div><span className="text-muted-foreground">Name:</span> {leave.employee_name}</div>
-                <div><span className="text-muted-foreground">ID:</span> {leave.employee_id}</div>
-                <div><span className="text-muted-foreground">Position:</span> {leave.position}</div>
-                <div><span className="text-muted-foreground">Department:</span> {leave.department || '—'}</div>
-                <div><span className="text-muted-foreground">Contact:</span> {leave.contact_number}</div>
-                {leave.emergency_contact && <div><span className="text-muted-foreground">Emergency:</span> {leave.emergency_contact}</div>}
-              </CardContent>
-            </Card>
-
-            <Card className="bg-white">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium flex items-center gap-2">
-                  <Clock className="h-4 w-4" /> Details
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Leave Type</span>
-                  <span className="font-medium">{selectedLeaveType.name}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Status</span>
-                  <StatusBadge status={leave.status} />
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Start Date</span>
-                  <span className="font-medium">{formatDate(leave.start_date)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">End Date</span>
-                  <span className="font-medium">{formatDate(leave.end_date)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Duration</span>
-                  <span className="font-medium">{formatDays(leave.total_days)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Applied</span>
-                  <span className="font-medium">{formatDateTime(leave.applied_date)}</span>
-                </div>
-              </CardContent>
-            </Card>
+          {/* Employee section */}
+          <div className="bg-white/[0.04] rounded-xl border border-white/[0.06] overflow-hidden">
+            <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-white/[0.05]">
+              <User className="h-3.5 w-3.5 text-[#86BBD8]" />
+              <span className="text-xs font-semibold text-white/75 uppercase tracking-wider">Employee</span>
+            </div>
+            <div className="px-3.5 py-3 grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-2.5">
+              <IF label="Name" value={leave.employee_name} />
+              <IF label="Employee ID" value={leave.employee_id} />
+              <IF label="Position" value={leave.position} />
+              <IF label="Department" value={leave.department} />
+              <IF label="Contact" value={leave.contact_number} />
+              {leave.emergency_contact && <IF label="Emergency Contact" value={leave.emergency_contact} />}
+            </div>
           </div>
 
-          <Card className="bg-white">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <FileText className="h-4 w-4" /> Reason
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="whitespace-pre-wrap text-sm">{leave.reason}</p>
-            </CardContent>
-          </Card>
+          {/* Leave details section */}
+          <div className="bg-white/[0.04] rounded-xl border border-white/[0.06] overflow-hidden">
+            <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-white/[0.05]">
+              <CalendarDays className="h-3.5 w-3.5 text-[#86BBD8]" />
+              <span className="text-xs font-semibold text-white/75 uppercase tracking-wider">Leave Details</span>
+            </div>
+            <div className="px-3.5 py-3 grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-2.5">
+              <IF label="Type" value={selectedLeaveType.name} />
+              <IF label="Start Date" value={formatDate(leave.start_date)} />
+              <IF label="End Date" value={formatDate(leave.end_date)} />
+              <div>
+                <div className="text-white/35 text-[10px] uppercase tracking-wide mb-0.5">Duration</div>
+                <div className="text-white font-semibold text-sm">{formatDays(leave.total_days)}</div>
+              </div>
+              <IF label="Applied" value={formatDateTime(leave.applied_date)} />
+              {leave.handover_to && <IF label="Handover To" value={leave.handover_to} />}
+            </div>
+          </div>
 
+          {/* Reason */}
+          {leave.reason && (
+            <div className="bg-white/[0.04] rounded-xl border border-white/[0.06] overflow-hidden">
+              <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-white/[0.05]">
+                <FileText className="h-3.5 w-3.5 text-[#86BBD8]" />
+                <span className="text-xs font-semibold text-white/75 uppercase tracking-wider">Reason</span>
+              </div>
+              <p className="px-3.5 py-3 text-sm text-white/70 whitespace-pre-wrap">{leave.reason}</p>
+            </div>
+          )}
+
+          {/* Approval status */}
           {(leave.manager_approval || leave.hr_approval) && (
-            <Card className="bg-white">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Approval Status</CardTitle>
-              </CardHeader>
-              <CardContent className="grid grid-cols-2 gap-4">
-                {leave.manager_approval && (
-                  <div>
-                    <p className="text-xs text-muted-foreground">Manager</p>
-                    <Badge variant={leave.manager_approval === 'approved' ? 'default' : leave.manager_approval === 'rejected' ? 'destructive' : 'secondary'}>
-                      {leave.manager_approval}
-                    </Badge>
-                  </div>
-                )}
-                {leave.hr_approval && (
-                  <div>
-                    <p className="text-xs text-muted-foreground">HR</p>
-                    <Badge variant={leave.hr_approval === 'approved' ? 'default' : leave.hr_approval === 'rejected' ? 'destructive' : 'secondary'}>
-                      {leave.hr_approval}
-                    </Badge>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            <div className="bg-white/[0.04] rounded-xl border border-white/[0.06] overflow-hidden">
+              <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-white/[0.05]">
+                <CheckCircle2 className="h-3.5 w-3.5 text-[#86BBD8]" />
+                <span className="text-xs font-semibold text-white/75 uppercase tracking-wider">Approvals</span>
+              </div>
+              <div className="px-3.5 py-3 flex gap-6">
+                {leave.manager_approval && <IF label="Manager" value={leave.manager_approval} />}
+                {leave.hr_approval && <IF label="HR" value={leave.hr_approval} />}
+              </div>
+            </div>
           )}
 
-          {leave.supporting_docs && leave.supporting_docs.length > 0 && (
-            <Card className="bg-white">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Supporting Documents</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {leave.supporting_docs.map((doc, i) => (
-                    <div key={i} className="flex items-center justify-between p-2 border rounded-lg">
-                      <span className="text-sm">Document {i+1}</span>
-                      <Button variant="outline" size="sm" asChild>
-                        <a href={doc} target="_blank" rel="noopener noreferrer">
-                          <ExternalLink className="h-3 w-3 mr-2" /> View
-                        </a>
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          <div className="flex flex-wrap gap-2 justify-end">
-            <Button variant="outline" onClick={() => { onEdit(leave); onClose(); }}>
-              <Edit className="h-4 w-4 mr-2" /> Edit
-            </Button>
-            <DropdownMenu open={showStatusActions} onOpenChange={setShowStatusActions}>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline">
-                  Update Status <ChevronDown className="h-4 w-4 ml-2" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuItem onClick={() => handleStatusChange('approved')}>
-                  <CheckCircle2 className="h-4 w-4 mr-2 text-green-600" /> Approve
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleStatusChange('rejected')}>
-                  <XCircle className="h-4 w-4 mr-2 text-destructive" /> Reject
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleStatusChange('pending')}>
-                  <Clock className="h-4 w-4 mr-2 text-muted-foreground" /> Mark Pending
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <Button variant="destructive" onClick={handleDelete} disabled={updating}>
-              <Trash2 className="h-4 w-4 mr-2" /> Delete
-            </Button>
+          {/* Actions */}
+          <div className="flex flex-wrap gap-2 justify-between pt-1">
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={updating}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 transition-all disabled:opacity-50"
+            >
+              <Trash2 className="h-3.5 w-3.5" /> Delete
+            </button>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => { onEdit(leave); onClose(); }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white/[0.07] hover:bg-white/[0.14] text-white/70 border border-white/[0.12] transition-all"
+              >
+                <Edit className="h-3.5 w-3.5" /> Edit
+              </button>
+              <DropdownMenu open={showStatusActions} onOpenChange={setShowStatusActions}>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white border border-[#86BBD8]/35 transition-all hover:-translate-y-0.5 bg-gradient-to-br from-[#2A4D69] to-[#1e3a52]"
+                  >
+                    Update Status <ChevronDown className="h-3.5 w-3.5" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="bg-[rgba(5,15,28,0.97)] border-white/[0.12] text-white">
+                  <DropdownMenuItem className="text-emerald-400 focus:bg-white/[0.10] focus:text-emerald-300 cursor-pointer" onClick={() => handleStatusChange('approved')}>
+                    <CheckCircle2 className="h-4 w-4 mr-2" /> Approve
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="text-rose-400 focus:bg-white/[0.10] focus:text-rose-300 cursor-pointer" onClick={() => handleStatusChange('rejected')}>
+                    <XCircle className="h-4 w-4 mr-2" /> Reject
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator className="bg-white/10" />
+                  <DropdownMenuItem className="text-white/65 focus:bg-white/[0.10] focus:text-white cursor-pointer" onClick={() => handleStatusChange('pending')}>
+                    <Clock className="h-4 w-4 mr-2" /> Mark Pending
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </div>
       </DialogContent>
@@ -1444,17 +1396,17 @@ export default function LeaveManagementPage() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <button onClick={fetchAllData} title="Refresh" className="h-8 w-8 flex items-center justify-center rounded-lg bg-white/[0.07] hover:bg-white/[0.15] border border-white/12 text-white/50 transition-all">
+              <button type="button" onClick={fetchAllData} title="Refresh" className="h-8 w-8 flex items-center justify-center rounded-lg bg-white/[0.07] hover:bg-white/[0.15] border border-white/12 text-white/50 transition-all">
                 <RefreshCw className="h-3.5 w-3.5" />
               </button>
               <button
+                type="button"
                 onClick={() => setShowForm(true)}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:-translate-y-0.5 hover:shadow-lg"
-                style={{ background: 'linear-gradient(135deg, #2A4D69, #1e3a52)', border: '1px solid rgba(134,187,216,0.25)' }}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:-translate-y-0.5 hover:shadow-lg bg-gradient-to-br from-[#2A4D69] to-[#1e3a52] border border-[#86BBD8]/25"
               >
                 <Plus className="h-4 w-4" /> New Leave Request
               </button>
-              <button onClick={() => setShowHeroStats(v => !v)} className="h-8 w-8 flex items-center justify-center rounded-lg bg-white/[0.07] hover:bg-white/[0.15] border border-white/12 text-white/50 transition-all">
+              <button type="button" title={showHeroStats ? 'Collapse stats' : 'Expand stats'} onClick={() => setShowHeroStats(v => !v)} className="h-8 w-8 flex items-center justify-center rounded-lg bg-white/[0.07] hover:bg-white/[0.15] border border-white/12 text-white/50 transition-all">
                 {showHeroStats ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
               </button>
             </div>
@@ -1491,7 +1443,7 @@ export default function LeaveManagementPage() {
                 <span className="text-xs font-semibold text-white/80 uppercase tracking-wider">Leave Type Breakdown</span>
                 <span className="text-[11px] text-white/35">click to filter</span>
               </div>
-              <button onClick={() => setShowTypeSummary(v => !v)} className="h-6 w-6 flex items-center justify-center rounded-md bg-white/[0.07] hover:bg-white/[0.15] text-white/50 border border-white/12 transition-all">
+              <button type="button" title={showTypeSummary ? 'Collapse' : 'Expand'} onClick={() => setShowTypeSummary(v => !v)} className="h-6 w-6 flex items-center justify-center rounded-md bg-white/[0.07] hover:bg-white/[0.15] text-white/50 border border-white/12 transition-all">
                 {showTypeSummary ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
               </button>
             </div>
@@ -1532,7 +1484,7 @@ export default function LeaveManagementPage() {
                 <span className="text-xs font-semibold text-white/80 uppercase tracking-wider">Employee Summary</span>
                 <span className="text-[11px] text-white/35">{employeeSummary.length} employees</span>
               </div>
-              <button onClick={() => setShowEmployeeSummary(v => !v)} className="h-6 w-6 flex items-center justify-center rounded-md bg-white/[0.07] hover:bg-white/[0.15] text-white/50 border border-white/12 transition-all">
+              <button type="button" title={showEmployeeSummary ? 'Collapse' : 'Expand'} onClick={() => setShowEmployeeSummary(v => !v)} className="h-6 w-6 flex items-center justify-center rounded-md bg-white/[0.07] hover:bg-white/[0.15] text-white/50 border border-white/12 transition-all">
                 {showEmployeeSummary ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
               </button>
             </div>
@@ -1586,11 +1538,11 @@ export default function LeaveManagementPage() {
             </div>
             <div className="flex items-center gap-1">
               {activeFilterCount > 0 && (
-                <button onClick={clearFilters} className="h-6 px-2 flex items-center gap-1 rounded-md bg-white/[0.07] hover:bg-white/[0.15] text-white/50 text-[11px] border border-white/12 transition-all">
+                <button type="button" onClick={clearFilters} className="h-6 px-2 flex items-center gap-1 rounded-md bg-white/[0.07] hover:bg-white/[0.15] text-white/50 text-[11px] border border-white/12 transition-all">
                   <X className="h-2.5 w-2.5" /> Clear
                 </button>
               )}
-              <button onClick={() => setFilterPanelMinimized(v => !v)} className="h-6 w-6 flex items-center justify-center rounded-md bg-white/[0.07] hover:bg-white/[0.15] text-white/50 border border-white/12 transition-all">
+              <button type="button" title={filterPanelMinimized ? 'Expand filters' : 'Collapse filters'} onClick={() => setFilterPanelMinimized(v => !v)} className="h-6 w-6 flex items-center justify-center rounded-md bg-white/[0.07] hover:bg-white/[0.15] text-white/50 border border-white/12 transition-all">
                 {filterPanelMinimized ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />}
               </button>
             </div>
@@ -1651,20 +1603,22 @@ export default function LeaveManagementPage() {
                 <div>
                   <input
                     type="date"
+                    title="Filter from date"
+                    placeholder="From date"
                     value={dateFrom}
                     onChange={(e) => setDateFrom(e.target.value)}
-                    className="px-3 py-2 w-full text-sm rounded-lg bg-white/[0.07] border border-white/12 text-white focus:outline-none focus:border-white/30 focus:bg-white/[0.11] transition-all"
-                    style={{ colorScheme: 'dark' }}
+                    className="px-3 py-2 w-full text-sm rounded-lg bg-white/[0.07] border border-white/12 text-white focus:outline-none focus:border-white/30 focus:bg-white/[0.11] transition-all [color-scheme:dark]"
                   />
                   <div className="text-[10px] text-white/35 mt-0.5">From date</div>
                 </div>
                 <div>
                   <input
                     type="date"
+                    title="Filter to date"
+                    placeholder="To date"
                     value={dateTo}
                     onChange={(e) => setDateTo(e.target.value)}
-                    className="px-3 py-2 w-full text-sm rounded-lg bg-white/[0.07] border border-white/12 text-white focus:outline-none focus:border-white/30 focus:bg-white/[0.11] transition-all"
-                    style={{ colorScheme: 'dark' }}
+                    className="px-3 py-2 w-full text-sm rounded-lg bg-white/[0.07] border border-white/12 text-white focus:outline-none focus:border-white/30 focus:bg-white/[0.11] transition-all [color-scheme:dark]"
                   />
                   <div className="text-[10px] text-white/35 mt-0.5">To date</div>
                 </div>
@@ -1682,28 +1636,28 @@ export default function LeaveManagementPage() {
               <span className="text-[11px] text-white/35">{filteredLeaves.length} of {leaves.length}</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="h-7 pl-2 pr-6 text-[11px] rounded-lg bg-white/[0.07] border border-white/12 text-white/70 focus:outline-none focus:border-white/30 appearance-none cursor-pointer"
-                style={{ colorScheme: 'dark' }}
-              >
-                <option value="date-desc">Newest</option>
-                <option value="date-asc">Oldest</option>
-                <option value="days-desc">Days ↓</option>
-                <option value="days-asc">Days ↑</option>
-                <option value="name-asc">Name A-Z</option>
-                <option value="name-desc">Name Z-A</option>
-              </select>
+              <Select value={sortBy} onValueChange={setSortBy}>
+                <SelectTrigger className="h-7 w-[120px] text-[11px] bg-white/[0.07] border-white/[0.12] text-white/75 focus:ring-0 focus:border-white/30 px-2">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-[rgba(5,15,28,0.97)] border-white/[0.12] text-white">
+                  <SelectItem value="date-desc" className="text-xs text-white/80 focus:bg-white/[0.10] focus:text-white">Newest First</SelectItem>
+                  <SelectItem value="date-asc" className="text-xs text-white/80 focus:bg-white/[0.10] focus:text-white">Oldest First</SelectItem>
+                  <SelectItem value="days-desc" className="text-xs text-white/80 focus:bg-white/[0.10] focus:text-white">Days (High→Low)</SelectItem>
+                  <SelectItem value="days-asc" className="text-xs text-white/80 focus:bg-white/[0.10] focus:text-white">Days (Low→High)</SelectItem>
+                  <SelectItem value="name-asc" className="text-xs text-white/80 focus:bg-white/[0.10] focus:text-white">Name A→Z</SelectItem>
+                  <SelectItem value="name-desc" className="text-xs text-white/80 focus:bg-white/[0.10] focus:text-white">Name Z→A</SelectItem>
+                </SelectContent>
+              </Select>
               <div className="flex rounded-lg border border-white/12 overflow-hidden">
-                <button onClick={() => setViewMode('grid')} className={`h-7 w-7 flex items-center justify-center transition-all ${viewMode === 'grid' ? 'bg-[#86BBD8]/30 text-white' : 'bg-white/[0.05] text-white/50 hover:bg-white/[0.12]'}`}>
+                <button type="button" title="Grid view" onClick={() => setViewMode('grid')} className={`h-7 w-7 flex items-center justify-center transition-all ${viewMode === 'grid' ? 'bg-[#86BBD8]/30 text-white' : 'bg-white/[0.05] text-white/50 hover:bg-white/[0.12]'}`}>
                   <LayoutGrid className="h-3 w-3" />
                 </button>
-                <button onClick={() => setViewMode('table')} className={`h-7 w-7 flex items-center justify-center border-l border-white/12 transition-all ${viewMode === 'table' ? 'bg-[#86BBD8]/30 text-white' : 'bg-white/[0.05] text-white/50 hover:bg-white/[0.12]'}`}>
+                <button type="button" title="Table view" onClick={() => setViewMode('table')} className={`h-7 w-7 flex items-center justify-center border-l border-white/12 transition-all ${viewMode === 'table' ? 'bg-[#86BBD8]/30 text-white' : 'bg-white/[0.05] text-white/50 hover:bg-white/[0.12]'}`}>
                   <List className="h-3 w-3" />
                 </button>
               </div>
-              <button onClick={() => setRecordsPanelMinimized(v => !v)} className="h-6 w-6 flex items-center justify-center rounded-md bg-white/[0.07] hover:bg-white/[0.15] text-white/50 border border-white/12 transition-all">
+              <button type="button" title={recordsPanelMinimized ? 'Expand records' : 'Collapse records'} onClick={() => setRecordsPanelMinimized(v => !v)} className="h-6 w-6 flex items-center justify-center rounded-md bg-white/[0.07] hover:bg-white/[0.15] text-white/50 border border-white/12 transition-all">
                 {recordsPanelMinimized ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />}
               </button>
             </div>
@@ -1723,9 +1677,9 @@ export default function LeaveManagementPage() {
                   </p>
                   {leaves.length === 0 && (
                     <button
+                      type="button"
                       onClick={() => setShowForm(true)}
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:-translate-y-0.5"
-                      style={{ background: 'rgba(42,77,105,0.6)', border: '1px solid rgba(134,187,216,0.25)' }}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:-translate-y-0.5 bg-[#2A4D69]/60 border border-[#86BBD8]/25"
                     >
                       <Plus className="h-4 w-4" /> New Leave
                     </button>
@@ -1781,10 +1735,10 @@ export default function LeaveManagementPage() {
                           <TableCell><StatusBadge status={leave.status} /></TableCell>
                           <TableCell className="text-xs text-white/45">{formatDateTime(leave.applied_date)}</TableCell>
                           <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                            <button className="h-7 w-7 inline-flex items-center justify-center rounded-lg bg-white/[0.06] hover:bg-white/[0.15] text-white/50 transition-all mr-1" onClick={() => setSelectedLeave(leave)}>
+                            <button type="button" title="View details" className="h-7 w-7 inline-flex items-center justify-center rounded-lg bg-white/[0.06] hover:bg-white/[0.15] text-white/50 transition-all mr-1" onClick={() => setSelectedLeave(leave)}>
                               <Eye className="h-3.5 w-3.5" />
                             </button>
-                            <button className="h-7 w-7 inline-flex items-center justify-center rounded-lg bg-white/[0.06] hover:bg-white/[0.15] text-white/50 transition-all" onClick={() => { setEditData(leave); setShowForm(true); }}>
+                            <button type="button" title="Edit leave" className="h-7 w-7 inline-flex items-center justify-center rounded-lg bg-white/[0.06] hover:bg-white/[0.15] text-white/50 transition-all" onClick={() => { setEditData(leave); setShowForm(true); }}>
                               <Edit className="h-3.5 w-3.5" />
                             </button>
                           </TableCell>

@@ -3,29 +3,26 @@
 
 import React, { useState, useMemo, useEffect, useCallback } from "react";
 import {
-  Users, Plus, Search, RefreshCw, ChevronDown, ChevronUp,
-  Loader2, Clock, AlertCircle, Trash2, List, LayoutGrid, X, Edit,
-  Mail, Briefcase, Building, Calendar, GraduationCap, Award, UserCheck,
-  FilterX, Sparkles, UserRound, BriefcaseBusiness,
-  Phone, ChevronLeft, ChevronRight, ArrowUpDown, Filter,
-  ChevronRight as ChevronRightIcon
+  Users, Plus, Search, ChevronDown, ChevronUp, RefreshCw,
+  Loader2, Clock, AlertCircle, Trash2, X, Edit,
+  Mail, Briefcase, Building, Calendar, GraduationCap, UserCheck,
+  FilterX, Sparkles, UserRound, BriefcaseBusiness, Phone,
+  ChevronLeft, ChevronRight, ArrowUpDown, List, LayoutGrid,
+  ChevronRight as ChevronRightIcon, Filter, FileText, Award
 } from "lucide-react";
 import { toast } from "sonner";
-
 import { PageShell } from "@/components/PageShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter,
   DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Label } from "@/components/ui/label";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -79,210 +76,154 @@ interface EmployeeFormData {
 }
 
 type SortField = 'first_name' | 'employee_id' | 'designation' | 'department';
-type SortOrderType = 'asc' | 'desc';
+type SortDir = 'asc' | 'desc';
 
-// ─── Utilities ────────────────────────────────────────────────────────────────
+// ─── Constants ────────────────────────────────────────────────────────────────
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const EMPLOYEES_API = `${API_BASE}/api/employees`;
+const CLASS_OPTIONS = ['Permanent', 'Contract', 'Internship', 'Part-Time'] as const;
 
-function formatDate(d?: string): string {
+// ─── Design tokens ────────────────────────────────────────────────────────────
+
+const GIN = "bg-white/[0.07] border-white/[0.12] text-white placeholder:text-white/30 focus:border-[#86BBD8]/50 focus:bg-white/[0.10] h-9 text-sm";
+const LBL = "text-white/55 text-xs font-medium";
+
+// ─── Utilities ────────────────────────────────────────────────────────────────
+
+function fmtDate(d?: string) {
   if (!d) return '—';
-  try {
-    return new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-  } catch { return d; }
+  try { return new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }); }
+  catch { return d; }
 }
 
-function calculateTenure(engagementDate?: string): string {
-  if (!engagementDate) return '—';
+function tenure(eng?: string) {
+  if (!eng) return '—';
   try {
-    const start = new Date(engagementDate);
-    if (isNaN(start.getTime())) return '—';
-    const now = new Date();
-    let years = now.getFullYear() - start.getFullYear();
-    let months = now.getMonth() - start.getMonth();
-    if (months < 0) { years--; months += 12; }
-    if (years === 0 && months === 0) return '<1 month';
-    const parts: string[] = [];
-    if (years > 0) parts.push(`${years}y`);
-    if (months > 0) parts.push(`${months}m`);
-    return parts.join(' ');
+    const s = new Date(eng); const n = new Date();
+    if (isNaN(s.getTime())) return '—';
+    let y = n.getFullYear() - s.getFullYear(), m = n.getMonth() - s.getMonth();
+    if (m < 0) { y--; m += 12; }
+    if (y === 0 && m === 0) return '<1 mo';
+    return [y > 0 && `${y}y`, m > 0 && `${m}m`].filter(Boolean).join(' ');
   } catch { return '—'; }
 }
 
-function getInitials(first: string, last: string): string {
-  return `${first?.[0] || ''}${last?.[0] || ''}`.toUpperCase();
-}
+function initials(f: string, l: string) { return `${f?.[0] || ''}${l?.[0] || ''}`.toUpperCase(); }
 
-function classBadgeColor(cls?: string): string {
+function classPill(cls?: string) {
   const map: Record<string, string> = {
-    Permanent: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
-    Contract: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
-    Internship: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
-    'Part-Time': 'bg-purple-500/20 text-purple-300 border-purple-500/30',
+    Permanent:  'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+    Contract:   'bg-amber-500/20  text-amber-300  border-amber-500/30',
+    Internship: 'bg-blue-500/20   text-blue-300   border-blue-500/30',
+    'Part-Time':'bg-purple-500/20 text-purple-300 border-purple-500/30',
   };
-  return map[cls || ''] ?? 'bg-white/10 text-white/60 border-white/20';
+  return map[cls || ''] ?? 'bg-white/10 text-white/55 border-white/12';
 }
 
-// ─── API ──────────────────────────────────────────────────────────────────────
+// ─── InfoField — maintenance-style label/value pair ───────────────────────────
 
-async function fetchEmployees(): Promise<Employee[]> {
-  const res = await fetch(EMPLOYEES_API);
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || `Failed to fetch: ${res.status}`);
-  }
-  return res.json();
-}
-
-async function createEmployee(data: EmployeeFormData): Promise<Employee> {
-  const res = await fetch(EMPLOYEES_API, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    const detail = err.detail;
-    throw new Error(
-      Array.isArray(detail) ? detail.map((e: { msg?: string }) => e.msg || String(e)).join('; ')
-        : typeof detail === 'string' ? detail : `Failed to create: ${res.status}`
-    );
-  }
-  return res.json();
-}
-
-async function updateEmployee(employeeId: number, data: EmployeeFormData): Promise<Employee> {
-  // Include employee_id so users can correct it
-  const payload: Record<string, unknown> = { ...data };
-
-  payload.qualifications = data.qualifications || [];
-  payload.offences = data.offences || [];
-  payload.awards_recognition = data.awards_recognition || [];
-  payload.other_positions = data.other_positions || [];
-
-  const optionalStrings: (keyof EmployeeFormData)[] = [
-    'employee_class', 'supervisor', 'section', 'department',
-    'grade', 'previous_employer', 'drivers_license_class',
-  ];
-  for (const field of optionalStrings) {
-    if (payload[field] === '') delete payload[field];
-  }
-
-  const res = await fetch(`${EMPLOYEES_API}/${employeeId}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) {
-    let msg: string;
-    try {
-      const err = await res.json();
-      const detail = err.detail;
-      msg = Array.isArray(detail) ? detail.map((e: { msg?: string }) => e.msg || String(e)).join('; ')
-        : typeof detail === 'string' ? detail : err.message || `Failed to update: ${res.status}`;
-    } catch { msg = `Failed to update: ${res.status}`; }
-    throw new Error(msg);
-  }
-  return res.json();
-}
-
-async function deleteEmployee(employeeId: number): Promise<void> {
-  const res = await fetch(`${EMPLOYEES_API}/${employeeId}`, { method: 'DELETE' });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || `Failed to delete: ${res.status}`);
-  }
-}
-
-// ─── StatCard ─────────────────────────────────────────────────────────────────
-
-interface StatCardProps {
-  title: string;
-  value: number;
-  icon: React.ComponentType<{ className?: string }>;
-}
-
-function StatCard({ title, value, icon: Icon }: StatCardProps) {
+function InfoField({ label, value }: { label: string; value?: string | null }) {
   return (
-    <div className="oz-glass-panel rounded-xl p-5">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-[11px] text-white/40 mb-1 uppercase tracking-wide">{title}</p>
-          <p className="text-3xl font-bold text-white">{value}</p>
-        </div>
-        <div className="h-11 w-11 rounded-full bg-white/[0.08] flex items-center justify-center flex-shrink-0">
-          <Icon className="h-5 w-5 text-[#86BBD8]" />
-        </div>
-      </div>
+    <div>
+      <div className="text-white/35 text-[10px] uppercase tracking-wide mb-0.5">{label}</div>
+      <div className="text-white/80 text-sm">{value || '—'}</div>
     </div>
   );
 }
 
-// ─── EmployeeForm ─────────────────────────────────────────────────────────────
+// ─── API ──────────────────────────────────────────────────────────────────────
+
+async function apiFetch<T>(url: string, opts?: RequestInit): Promise<T> {
+  const r = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...opts });
+  if (!r.ok) {
+    const e = await r.json().catch(() => ({}));
+    const d = e.detail;
+    throw new Error(
+      Array.isArray(d) ? d.map((x: { msg?: string }) => x.msg || String(x)).join('; ')
+        : typeof d === 'string' ? d : e.message || `HTTP ${r.status}`
+    );
+  }
+  return r.json();
+}
+
+async function loadEmployees() { return apiFetch<Employee[]>(EMPLOYEES_API); }
+async function saveEmployee(data: EmployeeFormData, id?: number) {
+  if (id) return apiFetch<Employee>(`${EMPLOYEES_API}/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+  return apiFetch<Employee>(EMPLOYEES_API, { method: 'POST', body: JSON.stringify(data) });
+}
+async function removeEmployee(id: number) {
+  await apiFetch(`${EMPLOYEES_API}/${id}`, { method: 'DELETE' });
+}
+
+// ─── EmployeeForm — dark glass inputs ────────────────────────────────────────
 
 interface EmployeeFormProps {
   initialData?: Employee | null;
-  onSubmit: (data: EmployeeFormData) => Promise<void>;
+  onSubmit: (d: EmployeeFormData) => Promise<void>;
   onCancel: () => void;
   isSubmitting: boolean;
 }
 
+const EMPTY_FORM: EmployeeFormData = {
+  employee_id: '', first_name: '', last_name: '', id_number: '',
+  email: '', phone: '', address: '', date_of_engagement: '', designation: '',
+  employee_class: '', supervisor: '', section: '', department: '', grade: '',
+  qualifications: [], drivers_license_class: '', ppe_issue_date: '',
+  offences: [], awards_recognition: [], other_positions: [], previous_employer: '',
+};
+
 function EmployeeForm({ initialData, onSubmit, onCancel, isSubmitting }: EmployeeFormProps) {
-  const [form, setForm] = useState<EmployeeFormData>({
-    employee_id: initialData?.employee_id || '',
-    first_name: initialData?.first_name || '',
-    last_name: initialData?.last_name || '',
-    id_number: initialData?.id_number || '',
-    email: initialData?.email || '',
-    phone: initialData?.phone || '',
-    address: initialData?.address || '',
-    date_of_engagement: initialData?.date_of_engagement || '',
-    designation: initialData?.designation || '',
-    employee_class: initialData?.employee_class || '',
-    supervisor: initialData?.supervisor || '',
-    section: initialData?.section || '',
-    department: initialData?.department || '',
-    grade: initialData?.grade || '',
-    qualifications: initialData?.qualifications || [],
-    drivers_license_class: initialData?.drivers_license_class || '',
-    ppe_issue_date: initialData?.ppe_issue_date || '',
-    offences: initialData?.offences || [],
-    awards_recognition: initialData?.awards_recognition || [],
-    other_positions: initialData?.other_positions || [],
-    previous_employer: initialData?.previous_employer || '',
-  });
+  const [form, setForm] = useState<EmployeeFormData>(
+    initialData ? {
+      employee_id: initialData.employee_id || '',
+      first_name: initialData.first_name || '',
+      last_name: initialData.last_name || '',
+      id_number: initialData.id_number || '',
+      email: initialData.email || '',
+      phone: initialData.phone || '',
+      address: initialData.address || '',
+      date_of_engagement: initialData.date_of_engagement || '',
+      designation: initialData.designation || '',
+      employee_class: initialData.employee_class || '',
+      supervisor: initialData.supervisor || '',
+      section: initialData.section || '',
+      department: initialData.department || '',
+      grade: initialData.grade || '',
+      qualifications: initialData.qualifications || [],
+      drivers_license_class: initialData.drivers_license_class || '',
+      ppe_issue_date: initialData.ppe_issue_date || '',
+      offences: initialData.offences || [],
+      awards_recognition: initialData.awards_recognition || [],
+      other_positions: initialData.other_positions || [],
+      previous_employer: initialData.previous_employer || '',
+    } : { ...EMPTY_FORM }
+  );
 
-  const [tempQual, setTempQual] = useState('');
-  const [tempOffence, setTempOffence] = useState('');
-  const [tempAward, setTempAward] = useState('');
-  const [tempPos, setTempPos] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [section, setSection] = useState<'basic' | 'employment' | 'qualifications' | 'additional'>('basic');
+  const [tab, setTab] = useState<'basic' | 'employment' | 'qualifications' | 'additional'>('basic');
+  const [temps, setTemps] = useState({ qual: '', offence: '', award: '', pos: '' });
 
-  const set = (field: keyof EmployeeFormData, value: string | string[]) => {
-    setForm(p => ({ ...p, [field]: value }));
-    if (errors[field]) setErrors(p => { const n = { ...p }; delete n[field]; return n; });
+  const set = (f: keyof EmployeeFormData, v: string | string[]) => {
+    setForm(p => ({ ...p, [f]: v }));
+    if (errors[f]) setErrors(p => { const n = { ...p }; delete n[f]; return n; });
   };
-
-  const addItem = (field: keyof EmployeeFormData, val: string, clear: (v: string) => void) => {
-    if (val.trim()) { set(field, [...(form[field] as string[]), val.trim()]); clear(''); }
+  const addItem = (f: keyof EmployeeFormData, v: string, k: keyof typeof temps) => {
+    if (v.trim()) { set(f, [...(form[f] as string[]), v.trim()]); setTemps(p => ({ ...p, [k]: '' })); }
   };
+  const rmItem = (f: keyof EmployeeFormData, i: number) =>
+    set(f, (form[f] as string[]).filter((_, j) => j !== i));
 
-  const removeItem = (field: keyof EmployeeFormData, idx: number) => {
-    set(field, (form[field] as string[]).filter((_, i) => i !== idx));
-  };
-
-  const validate = (): boolean => {
+  const validate = () => {
     const e: Record<string, string> = {};
-    if (!form.employee_id.trim()) e.employee_id = 'Employee ID is required';
-    if (!form.first_name.trim()) e.first_name = 'First name is required';
-    if (!form.last_name.trim()) e.last_name = 'Last name is required';
-    if (!form.id_number.trim()) e.id_number = 'ID number is required';
-    if (!form.date_of_engagement) e.date_of_engagement = 'Engagement date is required';
-    if (!form.designation.trim()) e.designation = 'Designation is required';
+    if (!form.employee_id.trim()) e.employee_id = 'Required';
+    if (!form.first_name.trim()) e.first_name = 'Required';
+    if (!form.last_name.trim()) e.last_name = 'Required';
+    if (!form.id_number.trim()) e.id_number = 'Required';
+    if (!form.date_of_engagement) e.date_of_engagement = 'Required';
+    if (!form.designation.trim()) e.designation = 'Required';
     setErrors(e);
-    return Object.keys(e).length === 0;
+    return !Object.keys(e).length;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -291,6 +232,8 @@ function EmployeeForm({ initialData, onSubmit, onCancel, isSubmitting }: Employe
     await onSubmit(form);
   };
 
+  const textInp = `flex w-full rounded-lg border px-3 py-2 text-sm outline-none transition-colors ${GIN}`;
+
   const tabs = [
     { id: 'basic' as const, label: 'Personal', icon: UserRound },
     { id: 'employment' as const, label: 'Employment', icon: BriefcaseBusiness },
@@ -298,218 +241,177 @@ function EmployeeForm({ initialData, onSubmit, onCancel, isSubmitting }: Employe
     { id: 'additional' as const, label: 'Additional', icon: Sparkles },
   ];
 
-  const inp = (field: string) =>
-    `bg-white border-gray-200 text-gray-900 placeholder:text-gray-400 focus:ring-1 focus:ring-[#2A4D69] ${errors[field] ? 'border-red-400' : ''}`;
-
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
-      {/* Tab nav */}
-      <div className="flex gap-1.5 border-b pb-3 flex-wrap">
+      {/* Tabs */}
+      <div className="flex gap-1 border-b border-white/[0.08] pb-3 flex-wrap">
         {tabs.map(t => {
           const Icon = t.icon;
           return (
-            <Button key={t.id} type="button" variant={section === t.id ? 'default' : 'ghost'} size="sm"
-              onClick={() => setSection(t.id)} className="gap-2">
-              <Icon className="h-4 w-4" />{t.label}
-            </Button>
+            <button key={t.id} type="button" onClick={() => setTab(t.id)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                tab === t.id
+                  ? 'bg-[#86BBD8]/20 text-white border border-[#86BBD8]/30'
+                  : 'text-white/45 hover:bg-white/[0.07] hover:text-white/70'
+              }`}>
+              <Icon className="h-3.5 w-3.5" />{t.label}
+            </button>
           );
         })}
       </div>
 
-      <ScrollArea className="max-h-[60vh] pr-4">
-
-        {section === 'basic' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div className="space-y-1.5">
-              <Label>Employee ID *</Label>
-              <Input value={form.employee_id} onChange={e => set('employee_id', e.target.value.toUpperCase())}
-                placeholder="e.g., C1165" className={inp('employee_id')} />
-              {errors.employee_id && <p className="text-xs text-red-500">{errors.employee_id}</p>}
-            </div>
-            <div className="space-y-1.5">
-              <Label>First Name *</Label>
-              <Input value={form.first_name} onChange={e => set('first_name', e.target.value)} className={inp('first_name')} />
-              {errors.first_name && <p className="text-xs text-red-500">{errors.first_name}</p>}
-            </div>
-            <div className="space-y-1.5">
-              <Label>Last Name *</Label>
-              <Input value={form.last_name} onChange={e => set('last_name', e.target.value)} className={inp('last_name')} />
-              {errors.last_name && <p className="text-xs text-red-500">{errors.last_name}</p>}
-            </div>
-            <div className="space-y-1.5">
-              <Label>ID Number *</Label>
-              <Input value={form.id_number} onChange={e => set('id_number', e.target.value)} className={inp('id_number')} />
-              {errors.id_number && <p className="text-xs text-red-500">{errors.id_number}</p>}
-            </div>
-            <div className="space-y-1.5">
-              <Label>Email</Label>
-              <Input type="email" value={form.email} onChange={e => set('email', e.target.value)}
-                placeholder="Optional" className="bg-white border-gray-200 text-gray-900" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Phone</Label>
-              <Input value={form.phone} onChange={e => set('phone', e.target.value)}
-                placeholder="Optional" className="bg-white border-gray-200 text-gray-900" />
-            </div>
+      <ScrollArea className="max-h-[54vh] pr-2">
+        {tab === 'basic' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pr-1">
+            {[
+              { f: 'employee_id', label: 'Employee ID *', ph: 'e.g. C1165, PM365', upper: true },
+              { f: 'first_name',  label: 'First Name *',  ph: 'First name' },
+              { f: 'last_name',   label: 'Last Name *',   ph: 'Last name' },
+              { f: 'id_number',   label: 'ID Number *',   ph: 'National ID or passport' },
+              { f: 'email',       label: 'Email',         ph: 'Optional', type: 'email' },
+              { f: 'phone',       label: 'Phone',         ph: 'Optional' },
+            ].map(({ f, label, ph, upper, type }) => (
+              <div key={f} className="space-y-1.5">
+                <Label htmlFor={f} className={LBL}>{label}</Label>
+                <Input id={f} type={type ?? 'text'} value={(form as Record<string, unknown>)[f] as string}
+                  onChange={e => set(f as keyof EmployeeFormData, upper ? e.target.value.toUpperCase() : e.target.value)}
+                  placeholder={ph} className={`${GIN} ${errors[f] ? 'border-red-500/50' : ''}`} />
+                {errors[f] && <p className="text-xs text-red-400">{errors[f]}</p>}
+              </div>
+            ))}
             <div className="md:col-span-2 space-y-1.5">
-              <Label>Address</Label>
-              <Textarea value={form.address} onChange={e => set('address', e.target.value)}
-                rows={2} placeholder="Optional" className="resize-none bg-white border-gray-200 text-gray-900" />
+              <Label className={LBL}>Address</Label>
+              <textarea value={form.address} rows={2} placeholder="Optional"
+                onChange={e => set('address', e.target.value)}
+                className={`${textInp} resize-none`} />
             </div>
           </div>
         )}
 
-        {section === 'employment' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        {tab === 'employment' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pr-1">
             <div className="space-y-1.5">
-              <Label>Engagement Date *</Label>
-              <Input type="date" value={form.date_of_engagement}
-                onChange={e => set('date_of_engagement', e.target.value)} className={inp('date_of_engagement')} />
-              {errors.date_of_engagement && <p className="text-xs text-red-500">{errors.date_of_engagement}</p>}
+              <Label className={LBL}>Engagement Date *</Label>
+              <input type="date" value={form.date_of_engagement}
+                onChange={e => set('date_of_engagement', e.target.value)}
+                style={{ colorScheme: 'dark' }}
+                className={`${textInp} ${errors.date_of_engagement ? 'border-red-500/50' : ''}`} />
+              {errors.date_of_engagement && <p className="text-xs text-red-400">{errors.date_of_engagement}</p>}
             </div>
             <div className="space-y-1.5">
-              <Label>Designation *</Label>
-              <Input value={form.designation} onChange={e => set('designation', e.target.value)} className={inp('designation')} />
-              {errors.designation && <p className="text-xs text-red-500">{errors.designation}</p>}
+              <Label className={LBL}>Designation *</Label>
+              <Input value={form.designation} placeholder="Job title / position"
+                onChange={e => set('designation', e.target.value)}
+                className={`${GIN} ${errors.designation ? 'border-red-500/50' : ''}`} />
+              {errors.designation && <p className="text-xs text-red-400">{errors.designation}</p>}
             </div>
             <div className="space-y-1.5">
-              <Label>Employee Class</Label>
+              <Label className={LBL}>Employee Class</Label>
               <Select value={form.employee_class || 'none'} onValueChange={v => set('employee_class', v === 'none' ? '' : v)}>
-                <SelectTrigger className="bg-white border-gray-200 text-gray-900"><SelectValue placeholder="Select class" /></SelectTrigger>
-                <SelectContent>
+                <SelectTrigger className="h-9 bg-white/[0.07] border-white/[0.12] text-white text-sm">
+                  <SelectValue placeholder="Select class" />
+                </SelectTrigger>
+                <SelectContent className="bg-[#0d1f33] border-white/10 text-white">
                   <SelectItem value="none">None</SelectItem>
-                  <SelectItem value="Permanent">Permanent</SelectItem>
-                  <SelectItem value="Contract">Contract</SelectItem>
-                  <SelectItem value="Internship">Internship</SelectItem>
-                  <SelectItem value="Part-Time">Part-Time</SelectItem>
+                  {CLASS_OPTIONS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5">
-              <Label>Department</Label>
-              <Input value={form.department} onChange={e => set('department', e.target.value)}
-                placeholder="Optional" className="bg-white border-gray-200 text-gray-900" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Section</Label>
-              <Input value={form.section} onChange={e => set('section', e.target.value)}
-                placeholder="Optional" className="bg-white border-gray-200 text-gray-900" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Grade</Label>
-              <Input value={form.grade} onChange={e => set('grade', e.target.value)}
-                placeholder="Optional" className="bg-white border-gray-200 text-gray-900" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Supervisor</Label>
-              <Input value={form.supervisor} onChange={e => set('supervisor', e.target.value)}
-                placeholder="Optional" className="bg-white border-gray-200 text-gray-900" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Previous Employer</Label>
-              <Input value={form.previous_employer} onChange={e => set('previous_employer', e.target.value)}
-                placeholder="Optional" className="bg-white border-gray-200 text-gray-900" />
-            </div>
+            {[
+              { f: 'department',       label: 'Department' },
+              { f: 'section',          label: 'Section' },
+              { f: 'grade',            label: 'Grade' },
+              { f: 'supervisor',       label: 'Supervisor' },
+              { f: 'previous_employer',label: 'Previous Employer' },
+            ].map(({ f, label }) => (
+              <div key={f} className="space-y-1.5">
+                <Label className={LBL}>{label}</Label>
+                <Input value={(form as Record<string, unknown>)[f] as string}
+                  onChange={e => set(f as keyof EmployeeFormData, e.target.value)}
+                  placeholder="Optional" className={GIN} />
+              </div>
+            ))}
           </div>
         )}
 
-        {section === 'qualifications' && (
-          <div className="space-y-4">
+        {tab === 'qualifications' && (
+          <div className="space-y-5 pr-1">
             <div className="space-y-2">
-              <Label>Qualifications</Label>
+              <Label className={LBL}>Qualifications</Label>
               <div className="flex gap-2">
-                <Input placeholder="Add qualification" value={tempQual} onChange={e => setTempQual(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addItem('qualifications', tempQual, setTempQual))}
-                  className="bg-white border-gray-200 text-gray-900" />
-                <Button type="button" variant="outline" onClick={() => addItem('qualifications', tempQual, setTempQual)}>Add</Button>
+                <Input value={temps.qual} placeholder="Add a qualification"
+                  onChange={e => setTemps(p => ({ ...p, qual: e.target.value }))}
+                  onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addItem('qualifications', temps.qual, 'qual'))}
+                  className={GIN} />
+                <button type="button" onClick={() => addItem('qualifications', temps.qual, 'qual')}
+                  className="px-3 py-2 rounded-lg bg-[#86BBD8]/20 hover:bg-[#86BBD8]/35 text-white border border-[#86BBD8]/30 text-sm transition-all whitespace-nowrap">
+                  Add
+                </button>
               </div>
               <div className="flex flex-wrap gap-1.5">
-                {form.qualifications.map((q, i) => (
-                  <Badge key={i} variant="secondary" className="gap-1">
-                    {q}
-                    <button type="button" onClick={() => removeItem('qualifications', i)} className="ml-1 hover:text-red-500"><X className="h-3 w-3" /></button>
-                  </Badge>
+                {form.qualifications.map((item, i) => (
+                  <span key={i} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#86BBD8]/15 text-[#86BBD8] text-xs border border-[#86BBD8]/25 font-medium">
+                    {item}
+                    <button type="button" aria-label="Remove" onClick={() => rmItem('qualifications', i)} className="hover:text-red-400 ml-0.5 transition-colors"><X className="h-3 w-3" /></button>
+                  </span>
                 ))}
               </div>
             </div>
           </div>
         )}
 
-        {section === 'additional' && (
-          <div className="space-y-5">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        {tab === 'additional' && (
+          <div className="space-y-5 pr-1">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label>Driver&apos;s License Class</Label>
-                <Input value={form.drivers_license_class} onChange={e => set('drivers_license_class', e.target.value)}
-                  placeholder="Optional" className="bg-white border-gray-200 text-gray-900" />
+                <Label className={LBL}>Driver&apos;s License Class</Label>
+                <Input value={form.drivers_license_class} placeholder="Optional"
+                  onChange={e => set('drivers_license_class', e.target.value)} className={GIN} />
               </div>
               <div className="space-y-1.5">
-                <Label>PPE Issue Date</Label>
-                <Input type="date" value={form.ppe_issue_date} onChange={e => set('ppe_issue_date', e.target.value)}
-                  className="bg-white border-gray-200 text-gray-900" />
+                <Label className={LBL}>PPE Issue Date</Label>
+                <input type="date" value={form.ppe_issue_date} style={{ colorScheme: 'dark' }}
+                  onChange={e => set('ppe_issue_date', e.target.value)} className={textInp} />
               </div>
             </div>
-
-            <div className="space-y-2">
-              <Label>Other Positions</Label>
-              <div className="flex gap-2">
-                <Input placeholder="Add other position" value={tempPos} onChange={e => setTempPos(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addItem('other_positions', tempPos, setTempPos))}
-                  className="bg-white border-gray-200 text-gray-900" />
-                <Button type="button" variant="outline" onClick={() => addItem('other_positions', tempPos, setTempPos)}>Add</Button>
+            {([
+              { f: 'other_positions'   as const, label: 'Other Positions',      k: 'pos'     as const, ph: 'Add position' },
+              { f: 'awards_recognition'as const, label: 'Awards & Recognition', k: 'award'   as const, ph: 'Add award or recognition' },
+              { f: 'offences'          as const, label: 'Offences',             k: 'offence' as const, ph: 'Add offence record' },
+            ]).map(({ f, label, k, ph }) => (
+              <div key={f} className="space-y-2">
+                <Label className={LBL}>{label}</Label>
+                <div className="flex gap-2">
+                  <Input value={temps[k]} placeholder={ph}
+                    onChange={e => setTemps(p => ({ ...p, [k]: e.target.value }))}
+                    onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addItem(f, temps[k], k))}
+                    className={GIN} />
+                  <button type="button" onClick={() => addItem(f, temps[k], k)}
+                    className="px-3 py-2 rounded-lg bg-[#86BBD8]/20 hover:bg-[#86BBD8]/35 text-white border border-[#86BBD8]/30 text-sm transition-all whitespace-nowrap">
+                    Add
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {(form[f] as string[]).map((item, i) => (
+                    <span key={i} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/[0.08] text-white/70 text-xs border border-white/12">
+                      {item}
+                      <button type="button" aria-label="Remove" onClick={() => rmItem(f, i)} className="hover:text-red-400 ml-0.5 transition-colors"><X className="h-3 w-3" /></button>
+                    </span>
+                  ))}
+                </div>
               </div>
-              <div className="flex flex-wrap gap-1.5">
-                {form.other_positions.map((p, i) => (
-                  <Badge key={i} variant="outline" className="gap-1">
-                    {p}<button type="button" onClick={() => removeItem('other_positions', i)} className="ml-1 hover:text-red-500"><X className="h-3 w-3" /></button>
-                  </Badge>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Awards &amp; Recognition</Label>
-              <div className="flex gap-2">
-                <Input placeholder="Add award" value={tempAward} onChange={e => setTempAward(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addItem('awards_recognition', tempAward, setTempAward))}
-                  className="bg-white border-gray-200 text-gray-900" />
-                <Button type="button" variant="outline" onClick={() => addItem('awards_recognition', tempAward, setTempAward)}>Add</Button>
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {form.awards_recognition.map((a, i) => (
-                  <Badge key={i} variant="outline" className="gap-1">
-                    <Award className="h-3 w-3" />{a}
-                    <button type="button" onClick={() => removeItem('awards_recognition', i)} className="ml-1 hover:text-red-500"><X className="h-3 w-3" /></button>
-                  </Badge>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Offences</Label>
-              <div className="flex gap-2">
-                <Input placeholder="Add offence record" value={tempOffence} onChange={e => setTempOffence(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addItem('offences', tempOffence, setTempOffence))}
-                  className="bg-white border-gray-200 text-gray-900" />
-                <Button type="button" variant="outline" onClick={() => addItem('offences', tempOffence, setTempOffence)}>Add</Button>
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {form.offences.map((o, i) => (
-                  <Badge key={i} variant="outline" className="gap-1 border-red-200 text-red-700">
-                    <AlertCircle className="h-3 w-3" />{o}
-                    <button type="button" onClick={() => removeItem('offences', i)} className="ml-1 hover:text-red-700"><X className="h-3 w-3" /></button>
-                  </Badge>
-                ))}
-              </div>
-            </div>
+            ))}
           </div>
         )}
-
       </ScrollArea>
 
-      <DialogFooter className="gap-3 pt-4 border-t">
-        <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>
-        <Button type="submit" disabled={isSubmitting} className="bg-[#2A4D69] hover:bg-[#1e3a52] text-white">
+      <DialogFooter className="gap-2 pt-4 border-t border-white/[0.08]">
+        <Button type="button" onClick={onCancel}
+          className="bg-white/[0.07] hover:bg-white/[0.14] text-white/70 border border-white/12">
+          Cancel
+        </Button>
+        <Button type="submit" disabled={isSubmitting}
+          className="bg-[#86BBD8]/25 hover:bg-[#86BBD8]/40 text-white border border-[#86BBD8]/35">
           {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           {initialData ? 'Save Changes' : 'Add Employee'}
         </Button>
@@ -518,243 +420,295 @@ function EmployeeForm({ initialData, onSubmit, onCancel, isSubmitting }: Employe
   );
 }
 
-// ─── EmployeeCard ─────────────────────────────────────────────────────────────
+// ─── EmployeeRow ──────────────────────────────────────────────────────────────
 
-interface EmployeeCardProps {
-  employee: Employee;
-  onEdit: (e: Employee) => void;
-  onDelete: (e: Employee) => void;
-}
+interface EmployeeRowProps { employee: Employee; onEdit: (e: Employee) => void; onDelete: (e: Employee) => void; }
 
-function EmployeeCard({ employee, onEdit, onDelete }: EmployeeCardProps) {
+function EmployeeRow({ employee, onEdit, onDelete }: EmployeeRowProps) {
   const [expanded, setExpanded] = useState(false);
   const name = `${employee.first_name} ${employee.last_name}`;
-  const tenure = calculateTenure(employee.date_of_engagement);
-  const qualCount = employee.qualifications?.length ?? 0;
-  const awardCount = employee.awards_recognition?.length ?? 0;
-
-  return (
-    <div className="oz-glass-panel rounded-xl overflow-hidden hover:bg-white/[0.07] transition-colors">
-      <div className="p-5">
-        {/* Header row */}
-        <div className="flex items-start gap-4">
-          <div className="h-12 w-12 rounded-full bg-[#2A4D69]/60 border border-[#86BBD8]/20 flex items-center justify-center flex-shrink-0">
-            <span className="text-sm font-semibold text-white">{getInitials(employee.first_name, employee.last_name)}</span>
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-baseline gap-2 flex-wrap">
-              <span className="text-base font-semibold text-white leading-tight">{name}</span>
-              <span className="text-sm font-mono text-[#86BBD8] font-medium">{employee.employee_id}</span>
-            </div>
-            <div className="flex items-center gap-2 mt-1 flex-wrap">
-              <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${classBadgeColor(employee.employee_class)}`}>
-                {employee.employee_class || 'Unclassified'}
-              </span>
-              {employee.designation && (
-                <span className="text-xs text-white/60 flex items-center gap-1">
-                  <Briefcase className="h-3 w-3" />{employee.designation}
-                </span>
-              )}
-            </div>
-          </div>
-          <div className="flex items-center gap-0.5 flex-shrink-0">
-            <button type="button" onClick={() => setExpanded(o => !o)}
-              className="p-1.5 rounded text-white/30 hover:text-white/70 hover:bg-white/[0.06] transition-colors">
-              {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-            </button>
-            <button type="button" onClick={() => onEdit(employee)}
-              className="p-1.5 rounded text-white/30 hover:text-[#86BBD8] hover:bg-white/[0.06] transition-colors">
-              <Edit className="h-4 w-4" />
-            </button>
-            <button type="button" onClick={() => onDelete(employee)}
-              className="p-1.5 rounded text-white/30 hover:text-red-400 hover:bg-white/[0.06] transition-colors">
-              <Trash2 className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-
-        {/* Summary row */}
-        <div className="grid grid-cols-2 gap-3 mt-4 text-sm">
-          <div>
-            <p className="text-[10px] text-white/40 mb-0.5 flex items-center gap-1"><Calendar className="h-3 w-3" /> Engaged</p>
-            <p className="text-white/80">{formatDate(employee.date_of_engagement)}</p>
-          </div>
-          <div>
-            <p className="text-[10px] text-white/40 mb-0.5 flex items-center gap-1"><Clock className="h-3 w-3" /> Tenure</p>
-            <p className="text-white/80">{tenure}</p>
-          </div>
-        </div>
-
-        {/* Tag row */}
-        <div className="flex flex-wrap gap-1.5 mt-3">
-          {employee.department && (
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/[0.06] border border-white/[0.08] text-white/50 flex items-center gap-1">
-              <Building className="h-3 w-3" />{employee.department}
-            </span>
-          )}
-          {qualCount > 0 && (
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/[0.06] border border-white/[0.08] text-white/50 flex items-center gap-1">
-              <GraduationCap className="h-3 w-3" />{qualCount} qual{qualCount !== 1 ? 's' : ''}
-            </span>
-          )}
-          {awardCount > 0 && (
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/[0.06] border border-white/[0.08] text-white/50 flex items-center gap-1">
-              <Award className="h-3 w-3" />{awardCount} award{awardCount !== 1 ? 's' : ''}
-            </span>
-          )}
-        </div>
-
-        {/* Expanded details */}
-        {expanded && (
-          <div className="mt-4 pt-4 border-t border-white/[0.06] space-y-3">
-            {employee.address && (
-              <div>
-                <p className="text-[10px] text-white/40 mb-1">Address</p>
-                <p className="text-sm text-white/60 bg-white/[0.04] rounded-lg px-3 py-2">{employee.address}</p>
-              </div>
-            )}
-            <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-              {employee.id_number && (
-                <div><p className="text-[10px] text-white/40">ID No.</p><p className="text-white/70">{employee.id_number}</p></div>
-              )}
-              {employee.section && (
-                <div><p className="text-[10px] text-white/40">Section</p><p className="text-white/70">{employee.section}</p></div>
-              )}
-              {employee.grade && (
-                <div><p className="text-[10px] text-white/40">Grade</p><p className="text-white/70">{employee.grade}</p></div>
-              )}
-              {employee.supervisor && (
-                <div><p className="text-[10px] text-white/40">Supervisor</p><p className="text-white/70">{employee.supervisor}</p></div>
-              )}
-              {employee.email && (
-                <div><p className="text-[10px] text-white/40">Email</p><p className="text-white/70 text-xs truncate">{employee.email}</p></div>
-              )}
-              {employee.phone && (
-                <div><p className="text-[10px] text-white/40">Phone</p><p className="text-white/70">{employee.phone}</p></div>
-              )}
-            </div>
-            {qualCount > 0 && (
-              <div>
-                <p className="text-[10px] text-white/40 mb-1.5">Qualifications</p>
-                <div className="flex flex-wrap gap-1">
-                  {employee.qualifications!.map((q, i) => (
-                    <span key={i} className="text-[10px] px-2 py-0.5 rounded-full bg-[#2A4D69]/40 border border-[#86BBD8]/20 text-[#86BBD8]">{q}</span>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      <div className="px-5 py-2.5 border-t border-white/[0.05] bg-white/[0.02]">
-        <button type="button" onClick={() => onEdit(employee)}
-          className="w-full text-xs text-white/30 hover:text-white/60 flex items-center justify-center gap-1.5 transition-colors">
-          <Edit className="h-3 w-3" /> Edit employee details
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// ─── EmployeeListItem ─────────────────────────────────────────────────────────
-
-interface EmployeeListItemProps {
-  employee: Employee;
-  onEdit: (e: Employee) => void;
-  onDelete: (e: Employee) => void;
-}
-
-function EmployeeListItem({ employee, onEdit, onDelete }: EmployeeListItemProps) {
-  const [expanded, setExpanded] = useState(false);
-  const name = `${employee.first_name} ${employee.last_name}`;
-  const tenure = calculateTenure(employee.date_of_engagement);
-  const qualCount = employee.qualifications?.length ?? 0;
+  const t = tenure(employee.date_of_engagement);
+  const quals = employee.qualifications?.length ?? 0;
 
   return (
     <div className="border-b border-white/[0.05]">
-      <div className="flex items-center gap-3 px-5 py-3 hover:bg-white/[0.03] transition-colors group">
+      <div className="flex items-center gap-3.5 px-5 py-3 hover:bg-white/[0.03] transition-colors group">
         {/* Avatar */}
-        <div className="h-9 w-9 rounded-full bg-[#2A4D69]/60 border border-[#86BBD8]/20 flex items-center justify-center flex-shrink-0">
-          <span className="text-xs font-semibold text-white">{getInitials(employee.first_name, employee.last_name)}</span>
+        <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-[#2A4D69] to-[#86BBD8] flex items-center justify-center text-white font-bold text-sm shadow-lg flex-shrink-0">
+          {initials(employee.first_name, employee.last_name)}
         </div>
 
         {/* Name + meta */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-baseline gap-2 flex-wrap">
-            <span className="font-medium text-white text-sm">{name}</span>
-            <span className="text-xs font-mono text-[#86BBD8]">{employee.employee_id}</span>
-            <span className={`text-[10px] px-1.5 py-0.5 rounded-full border ${classBadgeColor(employee.employee_class)}`}>
-              {employee.employee_class || 'Unclassified'}
+        <button type="button" onClick={() => setExpanded(o => !o)} className="flex-1 min-w-0 text-left">
+          <div className="text-white/90 font-semibold text-sm group-hover:text-white transition-colors">
+            {name}
+          </div>
+          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+            <span className="text-white/40 text-xs font-mono">{employee.employee_id}</span>
+            {employee.designation && <span className="text-white/40 text-xs">· {employee.designation}</span>}
+            {employee.department  && <span className="text-white/30 text-xs">· {employee.department}</span>}
+          </div>
+        </button>
+
+        {/* Right: pills + tenure + actions */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <span className={`hidden sm:inline-flex text-[10px] px-2 py-0.5 rounded-full border font-medium ${classPill(employee.employee_class)}`}>
+            {employee.employee_class || 'Unclassified'}
+          </span>
+          <span className="hidden md:flex items-center gap-1 text-[11px] text-white/35">
+            <Clock className="h-3 w-3" />{t}
+          </span>
+          {quals > 0 && (
+            <span className="hidden lg:flex items-center gap-1 text-[11px] text-white/35">
+              <GraduationCap className="h-3 w-3" />{quals}
             </span>
-          </div>
-          <div className="flex items-center gap-3 text-[11px] text-white/45 mt-0.5 flex-wrap">
-            {employee.designation && <span className="flex items-center gap-1"><Briefcase className="h-3 w-3" />{employee.designation}</span>}
-            {employee.department && <span className="flex items-center gap-1"><Building className="h-3 w-3" />{employee.department}</span>}
-            <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{tenure}</span>
-            {qualCount > 0 && <span className="flex items-center gap-1"><GraduationCap className="h-3 w-3" />{qualCount} qual</span>}
-          </div>
+          )}
         </div>
 
-        {/* Actions */}
-        <div className="flex items-center gap-0.5 flex-shrink-0">
-          <button type="button" onClick={() => setExpanded(o => !o)}
-            className="p-1 rounded text-white/20 hover:text-white/60 hover:bg-white/[0.06] transition-colors">
-            {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          </button>
+        {/* Hover actions */}
+        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
           {employee.email && (
-            <button type="button" onClick={() => window.open(`mailto:${employee.email}`, '_blank')}
-              className="p-1 rounded text-white/20 hover:text-[#86BBD8] hover:bg-white/[0.06] transition-colors">
-              <Mail className="h-4 w-4" />
+            <button type="button" title="Send email" onClick={() => window.open(`mailto:${employee.email}`, '_blank')}
+              className="h-7 w-7 flex items-center justify-center rounded-lg bg-white/[0.06] hover:bg-white/[0.14] text-white/40 border border-white/10 transition-all">
+              <Mail className="h-3.5 w-3.5" />
             </button>
           )}
-          <button type="button" onClick={() => onEdit(employee)}
-            className="p-1 rounded text-white/20 hover:text-[#86BBD8] hover:bg-white/[0.06] transition-colors">
-            <Edit className="h-4 w-4" />
+          {employee.phone && (
+            <button type="button" title="Call" onClick={() => window.open(`tel:${employee.phone}`, '_self')}
+              className="h-7 w-7 flex items-center justify-center rounded-lg bg-white/[0.06] hover:bg-white/[0.14] text-white/40 border border-white/10 transition-all">
+              <Phone className="h-3.5 w-3.5" />
+            </button>
+          )}
+          <button type="button" title="Edit employee" onClick={() => onEdit(employee)}
+            className="h-7 w-7 flex items-center justify-center rounded-lg bg-[#86BBD8]/[0.12] hover:bg-[#86BBD8]/25 text-[#86BBD8]/70 hover:text-[#86BBD8] border border-[#86BBD8]/20 transition-all">
+            <Edit className="h-3.5 w-3.5" />
           </button>
-          <button type="button" onClick={() => onDelete(employee)}
-            className="p-1 rounded text-white/20 hover:text-red-400 hover:bg-white/[0.06] transition-colors">
-            <Trash2 className="h-4 w-4" />
+          <button type="button" title="Delete employee" onClick={() => onDelete(employee)}
+            className="h-7 w-7 flex items-center justify-center rounded-lg bg-white/[0.06] hover:bg-red-500/15 text-white/30 hover:text-red-400 border border-white/10 transition-all">
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+          <button type="button" title={expanded ? 'Collapse' : 'Expand'} onClick={() => setExpanded(o => !o)}
+            className="h-7 w-7 flex items-center justify-center rounded-lg bg-white/[0.06] hover:bg-white/[0.14] text-white/40 border border-white/10 transition-all">
+            {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
           </button>
         </div>
+
+        {/* Mobile expand */}
+        <button type="button" title={expanded ? 'Collapse' : 'Expand'} onClick={() => setExpanded(o => !o)}
+          className="h-7 w-7 flex items-center justify-center rounded-lg text-white/25 hover:text-white/60 transition-all md:hidden">
+          {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+        </button>
       </div>
 
-      {/* Expanded quick-view */}
+      {/* ── Expanded detail — maintenance style ─────────────────────────── */}
       {expanded && (
-        <div className="px-14 pb-4 pt-2 bg-white/[0.02] border-t border-white/[0.04]">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <p className="text-[10px] font-medium text-white/40 mb-1.5 uppercase tracking-wide">Personal</p>
-              <div className="space-y-1 text-xs text-white/60">
-                {employee.id_number && <div><span className="text-white/35">ID No.:</span> {employee.id_number}</div>}
-                {employee.address && <div><span className="text-white/35">Address:</span> {employee.address}</div>}
-                {employee.email && <div><span className="text-white/35">Email:</span> {employee.email}</div>}
-                {employee.phone && <div><span className="text-white/35">Phone:</span> {employee.phone}</div>}
+        <div className="px-5 pb-4 pt-3 border-t border-white/[0.05] bg-white/[0.02] space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {/* Personal section */}
+            <div className="bg-white/[0.04] rounded-xl border border-white/[0.06] overflow-hidden">
+              <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-white/[0.05]">
+                <UserRound className="h-3.5 w-3.5 text-[#86BBD8]" />
+                <span className="text-xs font-semibold text-white/75 uppercase tracking-wider">Personal</span>
+              </div>
+              <div className="px-3.5 py-3 grid grid-cols-2 gap-x-6 gap-y-2.5">
+                <InfoField label="ID Number" value={employee.id_number} />
+                <InfoField label="Phone" value={employee.phone} />
+                <div className="col-span-2"><InfoField label="Email" value={employee.email} /></div>
+                {employee.address && <div className="col-span-2"><InfoField label="Address" value={employee.address} /></div>}
               </div>
             </div>
-            <div>
-              <p className="text-[10px] font-medium text-white/40 mb-1.5 uppercase tracking-wide">Employment</p>
-              <div className="space-y-1 text-xs text-white/60">
-                <div><span className="text-white/35">Engaged:</span> {formatDate(employee.date_of_engagement)}</div>
-                <div><span className="text-white/35">Tenure:</span> {tenure}</div>
-                {employee.section && <div><span className="text-white/35">Section:</span> {employee.section}</div>}
-                {employee.grade && <div><span className="text-white/35">Grade:</span> {employee.grade}</div>}
-                {employee.supervisor && <div><span className="text-white/35">Supervisor:</span> {employee.supervisor}</div>}
+
+            {/* Employment section */}
+            <div className="bg-white/[0.04] rounded-xl border border-white/[0.06] overflow-hidden">
+              <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-white/[0.05]">
+                <BriefcaseBusiness className="h-3.5 w-3.5 text-[#86BBD8]" />
+                <span className="text-xs font-semibold text-white/75 uppercase tracking-wider">Employment</span>
+              </div>
+              <div className="px-3.5 py-3 grid grid-cols-2 gap-x-6 gap-y-2.5">
+                <InfoField label="Engaged" value={fmtDate(employee.date_of_engagement)} />
+                <InfoField label="Tenure"  value={t} />
+                <InfoField label="Section" value={employee.section} />
+                <InfoField label="Grade"   value={employee.grade} />
+                <InfoField label="Supervisor" value={employee.supervisor} />
+                <InfoField label="Prev. Employer" value={employee.previous_employer} />
               </div>
             </div>
           </div>
-          {qualCount > 0 && (
-            <div className="mt-3">
-              <p className="text-[10px] text-white/40 mb-1.5">Qualifications</p>
-              <div className="flex flex-wrap gap-1">
+
+          {/* Qualifications */}
+          {quals > 0 && (
+            <div className="bg-white/[0.04] rounded-xl border border-white/[0.06] overflow-hidden">
+              <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-white/[0.05]">
+                <GraduationCap className="h-3.5 w-3.5 text-[#86BBD8]" />
+                <span className="text-xs font-semibold text-white/75 uppercase tracking-wider">Qualifications</span>
+                <span className="text-[10px] text-white/30 ml-1">{quals} recorded</span>
+              </div>
+              <div className="px-3.5 py-3 flex flex-wrap gap-1.5">
                 {employee.qualifications!.map((q, i) => (
-                  <span key={i} className="text-[10px] px-2 py-0.5 rounded-full bg-[#2A4D69]/40 border border-[#86BBD8]/20 text-[#86BBD8]">{q}</span>
+                  <span key={i} className="text-xs px-2.5 py-1 rounded-lg bg-[#86BBD8]/15 border border-[#86BBD8]/25 text-[#86BBD8] font-medium">{q}</span>
                 ))}
               </div>
             </div>
           )}
+
+          {/* Awards & Other positions */}
+          {((employee.awards_recognition?.length ?? 0) > 0 || (employee.other_positions?.length ?? 0) > 0) && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {(employee.awards_recognition?.length ?? 0) > 0 && (
+                <div className="bg-white/[0.04] rounded-xl border border-white/[0.06] overflow-hidden">
+                  <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-white/[0.05]">
+                    <Award className="h-3.5 w-3.5 text-[#86BBD8]" />
+                    <span className="text-xs font-semibold text-white/75 uppercase tracking-wider">Awards</span>
+                  </div>
+                  <div className="px-3.5 py-3 flex flex-wrap gap-1.5">
+                    {employee.awards_recognition!.map((a, i) => (
+                      <span key={i} className="text-xs px-2.5 py-1 rounded-lg bg-amber-500/15 border border-amber-500/25 text-amber-300">{a}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {(employee.other_positions?.length ?? 0) > 0 && (
+                <div className="bg-white/[0.04] rounded-xl border border-white/[0.06] overflow-hidden">
+                  <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-white/[0.05]">
+                    <Briefcase className="h-3.5 w-3.5 text-[#86BBD8]" />
+                    <span className="text-xs font-semibold text-white/75 uppercase tracking-wider">Other Positions</span>
+                  </div>
+                  <div className="px-3.5 py-3 flex flex-wrap gap-1.5">
+                    {employee.other_positions!.map((p, i) => (
+                      <span key={i} className="text-xs px-2.5 py-1 rounded-lg bg-violet-500/15 border border-violet-500/25 text-violet-300">{p}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Action row */}
+          <div className="flex items-center gap-2 pt-1">
+            <button type="button" onClick={() => onEdit(employee)}
+              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-[#86BBD8]/15 hover:bg-[#86BBD8]/25 text-[#86BBD8] border border-[#86BBD8]/25 transition-all font-medium">
+              <Edit className="h-3 w-3" /> Edit Employee
+            </button>
+            <button type="button" onClick={() => onDelete(employee)}
+              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-white/[0.05] hover:bg-red-500/15 text-white/40 hover:text-red-400 border border-white/10 transition-all">
+              <Trash2 className="h-3 w-3" /> Delete
+            </button>
+          </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── EmployeeCard ─────────────────────────────────────────────────────────────
+
+interface EmployeeCardProps { employee: Employee; onEdit: (e: Employee) => void; onDelete: (e: Employee) => void; }
+
+function EmployeeCard({ employee, onEdit, onDelete }: EmployeeCardProps) {
+  const [expanded, setExpanded] = useState(false);
+  const name = `${employee.first_name} ${employee.last_name}`;
+  const quals = employee.qualifications?.length ?? 0;
+  const t = tenure(employee.date_of_engagement);
+
+  return (
+    <div className="oz-glass-dark rounded-2xl overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl">
+      <div className="flex items-start justify-between px-5 py-4">
+        <div className="flex items-center gap-3">
+          <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-[#2A4D69] to-[#86BBD8] flex items-center justify-center text-white font-bold text-base shadow-lg shrink-0">
+            {initials(employee.first_name, employee.last_name)}
+          </div>
+          <div>
+            <p className="text-[15px] font-semibold text-white leading-tight">{name}</p>
+            <p className="text-xs text-white/50 mt-0.5">
+              {employee.designation || 'No role'}{' '}·{' '}
+              <span className="font-mono text-[#86BBD8]">{employee.employee_id}</span>
+            </p>
+            <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+              <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${classPill(employee.employee_class)}`}>
+                {employee.employee_class || 'Unclassified'}
+              </span>
+              {employee.department && (
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/[0.07] border border-white/10 text-white/50">
+                  {employee.department}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+        <button type="button" title={expanded ? 'Collapse' : 'Expand'} onClick={() => setExpanded(o => !o)}
+          className="h-7 w-7 flex items-center justify-center rounded-lg bg-white/[0.07] hover:bg-white/[0.15] text-white/40 border border-white/12 transition-all shrink-0">
+          {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+        </button>
+      </div>
+
+      {/* Stats strip */}
+      <div className="px-5 pb-4 pt-0 grid grid-cols-3 gap-3 border-t border-white/[0.05] pt-3">
+        <div>
+          <div className="text-white/30 text-[10px] uppercase tracking-wide mb-0.5">Joined</div>
+          <div className="text-white/65 text-xs">{fmtDate(employee.date_of_engagement)}</div>
+        </div>
+        <div>
+          <div className="text-white/30 text-[10px] uppercase tracking-wide mb-0.5">Tenure</div>
+          <div className="text-white/65 text-xs">{t}</div>
+        </div>
+        <div>
+          <div className="text-white/30 text-[10px] uppercase tracking-wide mb-0.5">Quals</div>
+          <div className="text-white/65 text-xs">{quals > 0 ? `${quals} recorded` : 'None'}</div>
+        </div>
+      </div>
+
+      {/* Expanded detail */}
+      {expanded && (
+        <div className="px-5 pb-4 border-t border-white/[0.05] space-y-3 pt-3">
+          <div className="grid grid-cols-2 gap-x-6 gap-y-2.5">
+            {employee.id_number  && <InfoField label="ID Number"   value={employee.id_number} />}
+            {employee.supervisor && <InfoField label="Supervisor"  value={employee.supervisor} />}
+            {employee.section    && <InfoField label="Section"     value={employee.section} />}
+            {employee.grade      && <InfoField label="Grade"       value={employee.grade} />}
+          </div>
+          {(employee.email || employee.phone) && (
+            <div className="flex flex-wrap gap-3 pt-1">
+              {employee.email && (
+                <a href={`mailto:${employee.email}`} className="flex items-center gap-1.5 text-xs text-[#86BBD8] hover:text-white transition-all">
+                  <Mail className="h-3 w-3" />{employee.email}
+                </a>
+              )}
+              {employee.phone && (
+                <a href={`tel:${employee.phone}`} className="flex items-center gap-1.5 text-xs text-[#86BBD8] hover:text-white transition-all">
+                  <Phone className="h-3 w-3" />{employee.phone}
+                </a>
+              )}
+            </div>
+          )}
+          {quals > 0 && (
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              {employee.qualifications!.map((q, i) => (
+                <span key={i} className="text-[10px] px-2 py-0.5 rounded-lg bg-[#86BBD8]/15 border border-[#86BBD8]/25 text-[#86BBD8] font-medium">{q}</span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Footer actions */}
+      <div className="px-5 py-2.5 border-t border-white/[0.06] bg-white/[0.02] flex items-center gap-3">
+        <button type="button" onClick={() => onEdit(employee)}
+          className="flex items-center gap-1.5 text-[11px] text-white/45 hover:text-[#86BBD8] transition-all font-medium">
+          <Edit className="h-3 w-3" /> Edit
+        </button>
+        <div className="h-3 w-px bg-white/[0.10]" />
+        {employee.email && (
+          <a href={`mailto:${employee.email}`}
+            className="flex items-center gap-1.5 text-[11px] text-white/35 hover:text-[#86BBD8] transition-all">
+            <Mail className="h-3 w-3" /> Email
+          </a>
+        )}
+        <div className="flex-1" />
+        <button type="button" onClick={() => onDelete(employee)}
+          className="flex items-center gap-1.5 text-[11px] text-white/25 hover:text-red-400 transition-all">
+          <Trash2 className="h-3 w-3" /> Delete
+        </button>
+      </div>
     </div>
   );
 }
@@ -767,401 +721,349 @@ export default function EmployeesPage() {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [showForm, setShowForm] = useState(false);
 
-  // Filters
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterDesignation, setFilterDesignation] = useState('all');
-  const [filterClass, setFilterClass] = useState('all');
-  const [filterDepartment, setFilterDepartment] = useState('all');
+  const [search, setSearch] = useState('');
+  const [classFilter, setClassFilter] = useState('all');
+  const [deptFilter, setDeptFilter] = useState('all');
+  const [roleFilter, setRoleFilter] = useState('all');
   const [sortBy, setSortBy] = useState<SortField>('first_name');
-  const [sortOrder, setSortOrder] = useState<SortOrderType>('asc');
-  const [showFilters, setShowFilters] = useState(false);
-  const [viewMode, setViewMode] = useState<'list' | 'cards'>('list');
-  const [currentPage, setCurrentPage] = useState(1);
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
+  const [page, setPage] = useState(1);
 
-  const ITEMS_PER_PAGE = 25;
+  const [showHeroStats, setShowHeroStats] = useState(true);
+  const [filterPanelMinimized, setFilterPanelMinimized] = useState(false);
+  const [recordsPanelMinimized, setRecordsPanelMinimized] = useState(false);
 
-  const loadEmployees = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const data = await fetchEmployees();
-      setEmployees(data);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to load employees';
-      setError(msg);
-      toast.error(msg);
-    } finally {
-      setIsLoading(false);
-    }
+  const PER_PAGE = 25;
+
+  const reload = useCallback(async () => {
+    setIsLoading(true); setError(null);
+    try { setEmployees(await loadEmployees()); }
+    catch (e) { const m = e instanceof Error ? e.message : 'Failed to load'; setError(m); toast.error(m); }
+    finally { setIsLoading(false); }
   }, []);
 
-  useEffect(() => { loadEmployees(); }, [loadEmployees]);
+  useEffect(() => { reload(); }, [reload]);
 
-  const uniqueDesignations = useMemo(() =>
-    Array.from(new Set(employees.map(e => e.designation).filter(Boolean) as string[])).sort(),
-    [employees]);
+  const uniqueDepts = useMemo(() => [...new Set(employees.map(e => e.department).filter(Boolean) as string[])].sort(), [employees]);
+  const uniqueRoles = useMemo(() => [...new Set(employees.map(e => e.designation).filter(Boolean) as string[])].sort(), [employees]);
 
-  const uniqueClasses = useMemo(() =>
-    Array.from(new Set(employees.map(e => e.employee_class || 'Unclassified'))).sort(),
-    [employees]);
-
-  const uniqueDepartments = useMemo(() =>
-    Array.from(new Set(employees.map(e => e.department).filter(Boolean) as string[])).sort(),
-    [employees]);
-
-  const processedEmployees = useMemo(() => {
+  const filtered = useMemo(() => {
     let list = [...employees];
-
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
+    if (search) {
+      const t = search.toLowerCase();
       list = list.filter(e =>
-        `${e.first_name} ${e.last_name}`.toLowerCase().includes(term) ||
-        e.employee_id?.toLowerCase().includes(term) ||
-        (e.designation?.toLowerCase() ?? '').includes(term) ||
-        (e.department?.toLowerCase() ?? '').includes(term) ||
-        (e.id_number?.toLowerCase() ?? '').includes(term)
+        `${e.first_name} ${e.last_name}`.toLowerCase().includes(t) ||
+        e.employee_id?.toLowerCase().includes(t) ||
+        (e.designation?.toLowerCase() ?? '').includes(t) ||
+        (e.id_number?.toLowerCase() ?? '').includes(t)
       );
     }
-
-    if (filterDesignation !== 'all') list = list.filter(e => e.designation === filterDesignation);
-    if (filterClass !== 'all') list = list.filter(e => (e.employee_class || 'Unclassified') === filterClass);
-    if (filterDepartment !== 'all') list = list.filter(e => e.department === filterDepartment);
-
+    if (classFilter !== 'all') list = list.filter(e => (e.employee_class || 'Unclassified') === classFilter);
+    if (deptFilter  !== 'all') list = list.filter(e => e.department === deptFilter);
+    if (roleFilter  !== 'all') list = list.filter(e => e.designation === roleFilter);
     list.sort((a, b) => {
-      let aVal: string;
-      let bVal: string;
-      if (sortBy === 'first_name') {
-        aVal = `${a.first_name} ${a.last_name}`;
-        bVal = `${b.first_name} ${b.last_name}`;
-      } else {
-        aVal = a[sortBy] || '';
-        bVal = b[sortBy] || '';
-      }
-      return sortOrder === 'asc' ? (aVal > bVal ? 1 : -1) : (aVal < bVal ? 1 : -1);
+      let av: string, bv: string;
+      if (sortBy === 'first_name') { av = `${a.first_name} ${a.last_name}`; bv = `${b.first_name} ${b.last_name}`; }
+      else { av = a[sortBy] || ''; bv = b[sortBy] || ''; }
+      return sortDir === 'asc' ? av > bv ? 1 : -1 : av < bv ? 1 : -1;
     });
-
     return list;
-  }, [employees, searchTerm, filterDesignation, filterClass, filterDepartment, sortBy, sortOrder]);
+  }, [employees, search, classFilter, deptFilter, roleFilter, sortBy, sortDir]);
 
-  const totalPages = Math.ceil(processedEmployees.length / ITEMS_PER_PAGE);
-  const paginatedEmployees = processedEmployees.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
-  );
+  const totalPages = Math.ceil(filtered.length / PER_PAGE);
+  const paged = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+  useEffect(() => setPage(1), [search, classFilter, deptFilter, roleFilter, sortBy, sortDir]);
 
-  useEffect(() => { setCurrentPage(1); },
-    [searchTerm, filterDesignation, filterClass, filterDepartment, sortBy, sortOrder]);
-
-  const activeFilterCount = useMemo(() => {
-    let n = 0;
-    if (searchTerm) n++;
-    if (filterDesignation !== 'all') n++;
-    if (filterClass !== 'all') n++;
-    if (filterDepartment !== 'all') n++;
-    return n;
-  }, [searchTerm, filterDesignation, filterClass, filterDepartment]);
+  const activeFilterCount = [search, classFilter !== 'all', deptFilter !== 'all', roleFilter !== 'all'].filter(Boolean).length;
 
   const stats = useMemo(() => ({
-    total: employees.length,
-    roles: new Set(employees.map(e => e.designation).filter(Boolean)).size,
-    qualifications: employees.reduce((s, e) => s + (e.qualifications?.length || 0), 0),
+    total:     employees.length,
+    roles:     new Set(employees.map(e => e.designation).filter(Boolean)).size,
+    quals:     employees.reduce((s, e) => s + (e.qualifications?.length || 0), 0),
     permanent: employees.filter(e => e.employee_class === 'Permanent').length,
   }), [employees]);
 
-  const handleAdd = () => { setSelectedEmployee(null); setIsDialogOpen(true); };
-  const handleEdit = (emp: Employee) => { setSelectedEmployee(emp); setIsDialogOpen(true); };
-
-  const handleDelete = async (emp: Employee) => {
-    if (!confirm(`Delete ${emp.first_name} ${emp.last_name}? This cannot be undone.`)) return;
+  const openAdd  = () => { setSelectedEmployee(null); setShowForm(true); };
+  const openEdit = (e: Employee) => { setSelectedEmployee(e); setShowForm(true); };
+  const onDelete = async (e: Employee) => {
+    if (!confirm(`Delete ${e.first_name} ${e.last_name}? This cannot be undone.`)) return;
+    try { await removeEmployee(e.id); await reload(); toast.success(`${e.first_name} ${e.last_name} deleted`); }
+    catch (err) { toast.error(err instanceof Error ? err.message : 'Delete failed'); }
+  };
+  const onSubmit = async (data: EmployeeFormData) => {
+    setIsSubmitting(true); setError(null);
     try {
-      await deleteEmployee(emp.id);
-      await loadEmployees();
-      toast.success(`${emp.first_name} ${emp.last_name} deleted`);
+      await saveEmployee(data, selectedEmployee?.id);
+      toast.success(selectedEmployee ? 'Employee updated' : 'Employee added');
+      await reload(); setShowForm(false); setSelectedEmployee(null);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Delete failed');
-    }
+      const m = err instanceof Error ? err.message : 'Save failed'; setError(m); toast.error(m);
+    } finally { setIsSubmitting(false); }
   };
+  const clearFilters = () => { setSearch(''); setClassFilter('all'); setDeptFilter('all'); setRoleFilter('all'); };
 
-  const handleSubmitForm = async (formData: EmployeeFormData) => {
-    setIsSubmitting(true);
-    setError(null);
-    try {
-      if (selectedEmployee) {
-        await updateEmployee(selectedEmployee.id, formData);
-        toast.success('Employee updated');
-      } else {
-        await createEmployee(formData);
-        toast.success('Employee added');
-      }
-      await loadEmployees();
-      setIsDialogOpen(false);
-      setSelectedEmployee(null);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Save failed';
-      setError(msg);
-      toast.error(msg);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const clearFilters = () => {
-    setSearchTerm(''); setFilterDesignation('all'); setFilterClass('all');
-    setFilterDepartment('all'); setSortBy('first_name'); setSortOrder('asc'); setCurrentPage(1);
-  };
+  const pill = (active: boolean, onClick: () => void, label: string) => (
+    <button type="button" key={label} onClick={onClick}
+      className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+        active ? 'bg-[#86BBD8]/30 border-[#86BBD8]/45 text-white font-semibold'
+               : 'bg-white/[0.05] border-white/12 text-white/60 hover:bg-white/[0.12] hover:text-white/90'
+      }`}>
+      {label}
+    </button>
+  );
 
   return (
     <PageShell>
-      <main className="container mx-auto px-4 py-8 space-y-6">
+      <main className="container mx-auto px-4 py-8 space-y-4">
 
-        {/* Page Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <nav className="flex items-center gap-1.5 text-xs text-white/35 mb-2">
-              <span>Home</span>
-              <ChevronRightIcon className="h-3 w-3" />
-              <span className="text-white/70 font-medium">Personnel</span>
-            </nav>
-            <h1 className="text-3xl font-bold text-white font-heading tracking-tight">Personnel Registry</h1>
-            <p className="text-white/45 mt-1 text-sm max-w-xl">
-              Manage your workforce — view profiles, track qualifications, and keep records up to date.
-            </p>
+        {/* ── PANEL 1: Hero ────────────────────────────────────────── */}
+        <div className="oz-glass-dark rounded-2xl overflow-hidden">
+          <div className="px-6 py-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-[#86BBD8]/20 border border-[#86BBD8]/20">
+                <Users className="h-5 w-5 text-[#86BBD8]" />
+              </div>
+              <div>
+                <nav className="flex items-center gap-1.5 text-xs text-white/40 mb-0.5">
+                  <span>Home</span>
+                  <ChevronRightIcon className="h-3 w-3" />
+                  <span className="text-white/70 font-medium">Personnel</span>
+                </nav>
+                <h1 className="text-xl font-bold text-white font-heading tracking-tight">Personnel Registry</h1>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={reload} title="Refresh"
+                className="h-8 w-8 flex items-center justify-center rounded-lg bg-white/[0.07] hover:bg-white/[0.15] border border-white/12 text-white/50 transition-all">
+                <RefreshCw className="h-3.5 w-3.5" />
+              </button>
+              <button onClick={openAdd}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:-translate-y-0.5 hover:shadow-lg"
+                style={{ background: 'linear-gradient(135deg, #2A4D69, #1e3a52)', border: '1px solid rgba(134,187,216,0.25)' }}>
+                <Plus className="h-4 w-4" /> Add Employee
+              </button>
+              <button onClick={() => setShowHeroStats(v => !v)}
+                className="h-8 w-8 flex items-center justify-center rounded-lg bg-white/[0.07] hover:bg-white/[0.15] border border-white/12 text-white/50 transition-all"
+                aria-label={showHeroStats ? 'Hide stats' : 'Show stats'}>
+                {showHeroStats ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+              </button>
+            </div>
           </div>
-          <button type="button" onClick={handleAdd}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#2A4D69] hover:bg-[#1e3a52] text-white text-sm font-medium transition-colors shadow-lg self-start sm:self-auto">
-            <Plus className="h-4 w-4" /> Add Employee
-          </button>
+
+          {showHeroStats && (
+            <div className="px-6 pb-4 pt-3 border-t border-white/[0.07] grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {[
+                { label: 'Total Employees', value: stats.total,     color: '#86BBD8', onClick: () => setClassFilter('all') },
+                { label: 'Unique Roles',    value: stats.roles,     color: '#a78bfa', onClick: undefined },
+                { label: 'Qualifications',  value: stats.quals,     color: '#34d399', onClick: undefined },
+                { label: 'Permanent Staff', value: stats.permanent, color: '#fbbf24', onClick: () => setClassFilter('Permanent') },
+              ].map(stat => (
+                <button key={stat.label} onClick={stat.onClick}
+                  className={`rounded-xl p-3 text-left border border-white/[0.08] bg-white/[0.05] transition-all ${stat.onClick ? 'hover:bg-white/[0.10] cursor-pointer' : 'cursor-default'}`}>
+                  <div className="text-2xl font-bold" style={{ color: stat.color }}>{stat.value}</div>
+                  <div className="text-xs text-white/50 mt-0.5">{stat.label}</div>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard title="Total Employees" value={stats.total} icon={Users} />
-          <StatCard title="Unique Roles" value={stats.roles} icon={Briefcase} />
-          <StatCard title="Qualifications" value={stats.qualifications} icon={GraduationCap} />
-          <StatCard title="Permanent Staff" value={stats.permanent} icon={UserCheck} />
-        </div>
-
-        {/* Error banner */}
+        {/* ── Error banner ─────────────────────────────────────────── */}
         {error && (
-          <div className="oz-glass-panel rounded-xl p-4 border border-red-500/20 flex items-start gap-3">
+          <div className="oz-glass-dark rounded-xl p-3.5 flex items-start gap-3 border border-red-500/25">
             <AlertCircle className="h-4 w-4 text-red-400 mt-0.5 flex-shrink-0" />
             <p className="text-sm text-red-300 flex-1">{error}</p>
-            <button type="button" onClick={() => setError(null)} className="text-white/40 hover:text-white/70">
-              <X className="h-4 w-4" />
-            </button>
+            <button type="button" aria-label="Dismiss error" onClick={() => setError(null)} className="text-white/40 hover:text-white/70"><X className="h-4 w-4" /></button>
           </div>
         )}
 
-        {/* Main panel */}
-        <div className="oz-glass-dark rounded-xl overflow-hidden">
-
-          {/* Toolbar */}
-          <div className="flex items-center gap-2 px-5 py-3 border-b border-white/[0.06] flex-wrap">
-            {/* Search */}
-            <div className="relative min-w-[180px] flex-1 max-w-xs">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/30" />
-              <input
-                type="text"
-                placeholder="Search name, ID, role..."
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-3 h-8 bg-white/[0.06] border border-white/[0.08] rounded-lg text-sm text-white placeholder-white/30 focus:outline-none focus:border-[#86BBD8]/40"
-              />
-            </div>
-
-            {/* Sort select */}
-            <select
-              value={sortBy}
-              onChange={e => setSortBy(e.target.value as SortField)}
-              className="h-8 pl-2.5 pr-7 bg-white/[0.06] border border-white/[0.08] rounded-lg text-xs text-white/70 focus:outline-none cursor-pointer"
-            >
-              <option value="first_name">Name A–Z</option>
-              <option value="employee_id">Employee ID</option>
-              <option value="designation">Role</option>
-              <option value="department">Department</option>
-            </select>
-
-            {/* Sort direction */}
-            <button type="button" onClick={() => setSortOrder(o => o === 'asc' ? 'desc' : 'asc')}
-              title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
-              className="h-8 w-8 flex items-center justify-center rounded-lg bg-white/[0.06] border border-white/[0.08] text-white/50 hover:text-white/80 transition-colors">
-              <ArrowUpDown className="h-3.5 w-3.5" />
-            </button>
-
-            {/* Filters toggle */}
-            <button type="button" onClick={() => setShowFilters(o => !o)}
-              className={`h-8 px-3 flex items-center gap-1.5 rounded-lg border text-xs font-medium transition-colors ${
-                activeFilterCount > 0
-                  ? 'bg-[#2A4D69] border-[#86BBD8]/30 text-white'
-                  : 'bg-white/[0.06] border-white/[0.08] text-white/50 hover:text-white/80'
-              }`}>
-              <Filter className="h-3.5 w-3.5" />
-              Filters
+        {/* ── PANEL 2: Filters ─────────────────────────────────────── */}
+        <div className="oz-glass-panel rounded-2xl overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-3 border-b border-white/[0.07]">
+            <div className="flex items-center gap-2">
+              <Filter className="h-3.5 w-3.5 text-[#86BBD8]" />
+              <span className="text-xs font-semibold text-white/80 uppercase tracking-wider">Filters</span>
               {activeFilterCount > 0 && (
-                <span className="bg-[#86BBD8] text-[#2A4D69] rounded-full w-4 h-4 text-[10px] flex items-center justify-center font-bold">
-                  {activeFilterCount}
+                <span className="text-[11px] px-1.5 py-0.5 rounded bg-[#86BBD8]/20 text-[#86BBD8] border border-[#86BBD8]/30">
+                  {activeFilterCount} active
                 </span>
               )}
-            </button>
-
-            {activeFilterCount > 0 && (
-              <button type="button" onClick={clearFilters}
-                className="h-8 px-2.5 flex items-center gap-1 rounded-lg bg-white/[0.04] border border-white/[0.06] text-xs text-white/50 hover:text-white/70 transition-colors">
-                <FilterX className="h-3.5 w-3.5" /> Clear
-              </button>
-            )}
-
-            {/* View toggle — right side */}
-            <div className="ml-auto flex items-center gap-0.5">
-              <button type="button" onClick={() => setViewMode('list')}
-                className={`p-1.5 rounded transition-colors ${viewMode === 'list' ? 'bg-white/10 text-white' : 'text-white/30 hover:text-white/60'}`}>
-                <List className="h-4 w-4" />
-              </button>
-              <button type="button" onClick={() => setViewMode('cards')}
-                className={`p-1.5 rounded transition-colors ${viewMode === 'cards' ? 'bg-white/10 text-white' : 'text-white/30 hover:text-white/60'}`}>
-                <LayoutGrid className="h-4 w-4" />
-              </button>
-              <button type="button" onClick={loadEmployees}
-                className="p-1.5 rounded text-white/20 hover:text-white/50 transition-colors ml-1">
-                <RefreshCw className="h-3.5 w-3.5" />
-              </button>
             </div>
-          </div>
-
-          {/* Collapsible filter dropdowns */}
-          {showFilters && (
-            <div className="px-5 py-3 border-b border-white/[0.06] bg-white/[0.02]">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="space-y-1">
-                  <p className="text-[10px] text-white/40 uppercase tracking-wide">Role / Designation</p>
-                  <select value={filterDesignation} onChange={e => setFilterDesignation(e.target.value)}
-                    className="w-full h-8 px-2 bg-white/[0.06] border border-white/[0.08] rounded-lg text-xs text-white/70 focus:outline-none">
-                    <option value="all">All Roles</option>
-                    {uniqueDesignations.map(d => <option key={d} value={d}>{d}</option>)}
-                  </select>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-[10px] text-white/40 uppercase tracking-wide">Employment Class</p>
-                  <select value={filterClass} onChange={e => setFilterClass(e.target.value)}
-                    className="w-full h-8 px-2 bg-white/[0.06] border border-white/[0.08] rounded-lg text-xs text-white/70 focus:outline-none">
-                    <option value="all">All Classes</option>
-                    {uniqueClasses.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-[10px] text-white/40 uppercase tracking-wide">Department</p>
-                  <select value={filterDepartment} onChange={e => setFilterDepartment(e.target.value)}
-                    className="w-full h-8 px-2 bg-white/[0.06] border border-white/[0.08] rounded-lg text-xs text-white/70 focus:outline-none">
-                    <option value="all">All Departments</option>
-                    {uniqueDepartments.map(d => <option key={d} value={d}>{d}</option>)}
-                  </select>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Record count */}
-          <div className="px-5 py-2 border-b border-white/[0.04]">
-            <span className="text-xs text-white/35">
-              {processedEmployees.length} record{processedEmployees.length !== 1 ? 's' : ''}
-              {employees.length !== processedEmployees.length && ` (filtered from ${employees.length})`}
-            </span>
-          </div>
-
-          {/* Content */}
-          {isLoading ? (
-            <div className="p-5 space-y-2">
-              {[1, 2, 3, 4, 5].map(i => (
-                <div key={i} className="h-14 bg-white/[0.04] rounded-lg animate-pulse" />
-              ))}
-            </div>
-          ) : paginatedEmployees.length === 0 ? (
-            <div className="py-16 text-center">
-              <div className="h-14 w-14 rounded-full bg-white/[0.05] flex items-center justify-center mx-auto mb-4">
-                <Users className="h-7 w-7 text-white/20" />
-              </div>
-              <p className="text-white/40 text-sm mb-1">
-                {employees.length === 0 ? 'No employees yet' : 'No results match your filters'}
-              </p>
-              <p className="text-white/25 text-xs">
-                {employees.length === 0 ? 'Add your first employee to get started.' : 'Try broadening your search or clearing filters.'}
-              </p>
-              {employees.length === 0 ? (
-                <button type="button" onClick={handleAdd}
-                  className="mt-5 px-4 py-2 rounded-lg bg-[#2A4D69] text-white text-sm hover:bg-[#1e3a52] transition-colors">
-                  Add First Employee
-                </button>
-              ) : (
-                <button type="button" onClick={clearFilters}
-                  className="mt-5 px-4 py-2 rounded-lg bg-white/[0.06] text-white/60 text-sm hover:bg-white/[0.08] transition-colors">
-                  Clear Filters
+            <div className="flex items-center gap-1">
+              {activeFilterCount > 0 && (
+                <button onClick={clearFilters}
+                  className="h-6 px-2 flex items-center gap-1 rounded-md bg-white/[0.07] hover:bg-white/[0.15] text-white/50 text-[11px] border border-white/12 transition-all">
+                  <X className="h-2.5 w-2.5" /> Clear
                 </button>
               )}
+              <button onClick={() => setFilterPanelMinimized(v => !v)}
+                aria-label={filterPanelMinimized ? 'Expand filters' : 'Collapse filters'}
+                className="h-6 w-6 flex items-center justify-center rounded-md bg-white/[0.07] hover:bg-white/[0.15] text-white/50 border border-white/12 transition-all">
+                {filterPanelMinimized ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />}
+              </button>
             </div>
-          ) : viewMode === 'list' ? (
-            <div>
-              {paginatedEmployees.map(emp => (
-                <EmployeeListItem key={emp.id} employee={emp} onEdit={handleEdit} onDelete={handleDelete} />
-              ))}
-            </div>
-          ) : (
-            <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
-              {paginatedEmployees.map(emp => (
-                <EmployeeCard key={emp.id} employee={emp} onEdit={handleEdit} onDelete={handleDelete} />
-              ))}
+          </div>
+          {!filterPanelMinimized && (
+            <div className="px-5 pb-4 pt-3 space-y-3">
+              <div>
+                <div className="text-[11px] text-white/45 mb-1.5">Employee Class</div>
+                <div className="flex flex-wrap gap-1.5">
+                  {pill(classFilter === 'all', () => setClassFilter('all'), 'All Staff')}
+                  {CLASS_OPTIONS.map(c => pill(classFilter === c, () => setClassFilter(c), c))}
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/30" />
+                  <input type="text" placeholder="Search name, ID, role..."
+                    value={search} onChange={e => setSearch(e.target.value)}
+                    className="pl-8 pr-3 py-2 w-full text-sm rounded-lg bg-white/[0.07] border border-white/12 text-white placeholder:text-white/30 focus:outline-none focus:border-white/30 focus:bg-white/[0.11] transition-all" />
+                </div>
+                <select aria-label="Filter by department" value={deptFilter} onChange={e => setDeptFilter(e.target.value)}
+                  className="px-3 py-2 text-sm rounded-lg bg-white/[0.07] border border-white/12 text-white/70 focus:outline-none focus:border-white/30 transition-all">
+                  <option value="all">All Departments</option>
+                  {uniqueDepts.map(d => <option key={d} value={d}>{d}</option>)}
+                </select>
+                <select aria-label="Filter by role" value={roleFilter} onChange={e => setRoleFilter(e.target.value)}
+                  className="px-3 py-2 text-sm rounded-lg bg-white/[0.07] border border-white/12 text-white/70 focus:outline-none focus:border-white/30 transition-all">
+                  <option value="all">All Roles</option>
+                  {uniqueRoles.map(r => <option key={r} value={r}>{r}</option>)}
+                </select>
+              </div>
             </div>
           )}
+        </div>
 
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2 px-5 py-4 border-t border-white/[0.06]">
-              <button type="button"
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white/[0.06] border border-white/[0.08] text-xs text-white/60 hover:text-white/90 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
-                <ChevronLeft className="h-3.5 w-3.5" /> Previous
+        {/* ── PANEL 3: Records ─────────────────────────────────────── */}
+        <div className="oz-glass-panel rounded-2xl overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-3 border-b border-white/[0.07]">
+            <div className="flex items-center gap-2">
+              <FileText className="h-3.5 w-3.5 text-[#86BBD8]" />
+              <span className="text-xs font-semibold text-white/80 uppercase tracking-wider">Records</span>
+              <span className="text-[11px] text-white/35">
+                {filtered.length}{employees.length !== filtered.length ? ` of ${employees.length}` : ''}
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <select aria-label="Sort by" value={sortBy} onChange={e => setSortBy(e.target.value as SortField)}
+                className="h-7 pl-2 pr-6 text-[11px] rounded-lg bg-white/[0.07] border border-white/12 text-white/70 focus:outline-none appearance-none cursor-pointer">
+                <option value="first_name">Name A–Z</option>
+                <option value="employee_id">ID</option>
+                <option value="designation">Role</option>
+                <option value="department">Department</option>
+              </select>
+              <button type="button" title="Toggle sort direction" onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}
+                className="h-7 w-7 flex items-center justify-center rounded-lg bg-white/[0.07] hover:bg-white/[0.14] text-white/50 border border-white/12 transition-all">
+                <ArrowUpDown className="h-3.5 w-3.5" />
               </button>
-              <span className="text-xs text-white/35 px-2">Page {currentPage} of {totalPages}</span>
-              <button type="button"
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white/[0.06] border border-white/[0.08] text-xs text-white/60 hover:text-white/90 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
-                Next <ChevronRight className="h-3.5 w-3.5" />
+              <div className="flex rounded-lg border border-white/12 overflow-hidden">
+                <button type="button" title="List view" onClick={() => setViewMode('list')}
+                  className={`h-7 w-7 flex items-center justify-center transition-all ${viewMode === 'list' ? 'bg-[#86BBD8]/30 text-white' : 'bg-white/[0.05] text-white/50 hover:bg-white/[0.12]'}`}>
+                  <List className="h-3 w-3" />
+                </button>
+                <button type="button" title="Grid view" onClick={() => setViewMode('grid')}
+                  className={`h-7 w-7 flex items-center justify-center border-l border-white/12 transition-all ${viewMode === 'grid' ? 'bg-[#86BBD8]/30 text-white' : 'bg-white/[0.05] text-white/50 hover:bg-white/[0.12]'}`}>
+                  <LayoutGrid className="h-3 w-3" />
+                </button>
+              </div>
+              <button onClick={() => setRecordsPanelMinimized(v => !v)}
+                aria-label={recordsPanelMinimized ? 'Expand records' : 'Collapse records'}
+                className="h-6 w-6 flex items-center justify-center rounded-md bg-white/[0.07] hover:bg-white/[0.15] text-white/50 border border-white/12 transition-all">
+                {recordsPanelMinimized ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />}
               </button>
+            </div>
+          </div>
+
+          {!recordsPanelMinimized && (
+            <div className="p-4">
+              {isLoading ? (
+                <div className="flex justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-white/30" />
+                </div>
+              ) : paged.length === 0 ? (
+                <div className="text-center py-12">
+                  <div className="h-16 w-16 rounded-2xl bg-white/[0.05] border border-white/10 flex items-center justify-center mx-auto mb-4">
+                    <Users className="h-8 w-8 text-white/20" />
+                  </div>
+                  <h3 className="text-base font-medium text-white/60 mb-2">
+                    {employees.length === 0 ? 'No employees yet' : 'No results match your filters'}
+                  </h3>
+                  <p className="text-sm text-white/35 mb-6">
+                    {employees.length === 0 ? 'Add your first employee to get started.' : 'Try adjusting your filters.'}
+                  </p>
+                  {employees.length === 0 ? (
+                    <button type="button" onClick={openAdd}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:-translate-y-0.5"
+                      style={{ background: 'rgba(42,77,105,0.6)', border: '1px solid rgba(134,187,216,0.25)' }}>
+                      <Plus className="h-4 w-4" /> Add Employee
+                    </button>
+                  ) : (
+                    <button type="button" onClick={clearFilters}
+                      className="inline-flex items-center gap-1.5 text-xs px-4 py-2 rounded-lg bg-white/[0.07] hover:bg-white/[0.14] text-white/60 border border-white/12 transition-all">
+                      <FilterX className="h-3.5 w-3.5" /> Clear Filters
+                    </button>
+                  )}
+                </div>
+              ) : viewMode === 'list' ? (
+                <div className="rounded-xl overflow-hidden border border-white/[0.07]">
+                  {paged.map(e => <EmployeeRow key={e.id} employee={e} onEdit={openEdit} onDelete={onDelete} />)}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {paged.map(e => <EmployeeCard key={e.id} employee={e} onEdit={openEdit} onDelete={onDelete} />)}
+                </div>
+              )}
+
+              {totalPages > 1 && (
+                <div className="flex items-center justify-center gap-2 mt-4 pt-4 border-t border-white/[0.06]">
+                  <button type="button" disabled={page === 1} onClick={() => setPage(p => Math.max(1, p - 1))}
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white/[0.06] border border-white/12 text-xs text-white/60 hover:text-white/90 disabled:opacity-30 disabled:cursor-not-allowed transition-all">
+                    <ChevronLeft className="h-3.5 w-3.5" /> Prev
+                  </button>
+                  <span className="text-xs text-white/35 px-2">Page {page} of {totalPages}</span>
+                  <button type="button" disabled={page === totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white/[0.06] border border-white/12 text-xs text-white/60 hover:text-white/90 disabled:opacity-30 disabled:cursor-not-allowed transition-all">
+                    Next <ChevronRight className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
 
       </main>
 
-      {/* Add / Edit Dialog */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0 gap-0 rounded-xl">
-          <DialogHeader className="px-6 pt-6 pb-4 border-b bg-[#F0F5F9] rounded-t-xl">
-            <DialogTitle className="text-xl font-semibold text-[#2A4D69]">
+      {/* ── Dark glass Add / Edit dialog ──────────────────────────────── */}
+      <Dialog open={showForm} onOpenChange={setShowForm}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto p-0 gap-0 rounded-2xl bg-[rgba(5,15,28,0.97)] backdrop-blur-2xl border border-white/10 text-white">
+          <DialogHeader className="px-6 pt-5 pb-4 border-b border-white/[0.08]">
+            <DialogTitle className="flex items-center gap-2.5 text-white text-lg font-bold">
+              <div className="bg-[#86BBD8]/20 p-2 rounded-lg border border-[#86BBD8]/25">
+                <Users className="h-4 w-4 text-[#86BBD8]" />
+              </div>
               {selectedEmployee
-                ? `Edit — ${selectedEmployee.first_name} ${selectedEmployee.last_name} (${selectedEmployee.employee_id})`
+                ? `Edit — ${selectedEmployee.first_name} ${selectedEmployee.last_name}`
                 : 'Add New Employee'}
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-white/40 text-xs mt-1">
               {selectedEmployee
-                ? 'All fields are editable, including Employee ID.'
-                : 'Fill in the details below. Fields marked with * are required.'}
+                ? `ID: ${selectedEmployee.employee_id} · All fields are editable`
+                : 'Fields marked with * are required'}
             </DialogDescription>
           </DialogHeader>
-          <div className="px-6 py-6">
+          <div className="px-6 py-5">
             <EmployeeForm
               initialData={selectedEmployee}
-              onSubmit={handleSubmitForm}
-              onCancel={() => setIsDialogOpen(false)}
+              onSubmit={onSubmit}
+              onCancel={() => setShowForm(false)}
               isSubmitting={isSubmitting}
             />
           </div>
         </DialogContent>
       </Dialog>
-
     </PageShell>
   );
 }
