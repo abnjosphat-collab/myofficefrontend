@@ -389,27 +389,61 @@ function calcStats(orders: WorkOrder[]) {
   };
 }
 
-// ==================== CREATE WORK ORDER MODAL ====================
+// ==================== HELPERS ====================
+function nextWONumber(existingOrders: WorkOrder[], offset = 0): string {
+  const nums = existingOrders.map(w => {
+    const m = w.work_order_number?.match(/(\d+)$/);
+    return m ? parseInt(m[1], 10) : 0;
+  });
+  const max = nums.length > 0 ? Math.max(...nums) : 0;
+  return `WO-${String(max + 1 + offset).padStart(5, '0')}`;
+}
+
+// ==================== CREATE / EDIT WORK ORDER MODAL ====================
 interface CreateModalProps {
   isOpen: boolean;
   onClose: () => void;
   onCreated: (newOrder: WorkOrder) => void;
+  editingOrder?: WorkOrder;
+  allOrders?: WorkOrder[];
 }
 
-function CreateWorkOrderModal({ isOpen, onClose, onCreated }: CreateModalProps) {
-  const blank = {
+function CreateWorkOrderModal({ isOpen, onClose, onCreated, editingOrder, allOrders = [] }: CreateModalProps) {
+  const blankForm = () => ({
     equipment_info: '', to_department: 'Engineering', allocated_to: '',
     priority: 'medium' as WorkOrderPriority, estimated_hours: '2',
     job_request_details: '', requested_by: '', authorising_foreman: '',
     job_instructions: '', date_raised: new Date().toISOString().split('T')[0],
     classification: '' as WOClassification | '',
-  };
-  const [form, setForm] = useState(blank);
+  });
+
+  const fromOrder = (wo: WorkOrder) => ({
+    equipment_info: wo.equipment_info || '',
+    to_department: wo.to_department || 'Engineering',
+    allocated_to: wo.allocated_to || wo.artisan_name || '',
+    priority: wo.priority || 'medium' as WorkOrderPriority,
+    estimated_hours: wo.estimated_hours || '2',
+    job_request_details: wo.job_request_details || '',
+    requested_by: wo.requested_by || '',
+    authorising_foreman: wo.authorising_foreman || wo.responsible_foreman || '',
+    job_instructions: wo.job_instructions || '',
+    date_raised: wo.date_raised || new Date().toISOString().split('T')[0],
+    classification: (wo.classification || '') as WOClassification | '',
+  });
+
+  const [form, setForm] = useState(editingOrder ? fromOrder(editingOrder) : blankForm());
   const [saving, setSaving] = useState(false);
 
-  const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
+  // Re-fill form whenever the modal opens or the editing target changes
+  useEffect(() => {
+    if (isOpen) setForm(editingOrder ? fromOrder(editingOrder) : blankForm());
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, editingOrder?.id]);
 
-  // Derive machine list — each comma-separated item becomes its own work order
+  const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
+  const isEditing = !!editingOrder;
+
+  // Derive machine list — each comma-separated item becomes its own work order (create only)
   const machines = form.equipment_info.split(',').map(s => s.trim()).filter(Boolean);
 
   const handleSubmit = async () => {
@@ -418,11 +452,42 @@ function CreateWorkOrderModal({ isOpen, onClose, onCreated }: CreateModalProps) 
       return;
     }
     setSaving(true);
+
+    if (isEditing && editingOrder) {
+      // ── Edit existing WO ──
+      const updates = {
+        equipment_info: form.equipment_info.trim(),
+        to_department: form.to_department,
+        allocated_to: form.allocated_to,
+        artisan_name: form.allocated_to,
+        priority: form.priority,
+        estimated_hours: form.estimated_hours,
+        job_request_details: form.job_request_details,
+        requested_by: form.requested_by,
+        authorising_foreman: form.authorising_foreman,
+        responsible_foreman: form.authorising_foreman,
+        job_instructions: form.job_instructions,
+        date_raised: form.date_raised,
+        ...(form.classification ? { classification: form.classification } : {}),
+      };
+      const { success } = await updateWorkOrder(editingOrder.id, updates);
+      setSaving(false);
+      if (success) {
+        toast.success('Work order updated');
+        onCreated({ ...editingOrder, ...updates } as WorkOrder);
+        onClose();
+      } else {
+        toast.error('Failed to update work order');
+      }
+      return;
+    }
+
+    // ── Create new WO(s) ──
     const created: WorkOrder[] = [];
-    for (const machine of machines) {
+    for (let i = 0; i < machines.length; i++) {
       const result = await createWorkOrder({
-        work_order_number: `WO-${Date.now().toString().slice(-6)}`,
-        equipment_info: machine,
+        work_order_number: nextWONumber(allOrders, created.length),
+        equipment_info: machines[i],
         to_department: form.to_department,
         allocated_to: form.allocated_to,
         priority: form.priority,
@@ -454,7 +519,7 @@ function CreateWorkOrderModal({ isOpen, onClose, onCreated }: CreateModalProps) 
     setSaving(false);
     if (created.length > 0) {
       toast.success(created.length > 1 ? `${created.length} work orders created` : 'Work order created');
-      setForm(blank);
+      setForm(blankForm());
       created.forEach(wo => onCreated(wo));
       onClose();
     } else {
@@ -473,7 +538,7 @@ function CreateWorkOrderModal({ isOpen, onClose, onCreated }: CreateModalProps) 
             <div className="bg-[#86BBD8]/20 p-2 rounded-lg border border-[#86BBD8]/25">
               <Wrench className="h-4 w-4 text-[#86BBD8]" />
             </div>
-            New Work Order
+            {isEditing ? `Edit Work Order — ${editingOrder?.work_order_number}` : 'New Work Order'}
           </DialogTitle>
         </DialogHeader>
 
@@ -579,9 +644,19 @@ function CreateWorkOrderModal({ isOpen, onClose, onCreated }: CreateModalProps) 
           </Button>
           <Button onClick={handleSubmit} disabled={saving}
             className="bg-[#86BBD8]/25 hover:bg-[#86BBD8]/40 text-white border border-[#86BBD8]/35">
-            {saving ? 'Creating…' : machines.length > 1 ? `Create ${machines.length} Work Orders` : 'Create Work Order'}
+            {saving
+              ? (isEditing ? 'Saving…' : 'Creating…')
+              : isEditing
+              ? 'Save Changes'
+              : machines.length > 1 ? `Create ${machines.length} Work Orders` : 'Create Work Order'}
           </Button>
         </DialogFooter>
+        <div className="flex justify-center pb-1 pt-0">
+          <button type="button" onClick={onClose}
+            className="text-white/25 hover:text-white/55 text-xs flex items-center gap-1.5 transition-colors">
+            <X className="h-3 w-3" /> Close
+          </button>
+        </div>
       </DialogContent>
     </Dialog>
   );
@@ -1474,7 +1549,7 @@ function WorkOrderDetailModal({ workOrder, onClose, onRefresh, onDelete }: Detai
                       ))}
                       <div className="flex justify-end">
                         <span className="text-amber-300/80 text-xs font-mono font-semibold">
-                          Total: R {artisanSpares.reduce((a, s) => a + s.quantity * s.unit_cost, 0).toFixed(2)}
+                          Total: ${artisanSpares.reduce((a, s) => a + s.quantity * s.unit_cost, 0).toFixed(2)}
                         </span>
                       </div>
                     </div>
@@ -1739,7 +1814,7 @@ function ArtisanCostChart({ artisanCost }: { artisanCost: ReturnType<typeof calc
             <span className="text-white/70 text-xs truncate max-w-[120px]">{a.name}</span>
             <div className="flex items-center gap-3 text-[10px] text-right">
               <span className="text-[#86BBD8]/70">{a.hours.toFixed(1)}h</span>
-              {a.sparesCost > 0 && <span className="text-amber-300/70">R{a.sparesCost.toLocaleString('en-ZA', { maximumFractionDigits: 0 })}</span>}
+              {a.sparesCost > 0 && <span className="text-amber-300/70">${a.sparesCost.toLocaleString('en-US', { maximumFractionDigits: 0 })}</span>}
               <span className="text-white/35">({a.count} WO)</span>
             </div>
           </div>
@@ -1796,13 +1871,31 @@ function AnalyticsPanel({ stats, isOpen, onToggle, standalone }: {
           <BarChart2 className="h-5 w-5 text-[#86BBD8]" />
           <span className="text-white/90 font-semibold">Analytics &amp; Insights</span>
           <span className="ml-auto text-white/35 text-sm">
-            {stats.total} work orders · {stats.efficiency}% efficiency · R{stats.sparesTotalCost.toLocaleString('en-ZA', { maximumFractionDigits: 0 })} spares
+            {stats.total} work orders · {stats.efficiency}% efficiency · ${stats.sparesTotalCost.toLocaleString('en-US', { maximumFractionDigits: 0 })} spares
           </span>
         </div>
       )}
 
       {(isOpen || standalone) && (
         <div className="p-5 space-y-6">
+
+          {/* KPI summary row */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
+            {[
+              { label: 'Total WOs',       value: stats.total,            color: 'text-white', sub: undefined },
+              { label: 'Breakdowns',      value: stats.breakdowns,       color: 'text-red-300', sub: stats.total > 0 ? `${Math.round(stats.breakdowns/stats.total*100)}%` : '—' },
+              { label: 'Planned Maint.',  value: stats.plannedMaintenance, color: 'text-green-300', sub: undefined },
+              { label: 'Breakdown Hrs',  value: `${stats.artisanCost.reduce((a,x) => a+x.hours, 0).toFixed(1)}h`, color: 'text-[#86BBD8]', sub: undefined },
+              { label: 'Spares Cost',    value: `$${stats.sparesTotalCost.toLocaleString('en-US',{maximumFractionDigits:0})}`, color: 'text-amber-300', sub: undefined },
+              { label: 'Completion',     value: `${stats.efficiency}%`,  color: stats.efficiency >= 70 ? 'text-green-300' : stats.efficiency >= 40 ? 'text-yellow-300' : 'text-red-300', sub: `${stats.completed}/${stats.total}` },
+            ].map(k => (
+              <div key={k.label} className="bg-white/[0.04] border border-white/[0.08] rounded-xl p-3 text-center">
+                <div className={`text-xl font-bold font-mono ${k.color}`}>{k.value}</div>
+                <div className="text-white/35 text-[10px] mt-0.5">{k.label}</div>
+                {k.sub && <div className="text-white/20 text-[9px]">{k.sub}</div>}
+              </div>
+            ))}
+          </div>
 
           {/* Row 1: Three donut charts */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
@@ -1836,7 +1929,7 @@ function AnalyticsPanel({ stats, isOpen, onToggle, standalone }: {
                 <div className="mt-3 pt-2 border-t border-white/[0.06] text-center">
                   <div className="text-white/30 text-[10px]">Spares Cost</div>
                   <div className="text-amber-300/80 text-sm font-semibold font-mono">
-                    R {stats.sparesTotalCost.toLocaleString('en-ZA', { minimumFractionDigits: 2 })}
+                    ${stats.sparesTotalCost.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                   </div>
                 </div>
               )}
@@ -1854,7 +1947,7 @@ function AnalyticsPanel({ stats, isOpen, onToggle, standalone }: {
               <ArtisanCostChart artisanCost={stats.artisanCost} />
               {stats.artisanCost.length > 0 && (
                 <div className="mt-3 text-[10px] text-white/25">
-                  Hours shown as a cost proxy. Spares cost in R shown where entered.
+                  Hours shown as a cost proxy. Spares cost in USD ($) shown where entered.
                 </div>
               )}
             </div>
@@ -1888,12 +1981,79 @@ function AnalyticsPanel({ stats, isOpen, onToggle, standalone }: {
   );
 }
 
+// ==================== WORK ORDER CARD (grid view) ====================
+function WorkOrderCard({ workOrder, onClick, onEdit }: {
+  workOrder: WorkOrder;
+  onClick: () => void;
+  onEdit: () => void;
+}) {
+  const scfg = statusCfg(workOrder.status);
+  const pcfg = priorityCfg(workOrder.priority);
+  return (
+    <div className="bg-white/[0.04] border border-white/[0.08] hover:border-white/[0.16] rounded-xl p-4 flex flex-col gap-3 transition-colors group cursor-pointer">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-white/40 font-mono text-[10px]">#{workOrder.work_order_number}</span>
+            {workOrder.classification && (
+              <span className={`px-1.5 py-px rounded text-[9px] font-medium border ${
+                workOrder.classification === 'breakdown' ? 'bg-red-500/15 text-red-300 border-red-500/25'
+                : workOrder.classification === 'planned_maintenance' ? 'bg-green-500/15 text-green-300 border-green-500/25'
+                : workOrder.classification === 'project' ? 'bg-blue-500/15 text-blue-300 border-blue-500/25'
+                : 'bg-purple-500/15 text-purple-300 border-purple-500/25'
+              }`}>
+                {workOrder.classification === 'planned_maintenance' ? 'PM'
+                  : workOrder.classification === 'project' ? 'Proj'
+                  : workOrder.classification === 'breakdown' ? 'BKD' : 'Custom'}
+              </span>
+            )}
+          </div>
+          <button type="button" onClick={onClick} className="text-left mt-1">
+            <div className="text-white/90 font-semibold text-sm leading-tight group-hover:text-white transition-colors truncate max-w-[200px]">
+              {workOrder.equipment_info}
+            </div>
+          </button>
+        </div>
+        <div className="flex items-center gap-1 flex-shrink-0">
+          <button type="button" onClick={e => { e.stopPropagation(); onEdit(); }}
+            className="p-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.12] border border-white/10 text-white/30 hover:text-white/70 transition-colors"
+            title="Edit work order">
+            <Pencil className="h-3 w-3" />
+          </button>
+          <div className={`w-2 h-2 rounded-full flex-shrink-0 ${pcfg.dot}`} title={pcfg.label} />
+        </div>
+      </div>
+
+      {/* Body */}
+      <div className="text-white/40 text-xs line-clamp-2 leading-relaxed flex-1">{workOrder.job_request_details}</div>
+
+      {/* Footer */}
+      <div className="flex items-center justify-between pt-2 border-t border-white/[0.06]">
+        <div className="text-white/50 text-xs truncate">{workOrder.allocated_to || workOrder.artisan_name || '—'}</div>
+        <div className="flex items-center gap-2">
+          <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border ${scfg.pill}`}>{scfg.label}</span>
+        </div>
+      </div>
+
+      {/* Progress bar */}
+      <div className="flex items-center gap-2">
+        <div className="flex-1 bg-white/[0.06] rounded-full h-1">
+          <div className="bg-[#86BBD8] h-1 rounded-full transition-all" style={{ width: `${workOrder.progress}%` }} />
+        </div>
+        <span className="text-white/25 text-[10px] w-7 text-right">{workOrder.progress}%</span>
+      </div>
+    </div>
+  );
+}
+
 // ==================== WORK ORDER ROW ====================
-function WorkOrderRow({ workOrder, onClick, isExpanded, onToggle }: {
+function WorkOrderRow({ workOrder, onClick, isExpanded, onToggle, onEdit }: {
   workOrder: WorkOrder;
   onClick: () => void;
   isExpanded: boolean;
   onToggle: () => void;
+  onEdit: () => void;
 }) {
   const scfg = statusCfg(workOrder.status);
   const pcfg = priorityCfg(workOrder.priority);
@@ -1981,6 +2141,13 @@ function WorkOrderRow({ workOrder, onClick, isExpanded, onToggle }: {
           {workOrder.date_raised}
         </div>
 
+        {/* Edit button */}
+        <button type="button" onClick={e => { e.stopPropagation(); onEdit(); }}
+          title="Edit work order"
+          className="p-1 rounded text-white/15 hover:text-white/60 hover:bg-white/[0.06] transition-colors flex-shrink-0 opacity-0 group-hover:opacity-100">
+          <Pencil className="h-3.5 w-3.5" />
+        </button>
+
         {/* Expand toggle — quick preview */}
         <button type="button" onClick={onToggle}
           title={isExpanded ? 'Collapse preview' : 'Quick preview'}
@@ -2037,11 +2204,11 @@ function WorkOrderRow({ workOrder, onClick, isExpanded, onToggle }: {
                 <div className="flex flex-wrap gap-1.5">
                   {workOrder.spares_used.map(s => (
                     <span key={s.id} className="bg-amber-500/10 border border-amber-500/20 text-amber-300/70 text-[10px] px-2 py-0.5 rounded-full">
-                      {s.name} ×{s.quantity} · R{(s.quantity * s.unit_cost).toFixed(0)}
+                      {s.name} ×{s.quantity} · ${(s.quantity * s.unit_cost).toFixed(0)}
                     </span>
                   ))}
                   <span className="bg-white/[0.05] border border-white/10 text-white/40 text-[10px] px-2 py-0.5 rounded-full font-mono">
-                    Total: R{workOrder.spares_used.reduce((a, s) => a + s.quantity * s.unit_cost, 0).toFixed(2)}
+                    Total: ${workOrder.spares_used.reduce((a, s) => a + s.quantity * s.unit_cost, 0).toFixed(2)}
                   </span>
                 </div>
               </div>
@@ -2471,6 +2638,11 @@ export default function MaintenancePage() {
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   // Page-level tab
   const [mainTab, setMainTab] = useState<'workorders' | 'analytics'>('workorders');
+  const [woViewMode, setWoViewMode] = useState<'list' | 'grid'>('list');
+  const [editingWO, setEditingWO] = useState<WorkOrder | null>(null);
+
+  const handleEditWO = (wo: WorkOrder) => { setEditingWO(wo); setShowCreateModal(true); };
+  const handleCloseCreateModal = () => { setShowCreateModal(false); setEditingWO(null); };
 
   // Expand/collapse state for work order rows (default: all collapsed)
   const [expandedWOs, setExpandedWOs] = useState<Set<string>>(new Set());
@@ -2633,10 +2805,13 @@ export default function MaintenancePage() {
   const tabCount = (key: string) =>
     key === 'all' ? workOrders.length : workOrders.filter(w => w.status === key).length;
 
-  const handleCreated = (newOrder: WorkOrder) => {
-    // Show immediately — don't wait for the network round-trip
-    setWorkOrders(prev => [newOrder, ...prev]);
-    // Refresh in the background so server-assigned IDs/fields sync in
+  const handleCreated = (savedOrder: WorkOrder) => {
+    setWorkOrders(prev => {
+      const exists = prev.some(w => String(w.id) === String(savedOrder.id));
+      return exists
+        ? prev.map(w => String(w.id) === String(savedOrder.id) ? savedOrder : w)
+        : [savedOrder, ...prev];
+    });
     load();
   };
 
@@ -2651,10 +2826,10 @@ export default function MaintenancePage() {
     const today = new Date().toISOString().split('T')[0];
     const machines = sched.equipment_info.split(',').map(s => s.trim()).filter(Boolean);
     const created: WorkOrder[] = [];
-    for (const machine of machines) {
+    for (let i = 0; i < machines.length; i++) {
       const result = await createWorkOrder({
-        work_order_number: `WO-${Date.now().toString().slice(-6)}`,
-        equipment_info: machine,
+        work_order_number: nextWONumber(workOrders, created.length),
+        equipment_info: machines[i],
         to_department: sched.to_department,
         allocated_to: sched.allocated_to,
         authorising_foreman: sched.authorising_foreman,
@@ -2958,8 +3133,29 @@ export default function MaintenancePage() {
                   )}
                 </div>
 
-                {/* Collapse / Expand all */}
-                {filtered.length > 0 && !panelMinimized && !bulkMode && (
+                {/* View mode toggle */}
+                {!panelMinimized && (
+                  <div className="flex items-center gap-0.5 bg-white/[0.04] border border-white/[0.08] rounded-lg p-0.5">
+                    <button type="button" onClick={() => setWoViewMode('list')}
+                      title="List view"
+                      className={`p-1.5 rounded transition-colors ${woViewMode === 'list' ? 'bg-white/[0.12] text-white/80' : 'text-white/30 hover:text-white/60'}`}>
+                      <svg viewBox="0 0 16 16" className="h-3.5 w-3.5 fill-current">
+                        <rect x="2" y="3" width="12" height="2" rx="1"/><rect x="2" y="7" width="12" height="2" rx="1"/><rect x="2" y="11" width="12" height="2" rx="1"/>
+                      </svg>
+                    </button>
+                    <button type="button" onClick={() => setWoViewMode('grid')}
+                      title="Grid view"
+                      className={`p-1.5 rounded transition-colors ${woViewMode === 'grid' ? 'bg-white/[0.12] text-white/80' : 'text-white/30 hover:text-white/60'}`}>
+                      <svg viewBox="0 0 16 16" className="h-3.5 w-3.5 fill-current">
+                        <rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/>
+                        <rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/>
+                      </svg>
+                    </button>
+                  </div>
+                )}
+
+                {/* Collapse / Expand all (list view only) */}
+                {filtered.length > 0 && !panelMinimized && !bulkMode && woViewMode === 'list' && (
                   <div className="flex items-center gap-1">
                     <button type="button"
                       onClick={() => setExpandedWOs(new Set(filtered.map(w => String(w.id))))}
@@ -3057,7 +3253,22 @@ export default function MaintenancePage() {
                       </Button>
                     )}
                   </div>
+                ) : woViewMode === 'grid' ? (
+                  /* ── Grid view ── */
+                  <div className="p-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                      {filtered.map(wo => (
+                        <WorkOrderCard key={wo.id} workOrder={wo}
+                          onClick={() => setSelectedOrderId(wo.id)}
+                          onEdit={() => handleEditWO(wo)} />
+                      ))}
+                    </div>
+                    <div className="mt-3 pt-2 border-t border-white/[0.04] text-white/25 text-xs">
+                      {filtered.length} of {workOrders.length} work orders
+                    </div>
+                  </div>
                 ) : (
+                  /* ── List view ── */
                   <div>
                     {filtered.map(wo => (
                       <div key={wo.id} className={`flex items-stretch transition-colors ${
@@ -3085,7 +3296,8 @@ export default function MaintenancePage() {
                           <WorkOrderRow workOrder={wo}
                             onClick={bulkMode ? () => toggleSelect(wo.id) : () => setSelectedOrderId(wo.id)}
                             isExpanded={!bulkMode && expandedWOs.has(String(wo.id))}
-                            onToggle={() => { if (!bulkMode) toggleWO(wo.id); }} />
+                            onToggle={() => { if (!bulkMode) toggleWO(wo.id); }}
+                            onEdit={() => handleEditWO(wo)} />
                         </div>
                       </div>
                     ))}
@@ -3121,8 +3333,10 @@ export default function MaintenancePage() {
       {/* ── MODALS (always mounted) ── */}
       <CreateWorkOrderModal
         isOpen={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
+        onClose={handleCloseCreateModal}
         onCreated={handleCreated}
+        editingOrder={editingWO ?? undefined}
+        allOrders={workOrders}
       />
 
       {selectedOrder && (
