@@ -473,9 +473,20 @@ const PTODetailModal: React.FC<{ report: PTOReport | null; open: boolean; onClos
         </div>
       )}
 
-      <ModalActions onCancel={onClose} onSave={() => { onClose(); onEdit(report); }} saveLabel="Edit"
-        extra={<button onClick={() => { onClose(); onDelete(report.id); }}
-          style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, padding: '8px 16px', color: '#f87171', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>Delete</button>} />
+      <div style={{ display: 'flex', gap: 8, padding: '14px 20px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+        <button type="button" onClick={() => { onClose(); onDelete(report.id); }}
+          style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 10, padding: '10px 16px', color: '#f87171', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+          Delete
+        </button>
+        <button type="button" onClick={onClose}
+          style={{ flex: 1, padding: '10px', borderRadius: 10, fontSize: 13, color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.10)', background: 'none', cursor: 'pointer' }}>
+          Close
+        </button>
+        <button type="button" onClick={() => { onClose(); onEdit(report); }}
+          style={{ flex: 1, padding: '10px', borderRadius: 10, fontSize: 13, fontWeight: 600, color: '#fff', background: '#3b82f6', border: 'none', cursor: 'pointer' }}>
+          Edit
+        </button>
+      </div>
     </SafetyModal>
   );
 };
@@ -518,7 +529,7 @@ const PTOFormModal: React.FC<{ open: boolean; editing: PTOReport | null; onClose
   return (
     <SafetyModal open={open} onClose={onClose}
       title={editing ? 'Edit PTO Report' : 'New Planned Task Observation'}
-      subtitle="Complete all sections. * = required." maxWidth={740}>
+      width="max-w-2xl">
       <TabBar tabs={tabs} active={tab} onChange={setTab} />
 
       {tab === 0 && (
@@ -698,8 +709,8 @@ const PTOFormModal: React.FC<{ open: boolean; editing: PTOReport | null; onClose
         </div>
       )}
 
-      <ModalActions onCancel={onClose} onSave={handleSubmit} saving={saving}
-        saveLabel={editing ? 'Update PTO' : 'Submit PTO'} />
+      <ModalActions onCancel={onClose} onSubmit={handleSubmit} submitting={saving}
+        submitLabel={editing ? 'Update PTO' : 'Submit PTO'} />
     </SafetyModal>
   );
 };
@@ -929,14 +940,14 @@ export default function CompletePTOFormPage() {
         />
 
         <SafetyModal open={!!deleteTarget} onClose={() => setDeleteTarget(null)}
-          title="Confirm Deletion" subtitle="This action cannot be undone." maxWidth={420}>
+          title="Confirm Deletion" width="max-w-sm">
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0 20px', color: 'rgba(255,255,255,0.7)', fontSize: 14 }}>
             <AlertTriangle size={20} style={{ color: '#f87171', flexShrink: 0 }} />
             Are you sure you want to delete this PTO report?
           </div>
           <ModalActions onCancel={() => setDeleteTarget(null)}
-            onSave={() => deleteTarget && handleDelete(deleteTarget)}
-            saveLabel="Delete" saveColor="#ef4444" />
+            onSubmit={() => deleteTarget && handleDelete(deleteTarget)}
+            submitLabel="Delete" />
         </SafetyModal>
 
       </main>
