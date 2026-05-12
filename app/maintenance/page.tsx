@@ -402,6 +402,7 @@ function CreateWorkOrderModal({ isOpen, onClose, onCreated }: CreateModalProps) 
     priority: 'medium' as WorkOrderPriority, estimated_hours: '2',
     job_request_details: '', requested_by: '', authorising_foreman: '',
     job_instructions: '', date_raised: new Date().toISOString().split('T')[0],
+    classification: '' as WOClassification | '',
   };
   const [form, setForm] = useState(blank);
   const [saving, setSaving] = useState(false);
@@ -446,6 +447,7 @@ function CreateWorkOrderModal({ isOpen, onClose, onCreated }: CreateModalProps) 
         overtime_start_time: '', overtime_end_time: '', overtime_hours: '',
         delay_from_time: '', delay_to_time: '', total_delay_hours: '',
         status: 'pending', progress: 0,
+        ...(form.classification ? { classification: form.classification } : {}),
       });
       if (result.success && result.data) created.push(result.data);
     }
@@ -546,9 +548,28 @@ function CreateWorkOrderModal({ isOpen, onClose, onCreated }: CreateModalProps) 
               rows={2} className={`${inputCls} resize-none`} />
           </div>
 
-          <p className="text-white/25 text-xs px-0.5">
-            Classification, failure mode, discipline, trade and spares used are recorded by the artisan after the job is done.
-          </p>
+          {/* WO Classification — quick-select (optional) */}
+          <div className="space-y-1.5">
+            <Label className={labelCls}>Work Order Classification <span className="text-white/25">(optional — artisan can update later)</span></Label>
+            <div className="flex flex-wrap gap-2">
+              {([
+                { key: 'planned_maintenance', label: 'Planned Maint.' },
+                { key: 'project',             label: 'Project' },
+                { key: 'breakdown',           label: 'Breakdown' },
+                { key: 'custom',              label: 'Other / Custom' },
+              ] as { key: WOClassification; label: string }[]).map(opt => (
+                <button key={opt.key} type="button"
+                  onClick={() => set('classification', form.classification === opt.key ? '' : opt.key)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+                    form.classification === opt.key
+                      ? 'bg-[#86BBD8]/25 border-[#86BBD8]/50 text-white'
+                      : 'bg-white/[0.04] border-white/[0.10] text-white/50 hover:bg-white/[0.08] hover:text-white/75'
+                  }`}>
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
         <DialogFooter className="gap-2 pt-2">
