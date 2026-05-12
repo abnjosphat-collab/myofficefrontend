@@ -69,7 +69,7 @@ function filterByRange(items: any[], module: 'nm' | 'ws' | 'vfl' | 'pto', from: 
   });
 }
 
-function rangeToFromTo(quick: QuickRange, customFrom: string, customTo: string): [Date | null, Date | null] {
+function rangeToFromTo(quick: QuickRange | 'custom', customFrom: string, customTo: string): [Date | null, Date | null] {
   if (quick === 'all') return [null, null];
   if (quick === 'custom') {
     return [customFrom ? new Date(customFrom) : null, customTo ? new Date(customTo + 'T23:59:59') : null];
