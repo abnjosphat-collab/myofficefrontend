@@ -480,13 +480,13 @@ interface FormModalProps {
   saving: boolean;
 }
 const VFLFormModal: React.FC<FormModalProps> = ({ open, editing, onClose, onSave, saving }) => {
-  const [tab, setTab] = useState(0);
+  const [tab, setTab] = useState<string>('observer');
   const [form, setForm] = useState<Partial<VFLReport>>(defaultForm());
 
   useEffect(() => {
     if (open) {
       setForm(editing ? { ...editing } : defaultForm());
-      setTab(0);
+      setTab('observer');
     }
   }, [open, editing]);
 
@@ -508,14 +508,18 @@ const VFLFormModal: React.FC<FormModalProps> = ({ open, editing, onClose, onSave
   };
 
   const handleSubmit = async () => {
-    if (!form.observerName?.trim()) { toast.error('Observer name is required'); setTab(0); return; }
-    if (!form.date) { toast.error('Date is required'); setTab(0); return; }
-    if (!form.time) { toast.error('Time is required'); setTab(0); return; }
-    if (!form.description?.trim()) { toast.error('Description is required'); setTab(1); return; }
+    if (!form.observerName?.trim()) { toast.error('Observer name is required'); setTab('observer'); return; }
+    if (!form.date) { toast.error('Date is required'); setTab('observer'); return; }
+    if (!form.time) { toast.error('Time is required'); setTab('observer'); return; }
+    if (!form.description?.trim()) { toast.error('Description is required'); setTab('observation'); return; }
     await onSave(form);
   };
 
-  const tabs = ['Observer Info', 'Observation', 'Action Plan'];
+  const tabs = [
+    { id: 'observer', label: 'Observer Info' },
+    { id: 'observation', label: 'Observation' },
+    { id: 'actions', label: 'Action Plan' },
+  ];
 
   const radioStyle: React.CSSProperties = { accentColor: '#10b981', cursor: 'pointer' };
   const radioGroupStyle: React.CSSProperties = { display: 'flex', gap: 16, flexWrap: 'wrap' };
@@ -527,7 +531,7 @@ const VFLFormModal: React.FC<FormModalProps> = ({ open, editing, onClose, onSave
       width="max-w-2xl">
       <TabBar tabs={tabs} active={tab} onChange={setTab} />
 
-      {tab === 0 && (
+      {tab === 'observer' && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div style={{ gridColumn: '1 / -1' }}>
             <FormField label="Observer's Name *">
@@ -571,7 +575,7 @@ const VFLFormModal: React.FC<FormModalProps> = ({ open, editing, onClose, onSave
         </div>
       )}
 
-      {tab === 1 && (
+      {tab === 'observation' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
           <div>
             <label className={glassLabel} style={{ display: 'block', marginBottom: 8 }}>Behaviour Category *</label>
@@ -626,7 +630,7 @@ const VFLFormModal: React.FC<FormModalProps> = ({ open, editing, onClose, onSave
         </div>
       )}
 
-      {tab === 2 && (
+      {tab === 'actions' && (
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
             <div>

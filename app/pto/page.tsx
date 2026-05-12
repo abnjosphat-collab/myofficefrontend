@@ -493,11 +493,11 @@ const PTODetailModal: React.FC<{ report: PTOReport | null; open: boolean; onClos
 
 // =============== FORM MODAL ===============
 const PTOFormModal: React.FC<{ open: boolean; editing: PTOReport | null; onClose: () => void; onSave: (data: Partial<PTOReport>) => Promise<void>; saving: boolean }> = ({ open, editing, onClose, onSave, saving }) => {
-  const [tab, setTab] = useState(0);
+  const [tab, setTab] = useState<string>('basic');
   const [form, setForm] = useState<Partial<PTOReport>>(defaultForm());
 
   useEffect(() => {
-    if (open) { setForm(editing ? { ...editing } : defaultForm()); setTab(0); }
+    if (open) { setForm(editing ? { ...editing } : defaultForm()); setTab('basic'); }
   }, [open, editing]);
 
   const set = (field: keyof PTOReport, val: unknown) => setForm(prev => ({ ...prev, [field]: val }));
@@ -514,14 +514,19 @@ const PTOFormModal: React.FC<{ open: boolean; editing: PTOReport | null; onClose
     setForm(prev => ({ ...prev, actionPlan: prev.actionPlan?.filter(a => a.id !== id) || [] }));
 
   const handleSubmit = async () => {
-    if (!form.observerName?.trim()) { toast.error('Observer name is required'); setTab(0); return; }
-    if (!form.workerName?.trim()) { toast.error('Worker name is required'); setTab(0); return; }
-    if (!form.jobTaskObserved?.trim()) { toast.error('Job/Task observed is required'); setTab(0); return; }
-    if (!form.date) { toast.error('Date is required'); setTab(0); return; }
+    if (!form.observerName?.trim()) { toast.error('Observer name is required'); setTab('basic'); return; }
+    if (!form.workerName?.trim()) { toast.error('Worker name is required'); setTab('basic'); return; }
+    if (!form.jobTaskObserved?.trim()) { toast.error('Job/Task observed is required'); setTab('basic'); return; }
+    if (!form.date) { toast.error('Date is required'); setTab('basic'); return; }
     await onSave(form);
   };
 
-  const tabs = ['Basic Info', 'Reasons & Procedures', 'Risk Assessment', 'Action Plan'];
+  const tabs = [
+    { id: 'basic', label: 'Basic Info' },
+    { id: 'reasons', label: 'Reasons & Procedures' },
+    { id: 'risk', label: 'Risk Assessment' },
+    { id: 'actions', label: 'Action Plan' },
+  ];
 
   const checkStyle: React.CSSProperties = { accentColor: '#60a5fa', cursor: 'pointer', width: 15, height: 15 };
   const checkLabelStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, color: 'rgba(255,255,255,0.75)', padding: '6px 0' };
@@ -532,7 +537,7 @@ const PTOFormModal: React.FC<{ open: boolean; editing: PTOReport | null; onClose
       width="max-w-2xl">
       <TabBar tabs={tabs} active={tab} onChange={setTab} />
 
-      {tab === 0 && (
+      {tab === 'basic' && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <FormField label="Date *">
             <input type="date" className={glassInput} value={form.date || ''} title="Date" placeholder="Date"
@@ -592,7 +597,7 @@ const PTOFormModal: React.FC<{ open: boolean; editing: PTOReport | null; onClose
         </div>
       )}
 
-      {tab === 1 && (
+      {tab === 'reasons' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           <div>
             <div style={{ fontWeight: 700, fontSize: 13, color: 'rgba(255,255,255,0.7)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5 }}>Reasons for Observation</div>
@@ -632,7 +637,7 @@ const PTOFormModal: React.FC<{ open: boolean; editing: PTOReport | null; onClose
         </div>
       )}
 
-      {tab === 2 && (
+      {tab === 'risk' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           <div>
             <div style={{ fontWeight: 700, fontSize: 13, color: 'rgba(255,255,255,0.7)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5 }}>Risk Assessment</div>
@@ -678,7 +683,7 @@ const PTOFormModal: React.FC<{ open: boolean; editing: PTOReport | null; onClose
         </div>
       )}
 
-      {tab === 3 && (
+      {tab === 'actions' && (
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
             <div>
