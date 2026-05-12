@@ -297,7 +297,7 @@ const PTODetailModal: React.FC<{ report: PTOReport | null; open: boolean; onClos
   const remediesList = (Object.keys(report.suggestedRemedies) as (keyof SuggestedRemedies)[]).filter(k => report.suggestedRemedies[k] === 'Yes').map(k => REMEDY_LABELS[k]);
 
   return (
-    <SafetyModal open={open} onClose={onClose} title="Planned Task Observation Report" subtitle={`Created ${fmtDateTime(report.created_at)}`} maxWidth={720}>
+    <SafetyModal open={open} onClose={onClose} title="Planned Task Observation Report" width="max-w-2xl">
       {/* Status bar */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.05)', borderRadius: 10, padding: '10px 14px', marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

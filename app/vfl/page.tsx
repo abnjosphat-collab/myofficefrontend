@@ -347,7 +347,7 @@ const VFLDetailModal: React.FC<DetailModalProps> = ({ report, open, onClose, onE
   const infoStyle: React.CSSProperties = { background: 'rgba(255,255,255,0.05)', borderRadius: 8, padding: '8px 12px' };
 
   return (
-    <SafetyModal open={open} onClose={onClose} title="Visible Felt Leadership Observation" subtitle={`Created ${fmtDateTime(report.created_at)}`} maxWidth={700}>
+    <SafetyModal open={open} onClose={onClose} title="Visible Felt Leadership Observation" width="max-w-2xl">
       {/* Status bar */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.05)', borderRadius: 10, padding: '10px 14px', marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
