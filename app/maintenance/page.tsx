@@ -15,13 +15,34 @@ import {
   Search, ChevronDown, ChevronUp, ChevronRight, X, XCircle, AlertCircle,
   CalendarOff, ClipboardCheck, FileText, Trash2, Save, Signature,
   HardHat, ShieldCheck, Timer, CalendarClock, Pencil, Repeat2,
-  SlidersHorizontal, ArrowUpDown
+  SlidersHorizontal, ArrowUpDown, Zap, Settings2, Package, BarChart2,
+  Activity, Layers, AlertTriangle, TrendingUp, Cpu, Maximize2, Minimize2
 } from "lucide-react";
 
 // ==================== TYPES ====================
 type WorkOrderStatus = 'pending' | 'in-progress' | 'completed' | 'on-hold' | 'cancelled' | 'postponed' | 'not-done';
 type WorkOrderPriority = 'low' | 'medium' | 'high' | 'urgent';
 type RecurrenceType = 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'yearly' | 'custom';
+type WOClassification = 'planned_maintenance' | 'project' | 'breakdown' | 'custom';
+type Discipline = 'Mechanical' | 'Electrical';
+type Trade = 'Fitter' | 'Boilermaker' | 'Rigger' | 'Plumber' | 'Carpenter';
+
+const FAILURE_MODES = [
+  'Bearing failure', 'Seal / gasket failure', 'Motor failure', 'Belt / chain failure',
+  'Shaft failure', 'Coupling failure', 'Gearbox failure', 'Pump failure', 'Valve failure',
+  'Electrical fault', 'Lubrication failure', 'Structural failure / cracking',
+  'Overheating', 'Blockage / fouling', 'Corrosion', 'Wear & tear', 'Operator error',
+  'Foreign object damage', 'Calibration drift', 'Other',
+];
+
+const MECHANICAL_TRADES: Trade[] = ['Fitter', 'Boilermaker', 'Rigger', 'Plumber', 'Carpenter'];
+
+interface SpareItem {
+  id: string;
+  name: string;
+  quantity: number;
+  unit_cost: number;
+}
 
 interface MaintenanceSchedule {
   id: string;
@@ -113,6 +134,13 @@ interface WorkOrder {
   due_date?: string;
   created_at: string;
   updated_at: string;
+  // Classification & discipline
+  classification?: WOClassification;
+  classification_custom?: string;
+  failure_mode?: string;
+  discipline?: Discipline;
+  trade?: Trade;
+  spares_used?: SpareItem[];
 }
 
 // ==================== API ====================
@@ -281,6 +309,46 @@ function calcStats(orders: WorkOrder[]) {
   const by = (s: WorkOrderStatus) => orders.filter(o => o.status === s).length;
   const total = orders.length;
   const completed = by('completed');
+
+  // Classification breakdown
+  const byClass = (c: WOClassification) => orders.filter(o => o.classification === c).length;
+  const breakdowns = orders.filter(o => o.classification === 'breakdown');
+
+  // Discipline breakdown
+  const byDiscipline = (d: Discipline) => orders.filter(o => o.discipline === d).length;
+
+  // Artisan breakdown cost (estimated_hours × rate proxy = hours as cost proxy)
+  const artisanCostMap: Record<string, { hours: number; sparesCost: number; count: number }> = {};
+  breakdowns.forEach(w => {
+    const name = w.artisan_name || w.allocated_to || 'Unknown';
+    if (!artisanCostMap[name]) artisanCostMap[name] = { hours: 0, sparesCost: 0, count: 0 };
+    artisanCostMap[name].hours += parseFloat(w.estimated_hours || '0') || 0;
+    artisanCostMap[name].count += 1;
+    (w.spares_used || []).forEach(s => { artisanCostMap[name].sparesCost += s.quantity * s.unit_cost; });
+  });
+  const artisanCost = Object.entries(artisanCostMap)
+    .map(([name, d]) => ({ name, hours: d.hours, sparesCost: d.sparesCost, count: d.count, total: d.hours * 50 + d.sparesCost }))
+    .sort((a, b) => b.total - a.total);
+
+  // Failure mode breakdown
+  const failureModeMap: Record<string, number> = {};
+  breakdowns.forEach(w => { if (w.failure_mode) failureModeMap[w.failure_mode] = (failureModeMap[w.failure_mode] || 0) + 1; });
+  const failureModes = Object.entries(failureModeMap).sort((a, b) => b[1] - a[1]).slice(0, 8);
+
+  // Time-of-day breakdown (hour buckets 0-23)
+  const hourBuckets = new Array(24).fill(0);
+  breakdowns.forEach(w => {
+    if (w.time_raised) {
+      const h = parseInt(w.time_raised.split(':')[0]);
+      if (!isNaN(h) && h >= 0 && h < 24) hourBuckets[h]++;
+    }
+  });
+
+  // Spares total cost
+  const sparesTotalCost = orders.reduce((acc, w) => {
+    return acc + (w.spares_used || []).reduce((s, x) => s + x.quantity * x.unit_cost, 0);
+  }, 0);
+
   return {
     total,
     pending:    by('pending'),
@@ -289,6 +357,17 @@ function calcStats(orders: WorkOrder[]) {
     onHold:     by('on-hold'),
     overdue:    orders.filter(o => o.due_date && o.status !== 'completed' && new Date(o.due_date) < new Date()).length,
     efficiency: total > 0 ? Math.round((completed / total) * 100) : 0,
+    // Analytics
+    plannedMaintenance: byClass('planned_maintenance'),
+    projects:           byClass('project'),
+    breakdowns:         byClass('breakdown'),
+    customClass:        byClass('custom'),
+    mechanical:         byDiscipline('Mechanical'),
+    electrical:         byDiscipline('Electrical'),
+    artisanCost,
+    failureModes,
+    hourBuckets,
+    sparesTotalCost,
   };
 }
 
@@ -305,11 +384,29 @@ function CreateWorkOrderModal({ isOpen, onClose, onCreated }: CreateModalProps) 
     priority: 'medium' as WorkOrderPriority, estimated_hours: '2',
     job_request_details: '', requested_by: '', authorising_foreman: '',
     job_instructions: '', date_raised: new Date().toISOString().split('T')[0],
+    classification: '' as WOClassification | '',
+    classification_custom: '',
+    failure_mode: '',
+    discipline: '' as Discipline | '',
+    trade: '' as Trade | '',
   };
   const [form, setForm] = useState(blank);
+  const [spares, setSpares] = useState<SpareItem[]>([]);
+  const [newSpare, setNewSpare] = useState({ name: '', quantity: '1', unit_cost: '0' });
   const [saving, setSaving] = useState(false);
 
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
+
+  const addSpare = () => {
+    const name = newSpare.name.trim();
+    const qty = parseFloat(newSpare.quantity) || 1;
+    const cost = parseFloat(newSpare.unit_cost) || 0;
+    if (!name) return;
+    setSpares(prev => [...prev, { id: Date.now().toString(), name, quantity: qty, unit_cost: cost }]);
+    setNewSpare({ name: '', quantity: '1', unit_cost: '0' });
+  };
+
+  const removeSpare = (id: string) => setSpares(prev => prev.filter(s => s.id !== id));
 
   // Derive machine list — each comma-separated item becomes its own work order
   const machines = form.equipment_info.split(',').map(s => s.trim()).filter(Boolean);
@@ -324,8 +421,16 @@ function CreateWorkOrderModal({ isOpen, onClose, onCreated }: CreateModalProps) 
     for (const machine of machines) {
       const result = await createWorkOrder({
         work_order_number: `WO-${Date.now().toString().slice(-6)}`,
-        ...form,
         equipment_info: machine,
+        to_department: form.to_department,
+        allocated_to: form.allocated_to,
+        priority: form.priority,
+        estimated_hours: form.estimated_hours,
+        job_request_details: form.job_request_details,
+        requested_by: form.requested_by,
+        authorising_foreman: form.authorising_foreman,
+        job_instructions: form.job_instructions,
+        date_raised: form.date_raised,
         to_section: '', from_department: '', from_section: '',
         account_number: '', user_lab_today: '',
         time_raised: new Date().toTimeString().slice(0, 5),
@@ -340,7 +445,13 @@ function CreateWorkOrderModal({ isOpen, onClose, onCreated }: CreateModalProps) 
         time_work_started: '', time_work_finished: '', total_time_worked: '',
         overtime_start_time: '', overtime_end_time: '', overtime_hours: '',
         delay_from_time: '', delay_to_time: '', total_delay_hours: '',
-        status: 'pending', priority: form.priority, progress: 0,
+        status: 'pending', progress: 0,
+        classification: form.classification || undefined,
+        classification_custom: form.classification === 'custom' ? form.classification_custom : undefined,
+        failure_mode: form.classification === 'breakdown' ? form.failure_mode || undefined : undefined,
+        discipline: form.discipline || undefined,
+        trade: (form.discipline === 'Mechanical' && form.trade) ? form.trade as Trade : undefined,
+        spares_used: spares.length > 0 ? spares : undefined,
       });
       if (result.success && result.data) created.push(result.data);
     }
@@ -348,6 +459,7 @@ function CreateWorkOrderModal({ isOpen, onClose, onCreated }: CreateModalProps) 
     if (created.length > 0) {
       toast.success(created.length > 1 ? `${created.length} work orders created` : 'Work order created');
       setForm(blank);
+      setSpares([]);
       created.forEach(wo => onCreated(wo));
       onClose();
     } else {
@@ -443,6 +555,147 @@ function CreateWorkOrderModal({ isOpen, onClose, onCreated }: CreateModalProps) 
             <Textarea value={form.job_instructions} onChange={e => set('job_instructions', e.target.value)}
               placeholder="Safety notes, special tools, access requirements…"
               rows={2} className={`${inputCls} resize-none`} />
+          </div>
+
+          {/* ── Classification & Discipline ── */}
+          <div className="border border-white/[0.08] rounded-xl p-4 space-y-3">
+            <div className="flex items-center gap-2 text-white/70 text-sm font-medium">
+              <Layers className="h-4 w-4 text-[#86BBD8]" /> Classification &amp; Discipline
+            </div>
+
+            {/* WO Classification */}
+            <div className="space-y-1.5">
+              <Label className={labelCls}>Work Order Type</Label>
+              <div className="flex flex-wrap gap-1.5">
+                {([
+                  { v: 'planned_maintenance', label: 'Planned Maintenance' },
+                  { v: 'project',             label: 'Project' },
+                  { v: 'breakdown',           label: 'Breakdown' },
+                  { v: 'custom',              label: 'Other / Custom' },
+                ] as { v: WOClassification; label: string }[]).map(opt => (
+                  <button key={opt.v} type="button"
+                    onClick={() => set('classification', opt.v)}
+                    className={`px-3 py-1.5 rounded-lg text-xs border transition-colors ${
+                      form.classification === opt.v
+                        ? 'bg-[#86BBD8]/25 border-[#86BBD8]/40 text-white font-medium'
+                        : 'bg-white/[0.05] border-white/10 text-white/55 hover:bg-white/[0.10] hover:text-white/80'
+                    }`}>
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Custom classification text */}
+            {form.classification === 'custom' && (
+              <div className="space-y-1.5">
+                <Label className={labelCls}>Specify Type</Label>
+                <Input value={form.classification_custom} onChange={e => set('classification_custom', e.target.value)}
+                  placeholder="e.g. Commissioning, Shutdown work…" className={inputCls} />
+              </div>
+            )}
+
+            {/* Failure mode — breakdowns only */}
+            {form.classification === 'breakdown' && (
+              <div className="space-y-1.5">
+                <Label className={labelCls}>Failure Mode</Label>
+                <Select value={form.failure_mode} onValueChange={v => set('failure_mode', v)}>
+                  <SelectTrigger className={inputCls}><SelectValue placeholder="Select failure type…" /></SelectTrigger>
+                  <SelectContent className="bg-[#0d1f35] border-white/10 text-white">
+                    {FAILURE_MODES.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Discipline */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className={labelCls}>Discipline</Label>
+                <div className="flex gap-2">
+                  {(['Mechanical', 'Electrical'] as Discipline[]).map(d => (
+                    <button key={d} type="button"
+                      onClick={() => { set('discipline', d); if (d === 'Electrical') set('trade', ''); }}
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs border transition-colors ${
+                        form.discipline === d
+                          ? 'bg-[#86BBD8]/25 border-[#86BBD8]/40 text-white font-medium'
+                          : 'bg-white/[0.05] border-white/10 text-white/55 hover:bg-white/[0.10]'
+                      }`}>
+                      {d === 'Mechanical' ? <Settings2 className="h-3.5 w-3.5" /> : <Zap className="h-3.5 w-3.5" />}
+                      {d}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Trade — Mechanical only */}
+              {form.discipline === 'Mechanical' && (
+                <div className="space-y-1.5">
+                  <Label className={labelCls}>Trade</Label>
+                  <Select value={form.trade} onValueChange={v => set('trade', v)}>
+                    <SelectTrigger className={inputCls}><SelectValue placeholder="Select trade…" /></SelectTrigger>
+                    <SelectContent className="bg-[#0d1f35] border-white/10 text-white">
+                      {MECHANICAL_TRADES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ── Spares Used ── */}
+          <div className="border border-white/[0.08] rounded-xl p-4 space-y-3">
+            <div className="flex items-center gap-2 text-white/70 text-sm font-medium">
+              <Package className="h-4 w-4 text-amber-400" /> Spares Used
+            </div>
+
+            {/* Add spare row */}
+            <div className="grid grid-cols-[1fr_80px_90px_auto] gap-2 items-end">
+              <div className="space-y-1">
+                <Label className={labelCls}>Spare / Part Name</Label>
+                <Input value={newSpare.name} onChange={e => setNewSpare(s => ({ ...s, name: e.target.value }))}
+                  placeholder="e.g. Bearing 6205" className={inputCls}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addSpare(); } }} />
+              </div>
+              <div className="space-y-1">
+                <Label className={labelCls}>Qty</Label>
+                <Input type="number" min="0.01" step="0.01" value={newSpare.quantity}
+                  onChange={e => setNewSpare(s => ({ ...s, quantity: e.target.value }))} className={inputCls} />
+              </div>
+              <div className="space-y-1">
+                <Label className={labelCls}>Unit Cost (R)</Label>
+                <Input type="number" min="0" step="0.01" value={newSpare.unit_cost}
+                  onChange={e => setNewSpare(s => ({ ...s, unit_cost: e.target.value }))} className={inputCls} />
+              </div>
+              <button type="button" onClick={addSpare}
+                className="h-9 px-3 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 rounded-lg text-amber-300 text-xs font-medium transition-colors">
+                Add
+              </button>
+            </div>
+
+            {spares.length > 0 && (
+              <div className="space-y-1.5">
+                {spares.map(s => (
+                  <div key={s.id} className="flex items-center gap-3 bg-white/[0.04] border border-white/[0.07] rounded-lg px-3 py-2">
+                    <Package className="h-3.5 w-3.5 text-amber-400/60 flex-shrink-0" />
+                    <span className="flex-1 text-white/80 text-xs">{s.name}</span>
+                    <span className="text-white/40 text-xs">×{s.quantity}</span>
+                    <span className="text-amber-300/70 text-xs font-mono w-20 text-right">
+                      R {(s.quantity * s.unit_cost).toLocaleString('en-ZA', { minimumFractionDigits: 2 })}
+                    </span>
+                    <button type="button" onClick={() => removeSpare(s.id)}
+                      className="text-white/25 hover:text-red-400 transition-colors ml-1">
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ))}
+                <div className="flex justify-end pt-1">
+                  <span className="text-amber-300/80 text-xs font-mono font-semibold">
+                    Total: R {spares.reduce((acc, s) => acc + s.quantity * s.unit_cost, 0).toLocaleString('en-ZA', { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -1280,9 +1533,295 @@ function WorkOrderDetailModal({ workOrder, onClose, onRefresh, onDelete }: Detai
   );
 }
 
+// ==================== ANALYTICS CHARTS ====================
+function DonutChart({ segments, centerLabel }: {
+  segments: { value: number; color: string; label: string }[];
+  centerLabel?: string;
+}) {
+  const total = segments.reduce((s, x) => s + x.value, 0);
+  if (total === 0) return (
+    <div className="flex items-center justify-center h-full text-white/20 text-xs">No data</div>
+  );
+  const r = 36, cx = 50, cy = 50, sw = 14;
+  const circ = 2 * Math.PI * r;
+  let startPct = 0;
+  return (
+    <svg viewBox="0 0 100 100" className="w-full h-full">
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth={sw} />
+      {segments.map((seg, i) => {
+        const pct = seg.value / total;
+        const dashLen = pct * circ;
+        const dashOff = -(startPct * circ);
+        startPct += pct;
+        return (
+          <circle key={i} cx={cx} cy={cy} r={r} fill="none"
+            stroke={seg.color} strokeWidth={sw}
+            strokeDasharray={`${dashLen} ${circ - dashLen}`}
+            strokeDashoffset={dashOff}
+            transform="rotate(-90 50 50)"
+            style={{ transition: 'stroke-dasharray 0.4s ease' }}>
+            <title>{seg.label}: {seg.value} ({Math.round(pct * 100)}%)</title>
+          </circle>
+        );
+      })}
+      {centerLabel && (
+        <text x="50" y="47" textAnchor="middle" fill="rgba(255,255,255,0.85)" fontSize="11" fontWeight="600">{centerLabel}</text>
+      )}
+      <text x="50" y="59" textAnchor="middle" fill="rgba(255,255,255,0.35)" fontSize="7">
+        {total} total
+      </text>
+    </svg>
+  );
+}
+
+function ChartLegend({ items }: { items: { color: string; label: string; value: number; total: number }[] }) {
+  return (
+    <div className="space-y-1.5 mt-2">
+      {items.map((item, i) => (
+        <div key={i} className="flex items-center gap-2">
+          <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
+          <span className="text-white/55 text-xs flex-1 truncate">{item.label}</span>
+          <span className="text-white/70 text-xs font-medium">{item.value}</span>
+          <span className="text-white/30 text-[10px] w-8 text-right">
+            {item.total > 0 ? `${Math.round(item.value / item.total * 100)}%` : '—'}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function HBarChart({ data, maxColor }: { data: { label: string; value: number }[]; maxColor: string }) {
+  const max = Math.max(...data.map(d => d.value), 1);
+  return (
+    <div className="space-y-2">
+      {data.map((d, i) => (
+        <div key={i} className="space-y-0.5">
+          <div className="flex items-center justify-between">
+            <span className="text-white/60 text-xs truncate max-w-[140px]">{d.label}</span>
+            <span className="text-white/70 text-xs font-medium ml-2">{d.value}</span>
+          </div>
+          <div className="h-2 bg-white/[0.06] rounded-full overflow-hidden">
+            <div className="h-full rounded-full transition-all duration-500"
+              style={{ width: `${(d.value / max) * 100}%`, backgroundColor: maxColor, opacity: 0.6 + 0.4 * (d.value / max) }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function TimeHeatmap({ hourBuckets }: { hourBuckets: number[] }) {
+  const max = Math.max(...hourBuckets, 1);
+  const LABELS = ['0', '2', '4', '6', '8', '10', '12', '14', '16', '18', '20', '22'];
+  const PERIOD_COLORS: Record<string, string> = {
+    night: '#6366f1', dawn: '#f59e0b', morning: '#10b981', afternoon: '#3b82f6', evening: '#f43f5e', late: '#8b5cf6',
+  };
+  const getPeriod = (h: number) => {
+    if (h < 4) return 'night'; if (h < 7) return 'dawn'; if (h < 12) return 'morning';
+    if (h < 17) return 'afternoon'; if (h < 21) return 'evening'; return 'late';
+  };
+  const peakHour = hourBuckets.indexOf(max);
+
+  return (
+    <div>
+      <div className="flex gap-0.5">
+        {hourBuckets.map((count, h) => {
+          const intensity = count / max;
+          const color = PERIOD_COLORS[getPeriod(h)];
+          return (
+            <div key={h} className="flex-1 flex flex-col items-center gap-0.5" title={`${String(h).padStart(2, '0')}:00 — ${count} breakdown${count !== 1 ? 's' : ''}`}>
+              <div className="w-full rounded-sm transition-all duration-300"
+                style={{
+                  height: 40,
+                  backgroundColor: count > 0 ? color : 'rgba(255,255,255,0.04)',
+                  opacity: count > 0 ? 0.2 + 0.8 * intensity : 1,
+                  border: h === peakHour && count > 0 ? '1px solid rgba(255,255,255,0.4)' : '1px solid transparent',
+                }} />
+            </div>
+          );
+        })}
+      </div>
+      <div className="flex mt-1">
+        {LABELS.map((l, i) => (
+          <div key={i} className="text-[9px] text-white/25" style={{ width: `${100 / 12}%` }}>{l}</div>
+        ))}
+      </div>
+      {max > 0 && (
+        <div className="flex items-center gap-3 mt-2 flex-wrap">
+          {Object.entries(PERIOD_COLORS).map(([period, color]) => (
+            <div key={period} className="flex items-center gap-1">
+              <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: color, opacity: 0.7 }} />
+              <span className="text-white/30 text-[9px] capitalize">{period}</span>
+            </div>
+          ))}
+          <span className="text-white/25 text-[9px] ml-auto">
+            Peak: {String(peakHour).padStart(2, '0')}:00 ({hourBuckets[peakHour]} breakdowns)
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ArtisanCostChart({ artisanCost }: { artisanCost: ReturnType<typeof calcStats>['artisanCost'] }) {
+  if (artisanCost.length === 0) return (
+    <div className="flex items-center justify-center h-20 text-white/20 text-xs">No breakdown data yet</div>
+  );
+  const top = artisanCost.slice(0, 6);
+  const maxHours = Math.max(...top.map(a => a.hours), 1);
+  return (
+    <div className="space-y-2">
+      {top.map((a, i) => (
+        <div key={i} className="space-y-1">
+          <div className="flex items-center justify-between">
+            <span className="text-white/70 text-xs truncate max-w-[120px]">{a.name}</span>
+            <div className="flex items-center gap-3 text-[10px] text-right">
+              <span className="text-[#86BBD8]/70">{a.hours.toFixed(1)}h</span>
+              {a.sparesCost > 0 && <span className="text-amber-300/70">R{a.sparesCost.toLocaleString('en-ZA', { maximumFractionDigits: 0 })}</span>}
+              <span className="text-white/35">({a.count} WO)</span>
+            </div>
+          </div>
+          <div className="h-2 bg-white/[0.06] rounded-full overflow-hidden">
+            <div className="h-full rounded-full bg-[#86BBD8]/50 transition-all duration-500"
+              style={{ width: `${(a.hours / maxHours) * 100}%` }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function AnalyticsPanel({ stats, isOpen, onToggle }: {
+  stats: ReturnType<typeof calcStats>;
+  isOpen: boolean;
+  onToggle: () => void;
+}) {
+  const classSegs = [
+    { value: stats.plannedMaintenance, color: '#10b981', label: 'Planned Maintenance' },
+    { value: stats.projects,           color: '#3b82f6', label: 'Projects' },
+    { value: stats.breakdowns,         color: '#ef4444', label: 'Breakdowns' },
+    { value: stats.customClass,        color: '#8b5cf6', label: 'Custom / Other' },
+  ].filter(s => s.value > 0);
+
+  const statusSegs = [
+    { value: stats.pending,    color: '#fbbf24', label: 'Pending' },
+    { value: stats.inProgress, color: '#60a5fa', label: 'In Progress' },
+    { value: stats.completed,  color: '#34d399', label: 'Completed' },
+    { value: stats.onHold,     color: '#fb923c', label: 'On Hold' },
+  ].filter(s => s.value > 0);
+
+  const discSegs = [
+    { value: stats.mechanical, color: '#86BBD8', label: 'Mechanical' },
+    { value: stats.electrical, color: '#fbbf24', label: 'Electrical' },
+  ].filter(s => s.value > 0);
+
+  return (
+    <div className="oz-glass-panel rounded-2xl overflow-hidden">
+      <button type="button" className="w-full flex items-center gap-3 px-5 py-3 border-b border-white/[0.08] hover:bg-white/[0.02] transition-colors"
+        onClick={onToggle}>
+        <BarChart2 className="h-4 w-4 text-[#86BBD8]" />
+        <span className="text-white/90 font-semibold text-sm">Analytics &amp; Insights</span>
+        <span className="ml-auto text-white/25 text-xs mr-2">
+          {stats.total} work orders · {stats.efficiency}% efficiency
+        </span>
+        {isOpen ? <ChevronUp className="h-4 w-4 text-white/35" /> : <ChevronDown className="h-4 w-4 text-white/35" />}
+      </button>
+
+      {isOpen && (
+        <div className="p-5 space-y-6">
+
+          {/* Row 1: Three donut charts */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+
+            {/* Classification donut */}
+            <div className="bg-white/[0.03] border border-white/[0.07] rounded-xl p-4">
+              <div className="text-white/60 text-xs font-medium mb-3 flex items-center gap-1.5">
+                <Layers className="h-3.5 w-3.5 text-[#86BBD8]" /> WO Classification
+              </div>
+              <div className="h-28"><DonutChart segments={classSegs} centerLabel={String(stats.total)} /></div>
+              <ChartLegend items={classSegs.map(s => ({ ...s, total: stats.total }))} />
+            </div>
+
+            {/* Status donut */}
+            <div className="bg-white/[0.03] border border-white/[0.07] rounded-xl p-4">
+              <div className="text-white/60 text-xs font-medium mb-3 flex items-center gap-1.5">
+                <Activity className="h-3.5 w-3.5 text-green-400" /> Status Breakdown
+              </div>
+              <div className="h-28"><DonutChart segments={statusSegs} centerLabel={`${stats.efficiency}%`} /></div>
+              <ChartLegend items={statusSegs.map(s => ({ ...s, total: stats.total }))} />
+            </div>
+
+            {/* Discipline donut */}
+            <div className="bg-white/[0.03] border border-white/[0.07] rounded-xl p-4">
+              <div className="text-white/60 text-xs font-medium mb-3 flex items-center gap-1.5">
+                <Cpu className="h-3.5 w-3.5 text-amber-400" /> Discipline
+              </div>
+              <div className="h-28"><DonutChart segments={discSegs} centerLabel={stats.mechanical + stats.electrical > 0 ? undefined : '—'} /></div>
+              <ChartLegend items={discSegs.map(s => ({ ...s, total: stats.mechanical + stats.electrical }))} />
+              {stats.sparesTotalCost > 0 && (
+                <div className="mt-3 pt-2 border-t border-white/[0.06] text-center">
+                  <div className="text-white/30 text-[10px]">Spares Cost</div>
+                  <div className="text-amber-300/80 text-sm font-semibold font-mono">
+                    R {stats.sparesTotalCost.toLocaleString('en-ZA', { minimumFractionDigits: 2 })}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Row 2: Artisan cost + Failure modes */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+
+            {/* Artisan breakdown cost */}
+            <div className="bg-white/[0.03] border border-white/[0.07] rounded-xl p-4">
+              <div className="text-white/60 text-xs font-medium mb-3 flex items-center gap-1.5">
+                <HardHat className="h-3.5 w-3.5 text-[#86BBD8]" /> Artisan Hours (Breakdowns)
+              </div>
+              <ArtisanCostChart artisanCost={stats.artisanCost} />
+              {stats.artisanCost.length > 0 && (
+                <div className="mt-3 text-[10px] text-white/25">
+                  Hours shown as a cost proxy. Spares cost in R shown where entered.
+                </div>
+              )}
+            </div>
+
+            {/* Failure modes */}
+            <div className="bg-white/[0.03] border border-white/[0.07] rounded-xl p-4">
+              <div className="text-white/60 text-xs font-medium mb-3 flex items-center gap-1.5">
+                <AlertTriangle className="h-3.5 w-3.5 text-red-400" /> Failure Modes (Top 8)
+              </div>
+              {stats.failureModes.length > 0
+                ? <HBarChart data={stats.failureModes.map(([label, value]) => ({ label, value }))} maxColor="#ef4444" />
+                : <div className="text-white/20 text-xs">No breakdown failure modes recorded</div>
+              }
+            </div>
+          </div>
+
+          {/* Row 3: Time-of-day heatmap */}
+          <div className="bg-white/[0.03] border border-white/[0.07] rounded-xl p-4">
+            <div className="text-white/60 text-xs font-medium mb-3 flex items-center gap-1.5">
+              <TrendingUp className="h-3.5 w-3.5 text-violet-400" /> Breakdown Occurrence — Time of Day
+            </div>
+            {stats.breakdowns > 0
+              ? <TimeHeatmap hourBuckets={stats.hourBuckets} />
+              : <div className="text-white/20 text-xs py-4">No breakdown time data recorded yet</div>
+            }
+          </div>
+
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ==================== WORK ORDER ROW ====================
-function WorkOrderRow({ workOrder, onClick }: { workOrder: WorkOrder; onClick: () => void }) {
-  const [expanded, setExpanded] = useState(false);
+function WorkOrderRow({ workOrder, onClick, isExpanded, onToggle }: {
+  workOrder: WorkOrder;
+  onClick: () => void;
+  isExpanded: boolean;
+  onToggle: () => void;
+}) {
   const scfg = statusCfg(workOrder.status);
   const pcfg = priorityCfg(workOrder.priority);
   const artisanDisplay = workOrder.allocated_to || workOrder.artisan_name || '—';
@@ -1303,8 +1842,35 @@ function WorkOrderRow({ workOrder, onClick }: { workOrder: WorkOrder; onClick: (
 
         {/* Machine + Artisan — click opens full modal */}
         <button type="button" onClick={onClick} className="flex-1 min-w-0 text-left">
-          <div className="text-white/90 font-medium text-sm truncate group-hover:text-white transition-colors">
-            {workOrder.equipment_info}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-white/90 font-medium text-sm truncate group-hover:text-white transition-colors">
+              {workOrder.equipment_info}
+            </span>
+            {workOrder.classification && (
+              <span className={`px-1.5 py-px rounded text-[9px] font-medium border flex-shrink-0 ${
+                workOrder.classification === 'breakdown'
+                  ? 'bg-red-500/15 text-red-300 border-red-500/25'
+                  : workOrder.classification === 'planned_maintenance'
+                  ? 'bg-green-500/15 text-green-300 border-green-500/25'
+                  : workOrder.classification === 'project'
+                  ? 'bg-blue-500/15 text-blue-300 border-blue-500/25'
+                  : 'bg-purple-500/15 text-purple-300 border-purple-500/25'
+              }`}>
+                {workOrder.classification === 'planned_maintenance' ? 'PM'
+                  : workOrder.classification === 'project' ? 'Proj'
+                  : workOrder.classification === 'breakdown' ? 'BKD'
+                  : workOrder.classification_custom?.slice(0, 6) || 'Custom'}
+              </span>
+            )}
+            {workOrder.discipline && (
+              <span className={`px-1.5 py-px rounded text-[9px] border flex-shrink-0 ${
+                workOrder.discipline === 'Electrical'
+                  ? 'bg-amber-500/15 text-amber-300 border-amber-500/25'
+                  : 'bg-[#86BBD8]/15 text-[#86BBD8]/80 border-[#86BBD8]/25'
+              }`}>
+                {workOrder.discipline === 'Electrical' ? '⚡' : '⚙'} {workOrder.trade || workOrder.discipline}
+              </span>
+            )}
           </div>
           <div className="text-white/40 text-xs truncate mt-0.5">
             {artisanDisplay}{workOrder.to_department ? ` · ${workOrder.to_department}` : ''}
@@ -1343,15 +1909,15 @@ function WorkOrderRow({ workOrder, onClick }: { workOrder: WorkOrder; onClick: (
         </div>
 
         {/* Expand toggle — quick preview */}
-        <button type="button" onClick={() => setExpanded(o => !o)}
-          title={expanded ? 'Collapse preview' : 'Quick preview'}
+        <button type="button" onClick={onToggle}
+          title={isExpanded ? 'Collapse preview' : 'Quick preview'}
           className="p-1 rounded text-white/20 hover:text-white/60 hover:bg-white/[0.06] transition-colors flex-shrink-0">
-          {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         </button>
       </div>
 
       {/* ── Inline quick-view ── */}
-      {expanded && (
+      {isExpanded && (
         <div className="px-14 pb-4 pt-2 bg-white/[0.02] border-t border-white/[0.04]">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-2.5">
             <div>
@@ -1384,6 +1950,27 @@ function WorkOrderRow({ workOrder, onClick }: { workOrder: WorkOrder; onClick: (
               <div className="col-span-2 sm:col-span-4">
                 <div className="text-white/25 text-[10px] uppercase tracking-wide mb-0.5">Cause of Failure</div>
                 <div className="text-white/55 text-xs line-clamp-2">{workOrder.cause_of_failure}</div>
+              </div>
+            )}
+            {workOrder.failure_mode && (
+              <div>
+                <div className="text-white/25 text-[10px] uppercase tracking-wide mb-0.5">Failure Mode</div>
+                <div className="text-red-300/70 text-xs">{workOrder.failure_mode}</div>
+              </div>
+            )}
+            {workOrder.spares_used && workOrder.spares_used.length > 0 && (
+              <div className="col-span-2 sm:col-span-4">
+                <div className="text-white/25 text-[10px] uppercase tracking-wide mb-1">Spares Used</div>
+                <div className="flex flex-wrap gap-1.5">
+                  {workOrder.spares_used.map(s => (
+                    <span key={s.id} className="bg-amber-500/10 border border-amber-500/20 text-amber-300/70 text-[10px] px-2 py-0.5 rounded-full">
+                      {s.name} ×{s.quantity} · R{(s.quantity * s.unit_cost).toFixed(0)}
+                    </span>
+                  ))}
+                  <span className="bg-white/[0.05] border border-white/10 text-white/40 text-[10px] px-2 py-0.5 rounded-full font-mono">
+                    Total: R{workOrder.spares_used.reduce((a, s) => a + s.quantity * s.unit_cost, 0).toFixed(2)}
+                  </span>
+                </div>
               </div>
             )}
           </div>
@@ -1809,6 +2396,15 @@ export default function MaintenancePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [analyticsOpen, setAnalyticsOpen] = useState(true);
+
+  // Expand/collapse state for work order rows (default: all collapsed)
+  const [expandedWOs, setExpandedWOs] = useState<Set<string>>(new Set());
+  const toggleWO = (id: string) => setExpandedWOs(prev => {
+    const next = new Set(prev);
+    if (next.has(String(id))) next.delete(String(id)); else next.add(String(id));
+    return next;
+  });
 
   // Schedule state
   const [schedules, setSchedules] = useState<MaintenanceSchedule[]>([]);
@@ -2118,6 +2714,13 @@ export default function MaintenancePage() {
         </div>
       </section>
 
+      {/* ── ANALYTICS PANEL ── */}
+      <section className="relative text-white">
+        <div className="container mx-auto px-4 pb-3">
+          <AnalyticsPanel stats={stats} isOpen={analyticsOpen} onToggle={() => setAnalyticsOpen(o => !o)} />
+        </div>
+      </section>
+
       {/* ── RECORDS PANEL ── */}
       <section className="relative text-white">
         <div className="container mx-auto px-4 pb-6">
@@ -2227,6 +2830,24 @@ export default function MaintenancePage() {
                   )}
                 </div>
 
+                {/* Collapse / Expand all */}
+                {filtered.length > 0 && !panelMinimized && (
+                  <div className="flex items-center gap-1">
+                    <button type="button"
+                      onClick={() => setExpandedWOs(new Set(filtered.map(w => String(w.id))))}
+                      title="Expand all"
+                      className="bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 rounded-lg px-2 py-1.5 text-white/40 hover:text-white/70 text-[10px] transition-colors flex items-center gap-1">
+                      <Maximize2 className="h-3 w-3" /> All
+                    </button>
+                    <button type="button"
+                      onClick={() => setExpandedWOs(new Set())}
+                      title="Collapse all"
+                      className="bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 rounded-lg px-2 py-1.5 text-white/40 hover:text-white/70 text-[10px] transition-colors flex items-center gap-1">
+                      <Minimize2 className="h-3 w-3" />
+                    </button>
+                  </div>
+                )}
+
                 {/* Minimize */}
                 <button type="button"
                   onClick={() => setPanelMinimized(m => !m)}
@@ -2267,7 +2888,8 @@ export default function MaintenancePage() {
                 ) : (
                   <div>
                     {filtered.map(wo => (
-                      <WorkOrderRow key={wo.id} workOrder={wo} onClick={() => setSelectedOrderId(wo.id)} />
+                      <WorkOrderRow key={wo.id} workOrder={wo} onClick={() => setSelectedOrderId(wo.id)}
+                        isExpanded={expandedWOs.has(String(wo.id))} onToggle={() => toggleWO(wo.id)} />
                     ))}
                     <div className="px-5 py-2.5 border-t border-white/[0.04]">
                       <span className="text-white/25 text-xs">
