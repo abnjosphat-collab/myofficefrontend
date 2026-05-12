@@ -3,14 +3,14 @@
 import React, { useState, useEffect, useMemo } from "react";
 import {
   ClipboardList, Target, Plus, Trash2, AlertTriangle,
-  Eye, Pencil, FileText, CheckCircle, LayoutGrid, Table as TableIcon,
-  RefreshCw, Wrench, Zap, Send, CheckSquare, ShieldAlert, BookOpen
+  Eye, Pencil, LayoutGrid, Table as TableIcon,
+  RefreshCw, Wrench, Zap, ShieldAlert, BookOpen
 } from "lucide-react";
 import { PageShell } from '@/components/PageShell';
 import { toast } from "sonner";
 import {
   safetyFetch, glassInput, glassLabel, glassTextarea, glassSelect,
-  SafetyHero, SafetyControls, FilterPills, DateRangeFilter, ClearFiltersButton,
+  SafetyHero, SafetyControls, SafetySearchBar, FilterPills, DateRangeFilter, ClearFiltersButton,
   SafetyModal, FormField, ModalActions,
   SafetyTable, RowActions, AddButton, LoadingState, EmptyState, TabBar
 } from '@/components/safety';
@@ -822,14 +822,14 @@ export default function CompletePTOFormPage() {
   const hasFilters = search || sectionFilter !== 'all' || statusFilter !== 'all' || obsTypeFilter !== 'all' || dateFrom || dateTo;
 
   const heroStats = [
-    { label: 'Total', value: total, icon: <ClipboardList size={16} />, color: '#60a5fa' },
-    { label: 'Draft', value: drafts, icon: <FileText size={16} />, color: '#6b7280' },
-    { label: 'Submitted', value: submitted, icon: <Send size={16} />, color: '#3b82f6' },
-    { label: 'Reviewed', value: reviewed, icon: <CheckCircle size={16} />, color: '#a78bfa' },
-    { label: 'Closed', value: closed, icon: <CheckSquare size={16} />, color: '#10b981' },
-    { label: 'Actions', value: totalActions, icon: <Target size={16} />, color: '#f59e0b' },
-    { label: 'Completed', value: completedActions, icon: <CheckCircle size={16} />, color: '#34d399' },
-    { label: 'High Risk', value: highRisk, icon: <AlertTriangle size={16} />, color: '#ef4444' },
+    { label: 'Total', value: total, color: '#60a5fa' },
+    { label: 'Draft', value: drafts, color: '#6b7280' },
+    { label: 'Submitted', value: submitted, color: '#3b82f6' },
+    { label: 'Reviewed', value: reviewed, color: '#a78bfa' },
+    { label: 'Closed', value: closed, color: '#10b981' },
+    { label: 'Actions', value: totalActions, color: '#f59e0b' },
+    { label: 'Completed', value: completedActions, color: '#34d399' },
+    { label: 'High Risk', value: highRisk, color: '#ef4444' },
   ];
 
   const tableColumns = ['Date', 'Observer', 'Worker', 'Task', 'Section', 'Type', 'Status', 'Risk', 'Actions'];
@@ -849,10 +849,10 @@ export default function CompletePTOFormPage() {
       <main className="container mx-auto px-4 py-6 space-y-6">
 
         <SafetyHero
-          breadcrumb={[{ label: 'Home' }, { label: 'PTO' }]}
+          icon={ClipboardList}
           title="Planned Task Observation"
           subtitle="Complete PTO forms with risk assessment and action tracking."
-          accent="#60a5fa"
+          accentColor="#60a5fa"
           stats={heroStats}
           actions={
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -868,41 +868,33 @@ export default function CompletePTOFormPage() {
                 style={{ background: viewMode === 'table' ? 'rgba(96,165,250,0.18)' : 'rgba(255,255,255,0.07)', border: `1px solid ${viewMode === 'table' ? '#60a5fa' : 'rgba(255,255,255,0.12)'}`, borderRadius: 8, padding: '7px 10px', cursor: 'pointer', color: viewMode === 'table' ? '#60a5fa' : 'rgba(255,255,255,0.6)' }}>
                 <TableIcon size={15} />
               </button>
-              <AddButton label="New PTO" onClick={() => { setEditing(null); setFormOpen(true); }} color="#60a5fa" />
+              <AddButton label="New PTO" onClick={() => { setEditing(null); setFormOpen(true); }} />
             </div>
           }
         />
 
-        <SafetyControls
-          search={search}
-          onSearch={setSearch}
-          searchPlaceholder="Search by observer, worker, task..."
-          filters={
-            <>
-              <FilterPills label="Section" value={sectionFilter} onChange={setSectionFilter}
-                pills={[{ label: 'All', value: 'all' }, { label: 'Mechanical', value: 'Mechanical' }, { label: 'Electrical', value: 'Electrical' }]} />
-              <FilterPills label="Status" value={statusFilter} onChange={setStatusFilter}
-                pills={[{ label: 'All', value: 'all' }, { label: 'Draft', value: 'draft' }, { label: 'Submitted', value: 'submitted' }, { label: 'Reviewed', value: 'reviewed' }, { label: 'Closed', value: 'closed' }]} />
-              <FilterPills label="Type" value={obsTypeFilter} onChange={setObsTypeFilter}
-                pills={[{ label: 'All', value: 'all' }, { label: 'Initial', value: 'Initial' }, { label: 'Follow up', value: 'Follow up' }]} />
-              <DateRangeFilter from={dateFrom} to={dateTo} onFrom={setDateFrom} onTo={setDateTo} />
-              {hasFilters && <ClearFiltersButton onClick={clearFilters} />}
-            </>
-          }
-          resultCount={filtered.length}
-          totalCount={total}
-        />
+        <SafetyControls>
+          <SafetySearchBar value={search} onChange={setSearch} placeholder="Search by observer, worker, task..." />
+          <FilterPills label="Section" value={sectionFilter} onChange={setSectionFilter}
+            options={[{ label: 'All', value: 'all' }, { label: 'Mechanical', value: 'Mechanical' }, { label: 'Electrical', value: 'Electrical' }]} />
+          <FilterPills label="Status" value={statusFilter} onChange={setStatusFilter}
+            options={[{ label: 'All', value: 'all' }, { label: 'Draft', value: 'draft' }, { label: 'Submitted', value: 'submitted' }, { label: 'Reviewed', value: 'reviewed' }, { label: 'Closed', value: 'closed' }]} />
+          <FilterPills label="Type" value={obsTypeFilter} onChange={setObsTypeFilter}
+            options={[{ label: 'All', value: 'all' }, { label: 'Initial', value: 'Initial' }, { label: 'Follow up', value: 'Follow up' }]} />
+          <DateRangeFilter from={dateFrom} to={dateTo} onFromChange={setDateFrom} onToChange={setDateTo} />
+          {hasFilters && <ClearFiltersButton onClick={clearFilters} />}
+          <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginLeft: 'auto' }}>{filtered.length} of {total}</span>
+        </SafetyControls>
 
         {loading ? (
           <LoadingState />
         ) : filtered.length === 0 ? (
           <EmptyState
-            icon={<ClipboardList size={40} />}
+            icon={ClipboardList}
             title="No PTO reports found"
             message={total === 0 ? 'Start by creating your first Planned Task Observation.' : 'Try adjusting your filters.'}
-            action={total === 0
-              ? <AddButton label="Create First PTO" onClick={() => { setEditing(null); setFormOpen(true); }} color="#60a5fa" />
-              : <ClearFiltersButton onClick={clearFilters} />}
+            onAdd={total === 0 ? () => { setEditing(null); setFormOpen(true); } : clearFilters}
+            addLabel={total === 0 ? 'Create First PTO' : 'Clear Filters'}
           />
         ) : viewMode === 'grid' ? (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
@@ -915,16 +907,27 @@ export default function CompletePTOFormPage() {
             ))}
           </div>
         ) : (
-          <SafetyTable
-            columns={tableColumns}
-            rows={tableRows}
-            onRowClick={id => { const r = reports.find(x => x.id === id); if (r) { setSelectedReport(r); setDetailOpen(true); } }}
-            renderActions={id => {
-              const r = reports.find(x => x.id === id);
-              if (!r) return null;
-              return <RowActions onEdit={() => handleEdit(r)} onDelete={() => setDeleteTarget(id)} />;
-            }}
-          />
+          <SafetyTable headers={['Date', 'Observer', 'Worker', 'Task', 'Section', 'Type', 'Status', 'Risk', ''].map(label => ({ label }))}>
+            {filtered.map(r => {
+              const hasRisk = r.riskAssessment.made === 'No' || r.riskAssessment.identified === 'No' || r.riskAssessment.effective === 'No';
+              return (
+                <tr key={r.id} onClick={() => { setSelectedReport(r); setDetailOpen(true); }}
+                  style={{ cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                  <td className="pl-5 pr-3 py-3 text-xs text-white/70">{fmtDate(r.date)}</td>
+                  <td className="px-3 py-3 text-xs text-white/70">{r.observerName}</td>
+                  <td className="px-3 py-3 text-xs text-white/70">{r.workerName}</td>
+                  <td className="px-3 py-3 text-xs text-white/60">{r.jobTaskObserved.slice(0, 30)}{r.jobTaskObserved.length > 30 ? '…' : ''}</td>
+                  <td className="px-3 py-3"><Chip label={r.section} color={SECTION_COLORS[r.section]} /></td>
+                  <td className="px-3 py-3"><Chip label={r.observationType} color={OBS_COLORS[r.observationType]} /></td>
+                  <td className="px-3 py-3"><Chip label={r.status.charAt(0).toUpperCase() + r.status.slice(1)} color={STATUS_COLORS[r.status]} /></td>
+                  <td className="px-3 py-3">{hasRisk ? <Chip label="⚠ High" color="#ef4444" /> : <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: 12 }}>—</span>}</td>
+                  <td className="px-3 py-3 text-right" onClick={e => e.stopPropagation()}>
+                    <RowActions onEdit={() => handleEdit(r)} onDelete={() => setDeleteTarget(r.id)} />
+                  </td>
+                </tr>
+              );
+            })}
+          </SafetyTable>
         )}
 
         <PTODetailModal

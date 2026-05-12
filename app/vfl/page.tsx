@@ -10,7 +10,7 @@ import { PageShell } from '@/components/PageShell';
 import { toast } from "sonner";
 import {
   safetyFetch, glassInput, glassLabel, glassTextarea, glassSelect,
-  SafetyHero, SafetyControls, FilterPills, DateRangeFilter, ClearFiltersButton,
+  SafetyHero, SafetyControls, SafetySearchBar, FilterPills, DateRangeFilter, ClearFiltersButton,
   SafetyPanel, SafetyModal, FormField, ModalActions,
   SafetyTable, RowActions, AddButton, LoadingState, EmptyState, TabBar
 } from '@/components/safety';
@@ -787,14 +787,14 @@ export default function VFLObservationPage() {
   const hasFilters = search || sectionFilter !== 'all' || statusFilter !== 'all' || behaviourFilter !== 'all' || dateFrom || dateTo;
 
   const heroStats = [
-    { label: 'Total', value: total, icon: <Eye size={16} />, color: '#10b981' },
-    { label: 'Draft', value: drafts, icon: <FileText size={16} />, color: '#6b7280' },
-    { label: 'Submitted', value: submitted, icon: <Send size={16} />, color: '#3b82f6' },
-    { label: 'Reviewed', value: reviewed, icon: <CheckCircle size={16} />, color: '#a78bfa' },
-    { label: 'Closed', value: closed, icon: <CheckCircle2 size={16} />, color: '#10b981' },
-    { label: 'Unsafe', value: unsafe, icon: <AlertTriangle size={16} />, color: '#ef4444' },
-    { label: 'Safe', value: safe, icon: <CheckCircle size={16} />, color: '#34d399' },
-    { label: 'Actions', value: totalActions, icon: <Target size={16} />, color: '#60a5fa' },
+    { label: 'Total', value: total, color: '#10b981' },
+    { label: 'Draft', value: drafts, color: '#6b7280' },
+    { label: 'Submitted', value: submitted, color: '#3b82f6' },
+    { label: 'Reviewed', value: reviewed, color: '#a78bfa' },
+    { label: 'Closed', value: closed, color: '#10b981' },
+    { label: 'Unsafe', value: unsafe, color: '#ef4444' },
+    { label: 'Safe', value: safe, color: '#34d399' },
+    { label: 'Actions', value: totalActions, color: '#60a5fa' },
   ];
 
   const sectionPills = [
@@ -835,10 +835,10 @@ export default function VFLObservationPage() {
 
         {/* Hero */}
         <SafetyHero
-          breadcrumb={[{ label: 'Home' }, { label: 'VFL' }]}
+          icon={Eye}
           title="Visible Felt Leadership"
           subtitle="Safety observations and coaching tracking."
-          accent="#10b981"
+          accentColor="#10b981"
           stats={heroStats}
           actions={
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -854,40 +854,32 @@ export default function VFLObservationPage() {
                 style={{ background: viewMode === 'table' ? 'rgba(16,185,129,0.18)' : 'rgba(255,255,255,0.07)', border: `1px solid ${viewMode === 'table' ? '#10b981' : 'rgba(255,255,255,0.12)'}`, borderRadius: 8, padding: '7px 10px', cursor: 'pointer', color: viewMode === 'table' ? '#10b981' : 'rgba(255,255,255,0.6)' }}>
                 <TableIcon size={15} />
               </button>
-              <AddButton label="New VFL" onClick={() => { setEditing(null); setFormOpen(true); }} color="#10b981" />
+              <AddButton label="New VFL" onClick={() => { setEditing(null); setFormOpen(true); }} />
             </div>
           }
         />
 
         {/* Controls */}
-        <SafetyControls
-          search={search}
-          onSearch={setSearch}
-          searchPlaceholder="Search by observer, description, actions..."
-          filters={
-            <>
-              <FilterPills label="Section" pills={sectionPills} value={sectionFilter} onChange={setSectionFilter} />
-              <FilterPills label="Status" pills={statusPills} value={statusFilter} onChange={setStatusFilter} />
-              <FilterPills label="Behaviour" pills={behaviourPills} value={behaviourFilter} onChange={setBehaviourFilter} />
-              <DateRangeFilter from={dateFrom} to={dateTo} onFrom={setDateFrom} onTo={setDateTo} />
-              {hasFilters && <ClearFiltersButton onClick={clearFilters} />}
-            </>
-          }
-          resultCount={filtered.length}
-          totalCount={total}
-        />
+        <SafetyControls>
+          <SafetySearchBar value={search} onChange={setSearch} placeholder="Search by observer, description, actions..." />
+          <FilterPills label="Section" options={sectionPills} value={sectionFilter} onChange={setSectionFilter} />
+          <FilterPills label="Status" options={statusPills} value={statusFilter} onChange={setStatusFilter} />
+          <FilterPills label="Behaviour" options={behaviourPills} value={behaviourFilter} onChange={setBehaviourFilter} />
+          <DateRangeFilter from={dateFrom} to={dateTo} onFromChange={setDateFrom} onToChange={setDateTo} />
+          {hasFilters && <ClearFiltersButton onClick={clearFilters} />}
+          <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginLeft: 'auto' }}>{filtered.length} of {total}</span>
+        </SafetyControls>
 
         {/* Content */}
         {loading ? (
           <LoadingState />
         ) : filtered.length === 0 ? (
           <EmptyState
-            icon={<Eye size={40} />}
+            icon={Eye}
             title="No VFL observations found"
             message={total === 0 ? 'Start by recording your first VFL observation.' : 'Try adjusting your filters.'}
-            action={total === 0
-              ? <AddButton label="Create First VFL" onClick={() => { setEditing(null); setFormOpen(true); }} color="#10b981" />
-              : <ClearFiltersButton onClick={clearFilters} />}
+            onAdd={total === 0 ? () => { setEditing(null); setFormOpen(true); } : clearFilters}
+            addLabel={total === 0 ? 'Create First VFL' : 'Clear Filters'}
           />
         ) : viewMode === 'grid' ? (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
@@ -900,16 +892,23 @@ export default function VFLObservationPage() {
             ))}
           </div>
         ) : (
-          <SafetyTable
-            columns={tableColumns}
-            rows={tableRows}
-            onRowClick={id => { const r = reports.find(x => x.id === id); if (r) { setSelectedReport(r); setDetailOpen(true); } }}
-            renderActions={id => {
-              const r = reports.find(x => x.id === id);
-              if (!r) return null;
-              return <RowActions onEdit={() => handleEdit(r)} onDelete={() => setDeleteTarget(id)} />;
-            }}
-          />
+          <SafetyTable headers={['Date', 'Observer', 'Designation', 'Section', 'Behaviour', 'Coaching', 'Status', ''].map(label => ({ label }))}>
+            {filtered.map(r => (
+              <tr key={r.id} onClick={() => { setSelectedReport(r); setDetailOpen(true); }}
+                style={{ cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                <td className="pl-5 pr-3 py-3 text-xs text-white/70">{fmtDate(r.date)}</td>
+                <td className="px-3 py-3 text-xs text-white/70">{r.observerName}</td>
+                <td className="px-3 py-3 text-xs text-white/60">{r.designation || 'N/A'}</td>
+                <td className="px-3 py-3 text-xs text-white/70">{r.sectionChoice}</td>
+                <td className="px-3 py-3"><Chip label={r.behaviourCategory} color={BEHAVIOUR_COLORS[r.behaviourCategory] || '#86BBD8'} /></td>
+                <td className="px-3 py-3 text-xs text-white/60">{r.coachingTechnique}</td>
+                <td className="px-3 py-3"><Chip label={r.status.charAt(0).toUpperCase() + r.status.slice(1)} color={STATUS_COLORS[r.status]} /></td>
+                <td className="px-3 py-3 text-right" onClick={e => e.stopPropagation()}>
+                  <RowActions onEdit={() => handleEdit(r)} onDelete={() => setDeleteTarget(r.id)} />
+                </td>
+              </tr>
+            ))}
+          </SafetyTable>
         )}
 
         {/* Modals */}
