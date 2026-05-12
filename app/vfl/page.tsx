@@ -219,7 +219,7 @@ const ActionItemCard: React.FC<ActionCardProps> = ({ item, index, onChange, onRe
       )}
       <div style={{ gridColumn: '1 / -1' }}>
         <label className={glassLabel}>Remarks (Optional)</label>
-        <textarea style={{ ...glassTextarea, minHeight: 48 }} value={item.remarks || ''} placeholder="Additional notes..."
+        <textarea className={glassTextarea} style={{ minHeight: 48 }} value={item.remarks || ''} placeholder="Additional notes..."
           onChange={e => onChange(item.id, 'remarks', e.target.value)} title="Remarks" />
       </div>
     </div>
@@ -358,7 +358,7 @@ const VFLDetailModal: React.FC<DetailModalProps> = ({ report, open, onClose, onE
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <Chip label={report.behaviourCategory} color={bColor} />
-          <select title="Change status" style={{ ...glassSelect, width: 'auto', fontSize: 12, padding: '4px 8px' }}
+          <select title="Change status" className={glassSelect} style={{ width: 'auto', fontSize: 12, padding: '4px 8px' }}
             value={report.status} onChange={e => onStatusChange(report.id, e.target.value as VFLStatus)}>
             <option value="draft">Draft</option>
             <option value="submitted">Submitted</option>
@@ -572,7 +572,7 @@ const VFLFormModal: React.FC<FormModalProps> = ({ open, editing, onClose, onSave
       {tab === 1 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
           <div>
-            <label style={{ ...glassLabel, display: 'block', marginBottom: 8 }}>Behaviour Category *</label>
+            <label className={glassLabel} style={{ display: 'block', marginBottom: 8 }}>Behaviour Category *</label>
             <div style={radioGroupStyle}>
               {BEHAVIOUR_CATEGORIES.map(cat => (
                 <label key={cat} style={radioLabelStyle}>
@@ -586,7 +586,7 @@ const VFLFormModal: React.FC<FormModalProps> = ({ open, editing, onClose, onSave
           </div>
 
           <div>
-            <label style={{ ...glassLabel, display: 'block', marginBottom: 8 }}>Observation Type *</label>
+            <label className={glassLabel} style={{ display: 'block', marginBottom: 8 }}>Observation Type *</label>
             <div style={{ ...radioGroupStyle, flexDirection: 'column', gap: 8 }}>
               {OBSERVATION_TYPES.map(type => (
                 <label key={type} style={radioLabelStyle}>
@@ -600,13 +600,13 @@ const VFLFormModal: React.FC<FormModalProps> = ({ open, editing, onClose, onSave
           </div>
 
           <FormField label="Description *">
-            <textarea style={{ ...glassTextarea, minHeight: 100 }} value={form.description || ''}
+            <textarea className={glassTextarea} style={{ minHeight: 100 }} value={form.description || ''}
               placeholder="Relate details of the observation..." title="Description"
               onChange={e => set('description', e.target.value)} />
           </FormField>
 
           <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: '12px 14px' }}>
-            <label style={{ ...glassLabel, display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+            <label className={glassLabel} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
               <MessageSquare size={14} /> Coaching Technique Used *
             </label>
             <div style={radioGroupStyle}>

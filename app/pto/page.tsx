@@ -182,7 +182,7 @@ const ActionPlanCard: React.FC<{ item: ActionPlanItem; index: number; onChange: 
       )}
       <div style={{ gridColumn: '1 / -1' }}>
         <label className={glassLabel}>Remarks (Optional)</label>
-        <textarea style={{ ...glassTextarea, minHeight: 44 }} value={item.remarks || ''} placeholder="Additional notes..."
+        <textarea className={glassTextarea} style={{ minHeight: 44 }} value={item.remarks || ''} placeholder="Additional notes..."
           onChange={e => onChange(item.id, 'remarks', e.target.value)} title="Remarks" />
       </div>
     </div>
@@ -311,7 +311,7 @@ const PTODetailModal: React.FC<{ report: PTOReport | null; open: boolean; onClos
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           {hasRisk && <Chip label="Risk Identified" color="#ef4444" />}
-          <select title="Change status" style={{ ...glassSelect, width: 'auto', fontSize: 12, padding: '4px 8px' }}
+          <select title="Change status" className={glassSelect} style={{ width: 'auto', fontSize: 12, padding: '4px 8px' }}
             value={report.status} onChange={e => onStatusChange(report.id, e.target.value as ReportStatus)}>
             <option value="draft">Draft</option>
             <option value="submitted">Submitted</option>
