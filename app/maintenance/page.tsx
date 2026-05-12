@@ -1,6 +1,6 @@
 // frontend/app/maintenance/page.tsx
 'use client';
-import { useState, useEffect, useMemo, ElementType } from "react";
+import { useState, useEffect, useMemo, ElementType, useRef } from "react";
 import { PageShell } from "@/components/PageShell";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -43,6 +43,24 @@ interface SpareItem {
   quantity: number;
   unit_cost: number;
 }
+
+interface SpareRegisterItem {
+  id: number | string;
+  stock_code: string;
+  description: string;
+  unit_price: number;
+  unit_of_measure?: string;
+  category?: string;
+  current_quantity?: number;
+}
+
+// Module-level caches — fetched once per session
+let _empCache: EmployeeItem[] = [];
+let _empFetched = false;
+let _eqCache: EquipmentItem[] = [];
+let _eqFetched = false;
+let _spCache: SpareRegisterItem[] = [];
+let _spFetched = false;
 
 interface MaintenanceSchedule {
   id: string;
@@ -380,33 +398,15 @@ interface CreateModalProps {
 
 function CreateWorkOrderModal({ isOpen, onClose, onCreated }: CreateModalProps) {
   const blank = {
-    equipment_info: '', to_department: '', allocated_to: '',
+    equipment_info: '', to_department: 'Engineering', allocated_to: '',
     priority: 'medium' as WorkOrderPriority, estimated_hours: '2',
     job_request_details: '', requested_by: '', authorising_foreman: '',
     job_instructions: '', date_raised: new Date().toISOString().split('T')[0],
-    classification: '' as WOClassification | '',
-    classification_custom: '',
-    failure_mode: '',
-    discipline: '' as Discipline | '',
-    trade: '' as Trade | '',
   };
   const [form, setForm] = useState(blank);
-  const [spares, setSpares] = useState<SpareItem[]>([]);
-  const [newSpare, setNewSpare] = useState({ name: '', quantity: '1', unit_cost: '0' });
   const [saving, setSaving] = useState(false);
 
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
-
-  const addSpare = () => {
-    const name = newSpare.name.trim();
-    const qty = parseFloat(newSpare.quantity) || 1;
-    const cost = parseFloat(newSpare.unit_cost) || 0;
-    if (!name) return;
-    setSpares(prev => [...prev, { id: Date.now().toString(), name, quantity: qty, unit_cost: cost }]);
-    setNewSpare({ name: '', quantity: '1', unit_cost: '0' });
-  };
-
-  const removeSpare = (id: string) => setSpares(prev => prev.filter(s => s.id !== id));
 
   // Derive machine list — each comma-separated item becomes its own work order
   const machines = form.equipment_info.split(',').map(s => s.trim()).filter(Boolean);
@@ -446,12 +446,6 @@ function CreateWorkOrderModal({ isOpen, onClose, onCreated }: CreateModalProps) 
         overtime_start_time: '', overtime_end_time: '', overtime_hours: '',
         delay_from_time: '', delay_to_time: '', total_delay_hours: '',
         status: 'pending', progress: 0,
-        classification: form.classification || undefined,
-        classification_custom: form.classification === 'custom' ? form.classification_custom : undefined,
-        failure_mode: form.classification === 'breakdown' ? form.failure_mode || undefined : undefined,
-        discipline: form.discipline || undefined,
-        trade: (form.discipline === 'Mechanical' && form.trade) ? form.trade as Trade : undefined,
-        spares_used: spares.length > 0 ? spares : undefined,
       });
       if (result.success && result.data) created.push(result.data);
     }
@@ -459,7 +453,6 @@ function CreateWorkOrderModal({ isOpen, onClose, onCreated }: CreateModalProps) 
     if (created.length > 0) {
       toast.success(created.length > 1 ? `${created.length} work orders created` : 'Work order created');
       setForm(blank);
-      setSpares([]);
       created.forEach(wo => onCreated(wo));
       onClose();
     } else {
@@ -483,24 +476,24 @@ function CreateWorkOrderModal({ isOpen, onClose, onCreated }: CreateModalProps) 
         </DialogHeader>
 
         <div className="space-y-4 py-1">
-          {/* Machine / Equipment — picker + free text */}
+          {/* Machine / Equipment */}
           <div className="space-y-1.5">
             <Label className={labelCls}>
               Machine / Equipment *
-              <span className="text-white/25 ml-1.5">— select multiple to create one WO per machine</span>
+              <span className="text-white/25 ml-1.5">— comma-separate for multiple</span>
             </Label>
-            <EquipmentPicker value={form.equipment_info} onChange={v => set('equipment_info', v)} />
+            <EquipmentAutocomplete value={form.equipment_info} onChange={v => set('equipment_info', v)} />
           </div>
 
           {/* Department */}
           <div className="space-y-1.5">
             <Label className={labelCls}>Department</Label>
             <Input value={form.to_department} onChange={e => set('to_department', e.target.value)}
-              placeholder="e.g. Engineering, Mining…" className={inputCls} />
+              placeholder="Engineering" className={inputCls} />
           </div>
 
           {/* Allocated To */}
-          <EmployeePicker id="cwo-artisan" label="Allocated To (Artisan) *"
+          <PersonAutocomplete id="cwo-artisan" label="Allocated To (Artisan) *"
             value={form.allocated_to} onChange={v => set('allocated_to', v)} />
 
           {/* Priority + Hours + Date */}
@@ -530,15 +523,11 @@ function CreateWorkOrderModal({ isOpen, onClose, onCreated }: CreateModalProps) 
 
           {/* Requested By + Authorising Foreman */}
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label className={labelCls}>Requested By</Label>
-              <Input value={form.requested_by} onChange={e => set('requested_by', e.target.value)}
-                placeholder="Your name" className={inputCls} />
-            </div>
-            <div className="space-y-0.5">
-              <EmployeePicker id="cwo-foreman" label="Authorising Foreman"
-                value={form.authorising_foreman} onChange={v => set('authorising_foreman', v)} />
-            </div>
+            <PersonAutocomplete id="cwo-reqby" label="Requested By"
+              value={form.requested_by} onChange={v => set('requested_by', v)}
+              placeholder="Who is requesting this work?" />
+            <PersonAutocomplete id="cwo-foreman" label="Authorising Foreman"
+              value={form.authorising_foreman} onChange={v => set('authorising_foreman', v)} />
           </div>
 
           {/* Job Request */}
@@ -557,146 +546,9 @@ function CreateWorkOrderModal({ isOpen, onClose, onCreated }: CreateModalProps) 
               rows={2} className={`${inputCls} resize-none`} />
           </div>
 
-          {/* ── Classification & Discipline ── */}
-          <div className="border border-white/[0.08] rounded-xl p-4 space-y-3">
-            <div className="flex items-center gap-2 text-white/70 text-sm font-medium">
-              <Layers className="h-4 w-4 text-[#86BBD8]" /> Classification &amp; Discipline
-            </div>
-
-            {/* WO Classification */}
-            <div className="space-y-1.5">
-              <Label className={labelCls}>Work Order Type</Label>
-              <div className="flex flex-wrap gap-1.5">
-                {([
-                  { v: 'planned_maintenance', label: 'Planned Maintenance' },
-                  { v: 'project',             label: 'Project' },
-                  { v: 'breakdown',           label: 'Breakdown' },
-                  { v: 'custom',              label: 'Other / Custom' },
-                ] as { v: WOClassification; label: string }[]).map(opt => (
-                  <button key={opt.v} type="button"
-                    onClick={() => set('classification', opt.v)}
-                    className={`px-3 py-1.5 rounded-lg text-xs border transition-colors ${
-                      form.classification === opt.v
-                        ? 'bg-[#86BBD8]/25 border-[#86BBD8]/40 text-white font-medium'
-                        : 'bg-white/[0.05] border-white/10 text-white/55 hover:bg-white/[0.10] hover:text-white/80'
-                    }`}>
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Custom classification text */}
-            {form.classification === 'custom' && (
-              <div className="space-y-1.5">
-                <Label className={labelCls}>Specify Type</Label>
-                <Input value={form.classification_custom} onChange={e => set('classification_custom', e.target.value)}
-                  placeholder="e.g. Commissioning, Shutdown work…" className={inputCls} />
-              </div>
-            )}
-
-            {/* Failure mode — breakdowns only */}
-            {form.classification === 'breakdown' && (
-              <div className="space-y-1.5">
-                <Label className={labelCls}>Failure Mode</Label>
-                <Select value={form.failure_mode} onValueChange={v => set('failure_mode', v)}>
-                  <SelectTrigger className={inputCls}><SelectValue placeholder="Select failure type…" /></SelectTrigger>
-                  <SelectContent className="bg-[#0d1f35] border-white/10 text-white">
-                    {FAILURE_MODES.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            {/* Discipline */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className={labelCls}>Discipline</Label>
-                <div className="flex gap-2">
-                  {(['Mechanical', 'Electrical'] as Discipline[]).map(d => (
-                    <button key={d} type="button"
-                      onClick={() => { set('discipline', d); if (d === 'Electrical') set('trade', ''); }}
-                      className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs border transition-colors ${
-                        form.discipline === d
-                          ? 'bg-[#86BBD8]/25 border-[#86BBD8]/40 text-white font-medium'
-                          : 'bg-white/[0.05] border-white/10 text-white/55 hover:bg-white/[0.10]'
-                      }`}>
-                      {d === 'Mechanical' ? <Settings2 className="h-3.5 w-3.5" /> : <Zap className="h-3.5 w-3.5" />}
-                      {d}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Trade — Mechanical only */}
-              {form.discipline === 'Mechanical' && (
-                <div className="space-y-1.5">
-                  <Label className={labelCls}>Trade</Label>
-                  <Select value={form.trade} onValueChange={v => set('trade', v)}>
-                    <SelectTrigger className={inputCls}><SelectValue placeholder="Select trade…" /></SelectTrigger>
-                    <SelectContent className="bg-[#0d1f35] border-white/10 text-white">
-                      {MECHANICAL_TRADES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* ── Spares Used ── */}
-          <div className="border border-white/[0.08] rounded-xl p-4 space-y-3">
-            <div className="flex items-center gap-2 text-white/70 text-sm font-medium">
-              <Package className="h-4 w-4 text-amber-400" /> Spares Used
-            </div>
-
-            {/* Add spare row */}
-            <div className="grid grid-cols-[1fr_80px_90px_auto] gap-2 items-end">
-              <div className="space-y-1">
-                <Label className={labelCls}>Spare / Part Name</Label>
-                <Input value={newSpare.name} onChange={e => setNewSpare(s => ({ ...s, name: e.target.value }))}
-                  placeholder="e.g. Bearing 6205" className={inputCls}
-                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addSpare(); } }} />
-              </div>
-              <div className="space-y-1">
-                <Label className={labelCls}>Qty</Label>
-                <Input type="number" min="0.01" step="0.01" value={newSpare.quantity}
-                  onChange={e => setNewSpare(s => ({ ...s, quantity: e.target.value }))} className={inputCls} />
-              </div>
-              <div className="space-y-1">
-                <Label className={labelCls}>Unit Cost (R)</Label>
-                <Input type="number" min="0" step="0.01" value={newSpare.unit_cost}
-                  onChange={e => setNewSpare(s => ({ ...s, unit_cost: e.target.value }))} className={inputCls} />
-              </div>
-              <button type="button" onClick={addSpare}
-                className="h-9 px-3 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 rounded-lg text-amber-300 text-xs font-medium transition-colors">
-                Add
-              </button>
-            </div>
-
-            {spares.length > 0 && (
-              <div className="space-y-1.5">
-                {spares.map(s => (
-                  <div key={s.id} className="flex items-center gap-3 bg-white/[0.04] border border-white/[0.07] rounded-lg px-3 py-2">
-                    <Package className="h-3.5 w-3.5 text-amber-400/60 flex-shrink-0" />
-                    <span className="flex-1 text-white/80 text-xs">{s.name}</span>
-                    <span className="text-white/40 text-xs">×{s.quantity}</span>
-                    <span className="text-amber-300/70 text-xs font-mono w-20 text-right">
-                      R {(s.quantity * s.unit_cost).toLocaleString('en-ZA', { minimumFractionDigits: 2 })}
-                    </span>
-                    <button type="button" onClick={() => removeSpare(s.id)}
-                      className="text-white/25 hover:text-red-400 transition-colors ml-1">
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                ))}
-                <div className="flex justify-end pt-1">
-                  <span className="text-amber-300/80 text-xs font-mono font-semibold">
-                    Total: R {spares.reduce((acc, s) => acc + s.quantity * s.unit_cost, 0).toLocaleString('en-ZA', { minimumFractionDigits: 2 })}
-                  </span>
-                </div>
-              </div>
-            )}
-          </div>
+          <p className="text-white/25 text-xs px-0.5">
+            Classification, failure mode, discipline, trade and spares used are recorded by the artisan after the job is done.
+          </p>
         </div>
 
         <DialogFooter className="gap-2 pt-2">
@@ -851,240 +703,246 @@ function PredictiveArea({ id, label, value, onChange, placeholder, rows = 3, aut
   );
 }
 
-// ==================== EQUIPMENT PICKER ====================
-// Allows picking from the equipment register (multi-select) OR typing manually.
-// Returns selected equipment names joined as a comma-separated string.
-function EquipmentPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const [expanded, setExpanded] = useState(false);
-  const [equipment, setEquipment] = useState<EquipmentItem[]>([]);
-  const [fetched, setFetched] = useState(false);
-  const [fetchLoading, setFetchLoading] = useState(false);
-  const [search, setSearch] = useState('');
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+// ==================== AUTOCOMPLETE HELPERS ====================
 
+function useEmployees() {
+  const [list, setList] = useState<EmployeeItem[]>(_empCache);
   useEffect(() => {
-    if (!expanded || fetched) return;
-    setFetchLoading(true);
-    const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-    fetch(`${base}/api/equipment`)
+    if (_empFetched) { setList(_empCache); return; }
+    fetch(`${API_BASE}/api/employees`)
       .then(r => r.json())
-      .then((data: EquipmentItem[]) => {
-        if (Array.isArray(data)) setEquipment(data);
-        setFetched(true);
-        setFetchLoading(false);
-      })
-      .catch(() => { setFetched(true); setFetchLoading(false); });
-  }, [expanded, fetched]);
+      .then((d: EmployeeItem[]) => { if (Array.isArray(d)) { _empCache = d; setList(d); } _empFetched = true; })
+      .catch(() => { _empFetched = true; });
+  }, []);
+  return list;
+}
 
-  // When opening, pre-select items whose names match current value
+function useEquipment() {
+  const [list, setList] = useState<EquipmentItem[]>(_eqCache);
   useEffect(() => {
-    if (!expanded || equipment.length === 0) return;
-    const names = value.split(',').map(s => s.trim().toLowerCase());
-    const preSelected = new Set(
-      equipment.filter(e => names.includes((e.name || '').toLowerCase())).map(e => e.id)
-    );
-    setSelected(preSelected);
-  }, [expanded, equipment, value]);
+    if (_eqFetched) { setList(_eqCache); return; }
+    fetch(`${API_BASE}/api/equipment`)
+      .then(r => r.json())
+      .then((d: EquipmentItem[]) => { if (Array.isArray(d)) { _eqCache = d; setList(d); } _eqFetched = true; })
+      .catch(() => { _eqFetched = true; });
+  }, []);
+  return list;
+}
 
-  const filtered = equipment.filter(e => {
-    if (!search) return true;
-    const q = search.toLowerCase();
-    return (e.name || '').toLowerCase().includes(q) ||
-           (e.equipment_id || '').toLowerCase().includes(q) ||
-           (e.department || '').toLowerCase().includes(q) ||
-           (e.location || '').toLowerCase().includes(q);
-  });
+function useSpares() {
+  const [list, setList] = useState<SpareRegisterItem[]>(_spCache);
+  useEffect(() => {
+    if (_spFetched) { setList(_spCache); return; }
+    fetch(`${API_BASE}/api/spares?limit=500`)
+      .then(r => r.json())
+      .then((d) => {
+        const items: SpareRegisterItem[] = Array.isArray(d) ? d : (d?.results ?? []);
+        _spCache = items; setList(items); _spFetched = true;
+      })
+      .catch(() => { _spFetched = true; });
+  }, []);
+  return list;
+}
 
-  const toggle = (id: string) =>
-    setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+// Shared dropdown wrapper — closes on outside click
+function ACDropdown({ show, children }: { show: boolean; children: React.ReactNode }) {
+  if (!show) return null;
+  return (
+    <div className="absolute z-50 w-full mt-1 bg-[#0b1a2e] border border-white/10 rounded-xl overflow-hidden shadow-2xl">
+      <div className="max-h-52 overflow-y-auto">{children}</div>
+    </div>
+  );
+}
 
-  const apply = () => {
-    const fromRegister = equipment.filter(e => selected.has(e.id)).map(e => e.name || e.equipment_id);
-    // Preserve any manually typed items that aren't in the register
-    const registerNames = new Set(equipment.map(e => (e.name || '').toLowerCase()));
-    const manual = value.split(',').map(s => s.trim()).filter(s => s && !registerNames.has(s.toLowerCase()));
-    const parts = [...fromRegister, ...manual].filter(Boolean);
+// ==================== PERSON AUTOCOMPLETE ====================
+// Replaces EmployeePicker — typeahead from employees table, free-type allowed.
+function PersonAutocomplete({ id, label, value, onChange, placeholder }: {
+  id?: string; label?: string; value: string; onChange: (v: string) => void; placeholder?: string;
+}) {
+  const employees = useEmployees();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
+
+  const q = value.toLowerCase();
+  const suggestions = q.length === 0
+    ? employees.slice(0, 8)
+    : employees.filter(e => {
+        const full = `${e.first_name} ${e.last_name}`.toLowerCase();
+        return full.includes(q) || (e.employee_id || '').toLowerCase().includes(q) ||
+               (e.designation || '').toLowerCase().includes(q);
+      }).slice(0, 8);
+
+  return (
+    <div className="space-y-1">
+      {label && <label htmlFor={id} className={GLB}>{label}</label>}
+      <div className="relative" ref={ref}>
+        <input id={id} value={value}
+          onChange={e => { onChange(e.target.value); setOpen(true); }}
+          onFocus={() => setOpen(true)}
+          placeholder={placeholder || 'Type to search employees, or enter name…'}
+          className={`w-full rounded-md border px-3 py-1.5 text-sm outline-none transition-colors ${GIN}`} />
+        <ACDropdown show={open && suggestions.length > 0}>
+          {suggestions.map(e => {
+            const full = `${e.first_name} ${e.last_name}`;
+            return (
+              <button key={e.id} type="button"
+                onMouseDown={() => { onChange(full); setOpen(false); }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-left border-b border-white/[0.04] hover:bg-white/[0.06] transition-colors">
+                <div className="w-7 h-7 rounded-full bg-[#86BBD8]/15 border border-[#86BBD8]/20 flex items-center justify-center flex-shrink-0 text-[10px] text-[#86BBD8]/70 font-bold uppercase">
+                  {e.first_name?.[0]}{e.last_name?.[0]}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-white/90 text-xs font-medium truncate">{full}</div>
+                  <div className="text-white/35 text-[10px] truncate">
+                    {e.designation}{e.department ? ` · ${e.department}` : ''}{e.section ? ` · ${e.section}` : ''}
+                  </div>
+                </div>
+                {e.employee_id && <span className="text-white/25 text-[10px] flex-shrink-0">{e.employee_id}</span>}
+              </button>
+            );
+          })}
+        </ACDropdown>
+      </div>
+    </div>
+  );
+}
+
+// ==================== EQUIPMENT AUTOCOMPLETE ====================
+// Typeahead from equipment register. Comma-separate for multi-machine WOs.
+function EquipmentAutocomplete({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const equipment = useEquipment();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
+
+  // Match against the fragment being typed after the last comma
+  const fragment = value.split(',').pop()?.trimStart() ?? '';
+  const q = fragment.toLowerCase();
+  const suggestions = q.length === 0
+    ? equipment.slice(0, 8)
+    : equipment.filter(e =>
+        (e.name || '').toLowerCase().includes(q) ||
+        (e.equipment_id || '').toLowerCase().includes(q) ||
+        (e.department || '').toLowerCase().includes(q) ||
+        (e.location || '').toLowerCase().includes(q)
+      ).slice(0, 8);
+
+  const pick = (eq: EquipmentItem) => {
+    const parts = value.split(',').map(s => s.trim()).filter(Boolean);
+    // Replace last fragment with the chosen equipment name
+    parts.splice(parts.length > 0 && !value.endsWith(',') ? parts.length - 1 : parts.length, 1, eq.name || eq.equipment_id);
     onChange(parts.join(', '));
-    setExpanded(false);
-    setSearch('');
+    setOpen(false);
   };
 
   return (
-    <div className="space-y-2">
-      <div className="flex gap-2">
-        <input
-          value={value}
-          onChange={e => onChange(e.target.value)}
-          placeholder="Type equipment name(s), or browse register →"
-          className={`flex-1 rounded-md border px-3 py-1.5 text-sm outline-none transition-colors ${GIN}`}
-        />
-        <button type="button" onClick={() => setExpanded(o => !o)}
-          className="flex-shrink-0 bg-[#86BBD8]/[0.12] hover:bg-[#86BBD8]/[0.22] border border-[#86BBD8]/20 rounded-md px-3 text-[#86BBD8]/70 hover:text-[#86BBD8] text-xs transition-colors whitespace-nowrap">
-          Browse
-        </button>
+    <div className="space-y-1.5">
+      <div className="relative" ref={ref}>
+        <input value={value}
+          onChange={e => { onChange(e.target.value); setOpen(true); }}
+          onFocus={() => setOpen(true)}
+          placeholder="Type machine name — comma-separate for multiple…"
+          className={`w-full rounded-md border px-3 py-1.5 text-sm outline-none transition-colors ${GIN}`} />
+        <ACDropdown show={open && suggestions.length > 0}>
+          {suggestions.map(eq => (
+            <button key={eq.id} type="button"
+              onMouseDown={() => pick(eq)}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-left border-b border-white/[0.04] hover:bg-white/[0.06] transition-colors">
+              <div className="flex-1 min-w-0">
+                <div className="text-white/90 text-xs font-medium truncate">{eq.name}</div>
+                <div className="text-white/35 text-[10px] truncate">
+                  {eq.equipment_id}{eq.department ? ` · ${eq.department}` : ''}{eq.location ? ` · ${eq.location}` : ''}
+                </div>
+              </div>
+              <span className={`text-[9px] px-1.5 py-px rounded-full border flex-shrink-0 ${
+                eq.status === 'operational'
+                  ? 'text-green-400 border-green-500/20 bg-green-500/[0.07]'
+                  : 'text-orange-400 border-orange-500/20 bg-orange-500/[0.07]'
+              }`}>{eq.status || 'unknown'}</span>
+            </button>
+          ))}
+        </ACDropdown>
       </div>
-
-      {/* Comma-separated hint when multiple detected */}
       {value.includes(',') && (
         <p className="text-[10px] text-[#86BBD8]/50 px-0.5">
-          {value.split(',').filter(s => s.trim()).length} machines selected — will create one work order per machine
+          {value.split(',').filter(s => s.trim()).length} machines — will create one work order each
         </p>
-      )}
-
-      {expanded && (
-        <div className="border border-white/10 rounded-xl overflow-hidden bg-[rgba(5,15,28,0.6)]">
-          <div className="px-3 py-2 border-b border-white/[0.06]">
-            <input value={search} onChange={e => setSearch(e.target.value)}
-              placeholder="Search by name, ID, department, location…"
-              className={`w-full rounded border px-2.5 py-1 text-xs outline-none transition-colors ${GIN}`} />
-          </div>
-          <div className="max-h-52 overflow-y-auto">
-            {fetchLoading ? (
-              <div className="flex justify-center py-5">
-                <RefreshCw className="h-4 w-4 text-white/30 animate-spin" />
-              </div>
-            ) : filtered.length === 0 ? (
-              <div className="text-white/25 text-xs text-center py-5">
-                {search ? 'No matches — type the name above to add manually' : 'No equipment in register'}
-              </div>
-            ) : (
-              filtered.map(e => (
-                <button key={e.id} type="button" onClick={() => toggle(e.id)}
-                  className={`w-full flex items-center gap-3 px-3 py-2 text-left border-b border-white/[0.04] transition-colors ${selected.has(e.id) ? 'bg-[#86BBD8]/[0.08]' : 'hover:bg-white/[0.03]'}`}>
-                  <div className={`w-3.5 h-3.5 rounded border flex-shrink-0 flex items-center justify-center transition-colors ${selected.has(e.id) ? 'bg-[#86BBD8] border-[#86BBD8]' : 'border-white/20'}`}>
-                    {selected.has(e.id) && <CheckCircle2 className="h-2.5 w-2.5 text-[#0d1f35]" />}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-white/85 text-xs font-medium truncate">{e.name}</div>
-                    <div className="text-white/35 text-[10px] truncate">
-                      {e.equipment_id}{e.department ? ` · ${e.department}` : ''}{e.location ? ` · ${e.location}` : ''}
-                    </div>
-                  </div>
-                  <span className={`text-[9px] px-1.5 py-0.5 rounded-full border flex-shrink-0 ${
-                    e.status === 'operational'
-                      ? 'text-green-400 border-green-500/20 bg-green-500/[0.08]'
-                      : 'text-orange-400 border-orange-500/20 bg-orange-500/[0.08]'
-                  }`}>{e.status || 'unknown'}</span>
-                </button>
-              ))
-            )}
-          </div>
-          <div className="flex items-center justify-between px-3 py-2 border-t border-white/[0.06]">
-            <span className="text-white/30 text-xs">{selected.size} from register</span>
-            <div className="flex items-center gap-2">
-              <button type="button" onClick={() => { setExpanded(false); setSearch(''); }}
-                className="text-xs text-white/35 hover:text-white/60 transition-colors">Cancel</button>
-              <button type="button" onClick={apply}
-                className="bg-[#86BBD8]/20 hover:bg-[#86BBD8]/35 border border-[#86BBD8]/25 text-white text-xs px-3 py-1 rounded-lg transition-colors">
-                Apply {selected.size > 0 ? `(${selected.size})` : ''}
-              </button>
-            </div>
-          </div>
-        </div>
       )}
     </div>
   );
 }
 
-// ==================== EMPLOYEE PICKER ====================
-// Single-select: browse employee register or type a name manually.
-function EmployeePicker({ id, label, value, onChange }: {
-  id: string; label: string; value: string; onChange: (v: string) => void;
+// ==================== SPARE AUTOCOMPLETE ====================
+// Searches spares register; autofills unit price on selection. Free-type allowed.
+function SpareAutocomplete({ value, onChange, onSelect, placeholder }: {
+  value: string;
+  onChange: (v: string) => void;
+  onSelect: (item: SpareRegisterItem) => void;
+  placeholder?: string;
 }) {
-  const [expanded, setExpanded] = useState(false);
-  const [employees, setEmployees] = useState<EmployeeItem[]>([]);
-  const [fetched, setFetched] = useState(false);
-  const [fetchLoading, setFetchLoading] = useState(false);
-  const [search, setSearch] = useState('');
+  const spares = useSpares();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!expanded || fetched) return;
-    setFetchLoading(true);
-    const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-    fetch(`${base}/api/employees`)
-      .then(r => r.json())
-      .then((data: EmployeeItem[]) => {
-        if (Array.isArray(data)) setEmployees(data);
-        setFetched(true); setFetchLoading(false);
-      })
-      .catch(() => { setFetched(true); setFetchLoading(false); });
-  }, [expanded, fetched]);
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
 
-  const filtered = employees.filter(e => {
-    if (!search) return true;
-    const q = search.toLowerCase();
-    const full = `${e.first_name} ${e.last_name}`.toLowerCase();
-    return full.includes(q) ||
-           (e.employee_id || '').toLowerCase().includes(q) ||
-           (e.designation || '').toLowerCase().includes(q) ||
-           (e.department || '').toLowerCase().includes(q);
-  });
-
-  const pick = (e: EmployeeItem) => {
-    onChange(`${e.first_name} ${e.last_name}`);
-    setExpanded(false);
-    setSearch('');
-  };
+  const q = value.toLowerCase();
+  const suggestions = q.length === 0
+    ? spares.slice(0, 8)
+    : spares.filter(s =>
+        (s.description || '').toLowerCase().includes(q) ||
+        (s.stock_code || '').toLowerCase().includes(q) ||
+        (s.category || '').toLowerCase().includes(q)
+      ).slice(0, 8);
 
   return (
-    <div className="space-y-1">
-      <label htmlFor={id} className={GLB}>{label}</label>
-      <div className="space-y-2">
-        <div className="flex gap-2">
-          <input id={id} value={value} onChange={e => onChange(e.target.value)}
-            placeholder="Type name or browse employees →"
-            className={`flex-1 rounded-md border px-3 py-1.5 text-sm outline-none transition-colors ${GIN}`} />
-          <button type="button" onClick={() => setExpanded(o => !o)}
-            className="flex-shrink-0 bg-[#86BBD8]/[0.12] hover:bg-[#86BBD8]/[0.22] border border-[#86BBD8]/20 rounded-md px-3 text-[#86BBD8]/70 hover:text-[#86BBD8] text-xs transition-colors whitespace-nowrap">
-            Browse
-          </button>
-        </div>
-        {expanded && (
-          <div className="border border-white/10 rounded-xl overflow-hidden bg-[rgba(5,15,28,0.6)]">
-            <div className="px-3 py-2 border-b border-white/[0.06]">
-              <input value={search} onChange={e => setSearch(e.target.value)}
-                placeholder="Search name, ID, role, department…"
-                className={`w-full rounded border px-2.5 py-1 text-xs outline-none transition-colors ${GIN}`} />
-            </div>
-            <div className="max-h-44 overflow-y-auto">
-              {fetchLoading ? (
-                <div className="flex justify-center py-4">
-                  <RefreshCw className="h-4 w-4 text-white/30 animate-spin" />
-                </div>
-              ) : filtered.length === 0 ? (
-                <div className="text-white/25 text-xs text-center py-4">
-                  {search ? 'No match — type the name above to enter manually' : 'No employees found'}
-                </div>
-              ) : (
-                filtered.map(e => {
-                  const full = `${e.first_name} ${e.last_name}`;
-                  return (
-                    <button key={e.id} type="button" onClick={() => pick(e)}
-                      className="w-full flex items-center gap-3 px-3 py-2 text-left border-b border-white/[0.04] hover:bg-white/[0.05] transition-colors">
-                      <div className="w-7 h-7 rounded-full bg-[#86BBD8]/15 border border-[#86BBD8]/20 flex items-center justify-center flex-shrink-0 text-[10px] text-[#86BBD8]/70 font-semibold uppercase">
-                        {e.first_name?.[0]}{e.last_name?.[0]}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-white/85 text-xs font-medium truncate">{full}</div>
-                        <div className="text-white/35 text-[10px] truncate">
-                          {e.designation || ''}{e.department ? ` · ${e.department}` : ''}{e.section ? ` · ${e.section}` : ''}
-                        </div>
-                      </div>
-                      {e.employee_id && (
-                        <span className="text-white/25 text-[10px] flex-shrink-0">{e.employee_id}</span>
-                      )}
-                    </button>
-                  );
-                })
-              )}
-            </div>
-            <div className="flex justify-end px-3 py-2 border-t border-white/[0.06]">
-              <button type="button" onClick={() => { setExpanded(false); setSearch(''); }}
-                className="text-xs text-white/35 hover:text-white/60 transition-colors">Close</button>
-            </div>
+    <div className="relative" ref={ref}>
+      <input value={value}
+        onChange={e => { onChange(e.target.value); setOpen(true); }}
+        onFocus={() => setOpen(true)}
+        placeholder={placeholder || 'Search spares register or type manually…'}
+        className={`w-full rounded-md border px-3 py-1.5 text-sm outline-none transition-colors ${GIN}`} />
+      <ACDropdown show={open && (suggestions.length > 0 || spares.length === 0)}>
+        {spares.length === 0 ? (
+          <div className="px-3 py-3 text-white/30 text-xs flex items-center gap-2">
+            <RefreshCw className="h-3 w-3 animate-spin" /> Loading spares register…
           </div>
+        ) : suggestions.length === 0 ? (
+          <div className="px-3 py-3 text-white/30 text-xs">No matches — value will be saved as typed</div>
+        ) : (
+          suggestions.map(s => (
+            <button key={s.id} type="button"
+              onMouseDown={() => { onSelect(s); setOpen(false); }}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-left border-b border-white/[0.04] hover:bg-white/[0.06] transition-colors">
+              <div className="flex-1 min-w-0">
+                <div className="text-white/90 text-xs font-medium truncate">{s.description}</div>
+                <div className="text-white/35 text-[10px] truncate">
+                  {s.stock_code}{s.category ? ` · ${s.category}` : ''}{s.unit_of_measure ? ` · ${s.unit_of_measure}` : ''}
+                  {s.current_quantity !== undefined ? ` · Stock: ${s.current_quantity}` : ''}
+                </div>
+              </div>
+              <span className="text-amber-300/80 text-xs font-mono flex-shrink-0">
+                R {(s.unit_price || 0).toFixed(2)}
+              </span>
+            </button>
+          ))
         )}
-      </div>
+      </ACDropdown>
     </div>
   );
 }
@@ -1110,6 +968,9 @@ function WorkOrderDetailModal({ workOrder, onClose, onRefresh, onDelete }: Detai
 
   const today = new Date().toISOString().split('T')[0];
 
+  const [artisanSpares, setArtisanSpares] = useState<SpareItem[]>(workOrder.spares_used || []);
+  const [newSpare, setNewSpare] = useState({ name: '', quantity: '1', unit_cost: '0' });
+
   const [artisan, setArtisan] = useState(() => {
     const savedName = typeof window !== 'undefined' ? localStorage.getItem('maint_artisan_name') || '' : '';
     return {
@@ -1130,6 +991,12 @@ function WorkOrderDetailModal({ workOrder, onClose, onRefresh, onDelete }: Detai
       artisan_date: workOrder.artisan_date || today,
       status:   workOrder.status,
       progress: workOrder.progress,
+      // Classification — filled by artisan
+      classification: workOrder.classification || '' as WOClassification | '',
+      classification_custom: workOrder.classification_custom || '',
+      failure_mode: workOrder.failure_mode || '',
+      discipline: workOrder.discipline || '' as Discipline | '',
+      trade: workOrder.trade || '' as Trade | '',
     };
   });
 
@@ -1173,10 +1040,31 @@ function WorkOrderDetailModal({ workOrder, onClose, onRefresh, onDelete }: Detai
     if (delayNA) setArtisan(f => ({ ...f, delay_from_time: '', delay_to_time: '', total_delay_hours: '' }));
   }, [delayNA]);
 
+  const addArtisanSpare = () => {
+    const name = newSpare.name.trim();
+    if (!name) return;
+    setArtisanSpares(prev => [...prev, {
+      id: Date.now().toString(),
+      name,
+      quantity: parseFloat(newSpare.quantity) || 1,
+      unit_cost: parseFloat(newSpare.unit_cost) || 0,
+    }]);
+    setNewSpare({ name: '', quantity: '1', unit_cost: '0' });
+  };
+
   const saveArtisan = async () => {
     setSavingA(true);
     if (artisan.artisan_name) localStorage.setItem('maint_artisan_name', artisan.artisan_name);
-    const result = await updateWorkOrder(workOrder.id, artisan);
+    const payload = {
+      ...artisan,
+      classification:        artisan.classification || undefined,
+      classification_custom: artisan.classification === 'custom' ? artisan.classification_custom : undefined,
+      failure_mode:          artisan.classification === 'breakdown' ? artisan.failure_mode || undefined : undefined,
+      discipline:            artisan.discipline || undefined,
+      trade:                 artisan.discipline === 'Mechanical' ? artisan.trade || undefined : undefined,
+      spares_used:           artisanSpares.length > 0 ? artisanSpares : undefined,
+    };
+    const result = await updateWorkOrder(workOrder.id, payload);
     setSavingA(false);
     if (result.success) { toast.success('Artisan report saved'); await onRefresh(); }
   };
@@ -1306,6 +1194,97 @@ function WorkOrderDetailModal({ workOrder, onClose, onRefresh, onDelete }: Detai
             {s2Open && (
               <div className="px-4 py-4 space-y-4">
 
+                {/* ── Classification (artisan fills this) ── */}
+                <div className="border border-white/[0.07] rounded-lg p-3 space-y-3">
+                  <div className="flex items-center gap-1.5 text-white/45 text-xs">
+                    <Layers className="h-3.5 w-3.5" /> Work Order Classification
+                  </div>
+
+                  {/* Type buttons */}
+                  <div className="flex flex-wrap gap-1.5">
+                    {([
+                      { v: 'planned_maintenance', label: 'Planned Maintenance' },
+                      { v: 'project',             label: 'Project' },
+                      { v: 'breakdown',           label: 'Breakdown' },
+                      { v: 'custom',              label: 'Other / Custom' },
+                    ] as { v: WOClassification; label: string }[]).map(opt => (
+                      <button key={opt.v} type="button"
+                        onClick={() => setA('classification', opt.v)}
+                        className={`px-2.5 py-1 rounded text-xs border transition-colors ${
+                          artisan.classification === opt.v
+                            ? 'bg-[#86BBD8]/25 border-[#86BBD8]/40 text-white font-medium'
+                            : 'bg-white/[0.04] border-white/10 text-white/50 hover:bg-white/[0.08] hover:text-white/75'
+                        }`}>
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {artisan.classification === 'custom' && (
+                    <div className="space-y-1">
+                      <label className={GLB}>Specify Type</label>
+                      <input value={artisan.classification_custom}
+                        onChange={e => setA('classification_custom', e.target.value)}
+                        placeholder="e.g. Commissioning, Shutdown work…"
+                        className={`w-full rounded border px-2.5 py-1.5 text-xs outline-none transition-colors ${GIN}`} />
+                    </div>
+                  )}
+
+                  {/* Failure mode — breakdowns only */}
+                  {artisan.classification === 'breakdown' && (
+                    <div className="space-y-1">
+                      <label className={GLB}>Failure Mode</label>
+                      <div className="relative">
+                        <input
+                          value={artisan.failure_mode}
+                          onChange={e => setA('failure_mode', e.target.value)}
+                          list="failure-mode-list"
+                          placeholder="Select or type failure mode…"
+                          className={`w-full rounded border px-2.5 py-1.5 text-xs outline-none transition-colors ${GIN}`} />
+                        <datalist id="failure-mode-list">
+                          {FAILURE_MODES.map(m => <option key={m} value={m} />)}
+                        </datalist>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Discipline + Trade */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className={GLB}>Discipline</label>
+                      <div className="flex gap-1.5">
+                        {(['Mechanical', 'Electrical'] as Discipline[]).map(d => (
+                          <button key={d} type="button"
+                            onClick={() => { setA('discipline', d); if (d === 'Electrical') setA('trade', ''); }}
+                            className={`flex-1 flex items-center justify-center gap-1 py-1 rounded text-xs border transition-colors ${
+                              artisan.discipline === d
+                                ? 'bg-[#86BBD8]/25 border-[#86BBD8]/40 text-white font-medium'
+                                : 'bg-white/[0.04] border-white/10 text-white/50 hover:bg-white/[0.08]'
+                            }`}>
+                            {d === 'Mechanical' ? <Settings2 className="h-3 w-3" /> : <Zap className="h-3 w-3" />}
+                            {d}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    {artisan.discipline === 'Mechanical' && (
+                      <div className="space-y-1">
+                        <label className={GLB}>Trade</label>
+                        <div className="relative">
+                          <input value={artisan.trade}
+                            onChange={e => setA('trade', e.target.value)}
+                            list="trade-list"
+                            placeholder="Select or type trade…"
+                            className={`w-full rounded border px-2.5 py-1.5 text-xs outline-none transition-colors ${GIN}`} />
+                          <datalist id="trade-list">
+                            {MECHANICAL_TRADES.map(t => <option key={t} value={t} />)}
+                          </datalist>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
                 {/* Status + Progress */}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
@@ -1420,15 +1399,76 @@ function WorkOrderDetailModal({ workOrder, onClose, onRefresh, onDelete }: Detai
                   </div>
                 </div>
 
+                {/* ── Spares Used ── */}
+                <div className="border border-white/[0.07] rounded-lg p-3 space-y-3">
+                  <div className="flex items-center gap-1.5 text-white/45 text-xs">
+                    <Package className="h-3.5 w-3.5 text-amber-400/70" /> Spares Used
+                  </div>
+
+                  {/* Add spare row */}
+                  <div className="grid grid-cols-[1fr_70px_80px_auto] gap-2 items-end">
+                    <div className="space-y-1">
+                      <label className={GLB}>Spare / Part</label>
+                      <SpareAutocomplete
+                        value={newSpare.name}
+                        onChange={v => setNewSpare(s => ({ ...s, name: v }))}
+                        onSelect={item => setNewSpare(s => ({
+                          ...s,
+                          name: item.description,
+                          unit_cost: String(item.unit_price ?? 0),
+                        }))}
+                        placeholder="Search spares register or type…" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className={GLB}>Qty</label>
+                      <input type="number" min="0.01" step="0.01" value={newSpare.quantity}
+                        onChange={e => setNewSpare(s => ({ ...s, quantity: e.target.value }))}
+                        className={`w-full rounded border px-2 py-1.5 text-xs outline-none transition-colors ${GIN}`} />
+                    </div>
+                    <div className="space-y-1">
+                      <label className={GLB}>Unit Cost (R)</label>
+                      <input type="number" min="0" step="0.01" value={newSpare.unit_cost}
+                        onChange={e => setNewSpare(s => ({ ...s, unit_cost: e.target.value }))}
+                        className={`w-full rounded border px-2 py-1.5 text-xs outline-none transition-colors ${GIN}`} />
+                    </div>
+                    <button type="button" onClick={addArtisanSpare}
+                      className="h-[30px] px-2.5 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 rounded text-amber-300 text-xs font-medium transition-colors">
+                      Add
+                    </button>
+                  </div>
+
+                  {artisanSpares.length > 0 && (
+                    <div className="space-y-1.5">
+                      {artisanSpares.map(s => (
+                        <div key={s.id} className="flex items-center gap-2 bg-white/[0.03] border border-white/[0.06] rounded px-2.5 py-1.5">
+                          <Package className="h-3 w-3 text-amber-400/50 flex-shrink-0" />
+                          <span className="flex-1 text-white/75 text-xs truncate">{s.name}</span>
+                          <span className="text-white/35 text-xs">×{s.quantity}</span>
+                          <span className="text-amber-300/70 text-xs font-mono">R {(s.quantity * s.unit_cost).toFixed(2)}</span>
+                          <button type="button" onClick={() => setArtisanSpares(p => p.filter(x => x.id !== s.id))}
+                            className="text-white/20 hover:text-red-400 transition-colors ml-0.5">
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ))}
+                      <div className="flex justify-end">
+                        <span className="text-amber-300/80 text-xs font-mono font-semibold">
+                          Total: R {artisanSpares.reduce((a, s) => a + s.quantity * s.unit_cost, 0).toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 {/* Artisan Sign-off */}
                 <div className="border border-white/[0.07] rounded-lg p-3 space-y-3">
                   <div className="flex items-center gap-1.5 text-white/45 text-xs">
                     <Signature className="h-3.5 w-3.5" /> Artisan Sign-off
                   </div>
                   <div className="grid grid-cols-3 gap-3">
-                    <GlassInput id="a-name" label="Artisan Name"
+                    <PersonAutocomplete id="a-name" label="Artisan Name"
                       value={artisan.artisan_name} onChange={v => setA('artisan_name', v)}
-                      placeholder="Full name" autoComplete="name" />
+                      placeholder="Type to search employees…" />
                     <GlassInput id="a-sign" label="Signature (type name)"
                       value={artisan.artisan_sign} onChange={v => setA('artisan_sign', v)}
                       placeholder="Type name" autoComplete="name" />
@@ -1494,9 +1534,9 @@ function WorkOrderDetailModal({ workOrder, onClose, onRefresh, onDelete }: Detai
                     <Signature className="h-3.5 w-3.5" /> Foreman Sign-off
                   </div>
                   <div className="grid grid-cols-3 gap-3">
-                    <GlassInput id="f-name" label="Foreman Name"
+                    <PersonAutocomplete id="f-name" label="Foreman Name"
                       value={foreman.foreman_name} onChange={v => setF('foreman_name', v)}
-                      placeholder="Full name" autoComplete="name" />
+                      placeholder="Type to search employees…" />
                     <GlassInput id="f-sign" label="Signature (type name)"
                       value={foreman.foreman_sign} onChange={v => setF('foreman_sign', v)}
                       placeholder="Type name" autoComplete="name" />
@@ -1692,10 +1732,11 @@ function ArtisanCostChart({ artisanCost }: { artisanCost: ReturnType<typeof calc
   );
 }
 
-function AnalyticsPanel({ stats, isOpen, onToggle }: {
+function AnalyticsPanel({ stats, isOpen, onToggle, standalone }: {
   stats: ReturnType<typeof calcStats>;
   isOpen: boolean;
   onToggle: () => void;
+  standalone?: boolean;
 }) {
   const classSegs = [
     { value: stats.plannedMaintenance, color: '#10b981', label: 'Planned Maintenance' },
@@ -1718,17 +1759,28 @@ function AnalyticsPanel({ stats, isOpen, onToggle }: {
 
   return (
     <div className="oz-glass-panel rounded-2xl overflow-hidden">
-      <button type="button" className="w-full flex items-center gap-3 px-5 py-3 border-b border-white/[0.08] hover:bg-white/[0.02] transition-colors"
-        onClick={onToggle}>
-        <BarChart2 className="h-4 w-4 text-[#86BBD8]" />
-        <span className="text-white/90 font-semibold text-sm">Analytics &amp; Insights</span>
-        <span className="ml-auto text-white/25 text-xs mr-2">
-          {stats.total} work orders · {stats.efficiency}% efficiency
-        </span>
-        {isOpen ? <ChevronUp className="h-4 w-4 text-white/35" /> : <ChevronDown className="h-4 w-4 text-white/35" />}
-      </button>
+      {!standalone && (
+        <button type="button" className="w-full flex items-center gap-3 px-5 py-3 border-b border-white/[0.08] hover:bg-white/[0.02] transition-colors"
+          onClick={onToggle}>
+          <BarChart2 className="h-4 w-4 text-[#86BBD8]" />
+          <span className="text-white/90 font-semibold text-sm">Analytics &amp; Insights</span>
+          <span className="ml-auto text-white/25 text-xs mr-2">
+            {stats.total} work orders · {stats.efficiency}% efficiency
+          </span>
+          {isOpen ? <ChevronUp className="h-4 w-4 text-white/35" /> : <ChevronDown className="h-4 w-4 text-white/35" />}
+        </button>
+      )}
+      {standalone && (
+        <div className="flex items-center gap-3 px-5 py-4 border-b border-white/[0.08]">
+          <BarChart2 className="h-5 w-5 text-[#86BBD8]" />
+          <span className="text-white/90 font-semibold">Analytics &amp; Insights</span>
+          <span className="ml-auto text-white/35 text-sm">
+            {stats.total} work orders · {stats.efficiency}% efficiency · R{stats.sparesTotalCost.toLocaleString('en-ZA', { maximumFractionDigits: 0 })} spares
+          </span>
+        </div>
+      )}
 
-      {isOpen && (
+      {(isOpen || standalone) && (
         <div className="p-5 space-y-6">
 
           {/* Row 1: Three donut charts */}
@@ -2181,7 +2233,7 @@ function CreateScheduleModal({ isOpen, initial, onClose, onSave }: CreateSchedul
           {/* Machine / Equipment */}
           <div className="space-y-1.5">
             <Label className={labelCls}>Machine / Equipment *</Label>
-            <EquipmentPicker value={form.equipment_info} onChange={v => set('equipment_info', v)} />
+            <EquipmentAutocomplete value={form.equipment_info} onChange={v => set('equipment_info', v)} />
           </div>
 
           {/* Department */}
@@ -2193,9 +2245,9 @@ function CreateScheduleModal({ isOpen, initial, onClose, onSave }: CreateSchedul
 
           {/* Allocated To + Foreman — employee pickers */}
           <div className="grid grid-cols-2 gap-3">
-            <EmployeePicker id="cs-artisan" label="Allocated To"
+            <PersonAutocomplete id="cs-artisan" label="Allocated To"
               value={form.allocated_to} onChange={v => set('allocated_to', v)} />
-            <EmployeePicker id="cs-foreman" label="Authorising Foreman"
+            <PersonAutocomplete id="cs-foreman" label="Authorising Foreman"
               value={form.authorising_foreman} onChange={v => set('authorising_foreman', v)} />
           </div>
 
@@ -2396,7 +2448,8 @@ export default function MaintenancePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
-  const [analyticsOpen, setAnalyticsOpen] = useState(true);
+  // Page-level tab
+  const [mainTab, setMainTab] = useState<'workorders' | 'analytics'>('workorders');
 
   // Expand/collapse state for work order rows (default: all collapsed)
   const [expandedWOs, setExpandedWOs] = useState<Set<string>>(new Set());
@@ -2405,6 +2458,33 @@ export default function MaintenancePage() {
     if (next.has(String(id))) next.delete(String(id)); else next.add(String(id));
     return next;
   });
+
+  // Bulk-select / bulk-delete
+  const [bulkMode, setBulkMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const toggleSelect = (id: string) => setSelectedIds(prev => {
+    const next = new Set(prev);
+    if (next.has(String(id))) next.delete(String(id)); else next.add(String(id));
+    return next;
+  });
+  const selectAll = () => setSelectedIds(new Set(filtered.map(w => String(w.id))));
+  const clearSelect = () => setSelectedIds(new Set());
+  const exitBulk = () => { setBulkMode(false); clearSelect(); };
+
+  const handleBulkDelete = async () => {
+    const count = selectedIds.size;
+    if (count === 0) return;
+    if (!confirm(`Permanently delete ${count} work order${count !== 1 ? 's' : ''}? This cannot be undone.`)) return;
+    let failed = 0;
+    for (const id of selectedIds) {
+      const { success } = await deleteWorkOrder(id);
+      if (!success) failed++;
+    }
+    exitBulk();
+    await load();
+    if (failed === 0) toast.success(`${count} work order${count !== 1 ? 's' : ''} deleted`);
+    else toast.error(`${count - failed} deleted, ${failed} failed`);
+  };
 
   // Schedule state
   const [schedules, setSchedules] = useState<MaintenanceSchedule[]>([]);
@@ -2612,10 +2692,12 @@ export default function MaintenancePage() {
                   title="Refresh">
                   <RefreshCw className="h-4 w-4" />
                 </button>
-                <Button onClick={() => setShowCreateModal(true)}
-                  className="bg-[#86BBD8]/25 hover:bg-[#86BBD8]/40 text-white border border-[#86BBD8]/35 gap-1.5">
-                  <Plus className="h-4 w-4" /> New Work Order
-                </Button>
+                {mainTab === 'workorders' && (
+                  <Button onClick={() => setShowCreateModal(true)}
+                    className="bg-[#86BBD8]/25 hover:bg-[#86BBD8]/40 text-white border border-[#86BBD8]/35 gap-1.5">
+                    <Plus className="h-4 w-4" /> New Work Order
+                  </Button>
+                )}
                 <button type="button" onClick={() => setShowHeroStats(s => !s)}
                   title={showHeroStats ? 'Hide stats' : 'Show stats'}
                   className="bg-white/[0.08] hover:bg-white/[0.16] text-white/50 border border-white/10 rounded-lg p-2 transition-colors">
@@ -2645,113 +2727,138 @@ export default function MaintenancePage() {
         </div>
       </section>
 
-      {/* ── SCHEDULES PANEL ── */}
+      {/* ── PAGE TAB BAR ── */}
       <section className="relative text-white">
         <div className="container mx-auto px-4 pb-3">
-          <div className="oz-glass-panel rounded-2xl overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-3 border-b border-white/[0.08]">
-              <div className="flex items-center gap-2">
-                <CalendarClock className="h-4 w-4 text-[#86BBD8]" />
-                <span className="text-white/90 font-semibold text-sm">Recurring Schedules</span>
-                {schedules.length > 0 && (
-                  <span className="text-white/30 text-xs bg-white/[0.06] border border-white/10 rounded-full px-2 py-0.5">
-                    {schedules.filter(s => s.active).length} active
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                <Button size="sm" onClick={() => { setEditingSched(null); setShowCreateSched(true); }}
-                  className="bg-[#86BBD8]/20 hover:bg-[#86BBD8]/35 text-white border border-[#86BBD8]/30 gap-1.5 h-7 text-xs">
-                  <Plus className="h-3.5 w-3.5" /> New Schedule
-                </Button>
-                <button type="button" onClick={() => setSchedPanelOpen(o => !o)}
-                  title={schedPanelOpen ? 'Collapse schedules' : 'Expand schedules'}
-                  className="bg-white/[0.08] hover:bg-white/[0.16] text-white/50 border border-white/10 rounded-lg p-1.5 transition-colors">
-                  {schedPanelOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          <div className="flex items-center gap-1 bg-white/[0.04] border border-white/[0.08] rounded-xl p-1 w-fit">
+            {([
+              { key: 'workorders', label: 'Work Orders',         icon: Wrench },
+              { key: 'analytics',  label: 'Analytics & Insights', icon: BarChart2 },
+            ] as { key: 'workorders' | 'analytics'; label: string; icon: ElementType }[]).map(t => {
+              const Icon = t.icon;
+              const active = mainTab === t.key;
+              return (
+                <button key={t.key} type="button"
+                  onClick={() => { setMainTab(t.key); if (t.key === 'workorders' && bulkMode) exitBulk(); }}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    active
+                      ? 'bg-[#86BBD8]/25 border border-[#86BBD8]/35 text-white shadow-sm'
+                      : 'text-white/45 hover:text-white/75 hover:bg-white/[0.05]'
+                  }`}>
+                  <Icon className="h-4 w-4" />
+                  {t.label}
                 </button>
-              </div>
-            </div>
-
-            {schedPanelOpen && (
-              schedules.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-10 text-center">
-                  <div className="bg-white/[0.04] p-4 rounded-2xl mb-3 border border-white/[0.06]">
-                    <Repeat2 className="h-7 w-7 text-white/20" />
-                  </div>
-                  <div className="text-white/40 text-sm font-medium">No recurring schedules yet</div>
-                  <div className="text-white/25 text-xs mt-1 mb-4">
-                    Set up schedules to auto-generate work orders — every week, month, quarter, or custom dates.
-                  </div>
-                  <Button size="sm" onClick={() => { setEditingSched(null); setShowCreateSched(true); }}
-                    className="bg-[#86BBD8]/20 hover:bg-[#86BBD8]/35 text-white border border-[#86BBD8]/30 gap-1.5">
-                    <Plus className="h-3.5 w-3.5" /> Create First Schedule
-                  </Button>
-                </div>
-              ) : (
-                <div>
-                  {schedules.map(s => (
-                    <ScheduleRow key={s.id} schedule={s}
-                      onEdit={() => { setEditingSched(s); setShowCreateSched(true); }}
-                      onRunNow={() => handleRunScheduleNow(s)}
-                      onDelete={() => {
-                        if (confirm(`Delete schedule "${s.name}"? This cannot be undone.`)) {
-                          const updated = schedules.filter(x => x.id !== s.id);
-                          setSchedules(updated);
-                          persistSchedules(updated);
-                        }
-                      }}
-                      onToggle={() => {
-                        const updated = schedules.map(x => x.id === s.id ? { ...x, active: !x.active } : x);
-                        setSchedules(updated);
-                        persistSchedules(updated);
-                      }}
-                    />
-                  ))}
-                </div>
-              )
-            )}
+              );
+            })}
           </div>
         </div>
       </section>
 
-      {/* ── ANALYTICS PANEL ── */}
-      <section className="relative text-white">
-        <div className="container mx-auto px-4 pb-3">
-          <AnalyticsPanel stats={stats} isOpen={analyticsOpen} onToggle={() => setAnalyticsOpen(o => !o)} />
-        </div>
-      </section>
-
-      {/* ── RECORDS PANEL ── */}
-      <section className="relative text-white">
-        <div className="container mx-auto px-4 pb-6">
-          <div className="oz-glass-panel rounded-2xl overflow-hidden">
-
-            {/* Toolbar */}
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-5 py-3 border-b border-white/[0.08]">
-              {/* Status tabs */}
-              <div className="flex items-center gap-1.5 flex-wrap">
-                {STATUS_TABS.map(tab => {
-                  const active = statusTab === tab.key;
-                  return (
-                    <button type="button"
-                      key={tab.key}
-                      onClick={() => setStatusTab(tab.key)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                        active
-                          ? 'bg-[#86BBD8]/30 border-[#86BBD8]/45 text-white font-semibold'
-                          : 'bg-white/[0.05] border-white/[0.12] text-white/55 hover:bg-white/[0.10] hover:text-white/80'
-                      }`}
-                    >
-                      {tab.label}
-                      <span className={`ml-1.5 text-[10px] ${active ? 'text-white/75' : 'text-white/30'}`}>
-                        {tabCount(tab.key)}
+      {/* ══════════════════════════════════════════
+          TAB: WORK ORDERS
+      ══════════════════════════════════════════ */}
+      {mainTab === 'workorders' && (
+        <>
+          {/* ── SCHEDULES PANEL ── */}
+          <section className="relative text-white">
+            <div className="container mx-auto px-4 pb-3">
+              <div className="oz-glass-panel rounded-2xl overflow-hidden">
+                <div className="flex items-center justify-between px-5 py-3 border-b border-white/[0.08]">
+                  <div className="flex items-center gap-2">
+                    <CalendarClock className="h-4 w-4 text-[#86BBD8]" />
+                    <span className="text-white/90 font-semibold text-sm">Recurring Schedules</span>
+                    {schedules.length > 0 && (
+                      <span className="text-white/30 text-xs bg-white/[0.06] border border-white/10 rounded-full px-2 py-0.5">
+                        {schedules.filter(s => s.active).length} active
                       </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button size="sm" onClick={() => { setEditingSched(null); setShowCreateSched(true); }}
+                      className="bg-[#86BBD8]/20 hover:bg-[#86BBD8]/35 text-white border border-[#86BBD8]/30 gap-1.5 h-7 text-xs">
+                      <Plus className="h-3.5 w-3.5" /> New Schedule
+                    </Button>
+                    <button type="button" onClick={() => setSchedPanelOpen(o => !o)}
+                      title={schedPanelOpen ? 'Collapse schedules' : 'Expand schedules'}
+                      className="bg-white/[0.08] hover:bg-white/[0.16] text-white/50 border border-white/10 rounded-lg p-1.5 transition-colors">
+                      {schedPanelOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                     </button>
-                  );
-                })}
-              </div>
+                  </div>
+                </div>
 
-              <div className="flex items-center gap-2 sm:ml-auto flex-wrap">
+                {schedPanelOpen && (
+                  schedules.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-10 text-center">
+                      <div className="bg-white/[0.04] p-4 rounded-2xl mb-3 border border-white/[0.06]">
+                        <Repeat2 className="h-7 w-7 text-white/20" />
+                      </div>
+                      <div className="text-white/40 text-sm font-medium">No recurring schedules yet</div>
+                      <div className="text-white/25 text-xs mt-1 mb-4">
+                        Set up schedules to auto-generate work orders — every week, month, quarter, or custom dates.
+                      </div>
+                      <Button size="sm" onClick={() => { setEditingSched(null); setShowCreateSched(true); }}
+                        className="bg-[#86BBD8]/20 hover:bg-[#86BBD8]/35 text-white border border-[#86BBD8]/30 gap-1.5">
+                        <Plus className="h-3.5 w-3.5" /> Create First Schedule
+                      </Button>
+                    </div>
+                  ) : (
+                    <div>
+                      {schedules.map(s => (
+                        <ScheduleRow key={s.id} schedule={s}
+                          onEdit={() => { setEditingSched(s); setShowCreateSched(true); }}
+                          onRunNow={() => handleRunScheduleNow(s)}
+                          onDelete={() => {
+                            if (confirm(`Delete schedule "${s.name}"? This cannot be undone.`)) {
+                              const updated = schedules.filter(x => x.id !== s.id);
+                              setSchedules(updated);
+                              persistSchedules(updated);
+                            }
+                          }}
+                          onToggle={() => {
+                            const updated = schedules.map(x => x.id === s.id ? { ...x, active: !x.active } : x);
+                            setSchedules(updated);
+                            persistSchedules(updated);
+                          }}
+                        />
+                      ))}
+                    </div>
+                  )
+                )}
+              </div>
+            </div>
+          </section>
+
+          {/* ── RECORDS PANEL ── */}
+          <section className="relative text-white">
+            <div className="container mx-auto px-4 pb-6">
+              <div className="oz-glass-panel rounded-2xl overflow-hidden">
+
+                {/* Toolbar */}
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-5 py-3 border-b border-white/[0.08]">
+                  {/* Status tabs */}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {STATUS_TABS.map(tab => {
+                      const active = statusTab === tab.key;
+                      return (
+                        <button type="button"
+                          key={tab.key}
+                          onClick={() => setStatusTab(tab.key)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                            active
+                              ? 'bg-[#86BBD8]/30 border-[#86BBD8]/45 text-white font-semibold'
+                              : 'bg-white/[0.05] border-white/[0.12] text-white/55 hover:bg-white/[0.10] hover:text-white/80'
+                          }`}
+                        >
+                          {tab.label}
+                          <span className={`ml-1.5 text-[10px] ${active ? 'text-white/75' : 'text-white/30'}`}>
+                            {tabCount(tab.key)}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="flex items-center gap-2 sm:ml-auto flex-wrap">
 
                 {/* Sort */}
                 <div className="flex items-center gap-1.5 bg-white/[0.06] border border-white/[0.10] rounded-lg px-2.5 py-1.5">
@@ -2831,7 +2938,7 @@ export default function MaintenancePage() {
                 </div>
 
                 {/* Collapse / Expand all */}
-                {filtered.length > 0 && !panelMinimized && (
+                {filtered.length > 0 && !panelMinimized && !bulkMode && (
                   <div className="flex items-center gap-1">
                     <button type="button"
                       onClick={() => setExpandedWOs(new Set(filtered.map(w => String(w.id))))}
@@ -2848,6 +2955,14 @@ export default function MaintenancePage() {
                   </div>
                 )}
 
+                {/* Bulk select toggle */}
+                {!panelMinimized && filtered.length > 0 && !bulkMode && (
+                  <button type="button" onClick={() => setBulkMode(true)}
+                    className="flex items-center gap-1.5 text-[10px] px-2.5 py-1.5 rounded-lg border transition-colors bg-white/[0.06] border-white/10 text-white/40 hover:bg-white/[0.12] hover:text-white/70">
+                    <ClipboardCheck className="h-3.5 w-3.5" /> Select
+                  </button>
+                )}
+
                 {/* Minimize */}
                 <button type="button"
                   onClick={() => setPanelMinimized(m => !m)}
@@ -2857,6 +2972,42 @@ export default function MaintenancePage() {
                 </button>
               </div>
             </div>
+
+            {/* Bulk-select action bar */}
+            {bulkMode && !panelMinimized && (
+              <div className="flex items-center gap-3 px-5 py-2.5 bg-[#86BBD8]/[0.06] border-b border-[#86BBD8]/20">
+                {/* Select-all checkbox */}
+                <button type="button"
+                  onClick={() => selectedIds.size === filtered.length ? clearSelect() : selectAll()}
+                  className="flex items-center gap-2 text-xs text-white/70 hover:text-white transition-colors">
+                  <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors flex-shrink-0 ${
+                    selectedIds.size === filtered.length && filtered.length > 0
+                      ? 'bg-[#86BBD8] border-[#86BBD8]'
+                      : selectedIds.size > 0
+                      ? 'bg-[#86BBD8]/40 border-[#86BBD8]'
+                      : 'border-white/30 bg-transparent'
+                  }`}>
+                    {selectedIds.size > 0 && <div className="w-2 h-0.5 bg-white rounded-full" />}
+                  </div>
+                  {selectedIds.size === 0 ? 'Select all' : `${selectedIds.size} selected`}
+                </button>
+
+                <div className="flex-1" />
+
+                {selectedIds.size > 0 && (
+                  <button type="button" onClick={handleBulkDelete}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-300 transition-colors">
+                    <Trash2 className="h-3.5 w-3.5" />
+                    Delete {selectedIds.size} work order{selectedIds.size !== 1 ? 's' : ''}
+                  </button>
+                )}
+
+                <button type="button" onClick={exitBulk}
+                  className="flex items-center gap-1 text-xs text-white/35 hover:text-white/65 transition-colors px-2 py-1.5">
+                  <X className="h-3.5 w-3.5" /> Cancel
+                </button>
+              </div>
+            )}
 
             {/* Records list */}
             {!panelMinimized && (
@@ -2888,13 +3039,42 @@ export default function MaintenancePage() {
                 ) : (
                   <div>
                     {filtered.map(wo => (
-                      <WorkOrderRow key={wo.id} workOrder={wo} onClick={() => setSelectedOrderId(wo.id)}
-                        isExpanded={expandedWOs.has(String(wo.id))} onToggle={() => toggleWO(wo.id)} />
+                      <div key={wo.id} className={`flex items-stretch transition-colors ${
+                        bulkMode && selectedIds.has(String(wo.id)) ? 'bg-[#86BBD8]/[0.05]' : ''
+                      }`}>
+                        {/* Bulk select checkbox column */}
+                        {bulkMode && (
+                          <div className="flex items-center px-4 border-r border-white/[0.05]">
+                            <button type="button"
+                              onClick={() => toggleSelect(wo.id)}
+                              className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors flex-shrink-0 ${
+                                selectedIds.has(String(wo.id))
+                                  ? 'bg-[#86BBD8] border-[#86BBD8]'
+                                  : 'border-white/25 bg-transparent hover:border-white/50'
+                              }`}>
+                              {selectedIds.has(String(wo.id)) && (
+                                <svg viewBox="0 0 10 8" className="w-2.5 h-2 fill-none stroke-white stroke-2">
+                                  <polyline points="1,4 4,7 9,1" strokeLinecap="round" strokeLinejoin="round" />
+                                </svg>
+                              )}
+                            </button>
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <WorkOrderRow workOrder={wo}
+                            onClick={bulkMode ? () => toggleSelect(wo.id) : () => setSelectedOrderId(wo.id)}
+                            isExpanded={!bulkMode && expandedWOs.has(String(wo.id))}
+                            onToggle={() => { if (!bulkMode) toggleWO(wo.id); }} />
+                        </div>
+                      </div>
                     ))}
-                    <div className="px-5 py-2.5 border-t border-white/[0.04]">
+                    <div className="px-5 py-2.5 border-t border-white/[0.04] flex items-center justify-between">
                       <span className="text-white/25 text-xs">
                         {filtered.length} of {workOrders.length} work orders
                       </span>
+                      {bulkMode && selectedIds.size > 0 && (
+                        <span className="text-[#86BBD8]/60 text-xs">{selectedIds.size} selected</span>
+                      )}
                     </div>
                   </div>
                 )}
@@ -2903,8 +3083,21 @@ export default function MaintenancePage() {
           </div>
         </div>
       </section>
+        </>
+      )}
 
-      {/* ── MODALS ── */}
+      {/* ══════════════════════════════════════════
+          TAB: ANALYTICS & INSIGHTS
+      ══════════════════════════════════════════ */}
+      {mainTab === 'analytics' && (
+        <section className="relative text-white">
+          <div className="container mx-auto px-4 pb-6">
+            <AnalyticsPanel stats={stats} isOpen={true} onToggle={() => {}} standalone />
+          </div>
+        </section>
+      )}
+
+      {/* ── MODALS (always mounted) ── */}
       <CreateWorkOrderModal
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
