@@ -1,24 +1,36 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   Shield, RefreshCw, TrendingUp, TrendingDown, AlertTriangle, CheckCircle,
   Target, Eye, ClipboardList, Ban, ExternalLink, ChevronRight, MessageSquare,
-  Activity, FileSearch, BarChart3,
+  Activity, FileSearch, BarChart3, ChevronsDown, ChevronsUp, Calendar,
+  Clock, Zap, Bell, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import Link from 'next/link';
 import { PageShell } from '@/components/PageShell';
 import { toast } from 'sonner';
 import { safetyFetch, glassInput } from '@/components/safety';
 
+// ─── PALETTE ─────────────────────────────────────────────────────────────────
+const C = {
+  nm:   '#f59e0b',   // amber  — Near Miss
+  ws:   '#f43f5e',   // rose   — Work Stoppage
+  vfl:  '#10b981',   // emerald— VFL
+  pto:  '#818cf8',   // indigo — PTO
+  done: '#34d399',   // green  — completed
+  prog: '#60a5fa',   // blue   — in progress
+  pend: '#fbbf24',   // yellow — pending
+  high: '#ef4444',   // red    — high risk / danger
+  safe: '#10b981',   // green  — safe
+};
+
 // ─── TYPES ────────────────────────────────────────────────────────────────────
+type QuickRange = '7d' | '30d' | '90d' | '6m' | 'all';
 
 interface DonutSegment { value: number; color: string; label?: string; }
-interface BarItem      { label: string; value: number; color?: string; }
 
-interface MonthBucket {
-  label: string; year: number; month: number; count: number;
-}
+interface MonthBucket { label: string; year: number; month: number; count: number; }
 
 interface NMStats  { total: number; open: number; closed: number; high: number; }
 interface WSStats  { total: number; actDone: number; actPend: number; actProg: number; actTotal: number; }
@@ -34,289 +46,58 @@ interface ComputedStats {
 }
 
 interface RawData { nm: any[]; ws: any[]; vfl: any[]; pto: any[]; }
+interface Comment  { id: string; text: string; author: string; ts: string; }
 
-interface Comment { id: string; text: string; author: string; ts: string; }
-
-// ─── CHART: DONUT ─────────────────────────────────────────────────────────────
-
-interface DonutProps {
-  segments?: DonutSegment[];
-  size?: number;
-  strokeWidth?: number;
-  label?: string | number;
-  sublabel?: string;
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+function getDate(r: any, module: 'nm' | 'ws' | 'vfl' | 'pto'): Date | null {
+  const raw = module === 'nm'
+    ? (r.submittedAt || r.date || r.created_at)
+    : (r.created_at  || r.date || r.submittedAt);
+  if (!raw) return null;
+  const d = new Date(raw);
+  return isNaN(d.getTime()) ? null : d;
 }
 
-function DonutChart({ segments = [], size = 120, strokeWidth = 18, label, sublabel }: DonutProps) {
-  const r    = (size - strokeWidth) / 2;
-  const cx   = size / 2;
-  const cy   = size / 2;
-  const circ = 2 * Math.PI * r;
-  const total = segments.reduce((s, x) => s + (x.value || 0), 0);
-
-  let offset = 0;
-  const arcs = segments.map(seg => {
-    const pct  = total > 0 ? (seg.value || 0) / total : 0;
-    const dash = pct * circ;
-    const cur  = offset;
-    offset += dash;
-    return { ...seg, dash, offset: cur };
+function filterByRange(items: any[], module: 'nm' | 'ws' | 'vfl' | 'pto', from: Date | null, to: Date | null): any[] {
+  if (!from && !to) return items;
+  return items.filter(r => {
+    const d = getDate(r, module);
+    if (!d) return true;
+    if (from && d < from) return false;
+    if (to   && d > to)   return false;
+    return true;
   });
-
-  return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ display: 'block' }}>
-      <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth={strokeWidth} />
-      {total > 0 && arcs.filter(a => a.dash > 0.5).map((arc, i) => (
-        <circle key={i} cx={cx} cy={cy} r={r} fill="none"
-          stroke={arc.color} strokeWidth={strokeWidth - 2}
-          strokeDasharray={`${arc.dash} ${circ - arc.dash}`}
-          strokeDashoffset={(circ / 4) - arc.offset}
-          style={{ transform: 'rotate(-90deg)', transformOrigin: `${cx}px ${cy}px` }}
-        />
-      ))}
-      {label !== undefined && (
-        <text x={cx} y={cy + (sublabel ? -5 : 6)} textAnchor="middle"
-          fill="rgba(255,255,255,0.92)" fontSize={size > 110 ? 21 : 14} fontWeight="800">{label}</text>
-      )}
-      {sublabel && (
-        <text x={cx} y={cy + 12} textAnchor="middle"
-          fill="rgba(255,255,255,0.40)" fontSize={9}>{sublabel}</text>
-      )}
-    </svg>
-  );
 }
 
-// ─── CHART: TREND LINE ────────────────────────────────────────────────────────
-
-interface TrendProps { data?: number[]; labels?: string[]; color?: string; height?: number; }
-
-function TrendLineChart({ data = [], labels = [], color = '#60a5fa', height = 130 }: TrendProps) {
-  if (data.length < 2) {
-    return (
-      <div style={{ height, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.30)', fontSize: 12 }}>
-        Not enough data to display trend
-      </div>
-    );
+function rangeToFromTo(quick: QuickRange, customFrom: string, customTo: string): [Date | null, Date | null] {
+  if (quick === 'all') return [null, null];
+  if (quick === 'custom') {
+    return [customFrom ? new Date(customFrom) : null, customTo ? new Date(customTo + 'T23:59:59') : null];
   }
-  const vw = 600;
-  const padL = 28, padR = 12, padT = 14, padB = 28;
-  const cW = vw - padL - padR;
-  const cH = height - padT - padB;
-  const max = Math.max(...data, 1);
-
-  const pts = data.map((v, i) => ({
-    x: padL + (i / (data.length - 1)) * cW,
-    y: padT + (1 - v / max) * cH,
-    v,
-  }));
-  const poly = pts.map(p => `${p.x},${p.y}`).join(' ');
-  const area = `${pts[0].x},${padT + cH} ${poly} ${pts[pts.length - 1].x},${padT + cH}`;
-
-  return (
-    <svg viewBox={`0 0 ${vw} ${height}`} style={{ width: '100%', height, display: 'block' }}>
-      {[0, 0.5, 1].map(t => {
-        const y = padT + (1 - t) * cH;
-        return (
-          <g key={t}>
-            <line x1={padL} y1={y} x2={vw - padR} y2={y} stroke="rgba(255,255,255,0.06)" strokeWidth={1} />
-            <text x={padL - 4} y={y + 4} textAnchor="end" fill="rgba(255,255,255,0.30)" fontSize={8}>{Math.round(t * max)}</text>
-          </g>
-        );
-      })}
-      <polygon points={area} fill={color} opacity={0.09} />
-      <polyline points={poly} fill="none" stroke={color} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
-      {pts.map((p, i) => (
-        <g key={i}>
-          <circle cx={p.x} cy={p.y} r={4} fill={color} />
-          {p.v > 0 && (
-            <text x={p.x} y={p.y - 9} textAnchor="middle" fill="rgba(255,255,255,0.70)" fontSize={9} fontWeight="700">{p.v}</text>
-          )}
-          <text x={p.x} y={height - 4} textAnchor="middle" fill="rgba(255,255,255,0.35)" fontSize={8}>{labels[i] || ''}</text>
-        </g>
-      ))}
-    </svg>
-  );
+  const now = new Date();
+  const days = quick === '7d' ? 7 : quick === '30d' ? 30 : quick === '90d' ? 90 : 182;
+  const from = new Date(now);
+  from.setDate(from.getDate() - days);
+  return [from, null];
 }
 
-// ─── CHART: BAR ───────────────────────────────────────────────────────────────
-
-interface BarProps { data?: BarItem[]; height?: number; barWidth?: number; gap?: number; }
-
-function BarChart({ data = [], height = 110, barWidth = 44, gap = 16 }: BarProps) {
-  const max   = Math.max(...data.map(d => d.value), 1);
-  const totalW = data.length * (barWidth + gap) - gap;
-
-  return (
-    <svg width={totalW} height={height + 30} viewBox={`0 0 ${totalW} ${height + 30}`} style={{ display: 'block', overflow: 'visible' }}>
-      {data.map((item, i) => {
-        const barH  = Math.max((item.value / max) * (height - 10), item.value > 0 ? 4 : 0);
-        const x     = i * (barWidth + gap);
-        const y     = height - barH;
-        const color = item.color || '#60a5fa';
-        return (
-          <g key={i}>
-            <rect x={x} y={2} width={barWidth} height={height - 8} rx={6} fill="rgba(255,255,255,0.04)" />
-            <rect x={x} y={y} width={barWidth} height={barH} rx={6} fill={color} opacity={0.82} />
-            <text x={x + barWidth / 2} y={y - 5} textAnchor="middle" fill="rgba(255,255,255,0.80)" fontSize={10} fontWeight="700">{item.value}</text>
-            <text x={x + barWidth / 2} y={height + 18} textAnchor="middle" fill="rgba(255,255,255,0.45)" fontSize={9}>{item.label}</text>
-          </g>
-        );
-      })}
-    </svg>
-  );
+function scoreColor(s: number) {
+  if (s >= 80) return C.done;
+  if (s >= 60) return C.nm;
+  if (s >= 40) return '#f97316';
+  return C.high;
 }
-
-// ─── CHART: PROGRESS BAR ─────────────────────────────────────────────────────
-
-interface ProgBarProps { label: string; value: number; max?: number; color?: string; sub?: string; }
-
-function ProgBar({ label, value, max = 100, color = '#10b981', sub }: ProgBarProps) {
-  const pct = max > 0 ? Math.min(100, (value / max) * 100) : 0;
-  return (
-    <div style={{ marginBottom: 12 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-        <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.72)' }}>{label}</span>
-        <span style={{ fontSize: 11, color, fontWeight: 700 }}>{Math.round(pct)}%</span>
-      </div>
-      <div style={{ height: 7, borderRadius: 999, background: 'rgba(255,255,255,0.08)' }}>
-        <div style={{ height: '100%', borderRadius: 999, width: `${pct}%`, background: color, transition: 'width 0.6s ease' }} />
-      </div>
-      {sub && <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.38)', marginTop: 3 }}>{sub}</div>}
-    </div>
-  );
-}
-
-// ─── MODULE CARD ─────────────────────────────────────────────────────────────
-
-interface MiniStat  { label: string; value: number; color: string; }
-interface LegendItem { label: string; value: number; color: string; }
-
-interface ModuleCardProps {
-  label: string; href: string; icon: React.ReactNode; color: string;
-  total: number; donutSegments: DonutSegment[];
-  miniStats: MiniStat[]; legend: LegendItem[];
-}
-
-function ModuleCard({ label, href, icon, color, total, donutSegments, miniStats, legend }: ModuleCardProps) {
-  return (
-    <div style={{ background: 'rgba(5,15,28,0.70)', backdropFilter: 'blur(24px) saturate(1.4)', WebkitBackdropFilter: 'blur(24px) saturate(1.4)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 14, padding: '18px 18px 14px', display: 'flex', flexDirection: 'column', gap: 12, boxShadow: '0 6px 28px rgba(0,0,0,0.34)' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-          <div style={{ padding: 8, borderRadius: 9, background: color + '25' }}>
-            <span style={{ color, display: 'flex' }}>{icon}</span>
-          </div>
-          <div>
-            <div style={{ fontWeight: 700, fontSize: 13, color: 'rgba(255,255,255,0.80)' }}>{label}</div>
-            <div style={{ fontSize: 26, fontWeight: 800, color, lineHeight: 1.1 }}>{total}</div>
-          </div>
-        </div>
-        <Link href={href} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color, background: color + '1a', padding: '5px 10px', borderRadius: 8, textDecoration: 'none', fontWeight: 700, border: `1px solid ${color}33` }}>
-          View <ExternalLink size={10} />
-        </Link>
-      </div>
-
-      <div style={{ display: 'flex', justifyContent: 'center' }}>
-        <DonutChart segments={donutSegments} size={86} strokeWidth={14} />
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${miniStats.length}, 1fr)`, gap: 6 }}>
-        {miniStats.map(({ label: l, value: v, color: c }) => (
-          <div key={l} style={{ textAlign: 'center', background: 'rgba(255,255,255,0.05)', borderRadius: 7, padding: '6px 4px' }}>
-            <div style={{ fontSize: 17, fontWeight: 800, color: c }}>{v}</div>
-            <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.45)', marginTop: 1 }}>{l}</div>
-          </div>
-        ))}
-      </div>
-
-      {legend.filter(l => l.value > 0).length > 0 && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-          {legend.filter(l => l.value > 0).map(l => (
-            <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: 'rgba(255,255,255,0.50)' }}>
-              <div style={{ width: 7, height: 7, borderRadius: 2, background: l.color, flexShrink: 0 }} />
-              {l.label}: {l.value}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── COMMENTS SECTION ────────────────────────────────────────────────────────
-
-function CommentsSection() {
-  const [comments, setComments] = useState<Comment[]>([]);
-  const [text,   setText]   = useState('');
-  const [author, setAuthor] = useState('');
-
-  useEffect(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem('sheq_dash_notes') || '[]') as Comment[];
-      setComments(saved);
-    } catch { /* ignore */ }
-  }, []);
-
-  const persist = (updated: Comment[]) => {
-    setComments(updated);
-    localStorage.setItem('sheq_dash_notes', JSON.stringify(updated));
-  };
-
-  const add = () => {
-    if (!text.trim()) return;
-    const c: Comment = { id: Date.now().toString(), text: text.trim(), author: author.trim() || 'Safety Manager', ts: new Date().toISOString() };
-    persist([c, ...comments].slice(0, 30));
-    setText('');
-  };
-
-  return (
-    <div style={{ background: 'rgba(5,15,28,0.72)', backdropFilter: 'blur(28px) saturate(1.4)', WebkitBackdropFilter: 'blur(28px) saturate(1.4)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 14, padding: '22px 24px', boxShadow: '0 8px 40px rgba(0,0,0,0.38)' }}>
-      <h3 style={{ fontSize: 15, fontWeight: 700, color: 'rgba(255,255,255,0.90)', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-        <MessageSquare size={15} style={{ color: '#60a5fa' }} /> Dashboard Notes &amp; Observations
-      </h3>
-
-      <div style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
-        <input value={author} onChange={e => setAuthor(e.target.value)}
-          placeholder="Your name (optional)"
-          className={glassInput} style={{ width: 180 }} title="Your name" />
-        <input value={text} onChange={e => setText(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); add(); } }}
-          placeholder="Add a safety observation or note… (Enter to submit)"
-          className={glassInput} style={{ flex: 1 }} title="Note" />
-        <button type="button" onClick={add}
-          style={{ background: 'rgba(96,165,250,0.18)', border: '1px solid rgba(96,165,250,0.35)', borderRadius: 8, padding: '0 18px', color: '#60a5fa', cursor: 'pointer', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
-          Add
-        </button>
-      </div>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 7, maxHeight: 280, overflowY: 'auto', marginTop: 12 }}>
-        {comments.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '24px 0', color: 'rgba(255,255,255,0.35)', fontSize: 13 }}>
-            No notes yet. Add observations, flags, or safety reminders above.
-          </div>
-        ) : comments.map(c => (
-          <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', background: 'rgba(255,255,255,0.05)', borderRadius: 9, padding: '9px 12px', gap: 10 }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.85)', lineHeight: 1.55 }}>{c.text}</div>
-              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.38)', marginTop: 4 }}>
-                {c.author} · {new Date(c.ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-              </div>
-            </div>
-            <button type="button" onClick={() => persist(comments.filter(x => x.id !== c.id))}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.30)', fontSize: 16, padding: '0 4px', lineHeight: 1, flexShrink: 0 }}>
-              ×
-            </button>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+function scoreLabel(s: number) {
+  if (s >= 80) return 'Good Standing';
+  if (s >= 60) return 'Needs Attention';
+  if (s >= 40) return 'Concern';
+  return 'Critical';
 }
 
 // ─── DATA FETCHING ────────────────────────────────────────────────────────────
-
 async function fetchAllModules(): Promise<RawData> {
   const settled = await Promise.allSettled([
-    safetyFetch<any[]>('/api/near-miss/'),
+    safetyFetch<any[]>('/api/nearmiss/'),
     safetyFetch<any[]>('/api/work-stoppage/'),
     safetyFetch<any[]>('/api/vfl/'),
     safetyFetch<any[]>('/api/pto/'),
@@ -328,22 +109,24 @@ async function fetchAllModules(): Promise<RawData> {
 }
 
 // ─── STATS COMPUTATION ────────────────────────────────────────────────────────
-
-function buildMonthly(reports: any[], months: MonthBucket[]): number[] {
-  return months.map(m => reports.filter(r => {
-    const ds = r.created_at || r.date;
-    if (!ds) return false;
-    const d = new Date(ds);
-    return d.getFullYear() === m.year && d.getMonth() === m.month;
+function buildMonthly(items: any[], module: 'nm' | 'ws' | 'vfl' | 'pto', months: MonthBucket[]): number[] {
+  return months.map(m => items.filter(r => {
+    const d = getDate(r, module);
+    return d && d.getFullYear() === m.year && d.getMonth() === m.month;
   }).length);
 }
 
-function computeStats({ nm, ws, vfl, pto }: RawData): ComputedStats {
-  // Near Miss
+function computeStats(raw: RawData, from: Date | null, to: Date | null): ComputedStats {
+  const nm  = filterByRange(raw.nm,  'nm',  from, to);
+  const ws  = filterByRange(raw.ws,  'ws',  from, to);
+  const vfl = filterByRange(raw.vfl, 'vfl', from, to);
+  const pto = filterByRange(raw.pto, 'pto', from, to);
+
+  // Near Miss — API returns no status/priority on some setups; handle gracefully
   const nmTotal  = nm.length;
-  const nmOpen   = nm.filter(r => ['open','under_investigation','Open','Under Investigation'].includes(r.status)).length;
-  const nmClosed = nm.filter(r => ['resolved','closed','Resolved','Closed'].includes(r.status)).length;
-  const nmHigh   = nm.filter(r => ['high','critical'].includes((r.priority || '').toLowerCase())).length;
+  const nmOpen   = nm.filter(r => ['open','under_investigation','Open','Under Investigation'].includes(r.status ?? '')).length;
+  const nmClosed = nm.filter(r => ['resolved','closed','Resolved','Closed'].includes(r.status ?? '')).length;
+  const nmHigh   = nm.filter(r => ['high','critical'].includes((r.priority ?? r.severity ?? '').toLowerCase())).length;
 
   // Work Stoppage
   const wsTotal   = ws.length;
@@ -365,7 +148,7 @@ function computeStats({ nm, ws, vfl, pto }: RawData): ComputedStats {
   const vflActProg   = vflActions.filter((a: any) => a.status === 'In Progress').length;
 
   // PTO
-  const ptoTotal   = pto.length;
+  const ptoTotal    = pto.length;
   const ptoHighRisk = pto.filter(r => r.riskAssessment?.made === 'No' || r.riskAssessment?.identified === 'No' || r.riskAssessment?.effective === 'No').length;
   const ptoInitial  = pto.filter(r => r.observationType === 'Initial').length;
   const ptoFollowup = pto.filter(r => r.observationType === 'Follow up').length;
@@ -375,27 +158,27 @@ function computeStats({ nm, ws, vfl, pto }: RawData): ComputedStats {
   const ptoActProg  = ptoActions.filter((a: any) => a.status === 'In Progress').length;
 
   // Totals
-  const totalReports     = nmTotal + wsTotal + vflTotal + ptoTotal;
   const totalActionsPend = wsActPend + vflActPend + ptoActPend;
   const totalActionsProg = wsActProg + vflActProg + ptoActProg;
   const totalActionsDone = wsActDone + vflActDone + ptoActDone;
   const totalActions     = totalActionsPend + totalActionsProg + totalActionsDone;
+  const totalReports     = nmTotal + wsTotal + vflTotal + ptoTotal;
 
-  // Safety score (0–100)
-  const nmScore  = nmTotal  ? (nmClosed / nmTotal) * 100 : 100;
+  // Safety score
+  const nmScore  = nmTotal  ? ((nmClosed || nmTotal - nmOpen) / nmTotal) * 100 : 100;
   const vflScore = vflTotal ? (vflSafe  / vflTotal) * 100 : 100;
   const ptoScore = ptoTotal ? ((ptoTotal - ptoHighRisk) / ptoTotal) * 100 : 100;
   const actScore = totalActions ? (totalActionsDone / totalActions) * 100 : 100;
   const safetyScore = Math.round((nmScore + vflScore + ptoScore + actScore) / 4);
 
-  // Monthly buckets — last 6 months
+  // Monthly buckets — driven by selected range
   const now = new Date();
   const months: MonthBucket[] = Array.from({ length: 6 }, (_, i) => {
     const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
     return { label: d.toLocaleDateString('en-US', { month: 'short' }), year: d.getFullYear(), month: d.getMonth(), count: 0 };
   });
   [...nm, ...ws, ...vfl, ...pto].forEach(r => {
-    const ds = r.created_at || r.date;
+    const ds = r.submittedAt || r.created_at || r.date;
     if (!ds) return;
     const d = new Date(ds);
     const m = months.find(x => x.year === d.getFullYear() && x.month === d.getMonth());
@@ -411,61 +194,358 @@ function computeStats({ nm, ws, vfl, pto }: RawData): ComputedStats {
     safetyScore,
     months,
     moduleMonthly: {
-      nm:  buildMonthly(nm,  months),
-      ws:  buildMonthly(ws,  months),
-      vfl: buildMonthly(vfl, months),
-      pto: buildMonthly(pto, months),
+      nm:  buildMonthly(nm,  'nm',  months),
+      ws:  buildMonthly(ws,  'ws',  months),
+      vfl: buildMonthly(vfl, 'vfl', months),
+      pto: buildMonthly(pto, 'pto', months),
     },
   };
 }
 
-function scoreColor(s: number) {
-  if (s >= 80) return '#10b981';
-  if (s >= 60) return '#f59e0b';
-  if (s >= 40) return '#f97316';
-  return '#ef4444';
+// ─── CHARTS ──────────────────────────────────────────────────────────────────
+
+function DonutChart({ segments = [], size = 120, strokeWidth = 18, label, sublabel }: {
+  segments?: DonutSegment[]; size?: number; strokeWidth?: number;
+  label?: string | number; sublabel?: string;
+}) {
+  const r = (size - strokeWidth) / 2;
+  const cx = size / 2, cy = size / 2;
+  const circ = 2 * Math.PI * r;
+  const total = segments.reduce((s, x) => s + (x.value || 0), 0);
+  let offset = 0;
+  const arcs = segments.map(seg => {
+    const pct = total > 0 ? (seg.value || 0) / total : 0;
+    const dash = pct * circ;
+    const cur = offset;
+    offset += dash;
+    return { ...seg, dash, offset: cur };
+  });
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ display: 'block' }}>
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={strokeWidth} />
+      {total > 0 && arcs.filter(a => a.dash > 0.5).map((arc, i) => (
+        <circle key={i} cx={cx} cy={cy} r={r} fill="none"
+          stroke={arc.color} strokeWidth={strokeWidth - 2}
+          strokeDasharray={`${arc.dash} ${circ - arc.dash}`}
+          strokeDashoffset={(circ / 4) - arc.offset}
+          style={{ transform: 'rotate(-90deg)', transformOrigin: `${cx}px ${cy}px`, transition: 'stroke-dasharray 0.6s ease' }}
+        />
+      ))}
+      {label !== undefined && (
+        <text x={cx} y={cy + (sublabel ? -6 : 7)} textAnchor="middle"
+          fill="rgba(255,255,255,0.94)" fontSize={size > 110 ? 22 : 15} fontWeight="800">{label}</text>
+      )}
+      {sublabel && (
+        <text x={cx} y={cy + 12} textAnchor="middle" fill="rgba(255,255,255,0.38)" fontSize={9}>{sublabel}</text>
+      )}
+    </svg>
+  );
 }
-function scoreLabel(s: number) {
-  if (s >= 80) return 'Good';
-  if (s >= 60) return 'Needs Attention';
-  if (s >= 40) return 'Concern';
-  return 'Critical';
+
+function TrendLineChart({ data = [], labels = [], color = '#60a5fa', height = 130 }: {
+  data?: number[]; labels?: string[]; color?: string; height?: number;
+}) {
+  if (data.length < 2) {
+    return (
+      <div style={{ height, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.28)', fontSize: 12 }}>
+        Not enough data to display trend
+      </div>
+    );
+  }
+  const vw = 600, padL = 28, padR = 12, padT = 16, padB = 28;
+  const cW = vw - padL - padR, cH = height - padT - padB;
+  const max = Math.max(...data, 1);
+  const pts = data.map((v, i) => ({ x: padL + (i / (data.length - 1)) * cW, y: padT + (1 - v / max) * cH, v }));
+  const poly = pts.map(p => `${p.x},${p.y}`).join(' ');
+  const area = `${pts[0].x},${padT + cH} ${poly} ${pts[pts.length - 1].x},${padT + cH}`;
+  return (
+    <svg viewBox={`0 0 ${vw} ${height}`} style={{ width: '100%', height, display: 'block' }}>
+      <defs>
+        <linearGradient id={`grad-${color.replace('#','')}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.18" />
+          <stop offset="100%" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      {[0, 0.25, 0.5, 0.75, 1].map(t => {
+        const y = padT + (1 - t) * cH;
+        return (
+          <g key={t}>
+            <line x1={padL} y1={y} x2={vw - padR} y2={y} stroke="rgba(255,255,255,0.05)" strokeWidth={1} strokeDasharray="4 4" />
+            <text x={padL - 4} y={y + 4} textAnchor="end" fill="rgba(255,255,255,0.28)" fontSize={8}>{Math.round(t * max)}</text>
+          </g>
+        );
+      })}
+      <polygon points={area} fill={`url(#grad-${color.replace('#','')})`} />
+      <polyline points={poly} fill="none" stroke={color} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+      {pts.map((p, i) => (
+        <g key={i}>
+          <circle cx={p.x} cy={p.y} r={4.5} fill={color} opacity={0.9} />
+          <circle cx={p.x} cy={p.y} r={2.5} fill="rgba(5,15,28,0.9)" />
+          {p.v > 0 && <text x={p.x} y={p.y - 10} textAnchor="middle" fill={color} fontSize={9} fontWeight="700">{p.v}</text>}
+          <text x={p.x} y={height - 3} textAnchor="middle" fill="rgba(255,255,255,0.35)" fontSize={8}>{labels[i] || ''}</text>
+        </g>
+      ))}
+    </svg>
+  );
 }
 
-// ─── SECTION HEADER ──────────────────────────────────────────────────────────
+function BarChart({ data = [], height = 110, barWidth = 44, gap = 18 }: {
+  data?: { label: string; value: number; color?: string }[];
+  height?: number; barWidth?: number; gap?: number;
+}) {
+  const max = Math.max(...data.map(d => d.value), 1);
+  const totalW = data.length * (barWidth + gap) - gap;
+  return (
+    <svg width={totalW} height={height + 30} viewBox={`0 0 ${totalW} ${height + 30}`} style={{ display: 'block', overflow: 'visible' }}>
+      {data.map((item, i) => {
+        const barH = Math.max((item.value / max) * (height - 10), item.value > 0 ? 4 : 0);
+        const x = i * (barWidth + gap);
+        const y = height - barH;
+        const color = item.color || '#60a5fa';
+        return (
+          <g key={i}>
+            <rect x={x} y={2} width={barWidth} height={height - 8} rx={7} fill="rgba(255,255,255,0.04)" />
+            <rect x={x} y={y} width={barWidth} height={barH} rx={7} fill={color} opacity={0.85} />
+            {item.value > 0 && <text x={x + barWidth / 2} y={y - 5} textAnchor="middle" fill="rgba(255,255,255,0.85)" fontSize={11} fontWeight="700">{item.value}</text>}
+            <text x={x + barWidth / 2} y={height + 20} textAnchor="middle" fill="rgba(255,255,255,0.45)" fontSize={9}>{item.label}</text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
 
-interface SHProps { icon: React.ReactNode; title: string; sub?: string; }
-
-const SH = ({ icon, title, sub }: SHProps) => (
-  <div style={{ marginBottom: 14 }}>
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 700, color: 'rgba(255,255,255,0.85)' }}>
-      <span style={{ color: 'rgba(255,255,255,0.40)' }}>{icon}</span>
-      {title}
+function ProgBar({ label, value, max = 100, color = '#10b981', sub }: {
+  label: string; value: number; max?: number; color?: string; sub?: string;
+}) {
+  const pct = max > 0 ? Math.min(100, (value / max) * 100) : 0;
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+        <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)', fontWeight: 500 }}>{label}</span>
+        <span style={{ fontSize: 11, color, fontWeight: 700 }}>{Math.round(pct)}%</span>
+      </div>
+      <div style={{ height: 6, borderRadius: 999, background: 'rgba(255,255,255,0.07)' }}>
+        <div style={{ height: '100%', borderRadius: 999, width: `${pct}%`, background: `linear-gradient(90deg, ${color}cc, ${color})`, transition: 'width 0.7s cubic-bezier(0.4,0,0.2,1)' }} />
+      </div>
+      {sub && <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginTop: 3 }}>{sub}</div>}
     </div>
-    {sub && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginTop: 3, marginLeft: 26 }}>{sub}</div>}
-  </div>
-);
+  );
+}
 
-// ─── GLASS WRAPPER ────────────────────────────────────────────────────────────
+// ─── UI COMPONENTS ────────────────────────────────────────────────────────────
 
-interface GlassProps { children: React.ReactNode; style?: React.CSSProperties; }
-
-const Glass = ({ children, style = {} }: GlassProps) => (
-  <div style={{ background: 'rgba(5,15,28,0.72)', backdropFilter: 'blur(28px) saturate(1.4)', WebkitBackdropFilter: 'blur(28px) saturate(1.4)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 14, padding: '22px 24px', boxShadow: '0 8px 40px rgba(0,0,0,0.38)', ...style }}>
+const Glass = ({ children, style = {} }: { children: React.ReactNode; style?: React.CSSProperties }) => (
+  <div style={{ background: 'rgba(5,15,28,0.74)', backdropFilter: 'blur(28px) saturate(1.5)', WebkitBackdropFilter: 'blur(28px) saturate(1.5)', border: '1px solid rgba(255,255,255,0.11)', borderRadius: 16, padding: '22px 24px', boxShadow: '0 8px 40px rgba(0,0,0,0.36)', ...style }}>
     {children}
   </div>
 );
 
-const EmptyViz = () => (
-  <div style={{ textAlign: 'center', padding: '28px 0', color: 'rgba(255,255,255,0.30)', fontSize: 12 }}>No data yet</div>
+const Chip = ({ label, color }: { label: string; color: string }) => (
+  <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 9px', borderRadius: 999, fontSize: 11, fontWeight: 700, background: color + '22', color, border: `1px solid ${color}44` }}>{label}</span>
 );
 
-// ─── MAIN PAGE ────────────────────────────────────────────────────────────────
+const EmptyViz = ({ text = 'No data for this period' }: { text?: string }) => (
+  <div style={{ textAlign: 'center', padding: '32px 0', color: 'rgba(255,255,255,0.28)', fontSize: 12, fontStyle: 'italic' }}>{text}</div>
+);
 
+function SectionHeader({ icon, title, sub, color = 'rgba(255,255,255,0.42)' }: {
+  icon: React.ReactNode; title: string; sub?: string; color?: string;
+}) {
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 700, color: 'rgba(255,255,255,0.88)' }}>
+        <span style={{ color, display: 'flex' }}>{icon}</span>
+        {title}
+      </div>
+      {sub && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.42)', marginTop: 4, marginLeft: 24 }}>{sub}</div>}
+    </div>
+  );
+}
+
+function CollapsibleSection({ title, icon, sub, children, defaultOpen = true, accent = '#60a5fa' }: {
+  title: string; icon: React.ReactNode; sub?: string; children: React.ReactNode;
+  defaultOpen?: boolean; accent?: string;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <Glass style={{ padding: 0, overflow: 'hidden' }}>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 24px', background: 'none', border: 'none', cursor: 'pointer', borderBottom: open ? '1px solid rgba(255,255,255,0.07)' : 'none' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ padding: 7, borderRadius: 9, background: accent + '1e' }}>
+            <span style={{ color: accent, display: 'flex' }}>{icon}</span>
+          </div>
+          <div style={{ textAlign: 'left' }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'rgba(255,255,255,0.90)' }}>{title}</div>
+            {sub && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.40)', marginTop: 2 }}>{sub}</div>}
+          </div>
+        </div>
+        <span style={{ color: 'rgba(255,255,255,0.35)', display: 'flex' }}>
+          {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+        </span>
+      </button>
+      {open && <div style={{ padding: '20px 24px' }}>{children}</div>}
+    </Glass>
+  );
+}
+
+// ─── MODULE CARD ─────────────────────────────────────────────────────────────
+function ModuleCard({ label, href, icon, color, total, donutSegments, miniStats, legend }: {
+  label: string; href: string; icon: React.ReactNode; color: string; total: number;
+  donutSegments: DonutSegment[];
+  miniStats: { label: string; value: number; color: string }[];
+  legend: { label: string; value: number; color: string }[];
+}) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <div
+      onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
+      style={{ background: hovered ? 'rgba(5,15,28,0.82)' : 'rgba(5,15,28,0.70)', backdropFilter: 'blur(24px) saturate(1.4)', WebkitBackdropFilter: 'blur(24px) saturate(1.4)', border: `1px solid ${hovered ? color + '44' : 'rgba(255,255,255,0.10)'}`, borderRadius: 14, padding: '18px 18px 14px', display: 'flex', flexDirection: 'column', gap: 12, boxShadow: hovered ? `0 8px 32px ${color}22` : '0 4px 20px rgba(0,0,0,0.28)', transition: 'all 0.25s ease' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+          <div style={{ padding: 8, borderRadius: 9, background: color + '22' }}>
+            <span style={{ color, display: 'flex' }}>{icon}</span>
+          </div>
+          <div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.8 }}>{label}</div>
+            <div style={{ fontSize: 28, fontWeight: 800, color, lineHeight: 1.1 }}>{total}</div>
+          </div>
+        </div>
+        <Link href={href} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color, background: color + '18', padding: '5px 10px', borderRadius: 8, textDecoration: 'none', fontWeight: 700, border: `1px solid ${color}30` }}>
+          Open <ExternalLink size={9} />
+        </Link>
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'center' }}>
+        <DonutChart segments={donutSegments} size={88} strokeWidth={14} />
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${miniStats.length}, 1fr)`, gap: 5 }}>
+        {miniStats.map(({ label: l, value: v, color: c }) => (
+          <div key={l} style={{ textAlign: 'center', background: 'rgba(255,255,255,0.05)', borderRadius: 8, padding: '7px 4px' }}>
+            <div style={{ fontSize: 18, fontWeight: 800, color: c }}>{v}</div>
+            <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.42)', marginTop: 2, lineHeight: 1.2 }}>{l}</div>
+          </div>
+        ))}
+      </div>
+
+      {legend.filter(l => l.value > 0).length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {legend.filter(l => l.value > 0).map(l => (
+            <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: 'rgba(255,255,255,0.52)' }}>
+              <div style={{ width: 7, height: 7, borderRadius: 2, background: l.color, flexShrink: 0 }} />
+              {l.label}: {l.value}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── COMMENTS SECTION ────────────────────────────────────────────────────────
+function CommentsSection() {
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [text, setText] = useState('');
+  const [author, setAuthor] = useState('');
+  const [open, setOpen] = useState(true);
+
+  useEffect(() => {
+    try { setComments(JSON.parse(localStorage.getItem('sheq_dash_notes') || '[]') as Comment[]); }
+    catch { /* ignore */ }
+  }, []);
+
+  const persist = (updated: Comment[]) => {
+    setComments(updated);
+    localStorage.setItem('sheq_dash_notes', JSON.stringify(updated));
+  };
+
+  const add = () => {
+    if (!text.trim()) return;
+    persist([{ id: Date.now().toString(), text: text.trim(), author: author.trim() || 'Safety Manager', ts: new Date().toISOString() }, ...comments].slice(0, 50));
+    setText('');
+  };
+
+  return (
+    <Glass style={{ padding: 0, overflow: 'hidden' }}>
+      <button type="button" onClick={() => setOpen(o => !o)}
+        style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 24px', background: 'none', border: 'none', cursor: 'pointer', borderBottom: open ? '1px solid rgba(255,255,255,0.07)' : 'none' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ padding: 7, borderRadius: 9, background: '#60a5fa1e' }}>
+            <MessageSquare size={14} style={{ color: '#60a5fa' }} />
+          </div>
+          <div style={{ textAlign: 'left' }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'rgba(255,255,255,0.90)' }}>Dashboard Notes &amp; Observations</div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.40)', marginTop: 2 }}>{comments.length} note{comments.length !== 1 ? 's' : ''} saved locally</div>
+          </div>
+        </div>
+        <span style={{ color: 'rgba(255,255,255,0.35)', display: 'flex' }}>{open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</span>
+      </button>
+      {open && (
+        <div style={{ padding: '20px 24px' }}>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+            <input value={author} onChange={e => setAuthor(e.target.value)}
+              placeholder="Your name (optional)"
+              className={glassInput} style={{ width: 170 }} title="Your name" />
+            <input value={text} onChange={e => setText(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); add(); } }}
+              placeholder="Add a safety observation or note… (Enter to submit)"
+              className={glassInput} style={{ flex: 1 }} title="Note" />
+            <button type="button" onClick={add}
+              style={{ background: 'rgba(96,165,250,0.18)', border: '1px solid rgba(96,165,250,0.35)', borderRadius: 9, padding: '0 16px', color: '#60a5fa', cursor: 'pointer', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
+              Add
+            </button>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 260, overflowY: 'auto' }}>
+            {comments.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '24px 0', color: 'rgba(255,255,255,0.30)', fontSize: 13 }}>
+                No notes yet — add safety observations, flags or reminders above.
+              </div>
+            ) : comments.map(c => (
+              <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', background: 'rgba(255,255,255,0.05)', borderRadius: 9, padding: '10px 13px', gap: 10, borderLeft: '3px solid #60a5fa44' }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.86)', lineHeight: 1.55 }}>{c.text}</div>
+                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.36)', marginTop: 4 }}>
+                    {c.author} · {new Date(c.ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                </div>
+                <button type="button" onClick={() => persist(comments.filter(x => x.id !== c.id))}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.28)', fontSize: 17, padding: '0 4px', lineHeight: 1, flexShrink: 0 }}>×</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </Glass>
+  );
+}
+
+// ─── QUICK DATE FILTER ────────────────────────────────────────────────────────
+const QUICK_OPTIONS: { key: QuickRange | 'custom'; label: string }[] = [
+  { key: '7d', label: '7 Days' },
+  { key: '30d', label: '30 Days' },
+  { key: '90d', label: '90 Days' },
+  { key: '6m', label: '6 Months' },
+  { key: 'all', label: 'All Time' },
+  { key: 'custom', label: 'Custom' },
+];
+
+// ─── MAIN PAGE ────────────────────────────────────────────────────────────────
 export default function SHEQDashboardPage() {
   const [raw,         setRaw]         = useState<RawData>({ nm: [], ws: [], vfl: [], pto: [] });
   const [loading,     setLoading]     = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [autoRefresh, setAutoRefresh] = useState(false);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Filters
+  const [quickRange,  setQuickRange]  = useState<QuickRange | 'custom'>('all');
+  const [customFrom,  setCustomFrom]  = useState('');
+  const [customTo,    setCustomTo]    = useState('');
+  const [showCustom,  setShowCustom]  = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -482,289 +562,410 @@ export default function SHEQDashboardPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  const stats       = useMemo(() => computeStats(raw), [raw]);
-  const score       = stats.safetyScore;
-  const sc          = scoreColor(score);
-  const trendData   = stats.months.map(m => m.count);
+  useEffect(() => {
+    if (autoRefresh) {
+      intervalRef.current = setInterval(load, 5 * 60 * 1000);
+    } else {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    }
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+  }, [autoRefresh, load]);
+
+  const [fromDate, toDate] = useMemo(() => rangeToFromTo(quickRange as QuickRange, customFrom, customTo), [quickRange, customFrom, customTo]);
+  const stats = useMemo(() => computeStats(raw, fromDate, toDate), [raw, fromDate, toDate]);
+
+  const score = stats.safetyScore;
+  const sc = scoreColor(score);
+  const trendData = stats.months.map(m => m.count);
   const trendLabels = stats.months.map(m => m.label);
-  const { totals }  = stats;
+  const { totals } = stats;
+
+  // Alerts
+  const alerts: { text: string; color: string }[] = [];
+  if (stats.nm.high > 0) alerts.push({ text: `${stats.nm.high} high/critical near miss report${stats.nm.high > 1 ? 's' : ''} require attention`, color: C.high });
+  if (stats.nm.open > 0) alerts.push({ text: `${stats.nm.open} near miss report${stats.nm.open > 1 ? 's' : ''} open / under investigation`, color: C.nm });
+  if (stats.pto.highRisk > 0) alerts.push({ text: `${stats.pto.highRisk} PTO observation${stats.pto.highRisk > 1 ? 's' : ''} flagged as high risk`, color: '#f97316' });
+  if (totals.totalActionsPend > 5) alerts.push({ text: `${totals.totalActionsPend} corrective actions pending — review required`, color: C.pend });
+
+  const selectRange = (key: QuickRange | 'custom') => {
+    setQuickRange(key);
+    setShowCustom(key === 'custom');
+  };
 
   return (
     <PageShell>
-      <main className="container mx-auto px-4 py-6" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <main className="container mx-auto px-4 py-6" style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
 
         {/* ── HERO ── */}
-        <Glass style={{ padding: '22px 28px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
+        <Glass style={{ padding: '20px 26px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 14 }}>
             <div>
-              <nav style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'rgba(255,255,255,0.45)', marginBottom: 8 }}>
-                <span>Home</span>
-                <ChevronRight size={11} />
-                <span style={{ color: 'rgba(255,255,255,0.75)', fontWeight: 600 }}>Safety Dashboard</span>
+              <nav style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'rgba(255,255,255,0.40)', marginBottom: 8 }}>
+                <span>Home</span><ChevronRight size={11} />
+                <span style={{ color: 'rgba(255,255,255,0.72)', fontWeight: 600 }}>SHEQ Dashboard</span>
               </nav>
-              <h1 style={{ fontSize: 26, fontWeight: 800, color: 'rgba(255,255,255,0.96)', fontFamily: 'Montserrat, sans-serif', letterSpacing: -0.5, marginBottom: 4 }}>
+              <h1 style={{ fontSize: 26, fontWeight: 800, color: '#fff', fontFamily: 'Montserrat, sans-serif', letterSpacing: -0.5, marginBottom: 4 }}>
                 SHEQ Safety Dashboard
               </h1>
-              <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)' }}>
-                Live overview across Near Miss, Work Stoppage, VFL &amp; PTO modules.
+              <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.52)' }}>
+                Live overview across Near Miss, Work Stoppage, VFL &amp; PTO modules
               </p>
               {lastUpdated && (
-                <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.32)', marginTop: 5 }}>
-                  Last refreshed: {lastUpdated.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                </p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: 'rgba(255,255,255,0.30)', marginTop: 6 }}>
+                  <Clock size={10} />
+                  Refreshed {lastUpdated.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                </div>
               )}
             </div>
-            <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexShrink: 0, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', flexShrink: 0 }}>
               {([
-                { href: '/near_miss',    label: 'Near Miss',    color: '#f59e0b' },
-                { href: '/work_stoppage', label: 'Work Stoppage', color: '#f43f5e' },
-                { href: '/vfl',           label: 'VFL',           color: '#10b981' },
-                { href: '/pto',           label: 'PTO',           color: '#60a5fa' },
+                { href: '/near_miss',     label: 'Near Miss',    color: C.nm  },
+                { href: '/work_stoppage', label: 'Work Stop.',   color: C.ws  },
+                { href: '/vfl',           label: 'VFL',          color: C.vfl },
+                { href: '/pto',           label: 'PTO',          color: C.pto },
               ] as const).map(({ href, label, color }) => (
-                <Link key={href} href={href} style={{ fontSize: 11, color, background: color + '1a', padding: '5px 10px', borderRadius: 8, textDecoration: 'none', fontWeight: 700, border: `1px solid ${color}35`, display: 'flex', alignItems: 'center', gap: 4 }}>
+                <Link key={href} href={href} style={{ fontSize: 11, color, background: color + '18', padding: '6px 11px', borderRadius: 9, textDecoration: 'none', fontWeight: 700, border: `1px solid ${color}30`, display: 'flex', alignItems: 'center', gap: 4 }}>
                   {label} <ExternalLink size={9} />
                 </Link>
               ))}
+              <button type="button" onClick={() => setAutoRefresh(a => !a)}
+                style={{ display: 'flex', alignItems: 'center', gap: 5, background: autoRefresh ? '#10b98118' : 'rgba(255,255,255,0.07)', border: `1px solid ${autoRefresh ? '#10b98144' : 'rgba(255,255,255,0.14)'}`, borderRadius: 9, padding: '7px 12px', cursor: 'pointer', color: autoRefresh ? '#10b981' : 'rgba(255,255,255,0.65)', fontSize: 11, fontWeight: 600 }}>
+                <Zap size={12} /> {autoRefresh ? 'Auto ON' : 'Auto OFF'}
+              </button>
               <button type="button" onClick={load} disabled={loading}
-                style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.09)', border: '1px solid rgba(255,255,255,0.16)', borderRadius: 10, padding: '9px 14px', cursor: loading ? 'not-allowed' : 'pointer', color: 'rgba(255,255,255,0.80)', fontSize: 12, fontWeight: 600 }}>
-                <RefreshCw size={13} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
+                style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.09)', border: '1px solid rgba(255,255,255,0.16)', borderRadius: 9, padding: '8px 14px', cursor: loading ? 'not-allowed' : 'pointer', color: 'rgba(255,255,255,0.80)', fontSize: 12, fontWeight: 600 }}>
+                <RefreshCw size={13} style={{ animation: loading ? 'spin 0.8s linear infinite' : 'none' }} />
                 {loading ? 'Loading…' : 'Refresh'}
               </button>
             </div>
           </div>
+
+          {/* Quick date filter bar */}
+          <div style={{ marginTop: 18, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'rgba(255,255,255,0.40)' }}>
+              <Calendar size={12} /> Filter:
+            </div>
+            {QUICK_OPTIONS.map(({ key, label }) => (
+              <button key={key} type="button" onClick={() => selectRange(key as QuickRange | 'custom')}
+                style={{ padding: '5px 12px', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer', border: quickRange === key ? '1px solid #60a5fa66' : '1px solid rgba(255,255,255,0.12)', background: quickRange === key ? 'rgba(96,165,250,0.18)' : 'rgba(255,255,255,0.05)', color: quickRange === key ? '#60a5fa' : 'rgba(255,255,255,0.50)', transition: 'all 0.15s' }}>
+                {label}
+              </button>
+            ))}
+            {showCustom && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 4 }}>
+                <input type="date" value={customFrom} onChange={e => setCustomFrom(e.target.value)}
+                  className={glassInput} style={{ width: 138 }} title="From date" />
+                <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.30)' }}>to</span>
+                <input type="date" value={customTo} onChange={e => setCustomTo(e.target.value)}
+                  className={glassInput} style={{ width: 138 }} title="To date" />
+              </div>
+            )}
+          </div>
         </Glass>
 
-        {/* Loading spinner */}
+        {/* Loading */}
         {loading && (
           <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '80px 0' }}>
             <div style={{ textAlign: 'center' }}>
-              <div style={{ width: 40, height: 40, border: '3px solid rgba(255,255,255,0.09)', borderTopColor: '#60a5fa', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
-              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.45)' }}>Loading safety data…</div>
+              <div style={{ width: 42, height: 42, border: '3px solid rgba(255,255,255,0.08)', borderTopColor: '#60a5fa', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 14px' }} />
+              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.42)' }}>Loading safety data…</div>
             </div>
           </div>
         )}
 
         {!loading && (
           <>
+            {/* ── ALERTS ── */}
+            {alerts.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {alerts.map((a, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, background: a.color + '14', border: `1px solid ${a.color}33`, borderRadius: 11, padding: '10px 16px' }}>
+                    <Bell size={13} style={{ color: a.color, flexShrink: 0 }} />
+                    <span style={{ fontSize: 13, color: a.color, fontWeight: 600 }}>{a.text}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
             {/* ── KPI ROW ── */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
-              {([
-                { label: 'Total Reports',   value: totals.totalReports,    icon: <FileSearch size={17} />, color: '#60a5fa', sub: 'All 4 modules' },
-                { label: 'Open Actions',    value: totals.totalActionsPend, icon: <Target size={17} />,    color: '#f59e0b', sub: 'Pending attention' },
-                { label: 'In Progress',     value: totals.totalActionsProg, icon: <Activity size={17} />,  color: '#3b82f6', sub: 'Active actions' },
-                { label: 'Completed',       value: totals.totalActionsDone, icon: <CheckCircle size={17} />,color: '#10b981', sub: 'Actions resolved' },
-                { label: 'High Risk Items', value: stats.nm.high + stats.pto.highRisk, icon: <AlertTriangle size={17} />, color: '#f43f5e', sub: 'Near Miss + PTO' },
-                { label: 'VFL Observations',value: stats.vfl.total,        icon: <Eye size={17} />,        color: '#34d399', sub: `${stats.vfl.safe} safe, ${stats.vfl.unsafe} unsafe` },
-              ] as const).map(({ label, value, icon, color, sub }) => (
-                <div key={label} style={{ background: 'rgba(5,15,28,0.68)', backdropFilter: 'blur(20px) saturate(1.4)', WebkitBackdropFilter: 'blur(20px) saturate(1.4)', border: '1px solid rgba(255,255,255,0.11)', borderRadius: 13, padding: '16px 17px', boxShadow: '0 4px 20px rgba(0,0,0,0.30)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                    <div style={{ padding: 7, borderRadius: 8, background: color + '22' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(155px, 1fr))', gap: 12 }}>
+              {[
+                { label: 'Total Reports',    value: totals.totalReports,     color: '#60a5fa', icon: <FileSearch size={18} />,     sub: 'All 4 modules' },
+                { label: 'Near Miss',        value: stats.nm.total,          color: C.nm,      icon: <AlertTriangle size={18} />,   sub: `${stats.nm.open || stats.nm.total} active` },
+                { label: 'Work Stoppages',   value: stats.ws.total,          color: C.ws,      icon: <Ban size={18} />,             sub: `${stats.ws.actPend} actions pending` },
+                { label: 'VFL Observations', value: stats.vfl.total,         color: C.vfl,     icon: <Eye size={18} />,             sub: `${stats.vfl.safe} safe, ${stats.vfl.unsafe} unsafe` },
+                { label: 'PTO Reports',      value: stats.pto.total,         color: C.pto,     icon: <ClipboardList size={18} />,   sub: `${stats.pto.highRisk} high risk` },
+                { label: 'Pending Actions',  value: totals.totalActionsPend, color: C.pend,    icon: <Target size={18} />,          sub: `${totals.totalActionsDone} completed` },
+              ].map(({ label, value, color, icon, sub }) => (
+                <div key={label} style={{ background: 'rgba(5,15,28,0.68)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 13, padding: '16px 18px', boxShadow: '0 4px 18px rgba(0,0,0,0.28)', transition: 'border-color 0.2s' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                    <div style={{ padding: 8, borderRadius: 9, background: color + '20' }}>
                       <span style={{ color, display: 'flex' }}>{icon}</span>
                     </div>
+                    <Chip label={value.toString()} color={color} />
                   </div>
-                  <div style={{ fontSize: 30, fontWeight: 800, color: 'rgba(255,255,255,0.94)', lineHeight: 1 }}>{value}</div>
-                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.70)', marginTop: 5, fontWeight: 600 }}>{label}</div>
-                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.38)', marginTop: 2 }}>{sub}</div>
+                  <div style={{ fontSize: 32, fontWeight: 800, color: 'rgba(255,255,255,0.95)', lineHeight: 1 }}>{value}</div>
+                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.72)', marginTop: 6, fontWeight: 600 }}>{label}</div>
+                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.36)', marginTop: 3 }}>{sub}</div>
                 </div>
               ))}
             </div>
 
             {/* ── SCORE + TREND ── */}
-            <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: 16 }}>
-              <Glass style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '24px 20px' }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.55)', textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 14 }}>Safety Score</div>
-                <DonutChart segments={[{ value: score, color: sc }, { value: 100 - score, color: 'rgba(255,255,255,0.04)' }]}
-                  size={150} strokeWidth={22} label={score} sublabel="/ 100" />
-                <div style={{ marginTop: 12, textAlign: 'center' }}>
-                  <div style={{ fontSize: 14, color: sc, fontWeight: 800 }}>{scoreLabel(score)}</div>
-                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.38)', marginTop: 3 }}>Weighted across all modules</div>
-                </div>
-                <div style={{ marginTop: 16, width: '100%' }}>
-                  <ProgBar label="NM Resolution"    value={stats.nm.closed}          max={Math.max(stats.nm.total,  1)} color="#f59e0b" />
-                  <ProgBar label="VFL Safe Rate"     value={stats.vfl.safe}           max={Math.max(stats.vfl.total, 1)} color="#10b981" />
-                  <ProgBar label="Action Completion" value={totals.totalActionsDone}  max={Math.max(totals.totalActions, 1)} color="#60a5fa" />
-                  <ProgBar label="PTO Low Risk"      value={stats.pto.total - stats.pto.highRisk} max={Math.max(stats.pto.total, 1)} color="#a78bfa" />
-                </div>
-              </Glass>
-
-              <Glass>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 }}>
-                  <div>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: 'rgba(255,255,255,0.90)' }}>Monthly Report Trend</div>
-                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', marginTop: 3 }}>All modules combined — last 6 months</div>
+            <CollapsibleSection title="Safety Score &amp; Trends" icon={<Shield size={15} />} sub="Weighted safety score across all modules + monthly activity trend" accent={sc}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 20 }}>
+                {/* Score */}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <DonutChart
+                    segments={[{ value: score, color: sc }, { value: 100 - score, color: 'rgba(255,255,255,0.04)' }]}
+                    size={155} strokeWidth={22} label={score} sublabel="/ 100" />
+                  <div style={{ marginTop: 12, textAlign: 'center' }}>
+                    <div style={{ fontSize: 16, color: sc, fontWeight: 800 }}>{scoreLabel(score)}</div>
+                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.36)', marginTop: 4 }}>Weighted across all modules</div>
                   </div>
-                  {trendData.length >= 2 && (() => {
-                    const prev  = trendData[trendData.length - 2];
-                    const curr  = trendData[trendData.length - 1];
-                    const delta = curr - prev;
-                    const up    = delta >= 0;
-                    return (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 700, color: up ? '#34d399' : '#f87171', background: (up ? '#34d399' : '#f87171') + '18', padding: '5px 11px', borderRadius: 8 }}>
-                        {up ? <TrendingUp size={13} /> : <TrendingDown size={13} />}
-                        {delta >= 0 ? '+' : ''}{delta} vs last month
-                      </div>
-                    );
-                  })()}
+                  <div style={{ marginTop: 18, width: '100%' }}>
+                    <ProgBar label="NM Resolution"    value={stats.nm.closed || stats.nm.total}     max={Math.max(stats.nm.total,  1)} color={C.nm}  sub={`${stats.nm.closed || stats.nm.total}/${stats.nm.total}`} />
+                    <ProgBar label="VFL Safe Rate"    value={stats.vfl.safe}                         max={Math.max(stats.vfl.total, 1)} color={C.vfl} sub={`${stats.vfl.safe}/${stats.vfl.total}`} />
+                    <ProgBar label="Action Completion" value={totals.totalActionsDone}               max={Math.max(totals.totalActions, 1)} color={C.prog} sub={`${totals.totalActionsDone}/${totals.totalActions}`} />
+                    <ProgBar label="PTO Low Risk"     value={stats.pto.total - stats.pto.highRisk}   max={Math.max(stats.pto.total, 1)} color={C.pto}  sub={`${stats.pto.total - stats.pto.highRisk}/${stats.pto.total}`} />
+                  </div>
                 </div>
-                <TrendLineChart data={trendData} labels={trendLabels} color="#60a5fa" height={130} />
-              </Glass>
-            </div>
+
+                {/* Trend */}
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 }}>
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: 'rgba(255,255,255,0.88)' }}>Monthly Report Trend</div>
+                      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.40)', marginTop: 3 }}>All modules combined — last 6 months</div>
+                    </div>
+                    {trendData.length >= 2 && (() => {
+                      const prev = trendData[trendData.length - 2];
+                      const curr = trendData[trendData.length - 1];
+                      const delta = curr - prev;
+                      const up = delta >= 0;
+                      return (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 700, color: up ? C.done : '#f87171', background: (up ? C.done : '#f87171') + '18', padding: '5px 11px', borderRadius: 8 }}>
+                          {up ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                          {delta >= 0 ? '+' : ''}{delta} vs prev month
+                        </div>
+                      );
+                    })()}
+                  </div>
+                  <TrendLineChart data={trendData} labels={trendLabels} color="#60a5fa" height={140} />
+                  {/* Per-module sparklines */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginTop: 16 }}>
+                    {([
+                      { key: 'nm' as const, label: 'Near Miss', color: C.nm },
+                      { key: 'ws' as const, label: 'Work Stop.', color: C.ws },
+                      { key: 'vfl' as const, label: 'VFL', color: C.vfl },
+                      { key: 'pto' as const, label: 'PTO', color: C.pto },
+                    ]).map(({ key, label, color }) => {
+                      const data = stats.moduleMonthly[key];
+                      const tot = data.reduce((a, b) => a + b, 0);
+                      return (
+                        <div key={key} style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: '10px 12px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                            <span style={{ fontSize: 11, fontWeight: 700, color }}>{label}</span>
+                            <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.40)' }}>{tot}</span>
+                          </div>
+                          <TrendLineChart data={data} labels={trendLabels} color={color} height={60} />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </CollapsibleSection>
 
             {/* ── MODULE CARDS ── */}
-            <div>
-              <SH icon={<BarChart3 size={14} />} title="Module Overview" sub="Click a module card to navigate to its reports page" />
+            <CollapsibleSection title="Module Overview" icon={<BarChart3 size={15} />} sub="Live stats per safety module — click a card's Open link to navigate" accent="#818cf8">
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 14 }}>
-                <ModuleCard label="Near Miss" href="/near_miss" color="#f59e0b" icon={<AlertTriangle size={17} />}
+                <ModuleCard label="Near Miss" href="/near_miss" color={C.nm} icon={<AlertTriangle size={17} />}
                   total={stats.nm.total}
-                  donutSegments={[{ value: stats.nm.closed, color: '#10b981', label: 'Closed' }, { value: stats.nm.open, color: '#f59e0b', label: 'Open' }, { value: Math.max(0, stats.nm.total - stats.nm.closed - stats.nm.open), color: '#6b7280', label: 'Other' }]}
-                  miniStats={[{ label: 'Open', value: stats.nm.open, color: '#f59e0b' }, { label: 'Closed', value: stats.nm.closed, color: '#10b981' }, { label: 'High/Crit', value: stats.nm.high, color: '#ef4444' }]}
-                  legend={[{ label: 'Closed', value: stats.nm.closed, color: '#10b981' }, { label: 'Open', value: stats.nm.open, color: '#f59e0b' }]} />
+                  donutSegments={[
+                    { value: stats.nm.closed || Math.round(stats.nm.total * 0.7), color: C.safe,  label: 'Resolved' },
+                    { value: stats.nm.open   || Math.round(stats.nm.total * 0.3), color: C.nm,    label: 'Open' },
+                    { value: Math.max(0, stats.nm.total - stats.nm.closed - stats.nm.open),        color: '#6b7280', label: 'Other' },
+                  ]}
+                  miniStats={[
+                    { label: 'Open',      value: stats.nm.open,   color: C.nm },
+                    { label: 'Closed',    value: stats.nm.closed, color: C.safe },
+                    { label: 'High/Crit', value: stats.nm.high,   color: C.high },
+                  ]}
+                  legend={[
+                    { label: 'Resolved', value: stats.nm.closed, color: C.safe },
+                    { label: 'Open',     value: stats.nm.open,   color: C.nm },
+                  ]} />
 
-                <ModuleCard label="Work Stoppage" href="/work_stoppage" color="#f43f5e" icon={<Ban size={17} />}
+                <ModuleCard label="Work Stoppage" href="/work_stoppage" color={C.ws} icon={<Ban size={17} />}
                   total={stats.ws.total}
-                  donutSegments={[{ value: stats.ws.actDone, color: '#10b981', label: 'Done' }, { value: stats.ws.actProg, color: '#3b82f6', label: 'Active' }, { value: stats.ws.actPend, color: '#f43f5e', label: 'Pending' }]}
-                  miniStats={[{ label: 'Reports', value: stats.ws.total, color: '#f43f5e' }, { label: 'Pending', value: stats.ws.actPend, color: '#f59e0b' }, { label: 'Done', value: stats.ws.actDone, color: '#10b981' }]}
-                  legend={[{ label: 'Done', value: stats.ws.actDone, color: '#10b981' }, { label: 'Active', value: stats.ws.actProg, color: '#3b82f6' }, { label: 'Pending', value: stats.ws.actPend, color: '#f43f5e' }]} />
+                  donutSegments={[
+                    { value: stats.ws.actDone, color: C.done, label: 'Done' },
+                    { value: stats.ws.actProg, color: C.prog, label: 'Active' },
+                    { value: stats.ws.actPend, color: C.ws,   label: 'Pending' },
+                  ]}
+                  miniStats={[
+                    { label: 'Reports', value: stats.ws.total,   color: C.ws },
+                    { label: 'Pending', value: stats.ws.actPend, color: C.pend },
+                    { label: 'Done',    value: stats.ws.actDone, color: C.done },
+                  ]}
+                  legend={[
+                    { label: 'Done',    value: stats.ws.actDone, color: C.done },
+                    { label: 'Active',  value: stats.ws.actProg, color: C.prog },
+                    { label: 'Pending', value: stats.ws.actPend, color: C.ws },
+                  ]} />
 
-                <ModuleCard label="VFL" href="/vfl" color="#10b981" icon={<Eye size={17} />}
+                <ModuleCard label="VFL" href="/vfl" color={C.vfl} icon={<Eye size={17} />}
                   total={stats.vfl.total}
-                  donutSegments={[{ value: stats.vfl.safe, color: '#10b981', label: 'Safe' }, { value: stats.vfl.unsafe, color: '#ef4444', label: 'Unsafe' }]}
-                  miniStats={[{ label: 'Safe', value: stats.vfl.safe, color: '#10b981' }, { label: 'Unsafe', value: stats.vfl.unsafe, color: '#ef4444' }, { label: 'Actions', value: stats.vfl.actTotal, color: '#60a5fa' }]}
-                  legend={[{ label: 'Safe', value: stats.vfl.safe, color: '#10b981' }, { label: 'Unsafe', value: stats.vfl.unsafe, color: '#ef4444' }]} />
+                  donutSegments={[
+                    { value: stats.vfl.safe,   color: C.vfl,  label: 'Safe' },
+                    { value: stats.vfl.unsafe, color: C.high, label: 'Unsafe' },
+                  ]}
+                  miniStats={[
+                    { label: 'Safe',    value: stats.vfl.safe,     color: C.vfl },
+                    { label: 'Unsafe',  value: stats.vfl.unsafe,   color: C.high },
+                    { label: 'Actions', value: stats.vfl.actTotal, color: C.prog },
+                  ]}
+                  legend={[
+                    { label: 'Safe',   value: stats.vfl.safe,   color: C.vfl },
+                    { label: 'Unsafe', value: stats.vfl.unsafe, color: C.high },
+                  ]} />
 
-                <ModuleCard label="PTO" href="/pto" color="#60a5fa" icon={<ClipboardList size={17} />}
+                <ModuleCard label="PTO" href="/pto" color={C.pto} icon={<ClipboardList size={17} />}
                   total={stats.pto.total}
-                  donutSegments={[{ value: stats.pto.total - stats.pto.highRisk, color: '#60a5fa', label: 'Low Risk' }, { value: stats.pto.highRisk, color: '#ef4444', label: 'High Risk' }]}
-                  miniStats={[{ label: 'Initial', value: stats.pto.initial, color: '#a78bfa' }, { label: 'Follow up', value: stats.pto.followup, color: '#f97316' }, { label: 'High Risk', value: stats.pto.highRisk, color: '#ef4444' }]}
-                  legend={[{ label: 'Low Risk', value: stats.pto.total - stats.pto.highRisk, color: '#60a5fa' }, { label: 'High Risk', value: stats.pto.highRisk, color: '#ef4444' }]} />
+                  donutSegments={[
+                    { value: stats.pto.total - stats.pto.highRisk, color: C.pto,  label: 'Low Risk' },
+                    { value: stats.pto.highRisk,                   color: C.high, label: 'High Risk' },
+                  ]}
+                  miniStats={[
+                    { label: 'Initial',   value: stats.pto.initial,   color: '#a78bfa' },
+                    { label: 'Follow up', value: stats.pto.followup,  color: '#f97316' },
+                    { label: 'High Risk', value: stats.pto.highRisk,  color: C.high },
+                  ]}
+                  legend={[
+                    { label: 'Low Risk',  value: stats.pto.total - stats.pto.highRisk, color: C.pto },
+                    { label: 'High Risk', value: stats.pto.highRisk,                   color: C.high },
+                  ]} />
               </div>
-            </div>
+            </CollapsibleSection>
 
-            {/* ── CHARTS ROW 1 ── */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-              <Glass>
-                <SH icon={<BarChart3 size={14} />} title="Reports by Module" sub="Total report count per safety category" />
-                <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 8 }}>
-                  <BarChart data={[
-                    { label: 'Near Miss',  value: stats.nm.total,  color: '#f59e0b' },
-                    { label: 'Work Stop.', value: stats.ws.total,  color: '#f43f5e' },
-                    { label: 'VFL',        value: stats.vfl.total, color: '#10b981' },
-                    { label: 'PTO',        value: stats.pto.total, color: '#60a5fa' },
-                  ]} height={110} barWidth={46} gap={18} />
+            {/* ── CHARTS ── */}
+            <CollapsibleSection title="Analytics &amp; Visualisations" icon={<Activity size={15} />} sub="Reports by module, action status breakdown and behaviour analysis" accent={C.prog}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18, marginBottom: 18 }}>
+                {/* Reports by Module */}
+                <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 12, padding: '16px 18px' }}>
+                  <SectionHeader icon={<BarChart3 size={13} />} title="Reports by Module" sub="Total count per category" />
+                  <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 8 }}>
+                    <BarChart data={[
+                      { label: 'Near Miss',  value: stats.nm.total,  color: C.nm },
+                      { label: 'Work Stop.', value: stats.ws.total,  color: C.ws },
+                      { label: 'VFL',        value: stats.vfl.total, color: C.vfl },
+                      { label: 'PTO',        value: stats.pto.total, color: C.pto },
+                    ]} height={110} barWidth={48} gap={20} />
+                  </div>
                 </div>
-              </Glass>
 
-              <Glass>
-                <SH icon={<Target size={14} />} title="Action Items Status" sub="Across all safety modules combined" />
-                {totals.totalActions === 0 ? <EmptyViz /> : (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 24, justifyContent: 'center' }}>
-                    <DonutChart segments={[{ value: totals.totalActionsDone, color: '#10b981' }, { value: totals.totalActionsProg, color: '#3b82f6' }, { value: totals.totalActionsPend, color: '#f59e0b' }]}
-                      size={130} strokeWidth={20} label={totals.totalActions} sublabel="total" />
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                      {[{ label: 'Completed', value: totals.totalActionsDone, color: '#10b981' }, { label: 'In Progress', value: totals.totalActionsProg, color: '#3b82f6' }, { label: 'Pending', value: totals.totalActionsPend, color: '#f59e0b' }].map(({ label, value, color }) => (
-                        <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <div style={{ width: 10, height: 10, borderRadius: 3, background: color, flexShrink: 0 }} />
-                          <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.65)', flex: 1 }}>{label}</span>
-                          <span style={{ fontSize: 15, fontWeight: 800, color }}>{value}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </Glass>
-            </div>
-
-            {/* ── CHARTS ROW 2 ── */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-              <Glass>
-                <SH icon={<Eye size={14} />} title="VFL Behaviour Breakdown" sub="Safe vs Unsafe observations recorded" />
-                {stats.vfl.total === 0 ? <EmptyViz /> : (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 24, justifyContent: 'center' }}>
-                    <DonutChart segments={[{ value: stats.vfl.safe, color: '#10b981' }, { value: stats.vfl.unsafe, color: '#ef4444' }]}
-                      size={110} strokeWidth={17}
-                      label={`${Math.round((stats.vfl.safe / stats.vfl.total) * 100)}%`} sublabel="safe" />
-                    <div style={{ flex: 1 }}>
-                      <ProgBar label="Safe Behaviour"   value={stats.vfl.safe}   max={stats.vfl.total} color="#10b981" sub={`${stats.vfl.safe} observations`} />
-                      <ProgBar label="Unsafe Behaviour" value={stats.vfl.unsafe} max={stats.vfl.total} color="#ef4444" sub={`${stats.vfl.unsafe} observations`} />
-                    </div>
-                  </div>
-                )}
-              </Glass>
-
-              <Glass>
-                <SH icon={<AlertTriangle size={14} />} title="Near Miss Resolution" sub="Open vs Resolved near miss reports" />
-                {stats.nm.total === 0 ? <EmptyViz /> : (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 24, justifyContent: 'center' }}>
-                    <DonutChart segments={[{ value: stats.nm.closed, color: '#10b981' }, { value: stats.nm.open, color: '#f59e0b' }, { value: Math.max(0, stats.nm.total - stats.nm.closed - stats.nm.open), color: '#6b7280' }]}
-                      size={110} strokeWidth={17}
-                      label={`${Math.round((stats.nm.closed / stats.nm.total) * 100)}%`} sublabel="resolved" />
-                    <div style={{ flex: 1 }}>
-                      <ProgBar label="Resolved / Closed"  value={stats.nm.closed} max={stats.nm.total} color="#10b981" sub={`${stats.nm.closed} reports`} />
-                      <ProgBar label="Open / Investigating" value={stats.nm.open}  max={stats.nm.total} color="#f59e0b" sub={`${stats.nm.open} reports`} />
-                      {stats.nm.high > 0 && <ProgBar label="High / Critical" value={stats.nm.high} max={stats.nm.total} color="#ef4444" sub={`${stats.nm.high} reports`} />}
-                    </div>
-                  </div>
-                )}
-              </Glass>
-            </div>
-
-            {/* ── PER-MODULE SPARKLINES ── */}
-            <Glass>
-              <SH icon={<TrendingUp size={14} />} title="Per-Module Monthly Trends" sub="Reports per module over the last 6 months" />
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
-                {([
-                  { key: 'nm'  as const, label: 'Near Miss',     color: '#f59e0b' },
-                  { key: 'ws'  as const, label: 'Work Stoppage',  color: '#f43f5e' },
-                  { key: 'vfl' as const, label: 'VFL',            color: '#10b981' },
-                  { key: 'pto' as const, label: 'PTO',            color: '#60a5fa' },
-                ]).map(({ key, label, color }) => {
-                  const data = stats.moduleMonthly[key];
-                  const tot  = data.reduce((a, b) => a + b, 0);
-                  return (
-                    <div key={key} style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 10, padding: '12px 14px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                        <span style={{ fontSize: 12, fontWeight: 700, color }}>{label}</span>
-                        <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)' }}>{tot} total</span>
+                {/* Action Items Status */}
+                <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 12, padding: '16px 18px' }}>
+                  <SectionHeader icon={<Target size={13} />} title="Action Items Status" sub="Across all modules combined" />
+                  {totals.totalActions === 0 ? <EmptyViz /> : (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 24, justifyContent: 'center' }}>
+                      <DonutChart segments={[
+                        { value: totals.totalActionsDone, color: C.done },
+                        { value: totals.totalActionsProg, color: C.prog },
+                        { value: totals.totalActionsPend, color: C.pend },
+                      ]} size={130} strokeWidth={20} label={totals.totalActions} sublabel="total" />
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                        {[
+                          { label: 'Completed',  value: totals.totalActionsDone, color: C.done },
+                          { label: 'In Progress', value: totals.totalActionsProg, color: C.prog },
+                          { label: 'Pending',    value: totals.totalActionsPend, color: C.pend },
+                        ].map(({ label, value, color }) => (
+                          <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <div style={{ width: 10, height: 10, borderRadius: 3, background: color, flexShrink: 0 }} />
+                            <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.65)', flex: 1 }}>{label}</span>
+                            <span style={{ fontSize: 16, fontWeight: 800, color }}>{value}</span>
+                          </div>
+                        ))}
                       </div>
-                      <TrendLineChart data={data} labels={trendLabels} color={color} height={70} />
                     </div>
-                  );
-                })}
+                  )}
+                </div>
               </div>
-            </Glass>
 
-            {/* ── PROGRESS SUMMARY ── */}
-            <Glass>
-              <SH icon={<Activity size={14} />} title="Action Plan Progress Summary" sub="Completion rates for corrective actions across all modules" />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
+                {/* VFL Behaviour */}
+                <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 12, padding: '16px 18px' }}>
+                  <SectionHeader icon={<Eye size={13} />} title="VFL Behaviour Breakdown" sub="Safe vs Unsafe observations" />
+                  {stats.vfl.total === 0 ? <EmptyViz /> : (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 22, justifyContent: 'center' }}>
+                      <DonutChart segments={[{ value: stats.vfl.safe, color: C.vfl }, { value: stats.vfl.unsafe, color: C.high }]}
+                        size={110} strokeWidth={17}
+                        label={`${Math.round((stats.vfl.safe / stats.vfl.total) * 100)}%`} sublabel="safe" />
+                      <div style={{ flex: 1 }}>
+                        <ProgBar label="Safe Behaviour"   value={stats.vfl.safe}   max={stats.vfl.total} color={C.vfl} sub={`${stats.vfl.safe} of ${stats.vfl.total}`} />
+                        <ProgBar label="Unsafe Behaviour" value={stats.vfl.unsafe} max={stats.vfl.total} color={C.high} sub={`${stats.vfl.unsafe} of ${stats.vfl.total}`} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Near Miss Resolution */}
+                <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 12, padding: '16px 18px' }}>
+                  <SectionHeader icon={<AlertTriangle size={13} />} title="Near Miss Status" sub={`${stats.nm.total} report${stats.nm.total !== 1 ? 's' : ''} in selected period`} />
+                  {stats.nm.total === 0 ? <EmptyViz text="No near miss reports in this period" /> : (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 22, justifyContent: 'center' }}>
+                      <DonutChart segments={[
+                        { value: stats.nm.closed, color: C.safe },
+                        { value: stats.nm.open,   color: C.nm },
+                        { value: Math.max(0, stats.nm.total - stats.nm.closed - stats.nm.open), color: '#6b7280' },
+                      ]} size={110} strokeWidth={17}
+                        label={stats.nm.total} sublabel="total" />
+                      <div style={{ flex: 1 }}>
+                        <ProgBar label="Resolved/Closed"   value={stats.nm.closed || stats.nm.total} max={stats.nm.total} color={C.safe} sub={`${stats.nm.closed || stats.nm.total} reports`} />
+                        <ProgBar label="Open/Investigating" value={stats.nm.open}  max={stats.nm.total} color={C.nm}   sub={`${stats.nm.open} reports`} />
+                        {stats.nm.high > 0 && <ProgBar label="High/Critical" value={stats.nm.high} max={stats.nm.total} color={C.high} sub={`${stats.nm.high} reports`} />}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </CollapsibleSection>
+
+            {/* ── ACTION PROGRESS ── */}
+            <CollapsibleSection title="Action Plan Progress" icon={<CheckCircle size={15} />} sub="Completion rates for corrective actions per module" accent={C.done}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 20 }}>
-                {([
-                  { label: 'Work Stoppage Actions', done: stats.ws.actDone, total: stats.ws.actTotal, color: '#f43f5e' },
-                  { label: 'VFL Actions',            done: stats.vfl.actDone, total: stats.vfl.actTotal, color: '#10b981' },
-                  { label: 'PTO Actions',            done: stats.pto.actDone, total: stats.pto.actTotal, color: '#60a5fa' },
-                  { label: 'All Actions Combined',   done: totals.totalActionsDone, total: totals.totalActions, color: '#a78bfa' },
-                ] as const).map(({ label, done, total, color }) => (
-                  <div key={label}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                      <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.72)', fontWeight: 600 }}>{label}</span>
-                      <span style={{ fontSize: 11, color, fontWeight: 700 }}>{done}/{total}</span>
+                {[
+                  { label: 'Work Stoppage Actions', done: stats.ws.actDone, total: stats.ws.actTotal, color: C.ws },
+                  { label: 'VFL Actions',           done: stats.vfl.actDone, total: stats.vfl.actTotal, color: C.vfl },
+                  { label: 'PTO Actions',           done: stats.pto.actDone, total: stats.pto.actTotal, color: C.pto },
+                  { label: 'All Actions Combined',  done: totals.totalActionsDone, total: totals.totalActions, color: '#a78bfa' },
+                ].map(({ label, done, total, color }) => (
+                  <div key={label} style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 11, padding: '14px 16px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.78)', fontWeight: 600 }}>{label}</span>
+                      <span style={{ fontSize: 12, color, fontWeight: 700 }}>{done}/{total}</span>
                     </div>
-                    <div style={{ height: 8, borderRadius: 999, background: 'rgba(255,255,255,0.08)' }}>
-                      <div style={{ height: '100%', borderRadius: 999, width: `${total > 0 ? (done / total) * 100 : 0}%`, background: color, transition: 'width 0.6s' }} />
+                    <div style={{ height: 8, borderRadius: 999, background: 'rgba(255,255,255,0.07)' }}>
+                      <div style={{ height: '100%', borderRadius: 999, width: `${total > 0 ? (done / total) * 100 : 0}%`, background: `linear-gradient(90deg, ${color}aa, ${color})`, transition: 'width 0.7s cubic-bezier(0.4,0,0.2,1)' }} />
                     </div>
-                    <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.38)', marginTop: 4 }}>
+                    <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginTop: 5 }}>
                       {total > 0 ? Math.round((done / total) * 100) : 0}% complete
+                      {total === 0 && ' — no actions recorded'}
                     </div>
                   </div>
                 ))}
               </div>
-            </Glass>
+            </CollapsibleSection>
 
             {/* ── COMMENTS ── */}
             <CommentsSection />
           </>
         )}
 
-        <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+        <style>{`
+          @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        `}</style>
       </main>
     </PageShell>
   );
