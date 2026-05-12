@@ -187,23 +187,23 @@ const ActionItemCard: React.FC<ActionCardProps> = ({ item, index, onChange, onRe
     </div>
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
       <div style={{ gridColumn: '1 / -1' }}>
-        <label style={glassLabel}>Action Description *</label>
-        <input style={glassInput} value={item.action} placeholder="Describe the action..."
+        <label className={glassLabel}>Action Description *</label>
+        <input className={glassInput} value={item.action} placeholder="Describe the action..."
           onChange={e => onChange(item.id, 'action', e.target.value)} title="Action description" />
       </div>
       <div>
-        <label style={glassLabel}>Responsible Person *</label>
-        <input style={glassInput} value={item.responsible} placeholder="Full name"
+        <label className={glassLabel}>Responsible Person *</label>
+        <input className={glassInput} value={item.responsible} placeholder="Full name"
           onChange={e => onChange(item.id, 'responsible', e.target.value)} title="Responsible person" />
       </div>
       <div>
-        <label style={glassLabel}>Target Date *</label>
-        <input type="date" style={glassInput} value={item.targetDate} title="Target date" placeholder="Target date"
+        <label className={glassLabel}>Target Date *</label>
+        <input type="date" className={glassInput} value={item.targetDate} title="Target date" placeholder="Target date"
           onChange={e => onChange(item.id, 'targetDate', e.target.value)} />
       </div>
       <div>
-        <label style={glassLabel}>Status</label>
-        <select style={glassSelect} value={item.status} title="Status"
+        <label className={glassLabel}>Status</label>
+        <select className={glassSelect} value={item.status} title="Status"
           onChange={e => onChange(item.id, 'status', e.target.value as ActionStatus)}>
           <option value="Pending">Pending</option>
           <option value="In Progress">In Progress</option>
@@ -212,13 +212,13 @@ const ActionItemCard: React.FC<ActionCardProps> = ({ item, index, onChange, onRe
       </div>
       {item.status === 'Completed' && (
         <div>
-          <label style={glassLabel}>Completed Date</label>
-          <input type="date" style={glassInput} value={item.completedDate || ''} title="Completed date" placeholder="Completed date"
+          <label className={glassLabel}>Completed Date</label>
+          <input type="date" className={glassInput} value={item.completedDate || ''} title="Completed date" placeholder="Completed date"
             onChange={e => onChange(item.id, 'completedDate', e.target.value)} />
         </div>
       )}
       <div style={{ gridColumn: '1 / -1' }}>
-        <label style={glassLabel}>Remarks (Optional)</label>
+        <label className={glassLabel}>Remarks (Optional)</label>
         <textarea style={{ ...glassTextarea, minHeight: 48 }} value={item.remarks || ''} placeholder="Additional notes..."
           onChange={e => onChange(item.id, 'remarks', e.target.value)} title="Remarks" />
       </div>
@@ -529,36 +529,36 @@ const VFLFormModal: React.FC<FormModalProps> = ({ open, editing, onClose, onSave
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div style={{ gridColumn: '1 / -1' }}>
             <FormField label="Observer's Name *">
-              <input style={glassInput} value={form.observerName || ''} placeholder="Full name"
+              <input className={glassInput} value={form.observerName || ''} placeholder="Full name"
                 onChange={e => set('observerName', e.target.value)} title="Observer name" />
             </FormField>
           </div>
           <FormField label="Designation">
-            <input style={glassInput} value={form.designation || ''} placeholder="Job title"
+            <input className={glassInput} value={form.designation || ''} placeholder="Job title"
               onChange={e => set('designation', e.target.value)} title="Designation" />
           </FormField>
           <FormField label="Section *">
-            <select style={glassSelect} value={form.sectionChoice || 'Mechanical'} title="Section"
+            <select className={glassSelect} value={form.sectionChoice || 'Mechanical'} title="Section"
               onChange={e => set('sectionChoice', e.target.value as SectionType)}>
               {SECTIONS.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </FormField>
           <div style={{ gridColumn: '1 / -1' }}>
             <FormField label="Department/Section">
-              <input style={glassInput} value={form.departmentSection || ''} placeholder="e.g., Production, Maintenance"
+              <input className={glassInput} value={form.departmentSection || ''} placeholder="e.g., Production, Maintenance"
                 onChange={e => set('departmentSection', e.target.value)} title="Department or section" />
             </FormField>
           </div>
           <FormField label="Date *">
-            <input type="date" style={glassInput} value={form.date || ''} title="Observation date" placeholder="Date"
+            <input type="date" className={glassInput} value={form.date || ''} title="Observation date" placeholder="Date"
               onChange={e => set('date', e.target.value)} />
           </FormField>
           <FormField label="Time *">
-            <input type="time" style={glassInput} value={form.time || ''} title="Observation time" placeholder="Time"
+            <input type="time" className={glassInput} value={form.time || ''} title="Observation time" placeholder="Time"
               onChange={e => set('time', e.target.value)} />
           </FormField>
           <FormField label="Status">
-            <select style={glassSelect} value={form.status || 'draft'} title="Status"
+            <select className={glassSelect} value={form.status || 'draft'} title="Status"
               onChange={e => set('status', e.target.value as VFLStatus)}>
               <option value="draft">Draft</option>
               <option value="submitted">Submitted</option>
