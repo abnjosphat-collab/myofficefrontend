@@ -431,7 +431,43 @@ function calcStats(orders: WorkOrder[]) {
   };
 }
 
-// ==================== HELPERS ====================
+// ==================== ANALYTICS FILTERS ====================
+interface AnalyticsFilters {
+  dateFrom: string;
+  dateTo: string;
+  department: string;
+  artisan: string;
+  machine: string;
+  trade: string;
+  failureMode: string;
+  classification: string;
+  discipline: string;
+}
+
+const emptyAnalyticsFilters: AnalyticsFilters = {
+  dateFrom: '', dateTo: '', department: '', artisan: '', machine: '',
+  trade: '', failureMode: '', classification: '', discipline: '',
+};
+
+function applyAnalyticsFilters(orders: WorkOrder[], f: AnalyticsFilters): WorkOrder[] {
+  return orders.filter(w => {
+    if (f.dateFrom && (w.date_raised || '') < f.dateFrom) return false;
+    if (f.dateTo   && (w.date_raised || '') > f.dateTo)   return false;
+    if (f.department && w.to_department !== f.department)  return false;
+    if (f.discipline && w.discipline !== f.discipline)     return false;
+    if (f.classification && w.classification !== f.classification) return false;
+    if (f.trade && w.trade !== f.trade)                    return false;
+    if (f.failureMode && w.failure_mode !== f.failureMode) return false;
+    if (f.artisan) {
+      const name = (w.allocated_to || w.artisan_name || '').trim();
+      if (name !== f.artisan) return false;
+    }
+    if (f.machine && !w.equipment_info?.toLowerCase().includes(f.machine.toLowerCase())) return false;
+    return true;
+  });
+}
+
+// ==================== WO NUMBER HELPER ====================
 function nextWONumber(existingOrders: WorkOrder[], offset = 0): string {
   const nums = existingOrders.map(w => {
     const m = w.work_order_number?.match(/(\d+)$/);
@@ -1842,6 +1878,193 @@ function TimeHeatmap({ hourBuckets }: { hourBuckets: number[] }) {
   );
 }
 
+// ── tiny chip displayed for each active filter ──
+function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }) {
+  return (
+    <span className="inline-flex items-center gap-1 bg-[#86BBD8]/10 border border-[#86BBD8]/25 text-[#86BBD8]/80 text-[10px] px-2 py-0.5 rounded-full">
+      {label}
+      <button type="button" onClick={onRemove}
+        className="hover:text-white transition-colors ml-0.5 flex-shrink-0">
+        <X className="h-2.5 w-2.5" />
+      </button>
+    </span>
+  );
+}
+
+// ── full filter bar for the analytics tab ──
+function AnalyticsFilterBar({ allOrders, filters, onChange }: {
+  allOrders: WorkOrder[];
+  filters: AnalyticsFilters;
+  onChange: (f: AnalyticsFilters) => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  const uniq = (vals: (string | undefined | null)[]) =>
+    [...new Set(vals.map(v => (v || '').trim()).filter(Boolean))].sort();
+
+  const depts      = uniq(allOrders.map(w => w.to_department));
+  const artisans   = uniq(allOrders.map(w => w.allocated_to || w.artisan_name));
+  const machines   = uniq(allOrders.map(w => w.equipment_info));
+  const trades     = uniq(allOrders.filter(w => w.trade).map(w => w.trade));
+  const failModes  = uniq(allOrders.filter(w => w.failure_mode).map(w => w.failure_mode));
+
+  const set = (k: keyof AnalyticsFilters, v: string) => onChange({ ...filters, [k]: v });
+  const activeCount = Object.values(filters).filter(v => v !== '').length;
+  const clearAll = () => onChange({ ...emptyAnalyticsFilters });
+
+  const selCls = "w-full bg-white/[0.07] border border-white/[0.12] text-white/70 text-xs rounded-lg px-2.5 py-1.5 outline-none focus:border-[#86BBD8]/50 cursor-pointer";
+  const inpCls = "w-full bg-white/[0.07] border border-white/[0.12] text-white/70 text-xs rounded-lg px-2.5 py-1.5 outline-none focus:border-[#86BBD8]/50 placeholder:text-white/25";
+  const lbl = "text-white/35 text-[10px] uppercase tracking-wide mb-1";
+
+  const activeChips: { key: keyof AnalyticsFilters; label: string }[] = [
+    filters.dateFrom     ? { key: 'dateFrom',     label: `From: ${filters.dateFrom}` }     : null,
+    filters.dateTo       ? { key: 'dateTo',       label: `To: ${filters.dateTo}` }         : null,
+    filters.department   ? { key: 'department',   label: `Dept: ${filters.department}` }   : null,
+    filters.artisan      ? { key: 'artisan',      label: `Artisan: ${filters.artisan}` }   : null,
+    filters.machine      ? { key: 'machine',      label: `Machine: ${filters.machine}` }   : null,
+    filters.classification ? { key: 'classification', label: `Class: ${
+      filters.classification === 'planned_maintenance' ? 'Planned Maint.'
+      : filters.classification === 'breakdown' ? 'Breakdown'
+      : filters.classification === 'project'   ? 'Project' : 'Custom'
+    }` } : null,
+    filters.discipline   ? { key: 'discipline',   label: `Disc: ${filters.discipline}` }   : null,
+    filters.trade        ? { key: 'trade',        label: `Trade: ${filters.trade}` }       : null,
+    filters.failureMode  ? { key: 'failureMode',  label: `Fail: ${filters.failureMode}` }  : null,
+  ].filter(Boolean) as { key: keyof AnalyticsFilters; label: string }[];
+
+  return (
+    <div className="bg-white/[0.03] border border-white/[0.08] rounded-xl overflow-hidden">
+      {/* Header */}
+      <button type="button" onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center gap-2.5 px-4 py-2.5 hover:bg-white/[0.03] transition-colors text-left">
+        <SlidersHorizontal className="h-3.5 w-3.5 text-[#86BBD8]/70 flex-shrink-0" />
+        <span className="text-white/60 text-xs font-medium">Filter Analytics</span>
+        {activeCount > 0 && (
+          <span className="bg-[#86BBD8]/20 text-[#86BBD8] text-[10px] font-semibold px-1.5 py-px rounded-full border border-[#86BBD8]/30">
+            {activeCount}
+          </span>
+        )}
+        <div className="flex-1" />
+        {activeCount > 0 && !open && (
+          <button type="button" onClick={e => { e.stopPropagation(); clearAll(); }}
+            className="text-white/30 hover:text-white/60 text-[10px] transition-colors px-2 py-0.5 rounded-lg hover:bg-white/[0.06] flex-shrink-0">
+            Clear all
+          </button>
+        )}
+        {open ? <ChevronUp className="h-3.5 w-3.5 text-white/30 flex-shrink-0" /> : <ChevronDown className="h-3.5 w-3.5 text-white/30 flex-shrink-0" />}
+      </button>
+
+      {/* Active chips (collapsed state) */}
+      {!open && activeCount > 0 && (
+        <div className="flex flex-wrap gap-1.5 px-4 pb-3">
+          {activeChips.map(c => (
+            <FilterChip key={c.key} label={c.label} onRemove={() => set(c.key, '')} />
+          ))}
+        </div>
+      )}
+
+      {/* Expanded filter grid */}
+      {open && (
+        <div className="border-t border-white/[0.06] px-4 py-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+
+          <div>
+            <div className={lbl}>From Date</div>
+            <input type="date" value={filters.dateFrom} onChange={e => set('dateFrom', e.target.value)} className={inpCls} />
+          </div>
+
+          <div>
+            <div className={lbl}>To Date</div>
+            <input type="date" value={filters.dateTo} onChange={e => set('dateTo', e.target.value)} className={inpCls} />
+          </div>
+
+          {depts.length > 0 && (
+            <div>
+              <div className={lbl}>Department</div>
+              <select value={filters.department} onChange={e => set('department', e.target.value)} className={selCls}>
+                <option value="">All departments</option>
+                {depts.map(d => <option key={d} value={d}>{d}</option>)}
+              </select>
+            </div>
+          )}
+
+          <div>
+            <div className={lbl}>Classification</div>
+            <select value={filters.classification} onChange={e => set('classification', e.target.value)} className={selCls}>
+              <option value="">All</option>
+              <option value="planned_maintenance">Planned Maintenance</option>
+              <option value="project">Project</option>
+              <option value="breakdown">Breakdown</option>
+              <option value="custom">Custom / Other</option>
+            </select>
+          </div>
+
+          <div>
+            <div className={lbl}>Discipline</div>
+            <select value={filters.discipline} onChange={e => set('discipline', e.target.value)} className={selCls}>
+              <option value="">All</option>
+              <option value="Mechanical">Mechanical</option>
+              <option value="Electrical">Electrical</option>
+            </select>
+          </div>
+
+          {artisans.length > 0 && (
+            <div>
+              <div className={lbl}>Artisan</div>
+              <select value={filters.artisan} onChange={e => set('artisan', e.target.value)} className={selCls}>
+                <option value="">All artisans</option>
+                {artisans.map(a => <option key={a} value={a}>{a}</option>)}
+              </select>
+            </div>
+          )}
+
+          {machines.length > 0 && (
+            <div>
+              <div className={lbl}>Machine</div>
+              <select value={filters.machine} onChange={e => set('machine', e.target.value)} className={selCls}>
+                <option value="">All machines</option>
+                {machines.map(m => <option key={m} value={m}>{m}</option>)}
+              </select>
+            </div>
+          )}
+
+          {trades.length > 0 && (
+            <div>
+              <div className={lbl}>Trade</div>
+              <select value={filters.trade} onChange={e => set('trade', e.target.value)} className={selCls}>
+                <option value="">All trades</option>
+                {trades.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+          )}
+
+          {failModes.length > 0 && (
+            <div>
+              <div className={lbl}>Failure Mode</div>
+              <select value={filters.failureMode} onChange={e => set('failureMode', e.target.value)} className={selCls}>
+                <option value="">All failure modes</option>
+                {failModes.map(f => <option key={f} value={f}>{f}</option>)}
+              </select>
+            </div>
+          )}
+
+          {/* Clear / Apply row */}
+          {activeCount > 0 && (
+            <div className="flex items-end col-span-full">
+              <button type="button" onClick={clearAll}
+                className="flex items-center gap-1.5 text-xs text-white/40 hover:text-white/70 border border-white/10 hover:border-white/20 px-3 py-1.5 rounded-lg transition-colors">
+                <X className="h-3 w-3" /> Clear all filters
+              </button>
+              <span className="ml-3 text-white/25 text-xs self-center">
+                Showing {allOrders.filter(w => applyAnalyticsFilters([w], filters).length > 0).length} of {allOrders.length} work orders
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ArtisanCostChart({ artisanCost }: { artisanCost: ReturnType<typeof calcStats>['artisanCost'] }) {
   if (artisanCost.length === 0) return (
     <div className="flex items-center justify-center h-20 text-white/20 text-xs">No breakdown data yet</div>
@@ -1870,30 +2093,43 @@ function ArtisanCostChart({ artisanCost }: { artisanCost: ReturnType<typeof calc
   );
 }
 
-function AnalyticsPanel({ stats, isOpen, onToggle, standalone }: {
+function AnalyticsPanel({ stats, isOpen, onToggle, standalone, rawOrders = [] }: {
   stats: ReturnType<typeof calcStats>;
   isOpen: boolean;
   onToggle: () => void;
   standalone?: boolean;
+  rawOrders?: WorkOrder[];
 }) {
+  const [filters, setFilters] = useState<AnalyticsFilters>(emptyAnalyticsFilters);
+
+  // When standalone and rawOrders provided, filter then recompute
+  const activeStats = useMemo(() => {
+    if (!standalone || rawOrders.length === 0) return stats;
+    const activeCount = Object.values(filters).filter(v => v !== '').length;
+    if (activeCount === 0) return stats;
+    return calcStats(applyAnalyticsFilters(rawOrders, filters));
+  }, [standalone, rawOrders, filters, stats]);
+
   const classSegs = [
-    { value: stats.plannedMaintenance, color: '#10b981', label: 'Planned Maintenance' },
-    { value: stats.projects,           color: '#3b82f6', label: 'Projects' },
-    { value: stats.breakdowns,         color: '#ef4444', label: 'Breakdowns' },
-    { value: stats.customClass,        color: '#8b5cf6', label: 'Custom / Other' },
+    { value: activeStats.plannedMaintenance, color: '#10b981', label: 'Planned Maintenance' },
+    { value: activeStats.projects,           color: '#3b82f6', label: 'Projects' },
+    { value: activeStats.breakdowns,         color: '#ef4444', label: 'Breakdowns' },
+    { value: activeStats.customClass,        color: '#8b5cf6', label: 'Custom / Other' },
   ].filter(s => s.value > 0);
 
   const statusSegs = [
-    { value: stats.pending,    color: '#fbbf24', label: 'Pending' },
-    { value: stats.inProgress, color: '#60a5fa', label: 'In Progress' },
-    { value: stats.completed,  color: '#34d399', label: 'Completed' },
-    { value: stats.onHold,     color: '#fb923c', label: 'On Hold' },
+    { value: activeStats.pending,    color: '#fbbf24', label: 'Pending' },
+    { value: activeStats.inProgress, color: '#60a5fa', label: 'In Progress' },
+    { value: activeStats.completed,  color: '#34d399', label: 'Completed' },
+    { value: activeStats.onHold,     color: '#fb923c', label: 'On Hold' },
   ].filter(s => s.value > 0);
 
   const discSegs = [
-    { value: stats.mechanical, color: '#86BBD8', label: 'Mechanical' },
-    { value: stats.electrical, color: '#fbbf24', label: 'Electrical' },
+    { value: activeStats.mechanical, color: '#86BBD8', label: 'Mechanical' },
+    { value: activeStats.electrical, color: '#fbbf24', label: 'Electrical' },
   ].filter(s => s.value > 0);
+
+  const activeFilterCount = Object.values(filters).filter(v => v !== '').length;
 
   return (
     <div className="oz-glass-panel rounded-2xl overflow-hidden">
@@ -1913,7 +2149,10 @@ function AnalyticsPanel({ stats, isOpen, onToggle, standalone }: {
           <BarChart2 className="h-5 w-5 text-[#86BBD8]" />
           <span className="text-white/90 font-semibold">Analytics &amp; Insights</span>
           <span className="ml-auto text-white/35 text-sm">
-            {stats.total} work orders · {stats.efficiency}% efficiency · ${stats.sparesTotalCost.toLocaleString('en-US', { maximumFractionDigits: 0 })} spares
+            {activeFilterCount > 0
+              ? `${activeStats.total} of ${stats.total} WOs · filtered`
+              : `${stats.total} work orders · ${stats.efficiency}% efficiency · $${stats.sparesTotalCost.toLocaleString('en-US', { maximumFractionDigits: 0 })} spares`
+            }
           </span>
         </div>
       )}
@@ -1921,15 +2160,24 @@ function AnalyticsPanel({ stats, isOpen, onToggle, standalone }: {
       {(isOpen || standalone) && (
         <div className="p-5 space-y-6">
 
+          {/* Filter bar (standalone only) */}
+          {standalone && rawOrders.length > 0 && (
+            <AnalyticsFilterBar
+              allOrders={rawOrders}
+              filters={filters}
+              onChange={setFilters}
+            />
+          )}
+
           {/* KPI summary row */}
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
             {[
-              { label: 'Total WOs',       value: stats.total,            color: 'text-white', sub: undefined },
-              { label: 'Breakdowns',      value: stats.breakdowns,       color: 'text-red-300', sub: stats.total > 0 ? `${Math.round(stats.breakdowns/stats.total*100)}%` : '—' },
-              { label: 'Planned Maint.',  value: stats.plannedMaintenance, color: 'text-green-300', sub: undefined },
-              { label: 'Breakdown Hrs',  value: `${stats.artisanCost.reduce((a,x) => a+x.hours, 0).toFixed(1)}h`, color: 'text-[#86BBD8]', sub: undefined },
-              { label: 'Spares Cost',    value: `$${stats.sparesTotalCost.toLocaleString('en-US',{maximumFractionDigits:0})}`, color: 'text-amber-300', sub: undefined },
-              { label: 'Completion',     value: `${stats.efficiency}%`,  color: stats.efficiency >= 70 ? 'text-green-300' : stats.efficiency >= 40 ? 'text-yellow-300' : 'text-red-300', sub: `${stats.completed}/${stats.total}` },
+              { label: 'Total WOs',      value: activeStats.total,            color: 'text-white', sub: activeFilterCount > 0 ? `of ${stats.total}` : undefined },
+              { label: 'Breakdowns',     value: activeStats.breakdowns,       color: 'text-red-300', sub: activeStats.total > 0 ? `${Math.round(activeStats.breakdowns/activeStats.total*100)}%` : '—' },
+              { label: 'Planned Maint.', value: activeStats.plannedMaintenance, color: 'text-green-300', sub: undefined },
+              { label: 'Breakdown Hrs',  value: `${activeStats.artisanCost.reduce((a,x) => a+x.hours, 0).toFixed(1)}h`, color: 'text-[#86BBD8]', sub: undefined },
+              { label: 'Spares Cost',    value: `$${activeStats.sparesTotalCost.toLocaleString('en-US',{maximumFractionDigits:0})}`, color: 'text-amber-300', sub: undefined },
+              { label: 'Completion',     value: `${activeStats.efficiency}%`, color: activeStats.efficiency >= 70 ? 'text-green-300' : activeStats.efficiency >= 40 ? 'text-yellow-300' : 'text-red-300', sub: `${activeStats.completed}/${activeStats.total}` },
             ].map(k => (
               <div key={k.label} className="bg-white/[0.04] border border-white/[0.08] rounded-xl p-3 text-center">
                 <div className={`text-xl font-bold font-mono ${k.color}`}>{k.value}</div>
@@ -1947,8 +2195,8 @@ function AnalyticsPanel({ stats, isOpen, onToggle, standalone }: {
               <div className="text-white/60 text-xs font-medium mb-3 flex items-center gap-1.5">
                 <Layers className="h-3.5 w-3.5 text-[#86BBD8]" /> WO Classification
               </div>
-              <div className="h-28"><DonutChart segments={classSegs} centerLabel={String(stats.total)} /></div>
-              <ChartLegend items={classSegs.map(s => ({ ...s, total: stats.total }))} />
+              <div className="h-28"><DonutChart segments={classSegs} centerLabel={String(activeStats.total)} /></div>
+              <ChartLegend items={classSegs.map(s => ({ ...s, total: activeStats.total }))} />
             </div>
 
             {/* Status donut */}
@@ -1956,8 +2204,8 @@ function AnalyticsPanel({ stats, isOpen, onToggle, standalone }: {
               <div className="text-white/60 text-xs font-medium mb-3 flex items-center gap-1.5">
                 <Activity className="h-3.5 w-3.5 text-green-400" /> Status Breakdown
               </div>
-              <div className="h-28"><DonutChart segments={statusSegs} centerLabel={`${stats.efficiency}%`} /></div>
-              <ChartLegend items={statusSegs.map(s => ({ ...s, total: stats.total }))} />
+              <div className="h-28"><DonutChart segments={statusSegs} centerLabel={`${activeStats.efficiency}%`} /></div>
+              <ChartLegend items={statusSegs.map(s => ({ ...s, total: activeStats.total }))} />
             </div>
 
             {/* Discipline donut */}
@@ -1965,13 +2213,13 @@ function AnalyticsPanel({ stats, isOpen, onToggle, standalone }: {
               <div className="text-white/60 text-xs font-medium mb-3 flex items-center gap-1.5">
                 <Cpu className="h-3.5 w-3.5 text-amber-400" /> Discipline
               </div>
-              <div className="h-28"><DonutChart segments={discSegs} centerLabel={stats.mechanical + stats.electrical > 0 ? undefined : '—'} /></div>
-              <ChartLegend items={discSegs.map(s => ({ ...s, total: stats.mechanical + stats.electrical }))} />
-              {stats.sparesTotalCost > 0 && (
+              <div className="h-28"><DonutChart segments={discSegs} centerLabel={activeStats.mechanical + activeStats.electrical > 0 ? undefined : '—'} /></div>
+              <ChartLegend items={discSegs.map(s => ({ ...s, total: activeStats.mechanical + activeStats.electrical }))} />
+              {activeStats.sparesTotalCost > 0 && (
                 <div className="mt-3 pt-2 border-t border-white/[0.06] text-center">
                   <div className="text-white/30 text-[10px]">Spares Cost</div>
                   <div className="text-amber-300/80 text-sm font-semibold font-mono">
-                    ${stats.sparesTotalCost.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                    ${activeStats.sparesTotalCost.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                   </div>
                 </div>
               )}
@@ -1986,8 +2234,8 @@ function AnalyticsPanel({ stats, isOpen, onToggle, standalone }: {
               <div className="text-white/60 text-xs font-medium mb-3 flex items-center gap-1.5">
                 <HardHat className="h-3.5 w-3.5 text-[#86BBD8]" /> Artisan Hours (Breakdowns)
               </div>
-              <ArtisanCostChart artisanCost={stats.artisanCost} />
-              {stats.artisanCost.length > 0 && (
+              <ArtisanCostChart artisanCost={activeStats.artisanCost} />
+              {activeStats.artisanCost.length > 0 && (
                 <div className="mt-3 text-[10px] text-white/25">
                   Hours shown as a cost proxy. Spares cost in USD ($) shown where entered.
                 </div>
@@ -1999,8 +2247,8 @@ function AnalyticsPanel({ stats, isOpen, onToggle, standalone }: {
               <div className="text-white/60 text-xs font-medium mb-3 flex items-center gap-1.5">
                 <AlertTriangle className="h-3.5 w-3.5 text-red-400" /> Failure Modes (Top 8)
               </div>
-              {stats.failureModes.length > 0
-                ? <HBarChart data={stats.failureModes.map(([label, value]) => ({ label, value }))} maxColor="#ef4444" />
+              {activeStats.failureModes.length > 0
+                ? <HBarChart data={activeStats.failureModes.map(([label, value]) => ({ label, value }))} maxColor="#ef4444" />
                 : <div className="text-white/20 text-xs">No breakdown failure modes recorded</div>
               }
             </div>
@@ -2011,8 +2259,8 @@ function AnalyticsPanel({ stats, isOpen, onToggle, standalone }: {
             <div className="text-white/60 text-xs font-medium mb-3 flex items-center gap-1.5">
               <TrendingUp className="h-3.5 w-3.5 text-violet-400" /> Breakdown Occurrence — Time of Day
             </div>
-            {stats.breakdowns > 0
-              ? <TimeHeatmap hourBuckets={stats.hourBuckets} />
+            {activeStats.breakdowns > 0
+              ? <TimeHeatmap hourBuckets={activeStats.hourBuckets} />
               : <div className="text-white/20 text-xs py-4">No breakdown time data recorded yet</div>
             }
           </div>
@@ -3367,7 +3615,7 @@ export default function MaintenancePage() {
       {mainTab === 'analytics' && (
         <section className="relative text-white">
           <div className="container mx-auto px-4 pb-6">
-            <AnalyticsPanel stats={stats} isOpen={true} onToggle={() => {}} standalone />
+            <AnalyticsPanel stats={stats} isOpen={true} onToggle={() => {}} standalone rawOrders={workOrders} />
           </div>
         </section>
       )}
