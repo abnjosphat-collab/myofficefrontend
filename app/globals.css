@@ -268,8 +268,8 @@
 .oz-hero {
   position: relative;
   background: rgba(36, 63, 92, 0.68);
-  backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
   overflow: hidden;
 }
 
@@ -477,6 +477,46 @@
 ::-webkit-scrollbar-thumb:hover {
   background: oklch(0.60 0.03 234);
 }
+
+/* ============================================
+   SELECT / DROPDOWN OPTION VISIBILITY
+   Native <option> elements don't inherit CSS;
+   force dark background so text is always readable
+   ============================================ */
+
+select option {
+  background-color: #0d1f35;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+select:focus option {
+  background-color: #0d1f35;
+}
+
+/* ============================================
+   WALLPAPER TEXT LEGIBILITY
+   Ensures white text reads against any photo
+   ============================================ */
+
+/* Deep text-shadow for headings/labels rendered directly on wallpaper */
+.oz-on-wallpaper {
+  text-shadow:
+    0 1px 8px rgba(0, 0, 0, 0.70),
+    0 2px 24px rgba(0, 0, 0, 0.50);
+}
+
+/* Guarantee white text on all dark glass surfaces */
+.oz-glass-dark,
+.oz-glass-panel,
+.oz-glass-dark *,
+.oz-glass-panel * {
+  color: inherit;
+}
+.oz-glass-dark { color: rgba(255, 255, 255, 0.92); }
+.oz-glass-panel { color: rgba(255, 255, 255, 0.92); }
+
+/* oz-hero inherits dark glass treatment */
+.oz-hero { color: rgba(255, 255, 255, 0.92); }
 
 /* Print styles */
 @media print {

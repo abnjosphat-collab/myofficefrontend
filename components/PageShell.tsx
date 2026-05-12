@@ -68,8 +68,8 @@ export function PageShell({ children, noFooter = false }: PageShellProps) {
         </div>
       )}
 
-      {/* Dark vignette — keeps wallpaper vivid, improves panel contrast */}
-      <div className="fixed inset-0 -z-10 bg-black/22" />
+      {/* Dark vignette — ensures text contrast against bright wallpapers */}
+      <div className="fixed inset-0 -z-10 bg-black/52" />
 
       <Header />
       <main className="flex-1 flex flex-col">{children}</main>

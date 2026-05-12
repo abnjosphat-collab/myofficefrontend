@@ -12,7 +12,7 @@ import {
   ClipboardPlus, Clock4, Calculator, HardHat, ClipboardList,
   FileWarning, AlertOctagon, ShieldAlert, Eye, Target,
   LineChart, BarChart3, Megaphone, Home,
-  Utensils, Church, Database, ToolCase,
+  Utensils, Church, Database, ToolCase, PackageMinus, Car,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -153,6 +153,7 @@ const NAV_GROUPS = [
     label: 'Core',
     items: [
       { icon: Users,        title: 'Personnel',  href: '/employees',  desc: 'Employee profiles & team' },
+      { icon: Car,          title: 'Drivers',    href: '/drivers',    desc: 'Authorised drivers registry' },
       { icon: ToolCase,     title: 'Assets',     href: '/equipment',  desc: 'Equipment tracking' },
       { icon: Package,      title: 'Inventory',  href: '/inventory',  desc: 'Stock management' },
       { icon: Folder,       title: 'Documents',  href: '/documents',  desc: 'Centralized storage' },
@@ -164,6 +165,7 @@ const NAV_GROUPS = [
       { icon: ClipboardCheck, title: 'Maintenance',   href: '/maintenance',   desc: 'Work orders & PM' },
       { icon: AlertTriangle,  title: 'Breakdowns',    href: '/breakdowns',    desc: 'Equipment failures' },
       { icon: PackageOpen,    title: 'Spares',        href: '/spares',        desc: 'Spare parts stock' },
+      { icon: PackageMinus,   title: 'Issues',        href: '/issues',        desc: 'Goods issued to staff' },
       { icon: Fan,            title: 'Compressors',   href: '/compressors',   desc: 'Compressor monitoring' },
       { icon: Clock,          title: 'Standby',       href: '/standby',       desc: 'On-call schedules' },
       { icon: CalendarDays,   title: 'Schedules',     href: '/schedules',     desc: 'Task scheduling' },

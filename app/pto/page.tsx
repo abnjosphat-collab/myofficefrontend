@@ -1,76 +1,19 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from "react";
-import { 
-  ClipboardList, Search, FilterX, UserCheck, 
-  Plus, Save, Clock, AlertTriangle, CheckSquare,
-  FileText, Users, History, Info, Eye, Pencil, Trash2,
-  Loader2, ChevronDown, ChevronUp, Calendar, User, 
-  HardHat, Target, CheckCircle, XCircle, ShieldAlert,
-  Zap, Wrench, Building2, X, Radio, Activity, BookOpen,
-  FileCheck, ClipboardCheck, AlertOctagon, Bell, Settings,
-  LayoutGrid, Table as TableIcon, Maximize2, Minimize2,
-  ChevronsDown, ChevronsUp, Grip, MoreVertical, RefreshCw, Send, ChevronRight
+import {
+  ClipboardList, Target, Plus, Trash2, AlertTriangle,
+  Eye, Pencil, FileText, CheckCircle, LayoutGrid, Table as TableIcon,
+  RefreshCw, Wrench, Zap, Send, CheckSquare, ShieldAlert, BookOpen
 } from "lucide-react";
 import { PageShell } from '@/components/PageShell';
-
-// UI Components
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Progress } from "@/components/ui/progress";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import { format } from "date-fns";
 import { toast } from "sonner";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { CollapsibleSection } from '@/components/CollapsibleSection';
-
-// =============== CONSTANTS ===============
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+  safetyFetch, glassInput, glassLabel, glassTextarea, glassSelect,
+  SafetyHero, SafetyControls, FilterPills, DateRangeFilter, ClearFiltersButton,
+  SafetyModal, FormField, ModalActions,
+  SafetyTable, RowActions, AddButton, LoadingState, EmptyState, TabBar
+} from '@/components/safety';
 
 // =============== TYPES ===============
 type SectionType = 'Mechanical' | 'Electrical';
@@ -79,2535 +22,924 @@ type YesNoType = 'Yes' | 'No';
 type ReportStatus = 'draft' | 'submitted' | 'reviewed' | 'closed';
 type ActionStatus = 'Pending' | 'In Progress' | 'Completed';
 
-interface TimeOnJob {
-  months: string;
-  years: string;
-}
-
-interface Notification {
-  toldInAdvance: YesNoType;
-}
-
+interface TimeOnJob { months: string; years: string; }
+interface Notification { toldInAdvance: YesNoType; }
 interface Reasons {
-  monthly: boolean;
-  newEmployee: boolean;
-  safetyAwareness: boolean;
-  incidentFollowUp: boolean;
-  trainingFollowUp: boolean;
-  infrequentTask: boolean;
+  monthly: boolean; newEmployee: boolean; safetyAwareness: boolean;
+  incidentFollowUp: boolean; trainingFollowUp: boolean; infrequentTask: boolean;
 }
-
-interface Procedures {
-  hasProcedure: YesNoType;
-  familiarWithProcedure: YesNoType;
-}
-
-interface RiskAssessment {
-  made: YesNoType;
-  identified: YesNoType;
-  effective: YesNoType;
-}
-
+interface Procedures { hasProcedure: YesNoType; familiarWithProcedure: YesNoType; }
+interface RiskAssessment { made: YesNoType; identified: YesNoType; effective: YesNoType; }
 interface SuggestedRemedies {
-  newProcedure: YesNoType;
-  reviseExisting: YesNoType;
-  differentEquipment: YesNoType;
-  engineeringControls: YesNoType;
-  retraining: YesNoType;
-  improvedPPE: YesNoType;
-  placementOfWorker: YesNoType;
+  newProcedure: YesNoType; reviseExisting: YesNoType; differentEquipment: YesNoType;
+  engineeringControls: YesNoType; retraining: YesNoType; improvedPPE: YesNoType; placementOfWorker: YesNoType;
 }
-
 interface ActionPlanItem {
-  id: string;
-  no: number;
-  action: string;
-  byWhom: string;
-  byWhen: string;
-  status: ActionStatus;
-  completedDate?: string;
-  remarks?: string;
-  created_at?: string;
+  id: string; no: number; action: string; byWhom: string; byWhen: string;
+  status: ActionStatus; completedDate?: string; remarks?: string;
 }
-
 interface PTOReport {
-  id: string;
-  date: string;
-  observerName: string;
-  section: SectionType;
-  deptSectionContractor: string;
-  workerName: string;
-  occupation: string;
-  jobTaskObserved: string;
-  sheqRefNo: string;
-  observationType: ObservationType;
-  timeOnJob: TimeOnJob;
-  notification: Notification;
-  reasons: Reasons;
-  procedures: Procedures;
-  riskAssessment: RiskAssessment;
-  suggestedRemedies: SuggestedRemedies;
-  observationScope: 'All' | 'Partial';
-  followUpNeeded: YesNoType;
-  actionPlan: ActionPlanItem[];
-  status: ReportStatus;
-  created_at: string;
-  updated_at?: string;
-  submitted_at?: string;
-}
-
-interface PTOStats {
-  total: number;
-  bySection: Record<SectionType, number>;
-  byObserver: Record<string, number>;
-  totalActions: number;
-  completedActions: number;
-  pendingActions: number;
-  inProgressActions: number;
-  highRiskCount: number;
-  initialObservations: number;
-  followUpObservations: number;
-  draftCount: number;
-  submittedCount: number;
-  reviewedCount: number;
-  closedCount: number;
+  id: string; date: string; observerName: string; section: SectionType;
+  deptSectionContractor: string; workerName: string; occupation: string;
+  jobTaskObserved: string; sheqRefNo: string; observationType: ObservationType;
+  timeOnJob: TimeOnJob; notification: Notification; reasons: Reasons;
+  procedures: Procedures; riskAssessment: RiskAssessment; suggestedRemedies: SuggestedRemedies;
+  observationScope: 'All' | 'Partial'; followUpNeeded: YesNoType;
+  actionPlan: ActionPlanItem[]; status: ReportStatus;
+  created_at: string; updated_at?: string; submitted_at?: string;
 }
 
 // =============== CONSTANTS ===============
 const SECTIONS: SectionType[] = ['Mechanical', 'Electrical'];
-
-const SECTION_VARIANTS: Record<SectionType, { color: string; bg: string; border: string; text: string; icon: string }> = {
-  Mechanical: {
-    color: 'text-blue-700',
-    bg: 'bg-blue-50',
-    border: 'border-blue-200',
-    text: 'text-blue-800',
-    icon: 'text-blue-600'
-  },
-  Electrical: {
-    color: 'text-amber-700',
-    bg: 'bg-amber-50',
-    border: 'border-amber-200',
-    text: 'text-amber-800',
-    icon: 'text-amber-600'
-  }
+const SECTION_COLORS: Record<SectionType, string> = { Mechanical: '#3b82f6', Electrical: '#f59e0b' };
+const SECTION_ICONS: Record<SectionType, React.ElementType> = { Mechanical: Wrench, Electrical: Zap };
+const OBS_COLORS: Record<ObservationType, string> = { Initial: '#a78bfa', 'Follow up': '#f97316' };
+const STATUS_COLORS: Record<ReportStatus, string> = {
+  draft: '#6b7280', submitted: '#3b82f6', reviewed: '#a78bfa', closed: '#10b981'
+};
+const ACTION_COLORS: Record<ActionStatus, string> = {
+  Pending: '#f59e0b', 'In Progress': '#3b82f6', Completed: '#10b981'
 };
 
-const SECTION_ICONS: Record<SectionType, any> = {
-  Mechanical: Wrench,
-  Electrical: Zap
+const REASON_LABELS: Record<keyof Reasons, string> = {
+  monthly: 'Monthly Observation', newEmployee: 'New Employee',
+  safetyAwareness: 'Safety Awareness', incidentFollowUp: 'Incident Follow up',
+  trainingFollowUp: 'Training Follow up', infrequentTask: 'Infrequently Performed'
 };
-
-const OBSERVATION_TYPES: ObservationType[] = ['Initial', 'Follow up'];
-
-const OBSERVATION_VARIANTS: Record<ObservationType, { color: string; bg: string }> = {
-  'Initial': { color: 'text-purple-700', bg: 'bg-purple-50' },
-  'Follow up': { color: 'text-orange-700', bg: 'bg-orange-50' }
+const REMEDY_LABELS: Record<keyof SuggestedRemedies, string> = {
+  newProcedure: 'New Procedure', reviseExisting: 'Revise Existing',
+  differentEquipment: 'Different Equipment', engineeringControls: 'Engineering Controls',
+  retraining: 'Retraining', improvedPPE: 'Improved PPE', placementOfWorker: 'Placement of Worker'
 };
-
-const STATUS_VARIANTS: Record<ReportStatus | ActionStatus, { color: string; bg: string; label: string }> = {
-  'draft': { color: 'text-gray-700', bg: 'bg-gray-100', label: 'Draft' },
-  'submitted': { color: 'text-blue-700', bg: 'bg-blue-100', label: 'Submitted' },
-  'reviewed': { color: 'text-purple-700', bg: 'bg-purple-100', label: 'Reviewed' },
-  'closed': { color: 'text-green-700', bg: 'bg-green-100', label: 'Closed' },
-  'Pending': { color: 'text-yellow-700', bg: 'bg-yellow-100', label: 'Pending' },
-  'In Progress': { color: 'text-blue-700', bg: 'bg-blue-100', label: 'In Progress' },
-  'Completed': { color: 'text-green-700', bg: 'bg-green-100', label: 'Completed' }
-};
-
-const YES_NO_OPTIONS: YesNoType[] = ['Yes', 'No'];
 
 // =============== API FUNCTIONS ===============
-async function fetchAPI<T>(
-  endpoint: string,
-  options?: RequestInit
-): Promise<T> {
-  const url = `${API_BASE_URL}${endpoint}`;
-  console.log('Fetching:', url);
-  
+async function getPTOReports(params?: Record<string, string>): Promise<PTOReport[]> {
   try {
-    const response = await fetch(url, {
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      ...options,
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Error response:', errorText);
-      
-      try {
-        const errorJson = JSON.parse(errorText);
-        throw new Error(errorJson.detail || `API error: ${response.status}`);
-      } catch {
-        throw new Error(errorText || `API error: ${response.status}`);
-      }
-    }
-
-    if (response.status === 204) {
-      return {} as T;
-    }
-
-    const contentType = response.headers.get('content-type');
-    if (contentType && contentType.includes('application/json')) {
-      const data = await response.json();
-      return data;
-    }
-    return {} as T;
-  } catch (error) {
-    console.error('Fetch error:', error);
-    throw error;
-  }
-}
-
-async function getPTOReports(params?: {
-  search?: string;
-  section?: string;
-  observer?: string;
-  status?: string;
-  from_date?: string;
-  to_date?: string;
-}): Promise<PTOReport[]> {
-  const queryParams = new URLSearchParams();
-  if (params?.search) queryParams.append('search', params.search);
-  if (params?.section) queryParams.append('section', params.section);
-  if (params?.observer) queryParams.append('observer', params.observer);
-  if (params?.status) queryParams.append('status', params.status);
-  if (params?.from_date) queryParams.append('from_date', params.from_date);
-  if (params?.to_date) queryParams.append('to_date', params.to_date);
-
-  try {
-    const data = await fetchAPI<PTOReport[]>(`/api/pto/?${queryParams.toString()}`);
+    const qs = params ? '?' + new URLSearchParams(params).toString() : '';
+    const data = await safetyFetch<PTOReport[]>(`/api/pto/${qs}`);
     return Array.isArray(data) ? data : [];
-  } catch (error) {
-    console.error('Error fetching PTO reports:', error);
-    return [];
-  }
+  } catch { return []; }
+}
+async function createPTOReport(report: Partial<PTOReport>): Promise<PTOReport> {
+  return safetyFetch<PTOReport>('/api/pto/', { method: 'POST', body: JSON.stringify(report) });
+}
+async function updatePTOReport(id: string, report: Partial<PTOReport>): Promise<PTOReport> {
+  return safetyFetch<PTOReport>(`/api/pto/${id}/`, { method: 'PATCH', body: JSON.stringify(report) });
+}
+async function deletePTOReport(id: string): Promise<void> {
+  return safetyFetch<void>(`/api/pto/${id}/`, { method: 'DELETE' });
 }
 
-async function getPTOReport(id: string): Promise<PTOReport | null> {
-  try {
-    return await fetchAPI<PTOReport>(`/api/pto/${id}`);
-  } catch (error) {
-    console.error('Error fetching PTO report:', error);
-    return null;
-  }
-}
-
-async function createPTOReport(report: Partial<PTOReport>): Promise<PTOReport | null> {
-  try {
-    return await fetchAPI<PTOReport>('/api/pto/', {
-      method: 'POST',
-      body: JSON.stringify(report),
-    });
-  } catch (error) {
-    console.error('Error creating PTO report:', error);
-    return null;
-  }
-}
-
-async function updatePTOReport(id: string, report: Partial<PTOReport>): Promise<PTOReport | null> {
-  try {
-    return await fetchAPI<PTOReport>(`/api/pto/${id}`, {
-      method: 'PATCH',
-      body: JSON.stringify(report),
-    });
-  } catch (error) {
-    console.error('Error updating PTO report:', error);
-    return null;
-  }
-}
-
-async function deletePTOReport(id: string): Promise<boolean> {
-  try {
-    await fetchAPI(`/api/pto/${id}`, {
-      method: 'DELETE',
-    });
-    return true;
-  } catch (error) {
-    console.error('Error deleting PTO report:', error);
-    return false;
-  }
-}
-
-async function getPTOStats(): Promise<PTOStats> {
-  try {
-    const data = await fetchAPI<any>('/api/pto/stats/overview');
-    return {
-      total: data?.total || 0,
-      bySection: data?.bySection || { Mechanical: 0, Electrical: 0 },
-      byObserver: data?.byInspector || {},
-      totalActions: data?.totalActions || 0,
-      completedActions: data?.completedActions || 0,
-      pendingActions: data?.pendingActions || 0,
-      inProgressActions: data?.inProgressActions || 0,
-      highRiskCount: data?.highRiskCount || 0,
-      initialObservations: data?.initialObservations || 0,
-      followUpObservations: data?.followUpObservations || 0,
-      draftCount: data?.draftCount || 0,
-      submittedCount: data?.submittedCount || 0,
-      reviewedCount: data?.reviewedCount || 0,
-      closedCount: data?.closedCount || 0
-    };
-  } catch (error) {
-    console.error('Error fetching stats:', error);
-    return {
-      total: 0,
-      bySection: { Mechanical: 0, Electrical: 0 },
-      byObserver: {},
-      totalActions: 0,
-      completedActions: 0,
-      pendingActions: 0,
-      inProgressActions: 0,
-      highRiskCount: 0,
-      initialObservations: 0,
-      followUpObservations: 0,
-      draftCount: 0,
-      submittedCount: 0,
-      reviewedCount: 0,
-      closedCount: 0
-    };
-  }
-}
-
-// =============== HELPER FUNCTIONS ===============
-const formatDate = (dateStr: string): string => {
-  if (!dateStr) return '';
-  try {
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  } catch {
-    return dateStr;
-  }
+// =============== HELPERS ===============
+const fmtDate = (s: string) => {
+  if (!s) return '';
+  try { return new Date(s).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }); }
+  catch { return s; }
+};
+const fmtDateTime = (s: string) => {
+  if (!s) return '';
+  try { return new Date(s).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }); }
+  catch { return s; }
 };
 
-const formatDateTime = (dateStr: string): string => {
-  if (!dateStr) return '';
-  try {
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  } catch {
-    return dateStr;
-  }
-};
+const newId = () => Math.random().toString(36).slice(2, 11);
 
-const getInitials = (name: string): string => {
-  if (!name) return '?';
-  return name
-    .split(' ')
-    .map(n => n[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
-};
+const defaultForm = (): Partial<PTOReport> => ({
+  date: new Date().toISOString().split('T')[0],
+  observerName: '', section: 'Mechanical', deptSectionContractor: '',
+  workerName: '', occupation: '', jobTaskObserved: '', sheqRefNo: '',
+  observationType: 'Initial', timeOnJob: { months: '', years: '' },
+  notification: { toldInAdvance: 'No' },
+  reasons: { monthly: false, newEmployee: false, safetyAwareness: false, incidentFollowUp: false, trainingFollowUp: false, infrequentTask: false },
+  procedures: { hasProcedure: 'No', familiarWithProcedure: 'No' },
+  riskAssessment: { made: 'No', identified: 'No', effective: 'No' },
+  suggestedRemedies: { newProcedure: 'No', reviseExisting: 'No', differentEquipment: 'No', engineeringControls: 'No', retraining: 'No', improvedPPE: 'No', placementOfWorker: 'No' },
+  observationScope: 'All', followUpNeeded: 'No', actionPlan: [], status: 'draft',
+});
 
-const calculateStats = (reports: PTOReport[]): PTOStats => {
-  const stats: PTOStats = {
-    total: reports.length,
-    bySection: { Mechanical: 0, Electrical: 0 },
-    byObserver: {},
-    totalActions: 0,
-    completedActions: 0,
-    pendingActions: 0,
-    inProgressActions: 0,
-    highRiskCount: 0,
-    initialObservations: 0,
-    followUpObservations: 0,
-    draftCount: 0,
-    submittedCount: 0,
-    reviewedCount: 0,
-    closedCount: 0
-  };
+// =============== CHIP ===============
+const Chip: React.FC<{ label: string; color: string }> = ({ label, color }) => (
+  <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: color + '22', color, border: `1px solid ${color}55` }}>{label}</span>
+);
 
-  reports.forEach(report => {
-    // Count by section
-    if (report.section) {
-      stats.bySection[report.section]++;
-    }
+// =============== YES/NO ROW ===============
+const YesNoRow: React.FC<{ label: string; value: YesNoType; onChange: (v: YesNoType) => void; name: string }> = ({ label, value, onChange, name }) => (
+  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: 8 }}>
+    <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.75)' }}>{label}</span>
+    <div style={{ display: 'flex', gap: 14 }}>
+      {(['Yes', 'No'] as YesNoType[]).map(opt => (
+        <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', fontSize: 13, color: opt === value ? (opt === 'Yes' ? '#34d399' : '#f87171') : 'rgba(255,255,255,0.45)', fontWeight: opt === value ? 700 : 400 }}>
+          <input type="radio" name={name} value={opt} checked={value === opt} onChange={() => onChange(opt)}
+            style={{ accentColor: opt === 'Yes' ? '#34d399' : '#f87171', cursor: 'pointer' }} />
+          {opt}
+        </label>
+      ))}
+    </div>
+  </div>
+);
 
-    // Count by status
-    if (report.status) {
-      if (report.status === 'draft') stats.draftCount++;
-      else if (report.status === 'submitted') stats.submittedCount++;
-      else if (report.status === 'reviewed') stats.reviewedCount++;
-      else if (report.status === 'closed') stats.closedCount++;
-    }
+// =============== ACTION PLAN ITEM CARD ===============
+const ActionPlanCard: React.FC<{ item: ActionPlanItem; index: number; onChange: (id: string, f: keyof ActionPlanItem, v: string) => void; onRemove: (id: string) => void }> = ({ item, index, onChange, onRemove }) => (
+  <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 10, padding: '14px 14px 10px' }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+      <span style={{ fontSize: 11, fontWeight: 700, color: '#60a5fa', textTransform: 'uppercase', letterSpacing: 1 }}>Action #{index + 1}</span>
+      <button type="button" onClick={() => onRemove(item.id)} title="Remove"
+        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#f87171', padding: 2 }}>
+        <Trash2 size={14} />
+      </button>
+    </div>
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+      <div style={{ gridColumn: '1 / -1' }}>
+        <label style={glassLabel}>Required Action *</label>
+        <input style={glassInput} value={item.action} placeholder="Describe the required action..."
+          onChange={e => onChange(item.id, 'action', e.target.value)} title="Action" />
+      </div>
+      <div>
+        <label style={glassLabel}>By Whom *</label>
+        <input style={glassInput} value={item.byWhom} placeholder="Responsible person"
+          onChange={e => onChange(item.id, 'byWhom', e.target.value)} title="Responsible person" />
+      </div>
+      <div>
+        <label style={glassLabel}>By When *</label>
+        <input type="date" style={glassInput} value={item.byWhen} title="Due date" placeholder="Due date"
+          onChange={e => onChange(item.id, 'byWhen', e.target.value)} />
+      </div>
+      <div>
+        <label style={glassLabel}>Status</label>
+        <select style={glassSelect} value={item.status} title="Status"
+          onChange={e => onChange(item.id, 'status', e.target.value as ActionStatus)}>
+          <option value="Pending">Pending</option>
+          <option value="In Progress">In Progress</option>
+          <option value="Completed">Completed</option>
+        </select>
+      </div>
+      {item.status === 'Completed' && (
+        <div>
+          <label style={glassLabel}>Completed Date</label>
+          <input type="date" style={glassInput} value={item.completedDate || ''} title="Completed date" placeholder="Completed date"
+            onChange={e => onChange(item.id, 'completedDate', e.target.value)} />
+        </div>
+      )}
+      <div style={{ gridColumn: '1 / -1' }}>
+        <label style={glassLabel}>Remarks (Optional)</label>
+        <textarea style={{ ...glassTextarea, minHeight: 44 }} value={item.remarks || ''} placeholder="Additional notes..."
+          onChange={e => onChange(item.id, 'remarks', e.target.value)} title="Remarks" />
+      </div>
+    </div>
+  </div>
+);
 
-    // Count by observer
-    if (report.observerName) {
-      const observer = report.observerName.trim();
-      if (observer) {
-        stats.byObserver[observer] = (stats.byObserver[observer] || 0) + 1;
-      }
-    }
-
-    // Count by observation type
-    if (report.observationType === 'Initial') {
-      stats.initialObservations++;
-    } else {
-      stats.followUpObservations++;
-    }
-
-    // Count actions
-    if (report.actionPlan?.length) {
-      stats.totalActions += report.actionPlan.length;
-      report.actionPlan.forEach(action => {
-        if (action.status === 'Completed') {
-          stats.completedActions++;
-        } else if (action.status === 'In Progress') {
-          stats.inProgressActions++;
-        } else {
-          stats.pendingActions++;
-        }
-      });
-    }
-
-    // Count high risk assessments
-    if (report.riskAssessment) {
-      if (report.riskAssessment.made === 'No' || 
-          report.riskAssessment.identified === 'No' || 
-          report.riskAssessment.effective === 'No') {
-        stats.highRiskCount++;
-      }
-    }
-  });
-
-  return stats;
-};
-
-// =============== ACTION PLAN ITEM COMPONENT ===============
-interface ActionPlanItemProps {
-  item: ActionPlanItem;
-  index: number;
-  onChange: (id: string, field: keyof ActionPlanItem, value: any) => void;
-  onRemove?: (id: string) => void;
+// =============== PTO CARD (Grid) ===============
+interface PTOCardProps {
+  report: PTOReport; index: number;
+  onView: (r: PTOReport) => void; onEdit: (r: PTOReport) => void; onDelete: (id: string) => void;
 }
-
-const ActionPlanItemComponent: React.FC<ActionPlanItemProps> = ({ item, index, onChange, onRemove }) => {
-  const statusVariant = STATUS_VARIANTS[item.status];
+const PTOCard: React.FC<PTOCardProps> = ({ report, index, onView, onEdit, onDelete }) => {
+  const SectionIcon = SECTION_ICONS[report.section];
+  const sColor = SECTION_COLORS[report.section];
+  const total = report.actionPlan?.length || 0;
+  const done = report.actionPlan?.filter(a => a.status === 'Completed').length || 0;
+  const inProg = report.actionPlan?.filter(a => a.status === 'In Progress').length || 0;
+  const pct = total ? Math.round((done / total) * 100) : 0;
+  const hasRisk = report.riskAssessment.made === 'No' || report.riskAssessment.identified === 'No' || report.riskAssessment.effective === 'No';
 
   return (
-    <div className="group relative bg-white rounded-lg border p-4 hover:shadow-md transition-all">
-      <div className="flex items-start gap-4">
-        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary">
-          {index + 1}
-        </div>
-        
-        <div className="flex-1 grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="md:col-span-2">
-            <Label className="text-xs text-muted-foreground mb-1 block">Required Action *</Label>
-            <Input 
-              value={item.action} 
-              onChange={e => onChange(item.id, 'action', e.target.value)}
-              placeholder="Describe the required action..."
-              className="border-0 bg-muted/30 focus-visible:ring-1 focus-visible:ring-primary"
-            />
-          </div>
-          
-          <div>
-            <Label className="text-xs text-muted-foreground mb-1 block">By Whom *</Label>
-            <Input 
-              value={item.byWhom} 
-              onChange={e => onChange(item.id, 'byWhom', e.target.value)}
-              placeholder="Responsible person"
-              className="border-0 bg-muted/30 focus-visible:ring-1 focus-visible:ring-primary"
-            />
-          </div>
-          
-          <div>
-            <Label className="text-xs text-muted-foreground mb-1 block">By When *</Label>
-            <Input 
-              type="date" 
-              value={item.byWhen} 
-              onChange={e => onChange(item.id, 'byWhen', e.target.value)}
-              className="border-0 bg-muted/30 focus-visible:ring-1 focus-visible:ring-primary"
-            />
-          </div>
-
-          <div className="md:col-span-2">
-            <Label className="text-xs text-muted-foreground mb-1 block">Status</Label>
-            <Select
-              value={item.status}
-              onValueChange={(v: ActionStatus) => onChange(item.id, 'status', v)}
-            >
-              <SelectTrigger className="border-0 bg-muted/30">
-                <SelectValue>
-                  <Badge className={`${statusVariant.bg} ${statusVariant.color} border-0`}>
-                    {item.status}
-                  </Badge>
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Pending">Pending</SelectItem>
-                <SelectItem value="In Progress">In Progress</SelectItem>
-                <SelectItem value="Completed">Completed</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {item.status === 'Completed' && (
-            <div>
-              <Label className="text-xs text-muted-foreground mb-1 block">Completed Date</Label>
-              <Input 
-                type="date" 
-                value={item.completedDate || new Date().toISOString().split('T')[0]}
-                onChange={e => onChange(item.id, 'completedDate', e.target.value)}
-                className="border-0 bg-muted/30 focus-visible:ring-1 focus-visible:ring-primary"
-              />
+    <div onClick={() => onView(report)} style={{ cursor: 'pointer', borderRadius: 14, overflow: 'hidden', background: 'rgba(255,255,255,0.05)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.12)' }}>
+      <div style={{ height: 4, background: `linear-gradient(90deg,${sColor},${OBS_COLORS[report.observationType]})` }} />
+      <div style={{ padding: '14px 16px 12px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ padding: 7, borderRadius: 8, background: sColor + '22' }}>
+              <SectionIcon size={16} style={{ color: sColor }} />
             </div>
-          )}
-
-          <div className="md:col-span-4">
-            <Label className="text-xs text-muted-foreground mb-1 block">Remarks (Optional)</Label>
-            <Textarea 
-              value={item.remarks || ''}
-              onChange={e => onChange(item.id, 'remarks', e.target.value)}
-              placeholder="Add any additional notes or remarks..."
-              className="border-0 bg-muted/30 focus-visible:ring-1 focus-visible:ring-primary resize-none"
-              rows={2}
-            />
+            <div>
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 2 }}>PTO-{index + 1}</div>
+              <div style={{ fontWeight: 700, fontSize: 14, color: 'rgba(255,255,255,0.9)', lineHeight: 1.3, maxWidth: 180, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{report.jobTaskObserved}</div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end' }}>
+            <Chip label={report.section} color={sColor} />
+            <Chip label={report.observationType} color={OBS_COLORS[report.observationType]} />
           </div>
         </div>
 
-        {onRemove && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="absolute top-2 right-2 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-            onClick={() => onRemove(item.id)}
-          >
-            <Trash2 className="h-4 w-4 text-destructive" />
-          </Button>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 10 }}>
+          {[
+            { label: `Observer: ${report.observerName}` },
+            { label: `Worker: ${report.workerName}` },
+            { label: fmtDate(report.date) },
+            { label: report.occupation || 'No occupation' },
+          ].map((item, i) => (
+            <div key={i} style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', padding: '4px 8px', background: 'rgba(255,255,255,0.04)', borderRadius: 6, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+              {item.label}
+            </div>
+          ))}
+        </div>
+
+        {hasRisk && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 8, padding: '6px 10px', marginBottom: 10 }}>
+            <AlertTriangle size={13} style={{ color: '#f87171', flexShrink: 0 }} />
+            <span style={{ fontSize: 11, color: '#f87171', fontWeight: 600 }}>Risk Identified — Review Required</span>
+          </div>
         )}
+
+        {total > 0 && (
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'rgba(255,255,255,0.4)', marginBottom: 4 }}>
+              <span>Action Progress</span><span>{pct}%</span>
+            </div>
+            <div style={{ height: 5, borderRadius: 999, background: 'rgba(255,255,255,0.08)' }}>
+              <div style={{ height: '100%', borderRadius: 999, width: `${pct}%`, background: pct === 100 ? '#10b981' : '#60a5fa' }} />
+            </div>
+            <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+              <Chip label={`${total - done - inProg} Pending`} color="#f59e0b" />
+              <Chip label={`${inProg} Active`} color="#3b82f6" />
+              <Chip label={`${done} Done`} color="#10b981" />
+            </div>
+          </div>
+        )}
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: 10 }}>
+          <Chip label={report.status.charAt(0).toUpperCase() + report.status.slice(1)} color={STATUS_COLORS[report.status]} />
+          <div onClick={e => e.stopPropagation()} style={{ display: 'flex', gap: 6 }}>
+            <button onClick={() => onView(report)} title="View"
+              style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', color: 'rgba(255,255,255,0.7)', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
+              <Eye size={12} /> View
+            </button>
+            <button onClick={() => onEdit(report)} title="Edit"
+              style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', color: '#60a5fa', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
+              <Pencil size={12} /> Edit
+            </button>
+            <button onClick={() => onDelete(report.id)} title="Delete"
+              style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', color: '#f87171', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
+              <Trash2 size={12} /> Delete
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
 };
 
-// =============== PTO CARD COMPONENT ===============
-interface PTOCardProps {
-  report: PTOReport;
-  index: number;
-  onView: (report: PTOReport) => void;
-  onEdit: (report: PTOReport) => void;
-  onDelete: (id: string) => void;
-  onStatusChange?: (id: string, status: ReportStatus) => void;
-}
-
-const PTOCard: React.FC<PTOCardProps> = ({
-  report,
-  index,
-  onView,
-  onEdit,
-  onDelete,
-  onStatusChange
-}) => {
+// =============== DETAIL MODAL ===============
+const PTODetailModal: React.FC<{ report: PTOReport | null; open: boolean; onClose: () => void; onEdit: (r: PTOReport) => void; onDelete: (id: string) => void; onStatusChange: (id: string, s: ReportStatus) => void }> = ({ report, open, onClose, onEdit, onDelete, onStatusChange }) => {
+  if (!report) return null;
   const SectionIcon = SECTION_ICONS[report.section];
-  const sectionVariant = SECTION_VARIANTS[report.section];
-  const statusVariant = STATUS_VARIANTS[report.status];
-  const observationVariant = OBSERVATION_VARIANTS[report.observationType];
-  
-  const totalActions = report.actionPlan?.length || 0;
-  const completedActions = report.actionPlan?.filter(a => a.status === 'Completed').length || 0;
-  const inProgressActions = report.actionPlan?.filter(a => a.status === 'In Progress').length || 0;
-  const progress = totalActions ? Math.round((completedActions / totalActions) * 100) : 0;
-  const hasRisks = report.riskAssessment.made === 'No' || 
-                   report.riskAssessment.identified === 'No' || 
-                   report.riskAssessment.effective === 'No';
+  const sColor = SECTION_COLORS[report.section];
+  const total = report.actionPlan?.length || 0;
+  const done = report.actionPlan?.filter(a => a.status === 'Completed').length || 0;
+  const inProg = report.actionPlan?.filter(a => a.status === 'In Progress').length || 0;
+  const pct = total ? Math.round((done / total) * 100) : 0;
+  const hasRisk = report.riskAssessment.made === 'No' || report.riskAssessment.identified === 'No' || report.riskAssessment.effective === 'No';
+  const infoStyle: React.CSSProperties = { background: 'rgba(255,255,255,0.05)', borderRadius: 8, padding: '8px 12px' };
+
+  const reasonsList = (Object.keys(report.reasons) as (keyof Reasons)[]).filter(k => report.reasons[k]).map(k => REASON_LABELS[k]);
+  const remediesList = (Object.keys(report.suggestedRemedies) as (keyof SuggestedRemedies)[]).filter(k => report.suggestedRemedies[k] === 'Yes').map(k => REMEDY_LABELS[k]);
 
   return (
-    <Card 
-      className="group hover:shadow-xl transition-all duration-300 cursor-pointer border-l-4 overflow-hidden"
-      style={{ borderLeftColor: hasRisks ? '#ef4444' : '#0f172a' }}
-      onClick={() => onView(report)}
-    >
-      <CardContent className="p-0">
-        {/* Header with gradient */}
-        <div className="bg-gradient-to-r from-slate-50 to-transparent p-5">
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-3">
-              <div className={`p-2.5 rounded-xl ${sectionVariant.bg}`}>
-                <SectionIcon className={`h-5 w-5 ${sectionVariant.icon}`} />
-              </div>
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <Badge variant="outline" className={`${sectionVariant.bg} ${sectionVariant.text} border-0 text-xs`}>
-                    <SectionIcon className="h-3 w-3 mr-1" />
-                    {report.section}
-                  </Badge>
-                  <Badge className={`${observationVariant.bg} ${observationVariant.color} border-0 text-xs`}>
-                    {report.observationType}
-                  </Badge>
+    <SafetyModal open={open} onClose={onClose} title="Planned Task Observation Report" subtitle={`Created ${fmtDateTime(report.created_at)}`} maxWidth={720}>
+      {/* Status bar */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.05)', borderRadius: 10, padding: '10px 14px', marginBottom: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ padding: 7, borderRadius: 8, background: sColor + '22' }}>
+            <SectionIcon size={16} style={{ color: sColor }} />
+          </div>
+          <div>
+            <span style={{ fontWeight: 700, color: 'rgba(255,255,255,0.85)' }}>{report.section}</span>
+            <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginLeft: 8 }}>{report.observationType}</span>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {hasRisk && <Chip label="Risk Identified" color="#ef4444" />}
+          <select title="Change status" style={{ ...glassSelect, width: 'auto', fontSize: 12, padding: '4px 8px' }}
+            value={report.status} onChange={e => onStatusChange(report.id, e.target.value as ReportStatus)}>
+            <option value="draft">Draft</option>
+            <option value="submitted">Submitted</option>
+            <option value="reviewed">Reviewed</option>
+            <option value="closed">Closed</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Progress */}
+      {total > 0 && (
+        <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: '12px 14px', marginBottom: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 6 }}>
+            <span style={{ color: 'rgba(255,255,255,0.6)' }}>Action Plan Progress</span>
+            <span style={{ color: 'rgba(255,255,255,0.8)', fontWeight: 600 }}>{done}/{total} completed</span>
+          </div>
+          <div style={{ height: 6, borderRadius: 999, background: 'rgba(255,255,255,0.08)', marginBottom: 8 }}>
+            <div style={{ height: '100%', borderRadius: 999, width: `${pct}%`, background: pct === 100 ? '#10b981' : '#60a5fa' }} />
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Chip label={`${total - done - inProg} Pending`} color="#f59e0b" />
+            <Chip label={`${inProg} In Progress`} color="#3b82f6" />
+            <Chip label={`${done} Completed`} color="#10b981" />
+          </div>
+        </div>
+      )}
+
+      {/* Info grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 8, marginBottom: 12 }}>
+        {[
+          { label: 'Observer', val: report.observerName },
+          { label: 'Worker', val: report.workerName },
+          { label: 'Date', val: fmtDate(report.date) },
+          { label: 'Occupation', val: report.occupation || 'N/A' },
+        ].map(({ label, val }) => (
+          <div key={label} style={infoStyle}>
+            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginBottom: 3 }}>{label}</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.85)' }}>{val}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Task details */}
+      <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: '12px 14px', marginBottom: 12 }}>
+        <div style={{ fontWeight: 700, fontSize: 12, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 }}>Task Details</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          <div style={{ gridColumn: '1 / -1', ...infoStyle }}>
+            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginBottom: 3 }}>Job/Task Observed</div>
+            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.85)' }}>{report.jobTaskObserved}</div>
+          </div>
+          <div style={infoStyle}>
+            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginBottom: 3 }}>SHEQ Reference</div>
+            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.85)' }}>{report.sheqRefNo || 'N/A'}</div>
+          </div>
+          <div style={infoStyle}>
+            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginBottom: 3 }}>Dept/Contractor</div>
+            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.85)' }}>{report.deptSectionContractor || 'N/A'}</div>
+          </div>
+          <div style={infoStyle}>
+            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginBottom: 3 }}>Time on Job</div>
+            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.85)' }}>{report.timeOnJob.months || '0'}m, {report.timeOnJob.years || '0'}y</div>
+          </div>
+          <div style={infoStyle}>
+            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginBottom: 3 }}>Told in Advance</div>
+            <Chip label={report.notification.toldInAdvance} color={report.notification.toldInAdvance === 'Yes' ? '#34d399' : '#f87171'} />
+          </div>
+        </div>
+      </div>
+
+      {/* Reasons */}
+      {reasonsList.length > 0 && (
+        <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: '12px 14px', marginBottom: 12 }}>
+          <div style={{ fontWeight: 700, fontSize: 12, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Reasons for Observation</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {reasonsList.map((r, i) => <Chip key={i} label={r} color="#a78bfa" />)}
+          </div>
+        </div>
+      )}
+
+      {/* Procedures & Risk */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+        <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: '12px 14px' }}>
+          <div style={{ fontWeight: 700, fontSize: 12, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 5 }}>
+            <BookOpen size={12} /> Procedures
+          </div>
+          {[
+            { label: 'Procedure Available', val: report.procedures.hasProcedure },
+            { label: 'Employee Familiar', val: report.procedures.familiarWithProcedure },
+          ].map(({ label, val }) => (
+            <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+              <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>{label}</span>
+              <Chip label={val} color={val === 'Yes' ? '#34d399' : '#f87171'} />
+            </div>
+          ))}
+        </div>
+        <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: '12px 14px' }}>
+          <div style={{ fontWeight: 700, fontSize: 12, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 5 }}>
+            <ShieldAlert size={12} /> Risk Assessment
+          </div>
+          {[
+            { label: 'Assessment Made', val: report.riskAssessment.made },
+            { label: 'Hazards Identified', val: report.riskAssessment.identified },
+            { label: 'Controls Effective', val: report.riskAssessment.effective },
+          ].map(({ label, val }) => (
+            <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+              <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>{label}</span>
+              <Chip label={val} color={val === 'Yes' ? '#34d399' : '#f87171'} />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Remedies */}
+      {remediesList.length > 0 && (
+        <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: '12px 14px', marginBottom: 12 }}>
+          <div style={{ fontWeight: 700, fontSize: 12, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Suggested Remedies</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {remediesList.map((r, i) => <Chip key={i} label={r} color="#60a5fa" />)}
+          </div>
+        </div>
+      )}
+
+      {/* Scope & followup */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
+        <div style={infoStyle}>
+          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginBottom: 4 }}>Observation Scope</div>
+          <Chip label={report.observationScope} color={report.observationScope === 'All' ? '#34d399' : '#f59e0b'} />
+        </div>
+        <div style={infoStyle}>
+          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginBottom: 4 }}>Follow-up Needed</div>
+          <Chip label={report.followUpNeeded} color={report.followUpNeeded === 'Yes' ? '#f97316' : '#34d399'} />
+        </div>
+      </div>
+
+      {/* Action plan */}
+      {report.actionPlan?.length > 0 && (
+        <div style={{ marginBottom: 8 }}>
+          <div style={{ fontWeight: 700, fontSize: 12, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 }}>Action Plan ({report.actionPlan.length})</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {report.actionPlan.map((action, idx) => {
+              const ac = ACTION_COLORS[action.status];
+              return (
+                <div key={action.id} style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 8, padding: '10px 12px', borderLeft: `3px solid ${ac}` }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)' }}>Action #{idx + 1}</span>
+                    <Chip label={action.status} color={ac} />
+                  </div>
+                  <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', marginBottom: 6 }}>{action.action}</div>
+                  <div style={{ display: 'flex', gap: 16, fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>
+                    <span>By: {action.byWhom}</span>
+                    <span>Due: {fmtDate(action.byWhen)}</span>
+                    {action.completedDate && <span>Completed: {fmtDate(action.completedDate)}</span>}
+                  </div>
+                  {action.remarks && <div style={{ marginTop: 6, fontSize: 12, fontStyle: 'italic', color: 'rgba(255,255,255,0.45)', borderLeft: '2px solid #60a5fa', paddingLeft: 8 }}>{action.remarks}</div>}
                 </div>
-                <p className="text-sm font-medium text-muted-foreground">PTO-{index + 1}</p>
-                <h3 className="font-semibold text-base line-clamp-1 mt-1">{report.jobTaskObserved}</h3>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      <ModalActions onCancel={onClose} onSave={() => { onClose(); onEdit(report); }} saveLabel="Edit"
+        extra={<button onClick={() => { onClose(); onDelete(report.id); }}
+          style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, padding: '8px 16px', color: '#f87171', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>Delete</button>} />
+    </SafetyModal>
+  );
+};
+
+// =============== FORM MODAL ===============
+const PTOFormModal: React.FC<{ open: boolean; editing: PTOReport | null; onClose: () => void; onSave: (data: Partial<PTOReport>) => Promise<void>; saving: boolean }> = ({ open, editing, onClose, onSave, saving }) => {
+  const [tab, setTab] = useState(0);
+  const [form, setForm] = useState<Partial<PTOReport>>(defaultForm());
+
+  useEffect(() => {
+    if (open) { setForm(editing ? { ...editing } : defaultForm()); setTab(0); }
+  }, [open, editing]);
+
+  const set = (field: keyof PTOReport, val: unknown) => setForm(prev => ({ ...prev, [field]: val }));
+
+  const addAction = () => setForm(prev => ({
+    ...prev,
+    actionPlan: [...(prev.actionPlan || []), { id: newId(), no: (prev.actionPlan?.length || 0) + 1, action: '', byWhom: '', byWhen: '', status: 'Pending' }],
+  }));
+
+  const updateAction = (id: string, field: keyof ActionPlanItem, val: string) =>
+    setForm(prev => ({ ...prev, actionPlan: prev.actionPlan?.map(a => a.id === id ? { ...a, [field]: val } : a) || [] }));
+
+  const removeAction = (id: string) =>
+    setForm(prev => ({ ...prev, actionPlan: prev.actionPlan?.filter(a => a.id !== id) || [] }));
+
+  const handleSubmit = async () => {
+    if (!form.observerName?.trim()) { toast.error('Observer name is required'); setTab(0); return; }
+    if (!form.workerName?.trim()) { toast.error('Worker name is required'); setTab(0); return; }
+    if (!form.jobTaskObserved?.trim()) { toast.error('Job/Task observed is required'); setTab(0); return; }
+    if (!form.date) { toast.error('Date is required'); setTab(0); return; }
+    await onSave(form);
+  };
+
+  const tabs = ['Basic Info', 'Reasons & Procedures', 'Risk Assessment', 'Action Plan'];
+
+  const checkStyle: React.CSSProperties = { accentColor: '#60a5fa', cursor: 'pointer', width: 15, height: 15 };
+  const checkLabelStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, color: 'rgba(255,255,255,0.75)', padding: '6px 0' };
+
+  return (
+    <SafetyModal open={open} onClose={onClose}
+      title={editing ? 'Edit PTO Report' : 'New Planned Task Observation'}
+      subtitle="Complete all sections. * = required." maxWidth={740}>
+      <TabBar tabs={tabs} active={tab} onChange={setTab} />
+
+      {tab === 0 && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <FormField label="Date *">
+            <input type="date" style={glassInput} value={form.date || ''} title="Date" placeholder="Date"
+              onChange={e => set('date', e.target.value)} />
+          </FormField>
+          <FormField label="Observer Name *">
+            <input style={glassInput} value={form.observerName || ''} placeholder="Observer's full name"
+              onChange={e => set('observerName', e.target.value)} title="Observer name" />
+          </FormField>
+          <FormField label="Section *">
+            <select style={glassSelect} value={form.section || 'Mechanical'} title="Section"
+              onChange={e => set('section', e.target.value as SectionType)}>
+              {SECTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </FormField>
+          <FormField label="Dept / Contractor">
+            <input style={glassInput} value={form.deptSectionContractor || ''} placeholder="Department or contractor"
+              onChange={e => set('deptSectionContractor', e.target.value)} title="Department or contractor" />
+          </FormField>
+          <FormField label="Worker Name *">
+            <input style={glassInput} value={form.workerName || ''} placeholder="Worker's full name"
+              onChange={e => set('workerName', e.target.value)} title="Worker name" />
+          </FormField>
+          <FormField label="Occupation">
+            <input style={glassInput} value={form.occupation || ''} placeholder="Job title / occupation"
+              onChange={e => set('occupation', e.target.value)} title="Occupation" />
+          </FormField>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <FormField label="Job / Task Observed *">
+              <input style={glassInput} value={form.jobTaskObserved || ''} placeholder="Describe the task being observed"
+                onChange={e => set('jobTaskObserved', e.target.value)} title="Job/task observed" />
+            </FormField>
+          </div>
+          <FormField label="SHEQ Reference No.">
+            <input style={glassInput} value={form.sheqRefNo || ''} placeholder="e.g., SHEQ-001"
+              onChange={e => set('sheqRefNo', e.target.value)} title="SHEQ reference number" />
+          </FormField>
+          <FormField label="Observation Type">
+            <select style={glassSelect} value={form.observationType || 'Initial'} title="Observation type"
+              onChange={e => set('observationType', e.target.value as ObservationType)}>
+              <option value="Initial">Initial</option>
+              <option value="Follow up">Follow up</option>
+            </select>
+          </FormField>
+          <FormField label="Time on Job (Months)">
+            <input style={glassInput} value={form.timeOnJob?.months || ''} placeholder="0"
+              onChange={e => set('timeOnJob', { ...form.timeOnJob, months: e.target.value })} title="Months on job" />
+          </FormField>
+          <FormField label="Time on Job (Years)">
+            <input style={glassInput} value={form.timeOnJob?.years || ''} placeholder="0"
+              onChange={e => set('timeOnJob', { ...form.timeOnJob, years: e.target.value })} title="Years on job" />
+          </FormField>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <YesNoRow label="Was the worker told in advance?" value={form.notification?.toldInAdvance || 'No'} name="toldInAdvance"
+              onChange={v => set('notification', { toldInAdvance: v })} />
+          </div>
+        </div>
+      )}
+
+      {tab === 1 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 13, color: 'rgba(255,255,255,0.7)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5 }}>Reasons for Observation</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
+              {(Object.keys(REASON_LABELS) as (keyof Reasons)[]).map(key => (
+                <label key={key} style={checkLabelStyle}>
+                  <input type="checkbox" style={checkStyle} checked={form.reasons?.[key] || false}
+                    onChange={e => set('reasons', { ...form.reasons, [key]: e.target.checked })} />
+                  {REASON_LABELS[key]}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 13, color: 'rgba(255,255,255,0.7)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5 }}>SHEQ Work Procedure</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <YesNoRow label="Is a SHEQ work procedure available?" value={form.procedures?.hasProcedure || 'No'} name="hasProcedure"
+                onChange={v => set('procedures', { ...form.procedures, hasProcedure: v })} />
+              <YesNoRow label="Is the employee familiar with the procedure?" value={form.procedures?.familiarWithProcedure || 'No'} name="familiarWithProcedure"
+                onChange={v => set('procedures', { ...form.procedures, familiarWithProcedure: v })} />
+            </div>
+          </div>
+
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 13, color: 'rgba(255,255,255,0.7)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5 }}>Suggested Remedies</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
+              {(Object.keys(REMEDY_LABELS) as (keyof SuggestedRemedies)[]).map(key => (
+                <label key={key} style={checkLabelStyle}>
+                  <input type="checkbox" style={checkStyle} checked={form.suggestedRemedies?.[key] === 'Yes'}
+                    onChange={e => set('suggestedRemedies', { ...form.suggestedRemedies, [key]: e.target.checked ? 'Yes' : 'No' })} />
+                  {REMEDY_LABELS[key]}
+                </label>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {tab === 2 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 13, color: 'rgba(255,255,255,0.7)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5 }}>Risk Assessment</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <YesNoRow label="Has a risk assessment been made?" value={form.riskAssessment?.made || 'No'} name="raMade"
+                onChange={v => set('riskAssessment', { ...form.riskAssessment, made: v })} />
+              <YesNoRow label="Have hazards/risks/controls been identified?" value={form.riskAssessment?.identified || 'No'} name="raIdentified"
+                onChange={v => set('riskAssessment', { ...form.riskAssessment, identified: v })} />
+              <YesNoRow label="Are the controls effective?" value={form.riskAssessment?.effective || 'No'} name="raEffective"
+                onChange={v => set('riskAssessment', { ...form.riskAssessment, effective: v })} />
+            </div>
+          </div>
+
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 13, color: 'rgba(255,255,255,0.7)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5 }}>Observation Scope & Follow-up</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: 8 }}>
+                <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.75)' }}>Observation Scope</span>
+                <div style={{ display: 'flex', gap: 14 }}>
+                  {(['All', 'Partial'] as const).map(opt => (
+                    <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', fontSize: 13, color: form.observationScope === opt ? '#60a5fa' : 'rgba(255,255,255,0.45)', fontWeight: form.observationScope === opt ? 700 : 400 }}>
+                      <input type="radio" name="scope" value={opt} checked={form.observationScope === opt}
+                        onChange={() => set('observationScope', opt)} style={{ accentColor: '#60a5fa', cursor: 'pointer' }} />
+                      {opt}
+                    </label>
+                  ))}
+                </div>
               </div>
+              <YesNoRow label="Is a follow-up observation needed?" value={form.followUpNeeded || 'No'} name="followUp"
+                onChange={v => set('followUpNeeded', v)} />
             </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => onView(report)}>
-                  <Eye className="h-4 w-4 mr-2" /> View Details
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onEdit(report)}>
-                  <Pencil className="h-4 w-4 mr-2" /> Edit
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuLabel>Change Status</DropdownMenuLabel>
-                <DropdownMenuItem onClick={() => onStatusChange?.(report.id, 'draft')}>
-                  <FileText className="h-4 w-4 mr-2" /> Draft
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onStatusChange?.(report.id, 'submitted')}>
-                  <Send className="h-4 w-4 mr-2" /> Submit
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onStatusChange?.(report.id, 'reviewed')}>
-                  <CheckCircle className="h-4 w-4 mr-2" /> Review
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onStatusChange?.(report.id, 'closed')}>
-                  <CheckSquare className="h-4 w-4 mr-2" /> Close
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => onDelete(report.id)} className="text-destructive">
-                  <Trash2 className="h-4 w-4 mr-2" /> Delete
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
           </div>
+
+          <FormField label="Report Status">
+            <select style={glassSelect} value={form.status || 'draft'} title="Status"
+              onChange={e => set('status', e.target.value as ReportStatus)}>
+              <option value="draft">Draft</option>
+              <option value="submitted">Submitted</option>
+              <option value="reviewed">Reviewed</option>
+              <option value="closed">Closed</option>
+            </select>
+          </FormField>
         </div>
+      )}
 
-        {/* Progress Section */}
-        <div className="px-5 py-3 border-t border-b bg-muted/20">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-medium text-muted-foreground">Action Progress</span>
-            <span className="text-xs font-semibold">{progress}%</span>
+      {tab === 3 && (
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 14, color: 'rgba(255,255,255,0.85)' }}>Action Plan</div>
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>Define corrective or improvement actions.</div>
+            </div>
+            <button type="button" onClick={addAction}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(96,165,250,0.15)', border: '1px solid rgba(96,165,250,0.35)', borderRadius: 8, padding: '6px 12px', color: '#60a5fa', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+              <Plus size={14} /> Add Action
+            </button>
           </div>
-          <Progress value={progress} className="h-1.5" />
-          
-          <div className="flex items-center gap-3 mt-3">
-            <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
-              {totalActions - completedActions - inProgressActions} Pending
-            </Badge>
-            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-              {inProgressActions} In Progress
-            </Badge>
-            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-              {completedActions} Done
-            </Badge>
-          </div>
-        </div>
-
-        {/* Info Grid */}
-        <div className="p-5 space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex items-center gap-2 text-sm bg-muted/30 p-2 rounded-lg">
-              <User className="h-4 w-4 text-muted-foreground" />
-              <span className="font-medium truncate">{report.observerName}</span>
+          {(form.actionPlan || []).length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '32px 0', color: 'rgba(255,255,255,0.3)' }}>
+              <Target size={36} style={{ margin: '0 auto 8px' }} />
+              <div style={{ fontSize: 13 }}>No actions defined yet.</div>
+              <button type="button" onClick={addAction}
+                style={{ marginTop: 10, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, padding: '6px 14px', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', fontSize: 12 }}>
+                + Add First Action
+              </button>
             </div>
-            <div className="flex items-center gap-2 text-sm bg-muted/30 p-2 rounded-lg">
-              <HardHat className="h-4 w-4 text-muted-foreground" />
-              <span className="truncate">{report.workerName}</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm bg-muted/30 p-2 rounded-lg">
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-              <span>{formatDate(report.date)}</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm bg-muted/30 p-2 rounded-lg">
-              <Badge className={`${statusVariant.bg} ${statusVariant.color} border-0`}>
-                {statusVariant.label}
-              </Badge>
-            </div>
-          </div>
-
-          {hasRisks && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-red-600" />
-              <span className="text-xs font-medium text-red-700">Risk Identified - Review Required</span>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {(form.actionPlan || []).map((item, idx) => (
+                <ActionPlanCard key={item.id} item={item} index={idx} onChange={updateAction} onRemove={removeAction} />
+              ))}
             </div>
           )}
         </div>
-      </CardContent>
-    </Card>
-  );
-};
+      )}
 
-// =============== PTO DETAIL MODAL ===============
-interface PTODetailModalProps {
-  report: PTOReport | null;
-  open: boolean;
-  onClose: () => void;
-  onEdit: (report: PTOReport) => void;
-  onDelete: (id: string) => void;
-  onStatusChange?: (id: string, status: ReportStatus) => void;
-}
-
-const PTODetailModal: React.FC<PTODetailModalProps> = ({
-  report,
-  open,
-  onClose,
-  onEdit,
-  onDelete,
-  onStatusChange
-}) => {
-  if (!report) return null;
-
-  const SectionIcon = SECTION_ICONS[report.section];
-  const sectionVariant = SECTION_VARIANTS[report.section];
-  const statusVariant = STATUS_VARIANTS[report.status];
-  
-  const totalActions = report.actionPlan?.length || 0;
-  const completedActions = report.actionPlan?.filter(a => a.status === 'Completed').length || 0;
-  const inProgressActions = report.actionPlan?.filter(a => a.status === 'In Progress').length || 0;
-  const progress = totalActions ? Math.round((completedActions / totalActions) * 100) : 0;
-
-  const riskItems = [
-    { label: 'Risk Assessment Made', value: report.riskAssessment.made },
-    { label: 'Hazards/Risks/Controls Identified', value: report.riskAssessment.identified },
-    { label: 'Controls Effective', value: report.riskAssessment.effective },
-  ];
-
-  const procedureItems = [
-    { label: 'SHEQ Work Procedure Available', value: report.procedures.hasProcedure },
-    { label: 'Employee Familiar with Procedure', value: report.procedures.familiarWithProcedure },
-  ];
-
-  const reasonsList = Object.entries(report.reasons)
-    .filter(([_, value]) => value)
-    .map(([key]) => {
-      const labels: Record<string, string> = {
-        monthly: 'Monthly Observation',
-        newEmployee: 'New Employee',
-        safetyAwareness: 'Safety Awareness',
-        incidentFollowUp: 'Incident Follow up',
-        trainingFollowUp: 'Training Follow up',
-        infrequentTask: 'Infrequently Performed'
-      };
-      return labels[key] || key;
-    });
-
-  const remediesList = Object.entries(report.suggestedRemedies)
-    .filter(([_, value]) => value === 'Yes')
-    .map(([key]) => {
-      const labels: Record<string, string> = {
-        newProcedure: 'New Procedure',
-        reviseExisting: 'Revise Existing',
-        differentEquipment: 'Different Equipment',
-        engineeringControls: 'Engineering Controls',
-        retraining: 'Retraining',
-        improvedPPE: 'Improved PPE',
-        placementOfWorker: 'Placement of Worker'
-      };
-      return labels[key] || key;
-    });
-
-  return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden p-0">
-        <DialogHeader className="p-6 pb-0">
-          <DialogTitle className="text-2xl font-bold flex items-center gap-2">
-            <ClipboardList className="h-6 w-6 text-primary" />
-            Planned Task Observation Report
-          </DialogTitle>
-          <DialogDescription>
-            Created on {formatDateTime(report.created_at)}
-          </DialogDescription>
-        </DialogHeader>
-
-        <ScrollArea className="max-h-[calc(90vh-120px)] px-6">
-          <div className="space-y-6 py-4">
-            {/* Status Bar */}
-            <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
-              <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-lg ${sectionVariant.bg}`}>
-                  <SectionIcon className={`h-5 w-5 ${sectionVariant.icon}`} />
-                </div>
-                <div>
-                  <p className="text-sm font-medium">{report.section}</p>
-                  <p className="text-xs text-muted-foreground">Section</p>
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-2">
-                <Badge className={`${statusVariant.bg} ${statusVariant.color} border-0`}>
-                  {statusVariant.label}
-                </Badge>
-                <Badge variant="outline" className="bg-muted">
-                  ID: {report.id.slice(0, 8)}
-                </Badge>
-              </div>
-            </div>
-
-            {/* Progress Card */}
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium">Action Plan Progress</span>
-                  <span className="text-sm text-muted-foreground">
-                    {completedActions}/{totalActions} completed
-                  </span>
-                </div>
-                <Progress value={progress} className="h-2 mb-3" />
-                <div className="flex gap-2">
-                  <Badge variant="outline" className="bg-yellow-50 text-yellow-700">
-                    Pending: {totalActions - completedActions - inProgressActions}
-                  </Badge>
-                  <Badge variant="outline" className="bg-blue-50 text-blue-700">
-                    In Progress: {inProgressActions}
-                  </Badge>
-                  <Badge variant="outline" className="bg-green-50 text-green-700">
-                    Completed: {completedActions}
-                  </Badge>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Key Info Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div className="bg-muted/30 p-3 rounded-lg">
-                <p className="text-xs text-muted-foreground">Observer</p>
-                <p className="font-medium">{report.observerName}</p>
-              </div>
-              <div className="bg-muted/30 p-3 rounded-lg">
-                <p className="text-xs text-muted-foreground">Date</p>
-                <p className="font-medium">{formatDate(report.date)}</p>
-              </div>
-              <div className="bg-muted/30 p-3 rounded-lg">
-                <p className="text-xs text-muted-foreground">Worker</p>
-                <p className="font-medium">{report.workerName}</p>
-              </div>
-              <div className="bg-muted/30 p-3 rounded-lg">
-                <p className="text-xs text-muted-foreground">Occupation</p>
-                <p className="font-medium">{report.occupation || 'N/A'}</p>
-              </div>
-            </div>
-
-            {/* Task Details Card */}
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium flex items-center gap-2">
-                  <FileText className="h-4 w-4" />
-                  Task Details
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="grid grid-cols-2 gap-4">
-                <div className="col-span-2">
-                  <p className="text-xs text-muted-foreground mb-1">Job/Task Observed</p>
-                  <p className="font-medium p-2 bg-muted/30 rounded">{report.jobTaskObserved}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">SHEQ Reference</p>
-                  <p className="font-medium p-2 bg-muted/30 rounded">{report.sheqRefNo || 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Dept/Contractor</p>
-                  <p className="font-medium p-2 bg-muted/30 rounded">{report.deptSectionContractor || 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Time on Job</p>
-                  <p className="font-medium p-2 bg-muted/30 rounded">
-                    {report.timeOnJob.months || '0'}m, {report.timeOnJob.years || '0'}y
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Told in Advance</p>
-                  <Badge className={report.notification.toldInAdvance === 'Yes' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}>
-                    {report.notification.toldInAdvance}
-                  </Badge>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Reasons */}
-            {reasonsList.length > 0 && (
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">Reasons for Observation</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-wrap gap-2">
-                    {reasonsList.map((reason, idx) => (
-                      <Badge key={idx} variant="secondary" className="bg-purple-50 text-purple-700">
-                        {reason}
-                      </Badge>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Procedures & Risk Assessment */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium flex items-center gap-2">
-                    <BookOpen className="h-4 w-4" />
-                    Procedure Verification
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  {procedureItems.map((item, idx) => (
-                    <div key={idx} className="flex items-center justify-between p-2 bg-muted/30 rounded">
-                      <span className="text-sm">{item.label}</span>
-                      <Badge className={item.value === 'Yes' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}>
-                        {item.value}
-                      </Badge>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium flex items-center gap-2">
-                    <ShieldAlert className="h-4 w-4" />
-                    Risk Assessment
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  {riskItems.map((item, idx) => (
-                    <div key={idx} className="flex items-center justify-between p-2 bg-muted/30 rounded">
-                      <span className="text-sm">{item.label}</span>
-                      <Badge className={item.value === 'Yes' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}>
-                        {item.value}
-                      </Badge>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Suggested Remedies */}
-            {remediesList.length > 0 && (
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">Suggested Remedies</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-wrap gap-2">
-                    {remediesList.map((remedy, idx) => (
-                      <Badge key={idx} className="bg-blue-50 text-blue-700">
-                        {remedy}
-                      </Badge>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Scope & Follow-up */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-muted/30 p-3 rounded-lg">
-                <p className="text-xs text-muted-foreground mb-1">Observation Scope</p>
-                <Badge className={report.observationScope === 'All' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}>
-                  {report.observationScope}
-                </Badge>
-              </div>
-              <div className="bg-muted/30 p-3 rounded-lg">
-                <p className="text-xs text-muted-foreground mb-1">Follow-up Needed</p>
-                <Badge className={report.followUpNeeded === 'Yes' ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}>
-                  {report.followUpNeeded}
-                </Badge>
-              </div>
-            </div>
-
-            {/* Action Plan */}
-            <div>
-              <h3 className="font-semibold mb-3 flex items-center gap-2">
-                <Target className="h-4 w-4" />
-                Action Plan ({report.actionPlan?.length || 0})
-              </h3>
-              <div className="space-y-3">
-                {report.actionPlan && report.actionPlan.length > 0 ? (
-                  report.actionPlan.map((action, idx) => {
-                    const actionStatus = STATUS_VARIANTS[action.status];
-                    return (
-                      <Card key={action.id} className="overflow-hidden">
-                        <div className={`h-1 w-full ${
-                          action.status === 'Completed' ? 'bg-green-500' :
-                          action.status === 'In Progress' ? 'bg-blue-500' : 'bg-yellow-500'
-                        }`} />
-                        <CardContent className="p-4">
-                          <div className="flex items-start justify-between mb-3">
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-medium text-muted-foreground">Action #{idx + 1}</span>
-                              <Badge className={`${actionStatus.bg} ${actionStatus.color} border-0`}>
-                                {action.status}
-                              </Badge>
-                            </div>
-                          </div>
-                          <div className="space-y-3">
-                            <p className="text-sm"><span className="font-medium">Action:</span> {action.action}</p>
-                            <div className="grid grid-cols-2 gap-4 text-sm bg-muted/30 p-3 rounded">
-                              <div><span className="text-muted-foreground">By:</span> {action.byWhom}</div>
-                              <div><span className="text-muted-foreground">Due:</span> {formatDate(action.byWhen)}</div>
-                              {action.completedDate && (
-                                <div><span className="text-muted-foreground">Completed:</span> {formatDate(action.completedDate)}</div>
-                              )}
-                            </div>
-                            {action.remarks && (
-                              <p className="text-sm italic border-l-2 border-primary pl-3">{action.remarks}</p>
-                            )}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })
-                ) : (
-                  <div className="text-center py-8 bg-muted/30 rounded-lg">
-                    <Target className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                    <p className="text-sm text-muted-foreground">No action items recorded.</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </ScrollArea>
-
-        <DialogFooter className="p-6 pt-0 gap-2">
-          <Button variant="outline" onClick={onClose}>
-            Close
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline">
-                Status <ChevronDown className="h-4 w-4 ml-2" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => onStatusChange?.(report.id, 'draft')}>
-                <FileText className="h-4 w-4 mr-2" /> Draft
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onStatusChange?.(report.id, 'submitted')}>
-                <Send className="h-4 w-4 mr-2" /> Submit
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onStatusChange?.(report.id, 'reviewed')}>
-                <CheckCircle className="h-4 w-4 mr-2" /> Review
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onStatusChange?.(report.id, 'closed')}>
-                <CheckSquare className="h-4 w-4 mr-2" /> Close
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <Button variant="outline" onClick={() => {
-            onClose();
-            onEdit(report);
-          }}>
-            <Pencil className="h-4 w-4 mr-2" /> Edit
-          </Button>
-          <Button variant="destructive" onClick={() => {
-            onClose();
-            onDelete(report.id);
-          }}>
-            <Trash2 className="h-4 w-4 mr-2" /> Delete
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
-// =============== RISK ASSESSMENT ROW COMPONENT ===============
-interface RiskRowProps {
-  label: string;
-  value: YesNoType;
-  onChange: (value: YesNoType) => void;
-}
-
-const RiskRow: React.FC<RiskRowProps> = ({ label, value, onChange }) => {
-  return (
-    <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors">
-      <Label className="text-sm font-medium">{label}</Label>
-      <RadioGroup value={value} onValueChange={(v: YesNoType) => onChange(v)} className="flex gap-4">
-        {YES_NO_OPTIONS.map(option => (
-          <div key={option} className="flex items-center space-x-1">
-            <RadioGroupItem value={option} id={`${label}-${option}`} />
-            <Label htmlFor={`${label}-${option}`} className="text-xs cursor-pointer">{option}</Label>
-          </div>
-        ))}
-      </RadioGroup>
-    </div>
+      <ModalActions onCancel={onClose} onSave={handleSubmit} saving={saving}
+        saveLabel={editing ? 'Update PTO' : 'Submit PTO'} />
+    </SafetyModal>
   );
 };
 
 // =============== MAIN PAGE ===============
 export default function CompletePTOFormPage() {
   const [reports, setReports] = useState<PTOReport[]>([]);
-  const [stats, setStats] = useState<PTOStats | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
 
-  // Modal States
   const [selectedReport, setSelectedReport] = useState<PTOReport | null>(null);
-  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-  const [isFormModalOpen, setIsFormModalOpen] = useState(false);
-  const [editingReport, setEditingReport] = useState<PTOReport | null>(null);
-  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState<PTOReport | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
-  // Filter States
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedSection, setSelectedSection] = useState<string>('all');
-  const [selectedObserver, setSelectedObserver] = useState<string>('all');
-  const [selectedStatus, setSelectedStatus] = useState<string>('all');
-  const [dateRange, setDateRange] = useState<{ from: Date | null; to: Date | null }>({ from: null, to: null });
-
-  // Form State
-  const [formData, setFormData] = useState<Partial<PTOReport>>({
-    date: new Date().toISOString().split('T')[0],
-    observerName: "",
-    section: "Mechanical",
-    deptSectionContractor: "",
-    workerName: "",
-    occupation: "",
-    jobTaskObserved: "",
-    sheqRefNo: "",
-    observationType: "Initial",
-    timeOnJob: { months: "", years: "" },
-    notification: { toldInAdvance: "No" },
-    reasons: {
-      monthly: false,
-      newEmployee: false,
-      safetyAwareness: false,
-      incidentFollowUp: false,
-      trainingFollowUp: false,
-      infrequentTask: false
-    },
-    procedures: {
-      hasProcedure: "No",
-      familiarWithProcedure: "No"
-    },
-    riskAssessment: {
-      made: "No",
-      identified: "No",
-      effective: "No"
-    },
-    suggestedRemedies: {
-      newProcedure: "No",
-      reviseExisting: "No",
-      differentEquipment: "No",
-      engineeringControls: "No",
-      retraining: "No",
-      improvedPPE: "No",
-      placementOfWorker: "No"
-    },
-    observationScope: "All",
-    followUpNeeded: "No",
-    actionPlan: [],
-    status: "draft"
-  });
-
-  // Load initial data
-  useEffect(() => {
-    loadData();
-  }, []);
+  const [search, setSearch] = useState('');
+  const [sectionFilter, setSectionFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [obsTypeFilter, setObsTypeFilter] = useState('all');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
 
   const loadData = async () => {
     setLoading(true);
-    setError(null);
-    
     try {
-      const [reportsData, statsData] = await Promise.all([
-        getPTOReports(),
-        getPTOStats()
-      ]);
-      
-      setReports(reportsData);
-      setStats(statsData);
-    } catch (err) {
-      console.error('Failed to load data:', err);
-      setError('Failed to load PTO reports. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+      const data = await getPTOReports();
+      setReports(data);
+    } catch { toast.error('Failed to load PTO reports'); }
+    finally { setLoading(false); }
   };
 
-  const addActionItem = () => {
-    const newItem: ActionPlanItem = {
-      id: Math.random().toString(36).substr(2, 9),
-      no: (formData.actionPlan?.length || 0) + 1,
-      action: "",
-      byWhom: "",
-      byWhen: "",
-      status: "Pending"
-    };
-    setFormData(prev => ({
-      ...prev,
-      actionPlan: [...(prev.actionPlan || []), newItem]
-    }));
-  };
+  useEffect(() => { loadData(); }, []);
 
-  const updateActionItem = (id: string, field: keyof ActionPlanItem, value: any) => {
-    setFormData(prev => ({
-      ...prev,
-      actionPlan: prev.actionPlan?.map(item =>
-        item.id === id ? { ...item, [field]: value } : item
-      ) || []
-    }));
-  };
-
-  const removeActionItem = (id: string) => {
-    setFormData(prev => ({
-      ...prev,
-      actionPlan: prev.actionPlan?.filter(item => item.id !== id) || []
-    }));
-  };
-
-  const validateForm = (): boolean => {
-    if (!formData.observerName?.trim()) {
-      toast.error('Observer name is required');
-      return false;
-    }
-    if (!formData.workerName?.trim()) {
-      toast.error('Worker name is required');
-      return false;
-    }
-    if (!formData.jobTaskObserved?.trim()) {
-      toast.error('Job/Task observed is required');
-      return false;
-    }
-    if (!formData.date) {
-      toast.error('Date is required');
-      return false;
-    }
-
-    // Validate action plan items
-    if (formData.actionPlan?.length) {
-      for (let i = 0; i < formData.actionPlan.length; i++) {
-        const item = formData.actionPlan[i];
-        if (!item.action?.trim()) {
-          toast.error(`Action #${i + 1}: Description is required`);
-          return false;
-        }
-        if (!item.byWhom?.trim()) {
-          toast.error(`Action #${i + 1}: Responsible person is required`);
-          return false;
-        }
-        if (!item.byWhen) {
-          toast.error(`Action #${i + 1}: Due date is required`);
-          return false;
-        }
-      }
-    }
-
-    return true;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!validateForm()) {
-      return;
-    }
-
-    setLoading(true);
+  const handleSave = async (form: Partial<PTOReport>) => {
+    setSaving(true);
     try {
-      let savedReport: PTOReport | null = null;
-
-      if (editingReport) {
-        savedReport = await updatePTOReport(editingReport.id, {
-          ...formData,
-          updated_at: new Date().toISOString()
-        });
-        if (savedReport) {
-          setReports(prev => prev.map(r => r.id === savedReport?.id ? savedReport : r));
-          toast.success('PTO report updated successfully');
-        }
+      if (editing) {
+        const updated = await updatePTOReport(editing.id, { ...form, updated_at: new Date().toISOString() });
+        setReports(prev => prev.map(r => r.id === updated.id ? updated : r));
+        toast.success('PTO report updated');
       } else {
-        savedReport = await createPTOReport({
-          ...formData,
-          status: 'submitted',
-          submitted_at: new Date().toISOString()
-        });
-        if (savedReport) {
-          setReports(prev => [savedReport!, ...prev]);
-          toast.success('PTO report submitted successfully');
-        }
+        const created = await createPTOReport({ ...form, status: 'submitted', submitted_at: new Date().toISOString() });
+        setReports(prev => [created, ...prev]);
+        toast.success('PTO report submitted');
       }
-
-      if (savedReport) {
-        const newStats = await getPTOStats();
-        setStats(newStats);
-      }
-
-      // Reset form
-      setFormData({
-        date: new Date().toISOString().split('T')[0],
-        observerName: "",
-        section: "Mechanical",
-        deptSectionContractor: "",
-        workerName: "",
-        occupation: "",
-        jobTaskObserved: "",
-        sheqRefNo: "",
-        observationType: "Initial",
-        timeOnJob: { months: "", years: "" },
-        notification: { toldInAdvance: "No" },
-        reasons: {
-          monthly: false,
-          newEmployee: false,
-          safetyAwareness: false,
-          incidentFollowUp: false,
-          trainingFollowUp: false,
-          infrequentTask: false
-        },
-        procedures: {
-          hasProcedure: "No",
-          familiarWithProcedure: "No"
-        },
-        riskAssessment: {
-          made: "No",
-          identified: "No",
-          effective: "No"
-        },
-        suggestedRemedies: {
-          newProcedure: "No",
-          reviseExisting: "No",
-          differentEquipment: "No",
-          engineeringControls: "No",
-          retraining: "No",
-          improvedPPE: "No",
-          placementOfWorker: "No"
-        },
-        observationScope: "All",
-        followUpNeeded: "No",
-        actionPlan: [],
-        status: "draft"
-      });
-      setIsFormModalOpen(false);
-      setEditingReport(null);
-    } catch (error) {
-      console.error('Failed to save PTO report:', error);
-      toast.error('Failed to save report');
-    } finally {
-      setLoading(false);
-    }
+      setFormOpen(false); setEditing(null);
+    } catch { toast.error('Failed to save PTO report'); }
+    finally { setSaving(false); }
   };
 
-  const handleStatusChange = async (id: string, newStatus: ReportStatus) => {
-    const report = reports.find(r => r.id === id);
-    if (!report) return;
+  const handleEdit = (r: PTOReport) => { setEditing(r); setFormOpen(true); };
 
-    const updatedReport = { ...report, status: newStatus };
-    
-    // Optimistic update
-    setReports(prev => prev.map(r => r.id === id ? updatedReport : r));
-
+  const handleDelete = async (id: string) => {
     try {
-      const saved = await updatePTOReport(id, { status: newStatus });
-      if (!saved) {
-        setReports(prev => prev.map(r => r.id === id ? report : r));
-        toast.error('Failed to update status');
-      } else {
-        toast.success(`Status updated to ${newStatus}`);
-        const newStats = await getPTOStats();
-        setStats(newStats);
-      }
-    } catch (error) {
-      setReports(prev => prev.map(r => r.id === id ? report : r));
-      console.error('Failed to update status:', error);
+      await deletePTOReport(id);
+      setReports(prev => prev.filter(r => r.id !== id));
+      toast.success('PTO report deleted');
+      setDeleteTarget(null);
+    } catch { toast.error('Failed to delete report'); }
+  };
+
+  const handleStatusChange = async (id: string, status: ReportStatus) => {
+    const prev = reports.find(r => r.id === id);
+    if (!prev) return;
+    setReports(ps => ps.map(r => r.id === id ? { ...r, status } : r));
+    try {
+      await updatePTOReport(id, { status });
+      toast.success(`Status updated to ${status}`);
+    } catch {
+      setReports(ps => ps.map(r => r.id === id ? prev : r));
       toast.error('Failed to update status');
     }
   };
 
-  const handleEdit = (report: PTOReport) => {
-    setEditingReport(report);
-    setFormData({
-      date: report.date,
-      observerName: report.observerName,
-      section: report.section,
-      deptSectionContractor: report.deptSectionContractor,
-      workerName: report.workerName,
-      occupation: report.occupation,
-      jobTaskObserved: report.jobTaskObserved,
-      sheqRefNo: report.sheqRefNo,
-      observationType: report.observationType,
-      timeOnJob: report.timeOnJob,
-      notification: report.notification,
-      reasons: report.reasons,
-      procedures: report.procedures,
-      riskAssessment: report.riskAssessment,
-      suggestedRemedies: report.suggestedRemedies,
-      observationScope: report.observationScope,
-      followUpNeeded: report.followUpNeeded,
-      actionPlan: report.actionPlan || [],
-      status: report.status
-    });
-    setIsFormModalOpen(true);
-  };
+  const clearFilters = () => { setSearch(''); setSectionFilter('all'); setStatusFilter('all'); setObsTypeFilter('all'); setDateFrom(''); setDateTo(''); };
 
-  const handleDelete = async (id: string) => {
-    try {
-      const success = await deletePTOReport(id);
-      if (success) {
-        setReports(prev => prev.filter(r => r.id !== id));
-        const newStats = await getPTOStats();
-        setStats(newStats);
-        toast.success('PTO report deleted successfully');
-        setDeleteConfirm(null);
+  const filtered = useMemo(() => {
+    return reports.filter(r => {
+      if (search) {
+        const q = search.toLowerCase();
+        if (![r.observerName, r.workerName, r.jobTaskObserved, r.occupation].some(s => s?.toLowerCase().includes(q))
+          && !r.actionPlan?.some(a => a.action?.toLowerCase().includes(q))) return false;
       }
-    } catch (error) {
-      console.error('Failed to delete PTO report:', error);
-      toast.error('Failed to delete report');
-    }
-  };
-
-  // Filter reports
-  const filteredReports = useMemo(() => {
-    return reports.filter(report => {
-      // Search filter
-      if (searchTerm) {
-        const searchLower = searchTerm.toLowerCase();
-        const matchesSearch = 
-          report.observerName?.toLowerCase().includes(searchLower) ||
-          report.workerName?.toLowerCase().includes(searchLower) ||
-          report.jobTaskObserved?.toLowerCase().includes(searchLower) ||
-          report.occupation?.toLowerCase().includes(searchLower) ||
-          report.actionPlan?.some(a => a.action?.toLowerCase().includes(searchLower));
-        
-        if (!matchesSearch) return false;
-      }
-      
-      // Section filter
-      if (selectedSection !== 'all' && report.section !== selectedSection) {
-        return false;
-      }
-      
-      // Observer filter
-      if (selectedObserver !== 'all' && report.observerName !== selectedObserver) {
-        return false;
-      }
-
-      // Status filter
-      if (selectedStatus !== 'all' && report.status !== selectedStatus) {
-        return false;
-      }
-      
-      // Date range filter
-      if (dateRange.from && dateRange.to) {
-        const reportDate = new Date(report.date);
-        if (reportDate < dateRange.from || reportDate > dateRange.to) {
-          return false;
-        }
-      }
-      
+      if (sectionFilter !== 'all' && r.section !== sectionFilter) return false;
+      if (statusFilter !== 'all' && r.status !== statusFilter) return false;
+      if (obsTypeFilter !== 'all' && r.observationType !== obsTypeFilter) return false;
+      if (dateFrom && r.date < dateFrom) return false;
+      if (dateTo && r.date > dateTo) return false;
       return true;
     });
-  }, [reports, searchTerm, selectedSection, selectedObserver, selectedStatus, dateRange]);
+  }, [reports, search, sectionFilter, statusFilter, obsTypeFilter, dateFrom, dateTo]);
 
-  const clearFilters = () => {
-    setSearchTerm('');
-    setSelectedSection('all');
-    setSelectedObserver('all');
-    setSelectedStatus('all');
-    setDateRange({ from: null, to: null });
-  };
+  const total = reports.length;
+  const drafts = reports.filter(r => r.status === 'draft').length;
+  const submitted = reports.filter(r => r.status === 'submitted').length;
+  const reviewed = reports.filter(r => r.status === 'reviewed').length;
+  const closed = reports.filter(r => r.status === 'closed').length;
+  const totalActions = reports.reduce((acc, r) => acc + (r.actionPlan?.length || 0), 0);
+  const completedActions = reports.reduce((acc, r) => acc + (r.actionPlan?.filter(a => a.status === 'Completed').length || 0), 0);
+  const highRisk = reports.filter(r => r.riskAssessment.made === 'No' || r.riskAssessment.identified === 'No' || r.riskAssessment.effective === 'No').length;
 
-  // Get unique observers
-  const uniqueObservers = useMemo(() => {
-    if (!stats) return [];
-    return Object.keys(stats.byObserver);
-  }, [stats]);
+  const hasFilters = search || sectionFilter !== 'all' || statusFilter !== 'all' || obsTypeFilter !== 'all' || dateFrom || dateTo;
 
-  // Expand/Collapse All (for table view)
-  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
-  
-  const toggleRowExpand = (id: string) => {
-    setExpandedRows(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
-  };
+  const heroStats = [
+    { label: 'Total', value: total, icon: <ClipboardList size={16} />, color: '#60a5fa' },
+    { label: 'Draft', value: drafts, icon: <FileText size={16} />, color: '#6b7280' },
+    { label: 'Submitted', value: submitted, icon: <Send size={16} />, color: '#3b82f6' },
+    { label: 'Reviewed', value: reviewed, icon: <CheckCircle size={16} />, color: '#a78bfa' },
+    { label: 'Closed', value: closed, icon: <CheckSquare size={16} />, color: '#10b981' },
+    { label: 'Actions', value: totalActions, icon: <Target size={16} />, color: '#f59e0b' },
+    { label: 'Completed', value: completedActions, icon: <CheckCircle size={16} />, color: '#34d399' },
+    { label: 'High Risk', value: highRisk, icon: <AlertTriangle size={16} />, color: '#ef4444' },
+  ];
 
-  const expandAll = () => {
-    setExpandedRows(new Set(reports.map(r => r.id)));
-  };
-
-  const collapseAll = () => {
-    setExpandedRows(new Set());
-  };
+  const tableColumns = ['Date', 'Observer', 'Worker', 'Task', 'Section', 'Type', 'Status', 'Risk', 'Actions'];
+  const tableRows = filtered.map(r => ({
+    id: r.id,
+    cells: [
+      fmtDate(r.date), r.observerName, r.workerName,
+      r.jobTaskObserved.slice(0, 30) + (r.jobTaskObserved.length > 30 ? '…' : ''),
+      r.section, r.observationType,
+      r.status.charAt(0).toUpperCase() + r.status.slice(1),
+      (r.riskAssessment.made === 'No' || r.riskAssessment.identified === 'No' || r.riskAssessment.effective === 'No') ? '⚠ High' : '—',
+    ],
+  }));
 
   return (
     <PageShell>
-      <TooltipProvider>
-        <main className="container mx-auto px-4 py-6 space-y-6">
-          {/* Page Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <nav className="flex items-center gap-1.5 text-xs text-[#6B7B8E] mb-2">
-                <span>Home</span>
-                <ChevronRight className="h-3 w-3" />
-                <span className="text-[#2A4D69] font-medium">PTO</span>
-              </nav>
-              <h1 className="text-3xl font-bold text-[#2A4D69] font-heading tracking-tight">Planned Task Observation</h1>
-              <p className="text-[#6B7B8E] mt-1">Complete PTO forms with risk assessment and action tracking.</p>
-            </div>
-            <div className="flex items-center gap-2 self-start">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="outline" size="icon" onClick={() => setViewMode('grid')} className={viewMode === 'grid' ? 'bg-accent' : ''}>
-                    <LayoutGrid className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Grid View</TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="outline" size="icon" onClick={() => setViewMode('table')} className={viewMode === 'table' ? 'bg-accent' : ''}>
-                    <TableIcon className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Table View</TooltipContent>
-              </Tooltip>
-              <Button onClick={() => {
-                setEditingReport(null);
-                setFormData({
-                  date: new Date().toISOString().split('T')[0],
-                  observerName: "",
-                  section: "Mechanical",
-                  deptSectionContractor: "",
-                  workerName: "",
-                  occupation: "",
-                  jobTaskObserved: "",
-                  sheqRefNo: "",
-                  observationType: "Initial",
-                  timeOnJob: { months: "", years: "" },
-                  notification: { toldInAdvance: "No" },
-                  reasons: {
-                    monthly: false,
-                    newEmployee: false,
-                    safetyAwareness: false,
-                    incidentFollowUp: false,
-                    trainingFollowUp: false,
-                    infrequentTask: false
-                  },
-                  procedures: {
-                    hasProcedure: "No",
-                    familiarWithProcedure: "No"
-                  },
-                  riskAssessment: {
-                    made: "No",
-                    identified: "No",
-                    effective: "No"
-                  },
-                  suggestedRemedies: {
-                    newProcedure: "No",
-                    reviseExisting: "No",
-                    differentEquipment: "No",
-                    engineeringControls: "No",
-                    retraining: "No",
-                    improvedPPE: "No",
-                    placementOfWorker: "No"
-                  },
-                  observationScope: "All",
-                  followUpNeeded: "No",
-                  actionPlan: [],
-                  status: "draft"
-                });
-                setIsFormModalOpen(true);
-              }} className="bg-[#2A4D69] hover:bg-[#1e3a52] text-white shadow-md">
-                <Plus className="h-4 w-4 mr-2" /> New PTO
-              </Button>
-            </div>
-          </div>
+      <main className="container mx-auto px-4 py-6 space-y-6">
 
-          {/* Stats Cards */}
-          {stats && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 mb-8">
-              <Card>
-                <CardContent className="p-4 text-center">
-                  <ClipboardList className="h-5 w-5 text-primary mx-auto mb-1" />
-                  <p className="text-2xl font-bold">{stats.total}</p>
-                  <p className="text-xs text-muted-foreground">Total</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-4 text-center">
-                  <FileText className="h-5 w-5 text-gray-600 mx-auto mb-1" />
-                  <p className="text-2xl font-bold">{stats.draftCount}</p>
-                  <p className="text-xs text-muted-foreground">Draft</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-4 text-center">
-                  <Send className="h-5 w-5 text-blue-600 mx-auto mb-1" />
-                  <p className="text-2xl font-bold">{stats.submittedCount}</p>
-                  <p className="text-xs text-muted-foreground">Submitted</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-4 text-center">
-                  <CheckCircle className="h-5 w-5 text-purple-600 mx-auto mb-1" />
-                  <p className="text-2xl font-bold">{stats.reviewedCount}</p>
-                  <p className="text-xs text-muted-foreground">Reviewed</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-4 text-center">
-                  <CheckSquare className="h-5 w-5 text-green-600 mx-auto mb-1" />
-                  <p className="text-2xl font-bold">{stats.closedCount}</p>
-                  <p className="text-xs text-muted-foreground">Closed</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-4 text-center">
-                  <Target className="h-5 w-5 text-yellow-600 mx-auto mb-1" />
-                  <p className="text-2xl font-bold">{stats.totalActions}</p>
-                  <p className="text-xs text-muted-foreground">Actions</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-4 text-center">
-                  <CheckCircle className="h-5 w-5 text-green-600 mx-auto mb-1" />
-                  <p className="text-2xl font-bold">{stats.completedActions}</p>
-                  <p className="text-xs text-muted-foreground">Completed</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-4 text-center">
-                  <AlertTriangle className="h-5 w-5 text-red-600 mx-auto mb-1" />
-                  <p className="text-2xl font-bold">{stats.highRiskCount}</p>
-                  <p className="text-xs text-muted-foreground">High Risk</p>
-                </CardContent>
-              </Card>
-            </div>
-          )}
-
-          {/* Section Distribution */}
-          {stats && stats.total > 0 && (
-            <Card className="mb-8">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Distribution by Section</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex gap-4">
-                  {SECTIONS.map(section => {
-                    const Icon = SECTION_ICONS[section];
-                    const variant = SECTION_VARIANTS[section];
-                    const count = stats.bySection[section] || 0;
-                    const percentage = stats.total ? Math.round((count / stats.total) * 100) : 0;
-                    
-                    return (
-                      <div key={section} className="flex-1">
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <Icon className={`h-4 w-4 ${variant.icon}`} />
-                            <span className="text-sm font-medium">{section}</span>
-                          </div>
-                          <span className="text-sm text-muted-foreground">{count} ({percentage}%)</span>
-                        </div>
-                        <Progress value={percentage} className="h-2" />
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Search — always visible */}
-          <div className="relative bg-white rounded-lg border shadow-sm p-3 mb-3">
-            <Search className="absolute left-5 top-1/2 transform -translate-y-1/2 h-4 w-4 text-[#6B7B8E]" />
-            <Input
-              placeholder="Search by observer, worker, task..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-10 bg-white border-0 shadow-none focus-visible:ring-0"
-            />
-            {searchTerm && (
-              <button
-                type="button"
-                aria-label="Clear search"
-                onClick={() => setSearchTerm('')}
-                className="absolute right-5 top-1/2 transform -translate-y-1/2 text-[#6B7B8E] hover:text-[#2A4D69]"
-              >
-                <X className="h-4 w-4" />
+        <SafetyHero
+          breadcrumb={[{ label: 'Home' }, { label: 'PTO' }]}
+          title="Planned Task Observation"
+          subtitle="Complete PTO forms with risk assessment and action tracking."
+          accent="#60a5fa"
+          stats={heroStats}
+          actions={
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <button onClick={loadData} title="Refresh"
+                style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 8, padding: '7px 10px', cursor: 'pointer', color: 'rgba(255,255,255,0.7)' }}>
+                <RefreshCw size={15} />
               </button>
-            )}
-          </div>
-
-          {/* Expand/Collapse All (for table view) — outside filters */}
-          {viewMode === 'table' && (
-            <div className="flex gap-2 mb-3">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="outline" size="sm" onClick={expandAll}>
-                    <ChevronsDown className="h-4 w-4 mr-2" />
-                    Expand All
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Expand all rows</TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="outline" size="sm" onClick={collapseAll}>
-                    <ChevronsUp className="h-4 w-4 mr-2" />
-                    Collapse All
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Collapse all rows</TooltipContent>
-              </Tooltip>
+              <button onClick={() => setViewMode('grid')} title="Grid view"
+                style={{ background: viewMode === 'grid' ? 'rgba(96,165,250,0.18)' : 'rgba(255,255,255,0.07)', border: `1px solid ${viewMode === 'grid' ? '#60a5fa' : 'rgba(255,255,255,0.12)'}`, borderRadius: 8, padding: '7px 10px', cursor: 'pointer', color: viewMode === 'grid' ? '#60a5fa' : 'rgba(255,255,255,0.6)' }}>
+                <LayoutGrid size={15} />
+              </button>
+              <button onClick={() => setViewMode('table')} title="Table view"
+                style={{ background: viewMode === 'table' ? 'rgba(96,165,250,0.18)' : 'rgba(255,255,255,0.07)', border: `1px solid ${viewMode === 'table' ? '#60a5fa' : 'rgba(255,255,255,0.12)'}`, borderRadius: 8, padding: '7px 10px', cursor: 'pointer', color: viewMode === 'table' ? '#60a5fa' : 'rgba(255,255,255,0.6)' }}>
+                <TableIcon size={15} />
+              </button>
+              <AddButton label="New PTO" onClick={() => { setEditing(null); setFormOpen(true); }} color="#60a5fa" />
             </div>
-          )}
+          }
+        />
 
-          {/* Advanced Filters */}
-          <CollapsibleSection
-            title="Filters"
-            description="Filter observations by section, observer, status, and date range"
-            badge={
-              (() => {
-                const count = [
-                  selectedSection !== 'all',
-                  selectedObserver !== 'all',
-                  selectedStatus !== 'all',
-                  !!dateRange.from,
-                  !!dateRange.to,
-                ].filter(Boolean).length;
-                return count > 0
-                  ? <Badge className="ml-2 bg-[#2A4D69] text-white text-xs px-2 py-0.5">{count}</Badge>
-                  : null;
-              })()
-            }
-            defaultOpen={false}
-          >
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
-              {/* Section Filter */}
-              <div className="space-y-2">
-                <Label className="text-[#2A4D69] font-medium">Section</Label>
-                <Select value={selectedSection} onValueChange={setSelectedSection}>
-                  <SelectTrigger className="bg-[#F0F5F9]">
-                    <SelectValue placeholder="All Sections" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Sections</SelectItem>
-                    {SECTIONS.map(section => (
-                      <SelectItem key={section} value={section}>{section}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+        <SafetyControls
+          search={search}
+          onSearch={setSearch}
+          searchPlaceholder="Search by observer, worker, task..."
+          filters={
+            <>
+              <FilterPills label="Section" value={sectionFilter} onChange={setSectionFilter}
+                pills={[{ label: 'All', value: 'all' }, { label: 'Mechanical', value: 'Mechanical' }, { label: 'Electrical', value: 'Electrical' }]} />
+              <FilterPills label="Status" value={statusFilter} onChange={setStatusFilter}
+                pills={[{ label: 'All', value: 'all' }, { label: 'Draft', value: 'draft' }, { label: 'Submitted', value: 'submitted' }, { label: 'Reviewed', value: 'reviewed' }, { label: 'Closed', value: 'closed' }]} />
+              <FilterPills label="Type" value={obsTypeFilter} onChange={setObsTypeFilter}
+                pills={[{ label: 'All', value: 'all' }, { label: 'Initial', value: 'Initial' }, { label: 'Follow up', value: 'Follow up' }]} />
+              <DateRangeFilter from={dateFrom} to={dateTo} onFrom={setDateFrom} onTo={setDateTo} />
+              {hasFilters && <ClearFiltersButton onClick={clearFilters} />}
+            </>
+          }
+          resultCount={filtered.length}
+          totalCount={total}
+        />
 
-              {/* Observer Filter */}
-              <div className="space-y-2">
-                <Label className="text-[#2A4D69] font-medium">Observer</Label>
-                <Select value={selectedObserver} onValueChange={setSelectedObserver}>
-                  <SelectTrigger className="bg-[#F0F5F9]">
-                    <SelectValue placeholder="All Observers" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Observers</SelectItem>
-                    {uniqueObservers.map(observer => (
-                      <SelectItem key={observer} value={observer}>{observer}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Status Filter */}
-              <div className="space-y-2">
-                <Label className="text-[#2A4D69] font-medium">Status</Label>
-                <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                  <SelectTrigger className="bg-[#F0F5F9]">
-                    <SelectValue placeholder="All Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="draft">Draft</SelectItem>
-                    <SelectItem value="submitted">Submitted</SelectItem>
-                    <SelectItem value="reviewed">Reviewed</SelectItem>
-                    <SelectItem value="closed">Closed</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Date Range Filter */}
-              <div className="space-y-2">
-                <Label className="text-[#2A4D69] font-medium">Start Date</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full bg-[#F0F5F9] justify-start">
-                      <Calendar className="h-4 w-4 mr-2 text-[#6B7B8E]" />
-                      <span className="text-[#6B7B8E]">{dateRange.from ? format(dateRange.from, 'LLL dd, y') : 'Start'}</span>
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <CalendarComponent
-                      mode="single"
-                      selected={dateRange.from || undefined}
-                      onSelect={(date) => setDateRange(prev => ({ ...prev, from: date || null }))}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-[#2A4D69] font-medium">End Date</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full bg-[#F0F5F9] justify-start">
-                      <Calendar className="h-4 w-4 mr-2 text-[#6B7B8E]" />
-                      <span className="text-[#6B7B8E]">{dateRange.to ? format(dateRange.to, 'LLL dd, y') : 'End'}</span>
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <CalendarComponent
-                      mode="single"
-                      selected={dateRange.to || undefined}
-                      onSelect={(date) => setDateRange(prev => ({ ...prev, to: date || null }))}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-            </div>
-
-            <div className="mt-4 flex items-center justify-between">
-              <span className="text-sm text-[#6B7B8E]">
-                Showing {filteredReports.length} of {reports.length} reports
-              </span>
-              {(selectedSection !== 'all' || selectedObserver !== 'all' ||
-                selectedStatus !== 'all' || dateRange.from || dateRange.to) && (
-                <Button variant="ghost" onClick={clearFilters} className="text-[#6B7B8E] hover:text-[#2A4D69]">
-                  <FilterX className="h-4 w-4 mr-2" />
-                  Clear Filters
-                </Button>
-              )}
-            </div>
-          </CollapsibleSection>
-
-          {/* Results Count — always visible */}
-          <div className="mt-2 mb-6 text-sm text-[#6B7B8E]">
-            Showing {filteredReports.length} of {reports.length} reports
-          </div>
-
-          {/* Loading State */}
-          {loading && (
-            <div className="flex justify-center items-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
-          )}
-
-          {/* Error State */}
-          {error && !loading && (
-            <Card className="bg-destructive/10 border-destructive/20 mb-6">
-              <CardContent className="p-6 flex items-center gap-3">
-                <AlertTriangle className="h-5 w-5 text-destructive" />
-                <div>
-                  <p className="font-medium text-destructive">Error Loading Data</p>
-                  <p className="text-sm text-destructive/80 mt-1">{error}</p>
-                </div>
-                <Button variant="outline" size="sm" onClick={loadData} className="ml-auto">
-                  <RefreshCw className="h-4 w-4 mr-2" /> Retry
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Empty State */}
-          {!loading && !error && filteredReports.length === 0 && (
-            <Card className="py-20">
-              <CardContent className="text-center">
-                <ClipboardList className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-medium mb-2">No PTO reports found</h3>
-                <p className="text-muted-foreground mb-6">
-                  {reports.length === 0 
-                    ? "Get started by creating your first Planned Task Observation."
-                    : "Try adjusting your filters to see more results."}
-                </p>
-                {reports.length === 0 ? (
-                  <Button onClick={() => setIsFormModalOpen(true)}>
-                    <Plus className="h-4 w-4 mr-2" /> Create First PTO
-                  </Button>
-                ) : (
-                  <Button variant="outline" onClick={clearFilters}>
-                    <FilterX className="h-4 w-4 mr-2" /> Clear Filters
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Reports Grid/Table */}
-          {!loading && !error && filteredReports.length > 0 && (
-            viewMode === 'grid' ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                {filteredReports.map((report, index) => (
-                  <PTOCard
-                    key={report.id}
-                    report={report}
-                    index={index}
-                    onView={(r) => {
-                      setSelectedReport(r);
-                      setIsDetailModalOpen(true);
-                    }}
-                    onEdit={handleEdit}
-                    onDelete={(id) => setDeleteConfirm(id)}
-                    onStatusChange={handleStatusChange}
-                  />
-                ))}
-              </div>
-            ) : (
-              <Card className="overflow-hidden">
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-10"></TableHead>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Observer</TableHead>
-                        <TableHead>Worker</TableHead>
-                        <TableHead>Task</TableHead>
-                        <TableHead>Section</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Actions</TableHead>
-                        <TableHead>Risk</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredReports.map((report) => {
-                        const totalActions = report.actionPlan?.length || 0;
-                        const completedActions = report.actionPlan?.filter(a => a.status === 'Completed').length || 0;
-                        const hasRisks = report.riskAssessment.made === 'No' || 
-                                       report.riskAssessment.identified === 'No' || 
-                                       report.riskAssessment.effective === 'No';
-                        const statusVariant = STATUS_VARIANTS[report.status];
-                        
-                        return (
-                          <React.Fragment key={report.id}>
-                            <TableRow
-                              className="hover:bg-muted/50 cursor-pointer"
-                              onClick={() => {
-                                setSelectedReport(report);
-                                setIsDetailModalOpen(true);
-                              }}
-                            >
-                              <TableCell onClick={(e) => e.stopPropagation()}>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-8 px-2 gap-1 text-xs"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        toggleRowExpand(report.id);
-                                      }}
-                                    >
-                                      {expandedRows.has(report.id) ? (
-                                        <ChevronUp className="h-3 w-3" />
-                                      ) : (
-                                        <ChevronDown className="h-3 w-3" />
-                                      )}
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    {expandedRows.has(report.id) ? 'Collapse' : 'Expand'}
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TableCell>
-                              <TableCell>{formatDate(report.date)}</TableCell>
-                              <TableCell className="font-medium">{report.observerName}</TableCell>
-                              <TableCell>{report.workerName}</TableCell>
-                              <TableCell className="max-w-[200px] truncate">{report.jobTaskObserved}</TableCell>
-                              <TableCell>
-                                <Badge variant="outline" className={SECTION_VARIANTS[report.section].bg}>
-                                  {React.createElement(SECTION_ICONS[report.section], { className: "h-3 w-3 mr-1" })}
-                                  {report.section}
-                                </Badge>
-                              </TableCell>
-                              <TableCell>
-                                <Badge className={OBSERVATION_VARIANTS[report.observationType].bg}>
-                                  {report.observationType}
-                                </Badge>
-                              </TableCell>
-                              <TableCell>
-                                <Badge className={`${statusVariant.bg} ${statusVariant.color} border-0`}>
-                                  {statusVariant.label}
-                                </Badge>
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex items-center gap-1">
-                                  <Badge className="bg-yellow-100 text-yellow-700">
-                                    {totalActions - completedActions}
-                                  </Badge>
-                                  <Badge className="bg-green-100 text-green-700">
-                                    {completedActions}
-                                  </Badge>
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                {hasRisks ? (
-                                  <Badge className="bg-red-100 text-red-700">
-                                    <AlertTriangle className="h-3 w-3 mr-1" />
-                                    Risk
-                                  </Badge>
-                                ) : (
-                                  <Badge className="bg-green-100 text-green-700">
-                                    <CheckCircle className="h-3 w-3 mr-1" />
-                                    OK
-                                  </Badge>
-                                )}
-                              </TableCell>
-                              <TableCell className="text-right space-x-1" onClick={(e) => e.stopPropagation()}>
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                                      <MoreVertical className="h-4 w-4" />
-                                    </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end">
-                                    <DropdownMenuItem onClick={() => {
-                                      setSelectedReport(report);
-                                      setIsDetailModalOpen(true);
-                                    }}>
-                                      <Eye className="h-4 w-4 mr-2" /> View
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleEdit(report)}>
-                                      <Pencil className="h-4 w-4 mr-2" /> Edit
-                                    </DropdownMenuItem>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem onClick={() => handleStatusChange(report.id, 'draft')}>
-                                      <FileText className="h-4 w-4 mr-2" /> Draft
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleStatusChange(report.id, 'submitted')}>
-                                      <Send className="h-4 w-4 mr-2" /> Submit
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleStatusChange(report.id, 'reviewed')}>
-                                      <CheckCircle className="h-4 w-4 mr-2" /> Review
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleStatusChange(report.id, 'closed')}>
-                                      <CheckSquare className="h-4 w-4 mr-2" /> Close
-                                    </DropdownMenuItem>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem onClick={() => setDeleteConfirm(report.id)} className="text-destructive">
-                                      <Trash2 className="h-4 w-4 mr-2" /> Delete
-                                    </DropdownMenuItem>
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              </TableCell>
-                            </TableRow>
-                            {expandedRows.has(report.id) && (
-                              <TableRow className="bg-muted/30">
-                                <TableCell colSpan={11} className="p-4">
-                                  <div className="space-y-3">
-                                    <h4 className="font-medium">Action Plan:</h4>
-                                    {report.actionPlan && report.actionPlan.length > 0 ? (
-                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                        {report.actionPlan.map((action, idx) => {
-                                          const actionStatus = STATUS_VARIANTS[action.status];
-                                          return (
-                                            <div key={action.id} className="bg-background p-3 rounded-lg border">
-                                              <div className="flex items-start justify-between mb-2">
-                                                <span className="text-xs font-medium text-muted-foreground">Action #{idx + 1}</span>
-                                                <Badge className={`${actionStatus.bg} ${actionStatus.color} border-0`}>
-                                                  {action.status}
-                                                </Badge>
-                                              </div>
-                                              <p className="text-sm mb-2">{action.action}</p>
-                                              <div className="flex gap-4 text-xs text-muted-foreground">
-                                                <span>By: {action.byWhom}</span>
-                                                <span>Due: {formatDate(action.byWhen)}</span>
-                                              </div>
-                                            </div>
-                                          );
-                                        })}
-                                      </div>
-                                    ) : (
-                                      <p className="text-sm text-muted-foreground">No action items</p>
-                                    )}
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            )}
-                          </React.Fragment>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </div>
-              </Card>
-            )
-          )}
-
-          {/* Form Modal */}
-          <Dialog open={isFormModalOpen} onOpenChange={setIsFormModalOpen}>
-            <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden p-0">
-              <DialogHeader className="p-6 pb-0">
-                <DialogTitle className="text-2xl font-bold flex items-center gap-2">
-                  <ClipboardList className="h-6 w-6 text-primary" />
-                  {editingReport ? 'Edit PTO Report' : 'New Planned Task Observation'}
-                </DialogTitle>
-                <DialogDescription>
-                  Complete the full PTO form below. Fields marked with * are required.
-                </DialogDescription>
-              </DialogHeader>
-
-              <ScrollArea className="max-h-[calc(90vh-180px)] px-6">
-                <form onSubmit={handleSubmit} className="space-y-6 py-4">
-                  {/* Section 1: Task Information */}
-                  <Card>
-                    <CardHeader className="bg-muted/30 border-b">
-                      <CardTitle className="text-sm uppercase tracking-widest flex items-center gap-2">
-                        <FileText className="h-4 w-4" />
-                        Section 1: Task Information
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6">
-                      <div className="space-y-2">
-                        <Label>Date *</Label>
-                        <div className="relative">
-                          <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                          <Input 
-                            type="date" 
-                            value={formData.date} 
-                            onChange={e => setFormData({...formData, date: e.target.value})}
-                            className="pl-9"
-                          />
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Observer Name *</Label>
-                        <Input 
-                          required 
-                          value={formData.observerName} 
-                          onChange={e => setFormData({...formData, observerName: e.target.value})}
-                          placeholder="Full name"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Section *</Label>
-                        <Select 
-                          value={formData.section} 
-                          onValueChange={(v: SectionType) => setFormData({...formData, section: v})}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {SECTIONS.map(section => (
-                              <SelectItem key={section} value={section}>{section}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Dept/Section/Contractor</Label>
-                        <Input 
-                          value={formData.deptSectionContractor} 
-                          onChange={e => setFormData({...formData, deptSectionContractor: e.target.value})}
-                          placeholder="Department or contractor"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Worker Observed *</Label>
-                        <Input 
-                          required 
-                          value={formData.workerName} 
-                          onChange={e => setFormData({...formData, workerName: e.target.value})}
-                          placeholder="Worker name"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Occupation</Label>
-                        <Input 
-                          value={formData.occupation} 
-                          onChange={e => setFormData({...formData, occupation: e.target.value})}
-                          placeholder="Job title"
-                        />
-                      </div>
-                      <div className="space-y-2 md:col-span-2">
-                        <Label>Job/Task Observed *</Label>
-                        <Input 
-                          required 
-                          value={formData.jobTaskObserved} 
-                          onChange={e => setFormData({...formData, jobTaskObserved: e.target.value})}
-                          placeholder="Describe the task"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>SHEQ Procedure Ref No.</Label>
-                        <Input 
-                          value={formData.sheqRefNo} 
-                          onChange={e => setFormData({...formData, sheqRefNo: e.target.value})}
-                          placeholder="SOP-XXX"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Time on Job (Months)</Label>
-                        <Input 
-                          type="number"
-                          value={formData.timeOnJob?.months} 
-                          onChange={e => setFormData({
-                            ...formData, 
-                            timeOnJob: { ...formData.timeOnJob!, months: e.target.value }
-                          })}
-                          placeholder="Months"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Time on Job (Years)</Label>
-                        <Input 
-                          type="number"
-                          value={formData.timeOnJob?.years} 
-                          onChange={e => setFormData({
-                            ...formData, 
-                            timeOnJob: { ...formData.timeOnJob!, years: e.target.value }
-                          })}
-                          placeholder="Years"
-                        />
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Section 2: Observation Context */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="text-sm flex items-center gap-2">
-                          <Bell className="h-4 w-4" />
-                          Notification & Type
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="space-y-2">
-                          <Label>Type of Observation</Label>
-                          <RadioGroup 
-                            value={formData.observationType} 
-                            onValueChange={(v: ObservationType) => setFormData({...formData, observationType: v})}
-                            className="flex gap-4"
-                          >
-                            {OBSERVATION_TYPES.map(type => (
-                              <div key={type} className="flex items-center space-x-2">
-                                <RadioGroupItem value={type} id={`type-${type}`} />
-                                <Label htmlFor={`type-${type}`}>{type}</Label>
-                              </div>
-                            ))}
-                          </RadioGroup>
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Told in Advance?</Label>
-                          <RadioGroup 
-                            value={formData.notification?.toldInAdvance} 
-                            onValueChange={(v: YesNoType) => setFormData({
-                              ...formData, 
-                              notification: { toldInAdvance: v }
-                            })}
-                            className="flex gap-4"
-                          >
-                            {YES_NO_OPTIONS.map(option => (
-                              <div key={option} className="flex items-center space-x-2">
-                                <RadioGroupItem value={option} id={`advance-${option}`} />
-                                <Label htmlFor={`advance-${option}`}>{option}</Label>
-                              </div>
-                            ))}
-                          </RadioGroup>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="text-sm flex items-center gap-2">
-                          <History className="h-4 w-4" />
-                          Reasons for Observation
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-3">
-                        {[
-                          { key: 'monthly', label: 'Monthly Observation' },
-                          { key: 'newEmployee', label: 'New Employee' },
-                          { key: 'safetyAwareness', label: 'Safety Awareness' },
-                          { key: 'incidentFollowUp', label: 'Incident Follow up' },
-                          { key: 'trainingFollowUp', label: 'Training Follow up' },
-                          { key: 'infrequentTask', label: 'Infrequently Performed' }
-                        ].map(({ key, label }) => (
-                          <div key={key} className="flex items-center space-x-2">
-                            <Checkbox 
-                              id={key}
-                              checked={formData.reasons?.[key as keyof Reasons]}
-                              onCheckedChange={(checked) => 
-                                setFormData({
-                                  ...formData,
-                                  reasons: { 
-                                    ...formData.reasons!, 
-                                    [key]: checked === true 
-                                  }
-                                })
-                              }
-                            />
-                            <Label htmlFor={key} className="text-sm cursor-pointer">{label}</Label>
-                          </div>
-                        ))}
-                      </CardContent>
-                    </Card>
-                  </div>
-
-                  {/* Section 3: Risk Assessment */}
-                  <Card className="border-t-4 border-t-primary">
-                    <CardHeader>
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <ShieldAlert className="h-5 w-5" />
-                        Risk Assessment & Procedure Verification
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <RiskRow 
-                        label="Is there a SHEQ Work Procedure for this job?"
-                        value={formData.procedures?.hasProcedure || 'No'}
-                        onChange={(v) => setFormData({
-                          ...formData,
-                          procedures: { ...formData.procedures!, hasProcedure: v }
-                        })}
-                      />
-                      <RiskRow 
-                        label="Is the employee familiar with the procedure?"
-                        value={formData.procedures?.familiarWithProcedure || 'No'}
-                        onChange={(v) => setFormData({
-                          ...formData,
-                          procedures: { ...formData.procedures!, familiarWithProcedure: v }
-                        })}
-                      />
-                      <RiskRow 
-                        label="HAS THE RISK ASSESSMENT BEEN MADE?"
-                        value={formData.riskAssessment?.made || 'No'}
-                        onChange={(v) => setFormData({
-                          ...formData,
-                          riskAssessment: { ...formData.riskAssessment!, made: v }
-                        })}
-                      />
-                      <RiskRow 
-                        label="HAS THE EMPLOYEE IDENTIFIED HAZARDS/RISKS/CONTROLS?"
-                        value={formData.riskAssessment?.identified || 'No'}
-                        onChange={(v) => setFormData({
-                          ...formData,
-                          riskAssessment: { ...formData.riskAssessment!, identified: v }
-                        })}
-                      />
-                      <RiskRow 
-                        label="ARE THE RECOMMENDED CONTROLS EFFECTIVE?"
-                        value={formData.riskAssessment?.effective || 'No'}
-                        onChange={(v) => setFormData({
-                          ...formData,
-                          riskAssessment: { ...formData.riskAssessment!, effective: v }
-                        })}
-                      />
-                    </CardContent>
-                  </Card>
-
-                  {/* Section 4: Suggested Remedies */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-sm flex items-center gap-2">
-                        <Settings className="h-4 w-4" />
-                        Suggested Remedies
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {[
-                          { key: 'newProcedure', label: 'New Procedure' },
-                          { key: 'reviseExisting', label: 'Revise Existing' },
-                          { key: 'differentEquipment', label: 'Different Equipment' },
-                          { key: 'engineeringControls', label: 'Engineering Controls' },
-                          { key: 'retraining', label: 'Retraining' },
-                          { key: 'improvedPPE', label: 'Improved PPE' },
-                          { key: 'placementOfWorker', label: 'Placement of Worker' }
-                        ].map(({ key, label }) => (
-                          <div key={key} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-                            <Label className="text-sm">{label}</Label>
-                            <RadioGroup 
-                              value={formData.suggestedRemedies?.[key as keyof SuggestedRemedies] || 'No'}
-                              onValueChange={(v: YesNoType) => 
-                                setFormData({
-                                  ...formData,
-                                  suggestedRemedies: { 
-                                    ...formData.suggestedRemedies!, 
-                                    [key]: v 
-                                  }
-                                })
-                              }
-                              className="flex gap-3"
-                            >
-                              {YES_NO_OPTIONS.map(option => (
-                                <div key={option} className="flex items-center space-x-1">
-                                  <RadioGroupItem value={option} id={`${key}-${option}`} />
-                                  <Label htmlFor={`${key}-${option}`} className="text-xs">{option}</Label>
-                                </div>
-                              ))}
-                            </RadioGroup>
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Section 5: Scope & Follow-up */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="text-sm">Observation Scope</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <RadioGroup 
-                          value={formData.observationScope} 
-                          onValueChange={(v: 'All' | 'Partial') => setFormData({...formData, observationScope: v})}
-                          className="flex gap-4"
-                        >
-                          <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="All" id="scope-all" />
-                            <Label htmlFor="scope-all">All</Label>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="Partial" id="scope-partial" />
-                            <Label htmlFor="scope-partial">Partial</Label>
-                          </div>
-                        </RadioGroup>
-                      </CardContent>
-                    </Card>
-
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="text-sm">Follow-up Needed</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <RadioGroup 
-                          value={formData.followUpNeeded} 
-                          onValueChange={(v: YesNoType) => setFormData({...formData, followUpNeeded: v})}
-                          className="flex gap-4"
-                        >
-                          {YES_NO_OPTIONS.map(option => (
-                            <div key={option} className="flex items-center space-x-2">
-                              <RadioGroupItem value={option} id={`followup-${option}`} />
-                              <Label htmlFor={`followup-${option}`}>{option}</Label>
-                            </div>
-                          ))}
-                        </RadioGroup>
-                      </CardContent>
-                    </Card>
-                  </div>
-
-                  {/* Section 6: Action Plan */}
-                  <Card>
-                    <CardHeader className="flex flex-row items-center justify-between">
-                      <div>
-                        <CardTitle className="text-lg flex items-center gap-2">
-                          <Target className="h-5 w-5" />
-                          Action Plan
-                        </CardTitle>
-                        <CardDescription>
-                          Describe follow-up actions, procedures, or equipment improvements.
-                        </CardDescription>
-                      </div>
-                      <Button type="button" variant="outline" size="sm" onClick={addActionItem}>
-                        <Plus className="h-4 w-4 mr-2" /> Add Action
-                      </Button>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      {formData.actionPlan && formData.actionPlan.length > 0 ? (
-                        formData.actionPlan.map((item, index) => (
-                          <ActionPlanItemComponent
-                            key={item.id}
-                            item={item}
-                            index={index}
-                            onChange={updateActionItem}
-                            onRemove={removeActionItem}
-                          />
-                        ))
-                      ) : (
-                        <div className="text-center py-8 bg-muted/30 rounded-lg">
-                          <Target className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                          <p className="text-sm text-muted-foreground">No action items added.</p>
-                          <Button type="button" variant="outline" size="sm" onClick={addActionItem} className="mt-4">
-                            <Plus className="h-4 w-4 mr-2" /> Add Your First Action
-                          </Button>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-
-                  {/* Form Actions */}
-                  <div className="flex justify-end gap-2 pt-4">
-                    <Button type="button" variant="outline" onClick={() => setIsFormModalOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button type="submit" disabled={loading}>
-                      {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                      <Save className="h-4 w-4 mr-2" />
-                      {editingReport ? 'Update' : 'Submit'} Report
-                    </Button>
-                  </div>
-                </form>
-              </ScrollArea>
-            </DialogContent>
-          </Dialog>
-
-          {/* Detail Modal */}
-          <PTODetailModal
-            report={selectedReport}
-            open={isDetailModalOpen}
-            onClose={() => {
-              setIsDetailModalOpen(false);
-              setSelectedReport(null);
-            }}
-            onEdit={(r) => {
-              setIsDetailModalOpen(false);
-              handleEdit(r);
-            }}
-            onDelete={(id) => {
-              setIsDetailModalOpen(false);
-              setDeleteConfirm(id);
-            }}
-            onStatusChange={handleStatusChange}
+        {loading ? (
+          <LoadingState />
+        ) : filtered.length === 0 ? (
+          <EmptyState
+            icon={<ClipboardList size={40} />}
+            title="No PTO reports found"
+            message={total === 0 ? 'Start by creating your first Planned Task Observation.' : 'Try adjusting your filters.'}
+            action={total === 0
+              ? <AddButton label="Create First PTO" onClick={() => { setEditing(null); setFormOpen(true); }} color="#60a5fa" />
+              : <ClearFiltersButton onClick={clearFilters} />}
           />
+        ) : viewMode === 'grid' ? (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
+            {filtered.map((r, i) => (
+              <PTOCard key={r.id} report={r} index={i}
+                onView={r => { setSelectedReport(r); setDetailOpen(true); }}
+                onEdit={handleEdit}
+                onDelete={id => setDeleteTarget(id)}
+              />
+            ))}
+          </div>
+        ) : (
+          <SafetyTable
+            columns={tableColumns}
+            rows={tableRows}
+            onRowClick={id => { const r = reports.find(x => x.id === id); if (r) { setSelectedReport(r); setDetailOpen(true); } }}
+            renderActions={id => {
+              const r = reports.find(x => x.id === id);
+              if (!r) return null;
+              return <RowActions onEdit={() => handleEdit(r)} onDelete={() => setDeleteTarget(id)} />;
+            }}
+          />
+        )}
 
-          {/* Delete Confirmation */}
-          <Dialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
-                  <AlertTriangle className="h-5 w-5 text-destructive" />
-                  Confirm Deletion
-                </DialogTitle>
-                <DialogDescription>
-                  Are you sure you want to delete this PTO report? This action cannot be undone.
-                </DialogDescription>
-              </DialogHeader>
-              <DialogFooter className="gap-2">
-                <Button variant="outline" onClick={() => setDeleteConfirm(null)}>
-                  Cancel
-                </Button>
-                <Button
-                  variant="destructive"
-                  onClick={() => deleteConfirm && handleDelete(deleteConfirm)}
-                >
-                  Delete
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </main>
-      </TooltipProvider>
+        <PTODetailModal
+          report={selectedReport}
+          open={detailOpen}
+          onClose={() => { setDetailOpen(false); setSelectedReport(null); }}
+          onEdit={r => { setDetailOpen(false); handleEdit(r); }}
+          onDelete={id => { setDetailOpen(false); setDeleteTarget(id); }}
+          onStatusChange={handleStatusChange}
+        />
+
+        <PTOFormModal
+          open={formOpen}
+          editing={editing}
+          onClose={() => { setFormOpen(false); setEditing(null); }}
+          onSave={handleSave}
+          saving={saving}
+        />
+
+        <SafetyModal open={!!deleteTarget} onClose={() => setDeleteTarget(null)}
+          title="Confirm Deletion" subtitle="This action cannot be undone." maxWidth={420}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0 20px', color: 'rgba(255,255,255,0.7)', fontSize: 14 }}>
+            <AlertTriangle size={20} style={{ color: '#f87171', flexShrink: 0 }} />
+            Are you sure you want to delete this PTO report?
+          </div>
+          <ModalActions onCancel={() => setDeleteTarget(null)}
+            onSave={() => deleteTarget && handleDelete(deleteTarget)}
+            saveLabel="Delete" saveColor="#ef4444" />
+        </SafetyModal>
+
+      </main>
     </PageShell>
   );
 }

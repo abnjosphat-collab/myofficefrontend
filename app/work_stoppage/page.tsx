@@ -1,81 +1,29 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo } from 'react';
 import {
-  Octagon, Send, Search, FilterX, BarChart3,
-  Calendar, Clock, AlertCircle, Building2, User,
-  ClipboardList, ShieldAlert, Plus, Trash2, CheckCircle2,
-  Eye, Pencil, ChevronDown, ChevronUp, Loader2,
-  Users, FileText, MapPin, RefreshCw, X, CheckCircle,
-  Clock3, AlertTriangle, Info, Award, Target, TrendingUp,
-  LayoutGrid, Table as TableIcon, Maximize2, Minimize2,
-  Download, HardHat, Wrench, Zap, Droplets, Flame, Shield,
-  Settings, Star, Gauge, Activity, Flag, AlertOctagon,
-  CircleDot, Circle, CircleCheck, CircleEllipsis, CircleOff,
-  CalendarRange, UserCircle, Filter, PieChart, ChevronsDown, ChevronsUp,
-  MoreHorizontal, MoreVertical, RotateCcw, CheckCircle as CheckCircleSolid,
-  XCircle, PlayCircle, PauseCircle, ChevronRight
-} from "lucide-react";
+  Octagon, Plus, Trash2, Eye, Pencil,
+  AlertTriangle, CheckCircle, Clock3, AlertCircle,
+  Target, ClipboardList, UserCircle, Building2,
+  LayoutGrid, Table as TableIcon, Maximize2, Minimize2, Loader2,
+  Wrench, Zap,
+} from 'lucide-react';
 import { PageShell } from '@/components/PageShell';
+import { toast } from 'sonner';
+import {
+  safetyFetch, glassInput, glassLabel, glassTextarea, glassSelect,
+  StatusBadge, SectionBadge,
+  LoadingState, EmptyState,
+  SafetyHero, SafetyControls, SafetySearchBar, FilterPills,
+  DateRangeFilter, ClearFiltersButton,
+  SafetyPanel, SafetyTable, SafetyModal, FormField, ModalActions,
+  RowActions, TabBar, AddButton,
+} from '@/components/safety';
 
-// Shadcn/ui imports
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { toast } from "sonner";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Separator } from "@/components/ui/separator";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import { format } from "date-fns";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Progress } from "@/components/ui/progress";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Switch } from "@/components/ui/switch";
-import { CollapsibleSection } from '@/components/CollapsibleSection';
+// ─── TYPES ────────────────────────────────────────────────────────────────────
 
-// =============== CONSTANTS ===============
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-
-// =============== TYPES ===============
 type SectionType = 'Mechanical' | 'Electrical' | 'General';
-type StatusType = 'Pending' | 'In Progress' | 'Completed';
-
-// Type guard for StatusType
-const isValidStatus = (status: string): status is StatusType => {
-  return ['Pending', 'In Progress', 'Completed'].includes(status);
-};
+type ActionStatus = 'Pending' | 'In Progress' | 'Completed';
 
 interface CorrectiveAction {
   id: string;
@@ -83,7 +31,7 @@ interface CorrectiveAction {
   action: string;
   byWho: string;
   byWhen: string;
-  status: StatusType;
+  status: ActionStatus;
   completedDate?: string;
   remarks?: string;
 }
@@ -103,2452 +51,868 @@ interface WorkStoppageReport {
   submittedAt: string;
 }
 
-interface WorkStoppageStats {
-  total: number;
-  bySection: Record<SectionType, number>;
-  byInspector: Record<string, number>;
-  pendingActions: number;
-  inProgressActions: number;
-  completedActions: number;
-  criticalFindings: number;
-  avgCompletionTime?: number;
-  complianceRate?: number;
-}
+// ─── CONSTANTS ────────────────────────────────────────────────────────────────
 
-// =============== CONSTANTS ===============
 const SECTIONS: SectionType[] = ['Mechanical', 'Electrical', 'General'];
-
-const SECTION_COLORS: Record<SectionType, string> = {
-  Mechanical: 'bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-200',
-  Electrical: 'bg-yellow-100 text-yellow-800 border-yellow-200 hover:bg-yellow-200',
-  General: 'bg-gray-100 text-gray-800 border-gray-200 hover:bg-gray-200'
+const ACTION_STATUSES: ActionStatus[] = ['Pending', 'In Progress', 'Completed'];
+const SECTION_ICON: Record<SectionType, React.ElementType> = {
+  Mechanical: Wrench, Electrical: Zap, General: Building2,
+};
+const SECTION_COLOR: Record<SectionType, string> = {
+  Mechanical: '#86BBD8', Electrical: '#f59e0b', General: '#a78bfa',
 };
 
-const SECTION_ICONS: Record<SectionType, React.ElementType> = {
-  Mechanical: Wrench,
-  Electrical: Zap,
-  General: Building2
-};
+// ─── API ──────────────────────────────────────────────────────────────────────
 
-const STATUS_COLORS: Record<StatusType, string> = {
-  'Pending': 'bg-yellow-100 text-yellow-800 border-yellow-200 hover:bg-yellow-200',
-  'In Progress': 'bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-200',
-  'Completed': 'bg-green-100 text-green-800 border-green-200 hover:bg-green-200'
-};
-
-const STATUS_ICONS: Record<StatusType, React.ElementType> = {
-  'Pending': AlertCircle,
-  'In Progress': Clock3,
-  'Completed': CheckCircle
-};
-
-const STATUS_ACTIONS: Record<StatusType, { next: StatusType; icon: React.ElementType; label: string }> = {
-  'Pending': { next: 'In Progress', icon: PlayCircle, label: 'Start Progress' },
-  'In Progress': { next: 'Completed', icon: CheckCircleSolid, label: 'Complete' },
-  'Completed': { next: 'Pending', icon: RotateCcw, label: 'Reopen' }
-};
-
-// =============== API FUNCTIONS ===============
-async function fetchAPI<T>(
-  endpoint: string,
-  options?: RequestInit
-): Promise<T> {
-  const url = `${API_BASE_URL}${endpoint}`;
-  console.log('Fetching:', url);
-  
-  try {
-    const response = await fetch(url, {
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      ...options,
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Error response:', errorText);
-      
-      try {
-        const errorJson = JSON.parse(errorText);
-        throw new Error(errorJson.detail || `API error: ${response.status}`);
-      } catch {
-        throw new Error(errorText || `API error: ${response.status}`);
-      }
-    }
-
-    if (response.status === 204) {
-      return {} as T;
-    }
-
-    const contentType = response.headers.get('content-type');
-    if (contentType && contentType.includes('application/json')) {
-      const data = await response.json();
-      return data;
-    }
-    return {} as T;
-  } catch (error) {
-    console.error('Fetch error:', error);
-    throw error;
-  }
+async function getReports(): Promise<WorkStoppageReport[]> {
+  try { return await safetyFetch<WorkStoppageReport[]>('/api/work-stoppage/'); }
+  catch { return []; }
+}
+async function createReport(data: Partial<WorkStoppageReport>): Promise<WorkStoppageReport> {
+  return safetyFetch<WorkStoppageReport>('/api/work-stoppage/', { method: 'POST', body: JSON.stringify(data) });
+}
+async function updateReport(id: string, data: Partial<WorkStoppageReport>): Promise<WorkStoppageReport> {
+  return safetyFetch<WorkStoppageReport>(`/api/work-stoppage/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
+}
+async function deleteReport(id: string): Promise<void> {
+  await safetyFetch(`/api/work-stoppage/${id}`, { method: 'DELETE' });
 }
 
-async function getDepartmentSuggestions(search: string = ''): Promise<string[]> {
-  try {
-    const data = await fetchAPI<string[]>(`/api/work-stoppage/suggestions/departments?search=${encodeURIComponent(search)}`);
-    return Array.isArray(data) ? data : [];
-  } catch (error) {
-    console.error('Error fetching department suggestions:', error);
-    return [];
-  }
-}
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
 
-async function getInspectorSuggestions(search: string = ''): Promise<string[]> {
-  try {
-    const data = await fetchAPI<string[]>(`/api/work-stoppage/suggestions/inspectors?search=${encodeURIComponent(search)}`);
-    return Array.isArray(data) ? data : [];
-  } catch (error) {
-    console.error('Error fetching inspector suggestions:', error);
-    return [];
-  }
-}
+const uid = () => Math.random().toString(36).slice(2, 11);
+const fmtDate = (d: string) => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
+const newAction = (): CorrectiveAction => ({
+  id: uid(), finding: '', action: '', byWho: '', byWhen: '', status: 'Pending',
+});
+const blankForm = (): Partial<WorkStoppageReport> => ({
+  date: new Date().toISOString().split('T')[0],
+  department: '', section: 'General', description: '',
+  investigationFindings: '', stoppageBy: '', stoppagePosition: '',
+  acceptedBy: '', sheqCheckedBy: '', correctiveActions: [],
+});
 
-async function getReports(params?: {
-  search?: string;
-  section?: string;
-  inspector?: string;
-  from_date?: string;
-  to_date?: string;
-}): Promise<WorkStoppageReport[]> {
-  const queryParams = new URLSearchParams();
-  if (params?.search) queryParams.append('search', params.search);
-  if (params?.section) queryParams.append('section', params.section);
-  if (params?.inspector) queryParams.append('inspector', params.inspector);
-  if (params?.from_date) queryParams.append('from_date', params.from_date);
-  if (params?.to_date) queryParams.append('to_date', params.to_date);
+// ─── CORRECTIVE ACTION EDITOR ─────────────────────────────────────────────────
 
-  try {
-    const data = await fetchAPI<WorkStoppageReport[]>(`/api/work-stoppage/?${queryParams.toString()}`);
-    return Array.isArray(data) ? data : [];
-  } catch (error) {
-    console.error('Error fetching reports:', error);
-    return [];
-  }
-}
-
-async function getReport(id: string): Promise<WorkStoppageReport | null> {
-  try {
-    return await fetchAPI<WorkStoppageReport>(`/api/work-stoppage/${id}`);
-  } catch (error) {
-    console.error('Error fetching report:', error);
-    return null;
-  }
-}
-
-async function createReport(report: Partial<WorkStoppageReport>): Promise<WorkStoppageReport | null> {
-  try {
-    return await fetchAPI<WorkStoppageReport>('/api/work-stoppage/', {
-      method: 'POST',
-      body: JSON.stringify(report),
-    });
-  } catch (error) {
-    console.error('Error creating report:', error);
-    return null;
-  }
-}
-
-async function updateReport(id: string, report: Partial<WorkStoppageReport>): Promise<WorkStoppageReport | null> {
-  try {
-    return await fetchAPI<WorkStoppageReport>(`/api/work-stoppage/${id}`, {
-      method: 'PATCH',
-      body: JSON.stringify(report),
-    });
-  } catch (error) {
-    console.error('Error updating report:', error);
-    return null;
-  }
-}
-
-async function deleteReport(id: string): Promise<boolean> {
-  try {
-    await fetchAPI(`/api/work-stoppage/${id}`, {
-      method: 'DELETE',
-    });
-    return true;
-  } catch (error) {
-    console.error('Error deleting report:', error);
-    return false;
-  }
-}
-
-async function getStats(): Promise<WorkStoppageStats> {
-  try {
-    const data = await fetchAPI<any>('/api/work-stoppage/stats/overview');
-    return {
-      total: data?.total || 0,
-      bySection: data?.bySection || { Mechanical: 0, Electrical: 0, General: 0 },
-      byInspector: data?.byInspector || {},
-      pendingActions: data?.pendingActions || 0,
-      inProgressActions: data?.inProgressActions || 0,
-      completedActions: data?.completedActions || 0,
-      criticalFindings: data?.criticalFindings || 0,
-      avgCompletionTime: data?.avgCompletionTime || 0,
-      complianceRate: data?.complianceRate || 0
-    };
-  } catch (error) {
-    console.error('Error fetching stats:', error);
-    return {
-      total: 0,
-      bySection: { Mechanical: 0, Electrical: 0, General: 0 },
-      byInspector: {},
-      pendingActions: 0,
-      inProgressActions: 0,
-      completedActions: 0,
-      criticalFindings: 0
-    };
-  }
-}
-
-// =============== HELPER FUNCTIONS ===============
-const formatDate = (dateStr: string): string => {
-  if (!dateStr) return '';
-  try {
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  } catch {
-    return dateStr;
-  }
-};
-
-const formatDateTime = (dateStr: string): string => {
-  if (!dateStr) return '';
-  try {
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  } catch {
-    return dateStr;
-  }
-};
-
-const getInitials = (name: string): string => {
-  if (!name) return '?';
-  return name
-    .split(' ')
-    .map(n => n[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
-};
-
-const calculateStats = (reports: WorkStoppageReport[]): WorkStoppageStats => {
-  const stats: WorkStoppageStats = {
-    total: reports.length,
-    bySection: { Mechanical: 0, Electrical: 0, General: 0 },
-    byInspector: {},
-    pendingActions: 0,
-    inProgressActions: 0,
-    completedActions: 0,
-    criticalFindings: 0
-  };
-
-  reports.forEach(report => {
-    // Count by section
-    if (report.section) {
-      stats.bySection[report.section]++;
-    }
-
-    // Count by inspector
-    if (report.stoppageBy) {
-      const inspector = report.stoppageBy.trim();
-      if (inspector) {
-        stats.byInspector[inspector] = (stats.byInspector[inspector] || 0) + 1;
-      }
-    }
-
-    // Count actions by status
-    if (report.correctiveActions?.length) {
-      report.correctiveActions.forEach(action => {
-        if (action.status === 'Pending') stats.pendingActions++;
-        else if (action.status === 'In Progress') stats.inProgressActions++;
-        else if (action.status === 'Completed') stats.completedActions++;
-      });
-    }
-  });
-
-  return stats;
-};
-
-// =============== AUTO-COMPLETE INPUT COMPONENT ===============
-interface AutoCompleteInputProps {
-  value: string;
-  onChange: (value: string) => void;
-  onSelect: (value: string) => void;
-  placeholder?: string;
-  label?: string;
-  required?: boolean;
-  icon?: React.ReactNode;
-  fetchSuggestions: (search: string) => Promise<string[]>;
-  className?: string;
-}
-
-const AutoCompleteInput: React.FC<AutoCompleteInputProps> = ({
-  value,
-  onChange,
-  onSelect,
-  placeholder,
-  label,
-  required,
-  icon,
-  fetchSuggestions,
-  className
-}) => {
-  const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const suggestionsRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const loadSuggestions = async () => {
-      if (value.length < 1) {
-        setSuggestions([]);
-        return;
-      }
-      
-      setLoading(true);
-      try {
-        const results = await fetchSuggestions(value);
-        setSuggestions(results);
-      } catch (error) {
-        console.error('Error loading suggestions:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    const timeoutId = setTimeout(loadSuggestions, 300);
-    return () => clearTimeout(timeoutId);
-  }, [value, fetchSuggestions]);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (suggestionsRef.current && !suggestionsRef.current.contains(event.target as Node) &&
-          inputRef.current && !inputRef.current.contains(event.target as Node)) {
-        setShowSuggestions(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  return (
-    <div className="relative">
-      {label && (
-        <Label className="text-xs mb-1 block">
-          {label} {required && <span className="text-red-500">*</span>}
-        </Label>
-      )}
-      <div className="relative">
-        {icon && (
-          <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">
-            {icon}
-          </div>
-        )}
-        <Input
-          ref={inputRef}
-          value={value}
-          onChange={(e) => {
-            onChange(e.target.value);
-            setShowSuggestions(true);
-          }}
-          onFocus={() => setShowSuggestions(true)}
-          placeholder={placeholder}
-          className={`${icon ? 'pl-9' : ''} ${className || ''}`}
-          required={required}
-        />
-        {loading && (
-          <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-          </div>
-        )}
-      </div>
-      
-      {showSuggestions && suggestions.length > 0 && (
-        <div
-          ref={suggestionsRef}
-          className="absolute z-50 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto"
-        >
-          {suggestions.map((suggestion, index) => (
-            <div
-              key={index}
-              className="px-3 py-2 hover:bg-slate-100 cursor-pointer text-sm"
-              onClick={() => {
-                onSelect(suggestion);
-                setShowSuggestions(false);
-              }}
-            >
-              {suggestion}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
-
-// =============== ACTION FORM COMPONENT ===============
-interface ActionFormProps {
-  action: CorrectiveAction;
-  index: number;
-  onChange: (id: string, field: keyof CorrectiveAction, value: CorrectiveAction[keyof CorrectiveAction]) => void;
+function CorrectiveActionCard({
+  action, index, onChange, onRemove,
+}: {
+  action: CorrectiveAction; index: number;
+  onChange: (id: string, patch: Partial<CorrectiveAction>) => void;
   onRemove: (id: string) => void;
-  onStatusChange?: (id: string, newStatus: StatusType) => void;
-}
-
-const ActionForm: React.FC<ActionFormProps> = ({
-  action,
-  index,
-  onChange,
-  onRemove,
-  onStatusChange
-}) => {
-  const StatusIcon = STATUS_ICONS[action.status];
-  const statusAction = STATUS_ACTIONS[action.status];
-  const NextIcon = statusAction.icon;
-
-  const handleStatusChange = (newStatus: StatusType) => {
-    const updatedAction = { ...action, status: newStatus };
-    if (newStatus === 'Completed' && !action.completedDate) {
-      updatedAction.completedDate = new Date().toISOString().split('T')[0];
-    }
-    onChange(action.id, 'status', newStatus);
-    if (newStatus === 'Completed' && !action.completedDate) {
-      onChange(action.id, 'completedDate', new Date().toISOString().split('T')[0]);
-    }
-    onStatusChange?.(action.id, newStatus);
+}) {
+  const statusColor: Record<ActionStatus, string> = {
+    Pending: '#f59e0b', 'In Progress': '#60a5fa', Completed: '#34d399',
   };
+  const color = statusColor[action.status];
 
   return (
-    <Card className="mb-4 border border-gray-200 overflow-hidden">
-      <div className={`h-1 w-full ${
-        action.status === 'Completed' ? 'bg-green-500' :
-        action.status === 'In Progress' ? 'bg-blue-500' : 'bg-yellow-500'
-      }`} />
-      <CardHeader className="p-4 pb-2 bg-gray-50">
-        <div className="flex justify-between items-center">
-          <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <span className="bg-primary text-white w-5 h-5 rounded-full flex items-center justify-center text-xs">
-              {index + 1}
-            </span>
-            Corrective Action
-          </CardTitle>
+    <div className="rounded-xl overflow-hidden border border-white/[0.08] bg-white/[0.04]">
+      <div className="h-0.5 w-full" style={{ background: color }} />
+      <div className="p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] text-white/40 font-semibold uppercase tracking-wider">
+            Action #{index + 1}
+          </span>
           <div className="flex items-center gap-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-7 gap-1">
-                  <StatusIcon className="h-3.5 w-3.5" />
-                  <span>{action.status}</span>
-                  <ChevronDown className="h-3 w-3" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Change Status</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {(Object.keys(STATUS_ACTIONS) as StatusType[]).map((status) => {
-                  const Icon = STATUS_ICONS[status];
-                  return (
-                    <DropdownMenuItem
-                      key={status}
-                      onClick={() => handleStatusChange(status)}
-                      className={action.status === status ? 'bg-accent' : ''}
-                    >
-                      <Icon className="h-4 w-4 mr-2" />
-                      {status}
-                    </DropdownMenuItem>
-                  );
-                })}
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onRemove(action.id)}>
-              <Trash2 className="h-3.5 w-3.5 text-destructive" />
-            </Button>
+            <select value={action.status} title="Action status"
+              onChange={e => onChange(action.id, {
+                status: e.target.value as ActionStatus,
+                ...(e.target.value === 'Completed' && !action.completedDate
+                  ? { completedDate: new Date().toISOString().split('T')[0] } : {}),
+              })}
+              className="h-6 px-2 text-[10px] rounded-lg border transition-all cursor-pointer"
+              style={{ background: `${color}15`, borderColor: `${color}30`, color, colorScheme: 'dark' }}>
+              {ACTION_STATUSES.map(s => <option key={s} value={s} className="bg-[#0a1628] text-white">{s}</option>)}
+            </select>
+            <button type="button" title="Remove action" onClick={() => onRemove(action.id)}
+              className="h-5 w-5 flex items-center justify-center rounded hover:bg-rose-500/20 text-white/20 hover:text-rose-400 transition-all">
+              <Trash2 className="h-3 w-3" />
+            </button>
           </div>
         </div>
-      </CardHeader>
-      <CardContent className="p-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2 md:col-span-2">
-            <Label>Finding Description *</Label>
-            <Textarea
-              placeholder="Describe the finding or issue that needs correction..."
-              value={action.finding}
-              onChange={(e) => onChange(action.id, 'finding', e.target.value)}
-              rows={2}
-            />
+        <div>
+          <label className={glassLabel}>Finding / Issue *</label>
+          <textarea value={action.finding} rows={2}
+            placeholder="Describe the finding or unsafe condition…"
+            onChange={e => onChange(action.id, { finding: e.target.value })}
+            className={glassTextarea} />
+        </div>
+        <div>
+          <label className={glassLabel}>Corrective Action *</label>
+          <textarea value={action.action} rows={2}
+            placeholder="What action needs to be taken?"
+            onChange={e => onChange(action.id, { action: e.target.value })}
+            className={glassTextarea} />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className={glassLabel}>Assigned To *</label>
+            <input value={action.byWho} placeholder="Person responsible"
+              onChange={e => onChange(action.id, { byWho: e.target.value })}
+              className={glassInput} />
           </div>
-          <div className="space-y-2 md:col-span-2">
-            <Label>Corrective Action *</Label>
-            <Textarea
-              placeholder="What action needs to be taken to address this finding?"
-              value={action.action}
-              onChange={(e) => onChange(action.id, 'action', e.target.value)}
-              rows={2}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Assigned To *</Label>
-            <Input
-              placeholder="Person responsible"
-              value={action.byWho}
-              onChange={(e) => onChange(action.id, 'byWho', e.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Due Date *</Label>
-            <Input
-              type="date"
-              value={action.byWhen}
-              onChange={(e) => onChange(action.id, 'byWhen', e.target.value)}
-            />
+          <div>
+            <label className={glassLabel}>Due Date *</label>
+            <input type="date" value={action.byWhen} title="Due date" placeholder="Due date"
+              onChange={e => onChange(action.id, { byWhen: e.target.value })}
+              className={glassInput} style={{ colorScheme: 'dark' }} />
           </div>
           {action.status === 'Completed' && (
-            <div className="space-y-2">
-              <Label>Completed Date</Label>
-              <Input
-                type="date"
-                value={action.completedDate || new Date().toISOString().split('T')[0]}
-                onChange={(e) => onChange(action.id, 'completedDate', e.target.value)}
-              />
+            <div>
+              <label className={glassLabel}>Completed Date</label>
+              <input type="date" value={action.completedDate || ''} title="Completed date" placeholder="Completed date"
+                onChange={e => onChange(action.id, { completedDate: e.target.value })}
+                className={glassInput} style={{ colorScheme: 'dark' }} />
             </div>
           )}
-          <div className="space-y-2 md:col-span-2">
-            <Label>Remarks</Label>
-            <Textarea
-              placeholder="Additional notes or remarks..."
-              value={action.remarks || ''}
-              onChange={(e) => onChange(action.id, 'remarks', e.target.value)}
-              rows={2}
-            />
-          </div>
         </div>
-      </CardContent>
-    </Card>
+        <div>
+          <label className={glassLabel}>Remarks</label>
+          <textarea value={action.remarks || ''} rows={2} placeholder="Additional notes…"
+            onChange={e => onChange(action.id, { remarks: e.target.value })}
+            className={glassTextarea} />
+        </div>
+      </div>
+    </div>
   );
-};
-
-// =============== REPORT FORM MODAL ===============
-interface ReportFormModalProps {
-  open: boolean;
-  onClose: () => void;
-  onSave: (report: Partial<WorkStoppageReport>) => Promise<void>;
-  report?: WorkStoppageReport | null;
 }
 
-const ReportFormModal: React.FC<ReportFormModalProps> = ({
-  open,
-  onClose,
-  onSave,
-  report
-}) => {
-  const [formData, setFormData] = useState<Partial<WorkStoppageReport>>({
-    date: new Date().toISOString().split('T')[0],
-    department: "",
-    section: "General",
-    description: "",
-    investigationFindings: "",
-    stoppageBy: "",
-    stoppagePosition: "",
-    acceptedBy: "",
-    sheqCheckedBy: "",
-    correctiveActions: []
-  });
+// ─── REPORT FORM MODAL ────────────────────────────────────────────────────────
 
+function ReportFormModal({
+  open, onClose, onSave, report,
+}: {
+  open: boolean; onClose: () => void;
+  onSave: (data: Partial<WorkStoppageReport>) => Promise<void>;
+  report?: WorkStoppageReport | null;
+}) {
+  const [form, setForm] = useState<Partial<WorkStoppageReport>>(blankForm());
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState('details');
+  const [tab, setTab] = useState('details');
 
   useEffect(() => {
-    if (report) {
-      setFormData({
-        date: report.date,
-        department: report.department,
-        section: report.section,
-        description: report.description,
-        investigationFindings: report.investigationFindings || "",
-        stoppageBy: report.stoppageBy,
-        stoppagePosition: report.stoppagePosition || "",
-        acceptedBy: report.acceptedBy || "",
-        sheqCheckedBy: report.sheqCheckedBy || "",
-        correctiveActions: report.correctiveActions || []
-      });
-    } else {
-      setFormData({
-        date: new Date().toISOString().split('T')[0],
-        department: "",
-        section: "General",
-        description: "",
-        investigationFindings: "",
-        stoppageBy: "",
-        stoppagePosition: "",
-        acceptedBy: "",
-        sheqCheckedBy: "",
-        correctiveActions: []
-      });
-    }
-    setActiveTab('details');
+    setForm(report ? { ...report, correctiveActions: report.correctiveActions || [] } : blankForm());
+    setTab('details');
   }, [report, open]);
 
-  const addAction = () => {
-    const newAction: CorrectiveAction = {
-      id: Math.random().toString(36).substr(2, 9),
-      finding: '',
-      action: '',
-      byWho: '',
-      byWhen: '',
-      status: 'Pending'
-    };
-    setFormData(prev => ({
-      ...prev,
-      correctiveActions: [...(prev.correctiveActions || []), newAction]
-    }));
-  };
+  const set = (patch: Partial<WorkStoppageReport>) => setForm(prev => ({ ...prev, ...patch }));
 
-  const updateAction = (id: string, field: keyof CorrectiveAction, value: CorrectiveAction[keyof CorrectiveAction]) => {
-    setFormData(prev => ({
-      ...prev,
-      correctiveActions: prev.correctiveActions?.map(a =>
-        a.id === id ? { ...a, [field]: value } : a
-      ) || []
-    }));
-  };
+  const addAction = () => set({ correctiveActions: [...(form.correctiveActions || []), newAction()] });
+  const updateAction = (id: string, patch: Partial<CorrectiveAction>) =>
+    set({ correctiveActions: form.correctiveActions?.map(a => a.id === id ? { ...a, ...patch } : a) });
+  const removeAction = (id: string) =>
+    set({ correctiveActions: form.correctiveActions?.filter(a => a.id !== id) });
 
-  const removeAction = (id: string) => {
-    setFormData(prev => ({
-      ...prev,
-      correctiveActions: prev.correctiveActions?.filter(a => a.id !== id) || []
-    }));
-  };
-
-  const handleStatusChange = (id: string, newStatus: StatusType) => {
-    updateAction(id, 'status', newStatus);
-    if (newStatus === 'Completed') {
-      updateAction(id, 'completedDate', new Date().toISOString().split('T')[0]);
+  const validate = () => {
+    if (!form.department?.trim()) { toast.error('Department is required'); setTab('details'); return false; }
+    if (!form.description?.trim()) { toast.error('Description is required'); setTab('details'); return false; }
+    if (!form.stoppageBy?.trim()) { toast.error('Stoppage issued by is required'); setTab('details'); return false; }
+    if (!form.date) { toast.error('Date is required'); setTab('details'); return false; }
+    for (let i = 0; i < (form.correctiveActions?.length || 0); i++) {
+      const a = form.correctiveActions![i];
+      if (!a.finding?.trim()) { toast.error(`Action #${i+1}: Finding required`); setTab('actions'); return false; }
+      if (!a.action?.trim()) { toast.error(`Action #${i+1}: Corrective action required`); setTab('actions'); return false; }
+      if (!a.byWho?.trim()) { toast.error(`Action #${i+1}: Assigned person required`); setTab('actions'); return false; }
+      if (!a.byWhen) { toast.error(`Action #${i+1}: Due date required`); setTab('actions'); return false; }
     }
-  };
-
-  const validateForm = (): boolean => {
-    if (!formData.department?.trim()) {
-      toast.error('Department is required');
-      setActiveTab('details');
-      return false;
-    }
-    if (!formData.description?.trim()) {
-      toast.error('Description is required');
-      setActiveTab('details');
-      return false;
-    }
-    if (!formData.stoppageBy?.trim()) {
-      toast.error('Stoppage by name is required');
-      setActiveTab('details');
-      return false;
-    }
-    if (!formData.date) {
-      toast.error('Date is required');
-      setActiveTab('details');
-      return false;
-    }
-
-    // Validate corrective actions if any exist
-    if (formData.correctiveActions?.length) {
-      for (let i = 0; i < formData.correctiveActions.length; i++) {
-        const action = formData.correctiveActions[i];
-        if (!action.finding?.trim()) {
-          toast.error(`Action #${i + 1}: Finding is required`);
-          setActiveTab('actions');
-          return false;
-        }
-        if (!action.action?.trim()) {
-          toast.error(`Action #${i + 1}: Corrective action is required`);
-          setActiveTab('actions');
-          return false;
-        }
-        if (!action.byWho?.trim()) {
-          toast.error(`Action #${i + 1}: Assigned person is required`);
-          setActiveTab('actions');
-          return false;
-        }
-        if (!action.byWhen) {
-          toast.error(`Action #${i + 1}: Due date is required`);
-          setActiveTab('actions');
-          return false;
-        }
-      }
-    }
-
     return true;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!validateForm()) {
-      return;
-    }
-
+    if (!validate()) return;
     setSaving(true);
-    try {
-      await onSave(formData);
-      onClose();
-    } catch (error) {
-      console.error('Failed to save:', error);
-    } finally {
-      setSaving(false);
-    }
+    try { await onSave(form); onClose(); }
+    catch { /* toast shown in parent */ }
+    finally { setSaving(false); }
   };
 
-  const pendingCount = formData.correctiveActions?.filter(a => a.status === 'Pending').length || 0;
-  const inProgressCount = formData.correctiveActions?.filter(a => a.status === 'In Progress').length || 0;
-  const completedCount = formData.correctiveActions?.filter(a => a.status === 'Completed').length || 0;
+  const ACCENT = '#f43f5e';
+  const actions = form.correctiveActions || [];
+  const pendingCount = actions.filter(a => a.status === 'Pending').length;
+  const inProgressCount = actions.filter(a => a.status === 'In Progress').length;
+  const completedCount = actions.filter(a => a.status === 'Completed').length;
+  const progressPct = actions.length ? Math.round((completedCount / actions.length) * 100) : 0;
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-bold flex items-center gap-2">
-            <Octagon className="h-6 w-6 text-destructive" />
-            {report ? 'Edit Work Stoppage' : 'New Work Stoppage'}
-          </DialogTitle>
-          <DialogDescription>
-            {report ? 'Update the work stoppage details below.' : 'Document unsafe SHEQ acts, practices, or behaviors.'}
-          </DialogDescription>
-        </DialogHeader>
+    <SafetyModal open={open} onClose={onClose}
+      title={report ? 'Edit Work Stoppage' : 'New Work Stoppage'}
+      icon={Octagon} width="max-w-3xl" accentColor={ACCENT}>
+      <form onSubmit={handleSubmit}>
+        <div className="px-5 py-3 border-b border-white/[0.06]">
+          <TabBar active={tab} onChange={setTab} accentColor={ACCENT}
+            tabs={[
+              { id: 'details', label: 'Incident Details' },
+              { id: 'actions', label: `Action Plan (${actions.length})` },
+              { id: 'summary', label: 'Summary' },
+            ]}
+          />
+        </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6 py-4">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid grid-cols-3 mb-4">
-              <TabsTrigger value="details">Incident Details</TabsTrigger>
-              <TabsTrigger value="actions">
-                Action Plan ({formData.correctiveActions?.length || 0})
-              </TabsTrigger>
-              <TabsTrigger value="summary">Summary</TabsTrigger>
-            </TabsList>
+        <div className="px-5 py-4 space-y-4 max-h-[60vh] overflow-y-auto">
 
-            {/* Details Tab */}
-            <TabsContent value="details" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <AlertOctagon className="h-5 w-5 text-destructive" />
-                    Incident Information
-                  </CardTitle>
-                  <CardDescription>
-                    Enter the details of the unsafe act or practice.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label>Date *</Label>
-                    <div className="relative">
-                      <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        type="date"
-                        required
-                        value={formData.date}
-                        onChange={e => setFormData({...formData, date: e.target.value})}
-                        className="pl-9"
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label>Section *</Label>
-                    <Select
-                      value={formData.section}
-                      onValueChange={(val: SectionType) => setFormData({...formData, section: val})}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {SECTIONS.map(section => {
-                          const Icon = SECTION_ICONS[section];
-                          return (
-                            <SelectItem key={section} value={section}>
-                              <div className="flex items-center gap-2">
-                                <Icon className="h-4 w-4" />
-                                {section}
-                              </div>
-                            </SelectItem>
-                          );
-                        })}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="md:col-span-2 space-y-2">
-                    <AutoCompleteInput
-                      label="Department *"
-                      value={formData.department || ''}
-                      onChange={(val) => setFormData({...formData, department: val})}
-                      onSelect={(val) => setFormData({...formData, department: val})}
-                      placeholder="e.g., Production, Maintenance, Operations"
-                      required
-                      icon={<Building2 className="h-4 w-4" />}
-                      fetchSuggestions={getDepartmentSuggestions}
-                    />
-                  </div>
-
-                  <div className="md:col-span-2 space-y-2">
-                    <Label>Description of Unsafe Act/Practice & Potential Impact *</Label>
-                    <Textarea
-                      className="min-h-[120px]"
-                      placeholder="Describe the unsafe condition, what happened, and what could have happened..."
-                      required
-                      value={formData.description}
-                      onChange={e => setFormData({...formData, description: e.target.value})}
-                    />
-                  </div>
-
-                  <div className="md:col-span-2 space-y-2">
-                    <Label>Investigation Findings</Label>
-                    <Textarea
-                      placeholder="Initial findings from the investigation..."
-                      value={formData.investigationFindings}
-                      onChange={e => setFormData({...formData, investigationFindings: e.target.value})}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <UserCircle className="h-5 w-5" />
-                    Personnel
-                  </CardTitle>
-                  <CardDescription>
-                    Who issued the stoppage and who acknowledged it.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <AutoCompleteInput
-                      label="Stoppage Issued By *"
-                      value={formData.stoppageBy || ''}
-                      onChange={(val) => setFormData({...formData, stoppageBy: val})}
-                      onSelect={(val) => setFormData({...formData, stoppageBy: val})}
-                      placeholder="Name of person issuing stoppage"
-                      required
-                      icon={<User className="h-4 w-4" />}
-                      fetchSuggestions={getInspectorSuggestions}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Position</Label>
-                    <Input
-                      placeholder="e.g., Safety Officer, Supervisor"
-                      value={formData.stoppagePosition}
-                      onChange={e => setFormData({...formData, stoppagePosition: e.target.value})}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Accepted By</Label>
-                    <Input
-                      placeholder="Name & position of person accepting"
-                      value={formData.acceptedBy}
-                      onChange={e => setFormData({...formData, acceptedBy: e.target.value})}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>SHEQ Checked By</Label>
-                    <Input
-                      placeholder="Name & position of SHEQ representative"
-                      value={formData.sheqCheckedBy}
-                      onChange={e => setFormData({...formData, sheqCheckedBy: e.target.value})}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* Actions Tab */}
-            <TabsContent value="actions" className="space-y-4">
-              <div className="flex justify-between items-center mb-4">
-                <div>
-                  <h3 className="font-semibold flex items-center gap-2">
-                    <Target className="h-5 w-5" />
-                    Corrective Action Plan
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    Define the actions needed to address the findings.
-                  </p>
-                </div>
-                <Button type="button" onClick={addAction}>
-                  <Plus className="h-4 w-4 mr-2" /> Add Action
-                </Button>
+          {/* ── Details ── */}
+          {tab === 'details' && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <FormField label="Date" required>
+                  <input type="date" value={form.date || ''} title="Incident date" placeholder="Date"
+                    onChange={e => set({ date: e.target.value })}
+                    className={glassInput} style={{ colorScheme: 'dark' }} />
+                </FormField>
+                <FormField label="Section" required>
+                  <select value={form.section || 'General'} title="Section"
+                    onChange={e => set({ section: e.target.value as SectionType })}
+                    className={glassSelect} style={{ colorScheme: 'dark' }}>
+                    {SECTIONS.map(s => <option key={s} value={s} className="bg-[#0a1628]">{s}</option>)}
+                  </select>
+                </FormField>
+                <FormField label="Department" required className="md:col-span-2">
+                  <input value={form.department || ''} placeholder="e.g. Production, Maintenance, Operations"
+                    onChange={e => set({ department: e.target.value })}
+                    className={glassInput} />
+                </FormField>
+                <FormField label="Description of Unsafe Act / Potential Impact" required className="md:col-span-2">
+                  <textarea value={form.description || ''} rows={4}
+                    placeholder="Describe the unsafe condition, what happened, and what could have happened…"
+                    onChange={e => set({ description: e.target.value })}
+                    className={glassTextarea} />
+                </FormField>
+                <FormField label="Investigation Findings" className="md:col-span-2">
+                  <textarea value={form.investigationFindings || ''} rows={3}
+                    placeholder="Initial findings from the investigation…"
+                    onChange={e => set({ investigationFindings: e.target.value })}
+                    className={glassTextarea} />
+                </FormField>
               </div>
 
-              <div className="space-y-4">
-                {formData.correctiveActions && formData.correctiveActions.length > 0 ? (
-                  formData.correctiveActions.map((action, index) => (
-                    <ActionForm
-                      key={action.id}
-                      action={action}
-                      index={index}
-                      onChange={updateAction}
-                      onRemove={removeAction}
-                      onStatusChange={handleStatusChange}
-                    />
-                  ))
-                ) : (
-                  <Card className="border-dashed">
-                    <CardContent className="p-8 text-center">
-                      <Target className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                      <p className="text-muted-foreground mb-4">No corrective actions added yet</p>
-                      <Button type="button" variant="outline" onClick={addAction}>
-                        <Plus className="h-4 w-4 mr-2" /> Add Your First Action
-                      </Button>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-
-              {formData.correctiveActions && formData.correctiveActions.length > 0 && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <div className="flex items-start gap-3">
-                    <Info className="h-5 w-5 text-blue-600 mt-0.5" />
-                    <div>
-                      <h4 className="font-medium text-blue-800">About Corrective Actions</h4>
-                      <p className="text-sm text-blue-700 mt-1">
-                        Each action should be SMART: Specific, Measurable, Achievable, Relevant, and Time-bound.
-                        Assign clear responsibilities and realistic due dates.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </TabsContent>
-
-            {/* Summary Tab */}
-            <TabsContent value="summary" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <PieChart className="h-5 w-5" />
-                    Action Plan Summary
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="text-center p-4 bg-yellow-50 rounded-lg">
-                      <div className="text-2xl font-bold text-yellow-600">{pendingCount}</div>
-                      <div className="text-sm text-muted-foreground">Pending</div>
-                    </div>
-                    <div className="text-center p-4 bg-blue-50 rounded-lg">
-                      <div className="text-2xl font-bold text-blue-600">{inProgressCount}</div>
-                      <div className="text-sm text-muted-foreground">In Progress</div>
-                    </div>
-                    <div className="text-center p-4 bg-green-50 rounded-lg">
-                      <div className="text-2xl font-bold text-green-600">{completedCount}</div>
-                      <div className="text-sm text-muted-foreground">Completed</div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span>Overall Progress</span>
-                      <span className="font-medium">
-                        {formData.correctiveActions?.length ? 
-                          Math.round((completedCount / formData.correctiveActions.length) * 100) : 0}%
-                      </span>
-                    </div>
-                    <Progress 
-                      value={formData.correctiveActions?.length ? 
-                        (completedCount / formData.correctiveActions.length) * 100 : 0} 
-                      className="h-2"
-                    />
-                  </div>
-
-                  {formData.correctiveActions && formData.correctiveActions.length > 0 && (
-                    <div className="space-y-3">
-                      <h4 className="font-medium">Action Items</h4>
-                      <ScrollArea className="h-48">
-                        {formData.correctiveActions.map((action, idx) => {
-                          const StatusIcon = STATUS_ICONS[action.status];
-                          return (
-                            <div key={action.id} className="flex items-center gap-3 p-2 border-b last:border-0">
-                              <StatusIcon className={`h-4 w-4 ${
-                                action.status === 'Completed' ? 'text-green-500' :
-                                action.status === 'In Progress' ? 'text-blue-500' : 'text-yellow-500'
-                              }`} />
-                              <div className="flex-1">
-                                <p className="text-sm font-medium line-clamp-1">{action.finding}</p>
-                                <p className="text-xs text-muted-foreground">Due: {formatDate(action.byWhen)}</p>
-                              </div>
-                              <Badge variant="secondary" className={STATUS_COLORS[action.status]}>
-                                {action.status}
-                              </Badge>
-                            </div>
-                          );
-                        })}
-                      </ScrollArea>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
-
-          <DialogFooter className="gap-2">
-            <Button type="button" variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={saving}>
-              {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              {report ? 'Update Stoppage' : 'Issue Work Stoppage'}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
-// =============== REPORT DETAIL MODAL ===============
-interface ReportDetailModalProps {
-  report: WorkStoppageReport | null;
-  open: boolean;
-  onClose: () => void;
-  onEdit: (report: WorkStoppageReport) => void;
-  onDelete: (id: string) => void;
-  onStatusChange?: (actionId: string, newStatus: StatusType) => void;
-}
-
-const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
-  report,
-  open,
-  onClose,
-  onEdit,
-  onDelete,
-  onStatusChange
-}) => {
-  if (!report) return null;
-
-  const SectionIcon = SECTION_ICONS[report.section];
-  const pendingActions = report.correctiveActions?.filter(a => a.status !== 'Completed').length || 0;
-  const completedActions = report.correctiveActions?.filter(a => a.status === 'Completed').length || 0;
-  const progress = report.correctiveActions?.length ? 
-    Math.round((completedActions / report.correctiveActions.length) * 100) : 0;
-
-  const handleStatusChange = (actionId: string, newStatus: StatusType) => {
-    onStatusChange?.(actionId, newStatus);
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-bold flex items-center gap-2">
-            <Octagon className="h-6 w-6 text-destructive" />
-            Work Stoppage Report
-          </DialogTitle>
-          <DialogDescription>
-            Issued on {formatDateTime(report.submittedAt)}
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-6 py-4">
-          {/* Status Header */}
-          <div className="flex items-center justify-between">
-            <div className="flex gap-2">
-              <Badge variant="outline" className="border-destructive/20 bg-destructive/5 text-destructive">
-                <Octagon className="h-3 w-3 mr-1" /> Stoppage
-              </Badge>
-              <Badge variant="outline" className={SECTION_COLORS[report.section]}>
-                <SectionIcon className="h-3 w-3 mr-1" />
-                {report.section}
-              </Badge>
-            </div>
-            <div className="text-sm text-muted-foreground">
-              ID: {report.id.slice(0, 8)}
-            </div>
-          </div>
-
-          {/* Progress Bar */}
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="font-medium">Corrective Action Progress</span>
-              <span className="text-muted-foreground">{completedActions}/{report.correctiveActions?.length || 0} completed ({progress}%)</span>
-            </div>
-            <Progress value={progress} className="h-2" />
-          </div>
-
-          {/* Key Info Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-muted/50 p-3 rounded-lg">
-              <p className="text-xs text-muted-foreground">Department</p>
-              <p className="font-medium truncate" title={report.department}>{report.department}</p>
-            </div>
-            <div className="bg-muted/50 p-3 rounded-lg">
-              <p className="text-xs text-muted-foreground">Date</p>
-              <p className="font-medium">{formatDate(report.date)}</p>
-            </div>
-            <div className="bg-muted/50 p-3 rounded-lg">
-              <p className="text-xs text-muted-foreground">Issued By</p>
-              <p className="font-medium">{report.stoppageBy}</p>
-              {report.stoppagePosition && (
-                <p className="text-xs text-muted-foreground truncate">{report.stoppagePosition}</p>
-              )}
-            </div>
-            <div className="bg-muted/50 p-3 rounded-lg">
-              <p className="text-xs text-muted-foreground">Actions</p>
-              <div className="flex gap-1 mt-1">
-                <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">
-                  <AlertCircle className="h-3 w-3 mr-1" />
-                  {pendingActions}
-                </Badge>
-                <Badge variant="secondary" className="bg-green-100 text-green-800 hover:bg-green-100">
-                  <CheckCircle className="h-3 w-3 mr-1" />
-                  {completedActions}
-                </Badge>
-              </div>
-            </div>
-          </div>
-
-          <Separator />
-
-          {/* Description */}
-          <div>
-            <h3 className="font-semibold mb-2 flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-amber-500" />
-              Unsafe Act/Practice & Potential Impact
-            </h3>
-            <div className="bg-muted/50 p-4 rounded-lg">
-              <p className="whitespace-pre-wrap">{report.description}</p>
-            </div>
-          </div>
-
-          {/* Investigation Findings */}
-          {report.investigationFindings && (
-            <>
-              <Separator />
-              <div>
-                <h3 className="font-semibold mb-2 flex items-center gap-2">
-                  <ClipboardList className="h-4 w-4" />
-                  Investigation Findings
-                </h3>
-                <div className="bg-muted/50 p-4 rounded-lg">
-                  <p className="whitespace-pre-wrap">{report.investigationFindings}</p>
+              <div className="border-t border-white/[0.06] pt-3">
+                <p className="text-[10px] text-white/35 uppercase tracking-wider mb-3 font-semibold">Personnel</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <FormField label="Stoppage Issued By" required>
+                    <input value={form.stoppageBy || ''} placeholder="Name of person issuing stoppage"
+                      onChange={e => set({ stoppageBy: e.target.value })}
+                      className={glassInput} />
+                  </FormField>
+                  <FormField label="Position">
+                    <input value={form.stoppagePosition || ''} placeholder="e.g. Safety Officer, Supervisor"
+                      onChange={e => set({ stoppagePosition: e.target.value })}
+                      className={glassInput} />
+                  </FormField>
+                  <FormField label="Accepted By">
+                    <input value={form.acceptedBy || ''} placeholder="Name & position of person accepting"
+                      onChange={e => set({ acceptedBy: e.target.value })}
+                      className={glassInput} />
+                  </FormField>
+                  <FormField label="SHEQ Checked By">
+                    <input value={form.sheqCheckedBy || ''} placeholder="Name & position of SHEQ representative"
+                      onChange={e => set({ sheqCheckedBy: e.target.value })}
+                      className={glassInput} />
+                  </FormField>
                 </div>
               </div>
-            </>
+            </div>
           )}
 
-          {/* Corrective Actions */}
-          <div>
-            <h3 className="font-semibold mb-3 flex items-center gap-2">
-              <Target className="h-4 w-4" />
-              Corrective Action Plan ({report.correctiveActions?.length || 0})
-            </h3>
+          {/* ── Actions ── */}
+          {tab === 'actions' && (
             <div className="space-y-3">
-              {report.correctiveActions?.map((action, idx) => {
-                const StatusIcon = STATUS_ICONS[action.status];
-                const statusAction = STATUS_ACTIONS[action.status];
-                const NextIcon = statusAction.icon;
-
-                return (
-                  <Card key={action.id} className="overflow-hidden">
-                    <div className={`h-1 w-full ${
-                      action.status === 'Completed' ? 'bg-green-500' :
-                      action.status === 'In Progress' ? 'bg-blue-500' : 'bg-yellow-500'
-                    }`} />
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between mb-2">
-                        <h4 className="font-medium">Action #{idx + 1}</h4>
-                        <div className="flex items-center gap-2">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm" className="h-7 gap-1">
-                                <StatusIcon className="h-3.5 w-3.5" />
-                                <span>{action.status}</span>
-                                <ChevronDown className="h-3 w-3" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuLabel>Change Status</DropdownMenuLabel>
-                              <DropdownMenuSeparator />
-                              {(Object.keys(STATUS_ACTIONS) as StatusType[]).map((status) => {
-                                const Icon = STATUS_ICONS[status];
-                                return (
-                                  <DropdownMenuItem
-                                    key={status}
-                                    onClick={() => handleStatusChange(action.id, status)}
-                                    className={action.status === status ? 'bg-accent' : ''}
-                                  >
-                                    <Icon className="h-4 w-4 mr-2" />
-                                    {status}
-                                  </DropdownMenuItem>
-                                );
-                              })}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <p className="text-sm"><span className="text-muted-foreground">Finding:</span> {action.finding}</p>
-                        <p className="text-sm"><span className="text-muted-foreground">Action:</span> {action.action}</p>
-                        <div className="grid grid-cols-2 gap-2 text-sm">
-                          <p><span className="text-muted-foreground">By:</span> {action.byWho}</p>
-                          <p><span className="text-muted-foreground">Due:</span> {formatDate(action.byWhen)}</p>
-                          {action.completedDate && (
-                            <p className="col-span-2"><span className="text-muted-foreground">Completed:</span> {formatDate(action.completedDate)}</p>
-                          )}
-                        </div>
-                        {action.remarks && (
-                          <p className="text-sm"><span className="text-muted-foreground">Remarks:</span> {action.remarks}</p>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Signatories */}
-          <Separator />
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="text-center p-3 border rounded-lg">
-              <p className="text-xs text-muted-foreground mb-1">Stoppage By</p>
-              <p className="font-medium">{report.stoppageBy}</p>
-              {report.stoppagePosition && (
-                <p className="text-xs text-muted-foreground">{report.stoppagePosition}</p>
+              {actions.length === 0 ? (
+                <div className="text-center py-10 text-white/25">
+                  <Target className="h-10 w-10 mx-auto mb-3 opacity-20" />
+                  <p className="text-sm text-white/35">No corrective actions added yet</p>
+                  <button type="button" onClick={addAction}
+                    className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-white transition-all hover:-translate-y-0.5"
+                    style={{ background: 'linear-gradient(135deg,#2A4D69,#1e3a52)', border: '1px solid rgba(134,187,216,0.3)' }}>
+                    <Plus className="h-3.5 w-3.5" /> Add First Action
+                  </button>
+                </div>
+              ) : (
+                <>
+                  {actions.map((a, i) => (
+                    <CorrectiveActionCard key={a.id} action={a} index={i}
+                      onChange={updateAction} onRemove={removeAction} />
+                  ))}
+                  <button type="button" onClick={addAction}
+                    className="w-full py-2 rounded-xl text-xs text-white/35 hover:text-[#86BBD8] border border-dashed border-white/10 hover:border-[#86BBD8]/30 transition-all inline-flex items-center justify-center gap-1.5">
+                    <Plus className="h-3 w-3" /> Add Another Action
+                  </button>
+                </>
               )}
             </div>
-            <div className="text-center p-3 border rounded-lg">
-              <p className="text-xs text-muted-foreground mb-1">Accepted By</p>
-              <p className="font-medium">{report.acceptedBy || 'Not specified'}</p>
-            </div>
-            <div className="text-center p-3 border rounded-lg">
-              <p className="text-xs text-muted-foreground mb-1">SHEQ Checked By</p>
-              <p className="font-medium">{report.sheqCheckedBy || 'Not specified'}</p>
-            </div>
-          </div>
-        </div>
+          )}
 
-        <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={onClose}>
-            Close
-          </Button>
-          <Button variant="outline" onClick={() => {
-            onClose();
-            onEdit(report);
-          }}>
-            <Pencil className="h-4 w-4 mr-2" /> Edit
-          </Button>
-          <Button variant="destructive" onClick={() => {
-            onClose();
-            onDelete(report.id);
-          }}>
-            <Trash2 className="h-4 w-4 mr-2" /> Delete
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
-// =============== REPORT CARD COMPONENT ===============
-interface ReportCardProps {
-  report: WorkStoppageReport;
-  index: number;
-  isExpanded: boolean;
-  onToggleExpand: (id: string) => void;
-  onView: (report: WorkStoppageReport) => void;
-  onEdit: (report: WorkStoppageReport) => void;
-  onDelete: (id: string) => void;
-  onStatusChange?: (reportId: string, actionId: string, newStatus: StatusType) => void;
-}
-
-const ReportCard: React.FC<ReportCardProps> = ({
-  report,
-  index,
-  isExpanded,
-  onToggleExpand,
-  onView,
-  onEdit,
-  onDelete,
-  onStatusChange
-}) => {
-  const SectionIcon = SECTION_ICONS[report.section];
-  const pendingActions = report.correctiveActions?.filter(a => a.status !== 'Completed').length || 0;
-  const completedActions = report.correctiveActions?.filter(a => a.status === 'Completed').length || 0;
-  const totalActions = report.correctiveActions?.length || 0;
-  const progress = totalActions ? Math.round((completedActions / totalActions) * 100) : 0;
-
-  const handleCardClick = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest('button')) {
-      return;
-    }
-    onView(report);
-  };
-
-  const handleActionStatusChange = (actionId: string, newStatus: StatusType) => {
-    onStatusChange?.(report.id, actionId, newStatus);
-  };
-
-  return (
-    <Card
-      className="hover:shadow-lg transition-all cursor-pointer group border-muted"
-      onClick={handleCardClick}
-    >
-      <CardContent className="p-5">
-        {/* Header */}
-        <div className="flex items-start justify-between mb-3">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-muted rounded-lg">
-              <SectionIcon className="h-5 w-5 text-muted-foreground" />
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Stoppage #{index + 1}</p>
-              <p className="font-semibold text-base line-clamp-1">{report.department}</p>
-              <div className="flex items-center gap-1 mt-1">
-                <Badge variant="secondary" className="text-xs">
-                  <SectionIcon className="h-3 w-3 mr-1" />
-                  {report.section}
-                </Badge>
+          {/* ── Summary ── */}
+          {tab === 'summary' && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { label: 'Pending', value: pendingCount, color: '#f59e0b' },
+                  { label: 'In Progress', value: inProgressCount, color: '#60a5fa' },
+                  { label: 'Completed', value: completedCount, color: '#34d399' },
+                ].map(s => (
+                  <div key={s.label} className="text-center rounded-xl p-3 bg-white/[0.04] border border-white/[0.07]">
+                    <div className="text-2xl font-bold" style={{ color: s.color }}>{s.value}</div>
+                    <div className="text-[11px] text-white/40 mt-0.5">{s.label}</div>
+                  </div>
+                ))}
               </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 px-2 gap-1 text-xs"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onToggleExpand(report.id);
-                    }}
-                  >
-                    {isExpanded ? (
-                      <>
-                        <ChevronUp className="h-3.5 w-3.5" />
-                        <span className="hidden sm:inline">Less</span>
-                      </>
-                    ) : (
-                      <>
-                        <ChevronDown className="h-3.5 w-3.5" />
-                        <span className="hidden sm:inline">Details</span>
-                      </>
-                    )}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>{isExpanded ? 'Collapse details' : 'Expand to see full details'}</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
-        </div>
-
-        {/* Progress Bar */}
-        <div className="mb-3">
-          <div className="flex justify-between text-xs mb-1">
-            <span className="text-muted-foreground">Progress</span>
-            <span className="font-medium">{progress}%</span>
-          </div>
-          <Progress value={progress} className="h-1.5" />
-        </div>
-
-        {/* Quick Stats */}
-        <div className="grid grid-cols-3 gap-2 mb-3">
-          <div className="text-center bg-muted/30 p-2 rounded-md">
-            <div className="text-lg font-semibold">{totalActions}</div>
-            <div className="text-xs text-muted-foreground">Total</div>
-          </div>
-          <div className="text-center bg-yellow-50 p-2 rounded-md">
-            <div className="text-lg font-semibold text-yellow-600">{pendingActions}</div>
-            <div className="text-xs text-muted-foreground">Pending</div>
-          </div>
-          <div className="text-center bg-green-50 p-2 rounded-md">
-            <div className="text-lg font-semibold text-green-600">{completedActions}</div>
-            <div className="text-xs text-muted-foreground">Done</div>
-          </div>
-        </div>
-
-        {/* Basic Info */}
-        <div className="space-y-2 text-sm">
-          <div className="flex items-center gap-2 text-muted-foreground bg-muted/20 p-2 rounded-md">
-            <User className="h-4 w-4 flex-shrink-0" />
-            <span className="truncate font-medium">{report.stoppageBy}</span>
-            {report.stoppagePosition && (
-              <span className="text-xs text-muted-foreground ml-auto">({report.stoppagePosition})</span>
-            )}
-          </div>
-          <div className="flex items-center gap-2 text-muted-foreground bg-muted/20 p-2 rounded-md">
-            <Calendar className="h-4 w-4 flex-shrink-0" />
-            <span className="truncate">{formatDate(report.date)}</span>
-          </div>
-        </div>
-
-        {/* Expanded Details */}
-        {isExpanded && (
-          <div className="mt-4 pt-4 border-t space-y-4" onClick={(e) => e.stopPropagation()}>
-            {/* Full Description */}
-            <div>
-              <h4 className="text-sm font-medium mb-2 flex items-center gap-1">
-                <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
-                Description
-              </h4>
-              <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">{report.description}</p>
-            </div>
-
-            {/* Investigation Findings */}
-            {report.investigationFindings && (
+              {/* Progress bar */}
               <div>
-                <h4 className="text-sm font-medium mb-2 flex items-center gap-1">
-                  <ClipboardList className="h-3.5 w-3.5" />
-                  Investigation Findings
-                </h4>
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">{report.investigationFindings}</p>
-              </div>
-            )}
-
-            {/* All Corrective Actions */}
-            {report.correctiveActions && report.correctiveActions.length > 0 && (
-              <div>
-                <h4 className="text-sm font-medium mb-2 flex items-center gap-1">
-                  <Target className="h-3.5 w-3.5" />
-                  Corrective Actions ({report.correctiveActions.length})
-                </h4>
-                <div className="space-y-2">
-                  {report.correctiveActions.map((action, idx) => {
-                    const StatusIcon = STATUS_ICONS[action.status];
-                    return (
-                      <div key={action.id} className="bg-muted/30 p-3 rounded-lg">
-                        <div className="flex items-start justify-between mb-1">
-                          <span className="text-xs font-medium text-muted-foreground">Action #{idx + 1}</span>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm" className="h-6 gap-1 text-xs">
-                                <StatusIcon className="h-3 w-3" />
-                                <span>{action.status}</span>
-                                <ChevronDown className="h-2 w-2" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuLabel>Change Status</DropdownMenuLabel>
-                              <DropdownMenuSeparator />
-                              {(Object.keys(STATUS_ACTIONS) as StatusType[]).map((status) => {
-                                const Icon = STATUS_ICONS[status];
-                                return (
-                                  <DropdownMenuItem
-                                    key={status}
-                                    onClick={() => handleActionStatusChange(action.id, status)}
-                                    className={action.status === status ? 'bg-accent' : ''}
-                                  >
-                                    <Icon className="h-4 w-4 mr-2" />
-                                    {status}
-                                  </DropdownMenuItem>
-                                );
-                              })}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                        <p className="text-sm mb-1"><span className="font-medium">Finding:</span> {action.finding}</p>
-                        <p className="text-sm mb-2"><span className="font-medium">Action:</span> {action.action}</p>
-                        <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-                          <div>By: {action.byWho}</div>
-                          <div>Due: {formatDate(action.byWhen)}</div>
-                          {action.completedDate && (
-                            <div className="col-span-2">Completed: {formatDate(action.completedDate)}</div>
-                          )}
-                        </div>
-                        {action.remarks && (
-                          <p className="text-xs mt-2 italic text-muted-foreground">"{action.remarks}"</p>
-                        )}
-                      </div>
-                    );
-                  })}
+                <div className="flex justify-between text-xs text-white/45 mb-1.5">
+                  <span>Overall Progress</span>
+                  <span>{progressPct}%</span>
+                </div>
+                <div className="h-2 rounded-full bg-white/[0.07] overflow-hidden">
+                  <div className="h-full rounded-full transition-all"
+                    style={{ width: `${progressPct}%`, background: 'linear-gradient(90deg,#2A4D69,#34d399)' }} />
                 </div>
               </div>
-            )}
-
-            {/* Signatories */}
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              <div className="bg-muted/30 p-2 rounded-md">
-                <p className="text-xs text-muted-foreground mb-1">Accepted By</p>
-                <p className="font-medium">{report.acceptedBy || 'Not specified'}</p>
-              </div>
-              <div className="bg-muted/30 p-2 rounded-md">
-                <p className="text-xs text-muted-foreground mb-1">SHEQ Checked</p>
-                <p className="font-medium">{report.sheqCheckedBy || 'Not specified'}</p>
-              </div>
+              {actions.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-white/40 uppercase tracking-wider">Action Items</p>
+                  <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                    {actions.map((a, idx) => (
+                      <div key={a.id} className="flex items-center gap-3 py-1.5 border-b border-white/[0.04]">
+                        <span className="text-[10px] text-white/30 w-4">{idx + 1}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-white/70 truncate">{a.finding || 'No finding'}</p>
+                          <p className="text-[10px] text-white/30">Due: {fmtDate(a.byWhen)}</p>
+                        </div>
+                        <StatusBadge status={a.status} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
+          )}
+        </div>
 
-            {/* Action Buttons */}
-            <div className="flex gap-2 pt-2">
-              <Button size="sm" variant="default" className="flex-1" onClick={() => onView(report)}>
-                <Eye className="h-3.5 w-3.5 mr-1.5" /> View Full
-              </Button>
-              <Button size="sm" variant="outline" className="flex-1" onClick={() => onEdit(report)}>
-                <Pencil className="h-3.5 w-3.5 mr-1.5" /> Edit
-              </Button>
-              <Button size="sm" variant="outline" className="flex-1 text-destructive hover:text-destructive" onClick={() => onDelete(report.id)}>
-                <Trash2 className="h-3.5 w-3.5 mr-1.5" /> Delete
-              </Button>
+        <ModalActions
+          onCancel={onClose}
+          submitLabel={report ? 'Update Stoppage' : 'Issue Work Stoppage'}
+          submitting={saving}
+        />
+      </form>
+    </SafetyModal>
+  );
+}
+
+// ─── REPORT DETAIL MODAL ──────────────────────────────────────────────────────
+
+function ReportDetailModal({
+  report, open, onClose, onEdit,
+}: {
+  report: WorkStoppageReport | null; open: boolean;
+  onClose: () => void; onEdit: (r: WorkStoppageReport) => void;
+}) {
+  if (!report) return null;
+  const ACCENT = '#f43f5e';
+  const actions = report.correctiveActions || [];
+  const completedCount = actions.filter(a => a.status === 'Completed').length;
+  const pct = actions.length ? Math.round((completedCount / actions.length) * 100) : 0;
+  const SectionIcon = SECTION_ICON[report.section];
+  const sectionColor = SECTION_COLOR[report.section];
+
+  return (
+    <SafetyModal open={open} onClose={onClose} title="Work Stoppage Report"
+      icon={Octagon} width="max-w-2xl" accentColor={ACCENT}>
+      <div className="px-5 py-4 space-y-5 max-h-[70vh] overflow-y-auto">
+
+        {/* Section + date row */}
+        <div className="flex items-center gap-3">
+          <SectionBadge section={report.section} />
+          <span className="text-xs text-white/35">{fmtDate(report.date)}</span>
+          <span className="text-xs text-white/25 ml-auto">ID: {report.id.slice(0, 8)}</span>
+        </div>
+
+        {/* Progress */}
+        {actions.length > 0 && (
+          <div>
+            <div className="flex justify-between text-xs text-white/45 mb-1">
+              <span>Corrective Action Progress</span>
+              <span>{completedCount}/{actions.length} completed ({pct}%)</span>
+            </div>
+            <div className="h-1.5 rounded-full bg-white/[0.07] overflow-hidden">
+              <div className="h-full rounded-full" style={{ width: `${pct}%`, background: '#34d399' }} />
             </div>
           </div>
         )}
-      </CardContent>
-    </Card>
+
+        {/* Info grid */}
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          {[
+            { label: 'Department', value: report.department },
+            { label: 'Section', value: report.section },
+            { label: 'Issued By', value: report.stoppageBy },
+            { label: 'Position', value: report.stoppagePosition || 'N/A' },
+            { label: 'Accepted By', value: report.acceptedBy || 'N/A' },
+            { label: 'SHEQ Checked By', value: report.sheqCheckedBy || 'N/A' },
+          ].map(({ label, value }) => (
+            <div key={label}>
+              <p className="text-[10px] text-white/30 uppercase tracking-wider mb-0.5">{label}</p>
+              <p className="text-white/75 text-xs">{value}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="border-t border-white/[0.06]" />
+
+        {/* Description */}
+        <div>
+          <p className="text-[10px] text-white/35 uppercase tracking-wider mb-1.5">Description</p>
+          <p className="text-xs text-white/65 leading-relaxed whitespace-pre-wrap">{report.description}</p>
+        </div>
+
+        {report.investigationFindings && (
+          <div>
+            <p className="text-[10px] text-white/35 uppercase tracking-wider mb-1.5">Investigation Findings</p>
+            <p className="text-xs text-white/65 leading-relaxed whitespace-pre-wrap">{report.investigationFindings}</p>
+          </div>
+        )}
+
+        {actions.length > 0 && (
+          <div>
+            <p className="text-[10px] text-white/35 uppercase tracking-wider mb-2">Corrective Actions ({actions.length})</p>
+            <div className="space-y-2">
+              {actions.map((a, idx) => (
+                <div key={a.id} className="rounded-xl p-3 bg-white/[0.04] border border-white/[0.07]">
+                  <div className="flex items-start justify-between gap-2 mb-1.5">
+                    <p className="text-xs font-medium text-white/75">#{idx + 1} {a.finding}</p>
+                    <StatusBadge status={a.status} />
+                  </div>
+                  <p className="text-xs text-white/45 mb-2">{a.action}</p>
+                  <div className="grid grid-cols-2 gap-2 text-[10px] text-white/35">
+                    <span>By: {a.byWho}</span>
+                    <span>Due: {fmtDate(a.byWhen)}</span>
+                    {a.completedDate && <span className="col-span-2">Completed: {fmtDate(a.completedDate)}</span>}
+                  </div>
+                  {a.remarks && <p className="text-[11px] text-white/30 italic mt-1">&ldquo;{a.remarks}&rdquo;</p>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="px-5 py-4 border-t border-white/[0.08] flex justify-end gap-2">
+        <button type="button" onClick={onClose}
+          className="px-4 py-2 rounded-xl text-sm text-white/50 hover:text-white border border-white/10 hover:border-white/20 transition-all">
+          Close
+        </button>
+        <button type="button" onClick={() => { onClose(); onEdit(report); }}
+          className="px-4 py-2 rounded-xl text-sm font-semibold text-white inline-flex items-center gap-2 transition-all hover:-translate-y-0.5"
+          style={{ background: 'linear-gradient(135deg,#2A4D69,#1e3a52)', border: '1px solid rgba(134,187,216,0.3)' }}>
+          <Pencil className="h-3.5 w-3.5" /> Edit
+        </button>
+      </div>
+    </SafetyModal>
   );
-};
+}
 
-// =============== MAIN PAGE ===============
+// ─── REPORT CARD (grid) ───────────────────────────────────────────────────────
+
+function ReportCard({
+  report, expanded, onToggle, onView, onEdit, onDelete,
+}: {
+  report: WorkStoppageReport; expanded: boolean;
+  onToggle: () => void; onView: () => void;
+  onEdit: () => void; onDelete: () => void;
+}) {
+  const SIcon = SECTION_ICON[report.section];
+  const sColor = SECTION_COLOR[report.section];
+  const actions = report.correctiveActions || [];
+  const pendingCount = actions.filter(a => a.status === 'Pending').length;
+  const completedCount = actions.filter(a => a.status === 'Completed').length;
+  const today = new Date().toISOString().split('T')[0];
+  const overdueCount = actions.filter(a => a.status !== 'Completed' && a.byWhen && a.byWhen < today).length;
+
+  return (
+    <div className="oz-glass-panel rounded-2xl overflow-hidden cursor-pointer hover:border-white/20 transition-all"
+      onClick={e => { if (!(e.target as HTMLElement).closest('button')) onView(); }}>
+      {/* Red top stripe */}
+      <div className="h-1 w-full" style={{ background: 'linear-gradient(90deg,#f43f5e,#fb923c)' }} />
+
+      <div className="px-4 py-3 border-b border-white/[0.06] flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="p-2 rounded-lg flex-shrink-0"
+            style={{ background: `${sColor}18`, border: `1px solid ${sColor}30` }}>
+            <SIcon className="h-4 w-4" style={{ color: sColor }} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[10px] text-white/30">{report.section} • {fmtDate(report.date)}</p>
+            <p className="text-sm font-semibold text-white/90 truncate">{report.department}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5 flex-shrink-0" onClick={e => e.stopPropagation()}>
+          <button type="button" title={expanded ? 'Collapse' : 'Expand'} onClick={onToggle}
+            className="h-6 w-6 flex items-center justify-center rounded text-white/25 hover:text-white/70 transition-all">
+            {expanded
+              ? <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="m18 15-6-6-6 6"/></svg>
+              : <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="m6 9 6 6 6-6"/></svg>
+            }
+          </button>
+        </div>
+      </div>
+
+      {/* Mini stats */}
+      <div className="px-4 py-2 grid grid-cols-4 gap-1 border-b border-white/[0.05]">
+        {[
+          { label: 'Actions', value: actions.length, color: '#86BBD8' },
+          { label: 'Pending', value: pendingCount, color: '#f59e0b' },
+          { label: 'Closed', value: completedCount, color: '#34d399' },
+          { label: 'Overdue', value: overdueCount, color: '#f43f5e' },
+        ].map(s => (
+          <div key={s.label} className="text-center">
+            <div className="text-base font-bold leading-none" style={{ color: s.color }}>{s.value}</div>
+            <div className="text-[9px] text-white/25 mt-0.5">{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Info */}
+      <div className="px-4 py-3 space-y-1.5">
+        <div className="flex items-center gap-1.5 text-xs text-white/45">
+          <UserCircle className="h-3.5 w-3.5 flex-shrink-0" />
+          <span className="truncate">{report.stoppageBy}{report.stoppagePosition ? ` — ${report.stoppagePosition}` : ''}</span>
+        </div>
+        <div className="flex items-start gap-1.5 text-xs text-white/40">
+          <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0 mt-0.5 text-amber-400/60" />
+          <span className="line-clamp-2">{report.description}</span>
+        </div>
+      </div>
+
+      {/* Expanded */}
+      {expanded && (
+        <div className="border-t border-white/[0.06] px-4 py-3 space-y-3" onClick={e => e.stopPropagation()}>
+          {report.investigationFindings && (
+            <div>
+              <p className="text-[10px] text-white/30 uppercase tracking-wider mb-1">Investigation</p>
+              <p className="text-xs text-white/50 line-clamp-3">{report.investigationFindings}</p>
+            </div>
+          )}
+          {actions.length > 0 && (
+            <div>
+              <p className="text-[10px] text-white/30 uppercase tracking-wider mb-1.5">Actions</p>
+              <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                {actions.map((a, idx) => (
+                  <div key={a.id} className="rounded-lg p-2 bg-white/[0.03] border border-white/[0.05]">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-xs text-white/65">#{idx + 1} {a.finding}</p>
+                      <StatusBadge status={a.status} />
+                    </div>
+                    <p className="text-[10px] text-white/30 mt-0.5">By: {a.byWho} · Due: {fmtDate(a.byWhen)}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div>
+              <p className="text-[10px] text-white/25">Accepted By</p>
+              <p className="text-white/50">{report.acceptedBy || 'Not specified'}</p>
+            </div>
+            <div>
+              <p className="text-[10px] text-white/25">SHEQ Checked</p>
+              <p className="text-white/50">{report.sheqCheckedBy || 'Not specified'}</p>
+            </div>
+          </div>
+          <div className="flex gap-1.5 pt-1">
+            {[
+              { label: 'View', icon: Eye, fn: onView, color: '#86BBD8' },
+              { label: 'Edit', icon: Pencil, fn: onEdit, color: '#86BBD8' },
+              { label: 'Delete', icon: Trash2, fn: onDelete, color: '#f43f5e' },
+            ].map(({ label, icon: Icon, fn, color }) => (
+              <button key={label} type="button" onClick={fn}
+                className="flex-1 py-1.5 rounded-lg text-[11px] font-medium border transition-all hover:-translate-y-0.5 inline-flex items-center justify-center gap-1"
+                style={{ color, borderColor: `${color}25`, background: `${color}10` }}>
+                <Icon className="h-3 w-3" /> {label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── MAIN PAGE ────────────────────────────────────────────────────────────────
+
 export default function WorkStoppagePage() {
-  // State
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [reports, setReports] = useState<WorkStoppageReport[]>([]);
-  const [stats, setStats] = useState<WorkStoppageStats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  
-  // UI State
-  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [selectedReport, setSelectedReport] = useState<WorkStoppageReport | null>(null);
-  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-  const [isFormModalOpen, setIsFormModalOpen] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
   const [editingReport, setEditingReport] = useState<WorkStoppageReport | null>(null);
-  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
-  
+
   // Filters
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedSection, setSelectedSection] = useState<string>('all');
-  const [selectedInspector, setSelectedInspector] = useState<string>('all');
-  const [dateRange, setDateRange] = useState<{ from: Date | null; to: Date | null }>({ from: null, to: null });
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [search, setSearch] = useState('');
+  const [sectionFilter, setSectionFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
 
-  // Load initial data
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  // Load data with filters
-  const loadData = async () => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const [reportsData, statsData] = await Promise.all([
-        getReports(),
-        getStats()
-      ]);
-      
-      setReports(reportsData);
-      setStats(statsData);
-    } catch (err) {
-      console.error('Failed to load data:', err);
-      setError('Failed to load work stoppage reports. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+  const load = async (quiet = false) => {
+    if (!quiet) setLoading(true); else setRefreshing(true);
+    try { setReports(await getReports()); }
+    catch { toast.error('Failed to load reports'); }
+    finally { setLoading(false); setRefreshing(false); }
   };
 
-  // Load suggestions
-  const [uniqueInspectors, setUniqueInspectors] = useState<string[]>([]);
-  const [uniqueDepartments, setUniqueDepartments] = useState<string[]>([]);
+  useEffect(() => { load(); }, []);
 
-  useEffect(() => {
-    const loadSuggestions = async () => {
-      const [departments, inspectors] = await Promise.all([
-        getDepartmentSuggestions(),
-        getInspectorSuggestions()
-      ]);
-      setUniqueDepartments(departments);
-      setUniqueInspectors(inspectors);
+  const stats = useMemo(() => {
+    const allActions = reports.flatMap(r => r.correctiveActions || []);
+    const today = new Date().toISOString().split('T')[0];
+    return {
+      total: reports.length,
+      pending: allActions.filter(a => a.status === 'Pending').length,
+      inProgress: allActions.filter(a => a.status === 'In Progress').length,
+      completed: allActions.filter(a => a.status === 'Completed').length,
+      overdue: allActions.filter(a => a.status !== 'Completed' && a.byWhen && a.byWhen < today).length,
+      mechanical: reports.filter(r => r.section === 'Mechanical').length,
+      electrical: reports.filter(r => r.section === 'Electrical').length,
+      general: reports.filter(r => r.section === 'General').length,
     };
-    
-    loadSuggestions();
-  }, []);
+  }, [reports]);
 
-  // Handlers
-  const handleSaveReport = async (reportData: Partial<WorkStoppageReport>) => {
-    try {
-      let savedReport: WorkStoppageReport | null = null;
-      
-      if (editingReport) {
-        savedReport = await updateReport(editingReport.id, reportData);
-        if (savedReport) {
-          setReports(prev => prev.map(r => r.id === savedReport!.id ? savedReport! : r));
-          toast.success('Work stoppage updated successfully');
-        }
-      } else {
-        savedReport = await createReport(reportData);
-        if (savedReport) {
-          setReports(prev => [savedReport!, ...prev]);
-          toast.success('Work stoppage issued successfully');
-        }
-      }
-      
-      if (savedReport) {
-        const newStats = await getStats();
-        setStats(newStats);
-      }
-      
-      setIsFormModalOpen(false);
-      setEditingReport(null);
-    } catch (error) {
-      console.error('Failed to save report:', error);
-      toast.error('Failed to save work stoppage. Please try again.');
-      throw error;
-    }
-  };
-
-  const handleDeleteReport = async (id: string) => {
-    try {
-      const success = await deleteReport(id);
-      if (success) {
-        setReports(prev => prev.filter(r => r.id !== id));
-        const newStats = await getStats();
-        setStats(newStats);
-        toast.success('Report deleted successfully');
-        setDeleteConfirm(null);
-      }
-    } catch (error) {
-      console.error('Failed to delete report:', error);
-      toast.error('Failed to delete report. Please try again.');
-    }
-  };
-
-  const handleActionStatusChange = async (reportId: string, actionId: string, newStatus: StatusType) => {
-    const report = reports.find(r => r.id === reportId);
-    if (!report) return;
-
-    const updatedActions = report.correctiveActions?.map(action => {
-      if (action.id === actionId) {
-        const updatedAction = { ...action, status: newStatus };
-        if (newStatus === 'Completed' && !action.completedDate) {
-          updatedAction.completedDate = new Date().toISOString().split('T')[0];
-        }
-        return updatedAction;
-      }
-      return action;
-    });
-
-    const updatedReport = { ...report, correctiveActions: updatedActions };
-    
-    // Optimistic update
-    setReports(prev => prev.map(r => r.id === reportId ? updatedReport : r));
-
-    try {
-      const saved = await updateReport(reportId, { correctiveActions: updatedActions });
-      if (!saved) {
-        // Revert on failure
-        setReports(prev => prev.map(r => r.id === reportId ? report : r));
-        toast.error('Failed to update action status');
-      } else {
-        toast.success(`Action status updated to ${newStatus}`);
-        // Refresh stats
-        const newStats = await getStats();
-        setStats(newStats);
-      }
-    } catch (error) {
-      // Revert on error
-      setReports(prev => prev.map(r => r.id === reportId ? report : r));
-      console.error('Failed to update action status:', error);
-      toast.error('Failed to update action status');
-    }
-  };
-
-  const toggleCardExpand = (id: string) => {
-    setExpandedCards(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
-  };
-
-  const expandAll = () => {
-    setExpandedCards(new Set(reports.map(r => r.id)));
-  };
-
-  const collapseAll = () => {
-    setExpandedCards(new Set());
-  };
-
-  const clearFilters = () => {
-    setSearchTerm('');
-    setSelectedSection('all');
-    setSelectedInspector('all');
-    setDateRange({ from: null, to: null });
-    setStatusFilter('all');
-  };
-
-  // Filter reports
-  const filteredReports = useMemo(() => {
-    return reports.filter(report => {
-      // Search filter
-      if (searchTerm) {
-        const searchLower = searchTerm.toLowerCase();
-        const matchesSearch = 
-          report.department?.toLowerCase().includes(searchLower) ||
-          report.description?.toLowerCase().includes(searchLower) ||
-          report.stoppageBy?.toLowerCase().includes(searchLower) ||
-          report.correctiveActions?.some(a => 
-            a.finding?.toLowerCase().includes(searchLower) ||
-            a.action?.toLowerCase().includes(searchLower)
-          );
-        
-        if (!matchesSearch) return false;
-      }
-      
-      // Section filter
-      if (selectedSection !== 'all' && report.section !== selectedSection) {
-        return false;
-      }
-      
-      // Inspector filter
-      if (selectedInspector !== 'all' && report.stoppageBy !== selectedInspector) {
-        return false;
-      }
-      
-      // Status filter
+  const filtered = useMemo(() => {
+    const today = new Date().toISOString().split('T')[0];
+    return reports.filter(r => {
+      const s = search.toLowerCase();
+      if (s && !r.department?.toLowerCase().includes(s) && !r.description?.toLowerCase().includes(s) && !r.stoppageBy?.toLowerCase().includes(s)) return false;
+      if (sectionFilter !== 'all' && r.section !== sectionFilter) return false;
       if (statusFilter !== 'all') {
-        if (statusFilter === 'pending' && !report.correctiveActions?.some(a => a.status === 'Pending')) return false;
-        if (statusFilter === 'in-progress' && !report.correctiveActions?.some(a => a.status === 'In Progress')) return false;
-        if (statusFilter === 'completed' && !report.correctiveActions?.every(a => a.status === 'Completed')) return false;
-        if (statusFilter === 'overdue') {
-          const today = new Date().toISOString().split('T')[0];
-          const hasOverdue = report.correctiveActions?.some(a => 
-            a.status !== 'Completed' && a.byWhen < today
-          );
-          if (!hasOverdue) return false;
-        }
+        const actions = r.correctiveActions || [];
+        if (statusFilter === 'pending' && !actions.some(a => a.status === 'Pending')) return false;
+        if (statusFilter === 'in-progress' && !actions.some(a => a.status === 'In Progress')) return false;
+        if (statusFilter === 'completed' && !actions.every(a => a.status === 'Completed')) return false;
+        if (statusFilter === 'overdue' && !actions.some(a => a.status !== 'Completed' && a.byWhen && a.byWhen < today)) return false;
       }
-      
-      // Date range filter
-      if (dateRange.from && dateRange.to) {
-        const reportDate = new Date(report.date);
-        if (reportDate < dateRange.from || reportDate > dateRange.to) {
-          return false;
-        }
-      }
-      
+      if (dateFrom && r.date < dateFrom) return false;
+      if (dateTo && r.date > dateTo) return false;
       return true;
     });
-  }, [reports, searchTerm, selectedSection, selectedInspector, dateRange, statusFilter]);
+  }, [reports, search, sectionFilter, statusFilter, dateFrom, dateTo]);
 
-  // Calculate stats from filtered data
-  const filteredStats = useMemo(() => calculateStats(filteredReports), [filteredReports]);
+  const hasFilters = search || sectionFilter !== 'all' || statusFilter !== 'all' || dateFrom || dateTo;
 
-  // Stats cards data
-  const statsCards = [
-    {
-      title: 'Total Stoppages',
-      value: stats?.total || 0,
-      icon: Octagon,
-      color: 'text-destructive',
-      bgColor: 'bg-destructive/10',
-      description: 'All time'
-    },
-    {
-      title: 'Pending Actions',
-      value: stats?.pendingActions || 0,
-      icon: AlertCircle,
-      color: 'text-yellow-600',
-      bgColor: 'bg-yellow-50',
-      description: 'Need attention'
-    },
-    {
-      title: 'In Progress',
-      value: stats?.inProgressActions || 0,
-      icon: Clock,
-      color: 'text-blue-600',
-      bgColor: 'bg-blue-50',
-      description: 'Being addressed'
-    },
-    {
-      title: 'Completed',
-      value: stats?.completedActions || 0,
-      icon: CheckCircle,
-      color: 'text-green-600',
-      bgColor: 'bg-green-50',
-      description: 'Actions done'
+  const toggle = (id: string) => setExpandedIds(prev => {
+    const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n;
+  });
+
+  const handleSave = async (data: Partial<WorkStoppageReport>) => {
+    try {
+      if (editingReport) {
+        const updated = await updateReport(editingReport.id, data);
+        setReports(prev => prev.map(r => r.id === updated.id ? updated : r));
+        toast.success('Work stoppage updated');
+      } else {
+        const created = await createReport(data);
+        setReports(prev => [created, ...prev]);
+        toast.success('Work stoppage issued');
+      }
+      setFormOpen(false); setEditingReport(null);
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to save'); throw e;
     }
-  ];
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Delete this work stoppage report?')) return;
+    try {
+      await deleteReport(id);
+      setReports(prev => prev.filter(r => r.id !== id));
+      toast.success('Report deleted');
+    } catch { toast.error('Failed to delete report'); }
+  };
+
+  const ACCENT = '#f43f5e';
 
   return (
     <PageShell>
-      <TooltipProvider>
-        <main className="container mx-auto px-4 py-6 space-y-6">
-          {/* Page Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <nav className="flex items-center gap-1.5 text-xs text-[#6B7B8E] mb-2">
-                <span>Home</span>
-                <ChevronRight className="h-3 w-3" />
-                <span className="text-[#2A4D69] font-medium">Work Stoppage</span>
-              </nav>
-              <h1 className="text-3xl font-bold text-[#2A4D69] font-heading tracking-tight">Work Stoppage</h1>
-              <p className="text-[#6B7B8E] mt-1">Document and track unsafe acts, practices, and corrective actions.</p>
-            </div>
-            <div className="flex items-center gap-2 self-start">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="outline" size="icon" onClick={() => setViewMode('grid')} className={viewMode === 'grid' ? 'bg-accent text-accent-foreground' : ''}>
-                    <LayoutGrid className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent><p>Grid View</p></TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="outline" size="icon" onClick={() => setViewMode('table')} className={viewMode === 'table' ? 'bg-accent text-accent-foreground' : ''}>
-                    <TableIcon className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent><p>Table View</p></TooltipContent>
-              </Tooltip>
-              <Button onClick={() => { setEditingReport(null); setIsFormModalOpen(true); }} className="bg-[#2A4D69] hover:bg-[#1e3a52] text-white shadow-md">
-                <Plus className="h-4 w-4 mr-2" /> New Stoppage
-              </Button>
-            </div>
-          </div>
+      <main className="container mx-auto px-4 py-6 space-y-4">
 
-          {/* Stats Cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-            {statsCards.map((stat, idx) => {
-              const Icon = stat.icon;
-              return (
-                <Card key={idx}>
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground">{stat.title}</p>
-                        <p className="text-3xl font-bold mt-2">{stat.value}</p>
-                        <p className="text-xs text-muted-foreground mt-1">{stat.description}</p>
-                      </div>
-                      <div className={`${stat.bgColor} p-3 rounded-lg`}>
-                        <Icon className={`h-6 w-6 ${stat.color}`} />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
+        {/* Hero */}
+        <SafetyHero
+          icon={Octagon} title="Work Stoppages"
+          subtitle="Document and track unsafe acts, practices, and SHEQ compliance issues"
+          accentColor={ACCENT}
+          stats={[
+            { label: 'Total Reports', value: stats.total, color: ACCENT },
+            { label: 'Pending', value: stats.pending, color: '#f59e0b' },
+            { label: 'In Progress', value: stats.inProgress, color: '#60a5fa' },
+            { label: 'Completed', value: stats.completed, color: '#34d399' },
+            { label: 'Overdue', value: stats.overdue, color: '#f43f5e' },
+            { label: 'Mechanical', value: stats.mechanical, color: '#86BBD8' },
+            { label: 'Electrical', value: stats.electrical, color: '#f59e0b' },
+            { label: 'General', value: stats.general, color: '#a78bfa' },
+          ]}
+          onRefresh={() => load(true)} refreshing={refreshing}
+          actions={<AddButton label="Issue Stoppage" icon={Octagon} onClick={() => { setEditingReport(null); setFormOpen(true); }} />}
+        />
 
-          {/* Section Distribution */}
-          {stats && (
-            <Card className="mb-8">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium flex items-center gap-2">
-                  <PieChart className="h-4 w-4" />
-                  Distribution by Section
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex gap-4">
-                  {SECTIONS.map(section => {
-                    const Icon = SECTION_ICONS[section];
-                    const count = stats.bySection[section] || 0;
-                    const percentage = stats.total ? Math.round((count / stats.total) * 100) : 0;
-                    
-                    return (
-                      <div key={section} className="flex-1">
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <Icon className={`h-4 w-4 text-muted-foreground`} />
-                            <span className="text-sm font-medium">{section}</span>
-                          </div>
-                          <span className="text-sm text-muted-foreground">{count} ({percentage}%)</span>
-                        </div>
-                        <Progress value={percentage} className="h-2" />
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Search — always visible */}
-          <div className="relative bg-white rounded-lg border shadow-sm p-3 mb-3">
-            <Search className="absolute left-5 top-1/2 transform -translate-y-1/2 h-4 w-4 text-[#6B7B8E]" />
-            <Input
-              placeholder="Search by department, description, inspector..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-10 bg-white border-0 shadow-none focus-visible:ring-0"
-            />
-            {searchTerm && (
-              <button
-                type="button"
-                aria-label="Clear search"
-                onClick={() => setSearchTerm('')}
-                className="absolute right-5 top-1/2 transform -translate-y-1/2 text-[#6B7B8E] hover:text-[#2A4D69]"
-              >
-                <X className="h-4 w-4" />
+        {/* Controls */}
+        <SafetyControls>
+          <SafetySearchBar value={search} onChange={setSearch}
+            placeholder="Search by department, description, issued by…" />
+          <FilterPills label="Section" value={sectionFilter} onChange={setSectionFilter} accentColor={ACCENT}
+            options={[
+              { value: 'all', label: 'All' },
+              { value: 'Mechanical', label: 'Mechanical' },
+              { value: 'Electrical', label: 'Electrical' },
+              { value: 'General', label: 'General' },
+            ]}
+          />
+          <FilterPills label="Status" value={statusFilter} onChange={setStatusFilter} accentColor={ACCENT}
+            options={[
+              { value: 'all', label: 'All' },
+              { value: 'pending', label: 'Pending' },
+              { value: 'in-progress', label: 'In Progress' },
+              { value: 'completed', label: 'Completed' },
+              { value: 'overdue', label: 'Overdue' },
+            ]}
+          />
+          <DateRangeFilter from={dateFrom} to={dateTo} onFromChange={setDateFrom} onToChange={setDateTo} />
+          {hasFilters && <ClearFiltersButton onClick={() => { setSearch(''); setSectionFilter('all'); setStatusFilter('all'); setDateFrom(''); setDateTo(''); }} />}
+          <div className="ml-auto flex items-center gap-1.5">
+            <button type="button" title="Expand all"
+              onClick={() => setExpandedIds(new Set(reports.map(r => r.id)))}
+              className="h-7 px-2.5 flex items-center gap-1 text-[11px] rounded-lg bg-white/[0.05] border border-white/10 text-white/40 hover:text-white/60 transition-all">
+              <Maximize2 className="h-3 w-3" /> Expand all
+            </button>
+            <button type="button" title="Collapse all"
+              onClick={() => setExpandedIds(new Set())}
+              className="h-7 px-2.5 flex items-center gap-1 text-[11px] rounded-lg bg-white/[0.05] border border-white/10 text-white/40 hover:text-white/60 transition-all">
+              <Minimize2 className="h-3 w-3" /> Collapse all
+            </button>
+            {[
+              { mode: 'grid', icon: LayoutGrid },
+              { mode: 'list', icon: TableIcon },
+            ].map(({ mode, icon: Icon }) => (
+              <button key={mode} type="button"
+                onClick={() => setViewMode(mode as 'grid' | 'list')}
+                className="h-7 w-7 flex items-center justify-center rounded-lg border transition-all"
+                style={viewMode === mode
+                  ? { background: `${ACCENT}20`, borderColor: `${ACCENT}35`, color: ACCENT }
+                  : { background: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.10)', color: 'rgba(255,255,255,0.35)' }}>
+                <Icon className="h-3.5 w-3.5" />
               </button>
-            )}
+            ))}
           </div>
+        </SafetyControls>
 
-          {/* Expand/Collapse All — outside filters */}
-          <div className="flex gap-2 mb-3">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="outline" size="sm" onClick={expandAll}>
-                  <ChevronsDown className="h-4 w-4 mr-2" />
-                  Expand All
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Expand all cards to show full details</p>
-              </TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="outline" size="sm" onClick={collapseAll}>
-                  <ChevronsUp className="h-4 w-4 mr-2" />
-                  Collapse All
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Collapse all cards</p>
-              </TooltipContent>
-            </Tooltip>
-          </div>
-
-          {/* Advanced Filters */}
-          <CollapsibleSection
-            title="Filters"
-            description="Filter reports by section, inspector, status, and date range"
-            badge={
-              (() => {
-                const count = [
-                  selectedSection !== 'all',
-                  selectedInspector !== 'all',
-                  statusFilter !== 'all',
-                  !!dateRange.from,
-                  !!dateRange.to,
-                ].filter(Boolean).length;
-                return count > 0
-                  ? <Badge className="ml-2 bg-[#2A4D69] text-white text-xs px-2 py-0.5">{count}</Badge>
-                  : null;
-              })()
-            }
-            defaultOpen={false}
-          >
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
-              {/* Section Filter */}
-              <div className="space-y-2">
-                <Label className="text-[#2A4D69] font-medium">Section</Label>
-                <Select value={selectedSection} onValueChange={setSelectedSection}>
-                  <SelectTrigger className="bg-[#F0F5F9]">
-                    <SelectValue placeholder="All Sections" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Sections</SelectItem>
-                    {SECTIONS.map(section => (
-                      <SelectItem key={section} value={section}>{section}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Inspector Filter */}
-              <div className="space-y-2">
-                <Label className="text-[#2A4D69] font-medium">Inspector</Label>
-                <Select value={selectedInspector} onValueChange={setSelectedInspector}>
-                  <SelectTrigger className="bg-[#F0F5F9]">
-                    <SelectValue placeholder="All Inspectors" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Inspectors</SelectItem>
-                    {uniqueInspectors.map(inspector => (
-                      <SelectItem key={inspector} value={inspector}>{inspector}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Status Filter */}
-              <div className="space-y-2">
-                <Label className="text-[#2A4D69] font-medium">Status</Label>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="bg-[#F0F5F9]">
-                    <SelectValue placeholder="All Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="pending">Has Pending</SelectItem>
-                    <SelectItem value="in-progress">In Progress</SelectItem>
-                    <SelectItem value="completed">All Completed</SelectItem>
-                    <SelectItem value="overdue">Overdue</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Date Range Filter */}
-              <div className="space-y-2">
-                <Label className="text-[#2A4D69] font-medium">Start Date</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full bg-[#F0F5F9] justify-start">
-                      <Calendar className="h-4 w-4 mr-2 text-[#6B7B8E]" />
-                      <span className="text-[#6B7B8E]">{dateRange.from ? format(dateRange.from, 'LLL dd, y') : 'Start'}</span>
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <CalendarComponent
-                      mode="single"
-                      selected={dateRange.from || undefined}
-                      onSelect={(date) => setDateRange(prev => ({ ...prev, from: date || null }))}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-[#2A4D69] font-medium">End Date</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full bg-[#F0F5F9] justify-start">
-                      <Calendar className="h-4 w-4 mr-2 text-[#6B7B8E]" />
-                      <span className="text-[#6B7B8E]">{dateRange.to ? format(dateRange.to, 'LLL dd, y') : 'End'}</span>
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <CalendarComponent
-                      mode="single"
-                      selected={dateRange.to || undefined}
-                      onSelect={(date) => setDateRange(prev => ({ ...prev, to: date || null }))}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-            </div>
-
-            <div className="mt-4 flex items-center justify-between">
-              <span className="text-sm text-[#6B7B8E]">
-                Showing {filteredReports.length} of {reports.length} reports
-              </span>
-              {(selectedSection !== 'all' || selectedInspector !== 'all' ||
-                statusFilter !== 'all' || dateRange.from || dateRange.to) && (
-                <Button variant="ghost" onClick={clearFilters} className="text-[#6B7B8E] hover:text-[#2A4D69]">
-                  <FilterX className="h-4 w-4 mr-2" />
-                  Clear Filters
-                </Button>
-              )}
-            </div>
-          </CollapsibleSection>
-
-          {/* Results Count — always visible */}
-          <div className="mt-2 mb-6 text-sm text-[#6B7B8E]">
-            Showing {filteredReports.length} of {reports.length} reports
-          </div>
-
-          {/* Loading State */}
-          {loading && (
-            <div className="flex justify-center items-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
-          )}
-
-          {/* Error State */}
-          {error && !loading && (
-            <Card className="bg-destructive/10 border-destructive/20 mb-6">
-              <CardContent className="p-6 flex items-center gap-3">
-                <AlertTriangle className="h-5 w-5 text-destructive" />
-                <div>
-                  <p className="font-medium text-destructive">Error Loading Data</p>
-                  <p className="text-sm text-destructive/80 mt-1">{error}</p>
-                </div>
-                <Button variant="outline" size="sm" onClick={loadData} className="ml-auto">
-                  <RefreshCw className="h-4 w-4 mr-2" /> Retry
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Empty State */}
-          {!loading && !error && filteredReports.length === 0 && (
-            <Card className="py-20">
-              <CardContent className="text-center">
-                <Octagon className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-medium mb-2">No work stoppages found</h3>
-                <p className="text-muted-foreground mb-6">
-                  {reports.length === 0 
-                    ? "Get started by issuing your first work stoppage."
-                    : "Try adjusting your filters to see more results."}
-                </p>
-                {reports.length === 0 ? (
-                  <Button onClick={() => setIsFormModalOpen(true)}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Issue First Stoppage
-                  </Button>
-                ) : (
-                  <Button variant="outline" onClick={clearFilters}>
-                    <FilterX className="h-4 w-4 mr-2" />
-                    Clear Filters
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Reports Grid */}
-          {!loading && !error && filteredReports.length > 0 && (
-            viewMode === 'grid' ? (
-              <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-5">
-                {filteredReports.map((report, index) => (
-                  <ReportCard
-                    key={report.id}
-                    report={report}
-                    index={index}
-                    isExpanded={expandedCards.has(report.id)}
-                    onToggleExpand={toggleCardExpand}
-                    onView={(report) => {
-                      setSelectedReport(report);
-                      setIsDetailModalOpen(true);
-                    }}
-                    onEdit={(report) => {
-                      setEditingReport(report);
-                      setIsFormModalOpen(true);
-                    }}
-                    onDelete={(id) => setDeleteConfirm(id)}
-                    onStatusChange={handleActionStatusChange}
-                  />
-                ))}
-              </div>
-            ) : (
-              <Card className="overflow-hidden">
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-10"></TableHead>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Department</TableHead>
-                        <TableHead>Section</TableHead>
-                        <TableHead>Issued By</TableHead>
-                        <TableHead>Actions</TableHead>
-                        <TableHead>Progress</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredReports.map((report) => {
-                        const totalActions = report.correctiveActions?.length || 0;
-                        const completedActions = report.correctiveActions?.filter(a => a.status === 'Completed').length || 0;
-                        const progress = totalActions ? Math.round((completedActions / totalActions) * 100) : 0;
-                        
-                        return (
-                          <React.Fragment key={report.id}>
-                            <TableRow
-                              className="hover:bg-muted/50 cursor-pointer"
-                              onClick={() => {
-                                setSelectedReport(report);
-                                setIsDetailModalOpen(true);
-                              }}
-                            >
-                              <TableCell onClick={(e) => e.stopPropagation()}>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-8 px-2 gap-1 text-xs"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        toggleCardExpand(report.id);
-                                      }}
-                                    >
-                                      {expandedCards.has(report.id) ? (
-                                        <>
-                                          <ChevronUp className="h-3 w-3" />
-                                          <span className="hidden sm:inline">Less</span>
-                                        </>
-                                      ) : (
-                                        <>
-                                          <ChevronDown className="h-3 w-3" />
-                                          <span className="hidden sm:inline">Details</span>
-                                        </>
-                                      )}
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>{expandedCards.has(report.id) ? 'Collapse details' : 'Expand to see full details'}</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TableCell>
-                              <TableCell>{formatDate(report.date)}</TableCell>
-                              <TableCell className="font-medium">{report.department}</TableCell>
-                              <TableCell>
-                                <Badge variant="secondary">
-                                  {React.createElement(SECTION_ICONS[report.section], { className: "h-3 w-3 mr-1" })}
-                                  {report.section}
-                                </Badge>
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex items-center gap-2">
-                                  <Avatar className="h-6 w-6">
-                                    <AvatarFallback className="text-xs">
-                                      {getInitials(report.stoppageBy)}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                  <span>{report.stoppageBy}</span>
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex gap-1">
-                                  <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
-                                    {report.correctiveActions?.filter(a => a.status === 'Pending').length || 0}
-                                  </Badge>
-                                  <Badge variant="secondary" className="bg-blue-100 text-blue-800">
-                                    {report.correctiveActions?.filter(a => a.status === 'In Progress').length || 0}
-                                  </Badge>
-                                  <Badge variant="secondary" className="bg-green-100 text-green-800">
-                                    {report.correctiveActions?.filter(a => a.status === 'Completed').length || 0}
-                                  </Badge>
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex items-center gap-2">
-                                  <Progress value={progress} className="w-16 h-2" />
-                                  <span className="text-xs text-muted-foreground">{progress}%</span>
-                                </div>
-                              </TableCell>
-                              <TableCell className="text-right space-x-1" onClick={(e) => e.stopPropagation()}>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button variant="ghost" size="icon" onClick={() => {
-                                      setSelectedReport(report);
-                                      setIsDetailModalOpen(true);
-                                    }}>
-                                      <Eye className="h-4 w-4" />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>View full details</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                                
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button variant="ghost" size="icon" onClick={() => {
-                                      setEditingReport(report);
-                                      setIsFormModalOpen(true);
-                                    }}>
-                                      <Pencil className="h-4 w-4" />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>Edit report</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                                
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button variant="ghost" size="icon" onClick={() => setDeleteConfirm(report.id)}>
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>Delete report</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TableCell>
-                            </TableRow>
-                            {expandedCards.has(report.id) && (
-                              <TableRow className="bg-muted/30">
-                                <TableCell colSpan={8} className="p-4">
-                                  <div className="space-y-4">
-                                    {/* Full Description */}
-                                    <div>
-                                      <h4 className="text-sm font-medium mb-1 flex items-center gap-1">
-                                        <AlertTriangle className="h-3 w-3 text-amber-500" />
-                                        Description
-                                      </h4>
-                                      <p className="text-sm text-muted-foreground whitespace-pre-wrap">{report.description}</p>
-                                    </div>
-
-                                    {/* Investigation Findings */}
-                                    {report.investigationFindings && (
-                                      <div>
-                                        <h4 className="text-sm font-medium mb-1 flex items-center gap-1">
-                                          <ClipboardList className="h-3 w-3" />
-                                          Investigation Findings
-                                        </h4>
-                                        <p className="text-sm text-muted-foreground whitespace-pre-wrap">{report.investigationFindings}</p>
-                                      </div>
-                                    )}
-
-                                    {/* All Corrective Actions */}
-                                    {report.correctiveActions && report.correctiveActions.length > 0 && (
-                                      <div>
-                                        <h4 className="text-sm font-medium mb-2 flex items-center gap-1">
-                                          <Target className="h-3 w-3" />
-                                          Corrective Actions ({report.correctiveActions.length})
-                                        </h4>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                          {report.correctiveActions.map((action, idx) => {
-                                            const StatusIcon = STATUS_ICONS[action.status];
-                                            return (
-                                              <div key={action.id} className="bg-background p-3 rounded-lg border">
-                                                <div className="flex items-start justify-between mb-2">
-                                                  <span className="text-xs font-medium text-muted-foreground">Action #{idx + 1}</span>
-                                                  <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                      <Button variant="ghost" size="sm" className="h-6 gap-1 text-xs">
-                                                        <StatusIcon className="h-3 w-3" />
-                                                        <span>{action.status}</span>
-                                                        <ChevronDown className="h-2 w-2" />
-                                                      </Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end">
-                                                      <DropdownMenuLabel>Change Status</DropdownMenuLabel>
-                                                      <DropdownMenuSeparator />
-                                                      {(Object.keys(STATUS_ACTIONS) as StatusType[]).map((status) => {
-                                                        const Icon = STATUS_ICONS[status];
-                                                        return (
-                                                          <DropdownMenuItem
-                                                            key={status}
-                                                            onClick={() => handleActionStatusChange(report.id, action.id, status)}
-                                                            className={action.status === status ? 'bg-accent' : ''}
-                                                          >
-                                                            <Icon className="h-4 w-4 mr-2" />
-                                                            {status}
-                                                          </DropdownMenuItem>
-                                                        );
-                                                      })}
-                                                    </DropdownMenuContent>
-                                                  </DropdownMenu>
-                                                </div>
-                                                <p className="text-sm mb-1"><span className="font-medium">Finding:</span> {action.finding}</p>
-                                                <p className="text-sm mb-2"><span className="font-medium">Action:</span> {action.action}</p>
-                                                <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-                                                  <div>By: {action.byWho}</div>
-                                                  <div>Due: {formatDate(action.byWhen)}</div>
-                                                  {action.completedDate && (
-                                                    <div className="col-span-2">Completed: {formatDate(action.completedDate)}</div>
-                                                  )}
-                                                </div>
-                                                {action.remarks && (
-                                                  <p className="text-xs mt-2 italic text-muted-foreground">"{action.remarks}"</p>
-                                                )}
-                                              </div>
-                                            );
-                                          })}
-                                        </div>
-                                      </div>
-                                    )}
-
-                                    {/* Signatories */}
-                                    <div className="grid grid-cols-2 gap-2 text-sm">
-                                      <div className="bg-background p-2 rounded border">
-                                        <p className="text-xs text-muted-foreground mb-1">Accepted By</p>
-                                        <p className="font-medium">{report.acceptedBy || 'Not specified'}</p>
-                                      </div>
-                                      <div className="bg-background p-2 rounded border">
-                                        <p className="text-xs text-muted-foreground mb-1">SHEQ Checked</p>
-                                        <p className="font-medium">{report.sheqCheckedBy || 'Not specified'}</p>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            )}
-                          </React.Fragment>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </div>
-              </Card>
-            )
-          )}
-
-          {/* Detail Modal */}
-          <ReportDetailModal
-            report={selectedReport}
-            open={isDetailModalOpen}
-            onClose={() => {
-              setIsDetailModalOpen(false);
-              setSelectedReport(null);
-            }}
-            onEdit={(report) => {
-              setIsDetailModalOpen(false);
-              setEditingReport(report);
-              setIsFormModalOpen(true);
-            }}
-            onDelete={(id) => {
-              setIsDetailModalOpen(false);
-              setDeleteConfirm(id);
-            }}
-            onStatusChange={(actionId, newStatus) => 
-              selectedReport && handleActionStatusChange(selectedReport.id, actionId, newStatus)
-            }
+        {/* Content */}
+        {loading ? (
+          <LoadingState message="Loading work stoppages…" />
+        ) : filtered.length === 0 ? (
+          <EmptyState icon={Octagon}
+            title={hasFilters ? 'No reports match your filters' : 'No work stoppages issued'}
+            message={hasFilters ? 'Try adjusting your filters' : 'Issue a work stoppage to document unsafe acts or practices'}
+            onAdd={() => { setEditingReport(null); setFormOpen(true); }}
+            addLabel="Issue Work Stoppage"
           />
+        ) : viewMode === 'grid' ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {filtered.map(report => (
+              <ReportCard key={report.id}
+                report={report}
+                expanded={expandedIds.has(report.id)}
+                onToggle={() => toggle(report.id)}
+                onView={() => { setSelectedReport(report); setDetailOpen(true); }}
+                onEdit={() => { setEditingReport(report); setFormOpen(true); }}
+                onDelete={() => handleDelete(report.id)}
+              />
+            ))}
+          </div>
+        ) : (
+          <SafetyPanel label="Work Stoppages" count={filtered.length}>
+            <SafetyTable headers={[
+              { label: '' },
+              { label: 'Department' },
+              { label: 'Section' },
+              { label: 'Issued By' },
+              { label: 'Date' },
+              { label: 'Actions' },
+              { label: '', className: 'px-3 text-right' },
+            ]}>
+              {filtered.map(report => {
+                const actions = report.correctiveActions || [];
+                const completedCount = actions.filter(a => a.status === 'Completed').length;
+                return (
+                  <React.Fragment key={report.id}>
+                    <tr className="border-b border-white/[0.04] hover:bg-white/[0.03] cursor-pointer transition-colors"
+                      onClick={() => { setSelectedReport(report); setDetailOpen(true); }}>
+                      <td className="pl-3 pr-1 py-3 w-6">
+                        <button type="button" onClick={e => { e.stopPropagation(); toggle(report.id); }}
+                          className="h-5 w-5 flex items-center justify-center text-white/25 hover:text-white/60 transition-all">
+                          {expandedIds.has(report.id)
+                            ? <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="m18 15-6-6-6 6"/></svg>
+                            : <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="m6 9 6 6 6-6"/></svg>
+                          }
+                        </button>
+                      </td>
+                      <td className="px-3 py-3 text-sm text-white/80 font-medium max-w-[160px] truncate">{report.department}</td>
+                      <td className="px-3 py-3"><SectionBadge section={report.section} /></td>
+                      <td className="px-3 py-3 text-xs text-white/55 max-w-[140px] truncate">{report.stoppageBy}</td>
+                      <td className="px-3 py-3 text-xs text-white/55 whitespace-nowrap">{fmtDate(report.date)}</td>
+                      <td className="px-3 py-3 text-xs">
+                        <span className="text-white/70 font-semibold">{actions.length}</span>
+                        <span className="text-white/30 ml-1">({completedCount} done)</span>
+                      </td>
+                      <td className="px-3 py-3">
+                        <RowActions
+                          onEdit={() => { setEditingReport(report); setFormOpen(true); }}
+                          onDelete={() => handleDelete(report.id)}
+                        />
+                      </td>
+                    </tr>
+                    {expandedIds.has(report.id) && (
+                      <tr className="bg-white/[0.015]">
+                        <td colSpan={7} className="px-5 py-3">
+                          <p className="text-xs text-white/55 mb-2 line-clamp-2">{report.description}</p>
+                          {actions.length > 0 && (
+                            <div className="space-y-1.5">
+                              {actions.map((a, idx) => (
+                                <div key={a.id} className="flex items-center gap-3">
+                                  <span className="text-[10px] text-white/25 w-4">#{idx + 1}</span>
+                                  <span className="text-xs text-white/55 flex-1 truncate">{a.finding}</span>
+                                  <span className="text-[10px] text-white/30">Due: {fmtDate(a.byWhen)}</span>
+                                  <StatusBadge status={a.status} />
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </SafetyTable>
+          </SafetyPanel>
+        )}
 
-          {/* Form Modal */}
-          <ReportFormModal
-            open={isFormModalOpen}
-            onClose={() => {
-              setIsFormModalOpen(false);
-              setEditingReport(null);
-            }}
-            onSave={handleSaveReport}
-            report={editingReport}
-          />
-
-          {/* Delete Confirmation Dialog */}
-          <Dialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
-                  <AlertTriangle className="h-5 w-5 text-destructive" />
-                  Confirm Deletion
-                </DialogTitle>
-                <DialogDescription>
-                  Are you sure you want to delete this work stoppage report? This action cannot be undone.
-                </DialogDescription>
-              </DialogHeader>
-              <DialogFooter className="gap-2 sm:gap-0">
-                <Button variant="outline" onClick={() => setDeleteConfirm(null)}>
-                  Cancel
-                </Button>
-                <Button
-                  variant="destructive"
-                  onClick={() => deleteConfirm && handleDeleteReport(deleteConfirm)}
-                >
-                  Delete Report
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </main>
-      </TooltipProvider>
+        {/* Modals */}
+        <ReportFormModal
+          open={formOpen}
+          onClose={() => { setFormOpen(false); setEditingReport(null); }}
+          onSave={handleSave}
+          report={editingReport}
+        />
+        <ReportDetailModal
+          report={selectedReport}
+          open={detailOpen}
+          onClose={() => setDetailOpen(false)}
+          onEdit={r => { setEditingReport(r); setFormOpen(true); }}
+        />
+      </main>
     </PageShell>
   );
 }

@@ -1,79 +1,19 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from "react";
-import { 
-  Eye, Search, FilterX, Save, UserPlus, 
-  MessageSquare, Briefcase, Clock, Calendar, 
-  LayoutDashboard, CheckCircle2, Plus, Trash2,
-  Loader2, ChevronDown, ChevronUp, User, FileText,
-  AlertTriangle, Info, Target, CheckCircle, XCircle,
-  LayoutGrid, Table as TableIcon, Maximize2, Minimize2,
-  ChevronsDown, ChevronsUp, MoreVertical, RefreshCw,
-  Send, HardHat, Shield, Activity, Award, Flag,
-  PenTool, BookOpen, Users, BarChart3, PieChart,
-  TrendingUp, Clock3, AlertCircle, FileCheck, ClipboardList,
-  Zap, X, Home, MapPin, BriefcaseBusiness, Timer,
-  CalendarDays, EyeOff, HeartHandshake, Sparkles, ChevronRight
+import {
+  Eye, Save, Target, Plus, Trash2, Loader2, CheckCircle, AlertTriangle,
+  LayoutGrid, Table as TableIcon, ChevronRight, RefreshCw, HardHat, Zap,
+  MessageSquare, Clock, Send, FileText, CheckCircle2, X, PenTool
 } from "lucide-react";
 import { PageShell } from '@/components/PageShell';
-
-// UI Components
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Progress } from "@/components/ui/progress";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import { format } from "date-fns";
 import { toast } from "sonner";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { CollapsibleSection } from '@/components/CollapsibleSection';
-
-// =============== CONSTANTS ===============
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+  safetyFetch, glassInput, glassLabel, glassTextarea, glassSelect,
+  SafetyHero, SafetyControls, FilterPills, DateRangeFilter, ClearFiltersButton,
+  SafetyPanel, SafetyModal, FormField, ModalActions,
+  SafetyTable, RowActions, AddButton, LoadingState, EmptyState, TabBar
+} from '@/components/safety';
 
 // =============== TYPES ===============
 type SectionType = 'Mechanical' | 'Electrical';
@@ -112,2098 +52,893 @@ interface VFLReport {
   submitted_at?: string;
 }
 
-interface VFLStats {
-  total: number;
-  bySection: Record<SectionType, number>;
-  byObserver: Record<string, number>;
-  byBehaviour: Record<BehaviourCategory, number>;
-  byObservationType: Record<ObservationType, number>;
-  byCoaching: Record<CoachingTechnique, number>;
-  totalActions: number;
-  completedActions: number;
-  pendingActions: number;
-  inProgressActions: number;
-  draftCount: number;
-  submittedCount: number;
-  reviewedCount: number;
-  closedCount: number;
-}
-
 // =============== CONSTANTS ===============
 const SECTIONS: SectionType[] = ['Mechanical', 'Electrical'];
-
-const SECTION_VARIANTS: Record<SectionType, { color: string; bg: string; border: string; text: string; icon: string }> = {
-  Mechanical: {
-    color: 'text-blue-700',
-    bg: 'bg-blue-50',
-    border: 'border-blue-200',
-    text: 'text-blue-800',
-    icon: 'text-blue-600'
-  },
-  Electrical: {
-    color: 'text-amber-700',
-    bg: 'bg-amber-50',
-    border: 'border-amber-200',
-    text: 'text-amber-800',
-    icon: 'text-amber-600'
-  }
-};
-
-const SECTION_ICONS: Record<SectionType, React.ElementType> = {
-  Mechanical: HardHat,
-  Electrical: Zap
-};
-
 const BEHAVIOUR_CATEGORIES: BehaviourCategory[] = ['Safe Behaviour', 'Unsafe Behaviour'];
-
-const BEHAVIOUR_VARIANTS: Record<BehaviourCategory, { color: string; bg: string; icon: React.ElementType }> = {
-  'Safe Behaviour': { color: 'text-green-700', bg: 'bg-green-50', icon: CheckCircle },
-  'Unsafe Behaviour': { color: 'text-red-700', bg: 'bg-red-50', icon: AlertTriangle }
-};
-
-const OBSERVATION_TYPES: ObservationType[] = [
-  'Safe Behaviour',
-  'Safe Condition',
-  'At Risk Behaviour',
-  'At Risk Condition'
-];
-
-const OBSERVATION_VARIANTS: Record<ObservationType, { color: string; bg: string }> = {
-  'Safe Behaviour': { color: 'text-green-700', bg: 'bg-green-50' },
-  'Safe Condition': { color: 'text-emerald-700', bg: 'bg-emerald-50' },
-  'At Risk Behaviour': { color: 'text-orange-700', bg: 'bg-orange-50' },
-  'At Risk Condition': { color: 'text-red-700', bg: 'bg-red-50' }
-};
-
+const OBSERVATION_TYPES: ObservationType[] = ['Safe Behaviour', 'Safe Condition', 'At Risk Behaviour', 'At Risk Condition'];
 const COACHING_TECHNIQUES: CoachingTechnique[] = ['SBR', 'CC'];
 
-const COACHING_VARIANTS: Record<CoachingTechnique, { color: string; bg: string; description: string }> = {
-  'SBR': { 
-    color: 'text-purple-700', 
-    bg: 'bg-purple-50',
-    description: 'Situation, Behaviour, Result'
-  },
-  'CC': { 
-    color: 'text-indigo-700', 
-    bg: 'bg-indigo-50',
-    description: 'Coaching Conversation'
-  }
+const SECTION_COLORS: Record<SectionType, string> = {
+  Mechanical: '#3b82f6',
+  Electrical: '#f59e0b',
+};
+const SECTION_ICONS: Record<SectionType, React.ElementType> = {
+  Mechanical: HardHat,
+  Electrical: Zap,
 };
 
-const STATUS_VARIANTS: Record<VFLStatus, { color: string; bg: string; label: string }> = {
-  'draft': { color: 'text-gray-700', bg: 'bg-gray-100', label: 'Draft' },
-  'submitted': { color: 'text-blue-700', bg: 'bg-blue-100', label: 'Submitted' },
-  'reviewed': { color: 'text-purple-700', bg: 'bg-purple-100', label: 'Reviewed' },
-  'closed': { color: 'text-green-700', bg: 'bg-green-100', label: 'Closed' }
+const BEHAVIOUR_COLORS: Record<BehaviourCategory, string> = {
+  'Safe Behaviour': '#10b981',
+  'Unsafe Behaviour': '#ef4444',
 };
 
-const ACTION_STATUS_VARIANTS: Record<ActionStatus, { color: string; bg: string; label: string }> = {
-  'Pending': { color: 'text-yellow-700', bg: 'bg-yellow-100', label: 'Pending' },
-  'In Progress': { color: 'text-blue-700', bg: 'bg-blue-100', label: 'In Progress' },
-  'Completed': { color: 'text-green-700', bg: 'bg-green-100', label: 'Completed' }
+const OBSERVATION_COLORS: Record<ObservationType, string> = {
+  'Safe Behaviour': '#10b981',
+  'Safe Condition': '#34d399',
+  'At Risk Behaviour': '#f97316',
+  'At Risk Condition': '#ef4444',
+};
+
+const COACHING_DESC: Record<CoachingTechnique, string> = {
+  SBR: 'Situation, Behaviour, Result',
+  CC: 'Coaching Conversation',
+};
+
+const STATUS_COLORS: Record<VFLStatus, string> = {
+  draft: '#6b7280',
+  submitted: '#3b82f6',
+  reviewed: '#a78bfa',
+  closed: '#10b981',
+};
+
+const ACTION_COLORS: Record<ActionStatus, string> = {
+  Pending: '#f59e0b',
+  'In Progress': '#3b82f6',
+  Completed: '#10b981',
 };
 
 // =============== API FUNCTIONS ===============
-async function fetchAPI<T>(
-  endpoint: string,
-  options?: RequestInit
-): Promise<T> {
-  const url = `${API_BASE_URL}${endpoint}`;
-  console.log('Fetching:', url);
-  
+async function getVFLReports(params?: Record<string, string>): Promise<VFLReport[]> {
   try {
-    const response = await fetch(url, {
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      ...options,
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Error response:', errorText);
-      
-      try {
-        const errorJson = JSON.parse(errorText);
-        throw new Error(errorJson.detail || `API error: ${response.status}`);
-      } catch {
-        throw new Error(errorText || `API error: ${response.status}`);
-      }
-    }
-
-    if (response.status === 204) {
-      return {} as T;
-    }
-
-    const contentType = response.headers.get('content-type');
-    if (contentType && contentType.includes('application/json')) {
-      const data = await response.json();
-      return data;
-    }
-    return {} as T;
-  } catch (error) {
-    console.error('Fetch error:', error);
-    throw error;
-  }
-}
-
-async function getVFLReports(params?: {
-  search?: string;
-  section?: string;
-  observer?: string;
-  status?: string;
-  from_date?: string;
-  to_date?: string;
-}): Promise<VFLReport[]> {
-  const queryParams = new URLSearchParams();
-  if (params?.search) queryParams.append('search', params.search);
-  if (params?.section) queryParams.append('section', params.section);
-  if (params?.observer) queryParams.append('observer', params.observer);
-  if (params?.status) queryParams.append('status', params.status);
-  if (params?.from_date) queryParams.append('from_date', params.from_date);
-  if (params?.to_date) queryParams.append('to_date', params.to_date);
-
-  try {
-    // Mock data for now - replace with actual API call
-    // const data = await fetchAPI<VFLReport[]>(`/api/vfl/?${queryParams.toString()}`);
-    // return Array.isArray(data) ? data : [];
-    
-    // Return empty array for now
-    return [];
-  } catch (error) {
-    console.error('Error fetching VFL reports:', error);
+    const qs = params ? '?' + new URLSearchParams(params).toString() : '';
+    const data = await safetyFetch<VFLReport[]>(`/api/vfl/${qs}`);
+    return Array.isArray(data) ? data : [];
+  } catch {
     return [];
   }
 }
 
-async function getVFLReport(id: string): Promise<VFLReport | null> {
-  try {
-    // Mock implementation
-    return null;
-  } catch (error) {
-    console.error('Error fetching VFL report:', error);
-    return null;
-  }
-}
-
-async function createVFLReport(report: Partial<VFLReport>): Promise<VFLReport | null> {
-  try {
-    // Mock implementation
-    return {
-      id: Date.now().toString(),
-      ...report,
-      created_at: new Date().toISOString(),
-    } as VFLReport;
-  } catch (error) {
-    console.error('Error creating VFL report:', error);
-    return null;
-  }
-}
-
-async function updateVFLReport(id: string, report: Partial<VFLReport>): Promise<VFLReport | null> {
-  try {
-    // Mock implementation
-    return { id, ...report } as VFLReport;
-  } catch (error) {
-    console.error('Error updating VFL report:', error);
-    return null;
-  }
-}
-
-async function deleteVFLReport(id: string): Promise<boolean> {
-  try {
-    // Mock implementation
-    return true;
-  } catch (error) {
-    console.error('Error deleting VFL report:', error);
-    return false;
-  }
-}
-
-async function getVFLStats(): Promise<VFLStats> {
-  try {
-    // Mock implementation
-    return {
-      total: 0,
-      bySection: { Mechanical: 0, Electrical: 0 },
-      byObserver: {},
-      byBehaviour: { 'Safe Behaviour': 0, 'Unsafe Behaviour': 0 },
-      byObservationType: { 
-        'Safe Behaviour': 0, 
-        'Safe Condition': 0, 
-        'At Risk Behaviour': 0, 
-        'At Risk Condition': 0 
-      },
-      byCoaching: { 'SBR': 0, 'CC': 0 },
-      totalActions: 0,
-      completedActions: 0,
-      pendingActions: 0,
-      inProgressActions: 0,
-      draftCount: 0,
-      submittedCount: 0,
-      reviewedCount: 0,
-      closedCount: 0
-    };
-  } catch (error) {
-    console.error('Error fetching stats:', error);
-    return {
-      total: 0,
-      bySection: { Mechanical: 0, Electrical: 0 },
-      byObserver: {},
-      byBehaviour: { 'Safe Behaviour': 0, 'Unsafe Behaviour': 0 },
-      byObservationType: { 
-        'Safe Behaviour': 0, 
-        'Safe Condition': 0, 
-        'At Risk Behaviour': 0, 
-        'At Risk Condition': 0 
-      },
-      byCoaching: { 'SBR': 0, 'CC': 0 },
-      totalActions: 0,
-      completedActions: 0,
-      pendingActions: 0,
-      inProgressActions: 0,
-      draftCount: 0,
-      submittedCount: 0,
-      reviewedCount: 0,
-      closedCount: 0
-    };
-  }
-}
-
-// =============== HELPER FUNCTIONS ===============
-const formatDate = (dateStr: string): string => {
-  if (!dateStr) return '';
-  try {
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  } catch {
-    return dateStr;
-  }
-};
-
-const formatDateTime = (dateStr: string): string => {
-  if (!dateStr) return '';
-  try {
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  } catch {
-    return dateStr;
-  }
-};
-
-const formatTime = (timeStr: string): string => {
-  if (!timeStr) return '';
-  try {
-    return new Date(`2000-01-01T${timeStr}`).toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  } catch {
-    return timeStr;
-  }
-};
-
-const getInitials = (name: string): string => {
-  if (!name) return '?';
-  return name
-    .split(' ')
-    .map(n => n[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
-};
-
-const calculateStats = (reports: VFLReport[]): VFLStats => {
-  const stats: VFLStats = {
-    total: reports.length,
-    bySection: { Mechanical: 0, Electrical: 0 },
-    byObserver: {},
-    byBehaviour: { 'Safe Behaviour': 0, 'Unsafe Behaviour': 0 },
-    byObservationType: {
-      'Safe Behaviour': 0,
-      'Safe Condition': 0,
-      'At Risk Behaviour': 0,
-      'At Risk Condition': 0
-    },
-    byCoaching: { 'SBR': 0, 'CC': 0 },
-    totalActions: 0,
-    completedActions: 0,
-    pendingActions: 0,
-    inProgressActions: 0,
-    draftCount: 0,
-    submittedCount: 0,
-    reviewedCount: 0,
-    closedCount: 0
-  };
-
-  reports.forEach(report => {
-    // Count by section
-    if (report.sectionChoice) {
-      stats.bySection[report.sectionChoice]++;
-    }
-
-    // Count by status
-    if (report.status) {
-      if (report.status === 'draft') stats.draftCount++;
-      else if (report.status === 'submitted') stats.submittedCount++;
-      else if (report.status === 'reviewed') stats.reviewedCount++;
-      else if (report.status === 'closed') stats.closedCount++;
-    }
-
-    // Count by observer
-    if (report.observerName) {
-      const observer = report.observerName.trim();
-      if (observer) {
-        stats.byObserver[observer] = (stats.byObserver[observer] || 0) + 1;
-      }
-    }
-
-    // Count by behaviour category
-    if (report.behaviourCategory) {
-      stats.byBehaviour[report.behaviourCategory]++;
-    }
-
-    // Count by observation type
-    if (report.observationType) {
-      stats.byObservationType[report.observationType]++;
-    }
-
-    // Count by coaching technique
-    if (report.coachingTechnique) {
-      stats.byCoaching[report.coachingTechnique]++;
-    }
-
-    // Count actions
-    if (report.actions?.length) {
-      stats.totalActions += report.actions.length;
-      report.actions.forEach(action => {
-        if (action.status === 'Completed') {
-          stats.completedActions++;
-        } else if (action.status === 'In Progress') {
-          stats.inProgressActions++;
-        } else {
-          stats.pendingActions++;
-        }
-      });
-    }
+async function createVFLReport(report: Partial<VFLReport>): Promise<VFLReport> {
+  return safetyFetch<VFLReport>('/api/vfl/', {
+    method: 'POST',
+    body: JSON.stringify(report),
   });
+}
 
-  return stats;
+async function updateVFLReport(id: string, report: Partial<VFLReport>): Promise<VFLReport> {
+  return safetyFetch<VFLReport>(`/api/vfl/${id}/`, {
+    method: 'PATCH',
+    body: JSON.stringify(report),
+  });
+}
+
+async function deleteVFLReport(id: string): Promise<void> {
+  return safetyFetch<void>(`/api/vfl/${id}/`, { method: 'DELETE' });
+}
+
+// =============== HELPERS ===============
+const fmtDate = (s: string) => {
+  if (!s) return '';
+  try { return new Date(s).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }); }
+  catch { return s; }
+};
+const fmtTime = (s: string) => {
+  if (!s) return '';
+  try { return new Date(`2000-01-01T${s}`).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }); }
+  catch { return s; }
+};
+const fmtDateTime = (s: string) => {
+  if (!s) return '';
+  try { return new Date(s).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }); }
+  catch { return s; }
 };
 
-// =============== ACTION ITEM COMPONENT ===============
-interface ActionItemProps {
+const newId = () => Math.random().toString(36).slice(2, 11);
+
+const defaultForm = (): Partial<VFLReport> => ({
+  observerName: '',
+  designation: '',
+  sectionChoice: 'Mechanical',
+  departmentSection: '',
+  date: new Date().toISOString().split('T')[0],
+  time: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
+  behaviourCategory: 'Safe Behaviour',
+  observationType: 'Safe Behaviour',
+  description: '',
+  coachingTechnique: 'SBR',
+  actions: [],
+  status: 'draft',
+});
+
+// =============== CHIP BADGE ===============
+const Chip: React.FC<{ label: string; color: string }> = ({ label, color }) => (
+  <span style={{
+    display: 'inline-flex', alignItems: 'center', padding: '2px 8px',
+    borderRadius: 999, fontSize: 11, fontWeight: 600,
+    background: color + '22', color, border: `1px solid ${color}55`,
+  }}>{label}</span>
+);
+
+// =============== ACTION ITEM CARD ===============
+interface ActionCardProps {
   item: ActionItem;
   index: number;
-  onChange: (id: string, field: keyof ActionItem, value: ActionItem[keyof ActionItem]) => void;
-  onRemove?: (id: string) => void;
+  onChange: (id: string, field: keyof ActionItem, value: string) => void;
+  onRemove: (id: string) => void;
 }
+const ActionItemCard: React.FC<ActionCardProps> = ({ item, index, onChange, onRemove }) => (
+  <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 10, padding: '14px 14px 10px' }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+      <span style={{ fontSize: 11, fontWeight: 700, color: '#10b981', textTransform: 'uppercase', letterSpacing: 1 }}>Action #{index + 1}</span>
+      <button type="button" onClick={() => onRemove(item.id)} title="Remove action"
+        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#f87171', padding: 2 }}>
+        <Trash2 size={14} />
+      </button>
+    </div>
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+      <div style={{ gridColumn: '1 / -1' }}>
+        <label style={glassLabel}>Action Description *</label>
+        <input style={glassInput} value={item.action} placeholder="Describe the action..."
+          onChange={e => onChange(item.id, 'action', e.target.value)} title="Action description" />
+      </div>
+      <div>
+        <label style={glassLabel}>Responsible Person *</label>
+        <input style={glassInput} value={item.responsible} placeholder="Full name"
+          onChange={e => onChange(item.id, 'responsible', e.target.value)} title="Responsible person" />
+      </div>
+      <div>
+        <label style={glassLabel}>Target Date *</label>
+        <input type="date" style={glassInput} value={item.targetDate} title="Target date" placeholder="Target date"
+          onChange={e => onChange(item.id, 'targetDate', e.target.value)} />
+      </div>
+      <div>
+        <label style={glassLabel}>Status</label>
+        <select style={glassSelect} value={item.status} title="Status"
+          onChange={e => onChange(item.id, 'status', e.target.value as ActionStatus)}>
+          <option value="Pending">Pending</option>
+          <option value="In Progress">In Progress</option>
+          <option value="Completed">Completed</option>
+        </select>
+      </div>
+      {item.status === 'Completed' && (
+        <div>
+          <label style={glassLabel}>Completed Date</label>
+          <input type="date" style={glassInput} value={item.completedDate || ''} title="Completed date" placeholder="Completed date"
+            onChange={e => onChange(item.id, 'completedDate', e.target.value)} />
+        </div>
+      )}
+      <div style={{ gridColumn: '1 / -1' }}>
+        <label style={glassLabel}>Remarks (Optional)</label>
+        <textarea style={{ ...glassTextarea, minHeight: 48 }} value={item.remarks || ''} placeholder="Additional notes..."
+          onChange={e => onChange(item.id, 'remarks', e.target.value)} title="Remarks" />
+      </div>
+    </div>
+  </div>
+);
 
-const ActionItemComponent: React.FC<ActionItemProps> = ({ item, index, onChange, onRemove }) => {
-  const statusVariant = ACTION_STATUS_VARIANTS[item.status];
+// =============== VFL CARD (Grid) ===============
+interface VFLCardProps {
+  report: VFLReport;
+  index: number;
+  onView: (r: VFLReport) => void;
+  onEdit: (r: VFLReport) => void;
+  onDelete: (id: string) => void;
+}
+const VFLCard: React.FC<VFLCardProps> = ({ report, index, onView, onEdit, onDelete }) => {
+  const SectionIcon = SECTION_ICONS[report.sectionChoice];
+  const bColor = BEHAVIOUR_COLORS[report.behaviourCategory];
+  const sColor = SECTION_COLORS[report.sectionChoice];
+  const total = report.actions?.length || 0;
+  const done = report.actions?.filter(a => a.status === 'Completed').length || 0;
+  const inProg = report.actions?.filter(a => a.status === 'In Progress').length || 0;
+  const pct = total ? Math.round((done / total) * 100) : 0;
 
   return (
-    <div className="group relative bg-white rounded-lg border p-4 hover:shadow-md transition-all">
-      <div className="flex items-start gap-4">
-        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-sm font-semibold text-emerald-700">
-          {index + 1}
-        </div>
-        
-        <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="md:col-span-1">
-            <Label className="text-xs text-muted-foreground mb-1 block">Action Description *</Label>
-            <Input 
-              value={item.action} 
-              onChange={e => onChange(item.id, 'action', e.target.value)}
-              placeholder="Describe the action..."
-              className="border-0 bg-muted/30 focus-visible:ring-1 focus-visible:ring-emerald-600"
-            />
-          </div>
-          
-          <div>
-            <Label className="text-xs text-muted-foreground mb-1 block">Responsible Person *</Label>
-            <Input 
-              value={item.responsible} 
-              onChange={e => onChange(item.id, 'responsible', e.target.value)}
-              placeholder="Name"
-              className="border-0 bg-muted/30 focus-visible:ring-1 focus-visible:ring-emerald-600"
-            />
-          </div>
-          
-          <div>
-            <Label className="text-xs text-muted-foreground mb-1 block">Target Date *</Label>
-            <Input 
-              type="date" 
-              value={item.targetDate} 
-              onChange={e => onChange(item.id, 'targetDate', e.target.value)}
-              className="border-0 bg-muted/30 focus-visible:ring-1 focus-visible:ring-emerald-600"
-            />
-          </div>
-
-          <div className="md:col-span-2">
-            <Label className="text-xs text-muted-foreground mb-1 block">Status</Label>
-            <Select
-              value={item.status}
-              onValueChange={(v: ActionStatus) => onChange(item.id, 'status', v)}
-            >
-              <SelectTrigger className="border-0 bg-muted/30">
-                <SelectValue>
-                  <Badge className={`${statusVariant.bg} ${statusVariant.color} border-0`}>
-                    {item.status}
-                  </Badge>
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Pending">Pending</SelectItem>
-                <SelectItem value="In Progress">In Progress</SelectItem>
-                <SelectItem value="Completed">Completed</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {item.status === 'Completed' && (
-            <div>
-              <Label className="text-xs text-muted-foreground mb-1 block">Completed Date</Label>
-              <Input 
-                type="date" 
-                value={item.completedDate || new Date().toISOString().split('T')[0]}
-                onChange={e => onChange(item.id, 'completedDate', e.target.value)}
-                className="border-0 bg-muted/30 focus-visible:ring-1 focus-visible:ring-emerald-600"
-              />
+    <div onClick={() => onView(report)} style={{ cursor: 'pointer', position: 'relative', borderRadius: 14, overflow: 'hidden', background: 'rgba(255,255,255,0.05)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.12)', transition: 'box-shadow 0.2s' }}>
+      {/* Accent stripe */}
+      <div style={{ height: 4, background: `linear-gradient(90deg,${bColor},${sColor})` }} />
+      <div style={{ padding: '14px 16px 12px' }}>
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ padding: 7, borderRadius: 8, background: sColor + '22' }}>
+              <SectionIcon size={16} style={{ color: sColor }} />
             </div>
-          )}
-
-          <div className="md:col-span-3">
-            <Label className="text-xs text-muted-foreground mb-1 block">Remarks (Optional)</Label>
-            <Textarea 
-              value={item.remarks || ''}
-              onChange={e => onChange(item.id, 'remarks', e.target.value)}
-              placeholder="Add any additional notes..."
-              className="border-0 bg-muted/30 focus-visible:ring-1 focus-visible:ring-emerald-600 resize-none"
-              rows={2}
-            />
+            <div>
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginBottom: 2 }}>VFL #{index + 1}</div>
+              <div style={{ fontWeight: 700, fontSize: 15, color: 'rgba(255,255,255,0.92)' }}>{report.observerName}</div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end' }}>
+            <Chip label={report.sectionChoice} color={sColor} />
+            <Chip label={report.behaviourCategory} color={bColor} />
           </div>
         </div>
 
-        {onRemove && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="absolute top-2 right-2 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-            onClick={() => onRemove(item.id)}
-          >
-            <Trash2 className="h-4 w-4 text-destructive" />
-          </Button>
+        {/* Info row */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 10 }}>
+          {[
+            { label: report.designation || 'No designation' },
+            { label: fmtDate(report.date) },
+            { label: fmtTime(report.time) },
+            { label: report.observationType },
+          ].map((item, i) => (
+            <div key={i} style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', padding: '4px 8px', background: 'rgba(255,255,255,0.04)', borderRadius: 6 }}>
+              {item.label}
+            </div>
+          ))}
+        </div>
+
+        {/* Description */}
+        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginBottom: 10, lineHeight: 1.5, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+          {report.description || 'No description recorded.'}
+        </div>
+
+        {/* Progress */}
+        {total > 0 && (
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'rgba(255,255,255,0.4)', marginBottom: 4 }}>
+              <span>Action Progress</span><span>{pct}%</span>
+            </div>
+            <div style={{ height: 5, borderRadius: 999, background: 'rgba(255,255,255,0.08)' }}>
+              <div style={{ height: '100%', borderRadius: 999, width: `${pct}%`, background: pct === 100 ? '#10b981' : '#3b82f6', transition: 'width 0.3s' }} />
+            </div>
+            <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+              <Chip label={`${total - done - inProg} Pending`} color="#f59e0b" />
+              <Chip label={`${inProg} In Progress`} color="#3b82f6" />
+              <Chip label={`${done} Done`} color="#10b981" />
+            </div>
+          </div>
         )}
+
+        {/* Coaching + status */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: 10 }}>
+          <Chip label={`${report.coachingTechnique} — ${COACHING_DESC[report.coachingTechnique]}`} color="#a78bfa" />
+          <Chip label={report.status.charAt(0).toUpperCase() + report.status.slice(1)} color={STATUS_COLORS[report.status]} />
+        </div>
+
+        {/* Actions */}
+        <div onClick={e => e.stopPropagation()} style={{ display: 'flex', justifyContent: 'flex-end', gap: 6, marginTop: 10 }}>
+          <button onClick={() => onView(report)} title="View" style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', color: 'rgba(255,255,255,0.7)', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <Eye size={12} /> View
+          </button>
+          <button onClick={() => onEdit(report)} title="Edit" style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', color: '#60a5fa', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <PenTool size={12} /> Edit
+          </button>
+          <button onClick={() => onDelete(report.id)} title="Delete" style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', color: '#f87171', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <Trash2 size={12} /> Delete
+          </button>
+        </div>
       </div>
     </div>
   );
 };
 
-// =============== VFL CARD COMPONENT ===============
-interface VFLCardProps {
-  report: VFLReport;
-  index: number;
-  onView: (report: VFLReport) => void;
-  onEdit: (report: VFLReport) => void;
-  onDelete: (id: string) => void;
-  onStatusChange?: (id: string, status: VFLStatus) => void;
-}
-
-const VFLCard: React.FC<VFLCardProps> = ({
-  report,
-  index,
-  onView,
-  onEdit,
-  onDelete,
-  onStatusChange
-}) => {
-  const SectionIcon = SECTION_ICONS[report.sectionChoice];
-  const sectionVariant = SECTION_VARIANTS[report.sectionChoice];
-  const statusVariant = STATUS_VARIANTS[report.status];
-  const behaviourVariant = BEHAVIOUR_VARIANTS[report.behaviourCategory];
-  const BehaviourIcon = behaviourVariant.icon;
-  
-  const totalActions = report.actions?.length || 0;
-  const completedActions = report.actions?.filter(a => a.status === 'Completed').length || 0;
-  const inProgressActions = report.actions?.filter(a => a.status === 'In Progress').length || 0;
-  const progress = totalActions ? Math.round((completedActions / totalActions) * 100) : 0;
-
-  return (
-    <Card 
-      className="group hover:shadow-xl transition-all duration-300 cursor-pointer border-l-4 overflow-hidden"
-      style={{ borderLeftColor: report.behaviourCategory === 'Unsafe Behaviour' ? '#ef4444' : '#10b981' }}
-      onClick={() => onView(report)}
-    >
-      <CardContent className="p-0">
-        {/* Header with gradient */}
-        <div className="bg-gradient-to-r from-slate-50 to-transparent p-5">
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-3">
-              <div className={`p-2.5 rounded-xl ${sectionVariant.bg}`}>
-                <SectionIcon className={`h-5 w-5 ${sectionVariant.icon}`} />
-              </div>
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <Badge variant="outline" className={`${sectionVariant.bg} ${sectionVariant.text} border-0 text-xs`}>
-                    <SectionIcon className="h-3 w-3 mr-1" />
-                    {report.sectionChoice}
-                  </Badge>
-                  <Badge className={`${behaviourVariant.bg} ${behaviourVariant.color} border-0 text-xs`}>
-                    <BehaviourIcon className="h-3 w-3 mr-1" />
-                    {report.behaviourCategory}
-                  </Badge>
-                </div>
-                <p className="text-sm font-medium text-muted-foreground">VFL #{index + 1}</p>
-                <h3 className="font-semibold text-base line-clamp-1 mt-1">{report.observerName}</h3>
-              </div>
-            </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => onView(report)}>
-                  <Eye className="h-4 w-4 mr-2" /> View Details
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onEdit(report)}>
-                  <PenTool className="h-4 w-4 mr-2" /> Edit
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuLabel>Change Status</DropdownMenuLabel>
-                <DropdownMenuItem onClick={() => onStatusChange?.(report.id, 'draft')}>
-                  <FileText className="h-4 w-4 mr-2" /> Draft
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onStatusChange?.(report.id, 'submitted')}>
-                  <Send className="h-4 w-4 mr-2" /> Submit
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onStatusChange?.(report.id, 'reviewed')}>
-                  <CheckCircle className="h-4 w-4 mr-2" /> Review
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onStatusChange?.(report.id, 'closed')}>
-                  <CheckCircle2 className="h-4 w-4 mr-2" /> Close
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => onDelete(report.id)} className="text-destructive">
-                  <Trash2 className="h-4 w-4 mr-2" /> Delete
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </div>
-
-        {/* Progress Section */}
-        <div className="px-5 py-3 border-t border-b bg-muted/20">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-medium text-muted-foreground">Action Progress</span>
-            <span className="text-xs font-semibold">{progress}%</span>
-          </div>
-          <Progress value={progress} className="h-1.5" />
-          
-          <div className="flex items-center gap-3 mt-3">
-            <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
-              {totalActions - completedActions - inProgressActions} Pending
-            </Badge>
-            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-              {inProgressActions} In Progress
-            </Badge>
-            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-              {completedActions} Done
-            </Badge>
-          </div>
-        </div>
-
-        {/* Info Grid */}
-        <div className="p-5 space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex items-center gap-2 text-sm bg-muted/30 p-2 rounded-lg">
-              <User className="h-4 w-4 text-muted-foreground" />
-              <span className="font-medium truncate">{report.designation || 'N/A'}</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm bg-muted/30 p-2 rounded-lg">
-              <Clock className="h-4 w-4 text-muted-foreground" />
-              <span>{formatTime(report.time)}</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm bg-muted/30 p-2 rounded-lg">
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-              <span>{formatDate(report.date)}</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm bg-muted/30 p-2 rounded-lg">
-              <Badge className={`${statusVariant.bg} ${statusVariant.color} border-0`}>
-                {statusVariant.label}
-              </Badge>
-            </div>
-          </div>
-
-          <div className="bg-muted/30 p-3 rounded-lg">
-            <p className="text-xs text-muted-foreground mb-1">Observation</p>
-            <p className="text-sm line-clamp-2">{report.description}</p>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Badge className={COACHING_VARIANTS[report.coachingTechnique].bg}>
-              {report.coachingTechnique}
-            </Badge>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-};
-
-// =============== VFL DETAIL MODAL ===============
-interface VFLDetailModalProps {
+// =============== DETAIL MODAL ===============
+interface DetailModalProps {
   report: VFLReport | null;
   open: boolean;
   onClose: () => void;
-  onEdit: (report: VFLReport) => void;
+  onEdit: (r: VFLReport) => void;
   onDelete: (id: string) => void;
-  onStatusChange?: (id: string, status: VFLStatus) => void;
+  onStatusChange: (id: string, status: VFLStatus) => void;
 }
-
-const VFLDetailModal: React.FC<VFLDetailModalProps> = ({
-  report,
-  open,
-  onClose,
-  onEdit,
-  onDelete,
-  onStatusChange
-}) => {
+const VFLDetailModal: React.FC<DetailModalProps> = ({ report, open, onClose, onEdit, onDelete, onStatusChange }) => {
   if (!report) return null;
-
   const SectionIcon = SECTION_ICONS[report.sectionChoice];
-  const sectionVariant = SECTION_VARIANTS[report.sectionChoice];
-  const statusVariant = STATUS_VARIANTS[report.status];
-  const behaviourVariant = BEHAVIOUR_VARIANTS[report.behaviourCategory];
-  const BehaviourIcon = behaviourVariant.icon;
-  const coachingVariant = COACHING_VARIANTS[report.coachingTechnique];
-  
-  const totalActions = report.actions?.length || 0;
-  const completedActions = report.actions?.filter(a => a.status === 'Completed').length || 0;
-  const inProgressActions = report.actions?.filter(a => a.status === 'In Progress').length || 0;
-  const progress = totalActions ? Math.round((completedActions / totalActions) * 100) : 0;
+  const bColor = BEHAVIOUR_COLORS[report.behaviourCategory];
+  const sColor = SECTION_COLORS[report.sectionChoice];
+  const oColor = OBSERVATION_COLORS[report.observationType];
+  const total = report.actions?.length || 0;
+  const done = report.actions?.filter(a => a.status === 'Completed').length || 0;
+  const inProg = report.actions?.filter(a => a.status === 'In Progress').length || 0;
+  const pct = total ? Math.round((done / total) * 100) : 0;
+
+  const infoStyle: React.CSSProperties = { background: 'rgba(255,255,255,0.05)', borderRadius: 8, padding: '8px 12px' };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden p-0">
-        <DialogHeader className="p-6 pb-0">
-          <DialogTitle className="text-2xl font-bold flex items-center gap-2">
-            <Eye className="h-6 w-6 text-emerald-600" />
-            Visible Felt Leadership Observation
-          </DialogTitle>
-          <DialogDescription>
-            Created on {formatDateTime(report.created_at)}
-          </DialogDescription>
-        </DialogHeader>
+    <SafetyModal open={open} onClose={onClose} title="Visible Felt Leadership Observation" subtitle={`Created ${fmtDateTime(report.created_at)}`} maxWidth={700}>
+      {/* Status bar */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.05)', borderRadius: 10, padding: '10px 14px', marginBottom: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ padding: 7, borderRadius: 8, background: sColor + '22' }}>
+            <SectionIcon size={16} style={{ color: sColor }} />
+          </div>
+          <span style={{ color: 'rgba(255,255,255,0.8)', fontWeight: 600, fontSize: 14 }}>{report.sectionChoice}</span>
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <Chip label={report.behaviourCategory} color={bColor} />
+          <select title="Change status" style={{ ...glassSelect, width: 'auto', fontSize: 12, padding: '4px 8px' }}
+            value={report.status} onChange={e => onStatusChange(report.id, e.target.value as VFLStatus)}>
+            <option value="draft">Draft</option>
+            <option value="submitted">Submitted</option>
+            <option value="reviewed">Reviewed</option>
+            <option value="closed">Closed</option>
+          </select>
+        </div>
+      </div>
 
-        <ScrollArea className="max-h-[calc(90vh-120px)] px-6">
-          <div className="space-y-6 py-4">
-            {/* Status Bar */}
-            <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
-              <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-lg ${sectionVariant.bg}`}>
-                  <SectionIcon className={`h-5 w-5 ${sectionVariant.icon}`} />
-                </div>
-                <div>
-                  <p className="text-sm font-medium">{report.sectionChoice}</p>
-                  <p className="text-xs text-muted-foreground">Section</p>
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-2">
-                <Badge className={`${behaviourVariant.bg} ${behaviourVariant.color} border-0`}>
-                  <BehaviourIcon className="h-3 w-3 mr-1" />
-                  {report.behaviourCategory}
-                </Badge>
-                <Badge className={`${statusVariant.bg} ${statusVariant.color} border-0`}>
-                  {statusVariant.label}
-                </Badge>
-                <Badge variant="outline" className="bg-muted">
-                  ID: {report.id.slice(0, 8)}
-                </Badge>
-              </div>
-            </div>
+      {/* Progress */}
+      {total > 0 && (
+        <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: '12px 14px', marginBottom: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 6 }}>
+            <span style={{ color: 'rgba(255,255,255,0.6)' }}>Action Progress</span>
+            <span style={{ color: 'rgba(255,255,255,0.8)', fontWeight: 600 }}>{done}/{total} completed</span>
+          </div>
+          <div style={{ height: 6, borderRadius: 999, background: 'rgba(255,255,255,0.08)', marginBottom: 8 }}>
+            <div style={{ height: '100%', borderRadius: 999, width: `${pct}%`, background: pct === 100 ? '#10b981' : '#3b82f6' }} />
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Chip label={`${total - done - inProg} Pending`} color="#f59e0b" />
+            <Chip label={`${inProg} In Progress`} color="#3b82f6" />
+            <Chip label={`${done} Completed`} color="#10b981" />
+          </div>
+        </div>
+      )}
 
-            {/* Progress Card */}
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium">Action Plan Progress</span>
-                  <span className="text-sm text-muted-foreground">
-                    {completedActions}/{totalActions} completed
-                  </span>
-                </div>
-                <Progress value={progress} className="h-2 mb-3" />
-                <div className="flex gap-2">
-                  <Badge variant="outline" className="bg-yellow-50 text-yellow-700">
-                    Pending: {totalActions - completedActions - inProgressActions}
-                  </Badge>
-                  <Badge variant="outline" className="bg-blue-50 text-blue-700">
-                    In Progress: {inProgressActions}
-                  </Badge>
-                  <Badge variant="outline" className="bg-green-50 text-green-700">
-                    Completed: {completedActions}
-                  </Badge>
-                </div>
-              </CardContent>
-            </Card>
+      {/* Info grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 8, marginBottom: 16 }}>
+        {[
+          { label: 'Observer', val: report.observerName },
+          { label: 'Designation', val: report.designation || 'N/A' },
+          { label: 'Date', val: fmtDate(report.date) },
+          { label: 'Time', val: fmtTime(report.time) },
+        ].map(({ label, val }) => (
+          <div key={label} style={infoStyle}>
+            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginBottom: 3 }}>{label}</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.85)' }}>{val}</div>
+          </div>
+        ))}
+      </div>
 
-            {/* Key Info Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div className="bg-muted/30 p-3 rounded-lg">
-                <p className="text-xs text-muted-foreground">Observer</p>
-                <p className="font-medium">{report.observerName}</p>
-              </div>
-              <div className="bg-muted/30 p-3 rounded-lg">
-                <p className="text-xs text-muted-foreground">Designation</p>
-                <p className="font-medium">{report.designation || 'N/A'}</p>
-              </div>
-              <div className="bg-muted/30 p-3 rounded-lg">
-                <p className="text-xs text-muted-foreground">Date</p>
-                <p className="font-medium">{formatDate(report.date)}</p>
-              </div>
-              <div className="bg-muted/30 p-3 rounded-lg">
-                <p className="text-xs text-muted-foreground">Time</p>
-                <p className="font-medium">{formatTime(report.time)}</p>
-              </div>
-            </div>
+      {report.departmentSection && (
+        <div style={{ ...infoStyle, marginBottom: 16 }}>
+          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginBottom: 3 }}>Department/Section</div>
+          <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)' }}>{report.departmentSection}</div>
+        </div>
+      )}
 
-            {/* Department Info */}
-            {report.departmentSection && (
-              <div className="bg-muted/30 p-3 rounded-lg">
-                <p className="text-xs text-muted-foreground mb-1">Department/Section</p>
-                <p className="font-medium">{report.departmentSection}</p>
-              </div>
-            )}
+      {/* Observation details */}
+      <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: '14px', marginBottom: 16 }}>
+        <div style={{ fontWeight: 700, fontSize: 13, color: 'rgba(255,255,255,0.7)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5 }}>Observation Details</div>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+          <Chip label={report.observationType} color={oColor} />
+          <Chip label={`${report.coachingTechnique} — ${COACHING_DESC[report.coachingTechnique]}`} color="#a78bfa" />
+        </div>
+        <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.75)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+          {report.description}
+        </div>
+      </div>
 
-            {/* Observation Details Card */}
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium flex items-center gap-2">
-                  <Eye className="h-4 w-4" />
-                  Observation Details
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Observation Type</p>
-                  <Badge className={OBSERVATION_VARIANTS[report.observationType].bg}>
-                    {report.observationType}
-                  </Badge>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Description</p>
-                  <p className="text-sm p-3 bg-muted/30 rounded-lg whitespace-pre-wrap">
-                    {report.description}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Coaching Technique</p>
-                  <Badge className={`${coachingVariant.bg} ${coachingVariant.color}`}>
-                    {report.coachingTechnique} - {coachingVariant.description}
-                  </Badge>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Action Plan */}
-            <div>
-              <h3 className="font-semibold mb-3 flex items-center gap-2">
-                <Target className="h-4 w-4" />
-                Action Plan ({report.actions?.length || 0})
-              </h3>
-              <div className="space-y-3">
-                {report.actions && report.actions.length > 0 ? (
-                  report.actions.map((action, idx) => {
-                    const actionStatus = ACTION_STATUS_VARIANTS[action.status];
-                    return (
-                      <Card key={action.id} className="overflow-hidden">
-                        <div className={`h-1 w-full ${
-                          action.status === 'Completed' ? 'bg-green-500' :
-                          action.status === 'In Progress' ? 'bg-blue-500' : 'bg-yellow-500'
-                        }`} />
-                        <CardContent className="p-4">
-                          <div className="flex items-start justify-between mb-3">
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-medium text-muted-foreground">Action #{idx + 1}</span>
-                              <Badge className={`${actionStatus.bg} ${actionStatus.color} border-0`}>
-                                {action.status}
-                              </Badge>
-                            </div>
-                          </div>
-                          <div className="space-y-3">
-                            <p className="text-sm"><span className="font-medium">Action:</span> {action.action}</p>
-                            <div className="grid grid-cols-2 gap-4 text-sm bg-muted/30 p-3 rounded">
-                              <div><span className="text-muted-foreground">By:</span> {action.responsible}</div>
-                              <div><span className="text-muted-foreground">Target:</span> {formatDate(action.targetDate)}</div>
-                              {action.completedDate && (
-                                <div><span className="text-muted-foreground">Completed:</span> {formatDate(action.completedDate)}</div>
-                              )}
-                            </div>
-                            {action.remarks && (
-                              <p className="text-sm italic border-l-2 border-emerald-500 pl-3">{action.remarks}</p>
-                            )}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })
-                ) : (
-                  <div className="text-center py-8 bg-muted/30 rounded-lg">
-                    <Target className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                    <p className="text-sm text-muted-foreground">No action items recorded.</p>
+      {/* Actions */}
+      {report.actions && report.actions.length > 0 && (
+        <div style={{ marginBottom: 8 }}>
+          <div style={{ fontWeight: 700, fontSize: 13, color: 'rgba(255,255,255,0.7)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+            Action Plan ({report.actions.length})
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {report.actions.map((action, idx) => {
+              const ac = ACTION_COLORS[action.status];
+              return (
+                <div key={action.id} style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 8, padding: '10px 12px', borderLeft: `3px solid ${ac}` }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)' }}>Action #{idx + 1}</span>
+                    <Chip label={action.status} color={ac} />
                   </div>
-                )}
-              </div>
+                  <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', marginBottom: 6 }}>{action.action}</div>
+                  <div style={{ display: 'flex', gap: 16, fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>
+                    <span>By: {action.responsible}</span>
+                    <span>Target: {fmtDate(action.targetDate)}</span>
+                    {action.completedDate && <span>Completed: {fmtDate(action.completedDate)}</span>}
+                  </div>
+                  {action.remarks && (
+                    <div style={{ marginTop: 6, fontSize: 12, fontStyle: 'italic', color: 'rgba(255,255,255,0.45)', borderLeft: '2px solid #10b981', paddingLeft: 8 }}>
+                      {action.remarks}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      <ModalActions
+        onCancel={onClose}
+        onSave={() => { onClose(); onEdit(report); }}
+        saveLabel="Edit"
+        extra={
+          <button onClick={() => { onClose(); onDelete(report.id); }}
+            style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, padding: '8px 16px', color: '#f87171', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+            Delete
+          </button>
+        }
+      />
+    </SafetyModal>
+  );
+};
+
+// =============== FORM MODAL ===============
+interface FormModalProps {
+  open: boolean;
+  editing: VFLReport | null;
+  onClose: () => void;
+  onSave: (data: Partial<VFLReport>) => Promise<void>;
+  saving: boolean;
+}
+const VFLFormModal: React.FC<FormModalProps> = ({ open, editing, onClose, onSave, saving }) => {
+  const [tab, setTab] = useState(0);
+  const [form, setForm] = useState<Partial<VFLReport>>(defaultForm());
+
+  useEffect(() => {
+    if (open) {
+      setForm(editing ? { ...editing } : defaultForm());
+      setTab(0);
+    }
+  }, [open, editing]);
+
+  const set = (field: keyof VFLReport, val: unknown) => setForm(prev => ({ ...prev, [field]: val }));
+
+  const addAction = () => {
+    setForm(prev => ({
+      ...prev,
+      actions: [...(prev.actions || []), { id: newId(), action: '', responsible: '', targetDate: '', status: 'Pending' }],
+    }));
+  };
+
+  const updateAction = (id: string, field: keyof ActionItem, val: string) => {
+    setForm(prev => ({ ...prev, actions: prev.actions?.map(a => a.id === id ? { ...a, [field]: val } : a) || [] }));
+  };
+
+  const removeAction = (id: string) => {
+    setForm(prev => ({ ...prev, actions: prev.actions?.filter(a => a.id !== id) || [] }));
+  };
+
+  const handleSubmit = async () => {
+    if (!form.observerName?.trim()) { toast.error('Observer name is required'); setTab(0); return; }
+    if (!form.date) { toast.error('Date is required'); setTab(0); return; }
+    if (!form.time) { toast.error('Time is required'); setTab(0); return; }
+    if (!form.description?.trim()) { toast.error('Description is required'); setTab(1); return; }
+    await onSave(form);
+  };
+
+  const tabs = ['Observer Info', 'Observation', 'Action Plan'];
+
+  const radioStyle: React.CSSProperties = { accentColor: '#10b981', cursor: 'pointer' };
+  const radioGroupStyle: React.CSSProperties = { display: 'flex', gap: 16, flexWrap: 'wrap' };
+  const radioLabelStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'rgba(255,255,255,0.75)', cursor: 'pointer' };
+
+  return (
+    <SafetyModal open={open} onClose={onClose}
+      title={editing ? 'Edit VFL Observation' : 'New VFL Observation'}
+      subtitle="Record a Visible Felt Leadership observation. * = required."
+      maxWidth={700}>
+      <TabBar tabs={tabs} active={tab} onChange={setTab} />
+
+      {tab === 0 && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <FormField label="Observer's Name *">
+              <input style={glassInput} value={form.observerName || ''} placeholder="Full name"
+                onChange={e => set('observerName', e.target.value)} title="Observer name" />
+            </FormField>
+          </div>
+          <FormField label="Designation">
+            <input style={glassInput} value={form.designation || ''} placeholder="Job title"
+              onChange={e => set('designation', e.target.value)} title="Designation" />
+          </FormField>
+          <FormField label="Section *">
+            <select style={glassSelect} value={form.sectionChoice || 'Mechanical'} title="Section"
+              onChange={e => set('sectionChoice', e.target.value as SectionType)}>
+              {SECTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </FormField>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <FormField label="Department/Section">
+              <input style={glassInput} value={form.departmentSection || ''} placeholder="e.g., Production, Maintenance"
+                onChange={e => set('departmentSection', e.target.value)} title="Department or section" />
+            </FormField>
+          </div>
+          <FormField label="Date *">
+            <input type="date" style={glassInput} value={form.date || ''} title="Observation date" placeholder="Date"
+              onChange={e => set('date', e.target.value)} />
+          </FormField>
+          <FormField label="Time *">
+            <input type="time" style={glassInput} value={form.time || ''} title="Observation time" placeholder="Time"
+              onChange={e => set('time', e.target.value)} />
+          </FormField>
+          <FormField label="Status">
+            <select style={glassSelect} value={form.status || 'draft'} title="Status"
+              onChange={e => set('status', e.target.value as VFLStatus)}>
+              <option value="draft">Draft</option>
+              <option value="submitted">Submitted</option>
+              <option value="reviewed">Reviewed</option>
+              <option value="closed">Closed</option>
+            </select>
+          </FormField>
+        </div>
+      )}
+
+      {tab === 1 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          <div>
+            <label style={{ ...glassLabel, display: 'block', marginBottom: 8 }}>Behaviour Category *</label>
+            <div style={radioGroupStyle}>
+              {BEHAVIOUR_CATEGORIES.map(cat => (
+                <label key={cat} style={radioLabelStyle}>
+                  <input type="radio" style={radioStyle} name="behaviourCat" value={cat}
+                    checked={form.behaviourCategory === cat}
+                    onChange={() => set('behaviourCategory', cat)} />
+                  <span style={{ color: BEHAVIOUR_COLORS[cat], fontWeight: 600 }}>{cat}</span>
+                </label>
+              ))}
             </div>
           </div>
-        </ScrollArea>
 
-        <DialogFooter className="p-6 pt-0 gap-2">
-          <Button variant="outline" onClick={onClose}>
-            Close
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline">
-                Status <ChevronDown className="h-4 w-4 ml-2" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => onStatusChange?.(report.id, 'draft')}>
-                <FileText className="h-4 w-4 mr-2" /> Draft
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onStatusChange?.(report.id, 'submitted')}>
-                <Send className="h-4 w-4 mr-2" /> Submit
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onStatusChange?.(report.id, 'reviewed')}>
-                <CheckCircle className="h-4 w-4 mr-2" /> Review
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onStatusChange?.(report.id, 'closed')}>
-                <CheckCircle2 className="h-4 w-4 mr-2" /> Close
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <Button variant="outline" onClick={() => {
-            onClose();
-            onEdit(report);
-          }}>
-            <PenTool className="h-4 w-4 mr-2" /> Edit
-          </Button>
-          <Button variant="destructive" onClick={() => {
-            onClose();
-            onDelete(report.id);
-          }}>
-            <Trash2 className="h-4 w-4 mr-2" /> Delete
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          <div>
+            <label style={{ ...glassLabel, display: 'block', marginBottom: 8 }}>Observation Type *</label>
+            <div style={{ ...radioGroupStyle, flexDirection: 'column', gap: 8 }}>
+              {OBSERVATION_TYPES.map(type => (
+                <label key={type} style={radioLabelStyle}>
+                  <input type="radio" style={radioStyle} name="obsType" value={type}
+                    checked={form.observationType === type}
+                    onChange={() => set('observationType', type)} />
+                  <span style={{ color: OBSERVATION_COLORS[type] }}>{type}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <FormField label="Description *">
+            <textarea style={{ ...glassTextarea, minHeight: 100 }} value={form.description || ''}
+              placeholder="Relate details of the observation..." title="Description"
+              onChange={e => set('description', e.target.value)} />
+          </FormField>
+
+          <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: '12px 14px' }}>
+            <label style={{ ...glassLabel, display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+              <MessageSquare size={14} /> Coaching Technique Used *
+            </label>
+            <div style={radioGroupStyle}>
+              {COACHING_TECHNIQUES.map(tech => (
+                <label key={tech} style={radioLabelStyle}>
+                  <input type="radio" style={radioStyle} name="coaching" value={tech}
+                    checked={form.coachingTechnique === tech}
+                    onChange={() => set('coachingTechnique', tech)} />
+                  <span style={{ fontWeight: 700 }}>{tech}</span>
+                  <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)' }}>({COACHING_DESC[tech]})</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {tab === 2 && (
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 14, color: 'rgba(255,255,255,0.85)' }}>Actions to Rectify / Reinforce</div>
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>Define actions to address or reinforce behaviours.</div>
+            </div>
+            <button type="button" onClick={addAction}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.35)', borderRadius: 8, padding: '6px 12px', color: '#10b981', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+              <Plus size={14} /> Add Action
+            </button>
+          </div>
+          {(form.actions || []).length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '32px 0', color: 'rgba(255,255,255,0.3)' }}>
+              <Target size={36} style={{ margin: '0 auto 8px' }} />
+              <div style={{ fontSize: 13 }}>No actions added yet.</div>
+              <button type="button" onClick={addAction}
+                style={{ marginTop: 10, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, padding: '6px 14px', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', fontSize: 12 }}>
+                + Add First Action
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {(form.actions || []).map((item, idx) => (
+                <ActionItemCard key={item.id} item={item} index={idx} onChange={updateAction} onRemove={removeAction} />
+              ))}
+            </div>
+          )}
+          <div style={{ marginTop: 14, textAlign: 'right', fontSize: 10, color: 'rgba(255,255,255,0.25)', fontStyle: 'italic', textTransform: 'uppercase', letterSpacing: 1 }}>
+            Observer Signature Required on Printout
+          </div>
+        </div>
+      )}
+
+      <ModalActions onCancel={onClose} onSave={handleSubmit} saving={saving}
+        saveLabel={editing ? 'Update VFL' : 'Save VFL'} />
+    </SafetyModal>
   );
 };
 
 // =============== MAIN PAGE ===============
 export default function VFLObservationPage() {
   const [reports, setReports] = useState<VFLReport[]>([]);
-  const [stats, setStats] = useState<VFLStats | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
 
-  // Modal States
   const [selectedReport, setSelectedReport] = useState<VFLReport | null>(null);
-  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-  const [isFormModalOpen, setIsFormModalOpen] = useState(false);
-  const [editingReport, setEditingReport] = useState<VFLReport | null>(null);
-  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState<VFLReport | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
-  // Filter States
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedSection, setSelectedSection] = useState<string>('all');
-  const [selectedObserver, setSelectedObserver] = useState<string>('all');
-  const [selectedStatus, setSelectedStatus] = useState<string>('all');
-  const [selectedBehaviour, setSelectedBehaviour] = useState<string>('all');
-  const [dateRange, setDateRange] = useState<{ from: Date | null; to: Date | null }>({ from: null, to: null });
-
-  // Form State
-  const [formData, setFormData] = useState<Partial<VFLReport>>({
-    observerName: "",
-    designation: "",
-    sectionChoice: "Mechanical",
-    departmentSection: "",
-    date: new Date().toISOString().split('T')[0],
-    time: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
-    behaviourCategory: "Safe Behaviour",
-    observationType: "Safe Behaviour",
-    description: "",
-    coachingTechnique: "SBR",
-    actions: [],
-    status: "draft"
-  });
-
-  // Load initial data
-  useEffect(() => {
-    loadData();
-  }, []);
+  const [search, setSearch] = useState('');
+  const [sectionFilter, setSectionFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [behaviourFilter, setBehaviourFilter] = useState('all');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
 
   const loadData = async () => {
     setLoading(true);
-    setError(null);
-    
     try {
-      const [reportsData, statsData] = await Promise.all([
-        getVFLReports(),
-        getVFLStats()
-      ]);
-      
-      setReports(reportsData);
-      setStats(statsData);
-    } catch (err) {
-      console.error('Failed to load data:', err);
-      setError('Failed to load VFL reports. Please try again.');
+      const data = await getVFLReports();
+      setReports(data);
+    } catch {
+      toast.error('Failed to load VFL reports');
     } finally {
       setLoading(false);
     }
   };
 
-  const addActionItem = () => {
-    const newItem: ActionItem = {
-      id: Math.random().toString(36).substr(2, 9),
-      action: "",
-      responsible: "",
-      targetDate: "",
-      status: "Pending"
-    };
-    setFormData(prev => ({
-      ...prev,
-      actions: [...(prev.actions || []), newItem]
-    }));
-  };
+  useEffect(() => { loadData(); }, []);
 
-  const updateActionItem = (id: string, field: keyof ActionItem, value: ActionItem[keyof ActionItem]) => {
-    setFormData(prev => ({
-      ...prev,
-      actions: prev.actions?.map(item =>
-        item.id === id ? { ...item, [field]: value } : item
-      ) || []
-    }));
-  };
-
-  const removeActionItem = (id: string) => {
-    setFormData(prev => ({
-      ...prev,
-      actions: prev.actions?.filter(item => item.id !== id) || []
-    }));
-  };
-
-  const validateForm = (): boolean => {
-    if (!formData.observerName?.trim()) {
-      toast.error('Observer name is required');
-      return false;
-    }
-    if (!formData.description?.trim()) {
-      toast.error('Description is required');
-      return false;
-    }
-    if (!formData.date) {
-      toast.error('Date is required');
-      return false;
-    }
-    if (!formData.time) {
-      toast.error('Time is required');
-      return false;
-    }
-
-    // Validate action items
-    if (formData.actions?.length) {
-      for (let i = 0; i < formData.actions.length; i++) {
-        const item = formData.actions[i];
-        if (!item.action?.trim()) {
-          toast.error(`Action #${i + 1}: Description is required`);
-          return false;
-        }
-        if (!item.responsible?.trim()) {
-          toast.error(`Action #${i + 1}: Responsible person is required`);
-          return false;
-        }
-        if (!item.targetDate) {
-          toast.error(`Action #${i + 1}: Target date is required`);
-          return false;
-        }
-      }
-    }
-
-    return true;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!validateForm()) {
-      return;
-    }
-
-    setLoading(true);
+  const handleSave = async (form: Partial<VFLReport>) => {
+    setSaving(true);
     try {
-      let savedReport: VFLReport | null = null;
-
-      if (editingReport) {
-        savedReport = await updateVFLReport(editingReport.id, {
-          ...formData,
-          updated_at: new Date().toISOString()
-        });
-        if (savedReport) {
-          setReports(prev => prev.map(r => r.id === savedReport?.id ? savedReport : r));
-          toast.success('VFL report updated successfully');
-        }
+      if (editing) {
+        const updated = await updateVFLReport(editing.id, { ...form, updated_at: new Date().toISOString() });
+        setReports(prev => prev.map(r => r.id === updated.id ? updated : r));
+        toast.success('VFL observation updated');
       } else {
-        savedReport = await createVFLReport({
-          ...formData,
-          status: 'submitted',
-          submitted_at: new Date().toISOString()
-        });
-        if (savedReport) {
-          setReports(prev => [savedReport!, ...prev]);
-          toast.success('VFL observation recorded successfully');
-        }
+        const created = await createVFLReport({ ...form, status: 'submitted', submitted_at: new Date().toISOString() });
+        setReports(prev => [created, ...prev]);
+        toast.success('VFL observation recorded');
       }
-
-      if (savedReport) {
-        const newStats = await getVFLStats();
-        setStats(newStats);
-      }
-
-      // Reset form
-      setFormData({
-        observerName: "",
-        designation: "",
-        sectionChoice: "Mechanical",
-        departmentSection: "",
-        date: new Date().toISOString().split('T')[0],
-        time: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
-        behaviourCategory: "Safe Behaviour",
-        observationType: "Safe Behaviour",
-        description: "",
-        coachingTechnique: "SBR",
-        actions: [],
-        status: "draft"
-      });
-      setIsFormModalOpen(false);
-      setEditingReport(null);
-    } catch (error) {
-      console.error('Failed to save VFL report:', error);
-      toast.error('Failed to save report');
+      setFormOpen(false);
+      setEditing(null);
+    } catch {
+      toast.error('Failed to save VFL report');
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
-  const handleStatusChange = async (id: string, newStatus: VFLStatus) => {
-    const report = reports.find(r => r.id === id);
-    if (!report) return;
-
-    const updatedReport = { ...report, status: newStatus };
-    
-    // Optimistic update
-    setReports(prev => prev.map(r => r.id === id ? updatedReport : r));
-
-    try {
-      const saved = await updateVFLReport(id, { status: newStatus });
-      if (!saved) {
-        setReports(prev => prev.map(r => r.id === id ? report : r));
-        toast.error('Failed to update status');
-      } else {
-        toast.success(`Status updated to ${newStatus}`);
-        const newStats = await getVFLStats();
-        setStats(newStats);
-      }
-    } catch (error) {
-      setReports(prev => prev.map(r => r.id === id ? report : r));
-      console.error('Failed to update status:', error);
-      toast.error('Failed to update status');
-    }
-  };
-
-  const handleEdit = (report: VFLReport) => {
-    setEditingReport(report);
-    setFormData({
-      observerName: report.observerName,
-      designation: report.designation,
-      sectionChoice: report.sectionChoice,
-      departmentSection: report.departmentSection,
-      date: report.date,
-      time: report.time,
-      behaviourCategory: report.behaviourCategory,
-      observationType: report.observationType,
-      description: report.description,
-      coachingTechnique: report.coachingTechnique,
-      actions: report.actions || [],
-      status: report.status
-    });
-    setIsFormModalOpen(true);
+  const handleEdit = (r: VFLReport) => {
+    setEditing(r);
+    setFormOpen(true);
   };
 
   const handleDelete = async (id: string) => {
     try {
-      const success = await deleteVFLReport(id);
-      if (success) {
-        setReports(prev => prev.filter(r => r.id !== id));
-        const newStats = await getVFLStats();
-        setStats(newStats);
-        toast.success('VFL report deleted successfully');
-        setDeleteConfirm(null);
-      }
-    } catch (error) {
-      console.error('Failed to delete VFL report:', error);
+      await deleteVFLReport(id);
+      setReports(prev => prev.filter(r => r.id !== id));
+      toast.success('VFL report deleted');
+      setDeleteTarget(null);
+    } catch {
       toast.error('Failed to delete report');
     }
   };
 
-  // Filter reports
-  const filteredReports = useMemo(() => {
-    return reports.filter(report => {
-      // Search filter
-      if (searchTerm) {
-        const searchLower = searchTerm.toLowerCase();
-        const matchesSearch = 
-          report.observerName?.toLowerCase().includes(searchLower) ||
-          report.designation?.toLowerCase().includes(searchLower) ||
-          report.description?.toLowerCase().includes(searchLower) ||
-          report.departmentSection?.toLowerCase().includes(searchLower) ||
-          report.actions?.some(a => a.action?.toLowerCase().includes(searchLower));
-        
-        if (!matchesSearch) return false;
-      }
-      
-      // Section filter
-      if (selectedSection !== 'all' && report.sectionChoice !== selectedSection) {
-        return false;
-      }
-      
-      // Observer filter
-      if (selectedObserver !== 'all' && report.observerName !== selectedObserver) {
-        return false;
-      }
-
-      // Status filter
-      if (selectedStatus !== 'all' && report.status !== selectedStatus) {
-        return false;
-      }
-
-      // Behaviour filter
-      if (selectedBehaviour !== 'all' && report.behaviourCategory !== selectedBehaviour) {
-        return false;
-      }
-      
-      // Date range filter
-      if (dateRange.from && dateRange.to) {
-        const reportDate = new Date(report.date);
-        if (reportDate < dateRange.from || reportDate > dateRange.to) {
-          return false;
-        }
-      }
-      
-      return true;
-    });
-  }, [reports, searchTerm, selectedSection, selectedObserver, selectedStatus, selectedBehaviour, dateRange]);
+  const handleStatusChange = async (id: string, status: VFLStatus) => {
+    const prev = reports.find(r => r.id === id);
+    if (!prev) return;
+    setReports(ps => ps.map(r => r.id === id ? { ...r, status } : r));
+    try {
+      await updateVFLReport(id, { status });
+      toast.success(`Status updated to ${status}`);
+    } catch {
+      setReports(ps => ps.map(r => r.id === id ? prev : r));
+      toast.error('Failed to update status');
+    }
+  };
 
   const clearFilters = () => {
-    setSearchTerm('');
-    setSelectedSection('all');
-    setSelectedObserver('all');
-    setSelectedStatus('all');
-    setSelectedBehaviour('all');
-    setDateRange({ from: null, to: null });
+    setSearch(''); setSectionFilter('all'); setStatusFilter('all');
+    setBehaviourFilter('all'); setDateFrom(''); setDateTo('');
   };
 
-  // Get unique observers
-  const uniqueObservers = useMemo(() => {
-    if (!stats) return [];
-    return Object.keys(stats.byObserver);
-  }, [stats]);
-
-  // Expand/Collapse All (for table view)
-  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
-  
-  const toggleRowExpand = (id: string) => {
-    setExpandedRows(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
+  const filtered = useMemo(() => {
+    return reports.filter(r => {
+      if (search) {
+        const q = search.toLowerCase();
+        if (![r.observerName, r.designation, r.description, r.departmentSection].some(s => s?.toLowerCase().includes(q))
+          && !r.actions?.some(a => a.action?.toLowerCase().includes(q))) return false;
       }
-      return next;
+      if (sectionFilter !== 'all' && r.sectionChoice !== sectionFilter) return false;
+      if (statusFilter !== 'all' && r.status !== statusFilter) return false;
+      if (behaviourFilter !== 'all' && r.behaviourCategory !== behaviourFilter) return false;
+      if (dateFrom && r.date < dateFrom) return false;
+      if (dateTo && r.date > dateTo) return false;
+      return true;
     });
-  };
+  }, [reports, search, sectionFilter, statusFilter, behaviourFilter, dateFrom, dateTo]);
 
-  const expandAll = () => {
-    setExpandedRows(new Set(reports.map(r => r.id)));
-  };
+  const total = reports.length;
+  const drafts = reports.filter(r => r.status === 'draft').length;
+  const submitted = reports.filter(r => r.status === 'submitted').length;
+  const reviewed = reports.filter(r => r.status === 'reviewed').length;
+  const closed = reports.filter(r => r.status === 'closed').length;
+  const unsafe = reports.filter(r => r.behaviourCategory === 'Unsafe Behaviour').length;
+  const safe = reports.filter(r => r.behaviourCategory === 'Safe Behaviour').length;
+  const totalActions = reports.reduce((acc, r) => acc + (r.actions?.length || 0), 0);
 
-  const collapseAll = () => {
-    setExpandedRows(new Set());
-  };
+  const hasFilters = search || sectionFilter !== 'all' || statusFilter !== 'all' || behaviourFilter !== 'all' || dateFrom || dateTo;
+
+  const heroStats = [
+    { label: 'Total', value: total, icon: <Eye size={16} />, color: '#10b981' },
+    { label: 'Draft', value: drafts, icon: <FileText size={16} />, color: '#6b7280' },
+    { label: 'Submitted', value: submitted, icon: <Send size={16} />, color: '#3b82f6' },
+    { label: 'Reviewed', value: reviewed, icon: <CheckCircle size={16} />, color: '#a78bfa' },
+    { label: 'Closed', value: closed, icon: <CheckCircle2 size={16} />, color: '#10b981' },
+    { label: 'Unsafe', value: unsafe, icon: <AlertTriangle size={16} />, color: '#ef4444' },
+    { label: 'Safe', value: safe, icon: <CheckCircle size={16} />, color: '#34d399' },
+    { label: 'Actions', value: totalActions, icon: <Target size={16} />, color: '#60a5fa' },
+  ];
+
+  const sectionPills = [
+    { label: 'All', value: 'all' },
+    { label: 'Mechanical', value: 'Mechanical' },
+    { label: 'Electrical', value: 'Electrical' },
+  ];
+  const statusPills = [
+    { label: 'All', value: 'all' },
+    { label: 'Draft', value: 'draft' },
+    { label: 'Submitted', value: 'submitted' },
+    { label: 'Reviewed', value: 'reviewed' },
+    { label: 'Closed', value: 'closed' },
+  ];
+  const behaviourPills = [
+    { label: 'All', value: 'all' },
+    { label: 'Safe', value: 'Safe Behaviour' },
+    { label: 'Unsafe', value: 'Unsafe Behaviour' },
+  ];
+
+  const tableColumns = ['Date', 'Observer', 'Designation', 'Section', 'Behaviour', 'Coaching', 'Status', 'Actions'];
+  const tableRows = filtered.map(r => ({
+    id: r.id,
+    cells: [
+      fmtDate(r.date),
+      r.observerName,
+      r.designation || 'N/A',
+      r.sectionChoice,
+      r.behaviourCategory,
+      r.coachingTechnique,
+      r.status.charAt(0).toUpperCase() + r.status.slice(1),
+    ],
+  }));
 
   return (
     <PageShell>
-      <TooltipProvider>
-        <main className="container mx-auto px-4 py-6 space-y-6">
-          {/* Page Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <nav className="flex items-center gap-1.5 text-xs text-[#6B7B8E] mb-2">
-                <span>Home</span>
-                <ChevronRight className="h-3 w-3" />
-                <span className="text-[#2A4D69] font-medium">VFL</span>
-              </nav>
-              <h1 className="text-3xl font-bold text-[#2A4D69] font-heading tracking-tight">Visible Felt Leadership</h1>
-              <p className="text-[#6B7B8E] mt-1">Safety observations and coaching tracking.</p>
-            </div>
-            <div className="flex items-center gap-2 self-start">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="outline" size="icon" onClick={() => setViewMode('grid')} className={viewMode === 'grid' ? 'bg-accent' : ''}>
-                    <LayoutGrid className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Grid View</TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="outline" size="icon" onClick={() => setViewMode('table')} className={viewMode === 'table' ? 'bg-accent' : ''}>
-                    <TableIcon className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Table View</TooltipContent>
-              </Tooltip>
-              <Button onClick={() => {
-                setEditingReport(null);
-                setFormData({
-                  observerName: "",
-                  designation: "",
-                  sectionChoice: "Mechanical",
-                  departmentSection: "",
-                  date: new Date().toISOString().split('T')[0],
-                  time: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
-                  behaviourCategory: "Safe Behaviour",
-                  observationType: "Safe Behaviour",
-                  description: "",
-                  coachingTechnique: "SBR",
-                  actions: [],
-                  status: "draft"
-                });
-                setIsFormModalOpen(true);
-              }} className="bg-[#2A4D69] hover:bg-[#1e3a52] text-white shadow-md">
-                <Plus className="h-4 w-4 mr-2" /> New VFL
-              </Button>
-            </div>
-          </div>
+      <main className="container mx-auto px-4 py-6 space-y-6">
 
-          {/* Stats Cards */}
-          {stats && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 mb-8">
-              <Card>
-                <CardContent className="p-4 text-center">
-                  <Eye className="h-5 w-5 text-emerald-600 mx-auto mb-1" />
-                  <p className="text-2xl font-bold">{stats.total}</p>
-                  <p className="text-xs text-muted-foreground">Total</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-4 text-center">
-                  <FileText className="h-5 w-5 text-gray-600 mx-auto mb-1" />
-                  <p className="text-2xl font-bold">{stats.draftCount}</p>
-                  <p className="text-xs text-muted-foreground">Draft</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-4 text-center">
-                  <Send className="h-5 w-5 text-blue-600 mx-auto mb-1" />
-                  <p className="text-2xl font-bold">{stats.submittedCount}</p>
-                  <p className="text-xs text-muted-foreground">Submitted</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-4 text-center">
-                  <CheckCircle className="h-5 w-5 text-purple-600 mx-auto mb-1" />
-                  <p className="text-2xl font-bold">{stats.reviewedCount}</p>
-                  <p className="text-xs text-muted-foreground">Reviewed</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-4 text-center">
-                  <CheckCircle2 className="h-5 w-5 text-green-600 mx-auto mb-1" />
-                  <p className="text-2xl font-bold">{stats.closedCount}</p>
-                  <p className="text-xs text-muted-foreground">Closed</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-4 text-center">
-                  <AlertTriangle className="h-5 w-5 text-red-600 mx-auto mb-1" />
-                  <p className="text-2xl font-bold">{stats.byBehaviour['Unsafe Behaviour']}</p>
-                  <p className="text-xs text-muted-foreground">Unsafe</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-4 text-center">
-                  <CheckCircle className="h-5 w-5 text-green-600 mx-auto mb-1" />
-                  <p className="text-2xl font-bold">{stats.byBehaviour['Safe Behaviour']}</p>
-                  <p className="text-xs text-muted-foreground">Safe</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-4 text-center">
-                  <Target className="h-5 w-5 text-emerald-600 mx-auto mb-1" />
-                  <p className="text-2xl font-bold">{stats.totalActions}</p>
-                  <p className="text-xs text-muted-foreground">Actions</p>
-                </CardContent>
-              </Card>
-            </div>
-          )}
-
-          {/* Section Distribution */}
-          {stats && stats.total > 0 && (
-            <Card className="mb-8">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Distribution by Section</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex gap-4">
-                  {SECTIONS.map(section => {
-                    const Icon = SECTION_ICONS[section];
-                    const variant = SECTION_VARIANTS[section];
-                    const count = stats.bySection[section] || 0;
-                    const percentage = stats.total ? Math.round((count / stats.total) * 100) : 0;
-                    
-                    return (
-                      <div key={section} className="flex-1">
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <Icon className={`h-4 w-4 ${variant.icon}`} />
-                            <span className="text-sm font-medium">{section}</span>
-                          </div>
-                          <span className="text-sm text-muted-foreground">{count} ({percentage}%)</span>
-                        </div>
-                        <Progress value={percentage} className="h-2" />
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Search — always visible */}
-          <div className="relative bg-white rounded-lg border shadow-sm p-3 mb-3">
-            <Search className="absolute left-5 top-1/2 transform -translate-y-1/2 h-4 w-4 text-[#6B7B8E]" />
-            <Input
-              placeholder="Search by observer, description, actions..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-10 bg-white border-0 shadow-none focus-visible:ring-0"
-            />
-            {searchTerm && (
-              <button
-                type="button"
-                aria-label="Clear search"
-                onClick={() => setSearchTerm('')}
-                className="absolute right-5 top-1/2 transform -translate-y-1/2 text-[#6B7B8E] hover:text-[#2A4D69]"
-              >
-                <X className="h-4 w-4" />
+        {/* Hero */}
+        <SafetyHero
+          breadcrumb={[{ label: 'Home' }, { label: 'VFL' }]}
+          title="Visible Felt Leadership"
+          subtitle="Safety observations and coaching tracking."
+          accent="#10b981"
+          stats={heroStats}
+          actions={
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <button onClick={loadData} title="Refresh"
+                style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 8, padding: '7px 10px', cursor: 'pointer', color: 'rgba(255,255,255,0.7)' }}>
+                <RefreshCw size={15} />
               </button>
-            )}
-          </div>
-
-          {/* Expand/Collapse All (for table view) — outside filters */}
-          {viewMode === 'table' && (
-            <div className="flex gap-2 mb-3">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="outline" size="sm" onClick={expandAll}>
-                    <ChevronsDown className="h-4 w-4 mr-2" />
-                    Expand All
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Expand all rows</TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="outline" size="sm" onClick={collapseAll}>
-                    <ChevronsUp className="h-4 w-4 mr-2" />
-                    Collapse All
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Collapse all rows</TooltipContent>
-              </Tooltip>
+              <button onClick={() => setViewMode('grid')} title="Grid view"
+                style={{ background: viewMode === 'grid' ? 'rgba(16,185,129,0.18)' : 'rgba(255,255,255,0.07)', border: `1px solid ${viewMode === 'grid' ? '#10b981' : 'rgba(255,255,255,0.12)'}`, borderRadius: 8, padding: '7px 10px', cursor: 'pointer', color: viewMode === 'grid' ? '#10b981' : 'rgba(255,255,255,0.6)' }}>
+                <LayoutGrid size={15} />
+              </button>
+              <button onClick={() => setViewMode('table')} title="Table view"
+                style={{ background: viewMode === 'table' ? 'rgba(16,185,129,0.18)' : 'rgba(255,255,255,0.07)', border: `1px solid ${viewMode === 'table' ? '#10b981' : 'rgba(255,255,255,0.12)'}`, borderRadius: 8, padding: '7px 10px', cursor: 'pointer', color: viewMode === 'table' ? '#10b981' : 'rgba(255,255,255,0.6)' }}>
+                <TableIcon size={15} />
+              </button>
+              <AddButton label="New VFL" onClick={() => { setEditing(null); setFormOpen(true); }} color="#10b981" />
             </div>
-          )}
+          }
+        />
 
-          {/* Advanced Filters */}
-          <CollapsibleSection
-            title="Filters"
-            description="Filter observations by section, observer, status, behaviour, and date range"
-            badge={
-              (() => {
-                const count = [
-                  selectedSection !== 'all',
-                  selectedObserver !== 'all',
-                  selectedStatus !== 'all',
-                  selectedBehaviour !== 'all',
-                  !!dateRange.from,
-                  !!dateRange.to,
-                ].filter(Boolean).length;
-                return count > 0
-                  ? <Badge className="ml-2 bg-[#2A4D69] text-white text-xs px-2 py-0.5">{count}</Badge>
-                  : null;
-              })()
-            }
-            defaultOpen={false}
-          >
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
-              {/* Section Filter */}
-              <div className="space-y-2">
-                <Label className="text-[#2A4D69] font-medium">Section</Label>
-                <Select value={selectedSection} onValueChange={setSelectedSection}>
-                  <SelectTrigger className="bg-[#F0F5F9]">
-                    <SelectValue placeholder="All Sections" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Sections</SelectItem>
-                    {SECTIONS.map(section => (
-                      <SelectItem key={section} value={section}>{section}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+        {/* Controls */}
+        <SafetyControls
+          search={search}
+          onSearch={setSearch}
+          searchPlaceholder="Search by observer, description, actions..."
+          filters={
+            <>
+              <FilterPills label="Section" pills={sectionPills} value={sectionFilter} onChange={setSectionFilter} />
+              <FilterPills label="Status" pills={statusPills} value={statusFilter} onChange={setStatusFilter} />
+              <FilterPills label="Behaviour" pills={behaviourPills} value={behaviourFilter} onChange={setBehaviourFilter} />
+              <DateRangeFilter from={dateFrom} to={dateTo} onFrom={setDateFrom} onTo={setDateTo} />
+              {hasFilters && <ClearFiltersButton onClick={clearFilters} />}
+            </>
+          }
+          resultCount={filtered.length}
+          totalCount={total}
+        />
 
-              {/* Observer Filter */}
-              <div className="space-y-2">
-                <Label className="text-[#2A4D69] font-medium">Observer</Label>
-                <Select value={selectedObserver} onValueChange={setSelectedObserver}>
-                  <SelectTrigger className="bg-[#F0F5F9]">
-                    <SelectValue placeholder="All Observers" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Observers</SelectItem>
-                    {uniqueObservers.map(observer => (
-                      <SelectItem key={observer} value={observer}>{observer}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Status Filter */}
-              <div className="space-y-2">
-                <Label className="text-[#2A4D69] font-medium">Status</Label>
-                <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                  <SelectTrigger className="bg-[#F0F5F9]">
-                    <SelectValue placeholder="All Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="draft">Draft</SelectItem>
-                    <SelectItem value="submitted">Submitted</SelectItem>
-                    <SelectItem value="reviewed">Reviewed</SelectItem>
-                    <SelectItem value="closed">Closed</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Behaviour Filter */}
-              <div className="space-y-2">
-                <Label className="text-[#2A4D69] font-medium">Behaviour</Label>
-                <Select value={selectedBehaviour} onValueChange={setSelectedBehaviour}>
-                  <SelectTrigger className="bg-[#F0F5F9]">
-                    <SelectValue placeholder="All Behaviour" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Behaviour</SelectItem>
-                    {BEHAVIOUR_CATEGORIES.map(cat => (
-                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Date Range Filter */}
-              <div className="space-y-2">
-                <Label className="text-[#2A4D69] font-medium">Start Date</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full bg-[#F0F5F9] justify-start">
-                      <Calendar className="h-4 w-4 mr-2 text-[#6B7B8E]" />
-                      <span className="text-[#6B7B8E]">{dateRange.from ? format(dateRange.from, 'LLL dd, y') : 'Start'}</span>
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <CalendarComponent
-                      mode="single"
-                      selected={dateRange.from || undefined}
-                      onSelect={(date) => setDateRange(prev => ({ ...prev, from: date || null }))}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-[#2A4D69] font-medium">End Date</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full bg-[#F0F5F9] justify-start">
-                      <Calendar className="h-4 w-4 mr-2 text-[#6B7B8E]" />
-                      <span className="text-[#6B7B8E]">{dateRange.to ? format(dateRange.to, 'LLL dd, y') : 'End'}</span>
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <CalendarComponent
-                      mode="single"
-                      selected={dateRange.to || undefined}
-                      onSelect={(date) => setDateRange(prev => ({ ...prev, to: date || null }))}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-            </div>
-
-            <div className="mt-4 flex items-center justify-between">
-              <span className="text-sm text-[#6B7B8E]">
-                Showing {filteredReports.length} of {reports.length} reports
-              </span>
-              {(selectedSection !== 'all' || selectedObserver !== 'all' ||
-                selectedStatus !== 'all' || selectedBehaviour !== 'all' || dateRange.from || dateRange.to) && (
-                <Button variant="ghost" onClick={clearFilters} className="text-[#6B7B8E] hover:text-[#2A4D69]">
-                  <FilterX className="h-4 w-4 mr-2" />
-                  Clear Filters
-                </Button>
-              )}
-            </div>
-          </CollapsibleSection>
-
-          {/* Results Count (outside collapsed section, always visible) */}
-          <div className="mt-2 mb-6 text-sm text-[#6B7B8E]">
-            Showing {filteredReports.length} of {reports.length} reports
-          </div>
-
-          {/* Loading State */}
-          {loading && (
-            <div className="flex justify-center items-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
-            </div>
-          )}
-
-          {/* Error State */}
-          {error && !loading && (
-            <Card className="bg-destructive/10 border-destructive/20 mb-6">
-              <CardContent className="p-6 flex items-center gap-3">
-                <AlertTriangle className="h-5 w-5 text-destructive" />
-                <div>
-                  <p className="font-medium text-destructive">Error Loading Data</p>
-                  <p className="text-sm text-destructive/80 mt-1">{error}</p>
-                </div>
-                <Button variant="outline" size="sm" onClick={loadData} className="ml-auto">
-                  <RefreshCw className="h-4 w-4 mr-2" /> Retry
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Empty State */}
-          {!loading && !error && filteredReports.length === 0 && (
-            <Card className="py-20">
-              <CardContent className="text-center">
-                <Eye className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-medium mb-2">No VFL reports found</h3>
-                <p className="text-muted-foreground mb-6">
-                  {reports.length === 0 
-                    ? "Get started by creating your first Visible Felt Leadership observation."
-                    : "Try adjusting your filters to see more results."}
-                </p>
-                {reports.length === 0 ? (
-                  <Button onClick={() => setIsFormModalOpen(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white">
-                    <Plus className="h-4 w-4 mr-2" /> Create First VFL
-                  </Button>
-                ) : (
-                  <Button variant="outline" onClick={clearFilters}>
-                    <FilterX className="h-4 w-4 mr-2" /> Clear Filters
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Reports Grid/Table */}
-          {!loading && !error && filteredReports.length > 0 && (
-            viewMode === 'grid' ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                {filteredReports.map((report, index) => (
-                  <VFLCard
-                    key={report.id}
-                    report={report}
-                    index={index}
-                    onView={(r) => {
-                      setSelectedReport(r);
-                      setIsDetailModalOpen(true);
-                    }}
-                    onEdit={handleEdit}
-                    onDelete={(id) => setDeleteConfirm(id)}
-                    onStatusChange={handleStatusChange}
-                  />
-                ))}
-              </div>
-            ) : (
-              <Card className="overflow-hidden">
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-10"></TableHead>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Observer</TableHead>
-                        <TableHead>Designation</TableHead>
-                        <TableHead>Section</TableHead>
-                        <TableHead>Behaviour</TableHead>
-                        <TableHead>Coaching</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredReports.map((report) => {
-                        const statusVariant = STATUS_VARIANTS[report.status];
-                        const behaviourVariant = BEHAVIOUR_VARIANTS[report.behaviourCategory];
-                        const coachingVariant = COACHING_VARIANTS[report.coachingTechnique];
-                        
-                        return (
-                          <React.Fragment key={report.id}>
-                            <TableRow
-                              className="hover:bg-muted/50 cursor-pointer"
-                              onClick={() => {
-                                setSelectedReport(report);
-                                setIsDetailModalOpen(true);
-                              }}
-                            >
-                              <TableCell onClick={(e) => e.stopPropagation()}>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-8 px-2 gap-1 text-xs"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        toggleRowExpand(report.id);
-                                      }}
-                                    >
-                                      {expandedRows.has(report.id) ? (
-                                        <ChevronUp className="h-3 w-3" />
-                                      ) : (
-                                        <ChevronDown className="h-3 w-3" />
-                                      )}
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    {expandedRows.has(report.id) ? 'Collapse' : 'Expand'}
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TableCell>
-                              <TableCell>{formatDate(report.date)}</TableCell>
-                              <TableCell className="font-medium">{report.observerName}</TableCell>
-                              <TableCell>{report.designation || 'N/A'}</TableCell>
-                              <TableCell>
-                                <Badge variant="outline" className={SECTION_VARIANTS[report.sectionChoice].bg}>
-                                  {React.createElement(SECTION_ICONS[report.sectionChoice], { className: "h-3 w-3 mr-1" })}
-                                  {report.sectionChoice}
-                                </Badge>
-                              </TableCell>
-                              <TableCell>
-                                <Badge className={`${behaviourVariant.bg} ${behaviourVariant.color} border-0`}>
-                                  {report.behaviourCategory}
-                                </Badge>
-                              </TableCell>
-                              <TableCell>
-                                <Badge className={coachingVariant.bg}>
-                                  {report.coachingTechnique}
-                                </Badge>
-                              </TableCell>
-                              <TableCell>
-                                <Badge className={`${statusVariant.bg} ${statusVariant.color} border-0`}>
-                                  {statusVariant.label}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="text-right space-x-1" onClick={(e) => e.stopPropagation()}>
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                                      <MoreVertical className="h-4 w-4" />
-                                    </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end">
-                                    <DropdownMenuItem onClick={() => {
-                                      setSelectedReport(report);
-                                      setIsDetailModalOpen(true);
-                                    }}>
-                                      <Eye className="h-4 w-4 mr-2" /> View
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleEdit(report)}>
-                                      <PenTool className="h-4 w-4 mr-2" /> Edit
-                                    </DropdownMenuItem>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem onClick={() => handleStatusChange(report.id, 'draft')}>
-                                      <FileText className="h-4 w-4 mr-2" /> Draft
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleStatusChange(report.id, 'submitted')}>
-                                      <Send className="h-4 w-4 mr-2" /> Submit
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleStatusChange(report.id, 'reviewed')}>
-                                      <CheckCircle className="h-4 w-4 mr-2" /> Review
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleStatusChange(report.id, 'closed')}>
-                                      <CheckCircle2 className="h-4 w-4 mr-2" /> Close
-                                    </DropdownMenuItem>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem onClick={() => setDeleteConfirm(report.id)} className="text-destructive">
-                                      <Trash2 className="h-4 w-4 mr-2" /> Delete
-                                    </DropdownMenuItem>
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              </TableCell>
-                            </TableRow>
-                            {expandedRows.has(report.id) && (
-                              <TableRow className="bg-muted/30">
-                                <TableCell colSpan={9} className="p-4">
-                                  <div className="space-y-3">
-                                    <h4 className="font-medium">Observation Description:</h4>
-                                    <p className="text-sm bg-background p-3 rounded-lg border">
-                                      {report.description}
-                                    </p>
-                                    {report.actions && report.actions.length > 0 && (
-                                      <>
-                                        <h4 className="font-medium mt-4">Action Plan:</h4>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                          {report.actions.map((action, idx) => (
-                                            <div key={action.id} className="bg-background p-3 rounded-lg border">
-                                              <div className="flex items-start justify-between mb-2">
-                                                <span className="text-xs font-medium text-muted-foreground">Action #{idx + 1}</span>
-                                                <Badge className={
-                                                  action.status === 'Completed' ? 'bg-green-100 text-green-700' :
-                                                  action.status === 'In Progress' ? 'bg-blue-100 text-blue-700' :
-                                                  'bg-yellow-100 text-yellow-700'
-                                                }>
-                                                  {action.status}
-                                                </Badge>
-                                              </div>
-                                              <p className="text-sm mb-2">{action.action}</p>
-                                              <div className="flex gap-4 text-xs text-muted-foreground">
-                                                <span>By: {action.responsible}</span>
-                                                <span>Due: {formatDate(action.targetDate)}</span>
-                                              </div>
-                                            </div>
-                                          ))}
-                                        </div>
-                                      </>
-                                    )}
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            )}
-                          </React.Fragment>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </div>
-              </Card>
-            )
-          )}
-
-          {/* Form Modal */}
-          <Dialog open={isFormModalOpen} onOpenChange={setIsFormModalOpen}>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden p-0">
-              <DialogHeader className="p-6 pb-0">
-                <DialogTitle className="text-2xl font-bold flex items-center gap-2">
-                  <Eye className="h-6 w-6 text-emerald-600" />
-                  {editingReport ? 'Edit VFL Observation' : 'New VFL Observation'}
-                </DialogTitle>
-                <DialogDescription>
-                  Record a Visible Felt Leadership observation. Fields marked with * are required.
-                </DialogDescription>
-              </DialogHeader>
-
-              <ScrollArea className="max-h-[calc(90vh-180px)] px-6">
-                <form onSubmit={handleSubmit} className="space-y-6 py-4">
-                  {/* Personnel Information */}
-                  <Card className="border-t-4 border-t-emerald-600">
-                    <CardHeader>
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <Briefcase className="h-5 w-5" />
-                        Personnel Information
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                      <div className="space-y-2">
-                        <Label>Observer’s Name *</Label>
-                        <Input 
-                          required 
-                          value={formData.observerName} 
-                          onChange={e => setFormData({...formData, observerName: e.target.value})}
-                          placeholder="Full name"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Designation</Label>
-                        <Input 
-                          value={formData.designation} 
-                          onChange={e => setFormData({...formData, designation: e.target.value})}
-                          placeholder="Job title"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Section Choice *</Label>
-                        <Select 
-                          value={formData.sectionChoice} 
-                          onValueChange={(v: SectionType) => setFormData({...formData, sectionChoice: v})}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {SECTIONS.map(section => (
-                              <SelectItem key={section} value={section}>{section}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Department/Section</Label>
-                        <Input 
-                          value={formData.departmentSection} 
-                          onChange={e => setFormData({...formData, departmentSection: e.target.value})}
-                          placeholder="e.g., Production, Maintenance"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Date *</Label>
-                        <div className="relative">
-                          <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                          <Input 
-                            type="date" 
-                            value={formData.date} 
-                            onChange={e => setFormData({...formData, date: e.target.value})}
-                            className="pl-9"
-                            required
-                          />
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Time *</Label>
-                        <div className="relative">
-                          <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                          <Input 
-                            type="time" 
-                            value={formData.time} 
-                            onChange={e => setFormData({...formData, time: e.target.value})}
-                            className="pl-9"
-                            required
-                          />
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Observation & Coaching */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-lg">Observation & Coaching</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-8">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div className="space-y-3">
-                          <Label className="text-emerald-700 font-bold uppercase text-xs">Behaviour Category *</Label>
-                          <RadioGroup 
-                            value={formData.behaviourCategory} 
-                            onValueChange={(v: BehaviourCategory) => setFormData({...formData, behaviourCategory: v})}
-                          >
-                            <div className="flex gap-4">
-                              {BEHAVIOUR_CATEGORIES.map(cat => (
-                                <div key={cat} className="flex items-center space-x-2">
-                                  <RadioGroupItem value={cat} id={`cat-${cat}`} />
-                                  <Label htmlFor={`cat-${cat}`}>{cat}</Label>
-                                </div>
-                              ))}
-                            </div>
-                          </RadioGroup>
-                        </div>
-                        <div className="space-y-3">
-                          <Label className="text-emerald-700 font-bold uppercase text-xs">Observation Type *</Label>
-                          <RadioGroup 
-                            value={formData.observationType} 
-                            onValueChange={(v: ObservationType) => setFormData({...formData, observationType: v})}
-                          >
-                            <div className="grid grid-cols-2 gap-2">
-                              {OBSERVATION_TYPES.map((type) => (
-                                <div key={type} className="flex items-center space-x-2">
-                                  <RadioGroupItem value={type} id={type} />
-                                  <Label htmlFor={type} className="text-xs">{type}</Label>
-                                </div>
-                              ))}
-                            </div>
-                          </RadioGroup>
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>Description *</Label>
-                        <Textarea 
-                          placeholder="Relate details of observation..."
-                          className="min-h-[120px]" 
-                          value={formData.description} 
-                          onChange={e => setFormData({...formData, description: e.target.value})}
-                          required
-                        />
-                      </div>
-
-                      <div className="p-4 bg-slate-50 rounded-lg border flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <Label className="font-bold flex items-center gap-2">
-                          <MessageSquare className="h-4 w-4" /> 
-                          Coaching Technique Used: *
-                        </Label>
-                        <RadioGroup 
-                          value={formData.coachingTechnique} 
-                          className="flex gap-8"
-                          onValueChange={(v: CoachingTechnique) => setFormData({...formData, coachingTechnique: v})}
-                        >
-                          {COACHING_TECHNIQUES.map(tech => (
-                            <div key={tech} className="flex items-center space-x-2">
-                              <RadioGroupItem value={tech} id={tech} />
-                              <Label htmlFor={tech} className="font-bold">{tech}</Label>
-                            </div>
-                          ))}
-                        </RadioGroup>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Action Plan */}
-                  <Card>
-                    <CardHeader className="flex flex-row items-center justify-between">
-                      <div>
-                        <CardTitle className="text-lg flex items-center gap-2">
-                          <Target className="h-5 w-5" />
-                          Actions to Rectify / Reinforce
-                        </CardTitle>
-                        <CardDescription>
-                          Define actions to address unsafe behaviours or reinforce safe ones.
-                        </CardDescription>
-                      </div>
-                      <Button type="button" variant="outline" size="sm" onClick={addActionItem}>
-                        <Plus className="h-4 w-4 mr-2" /> Add Action
-                      </Button>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      {formData.actions && formData.actions.length > 0 ? (
-                        formData.actions.map((item, index) => (
-                          <ActionItemComponent
-                            key={item.id}
-                            item={item}
-                            index={index}
-                            onChange={updateActionItem}
-                            onRemove={removeActionItem}
-                          />
-                        ))
-                      ) : (
-                        <div className="text-center py-8 bg-muted/30 rounded-lg">
-                          <Target className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                          <p className="text-sm text-muted-foreground">No actions added yet.</p>
-                          <Button type="button" variant="outline" size="sm" onClick={addActionItem} className="mt-4">
-                            <Plus className="h-4 w-4 mr-2" /> Add Your First Action
-                          </Button>
-                        </div>
-                      )}
-                    </CardContent>
-                    <div className="p-4 border-t bg-slate-50">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest italic text-right">
-                        Observer Signature Required on Printout
-                      </p>
-                    </div>
-                  </Card>
-
-                  {/* Form Actions */}
-                  <div className="flex justify-end gap-2 pt-4">
-                    <Button type="button" variant="outline" onClick={() => setIsFormModalOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button type="submit" disabled={loading} className="bg-emerald-600 hover:bg-emerald-700 text-white">
-                      {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                      <Save className="h-4 w-4 mr-2" />
-                      {editingReport ? 'Update' : 'Save'} VFL Report
-                    </Button>
-                  </div>
-                </form>
-              </ScrollArea>
-            </DialogContent>
-          </Dialog>
-
-          {/* Detail Modal */}
-          <VFLDetailModal
-            report={selectedReport}
-            open={isDetailModalOpen}
-            onClose={() => {
-              setIsDetailModalOpen(false);
-              setSelectedReport(null);
-            }}
-            onEdit={(r) => {
-              setIsDetailModalOpen(false);
-              handleEdit(r);
-            }}
-            onDelete={(id) => {
-              setIsDetailModalOpen(false);
-              setDeleteConfirm(id);
-            }}
-            onStatusChange={handleStatusChange}
+        {/* Content */}
+        {loading ? (
+          <LoadingState />
+        ) : filtered.length === 0 ? (
+          <EmptyState
+            icon={<Eye size={40} />}
+            title="No VFL observations found"
+            message={total === 0 ? 'Start by recording your first VFL observation.' : 'Try adjusting your filters.'}
+            action={total === 0
+              ? <AddButton label="Create First VFL" onClick={() => { setEditing(null); setFormOpen(true); }} color="#10b981" />
+              : <ClearFiltersButton onClick={clearFilters} />}
           />
+        ) : viewMode === 'grid' ? (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
+            {filtered.map((r, i) => (
+              <VFLCard key={r.id} report={r} index={i}
+                onView={r => { setSelectedReport(r); setDetailOpen(true); }}
+                onEdit={handleEdit}
+                onDelete={id => setDeleteTarget(id)}
+              />
+            ))}
+          </div>
+        ) : (
+          <SafetyTable
+            columns={tableColumns}
+            rows={tableRows}
+            onRowClick={id => { const r = reports.find(x => x.id === id); if (r) { setSelectedReport(r); setDetailOpen(true); } }}
+            renderActions={id => {
+              const r = reports.find(x => x.id === id);
+              if (!r) return null;
+              return <RowActions onEdit={() => handleEdit(r)} onDelete={() => setDeleteTarget(id)} />;
+            }}
+          />
+        )}
 
-          {/* Delete Confirmation */}
-          <Dialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
-                  <AlertTriangle className="h-5 w-5 text-destructive" />
-                  Confirm Deletion
-                </DialogTitle>
-                <DialogDescription>
-                  Are you sure you want to delete this VFL report? This action cannot be undone.
-                </DialogDescription>
-              </DialogHeader>
-              <DialogFooter className="gap-2">
-                <Button variant="outline" onClick={() => setDeleteConfirm(null)}>
-                  Cancel
-                </Button>
-                <Button
-                  variant="destructive"
-                  onClick={() => deleteConfirm && handleDelete(deleteConfirm)}
-                >
-                  Delete
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </main>
-      </TooltipProvider>
+        {/* Modals */}
+        <VFLDetailModal
+          report={selectedReport}
+          open={detailOpen}
+          onClose={() => { setDetailOpen(false); setSelectedReport(null); }}
+          onEdit={r => { setDetailOpen(false); handleEdit(r); }}
+          onDelete={id => { setDetailOpen(false); setDeleteTarget(id); }}
+          onStatusChange={handleStatusChange}
+        />
+
+        <VFLFormModal
+          open={formOpen}
+          editing={editing}
+          onClose={() => { setFormOpen(false); setEditing(null); }}
+          onSave={handleSave}
+          saving={saving}
+        />
+
+        {/* Delete confirm */}
+        <SafetyModal open={!!deleteTarget} onClose={() => setDeleteTarget(null)}
+          title="Confirm Deletion" subtitle="This action cannot be undone." maxWidth={420}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0 20px', color: 'rgba(255,255,255,0.7)', fontSize: 14 }}>
+            <AlertTriangle size={20} style={{ color: '#f87171', flexShrink: 0 }} />
+            Are you sure you want to delete this VFL observation?
+          </div>
+          <ModalActions onCancel={() => setDeleteTarget(null)}
+            onSave={() => deleteTarget && handleDelete(deleteTarget)}
+            saveLabel="Delete"
+            saveColor="#ef4444"
+          />
+        </SafetyModal>
+
+      </main>
     </PageShell>
   );
 }

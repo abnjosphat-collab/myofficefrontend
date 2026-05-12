@@ -1629,13 +1629,24 @@ export default function LeaveManagementPage() {
 
         {/* PANEL 5: Records */}
         <div className="oz-glass-panel rounded-2xl overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-3 border-b border-white/[0.07]">
-            <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3 px-5 py-3 border-b border-white/[0.07]">
+            <div className="flex items-center gap-2 shrink-0">
               <FileText className="h-3.5 w-3.5 text-[#86BBD8]" />
               <span className="text-xs font-semibold text-white/80 uppercase tracking-wider">Records</span>
               <span className="text-[11px] text-white/35">{filteredLeaves.length} of {leaves.length}</span>
             </div>
-            <div className="flex items-center gap-1.5">
+            {/* Inline search */}
+            <div className="flex-1 relative min-w-0 max-w-xs">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-white/30 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Search employee…"
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                className="pl-7 pr-3 h-7 w-full text-xs rounded-lg bg-white/[0.07] border border-white/[0.12] text-white placeholder:text-white/30 focus:outline-none focus:border-[#86BBD8]/40 focus:bg-white/[0.11] transition-all"
+              />
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0 ml-auto">
               <Select value={sortBy} onValueChange={setSortBy}>
                 <SelectTrigger className="h-7 w-[120px] text-[11px] bg-white/[0.07] border-white/[0.12] text-white/75 focus:ring-0 focus:border-white/30 px-2">
                   <SelectValue />

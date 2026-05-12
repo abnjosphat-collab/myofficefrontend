@@ -151,11 +151,11 @@ const CATEGORIES: Category[] = [
 // ─── Colour map — 5 harmonious tones (3 blue-family, 1 warm, 1 alert) ─────────
 
 const COLOR_MAP: Record<ModuleColor, { bg: string; icon: string; border: string }> = {
-  navy:   { bg: 'bg-[#EAF1F8]', icon: 'text-[#2A4D69]', border: 'border-[#BDD0E3]' },
-  sky:    { bg: 'bg-[#E2EEF8]', icon: 'text-[#1576A0]', border: 'border-[#AACDE6]' },
-  indigo: { bg: 'bg-[#ECEDFD]', icon: 'text-[#3648AA]', border: 'border-[#BBBFF0]' },
-  amber:  { bg: 'bg-[#FEF5E4]', icon: 'text-[#916310]', border: 'border-[#EFD8A0]' },
-  rose:   { bg: 'bg-[#FDECF0]', icon: 'text-[#A83250]', border: 'border-[#E8B2C0]' },
+  navy:   { bg: 'bg-blue-400/[0.15]',   icon: 'text-blue-300',   border: 'border-blue-400/[0.20]' },
+  sky:    { bg: 'bg-cyan-400/[0.15]',   icon: 'text-cyan-300',   border: 'border-cyan-400/[0.20]' },
+  indigo: { bg: 'bg-violet-400/[0.15]', icon: 'text-violet-300', border: 'border-violet-400/[0.20]' },
+  amber:  { bg: 'bg-amber-400/[0.15]',  icon: 'text-amber-300',  border: 'border-amber-400/[0.20]' },
+  rose:   { bg: 'bg-rose-400/[0.15]',   icon: 'text-rose-300',   border: 'border-rose-400/[0.20]' },
 };
 
 // ─── Module Card ──────────────────────────────────────────────────────────────
@@ -169,16 +169,16 @@ function ModuleCard({ module, index = 0 }: { module: Module; index?: number }) {
       href={module.href}
       className={`group block oz-card-fly-in${delayClass ? ` ${delayClass}` : ''}`}
     >
-      <div className={`h-full bg-white rounded-xl border border-[#2A4D69]/10 p-4 shadow-sm group-hover:shadow-lg group-hover:-translate-y-0.5 transition-all duration-200`}>
+      <div className="h-full bg-white/[0.07] rounded-xl border border-white/[0.10] p-4 group-hover:bg-white/[0.13] group-hover:border-white/[0.20] group-hover:shadow-lg group-hover:-translate-y-0.5 transition-all duration-200">
         <div className="flex items-start gap-3">
-          <div className={`p-2.5 rounded-lg ${c.bg} shrink-0`}>
+          <div className={`p-2.5 rounded-lg ${c.bg} border ${c.border} shrink-0`}>
             <Icon className={`h-4 w-4 ${c.icon}`} />
           </div>
           <div className="min-w-0">
-            <h4 className="font-semibold text-[#1e3a52] text-sm leading-tight group-hover:text-[#2A4D69] transition-colors">
+            <h4 className="font-semibold text-white/90 text-sm leading-tight group-hover:text-white transition-colors">
               {module.title}
             </h4>
-            <p className="text-xs text-[#6B7B8E] mt-0.5 leading-relaxed line-clamp-2">
+            <p className="text-xs text-white/45 mt-0.5 leading-relaxed line-clamp-2">
               {module.description}
             </p>
           </div>
@@ -224,10 +224,9 @@ function CategorySection({ category, expanded, onToggle }: {
         </div>
       </button>
 
-      {/* Bright frosted glass content area — module cards sit on near-white surface */}
       <div className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${expanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
         <div className="overflow-hidden">
-          <div className="oz-glass-bright px-5 pb-5 pt-1">
+          <div className="px-5 pb-5 pt-1 bg-white/[0.03]">
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2.5 mt-3">
               {category.modules.map((module, idx) => (
                 <ModuleCard key={module.href} module={module} index={idx} />
