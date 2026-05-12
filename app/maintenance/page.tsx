@@ -164,17 +164,57 @@ interface WorkOrder {
 // ==================== API ====================
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
+// Fields the backend may not have columns for yet — kept authoritative in localStorage
+const LOCAL_FIELDS: (keyof WorkOrder)[] = [
+  'classification', 'classification_custom', 'failure_mode', 'discipline', 'trade', 'spares_used',
+];
+
+function lsRead(): WorkOrder[] {
+  if (typeof window === 'undefined') return [];
+  return JSON.parse(localStorage.getItem('maint_work_orders') || '[]');
+}
+function lsWrite(list: WorkOrder[]) {
+  localStorage.setItem('maint_work_orders', JSON.stringify(list));
+}
+function lsMergeIn(patch: Partial<WorkOrder> & { id: string | number }) {
+  const list = lsRead();
+  const idx = list.findIndex(w => String(w.id) === String(patch.id));
+  if (idx >= 0) {
+    list[idx] = { ...list[idx], ...patch };
+  } else {
+    list.unshift(patch as WorkOrder);
+  }
+  lsWrite(list);
+}
+function lsPatchFields(id: string, updates: Record<string, unknown>) {
+  const list = lsRead();
+  lsWrite(list.map(w => String(w.id) === String(id) ? { ...w, ...updates } : w));
+}
+
 async function getWorkOrders(): Promise<WorkOrder[]> {
-  const local: WorkOrder[] = JSON.parse(localStorage.getItem('maint_work_orders') || '[]');
+  const local = lsRead();
+  const localMap = new Map(local.map(w => [String(w.id), w]));
   try {
     const res = await fetch(`${API_BASE}/api/maintenance/work-orders`);
     if (!res.ok) throw new Error(`${res.status}`);
     const apiData: WorkOrder[] = await res.json();
     if (!Array.isArray(apiData)) return local;
-    // Keep any localStorage-only items that the API doesn't know about yet
     const apiIds = new Set(apiData.map(w => String(w.id)));
     const localOnly = local.filter(w => !apiIds.has(String(w.id)));
-    return [...apiData, ...localOnly];
+    // Merge local-only fields back into API records so they survive backend round-trips
+    const merged = apiData.map(w => {
+      const loc = localMap.get(String(w.id));
+      if (!loc) return w;
+      const extra: Partial<WorkOrder> = {};
+      for (const f of LOCAL_FIELDS) {
+        const apiVal = w[f];
+        const locVal = loc[f];
+        // Prefer API value if it exists; otherwise keep local
+        (extra as Record<string, unknown>)[f] = (apiVal !== null && apiVal !== undefined) ? apiVal : locVal;
+      }
+      return { ...w, ...extra };
+    });
+    return [...merged, ...localOnly];
   } catch {
     return local;
   }
@@ -189,29 +229,31 @@ async function createWorkOrder(data: Record<string, unknown>): Promise<{ success
     });
     if (!res.ok) throw new Error(`${res.status}`);
     const result = await res.json();
-    return { success: true, data: result };
+    // Merge request fields the backend may not echo back (classification, spares_used, etc.)
+    const full = { ...data, ...result } as WorkOrder;
+    lsMergeIn(full);
+    return { success: true, data: full };
   } catch {
     const wo = { ...data, id: Date.now().toString(), created_at: new Date().toISOString(), updated_at: new Date().toISOString() } as WorkOrder;
-    const prev = JSON.parse(localStorage.getItem('maint_work_orders') || '[]');
-    localStorage.setItem('maint_work_orders', JSON.stringify([wo, ...prev]));
+    lsMergeIn(wo);
     return { success: true, data: wo };
   }
 }
 
 async function updateWorkOrder(id: string, updates: Record<string, unknown>): Promise<{ success: boolean }> {
+  const ts = new Date().toISOString();
   try {
     const res = await fetch(`${API_BASE}/api/maintenance/work-orders/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...updates, updated_at: new Date().toISOString() }),
+      body: JSON.stringify({ ...updates, updated_at: ts }),
     });
     if (!res.ok) throw new Error(`${res.status}`);
+    // Always persist updates locally — backend may not store custom fields
+    lsPatchFields(id, { ...updates, updated_at: ts });
     return { success: true };
   } catch {
-    const prev: WorkOrder[] = JSON.parse(localStorage.getItem('maint_work_orders') || '[]');
-    localStorage.setItem('maint_work_orders', JSON.stringify(
-      prev.map(w => w.id === id ? { ...w, ...updates, updated_at: new Date().toISOString() } : w)
-    ));
+    lsPatchFields(id, { ...updates, updated_at: ts });
     return { success: true };
   }
 }
