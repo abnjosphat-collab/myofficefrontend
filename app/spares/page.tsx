@@ -33,6 +33,7 @@ interface Spare {
   stock_code: string;
   description: string;
   category?: string;
+  categories?: string[];
   machine_type?: string;
   current_quantity: number;
   min_quantity: number;
@@ -79,6 +80,7 @@ interface SpareFormData {
   stock_code: string;
   description: string;
   category: string;
+  categories: string[];
   machine_type: string;
   current_quantity: number;
   min_quantity: number;
@@ -119,6 +121,32 @@ const PAGE_SIZE = 24;
 
 const FIELD_MEM_KEY = 'ozech_field_memory';
 const SAVED_REQS_KEY = 'ozech_saved_reqs';
+const CUSTOM_CATS_KEY = 'ozech_spare_custom_categories';
+
+const PREDEFINED_PART_CATS = [
+  'Hydraulic power packs', 'Lubricants', 'Dewatering/Pumps', 'Steels', 'Stationery',
+];
+const PREDEFINED_EQUIP_CATS = [
+  'Winders', 'Conveyance', 'Airloaders', 'Compressors',
+  'Locomotives', 'Scrappers', 'Winches', 'Transformers',
+];
+const ALL_PREDEFINED_CATS = [...PREDEFINED_PART_CATS, ...PREDEFINED_EQUIP_CATS];
+
+const getCustomCats = (): string[] => {
+  if (typeof window === 'undefined') return [];
+  try { return JSON.parse(localStorage.getItem(CUSTOM_CATS_KEY) || '[]'); }
+  catch { return []; }
+};
+
+const saveCustomCat = (cat: string) => {
+  if (!cat.trim() || typeof window === 'undefined') return;
+  try {
+    const existing = getCustomCats();
+    if (!ALL_PREDEFINED_CATS.includes(cat.trim()) && !existing.includes(cat.trim())) {
+      localStorage.setItem(CUSTOM_CATS_KEY, JSON.stringify([cat.trim(), ...existing].slice(0, 50)));
+    }
+  } catch {}
+};
 
 const getFieldMemory = (field: string): string[] => {
   if (typeof window === 'undefined') return [];
@@ -400,6 +428,9 @@ const SpareCard = React.memo(({
               {isFavorite && <Star className="h-3 w-3 fill-amber-400 text-amber-400 flex-shrink-0" />}
             </div>
             <div className="text-xs text-white/60 line-clamp-2 leading-snug">{spare.description}</div>
+            {spare.notes && (
+              <div className="text-[11px] text-white/35 line-clamp-1 mt-0.5 italic">{spare.notes}</div>
+            )}
           </div>
           <div className="flex items-center gap-0.5 flex-shrink-0">
             <button title={isFavorite ? 'Unfavourite' : 'Favourite'} onClick={() => onFavorite(spare.id)} className="h-6 w-6 flex items-center justify-center rounded hover:bg-white/[0.10] text-white/30 hover:text-amber-400 transition-all">
@@ -432,7 +463,13 @@ const SpareCard = React.memo(({
 
         {/* Badges */}
         <div className="flex flex-wrap gap-1 mb-3">
-          {spare.category && <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/[0.06] border border-white/10 text-white/55">{spare.category}</span>}
+          {/* Multi-category tags */}
+          {(spare.categories && spare.categories.length > 0
+            ? spare.categories
+            : spare.category ? [spare.category] : []
+          ).map(cat => (
+            <span key={cat} className="text-[10px] px-1.5 py-0.5 rounded bg-white/[0.06] border border-white/10 text-white/55">{cat}</span>
+          ))}
           <span className="text-[10px] px-1.5 py-0.5 rounded border font-medium" style={{ background: `${status.color}1a`, borderColor: `${status.color}40`, color: status.color }}>{status.label}</span>
           <span className="text-[10px] px-1.5 py-0.5 rounded border font-medium capitalize" style={{ background: `${pc}1a`, borderColor: `${pc}40`, color: pc }}>{spare.priority}</span>
         </div>
@@ -627,10 +664,207 @@ const RequisitionLineRow = ({
   );
 };
 
+// ─── SEARCHABLE DROPDOWN ─────────────────────────────────────────────────────
+
+const SearchableDropdown = React.memo(({
+  value, onChange, options, placeholder = 'Select…',
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  options: { value: string; label: string }[];
+  placeholder?: string;
+}) => {
+  const [search, setSearch] = useState('');
+  const [open, setOpen] = useState(false);
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase();
+    return options.filter(o => o.label.toLowerCase().includes(q)).slice(0, 60);
+  }, [options, search]);
+
+  const selected = options.find(o => o.value === value);
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        className="w-full flex items-center justify-between px-3 py-2 text-sm rounded-lg bg-white/[0.07] border border-white/[0.12] text-white focus:outline-none focus:border-white/30 transition-all"
+      >
+        <span className={selected ? 'text-white' : 'text-white/35'}>
+          {selected ? selected.label : placeholder}
+        </span>
+        <ChevronDown className="h-3.5 w-3.5 text-white/40 flex-shrink-0" />
+      </button>
+
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div
+            className="absolute top-full left-0 right-0 z-50 mt-1 rounded-xl overflow-hidden shadow-2xl"
+            style={{ background: 'rgba(4,12,24,0.98)', border: '1px solid rgba(255,255,255,0.15)' }}
+          >
+            {/* Search input */}
+            <div className="p-2 border-b border-white/[0.08]">
+              <div className="relative">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-white/30" />
+                <input
+                  autoFocus
+                  type="text"
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Search categories…"
+                  className="w-full pl-6 pr-2 py-1.5 text-xs rounded-lg bg-white/[0.07] border border-white/[0.10] text-white placeholder:text-white/30 focus:outline-none"
+                />
+              </div>
+            </div>
+            {/* Options */}
+            <div className="max-h-48 overflow-y-auto">
+              {filtered.map(o => (
+                <button
+                  key={o.value}
+                  type="button"
+                  onClick={() => { onChange(o.value); setOpen(false); setSearch(''); }}
+                  className={`w-full text-left px-3 py-2 text-xs transition-all border-b border-white/[0.04] last:border-0 ${
+                    value === o.value
+                      ? 'bg-[#86BBD8]/20 text-[#86BBD8]'
+                      : 'text-white/70 hover:bg-white/[0.08]'
+                  }`}
+                >
+                  {o.label}
+                </button>
+              ))}
+              {filtered.length === 0 && (
+                <div className="px-3 py-3 text-xs text-white/30 text-center">No matches</div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+});
+SearchableDropdown.displayName = 'SearchableDropdown';
+
+// ─── CATEGORY TAG PICKER ──────────────────────────────────────────────────────
+
+const CategoryTagPicker = React.memo(({ selected, onChange }: {
+  selected: string[]; onChange: (cats: string[]) => void;
+}) => {
+  const [inputVal, setInputVal] = useState('');
+  const [customCats, setCustomCats] = useState<string[]>([]);
+
+  useEffect(() => { setCustomCats(getCustomCats()); }, []);
+
+  const allCats = useMemo(() => {
+    const combined = [...ALL_PREDEFINED_CATS, ...customCats.filter(c => !ALL_PREDEFINED_CATS.includes(c))];
+    return combined;
+  }, [customCats]);
+
+  const toggle = (cat: string) => {
+    if (selected.includes(cat)) {
+      onChange(selected.filter(c => c !== cat));
+    } else {
+      onChange([...selected, cat]);
+    }
+  };
+
+  const addCustom = () => {
+    const val = inputVal.trim();
+    if (!val) return;
+    saveCustomCat(val);
+    setCustomCats(getCustomCats());
+    if (!selected.includes(val)) onChange([...selected, val]);
+    setInputVal('');
+  };
+
+  return (
+    <div className="space-y-2">
+      {/* Selected tags */}
+      {selected.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {selected.map(cat => (
+            <span key={cat}
+              className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border font-medium"
+              style={{ background: 'rgba(42,77,105,0.35)', borderColor: 'rgba(134,187,216,0.4)', color: '#86BBD8' }}>
+              {cat}
+              <button type="button" onClick={() => toggle(cat)} className="hover:text-white transition-colors leading-none">×</button>
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Predefined — Parts */}
+      <div>
+        <div className="text-[10px] text-white/30 uppercase tracking-wide mb-1">Parts</div>
+        <div className="flex flex-wrap gap-1">
+          {PREDEFINED_PART_CATS.map(cat => (
+            <button key={cat} type="button" onClick={() => toggle(cat)}
+              className={`text-[11px] px-2 py-0.5 rounded-full border transition-all ${
+                selected.includes(cat)
+                  ? 'bg-[#86BBD8]/25 border-[#86BBD8]/50 text-[#86BBD8]'
+                  : 'bg-white/[0.05] border-white/12 text-white/50 hover:border-white/30 hover:text-white/80'
+              }`}>{cat}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* Predefined — Equipment */}
+      <div>
+        <div className="text-[10px] text-white/30 uppercase tracking-wide mb-1">Equipment</div>
+        <div className="flex flex-wrap gap-1">
+          {PREDEFINED_EQUIP_CATS.map(cat => (
+            <button key={cat} type="button" onClick={() => toggle(cat)}
+              className={`text-[11px] px-2 py-0.5 rounded-full border transition-all ${
+                selected.includes(cat)
+                  ? 'bg-[#86BBD8]/25 border-[#86BBD8]/50 text-[#86BBD8]'
+                  : 'bg-white/[0.05] border-white/12 text-white/50 hover:border-white/30 hover:text-white/80'
+              }`}>{cat}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* Custom categories from localStorage */}
+      {customCats.filter(c => !ALL_PREDEFINED_CATS.includes(c)).length > 0 && (
+        <div>
+          <div className="text-[10px] text-white/30 uppercase tracking-wide mb-1">Custom</div>
+          <div className="flex flex-wrap gap-1">
+            {customCats.filter(c => !ALL_PREDEFINED_CATS.includes(c)).map(cat => (
+              <button key={cat} type="button" onClick={() => toggle(cat)}
+                className={`text-[11px] px-2 py-0.5 rounded-full border transition-all ${
+                  selected.includes(cat)
+                    ? 'bg-[#86BBD8]/25 border-[#86BBD8]/50 text-[#86BBD8]'
+                    : 'bg-white/[0.05] border-white/12 text-white/50 hover:border-white/30 hover:text-white/80'
+                }`}>{cat}</button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Add custom */}
+      <div className="flex gap-1.5">
+        <input
+          type="text"
+          value={inputVal}
+          onChange={e => setInputVal(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustom(); } }}
+          placeholder="Type a new category and press Enter…"
+          className="flex-1 px-2.5 py-1.5 text-xs rounded-lg bg-white/[0.07] border border-white/12 text-white placeholder:text-white/25 focus:outline-none focus:border-white/30 transition-all"
+        />
+        <button type="button" onClick={addCustom}
+          className="px-2.5 py-1.5 text-xs rounded-lg bg-white/[0.07] hover:bg-white/[0.15] border border-white/12 text-white/60 transition-all">
+          Add
+        </button>
+      </div>
+    </div>
+  );
+});
+CategoryTagPicker.displayName = 'CategoryTagPicker';
+
 // ─── SPARE FORM DIALOG ────────────────────────────────────────────────────────
 
 const defaultForm: SpareFormData = {
-  stock_code: '', description: '', category: '', machine_type: '',
+  stock_code: '', description: '', category: '', categories: [], machine_type: '',
   current_quantity: 0, min_quantity: 1, max_quantity: 10,
   unit_price: 0, unit_of_measure: 'UN', priority: 'medium',
   storage_location: '', supplier: '', safety_stock: false, notes: '',
@@ -647,7 +881,11 @@ const SpareFormDialog = ({ open, onClose, onSave, editData, categories }: {
   useEffect(() => {
     setForm(editData ? {
       stock_code: editData.stock_code, description: editData.description,
-      category: editData.category || '', machine_type: editData.machine_type || '',
+      category: editData.category || '',
+      categories: editData.categories && editData.categories.length > 0
+        ? editData.categories
+        : editData.category ? [editData.category] : [],
+      machine_type: editData.machine_type || '',
       current_quantity: editData.current_quantity, min_quantity: editData.min_quantity,
       max_quantity: editData.max_quantity, unit_price: editData.unit_price,
       unit_of_measure: editData.unit_of_measure || 'UN', priority: editData.priority,
@@ -720,19 +958,22 @@ const SpareFormDialog = ({ open, onClose, onSave, editData, categories }: {
 
           {/* Classification */}
           {section('Classification (Optional)', <>
+            <div>
+              <label className={glassLabel}>Categories (select multiple or type custom)</label>
+              <CategoryTagPicker
+                selected={form.categories}
+                onChange={cats => setForm(p => ({ ...p, categories: cats, category: cats[0] || '' }))}
+              />
+            </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><label className={glassLabel}>Category</label>
-                <input className={glassInput} value={form.category} onChange={e => set('category', e.target.value)} placeholder="e.g. CONS, PMA03" list="spare-cats" />
-                <datalist id="spare-cats">{categories.slice(0, 100).map(c => <option key={c} value={c} />)}</datalist>
-              </div>
               <div><label className={glassLabel}>Machine / Equipment</label>
                 <input className={glassInput} value={form.machine_type} onChange={e => set('machine_type', e.target.value)} placeholder="e.g. Crusher, Winder" /></div>
+              <div><label className={glassLabel}>Storage Location</label>
+                <input className={glassInput} value={form.storage_location} onChange={e => set('storage_location', e.target.value)} placeholder="e.g. A1-S3" /></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div><label className={glassLabel}>Supplier</label>
                 <input className={glassInput} value={form.supplier} onChange={e => set('supplier', e.target.value)} placeholder="Supplier name" /></div>
-              <div><label className={glassLabel}>Storage Location</label>
-                <input className={glassInput} value={form.storage_location} onChange={e => set('storage_location', e.target.value)} placeholder="e.g. A1-S3" /></div>
             </div>
           </>)}
 
@@ -759,21 +1000,22 @@ const SpareFormDialog = ({ open, onClose, onSave, editData, categories }: {
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
 
 export default function SparesPage() {
-  const sections = usePageCollapse({ stats: true, records: true });
+  const sections = usePageCollapse({ stats: false, records: true });
   // Data
   const [spares, setSpares] = useState<Spare[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   // Panels visibility
-  const [showCategoryBreakdown, setShowCategoryBreakdown] = useState(true);
+  const [showCategoryBreakdown, setShowCategoryBreakdown] = useState(false);
   const [showRequisition, setShowRequisition] = useState(false);
-  const [filterPanelMinimized, setFilterPanelMinimized] = useState(false);
-  const [recordsPanelMinimized, setRecordsPanelMinimized] = useState(false);
+  const [filterPanelMinimized, setFilterPanelMinimized] = useState(true);
+  const [recordsPanelMinimized, setRecordsPanelMinimized] = useState(true);
   const [expandAllCards, setExpandAllCards] = useState(false);
 
   // Filters
   const [search, setSearch] = useState('');
+  const [catSearch, setCatSearch] = useState('');
   const [stockFilter, setStockFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
@@ -839,10 +1081,15 @@ export default function SparesPage() {
     });
   }, [savedReqsLoaded]);
 
-  // Derived lists
-  const categories = useMemo(() =>
-    [...new Set(spares.map(s => s.category).filter(Boolean) as string[])].sort(),
-    [spares]);
+  // Derived lists — union of single category + all entries in categories[]
+  const categories = useMemo(() => {
+    const set = new Set<string>();
+    spares.forEach(s => {
+      if (s.category) set.add(s.category);
+      (s.categories || []).forEach(c => set.add(c));
+    });
+    return [...set].sort();
+  }, [spares]);
 
   // Stats
   const stats = useMemo(() => {
@@ -853,17 +1100,23 @@ export default function SparesPage() {
     return { total: spares.length, outOfStock, lowStock, totalValue, categories: categories.length, safetyCount };
   }, [spares, categories]);
 
-  // Category breakdown
+  // Category breakdown — a spare is counted in every category it belongs to
   const categoryBreakdown = useMemo(() => {
     const map: Record<string, { count: number; value: number; out: number; low: number }> = {};
     spares.forEach(s => {
-      const cat = s.category || 'Uncategorised';
-      if (!map[cat]) map[cat] = { count: 0, value: 0, out: 0, low: 0 };
-      map[cat].count++;
-      map[cat].value += s.current_quantity * s.unit_price;
+      const cats = s.categories && s.categories.length > 0
+        ? s.categories
+        : s.category ? [s.category] : ['Uncategorised'];
       const st = getStockStatus(s.current_quantity, s.min_quantity);
-      if (st.label === 'Out of Stock') map[cat].out++;
-      else if (st.label === 'Low Stock') map[cat].low++;
+      const isOut = st.label === 'Out of Stock';
+      const isLow = st.label === 'Low Stock';
+      cats.forEach(cat => {
+        if (!map[cat]) map[cat] = { count: 0, value: 0, out: 0, low: 0 };
+        map[cat].count++;
+        map[cat].value += s.current_quantity * s.unit_price;
+        if (isOut) map[cat].out++;
+        else if (isLow) map[cat].low++;
+      });
     });
     return Object.entries(map)
       .map(([cat, d]) => ({ cat, ...d, pct: spares.length > 0 ? Math.round((d.count / spares.length) * 100) : 0 }))
@@ -874,7 +1127,11 @@ export default function SparesPage() {
   const filteredSpares = useMemo(() => {
     let list = spares.filter(s => {
       if (showFavOnly && !favorites.has(s.id)) return false;
-      if (categoryFilter !== 'all' && s.category !== categoryFilter) return false;
+      if (categoryFilter !== 'all') {
+        const inSingle = s.category === categoryFilter;
+        const inMulti = (s.categories || []).includes(categoryFilter);
+        if (!inSingle && !inMulti) return false;
+      }
       if (priorityFilter !== 'all' && s.priority !== priorityFilter) return false;
       const status = getStockStatus(s.current_quantity, s.min_quantity).label;
       if (stockFilter === 'out' && status !== 'Out of Stock') return false;
@@ -883,10 +1140,12 @@ export default function SparesPage() {
       if (stockFilter === 'in' && status !== 'In Stock') return false;
       if (search) {
         const t = search.toLowerCase();
+        const allCats = [...(s.categories || []), s.category || ''].join(' ').toLowerCase();
         if (!s.stock_code.toLowerCase().includes(t) &&
             !s.description.toLowerCase().includes(t) &&
-            !(s.category || '').toLowerCase().includes(t) &&
-            !(s.supplier || '').toLowerCase().includes(t)) return false;
+            !allCats.includes(t) &&
+            !(s.supplier || '').toLowerCase().includes(t) &&
+            !(s.notes || '').toLowerCase().includes(t)) return false;
       }
       return true;
     });
@@ -947,7 +1206,8 @@ export default function SparesPage() {
     const payload = {
       stock_code: data.stock_code,
       description: data.description,
-      category: data.category,
+      category: data.categories[0] || data.category || '',
+      categories: data.categories,
       machine_type: data.machine_type,
       current_quantity: data.current_quantity,
       min_quantity: data.min_quantity,
@@ -1274,40 +1534,59 @@ export default function SparesPage() {
               </button>
             </div>
             {showCategoryBreakdown && (
-              <div className="p-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
-                {categoryBreakdown.map(({ cat, count, value, pct, out, low }) => {
-                  const isActive = categoryFilter === cat;
-                  const hasIssues = out > 0 || low > 0;
-                  return (
-                    <button key={cat} onClick={() => setCategoryFilter(isActive ? 'all' : cat)}
-                      className={`rounded-xl p-3 text-left border transition-all duration-200 hover:-translate-y-0.5 ${isActive ? 'border-[#86BBD8]/50 bg-[#86BBD8]/15' : 'border-white/[0.08] bg-white/[0.04] hover:border-white/[0.18] hover:bg-white/[0.08]'}`}>
-                      <div className="flex items-start justify-between mb-2">
-                        <span className="text-[11px] font-semibold text-white/85 leading-tight break-words">{cat}</span>
-                        {hasIssues && (
-                          out > 0
-                            ? <AlertOctagon className="h-3 w-3 text-rose-400 flex-shrink-0 ml-1 mt-0.5" />
-                            : <AlertTriangle className="h-3 w-3 text-amber-400 flex-shrink-0 ml-1 mt-0.5" />
-                        )}
-                      </div>
-                      <div className="flex items-baseline gap-1 mb-0.5">
-                        <span className="text-base font-bold text-white">{count}</span>
-                        <span className="text-[10px] text-white/40">items</span>
-                      </div>
-                      <div className="text-[10px] text-white/40 mb-2">{formatCurrency(value)}</div>
-                      <div className="h-1 rounded-full bg-white/10 overflow-hidden mb-1.5">
-                        <div className="h-full rounded-full bg-[#86BBD8]/55" style={{ width: `${pct}%` }} />
-                      </div>
-                      {hasIssues ? (
-                        <div className="flex gap-1 flex-wrap">
-                          {out > 0 && <span className="text-[9px] px-1 py-0.5 rounded bg-rose-500/20 border border-rose-500/25 text-rose-400">{out} out</span>}
-                          {low > 0 && <span className="text-[9px] px-1 py-0.5 rounded bg-amber-500/20 border border-amber-500/25 text-amber-400">{low} low</span>}
-                        </div>
-                      ) : (
-                        <div className="text-[9px] text-white/25">{pct}% of stock</div>
-                      )}
+              <div className="p-4 space-y-3">
+                {/* Search within categories */}
+                <div className="relative max-w-xs">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/30 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={catSearch}
+                    onChange={e => setCatSearch(e.target.value)}
+                    placeholder="Search categories…"
+                    className="pl-8 pr-3 py-1.5 w-full text-xs rounded-lg bg-white/[0.07] border border-white/12 text-white placeholder:text-white/30 focus:outline-none focus:border-white/30 transition-all"
+                  />
+                  {catSearch && (
+                    <button onClick={() => setCatSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-white/30 hover:text-white">
+                      <X className="h-3 w-3" />
                     </button>
-                  );
-                })}
+                  )}
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
+                  {categoryBreakdown
+                    .filter(({ cat }) => !catSearch || cat.toLowerCase().includes(catSearch.toLowerCase()))
+                    .map(({ cat, count, pct, out, low }) => {
+                    const isActive = categoryFilter === cat;
+                    const hasIssues = out > 0 || low > 0;
+                    return (
+                      <button key={cat} onClick={() => setCategoryFilter(isActive ? 'all' : cat)}
+                        className={`rounded-xl p-3 text-left border transition-all duration-200 hover:-translate-y-0.5 ${isActive ? 'border-[#86BBD8]/50 bg-[#86BBD8]/15' : 'border-white/[0.08] bg-white/[0.04] hover:border-white/[0.18] hover:bg-white/[0.08]'}`}>
+                        <div className="flex items-start justify-between mb-2">
+                          <span className="text-[11px] font-semibold text-white/85 leading-tight break-words">{cat}</span>
+                          {hasIssues && (
+                            out > 0
+                              ? <AlertOctagon className="h-3 w-3 text-rose-400 flex-shrink-0 ml-1 mt-0.5" />
+                              : <AlertTriangle className="h-3 w-3 text-amber-400 flex-shrink-0 ml-1 mt-0.5" />
+                          )}
+                        </div>
+                        <div className="flex items-baseline gap-1 mb-2">
+                          <span className="text-base font-bold text-white">{count}</span>
+                          <span className="text-[10px] text-white/40">items</span>
+                        </div>
+                        <div className="h-1 rounded-full bg-white/10 overflow-hidden mb-1.5">
+                          <div className="h-full rounded-full bg-[#86BBD8]/55" style={{ width: `${pct}%` }} />
+                        </div>
+                        {hasIssues ? (
+                          <div className="flex gap-1 flex-wrap">
+                            {out > 0 && <span className="text-[9px] px-1 py-0.5 rounded bg-rose-500/20 border border-rose-500/25 text-rose-400">{out} out</span>}
+                            {low > 0 && <span className="text-[9px] px-1 py-0.5 rounded bg-amber-500/20 border border-amber-500/25 text-amber-400">{low} low</span>}
+                          </div>
+                        ) : (
+                          <div className="text-[9px] text-white/25">{pct}% of stock</div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>
@@ -1524,9 +1803,34 @@ export default function SparesPage() {
               {/* Search */}
               <div className="relative">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/30" />
-                <input type="text" placeholder="Search stock code, description, category, supplier…" value={search}
+                <input type="text" placeholder="Search stock code, description, category, supplier, notes…" value={search}
                   onChange={e => setSearch(e.target.value)}
                   className="pl-8 pr-3 py-2 w-full text-sm rounded-lg bg-white/[0.07] border border-white/12 text-white placeholder:text-white/30 focus:outline-none focus:border-white/30 focus:bg-white/[0.11] transition-all" />
+              </div>
+
+              {/* Category quick filter */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
+                <div>
+                  <div className="text-[11px] text-white/45 mb-1.5">Category</div>
+                  <SearchableDropdown
+                    value={categoryFilter}
+                    onChange={setCategoryFilter}
+                    placeholder="All categories"
+                    options={[
+                      { value: 'all', label: 'All categories' },
+                      ...ALL_PREDEFINED_CATS.map(c => ({ value: c, label: c })),
+                      ...categories
+                        .filter(c => !ALL_PREDEFINED_CATS.includes(c))
+                        .map(c => ({ value: c, label: c })),
+                    ]}
+                  />
+                </div>
+                {categoryFilter !== 'all' && (
+                  <button onClick={() => setCategoryFilter('all')}
+                    className="h-9 px-3 inline-flex items-center gap-1.5 rounded-lg text-xs border border-white/12 bg-white/[0.05] text-white/55 hover:text-white hover:bg-white/[0.12] transition-all self-end">
+                    <X className="h-3 w-3" /> Clear: {categoryFilter}
+                  </button>
+                )}
               </div>
 
               {/* Stock status */}
@@ -1681,7 +1985,16 @@ export default function SparesPage() {
                               onClick={toggleTableRow}>
                               <TableCell className="font-mono font-semibold text-white text-xs">{spare.stock_code}</TableCell>
                               <TableCell className="text-white/75 text-xs max-w-[220px]"><div className="truncate">{spare.description}</div></TableCell>
-                              <TableCell><span className="text-[11px] px-1.5 py-0.5 rounded bg-white/[0.06] border border-white/10 text-white/55">{spare.category || '—'}</span></TableCell>
+                              <TableCell>
+                                <div className="flex flex-wrap gap-0.5">
+                                  {(spare.categories && spare.categories.length > 0
+                                    ? spare.categories
+                                    : spare.category ? [spare.category] : ['—']
+                                  ).map(cat => (
+                                    <span key={cat} className="text-[11px] px-1.5 py-0.5 rounded bg-white/[0.06] border border-white/10 text-white/55">{cat}</span>
+                                  ))}
+                                </div>
+                              </TableCell>
                               <TableCell className="text-white/55 text-xs">{spare.machine_type || '—'}</TableCell>
                               <TableCell>
                                 <div className="text-xs text-white/75">{spare.current_quantity}/{spare.max_quantity}</div>

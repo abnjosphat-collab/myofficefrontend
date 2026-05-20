@@ -10,7 +10,7 @@ import {
   FileText, Folder, HardHat, Wrench, LineChart, Clock4, Megaphone,
   Building, Utensils, Church, Database,
   AlertOctagon, ShieldAlert, ClipboardList, FileWarning, PackageOpen,
-  ClipboardPlus, Target, Activity, ArrowRight, Search, Sparkles,
+  ClipboardPlus, Target, Activity, ArrowRight, Search, Sparkles, MessageSquareWarning,
   ChevronsUp, ChevronsDown, Minimize2, Maximize2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -117,6 +117,7 @@ const CATEGORIES: Category[] = [
       { icon: ShieldAlert,   title: 'SHEQ',             description: 'Safety, health, environment and quality hub',   color: 'indigo', href: '/sheq',            tags: ['Compliance'] },
       { icon: Eye,           title: 'VFL',              description: 'Visible Felt Leadership safety observations',    color: 'sky',    href: '/vfl',             tags: ['Leadership'] },
       { icon: Target,        title: 'PTO',              description: 'Planned Task Observation for safe execution',    color: 'navy',   href: '/pto',             tags: ['Observation'] },
+      { icon: MessageSquareWarning, title: 'Complaints',  description: 'Safety complaints register with accountability',  color: 'rose',   href: '/safety_complaints', tags: ['Complaints', 'Safety'] },
     ],
   },
   {

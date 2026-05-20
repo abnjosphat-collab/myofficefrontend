@@ -10,7 +10,7 @@ import {
   Users, Package, Folder, ClipboardCheck,
   AlertTriangle, PackageOpen, Fan, Clock, CalendarDays,
   ClipboardPlus, Clock4, Calculator, HardHat, ClipboardList,
-  FileWarning, AlertOctagon, ShieldAlert, Eye, Target,
+  FileWarning, AlertOctagon, ShieldAlert, Eye, Target, MessageSquareWarning,
   LineChart, BarChart3, Megaphone, Home,
   Utensils, Church, Database, ToolCase, PackageMinus, Car,
 } from 'lucide-react';
@@ -190,6 +190,7 @@ const NAV_GROUPS = [
       { icon: ShieldAlert,  title: 'SHEQ',            href: '/sheq',           desc: 'Safety & quality' },
       { icon: Eye,          title: 'VFL',             href: '/vfl',            desc: 'Felt leadership' },
       { icon: Target,       title: 'PTO',             href: '/pto',            desc: 'Task observations' },
+      { icon: MessageSquareWarning, title: 'Safety Complaints', href: '/safety_complaints', desc: 'Complaints register' },
     ],
   },
   {
