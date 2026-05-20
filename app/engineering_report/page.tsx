@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -65,7 +65,6 @@ import {
   Fan,
   Layers,
   Train,
-  Water,
   AlertOctagon as AlertOctagonIcon,
   Clock as ClockIcon,
   CheckCheck,
@@ -133,7 +132,6 @@ import {
   CalendarPlus,
   CalendarSearch,
   CalendarSync,
-  CalendarWeek,
   CalendarDays as CalendarDaysIcon,
   CalendarHeart,
   CalendarMinus,
@@ -141,12 +139,8 @@ import {
   CalendarCheck as CalendarCheckIcon,
   CalendarCog,
   CalendarFold,
-  CalendarKey,
-  CalendarLock,
   CalendarMinus2,
-  CalendarOff2,
   CalendarPlus2,
-  CalendarSearch2,
   CalendarX2,
   Calendar as CalendarIcon,
   ChartArea,
@@ -210,8 +204,6 @@ import {
   RadialBar,
   FunnelChart,
   Funnel,
-  SunburstChart,
-  Sunburst,
   Label as RechartsLabel,
   ErrorBar
 } from 'recharts';
@@ -256,6 +248,147 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PageShell } from '@/components/PageShell';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+// ─── TypeScript Interfaces ───────────────────────────────────────────────────
+
+interface Callout {
+  shift: 'day' | 'night';
+  description: string;
+  start_time: string;
+  end_time: string;
+  duration_hours: number;
+}
+
+interface Equipment {
+  name: string;
+  target: number;
+  actual: number;
+  category: string;
+}
+
+interface DailyReport {
+  _id?: string;
+  date: string;
+  safety: string;
+  projects: string;
+  weekly_plan: string;
+  daily_checks: string;
+  power_availability: string;
+  dam_level: string | number;
+  call_outs: Callout[];
+  plant_availability_percent: number;
+  equipment: Equipment[];
+  notes: string;
+  created_at?: string;
+}
+
+interface ReportForm {
+  date: string;
+  safety: string;
+  projects: string;
+  weekly_plan: string;
+  daily_checks: string;
+  power_availability: string;
+  dam_level: string;
+  call_outs: Callout[];
+  plant_availability_percent: number | string;
+  equipment: Equipment[];
+  notes: string;
+}
+
+interface TrendDataPoint {
+  period: string;
+  date: string;
+  plantAvailability: number;
+  damLevel: number;
+  callouts: number;
+  equipmentPerformance: number;
+  target: number;
+  damTarget: number;
+  [key: string]: string | number;
+}
+
+interface EquipmentPerformancePoint {
+  name: string;
+  category: string;
+  avgPerformance: number;
+  minPerformance: number;
+  maxPerformance: number;
+  trend: number;
+}
+
+interface DashboardStats {
+  total: number;
+  avgPlant: number;
+  totalCalloutsHours: number;
+  avgDamLevel: number;
+  totalCallouts: number;
+  avgEquipmentPerformance: number;
+  bestPerformingCategory: string;
+  worstPerformingCategory: string;
+}
+
+interface AnalyticsFilters {
+  dateRange: { from: Date; to: Date };
+  equipmentCategory: string;
+  specificEquipment: string;
+  performanceThreshold: number;
+  powerStatus: string;
+  showTrendLines: boolean;
+  showTargetLine: boolean;
+  groupBy: string;
+  chartType: string;
+  viewMode: string;
+  compareMode: boolean;
+  comparePeriod: string;
+  metrics: string[];
+}
+
+interface CalloutDuration {
+  start: string;
+  end: string;
+}
+
+interface CustomExportDates {
+  from: Date;
+  to: Date;
+}
+
+interface GroupAccumulator {
+  period: string;
+  plantAvailability: number[];
+  damLevels: number[];
+  callouts: number;
+  equipmentPerformance: number[];
+}
+
+interface GroupedPeriodData {
+  period: string;
+  plantAvailability: string | number;
+  damLevel: string | number;
+  callouts: number;
+  equipmentPerformance: string | number;
+}
+
+interface EquipmentMapEntry {
+  name: string;
+  category: string;
+  values: number[];
+  dates: string[];
+}
+
+interface CategoryPerformanceEntry {
+  total: number;
+  count: number;
+}
+
+interface EquipmentSummaryEntry {
+  name: string;
+  category: string;
+  totalActual: number;
+  totalTarget: number;
+  count: number;
+}
 
 const EQUIPMENT_CATEGORIES = [
   {
@@ -397,7 +530,7 @@ const PRESET_EQUIPMENT = EQUIPMENT_CATEGORIES.flatMap(category =>
   }))
 );
 
-const emptyReport = () => ({
+const emptyReport = (): ReportForm => ({
   date: new Date().toISOString().slice(0,10),
   safety: '',
   projects: '',
@@ -411,30 +544,30 @@ const emptyReport = () => ({
   notes: ''
 });
 
-const ensureArray = (data) => {
-  if (Array.isArray(data)) return data;
-  if (data && typeof data === 'object') return Object.values(data);
+const ensureArray = (data: unknown): DailyReport[] => {
+  if (Array.isArray(data)) return data as DailyReport[];
+  if (data && typeof data === 'object') return Object.values(data as Record<string, DailyReport>);
   return [];
 };
 
 // Helper function to generate CSV content
-const generateCSVContent = (data, headers) => {
-  const csvRows = [];
+const generateCSVContent = (data: Record<string, unknown>[], headers: string[]): string => {
+  const csvRows: string[] = [];
   csvRows.push(headers.join(','));
-  
+
   for (const row of data) {
     const values = headers.map(header => {
-      const value = row[header] || '';
+      const value = row[header] ?? '';
       return typeof value === 'string' ? `"${value.replace(/"/g, '""')}"` : value;
     });
     csvRows.push(values.join(','));
   }
-  
+
   return csvRows.join('\n');
 };
 
 // Helper function to export data
-const exportData = (data, filename, type = 'text/csv;charset=utf-8;') => {
+const exportData = (data: string, filename: string, type = 'text/csv;charset=utf-8;') => {
   const blob = new Blob([data], { type });
   const url = window.URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -445,7 +578,7 @@ const exportData = (data, filename, type = 'text/csv;charset=utf-8;') => {
 };
 
 // Helper to generate DOCX file
-const generateDocxContent = (reports) => {
+const generateDocxContent = (reports: DailyReport[]): string => {
   let content = `Engineering Operations Reports\n`;
   content += `Generated: ${new Date().toLocaleDateString()}\n\n`;
   
@@ -510,8 +643,8 @@ const generateDocxContent = (reports) => {
 };
 
 // Helper to generate PDF content
-const generatePDFContent = (reports) => {
-  const formatDate = (dateString) => {
+const generatePDFContent = (reports: DailyReport[]): string => {
+  const formatDate = (dateString: string) => {
     try {
       const date = new Date(dateString);
       return date.toLocaleDateString('en-US', { 
@@ -735,7 +868,7 @@ const generatePDFContent = (reports) => {
               </div>
               <div class="metric">
                 <div class="metric-label">Dam Level</div>
-                <div class="metric-value">${Math.min(10, report.dam_level || 0)}m</div>
+                <div class="metric-value">${Math.min(10, Number(report.dam_level) || 0)}m</div>
               </div>
               <div class="metric">
                 <div class="metric-label">Power Status</div>
@@ -831,16 +964,16 @@ const generatePDFContent = (reports) => {
 
 export default function EngineeringDashboard() {
   const [isClient, setIsClient] = useState(false);
-  const [form, setForm] = useState(emptyReport());
-  const [reports, setReports] = useState([]);
+  const [form, setForm] = useState<ReportForm>(emptyReport());
+  const [reports, setReports] = useState<DailyReport[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("new-report");
-  const [selectedReport, setSelectedReport] = useState(null);
-  const [expandedCategories, setExpandedCategories] = useState([]);
+  const [selectedReport, setSelectedReport] = useState<DailyReport | null>(null);
+  const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
   const [databaseStatus, setDatabaseStatus] = useState('checking');
-  const [trendData, setTrendData] = useState([]);
-  const [equipmentPerformanceData, setEquipmentPerformanceData] = useState([]);
-  const [stats, setStats] = useState({
+  const [trendData, setTrendData] = useState<TrendDataPoint[]>([]);
+  const [equipmentPerformanceData, setEquipmentPerformanceData] = useState<EquipmentPerformancePoint[]>([]);
+  const [stats, setStats] = useState<DashboardStats>({
     total: 0,
     avgPlant: 0,
     totalCalloutsHours: 0,
@@ -850,8 +983,8 @@ export default function EngineeringDashboard() {
     bestPerformingCategory: '',
     worstPerformingCategory: ''
   });
-  
-  const [analyticsFilters, setAnalyticsFilters] = useState({
+
+  const [analyticsFilters, setAnalyticsFilters] = useState<AnalyticsFilters>({
     dateRange: {
       from: subDays(new Date(), 30),
       to: new Date()
@@ -869,22 +1002,22 @@ export default function EngineeringDashboard() {
     comparePeriod: 'previous_week',
     metrics: ['plantAvailability', 'equipmentPerformance', 'damLevel', 'callouts']
   });
-  
+
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState('date');
   const [sortDirection, setSortDirection] = useState('desc');
-  const [expandedReportId, setExpandedReportId] = useState(null);
-  const [selectedEquipmentForAnalysis, setSelectedEquipmentForAnalysis] = useState([]);
+  const [expandedReportId, setExpandedReportId] = useState<string | null>(null);
+  const [selectedEquipmentForAnalysis, setSelectedEquipmentForAnalysis] = useState<string[]>([]);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [exportFormat, setExportFormat] = useState('excel');
   const [historyViewMode, setHistoryViewMode] = useState('grid');
-  const [selectedReports, setSelectedReports] = useState([]);
-  const [customExportDates, setCustomExportDates] = useState({
+  const [selectedReports, setSelectedReports] = useState<string[]>([]);
+  const [customExportDates, setCustomExportDates] = useState<CustomExportDates>({
     from: subDays(new Date(), 7),
     to: new Date()
   });
-  const [selectedExportDates, setSelectedExportDates] = useState([]);
-  const [calloutDuration, setCalloutDuration] = useState({ start: '08:00', end: '12:00' });
+  const [selectedExportDates, setSelectedExportDates] = useState<string[]>([]);
+  const [calloutDuration, setCalloutDuration] = useState<CalloutDuration>({ start: '08:00', end: '12:00' });
 
   useEffect(() => {
     setIsClient(true);
@@ -986,19 +1119,20 @@ export default function EngineeringDashboard() {
     updateEquipmentPerformanceData(filteredReports);
   };
 
-  const groupDataByPeriod = (reports) => {
-    const groups = {};
-    
+  const groupDataByPeriod = (reports: DailyReport[]) => {
+    const groups: Record<string, GroupAccumulator> = {};
+
     reports.forEach(report => {
-      let periodKey;
+      let periodKey: string;
       const date = new Date(report.date);
       
       switch (analyticsFilters.groupBy) {
-        case 'week':
+        case 'week': {
           const weekStart = new Date(date);
           weekStart.setDate(date.getDate() - date.getDay());
           periodKey = format(weekStart, 'yyyy-MM-dd');
           break;
+        }
         case 'month':
           periodKey = format(date, 'yyyy-MM');
           break;
@@ -1017,7 +1151,7 @@ export default function EngineeringDashboard() {
       }
       
       groups[periodKey].plantAvailability.push(report.plant_availability_percent || 0);
-      groups[periodKey].damLevels.push(Math.min(10, report.dam_level || 0));
+      groups[periodKey].damLevels.push(Math.min(10, Number(report.dam_level) || 0));
       groups[periodKey].callouts += (report.call_outs?.length || 0);
       
       if (report.equipment) {
@@ -1046,7 +1180,7 @@ export default function EngineeringDashboard() {
     })).sort((a, b) => a.period.localeCompare(b.period));
   };
 
-  const calculateStats = (filteredReports) => {
+  const calculateStats = (filteredReports: DailyReport[]) => {
     if (filteredReports.length === 0) {
       setStats({
         total: 0,
@@ -1072,14 +1206,14 @@ export default function EngineeringDashboard() {
       sum + (report.call_outs?.reduce((callSum, call) => callSum + (call.duration_hours || 0), 0) || 0), 0);
     
     const avgDamLevel = filteredReports.reduce((sum, report) => 
-      sum + (Math.min(10, parseFloat(report.dam_level) || 0)), 0) / total;
+      sum + (Math.min(10, parseFloat(String(report.dam_level)) || 0)), 0) / total;
     
     const allEquipment = filteredReports.flatMap(report => report.equipment || []);
     const avgEquipmentPerformance = allEquipment.length > 0
       ? allEquipment.reduce((sum, eq) => sum + (eq.actual || 0), 0) / allEquipment.length
       : 0;
     
-    const categoryPerformance = {};
+    const categoryPerformance: Record<string, CategoryPerformanceEntry> = {};
     filteredReports.forEach(report => {
       report.equipment?.forEach(eq => {
         if (!categoryPerformance[eq.category]) {
@@ -1112,7 +1246,7 @@ export default function EngineeringDashboard() {
     });
   };
 
-  const updateTrendData = (groupedData) => {
+  const updateTrendData = (groupedData: GroupedPeriodData[]) => {
     setTrendData(groupedData.map(data => ({
       period: analyticsFilters.groupBy === 'month' 
         ? format(new Date(data.period + '-01'), 'MMM yyyy')
@@ -1120,18 +1254,18 @@ export default function EngineeringDashboard() {
         ? `Week ${format(new Date(data.period), 'w')}`
         : format(new Date(data.period), 'MMM d'),
       date: data.period,
-      plantAvailability: parseFloat(data.plantAvailability),
-      damLevel: parseFloat(data.damLevel),
+      plantAvailability: parseFloat(String(data.plantAvailability)),
+      damLevel: parseFloat(String(data.damLevel)),
       callouts: data.callouts,
-      equipmentPerformance: parseFloat(data.equipmentPerformance),
+      equipmentPerformance: parseFloat(String(data.equipmentPerformance)),
       target: 95,
       damTarget: 5 // 5 meters target
     })));
   };
 
-  const updateEquipmentPerformanceData = (filteredReports) => {
-    const equipmentMap = {};
-    
+  const updateEquipmentPerformanceData = (filteredReports: DailyReport[]) => {
+    const equipmentMap: Record<string, EquipmentMapEntry> = {};
+
     filteredReports.forEach(report => {
       report.equipment?.forEach(eq => {
         if (!equipmentMap[eq.name]) {
@@ -1163,7 +1297,7 @@ export default function EngineeringDashboard() {
     setEquipmentPerformanceData(performanceData);
   };
 
-  const saveReport = async (e) => {
+  const saveReport = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setIsLoading(true);
     
@@ -1174,7 +1308,7 @@ export default function EngineeringDashboard() {
         return;
       }
       
-      if (!form.plant_availability_percent || form.plant_availability_percent < 0 || form.plant_availability_percent > 100) {
+      if (!form.plant_availability_percent || Number(form.plant_availability_percent) < 0 || Number(form.plant_availability_percent) > 100) {
         toast.error('Please enter a valid plant availability percentage (0-100)');
         setIsLoading(false);
         return;
@@ -1218,8 +1352,8 @@ export default function EngineeringDashboard() {
       setReports(prev => {
         const prevArray = ensureArray(prev);
         const filtered = prevArray.filter(r => r.date !== savedReport.date);
-        const updated = [savedReport, ...filtered].sort((a, b) => 
-          new Date(b.date) - new Date(a.date)
+        const updated = [savedReport, ...filtered].sort((a, b) =>
+          new Date(b.date).getTime() - new Date(a.date).getTime()
         );
         return updated;
       });
@@ -1242,16 +1376,16 @@ export default function EngineeringDashboard() {
     const shift = prompt('Enter shift (day/night):', 'day');
     
     // Calculate duration based on user input times
-    const startTime = prompt('Enter start time (HH:MM):', calloutDuration.start);
-    const endTime = prompt('Enter end time (HH:MM):', calloutDuration.end);
-    
+    const startTime = prompt('Enter start time (HH:MM):', calloutDuration.start) ?? '00:00';
+    const endTime = prompt('Enter end time (HH:MM):', calloutDuration.end) ?? '00:00';
+
     // Calculate duration in hours
     const start = startTime.split(':').map(Number);
     const end = endTime.split(':').map(Number);
     let duration = (end[0] - start[0]) + (end[1] - start[1]) / 60;
     if (duration < 0) duration += 24; // Handle overnight
-    
-    const newCallout = {
+
+    const newCallout: Callout = {
       shift: shift === 'night' ? 'night' : 'day',
       description: description.trim(),
       start_time: startTime,
@@ -1267,7 +1401,7 @@ export default function EngineeringDashboard() {
     toast.success('Callout added');
   };
 
-  const updateEquipment = (categoryIndex, eqIndex, value) => {
+  const updateEquipment = (categoryIndex: number, eqIndex: number, value: string) => {
     const category = EQUIPMENT_CATEGORIES[categoryIndex];
     const equipmentName = category.equipment[eqIndex].name;
     
@@ -1292,7 +1426,7 @@ export default function EngineeringDashboard() {
     });
   };
 
-  const toggleCategory = (categoryName) => {
+  const toggleCategory = (categoryName: string) => {
     setExpandedCategories(prev =>
       prev.includes(categoryName)
         ? prev.filter(c => c !== categoryName)
@@ -1317,8 +1451,9 @@ export default function EngineeringDashboard() {
     }
     
     filtered.sort((a, b) => {
-      let aValue, bValue;
-      
+      let aValue: number;
+      let bValue: number;
+
       switch (sortField) {
         case 'plant_availability':
           aValue = Number(a.plant_availability_percent) || 0;
@@ -1333,10 +1468,10 @@ export default function EngineeringDashboard() {
           bValue = (b.call_outs?.length || 0);
           break;
         default:
-          aValue = new Date(a.date);
-          bValue = new Date(b.date);
+          aValue = new Date(a.date).getTime();
+          bValue = new Date(b.date).getTime();
       }
-      
+
       return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
     });
     
@@ -1344,7 +1479,7 @@ export default function EngineeringDashboard() {
   }, [reports, searchTerm, sortField, sortDirection]);
 
   const getEquipmentPerformanceData = () => {
-    const equipmentMap = {};
+    const equipmentMap: Record<string, EquipmentSummaryEntry> = {};
     
     reports.forEach(report => {
       report.equipment?.forEach(eq => {
@@ -1376,7 +1511,7 @@ export default function EngineeringDashboard() {
     }));
   };
 
-  const handleSort = (field) => {
+  const handleSort = (field: string) => {
     if (sortField === field) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
@@ -1386,18 +1521,18 @@ export default function EngineeringDashboard() {
   };
 
   const allEquipmentNames = useMemo(() => {
-    const names = new Set();
+    const names = new Set<string>();
     EQUIPMENT_CATEGORIES.forEach(category => {
       category.equipment.forEach(eq => names.add(eq.name));
     });
     return Array.from(names).sort();
   }, []);
 
-  const toggleReportExpansion = (reportId) => {
+  const toggleReportExpansion = (reportId: string) => {
     setExpandedReportId(expandedReportId === reportId ? null : reportId);
   };
 
-  const toggleReportSelection = (reportId) => {
+  const toggleReportSelection = (reportId: string) => {
     setSelectedReports(prev =>
       prev.includes(reportId)
         ? prev.filter(id => id !== reportId)
@@ -1406,11 +1541,11 @@ export default function EngineeringDashboard() {
   };
 
   // Fixed: Export single report in different formats
-  const exportSingleReport = (report, formatType) => {
+  const exportSingleReport = (report: DailyReport, formatType: string) => {
     const reportsToExport = [report];
     
     switch (formatType) {
-      case 'pdf':
+      case 'pdf': {
         const pdfContent = generatePDFContent(reportsToExport);
         const printWindow = window.open('', '_blank');
         if (!printWindow) {
@@ -1425,19 +1560,19 @@ export default function EngineeringDashboard() {
         }, 500);
         toast.success('PDF opened for printing');
         break;
-        
-      case 'word':
+      }
+      case 'word': {
         const wordContent = generateDocxContent(reportsToExport);
         exportData(wordContent, `engineering_report_${report.date}.doc`, 'application/msword');
         toast.success('Word document (DOC) downloaded');
         break;
-        
-      case 'excel':
+      }
+      case 'excel': {
         const headers = ['Date', 'Plant Availability (%)', 'Dam Level (m)', 'Power Status', 'Callouts', 'Safety Notes'];
-        const data = reportsToExport.map(r => ({
+        const data: Record<string, unknown>[] = reportsToExport.map(r => ({
           'Date': r.date,
           'Plant Availability (%)': r.plant_availability_percent,
-          'Dam Level (m)': Math.min(10, r.dam_level || 0),
+          'Dam Level (m)': Math.min(10, Number(r.dam_level) || 0),
           'Power Status': r.power_availability,
           'Callouts': r.call_outs?.length || 0,
           'Safety Notes': r.safety || ''
@@ -1446,17 +1581,18 @@ export default function EngineeringDashboard() {
         exportData(csvContent, `engineering_report_${report.date}.csv`, 'text/csv;charset=utf-8;');
         toast.success('Excel file (CSV) downloaded');
         break;
-        
-      case 'json':
+      }
+      case 'json': {
         const jsonString = JSON.stringify(report, null, 2);
         exportData(jsonString, `engineering_report_${report.date}.json`, 'application/json');
         toast.success('JSON file downloaded');
         break;
+      }
     }
   };
 
   // Fixed: Export selected reports - removed format function conflict
-  const exportSelectedReports = (formatType) => {
+  const exportSelectedReports = (formatType: string) => {
     if (selectedExportDates.length === 0 && selectedReports.length === 0) {
       toast.error('Please select dates or reports to export');
       return;
@@ -1510,7 +1646,7 @@ export default function EngineeringDashboard() {
         const data = reportsToExport.map(r => ({
           'Date': r.date,
           'Plant Availability (%)': r.plant_availability_percent,
-          'Dam Level (m)': Math.min(10, r.dam_level || 0),
+          'Dam Level (m)': Math.min(10, Number(r.dam_level) || 0),
           'Power Status': r.power_availability,
           'Callouts': r.call_outs?.length || 0,
           'Safety Notes': r.safety || ''
@@ -1528,7 +1664,7 @@ export default function EngineeringDashboard() {
     }
   };
 
-  const renderChart = (title, dataKey, color, showTarget = false, targetValue = 95) => {
+  const renderChart = (title: string, dataKey: string, color: string, showTarget = false, targetValue = 95) => {
     const data = trendData;
     
     const ChartComponent = () => {
@@ -1765,7 +1901,7 @@ export default function EngineeringDashboard() {
   };
 
   // Enhanced Detailed Report View Component with Export Options
-  const DetailedReportView = ({ report }) => {
+  const DetailedReportView = ({ report }: { report: DailyReport }) => {
     const plantPercent = Number(report.plant_availability_percent) || 0;
     
     return (
@@ -1868,11 +2004,11 @@ export default function EngineeringDashboard() {
                     <Droplets className="h-4 w-4 text-blue-400" />
                   </div>
                   <p className="text-xl font-bold text-slate-900">
-                    {Math.min(10, report.dam_level || 0)}m
+                    {Math.min(10, Number(report.dam_level) || 0)}m
                   </p>
                   <div className="space-y-1">
                     <Progress 
-                      value={(Math.min(10, report.dam_level || 0) / 10) * 100} 
+                      value={(Math.min(10, Number(report.dam_level) || 0) / 10) * 100} 
                       className="h-1.5"
                     />
                     <div className="flex justify-between text-[10px] text-slate-500">
@@ -2476,7 +2612,7 @@ export default function EngineeringDashboard() {
                           className="border-slate-300 focus:border-blue-500"
                         />
                         <div className="w-24">
-                          <Progress value={form.plant_availability_percent} className="h-2" />
+                          <Progress value={Number(form.plant_availability_percent)} className="h-2" />
                         </div>
                       </div>
                     </div>
@@ -3251,7 +3387,7 @@ export default function EngineeringDashboard() {
                             <CardContent className="p-4 pt-0">
                               <div className="space-y-3">
                                 {category.equipment.map((eq, eqIndex) => {
-                                  const formEq = form.equipment.find(e => e.name === eq.name) || eq;
+                                  const formEq = form.equipment.find(e => e.name === eq.name) ?? { ...eq, actual: 0 };
                                   const actual = Number(formEq.actual) || 0;
                                   const target = Number(eq.target) || 100;
                                   const isGilbertsDam = eq.name === 'Gilberts Dam';
@@ -3537,7 +3673,7 @@ export default function EngineeringDashboard() {
                                       <div className="space-y-1">
                                         <p className="text-xs text-slate-500">Dam Level</p>
                                         <p className="text-lg font-bold text-slate-900">
-                                          {Math.min(10, report.dam_level || 0)}m
+                                          {Math.min(10, Number(report.dam_level) || 0)}m
                                         </p>
                                       </div>
                                       <div className="space-y-1">
@@ -3639,7 +3775,7 @@ export default function EngineeringDashboard() {
                                       
                                       <div className="flex items-center gap-4">
                                         <div className="text-right">
-                                          <div className="text-sm font-medium">{Math.min(10, report.dam_level || 0)}m</div>
+                                          <div className="text-sm font-medium">{Math.min(10, Number(report.dam_level) || 0)}m</div>
                                           <div className="text-xs text-slate-500">Dam</div>
                                         </div>
                                         

@@ -18,6 +18,7 @@ import {
   SafetyPanel, SafetyTable, SafetyModal, FormField, ModalActions,
   RowActions, TabBar, AddButton,
 } from '@/components/safety';
+import { usePageCollapse, MasterCollapseButton } from '@/components/shared';
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
@@ -611,6 +612,7 @@ function InspectionCard({
 // ─── MAIN PAGE ────────────────────────────────────────────────────────────────
 
 export default function SHEQInspectionPage() {
+  const sections = usePageCollapse({ stats: true, records: true });
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [inspections, setInspections] = useState<SHEQFormData[]>([]);
@@ -730,11 +732,13 @@ export default function SHEQInspectionPage() {
           subtitle="Safety, Health, Environment &amp; Quality compliance tracking"
           accentColor={ACCENT} stats={heroStats}
           onRefresh={() => load(true)} refreshing={refreshing}
+          showStats={sections.expanded.stats} onToggleStats={() => sections.toggle('stats')}
           actions={
-            <AddButton label="New Inspection" onClick={() => { setEditingInspection(null); setFormOpen(true); }} />
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}><MasterCollapseButton collapse={sections} /><AddButton label="New Inspection" onClick={() => { setEditingInspection(null); setFormOpen(true); }} /></div>
           }
         />
 
+        {sections.expanded.records && <>
         {/* Controls */}
         <SafetyControls>
           <SafetySearchBar value={search} onChange={setSearch}
@@ -880,6 +884,7 @@ export default function SHEQInspectionPage() {
             </SafetyTable>
           </SafetyPanel>
         )}
+        </>}
 
         {/* Modals */}
         <InspectionFormModal

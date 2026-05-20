@@ -1,4 +1,4 @@
-// app/page.js
+﻿// app/shop/page.tsx
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -66,13 +66,13 @@ import {
 
 export default function HomePage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [wishlist, setWishlist] = useState([]);
+  const [wishlist, setWishlist] = useState<number[]>([]);
   const [newsletterEmail, setNewsletterEmail] = useState("");
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
-  const [productQuantities, setProductQuantities] = useState({});
+  const [productQuantities, setProductQuantities] = useState<Record<number, number>>({});
   const [cartItems, setCartItems] = useState(3);
-  const [activeProduct, setActiveProduct] = useState(null);
+  const [activeProduct, setActiveProduct] = useState<typeof featuredProducts[0] | null>(null);
 
   const heroSlides = [
     {
@@ -264,7 +264,7 @@ export default function HomePage() {
     }
   ];
 
-  const toggleWishlist = (productId) => {
+  const toggleWishlist = (productId: number): void => {
     setWishlist(prev => 
       prev.includes(productId) 
         ? prev.filter(id => id !== productId)
@@ -282,13 +282,13 @@ export default function HomePage() {
           : `${product?.name} added to your wishlist`,
         action: {
           label: "View",
-          onClick: () => setActiveProduct(product)
+          onClick: () => setActiveProduct(product ?? null)
         },
       }
     );
   };
 
-  const handleNewsletterSubmit = async (e) => {
+  const handleNewsletterSubmit = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault();
     if (!newsletterEmail || !newsletterEmail.includes('@')) {
       toast.error("Please enter a valid email address");
@@ -317,14 +317,14 @@ export default function HomePage() {
     }
   };
 
-  const updateQuantity = (productId, amount) => {
+  const updateQuantity = (productId: number, amount: number): void => {
     setProductQuantities(prev => ({
       ...prev,
       [productId]: Math.max(1, (prev[productId] || 1) + amount)
     }));
   };
 
-  const addToCart = (product, quantity = 1) => {
+  const addToCart = (product: { name: string; price: number }, quantity = 1): void => {
     setCartItems(prev => prev + quantity);
     
     toast.success(`${product.name} added to cart`, {
@@ -355,7 +355,7 @@ export default function HomePage() {
     return () => clearInterval(interval);
   }, []);
 
-  const renderStars = (rating) => {
+  const renderStars = (rating: number) => {
     return (
       <div className="flex items-center gap-1">
         {[...Array(5)].map((_, i) => (

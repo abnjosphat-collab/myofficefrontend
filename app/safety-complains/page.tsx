@@ -3,477 +3,31 @@
 
 import React, { useState, useMemo, useEffect, Fragment } from "react";
 import {
-  AlertTriangle,
-  Plus,
-  Search,
-  RefreshCw,
-  Calendar,
-  Filter,
-  ChevronDown,
-  ChevronUp,
-  ChevronRight,
-  ChevronLeft,
-  CheckCircle2,
-  XCircle,
-  User,
-  FileText,
-  Eye,
-  Loader2,
-  Clock,
-  AlertCircle,
-  Trash2,
-  MoreVertical,
-  Edit,
-  X,
-  ArrowUpRight,
-  TrendingUp,
-  Users,
-  Briefcase,
-  Download,
-  Grid,
-  Home,
-  Activity,
-  Phone,
-  MessageSquare,
-  Heart,
-  Info,
-  Target,
-  Flag,
-  Database,
-  FilterX,
-  Table as TableIcon,
-  ArrowUpDown,
-  Sun,
-  Moon,
-  Sparkles,
-  Zap,
-  Award,
-  Star,
-  Shield,
-  Lock,
-  Unlock,
-  Gift,
-  Package,
-  Truck,
-  Warehouse,
-  ShoppingBag,
-  Coffee,
-  Music,
-  Film,
-  Camera,
-  Mic,
-  Headphones,
-  Gamepad,
-  Tv,
-  Wifi,
-  Bluetooth,
-  Battery,
-  Cpu,
-  HardDrive,
-  Monitor,
-  Printer,
-  Scan,
-  QrCode,
-  Barcode,
-  Ticket,
-  CreditCard,
-  Wallet,
-  Banknote,
-  Coins,
-  Receipt,
-  Building,
-  Factory,
-  Store,
-  Globe,
-  MapPin,
-  Compass,
-  Medal,
-  Crown,
-  Shield as ShieldIcon,
-  AlertTriangle as AlertTriangleIcon,
-  Check,
-  DollarSign,
-  Eye as EyeIcon,
-  EyeOff,
-  Mail,
-  Share2,
-  Bookmark,
-  ThumbsUp,
-  ThumbsDown,
-  Settings,
-  Sliders,
-  Upload,
-  Copy,
-  Delete,
-  ExternalLink,
-  HelpCircle,
-  Key,
-  Layers,
-  LayoutDashboard,
-  LayoutGrid,
-  LayoutList,
-  Link as LinkIcon,
-  List,
-  LogIn,
-  LogOut,
-  Map,
-  Maximize,
-  Menu,
-  MessageCircle,
-  Minimize,
-  Minus,
-  MoreHorizontal,
-  Move,
-  Navigation,
-  Network,
-  Newspaper,
-  Notebook,
-  NotepadText,
-  Octagon,
-  Option,
-  Paintbrush,
-  Palette,
-  Paperclip,
-  Pause,
-  Pencil,
-  Percent,
-  PieChart,
-  Play,
-  Pocket,
-  Power,
-  Quote,
-  Radio,
-  Repeat,
-  Reply,
-  Rewind,
-  Rocket,
-  RotateCcw,
-  RotateCw,
-  Rss,
-  Save,
-  Scissors,
-  Send,
-  Server,
-  Share,
-  ShoppingCart,
-  Shuffle,
-  SkipBack,
-  SkipForward,
-  Smartphone,
-  Smile,
-  Snowflake,
-  Speaker,
-  Split,
-  Square,
-  SwitchCamera,
-  Tablet,
-  Tag,
-  Terminal,
-  Timer,
-  ToggleLeft,
-  ToggleRight,
-  TrendingDown,
-  Triangle,
-  Trophy,
-  Twitter,
-  Type,
-  Umbrella,
-  Underline,
-  Undo,
-  Unlink,
-  Upload as UploadIcon,
-  User as UserIcon,
-  UserCheck,
-  UserCog,
-  UserMinus,
-  UserPlus,
-  UserX,
-  Users as UsersIcon,
-  Video as VideoIcon,
-  Voicemail,
-  Volume,
-  Volume1,
-  Volume2,
-  VolumeX,
-  Wand,
-  Watch,
-  Wind,
-  Youtube,
-  ZoomIn,
-  ZoomOut,
+  AlertTriangle, Plus, Search, RefreshCw, Calendar,
+  Filter, ChevronDown, ChevronUp, ChevronRight,
+  CheckCircle2, User, FileText, Eye, Loader2, Clock,
+  AlertCircle, Trash2, Edit, X, FilterX,
+  Table as TableIcon, Grid, MessageSquare, Check,
+  Settings, Sun, HelpCircle, Info, Download, Zap, MapPin,
 } from "lucide-react";
-import Link from "next/link";
 import { PageShell } from '@/components/PageShell';
-
-// Import Header and Footer - Comment out if these don't exist yet
-// import { Header } from "@/components/Header";
-// import { Footer } from "@/components/Footer";
-
-// Simple Header and Footer components if the imports don't exist
-const Header = ({ isLoggedIn, user, onLogout }: { isLoggedIn: boolean; user: any; onLogout: () => void }) => (
-  <header className="sticky top-0 z-50 w-full border-b border-white/30 bg-black/40 backdrop-blur-xl backdrop-saturate-150">
-    <div className="container mx-auto px-4">
-      <div className="flex h-16 items-center justify-between">
-        <Link href="/" className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-red-600/90 to-orange-600/90 shadow-lg">
-            <AlertTriangle className="h-5 w-5 text-white" />
-          </div>
-          <span className="font-bold text-white text-lg drop-shadow-lg">Safety Portal</span>
-        </Link>
-        <div className="flex items-center gap-3">
-          {isLoggedIn ? (
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-white">{user?.name || 'User'}</span>
-              <Button variant="ghost" size="sm" onClick={onLogout} className="text-white hover:bg-white/10">
-                Sign Out
-              </Button>
-            </div>
-          ) : (
-            <Button variant="outline" size="sm" className="text-white border-white/30 hover:bg-white/10">
-              Sign In
-            </Button>
-          )}
-        </div>
-      </div>
-    </div>
-  </header>
-);
-
-const Footer = () => (
-  <footer className="bg-gradient-to-t from-slate-900/90 to-slate-800/80 text-white border-t border-white/10 backdrop-blur-xl mt-12">
-    <div className="container mx-auto px-4 py-6 text-center">
-      <p className="text-xs text-slate-400">
-        © {new Date().getFullYear()} Safety Management System. All rights reserved.
-      </p>
-    </div>
-  </footer>
-);
-
-// shadcn/ui imports
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Table as ShadcnTable,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Separator } from "@/components/ui/separator";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Toaster } from "@/components/ui/sonner";
+  fmtDate as formatDate,
+  initials as getInitials,
+  GlassBadge,
+  GlassInput,
+  GlassSelect,
+  GlassTextarea,
+  GlassModal,
+  GlassStatCard,
+  AvatarInitials,
+  usePageCollapse,
+  MasterCollapseButton,
+} from '@/components/shared';
 import { toast } from "sonner";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-} from "@/components/ui/command";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import { Progress } from "@/components/ui/progress";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Skeleton } from "@/components/ui/skeleton";
 
-// ============= STUNNING NATURE WALLPAPER COLLECTION =============
-const natureWallpapers = [
-  {
-    url: "https://images.unsplash.com/photo-1559128010-7c1ad6e1b6a5?auto=format&fit=crop&q=90&w=2070",
-    credit: "Unsplash - Iceland Ice Cave",
-    location: "Iceland - Crystal Ice Cave"
-  },
-  {
-    url: "https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&q=90&w=2070",
-    credit: "Unsplash - Enchanted Forest",
-    location: "Pacific Northwest"
-  },
-  {
-    url: "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&q=90&w=2070",
-    credit: "Unsplash - Misty Morning",
-    location: "Great Smoky Mountains"
-  },
-  {
-    url: "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&q=90&w=2070",
-    credit: "Unsplash - Sunbeams Through Forest",
-    location: "Olympic National Park"
-  },
-  {
-    url: "https://images.unsplash.com/photo-1511497584788-876760111969?auto=format&fit=crop&q=90&w=2070",
-    credit: "Unsplash - Alpine Lake",
-    location: "Canadian Rockies"
-  },
-  {
-    url: "https://images.unsplash.com/photo-1426604966848-d7adac402bff?auto=format&fit=crop&q=90&w=2070",
-    credit: "Unsplash - Waterfall Valley",
-    location: "Yosemite National Park"
-  },
-  {
-    url: "https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?auto=format&fit=crop&q=90&w=2070",
-    credit: "Unsplash - Desert Dunes",
-    location: "Namibia"
-  },
-  {
-    url: "https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&q=90&w=2070",
-    credit: "Unsplash - Mountain Lake Reflection",
-    location: "Lake Moraine, Canada"
-  },
-  {
-    url: "https://images.unsplash.com/photo-1433086966358-54859d0ed716?auto=format&fit=crop&q=90&w=2070",
-    credit: "Unsplash - Majestic Waterfall",
-    location: "Iguazu Falls"
-  },
-  {
-    url: "https://images.unsplash.com/photo-1518684079-3c830dcef090?auto=format&fit=crop&q=90&w=2070",
-    credit: "Unsplash - Desert Rock Formation",
-    location: "Monument Valley"
-  },
-  {
-    url: "https://images.unsplash.com/photo-1472214103451-9374bd1c798e?auto=format&fit=crop&q=90&w=2070",
-    credit: "Unsplash - Rolling Hills",
-    location: "Tuscany, Italy"
-  },
-  {
-    url: "https://images.unsplash.com/photo-1465146344425-f00d5f5c8f07?auto=format&fit=crop&q=90&w=2070",
-    credit: "Unsplash - Mountain Wildflowers",
-    location: "Colorado Rockies"
-  }
-];
-
-// ============= ANIMATION STYLES =============
-const animationStyles = `
-  @keyframes fade-in {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
-
-  @keyframes slide-up {
-    from {
-      opacity: 0;
-      transform: translateY(20px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  @keyframes bounce-light {
-    0%, 100% {
-      transform: translateY(0);
-    }
-    50% {
-      transform: translateY(-5px);
-    }
-  }
-
-  .animate-fade-in {
-    animation: fade-in 0.6s ease-out forwards;
-    opacity: 0;
-  }
-
-  .animate-slide-up {
-    animation: slide-up 0.6s ease-out forwards;
-    opacity: 0;
-  }
-
-  .animate-bounce-light {
-    animation: bounce-light 2s ease-in-out infinite;
-  }
-
-  .delay-100 { animation-delay: 100ms; }
-  .delay-200 { animation-delay: 200ms; }
-  .delay-300 { animation-delay: 300ms; }
-  .delay-400 { animation-delay: 400ms; }
-  .delay-500 { animation-delay: 500ms; }
-`;
-
-// API Configuration
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-const COMPLAINTS_API = `${API_BASE}/api/safety-complaints`;
-const EMPLOYEES_API = `${API_BASE}/api/employees`;
-
-// Type Definitions
-interface ComplaintType {
-  name: string;
-  shortName: string;
-  icon: any;
-  gradient: string;
-  badge: string;
-  color: string;
-  description: string;
-}
-
-interface SeverityLevel {
-  name: string;
-  icon: any;
-  color: string;
-  bgColor: string;
-  badge: string;
-  description: string;
-}
-
-interface StatusConfig {
-  label: string;
-  icon: any;
-  badge: string;
-  color: string;
-}
-
-interface Employee {
-  id: number;
-  name: string;
-  designation: string;
-  phone: string;
-  department: string;
-}
+// =============== TYPES ===============
+type BadgeVariant = 'success' | 'warning' | 'danger' | 'info' | 'neutral' | 'purple';
 
 interface Complaint {
   id: string;
@@ -511,219 +65,57 @@ interface ComplaintFormData {
   reported_date: string;
 }
 
-// Complaint Types
-const COMPLAINT_TYPES: Record<string, ComplaintType> = {
-  hazard: {
-    name: 'Hazard',
-    shortName: 'Hazard',
-    icon: AlertTriangle,
-    gradient: 'from-orange-500 to-orange-600',
-    badge: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400 border-orange-200',
-    color: 'orange',
-    description: 'Unsafe condition or potential hazard'
-  },
-  unsafe_act: {
-    name: 'Unsafe Act',
-    shortName: 'Unsafe Act',
-    icon: AlertCircle,
-    gradient: 'from-red-500 to-red-600',
-    badge: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 border-red-200',
-    color: 'red',
-    description: 'Unsafe behavior or action'
-  },
-  near_miss: {
-    name: 'Near Miss',
-    shortName: 'Near Miss',
-    icon: Zap,
-    gradient: 'from-yellow-500 to-yellow-600',
-    badge: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400 border-yellow-200',
-    color: 'yellow',
-    description: 'Incident that could have caused harm'
-  },
-  equipment: {
-    name: 'Equipment Issue',
-    shortName: 'Equipment',
-    icon: Settings,
-    gradient: 'from-blue-500 to-blue-600',
-    badge: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200',
-    color: 'blue',
-    description: 'Faulty or unsafe equipment'
-  },
-  environmental: {
-    name: 'Environmental',
-    shortName: 'Environmental',
-    icon: Sun,
-    gradient: 'from-green-500 to-green-600',
-    badge: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 border-green-200',
-    color: 'green',
-    description: 'Environmental safety concern'
-  },
-  other: {
-    name: 'Other',
-    shortName: 'Other',
-    icon: HelpCircle,
-    gradient: 'from-gray-500 to-gray-600',
-    badge: 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400 border-gray-200',
-    color: 'gray',
-    description: 'Other safety concerns'
-  }
+// =============== CONSTANTS ===============
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const COMPLAINTS_API = `${API_BASE}/api/safety-complaints`;
+
+const COMPLAINT_TYPES: Record<string, { name: string; icon: React.ElementType; badge: BadgeVariant; description: string }> = {
+  hazard:      { name: 'Hazard',           icon: AlertTriangle, badge: 'warning',  description: 'Unsafe condition or potential hazard' },
+  unsafe_act:  { name: 'Unsafe Act',       icon: AlertCircle,   badge: 'danger',   description: 'Unsafe behavior or action' },
+  near_miss:   { name: 'Near Miss',        icon: Zap,           badge: 'warning',  description: 'Incident that could have caused harm' },
+  equipment:   { name: 'Equipment Issue',  icon: Settings,      badge: 'info',     description: 'Faulty or unsafe equipment' },
+  environmental:{ name: 'Environmental',   icon: Sun,           badge: 'success',  description: 'Environmental safety concern' },
+  other:       { name: 'Other',            icon: HelpCircle,    badge: 'neutral',  description: 'Other safety concerns' },
 };
 
-// Severity Levels
-const SEVERITY_LEVELS: Record<string, SeverityLevel> = {
-  low: {
-    name: 'Low',
-    icon: Info,
-    color: 'text-blue-600',
-    bgColor: 'bg-blue-100',
-    badge: 'bg-blue-100 text-blue-800 border-blue-200',
-    description: 'Minor concern, low risk'
-  },
-  medium: {
-    name: 'Medium',
-    icon: AlertTriangle,
-    color: 'text-yellow-600',
-    bgColor: 'bg-yellow-100',
-    badge: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-    description: 'Moderate risk, requires attention'
-  },
-  high: {
-    name: 'High',
-    icon: AlertCircle,
-    color: 'text-orange-600',
-    bgColor: 'bg-orange-100',
-    badge: 'bg-orange-100 text-orange-800 border-orange-200',
-    description: 'High risk, immediate action needed'
-  },
-  critical: {
-    name: 'Critical',
-    icon: AlertTriangleIcon,
-    color: 'text-red-600',
-    bgColor: 'bg-red-100',
-    badge: 'bg-red-100 text-red-800 border-red-200',
-    description: 'Critical risk, stop work immediately'
-  }
+const SEVERITY_LEVELS: Record<string, { name: string; badge: BadgeVariant }> = {
+  low:      { name: 'Low',      badge: 'info'    },
+  medium:   { name: 'Medium',   badge: 'warning' },
+  high:     { name: 'High',     badge: 'warning' },
+  critical: { name: 'Critical', badge: 'danger'  },
 };
 
-// Status configurations
-const STATUS_CONFIG: Record<string, StatusConfig> = {
-  pending: { 
-    label: 'Pending', 
-    icon: Clock, 
-    badge: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-    color: 'yellow'
-  },
-  investigating: { 
-    label: 'Investigating', 
-    icon: Search, 
-    badge: 'bg-blue-100 text-blue-800 border-blue-200',
-    color: 'blue'
-  },
-  resolved: { 
-    label: 'Resolved', 
-    icon: CheckCircle2, 
-    badge: 'bg-green-100 text-green-800 border-green-200',
-    color: 'green'
-  },
-  closed: { 
-    label: 'Closed', 
-    icon: Check, 
-    badge: 'bg-gray-100 text-gray-800 border-gray-200',
-    color: 'gray'
-  }
+const STATUS_CONFIG: Record<string, { label: string; icon: React.ElementType; badge: BadgeVariant }> = {
+  pending:      { label: 'Pending',      icon: Clock,        badge: 'warning' },
+  investigating:{ label: 'Investigating',icon: Search,       badge: 'info'    },
+  resolved:     { label: 'Resolved',     icon: CheckCircle2, badge: 'success' },
+  closed:       { label: 'Closed',       icon: Check,        badge: 'neutral' },
 };
 
-// Month names for dropdown
-const MONTHS = [
-  { value: '01', label: 'January' },
-  { value: '02', label: 'February' },
-  { value: '03', label: 'March' },
-  { value: '04', label: 'April' },
-  { value: '05', label: 'May' },
-  { value: '06', label: 'June' },
-  { value: '07', label: 'July' },
-  { value: '08', label: 'August' },
-  { value: '09', label: 'September' },
-  { value: '10', label: 'October' },
-  { value: '11', label: 'November' },
-  { value: '12', label: 'December' },
+const COMPLAINT_TYPE_OPTIONS = [
+  { value: '', label: 'All Types' },
+  ...Object.entries(COMPLAINT_TYPES).map(([k, v]) => ({ value: k, label: v.name })),
+];
+const SEVERITY_OPTIONS = [
+  { value: '', label: 'All Severity' },
+  ...Object.entries(SEVERITY_LEVELS).map(([k, v]) => ({ value: k, label: v.name })),
+];
+const STATUS_OPTIONS = [
+  { value: '', label: 'All Status' },
+  ...Object.entries(STATUS_CONFIG).map(([k, v]) => ({ value: k, label: v.label })),
+];
+const SORT_OPTIONS = [
+  { value: 'date-desc',     label: 'Date (Newest first)' },
+  { value: 'date-asc',      label: 'Date (Oldest first)' },
+  { value: 'title-asc',     label: 'Title (A-Z)' },
+  { value: 'severity-desc', label: 'Severity (High to low)' },
+  { value: 'status-asc',    label: 'Status (A-Z)' },
 ];
 
-// Year options
-const getYearOptions = (): { value: string; label: string }[] => {
-  const currentYear = new Date().getFullYear();
-  return [
-    currentYear - 2,
-    currentYear - 1,
-    currentYear,
-    currentYear + 1,
-  ].map(year => ({ value: year.toString(), label: year.toString() }));
-};
-
-// Get unique employees for quick filters - FIXED: Added proper typing
-interface EmployeeSummary {
-  name: string;
-  id: string;
-}
-
-const getUniqueEmployees = (data: Complaint[]): EmployeeSummary[] => {
-  const employeeMap: Record<string, EmployeeSummary> = {};
-  data.forEach((item) => {
-    if (item && item.reported_by_name && !employeeMap[item.reported_by_name]) {
-      employeeMap[item.reported_by_name] = {
-        name: item.reported_by_name,
-        id: item.reported_by_id
-      };
-    }
-  });
-  return Object.values(employeeMap).sort((a, b) => a.name.localeCompare(b.name));
-};
-
-// Utility Functions
-const formatDate = (dateString: string | null | undefined): string => {
-  if (!dateString) return 'Not specified';
-  try {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  } catch {
-    return dateString;
-  }
-};
-
-const formatDateTime = (dateString: string | null | undefined): string => {
-  if (!dateString) return '';
-  try {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  } catch {
-    return dateString;
-  }
-};
-
-const getInitials = (name: string | null | undefined): string => {
-  if (!name || typeof name !== 'string') return '??';
-  const names = name.trim().split(' ');
-  const first = names[0]?.[0] || '';
-  const last = names.length > 1 ? names[names.length - 1]?.[0] || '' : '';
-  return (first + last).toUpperCase();
-};
-
-// API Functions
-const fetchComplaints = async (filters: Record<string, string | null> = {}): Promise<Complaint[]> => {
+// =============== API FUNCTIONS ===============
+const fetchComplaints = async (filters: Record<string, string> = {}): Promise<Complaint[]> => {
   const params = new URLSearchParams();
-  Object.entries(filters).forEach(([key, value]) => {
-    if (value && value !== 'all' && value !== '') {
-      params.append(key, value);
-    }
-  });
-
+  Object.entries(filters).forEach(([k, v]) => { if (v && v !== 'all') params.append(k, v); });
   const url = params.toString() ? `${COMPLAINTS_API}?${params.toString()}` : COMPLAINTS_API;
   const res = await fetch(url);
   if (!res.ok) throw new Error('Failed to fetch complaints');
@@ -736,10 +128,7 @@ const createComplaint = async (data: ComplaintFormData): Promise<Complaint> => {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(`Failed to create complaint: ${res.status} - ${errorText}`);
-  }
+  if (!res.ok) throw new Error(`Failed to create: ${res.status}`);
   return res.json();
 };
 
@@ -749,1140 +138,796 @@ const updateComplaint = async (id: string, data: Partial<ComplaintFormData>): Pr
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(`Failed to update complaint: ${res.status} - ${errorText}`);
-  }
+  if (!res.ok) throw new Error(`Failed to update: ${res.status}`);
   return res.json();
 };
 
-const updateComplaintStatus = async (id: string, status: string): Promise<Complaint> => {
-  return updateComplaint(id, { status });
-};
-
 const deleteComplaint = async (id: string): Promise<void> => {
-  const res = await fetch(`${COMPLAINTS_API}/${id}`, {
-    method: 'DELETE',
-  });
+  const res = await fetch(`${COMPLAINTS_API}/${id}`, { method: 'DELETE' });
   if (!res.ok) throw new Error('Failed to delete complaint');
 };
 
-// Export to Excel (CSV)
-const exportToExcel = (data: Complaint[], filename: string = `safety-complaints-${new Date().toISOString().split('T')[0]}.csv`) => {
-  if (!data || data.length === 0) {
-    toast.warning('No data to export');
-    return;
-  }
-
-  const headers = [
-    'ID', 'Complaint Type', 'Severity', 'Title', 'Description',
-    'Location', 'Reported By', 'Reported Date', 'Status',
-    'Assigned To', 'Action Taken', 'Resolution Date'
-  ];
-
-  const rows = data.map((item) => [
-    item.id,
-    COMPLAINT_TYPES[item.complaint_type]?.name || item.complaint_type,
-    SEVERITY_LEVELS[item.severity]?.name || item.severity,
-    item.title,
-    item.description,
-    item.location,
-    item.reported_by_name,
-    formatDate(item.reported_date),
-    STATUS_CONFIG[item.status]?.label || item.status,
-    item.assigned_to || '',
-    item.action_taken || '',
-    item.resolution_date ? formatDate(item.resolution_date) : '',
+const exportToCSV = (data: Complaint[]) => {
+  if (!data.length) { toast.warning('No data to export'); return; }
+  const headers = ['ID', 'Type', 'Severity', 'Title', 'Description', 'Location', 'Reported By', 'Date', 'Status', 'Action Taken'];
+  const rows = data.map(c => [
+    c.id, COMPLAINT_TYPES[c.complaint_type]?.name || c.complaint_type,
+    SEVERITY_LEVELS[c.severity]?.name || c.severity, c.title, c.description,
+    c.location, c.reported_by_name, formatDate(c.reported_date),
+    STATUS_CONFIG[c.status]?.label || c.status, c.action_taken || '',
   ]);
-
-  const csvContent = [
-    headers.join(','),
-    ...rows.map((row) =>
-      row
-        .map((cell) => {
-          if (typeof cell === 'string' && (cell.includes(',') || cell.includes('"'))) {
-            return `"${cell.replace(/"/g, '""')}"`;
-          }
-          return cell;
-        })
-        .join(',')
-    ),
-  ].join('\n');
-
-  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
-  const url = window.URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  window.URL.revokeObjectURL(url);
+  const csv = [headers, ...rows].map(r => r.map(cell => {
+    const s = String(cell ?? '');
+    return s.includes(',') || s.includes('"') ? `"${s.replace(/"/g, '""')}"` : s;
+  }).join(',')).join('\n');
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `safety-complaints-${new Date().toISOString().split('T')[0]}.csv`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
   toast.success(`Exported ${data.length} records`);
 };
 
-// Status Badge Component
-const StatusBadge = ({ status }: { status: string }) => {
-  const config = STATUS_CONFIG[status] || STATUS_CONFIG.pending;
-  const Icon = config.icon;
-  return (
-    <Badge className={`${config.badge} border gap-1 px-2 py-1 whitespace-nowrap font-medium`}>
-      <Icon className="h-3 w-3" />
-      {config.label}
-    </Badge>
-  );
-};
-
-// Type Badge Component
+// =============== GLASS BADGE HELPERS ===============
 const TypeBadge = ({ type }: { type: string }) => {
-  const config = COMPLAINT_TYPES[type] || COMPLAINT_TYPES.other;
-  const Icon = config.icon;
-  return (
-    <Badge className={`${config.badge} border gap-1 px-2 py-1 whitespace-nowrap font-medium`}>
-      <Icon className="h-3 w-3" />
-      {config.shortName}
-    </Badge>
-  );
+  const cfg = COMPLAINT_TYPES[type] || COMPLAINT_TYPES.other;
+  const Icon = cfg.icon;
+  return <GlassBadge variant={cfg.badge}><Icon className="h-3 w-3 mr-1 inline" />{cfg.name}</GlassBadge>;
 };
-
-// Severity Badge Component
 const SeverityBadge = ({ severity }: { severity: string }) => {
-  const config = SEVERITY_LEVELS[severity] || SEVERITY_LEVELS.low;
-  const Icon = config.icon;
-  return (
-    <Badge className={`${config.badge} border gap-1 px-2 py-1 whitespace-nowrap font-medium`}>
-      <Icon className="h-3 w-3" />
-      {config.name}
-    </Badge>
-  );
+  const cfg = SEVERITY_LEVELS[severity] || SEVERITY_LEVELS.low;
+  return <GlassBadge variant={cfg.badge}>{cfg.name}</GlassBadge>;
+};
+const StatusBadge = ({ status }: { status: string }) => {
+  const cfg = STATUS_CONFIG[status] || STATUS_CONFIG.pending;
+  const Icon = cfg.icon;
+  return <GlassBadge variant={cfg.badge}><Icon className="h-3 w-3 mr-1 inline" />{cfg.label}</GlassBadge>;
 };
 
-// Stat Card Component
-const StatCard = ({ 
-  title, 
-  value, 
-  icon: Icon, 
-  onClick, 
-  tooltip, 
-  color = 'primary' 
-}: { 
-  title: string; 
-  value: number; 
-  icon: any; 
-  onClick?: () => void; 
-  tooltip?: string; 
-  color?: string;
-}) => {
-  const colorMap: Record<string, string> = {
-    primary: 'from-primary/20 to-primary/5',
-    red: 'from-red-500/20 to-red-500/5',
-    yellow: 'from-yellow-500/20 to-yellow-500/5',
-    green: 'from-green-500/20 to-green-500/5',
-    blue: 'from-blue-500/20 to-blue-500/5',
-    orange: 'from-orange-500/20 to-orange-500/5',
-  };
-  
-  const bgGradient = colorMap[color] || colorMap.primary;
-  const textColor = color === 'red' ? 'text-red-600' : color === 'yellow' ? 'text-yellow-600' : color === 'green' ? 'text-green-600' : 'text-primary';
-
-  return (
-    <Card
-      className={`cursor-pointer transition-all duration-300 hover:shadow-lg hover:-translate-y-1 overflow-hidden relative group ${onClick ? 'hover:border-primary' : ''} bg-white/90 backdrop-blur-sm`}
-      onClick={onClick}
-    >
-      <div className={`absolute inset-0 bg-gradient-to-br ${bgGradient} opacity-50 group-hover:opacity-70 transition-opacity`} />
-      <CardContent className="p-6 relative z-10">
-        <div className="flex items-center justify-between">
-          <div className="space-y-1">
-            <p className="text-sm font-medium text-muted-foreground flex items-center gap-1">
-              {title}
-              {tooltip && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Info className="h-3 w-3 text-muted-foreground/50" />
-                    </TooltipTrigger>
-                    <TooltipContent>{tooltip}</TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
-            </p>
-            <p className="text-3xl font-bold tracking-tight">{value}</p>
-          </div>
-          <div className={`rounded-full bg-${color}-500/10 p-3 ${textColor} group-hover:scale-110 transition-transform duration-300`}>
-            <Icon className="h-5 w-5" />
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-};
-
-// Complaint Card Component (Grid View)
-const ComplaintCard = ({ 
-  complaint, 
-  onView, 
-  onEdit, 
-  onDelete 
-}: { 
-  complaint: Complaint; 
-  onView: (c: Complaint) => void; 
-  onEdit: (c: Complaint) => void; 
+// =============== COMPLAINT CARD (GRID) ===============
+interface CardProps {
+  complaint: Complaint;
+  onView: (c: Complaint) => void;
+  onEdit: (c: Complaint) => void;
   onDelete: (id: string) => void;
-}) => {
-  const [expanded, setExpanded] = useState(false);
-  const typeConfig = COMPLAINT_TYPES[complaint.complaint_type] || COMPLAINT_TYPES.other;
-  const Icon = typeConfig.icon;
+}
 
-  const handleExpandClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setExpanded(!expanded);
-  };
+const ComplaintCard: React.FC<CardProps> = ({ complaint, onView, onEdit, onDelete }) => {
+  const [expanded, setExpanded] = useState(false);
+  const cfg = COMPLAINT_TYPES[complaint.complaint_type] || COMPLAINT_TYPES.other;
 
   return (
-    <Card className="group relative hover:shadow-xl transition-all duration-300 overflow-hidden border-l-4 bg-white/90 backdrop-blur-sm" style={{ borderLeftColor: `var(--${typeConfig.color}-500)` }}>
-      <CardHeader className="pb-2">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-3 flex-1 min-w-0">
-            <Avatar className="h-10 w-10 border-2 border-primary/20">
-              <AvatarFallback className="bg-primary/10 text-primary text-sm font-bold">
-                {getInitials(complaint.reported_by_name)}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex-1 min-w-0">
-              <CardTitle className="text-base font-semibold truncate flex items-center gap-1">
-                {complaint.title}
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Info className="h-3 w-3 text-muted-foreground/50 cursor-help" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Reported by: {complaint.reported_by_name}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </CardTitle>
-              <CardDescription className="text-xs truncate flex items-center gap-1">
-                <MapPin className="h-3 w-3 inline" />
-                {complaint.location || 'No location specified'}
-              </CardDescription>
-            </div>
+    <div className="rounded-2xl bg-[rgba(5,15,28,0.65)] border border-white/[0.08] backdrop-blur-sm overflow-hidden hover:border-white/[0.15] hover:shadow-xl transition-all duration-300">
+      <div className="p-4 border-b border-white/[0.06]">
+        <div className="flex items-start gap-3">
+          <AvatarInitials name={complaint.reported_by_name} className="shrink-0" />
+          <div className="flex-1 min-w-0">
+            <h3 className="text-sm font-semibold text-white/90 truncate">{complaint.title}</h3>
+            <p className="text-xs text-white/40 flex items-center gap-1 mt-0.5">
+              <MapPin className="h-3 w-3 shrink-0" />{complaint.location || 'No location'}
+            </p>
           </div>
-          <div className="flex items-center gap-1 flex-shrink-0">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 gap-1"
-                    onClick={handleExpandClick}
-                  >
-                    {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>{expanded ? 'Hide details' : 'Click to expand and view more details'}</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-            <DropdownMenu>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <MoreVertical className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                  </TooltipTrigger>
-                  <TooltipContent>Actions menu</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onView(complaint); }}>
-                  <Eye className="h-4 w-4 mr-2" /> View Details
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(complaint); }}>
-                  <Edit className="h-4 w-4 mr-2" /> Edit
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  className="text-destructive focus:text-destructive"
-                  onClick={(e) => { e.stopPropagation(); onDelete(complaint.id); }}
-                >
-                  <Trash2 className="h-4 w-4 mr-2" /> Delete
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+          <button type="button" onClick={() => setExpanded(v => !v)} title={expanded ? 'Collapse' : 'Expand'}
+            className="p-1.5 rounded-lg text-white/40 hover:text-white/70 hover:bg-white/[0.05] transition-colors shrink-0">
+            {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </button>
         </div>
-      </CardHeader>
-      <CardContent className="pb-2">
-        <div className="flex flex-wrap gap-2 mb-3">
+        <div className="flex flex-wrap gap-1.5 mt-3">
           <TypeBadge type={complaint.complaint_type} />
           <SeverityBadge severity={complaint.severity} />
           <StatusBadge status={complaint.status} />
         </div>
-        
-        <div className="grid grid-cols-2 gap-3 text-sm">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="space-y-1 cursor-help">
-                  <p className="text-xs text-muted-foreground flex items-center gap-1">
-                    <Calendar className="h-3 w-3" /> Reported
-                  </p>
-                  <p className="font-medium text-xs">{formatDate(complaint.reported_date)}</p>
-                </div>
-              </TooltipTrigger>
-              <TooltipContent>Date when complaint was reported</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="space-y-1 cursor-help">
-                  <p className="text-xs text-muted-foreground flex items-center gap-1">
-                    <User className="h-3 w-3" /> Reported By
-                  </p>
-                  <p className="font-medium text-xs truncate">{complaint.reported_by_name}</p>
-                </div>
-              </TooltipTrigger>
-              <TooltipContent>Person who reported the complaint</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
+      </div>
 
-        {expanded && (
-          <div className="mt-4 pt-4 border-t space-y-3 w-full">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1">
-                      <MessageSquare className="h-3 w-3" /> Description
-                    </p>
-                    <p className="text-sm bg-muted/30 p-3 rounded-lg break-words whitespace-pre-wrap">
-                      {complaint.description || 'No description provided'}
-                    </p>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>Detailed description of the complaint</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-            
-            {complaint.action_taken && (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div>
-                      <p className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1">
-                        <Check className="h-3 w-3" /> Action Taken
-                      </p>
-                      <p className="text-sm bg-muted/30 p-3 rounded-lg break-words whitespace-pre-wrap">
-                        {complaint.action_taken}
-                      </p>
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent>Actions taken to address the complaint</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            )}
+      <div className="grid grid-cols-2 gap-0 border-b border-white/[0.06]">
+        <div className="py-2 px-4 border-r border-white/[0.06]">
+          <p className="text-[10px] text-white/40 flex items-center gap-1"><Calendar className="h-3 w-3" /> Reported</p>
+          <p className="text-xs font-medium text-white/70 mt-0.5">{formatDate(complaint.reported_date)}</p>
+        </div>
+        <div className="py-2 px-4">
+          <p className="text-[10px] text-white/40 flex items-center gap-1"><User className="h-3 w-3" /> By</p>
+          <p className="text-xs font-medium text-white/70 mt-0.5 truncate">{complaint.reported_by_name}</p>
+        </div>
+      </div>
+
+      {expanded && (
+        <div className="p-4 border-b border-white/[0.06] space-y-3">
+          <div>
+            <p className="text-[10px] text-white/40 flex items-center gap-1 mb-1"><MessageSquare className="h-3 w-3" /> Description</p>
+            <p className="text-xs text-white/70 bg-white/[0.03] rounded-lg p-3 whitespace-pre-wrap">{complaint.description || 'No description'}</p>
           </div>
-        )}
-      </CardContent>
-      <CardFooter className="pt-2 border-t bg-muted/10">
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="sm" className="w-full gap-2 group-hover:bg-primary/10" onClick={() => onView(complaint)}>
-                <Eye className="h-4 w-4 group-hover:animate-pulse" /> 
-                <span className="group-hover:underline">Click to view full details</span>
-                <ChevronRight className="h-4 w-4 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">Click here to see complete complaint information</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      </CardFooter>
-    </Card>
+          {complaint.action_taken && (
+            <div>
+              <p className="text-[10px] text-white/40 flex items-center gap-1 mb-1"><Check className="h-3 w-3" /> Action Taken</p>
+              <p className="text-xs text-white/70 bg-white/[0.03] rounded-lg p-3 whitespace-pre-wrap">{complaint.action_taken}</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="flex border-t border-white/[0.06]">
+        <button type="button" onClick={() => onView(complaint)}
+          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-white/50 hover:text-white/80 hover:bg-white/[0.03] transition-colors border-r border-white/[0.06]">
+          <Eye className="h-3.5 w-3.5" /> View
+        </button>
+        <button type="button" onClick={() => onEdit(complaint)}
+          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-white/50 hover:text-white/80 hover:bg-white/[0.03] transition-colors border-r border-white/[0.06]">
+          <Edit className="h-3.5 w-3.5" /> Edit
+        </button>
+        <button type="button" onClick={() => onDelete(complaint.id)}
+          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-red-400/70 hover:text-red-300 hover:bg-red-500/10 transition-colors">
+          <Trash2 className="h-3.5 w-3.5" /> Delete
+        </button>
+      </div>
+    </div>
   );
 };
 
-// [The rest of the components remain similar but with proper typing]
-// Due to length constraints, I'll continue with the main page component
+// =============== TABLE ROW ===============
+interface RowProps {
+  complaint: Complaint;
+  onView: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}
 
-// ============= Main Page =============
+const ComplaintTableRow: React.FC<RowProps> = ({ complaint, onView, onEdit, onDelete }) => {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <Fragment>
+      <tr className="border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors">
+        <td className="px-3 py-3">
+          <button type="button" title={expanded ? 'Collapse' : 'Expand'} onClick={() => setExpanded(v => !v)}
+            className="p-1 rounded text-white/30 hover:text-white/60 hover:bg-white/[0.05] transition-colors">
+            {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+          </button>
+        </td>
+        <td className="px-4 py-3 text-xs font-medium text-white/80 max-w-[180px] truncate">{complaint.title}</td>
+        <td className="px-4 py-3"><TypeBadge type={complaint.complaint_type} /></td>
+        <td className="px-4 py-3"><SeverityBadge severity={complaint.severity} /></td>
+        <td className="px-4 py-3 text-xs text-white/60 max-w-[130px] truncate">{complaint.location}</td>
+        <td className="px-4 py-3 text-xs text-white/60">{complaint.reported_by_name}</td>
+        <td className="px-4 py-3 text-xs text-white/60 whitespace-nowrap">{formatDate(complaint.reported_date)}</td>
+        <td className="px-4 py-3"><StatusBadge status={complaint.status} /></td>
+        <td className="px-4 py-3 text-right whitespace-nowrap">
+          <button type="button" title="View details" onClick={onView}
+            className="inline-flex p-1.5 rounded-lg text-white/40 hover:text-white/70 hover:bg-white/[0.05] transition-colors">
+            <Eye className="h-3.5 w-3.5" />
+          </button>
+          <button type="button" title="Edit" onClick={onEdit}
+            className="inline-flex p-1.5 rounded-lg text-white/40 hover:text-white/70 hover:bg-white/[0.05] transition-colors">
+            <Edit className="h-3.5 w-3.5" />
+          </button>
+          <button type="button" title="Delete" onClick={onDelete}
+            className="inline-flex p-1.5 rounded-lg text-red-400/60 hover:text-red-300 hover:bg-red-500/10 transition-colors">
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </td>
+      </tr>
+      {expanded && (
+        <tr className="border-b border-white/[0.04] bg-white/[0.01]">
+          <td colSpan={9} className="px-6 py-3 space-y-2">
+            <div>
+              <p className="text-[10px] text-white/40 flex items-center gap-1 mb-1"><MessageSquare className="h-3 w-3" /> Description</p>
+              <p className="text-xs text-white/70 bg-white/[0.03] rounded-lg p-3">{complaint.description || 'No description provided'}</p>
+            </div>
+            {complaint.action_taken && (
+              <div>
+                <p className="text-[10px] text-white/40 flex items-center gap-1 mb-1"><Check className="h-3 w-3" /> Action Taken</p>
+                <p className="text-xs text-white/70 bg-white/[0.03] rounded-lg p-3">{complaint.action_taken}</p>
+              </div>
+            )}
+          </td>
+        </tr>
+      )}
+    </Fragment>
+  );
+};
+
+// =============== DETAIL MODAL ===============
+const ComplaintDetailModal = ({
+  complaint, open, onClose, onEdit, onDelete, onStatusChange,
+}: {
+  complaint: Complaint | null;
+  open: boolean;
+  onClose: () => void;
+  onEdit: (c: Complaint) => void;
+  onDelete: (id: string) => void;
+  onStatusChange: (id: string, status: string) => void;
+}) => {
+  const [statusOpen, setStatusOpen] = useState(false);
+  if (!complaint) return null;
+
+  return (
+    <GlassModal isOpen={open} onClose={onClose} title="Complaint Details" icon={AlertTriangle} size="lg"
+      footer={
+        <>
+          <div className="relative mr-auto">
+            <button type="button" onClick={() => setStatusOpen(v => !v)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.05] border border-white/[0.08] text-white/60 text-xs hover:text-white/80 transition-colors">
+              Change Status <ChevronDown className="h-3.5 w-3.5" />
+            </button>
+            {statusOpen && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setStatusOpen(false)} />
+                <div className="absolute bottom-9 left-0 z-20 w-44 rounded-xl bg-[rgba(5,15,28,0.97)] border border-white/[0.12] shadow-xl overflow-hidden">
+                  {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
+                    <button key={key} type="button"
+                      onClick={() => { setStatusOpen(false); onStatusChange(complaint.id, key); }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-xs text-white/70 hover:bg-white/[0.05] hover:text-white transition-colors">
+                      {cfg.label}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+          <button type="button" onClick={() => { onClose(); onEdit(complaint); }}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#2A4D69]/60 border border-[#86BBD8]/25 text-[#86BBD8] text-sm hover:bg-[#2A4D69]/80 transition-colors">
+            <Edit className="h-3.5 w-3.5" /> Edit
+          </button>
+          <button type="button" onClick={() => { onClose(); onDelete(complaint.id); }}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm hover:bg-red-500/20 transition-colors">
+            <Trash2 className="h-3.5 w-3.5" /> Delete
+          </button>
+        </>
+      }
+    >
+      <div className="space-y-4">
+        <div className="flex flex-wrap gap-2">
+          <TypeBadge type={complaint.complaint_type} />
+          <SeverityBadge severity={complaint.severity} />
+          <StatusBadge status={complaint.status} />
+        </div>
+
+        <h3 className="text-base font-semibold text-white/90">{complaint.title}</h3>
+
+        <div className="grid grid-cols-2 gap-3">
+          {[
+            { label: 'Location', value: complaint.location || 'N/A' },
+            { label: 'Reported Date', value: formatDate(complaint.reported_date) },
+            { label: 'Reported By', value: complaint.reported_by_name },
+            { label: 'Department', value: complaint.reported_by_department || 'N/A' },
+            { label: 'Position', value: complaint.reported_by_position || 'N/A' },
+            { label: 'Assigned To', value: complaint.assigned_to || 'Unassigned' },
+          ].map(item => (
+            <div key={item.label} className="bg-white/[0.03] rounded-xl p-3">
+              <p className="text-[10px] text-white/40 mb-0.5">{item.label}</p>
+              <p className="text-sm font-medium text-white/80">{item.value}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="bg-white/[0.03] rounded-xl p-4">
+          <p className="text-xs font-semibold text-white/40 uppercase tracking-wider mb-2">Description</p>
+          <p className="text-sm text-white/70 whitespace-pre-wrap">{complaint.description || 'No description provided'}</p>
+        </div>
+
+        {complaint.action_taken && (
+          <div className="bg-white/[0.03] rounded-xl border border-l-4 border-emerald-500/40 border-white/[0.06] p-4">
+            <p className="text-xs font-semibold text-white/40 uppercase tracking-wider mb-2">Action Taken</p>
+            <p className="text-sm text-white/70 whitespace-pre-wrap">{complaint.action_taken}</p>
+          </div>
+        )}
+
+        {complaint.resolution_date && (
+          <p className="text-xs text-white/40">
+            Resolved on: {formatDate(complaint.resolution_date)}
+          </p>
+        )}
+      </div>
+    </GlassModal>
+  );
+};
+
+// =============== FORM MODAL ===============
+const defaultForm: ComplaintFormData = {
+  title: '', complaint_type: 'hazard', severity: 'medium',
+  description: '', location: '', reported_by_name: '',
+  reported_by_id: '', reported_by_position: '', reported_by_department: '',
+  assigned_to: '', action_taken: '', status: 'pending',
+  reported_date: new Date().toISOString().split('T')[0],
+};
+
+const ComplaintFormModal = ({
+  open, onClose, editData, onSave,
+}: {
+  open: boolean;
+  onClose: () => void;
+  editData: Complaint | null;
+  onSave: (data: ComplaintFormData, id?: string) => Promise<void>;
+}) => {
+  const [form, setForm] = useState<ComplaintFormData>(defaultForm);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (editData) {
+      setForm({
+        title: editData.title, complaint_type: editData.complaint_type,
+        severity: editData.severity, description: editData.description,
+        location: editData.location, reported_by_name: editData.reported_by_name,
+        reported_by_id: editData.reported_by_id,
+        reported_by_position: editData.reported_by_position || '',
+        reported_by_department: editData.reported_by_department || '',
+        assigned_to: editData.assigned_to || '',
+        action_taken: editData.action_taken || '',
+        status: editData.status, reported_date: editData.reported_date,
+      });
+    } else {
+      setForm(defaultForm);
+    }
+  }, [editData, open]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.title.trim()) { toast.error('Title is required'); return; }
+    if (!form.description.trim()) { toast.error('Description is required'); return; }
+    if (!form.location.trim()) { toast.error('Location is required'); return; }
+    if (!form.reported_by_name.trim()) { toast.error('Reporter name is required'); return; }
+    setSaving(true);
+    try {
+      await onSave(form, editData?.id);
+      onClose();
+    } catch (err) {
+      toast.error('Failed to save complaint');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const f = (key: keyof ComplaintFormData) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
+    setForm(prev => ({ ...prev, [key]: e.target.value }));
+
+  return (
+    <GlassModal
+      isOpen={open} onClose={onClose}
+      title={editData ? 'Edit Complaint' : 'Report Safety Complaint'}
+      icon={AlertTriangle} size="xl"
+      footer={
+        <>
+          <button type="button" onClick={onClose}
+            className="px-4 py-2 rounded-xl bg-white/[0.05] border border-white/[0.08] text-white/60 text-sm hover:text-white/80 transition-colors">
+            Cancel
+          </button>
+          <button type="submit" form="safety-complaint-form" disabled={saving}
+            className="flex items-center gap-2 px-6 py-2 rounded-xl bg-[#2A4D69] hover:bg-[#1e3a52] text-white text-sm font-semibold transition-colors disabled:opacity-50">
+            {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+            {editData ? 'Update Complaint' : 'Submit Complaint'}
+          </button>
+        </>
+      }
+    >
+      <form id="safety-complaint-form" onSubmit={handleSubmit} className="space-y-5">
+        {/* Core Details */}
+        <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4 space-y-4">
+          <p className="text-xs font-semibold text-white/40 uppercase tracking-wider">Complaint Details</p>
+          <GlassInput label="Title *" value={form.title} onChange={f('title')}
+            placeholder="Brief title describing the complaint" required />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <GlassSelect label="Type *" value={form.complaint_type} onChange={f('complaint_type')}
+              options={Object.entries(COMPLAINT_TYPES).map(([k, v]) => ({ value: k, label: v.name }))} />
+            <GlassSelect label="Severity *" value={form.severity} onChange={f('severity')}
+              options={Object.entries(SEVERITY_LEVELS).map(([k, v]) => ({ value: k, label: v.name }))} />
+            <GlassSelect label="Status" value={form.status} onChange={f('status')}
+              options={Object.entries(STATUS_CONFIG).map(([k, v]) => ({ value: k, label: v.label }))} />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <GlassInput label="Location *" value={form.location} onChange={f('location')}
+              placeholder="Where did this occur?" required />
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-white/50 uppercase tracking-wider mb-1.5">Reported Date *</label>
+              <input type="date" value={form.reported_date} onChange={f('reported_date')} required
+                title="Reported date"
+                className="w-full h-9 px-3 rounded-xl bg-white/[0.07] border border-white/[0.12] text-white/80 text-sm [color-scheme:dark] outline-none focus:border-[#86BBD8]/50 transition-colors" />
+            </div>
+          </div>
+          <GlassTextarea label="Description *" value={form.description} onChange={f('description')}
+            placeholder="Detailed description of the safety concern..." rows={4} required />
+        </div>
+
+        {/* Reporter Info */}
+        <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4 space-y-4">
+          <p className="text-xs font-semibold text-white/40 uppercase tracking-wider">Reporter Information</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <GlassInput label="Name *" value={form.reported_by_name} onChange={f('reported_by_name')}
+              placeholder="Reporter full name" required />
+            <GlassInput label="Employee ID" value={form.reported_by_id} onChange={f('reported_by_id')}
+              placeholder="Employee ID number" />
+            <GlassInput label="Position" value={form.reported_by_position || ''} onChange={f('reported_by_position')}
+              placeholder="Job title/position" />
+            <GlassInput label="Department" value={form.reported_by_department || ''} onChange={f('reported_by_department')}
+              placeholder="Department name" />
+          </div>
+        </div>
+
+        {/* Resolution */}
+        <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4 space-y-4">
+          <p className="text-xs font-semibold text-white/40 uppercase tracking-wider">Resolution (optional)</p>
+          <GlassInput label="Assigned To" value={form.assigned_to || ''} onChange={f('assigned_to')}
+            placeholder="Person responsible for resolving" />
+          <GlassTextarea label="Action Taken" value={form.action_taken || ''} onChange={f('action_taken')}
+            placeholder="Describe actions taken to address this complaint..." rows={3} />
+        </div>
+      </form>
+    </GlassModal>
+  );
+};
+
+// =============== MAIN PAGE ===============
 export default function SafetyComplaintsPage() {
+  const sections = usePageCollapse({ stats: false, records: true });
+
   const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [selectedComplaint, setSelectedComplaint] = useState<Complaint | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editData, setEditData] = useState<Complaint | null>(null);
-  
-  // Pagination
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 50;
-  
-  // Filters
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [typeFilter, setTypeFilter] = useState('all');
-  const [severityFilter, setSeverityFilter] = useState('all');
-  const [reporterFilter, setReporterFilter] = useState('all');
-  
-  // Advanced Filters
+
   const [searchTerm, setSearchTerm] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
+  const [severityFilter, setSeverityFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-  const [monthFilter, setMonthFilter] = useState('');
-  const [yearFilter, setYearFilter] = useState('');
-  const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
-  const [selectedSeverities, setSelectedSeverities] = useState<string[]>([]);
-  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
-  const [selectedReporterName, setSelectedReporterName] = useState('');
-  
+  const [sortValue, setSortValue] = useState('date-desc');
+
   const [loading, setLoading] = useState(false);
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
-  const [showAdvancedFilters, setShowAdvancedFilters] = useState(true);
-  const [showSummary, setShowSummary] = useState(false);
-  const [showTypeSummary, setShowTypeSummary] = useState(true);
-  const [showSeveritySummary, setShowSeveritySummary] = useState(true);
-  
-  // Sorting
-  const [sortBy, setSortBy] = useState('date');
-  const [sortOrder, setSortOrder] = useState('desc');
-  
-  // Expanded rows in table view
-  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
-
-  const fetchAllData = async () => {
+  const loadData = async () => {
     setLoading(true);
     try {
-      const apiFilters: Record<string, string | null> = {
-        status: statusFilter === 'all' ? null : statusFilter,
-        complaint_type: typeFilter === 'all' ? null : typeFilter,
-        severity: severityFilter === 'all' ? null : severityFilter,
-        reported_by_id: reporterFilter === 'all' ? null : reporterFilter,
-        date_from: dateFrom || null,
-        date_to: dateTo || null,
-        month: monthFilter || null,
-        year: yearFilter || null,
-      };
-      const data = await fetchComplaints(apiFilters);
+      const filters: Record<string, string> = {};
+      if (typeFilter) filters.complaint_type = typeFilter;
+      if (severityFilter) filters.severity = severityFilter;
+      if (statusFilter) filters.status = statusFilter;
+      if (dateFrom) filters.date_from = dateFrom;
+      if (dateTo) filters.date_to = dateTo;
+      const data = await fetchComplaints(filters);
       setComplaints(data);
-      toast.success(`Loaded ${data.length} safety complaints`);
-    } catch (error) {
+    } catch {
       toast.error('Failed to load complaints');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchAllData();
-  }, [statusFilter, typeFilter, severityFilter, reporterFilter, dateFrom, dateTo, monthFilter, yearFilter]);
+  useEffect(() => { loadData(); }, [typeFilter, severityFilter, statusFilter, dateFrom, dateTo]);
 
-  const handleCreate = async (data: ComplaintFormData) => {
-    const newItem = await createComplaint(data);
-    setComplaints((prev) => [newItem, ...prev]);
-  };
-
-  const handleUpdate = async (id: string, data: Partial<ComplaintFormData>) => {
-    const updated = await updateComplaint(id, data);
-    setComplaints((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, ...updated } : item))
-    );
-  };
-
-  const handleStatusUpdate = async (id: string, status: string) => {
-    await updateComplaintStatus(id, status);
-    setComplaints((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, status } : item))
-    );
+  const handleSave = async (data: ComplaintFormData, id?: string) => {
+    if (id) {
+      const updated = await updateComplaint(id, data);
+      setComplaints(prev => prev.map(c => c.id === id ? { ...c, ...updated } : c));
+      toast.success('Complaint updated');
+    } else {
+      const created = await createComplaint(data);
+      setComplaints(prev => [created, ...prev]);
+      toast.success('Complaint submitted');
+    }
   };
 
   const handleDelete = async (id: string) => {
-    await deleteComplaint(id);
-    setComplaints((prev) => prev.filter((item) => item.id !== id));
+    try {
+      await deleteComplaint(id);
+      setComplaints(prev => prev.filter(c => c.id !== id));
+      toast.success('Complaint deleted');
+      setDeleteConfirm(null);
+    } catch {
+      toast.error('Failed to delete');
+    }
   };
 
-
-  const toggleRowExpanded = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setExpandedRows(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(id)) {
-        newSet.delete(id);
-      } else {
-        newSet.add(id);
-      }
-      return newSet;
-    });
+  const handleStatusChange = async (id: string, status: string) => {
+    try {
+      await updateComplaint(id, { status });
+      setComplaints(prev => prev.map(c => c.id === id ? { ...c, status } : c));
+      toast.success(`Status updated to ${STATUS_CONFIG[status]?.label || status}`);
+    } catch {
+      toast.error('Failed to update status');
+    }
   };
 
   const clearFilters = () => {
-    setStatusFilter('all');
-    setTypeFilter('all');
-    setSeverityFilter('all');
-    setReporterFilter('all');
-    setDateFrom('');
-    setDateTo('');
-    setMonthFilter('');
-    setYearFilter('');
-    setSearchTerm('');
-    setSelectedTypes([]);
-    setSelectedSeverities([]);
-    setSelectedStatuses([]);
-    setSelectedReporterName('');
-    setCurrentPage(1);
-    toast.success('All filters cleared');
-  };
-
-  const handleTypeSelect = (type: string) => {
-    setTypeFilter(type);
-    setSelectedTypes([type]);
-    setShowAdvancedFilters(true);
-  };
-
-  const handleSeveritySelect = (severity: string) => {
-    setSeverityFilter(severity);
-    setSelectedSeverities([severity]);
-    setShowAdvancedFilters(true);
-  };
-
-  const handleTypeToggle = (type: string) => {
-    setSelectedTypes(prev => {
-      const newTypes = prev.includes(type)
-        ? prev.filter(t => t !== type)
-        : [...prev, type];
-      
-      if (newTypes.length === 1) {
-        setTypeFilter(newTypes[0]);
-      } else if (newTypes.length === 0) {
-        setTypeFilter('all');
-      } else {
-        setTypeFilter('all');
-      }
-      
-      return newTypes;
-    });
-  };
-
-  const handleSeverityToggle = (severity: string) => {
-    setSelectedSeverities(prev => {
-      const newSeverities = prev.includes(severity)
-        ? prev.filter(s => s !== severity)
-        : [...prev, severity];
-      
-      if (newSeverities.length === 1) {
-        setSeverityFilter(newSeverities[0]);
-      } else if (newSeverities.length === 0) {
-        setSeverityFilter('all');
-      } else {
-        setSeverityFilter('all');
-      }
-      
-      return newSeverities;
-    });
-  };
-
-  const handleStatusToggle = (status: string) => {
-    setSelectedStatuses(prev => {
-      const newStatuses = prev.includes(status)
-        ? prev.filter(s => s !== status)
-        : [...prev, status];
-      
-      if (newStatuses.length === 1) {
-        setStatusFilter(newStatuses[0]);
-      } else if (newStatuses.length === 0) {
-        setStatusFilter('all');
-      } else {
-        setStatusFilter('all');
-      }
-      
-      return newStatuses;
-    });
-  };
-
-  const handleMonthChange = (month: string) => {
-    setMonthFilter(month);
+    setSearchTerm(''); setTypeFilter(''); setSeverityFilter('');
+    setStatusFilter(''); setDateFrom(''); setDateTo('');
     setCurrentPage(1);
   };
 
-  const handleYearChange = (year: string) => {
-    setYearFilter(year);
-    setCurrentPage(1);
-  };
-
-  const handleReporterQuickFilter = (reporterName: string) => {
-    setSelectedReporterName(reporterName);
-    setCurrentPage(1);
-  };
-
-  // Apply all filters to the data
   const processedComplaints = useMemo(() => {
     let filtered = complaints;
-
-    // Apply search filter
     if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      filtered = filtered.filter(
-        (c) =>
-          c.title?.toLowerCase().includes(term) ||
-          c.description?.toLowerCase().includes(term) ||
-          c.location?.toLowerCase().includes(term) ||
-          c.reported_by_name?.toLowerCase().includes(term)
+      const sl = searchTerm.toLowerCase();
+      filtered = filtered.filter(c =>
+        c.title?.toLowerCase().includes(sl) || c.description?.toLowerCase().includes(sl) ||
+        c.location?.toLowerCase().includes(sl) || c.reported_by_name?.toLowerCase().includes(sl)
       );
     }
-
-    // Apply reporter name filter
-    if (selectedReporterName) {
-      filtered = filtered.filter(c => c.reported_by_name === selectedReporterName);
-    }
-
-    // Apply date range filter
-    if (dateFrom) {
-      const fromDate = new Date(dateFrom);
-      fromDate.setHours(0, 0, 0, 0);
-      filtered = filtered.filter((c) => {
-        const cDate = new Date(c.reported_date);
-        cDate.setHours(0, 0, 0, 0);
-        return cDate >= fromDate;
-      });
-    }
-
-    if (dateTo) {
-      const toDate = new Date(dateTo);
-      toDate.setHours(23, 59, 59, 999);
-      filtered = filtered.filter((c) => {
-        const cDate = new Date(c.reported_date);
-        cDate.setHours(0, 0, 0, 0);
-        return cDate <= toDate;
-      });
-    }
-
-    // Apply month filter
-    if (monthFilter) {
-      filtered = filtered.filter((c) => {
-        const cDate = new Date(c.reported_date);
-        const cMonth = (cDate.getMonth() + 1).toString().padStart(2, '0');
-        return cMonth === monthFilter;
-      });
-    }
-
-    // Apply year filter
-    if (yearFilter) {
-      filtered = filtered.filter((c) => {
-        const cDate = new Date(c.reported_date);
-        return cDate.getFullYear().toString() === yearFilter;
-      });
-    }
-
-    // Apply multiple type filter
-    if (selectedTypes.length > 0) {
-      filtered = filtered.filter(c => selectedTypes.includes(c.complaint_type));
-    }
-
-    // Apply multiple severity filter
-    if (selectedSeverities.length > 0) {
-      filtered = filtered.filter(c => selectedSeverities.includes(c.severity));
-    }
-
-    // Apply multiple status filter
-    if (selectedStatuses.length > 0) {
-      filtered = filtered.filter(c => selectedStatuses.includes(c.status));
-    }
-
-    // Apply sorting
+    const [sortBy, sortOrder] = sortValue.split('-');
     const sorted = [...filtered].sort((a, b) => {
-      let compare = 0;
-      if (sortBy === 'date') {
-        compare = new Date(a.reported_date).getTime() - new Date(b.reported_date).getTime();
-      } else if (sortBy === 'title') {
-        compare = (a.title || '').localeCompare(b.title || '');
-      } else if (sortBy === 'reporter') {
-        compare = (a.reported_by_name || '').localeCompare(b.reported_by_name || '');
-      } else if (sortBy === 'type') {
-        compare = (a.complaint_type || '').localeCompare(b.complaint_type || '');
-      } else if (sortBy === 'severity') {
-        const severityOrder = { critical: 4, high: 3, medium: 2, low: 1 };
-        compare = (severityOrder[a.severity as keyof typeof severityOrder] || 0) - (severityOrder[b.severity as keyof typeof severityOrder] || 0);
-      } else if (sortBy === 'status') {
-        compare = (a.status || '').localeCompare(b.status || '');
-      }
-      return sortOrder === 'asc' ? compare : -compare;
+      let cmp = 0;
+      if (sortBy === 'date') cmp = new Date(a.reported_date).getTime() - new Date(b.reported_date).getTime();
+      else if (sortBy === 'title') cmp = (a.title || '').localeCompare(b.title || '');
+      else if (sortBy === 'severity') {
+        const order = { critical: 4, high: 3, medium: 2, low: 1 };
+        cmp = (order[a.severity as keyof typeof order] || 0) - (order[b.severity as keyof typeof order] || 0);
+      } else if (sortBy === 'status') cmp = (a.status || '').localeCompare(b.status || '');
+      return sortOrder === 'asc' ? cmp : -cmp;
     });
-
     return sorted;
-  }, [complaints, searchTerm, dateFrom, dateTo, sortBy, sortOrder, selectedTypes, selectedSeverities, selectedStatuses, monthFilter, yearFilter, selectedReporterName]);
+  }, [complaints, searchTerm, sortValue]);
 
-  // Get unique reporters for quick filters
-  const availableReporters = useMemo(() => {
-    return getUniqueEmployees(complaints);
-  }, [complaints]);
-
-  // Paginate the data
   const paginatedData = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    return processedComplaints.slice(startIndex, endIndex);
+    const start = (currentPage - 1) * itemsPerPage;
+    return processedComplaints.slice(start, start + itemsPerPage);
   }, [processedComplaints, currentPage]);
 
   const totalPages = Math.ceil(processedComplaints.length / itemsPerPage);
 
-  const stats = useMemo(() => {
-    const total = processedComplaints.length;
-    const pending = processedComplaints.filter((c) => c.status === 'pending').length;
-    const investigating = processedComplaints.filter((c) => c.status === 'investigating').length;
-    const resolved = processedComplaints.filter((c) => c.status === 'resolved').length;
-    const critical = processedComplaints.filter((c) => c.severity === 'critical').length;
-    const high = processedComplaints.filter((c) => c.severity === 'high').length;
-    
-    return { 
-      total, 
-      pending, 
-      investigating,
-      resolved,
-      critical,
-      high,
-    };
-  }, [processedComplaints]);
+  const stats = useMemo(() => ({
+    total: processedComplaints.length,
+    pending: processedComplaints.filter(c => c.status === 'pending').length,
+    investigating: processedComplaints.filter(c => c.status === 'investigating').length,
+    resolved: processedComplaints.filter(c => c.status === 'resolved').length,
+    critical: processedComplaints.filter(c => c.severity === 'critical').length,
+    high: processedComplaints.filter(c => c.severity === 'high').length,
+  }), [processedComplaints]);
 
-  const activeFilterCount = useMemo(() => {
-    let count = 0;
-    if (searchTerm) count++;
-    if (dateFrom) count++;
-    if (dateTo) count++;
-    if (monthFilter) count++;
-    if (yearFilter) count++;
-    if (selectedTypes.length > 0) count++;
-    if (selectedSeverities.length > 0) count++;
-    if (selectedStatuses.length > 0) count++;
-    if (statusFilter !== 'all') count++;
-    if (typeFilter !== 'all') count++;
-    if (severityFilter !== 'all') count++;
-    if (reporterFilter !== 'all') count++;
-    if (selectedReporterName) count++;
-    return count;
-  }, [searchTerm, dateFrom, dateTo, monthFilter, yearFilter, selectedTypes, selectedSeverities, selectedStatuses, statusFilter, typeFilter, severityFilter, reporterFilter, selectedReporterName]);
+  const hasFilters = searchTerm || typeFilter || severityFilter || statusFilter || dateFrom || dateTo;
 
   return (
     <PageShell>
       <main className="container mx-auto px-4 py-6 space-y-6">
-        {/* Page Header */}
+        {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <nav className="flex items-center gap-1.5 text-xs text-[#6B7B8E] mb-2">
-              <span>Home</span>
-              <ChevronRight className="h-3 w-3" />
-              <span className="text-[#2A4D69] font-medium">Safety Complaints</span>
+            <nav className="flex items-center gap-1.5 text-xs text-white/40 mb-2">
+              <span>Home</span><ChevronRight className="h-3 w-3" />
+              <span className="text-[#86BBD8] font-medium">Safety Complaints</span>
             </nav>
-            <h1 className="text-3xl font-bold text-[#2A4D69] font-heading tracking-tight">Safety Complaints</h1>
-            <p className="text-[#6B7B8E] mt-1">Report, track, and resolve safety concerns. Every report helps create a safer workplace.</p>
+            <h1 className="text-2xl font-bold text-white/90 font-heading tracking-tight flex items-center gap-2">
+              <AlertTriangle className="h-6 w-6 text-red-400" />
+              Safety Complaints
+            </h1>
+            <p className="text-white/40 text-sm mt-1">Report, track, and resolve safety concerns. Every report helps create a safer workplace.</p>
           </div>
           <div className="flex items-center gap-2 self-start">
-            <Button variant="outline" size="sm" onClick={fetchAllData} disabled={loading}>
-              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
-            <Button size="sm" onClick={() => { setEditData(null); setShowForm(true); }} className="bg-[#2A4D69] hover:bg-[#1e3a52] text-white shadow-md">
-              <Plus className="h-4 w-4 mr-2" /> New Complaint
-            </Button>
+            <button type="button" onClick={() => exportToCSV(processedComplaints)} title="Export CSV"
+              className="p-2 rounded-lg border border-white/[0.08] text-white/40 hover:text-white/70 hover:bg-white/[0.05] transition-colors">
+              <Download className="h-4 w-4" />
+            </button>
+            <button type="button" onClick={loadData} disabled={loading} title="Refresh"
+              className="p-2 rounded-lg border border-white/[0.08] text-white/40 hover:text-white/70 hover:bg-white/[0.05] transition-colors disabled:opacity-50">
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            </button>
+            <MasterCollapseButton collapse={sections} />
+            <button type="button" onClick={() => { setEditData(null); setShowForm(true); }}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#2A4D69] hover:bg-[#1e3a52] text-white border border-[#86BBD8]/20 text-sm font-semibold transition-colors">
+              <Plus className="h-4 w-4" /> New Complaint
+            </button>
           </div>
         </div>
 
-            {/* Stats Dashboard */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 animate-slide-up delay-100">
-              <StatCard 
-                title="Total Reports" 
-                value={stats.total} 
-                icon={FileText} 
-                color="blue"
-                tooltip="Total number of safety complaints"
-              />
-              <StatCard 
-                title="Pending" 
-                value={stats.pending} 
-                icon={Clock} 
-                color="yellow"
-                onClick={() => {
-                  setStatusFilter('pending');
-                  handleStatusToggle('pending');
-                }}
-                tooltip="Click to filter pending complaints"
-              />
-              <StatCard 
-                title="Investigating" 
-                value={stats.investigating} 
-                icon={Search} 
-                color="blue"
-                onClick={() => {
-                  setStatusFilter('investigating');
-                  handleStatusToggle('investigating');
-                }}
-                tooltip="Click to filter complaints under investigation"
-              />
-              <StatCard 
-                title="Resolved" 
-                value={stats.resolved} 
-                icon={CheckCircle2} 
-                color="green"
-                onClick={() => {
-                  setStatusFilter('resolved');
-                  handleStatusToggle('resolved');
-                }}
-                tooltip="Click to filter resolved complaints"
-              />
-              <StatCard 
-                title="Critical" 
-                value={stats.critical} 
-                icon={AlertTriangle} 
-                color="red"
-                onClick={() => {
-                  setSeverityFilter('critical');
-                  handleSeverityToggle('critical');
-                }}
-                tooltip="Click to filter critical severity complaints"
-              />
-              <StatCard 
-                title="High Risk" 
-                value={stats.high} 
-                icon={AlertCircle} 
-                color="orange"
-                onClick={() => {
-                  setSeverityFilter('high');
-                  handleSeverityToggle('high');
-                }}
-                tooltip="Click to filter high severity complaints"
-              />
+        {/* Stats */}
+        <div className="rounded-2xl bg-[rgba(5,15,28,0.65)] border border-white/[0.08] backdrop-blur-sm overflow-hidden">
+          <button type="button" onClick={() => sections.toggle('stats')}
+            className="w-full flex items-center justify-between px-5 py-3 hover:bg-white/[0.03] transition-all">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-3.5 w-3.5 text-red-400" />
+              <span className="text-xs font-semibold text-white/70 uppercase tracking-wider">Overview</span>
+              <span className="text-xs text-white/35">{stats.total} reports</span>
             </div>
-
-            {/* New Complaint Button */}
-            <div className="flex justify-end animate-slide-up delay-200">
-              <Button 
-                onClick={() => setShowForm(true)} 
-                className="gap-2 bg-red-600 hover:bg-red-700 shadow-lg"
-                size="lg"
-              >
-                <Plus className="h-5 w-5" /> Report Safety Complaint
-              </Button>
+            {sections.expanded.stats ? <ChevronUp className="h-3.5 w-3.5 text-white/40" /> : <ChevronDown className="h-3.5 w-3.5 text-white/40" />}
+          </button>
+          {sections.expanded.stats && (
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 px-5 pb-5">
+              <GlassStatCard label="Total Reports" value={stats.total} icon={FileText} />
+              <GlassStatCard label="Pending" value={stats.pending} icon={Clock} valueClass="text-amber-400"
+                onClick={() => setStatusFilter('pending')} />
+              <GlassStatCard label="Investigating" value={stats.investigating} icon={Search} valueClass="text-blue-400"
+                onClick={() => setStatusFilter('investigating')} />
+              <GlassStatCard label="Resolved" value={stats.resolved} icon={CheckCircle2} valueClass="text-emerald-400"
+                onClick={() => setStatusFilter('resolved')} />
+              <GlassStatCard label="Critical" value={stats.critical} icon={AlertTriangle} valueClass="text-red-400"
+                onClick={() => setSeverityFilter('critical')} />
+              <GlassStatCard label="High Risk" value={stats.high} icon={AlertCircle} valueClass="text-orange-400"
+                onClick={() => setSeverityFilter('high')} />
             </div>
+          )}
+        </div>
 
-            {/* Type Summary - Clickable */}
-            {showTypeSummary && processedComplaints.length > 0 && (
-              <div className="animate-slide-up delay-300">
-                {/* TypeSummary component would go here - omitted for brevity */}
-              </div>
+        {/* Filter Bar */}
+        <div className="rounded-2xl bg-[rgba(5,15,28,0.65)] border border-white/[0.08] backdrop-blur-sm p-5">
+          <div className="flex flex-col lg:flex-row gap-3 flex-wrap">
+            <div className="flex-1 min-w-[200px] relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30 pointer-events-none" />
+              <input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
+                placeholder="Search title, description, location, reporter..."
+                className="w-full pl-9 pr-9 py-2 rounded-lg bg-white/[0.07] border border-white/[0.12] text-white/80 placeholder:text-white/25 text-sm outline-none focus:border-[#86BBD8]/50 transition-colors" />
+              {searchTerm && (
+                <button type="button" aria-label="Clear search" onClick={() => setSearchTerm('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60">
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+            <GlassSelect value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
+              options={COMPLAINT_TYPE_OPTIONS} title="Filter by type" className="w-[150px]" />
+            <GlassSelect value={severityFilter} onChange={e => setSeverityFilter(e.target.value)}
+              options={SEVERITY_OPTIONS} title="Filter by severity" className="w-[140px]" />
+            <GlassSelect value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+              options={STATUS_OPTIONS} title="Filter by status" className="w-[140px]" />
+            <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} title="From date"
+              className="h-9 px-3 rounded-xl bg-white/[0.07] border border-white/[0.12] text-white/70 text-sm [color-scheme:dark] outline-none focus:border-[#86BBD8]/50" />
+            <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} title="To date"
+              className="h-9 px-3 rounded-xl bg-white/[0.07] border border-white/[0.12] text-white/70 text-sm [color-scheme:dark] outline-none focus:border-[#86BBD8]/50" />
+            {hasFilters && (
+              <button type="button" onClick={clearFilters}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-white/50 hover:text-white/80 hover:bg-white/[0.05] text-sm transition-colors">
+                <FilterX className="h-4 w-4" /> Clear
+              </button>
             )}
-
-            {/* Severity Summary - Clickable */}
-            {showSeveritySummary && processedComplaints.length > 0 && (
-              <div className="animate-slide-up delay-400">
-                {/* SeveritySummary component would go here - omitted for brevity */}
-              </div>
-            )}
-
-            {/* Filter Section */}
-            <Card className="border-0 shadow-lg overflow-hidden bg-white/90 backdrop-blur-sm animate-slide-up delay-500">
-              <CardHeader className="pb-3 bg-gradient-to-r from-red-500/10 to-transparent">
-                <Collapsible open={showAdvancedFilters} onOpenChange={setShowAdvancedFilters}>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Filter className="h-5 w-5 text-red-500" />
-                      <h2 className="text-lg font-semibold">Filters</h2>
-                      {activeFilterCount > 0 && (
-                        <Badge variant="secondary" className="ml-2">
-                          {activeFilterCount} active
-                        </Badge>
-                      )}
-                      <Badge variant="outline" className="ml-2 bg-background">
-                        {processedComplaints.length} of {complaints.length} records
-                      </Badge>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-2">
-                        <FilterX className="h-4 w-4" />
-                        Clear
-                      </Button>
-                      <CollapsibleTrigger asChild>
-                        <Button variant="ghost" size="sm">
-                          {showAdvancedFilters ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                        </Button>
-                      </CollapsibleTrigger>
-                    </div>
-                  </div>
-
-                  <CollapsibleContent>
-                    <div className="mt-4">
-                      {/* AdvancedFilters component would go here - omitted for brevity */}
-                    </div>
-                  </CollapsibleContent>
-                </Collapsible>
-              </CardHeader>
-            </Card>
-
-            {/* View Toggle and Sort Controls */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <div className="flex items-center gap-4">
-                <div className="flex rounded-lg border bg-background p-1">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant={viewMode === 'table' ? 'default' : 'ghost'}
-                        size="sm"
-                        className="rounded-md px-3"
-                        onClick={() => setViewMode('table')}
-                      >
-                        <TableIcon className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Switch to table view</TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant={viewMode === 'grid' ? 'default' : 'ghost'}
-                        size="sm"
-                        className="rounded-md px-3"
-                        onClick={() => setViewMode('grid')}
-                      >
-                        <Grid className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Switch to card view</TooltipContent>
-                  </Tooltip>
-                </div>
-                <span className="text-sm text-white/80">
-                  Showing {paginatedData.length} of {processedComplaints.length} complaints
-                </span>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Select value={`${sortBy}-${sortOrder}`} onValueChange={(val) => {
-                  const [by, order] = val.split('-');
-                  setSortBy(by);
-                  setSortOrder(order as 'asc' | 'desc');
-                }}>
-                  <SelectTrigger className="w-[200px] bg-white/80 backdrop-blur-sm">
-                    <SelectValue placeholder="Sort by" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="date-desc">Date (Newest first)</SelectItem>
-                    <SelectItem value="date-asc">Date (Oldest first)</SelectItem>
-                    <SelectItem value="title-asc">Title (A-Z)</SelectItem>
-                    <SelectItem value="title-desc">Title (Z-A)</SelectItem>
-                    <SelectItem value="reporter-asc">Reporter (A-Z)</SelectItem>
-                    <SelectItem value="reporter-desc">Reporter (Z-A)</SelectItem>
-                    <SelectItem value="severity-desc">Severity (High to low)</SelectItem>
-                    <SelectItem value="severity-asc">Severity (Low to high)</SelectItem>
-                    <SelectItem value="type-asc">Type (A-Z)</SelectItem>
-                    <SelectItem value="type-desc">Type (Z-A)</SelectItem>
-                    <SelectItem value="status-asc">Status (A-Z)</SelectItem>
-                    <SelectItem value="status-desc">Status (Z-A)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+          </div>
+          <div className="flex items-center justify-between mt-3">
+            <p className="text-xs text-white/40">
+              {loading ? 'Loading...' : `Showing ${paginatedData.length} of ${processedComplaints.length} complaints`}
+            </p>
+            <div className="flex items-center gap-2">
+              <button type="button" title="Table view" onClick={() => setViewMode('table')}
+                className={`p-1.5 rounded-lg border transition-colors ${viewMode === 'table' ? 'bg-[#2A4D69]/60 border-[#86BBD8]/25 text-[#86BBD8]' : 'border-white/[0.08] text-white/40 hover:text-white/70'}`}>
+                <TableIcon className="h-4 w-4" />
+              </button>
+              <button type="button" title="Grid view" onClick={() => setViewMode('grid')}
+                className={`p-1.5 rounded-lg border transition-colors ${viewMode === 'grid' ? 'bg-[#2A4D69]/60 border-[#86BBD8]/25 text-[#86BBD8]' : 'border-white/[0.08] text-white/40 hover:text-white/70'}`}>
+                <Grid className="h-4 w-4" />
+              </button>
+              <GlassSelect value={sortValue} onChange={e => setSortValue(e.target.value)}
+                options={SORT_OPTIONS} title="Sort order" className="w-[200px]" />
             </div>
+          </div>
+        </div>
 
-            {/* Loading State */}
-            {loading ? (
-              <div className="space-y-4">
-                <Skeleton className="h-8 w-full" />
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  <Skeleton className="h-64 w-full" />
-                  <Skeleton className="h-64 w-full" />
-                  <Skeleton className="h-64 w-full" />
-                </div>
-              </div>
-            ) : paginatedData.length === 0 ? (
-              <Card className="border-0 shadow-lg bg-white/90 backdrop-blur-sm">
-                <CardContent className="py-12">
-                  <div className="text-center">
-                    <AlertTriangle className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                    <h3 className="text-lg font-medium mb-2">No safety complaints found</h3>
-                    <p className="text-sm text-muted-foreground mb-6">
-                      {complaints.length === 0
-                        ? 'Get started by reporting your first safety concern.'
-                        : 'No records match your current filters. Try adjusting them.'}
-                    </p>
-                    {complaints.length === 0 ? (
-                      <Button onClick={() => setShowForm(true)} className="gap-2 bg-red-600 hover:bg-red-700">
-                        <Plus className="h-4 w-4" /> Report Complaint
-                      </Button>
-                    ) : (
-                      <Button variant="outline" onClick={clearFilters} className="gap-2">
-                        <FilterX className="h-4 w-4" /> Clear Filters
-                      </Button>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            ) : viewMode === 'grid' ? (
-              <>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {paginatedData.map((complaint) => (
-                    <ComplaintCard
-                      key={complaint.id}
-                      complaint={complaint}
-                      onView={setSelectedComplaint}
-                      onEdit={(c) => { setEditData(c); setShowForm(true); }}
-                      onDelete={handleDelete}
-                    />
-                  ))}
-                </div>
-                {/* Pagination component would go here */}
-              </>
+        {/* Records */}
+        <div className="rounded-2xl bg-[rgba(5,15,28,0.65)] border border-white/[0.08] backdrop-blur-sm overflow-hidden">
+          <button type="button" onClick={() => sections.toggle('records')}
+            className="w-full flex items-center justify-between px-5 py-3 hover:bg-white/[0.03] transition-all">
+            <div className="flex items-center gap-2">
+              <FileText className="h-3.5 w-3.5 text-[#86BBD8]" />
+              <span className="text-xs font-semibold text-white/70 uppercase tracking-wider">Records</span>
+              <span className="text-xs text-white/35">{processedComplaints.length} complaints</span>
+            </div>
+            {sections.expanded.records ? <ChevronUp className="h-3.5 w-3.5 text-white/40" /> : <ChevronDown className="h-3.5 w-3.5 text-white/40" />}
+          </button>
+          {sections.expanded.records && (
+          <div className="px-5 pb-5 pt-1">
+
+        {/* Loading */}
+        {loading && (
+          <div className="flex justify-center items-center py-16">
+            <Loader2 className="h-8 w-8 animate-spin text-red-400" />
+          </div>
+        )}
+
+        {/* Empty */}
+        {!loading && paginatedData.length === 0 && (
+          <div className="rounded-2xl bg-[rgba(5,15,28,0.65)] border border-white/[0.08] py-20 text-center">
+            <AlertTriangle className="h-12 w-12 text-white/20 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-white/60 mb-2">No safety complaints found</h3>
+            <p className="text-sm text-white/30 mb-6">
+              {complaints.length === 0 ? 'Get started by reporting your first safety concern.' : 'No records match your filters.'}
+            </p>
+            {complaints.length === 0 ? (
+              <button type="button" onClick={() => { setEditData(null); setShowForm(true); }}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-red-500/20 border border-red-500/30 text-red-400 text-sm font-semibold hover:bg-red-500/30 transition-colors">
+                <Plus className="h-4 w-4" /> Report Complaint
+              </button>
             ) : (
-              <>
-                <Card className="border-0 shadow-lg overflow-hidden bg-white/90 backdrop-blur-sm">
-                  <div className="overflow-x-auto">
-                    <ShadcnTable>
-                      <TableHeader className="bg-muted/50">
-                        <TableRow>
-                          <TableHead className="w-10"></TableHead>
-                          <TableHead>Title</TableHead>
-                          <TableHead>Type</TableHead>
-                          <TableHead>Severity</TableHead>
-                          <TableHead>Location</TableHead>
-                          <TableHead>Reporter</TableHead>
-                          <TableHead>Date</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {paginatedData.map((complaint) => {
-                          const isExpanded = expandedRows.has(complaint.id);
-                          return (
-                            <Fragment key={complaint.id}>
-                              <TableRow
-                                className="cursor-pointer hover:bg-muted/50 transition-colors"
-                                onClick={() => setSelectedComplaint(complaint)}
-                              >
-                                <TableCell onClick={(e) => e.stopPropagation()}>
-                                  <TooltipProvider>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          className="h-7 w-7 p-0"
-                                          onClick={(e) => toggleRowExpanded(complaint.id, e)}
-                                        >
-                                          {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                                        </Button>
-                                      </TooltipTrigger>
-                                      <TooltipContent>
-                                        {isExpanded ? 'Hide details' : 'Click to expand and view description'}
-                                      </TooltipContent>
-                                    </Tooltip>
-                                  </TooltipProvider>
-                                </TableCell>
-                                <TableCell>
-                                  <div className="font-medium max-w-[200px] truncate">{complaint.title}</div>
-                                </TableCell>
-                                <TableCell>
-                                  <TypeBadge type={complaint.complaint_type} />
-                                </TableCell>
-                                <TableCell>
-                                  <SeverityBadge severity={complaint.severity} />
-                                </TableCell>
-                                <TableCell className="text-sm max-w-[150px] truncate">{complaint.location}</TableCell>
-                                <TableCell className="text-sm">{complaint.reported_by_name}</TableCell>
-                                <TableCell className="whitespace-nowrap text-sm">{formatDate(complaint.reported_date)}</TableCell>
-                                <TableCell>
-                                  <StatusBadge status={complaint.status} />
-                                </TableCell>
-                                <TableCell className="text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                                  <TooltipProvider>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          className="h-8 w-8 p-0"
-                                          onClick={() => setSelectedComplaint(complaint)}
-                                        >
-                                          <Eye className="h-4 w-4" />
-                                        </Button>
-                                      </TooltipTrigger>
-                                      <TooltipContent>View details</TooltipContent>
-                                    </Tooltip>
-                                  </TooltipProvider>
-                                  <TooltipProvider>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          className="h-8 w-8 p-0"
-                                          onClick={() => { setEditData(complaint); setShowForm(true); }}
-                                        >
-                                          <Edit className="h-4 w-4" />
-                                        </Button>
-                                      </TooltipTrigger>
-                                      <TooltipContent>Edit</TooltipContent>
-                                    </Tooltip>
-                                  </TooltipProvider>
-                                </TableCell>
-                              </TableRow>
-                              {isExpanded && (
-                                <TableRow className="bg-muted/20">
-                                  <TableCell colSpan={9} className="p-4">
-                                    <div className="space-y-3">
-                                      <div>
-                                        <p className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1">
-                                          <MessageSquare className="h-3 w-3" /> Description
-                                        </p>
-                                        <p className="text-sm bg-background p-3 rounded-lg border">
-                                          {complaint.description || 'No description provided'}
-                                        </p>
-                                      </div>
-                                      {complaint.action_taken && (
-                                        <div>
-                                          <p className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1">
-                                            <Check className="h-3 w-3" /> Action Taken
-                                          </p>
-                                          <p className="text-sm bg-background p-3 rounded-lg border">
-                                            {complaint.action_taken}
-                                          </p>
-                                        </div>
-                                      )}
-                                    </div>
-                                  </TableCell>
-                                </TableRow>
-                              )}
-                            </Fragment>
-                          );
-                        })}
-                      </TableBody>
-                    </ShadcnTable>
-                  </div>
-                </Card>
-                {/* Pagination component would go here */}
-              </>
+              <button type="button" onClick={clearFilters}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/[0.05] border border-white/[0.08] text-white/50 text-sm hover:text-white/70 transition-colors">
+                <FilterX className="h-4 w-4" /> Clear Filters
+              </button>
             )}
-      </main>
+          </div>
+        )}
 
-      {showForm && (
-        <Dialog open={showForm} onOpenChange={setShowForm}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{editData ? 'Edit Complaint' : 'Report Safety Complaint'}</DialogTitle>
-            </DialogHeader>
-            <div className="py-4">
-              <p className="text-muted-foreground">Complaint form would go here</p>
+        {/* Content */}
+        {!loading && paginatedData.length > 0 && (
+          viewMode === 'grid' ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {paginatedData.map(complaint => (
+                <ComplaintCard key={complaint.id} complaint={complaint}
+                  onView={setSelectedComplaint}
+                  onEdit={c => { setEditData(c); setShowForm(true); }}
+                  onDelete={id => setDeleteConfirm(id)}
+                />
+              ))}
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setShowForm(false)}>Cancel</Button>
-              <Button onClick={() => setShowForm(false)} className="bg-[#2A4D69] hover:bg-[#1e3a52] text-white">Submit</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
+          ) : (
+            <div className="rounded-2xl bg-[rgba(5,15,28,0.65)] border border-white/[0.08] overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-white/[0.07]">
+                      {['', 'Title', 'Type', 'Severity', 'Location', 'Reporter', 'Date', 'Status', 'Actions'].map(h => (
+                        <th key={h} className="px-4 py-2.5 text-left text-[10px] font-semibold text-white/40 uppercase tracking-wider">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paginatedData.map(complaint => (
+                      <ComplaintTableRow key={complaint.id} complaint={complaint}
+                        onView={() => setSelectedComplaint(complaint)}
+                        onEdit={() => { setEditData(complaint); setShowForm(true); }}
+                        onDelete={() => setDeleteConfirm(complaint.id)}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )
+        )}
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-center gap-2">
+            <button type="button" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)}
+              className="px-3 py-1.5 rounded-lg bg-white/[0.05] border border-white/[0.08] text-white/50 text-xs hover:text-white/80 disabled:opacity-30 transition-colors">
+              Previous
+            </button>
+            <span className="text-xs text-white/40">Page {currentPage} of {totalPages}</span>
+            <button type="button" disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)}
+              className="px-3 py-1.5 rounded-lg bg-white/[0.05] border border-white/[0.08] text-white/50 text-xs hover:text-white/80 disabled:opacity-30 transition-colors">
+              Next
+            </button>
+          </div>
+        )}
+
+          </div>
+          )}
+        </div>
+
+        {/* Detail Modal */}
+        <ComplaintDetailModal
+          complaint={selectedComplaint} open={!!selectedComplaint}
+          onClose={() => setSelectedComplaint(null)}
+          onEdit={c => { setSelectedComplaint(null); setEditData(c); setShowForm(true); }}
+          onDelete={id => { setSelectedComplaint(null); setDeleteConfirm(id); }}
+          onStatusChange={handleStatusChange}
+        />
+
+        {/* Form Modal */}
+        <ComplaintFormModal
+          open={showForm} onClose={() => setShowForm(false)}
+          editData={editData} onSave={handleSave}
+        />
+
+        {/* Delete Confirm */}
+        {deleteConfirm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setDeleteConfirm(null)} />
+            <div className="relative w-full max-w-sm rounded-2xl bg-[rgba(5,15,28,0.97)] border border-white/[0.12] shadow-2xl p-6">
+              <div className="flex items-center gap-3 mb-3">
+                <AlertTriangle className="h-5 w-5 text-red-400" />
+                <h3 className="text-base font-semibold text-white/90">Confirm Deletion</h3>
+              </div>
+              <p className="text-sm text-white/50 mb-5">Are you sure you want to delete this complaint? This action cannot be undone.</p>
+              <div className="flex justify-end gap-2">
+                <button type="button" onClick={() => setDeleteConfirm(null)}
+                  className="px-4 py-2 rounded-xl bg-white/[0.05] border border-white/[0.08] text-white/60 text-sm hover:text-white/80 transition-colors">
+                  Cancel
+                </button>
+                <button type="button" onClick={() => deleteConfirm && handleDelete(deleteConfirm)}
+                  className="px-4 py-2 rounded-xl bg-red-500/20 border border-red-500/30 text-red-400 text-sm font-semibold hover:bg-red-500/30 transition-colors">
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </main>
     </PageShell>
   );
 }

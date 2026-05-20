@@ -304,6 +304,25 @@
 }
 
 /* ============================================
+   SHIFT SCHEDULE CALENDAR GRID
+   ============================================ */
+
+.shift-cal-grid {
+  grid-template-columns: 150px repeat(14, minmax(0, 1fr));
+}
+
+/* Shift pattern color dots and bars */
+.shift-dot-10-4     { background-color: #86BBD8; }
+.shift-dot-5-2      { background-color: #78C0A6; }
+.shift-dot-standby  { background-color: #F5A623; }
+.shift-dot-custom   { background-color: #9B87B5; }
+.shift-icon-10-4    { color: #86BBD8; }
+.shift-icon-5-2     { color: #78C0A6; }
+.shift-icon-standby { color: #F5A623; }
+.shift-icon-custom  { color: #9B87B5; }
+
+
+/* ============================================
    PAGE BACKGROUND ART — 5 atmospheric themes
    All use multi-radial "light glow" technique
    ============================================ */
@@ -517,6 +536,35 @@ select:focus option {
 
 /* oz-hero inherits dark glass treatment */
 .oz-hero { color: rgba(255, 255, 255, 0.92); }
+
+/* ============================================
+   MOBILE OPTIMISATION
+   ============================================ */
+
+/* Eliminate 300ms tap delay and remove tap flash on mobile */
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+  button, [role="button"], a, input, select, textarea {
+    touch-action: manipulation;
+  }
+}
+
+/* Ensure minimum 44 × 44 px tap zones on small screens */
+@media (max-width: 639px) {
+  /* Chip / pill filter buttons — safe to enlarge on mobile */
+  .oz-pill-btn {
+    min-height: 44px;
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+  /* Icon action buttons inside glass panels */
+  .oz-icon-btn {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
 
 /* Print styles */
 @media print {

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,6 +15,109 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { toast } from 'sonner';
+
+// ─── TypeScript Interfaces ───────────────────────────────────────────────────
+
+interface EquipmentItem {
+  id: number;
+  name: string;
+  type: string;
+  category: string;
+  model: string;
+  serial: string;
+  location: string;
+  status: string;
+  lastMaintenance: string;
+  nextMaintenance: string;
+  utilization: number;
+  color: string;
+}
+
+interface MaintenanceLog {
+  id: number;
+  equipmentId: number;
+  equipmentName: string;
+  type: string;
+  description: string;
+  date: string;
+  duration: number;
+  cost: number;
+  technician: string;
+  status: string;
+  notes?: string;
+}
+
+interface Reservation {
+  id: number;
+  equipmentId: number;
+  equipmentName: string;
+  project: string;
+  requestedBy: string;
+  startDate: string;
+  endDate: string;
+  status: string;
+  notes?: string;
+}
+
+interface DowntimeRecord {
+  id: number;
+  equipmentId: number;
+  equipmentName: string;
+  reason: string;
+  startDate: string;
+  endDate: string;
+  duration: number;
+  cost: number;
+  status: string;
+}
+
+interface AppSettings {
+  darkMode: boolean;
+  showOffline: boolean;
+  autoCalculate: boolean;
+  maintenanceThreshold: number;
+}
+
+interface EquipmentFilters {
+  location: string;
+  category: string;
+  type: string;
+  status: string;
+  search: string;
+}
+
+interface MaintenanceLogFormData {
+  equipmentId: number;
+  equipmentName: string;
+  type: string;
+  description: string;
+  date: string;
+  duration: number;
+  cost: number;
+  technician: string;
+  notes: string;
+}
+
+interface ReservationFormData {
+  equipmentId: number;
+  equipmentName: string;
+  project: string;
+  requestedBy: string;
+  startDate: string;
+  endDate: string;
+  notes: string;
+}
+
+interface AddEquipmentFormData {
+  name: string;
+  type: string;
+  category: string;
+  model: string;
+  serial: string;
+  location: string;
+  status: string;
+  utilization: number;
+}
 import { 
   Calendar as CalendarIcon,
   Download,
@@ -281,25 +384,25 @@ const TYPES = Object.values(EQUIPMENT_TYPES);
 const EquipmentAvailabilitySystem = () => {
   const [isClient, setIsClient] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [equipment, setEquipment] = useState([]);
-  const [maintenanceLogs, setMaintenanceLogs] = useState([]);
-  const [reservations, setReservations] = useState([]);
-  const [downtimeRecords, setDowntimeRecords] = useState([]);
+  const [equipment, setEquipment] = useState<EquipmentItem[]>([]);
+  const [maintenanceLogs, setMaintenanceLogs] = useState<MaintenanceLog[]>([]);
+  const [reservations, setReservations] = useState<Reservation[]>([]);
+  const [downtimeRecords, setDowntimeRecords] = useState<DowntimeRecord[]>([]);
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [settings, setSettings] = useState({
+  const [settings, setSettings] = useState<AppSettings>({
     darkMode: false,
     showOffline: true,
     autoCalculate: true,
     maintenanceThreshold: 90
   });
-  const [filters, setFilters] = useState({
+  const [filters, setFilters] = useState<EquipmentFilters>({
     location: 'all',
     category: 'all',
     type: 'all',
     status: 'all',
     search: ''
   });
-  const [selectedEquipment, setSelectedEquipment] = useState(null);
+  const [selectedEquipment, setSelectedEquipment] = useState<EquipmentItem | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   // Initialize component with localStorage data
@@ -358,9 +461,9 @@ const EquipmentAvailabilitySystem = () => {
 
   // Generate sample data for demonstration
   const generateSampleData = () => {
-    const sampleMaintenance = [];
-    const sampleReservations = [];
-    const sampleDowntime = [];
+    const sampleMaintenance: MaintenanceLog[] = [];
+    const sampleReservations: Reservation[] = [];
+    const sampleDowntime: DowntimeRecord[] = [];
     
     const today = new Date();
     
@@ -436,7 +539,7 @@ const EquipmentAvailabilitySystem = () => {
   };
 
   // Save data to localStorage
-  const saveData = useCallback((key, data) => {
+  const saveData = useCallback((key: string, data: unknown) => {
     try {
       localStorage.setItem(key, JSON.stringify(data));
     } catch (error) {
@@ -446,31 +549,31 @@ const EquipmentAvailabilitySystem = () => {
   }, []);
 
   // Save equipment
-  const saveEquipment = useCallback((newEquipment) => {
+  const saveEquipment = useCallback((newEquipment: EquipmentItem[]) => {
     setEquipment(newEquipment);
     saveData('equipment-data', newEquipment);
   }, [saveData]);
 
   // Save maintenance logs
-  const saveMaintenanceLogs = useCallback((newLogs) => {
+  const saveMaintenanceLogs = useCallback((newLogs: MaintenanceLog[]) => {
     setMaintenanceLogs(newLogs);
     saveData('equipment-maintenance', newLogs);
   }, [saveData]);
 
   // Save reservations
-  const saveReservations = useCallback((newReservations) => {
+  const saveReservations = useCallback((newReservations: Reservation[]) => {
     setReservations(newReservations);
     saveData('equipment-reservations', newReservations);
   }, [saveData]);
 
   // Save downtime records
-  const saveDowntimeRecords = useCallback((newRecords) => {
+  const saveDowntimeRecords = useCallback((newRecords: DowntimeRecord[]) => {
     setDowntimeRecords(newRecords);
     saveData('equipment-downtime', newRecords);
   }, [saveData]);
 
   // Save settings
-  const saveSettings = useCallback((newSettings) => {
+  const saveSettings = useCallback((newSettings: AppSettings) => {
     setSettings(newSettings);
     saveData('equipment-settings', newSettings);
   }, [saveData]);
@@ -509,7 +612,7 @@ const EquipmentAvailabilitySystem = () => {
 
   // Calculate category-wise statistics
   const calculateCategoryStats = useCallback(() => {
-    const stats = {};
+    const stats: Record<string, { total: number; operational: number; availability: number; utilization: number }> = {};
     
     CATEGORIES.forEach(category => {
       const categoryEquipment = equipment.filter(item => item.category === category);
@@ -528,7 +631,7 @@ const EquipmentAvailabilitySystem = () => {
   }, [equipment]);
 
   // Get equipment utilization status
-  const getUtilizationStatus = (utilization) => {
+  const getUtilizationStatus = (utilization: number) => {
     if (utilization >= 90) return { label: 'High', color: 'text-red-600', bg: 'bg-red-100' };
     if (utilization >= 70) return { label: 'Optimal', color: 'text-green-600', bg: 'bg-green-100' };
     if (utilization >= 50) return { label: 'Moderate', color: 'text-yellow-600', bg: 'bg-yellow-100' };
@@ -536,7 +639,7 @@ const EquipmentAvailabilitySystem = () => {
   };
 
   // Update equipment status
-  const updateEquipmentStatus = useCallback((equipmentId, status, reason = '') => {
+  const updateEquipmentStatus = useCallback((equipmentId: number, status: string, reason: string = '') => {
     const newEquipment = equipment.map(item => 
       item.id === equipmentId ? { ...item, status } : item
     );
@@ -549,7 +652,7 @@ const EquipmentAvailabilitySystem = () => {
       const newDowntime = {
         id: Date.now(),
         equipmentId,
-        equipmentName: equipmentItem.name,
+        equipmentName: equipmentItem?.name ?? '',
         reason: reason || `Status changed to ${STATUS_CONFIG[status].label}`,
         startDate: new Date().toISOString().split('T')[0],
         endDate: '',
@@ -565,7 +668,7 @@ const EquipmentAvailabilitySystem = () => {
   }, [equipment, saveEquipment, downtimeRecords, saveDowntimeRecords]);
 
   // Add maintenance log
-  const addMaintenanceLog = useCallback((logData) => {
+  const addMaintenanceLog = useCallback((logData: MaintenanceLogFormData) => {
     const newLog = {
       id: Date.now(),
       ...logData,
@@ -601,7 +704,7 @@ const EquipmentAvailabilitySystem = () => {
   }, [maintenanceLogs, saveMaintenanceLogs, equipment, saveEquipment, downtimeRecords, saveDowntimeRecords]);
 
   // Add reservation
-  const addReservation = useCallback((reservationData) => {
+  const addReservation = useCallback((reservationData: ReservationFormData) => {
     const newReservation = {
       id: Date.now(),
       ...reservationData,
@@ -617,7 +720,7 @@ const EquipmentAvailabilitySystem = () => {
   }, [reservations, saveReservations, updateEquipmentStatus]);
 
   // Get equipment availability for a date range
-  const getEquipmentAvailability = useCallback((equipmentId, startDate, endDate) => {
+  const getEquipmentAvailability = useCallback((equipmentId: number, _startDate: string, _endDate: string) => {
     const equipmentItem = equipment.find(item => item.id === equipmentId);
     if (!equipmentItem) return 0;
     
@@ -670,12 +773,12 @@ const EquipmentAvailabilitySystem = () => {
         if (!item.nextMaintenance) return false;
         const nextMaintenance = new Date(item.nextMaintenance);
         const today = new Date();
-        const daysUntilMaintenance = Math.ceil((nextMaintenance - today) / (1000 * 60 * 60 * 24));
+        const daysUntilMaintenance = Math.ceil((nextMaintenance.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
         return daysUntilMaintenance <= 7;
       }).map(item => ({
         equipment: item.name,
         dueDate: item.nextMaintenance,
-        daysUntil: Math.ceil((new Date(item.nextMaintenance) - new Date()) / (1000 * 60 * 60 * 24))
+        daysUntil: Math.ceil((new Date(item.nextMaintenance).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
       }))
     };
     
@@ -788,7 +891,7 @@ const EquipmentAvailabilitySystem = () => {
   };
 
   // Status Badge Component
-  const StatusBadge = React.memo(({ status }) => {
+  const StatusBadge = React.memo(({ status }: { status: string }) => {
     const config = STATUS_CONFIG[status];
     if (!config) return null;
     
@@ -805,7 +908,7 @@ const EquipmentAvailabilitySystem = () => {
   StatusBadge.displayName = 'StatusBadge';
 
   // Utilization Badge Component
-  const UtilizationBadge = React.memo(({ utilization }) => {
+  const UtilizationBadge = React.memo(({ utilization }: { utilization: number }) => {
     const status = getUtilizationStatus(utilization);
     
     return (
@@ -818,10 +921,10 @@ const EquipmentAvailabilitySystem = () => {
   UtilizationBadge.displayName = 'UtilizationBadge';
 
   // Equipment Card Component
-  const EquipmentCard = React.memo(({ item }) => {
+  const EquipmentCard = React.memo(({ item }: { item: EquipmentItem }) => {
     const utilizationStatus = getUtilizationStatus(item.utilization);
-    const daysUntilMaintenance = item.nextMaintenance 
-      ? Math.ceil((new Date(item.nextMaintenance) - new Date()) / (1000 * 60 * 60 * 24))
+    const daysUntilMaintenance = item.nextMaintenance
+      ? Math.ceil((new Date(item.nextMaintenance).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
       : null;
     
     return (
@@ -963,7 +1066,7 @@ const EquipmentAvailabilitySystem = () => {
   EquipmentCard.displayName = 'EquipmentCard';
 
   // Maintenance Log Form Component
-  const MaintenanceLogForm = ({ equipment, onAdd }) => {
+  const MaintenanceLogForm = ({ equipment, onAdd }: { equipment: EquipmentItem; onAdd: (data: MaintenanceLogFormData) => void }) => {
     const [formData, setFormData] = useState({
       equipmentId: equipment.id,
       equipmentName: equipment.name,
@@ -976,7 +1079,7 @@ const EquipmentAvailabilitySystem = () => {
       notes: ''
     });
 
-    const handleSubmit = (e) => {
+    const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault();
       if (!formData.description || !formData.technician) {
         toast.error('Please fill in all required fields');
@@ -1100,7 +1203,7 @@ const EquipmentAvailabilitySystem = () => {
   };
 
   // Reservation Form Component
-  const ReservationForm = ({ equipment, onAdd }) => {
+  const ReservationForm = ({ equipment, onAdd }: { equipment: EquipmentItem; onAdd: (data: ReservationFormData) => void }) => {
     const [formData, setFormData] = useState({
       equipmentId: equipment.id,
       equipmentName: equipment.name,
@@ -1111,7 +1214,7 @@ const EquipmentAvailabilitySystem = () => {
       notes: ''
     });
 
-    const handleSubmit = (e) => {
+    const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault();
       if (!formData.project || !formData.requestedBy) {
         toast.error('Please fill in all required fields');
@@ -1202,7 +1305,7 @@ const EquipmentAvailabilitySystem = () => {
   };
 
   // Add Equipment Form Component
-  const AddEquipmentForm = ({ onAdd, onCancel }) => {
+  const AddEquipmentForm = ({ onAdd, onCancel }: { onAdd: (data: AddEquipmentFormData & { lastMaintenance: string; nextMaintenance: string; color: string }) => void; onCancel: () => void }) => {
     const [formData, setFormData] = useState({
       name: '',
       type: '',
@@ -1214,7 +1317,7 @@ const EquipmentAvailabilitySystem = () => {
       utilization: 0
     });
 
-    const handleSubmit = (e) => {
+    const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault();
       if (!formData.name || !formData.type || !formData.category || !formData.model) {
         toast.error('Please fill in all required fields');
@@ -1225,9 +1328,9 @@ const EquipmentAvailabilitySystem = () => {
         ...formData,
         lastMaintenance: format(new Date(), 'yyyy-MM-dd'),
         nextMaintenance: format(addDays(new Date(), 30), 'yyyy-MM-dd'),
-        color: ['bg-blue-500', 'bg-purple-500', 'bg-green-500', 'bg-pink-500', 'bg-orange-500', 'bg-red-500', 'bg-yellow-500', 'bg-indigo-500', 'bg-teal-500', 'bg-cyan-500'][
+        color: (['bg-blue-500', 'bg-purple-500', 'bg-green-500', 'bg-pink-500', 'bg-orange-500', 'bg-red-500', 'bg-yellow-500', 'bg-indigo-500', 'bg-teal-500', 'bg-cyan-500'] as const)[
           Math.floor(Math.random() * 10)
-        ]
+        ] ?? 'bg-blue-500'
       });
       
       setFormData({
@@ -1764,12 +1867,12 @@ const EquipmentAvailabilitySystem = () => {
                         if (!item.nextMaintenance) return false;
                         const nextMaintenance = new Date(item.nextMaintenance);
                         const today = new Date();
-                        const daysUntil = Math.ceil((nextMaintenance - today) / (1000 * 60 * 60 * 24));
+                        const daysUntil = Math.ceil((nextMaintenance.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
                         return daysUntil <= 14;
                       })
-                      .sort((a, b) => new Date(a.nextMaintenance) - new Date(b.nextMaintenance))
+                      .sort((a, b) => new Date(a.nextMaintenance).getTime() - new Date(b.nextMaintenance).getTime())
                       .map(item => {
-                        const daysUntil = Math.ceil((new Date(item.nextMaintenance) - new Date()) / (1000 * 60 * 60 * 24));
+                        const daysUntil = Math.ceil((new Date(item.nextMaintenance).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
                         
                         return (
                           <div key={item.id} className="flex items-center justify-between p-3 rounded-lg border">
@@ -1788,7 +1891,7 @@ const EquipmentAvailabilitySystem = () => {
                       if (!item.nextMaintenance) return false;
                       const nextMaintenance = new Date(item.nextMaintenance);
                       const today = new Date();
-                      return Math.ceil((nextMaintenance - today) / (1000 * 60 * 60 * 24)) <= 14;
+                      return Math.ceil((nextMaintenance.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)) <= 14;
                     }).length === 0 && (
                       <div className="text-center py-8">
                         <CheckCircle2 className="w-8 h-8 text-slate-400 mx-auto mb-2" />

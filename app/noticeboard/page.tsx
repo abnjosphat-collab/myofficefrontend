@@ -1,7 +1,87 @@
-// app/noticeboard/page.js
+﻿// app/noticeboard/page.tsx
 "use client";
 
 import React, { useState, useEffect } from 'react';
+
+// ==================== TYPES ====================
+
+interface Notice {
+  id: string;
+  title: string;
+  content: string;
+  date: string;
+  category: string;
+  priority: string;
+  status: string;
+  is_pinned: boolean;
+  requires_acknowledgment: boolean;
+  author?: string | null;
+  department?: string | null;
+  expires_at?: string | null;
+  target_audience?: string | null;
+  notification_type?: string | null;
+  attachment_name?: string | null;
+  attachment_url?: string | null;
+  attachment_size?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+}
+
+interface NoticeFormData {
+  title: string;
+  content: string;
+  date: string;
+  category: string;
+  priority: string;
+  status: string;
+  is_pinned: boolean;
+  requires_acknowledgment: boolean;
+  author: string;
+  department: string;
+  expires_at: string;
+  target_audience: string;
+  notification_type: string;
+  attachment_name: string;
+  attachment_url: string;
+  attachment_size: string;
+}
+
+interface NoticeFilters {
+  category: string;
+  priority: string;
+  status: string;
+  department: string;
+  is_pinned: boolean | null;
+}
+
+interface ApiFilters {
+  category?: string;
+  priority?: string;
+  status?: string;
+  department?: string;
+  is_pinned?: boolean | string | undefined;
+  search?: string;
+}
+
+interface CalculatedStats {
+  total_notices: number;
+  status_breakdown: Record<string, number>;
+  priority_breakdown: Record<string, number>;
+  category_breakdown: Record<string, number>;
+  pinned_count: number;
+  expired_count: number;
+  expiring_soon_count: number;
+}
+
+interface FormErrors {
+  title?: string;
+  content?: string;
+  date?: string;
+  category?: string;
+}
+
+// ==================== END TYPES ====================
+
 import {
   Bell, Plus, Search, Trash2, Edit,
   FileText, AlertTriangle, Loader, Filter,
@@ -18,6 +98,7 @@ import {
   Image, Film, Music, Archive as ArchiveIcon
 } from 'lucide-react';
 import { PageShell } from '@/components/PageShell';
+import { fmtDate as formatDate, fmtDateTime as formatDateTime } from '@/components/shared';
 
 import {
   Card,
@@ -91,7 +172,7 @@ const API_BASE_URL = 'http://localhost:8000/api/notices';
 
 // API Service - Updated to match SQL schema
 const noticeboardApi = {
-  async getAllNotices(filters = {}) {
+  async getAllNotices(filters: ApiFilters = {}) {
     try {
       const params = new URLSearchParams();
 
@@ -108,7 +189,7 @@ const noticeboardApi = {
         params.append('department', filters.department);
       }
       if (filters.is_pinned !== undefined && filters.is_pinned !== null) {
-        params.append('is_pinned', filters.is_pinned);
+        params.append('is_pinned', String(filters.is_pinned));
       }
       if (filters.search) {
         params.append('search', filters.search);
@@ -137,7 +218,7 @@ const noticeboardApi = {
     }
   },
 
-  async createNotice(data) {
+  async createNotice(data: NoticeFormData) {
     try {
       const sqlFormattedData = {
         title: data.title,
@@ -180,7 +261,7 @@ const noticeboardApi = {
     }
   },
 
-  async updateNotice(id, data) {
+  async updateNotice(id: string, data: NoticeFormData) {
     try {
       const sqlFormattedData = {
         title: data.title,
@@ -220,7 +301,7 @@ const noticeboardApi = {
     }
   },
 
-  async deleteNotice(id) {
+  async deleteNotice(id: string) {
     try {
       const response = await fetch(`${API_BASE_URL}/${id}`, {
         method: 'DELETE',
@@ -259,12 +340,12 @@ const noticeboardApi = {
 
       return await response.json();
     } catch (error) {
-      console.error('Stats error:', error.message);
+      console.error('Stats error:', error instanceof Error ? error.message : String(error));
       return null;
     }
   },
 
-  async togglePin(id, currentPinState) {
+  async togglePin(id: string, currentPinState: boolean) {
     try {
       const response = await fetch(`${API_BASE_URL}/${id}`, {
         method: 'PATCH',
@@ -291,7 +372,7 @@ const TARGET_AUDIENCE = ["All Employees", "Management Only", "Department Specifi
 const NOTIFICATION_TYPES = ["General Announcement", "System Alert", "Training", "Policy Update", "Event", "Reminder"];
 
 // Helper functions
-const getPriorityStyle = (priority) => {
+const getPriorityStyle = (priority: string) => {
   switch (priority) {
     case 'Critical': return {
       badge: 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900/20 dark:text-red-300',
@@ -321,7 +402,7 @@ const getPriorityStyle = (priority) => {
   }
 };
 
-const getStatusStyle = (status) => {
+const getStatusStyle = (status: string) => {
   switch (status) {
     case 'Active': return 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900/20 dark:text-green-300';
     case 'Draft': return 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-300';
@@ -330,43 +411,8 @@ const getStatusStyle = (status) => {
   }
 };
 
-const formatDate = (dateString) => {
-  if (!dateString || dateString === '') return 'Not specified';
-  try {
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) {
-      return dateString;
-    }
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  } catch {
-    return dateString;
-  }
-};
 
-const formatDateTime = (dateString) => {
-  if (!dateString || dateString === '') return 'Not specified';
-  try {
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) {
-      return dateString;
-    }
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  } catch {
-    return dateString;
-  }
-};
-
-const formatShortDate = (dateString) => {
+const formatShortDate = (dateString: string | null | undefined) => {
   if (!dateString || dateString === '') return 'N/A';
   try {
     const date = new Date(dateString);
@@ -379,13 +425,13 @@ const formatShortDate = (dateString) => {
   }
 };
 
-const truncateText = (text, maxLength = 100) => {
+const truncateText = (text: string | null | undefined, maxLength = 100) => {
   if (!text) return '';
   if (text.length <= maxLength) return text;
   return text.substring(0, maxLength) + '...';
 };
 
-const calculateClientSideStats = (notices) => {
+const calculateClientSideStats = (notices: Notice[]): CalculatedStats => {
   if (!notices || notices.length === 0) {
     return {
       total_notices: 0,
@@ -398,9 +444,9 @@ const calculateClientSideStats = (notices) => {
     };
   }
 
-  const statusBreakdown = {};
-  const priorityBreakdown = {};
-  const categoryBreakdown = {};
+  const statusBreakdown: Record<string, number> = {};
+  const priorityBreakdown: Record<string, number> = {};
+  const categoryBreakdown: Record<string, number> = {};
 
   let pinnedCount = 0;
   let expiredCount = 0;
@@ -426,7 +472,7 @@ const calculateClientSideStats = (notices) => {
           if (expiryDate < today) {
             expiredCount++;
           } else {
-            const daysUntilExpiry = Math.floor((expiryDate - today) / (1000 * 60 * 60 * 24));
+            const daysUntilExpiry = Math.floor((expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
             if (daysUntilExpiry <= 7 && daysUntilExpiry >= 0) {
               expiringSoonCount++;
             }
@@ -450,7 +496,16 @@ const calculateClientSideStats = (notices) => {
 };
 
 // ==================== NOTICE DETAILS MODAL ====================
-const NoticeDetailsModal = ({ isOpen, onClose, notice, onDelete, onEdit, onTogglePin }) => {
+interface NoticeDetailsModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  notice: Notice | null;
+  onDelete: (id: string) => void;
+  onEdit: (notice: Notice) => void;
+  onTogglePin: (id: string, newPinState: boolean) => void;
+}
+
+const NoticeDetailsModal = ({ isOpen, onClose, notice, onDelete, onEdit, onTogglePin }: NoticeDetailsModalProps) => {
   if (!notice) return null;
 
   const priorityStyle = getPriorityStyle(notice.priority);
@@ -463,11 +518,11 @@ const NoticeDetailsModal = ({ isOpen, onClose, notice, onDelete, onEdit, onToggl
     if (!notice.attachment_name && !notice.attachment_url) return <FileTextIcon className="h-5 w-5" />;
     const name = notice.attachment_name || notice.attachment_url || '';
     const ext = name.split('.').pop()?.toLowerCase();
-    if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg'].includes(ext)) return <Image className="h-5 w-5" />;
-    if (['mp4', 'webm', 'ogg', 'mov'].includes(ext)) return <Film className="h-5 w-5" />;
-    if (['mp3', 'wav', 'ogg'].includes(ext)) return <Music className="h-5 w-5" />;
-    if (['pdf'].includes(ext)) return <FileText className="h-5 w-5" />;
-    if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) return <ArchiveIcon className="h-5 w-5" />;
+    if (ext && ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg'].includes(ext)) return <Image className="h-5 w-5" />;
+    if (ext && ['mp4', 'webm', 'ogg', 'mov'].includes(ext)) return <Film className="h-5 w-5" />;
+    if (ext && ['mp3', 'wav', 'ogg'].includes(ext)) return <Music className="h-5 w-5" />;
+    if (ext && ['pdf'].includes(ext)) return <FileText className="h-5 w-5" />;
+    if (ext && ['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) return <ArchiveIcon className="h-5 w-5" />;
     return <FileTextIcon className="h-5 w-5" />;
   };
 
@@ -526,7 +581,7 @@ const NoticeDetailsModal = ({ isOpen, onClose, notice, onDelete, onEdit, onToggl
       await noticeboardApi.togglePin(notice.id, notice.is_pinned);
       onTogglePin(notice.id, !notice.is_pinned);
     } catch (error) {
-      alert('Failed to toggle pin: ' + error.message);
+      alert('Failed to toggle pin: ' + (error instanceof Error ? error.message : String(error)));
     }
   };
 
@@ -942,7 +997,17 @@ const NoticeDetailsModal = ({ isOpen, onClose, notice, onDelete, onEdit, onToggl
 // ==================== END OF NOTICE DETAILS MODAL ====================
 
 // Notice Card Component – with expand/collapse functionality
-const NoticeCard = ({ notice, onView, onEdit, onDelete, viewMode = 'grid', isExpanded, onToggleExpand }) => {
+interface NoticeCardProps {
+  notice: Notice;
+  onView: (notice: Notice) => void;
+  onEdit: (notice: Notice) => void;
+  onDelete: (id: string) => void;
+  viewMode?: string;
+  isExpanded: boolean;
+  onToggleExpand: (id: string) => void;
+}
+
+const NoticeCard = ({ notice, onView, onEdit, onDelete, viewMode = 'grid', isExpanded, onToggleExpand }: NoticeCardProps) => {
   const priorityStyle = getPriorityStyle(notice.priority);
   const statusStyle = getStatusStyle(notice.status);
   const isExpired = notice.expires_at && new Date(notice.expires_at) < new Date();
@@ -1225,7 +1290,16 @@ const NoticeCard = ({ notice, onView, onEdit, onDelete, viewMode = 'grid', isExp
 };
 
 // Statistics Card Component – unchanged
-const StatisticsCard = ({ title, value, icon: Icon, trend, description, className = '' }) => (
+interface StatisticsCardProps {
+  title: string;
+  value: number;
+  icon?: React.ElementType;
+  trend?: string;
+  description?: string;
+  className?: string;
+}
+
+const StatisticsCard = ({ title, value, icon: Icon, trend, description, className = '' }: StatisticsCardProps) => (
   <Card className={className}>
     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
       <CardTitle className="text-sm font-medium">{title}</CardTitle>
@@ -1243,8 +1317,16 @@ const StatisticsCard = ({ title, value, icon: Icon, trend, description, classNam
 );
 
 // Edit Notice Modal Component – unchanged
-const EditNoticeModal = ({ isOpen, onClose, notice, onSave, isLoading }) => {
-  const [formData, setFormData] = useState({
+interface EditNoticeModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  notice: Notice | null;
+  onSave: (data: NoticeFormData) => Promise<void>;
+  isLoading: boolean;
+}
+
+const EditNoticeModal = ({ isOpen, onClose, notice, onSave, isLoading }: EditNoticeModalProps) => {
+  const [formData, setFormData] = useState<NoticeFormData>({
     title: '',
     content: '',
     date: new Date().toISOString().split('T')[0],
@@ -1263,7 +1345,7 @@ const EditNoticeModal = ({ isOpen, onClose, notice, onSave, isLoading }) => {
     attachment_size: ""
   });
 
-  const [errors, setErrors] = useState({});
+  const [errors, setErrors] = useState<FormErrors>({});
 
   useEffect(() => {
     if (notice) {
@@ -1308,8 +1390,8 @@ const EditNoticeModal = ({ isOpen, onClose, notice, onSave, isLoading }) => {
     setErrors({});
   }, [notice]);
 
-  const validateForm = () => {
-    const newErrors = {};
+  const validateForm = (): FormErrors => {
+    const newErrors: FormErrors = {};
     if (!formData.title.trim()) newErrors.title = 'Title is required';
     if (!formData.content.trim()) newErrors.content = 'Content is required';
     if (!formData.date) newErrors.date = 'Date is required';
@@ -1317,7 +1399,7 @@ const EditNoticeModal = ({ isOpen, onClose, notice, onSave, isLoading }) => {
     return newErrors;
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const validationErrors = validateForm();
     if (Object.keys(validationErrors).length > 0) {
@@ -1328,8 +1410,8 @@ const EditNoticeModal = ({ isOpen, onClose, notice, onSave, isLoading }) => {
     await onSave(formData);
   };
 
-  const handleAttachmentUpload = (e) => {
-    const file = e.target.files[0];
+  const handleAttachmentUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
     if (file) {
       setFormData(prev => ({
         ...prev,
@@ -1608,6 +1690,7 @@ const EditNoticeModal = ({ isOpen, onClose, notice, onSave, isLoading }) => {
                     id="attachment-upload"
                     type="file"
                     className="hidden"
+                    title="Upload attachment file"
                     onChange={handleAttachmentUpload}
                   />
                 </Label>
@@ -1684,17 +1767,17 @@ const EditNoticeModal = ({ isOpen, onClose, notice, onSave, isLoading }) => {
 
 // Main Component
 export default function NoticeboardManagement() {
-  const [data, setData] = useState([]);
+  const [data, setData] = useState<Notice[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
-  const [selectedNotice, setSelectedNotice] = useState(null);
-  const [editingNotice, setEditingNotice] = useState(null);
+  const [selectedNotice, setSelectedNotice] = useState<Notice | null>(null);
+  const [editingNotice, setEditingNotice] = useState<Notice | null>(null);
   const [search, setSearch] = useState('');
-  const [stats, setStats] = useState(null);
+  const [stats, setStats] = useState<CalculatedStats | null>(null);
   const [viewMode, setViewMode] = useState('grid');
-  const [expandedNotices, setExpandedNotices] = useState(new Set());
-  const [filters, setFilters] = useState({
+  const [expandedNotices, setExpandedNotices] = useState<Set<string>>(new Set());
+  const [filters, setFilters] = useState<NoticeFilters>({
     category: 'all',
     priority: 'all',
     status: 'all',
@@ -1725,8 +1808,8 @@ export default function NoticeboardManagement() {
 
       const notices = await noticeboardApi.getAllNotices(apiFilters);
       setData(Array.isArray(notices) ? notices : []);
-    } catch (error) {
-      console.error('Error fetching notices:', error);
+    } catch (err) {
+      console.error('Error fetching notices:', err);
       setData([]);
     } finally {
       setIsLoading(false);
@@ -1737,13 +1820,13 @@ export default function NoticeboardManagement() {
     try {
       const statsData = await noticeboardApi.getStats();
       setStats(statsData);
-    } catch (error) {
-      console.error('Error fetching stats:', error);
+    } catch (err) {
+      console.error('Error fetching stats:', err);
       setStats(null);
     }
   };
 
-  const handleSaveNotice = async (noticeData) => {
+  const handleSaveNotice = async (noticeData: NoticeFormData) => {
     setIsLoading(true);
     try {
       console.log('Saving notice with data:', noticeData);
@@ -1765,24 +1848,24 @@ export default function NoticeboardManagement() {
 
     } catch (error) {
       console.error('Save error:', error);
-
-      if (error.message.includes('405')) {
+      const msg = error instanceof Error ? error.message : String(error);
+      if (msg.includes('405')) {
         alert('Error: Method Not Allowed. Please check the API endpoint and method.');
-      } else if (error.message.includes('400')) {
+      } else if (msg.includes('400')) {
         alert('Error: Bad Request. Please check the data format and required fields.');
-      } else if (error.message.includes('500')) {
+      } else if (msg.includes('500')) {
         alert('Error: Internal Server Error. Please check backend logs.');
-      } else if (error.message.includes('Network Error')) {
+      } else if (msg.includes('Network Error')) {
         alert('Error: Cannot connect to backend. Make sure the server is running on http://localhost:8000');
       } else {
-        alert(`Error: ${error.message}`);
+        alert(`Error: ${msg}`);
       }
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleDeleteNotice = async (id) => {
+  const handleDeleteNotice = async (id: string) => {
     try {
       await noticeboardApi.deleteNotice(id);
       setData(prev => prev.filter(n => n.id !== id));
@@ -1799,28 +1882,28 @@ export default function NoticeboardManagement() {
       alert('Notice deleted successfully!');
     } catch (error) {
       console.error('Delete error:', error);
-      alert(`Error deleting notice: ${error.message}`);
+      alert(`Error deleting notice: ${error instanceof Error ? error.message : String(error)}`);
     }
   };
 
-  const handleViewDetails = (notice) => {
+  const handleViewDetails = (notice: Notice) => {
     setSelectedNotice(notice);
     setIsDetailsModalOpen(true);
   };
 
-  const handleEditNotice = (notice) => {
+  const handleEditNotice = (notice: Notice) => {
     setEditingNotice(notice);
     setIsModalOpen(true);
   };
 
-  const handleTogglePin = (id, newPinState) => {
+  const handleTogglePin = (id: string, newPinState: boolean) => {
     setData(prev => prev.map(n => n.id === id ? { ...n, is_pinned: newPinState } : n));
     if (selectedNotice && selectedNotice.id === id) {
-      setSelectedNotice(prev => ({ ...prev, is_pinned: newPinState }));
+      setSelectedNotice(prev => prev ? { ...prev, is_pinned: newPinState } : prev);
     }
   };
 
-  const handleToggleExpand = (id) => {
+  const handleToggleExpand = (id: string) => {
     setExpandedNotices(prev => {
       const newSet = new Set(prev);
       if (newSet.has(id)) {

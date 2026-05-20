@@ -16,6 +16,7 @@ import {
   glassInput, glassLabel, glassTextarea,
   SafetyModal, FormField, ModalActions, LoadingState,
 } from '@/components/safety';
+import { usePageCollapse, MasterCollapseButton } from '@/components/shared';
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
@@ -69,18 +70,18 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const PPE_API  = `${API_BASE}/api/ppe`;
 
 const PPE_TYPES: Record<string, PPETypeInfo> = {
-  helmet:        { name: 'Safety Helmet',        shortName: 'Helmet',     color: '#64748b', icon: HardHat,   bgColor: 'bg-slate-100',  textColor: 'text-slate-700',  borderColor: 'border-slate-200',  description: 'Head protection for underground and surface operations' },
-  gloves:        { name: 'Safety Gloves',        shortName: 'Gloves',     color: '#dc2626', icon: Shield,    bgColor: 'bg-rose-50',    textColor: 'text-rose-700',   borderColor: 'border-rose-200',   description: 'Hand protection for handling materials and chemicals' },
-  glasses:       { name: 'Safety Glasses',       shortName: 'Glasses',    color: '#0369a1', icon: Eye,       bgColor: 'bg-blue-50',    textColor: 'text-blue-700',   borderColor: 'border-blue-200',   description: 'Eye protection from dust and debris' },
-  vest:          { name: 'High-Vis Vest',         shortName: 'Vest',       color: '#f59e0b', icon: Shirt,     bgColor: 'bg-amber-50',   textColor: 'text-amber-700',  borderColor: 'border-amber-200',  description: 'High visibility clothing for surface operations' },
-  gumboots:      { name: 'Safety Gum Boots',     shortName: 'GumBoots',   color: '#7c3aed', icon: Shield,    bgColor: 'bg-violet-50',  textColor: 'text-violet-700', borderColor: 'border-violet-200', description: 'Steel-toe foot protection' },
-  safety_shoes:  { name: 'Safety Shoes',         shortName: 'Shoes',      color: '#2563eb', icon: Package,   bgColor: 'bg-blue-50',    textColor: 'text-blue-700',   borderColor: 'border-blue-200',   description: 'Protective footwear for various work environments' },
-  harness:       { name: 'Safety Harness',       shortName: 'Harness',    color: '#059669', icon: Link2,     bgColor: 'bg-emerald-50', textColor: 'text-emerald-700',borderColor: 'border-emerald-200',description: 'Fall protection for heights and shafts' },
-  respirator:    { name: 'Respirator',           shortName: 'Respirator', color: '#0d9488', icon: Wind,      bgColor: 'bg-teal-50',    textColor: 'text-teal-700',   borderColor: 'border-teal-200',   description: 'Respiratory protection from dust and chemicals' },
-  Cap_lamp_belt: { name: 'Cap Lamp Belt',        shortName: 'Lamp Belt',  color: '#db2777', icon: Flashlight,bgColor: 'bg-pink-50',    textColor: 'text-pink-700',   borderColor: 'border-pink-200',   description: 'Lighting for underground operations' },
-  worksuit:      { name: 'Protective Work Suit', shortName: 'Work Suit',  color: '#f97316', icon: Shirt,     bgColor: 'bg-orange-50',  textColor: 'text-orange-700', borderColor: 'border-orange-200', description: 'Full body protection for various work environments' },
-  rainsuit:      { name: 'Rain Suit',            shortName: 'Rain Suit',  color: '#14b8a6', icon: CloudRain, bgColor: 'bg-teal-50',    textColor: 'text-teal-700',   borderColor: 'border-teal-200',   description: 'Waterproof protection for wet conditions' },
-  overall:       { name: 'Protective Overall',   shortName: 'Overall',    color: '#8b5cf6', icon: Layers,    bgColor: 'bg-violet-50',  textColor: 'text-violet-700', borderColor: 'border-violet-200', description: 'Full body protective clothing' },
+  helmet:        { name: 'Safety Helmet',        shortName: 'Helmet',     color: '#94a3b8', icon: HardHat,    bgColor: 'bg-slate-500/15',   textColor: 'text-slate-300',   borderColor: 'border-slate-400/25',   description: 'Head protection for underground and surface operations' },
+  gloves:        { name: 'Safety Gloves',        shortName: 'Gloves',     color: '#f87171', icon: Shield,     bgColor: 'bg-rose-500/15',    textColor: 'text-rose-300',    borderColor: 'border-rose-500/25',    description: 'Hand protection for handling materials and chemicals' },
+  glasses:       { name: 'Safety Glasses',       shortName: 'Glasses',    color: '#60a5fa', icon: Eye,        bgColor: 'bg-blue-500/15',    textColor: 'text-blue-300',    borderColor: 'border-blue-500/25',    description: 'Eye protection from dust and debris' },
+  vest:          { name: 'High-Vis Vest',         shortName: 'Vest',       color: '#fbbf24', icon: Shirt,      bgColor: 'bg-amber-500/15',   textColor: 'text-amber-300',   borderColor: 'border-amber-500/25',   description: 'High visibility clothing for surface operations' },
+  gumboots:      { name: 'Safety Gum Boots',     shortName: 'GumBoots',   color: '#a78bfa', icon: Shield,     bgColor: 'bg-violet-500/15',  textColor: 'text-violet-300',  borderColor: 'border-violet-500/25',  description: 'Steel-toe foot protection' },
+  safety_shoes:  { name: 'Safety Shoes',         shortName: 'Shoes',      color: '#38bdf8', icon: Package,    bgColor: 'bg-sky-500/15',     textColor: 'text-sky-300',     borderColor: 'border-sky-500/25',     description: 'Protective footwear for various work environments' },
+  harness:       { name: 'Safety Harness',       shortName: 'Harness',    color: '#34d399', icon: Link2,      bgColor: 'bg-emerald-500/15', textColor: 'text-emerald-300', borderColor: 'border-emerald-500/25', description: 'Fall protection for heights and shafts' },
+  respirator:    { name: 'Respirator',           shortName: 'Respirator', color: '#2dd4bf', icon: Wind,       bgColor: 'bg-teal-500/15',    textColor: 'text-teal-300',    borderColor: 'border-teal-500/25',    description: 'Respiratory protection from dust and chemicals' },
+  Cap_lamp_belt: { name: 'Cap Lamp Belt',        shortName: 'Lamp Belt',  color: '#f472b6', icon: Flashlight, bgColor: 'bg-pink-500/15',    textColor: 'text-pink-300',    borderColor: 'border-pink-500/25',    description: 'Lighting for underground operations' },
+  worksuit:      { name: 'Protective Work Suit', shortName: 'Work Suit',  color: '#fb923c', icon: Shirt,      bgColor: 'bg-orange-500/15',  textColor: 'text-orange-300',  borderColor: 'border-orange-500/25',  description: 'Full body protection for various work environments' },
+  rainsuit:      { name: 'Rain Suit',            shortName: 'Rain Suit',  color: '#22d3ee', icon: CloudRain,  bgColor: 'bg-cyan-500/15',    textColor: 'text-cyan-300',    borderColor: 'border-cyan-500/25',    description: 'Waterproof protection for wet conditions' },
+  overall:       { name: 'Protective Overall',   shortName: 'Overall',    color: '#c084fc', icon: Layers,     bgColor: 'bg-purple-500/15',  textColor: 'text-purple-300',  borderColor: 'border-purple-500/25',  description: 'Full body protective clothing' },
 };
 
 const MINE_LOCATIONS = ['Deep Shaft A', 'Deep Shaft B', 'Open Pit', 'Processing Plant', 'Workshop', 'Surface', 'All Areas'];
@@ -799,11 +800,12 @@ export default function PPEManagement() {
   const [selEmployee,   setSelEmployee]   = useState<EmployeeWithPPE | null>(null);
   const [detailItem,    setDetailItem]    = useState<PPERecord | null>(null);
   const [showDetail,    setShowDetail]    = useState(false);
-  const [showHeroStats, setShowHeroStats] = useState(true);
-  const [showTypeBreak, setShowTypeBreak] = useState(false);  // collapsed by default
+  // Master collapse — all page sections. Pass sections.panel(key) to GlassPanel/HeroPanel,
+  // or read sections.expanded[key] / sections.toggle(key) for raw divs.
+  const sections = usePageCollapse({ heroStats: false, typeBreakdown: false, records: false });
   const [filterType,    setFilterType]    = useState<'all' | 'active' | 'soon-to-due' | 'due'>('all');
   const [searchTerm,    setSearchTerm]    = useState('');
-  // All cards start collapsed (empty object = all false)
+  // All employee cards start collapsed (empty object = all false)
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   // ── Data loading ───────────────────────────────────────────────────────────
@@ -940,9 +942,10 @@ export default function PPEManagement() {
               </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              <button type="button" title={showHeroStats ? 'Hide stats' : 'Show stats'} onClick={() => setShowHeroStats(v => !v)}
+              <MasterCollapseButton collapse={sections} />
+              <button type="button" title={sections.expanded.heroStats ? 'Hide stats' : 'Show stats'} onClick={() => sections.toggle('heroStats')}
                 className="h-8 w-8 flex items-center justify-center rounded-lg bg-white/[0.07] hover:bg-white/[0.15] border border-white/[0.14] text-white/60 transition-all">
-                {showHeroStats ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                {sections.expanded.heroStats ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
               </button>
               <button type="button" title="Refresh" onClick={() => load(true)} disabled={refreshing}
                 className="h-8 w-8 flex items-center justify-center rounded-lg bg-white/[0.07] hover:bg-white/[0.15] border border-white/[0.14] text-white/60 transition-all disabled:opacity-40">
@@ -956,7 +959,7 @@ export default function PPEManagement() {
             </div>
           </div>
 
-          {showHeroStats && enhancedStats && (
+          {sections.expanded.heroStats && enhancedStats && (
             <div className="border-t border-white/[0.08] px-6 py-3 space-y-3">
               {/* KPI chips */}
               <div className="flex flex-wrap items-center gap-1">
@@ -1011,7 +1014,7 @@ export default function PPEManagement() {
         {/* ── PPE TYPE BREAKDOWN (collapsed by default) ── */}
         {records.length > 0 && (
           <div className="oz-glass-panel rounded-2xl overflow-hidden">
-            <button type="button" onClick={() => setShowTypeBreak(v => !v)}
+            <button type="button" onClick={() => sections.toggle('typeBreakdown')}
               className="w-full flex items-center justify-between px-5 py-3 hover:bg-white/[0.04] transition-all">
               <div className="flex items-center gap-2">
                 <HardHat className="h-3.5 w-3.5 text-[#86BBD8]" />
@@ -1020,11 +1023,11 @@ export default function PPEManagement() {
                   {typeCounts.length} types active
                 </span>
               </div>
-              {showTypeBreak
+              {sections.expanded.typeBreakdown
                 ? <ChevronUp className="h-3.5 w-3.5 text-white/50" />
                 : <ChevronDown className="h-3.5 w-3.5 text-white/50" />}
             </button>
-            {showTypeBreak && (
+            {sections.expanded.typeBreakdown && (
               <div className="px-4 pb-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 border-t border-white/[0.07]">
                 {Object.entries(PPE_TYPES).map(([key, type]) => {
                   const Icon = type.icon;
@@ -1077,84 +1080,93 @@ export default function PPEManagement() {
                 </button>
               ))}
             </div>
-            {/* Search + expand controls */}
-            <div className="flex items-center gap-2">
-              {(filterType === 'all' || filterType === 'active') && (
-                <div className="relative">
-                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-white/40" />
-                  <input type="text" placeholder="Search employee…" value={searchTerm}
-                    onChange={e => setSearchTerm(e.target.value)}
-                    className="pl-7 pr-8 py-1.5 text-xs w-44 rounded-lg bg-white/[0.07] border border-white/[0.14] text-white/90 placeholder:text-white/35 focus:outline-none focus:border-white/30 transition-all" />
-                  {searchTerm && (
-                    <button type="button" onClick={() => setSearchTerm('')}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-white/35 hover:text-white/70 transition-colors">
-                      <X className="h-3 w-3" />
-                    </button>
-                  )}
-                </div>
-              )}
-              {(filterType === 'all' || filterType === 'active') && filteredEmployees.length > 0 && (
-                <button type="button" onClick={anyExpanded ? collapseAll : expandAll}
-                  className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-white/[0.07] hover:bg-white/[0.14] text-white/70 hover:text-white/90 border border-white/[0.14] transition-all font-medium">
-                  {anyExpanded ? <ChevronsUp className="h-3.5 w-3.5" /> : <ChevronsDown className="h-3.5 w-3.5" />}
-                  {anyExpanded ? 'Collapse All' : 'Expand All'}
-                </button>
-              )}
-            </div>
+            {/* Search */}
+            {(filterType === 'all' || filterType === 'active') && (
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-white/40" />
+                <input type="text" placeholder="Search employee…" value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                  className="pl-7 pr-8 py-1.5 text-xs w-44 rounded-lg bg-white/[0.07] border border-white/[0.14] text-white/90 placeholder:text-white/35 focus:outline-none focus:border-white/30 transition-all" />
+                {searchTerm && (
+                  <button type="button" onClick={() => setSearchTerm('')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-white/35 hover:text-white/70 transition-colors">
+                    <X className="h-3 w-3" />
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
         {/* ── RECORDS ── */}
         <div className="oz-glass-panel rounded-2xl overflow-hidden">
-          <div className="flex items-center gap-3 px-5 py-3 border-b border-white/[0.08]">
-            <span className="text-xs font-semibold text-white/80 uppercase tracking-wider">Records</span>
-            <span className="text-xs text-white/50">
-              {filteredEmployees.length} employee{filteredEmployees.length !== 1 ? 's' : ''} · {records.length} total items
-            </span>
-          </div>
-
-          <div className="p-4">
-            {loading ? (
-              <LoadingState message="Loading PPE records…" />
-            ) : (filterType === 'soon-to-due' || filterType === 'due') ? (
-              <DueItemsList employees={employeesWithPPE} filterType={filterType}
-                onEditItem={r => { setEditData(r); setShowForm(true); }}
-                onDeleteItem={handleDelete}
-                onViewItem={item => { setDetailItem(item); setShowDetail(true); }} />
-            ) : filteredEmployees.length === 0 ? (
-              <div className="text-center py-16 rounded-xl bg-white/[0.03] border border-white/[0.07]">
-                <HardHat className="h-12 w-12 mx-auto mb-4 text-white/20" />
-                <p className="text-sm font-semibold text-white/65 mb-1">
-                  {records.length === 0 ? 'No PPE records yet' : 'No employees match your search'}
-                </p>
-                <p className="text-xs text-white/40">
-                  {records.length === 0 ? 'Issue PPE to an employee to get started' : 'Try adjusting the search or filter'}
-                </p>
-                {records.length === 0 && (
-                  <button type="button" onClick={() => openIssueForm()}
-                    className="mt-4 inline-flex items-center gap-1.5 text-xs px-4 py-2 rounded-lg font-semibold text-white transition-all hover:-translate-y-0.5"
-                    style={{ background: 'rgba(42,77,105,0.55)', border: '1px solid rgba(134,187,216,0.3)' }}>
-                    <Plus className="h-3.5 w-3.5" /> Issue First PPE
-                  </button>
-                )}
-              </div>
-            ) : (
-              <div className="space-y-2.5">
-                {filteredEmployees.map(emp => (
-                  <EmployeePPECard key={emp.employee_id} employee={emp}
-                    isExpanded={!!expanded[emp.employee_id]}
-                    onToggle={() => toggle(emp.employee_id)}
-                    onIssueNew={openIssueForm}
-                    onEditItem={r => { setEditData(r); setShowForm(true); }}
-                    onDeleteItem={handleDelete}
-                    onViewItem={item => { setDetailItem(item); setShowDetail(true); }} />
-                ))}
-                <p className="text-center text-[11px] text-white/40 pt-1">
-                  {filteredEmployees.length} employee{filteredEmployees.length !== 1 ? 's' : ''} · {records.length} PPE records total
-                </p>
-              </div>
+          {/* Collapsible header — click title area to toggle panel; Collapse All lives here */}
+          <div className="flex items-center gap-2 px-5 py-3">
+            <button type="button" onClick={() => sections.toggle('records')}
+              className="flex items-center gap-2.5 min-w-0 flex-1 text-left hover:opacity-90 transition-opacity">
+              <FileText className="h-3.5 w-3.5 text-[#86BBD8] shrink-0" />
+              <span className="text-xs font-semibold text-white/85 uppercase tracking-wider">Records</span>
+              <span className="text-xs text-white/50 font-normal normal-case tracking-normal">
+                {filteredEmployees.length} employee{filteredEmployees.length !== 1 ? 's' : ''} · {records.length} items
+              </span>
+              {sections.expanded.records
+                ? <ChevronUp className="h-3.5 w-3.5 text-white/45 ml-1" />
+                : <ChevronDown className="h-3.5 w-3.5 text-white/45 ml-1" />}
+            </button>
+            {/* Collapse All / Expand All — only visible when the panel is open and cards are shown */}
+            {sections.expanded.records && (filterType === 'all' || filterType === 'active') && filteredEmployees.length > 0 && (
+              <button type="button" onClick={anyExpanded ? collapseAll : expandAll}
+                className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-semibold text-white border transition-all hover:-translate-y-0.5 shrink-0 ${anyExpanded ? 'bg-rose-500/20 border-rose-500/35' : 'bg-[#2A4D69]/55 border-[#86BBD8]/35'}`}>
+                {anyExpanded ? <ChevronsUp className="h-3.5 w-3.5" /> : <ChevronsDown className="h-3.5 w-3.5" />}
+                {anyExpanded ? 'Collapse All' : 'Expand All'}
+              </button>
             )}
           </div>
+
+          {sections.expanded.records && (
+            <div className="border-t border-white/[0.08] p-4">
+              {loading ? (
+                <LoadingState message="Loading PPE records…" />
+              ) : (filterType === 'soon-to-due' || filterType === 'due') ? (
+                <DueItemsList employees={employeesWithPPE} filterType={filterType}
+                  onEditItem={r => { setEditData(r); setShowForm(true); }}
+                  onDeleteItem={handleDelete}
+                  onViewItem={item => { setDetailItem(item); setShowDetail(true); }} />
+              ) : filteredEmployees.length === 0 ? (
+                <div className="text-center py-16 rounded-xl bg-white/[0.03] border border-white/[0.07]">
+                  <HardHat className="h-12 w-12 mx-auto mb-4 text-white/20" />
+                  <p className="text-sm font-semibold text-white/65 mb-1">
+                    {records.length === 0 ? 'No PPE records yet' : 'No employees match your search'}
+                  </p>
+                  <p className="text-xs text-white/40">
+                    {records.length === 0 ? 'Issue PPE to an employee to get started' : 'Try adjusting the search or filter'}
+                  </p>
+                  {records.length === 0 && (
+                    <button type="button" onClick={() => openIssueForm()}
+                      className="mt-4 inline-flex items-center gap-1.5 text-xs px-4 py-2 rounded-lg font-semibold text-white transition-all hover:-translate-y-0.5"
+                      style={{ background: 'rgba(42,77,105,0.55)', border: '1px solid rgba(134,187,216,0.3)' }}>
+                      <Plus className="h-3.5 w-3.5" /> Issue First PPE
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  {filteredEmployees.map(emp => (
+                    <EmployeePPECard key={emp.employee_id} employee={emp}
+                      isExpanded={!!expanded[emp.employee_id]}
+                      onToggle={() => toggle(emp.employee_id)}
+                      onIssueNew={openIssueForm}
+                      onEditItem={r => { setEditData(r); setShowForm(true); }}
+                      onDeleteItem={handleDelete}
+                      onViewItem={item => { setDetailItem(item); setShowDetail(true); }} />
+                  ))}
+                  <p className="text-center text-[11px] text-white/40 pt-1">
+                    {filteredEmployees.length} employee{filteredEmployees.length !== 1 ? 's' : ''} · {records.length} PPE records total
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </main>
 

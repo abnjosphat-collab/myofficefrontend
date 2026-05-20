@@ -14,6 +14,7 @@ import {
   SafetyPanel, SafetyModal, FormField, ModalActions,
   SafetyTable, RowActions, AddButton, LoadingState, EmptyState, TabBar
 } from '@/components/safety';
+import { usePageCollapse, MasterCollapseButton } from '@/components/shared';
 
 // =============== TYPES ===============
 type SectionType = 'Mechanical' | 'Electrical';
@@ -672,6 +673,7 @@ const VFLFormModal: React.FC<FormModalProps> = ({ open, editing, onClose, onSave
 
 // =============== MAIN PAGE ===============
 export default function VFLObservationPage() {
+  const sections = usePageCollapse({ stats: true, records: true });
   const [reports, setReports] = useState<VFLReport[]>([]);
   const [loading, setLoading] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
@@ -840,8 +842,10 @@ export default function VFLObservationPage() {
           subtitle="Safety observations and coaching tracking."
           accentColor="#10b981"
           stats={heroStats}
+          showStats={sections.expanded.stats} onToggleStats={() => sections.toggle('stats')}
           actions={
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <MasterCollapseButton collapse={sections} />
               <button onClick={loadData} title="Refresh"
                 style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 8, padding: '7px 10px', cursor: 'pointer', color: 'rgba(255,255,255,0.7)' }}>
                 <RefreshCw size={15} />
@@ -859,6 +863,7 @@ export default function VFLObservationPage() {
           }
         />
 
+        {sections.expanded.records && <>
         {/* Controls */}
         <SafetyControls>
           <SafetySearchBar value={search} onChange={setSearch} placeholder="Search by observer, description, actions..." />
@@ -910,6 +915,7 @@ export default function VFLObservationPage() {
             ))}
           </SafetyTable>
         )}
+        </>}
 
         {/* Modals */}
         <VFLDetailModal

@@ -1,7 +1,7 @@
-// app/designhome/page.jsx
+﻿// app/designhome/page.tsx
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -32,7 +32,7 @@ import {
   Brush,
   Type,
   Layout,
-  ColorWand,
+  Wand2,
   Download,
   Eye,
   Calendar,
@@ -321,12 +321,12 @@ const stats = [
 
 export default function DesignStudio() {
   const [activeFilter, setActiveFilter] = useState('all');
-  const [hoveredCard, setHoveredCard] = useState(null);
+  const [hoveredCard, setHoveredCard] = useState<number | null>(null);
   const [isScrolled, setIsScrolled] = useState(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeTestimonial, setActiveTestimonial] = useState(0);
-  const contactFormRef = useRef(null);
+  const contactFormRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -352,7 +352,7 @@ export default function DesignStudio() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleContactSubmit = (e) => {
+  const handleContactSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     // Add form submission logic here
     alert('Thank you for your message! We\'ll get back to you within 24 hours.');

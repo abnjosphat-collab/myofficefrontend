@@ -8,10 +8,17 @@ import {
   Mail, Briefcase, Building, Calendar, GraduationCap, UserCheck,
   FilterX, Sparkles, UserRound, BriefcaseBusiness, Phone,
   ChevronLeft, ChevronRight, ArrowUpDown, List, LayoutGrid,
-  ChevronRight as ChevronRightIcon, Filter, FileText, Award
+  Filter, FileText, Award
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageShell } from "@/components/PageShell";
+import {
+  IF as InfoField, EmptyState, LoadingPane,
+  HeroPanel, GlassPanel, RecordsPanelHeader, FilterChips,
+  fmtDate, initials as sharedInitials,
+  usePageCollapse, MasterCollapseButton,
+  type StatItem,
+} from '@/components/shared';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -91,12 +98,6 @@ const LBL = "text-white/55 text-xs font-medium";
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
-function fmtDate(d?: string) {
-  if (!d) return '—';
-  try { return new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }); }
-  catch { return d; }
-}
-
 function tenure(eng?: string) {
   if (!eng) return '—';
   try {
@@ -109,8 +110,6 @@ function tenure(eng?: string) {
   } catch { return '—'; }
 }
 
-function initials(f: string, l: string) { return `${f?.[0] || ''}${l?.[0] || ''}`.toUpperCase(); }
-
 function classPill(cls?: string) {
   const map: Record<string, string> = {
     Permanent:  'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
@@ -119,17 +118,6 @@ function classPill(cls?: string) {
     'Part-Time':'bg-purple-500/20 text-purple-300 border-purple-500/30',
   };
   return map[cls || ''] ?? 'bg-white/10 text-white/55 border-white/12';
-}
-
-// ─── InfoField — maintenance-style label/value pair ───────────────────────────
-
-function InfoField({ label, value }: { label: string; value?: string | null }) {
-  return (
-    <div>
-      <div className="text-white/35 text-[10px] uppercase tracking-wide mb-0.5">{label}</div>
-      <div className="text-white/80 text-sm">{value || '—'}</div>
-    </div>
-  );
 }
 
 // ─── API ──────────────────────────────────────────────────────────────────────
@@ -434,7 +422,7 @@ function EmployeeRow({ employee, onEdit, onDelete }: EmployeeRowProps) {
       <div className="flex items-center gap-3.5 px-5 py-3 hover:bg-white/[0.03] transition-colors group">
         {/* Avatar */}
         <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-[#2A4D69] to-[#86BBD8] flex items-center justify-center text-white font-bold text-sm shadow-lg flex-shrink-0">
-          {initials(employee.first_name, employee.last_name)}
+          {sharedInitials(`${employee.first_name} ${employee.last_name}`)}
         </div>
 
         {/* Name + meta */}
@@ -614,7 +602,7 @@ function EmployeeCard({ employee, onEdit, onDelete }: EmployeeCardProps) {
       <div className="flex items-start justify-between px-5 py-4">
         <div className="flex items-center gap-3">
           <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-[#2A4D69] to-[#86BBD8] flex items-center justify-center text-white font-bold text-base shadow-lg shrink-0">
-            {initials(employee.first_name, employee.last_name)}
+            {sharedInitials(`${employee.first_name} ${employee.last_name}`)}
           </div>
           <div>
             <p className="text-[15px] font-semibold text-white leading-tight">{name}</p>
@@ -731,9 +719,7 @@ export default function EmployeesPage() {
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const [page, setPage] = useState(1);
 
-  const [showHeroStats, setShowHeroStats] = useState(true);
-  const [filterPanelMinimized, setFilterPanelMinimized] = useState(false);
-  const [recordsPanelMinimized, setRecordsPanelMinimized] = useState(false);
+  const sections = usePageCollapse({ hero: false, filters: true, records: true });
 
   const PER_PAGE = 25;
 
@@ -804,71 +790,28 @@ export default function EmployeesPage() {
   };
   const clearFilters = () => { setSearch(''); setClassFilter('all'); setDeptFilter('all'); setRoleFilter('all'); };
 
-  const pill = (active: boolean, onClick: () => void, label: string) => (
-    <button type="button" key={label} onClick={onClick}
-      className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
-        active ? 'bg-[#86BBD8]/30 border-[#86BBD8]/45 text-white font-semibold'
-               : 'bg-white/[0.05] border-white/12 text-white/60 hover:bg-white/[0.12] hover:text-white/90'
-      }`}>
-      {label}
-    </button>
-  );
-
   return (
     <PageShell>
       <main className="container mx-auto px-4 py-8 space-y-4">
 
         {/* ── PANEL 1: Hero ────────────────────────────────────────── */}
-        <div className="oz-glass-dark rounded-2xl overflow-hidden">
-          <div className="px-6 py-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-[#86BBD8]/20 border border-[#86BBD8]/20">
-                <Users className="h-5 w-5 text-[#86BBD8]" />
-              </div>
-              <div>
-                <nav className="flex items-center gap-1.5 text-xs text-white/40 mb-0.5">
-                  <span>Home</span>
-                  <ChevronRightIcon className="h-3 w-3" />
-                  <span className="text-white/70 font-medium">Personnel</span>
-                </nav>
-                <h1 className="text-xl font-bold text-white font-heading tracking-tight">Personnel Registry</h1>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <button onClick={reload} title="Refresh"
-                className="h-8 w-8 flex items-center justify-center rounded-lg bg-white/[0.07] hover:bg-white/[0.15] border border-white/12 text-white/50 transition-all">
-                <RefreshCw className="h-3.5 w-3.5" />
-              </button>
-              <button onClick={openAdd}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:-translate-y-0.5 hover:shadow-lg"
-                style={{ background: 'linear-gradient(135deg, #2A4D69, #1e3a52)', border: '1px solid rgba(134,187,216,0.25)' }}>
-                <Plus className="h-4 w-4" /> Add Employee
-              </button>
-              <button onClick={() => setShowHeroStats(v => !v)}
-                className="h-8 w-8 flex items-center justify-center rounded-lg bg-white/[0.07] hover:bg-white/[0.15] border border-white/12 text-white/50 transition-all"
-                aria-label={showHeroStats ? 'Hide stats' : 'Show stats'}>
-                {showHeroStats ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-              </button>
-            </div>
-          </div>
-
-          {showHeroStats && (
-            <div className="px-6 pb-4 pt-3 border-t border-white/[0.07] grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {[
-                { label: 'Total Employees', value: stats.total,     color: '#86BBD8', onClick: () => setClassFilter('all') },
-                { label: 'Unique Roles',    value: stats.roles,     color: '#a78bfa', onClick: undefined },
-                { label: 'Qualifications',  value: stats.quals,     color: '#34d399', onClick: undefined },
-                { label: 'Permanent Staff', value: stats.permanent, color: '#fbbf24', onClick: () => setClassFilter('Permanent') },
-              ].map(stat => (
-                <button key={stat.label} onClick={stat.onClick}
-                  className={`rounded-xl p-3 text-left border border-white/[0.08] bg-white/[0.05] transition-all ${stat.onClick ? 'hover:bg-white/[0.10] cursor-pointer' : 'cursor-default'}`}>
-                  <div className="text-2xl font-bold" style={{ color: stat.color }}>{stat.value}</div>
-                  <div className="text-xs text-white/50 mt-0.5">{stat.label}</div>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        <HeroPanel
+          icon={Users}
+          breadcrumb="Personnel"
+          title="Personnel Registry"
+          onRefresh={reload}
+          loading={isLoading}
+          onNew={openAdd}
+          newLabel="Add Employee"
+          actions={<MasterCollapseButton collapse={sections} />}
+          stats={[
+            { label: 'Total Employees', value: stats.total,     textClass: 'text-[#86BBD8]', onClick: () => setClassFilter('all') },
+            { label: 'Unique Roles',    value: stats.roles,     textClass: 'text-violet-400' },
+            { label: 'Qualifications',  value: stats.quals,     textClass: 'text-emerald-400' },
+            { label: 'Permanent Staff', value: stats.permanent, textClass: 'text-amber-400', onClick: () => setClassFilter('Permanent') },
+          ] satisfies StatItem[]}
+          {...sections.panel('hero')}
+        />
 
         {/* ── Error banner ─────────────────────────────────────────── */}
         {error && (
@@ -880,132 +823,98 @@ export default function EmployeesPage() {
         )}
 
         {/* ── PANEL 2: Filters ─────────────────────────────────────── */}
-        <div className="oz-glass-panel rounded-2xl overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-3 border-b border-white/[0.07]">
-            <div className="flex items-center gap-2">
-              <Filter className="h-3.5 w-3.5 text-[#86BBD8]" />
-              <span className="text-xs font-semibold text-white/80 uppercase tracking-wider">Filters</span>
-              {activeFilterCount > 0 && (
-                <span className="text-[11px] px-1.5 py-0.5 rounded bg-[#86BBD8]/20 text-[#86BBD8] border border-[#86BBD8]/30">
-                  {activeFilterCount} active
-                </span>
-              )}
+        <GlassPanel
+          icon={Filter}
+          title="Filters"
+          {...sections.panel('filters')}
+          badge={activeFilterCount > 0 ? (
+            <span className="text-[11px] px-1.5 py-0.5 rounded bg-[#86BBD8]/20 text-[#86BBD8] border border-[#86BBD8]/30">
+              {activeFilterCount} active
+            </span>
+          ) : undefined}
+          actions={activeFilterCount > 0 ? (
+            <button onClick={clearFilters}
+              className="h-6 px-2 flex items-center gap-1 rounded-md bg-white/[0.07] hover:bg-white/[0.15] text-white/50 text-[11px] border border-white/12 transition-all">
+              <X className="h-2.5 w-2.5" /> Clear
+            </button>
+          ) : undefined}
+          contentClassName="px-5 pb-4 pt-3 space-y-3"
+        >
+          <FilterChips
+            label="Employee Class"
+            options={[
+              { value: 'all', label: 'All Staff' },
+              ...CLASS_OPTIONS.map(c => ({ value: c, label: c })),
+            ]}
+            value={classFilter}
+            onChange={setClassFilter}
+          />
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/30" />
+              <input type="text" placeholder="Search name, ID, role..."
+                value={search} onChange={e => setSearch(e.target.value)}
+                aria-label="Search employees"
+                className="pl-8 pr-3 py-2 w-full text-sm rounded-lg bg-white/[0.07] border border-white/12 text-white placeholder:text-white/30 focus:outline-none focus:border-white/30 focus:bg-white/[0.11] transition-all" />
             </div>
-            <div className="flex items-center gap-1">
-              {activeFilterCount > 0 && (
-                <button onClick={clearFilters}
-                  className="h-6 px-2 flex items-center gap-1 rounded-md bg-white/[0.07] hover:bg-white/[0.15] text-white/50 text-[11px] border border-white/12 transition-all">
-                  <X className="h-2.5 w-2.5" /> Clear
-                </button>
-              )}
-              <button onClick={() => setFilterPanelMinimized(v => !v)}
-                aria-label={filterPanelMinimized ? 'Expand filters' : 'Collapse filters'}
-                className="h-6 w-6 flex items-center justify-center rounded-md bg-white/[0.07] hover:bg-white/[0.15] text-white/50 border border-white/12 transition-all">
-                {filterPanelMinimized ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />}
-              </button>
-            </div>
+            <select aria-label="Filter by department" value={deptFilter} onChange={e => setDeptFilter(e.target.value)}
+              className="px-3 py-2 text-sm rounded-lg bg-white/[0.07] border border-white/12 text-white/70 focus:outline-none focus:border-white/30 transition-all">
+              <option value="all">All Departments</option>
+              {uniqueDepts.map(d => <option key={d} value={d}>{d}</option>)}
+            </select>
+            <select aria-label="Filter by role" value={roleFilter} onChange={e => setRoleFilter(e.target.value)}
+              className="px-3 py-2 text-sm rounded-lg bg-white/[0.07] border border-white/12 text-white/70 focus:outline-none focus:border-white/30 transition-all">
+              <option value="all">All Roles</option>
+              {uniqueRoles.map(r => <option key={r} value={r}>{r}</option>)}
+            </select>
           </div>
-          {!filterPanelMinimized && (
-            <div className="px-5 pb-4 pt-3 space-y-3">
-              <div>
-                <div className="text-[11px] text-white/45 mb-1.5">Employee Class</div>
-                <div className="flex flex-wrap gap-1.5">
-                  {pill(classFilter === 'all', () => setClassFilter('all'), 'All Staff')}
-                  {CLASS_OPTIONS.map(c => pill(classFilter === c, () => setClassFilter(c), c))}
-                </div>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="relative">
-                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/30" />
-                  <input type="text" placeholder="Search name, ID, role..."
-                    value={search} onChange={e => setSearch(e.target.value)}
-                    className="pl-8 pr-3 py-2 w-full text-sm rounded-lg bg-white/[0.07] border border-white/12 text-white placeholder:text-white/30 focus:outline-none focus:border-white/30 focus:bg-white/[0.11] transition-all" />
-                </div>
-                <select aria-label="Filter by department" value={deptFilter} onChange={e => setDeptFilter(e.target.value)}
-                  className="px-3 py-2 text-sm rounded-lg bg-white/[0.07] border border-white/12 text-white/70 focus:outline-none focus:border-white/30 transition-all">
-                  <option value="all">All Departments</option>
-                  {uniqueDepts.map(d => <option key={d} value={d}>{d}</option>)}
-                </select>
-                <select aria-label="Filter by role" value={roleFilter} onChange={e => setRoleFilter(e.target.value)}
-                  className="px-3 py-2 text-sm rounded-lg bg-white/[0.07] border border-white/12 text-white/70 focus:outline-none focus:border-white/30 transition-all">
-                  <option value="all">All Roles</option>
-                  {uniqueRoles.map(r => <option key={r} value={r}>{r}</option>)}
-                </select>
-              </div>
-            </div>
-          )}
-        </div>
+        </GlassPanel>
 
         {/* ── PANEL 3: Records ─────────────────────────────────────── */}
         <div className="oz-glass-panel rounded-2xl overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-3 border-b border-white/[0.07]">
-            <div className="flex items-center gap-2">
-              <FileText className="h-3.5 w-3.5 text-[#86BBD8]" />
-              <span className="text-xs font-semibold text-white/80 uppercase tracking-wider">Records</span>
-              <span className="text-[11px] text-white/35">
-                {filtered.length}{employees.length !== filtered.length ? ` of ${employees.length}` : ''}
-              </span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <select aria-label="Sort by" value={sortBy} onChange={e => setSortBy(e.target.value as SortField)}
-                className="h-7 pl-2 pr-6 text-[11px] rounded-lg bg-white/[0.07] border border-white/12 text-white/70 focus:outline-none appearance-none cursor-pointer">
-                <option value="first_name">Name A–Z</option>
-                <option value="employee_id">ID</option>
-                <option value="designation">Role</option>
-                <option value="department">Department</option>
-              </select>
-              <button type="button" title="Toggle sort direction" onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}
+          <RecordsPanelHeader
+            icon={FileText}
+            title="Records"
+            count={filtered.length}
+            total={employees.length !== filtered.length ? employees.length : undefined}
+            search={search}
+            onSearch={setSearch}
+            searchPlaceholder="Search name, ID, role…"
+            sortValue={sortBy}
+            sortOptions={[
+              { value: 'first_name', label: 'Name A–Z' },
+              { value: 'employee_id', label: 'ID' },
+              { value: 'designation', label: 'Role' },
+              { value: 'department', label: 'Department' },
+            ]}
+            onSort={v => setSortBy(v as SortField)}
+            viewMode={viewMode === 'list' ? 'table' : 'grid'}
+            onViewMode={v => setViewMode(v === 'table' ? 'list' : 'grid')}
+            show={sections.expanded.records}
+            onToggle={() => sections.toggle('records')}
+            actions={
+              <button type="button" aria-label="Toggle sort direction"
+                onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}
                 className="h-7 w-7 flex items-center justify-center rounded-lg bg-white/[0.07] hover:bg-white/[0.14] text-white/50 border border-white/12 transition-all">
                 <ArrowUpDown className="h-3.5 w-3.5" />
               </button>
-              <div className="flex rounded-lg border border-white/12 overflow-hidden">
-                <button type="button" title="List view" onClick={() => setViewMode('list')}
-                  className={`h-7 w-7 flex items-center justify-center transition-all ${viewMode === 'list' ? 'bg-[#86BBD8]/30 text-white' : 'bg-white/[0.05] text-white/50 hover:bg-white/[0.12]'}`}>
-                  <List className="h-3 w-3" />
-                </button>
-                <button type="button" title="Grid view" onClick={() => setViewMode('grid')}
-                  className={`h-7 w-7 flex items-center justify-center border-l border-white/12 transition-all ${viewMode === 'grid' ? 'bg-[#86BBD8]/30 text-white' : 'bg-white/[0.05] text-white/50 hover:bg-white/[0.12]'}`}>
-                  <LayoutGrid className="h-3 w-3" />
-                </button>
-              </div>
-              <button onClick={() => setRecordsPanelMinimized(v => !v)}
-                aria-label={recordsPanelMinimized ? 'Expand records' : 'Collapse records'}
-                className="h-6 w-6 flex items-center justify-center rounded-md bg-white/[0.07] hover:bg-white/[0.15] text-white/50 border border-white/12 transition-all">
-                {recordsPanelMinimized ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />}
-              </button>
-            </div>
-          </div>
+            }
+          />
 
-          {!recordsPanelMinimized && (
+          {sections.expanded.records && (
             <div className="p-4">
               {isLoading ? (
-                <div className="flex justify-center py-12">
-                  <Loader2 className="h-8 w-8 animate-spin text-white/30" />
-                </div>
+                <LoadingPane />
               ) : paged.length === 0 ? (
-                <div className="text-center py-12">
-                  <div className="h-16 w-16 rounded-2xl bg-white/[0.05] border border-white/10 flex items-center justify-center mx-auto mb-4">
-                    <Users className="h-8 w-8 text-white/20" />
-                  </div>
-                  <h3 className="text-base font-medium text-white/60 mb-2">
-                    {employees.length === 0 ? 'No employees yet' : 'No results match your filters'}
-                  </h3>
-                  <p className="text-sm text-white/35 mb-6">
-                    {employees.length === 0 ? 'Add your first employee to get started.' : 'Try adjusting your filters.'}
-                  </p>
-                  {employees.length === 0 ? (
-                    <button type="button" onClick={openAdd}
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:-translate-y-0.5"
-                      style={{ background: 'rgba(42,77,105,0.6)', border: '1px solid rgba(134,187,216,0.25)' }}>
-                      <Plus className="h-4 w-4" /> Add Employee
-                    </button>
-                  ) : (
-                    <button type="button" onClick={clearFilters}
-                      className="inline-flex items-center gap-1.5 text-xs px-4 py-2 rounded-lg bg-white/[0.07] hover:bg-white/[0.14] text-white/60 border border-white/12 transition-all">
-                      <FilterX className="h-3.5 w-3.5" /> Clear Filters
-                    </button>
-                  )}
-                </div>
+                employees.length === 0 ? (
+                  <EmptyState icon={Users} title="No employees yet"
+                    message="Add your first employee to get started."
+                    action={{ label: 'Add Employee', onClick: openAdd }} />
+                ) : (
+                  <EmptyState icon={FilterX} title="No results match your filters"
+                    message="Try adjusting your search or filters."
+                    action={{ label: 'Clear Filters', onClick: clearFilters }} />
+                )
               ) : viewMode === 'list' ? (
                 <div className="rounded-xl overflow-hidden border border-white/[0.07]">
                   {paged.map(e => <EmployeeRow key={e.id} employee={e} onEdit={openEdit} onDelete={onDelete} />)}

@@ -2,6 +2,7 @@
 'use client';
 
 import { PageShell } from '@/components/PageShell';
+import { GLASS_INPUT as glassInput, GLASS_LABEL as glassLabel, formatCurrency, formatCurrencyShort, nowLocal, fmtDateTime as formatDateTime, usePageCollapse, MasterCollapseButton } from '@/components/shared';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   PackageMinus, Search, Plus, Trash2, RefreshCw, ChevronRight,
@@ -20,32 +21,6 @@ import {
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const uid = () => Math.random().toString(36).slice(2);
 
-const glassInput = 'w-full px-3 py-2 text-sm rounded-lg bg-white/[0.07] border border-white/12 text-white placeholder:text-white/30 focus:outline-none focus:border-white/30 focus:bg-white/[0.11] transition-all';
-const glassLabel = 'text-xs font-medium text-white/55 mb-1 block';
-
-const formatCurrency = (n: number) =>
-  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(n || 0);
-
-const formatCurrencyShort = (n: number) => {
-  if (n >= 1000000) return `$${(n / 1000000).toFixed(1)}M`;
-  if (n >= 1000) return `$${(n / 1000).toFixed(1)}K`;
-  return `$${n.toFixed(0)}`;
-};
-
-const formatDateTime = (s: string) => {
-  try {
-    return new Date(s).toLocaleString('en-GB', {
-      day: '2-digit', month: 'short', year: 'numeric',
-      hour: '2-digit', minute: '2-digit',
-    });
-  } catch { return s; }
-};
-
-const nowLocal = () => {
-  const d = new Date();
-  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-  return d.toISOString().slice(0, 16);
-};
 
 // ─── INTERFACES ───────────────────────────────────────────────────────────────
 
@@ -437,6 +412,7 @@ function StatCard({ label, value, sub, color = '#86BBD8', trend }:
 // ─── MAIN PAGE ────────────────────────────────────────────────────────────────
 
 export default function IssuesPage() {
+  const sections = usePageCollapse({ stats: true, records: true });
   // Data
   const [issues, setIssues] = useState<StockIssue[]>([]);
   const [serverStats, setServerStats] = useState<Stats>({ total: 0, today: 0, this_week: 0, unique_recipients: 0 });
@@ -446,7 +422,6 @@ export default function IssuesPage() {
   const [submitting, setSubmitting] = useState(false);
 
   // UI state
-  const [showHeroStats, setShowHeroStats] = useState(true);
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
   const [logTab, setLogTab] = useState<'log' | 'analytics'>('log');
 
@@ -627,14 +602,15 @@ export default function IssuesPage() {
                 className="h-8 w-8 flex items-center justify-center rounded-lg bg-white/[0.07] hover:bg-white/[0.15] border border-white/12 text-white/50 transition-all disabled:opacity-40">
                 <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
               </button>
-              <button title={showHeroStats ? 'Hide stats' : 'Show stats'} onClick={() => setShowHeroStats(v => !v)}
+              <button title={sections.expanded.stats ? 'Hide stats' : 'Show stats'} onClick={() => sections.toggle('stats')}
                 className="h-8 w-8 flex items-center justify-center rounded-lg bg-white/[0.07] hover:bg-white/[0.15] border border-white/12 text-white/50 transition-all">
-                {showHeroStats ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                {sections.expanded.stats ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
               </button>
+              <MasterCollapseButton collapse={sections} />
             </div>
           </div>
 
-          {showHeroStats && (
+          {sections.expanded.stats && (
             <div className="px-6 pb-4 pt-3 border-t border-white/[0.07] grid grid-cols-2 sm:grid-cols-5 gap-3">
               {[
                 { label: 'Total Records', value: serverStats.total, color: '#86BBD8' },
@@ -652,6 +628,7 @@ export default function IssuesPage() {
           )}
         </div>
 
+        {sections.expanded.records && <>
         {/* ─ PANEL 2: RECORD NEW ISSUE ─────────────────────────────────── */}
         <div className="oz-glass-panel rounded-2xl overflow-hidden">
           <div className="px-5 py-3 border-b border-white/[0.07] flex items-center gap-2">
@@ -1100,6 +1077,7 @@ export default function IssuesPage() {
             </div>
           )}
         </div>
+        </>}
       </main>
     </PageShell>
   );

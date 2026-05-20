@@ -14,6 +14,7 @@ import {
   SafetyModal, FormField, ModalActions,
   SafetyTable, RowActions, AddButton, LoadingState, EmptyState, TabBar
 } from '@/components/safety';
+import { usePageCollapse, MasterCollapseButton } from '@/components/shared';
 
 // =============== TYPES ===============
 type SectionType = 'Mechanical' | 'Electrical';
@@ -722,6 +723,7 @@ const PTOFormModal: React.FC<{ open: boolean; editing: PTOReport | null; onClose
 
 // =============== MAIN PAGE ===============
 export default function CompletePTOFormPage() {
+  const sections = usePageCollapse({ stats: true, records: true });
   const [reports, setReports] = useState<PTOReport[]>([]);
   const [loading, setLoading] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
@@ -854,8 +856,10 @@ export default function CompletePTOFormPage() {
           subtitle="Complete PTO forms with risk assessment and action tracking."
           accentColor="#60a5fa"
           stats={heroStats}
+          showStats={sections.expanded.stats} onToggleStats={() => sections.toggle('stats')}
           actions={
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <MasterCollapseButton collapse={sections} />
               <button onClick={loadData} title="Refresh"
                 style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 8, padding: '7px 10px', cursor: 'pointer', color: 'rgba(255,255,255,0.7)' }}>
                 <RefreshCw size={15} />
@@ -873,6 +877,7 @@ export default function CompletePTOFormPage() {
           }
         />
 
+        {sections.expanded.records && <>
         <SafetyControls>
           <SafetySearchBar value={search} onChange={setSearch} placeholder="Search by observer, worker, task..." />
           <FilterPills label="Section" value={sectionFilter} onChange={setSectionFilter}
@@ -929,6 +934,7 @@ export default function CompletePTOFormPage() {
             })}
           </SafetyTable>
         )}
+        </>}
 
         <PTODetailModal
           report={selectedReport}

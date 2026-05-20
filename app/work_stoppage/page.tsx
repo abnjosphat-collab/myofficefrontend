@@ -19,6 +19,7 @@ import {
   SafetyPanel, SafetyTable, SafetyModal, FormField, ModalActions,
   RowActions, TabBar, AddButton,
 } from '@/components/safety';
+import { usePageCollapse, MasterCollapseButton } from '@/components/shared';
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
@@ -641,6 +642,7 @@ function ReportCard({
 // ─── MAIN PAGE ────────────────────────────────────────────────────────────────
 
 export default function WorkStoppagePage() {
+  const sections = usePageCollapse({ stats: true, records: true });
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [reports, setReports] = useState<WorkStoppageReport[]>([]);
@@ -755,9 +757,11 @@ export default function WorkStoppagePage() {
             { label: 'General', value: stats.general, color: '#a78bfa' },
           ]}
           onRefresh={() => load(true)} refreshing={refreshing}
-          actions={<AddButton label="Issue Stoppage" icon={Octagon} onClick={() => { setEditingReport(null); setFormOpen(true); }} />}
+          showStats={sections.expanded.stats} onToggleStats={() => sections.toggle('stats')}
+          actions={<div style={{ display: 'flex', gap: 8, alignItems: 'center' }}><MasterCollapseButton collapse={sections} /><AddButton label="Issue Stoppage" icon={Octagon} onClick={() => { setEditingReport(null); setFormOpen(true); }} /></div>}
         />
 
+        {sections.expanded.records && <>
         {/* Controls */}
         <SafetyControls>
           <SafetySearchBar value={search} onChange={setSearch}
@@ -898,6 +902,7 @@ export default function WorkStoppagePage() {
             </SafetyTable>
           </SafetyPanel>
         )}
+        </>}
 
         {/* Modals */}
         <ReportFormModal

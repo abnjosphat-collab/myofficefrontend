@@ -1,4 +1,4 @@
-// app/cv-builder/page.jsx
+﻿// app/cv-builder/page.jsx
 'use client';
 
 import { useState, useRef } from 'react';
@@ -103,13 +103,32 @@ import {
   Monitor
 } from 'lucide-react';
 
+// ========== TYPES ==========
+interface PersonalInfo { firstName: string; lastName: string; title: string; summary: string; photo: string | null; }
+interface ContactInfo  { email: string; phone: string; location: string; linkedin: string; portfolio: string; }
+interface Experience   { id: string; company: string; position: string; startDate: string; endDate: string; current: boolean; description: string; }
+interface Education    { id: string; institution: string; degree: string; field: string; startDate: string; endDate: string; current: boolean; gpa: string; }
+interface Skill        { id: string; name: string; level: number; }
+interface Project      { id: string; name: string; description: string; }
+interface CvData {
+  personalInfo: PersonalInfo;
+  contact: ContactInfo;
+  experience: Experience[];
+  education: Education[];
+  skills: Skill[];
+  projects: Project[];
+  certifications: string[];
+  languages: string[];
+}
+interface ExtractedSection { type: string; content: string; }
+
 // ========== UTILITY FUNCTIONS ==========
 const generateUniqueId = () => {
   return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 };
 
 const useToast = () => {
-  const showToast = (title, description, variant = 'default') => {
+  const showToast = (title: string, description: string, variant: string = 'default') => {
     const toast = document.createElement('div');
     toast.className = `fixed top-4 right-4 p-4 rounded-lg shadow-xl z-50 backdrop-blur-sm animate-in slide-in-from-right-4 duration-300 ${
       variant === 'destructive' 
@@ -214,7 +233,7 @@ const TEMPLATES = {
 };
 
 // ========== STUNNING TEMPLATE COMPONENTS ==========
-const TemplateExecutiveVelvet = ({ cvData }) => {
+const TemplateExecutiveVelvet = ({ cvData }: { cvData: CvData }) => {
   const { personalInfo, experience, education, skills, projects, certifications, contact } = cvData;
   
   return (
@@ -286,14 +305,14 @@ const TemplateExecutiveVelvet = ({ cvData }) => {
             <div className="mb-10">
               <h3 className="text-sm font-semibold text-[#F59E0B] uppercase tracking-widest mb-6">Core Competencies</h3>
               <div className="space-y-4">
-                {skills.map((skill, index) => (
+                {skills.map((skill: Skill, index: number) => (
                   <div key={index} className="space-y-2">
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-300">{skill.name}</span>
                       <span className="text-[#F59E0B] font-medium">{skill.level}%</span>
                     </div>
                     <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
-                      <div 
+                      <div
                         className="h-full bg-gradient-to-r from-[#F59E0B] to-[#FBBF24] rounded-full"
                         style={{ width: `${skill.level}%` }}
                       />
@@ -309,7 +328,7 @@ const TemplateExecutiveVelvet = ({ cvData }) => {
             <div className="mb-10">
               <h3 className="text-sm font-semibold text-[#F59E0B] uppercase tracking-widest mb-6">Education</h3>
               <div className="space-y-6">
-                {education.map((edu, index) => (
+                {education.map((edu: Education, index: number) => (
                   <div key={index} className="space-y-1">
                     <h4 className="font-semibold text-white">{edu.degree}</h4>
                     <p className="text-sm text-[#F59E0B]">{edu.institution}</p>
@@ -328,7 +347,7 @@ const TemplateExecutiveVelvet = ({ cvData }) => {
             <div>
               <h3 className="text-sm font-semibold text-[#F59E0B] uppercase tracking-widest mb-6">Certifications</h3>
               <div className="space-y-3">
-                {certifications.map((cert, index) => (
+                {certifications.map((cert: string, index: number) => (
                   <div key={index} className="flex items-center gap-3 text-sm text-gray-300">
                     <div className="w-1.5 h-1.5 rounded-full bg-[#F59E0B]"></div>
                     <span>{cert}</span>
@@ -350,7 +369,7 @@ const TemplateExecutiveVelvet = ({ cvData }) => {
               </div>
               
               <div className="space-y-10">
-                {experience.map((exp, index) => (
+                {experience.map((exp: Experience, index: number) => (
                   <div key={index} className="relative pl-12">
                     <div className="absolute left-0 top-2 w-8 h-8 rounded-full border-4 border-[#0F172A] bg-[#F59E0B] shadow-lg"></div>
                     <div className="pb-8 border-l-2 border-gray-800 pl-8">
@@ -382,7 +401,7 @@ const TemplateExecutiveVelvet = ({ cvData }) => {
               </div>
               
               <div className="grid grid-cols-2 gap-6">
-                {projects.map((project, index) => (
+                {projects.map((project: Project, index: number) => (
                   <div key={index} className="bg-[#1E293B] border border-gray-800 rounded-xl p-6">
                     <h3 className="font-bold text-white mb-3">{project.name}</h3>
                     <p className="text-sm text-gray-300">{project.description}</p>
@@ -397,7 +416,7 @@ const TemplateExecutiveVelvet = ({ cvData }) => {
   );
 };
 
-const TemplateModernSilk = ({ cvData }) => {
+const TemplateModernSilk = ({ cvData }: { cvData: CvData }) => {
   const { personalInfo, experience, education, skills, projects, contact } = cvData;
   
   return (
@@ -460,7 +479,7 @@ const TemplateModernSilk = ({ cvData }) => {
               <div>
                 <h2 className="text-2xl font-bold text-gray-900 mb-8 pb-4 border-b border-blue-200">Work Experience</h2>
                 <div className="space-y-10">
-                  {experience.map((exp, index) => (
+                  {experience.map((exp: Experience, index: number) => (
                     <div key={index} className="group">
                       <div className="flex justify-between items-start mb-4">
                         <div>
@@ -490,7 +509,7 @@ const TemplateModernSilk = ({ cvData }) => {
               <div className="bg-white p-8 rounded-2xl border border-gray-200 shadow-lg">
                 <h3 className="text-xl font-bold text-gray-900 mb-6 pb-3 border-b border-blue-200">Expertise</h3>
                 <div className="space-y-5">
-                  {skills.map((skill, index) => (
+                  {skills.map((skill: Skill, index: number) => (
                     <div key={index}>
                       <div className="flex justify-between mb-1">
                         <span className="text-sm font-medium text-gray-700">{skill.name}</span>
@@ -513,7 +532,7 @@ const TemplateModernSilk = ({ cvData }) => {
               <div className="bg-gradient-to-br from-white to-gray-50 p-8 rounded-2xl border border-gray-200">
                 <h3 className="text-xl font-bold text-gray-900 mb-6 pb-3 border-b border-blue-200">Education</h3>
                 <div className="space-y-6">
-                  {education.map((edu, index) => (
+                  {education.map((edu: Education, index: number) => (
                     <div key={index} className="space-y-2">
                       <h4 className="font-bold text-gray-900">{edu.degree}</h4>
                       <p className="text-blue-600 font-semibold">{edu.institution}</p>
@@ -529,7 +548,7 @@ const TemplateModernSilk = ({ cvData }) => {
               <div className="bg-gradient-to-r from-cyan-50 to-blue-50 p-8 rounded-2xl border border-cyan-100">
                 <h3 className="text-xl font-bold text-gray-900 mb-6">Notable Projects</h3>
                 <div className="space-y-4">
-                  {projects.map((project, index) => (
+                  {projects.map((project: Project, index: number) => (
                     <div key={index} className="space-y-2">
                       <h4 className="font-semibold text-gray-900">{project.name}</h4>
                       <p className="text-sm text-gray-600">{project.description}</p>
@@ -547,9 +566,9 @@ const TemplateModernSilk = ({ cvData }) => {
 
 // ========== IMPROVED TEXT EXTRACTOR ==========
 class TextExtractor {
-  static extractSections(text) {
-    const sections = [];
-    const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+  static extractSections(text: string): ExtractedSection[] {
+    const sections: ExtractedSection[] = [];
+    const lines = text.split('\n').map((line: string) => line.trim()).filter((line: string) => line.length > 0);
     
     const sectionPatterns = {
       contact: /^(contact information|contact details|email|phone|address|location|linkedin|github|portfolio):?$/i,
@@ -639,7 +658,7 @@ class TextExtractor {
     return sections;
   }
   
-  static extractContactInfo(text) {
+  static extractContactInfo(text: string): ContactInfo {
     const contact = {
       email: '',
       phone: '',
@@ -651,7 +670,7 @@ class TextExtractor {
     const emailRegex = /[\w.%+-]+@[\w.-]+\.[a-zA-Z]{2,}/g;
     const emailMatches = text.match(emailRegex);
     if (emailMatches) {
-      const personalEmail = emailMatches.find(email => 
+      const personalEmail = emailMatches.find((email: string) =>
         !email.includes('example.com') && 
         !email.includes('test.com') &&
         email.split('@')[0].length > 1
@@ -722,7 +741,7 @@ class TextExtractor {
 }
 
 // ========== PARSING FUNCTIONS ==========
-const parseExperience = (content) => {
+const parseExperience = (content: string): Experience[] => {
   const experiences = [];
   const lines = content.split('\n');
   
@@ -803,7 +822,7 @@ const parseExperience = (content) => {
   return experiences;
 };
 
-const parseEducation = (content) => {
+const parseEducation = (content: string): Education[] => {
   const educations = [];
   const lines = content.split('\n');
   
@@ -860,7 +879,7 @@ const parseEducation = (content) => {
       }
     }
     
-    if (!matched && collectingInfo && trimmedLine.length > 0) {
+    if (!matched && collectingInfo && trimmedLine.length > 0 && currentEdu) {
       const gpaMatch = trimmedLine.match(/GPA[:]?\s*(\d\.\d\d?)/i);
       if (gpaMatch && !currentEdu.gpa) {
         currentEdu.gpa = gpaMatch[1];
@@ -890,7 +909,7 @@ const parseEducation = (content) => {
   return educations;
 };
 
-const parseSkills = (content) => {
+const parseSkills = (content: string): Skill[] => {
   const skills = [];
   
   const skillLines = content.split(/[,;|•\n\t]+/);
@@ -945,7 +964,7 @@ const parseSkills = (content) => {
   return uniqueSkills.slice(0, 20);
 };
 
-const parseProjects = (content) => {
+const parseProjects = (content: string): Project[] => {
   const projects = [];
   const lines = content.split('\n');
   
@@ -991,9 +1010,9 @@ export default function CVFactory() {
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [isGeneratingWord, setIsGeneratingWord] = useState(false);
   const [uploadedText, setUploadedText] = useState('');
-  const [extractedSections, setExtractedSections] = useState([]);
+  const [extractedSections, setExtractedSections] = useState<ExtractedSection[]>([]);
   
-  const [cvData, setCvData] = useState({
+  const [cvData, setCvData] = useState<CvData>({
     personalInfo: {
       firstName: '',
       lastName: '',
@@ -1019,13 +1038,13 @@ export default function CVFactory() {
   const [editorMode, setEditorMode] = useState('visual');
   const [textEditorContent, setTextEditorContent] = useState('');
   
-  const fileInputRef = useRef(null);
-  const textAreaRef = useRef(null);
-  const printRef = useRef(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const textAreaRef = useRef<HTMLTextAreaElement>(null);
+  const printRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
-  const handleFileUpload = async (event) => {
-    const file = event.target.files[0];
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
     if (!file) return;
 
     setIsProcessing(true);
@@ -1086,16 +1105,16 @@ export default function CVFactory() {
     }
   };
 
-  const readFileAsText = (file) => {
+  const readFileAsText = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onload = (e) => resolve(e.target.result);
+      reader.onload = (e) => resolve((e.target?.result as string) ?? '');
       reader.onerror = (e) => reject(e);
       reader.readAsText(file);
     });
   };
 
-  const extractSection = (sectionType) => {
+  const extractSection = (sectionType: string) => {
     if (!textEditorContent.trim()) {
       toast('No Content', 'Please paste or upload your CV text first', 'destructive');
       return;
@@ -1206,21 +1225,21 @@ export default function CVFactory() {
     toast('Section Extracted', `${sectionType} section added with ${itemCount} items`);
   };
 
-  const updatePersonalInfo = (field, value) => {
+  const updatePersonalInfo = (field: keyof PersonalInfo, value: string) => {
     setCvData(prev => ({
       ...prev,
       personalInfo: { ...prev.personalInfo, [field]: value }
     }));
   };
 
-  const updateContact = (field, value) => {
+  const updateContact = (field: keyof ContactInfo, value: string) => {
     setCvData(prev => ({
       ...prev,
       contact: { ...prev.contact, [field]: value }
     }));
   };
 
-  const updateExperience = (id, field, value) => {
+  const updateExperience = (id: string, field: keyof Experience, value: string | boolean) => {
     setCvData(prev => ({
       ...prev,
       experience: prev.experience.map(exp => 
@@ -1229,7 +1248,7 @@ export default function CVFactory() {
     }));
   };
 
-  const updateEducation = (id, field, value) => {
+  const updateEducation = (id: string, field: keyof Education, value: string | boolean) => {
     setCvData(prev => ({
       ...prev,
       education: prev.education.map(edu => 
@@ -1238,7 +1257,7 @@ export default function CVFactory() {
     }));
   };
 
-  const updateSkill = (id, field, value) => {
+  const updateSkill = (id: string, field: keyof Skill, value: string | number) => {
     setCvData(prev => ({
       ...prev,
       skills: prev.skills.map(skill => 
@@ -1247,7 +1266,7 @@ export default function CVFactory() {
     }));
   };
 
-  const updateProject = (id, field, value) => {
+  const updateProject = (id: string, field: keyof Project, value: string) => {
     setCvData(prev => ({
       ...prev,
       projects: prev.projects.map(project => 
@@ -1321,28 +1340,28 @@ export default function CVFactory() {
     }));
   };
 
-  const removeExperience = (id) => {
+  const removeExperience = (id: string) => {
     setCvData(prev => ({
       ...prev,
       experience: prev.experience.filter(exp => exp.id !== id)
     }));
   };
 
-  const removeEducation = (id) => {
+  const removeEducation = (id: string) => {
     setCvData(prev => ({
       ...prev,
       education: prev.education.filter(edu => edu.id !== id)
     }));
   };
 
-  const removeSkill = (id) => {
+  const removeSkill = (id: string) => {
     setCvData(prev => ({
       ...prev,
       skills: prev.skills.filter(skill => skill.id !== id)
     }));
   };
 
-  const removeProject = (id) => {
+  const removeProject = (id: string) => {
     setCvData(prev => ({
       ...prev,
       projects: prev.projects.filter(project => project.id !== id)
@@ -1356,7 +1375,8 @@ export default function CVFactory() {
       const html2canvas = (await import('html2canvas')).default;
       
       const element = printRef.current;
-      
+      if (!element) return;
+
       const canvas = await html2canvas(element, {
         scale: 3,
         useCORS: true,
@@ -1404,7 +1424,7 @@ export default function CVFactory() {
   const downloadWord = async () => {
     setIsGeneratingWord(true);
     try {
-      const template = TEMPLATES[activeTemplate];
+      const template = TEMPLATES[activeTemplate as keyof typeof TEMPLATES];
       
       const wordHTML = `
 <!DOCTYPE html>
@@ -1549,11 +1569,11 @@ export default function CVFactory() {
       professional_oak: TemplateExecutiveVelvet
     };
     
-    const TemplateComponent = templates[activeTemplate] || TemplateExecutiveVelvet;
+    const TemplateComponent = templates[activeTemplate as keyof typeof templates] || TemplateExecutiveVelvet;
     return <TemplateComponent cvData={cvData} />;
   };
 
-  const renderTemplateCard = (template) => (
+  const renderTemplateCard = (template: typeof TEMPLATES[keyof typeof TEMPLATES]) => (
     <div
       key={template.id}
       className={`relative overflow-hidden rounded-2xl border-2 transition-all duration-300 cursor-pointer group ${
@@ -1580,8 +1600,8 @@ export default function CVFactory() {
             <div
               key={i}
               className="w-8 h-8 rounded-lg border"
-              style={{ backgroundColor: color }}
-              title={color}
+              style={{ backgroundColor: color as string }}
+              title={color as string}
             />
           ))}
         </div>

@@ -167,7 +167,7 @@ const NAV_GROUPS = [
       { icon: PackageOpen,    title: 'Spares',        href: '/spares',        desc: 'Spare parts stock' },
       { icon: PackageMinus,   title: 'Issues',        href: '/issues',        desc: 'Goods issued to staff' },
       { icon: Fan,            title: 'Compressors',   href: '/compressors',   desc: 'Compressor monitoring' },
-      { icon: Clock,          title: 'Standby',       href: '/standby',       desc: 'On-call schedules' },
+      { icon: Clock,          title: 'Shifts',         href: '/shifts',        desc: 'Shift cycles & standby' },
       { icon: CalendarDays,   title: 'Schedules',     href: '/schedules',     desc: 'Task scheduling' },
       { icon: ClipboardPlus,  title: 'Requisitions',  href: '/requisitions',  desc: 'Purchase requests' },
     ],
@@ -381,37 +381,40 @@ export function Header(_legacyProps?: LegacyHeaderProps) {
 
         {/* Mobile menu */}
         {mobileOpen && (
-          <div className="lg:hidden border-t border-white/10 py-3 space-y-1 pb-4">
+          <div className="lg:hidden border-t border-white/10 pb-4">
+            {/* Home link */}
             <Link
               href="/"
-              className="block px-3 py-2 text-sm text-white/85 hover:text-white hover:bg-white/10 rounded-lg font-medium"
+              className="flex items-center min-h-[44px] px-4 text-sm text-white/85 hover:text-white hover:bg-white/10 font-medium transition-colors"
               onClick={() => setMobileOpen(false)}
             >
               Home
             </Link>
+
+            {/* Nav groups */}
             {NAV_GROUPS.map(group => (
-              <div key={group.label}>
+              <div key={group.label} className="border-t border-white/[0.06]">
                 <button
                   type="button"
-                  className="w-full flex items-center justify-between px-3 py-2 text-sm text-white/85 hover:text-white hover:bg-white/10 rounded-lg font-medium"
+                  className="w-full flex items-center justify-between min-h-[44px] px-4 text-sm text-white/85 hover:text-white hover:bg-white/10 font-medium transition-colors"
                   onClick={() => setMobileGroup(mobileGroup === group.label ? null : group.label)}
                 >
                   {group.label}
                   <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${mobileGroup === group.label ? 'rotate-180' : ''}`} />
                 </button>
                 {mobileGroup === group.label && (
-                  <div className="pl-4 mt-1 space-y-0.5">
+                  <div className="bg-black/20">
                     {group.items.map(item => {
                       const Icon = item.icon;
                       return (
                         <Link
                           key={item.href}
                           href={item.href}
-                          className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/10 rounded-lg transition-all"
+                          className="flex items-center gap-3 min-h-[44px] pl-8 pr-4 text-sm text-white/65 hover:text-white hover:bg-white/10 transition-colors"
                           onClick={() => setMobileOpen(false)}
                         >
-                          <Icon className="h-4 w-4" />
-                          {item.title}
+                          <Icon className="h-4 w-4 shrink-0 text-[#86BBD8]/70" />
+                          <span>{item.title}</span>
                         </Link>
                       );
                     })}
@@ -421,24 +424,24 @@ export function Header(_legacyProps?: LegacyHeaderProps) {
             ))}
 
             {/* Mobile auth */}
-            <div className="pt-3 mt-3 border-t border-white/10">
+            <div className="pt-3 mt-1 border-t border-white/10 px-4">
               {isLoggedIn ? (
-                <div className="px-3 flex items-center justify-between">
+                <div className="flex items-center justify-between min-h-[44px]">
                   <div className="flex items-center gap-2">
-                    <Avatar className="h-7 w-7">
+                    <Avatar className="h-8 w-8">
                       <AvatarFallback className="bg-[#86BBD8] text-[#1e3a52] text-xs font-bold">{initials}</AvatarFallback>
                     </Avatar>
                     <span className="text-sm text-white">{user?.name}</span>
                   </div>
-                  <Button onClick={handleLogout} variant="ghost" size="sm" className="text-white/70 hover:text-white gap-1.5">
+                  <Button onClick={handleLogout} variant="ghost" size="sm" className="text-white/70 hover:text-white gap-1.5 h-10">
                     <LogOut className="h-4 w-4" /> Sign Out
                   </Button>
                 </div>
               ) : (
-                <div className="flex gap-2 px-3">
+                <div className="flex gap-3 pt-1">
                   <Dialog>
                     <DialogTrigger asChild>
-                      <Button variant="outline" size="sm" className="flex-1 border-white/20 text-white bg-white/10 hover:bg-white/20">
+                      <Button variant="outline" className="flex-1 h-11 border-white/20 text-white bg-white/10 hover:bg-white/20 font-medium">
                         Sign In
                       </Button>
                     </DialogTrigger>
@@ -448,7 +451,7 @@ export function Header(_legacyProps?: LegacyHeaderProps) {
                   </Dialog>
                   <Dialog>
                     <DialogTrigger asChild>
-                      <Button size="sm" className="flex-1 bg-[#86BBD8] hover:bg-[#78afc9] text-[#1e3a52] font-semibold">
+                      <Button className="flex-1 h-11 bg-[#86BBD8] hover:bg-[#78afc9] text-[#1e3a52] font-semibold">
                         Get Started
                       </Button>
                     </DialogTrigger>

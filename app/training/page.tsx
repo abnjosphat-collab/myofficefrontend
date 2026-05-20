@@ -1,4 +1,4 @@
-// Training.jsx - API Integrated Component for Training & Certification (Aligned with React Naming Convention)
+﻿// Training.jsx - API Integrated Component for Training & Certification (Aligned with React Naming Convention)
 
 
 'use client';
@@ -8,15 +8,36 @@ import {
     Search, X, Plus, Trash2, BookOpen, Download, UploadCloud, Loader2, ChevronRight
 } from 'lucide-react';
 import { PageShell } from '@/components/PageShell';
+import { fmtDate as formatDate } from '@/components/shared';
+
+interface Certification {
+  id: number | string;
+  employee_name: string;
+  employee_id: string;
+  department: string;
+  certification_name: string;
+  expiry_date: string;
+  required_refresher: string;
+  status: string;
+  certificate_url?: string;
+}
+
+interface RefresherItem {
+  refresher: string;
+  employees_due: number;
+}
 
 // --- Configuration ---
 const API_BASE_URL = 'http://localhost:8000/api/training'; 
 
 // --- Utility Components (ShadCN/UI Style) ---
-const Card = ({ children, className = '' }) => (<div className={`bg-white rounded-xl shadow-lg border border-slate-100/70 transition-all ${className}`}>{children}</div>);
-const CardHeader = ({ children, className = '' }) => (<div className={`p-4 border-b border-slate-100 ${className}`}>{children}</div>);
-const CardContent = ({ children, className = '' }) => (<div className={`p-4 ${className}`}>{children}</div>);
-const Button = ({ children, variant = 'primary', className = '', onClick, disabled = false, type = 'button' }) => {
+const Card = ({ children, className = '' }: { children: React.ReactNode; className?: string }) => (<div className={`bg-white rounded-xl shadow-lg border border-slate-100/70 transition-all ${className}`}>{children}</div>);
+const CardHeader = ({ children, className = '' }: { children: React.ReactNode; className?: string }) => (<div className={`p-4 border-b border-slate-100 ${className}`}>{children}</div>);
+const CardContent = ({ children, className = '' }: { children: React.ReactNode; className?: string }) => (<div className={`p-4 ${className}`}>{children}</div>);
+const Button = ({ children, variant = 'primary', className = '', onClick, disabled = false, type = 'button', title }: {
+    children: React.ReactNode; variant?: string; className?: string;
+    onClick?: () => void; disabled?: boolean; type?: 'button' | 'submit' | 'reset'; title?: string;
+}) => {
     let baseStyle = 'px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 flex items-center justify-center gap-2';
     switch (variant) {
         case 'primary': baseStyle += ' bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-500/30'; break;
@@ -25,10 +46,13 @@ const Button = ({ children, variant = 'primary', className = '', onClick, disabl
         case 'destructive': baseStyle += ' bg-red-600 text-white hover:bg-red-700'; break;
         default: baseStyle += ' bg-slate-200 text-slate-800 hover:bg-slate-300';
     }
-    return <button type={type} className={`${baseStyle} ${className} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`} onClick={onClick} disabled={disabled}>{children}</button>;
+    return <button type={type} title={title} className={`${baseStyle} ${className} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`} onClick={onClick} disabled={disabled}>{children}</button>;
 };
 
-const Input = ({ placeholder, value, onChange, type = 'text', className = '', required = false, name = '' }) => 
+const Input = ({ placeholder, value, onChange, type = 'text', className = '', required = false, name = '' }: {
+    placeholder?: string; value: string; onChange: React.ChangeEventHandler<HTMLInputElement>;
+    type?: string; className?: string; required?: boolean; name?: string;
+}) =>
     <input 
         className={`w-full p-2.5 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors ${className}`} 
         placeholder={placeholder} 
@@ -39,9 +63,11 @@ const Input = ({ placeholder, value, onChange, type = 'text', className = '', re
         name={name}
     />;
 
-const Badge = ({ children, className = '' }) => (<span className={`px-3 py-1 text-xs rounded-full font-medium ${className}`}>{children}</span>);
+const Badge = ({ children, className = '' }: { children: React.ReactNode; className?: string }) => (<span className={`px-3 py-1 text-xs rounded-full font-medium ${className}`}>{children}</span>);
 
-const AlertStatCard = ({ icon: Icon, title, value, colorClass, gradient }) => (
+const AlertStatCard = ({ icon: Icon, title, value, colorClass, gradient }: {
+    icon: React.ElementType; title: string; value: string | number; colorClass: string; gradient: string;
+}) => (
     <Card className={`p-6 overflow-hidden relative ring-1 ring-slate-100 transition-shadow duration-300 hover:shadow-xl`}>
         <div className={`absolute inset-y-0 left-0 w-1 ${gradient}`}></div>
         <div className="flex justify-between items-center mb-3">
@@ -52,13 +78,8 @@ const AlertStatCard = ({ icon: Icon, title, value, colorClass, gradient }) => (
     </Card>
 );
 
-const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    // Format YYYY-MM-DD string to user-friendly date
-    return new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-};
 
-const getStatusStyle = (status) => {
+const getStatusStyle = (status: string) => {
     switch (status) {
         case 'Expired': return 'bg-red-500/10 text-red-600 border border-red-300';
         case 'Due Soon': return 'bg-yellow-500/10 text-yellow-600 border border-yellow-300';
@@ -68,28 +89,32 @@ const getStatusStyle = (status) => {
 };
 
 // --- Add/Edit Modal Component ---
-const AddCertModal = ({ isOpen, onClose, onSave, departments, isSaving }) => {
+const AddCertModal = ({ isOpen, onClose, onSave, departments, isSaving }: {
+    isOpen: boolean; onClose: () => void; onSave: (data: globalThis.FormData) => void;
+    departments: string[]; isSaving: boolean;
+}) => {
     const [formData, setFormData] = useState({
         employee_id: '', employee_name: '', department: departments[0] || '',
-        certification_name: '', expiry_date: '', required_refresher: '', certificate_file: null
+        certification_name: '', expiry_date: '', required_refresher: '', certificate_file: null as File | null
     });
 
-    const handleChange = (e) => {
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
-    const handleFileChange = (e) => {
-        setFormData(prev => ({ ...prev, certificate_file: e.target.files[0] }));
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setFormData(prev => ({ ...prev, certificate_file: e.target.files?.[0] ?? null }));
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         const data = new FormData();
         // Append all form fields
         Object.keys(formData).forEach(key => {
-            if (key !== 'certificate_file' && formData[key]) {
-                data.append(key, formData[key]);
+            const val = (formData as Record<string, unknown>)[key];
+            if (key !== 'certificate_file' && val) {
+                data.append(key, val as string);
             }
         });
         // Append the file separately
@@ -154,11 +179,11 @@ const AddCertModal = ({ isOpen, onClose, onSave, departments, isSaving }) => {
 
 // --- Main Component ---
 export default function Training() { // Renamed to Training
-    const [certifications, setCertifications] = useState([]);
+    const [certifications, setCertifications] = useState<Certification[]>([]);
     const [loading, setLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
-    const [apiError, setApiError] = useState(null);
-    const [complianceData, setComplianceData] = useState({ rate: 0, expired: 0, dueSoon: 0, refreshers: [] });
+    const [apiError, setApiError] = useState<string | null>(null);
+    const [complianceData, setComplianceData] = useState<{ rate: number; expired: number; dueSoon: number; refreshers: RefresherItem[] }>({ rate: 0, expired: 0, dueSoon: 0, refreshers: [] });
     
     const [searchTerm, setSearchTerm] = useState('');
     const [filterStatus, setFilterStatus] = useState('All');
@@ -178,7 +203,7 @@ export default function Training() { // Renamed to Training
                  throw new Error("Failed to fetch all data from API.");
             }
 
-            const certsData = await certsResponse.json();
+            const certsData: Certification[] = await certsResponse.json();
             const rateData = await rateResponse.json();
             const refreshersData = await refreshersResponse.json();
             
@@ -206,7 +231,7 @@ export default function Training() { // Renamed to Training
     }, []);
 
     // --- Handlers ---
-    const handleSaveCertificate = async (formData) => {
+    const handleSaveCertificate = async (formData: globalThis.FormData) => {
         setIsSaving(true);
         setApiError(null);
         try {
@@ -227,13 +252,13 @@ export default function Training() { // Renamed to Training
             setIsModalOpen(false);
         } catch (e) {
             console.error("Save Error:", e);
-            setApiError(`Failed to save record: ${e.message}.`);
+            setApiError(`Failed to save record: ${(e as Error).message}.`);
         } finally {
             setIsSaving(false);
         }
     };
 
-    const handleDeleteCertificate = async (id) => {
+    const handleDeleteCertificate = async (id: number | string) => {
         if (!window.confirm("Are you sure you want to delete this record? This cannot be undone.")) return;
         
         try {
@@ -250,7 +275,7 @@ export default function Training() { // Renamed to Training
 
         } catch (e) {
             console.error("Delete Error:", e);
-            setApiError(`Failed to delete record: ${e.message}.`);
+            setApiError(`Failed to delete record: ${(e as Error).message}.`);
         }
     };
 
@@ -270,8 +295,8 @@ export default function Training() { // Renamed to Training
                 cert.certification_name.toLowerCase().includes(searchTerm.toLowerCase())
             )
             .sort((a, b) => {
-                const order = { 'Expired': 3, 'Due Soon': 2, 'Valid': 1 };
-                return order[b.status] - order[a.status];
+                const order: Record<string, number> = { 'Expired': 3, 'Due Soon': 2, 'Valid': 1 };
+                return (order[b.status] ?? 0) - (order[a.status] ?? 0);
             });
     }, [certifications, filterStatus, filterDept, searchTerm]);
     

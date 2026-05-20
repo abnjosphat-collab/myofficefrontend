@@ -3,10 +3,11 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   Shield, RefreshCw, TrendingUp, TrendingDown, AlertTriangle, CheckCircle,
-  Target, Eye, ClipboardList, Ban, ExternalLink, ChevronRight, MessageSquare,
+  Target, Eye, ClipboardList, ClipboardCheck, Ban, ExternalLink, ChevronRight, MessageSquare,
   Activity, FileSearch, BarChart3, ChevronsDown, ChevronsUp, Calendar,
   Clock, Zap, Bell, ChevronDown, ChevronUp,
 } from 'lucide-react';
+import { usePageCollapse, MasterCollapseButton } from '@/components/shared';
 import Link from 'next/link';
 import { PageShell } from '@/components/PageShell';
 import { toast } from 'sonner';
@@ -18,6 +19,7 @@ const C = {
   ws:   '#f43f5e',   // rose   — Work Stoppage
   vfl:  '#10b981',   // emerald— VFL
   pto:  '#818cf8',   // indigo — PTO
+  insp: '#06b6d4',   // cyan   — SHEQ Inspections
   done: '#34d399',   // green  — completed
   prog: '#60a5fa',   // blue   — in progress
   pend: '#fbbf24',   // yellow — pending
@@ -32,20 +34,21 @@ interface DonutSegment { value: number; color: string; label?: string; }
 
 interface MonthBucket { label: string; year: number; month: number; count: number; }
 
-interface NMStats  { total: number; open: number; closed: number; high: number; }
-interface WSStats  { total: number; actDone: number; actPend: number; actProg: number; actTotal: number; }
-interface VFLStats { total: number; safe: number; unsafe: number; draft: number; submitted: number; closed: number; actDone: number; actPend: number; actProg: number; actTotal: number; }
-interface PTOStats { total: number; highRisk: number; initial: number; followup: number; actDone: number; actPend: number; actProg: number; actTotal: number; }
-interface Totals   { totalReports: number; totalActions: number; totalActionsDone: number; totalActionsProg: number; totalActionsPend: number; }
+interface NMStats   { total: number; open: number; closed: number; high: number; }
+interface WSStats   { total: number; actDone: number; actPend: number; actProg: number; actTotal: number; }
+interface VFLStats  { total: number; safe: number; unsafe: number; draft: number; submitted: number; closed: number; actDone: number; actPend: number; actProg: number; actTotal: number; }
+interface PTOStats  { total: number; highRisk: number; initial: number; followup: number; actDone: number; actPend: number; actProg: number; actTotal: number; }
+interface InspStats { total: number; draft: number; submitted: number; approved: number; rejected: number; openFindings: number; closedFindings: number; criticalFindings: number; overdueFindings: number; }
+interface Totals    { totalReports: number; totalActions: number; totalActionsDone: number; totalActionsProg: number; totalActionsPend: number; }
 
 interface ComputedStats {
-  nm: NMStats; ws: WSStats; vfl: VFLStats; pto: PTOStats;
+  nm: NMStats; ws: WSStats; vfl: VFLStats; pto: PTOStats; insp: InspStats;
   totals: Totals; safetyScore: number;
   months: MonthBucket[];
-  moduleMonthly: { nm: number[]; ws: number[]; vfl: number[]; pto: number[] };
+  moduleMonthly: { nm: number[]; ws: number[]; vfl: number[]; pto: number[]; insp: number[] };
 }
 
-interface RawData { nm: any[]; ws: any[]; vfl: any[]; pto: any[]; }
+interface RawData { nm: any[]; ws: any[]; vfl: any[]; pto: any[]; insp: any[]; }
 interface Comment  { id: string; text: string; author: string; ts: string; }
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
@@ -101,11 +104,12 @@ async function fetchAllModules(): Promise<RawData> {
     safetyFetch<any[]>('/api/work-stoppage/'),
     safetyFetch<any[]>('/api/vfl/'),
     safetyFetch<any[]>('/api/pto/'),
+    safetyFetch<any[]>('/sheq/'),
   ]);
-  const [nm, ws, vfl, pto] = settled.map(r =>
+  const [nm, ws, vfl, pto, insp] = settled.map(r =>
     r.status === 'fulfilled' && Array.isArray(r.value) ? r.value : []
   );
-  return { nm, ws, vfl, pto };
+  return { nm, ws, vfl, pto, insp };
 }
 
 // ─── STATS COMPUTATION ────────────────────────────────────────────────────────
@@ -117,10 +121,17 @@ function buildMonthly(items: any[], module: 'nm' | 'ws' | 'vfl' | 'pto', months:
 }
 
 function computeStats(raw: RawData, from: Date | null, to: Date | null): ComputedStats {
-  const nm  = filterByRange(raw.nm,  'nm',  from, to);
-  const ws  = filterByRange(raw.ws,  'ws',  from, to);
-  const vfl = filterByRange(raw.vfl, 'vfl', from, to);
-  const pto = filterByRange(raw.pto, 'pto', from, to);
+  const nm   = filterByRange(raw.nm,   'nm',  from, to);
+  const ws   = filterByRange(raw.ws,   'ws',  from, to);
+  const vfl  = filterByRange(raw.vfl,  'vfl', from, to);
+  const pto  = filterByRange(raw.pto,  'pto', from, to);
+  const insp = (raw.insp || []).filter(r => {
+    const d = r.date ? new Date(r.date) : (r.createdAt ? new Date(r.createdAt) : null);
+    if (!d || isNaN(d.getTime())) return true;
+    if (from && d < from) return false;
+    if (to   && d > to)   return false;
+    return true;
+  });
 
   // Near Miss — API returns no status/priority on some setups; handle gracefully
   const nmTotal  = nm.length;
@@ -157,19 +168,32 @@ function computeStats(raw: RawData, from: Date | null, to: Date | null): Compute
   const ptoActPend  = ptoActions.filter((a: any) => a.status === 'Pending').length;
   const ptoActProg  = ptoActions.filter((a: any) => a.status === 'In Progress').length;
 
+  // SHEQ Inspections
+  const inspTotal          = insp.length;
+  const inspDraft          = insp.filter(r => r.status === 'draft').length;
+  const inspSubmitted      = insp.filter(r => r.status === 'submitted').length;
+  const inspApproved       = insp.filter(r => r.status === 'approved').length;
+  const inspRejected       = insp.filter(r => r.status === 'rejected').length;
+  const allFindings        = insp.flatMap((r: any) => r.findings || []);
+  const inspOpenFindings   = allFindings.filter((f: any) => ['open', 'in-progress'].includes(f.status)).length;
+  const inspClosedFindings = allFindings.filter((f: any) => f.status === 'closed').length;
+  const inspCritical       = allFindings.filter((f: any) => f.priority === 'critical').length;
+  const inspOverdue        = allFindings.filter((f: any) => f.status === 'overdue').length;
+
   // Totals
   const totalActionsPend = wsActPend + vflActPend + ptoActPend;
   const totalActionsProg = wsActProg + vflActProg + ptoActProg;
   const totalActionsDone = wsActDone + vflActDone + ptoActDone;
   const totalActions     = totalActionsPend + totalActionsProg + totalActionsDone;
-  const totalReports     = nmTotal + wsTotal + vflTotal + ptoTotal;
+  const totalReports     = nmTotal + wsTotal + vflTotal + ptoTotal + inspTotal;
 
   // Safety score
-  const nmScore  = nmTotal  ? ((nmClosed || nmTotal - nmOpen) / nmTotal) * 100 : 100;
-  const vflScore = vflTotal ? (vflSafe  / vflTotal) * 100 : 100;
-  const ptoScore = ptoTotal ? ((ptoTotal - ptoHighRisk) / ptoTotal) * 100 : 100;
-  const actScore = totalActions ? (totalActionsDone / totalActions) * 100 : 100;
-  const safetyScore = Math.round((nmScore + vflScore + ptoScore + actScore) / 4);
+  const nmScore   = nmTotal   ? ((nmClosed || nmTotal - nmOpen) / nmTotal) * 100 : 100;
+  const vflScore  = vflTotal  ? (vflSafe  / vflTotal) * 100 : 100;
+  const ptoScore  = ptoTotal  ? ((ptoTotal - ptoHighRisk) / ptoTotal) * 100 : 100;
+  const actScore  = totalActions ? (totalActionsDone / totalActions) * 100 : 100;
+  const inspScore = inspTotal ? (inspApproved / inspTotal) * 100 : 100;
+  const safetyScore = Math.round((nmScore + vflScore + ptoScore + actScore + inspScore) / 5);
 
   // Monthly buckets — driven by selected range
   const now = new Date();
@@ -177,27 +201,36 @@ function computeStats(raw: RawData, from: Date | null, to: Date | null): Compute
     const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
     return { label: d.toLocaleDateString('en-US', { month: 'short' }), year: d.getFullYear(), month: d.getMonth(), count: 0 };
   });
-  [...nm, ...ws, ...vfl, ...pto].forEach(r => {
-    const ds = r.submittedAt || r.created_at || r.date;
+  [...nm, ...ws, ...vfl, ...pto, ...insp].forEach(r => {
+    const ds = r.submittedAt || r.created_at || r.date || r.createdAt;
     if (!ds) return;
     const d = new Date(ds);
     const m = months.find(x => x.year === d.getFullYear() && x.month === d.getMonth());
     if (m) m.count++;
   });
 
+  const inspMonthly = months.map(m => insp.filter(r => {
+    const ds = r.date || r.createdAt || r.created_at;
+    if (!ds) return false;
+    const d = new Date(ds);
+    return d.getFullYear() === m.year && d.getMonth() === m.month;
+  }).length);
+
   return {
-    nm:  { total: nmTotal, open: nmOpen, closed: nmClosed, high: nmHigh },
-    ws:  { total: wsTotal, actDone: wsActDone, actPend: wsActPend, actProg: wsActProg, actTotal: wsActions.length },
-    vfl: { total: vflTotal, safe: vflSafe, unsafe: vflUnsafe, draft: vflDraft, submitted: vflSubmitted, closed: vflClosed, actDone: vflActDone, actPend: vflActPend, actProg: vflActProg, actTotal: vflActions.length },
-    pto: { total: ptoTotal, highRisk: ptoHighRisk, initial: ptoInitial, followup: ptoFollowup, actDone: ptoActDone, actPend: ptoActPend, actProg: ptoActProg, actTotal: ptoActions.length },
+    nm:   { total: nmTotal, open: nmOpen, closed: nmClosed, high: nmHigh },
+    ws:   { total: wsTotal, actDone: wsActDone, actPend: wsActPend, actProg: wsActProg, actTotal: wsActions.length },
+    vfl:  { total: vflTotal, safe: vflSafe, unsafe: vflUnsafe, draft: vflDraft, submitted: vflSubmitted, closed: vflClosed, actDone: vflActDone, actPend: vflActPend, actProg: vflActProg, actTotal: vflActions.length },
+    pto:  { total: ptoTotal, highRisk: ptoHighRisk, initial: ptoInitial, followup: ptoFollowup, actDone: ptoActDone, actPend: ptoActPend, actProg: ptoActProg, actTotal: ptoActions.length },
+    insp: { total: inspTotal, draft: inspDraft, submitted: inspSubmitted, approved: inspApproved, rejected: inspRejected, openFindings: inspOpenFindings, closedFindings: inspClosedFindings, criticalFindings: inspCritical, overdueFindings: inspOverdue },
     totals: { totalReports, totalActions, totalActionsDone, totalActionsProg, totalActionsPend },
     safetyScore,
     months,
     moduleMonthly: {
-      nm:  buildMonthly(nm,  'nm',  months),
-      ws:  buildMonthly(ws,  'ws',  months),
-      vfl: buildMonthly(vfl, 'vfl', months),
-      pto: buildMonthly(pto, 'pto', months),
+      nm:   buildMonthly(nm,  'nm',  months),
+      ws:   buildMonthly(ws,  'ws',  months),
+      vfl:  buildMonthly(vfl, 'vfl', months),
+      pto:  buildMonthly(pto, 'pto', months),
+      insp: inspMonthly,
     },
   };
 }
@@ -363,16 +396,18 @@ function SectionHeader({ icon, title, sub, color = 'rgba(255,255,255,0.42)' }: {
   );
 }
 
-function CollapsibleSection({ title, icon, sub, children, defaultOpen = true, accent = '#60a5fa' }: {
+function CollapsibleSection({ title, icon, sub, children, defaultOpen = true, accent = '#60a5fa', open: controlledOpen, onToggle }: {
   title: string; icon: React.ReactNode; sub?: string; children: React.ReactNode;
-  defaultOpen?: boolean; accent?: string;
+  defaultOpen?: boolean; accent?: string; open?: boolean; onToggle?: () => void;
 }) {
-  const [open, setOpen] = useState(defaultOpen);
+  const [internalOpen, setInternalOpen] = useState(defaultOpen);
+  const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
+  const toggle = onToggle ?? (() => setInternalOpen(o => !o));
   return (
     <Glass style={{ padding: 0, overflow: 'hidden' }}>
       <button
         type="button"
-        onClick={() => setOpen(o => !o)}
+        onClick={toggle}
         style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 24px', background: 'none', border: 'none', cursor: 'pointer', borderBottom: open ? '1px solid rgba(255,255,255,0.07)' : 'none' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{ padding: 7, borderRadius: 9, background: accent + '1e' }}>
@@ -447,11 +482,13 @@ function ModuleCard({ label, href, icon, color, total, donutSegments, miniStats,
 }
 
 // ─── COMMENTS SECTION ────────────────────────────────────────────────────────
-function CommentsSection() {
+function CommentsSection({ open: controlledOpen, onToggle }: { open?: boolean; onToggle?: () => void } = {}) {
   const [comments, setComments] = useState<Comment[]>([]);
   const [text, setText] = useState('');
   const [author, setAuthor] = useState('');
-  const [open, setOpen] = useState(true);
+  const [internalOpen, setInternalOpen] = useState(true);
+  const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
+  const toggle = onToggle ?? (() => setInternalOpen(o => !o));
 
   useEffect(() => {
     try { setComments(JSON.parse(localStorage.getItem('sheq_dash_notes') || '[]') as Comment[]); }
@@ -471,7 +508,7 @@ function CommentsSection() {
 
   return (
     <Glass style={{ padding: 0, overflow: 'hidden' }}>
-      <button type="button" onClick={() => setOpen(o => !o)}
+      <button type="button" onClick={toggle}
         style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 24px', background: 'none', border: 'none', cursor: 'pointer', borderBottom: open ? '1px solid rgba(255,255,255,0.07)' : 'none' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{ padding: 7, borderRadius: 9, background: '#60a5fa1e' }}>
@@ -535,7 +572,8 @@ const QUICK_OPTIONS: { key: QuickRange | 'custom'; label: string }[] = [
 
 // ─── MAIN PAGE ────────────────────────────────────────────────────────────────
 export default function SHEQDashboardPage() {
-  const [raw,         setRaw]         = useState<RawData>({ nm: [], ws: [], vfl: [], pto: [] });
+  const sections = usePageCollapse({ score: true, modules: true, analytics: true, actions: true, notes: true });
+  const [raw,         setRaw]         = useState<RawData>({ nm: [], ws: [], vfl: [], pto: [], insp: [] });
   const [loading,     setLoading]     = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(false);
@@ -586,6 +624,8 @@ export default function SHEQDashboardPage() {
   if (stats.nm.open > 0) alerts.push({ text: `${stats.nm.open} near miss report${stats.nm.open > 1 ? 's' : ''} open / under investigation`, color: C.nm });
   if (stats.pto.highRisk > 0) alerts.push({ text: `${stats.pto.highRisk} PTO observation${stats.pto.highRisk > 1 ? 's' : ''} flagged as high risk`, color: '#f97316' });
   if (totals.totalActionsPend > 5) alerts.push({ text: `${totals.totalActionsPend} corrective actions pending — review required`, color: C.pend });
+  if (stats.insp.criticalFindings > 0) alerts.push({ text: `${stats.insp.criticalFindings} critical inspection finding${stats.insp.criticalFindings > 1 ? 's' : ''} require immediate action`, color: C.high });
+  if (stats.insp.overdueFindings > 0) alerts.push({ text: `${stats.insp.overdueFindings} inspection finding${stats.insp.overdueFindings > 1 ? 's' : ''} are overdue`, color: '#f97316' });
 
   const selectRange = (key: QuickRange | 'custom') => {
     setQuickRange(key);
@@ -619,15 +659,17 @@ export default function SHEQDashboardPage() {
             </div>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', flexShrink: 0 }}>
               {([
-                { href: '/near_miss',     label: 'Near Miss',    color: C.nm  },
-                { href: '/work_stoppage', label: 'Work Stop.',   color: C.ws  },
-                { href: '/vfl',           label: 'VFL',          color: C.vfl },
-                { href: '/pto',           label: 'PTO',          color: C.pto },
+                { href: '/near_miss',       label: 'Near Miss',    color: C.nm   },
+                { href: '/work_stoppage',   label: 'Work Stop.',   color: C.ws   },
+                { href: '/vfl',             label: 'VFL',          color: C.vfl  },
+                { href: '/pto',             label: 'PTO',          color: C.pto  },
+                { href: '/sheq_inspection', label: 'Inspections',  color: C.insp },
               ] as const).map(({ href, label, color }) => (
                 <Link key={href} href={href} style={{ fontSize: 11, color, background: color + '18', padding: '6px 11px', borderRadius: 9, textDecoration: 'none', fontWeight: 700, border: `1px solid ${color}30`, display: 'flex', alignItems: 'center', gap: 4 }}>
                   {label} <ExternalLink size={9} />
                 </Link>
               ))}
+              <MasterCollapseButton collapse={sections} />
               <button type="button" onClick={() => setAutoRefresh(a => !a)}
                 style={{ display: 'flex', alignItems: 'center', gap: 5, background: autoRefresh ? '#10b98118' : 'rgba(255,255,255,0.07)', border: `1px solid ${autoRefresh ? '#10b98144' : 'rgba(255,255,255,0.14)'}`, borderRadius: 9, padding: '7px 12px', cursor: 'pointer', color: autoRefresh ? '#10b981' : 'rgba(255,255,255,0.65)', fontSize: 11, fontWeight: 600 }}>
                 <Zap size={12} /> {autoRefresh ? 'Auto ON' : 'Auto OFF'}
@@ -690,12 +732,13 @@ export default function SHEQDashboardPage() {
             {/* ── KPI ROW ── */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(155px, 1fr))', gap: 12 }}>
               {[
-                { label: 'Total Reports',    value: totals.totalReports,     color: '#60a5fa', icon: <FileSearch size={18} />,     sub: 'All 4 modules' },
-                { label: 'Near Miss',        value: stats.nm.total,          color: C.nm,      icon: <AlertTriangle size={18} />,   sub: `${stats.nm.open || stats.nm.total} active` },
-                { label: 'Work Stoppages',   value: stats.ws.total,          color: C.ws,      icon: <Ban size={18} />,             sub: `${stats.ws.actPend} actions pending` },
-                { label: 'VFL Observations', value: stats.vfl.total,         color: C.vfl,     icon: <Eye size={18} />,             sub: `${stats.vfl.safe} safe, ${stats.vfl.unsafe} unsafe` },
-                { label: 'PTO Reports',      value: stats.pto.total,         color: C.pto,     icon: <ClipboardList size={18} />,   sub: `${stats.pto.highRisk} high risk` },
-                { label: 'Pending Actions',  value: totals.totalActionsPend, color: C.pend,    icon: <Target size={18} />,          sub: `${totals.totalActionsDone} completed` },
+                { label: 'Total Reports',    value: totals.totalReports,        color: '#60a5fa', icon: <FileSearch size={18} />,      sub: 'All 5 modules' },
+                { label: 'Near Miss',        value: stats.nm.total,             color: C.nm,      icon: <AlertTriangle size={18} />,    sub: `${stats.nm.open || stats.nm.total} active` },
+                { label: 'Work Stoppages',   value: stats.ws.total,             color: C.ws,      icon: <Ban size={18} />,              sub: `${stats.ws.actPend} actions pending` },
+                { label: 'VFL Observations', value: stats.vfl.total,            color: C.vfl,     icon: <Eye size={18} />,              sub: `${stats.vfl.safe} safe, ${stats.vfl.unsafe} unsafe` },
+                { label: 'PTO Reports',      value: stats.pto.total,            color: C.pto,     icon: <ClipboardList size={18} />,    sub: `${stats.pto.highRisk} high risk` },
+                { label: 'Inspections',      value: stats.insp.total,           color: C.insp,    icon: <ClipboardCheck size={18} />,   sub: `${stats.insp.openFindings} open findings` },
+                { label: 'Pending Actions',  value: totals.totalActionsPend,    color: C.pend,    icon: <Target size={18} />,           sub: `${totals.totalActionsDone} completed` },
               ].map(({ label, value, color, icon, sub }) => (
                 <div key={label} style={{ background: 'rgba(5,15,28,0.68)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 13, padding: '16px 18px', boxShadow: '0 4px 18px rgba(0,0,0,0.28)', transition: 'border-color 0.2s' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
@@ -712,7 +755,7 @@ export default function SHEQDashboardPage() {
             </div>
 
             {/* ── SCORE + TREND ── */}
-            <CollapsibleSection title="Safety Score &amp; Trends" icon={<Shield size={15} />} sub="Weighted safety score across all modules + monthly activity trend" accent={sc}>
+            <CollapsibleSection title="Safety Score &amp; Trends" icon={<Shield size={15} />} sub="Weighted safety score across all modules + monthly activity trend" accent={sc} {...sections.panel('score')}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 20 }}>
                 {/* Score */}
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -724,10 +767,11 @@ export default function SHEQDashboardPage() {
                     <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.36)', marginTop: 4 }}>Weighted across all modules</div>
                   </div>
                   <div style={{ marginTop: 18, width: '100%' }}>
-                    <ProgBar label="NM Resolution"    value={stats.nm.closed || stats.nm.total}     max={Math.max(stats.nm.total,  1)} color={C.nm}  sub={`${stats.nm.closed || stats.nm.total}/${stats.nm.total}`} />
-                    <ProgBar label="VFL Safe Rate"    value={stats.vfl.safe}                         max={Math.max(stats.vfl.total, 1)} color={C.vfl} sub={`${stats.vfl.safe}/${stats.vfl.total}`} />
-                    <ProgBar label="Action Completion" value={totals.totalActionsDone}               max={Math.max(totals.totalActions, 1)} color={C.prog} sub={`${totals.totalActionsDone}/${totals.totalActions}`} />
-                    <ProgBar label="PTO Low Risk"     value={stats.pto.total - stats.pto.highRisk}   max={Math.max(stats.pto.total, 1)} color={C.pto}  sub={`${stats.pto.total - stats.pto.highRisk}/${stats.pto.total}`} />
+                    <ProgBar label="NM Resolution"      value={stats.nm.closed || stats.nm.total}     max={Math.max(stats.nm.total,  1)} color={C.nm}   sub={`${stats.nm.closed || stats.nm.total}/${stats.nm.total}`} />
+                    <ProgBar label="VFL Safe Rate"      value={stats.vfl.safe}                         max={Math.max(stats.vfl.total, 1)} color={C.vfl}  sub={`${stats.vfl.safe}/${stats.vfl.total}`} />
+                    <ProgBar label="Action Completion"  value={totals.totalActionsDone}               max={Math.max(totals.totalActions, 1)} color={C.prog} sub={`${totals.totalActionsDone}/${totals.totalActions}`} />
+                    <ProgBar label="PTO Low Risk"       value={stats.pto.total - stats.pto.highRisk}   max={Math.max(stats.pto.total, 1)} color={C.pto}   sub={`${stats.pto.total - stats.pto.highRisk}/${stats.pto.total}`} />
+                    <ProgBar label="Insp. Approved"     value={stats.insp.approved}                    max={Math.max(stats.insp.total, 1)} color={C.insp}  sub={`${stats.insp.approved}/${stats.insp.total}`} />
                   </div>
                 </div>
 
@@ -753,12 +797,13 @@ export default function SHEQDashboardPage() {
                   </div>
                   <TrendLineChart data={trendData} labels={trendLabels} color="#60a5fa" height={140} />
                   {/* Per-module sparklines */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginTop: 16 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10, marginTop: 16 }}>
                     {([
-                      { key: 'nm' as const, label: 'Near Miss', color: C.nm },
-                      { key: 'ws' as const, label: 'Work Stop.', color: C.ws },
-                      { key: 'vfl' as const, label: 'VFL', color: C.vfl },
-                      { key: 'pto' as const, label: 'PTO', color: C.pto },
+                      { key: 'nm'   as const, label: 'Near Miss', color: C.nm },
+                      { key: 'ws'   as const, label: 'Work Stop.', color: C.ws },
+                      { key: 'vfl'  as const, label: 'VFL', color: C.vfl },
+                      { key: 'pto'  as const, label: 'PTO', color: C.pto },
+                      { key: 'insp' as const, label: 'Inspections', color: C.insp },
                     ]).map(({ key, label, color }) => {
                       const data = stats.moduleMonthly[key];
                       const tot = data.reduce((a, b) => a + b, 0);
@@ -778,7 +823,7 @@ export default function SHEQDashboardPage() {
             </CollapsibleSection>
 
             {/* ── MODULE CARDS ── */}
-            <CollapsibleSection title="Module Overview" icon={<BarChart3 size={15} />} sub="Live stats per safety module — click a card's Open link to navigate" accent="#818cf8">
+            <CollapsibleSection title="Module Overview" icon={<BarChart3 size={15} />} sub="Live stats per safety module — click a card's Open link to navigate" accent="#818cf8" {...sections.panel('modules')}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 14 }}>
                 <ModuleCard label="Near Miss" href="/near_miss" color={C.nm} icon={<AlertTriangle size={17} />}
                   total={stats.nm.total}
@@ -846,22 +891,43 @@ export default function SHEQDashboardPage() {
                     { label: 'Low Risk',  value: stats.pto.total - stats.pto.highRisk, color: C.pto },
                     { label: 'High Risk', value: stats.pto.highRisk,                   color: C.high },
                   ]} />
+
+                <ModuleCard label="SHEQ Inspections" href="/sheq_inspection" color={C.insp} icon={<ClipboardCheck size={17} />}
+                  total={stats.insp.total}
+                  donutSegments={[
+                    { value: stats.insp.approved,   color: C.safe,  label: 'Approved' },
+                    { value: stats.insp.submitted,  color: C.insp,  label: 'Submitted' },
+                    { value: stats.insp.draft,      color: '#6b7280', label: 'Draft' },
+                    { value: stats.insp.rejected,   color: C.high,  label: 'Rejected' },
+                  ]}
+                  miniStats={[
+                    { label: 'Approved', value: stats.insp.approved,      color: C.safe },
+                    { label: 'Open Fnds', value: stats.insp.openFindings, color: C.nm },
+                    { label: 'Critical',  value: stats.insp.criticalFindings, color: C.high },
+                  ]}
+                  legend={[
+                    { label: 'Approved',  value: stats.insp.approved,  color: C.safe },
+                    { label: 'Submitted', value: stats.insp.submitted, color: C.insp },
+                    { label: 'Draft',     value: stats.insp.draft,     color: '#6b7280' },
+                    { label: 'Rejected',  value: stats.insp.rejected,  color: C.high },
+                  ]} />
               </div>
             </CollapsibleSection>
 
             {/* ── CHARTS ── */}
-            <CollapsibleSection title="Analytics &amp; Visualisations" icon={<Activity size={15} />} sub="Reports by module, action status breakdown and behaviour analysis" accent={C.prog}>
+            <CollapsibleSection title="Analytics &amp; Visualisations" icon={<Activity size={15} />} sub="Reports by module, action status breakdown and behaviour analysis" accent={C.prog} {...sections.panel('analytics')}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18, marginBottom: 18 }}>
                 {/* Reports by Module */}
                 <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 12, padding: '16px 18px' }}>
                   <SectionHeader icon={<BarChart3 size={13} />} title="Reports by Module" sub="Total count per category" />
                   <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 8 }}>
                     <BarChart data={[
-                      { label: 'Near Miss',  value: stats.nm.total,  color: C.nm },
-                      { label: 'Work Stop.', value: stats.ws.total,  color: C.ws },
-                      { label: 'VFL',        value: stats.vfl.total, color: C.vfl },
-                      { label: 'PTO',        value: stats.pto.total, color: C.pto },
-                    ]} height={110} barWidth={48} gap={20} />
+                      { label: 'Near Miss',  value: stats.nm.total,   color: C.nm },
+                      { label: 'Work Stop.', value: stats.ws.total,   color: C.ws },
+                      { label: 'VFL',        value: stats.vfl.total,  color: C.vfl },
+                      { label: 'PTO',        value: stats.pto.total,  color: C.pto },
+                      { label: 'Insp.',      value: stats.insp.total, color: C.insp },
+                    ]} height={110} barWidth={44} gap={16} />
                   </div>
                 </div>
 
@@ -933,7 +999,7 @@ export default function SHEQDashboardPage() {
             </CollapsibleSection>
 
             {/* ── ACTION PROGRESS ── */}
-            <CollapsibleSection title="Action Plan Progress" icon={<CheckCircle size={15} />} sub="Completion rates for corrective actions per module" accent={C.done}>
+            <CollapsibleSection title="Action Plan Progress" icon={<CheckCircle size={15} />} sub="Completion rates for corrective actions per module" accent={C.done} {...sections.panel('actions')}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 20 }}>
                 {[
                   { label: 'Work Stoppage Actions', done: stats.ws.actDone, total: stats.ws.actTotal, color: C.ws },
@@ -959,7 +1025,7 @@ export default function SHEQDashboardPage() {
             </CollapsibleSection>
 
             {/* ── COMMENTS ── */}
-            <CommentsSection />
+            <CommentsSection open={sections.expanded.notes} onToggle={() => sections.toggle('notes')} />
           </>
         )}
 

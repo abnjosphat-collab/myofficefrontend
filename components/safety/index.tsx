@@ -180,41 +180,41 @@ export function SafetyHero({
 }) {
   return (
     <div className="oz-glass-dark rounded-2xl overflow-hidden">
-      <div className="px-6 py-4 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="p-2.5 rounded-xl flex-shrink-0"
+      <div className="px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-2 sm:gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <div className="p-2 sm:p-2.5 rounded-xl flex-shrink-0"
             style={{ background: 'rgba(42,77,105,0.5)', border: `1px solid ${accentColor}30` }}>
-            <Icon className="h-5 w-5" style={{ color: accentColor }} />
+            <Icon className="h-4 w-4 sm:h-5 sm:w-5" style={{ color: accentColor }} />
           </div>
           <div className="min-w-0">
             <nav className="flex items-center gap-1.5 text-xs text-white/40 mb-0.5">
               <span>Home</span>
               <ChevronRight className="h-3 w-3" />
-              <span className="text-white/70 font-medium">{title}</span>
+              <span className="text-white/70 font-medium truncate">{title}</span>
             </nav>
-            <h1 className="text-xl font-bold text-white font-heading tracking-tight">{title}</h1>
-            <p className="text-xs text-white/35 mt-0.5">{subtitle}</p>
+            <h1 className="text-lg sm:text-xl font-bold text-white font-heading tracking-tight truncate">{title}</h1>
+            <p className="text-xs text-white/35 mt-0.5 truncate">{subtitle}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
           {actions}
           {onRefresh && (
             <button type="button" onClick={onRefresh} disabled={refreshing} title="Refresh"
-              className="h-8 w-8 flex items-center justify-center rounded-lg bg-white/[0.07] hover:bg-white/[0.15] border border-white/[0.12] text-white/50 transition-all disabled:opacity-40">
+              className="h-10 w-10 sm:h-8 sm:w-8 flex items-center justify-center rounded-lg bg-white/[0.07] hover:bg-white/[0.15] border border-white/[0.12] text-white/50 transition-all disabled:opacity-40">
               <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
             </button>
           )}
           {onToggleStats && (
             <button type="button" title={showStats ? 'Hide stats' : 'Show stats'}
               onClick={onToggleStats}
-              className="h-8 w-8 flex items-center justify-center rounded-lg bg-white/[0.07] hover:bg-white/[0.15] border border-white/[0.12] text-white/50 transition-all">
+              className="h-10 w-10 sm:h-8 sm:w-8 flex items-center justify-center rounded-lg bg-white/[0.07] hover:bg-white/[0.15] border border-white/[0.12] text-white/50 transition-all">
               {showStats ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
             </button>
           )}
         </div>
       </div>
       {stats && showStats !== false && (
-        <div className={`px-6 pb-4 pt-3 border-t border-white/[0.07] grid gap-3 ${
+        <div className={`px-4 sm:px-6 pb-4 pt-3 border-t border-white/[0.07] grid gap-2 sm:gap-3 ${
           stats.length <= 4 ? 'grid-cols-2 sm:grid-cols-4' :
           stats.length === 5 ? 'grid-cols-2 sm:grid-cols-5' :
           'grid-cols-2 sm:grid-cols-3 lg:grid-cols-6'
@@ -234,7 +234,7 @@ export function SafetyHero({
 export function SafetyControls({ children }: { children: React.ReactNode }) {
   return (
     <div className="oz-glass-panel rounded-2xl overflow-hidden">
-      <div className="px-5 py-3 flex flex-wrap items-center gap-2">
+      <div className="px-4 sm:px-5 py-3 flex flex-wrap items-center gap-2 sm:gap-3">
         {children}
       </div>
     </div>
@@ -250,14 +250,14 @@ export function SafetySearchBar({
   placeholder?: string; className?: string;
 }) {
   return (
-    <div className={`relative flex-1 min-w-48 max-w-72 ${className || ''}`}>
+    <div className={`relative flex-1 min-w-0 sm:min-w-48 sm:max-w-72 ${className || ''}`}>
       <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/30 pointer-events-none" />
       <input type="text" value={value} onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
-        className="pl-8 pr-3 py-1.5 w-full text-xs rounded-lg bg-white/[0.07] border border-white/[0.12] text-white placeholder:text-white/30 focus:outline-none focus:border-white/30 transition-all" />
+        className="pl-8 pr-8 py-2 sm:py-1.5 w-full text-xs rounded-lg bg-white/[0.07] border border-white/[0.12] text-white placeholder:text-white/30 focus:outline-none focus:border-white/30 transition-all" />
       {value && (
         <button type="button" onClick={() => onChange('')}
-          className="absolute right-2 top-1/2 -translate-y-1/2 text-white/25 hover:text-white/60 transition-colors">
+          className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 flex items-center justify-center text-white/25 hover:text-white/60 transition-colors">
           <X className="h-3 w-3" />
         </button>
       )}
@@ -278,7 +278,7 @@ export function FilterPills({
       {label && <span className="text-[10px] text-white/30 uppercase tracking-wider mr-1">{label}</span>}
       {options.map(o => (
         <button key={o.value} type="button" onClick={() => onChange(o.value)}
-          className="h-7 px-2.5 text-[11px] rounded-lg border capitalize transition-all"
+          className="h-9 sm:h-7 px-3 sm:px-2.5 text-[11px] rounded-lg border capitalize transition-all"
           style={value === o.value ? {
             background: `${accentColor}20`, borderColor: `${accentColor}40`,
             color: accentColor,
@@ -530,19 +530,19 @@ export function RowActions({
   editLabel?: string; deleteLabel?: string;
 }) {
   return (
-    <div className="flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
+    <div className="flex items-center justify-end gap-0.5" onClick={e => e.stopPropagation()}>
       {onToggle && (
         <button type="button" title={expanded ? 'Collapse' : 'Expand'}
           onClick={e => { e.stopPropagation(); onToggle(); }}
-          className="h-6 w-6 flex items-center justify-center rounded text-white/25 hover:text-white/70 transition-all">
+          className="h-9 w-9 sm:h-7 sm:w-7 flex items-center justify-center rounded text-white/25 hover:text-white/70 transition-all">
           {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
         </button>
       )}
       {onEdit && (
         <button type="button" title={editLabel}
           onClick={e => { e.stopPropagation(); onEdit(); }}
-          className="h-6 w-6 flex items-center justify-center rounded hover:bg-[#86BBD8]/15 text-white/25 hover:text-[#86BBD8] transition-all">
-          <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+          className="h-9 w-9 sm:h-7 sm:w-7 flex items-center justify-center rounded hover:bg-[#86BBD8]/15 text-white/25 hover:text-[#86BBD8] transition-all">
+          <svg className="h-3.5 w-3.5 sm:h-3 sm:w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
           </svg>
@@ -551,8 +551,8 @@ export function RowActions({
       {onDelete && (
         <button type="button" title={deleteLabel}
           onClick={e => { e.stopPropagation(); onDelete(); }}
-          className="h-6 w-6 flex items-center justify-center rounded hover:bg-rose-500/20 text-white/20 hover:text-rose-400 transition-all">
-          <Trash2 className="h-3 w-3" />
+          className="h-9 w-9 sm:h-7 sm:w-7 flex items-center justify-center rounded hover:bg-rose-500/20 text-white/20 hover:text-rose-400 transition-all">
+          <Trash2 className="h-3.5 w-3.5 sm:h-3 sm:w-3" />
         </button>
       )}
     </div>
@@ -628,7 +628,7 @@ export function AddButton({
 }) {
   return (
     <button type="button" onClick={onClick}
-      className="h-8 px-3 flex items-center gap-1.5 text-xs rounded-xl font-semibold text-white transition-all hover:-translate-y-0.5 flex-shrink-0"
+      className="h-10 sm:h-8 px-4 sm:px-3 flex items-center gap-1.5 text-xs rounded-xl font-semibold text-white transition-all hover:-translate-y-0.5 flex-shrink-0"
       style={{ background: 'linear-gradient(135deg,#2A4D69,#1e3a52)', border: '1px solid rgba(134,187,216,0.3)' }}>
       <Icon className="h-3.5 w-3.5" />
       {label}
@@ -645,15 +645,15 @@ export function DateRangeFilter({
   onFromChange: (v: string) => void; onToChange: (v: string) => void;
 }) {
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       <input type="date" value={from} onChange={e => onFromChange(e.target.value)}
-        title="From date" placeholder="From"
-        className="px-3 py-1.5 text-xs rounded-lg bg-white/[0.07] border border-white/[0.12] text-white focus:outline-none focus:border-white/30 transition-all"
+        title="From date"
+        className="px-3 py-2 sm:py-1.5 text-xs rounded-lg bg-white/[0.07] border border-white/[0.12] text-white focus:outline-none focus:border-white/30 transition-all min-w-0"
         style={{ colorScheme: 'dark' }} />
       <span className="text-white/20 text-xs">to</span>
       <input type="date" value={to} onChange={e => onToChange(e.target.value)}
-        title="To date" placeholder="To"
-        className="px-3 py-1.5 text-xs rounded-lg bg-white/[0.07] border border-white/[0.12] text-white focus:outline-none focus:border-white/30 transition-all"
+        title="To date"
+        className="px-3 py-2 sm:py-1.5 text-xs rounded-lg bg-white/[0.07] border border-white/[0.12] text-white focus:outline-none focus:border-white/30 transition-all min-w-0"
         style={{ colorScheme: 'dark' }} />
     </div>
   );
@@ -664,7 +664,7 @@ export function DateRangeFilter({
 export function ClearFiltersButton({ onClick }: { onClick: () => void }) {
   return (
     <button type="button" onClick={onClick}
-      className="h-7 px-2.5 flex items-center gap-1 text-[11px] rounded-lg bg-white/[0.05] border border-white/10 text-white/40 hover:text-white/60 transition-all">
+      className="h-9 sm:h-7 px-3 sm:px-2.5 flex items-center gap-1 text-[11px] rounded-lg bg-white/[0.05] border border-white/10 text-white/40 hover:text-white/60 transition-all">
       <X className="h-3 w-3" /> Clear
     </button>
   );

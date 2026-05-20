@@ -2,6 +2,7 @@
 'use client';
 
 import { PageShell } from '@/components/PageShell';
+import { GLASS_INPUT as glassInput, GLASS_LABEL as glassLabel, formatCurrency, fmtDate as formatDate, usePageCollapse, MasterCollapseButton } from '@/components/shared';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Package, Search, Plus, Edit, Trash2, Copy, RefreshCw, AlertTriangle,
@@ -97,15 +98,6 @@ interface SortConfig { field: keyof Spare | 'status'; direction: 'asc' | 'desc';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-const formatCurrency = (n: number) =>
-  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(n || 0);
-
-const formatDate = (s?: string | null) => {
-  if (!s) return '—';
-  try { return new Date(s).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }); }
-  catch { return '—'; }
-};
-
 interface StockStatus { label: string; color: string; }
 const getStockStatus = (current: number, min: number): StockStatus => {
   if (current <= 0) return { label: 'Out of Stock', color: '#f43f5e' };
@@ -119,8 +111,6 @@ const PRIORITY_COLOR: Record<string, string> = {
 };
 const PRIORITY_ORDER: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
 
-const glassInput = 'w-full px-3 py-2 text-sm rounded-lg bg-white/[0.07] border border-white/12 text-white placeholder:text-white/30 focus:outline-none focus:border-white/30 focus:bg-white/[0.11] transition-all';
-const glassLabel = 'text-xs font-medium text-white/55 mb-1 block';
 
 const uid = () => Math.random().toString(36).slice(2);
 const PAGE_SIZE = 24;
@@ -769,13 +759,13 @@ const SpareFormDialog = ({ open, onClose, onSave, editData, categories }: {
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
 
 export default function SparesPage() {
+  const sections = usePageCollapse({ stats: true, records: true });
   // Data
   const [spares, setSpares] = useState<Spare[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   // Panels visibility
-  const [showHeroStats, setShowHeroStats] = useState(true);
   const [showCategoryBreakdown, setShowCategoryBreakdown] = useState(true);
   const [showRequisition, setShowRequisition] = useState(false);
   const [filterPanelMinimized, setFilterPanelMinimized] = useState(false);
@@ -1240,12 +1230,13 @@ export default function SparesPage() {
                 style={{ background: 'linear-gradient(135deg, #2A4D69, #1e3a52)', border: '1px solid rgba(134,187,216,0.25)' }}>
                 <Plus className="h-4 w-4" /> Add Spare
               </button>
-              <button title={showHeroStats ? 'Hide stats' : 'Show stats'} onClick={() => setShowHeroStats(v => !v)} className="h-8 w-8 flex items-center justify-center rounded-lg bg-white/[0.07] hover:bg-white/[0.15] border border-white/12 text-white/50 transition-all">
-                {showHeroStats ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+              <button title={sections.expanded.stats ? 'Hide stats' : 'Show stats'} onClick={() => sections.toggle('stats')} className="h-8 w-8 flex items-center justify-center rounded-lg bg-white/[0.07] hover:bg-white/[0.15] border border-white/12 text-white/50 transition-all">
+                {sections.expanded.stats ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
               </button>
+              <MasterCollapseButton collapse={sections} />
             </div>
           </div>
-          {showHeroStats && (
+          {sections.expanded.stats && (
             <div className="px-6 pb-4 pt-3 border-t border-white/[0.07] grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
               {[
                 { label: 'Total Items', value: stats.total, color: '#86BBD8', onClick: clearFilters },
@@ -1265,6 +1256,7 @@ export default function SparesPage() {
           )}
         </div>
 
+        {sections.expanded.records && <>
         {/* ─ PANEL 2: CATEGORY BREAKDOWN ───────────────────────────────── */}
         {categoryBreakdown.length > 0 && (
           <div className="oz-glass-panel rounded-2xl overflow-hidden">
@@ -1819,6 +1811,7 @@ export default function SparesPage() {
             </div>
           )}
         </div>
+        </>}
 
       </main>
 

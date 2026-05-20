@@ -148,14 +148,14 @@ const CATEGORIES: Category[] = [
   },
 ];
 
-// ─── Colour map — 5 harmonious tones (3 blue-family, 1 warm, 1 alert) ─────────
+// ─── Colour map — botanical green palette (steel anchor + 4 greens) ──────────
 
 const COLOR_MAP: Record<ModuleColor, { bg: string; icon: string; border: string }> = {
-  navy:   { bg: 'bg-blue-400/[0.15]',   icon: 'text-blue-300',   border: 'border-blue-400/[0.20]' },
-  sky:    { bg: 'bg-cyan-400/[0.15]',   icon: 'text-cyan-300',   border: 'border-cyan-400/[0.20]' },
-  indigo: { bg: 'bg-violet-400/[0.15]', icon: 'text-violet-300', border: 'border-violet-400/[0.20]' },
-  amber:  { bg: 'bg-amber-400/[0.15]',  icon: 'text-amber-300',  border: 'border-amber-400/[0.20]' },
-  rose:   { bg: 'bg-rose-400/[0.15]',   icon: 'text-rose-300',   border: 'border-rose-400/[0.20]' },
+  navy:   { bg: 'bg-[#86BBD8]/[0.16]',    icon: 'text-[#86BBD8]',    border: 'border-[#86BBD8]/[0.26]'    },
+  sky:    { bg: 'bg-teal-400/[0.14]',      icon: 'text-teal-300',     border: 'border-teal-400/[0.22]'     },
+  indigo: { bg: 'bg-emerald-500/[0.15]',   icon: 'text-emerald-400',  border: 'border-emerald-500/[0.24]'  },
+  amber:  { bg: 'bg-green-400/[0.14]',     icon: 'text-green-300',    border: 'border-green-400/[0.22]'    },
+  rose:   { bg: 'bg-emerald-300/[0.14]',   icon: 'text-emerald-300',  border: 'border-emerald-300/[0.22]'  },
 };
 
 // ─── Module Card ──────────────────────────────────────────────────────────────
@@ -226,8 +226,8 @@ function CategorySection({ category, expanded, onToggle }: {
 
       <div className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${expanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
         <div className="overflow-hidden">
-          <div className="px-5 pb-5 pt-1 bg-white/[0.03]">
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2.5 mt-3">
+          <div className="px-3 sm:px-5 pb-4 sm:pb-5 pt-1 bg-white/[0.03]">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-2.5 mt-3">
               {category.modules.map((module, idx) => (
                 <ModuleCard key={module.href} module={module} index={idx} />
               ))}
@@ -370,13 +370,13 @@ export default function HomePage() {
                 type="search"
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                placeholder={`Search ${totalModules} modules — try 'leaves', 'maintenance', 'PPE'…`}
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm text-[#2A4D69] placeholder-[#9AABB8] bg-white shadow-md border-0 outline-none focus:ring-2 focus:ring-[#86BBD8]/60"
+                placeholder={`Search ${totalModules} modules…`}
+                className="w-full pl-10 pr-4 py-3 sm:py-2.5 rounded-xl text-sm text-[#2A4D69] placeholder-[#9AABB8] bg-white shadow-md border-0 outline-none focus:ring-2 focus:ring-[#86BBD8]/60"
               />
             </div>
 
             {/* Quick links */}
-            <div className="flex flex-wrap justify-center gap-1.5">
+            <div className="flex flex-wrap justify-center gap-2 sm:gap-1.5">
               {[
                 { label: 'Personnel', href: '/employees' },
                 { label: 'Maintenance', href: '/maintenance' },
@@ -387,7 +387,7 @@ export default function HomePage() {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className="text-xs px-2.5 py-1 rounded-full bg-white/10 hover:bg-white/22 text-white/75 hover:text-white transition-all duration-200 border border-white/15"
+                  className="text-xs px-3 py-2 sm:px-2.5 sm:py-1 rounded-full bg-white/10 hover:bg-white/22 text-white/75 hover:text-white transition-all duration-200 border border-white/15"
                 >
                   {link.label}
                 </Link>
@@ -432,7 +432,7 @@ export default function HomePage() {
                     type="button"
                     onClick={anyExpanded ? collapseAll : expandAll}
                     title={anyExpanded ? 'Collapse all categories' : 'Expand all categories'}
-                    className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg bg-white/[0.10] hover:bg-white/[0.18] text-white border border-white/15 transition-all duration-150 backdrop-blur-sm"
+                    className="flex items-center gap-1 text-xs px-3 py-2 sm:px-2.5 sm:py-1.5 rounded-lg bg-white/[0.10] hover:bg-white/[0.18] text-white border border-white/15 transition-all duration-150 backdrop-blur-sm"
                   >
                     {anyExpanded
                       ? <><ChevronsUp className="h-3 w-3" /> Collapse</>
@@ -442,7 +442,7 @@ export default function HomePage() {
                     type="button"
                     onClick={() => setShowCategories(false)}
                     title="Hide all categories"
-                    className="flex items-center gap-1 text-xs px-2 py-1.5 rounded-lg bg-white/[0.10] hover:bg-white/[0.18] text-white/65 border border-white/15 transition-all duration-150 backdrop-blur-sm"
+                    className="flex items-center gap-1 text-xs px-2.5 py-2 sm:px-2 sm:py-1.5 rounded-lg bg-white/[0.10] hover:bg-white/[0.18] text-white/65 border border-white/15 transition-all duration-150 backdrop-blur-sm"
                   >
                     <Minimize2 className="h-3 w-3" />
                   </button>

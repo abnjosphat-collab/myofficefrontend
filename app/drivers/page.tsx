@@ -2,6 +2,7 @@
 'use client';
 
 import { PageShell } from '@/components/PageShell';
+import { GLASS_INPUT as glassInput, GLASS_LABEL as glassLabel, usePageCollapse, MasterCollapseButton } from '@/components/shared';
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   Car, Search, Plus, Edit, Trash2, RefreshCw, Phone, ChevronRight,
@@ -17,9 +18,6 @@ import * as XLSX from 'xlsx';
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-
-const glassInput = 'w-full px-3 py-2 text-sm rounded-lg bg-white/[0.07] border border-white/12 text-white placeholder:text-white/30 focus:outline-none focus:border-white/30 focus:bg-white/[0.11] transition-all';
-const glassLabel = 'text-xs font-medium text-white/55 mb-1 block';
 
 const DEPARTMENTS = [
   'Mining', 'Engineering', 'Geology', 'Survey', 'Environment',
@@ -402,6 +400,7 @@ function DriverModal({
 // ─── MAIN PAGE ────────────────────────────────────────────────────────────────
 
 export default function DriversPage() {
+  const sections = usePageCollapse({ stats: true, records: true });
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -412,7 +411,6 @@ export default function DriversPage() {
   const [statusFilter, setStatusFilter] = useState('all');
 
   // UI
-  const [showHeroStats, setShowHeroStats] = useState(true);
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
   const [modalOpen, setModalOpen] = useState(false);
   const [editingDriver, setEditingDriver] = useState<Driver | undefined>();
@@ -543,15 +541,16 @@ export default function DriversPage() {
                 className="h-8 w-8 flex items-center justify-center rounded-lg bg-white/[0.07] hover:bg-white/[0.15] border border-white/12 text-white/50 transition-all disabled:opacity-40">
                 <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
               </button>
-              <button type="button" title={showHeroStats ? 'Hide stats' : 'Show stats'}
-                onClick={() => setShowHeroStats(v => !v)}
+              <button type="button" title={sections.expanded.stats ? 'Hide stats' : 'Show stats'}
+                onClick={() => sections.toggle('stats')}
                 className="h-8 w-8 flex items-center justify-center rounded-lg bg-white/[0.07] hover:bg-white/[0.15] border border-white/12 text-white/50 transition-all">
-                {showHeroStats ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                {sections.expanded.stats ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
               </button>
+              <MasterCollapseButton collapse={sections} />
             </div>
           </div>
 
-          {showHeroStats && (
+          {sections.expanded.stats && (
             <div className="px-6 pb-4 pt-3 border-t border-white/[0.07] grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
                 { label: 'Total Drivers', value: stats.total, color: '#86BBD8', icon: Car },
@@ -568,6 +567,7 @@ export default function DriversPage() {
           )}
         </div>
 
+        {sections.expanded.records && <>
         {/* ─ CONTROLS ─────────────────────────────────────────────────────── */}
         <div className="oz-glass-panel rounded-2xl overflow-hidden">
           <div className="px-5 py-3 flex flex-wrap items-center gap-2 justify-between">
@@ -818,6 +818,7 @@ export default function DriversPage() {
             </div>
           )}
         </div>
+        </>}
       </main>
 
       <DriverModal

@@ -1,4 +1,4 @@
-// app/compressors/page.js
+﻿// app/compressors/page.tsx
 // Complete Compressor Tracking System Frontend with All Features
 
 'use client';
@@ -136,6 +136,184 @@ import {
 } from 'lucide-react';
 import { PageShell } from '@/components/PageShell';
 
+// ─── TypeScript interfaces ────────────────────────────────────────────────────
+
+interface Compressor {
+  id: number;
+  name: string;
+  model: string;
+  capacity: string;
+  location: string;
+  status: string;
+  total_running_hours: number;
+  total_loaded_hours: number;
+  color?: string;
+  initial_total_running?: number;
+  initial_total_loaded?: number;
+}
+
+interface CompressorInput {
+  totalRunning: number;
+  totalLoaded: number;
+  pressure: number | string;
+  temperature: number | string;
+  notes: string;
+}
+
+interface PreviousReading {
+  total_running_hours: number;
+  total_loaded_hours: number;
+  date: string;
+}
+
+interface IsSaving {
+  type?: string;
+  id?: number | string;
+}
+
+interface UpcomingService {
+  compressor_id: number;
+  compressor_name: string;
+  service_interval: number;
+  current_hours: number;
+  next_service_hours: number;
+  hours_remaining: number;
+  days_remaining: number;
+  urgency: string;
+}
+
+interface PerformanceMetric {
+  compressor_id: number;
+  compressor_name: string;
+  avg_efficiency: number;
+  avg_daily_running_hours: number;
+  avg_daily_loaded_hours: number;
+  total_running_hours: number;
+  total_loaded_hours: number;
+  downtime_percentage: number;
+  service_count: number;
+}
+
+interface TrendDataItem {
+  compressor_name: string;
+  efficiency_trend: string;
+  avg_efficiency: number;
+  total_running_hours?: number;
+  total_loaded_hours?: number;
+}
+
+interface TrendsResult {
+  success: boolean;
+  data: TrendDataItem[];
+  message: string;
+  has_data: boolean;
+}
+
+interface ComparisonItem {
+  compressor_id: number;
+  compressor_name: string;
+  location: string;
+  value: number;
+  rating: string;
+}
+
+interface ComparisonResult {
+  success: boolean;
+  data: ComparisonItem[];
+  message: string;
+  count: number;
+}
+
+interface AnalyticsData {
+  performanceMetrics: PerformanceMetric[];
+  trends: TrendsResult;
+  comparison: ComparisonResult;
+}
+
+interface CompressorStats {
+  total_compressors: number;
+  total_running_hours?: number;
+  avg_efficiency: number;
+  upcoming_services: number;
+  urgent_alerts: number;
+  active_compressors: number;
+}
+
+interface RecentAlert {
+  id: number;
+  title: string;
+  message: string;
+  severity: string;
+  is_read: boolean;
+  created_at: string;
+}
+
+interface RecentService {
+  id: number;
+  service_type: string;
+  description: string;
+  service_date: string;
+  running_hours_at_service: number;
+}
+
+interface AgeDistribution {
+  less_than_year?: number;
+  "1_3_years"?: number;
+  "3_5_years"?: number;
+  more_than_5?: number;
+}
+
+interface ManagementSummary {
+  status_distribution: Record<string, number>;
+  location_distribution: Record<string, number>;
+  age_distribution: AgeDistribution;
+  total_compressors: number;
+  unread_alerts?: number;
+  recent_alerts?: RecentAlert[];
+  recent_services?: RecentService[];
+}
+
+interface ManagementData {
+  summary: ManagementSummary | null;
+  alerts: RecentAlert[];
+  services: RecentService[];
+}
+
+interface AppSettings {
+  darkMode: boolean;
+  showInactive: boolean;
+  showDailyHours: boolean;
+  notifyMaintenance: boolean;
+  maintenanceBufferDays: number;
+  defaultOperatingHours: number;
+}
+
+interface Filters {
+  location: string;
+  status: string;
+  search: string;
+  showMaintenance: boolean;
+}
+
+interface StatusDialogState {
+  open: boolean;
+  compressorId: number | null;
+  currentStatus: string;
+}
+
+interface AddCompressorFormData {
+  name: string;
+  model: string;
+  capacity: string;
+  location: string;
+  status: string;
+  total_running_hours: number;
+  total_loaded_hours: number;
+  color: string;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 // API Configuration - Use relative URL for same-origin or full URL for different origin
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 
   (typeof window !== 'undefined' && window.location.origin.includes('localhost:3000') 
@@ -164,13 +342,13 @@ const STATUS_CONFIG = {
 const LOCATIONS = ['Main Plant', 'Production', 'Auxiliary', 'Workshop', 'Storage', 'Packaging', 'Shipping', 'Receiving'];
 
 // Enhanced fetch utility with better error handling
-const enhancedFetch = async (url, options = {}) => {
+const enhancedFetch = async (url: string, options: RequestInit = {}): Promise<unknown> => {
   try {
     const response = await fetch(url, {
       ...options,
       headers: {
         'Content-Type': 'application/json',
-        ...options.headers,
+        ...(options.headers as Record<string, string> | undefined),
       },
     });
 
@@ -178,7 +356,7 @@ const enhancedFetch = async (url, options = {}) => {
       let errorMessage = `HTTP ${response.status}`;
       try {
         const errorData = await response.json();
-        
+
         // Extract user-friendly error message
         if (errorData.detail) {
           // For FastAPI errors, detail field contains the error
@@ -194,44 +372,45 @@ const enhancedFetch = async (url, options = {}) => {
         // If response is not JSON, use status text
         errorMessage = response.statusText || errorMessage;
       }
-      
+
       // Check for specific constraint violations
-      if (errorMessage.includes('violates check constraint') || 
+      if (errorMessage.includes('violates check constraint') ||
           errorMessage.includes('chk_daily_loaded_positive')) {
         throw new Error('Invalid data: Loaded hours must be positive and cannot exceed running hours. Please check your values.');
       } else if (errorMessage.includes('violates check constraint')) {
         throw new Error('Invalid data entered. Please check your input values.');
       }
-      
+
       throw new Error(errorMessage);
     }
 
     return await response.json();
   } catch (error) {
-    console.error(`Fetch error for ${url}:`, error);
-    
+    const err = error as Error;
+    console.error(`Fetch error for ${url}:`, err);
+
     // Provide user-friendly error messages
-    let userErrorMessage = error.message;
-    
-    if (error.message.includes('Failed to fetch')) {
+    let userErrorMessage = err.message;
+
+    if (err.message.includes('Failed to fetch')) {
       userErrorMessage = 'Cannot connect to the server. Please check your connection.';
-    } else if (error.message.includes('violates check constraint')) {
+    } else if (err.message.includes('violates check constraint')) {
       userErrorMessage = 'Invalid data: Please check that loaded hours do not exceed running hours and all values are positive.';
-    } else if (errorMessage.includes('chk_daily_loaded_positive')) {
+    } else if (err.message.includes('chk_daily_loaded_positive')) {
       userErrorMessage = 'Data validation error: Loaded hours must be positive and cannot exceed running hours.';
     }
-    
+
     throw new Error(userErrorMessage);
   }
 };
 
 const CompressorReadingsSystem = () => {
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [compressors, setCompressors] = useState([]);
-  const [dailyEntries, setDailyEntries] = useState({});
-  const [activeTab, setActiveTab] = useState('daily-view');
-  const [viewMode, setViewMode] = useState('card');
-  const [settings, setSettings] = useState({
+  const [currentDate, setCurrentDate] = useState<Date>(new Date());
+  const [compressors, setCompressors] = useState<Compressor[]>([]);
+  const [dailyEntries, setDailyEntries] = useState<Record<string, unknown>>({});
+  const [activeTab, setActiveTab] = useState<string>('daily-view');
+  const [viewMode, setViewMode] = useState<string>('card');
+  const [settings, setSettings] = useState<AppSettings>({
     darkMode: false,
     showInactive: true,
     showDailyHours: true,
@@ -239,35 +418,35 @@ const CompressorReadingsSystem = () => {
     maintenanceBufferDays: 7,
     defaultOperatingHours: 8
   });
-  const [filters, setFilters] = useState({
+  const [filters, setFilters] = useState<Filters>({
     location: 'all',
     status: 'all',
     search: '',
     showMaintenance: false
   });
-  const [expandedCompressor, setExpandedCompressor] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState({});
-  const [selectedCompressor, setSelectedCompressor] = useState(null);
-  const [stats, setStats] = useState(null);
-  const [upcomingServices, setUpcomingServices] = useState([]);
-  const [analyticsData, setAnalyticsData] = useState({
+  const [expandedCompressor, setExpandedCompressor] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isSaving, setIsSaving] = useState<IsSaving>({});
+  const [selectedCompressor, setSelectedCompressor] = useState<Compressor | null>(null);
+  const [stats, setStats] = useState<CompressorStats | null>(null);
+  const [upcomingServices, setUpcomingServices] = useState<UpcomingService[]>([]);
+  const [analyticsData, setAnalyticsData] = useState<AnalyticsData>({
     performanceMetrics: [],
     trends: { success: false, data: [], message: '', has_data: false },
     comparison: { success: false, data: [], message: '', count: 0 }
   });
-  const [managementData, setManagementData] = useState({
+  const [managementData, setManagementData] = useState<ManagementData>({
     summary: null,
     alerts: [],
     services: []
   });
-  const [analyticsPeriod, setAnalyticsPeriod] = useState('monthly');
-  const [analyticsMetric, setAnalyticsMetric] = useState('efficiency');
-  const [showAddCompressor, setShowAddCompressor] = useState(false);
-  const [compressorInputs, setCompressorInputs] = useState({});
-  const [statusUpdateDialog, setStatusUpdateDialog] = useState({ open: false, compressorId: null, currentStatus: '' });
-  const [connectionError, setConnectionError] = useState(false);
-  const [previousReadings, setPreviousReadings] = useState({});
+  const [analyticsPeriod, setAnalyticsPeriod] = useState<string>('monthly');
+  const [analyticsMetric, setAnalyticsMetric] = useState<string>('efficiency');
+  const [showAddCompressor, setShowAddCompressor] = useState<boolean>(false);
+  const [compressorInputs, setCompressorInputs] = useState<Record<number, CompressorInput>>({});
+  const [statusUpdateDialog, setStatusUpdateDialog] = useState<StatusDialogState>({ open: false, compressorId: null, currentStatus: '' });
+  const [connectionError, setConnectionError] = useState<boolean>(false);
+  const [previousReadings, setPreviousReadings] = useState<Record<number, PreviousReading>>({});
 
   // Load all data on component mount
   useEffect(() => {
@@ -290,7 +469,7 @@ const CompressorReadingsSystem = () => {
   // Initialize compressor inputs
   useEffect(() => {
     if (compressors.length > 0) {
-      const inputs = {};
+      const inputs: Record<number, CompressorInput> = {};
       compressors.forEach(compressor => {
         inputs[compressor.id] = {
           totalRunning: compressor.total_running_hours || 0,
@@ -305,7 +484,7 @@ const CompressorReadingsSystem = () => {
   }, [compressors]);
 
   // Test API connection
-  const testConnection = async () => {
+  const testConnection = async (): Promise<boolean> => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/compressors/health`, {
         method: 'GET',
@@ -343,7 +522,7 @@ const CompressorReadingsSystem = () => {
       ]);
       toast.success('Data refreshed successfully');
     } catch (error) {
-      console.error('Failed to load data:', error);
+      console.error('Failed to load data:', error as Error);
       setConnectionError(true);
       toast.error('Failed to load data from server. Please check your connection.');
     } finally {
@@ -355,21 +534,21 @@ const CompressorReadingsSystem = () => {
   const fetchCompressors = async () => {
     try {
       console.log('Fetching compressors from:', `${API_BASE_URL}/api/compressors/compressors`);
-      const data = await enhancedFetch(`${API_BASE_URL}/api/compressors/compressors`);
+      const data = (await enhancedFetch(`${API_BASE_URL}/api/compressors/compressors`)) as Compressor[];
       setCompressors(data || []);
-      
+
       // Fetch previous readings for each compressor
-      const previousReadingsData = {};
+      const previousReadingsData: Record<number, PreviousReading> = {};
       for (const compressor of data || []) {
         try {
-          const readings = await enhancedFetch(`${API_BASE_URL}/api/compressors/readings/${compressor.id}/detailed`);
+          const readings = (await enhancedFetch(`${API_BASE_URL}/api/compressors/readings/${compressor.id}/detailed`)) as { data?: Array<{ date: string; total_running_hours: number; total_loaded_hours: number }> };
           if (readings.data && readings.data.length > 0) {
             // Get the reading before current date
             const currentDateStr = currentDate.toISOString().split('T')[0];
             const previousReading = readings.data
-              .filter(r => r.date < currentDateStr)
-              .sort((a, b) => new Date(b.date) - new Date(a.date))[0];
-            
+              .filter((r) => r.date < currentDateStr)
+              .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+
             if (previousReading) {
               previousReadingsData[compressor.id] = {
                 total_running_hours: previousReading.total_running_hours,
@@ -400,7 +579,7 @@ const CompressorReadingsSystem = () => {
   // Fetch statistics from API
   const fetchStats = async () => {
     try {
-      const data = await enhancedFetch(`${API_BASE_URL}/api/compressors/stats`);
+      const data = (await enhancedFetch(`${API_BASE_URL}/api/compressors/stats`)) as CompressorStats;
       setStats(data);
     } catch (error) {
       console.error('Error fetching stats:', error);
@@ -411,7 +590,7 @@ const CompressorReadingsSystem = () => {
   // Fetch upcoming services from API
   const fetchUpcomingServices = async () => {
     try {
-      const data = await enhancedFetch(`${API_BASE_URL}/api/compressors/service-due`);
+      const data = (await enhancedFetch(`${API_BASE_URL}/api/compressors/service-due`)) as UpcomingService[];
       setUpcomingServices(data || []);
     } catch (error) {
       console.error('Error fetching services:', error);
@@ -422,7 +601,7 @@ const CompressorReadingsSystem = () => {
   // Fetch performance metrics
   const fetchPerformanceMetrics = async (periodDays = 30) => {
     try {
-      const data = await enhancedFetch(`${API_BASE_URL}/api/compressors/analytics/performance-metrics?period_days=${periodDays}`);
+      const data = (await enhancedFetch(`${API_BASE_URL}/api/compressors/analytics/performance-metrics?period_days=${periodDays}`)) as PerformanceMetric[];
       setAnalyticsData(prev => ({ ...prev, performanceMetrics: data || [] }));
     } catch (error) {
       console.error('Error fetching performance metrics:', error);
@@ -433,16 +612,17 @@ const CompressorReadingsSystem = () => {
   // Fetch trend analysis
   const fetchTrendAnalysis = async (period = 'monthly') => {
     try {
-      const data = await enhancedFetch(`${API_BASE_URL}/api/compressors/analytics/trends?period=${period}`);
-      setAnalyticsData(prev => ({ 
-        ...prev, 
-        trends: data || { success: false, data: [], message: 'No data', has_data: false } 
+      const data = (await enhancedFetch(`${API_BASE_URL}/api/compressors/analytics/trends?period=${period}`)) as TrendsResult;
+      setAnalyticsData(prev => ({
+        ...prev,
+        trends: data || { success: false, data: [], message: 'No data', has_data: false }
       }));
     } catch (error) {
-      console.error('Error fetching trends:', error);
-      setAnalyticsData(prev => ({ 
-        ...prev, 
-        trends: { success: false, data: [], message: error.message, has_data: false } 
+      const err = error as Error;
+      console.error('Error fetching trends:', err);
+      setAnalyticsData(prev => ({
+        ...prev,
+        trends: { success: false, data: [], message: err.message, has_data: false }
       }));
     }
   };
@@ -450,16 +630,17 @@ const CompressorReadingsSystem = () => {
   // Fetch comparison analytics
   const fetchComparisonAnalytics = async (metric = 'efficiency') => {
     try {
-      const data = await enhancedFetch(`${API_BASE_URL}/api/compressors/analytics/comparison?metric=${metric}`);
-      setAnalyticsData(prev => ({ 
-        ...prev, 
-        comparison: data || { success: false, data: [], message: 'No data', count: 0 } 
+      const data = (await enhancedFetch(`${API_BASE_URL}/api/compressors/analytics/comparison?metric=${metric}`)) as ComparisonResult;
+      setAnalyticsData(prev => ({
+        ...prev,
+        comparison: data || { success: false, data: [], message: 'No data', count: 0 }
       }));
     } catch (error) {
-      console.error('Error fetching comparison:', error);
-      setAnalyticsData(prev => ({ 
-        ...prev, 
-        comparison: { success: false, data: [], message: error.message, count: 0 } 
+      const err = error as Error;
+      console.error('Error fetching comparison:', err);
+      setAnalyticsData(prev => ({
+        ...prev,
+        comparison: { success: false, data: [], message: err.message, count: 0 }
       }));
     }
   };
@@ -467,7 +648,7 @@ const CompressorReadingsSystem = () => {
   // Fetch management summary
   const fetchManagementSummary = async () => {
     try {
-      const data = await enhancedFetch(`${API_BASE_URL}/api/compressors/management/summary`);
+      const data = (await enhancedFetch(`${API_BASE_URL}/api/compressors/management/summary`)) as ManagementSummary;
       setManagementData(prev => ({ ...prev, summary: data }));
     } catch (error) {
       console.error('Error fetching management summary:', error);
@@ -502,13 +683,13 @@ const CompressorReadingsSystem = () => {
   };
 
   // Calculate efficiency
-  const calculateEfficiency = useCallback((runningHours, loadedHours) => {
+  const calculateEfficiency = useCallback((runningHours: number, loadedHours: number) => {
     if (!runningHours || runningHours === 0) return 0;
     return parseFloat(((loadedHours / runningHours) * 100).toFixed(1));
   }, []);
 
   // Calculate next service information
-  const calculateNextService = useCallback((totalRunningHours) => {
+  const calculateNextService = useCallback((totalRunningHours: number) => {
     const nextIntervals = SERVICE_INTERVALS.filter(interval => interval > totalRunningHours);
     if (nextIntervals.length === 0) return null;
     
@@ -538,7 +719,7 @@ const CompressorReadingsSystem = () => {
   }, [settings.defaultOperatingHours, settings.maintenanceBufferDays]);
 
   // Helper to auto-adjust loaded hours if they exceed running hours
-  const autoAdjustLoadedHours = (running, loaded) => {
+  const autoAdjustLoadedHours = (running: number, loaded: number) => {
     // If loaded exceeds running, cap it at running
     if (loaded > running) {
       return running;
@@ -548,7 +729,7 @@ const CompressorReadingsSystem = () => {
   };
 
   // Handle running hours change with auto-adjustment
-  const handleRunningHoursChange = (compressorId, value) => {
+  const handleRunningHoursChange = (compressorId: number, value: string) => {
     const numValue = parseFloat(value) || 0;
     const currentLoaded = compressorInputs[compressorId]?.totalLoaded || 0;
     
@@ -566,7 +747,7 @@ const CompressorReadingsSystem = () => {
   };
 
   // Handle loaded hours change with validation
-  const handleLoadedHoursChange = (compressorId, value) => {
+  const handleLoadedHoursChange = (compressorId: number, value: string) => {
     const numValue = parseFloat(value) || 0;
     const currentRunning = compressorInputs[compressorId]?.totalRunning || 0;
     
@@ -583,7 +764,7 @@ const CompressorReadingsSystem = () => {
   };
 
   // Validate reading before sending
-  const validateReading = (compressorId, newTotalRunning, newTotalLoaded) => {
+  const validateReading = (compressorId: number, newTotalRunning: number, newTotalLoaded: number) => {
     const previousReading = previousReadings[compressorId];
     if (!previousReading) return true; // No validation if no previous reading
     
@@ -630,7 +811,7 @@ const CompressorReadingsSystem = () => {
     if (previousDate !== 'Initial') {
       const prevDate = new Date(previousDate);
       const currDate = new Date(currentDateStr);
-      const diffTime = Math.abs(currDate - prevDate);
+      const diffTime = Math.abs(currDate.getTime() - prevDate.getTime());
       daysBetween = Math.max(1, Math.floor(diffTime / (1000 * 60 * 60 * 24)));
     }
     
@@ -652,63 +833,70 @@ const CompressorReadingsSystem = () => {
   };
 
   // Update compressor hours (cumulative method)
-  const updateCompressorHours = async (compressorId, totalRunning, totalLoaded, pressure = 0, temperature = 0, notes = '') => {
+  const updateCompressorHours = async (
+    compressorId: number,
+    totalRunning: number,
+    totalLoaded: number,
+    pressure: number = 0,
+    temperature: number = 0,
+    notes: string = ''
+  ) => {
     try {
       setIsSaving({ type: 'update', id: compressorId });
-      
+
       // Validate the reading first
       if (!validateReading(compressorId, totalRunning, totalLoaded)) {
         setIsSaving({});
         return;
       }
-      
-      const response = await enhancedFetch(`${API_BASE_URL}/api/compressors/daily-entries/cumulative`, {
+
+      const response = (await enhancedFetch(`${API_BASE_URL}/api/compressors/daily-entries/cumulative`, {
         method: 'POST',
         body: JSON.stringify({
           compressor_id: compressorId,
           date: getCurrentDateStr(),
-          current_total_running: parseFloat(totalRunning) || 0,
-          current_total_loaded: parseFloat(totalLoaded) || 0,
-          pressure: parseFloat(pressure) || 0,
-          temperature: parseFloat(temperature) || 0,
+          current_total_running: parseFloat(String(totalRunning)) || 0,
+          current_total_loaded: parseFloat(String(totalLoaded)) || 0,
+          pressure: parseFloat(String(pressure)) || 0,
+          temperature: parseFloat(String(temperature)) || 0,
           notes: notes
         })
-      });
-      
+      })) as { data?: { total_running_hours?: number; total_loaded_hours?: number; pressure?: number; temperature?: number; notes?: string } };
+
       // Use the response data to update local state
       if (response.data) {
-        setCompressors(prev => prev.map(comp => 
+        setCompressors(prev => prev.map(comp =>
           comp.id === compressorId ? {
             ...comp,
-            total_running_hours: response.data.total_running_hours || parseFloat(totalRunning) || 0,
-            total_loaded_hours: response.data.total_loaded_hours || parseFloat(totalLoaded) || 0
+            total_running_hours: response.data!.total_running_hours ?? parseFloat(String(totalRunning)) ?? 0,
+            total_loaded_hours: response.data!.total_loaded_hours ?? parseFloat(String(totalLoaded)) ?? 0
           } : comp
         ));
-        
+
         // Update inputs with the actual saved data
         setCompressorInputs(prev => ({
           ...prev,
           [compressorId]: {
             ...prev[compressorId],
-            totalRunning: response.data.total_running_hours || parseFloat(totalRunning) || 0,
-            totalLoaded: response.data.total_loaded_hours || parseFloat(totalLoaded) || 0,
-            pressure: response.data.pressure || parseFloat(pressure) || 0,
-            temperature: response.data.temperature || parseFloat(temperature) || 0,
-            notes: response.data.notes || notes || ''
+            totalRunning: response.data!.total_running_hours ?? parseFloat(String(totalRunning)) ?? 0,
+            totalLoaded: response.data!.total_loaded_hours ?? parseFloat(String(totalLoaded)) ?? 0,
+            pressure: response.data!.pressure ?? parseFloat(String(pressure)) ?? 0,
+            temperature: response.data!.temperature ?? parseFloat(String(temperature)) ?? 0,
+            notes: response.data!.notes ?? notes ?? ''
           }
         }));
-        
+
         // Update previous readings
         setPreviousReadings(prev => ({
           ...prev,
           [compressorId]: {
-            total_running_hours: response.data.total_running_hours || parseFloat(totalRunning) || 0,
-            total_loaded_hours: response.data.total_loaded_hours || parseFloat(totalLoaded) || 0,
+            total_running_hours: response.data!.total_running_hours ?? parseFloat(String(totalRunning)) ?? 0,
+            total_loaded_hours: response.data!.total_loaded_hours ?? parseFloat(String(totalLoaded)) ?? 0,
             date: getCurrentDateStr()
           }
         }));
       }
-      
+
       // Refresh data
       await Promise.all([
         fetchStats(),
@@ -716,91 +904,94 @@ const CompressorReadingsSystem = () => {
         fetchPerformanceMetrics(),
         fetchComparisonAnalytics()
       ]);
-      
+
       toast.success('Compressor hours updated successfully');
       return response;
     } catch (error) {
-      console.error('Error updating compressor:', error);
-      
+      const err = error as Error;
+      console.error('Error updating compressor:', err);
+
       // Show more specific error messages
-      if (error.message.includes('Loaded hours must be positive')) {
+      if (err.message.includes('Loaded hours must be positive')) {
         toast.error('Error: Loaded hours cannot exceed running hours and must be positive.');
-      } else if (error.message.includes('cannot be less than')) {
-        toast.error(error.message);
+      } else if (err.message.includes('cannot be less than')) {
+        toast.error(err.message);
       } else {
-        toast.error(error.message || 'Failed to update compressor hours');
+        toast.error(err.message || 'Failed to update compressor hours');
       }
-      
-      throw error;
+
+      throw err;
     } finally {
       setIsSaving({});
     }
   };
 
   // Add new compressor
-  const addCompressor = async (compressorData) => {
+  const addCompressor = async (compressorData: AddCompressorFormData) => {
     try {
       setIsSaving({ type: 'add', id: 'new' });
-      
+
       await enhancedFetch(`${API_BASE_URL}/api/compressors/compressors`, {
         method: 'POST',
         body: JSON.stringify(compressorData)
       });
-      
+
       await fetchCompressors();
       toast.success(`Compressor ${compressorData.name} added successfully`);
       setShowAddCompressor(false);
       return true;
     } catch (error) {
-      console.error('Error adding compressor:', error);
-      toast.error(error.message || 'Failed to add compressor');
-      throw error;
+      const err = error as Error;
+      console.error('Error adding compressor:', err);
+      toast.error(err.message || 'Failed to add compressor');
+      throw err;
     } finally {
       setIsSaving({});
     }
   };
 
   // Update compressor status
-  const updateCompressorStatus = async (compressorId, status) => {
+  const updateCompressorStatus = async (compressorId: number | null, status: string) => {
     try {
-      setIsSaving({ type: 'status', id: compressorId });
-      
+      setIsSaving({ type: 'status', id: compressorId ?? undefined });
+
       await enhancedFetch(`${API_BASE_URL}/api/compressors/compressors/${compressorId}/status`, {
         method: 'PATCH',
         body: JSON.stringify({ status })
       });
-      
+
       await fetchCompressors();
       toast.success(`Compressor status updated to ${status}`);
       setStatusUpdateDialog({ open: false, compressorId: null, currentStatus: '' });
     } catch (error) {
-      console.error('Error updating status:', error);
-      toast.error(error.message || 'Failed to update status');
+      const err = error as Error;
+      console.error('Error updating status:', err);
+      toast.error(err.message || 'Failed to update status');
     } finally {
       setIsSaving({});
     }
   };
 
   // Delete compressor
-  const deleteCompressor = async (compressorId) => {
+  const deleteCompressor = async (compressorId: number) => {
     try {
       await enhancedFetch(`${API_BASE_URL}/api/compressors/compressors/${compressorId}`, {
         method: 'DELETE',
       });
-      
+
       await fetchCompressors();
       await fetchStats();
       await fetchUpcomingServices();
-      
+
       toast.success('Compressor deleted successfully');
     } catch (error) {
-      console.error('Error deleting compressor:', error);
+      console.error('Error deleting compressor:', error as Error);
       toast.error('Failed to delete compressor');
     }
   };
 
   // Mark service as completed
-  const markServiceCompleted = async (compressorId, serviceInterval) => {
+  const markServiceCompleted = async (compressorId: number, serviceInterval: number) => {
     try {
       const compressor = compressors.find(c => c.id === compressorId);
       if (!compressor) throw new Error('Compressor not found');
@@ -831,7 +1022,7 @@ const CompressorReadingsSystem = () => {
       
       toast.success('Service marked as completed');
     } catch (error) {
-      console.error('Error marking service:', error);
+      console.error('Error marking service:', error as Error);
       toast.error('Failed to mark service as completed');
     }
   };
@@ -866,13 +1057,13 @@ const CompressorReadingsSystem = () => {
       
       toast.success('CSV report generated successfully');
     } catch (error) {
-      console.error('Error generating report:', error);
+      console.error('Error generating report:', error as Error);
       toast.error('Failed to generate report');
     }
   };
 
   // Import data from CSV
-  const importData = async (file) => {
+  const importData = async (file: File) => {
     try {
       const formData = new FormData();
       formData.append('file', file);
@@ -884,14 +1075,14 @@ const CompressorReadingsSystem = () => {
       
       if (!response.ok) throw new Error('Failed to import data');
       
-      const result = await response.json();
-      
+      const result = await response.json() as { errors?: unknown[]; imported_count?: number };
+
       if (result.errors && result.errors.length > 0) {
         toast.warning(`Imported with ${result.errors.length} errors`);
       } else {
         toast.success(`Imported ${result.imported_count} compressors`);
       }
-      
+
       await loadAllData();
       return result;
     } catch (error) {
@@ -902,7 +1093,7 @@ const CompressorReadingsSystem = () => {
   };
 
   // Get efficiency status
-  const getEfficiencyStatus = (efficiency) => {
+  const getEfficiencyStatus = (efficiency: number) => {
     if (efficiency >= 80) return { label: 'Excellent', color: 'text-green-600', bg: 'bg-green-100' };
     if (efficiency >= 60) return { label: 'Good', color: 'text-blue-600', bg: 'bg-blue-100' };
     if (efficiency >= 40) return { label: 'Fair', color: 'text-orange-600', bg: 'bg-orange-100' };
@@ -910,7 +1101,7 @@ const CompressorReadingsSystem = () => {
   };
 
   // Calculate daily hours from inputs
-  const calculateDailyFromInputs = (compressorId) => {
+  const calculateDailyFromInputs = (compressorId: number) => {
     const inputs = compressorInputs[compressorId];
     const previousReading = previousReadings[compressorId];
     
@@ -926,7 +1117,7 @@ const CompressorReadingsSystem = () => {
   };
 
   // Get previous reading info
-  const getPreviousReadingInfo = (compressorId) => {
+  const getPreviousReadingInfo = (compressorId: number) => {
     const previousReading = previousReadings[compressorId];
     if (!previousReading) return { running: 0, loaded: 0, date: 'No previous reading' };
     
@@ -938,7 +1129,7 @@ const CompressorReadingsSystem = () => {
   };
 
   // Status Badge Component
-  const StatusBadge = React.memo(({ status, onClick }) => {
+  const StatusBadge = React.memo(({ status, onClick }: { status: string; onClick?: () => void }) => {
     const config = STATUS_CONFIG[status];
     if (!config) return null;
     
@@ -959,7 +1150,7 @@ const CompressorReadingsSystem = () => {
   StatusBadge.displayName = 'StatusBadge';
 
   // Service Badge Component
-  const ServiceBadge = React.memo(({ compressor }) => {
+  const ServiceBadge = React.memo(({ compressor }: { compressor: Compressor }) => {
     const serviceInfo = calculateNextService(compressor.total_running_hours);
     
     if (!serviceInfo) {
@@ -982,7 +1173,7 @@ const CompressorReadingsSystem = () => {
   ServiceBadge.displayName = 'ServiceBadge';
 
   // Compressor Card Component with Cumulative Input
-  const CompressorCard = React.memo(({ compressor }) => {
+  const CompressorCard = React.memo(({ compressor }: { compressor: Compressor }) => {
     const inputs = compressorInputs[compressor.id] || {};
     const serviceInfo = calculateNextService(compressor.total_running_hours);
     const { dailyRunning, dailyLoaded } = calculateDailyFromInputs(compressor.id);
@@ -994,10 +1185,10 @@ const CompressorReadingsSystem = () => {
       try {
         await updateCompressorHours(
           compressor.id,
-          inputs.totalRunning || 0,
-          inputs.totalLoaded || 0,
-          inputs.pressure || 0,
-          inputs.temperature || 0,
+          Number(inputs.totalRunning) || 0,
+          Number(inputs.totalLoaded) || 0,
+          Number(inputs.pressure) || 0,
+          Number(inputs.temperature) || 0,
           inputs.notes || ''
         );
       } catch (error) {
@@ -1295,7 +1486,7 @@ const CompressorReadingsSystem = () => {
 
   // Add Compressor Form Component
   const AddCompressorForm = () => {
-    const [formData, setFormData] = useState({
+    const [formData, setFormData] = useState<AddCompressorFormData>({
       name: '',
       model: '',
       capacity: '',
@@ -1306,13 +1497,13 @@ const CompressorReadingsSystem = () => {
       color: 'bg-blue-500'
     });
 
-    const handleSubmit = async (e) => {
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault();
       if (!formData.name || !formData.model || !formData.capacity) {
         toast.error('Please fill in all required fields');
         return;
       }
-      
+
       try {
         await addCompressor(formData);
         setFormData({
@@ -1484,7 +1675,7 @@ const CompressorReadingsSystem = () => {
 
   // Status Update Dialog
   const StatusUpdateDialog = () => {
-    const [selectedStatus, setSelectedStatus] = useState(statusUpdateDialog.currentStatus);
+    const [selectedStatus, setSelectedStatus] = useState<string>(statusUpdateDialog.currentStatus);
 
     const handleSubmit = async () => {
       if (selectedStatus === statusUpdateDialog.currentStatus) {
@@ -2526,7 +2717,7 @@ const CompressorReadingsSystem = () => {
                                 <div className="w-32 bg-gray-200 rounded-full h-2">
                                   <div 
                                     className="bg-blue-500 h-2 rounded-full" 
-                                    style={{ width: `${(count / managementData.summary.total_compressors) * 100}%` }}
+                                    style={{ width: `${(count / (managementData.summary?.total_compressors ?? 1)) * 100}%` }}
                                   />
                                 </div>
                               </div>
@@ -2575,7 +2766,7 @@ const CompressorReadingsSystem = () => {
                     <div className="flex items-center justify-between">
                       <CardTitle>Recent Alerts</CardTitle>
                       <Badge variant="outline" className={
-                        managementData.summary?.unread_alerts > 0 ? 'bg-red-100 text-red-800' : ''
+                        (managementData.summary?.unread_alerts ?? 0) > 0 ? 'bg-red-100 text-red-800' : ''
                       }>
                         {managementData.summary?.unread_alerts || 0} unread
                       </Badge>

@@ -19,6 +19,7 @@ import {
   Maximize2, Minimize2
 } from 'lucide-react';
 import { PageShell } from '@/components/PageShell';
+import { formatCurrency, fmtDate as formatDate, fmtDateTime as formatDateTime } from '@/components/shared';
 
 import {
   Card,
@@ -385,46 +386,8 @@ const getStatusStyle = (status: Requisition['status']): string => {
   }
 };
 
-const formatDate = (dateString: string): string => {
-  if (!dateString || dateString === '') return 'Not specified';
-  try {
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) return dateString;
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  } catch {
-    return dateString;
-  }
-};
 
-const formatDateTime = (dateString: string): string => {
-  if (!dateString) return 'Not specified';
-  try {
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) return dateString;
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  } catch {
-    return dateString;
-  }
-};
 
-const formatCurrency = (amount: number): string => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  }).format(amount);
-};
 
 // ============= Component Props Types =============
 interface RequisitionDetailsModalProps {

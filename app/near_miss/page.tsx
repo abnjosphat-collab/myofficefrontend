@@ -16,6 +16,7 @@ import {
   LoadingState, EmptyState, DateRangeFilter, ClearFiltersButton,
   safetyFetch,
 } from '@/components/safety';
+import { usePageCollapse, MasterCollapseButton } from '@/components/shared';
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
@@ -217,10 +218,10 @@ function ReportDetailModal({ report, open, onClose, onEdit, onDelete }: {
 // ─── MAIN PAGE ────────────────────────────────────────────────────────────────
 
 export default function NearMissPage() {
+  const sections = usePageCollapse({ stats: true, records: true });
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [reports, setReports] = useState<NearMissReport[]>([]);
-  const [showStats, setShowStats] = useState(true);
 
   const [formOpen, setFormOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -302,17 +303,21 @@ export default function NearMissPage() {
           title="Near Miss Reporting"
           subtitle="Report dangerous occurrences — every report helps prevent future incidents"
           stats={heroStats}
-          showStats={showStats} onToggleStats={() => setShowStats(v => !v)}
+          showStats={sections.expanded.stats} onToggleStats={() => sections.toggle('stats')}
           onRefresh={() => loadReports(true)} refreshing={refreshing}
           actions={
+            <div className="flex items-center gap-2">
+            <MasterCollapseButton collapse={sections} />
             <button type="button" onClick={() => { setEditingReport(null); setFormOpen(true); }}
               className="h-8 px-3 flex items-center gap-1.5 text-xs rounded-xl font-semibold text-white transition-all hover:-translate-y-0.5"
               style={{ background: 'linear-gradient(135deg,#b45309,#92400e)', border: '1px solid rgba(245,158,11,0.4)' }}>
               <AlertTriangle className="h-3.5 w-3.5" /> New Report
             </button>
+            </div>
           }
         />
 
+        {sections.expanded.records && <>
         {/* Controls */}
         <SafetyControls>
           <SafetySearchBar value={search} onChange={setSearch} placeholder="Search department, reporter, location…" />
@@ -400,6 +405,7 @@ export default function NearMissPage() {
             </SafetyTable>
           )}
         </SafetyPanel>
+        </>}
 
         <ReportFormModal open={formOpen} onClose={() => { setFormOpen(false); setEditingReport(null); }}
           onSave={handleSave} report={editingReport} />

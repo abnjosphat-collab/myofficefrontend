@@ -1,4 +1,4 @@
-// app/overtime/page.js
+﻿// app/overtime/page.tsx
 'use client';
 
 import React, { useState, useMemo, useEffect } from "react";
@@ -80,7 +80,6 @@ import {
   Banknote,
   Coins,
   Receipt,
-  Invoice,
   Building,
   Factory,
   Store,
@@ -205,9 +204,19 @@ import {
   ChevronsDown,
 } from "lucide-react";
 import Link from "next/link";
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid,
+  Tooltip as RechartsTip,
+  ResponsiveContainer,
+  PieChart as RPieChart,
+  Pie, Cell,
+  AreaChart, Area,
+  Legend,
+} from "recharts";
 
 // Import Header and Footer
 import { PageShell } from '@/components/PageShell';
+import { fmtDate as formatDate, initials as getInitials } from '@/components/shared';
 
 // shadcn/ui imports
 import { Button } from "@/components/ui/button";
@@ -300,7 +309,7 @@ const OVERTIME_TYPES = {
     icon: Clock,
     variant: 'default',
     gradient: 'from-blue-500 to-blue-600',
-    badge: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-800',
+    badge: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
     color: 'blue',
     description: 'Standard overtime after regular work hours'
   },
@@ -310,7 +319,7 @@ const OVERTIME_TYPES = {
     icon: Calendar,
     variant: 'secondary',
     gradient: 'from-purple-500 to-purple-600',
-    badge: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400 border-purple-200 dark:border-purple-800',
+    badge: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
     color: 'purple',
     description: 'Overtime work on Saturdays or Sundays'
   },
@@ -320,7 +329,7 @@ const OVERTIME_TYPES = {
     icon: AlertCircle,
     variant: 'destructive',
     gradient: 'from-red-500 to-red-600',
-    badge: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-800',
+    badge: 'bg-red-500/20 text-red-300 border-red-500/30',
     color: 'red',
     description: 'Urgent overtime for critical situations'
   },
@@ -330,7 +339,7 @@ const OVERTIME_TYPES = {
     icon: Briefcase,
     variant: 'outline',
     gradient: 'from-green-500 to-green-600',
-    badge: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 border-green-200 dark:border-green-800',
+    badge: 'bg-green-500/20 text-green-300 border-green-500/30',
     color: 'green',
     description: 'Overtime for specific project deadlines'
   },
@@ -340,7 +349,7 @@ const OVERTIME_TYPES = {
     icon: Sun,
     variant: 'outline',
     gradient: 'from-amber-500 to-amber-600',
-    badge: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 border-amber-200 dark:border-amber-800',
+    badge: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
     color: 'amber',
     description: 'Work on public holidays'
   },
@@ -350,7 +359,7 @@ const OVERTIME_TYPES = {
     icon: Moon,
     variant: 'outline',
     gradient: 'from-indigo-500 to-indigo-600',
-    badge: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800',
+    badge: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30',
     color: 'indigo',
     description: 'Overtime during night hours'
   }
@@ -358,44 +367,44 @@ const OVERTIME_TYPES = {
 
 // Status configurations
 const STATUS_CONFIG = {
-  pending: { 
-    label: 'Pending', 
-    variant: 'secondary', 
-    icon: Clock, 
+  pending: {
+    label: 'Pending',
+    variant: 'secondary',
+    icon: Clock,
     gradient: 'from-yellow-500 to-yellow-600',
-    badge: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800',
+    badge: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30',
     color: 'yellow'
   },
-  approved: { 
-    label: 'Approved', 
-    variant: 'success', 
-    icon: CheckCircle2, 
+  approved: {
+    label: 'Approved',
+    variant: 'success',
+    icon: CheckCircle2,
     gradient: 'from-green-500 to-green-600',
-    badge: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 border-green-200 dark:border-green-800',
+    badge: 'bg-green-500/20 text-green-300 border-green-500/30',
     color: 'green'
   },
-  rejected: { 
-    label: 'Rejected', 
-    variant: 'destructive', 
-    icon: XCircle, 
+  rejected: {
+    label: 'Rejected',
+    variant: 'destructive',
+    icon: XCircle,
     gradient: 'from-red-500 to-red-600',
-    badge: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-800',
+    badge: 'bg-red-500/20 text-red-300 border-red-500/30',
     color: 'red'
   },
-  paid: { 
-    label: 'Paid', 
-    variant: 'default', 
-    icon: TrendingUp, 
+  paid: {
+    label: 'Paid',
+    variant: 'default',
+    icon: TrendingUp,
     gradient: 'from-emerald-500 to-emerald-600',
-    badge: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800',
+    badge: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
     color: 'emerald'
   },
-  cancelled: { 
-    label: 'Cancelled', 
-    variant: 'outline', 
-    icon: X, 
+  cancelled: {
+    label: 'Cancelled',
+    variant: 'outline',
+    icon: X,
     gradient: 'from-gray-500 to-gray-600',
-    badge: 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400 border-gray-200 dark:border-gray-800',
+    badge: 'bg-gray-500/20 text-gray-300 border-gray-500/30',
     color: 'gray'
   }
 };
@@ -427,9 +436,82 @@ const getYearOptions = () => {
   ].map(year => ({ value: year.toString(), label: year.toString() }));
 };
 
+// ── TypeScript interfaces ───────────────────────────────────────────────────
+
+interface OvertimeRecord {
+  id: number | string;
+  employee_name: string;
+  employee_id: string;
+  position: string;
+  overtime_type: string;
+  date: string;
+  start_time: string;
+  end_time: string;
+  reason: string;
+  contact_number?: string;
+  emergency_contact?: string;
+  status: string;
+  applied_date?: string;
+  notes?: string;
+  created_at?: string;
+  department?: string;
+}
+
+interface FormData {
+  employee_name: string;
+  employee_id: string;
+  position: string;
+  overtime_type: string;
+  date: string;
+  start_time: string;
+  end_time: string;
+  reason: string;
+  contact_number: string;
+  emergency_contact: string;
+  id?: number | string;
+}
+
+interface EmployeeOption {
+  id: string;          // employee number e.g. "C1165"
+  name: string;
+  designation: string;
+  phone: string;
+  supervisor: string;
+  department: string;
+  section: string;
+}
+
+interface EmployeeSummaryItem {
+  employee_name: string;
+  employee_id: string;
+  count: number;
+  totalHours: number;
+}
+
+interface UniqueEmployee {
+  name: string;
+  id: string;
+}
+
+interface OvertimeFilters {
+  status?: string | null;
+  overtime_type?: string | null;
+  employee_id?: string | null;
+  date_from?: string | null;
+  date_to?: string | null;
+  month?: string | null;
+  year?: string | null;
+}
+
+interface ValidationErrors {
+  [key: string]: string;
+}
+
+// ── End of interfaces ───────────────────────────────────────────────────────
+
 // Get unique employees for quick filters
-const getUniqueEmployees = (data) => {
-  const employeeMap = {};
+const getUniqueEmployees = (data: OvertimeRecord[]): UniqueEmployee[] => {
+  const employeeMap: Record<string, UniqueEmployee> = {};
   data.forEach((item) => {
     if (item && item.employee_name && !employeeMap[item.employee_name]) {
       employeeMap[item.employee_name] = {
@@ -438,24 +520,12 @@ const getUniqueEmployees = (data) => {
       };
     }
   });
-  return Object.values(employeeMap).sort((a, b) => a.name.localeCompare(b.name));
+  return (Object.values(employeeMap) as UniqueEmployee[]).sort((a, b) => a.name.localeCompare(b.name));
 };
 
 // Utility Functions
-const formatDate = (dateString) => {
-  if (!dateString) return 'Not specified';
-  try {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  } catch {
-    return dateString;
-  }
-};
 
-const formatTime = (timeString) => {
+const formatTime = (timeString: string | undefined): string => {
   if (!timeString) return '';
   try {
     return new Date(`2000-01-01T${timeString}`).toLocaleTimeString('en-US', {
@@ -468,7 +538,7 @@ const formatTime = (timeString) => {
   }
 };
 
-const calculateHours = (startTime, endTime, date) => {
+const calculateHours = (startTime: string | undefined, endTime: string | undefined, date: string | undefined): number => {
   if (!startTime || !endTime || !date) return 0;
   try {
     const start = new Date(`${date}T${startTime}`);
@@ -481,15 +551,8 @@ const calculateHours = (startTime, endTime, date) => {
   }
 };
 
-const getInitials = (name) => {
-  if (!name || typeof name !== 'string') return '??';
-  const names = name.trim().split(' ');
-  const first = names[0]?.[0] || '';
-  const last = names.length > 1 ? names[names.length - 1]?.[0] || '' : '';
-  return (first + last).toUpperCase();
-};
 
-const preparePayload = (data) => {
+const preparePayload = (data: Partial<FormData>): Partial<FormData> => {
   const payload = { ...data };
   if (payload.contact_number === '') payload.contact_number = ' ';
   if (payload.emergency_contact === '') payload.emergency_contact = ' ';
@@ -497,7 +560,7 @@ const preparePayload = (data) => {
 };
 
 // API Functions
-const fetchOvertime = async (filters = {}) => {
+const fetchOvertime = async (filters: OvertimeFilters = {}): Promise<OvertimeRecord[]> => {
   const params = new URLSearchParams();
   if (filters.status && filters.status !== 'all') params.append('status', filters.status);
   if (filters.overtime_type && filters.overtime_type !== 'all') params.append('overtime_type', filters.overtime_type);
@@ -506,14 +569,14 @@ const fetchOvertime = async (filters = {}) => {
   if (filters.date_to) params.append('date_to', filters.date_to);
   if (filters.month) params.append('month', filters.month);
   if (filters.year) params.append('year', filters.year);
-  
+
   const url = params.toString() ? `${OVERTIME_API}?${params.toString()}` : OVERTIME_API;
   const res = await fetch(url);
   if (!res.ok) throw new Error('Failed to fetch overtime');
   return res.json();
 };
 
-const createOvertime = async (data) => {
+const createOvertime = async (data: Partial<FormData>): Promise<OvertimeRecord> => {
   const payload = preparePayload(data);
   const res = await fetch(OVERTIME_API, {
     method: 'POST',
@@ -527,7 +590,7 @@ const createOvertime = async (data) => {
   return res.json();
 };
 
-const updateOvertime = async (id, data) => {
+const updateOvertime = async (id: number | string, data: Partial<FormData> & { status?: string }): Promise<OvertimeRecord> => {
   const payload = preparePayload(data);
   const res = await fetch(`${OVERTIME_API}/${id}`, {
     method: 'PATCH',
@@ -541,11 +604,11 @@ const updateOvertime = async (id, data) => {
   return res.json();
 };
 
-const updateOvertimeStatus = async (id, status) => {
+const updateOvertimeStatus = async (id: number | string, status: string): Promise<OvertimeRecord> => {
   return updateOvertime(id, { status });
 };
 
-const deleteOvertime = async (id) => {
+const deleteOvertime = async (id: number | string): Promise<unknown> => {
   const res = await fetch(`${OVERTIME_API}/${id}`, {
     method: 'DELETE',
   });
@@ -554,7 +617,7 @@ const deleteOvertime = async (id) => {
 };
 
 // Export to Excel (CSV)
-const exportToExcel = (data, filename = `overtime-${new Date().toISOString().split('T')[0]}.csv`) => {
+const exportToExcel = (data: OvertimeRecord[], filename = `overtime-${new Date().toISOString().split('T')[0]}.csv`) => {
   if (!data || data.length === 0) {
     toast.warning('No data to export');
     return;
@@ -616,8 +679,8 @@ const exportToExcel = (data, filename = `overtime-${new Date().toISOString().spl
 };
 
 // Status Badge Component
-const StatusBadge = ({ status }) => {
-  const config = STATUS_CONFIG[status] || STATUS_CONFIG.pending;
+const StatusBadge = ({ status }: { status: string }) => {
+  const config = STATUS_CONFIG[status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.pending;
   const Icon = config.icon;
   return (
     <TooltipProvider>
@@ -637,8 +700,8 @@ const StatusBadge = ({ status }) => {
 };
 
 // Type Badge Component
-const TypeBadge = ({ type }) => {
-  const config = OVERTIME_TYPES[type] || OVERTIME_TYPES.regular;
+const TypeBadge = ({ type }: { type: string }) => {
+  const config = OVERTIME_TYPES[type as keyof typeof OVERTIME_TYPES] || OVERTIME_TYPES.regular;
   const Icon = config.icon;
   return (
     <TooltipProvider>
@@ -658,10 +721,17 @@ const TypeBadge = ({ type }) => {
 };
 
 // Stat Card Component
-const StatCard = ({ title, value, icon: Icon, onClick, tooltip, gradient = 'from-primary/10 to-primary/5' }) => {
+const StatCard = ({ title, value, icon: Icon, onClick, tooltip, gradient = 'from-primary/10 to-primary/5' }: {
+  title: string;
+  value: string | number;
+  icon: React.ElementType;
+  onClick?: (() => void) | null;
+  tooltip?: string;
+  gradient?: string;
+}) => {
   const CardWrapper = onClick ? (
     <Card
-      className={`cursor-pointer transition-all duration-300 hover:shadow-lg hover:-translate-y-1 overflow-hidden relative group ${onClick ? 'hover:border-primary' : ''} bg-white`}
+      className={`cursor-pointer transition-all duration-300 hover:shadow-lg hover:-translate-y-1 overflow-hidden relative group hover:border-primary bg-white`}
       onClick={onClick}
     >
       <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-50 group-hover:opacity-70 transition-opacity`} />
@@ -722,18 +792,23 @@ const StatCard = ({ title, value, icon: Icon, onClick, tooltip, gradient = 'from
 };
 
 // Overtime Card Component (Grid View)
-const OvertimeCard = ({ overtime, onView, onEdit, onDelete }) => {
+const OvertimeCard = ({ overtime, onView, onEdit, onDelete }: {
+  overtime: OvertimeRecord;
+  onView: (ot: OvertimeRecord) => void;
+  onEdit: (ot: OvertimeRecord) => void;
+  onDelete: (id: number | string) => void;
+}) => {
   const [expanded, setExpanded] = useState(false);
-  const typeConfig = OVERTIME_TYPES[overtime.overtime_type] || OVERTIME_TYPES.regular;
+  const typeConfig = OVERTIME_TYPES[overtime.overtime_type as keyof typeof OVERTIME_TYPES] || OVERTIME_TYPES.regular;
   const Icon = typeConfig.icon;
   const hours = calculateHours(overtime.start_time, overtime.end_time, overtime.date);
 
-  const handleExpandClick = (e) => {
+  const handleExpandClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     setExpanded(!expanded);
   };
 
-  const colorHex = { blue: '#3b82f6', purple: '#a855f7', red: '#ef4444', green: '#22c55e', amber: '#f59e0b', indigo: '#6366f1' };
+  const colorHex: Record<string, string> = { blue: '#3b82f6', purple: '#a855f7', red: '#ef4444', green: '#22c55e', amber: '#f59e0b', indigo: '#6366f1' };
   const topColor = colorHex[typeConfig.color] || '#86BBD8';
 
   return (
@@ -955,9 +1030,26 @@ const OvertimeCard = ({ overtime, onView, onEdit, onDelete }) => {
 };
 
 // Overtime Application Form
-const OvertimeApplicationForm = ({ onClose, onSuccess, editData, onUpdate }) => {
-  const [formData, setFormData] = useState(
-    editData || {
+const OvertimeApplicationForm = ({ onClose, onSuccess, editData, onUpdate }: {
+  onClose: () => void;
+  onSuccess: () => void;
+  editData: OvertimeRecord | null;
+  onUpdate: (id: number | string, data: Partial<FormData>) => Promise<void>;
+}) => {
+  const [formData, setFormData] = useState<FormData>(
+    editData ? {
+      employee_name: editData.employee_name,
+      employee_id: editData.employee_id,
+      position: editData.position,
+      overtime_type: editData.overtime_type,
+      date: editData.date,
+      start_time: editData.start_time,
+      end_time: editData.end_time,
+      reason: editData.reason,
+      contact_number: editData.contact_number ?? '',
+      emergency_contact: editData.emergency_contact ?? '',
+      id: editData.id,
+    } : {
       employee_name: '',
       employee_id: '',
       position: '',
@@ -972,11 +1064,11 @@ const OvertimeApplicationForm = ({ onClose, onSuccess, editData, onUpdate }) => 
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [employees, setEmployees] = useState([]);
+  const [employees, setEmployees] = useState<EmployeeOption[]>([]);
   const [loadingEmployees, setLoadingEmployees] = useState(false);
   const [employeeSearch, setEmployeeSearch] = useState('');
   const [employeeSelectOpen, setEmployeeSelectOpen] = useState(false);
-  const [validationErrors, setValidationErrors] = useState({});
+  const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
 
   // Fetch employees on mount
   useEffect(() => {
@@ -991,31 +1083,29 @@ const OvertimeApplicationForm = ({ onClose, onSuccess, editData, onUpdate }) => 
           return;
         }
         const data = await response.json();
-        const employeeList = Array.isArray(data) ? data : [];
-        const normalized = employeeList.map((emp) => {
-          const id = emp.id || emp.employee_id || 0;
+        const employeeList: Record<string, unknown>[] = Array.isArray(data) ? data : [];
+        const normalized: EmployeeOption[] = employeeList.map((emp) => {
+          // Prefer the string employee_id (e.g. "C1165") over numeric DB row id
+          const id = String(emp.employee_id || emp.id || '');
           let fullName = '';
           if (emp.first_name && emp.last_name) {
             fullName = `${emp.first_name} ${emp.last_name}`;
           } else {
-            fullName = emp.name || emp.employee_name || emp.full_name || emp.Name || '';
+            fullName = String(emp.name || emp.employee_name || emp.full_name || emp.Name || '');
           }
-          const designation = emp.designation || emp.position || emp.job_title || '';
-          const phone = emp.phone || emp.contact_number || emp.mobile || '';
-          const supervisor = emp.supervisor || emp.manager_name || emp.manager || '';
-          const department = emp.department || emp.dept || '';
           return {
-            id: id,
+            id,
             name: fullName,
-            designation: designation,
-            phone: phone,
-            supervisor: supervisor,
-            department: department,
+            designation: String(emp.designation || emp.position || emp.job_title || ''),
+            phone:       String(emp.phone || emp.contact_number || emp.mobile || ''),
+            supervisor:  String(emp.supervisor || emp.manager_name || emp.manager || ''),
+            department:  String(emp.department || emp.dept || ''),
+            section:     String(emp.section || emp.mine_section || ''),
           };
         });
         setEmployees(normalized);
-      } catch (error) {
-        console.error('Error fetching employees:', error);
+      } catch (_err) {
+        console.error('Error fetching employees:', _err);
         toast.error('Could not load employee list');
       } finally {
         setLoadingEmployees(false);
@@ -1024,7 +1114,7 @@ const OvertimeApplicationForm = ({ onClose, onSuccess, editData, onUpdate }) => 
     fetchEmployees();
   }, []);
 
-  const handleChange = (field, value) => {
+  const handleChange = (field: keyof FormData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     if (validationErrors[field]) {
       setValidationErrors((prev) => {
@@ -1034,21 +1124,20 @@ const OvertimeApplicationForm = ({ onClose, onSuccess, editData, onUpdate }) => 
     }
   };
 
-  const handleEmployeeSelect = (employee) => {
-    const numericId = employee.id.toString();
+  const handleEmployeeSelect = (employee: EmployeeOption) => {
     setFormData({
       ...formData,
-      employee_id: numericId,
-      employee_name: employee.name || `Employee ${employee.id}`,
-      position: employee.designation || '',
-      contact_number: employee.phone || '',
+      employee_id:       employee.id,                           // "C1165" style
+      employee_name:     employee.name || `Employee ${employee.id}`,
+      position:          employee.designation || '',
+      contact_number:    employee.phone || '',
       emergency_contact: employee.supervisor || '',
     });
     setEmployeeSelectOpen(false);
   };
 
-  const validateForm = () => {
-    const errors = {};
+  const validateForm = (): boolean => {
+    const errors: ValidationErrors = {};
     if (!formData.employee_name?.trim()) errors.employee_name = 'Full name is required';
     if (!formData.position?.trim()) errors.position = 'Position is required';
     if (!formData.date) errors.date = 'Date is required';
@@ -1058,7 +1147,7 @@ const OvertimeApplicationForm = ({ onClose, onSuccess, editData, onUpdate }) => 
     return Object.keys(errors).length === 0;
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) {
       return;
@@ -1077,7 +1166,7 @@ const OvertimeApplicationForm = ({ onClose, onSuccess, editData, onUpdate }) => 
       onClose();
     } catch (err) {
       console.error('Submit error:', err);
-      setError(err.message || 'An unexpected error occurred');
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred');
     } finally {
       setLoading(false);
     }
@@ -1088,11 +1177,11 @@ const OvertimeApplicationForm = ({ onClose, onSuccess, editData, onUpdate }) => 
   const filteredEmployees = useMemo(() => {
     if (!employeeSearch.trim()) return employees;
     const term = employeeSearch.toLowerCase();
-    return employees.filter(emp => 
+    return employees.filter(emp =>
       emp.name.toLowerCase().includes(term) ||
-      emp.id.toString().includes(term) ||
-      (emp.designation && emp.designation.toLowerCase().includes(term)) ||
-      (emp.department && emp.department.toLowerCase().includes(term))
+      emp.id.toLowerCase().includes(term) ||        // matches "C1165", "C116…"
+      emp.designation.toLowerCase().includes(term) ||
+      emp.department.toLowerCase().includes(term)
     );
   }, [employees, employeeSearch]);
 
@@ -1185,10 +1274,13 @@ const OvertimeApplicationForm = ({ onClose, onSuccess, editData, onUpdate }) => 
                               {getInitials(emp.name)}
                             </AvatarFallback>
                           </Avatar>
-                          <div className="flex-1">
-                            <p className="text-sm font-medium">{emp.name}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {emp.designation} • {emp.department}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm font-medium truncate">{emp.name}</p>
+                              <span className="text-xs font-mono font-bold text-primary shrink-0">{emp.id}</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground truncate">
+                              {emp.designation}{emp.department ? ` • ${emp.department}` : ''}
                             </p>
                           </div>
                         </CommandItem>
@@ -1355,21 +1447,27 @@ const OvertimeApplicationForm = ({ onClose, onSuccess, editData, onUpdate }) => 
 };
 
 // Overtime Details Modal
-const OvertimeDetailsModal = ({ overtime, onClose, onStatusUpdate, onDelete, onEdit }) => {
+const OvertimeDetailsModal = ({ overtime, onClose, onStatusUpdate, onDelete, onEdit }: {
+  overtime: OvertimeRecord;
+  onClose: () => void;
+  onStatusUpdate: (id: number | string, status: string) => Promise<void>;
+  onDelete: (id: number | string) => Promise<void>;
+  onEdit: (ot: OvertimeRecord) => void;
+}) => {
   const [updating, setUpdating] = useState(false);
-  const typeConfig = OVERTIME_TYPES[overtime.overtime_type] || OVERTIME_TYPES.regular;
+  const typeConfig = OVERTIME_TYPES[overtime.overtime_type as keyof typeof OVERTIME_TYPES] || OVERTIME_TYPES.regular;
   const hours = calculateHours(overtime.start_time, overtime.end_time, overtime.date);
-  
+
   const displayId = overtime.id ? (typeof overtime.id === 'string' ? overtime.id.slice(0, 8) : String(overtime.id).slice(0, 8)) : 'N/A';
 
-  const handleStatusChange = async (newStatus) => {
+  const handleStatusChange = async (newStatus: string) => {
     setUpdating(true);
     try {
       await onStatusUpdate(overtime.id, newStatus);
       toast.success(`Status updated to ${newStatus}`);
       onClose();
     } catch (error) {
-      toast.error(error.message);
+      toast.error(error instanceof Error ? error.message : 'Failed to update status');
     } finally {
       setUpdating(false);
     }
@@ -1383,7 +1481,7 @@ const OvertimeDetailsModal = ({ overtime, onClose, onStatusUpdate, onDelete, onE
       toast.success('Request deleted');
       onClose();
     } catch (error) {
-      toast.error(error.message);
+      toast.error(error instanceof Error ? error.message : 'Failed to delete');
     } finally {
       setUpdating(false);
     }
@@ -1595,9 +1693,14 @@ const OvertimeDetailsModal = ({ overtime, onClose, onStatusUpdate, onDelete, onE
 };
 
 // Employee Summary Component
-const EmployeeSummary = ({ data, show, onToggle, onEmployeeSelect }) => {
+const EmployeeSummary = ({ data, show, onToggle, onEmployeeSelect }: {
+  data: OvertimeRecord[];
+  show: boolean;
+  onToggle: (val: boolean) => void;
+  onEmployeeSelect: (id: string) => void;
+}) => {
   const summary = useMemo(() => {
-    const employeeMap = {};
+    const employeeMap: Record<string, EmployeeSummaryItem> = {};
     
     data.forEach((item) => {
       const id = item.employee_id;
@@ -1664,9 +1767,12 @@ const EmployeeSummary = ({ data, show, onToggle, onEmployeeSelect }) => {
 };
 
 // Type Summary Component
-const TypeSummary = ({ data, onTypeSelect }) => {
+const TypeSummary = ({ data, onTypeSelect }: {
+  data: OvertimeRecord[];
+  onTypeSelect: (type: string) => void;
+}) => {
   const summary = useMemo(() => {
-    const result = {};
+    const result: Record<string, { count: number; hours: number }> = {};
     data.forEach((item) => {
       const type = item.overtime_type;
       if (!result[type]) {
@@ -1758,7 +1864,31 @@ const AdvancedFilters = ({
   onYearChange,
   selectedEmployee,
   onEmployeeChange,
-  availableEmployees
+  availableEmployees,
+}: {
+  searchTerm: string;
+  onSearchChange: (v: string) => void;
+  dateFrom: string;
+  onDateFromChange: (v: string) => void;
+  dateTo: string;
+  onDateToChange: (v: string) => void;
+  minHours: string;
+  onMinHoursChange: (v: string) => void;
+  maxHours: string;
+  onMaxHoursChange: (v: string) => void;
+  selectedTypes: string[];
+  onTypeToggle: (v: string) => void;
+  selectedStatuses: string[];
+  onStatusToggle: (v: string) => void;
+  onClearFilters: () => void;
+  activeFilterCount: number;
+  selectedMonth: string;
+  onMonthChange: (v: string) => void;
+  selectedYear: string;
+  onYearChange: (v: string) => void;
+  selectedEmployee: string;
+  onEmployeeChange: (v: string) => void;
+  availableEmployees: UniqueEmployee[];
 }) => {
   const glassInput = "h-10 bg-white/[0.07] border-white/12 text-white placeholder:text-white/30 focus-visible:border-white/30 focus-visible:bg-white/[0.11]";
   const glassLabel = "text-xs font-medium text-white/65 flex items-center gap-1";
@@ -1988,11 +2118,15 @@ const AdvancedFilters = ({
 };
 
 // Pagination Component
-const Pagination = ({ currentPage, totalPages, onPageChange }) => {
-  const getPageNumbers = () => {
-    const pages = [];
+const Pagination = ({ currentPage, totalPages, onPageChange }: {
+  currentPage: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+}) => {
+  const getPageNumbers = (): (number | string)[] => {
+    const pages: (number | string)[] = [];
     const maxVisible = 5;
-    
+
     if (totalPages <= maxVisible) {
       for (let i = 1; i <= totalPages; i++) pages.push(i);
     } else {
@@ -2038,7 +2172,7 @@ const Pagination = ({ currentPage, totalPages, onPageChange }) => {
               key={idx}
               variant={currentPage === page ? 'default' : 'outline'}
               size="sm"
-              onClick={() => onPageChange(page)}
+              onClick={() => onPageChange(page as number)}
               className="min-w-[2.5rem]"
             >
               {page}
@@ -2060,12 +2194,424 @@ const Pagination = ({ currentPage, totalPages, onPageChange }) => {
   );
 };
 
+// ── Analytics helpers ──────────────────────────────────────────────────────
+const MACHINE_KEYWORDS = [
+  'crusher', 'mill', 'pump', 'conveyor', 'compressor', 'boiler', 'generator',
+  'press', 'grinder', 'screen', 'feeder', 'crane', 'forklift', 'agitator',
+  'mixer', 'dryer', 'filter', 'blower', 'fan', 'reactor', 'centrifuge',
+  'separator', 'valve', 'motor', 'gearbox', 'bearing', 'hopper', 'belt',
+  'silo', 'tank', 'vessel', 'kiln', 'furnace', 'transformer', 'cable',
+];
+
+function categorizeReason(reason: string) {
+  if (!reason) return 'Other';
+  const r = reason.toLowerCase();
+  if (r.includes('daily check') || r.includes('routine check') || r.includes('daily inspection') || r.includes('routine inspect')) return 'Daily Checks';
+  if (r.includes('breakdown') || r.includes('break down') || r.includes('broke down') || r.includes('fault') || r.includes('failure') || r.includes('tripped') || r.includes('seized')) return 'Breakdown';
+  if (r.includes('preventive') || r.includes('preventative') || r.includes('planned maintenance') || r.includes('scheduled maintenance')) return 'Preventive Maint.';
+  if (r.includes('electrical') || r.includes('wiring') || r.includes('earthing') || r.includes('switching') || r.includes('electric')) return 'Electrical';
+  if (r.includes('mechanical') || r.includes('gearbox') || r.includes('bearing') || r.includes('shaft') || r.includes('alignment') || r.includes('coupling')) return 'Mechanical';
+  if (r.includes('emergency') || r.includes('urgent') || r.includes('critical')) return 'Emergency';
+  if (r.includes('safety') || r.includes('hazard') || r.includes('risk') || r.includes('incident')) return 'Safety';
+  if (r.includes('clean') || r.includes('housekeeping') || r.includes('wash')) return 'Cleaning';
+  if (r.includes('install') || r.includes('commission') || r.includes('setup') || r.includes('erect')) return 'Installation';
+  if (r.includes('project') || r.includes('upgrade') || r.includes('modification') || r.includes('capital')) return 'Project/Upgrade';
+  if (r.includes('production') || r.includes('tonnage') || r.includes('output') || r.includes('target')) return 'Production';
+  return 'Other';
+}
+
+const A_TYPE_COLORS = {
+  regular: '#86BBD8', weekend: '#A78BFA', emergency: '#F87171',
+  project: '#4ADE80', holiday: '#FBBF24', night: '#818CF8',
+};
+const A_PIE_COLORS = ['#86BBD8', '#A78BFA', '#F87171', '#4ADE80', '#FBBF24', '#818CF8', '#F97316', '#EC4899'];
+const A_CAT_COLORS = ['#86BBD8', '#F59E0B', '#EF4444', '#10B981', '#8B5CF6', '#EC4899', '#14B8A6', '#F97316', '#6366F1', '#84CC16'];
+const chartStyle = { backgroundColor: '#0d1829', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '8px', color: '#fff' };
+
+const ChartCard = ({ title, subtitle, icon: Icon, children, className = '' }: {
+  title: string;
+  subtitle?: string;
+  icon?: React.ElementType;
+  children: React.ReactNode;
+  className?: string;
+}) => (
+  <div className={`oz-glass-panel rounded-2xl overflow-hidden ${className}`}>
+    <div className="flex items-center gap-2 px-5 py-3 border-b border-white/[0.07]">
+      {Icon && <Icon className="h-3.5 w-3.5 text-[#86BBD8] shrink-0" />}
+      <span className="text-xs font-semibold text-white/80 uppercase tracking-wider">{title}</span>
+      {subtitle && <span className="text-[11px] text-white/35">{subtitle}</span>}
+    </div>
+    <div className="p-4">{children}</div>
+  </div>
+);
+
+const NoData = ({ icon: Icon = Activity, msg = 'No data available' }: {
+  icon?: React.ElementType;
+  msg?: string;
+}) => (
+  <div className="flex flex-col items-center justify-center h-40 gap-2">
+    <Icon className="h-8 w-8 text-white/20" />
+    <span className="text-xs text-white/30">{msg}</span>
+  </div>
+);
+
+interface TooltipPayloadEntry {
+  color?: string;
+  fill?: string;
+  name?: string;
+  value?: number | string;
+  unit?: string;
+}
+
+const AnalyticsTip = ({ active, payload, label }: {
+  active?: boolean;
+  payload?: TooltipPayloadEntry[];
+  label?: string;
+}) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div style={chartStyle} className="px-3 py-2 text-xs">
+      {label && <p className="text-white/60 mb-1">{label}</p>}
+      {payload.map((p, i) => (
+        <p key={i} style={{ color: p.color || p.fill || '#86BBD8' }}>
+          {p.name}: <strong>{p.value}{p.unit || ''}</strong>
+        </p>
+      ))}
+    </div>
+  );
+};
+
+const OvertimeAnalytics = ({ data }: { data: OvertimeRecord[] }) => {
+  const [aFrom, setAFrom] = useState('');
+  const [aTo, setATo] = useState('');
+  const [aEmp, setAEmp] = useState('all');
+  const [aType, setAType] = useState('all');
+
+  const filtered = useMemo(() => {
+    let d = data;
+    if (aFrom) d = d.filter(x => x.date && new Date(x.date) >= new Date(aFrom));
+    if (aTo) d = d.filter(x => x.date && new Date(x.date) <= new Date(aTo));
+    if (aEmp !== 'all') d = d.filter(x => x.employee_name === aEmp);
+    if (aType !== 'all') d = d.filter(x => x.overtime_type === aType);
+    return d;
+  }, [data, aFrom, aTo, aEmp, aType]);
+
+  const totalHrs = useMemo(() =>
+    Math.round(filtered.reduce((s, x) => s + calculateHours(x.start_time, x.end_time, x.date), 0) * 10) / 10,
+    [filtered]);
+  const avgHrs = filtered.length > 0 ? Math.round((totalHrs / filtered.length) * 10) / 10 : 0;
+  const empCount = new Set(filtered.map(x => x.employee_name)).size;
+
+  const employeeData = useMemo(() => {
+    const m: Record<string, number> = {};
+    filtered.forEach(x => {
+      if (!x.employee_name) return;
+      m[x.employee_name] = (m[x.employee_name] || 0) + calculateHours(x.start_time, x.end_time, x.date);
+    });
+    return Object.entries(m)
+      .map(([name, hrs]) => ({ name: name.split(' ').slice(0, 2).join(' '), full: name, hours: Math.round(hrs * 10) / 10 }))
+      .sort((a, b) => b.hours - a.hours)
+      .slice(0, 12);
+  }, [filtered]);
+
+  const typeData = useMemo(() => {
+    const m: Record<string, number> = {};
+    filtered.forEach(x => { m[x.overtime_type] = (m[x.overtime_type] || 0) + 1; });
+    return Object.entries(m).map(([t, n]) => ({
+      name: OVERTIME_TYPES[t as keyof typeof OVERTIME_TYPES]?.shortName || t, value: n, color: A_TYPE_COLORS[t as keyof typeof A_TYPE_COLORS] || '#86BBD8',
+    }));
+  }, [filtered]);
+
+  const monthlyData = useMemo(() => {
+    const m: Record<string, { month: string; hours: number; count: number }> = {};
+    filtered.forEach(x => {
+      if (!x.date) return;
+      const d = new Date(x.date);
+      const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const label = d.toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
+      if (!m[k]) m[k] = { month: label, hours: 0, count: 0 };
+      m[k].hours += calculateHours(x.start_time, x.end_time, x.date);
+      m[k].count++;
+    });
+    return Object.entries(m)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([, v]) => ({ ...v, hours: Math.round(v.hours * 10) / 10 }));
+  }, [filtered]);
+
+  const dowData = useMemo(() => {
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const m = Object.fromEntries(days.map(d => [d, 0]));
+    filtered.forEach(x => {
+      if (!x.date) return;
+      m[days[new Date(x.date).getDay()]] += calculateHours(x.start_time, x.end_time, x.date);
+    });
+    return days.map(d => ({ day: d, hours: Math.round(m[d] * 10) / 10 }));
+  }, [filtered]);
+
+  const categoryData = useMemo(() => {
+    const m: Record<string, { category: string; hours: number; count: number }> = {};
+    filtered.forEach(x => {
+      const cat = categorizeReason(x.reason);
+      if (!m[cat]) m[cat] = { category: cat, hours: 0, count: 0 };
+      m[cat].hours += calculateHours(x.start_time, x.end_time, x.date);
+      m[cat].count++;
+    });
+    return Object.values(m)
+      .sort((a, b) => b.hours - a.hours)
+      .map(x => ({ ...x, hours: Math.round(x.hours * 10) / 10 }));
+  }, [filtered]);
+
+  const machineData = useMemo(() => {
+    const m: Record<string, { machine: string; hours: number; count: number }> = {};
+    filtered.forEach(x => {
+      if (!x.reason) return;
+      const lower = x.reason.toLowerCase();
+      const hrs = calculateHours(x.start_time, x.end_time, x.date);
+      MACHINE_KEYWORDS.forEach(kw => {
+        if (lower.includes(kw)) {
+          if (!m[kw]) m[kw] = { machine: kw[0].toUpperCase() + kw.slice(1), hours: 0, count: 0 };
+          m[kw].hours += hrs;
+          m[kw].count++;
+        }
+      });
+    });
+    return Object.values(m).sort((a, b) => b.count - a.count).slice(0, 10)
+      .map(x => ({ ...x, hours: Math.round(x.hours * 10) / 10 }));
+  }, [filtered]);
+
+  const sectionData = useMemo(() => {
+    const m: Record<string, { name: string; value: number }> = {};
+    filtered.forEach(x => {
+      const sec = ((x.position || x.department || 'Unknown').split(/[,\/\-]/)[0].trim()) || 'Unknown';
+      if (!m[sec]) m[sec] = { name: sec, value: 0 };
+      m[sec].value += calculateHours(x.start_time, x.end_time, x.date);
+    });
+    return Object.values(m).sort((a, b) => b.value - a.value).slice(0, 8)
+      .map(x => ({ ...x, value: Math.round(x.value * 10) / 10 }));
+  }, [filtered]);
+
+  const empList = useMemo(() => [...new Set(data.map(x => x.employee_name).filter(Boolean))].sort(), [data]);
+  const peakDay = [...dowData].sort((a, b) => b.hours - a.hours)[0];
+  const hasFilters = aFrom || aTo || aEmp !== 'all' || aType !== 'all';
+
+  return (
+    <div className="space-y-4">
+      {/* Scope filters */}
+      <div className="oz-glass-panel rounded-2xl px-5 py-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2 shrink-0">
+            <Sliders className="h-3.5 w-3.5 text-[#86BBD8]" />
+            <span className="text-xs font-semibold text-white/70 uppercase tracking-wider">Analytics Scope</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <input type="date" value={aFrom} onChange={e => setAFrom(e.target.value)}
+              className="px-2 py-1.5 text-[11px] rounded-lg bg-white/[0.07] border border-white/12 text-white focus:outline-none focus:border-white/26 transition-all" />
+            <span className="text-white/30 self-center text-xs">to</span>
+            <input type="date" value={aTo} onChange={e => setATo(e.target.value)}
+              className="px-2 py-1.5 text-[11px] rounded-lg bg-white/[0.07] border border-white/12 text-white focus:outline-none focus:border-white/26 transition-all" />
+            <select value={aEmp} onChange={e => setAEmp(e.target.value)}
+              className="px-2 py-1.5 text-[11px] rounded-lg bg-white/[0.07] border border-white/12 text-white focus:outline-none focus:border-white/26 transition-all" style={{ backgroundColor: '#0d1829' }}>
+              <option value="all">All Employees</option>
+              {empList.map(n => <option key={n} value={n}>{n}</option>)}
+            </select>
+            <select value={aType} onChange={e => setAType(e.target.value)}
+              className="px-2 py-1.5 text-[11px] rounded-lg bg-white/[0.07] border border-white/12 text-white focus:outline-none focus:border-white/26 transition-all" style={{ backgroundColor: '#0d1829' }}>
+              <option value="all">All Types</option>
+              {Object.entries(OVERTIME_TYPES).map(([k, v]) => <option key={k} value={k}>{v.shortName}</option>)}
+            </select>
+            {hasFilters && (
+              <button onClick={() => { setAFrom(''); setATo(''); setAEmp('all'); setAType('all'); }}
+                className="flex items-center gap-1 text-[11px] px-2 py-1 rounded-lg bg-white/[0.06] hover:bg-white/[0.13] text-white/55 border border-white/10 transition-all">
+                <FilterX className="h-3 w-3" /> Reset
+              </button>
+            )}
+          </div>
+          <span className="text-[11px] text-white/35 ml-auto">{filtered.length} records in scope</span>
+        </div>
+      </div>
+
+      {/* KPI strip */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {[
+          { label: 'Records', value: filtered.length, icon: FileText, color: 'text-[#86BBD8]' },
+          { label: 'Total Hours', value: `${totalHrs}h`, icon: Clock, color: 'text-emerald-400' },
+          { label: 'Avg / Record', value: `${avgHrs}h`, icon: TrendingUp, color: 'text-amber-400' },
+          { label: 'Employees', value: empCount, icon: Users, color: 'text-purple-400' },
+        ].map(({ label, value, icon: Icon, color }) => (
+          <div key={label} className="oz-glass-panel rounded-xl px-4 py-3 flex items-center gap-3">
+            <div className="h-8 w-8 rounded-lg bg-white/[0.06] flex items-center justify-center shrink-0">
+              <Icon className={`h-4 w-4 ${color}`} />
+            </div>
+            <div>
+              <p className="text-lg font-bold text-white leading-tight">{value}</p>
+              <p className="text-[11px] text-white/45">{label}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {filtered.length === 0 ? (
+        <div className="oz-glass-panel rounded-2xl py-16 flex flex-col items-center gap-3">
+          <Activity className="h-10 w-10 text-white/20" />
+          <p className="text-sm text-white/40">No overtime records match the selected scope.</p>
+        </div>
+      ) : (
+        <>
+          {/* Row 1: Employee bar + Type pie */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <ChartCard title="Top Employees by OT Hours" subtitle="sorted by total hours" icon={Users} className="lg:col-span-2">
+              {employeeData.length === 0 ? <NoData /> : (
+                <ResponsiveContainer width="100%" height={Math.min(340, Math.max(160, employeeData.length * 30))}>
+                  <BarChart data={employeeData} layout="vertical" margin={{ top: 0, right: 24, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" horizontal={false} />
+                    <XAxis type="number" tick={{ fill: 'rgba(255,255,255,0.45)', fontSize: 10 }} axisLine={false} tickLine={false} unit="h" />
+                    <YAxis dataKey="name" type="category" tick={{ fill: 'rgba(255,255,255,0.70)', fontSize: 10 }} axisLine={false} tickLine={false} width={110} />
+                    <RechartsTip content={<AnalyticsTip />} />
+                    <Bar dataKey="hours" fill="#86BBD8" radius={[0, 4, 4, 0]} name="hours" unit="h" />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </ChartCard>
+            <ChartCard title="By Overtime Type" subtitle="% of records" icon={PieChart}>
+              {typeData.length === 0 ? <NoData /> : (
+                <ResponsiveContainer width="100%" height={280}>
+                  <RPieChart>
+                    <Pie data={typeData} cx="50%" cy="45%" innerRadius={52} outerRadius={88}
+                      dataKey="value" nameKey="name" paddingAngle={3}>
+                      {typeData.map((e, i) => <Cell key={i} fill={e.color} stroke="rgba(0,0,0,0.25)" />)}
+                    </Pie>
+                    <RechartsTip content={<AnalyticsTip />} />
+                    <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: '10px', color: 'rgba(255,255,255,0.55)' }} />
+                  </RPieChart>
+                </ResponsiveContainer>
+              )}
+            </ChartCard>
+          </div>
+
+          {/* Row 2: Monthly trend — full width */}
+          <ChartCard title="Monthly OT Trend" subtitle="total hours per month" icon={TrendingUp}>
+            {monthlyData.length === 0 ? <NoData msg="No date data available" /> : (
+              <ResponsiveContainer width="100%" height={200}>
+                <AreaChart data={monthlyData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                  <defs>
+                    <linearGradient id="aGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#86BBD8" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#86BBD8" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" vertical={false} />
+                  <XAxis dataKey="month" tick={{ fill: 'rgba(255,255,255,0.45)', fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: 'rgba(255,255,255,0.45)', fontSize: 10 }} axisLine={false} tickLine={false} unit="h" />
+                  <RechartsTip content={<AnalyticsTip />} />
+                  <Area type="monotone" dataKey="hours" stroke="#86BBD8" strokeWidth={2} fill="url(#aGrad)" name="hours" unit="h" dot={{ fill: '#86BBD8', r: 3 }} />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
+          </ChartCard>
+
+          {/* Row 3: Day-of-week + Work category */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <ChartCard title="Day-of-Week Pattern" subtitle="total OT hours per weekday" icon={Calendar}>
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={dowData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" vertical={false} />
+                  <XAxis dataKey="day" tick={{ fill: 'rgba(255,255,255,0.55)', fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: 'rgba(255,255,255,0.45)', fontSize: 10 }} axisLine={false} tickLine={false} unit="h" />
+                  <RechartsTip content={<AnalyticsTip />} />
+                  <Bar dataKey="hours" radius={[4, 4, 0, 0]} name="hours" unit="h">
+                    {dowData.map((e, i) => <Cell key={i} fill={e.day === 'Sat' || e.day === 'Sun' ? '#FBBF24' : '#86BBD8'} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartCard>
+            <ChartCard title="Work Category Breakdown" subtitle="OT hours by activity type" icon={Activity}>
+              {categoryData.length === 0 ? <NoData /> : (
+                <ResponsiveContainer width="100%" height={Math.min(300, Math.max(180, categoryData.length * 30))}>
+                  <BarChart data={categoryData} layout="vertical" margin={{ top: 0, right: 24, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" horizontal={false} />
+                    <XAxis type="number" tick={{ fill: 'rgba(255,255,255,0.45)', fontSize: 10 }} axisLine={false} tickLine={false} unit="h" />
+                    <YAxis dataKey="category" type="category" tick={{ fill: 'rgba(255,255,255,0.65)', fontSize: 10 }} axisLine={false} tickLine={false} width={115} />
+                    <RechartsTip content={<AnalyticsTip />} />
+                    <Bar dataKey="hours" radius={[0, 4, 4, 0]} name="hours" unit="h">
+                      {categoryData.map((_, i) => <Cell key={i} fill={A_CAT_COLORS[i % A_CAT_COLORS.length]} />)}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </ChartCard>
+          </div>
+
+          {/* Row 4: Machine ranking + Section pie */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <ChartCard title="Equipment Problem Ranking" subtitle="keyword mentions in OT reasons" icon={Cpu}>
+              {machineData.length === 0 ? (
+                <NoData icon={Cpu} msg="No equipment keywords found in reasons yet" />
+              ) : (
+                <ResponsiveContainer width="100%" height={Math.min(320, Math.max(160, machineData.length * 34))}>
+                  <BarChart data={machineData} layout="vertical" margin={{ top: 0, right: 24, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" horizontal={false} />
+                    <XAxis type="number" allowDecimals={false} tick={{ fill: 'rgba(255,255,255,0.45)', fontSize: 10 }} axisLine={false} tickLine={false} />
+                    <YAxis dataKey="machine" type="category" tick={{ fill: 'rgba(255,255,255,0.65)', fontSize: 10 }} axisLine={false} tickLine={false} width={80} />
+                    <RechartsTip content={<AnalyticsTip />} />
+                    <Bar dataKey="count" fill="#F87171" radius={[0, 4, 4, 0]} name="incidents" />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </ChartCard>
+            <ChartCard title="OT Hours by Section / Role" subtitle="position group breakdown" icon={Briefcase}>
+              {sectionData.length === 0 ? <NoData /> : (
+                <ResponsiveContainer width="100%" height={280}>
+                  <RPieChart>
+                    <Pie data={sectionData} cx="50%" cy="45%" innerRadius={52} outerRadius={88}
+                      dataKey="value" nameKey="name" paddingAngle={3}>
+                      {sectionData.map((_, i) => <Cell key={i} fill={A_PIE_COLORS[i % A_PIE_COLORS.length]} stroke="rgba(0,0,0,0.25)" />)}
+                    </Pie>
+                    <RechartsTip formatter={(v) => [`${v}h`, 'Hours']} contentStyle={chartStyle} />
+                    <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: '10px', color: 'rgba(255,255,255,0.55)' }} />
+                  </RPieChart>
+                </ResponsiveContainer>
+              )}
+            </ChartCard>
+          </div>
+
+          {/* Root-cause insight cards */}
+          {categoryData.length > 0 && (
+            <div className="oz-glass-panel rounded-2xl px-5 py-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Target className="h-3.5 w-3.5 text-[#86BBD8]" />
+                <span className="text-xs font-semibold text-white/80 uppercase tracking-wider">Root-Cause Insights</span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="bg-white/[0.04] rounded-xl p-3 border border-white/[0.07]">
+                  <p className="text-[10px] text-white/40 mb-1 uppercase tracking-wide">Highest OT Category</p>
+                  <p className="text-sm font-bold text-white">{categoryData[0].category}</p>
+                  <p className="text-xs text-white/50">{categoryData[0].hours}h · {categoryData[0].count} records</p>
+                </div>
+                <div className="bg-white/[0.04] rounded-xl p-3 border border-white/[0.07]">
+                  <p className="text-[10px] text-white/40 mb-1 uppercase tracking-wide">Peak Day</p>
+                  <p className="text-sm font-bold text-white">{peakDay?.day} ({peakDay?.hours}h total)</p>
+                  <p className="text-xs text-white/50">{peakDay?.day === 'Sat' || peakDay?.day === 'Sun' ? 'Weekend OT — review shift scheduling' : 'Weekday peak — check workload distribution'}</p>
+                </div>
+                <div className="bg-white/[0.04] rounded-xl p-3 border border-white/[0.07]">
+                  <p className="text-[10px] text-white/40 mb-1 uppercase tracking-wide">Top OT Employee</p>
+                  <p className="text-sm font-bold text-white">{employeeData[0]?.full || '—'}</p>
+                  <p className="text-xs text-white/50">{employeeData[0]?.hours}h total OT logged</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+};
+
 // ============= Main Page =============
 export default function OvertimeManagementPage() {
-  const [overtime, setOvertime] = useState([]);
-  const [selectedOvertime, setSelectedOvertime] = useState(null);
+  const [overtime, setOvertime] = useState<OvertimeRecord[]>([]);
+  const [selectedOvertime, setSelectedOvertime] = useState<OvertimeRecord | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [editData, setEditData] = useState(null);
+  const [editData, setEditData] = useState<OvertimeRecord | null>(null);
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -2084,26 +2630,29 @@ export default function OvertimeManagementPage() {
   const [yearFilter, setYearFilter] = useState('');
   const [minHours, setMinHours] = useState('');
   const [maxHours, setMaxHours] = useState('');
-  const [selectedTypes, setSelectedTypes] = useState([]);
-  const [selectedStatuses, setSelectedStatuses] = useState([]);
+  const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
+  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
   const [selectedEmployeeName, setSelectedEmployeeName] = useState('');
   
   const [loading, setLoading] = useState(false);
   const [viewMode, setViewMode] = useState('table');
-  const [showAdvancedFilters, setShowAdvancedFilters] = useState(true);
-  const [showSummary, setShowSummary] = useState(true);
-  const [showTypeSummary, setShowTypeSummary] = useState(true);
-  
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [showSummary, setShowSummary] = useState(false);
+  const [showTypeSummary, setShowTypeSummary] = useState(false);
+
   // Sorting
   const [sortBy, setSortBy] = useState('date');
   const [sortOrder, setSortOrder] = useState('desc');
-  
+
   // Expanded rows in table view
-  const [expandedRows, setExpandedRows] = useState(new Set());
+  const [expandedRows, setExpandedRows] = useState<Set<number | string>>(new Set());
 
   // Panel visibility
-  const [showHeroStats, setShowHeroStats] = useState(true);
+  const [showHeroStats, setShowHeroStats] = useState(false);
   const [recordsPanelMinimized, setRecordsPanelMinimized] = useState(false);
+
+  // Main tab: 'records' | 'analytics'
+  const [activeMainTab, setActiveMainTab] = useState('records');
 
 
   const fetchAllData = async () => {
@@ -2121,7 +2670,7 @@ export default function OvertimeManagementPage() {
       const data = await fetchOvertime(apiFilters);
       setOvertime(data);
       toast.success(`Loaded ${data.length} overtime requests`);
-    } catch (error) {
+    } catch (_err) {
       toast.error('Failed to load overtime data');
     } finally {
       setLoading(false);
@@ -2132,31 +2681,31 @@ export default function OvertimeManagementPage() {
     fetchAllData();
   }, [statusFilter, typeFilter, employeeFilter, dateFrom, dateTo, monthFilter, yearFilter]);
 
-  const handleCreate = async (data) => {
+  const handleCreate = async (data: Partial<FormData>) => {
     const newItem = await createOvertime(data);
     setOvertime((prev) => [newItem, ...prev]);
   };
 
-  const handleUpdate = async (id, data) => {
+  const handleUpdate = async (id: number | string, data: Partial<FormData>) => {
     const updated = await updateOvertime(id, data);
     setOvertime((prev) =>
       prev.map((item) => (item.id === id ? { ...item, ...updated } : item))
     );
   };
 
-  const handleStatusUpdate = async (id, status) => {
+  const handleStatusUpdate = async (id: number | string, status: string) => {
     await updateOvertimeStatus(id, status);
     setOvertime((prev) =>
       prev.map((item) => (item.id === id ? { ...item, status } : item))
     );
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (id: number | string) => {
     await deleteOvertime(id);
     setOvertime((prev) => prev.filter((item) => item.id !== id));
   };
 
-  const toggleRowExpanded = (id, e) => {
+  const toggleRowExpanded = (id: number | string, e: React.MouseEvent) => {
     e.stopPropagation();
     setExpandedRows(prev => {
       const newSet = new Set(prev);
@@ -2187,13 +2736,13 @@ export default function OvertimeManagementPage() {
     toast.success('All filters cleared');
   };
 
-  const handleTypeSelect = (type) => {
+  const handleTypeSelect = (type: string) => {
     setTypeFilter(type);
     setSelectedTypes([type]);
     setShowAdvancedFilters(true);
   };
 
-  const handleTypeToggle = (type) => {
+  const handleTypeToggle = (type: string) => {
     setSelectedTypes(prev => {
       const newTypes = prev.includes(type)
         ? prev.filter(t => t !== type)
@@ -2211,7 +2760,7 @@ export default function OvertimeManagementPage() {
     });
   };
 
-  const handleStatusToggle = (status) => {
+  const handleStatusToggle = (status: string) => {
     setSelectedStatuses(prev => {
       const newStatuses = prev.includes(status)
         ? prev.filter(s => s !== status)
@@ -2229,17 +2778,17 @@ export default function OvertimeManagementPage() {
     });
   };
 
-  const handleMonthChange = (month) => {
+  const handleMonthChange = (month: string) => {
     setMonthFilter(month);
     setCurrentPage(1);
   };
 
-  const handleYearChange = (year) => {
+  const handleYearChange = (year: string) => {
     setYearFilter(year);
     setCurrentPage(1);
   };
 
-  const handleEmployeeQuickFilter = (employeeName) => {
+  const handleEmployeeQuickFilter = (employeeName: string) => {
     setSelectedEmployeeName(employeeName);
     setCurrentPage(1);
   };
@@ -2327,7 +2876,7 @@ export default function OvertimeManagementPage() {
     const sorted = [...filtered].sort((a, b) => {
       let compare = 0;
       if (sortBy === 'date') {
-        compare = new Date(a.date) - new Date(b.date);
+        compare = new Date(a.date).getTime() - new Date(b.date).getTime();
       } else if (sortBy === 'name') {
         compare = (a.employee_name || '').localeCompare(b.employee_name || '');
       } else if (sortBy === 'hours') {
@@ -2382,7 +2931,7 @@ export default function OvertimeManagementPage() {
     };
   }, [processedOvertime]);
 
-  const handleEmployeeSelect = (employeeId) => {
+  const handleEmployeeSelect = (employeeId: string) => {
     setEmployeeFilter(employeeId);
   };
 
@@ -2475,13 +3024,13 @@ export default function OvertimeManagementPage() {
             {/* Expandable stats */}
             {showHeroStats && (
               <div className="border-t border-white/10 px-6 py-3 flex flex-wrap items-center gap-x-1 gap-y-2">
-                {[
-                  { icon: FileText, color: 'text-[#86BBD8]', val: stats.total, label: 'Total requests', onClick: null },
-                  { icon: Clock, color: 'text-emerald-400', val: `${stats.totalHours}h`, label: 'Total hours', valColor: 'text-white', onClick: null },
-                  { icon: Clock, color: 'text-amber-400', val: stats.pending, label: 'Pending', valColor: 'text-amber-300', onClick: () => { setStatusFilter('pending'); handleStatusToggle('pending'); } },
-                  { icon: CheckCircle2, color: 'text-emerald-400', val: stats.approved, label: 'Approved', valColor: 'text-emerald-300', onClick: () => { setStatusFilter('approved'); handleStatusToggle('approved'); } },
-                  stats.rejected !== undefined && stats.rejected > 0 && { icon: XCircle, color: 'text-rose-400', val: stats.rejected, label: 'Rejected', valColor: 'text-rose-300', onClick: null },
-                ].filter(Boolean).map((item, i, arr) => (
+                {(([
+                  { icon: FileText, color: 'text-[#86BBD8]', val: stats.total, label: 'Total requests', valColor: 'text-white', onClick: undefined as (() => void) | undefined },
+                  { icon: Clock, color: 'text-emerald-400', val: `${stats.totalHours}h`, label: 'Total hours', valColor: 'text-white', onClick: undefined as (() => void) | undefined },
+                  { icon: Clock, color: 'text-amber-400', val: stats.pending, label: 'Pending', valColor: 'text-amber-300', onClick: (() => { setStatusFilter('pending'); handleStatusToggle('pending'); }) as (() => void) | undefined },
+                  { icon: CheckCircle2, color: 'text-emerald-400', val: stats.approved, label: 'Approved', valColor: 'text-emerald-300', onClick: (() => { setStatusFilter('approved'); handleStatusToggle('approved'); }) as (() => void) | undefined },
+                  ...(stats.rejected > 0 ? [{ icon: XCircle, color: 'text-rose-400', val: stats.rejected, label: 'Rejected', valColor: 'text-rose-300', onClick: undefined as (() => void) | undefined }] : []),
+                ] as { icon: React.ElementType; color: string; val: string | number; label: string; valColor: string; onClick: (() => void) | undefined }[])).map((item, i, arr) => (
                   <React.Fragment key={i}>
                     <button
                       onClick={item.onClick}
@@ -2502,6 +3051,30 @@ export default function OvertimeManagementPage() {
       </section>
 
       <main className="container mx-auto px-4 pb-8 space-y-3 mt-3">
+            {/* Main tab bar */}
+            <div className="flex items-center gap-1 p-1 rounded-xl bg-white/[0.05] border border-white/[0.10] w-fit">
+              {[
+                { id: 'records', label: 'Records', icon: FileText },
+                { id: 'analytics', label: 'Analytics', icon: Activity },
+              ].map(({ id, label, icon: Icon }) => (
+                <button
+                  key={id}
+                  onClick={() => setActiveMainTab(id)}
+                  className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                    activeMainTab === id
+                      ? 'bg-white/[0.15] text-white shadow-sm'
+                      : 'text-white/45 hover:text-white/70 hover:bg-white/[0.05]'
+                  }`}
+                >
+                  <Icon className="h-3.5 w-3.5" /> {label}
+                </button>
+              ))}
+            </div>
+
+            {activeMainTab === 'analytics' ? (
+              <OvertimeAnalytics data={processedOvertime} />
+            ) : (
+            <>
             {/* Type Summary */}
             {processedOvertime.length > 0 && (
               <div className="oz-glass-panel rounded-2xl overflow-hidden">
@@ -2897,6 +3470,8 @@ export default function OvertimeManagementPage() {
             </div>
             )}
             </div>
+            </>
+            )}
       </main>
 
       {/* Modals */}
