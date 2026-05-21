@@ -276,7 +276,7 @@ function InventoryListItem({
 }
 
 export default function InventoryPage() {
-  const sections = usePageCollapse({ hero: true, filters: true, records: true });
+  const sections = usePageCollapse({ hero: false, filters: false, records: false });
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');

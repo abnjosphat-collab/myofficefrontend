@@ -642,7 +642,7 @@ function ReportCard({
 // ─── MAIN PAGE ────────────────────────────────────────────────────────────────
 
 export default function WorkStoppagePage() {
-  const sections = usePageCollapse({ stats: true, records: true });
+  const sections = usePageCollapse({ stats: false, records: false });
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [reports, setReports] = useState<WorkStoppageReport[]>([]);

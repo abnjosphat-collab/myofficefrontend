@@ -400,7 +400,7 @@ function DriverModal({
 // ─── MAIN PAGE ────────────────────────────────────────────────────────────────
 
 export default function DriversPage() {
-  const sections = usePageCollapse({ stats: true, records: true });
+  const sections = usePageCollapse({ stats: false, records: false });
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);

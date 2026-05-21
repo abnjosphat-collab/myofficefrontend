@@ -673,7 +673,7 @@ const VFLFormModal: React.FC<FormModalProps> = ({ open, editing, onClose, onSave
 
 // =============== MAIN PAGE ===============
 export default function VFLObservationPage() {
-  const sections = usePageCollapse({ stats: true, records: true });
+  const sections = usePageCollapse({ stats: false, records: false });
   const [reports, setReports] = useState<VFLReport[]>([]);
   const [loading, setLoading] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');

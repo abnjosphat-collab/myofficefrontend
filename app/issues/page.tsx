@@ -412,7 +412,7 @@ function StatCard({ label, value, sub, color = '#86BBD8', trend }:
 // ─── MAIN PAGE ────────────────────────────────────────────────────────────────
 
 export default function IssuesPage() {
-  const sections = usePageCollapse({ stats: true, records: true });
+  const sections = usePageCollapse({ stats: false, records: false });
   // Data
   const [issues, setIssues] = useState<StockIssue[]>([]);
   const [serverStats, setServerStats] = useState<Stats>({ total: 0, today: 0, this_week: 0, unique_recipients: 0 });

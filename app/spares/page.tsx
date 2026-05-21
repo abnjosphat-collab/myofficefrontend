@@ -10,8 +10,9 @@ import {
   Loader2, DollarSign, List, X, Star, Eye, BarChart3, Filter,
   Shield, CheckCircle2, FileText, Truck, Cpu, MapPin,
   SortAsc, ChevronsUp, ChevronsDown, Grid3x3, MoreVertical, Check,
-  Database, Tag, ClipboardList, Layers, Hash, Settings2, Download,
+  Database, Tag, ClipboardList, Layers, Hash, Settings2, Download, Upload,
 } from 'lucide-react';
+import Link from 'next/link';
 import { toast } from 'sonner';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -370,7 +371,7 @@ const apiDeleteSavedReq = async (id: string): Promise<boolean> => {
 // ─── API ─────────────────────────────────────────────────────────────────────
 
 async function apiFetchAll(): Promise<Spare[]> {
-  const r = await fetch(`${API_URL}/api/spares?limit=5000`);
+  const r = await fetch(`${API_URL}/api/spares`);
   if (!r.ok) throw new Error(`Fetch failed: ${r.status}`);
   const d = await r.json();
   return Array.isArray(d) ? d : d?.items ?? d?.data ?? [];
@@ -1485,6 +1486,11 @@ export default function SparesPage() {
                 className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-white transition-all hover:-translate-y-0.5 ${showRequisition ? 'bg-[#86BBD8]/30 border-[#86BBD8]/45' : 'bg-white/[0.07] border-white/12'} border`}>
                 <ShoppingCart className="h-3.5 w-3.5" /> Requisition {reqLines.length > 0 && <span className="px-1 rounded-full bg-[#86BBD8]/40 text-[10px]">{reqLines.length}</span>}
               </button>
+              <Link href="/spares/import">
+                <button className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-white/70 hover:text-white transition-all hover:-translate-y-0.5 bg-white/[0.06] hover:bg-white/[0.10] border border-white/12">
+                  <Upload className="h-3.5 w-3.5" /> Import Excel
+                </button>
+              </Link>
               <button onClick={() => { setEditingSpare(null); setFormOpen(true); }}
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:-translate-y-0.5 hover:shadow-lg"
                 style={{ background: 'linear-gradient(135deg, #2A4D69, #1e3a52)', border: '1px solid rgba(134,187,216,0.25)' }}>

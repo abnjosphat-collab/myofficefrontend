@@ -104,7 +104,7 @@ function generateData(reportType: string, selectedColumns: string[]): Record<str
 // ─── MAIN PAGE ────────────────────────────────────────────────────────────────
 
 export default function GenerateReportPage() {
-  const sections = usePageCollapse({ hero: true, template: true, reportDetails: true, dataColumns: true, advancedOptions: true, reportSummary: true, dataPreview: true, quickActions: true });
+  const sections = usePageCollapse({ hero: false, template: false, reportDetails: false, dataColumns: false, advancedOptions: false, reportSummary: false, dataPreview: false, quickActions: false });
   const router = useRouter();
   const [reportType, setReportType]       = useState('overtime');
   const [reportName, setReportName]       = useState('');

@@ -127,7 +127,7 @@ const PREMIUM_THEMES = [
 ];
 
 const QuotationGenerator = () => {
-  const sections = usePageCollapse({ hero: true, quickActions: true, designTheme: true, companyDetails: true, clientInfo: true, quotationDetails: true, items: true, notes: true, terms: true, templates: true, clients: true, history: true });
+  const sections = usePageCollapse({ hero: false, quickActions: false, designTheme: false, companyDetails: false, clientInfo: false, quotationDetails: false, items: false, notes: false, terms: false, templates: false, clients: false, history: false });
   const [isClient, setIsClient] = useState(false);
   const [quotation, setQuotation] = useState({
     quotationNumber: 'QT-000000',

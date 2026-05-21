@@ -723,7 +723,7 @@ const PTOFormModal: React.FC<{ open: boolean; editing: PTOReport | null; onClose
 
 // =============== MAIN PAGE ===============
 export default function CompletePTOFormPage() {
-  const sections = usePageCollapse({ stats: true, records: true });
+  const sections = usePageCollapse({ stats: false, records: false });
   const [reports, setReports] = useState<PTOReport[]>([]);
   const [loading, setLoading] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');

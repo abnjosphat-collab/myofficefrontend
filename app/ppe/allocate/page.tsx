@@ -22,7 +22,7 @@ const CONDITION_OPTIONS = [
 ];
 
 export default function CreateAllocationPage() {
-  const sections = usePageCollapse({ hero: true, allocationDetails: true });
+  const sections = usePageCollapse({ hero: false, allocationDetails: false });
   const router = useRouter();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [ppeItems,  setPpeItems]  = useState<PpeItem[]>([]);

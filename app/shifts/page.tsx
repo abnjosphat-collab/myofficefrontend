@@ -1784,7 +1784,7 @@ function ShiftAssignForm({
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function ShiftsPage() {
-  const sections = usePageCollapse({ hero: true, shiftPatterns: true, roster: true, filters: true });
+  const sections = usePageCollapse({ hero: false, shiftPatterns: false, roster: false, filters: false });
   const [assignments, setAssignments]   = useState<ShiftAssignment[]>([]);
   const [employees, setEmployees]       = useState<Employee[]>([]);
   const [leaves, setLeaves]             = useState<LeaveRecord[]>([]);

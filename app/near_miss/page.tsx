@@ -218,7 +218,7 @@ function ReportDetailModal({ report, open, onClose, onEdit, onDelete }: {
 // ─── MAIN PAGE ────────────────────────────────────────────────────────────────
 
 export default function NearMissPage() {
-  const sections = usePageCollapse({ stats: true, records: true });
+  const sections = usePageCollapse({ stats: false, records: false });
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [reports, setReports] = useState<NearMissReport[]>([]);

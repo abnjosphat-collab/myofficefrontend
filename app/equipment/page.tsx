@@ -315,7 +315,7 @@ function GlassPagination({ current, total, onPage, perPage, totalItems, onPerPag
 
 // --- Main page ---
 const EquipmentManagement = () => {
-  const sections = usePageCollapse({ hero: true, filtersSearch: true });
+  const sections = usePageCollapse({ hero: false, filtersSearch: false });
   const [equipment, setEquipment] = useState<EquipmentItem[]>([]);
   const [filtered, setFiltered] = useState<EquipmentItem[]>([]);
   const [loading, setLoading] = useState(true);

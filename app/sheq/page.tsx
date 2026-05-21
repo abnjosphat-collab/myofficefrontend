@@ -572,7 +572,7 @@ const QUICK_OPTIONS: { key: QuickRange | 'custom'; label: string }[] = [
 
 // ─── MAIN PAGE ────────────────────────────────────────────────────────────────
 export default function SHEQDashboardPage() {
-  const sections = usePageCollapse({ score: true, modules: true, analytics: true, actions: true, notes: true });
+  const sections = usePageCollapse({ score: false, modules: false, analytics: false, actions: false, notes: false });
   const [raw,         setRaw]         = useState<RawData>({ nm: [], ws: [], vfl: [], pto: [], insp: [] });
   const [loading,     setLoading]     = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);

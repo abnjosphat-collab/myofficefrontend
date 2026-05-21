@@ -57,20 +57,20 @@ const BASE = '/api/safety-complaints';
 // This converts before every POST / PATCH.
 function toSnake(d: Partial<Complaint>): Record<string, unknown> {
   return {
-    date:                d.date,
-    raised_by:           d.raisedBy           ?? '',
-    issue_raised:        d.issueRaised         ?? '',
-    category:            d.category            ?? 'General',
-    priority:            d.priority            ?? 'medium',
-    section:             d.section             ?? 'General',
-    location:            d.location            ?? '',
-    action_plan:         d.actionPlan          ?? '',
-    by_who:              d.byWho               ?? '',
-    by_when:             d.byWhen              ?? '',
-    supervisor_name:     d.supervisorName      ?? '',
-    supervisor_signature:d.supervisorSignature ?? '',
-    date_closed:         d.dateClosed || null,
-    status:              d.status              ?? 'open',
+    date:                 d.date                 || null,
+    raised_by:            d.raisedBy             || '',
+    issue_raised:         d.issueRaised          || '',
+    category:             d.category             || 'General',
+    priority:             d.priority             || 'medium',
+    section:              d.section              || 'General',
+    location:             d.location             || '',
+    action_plan:          d.actionPlan           || '',
+    by_who:               d.byWho                || '',
+    by_when:              d.byWhen               || null,   // date column — must be null not ''
+    supervisor_name:      d.supervisorName       || '',
+    supervisor_signature: d.supervisorSignature  || '',
+    date_closed:          d.dateClosed           || null,   // date column — must be null not ''
+    status:               d.status               || 'open',
   };
 }
 

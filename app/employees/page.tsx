@@ -499,8 +499,18 @@ function EmployeeRow({ employee, onEdit, onDelete }: EmployeeRowProps) {
               </div>
               <div className="px-3.5 py-3 grid grid-cols-2 gap-x-6 gap-y-2.5">
                 <InfoField label="ID Number" value={employee.id_number} />
-                <InfoField label="Phone" value={employee.phone} />
-                <div className="col-span-2"><InfoField label="Email" value={employee.email} /></div>
+                <div>
+                  <div className="text-white/35 text-[10px] uppercase tracking-wide mb-0.5">Phone</div>
+                  {employee.phone
+                    ? <a href={`tel:${employee.phone}`} className="text-[#86BBD8] text-sm hover:text-white hover:underline transition-all">{employee.phone}</a>
+                    : <span className="text-white/80 text-sm">—</span>}
+                </div>
+                <div className="col-span-2">
+                  <div className="text-white/35 text-[10px] uppercase tracking-wide mb-0.5">Email</div>
+                  {employee.email
+                    ? <a href={`mailto:${employee.email}`} className="text-[#86BBD8] text-sm hover:text-white hover:underline transition-all">{employee.email}</a>
+                    : <span className="text-white/80 text-sm">—</span>}
+                </div>
                 {employee.address && <div className="col-span-2"><InfoField label="Address" value={employee.address} /></div>}
               </div>
             </div>
@@ -719,7 +729,7 @@ export default function EmployeesPage() {
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const [page, setPage] = useState(1);
 
-  const sections = usePageCollapse({ hero: false, filters: true, records: true });
+  const sections = usePageCollapse({ hero: false, filters: false, records: false });
 
   const PER_PAGE = 25;
 

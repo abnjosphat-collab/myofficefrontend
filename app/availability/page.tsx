@@ -95,7 +95,7 @@ function avColor(pct: number) {
 // ─── MAIN PAGE ────────────────────────────────────────────────────────────────
 
 export default function AvailabilitiesPage() {
-  const sections = usePageCollapse({ hero: true, stats: true, filters: true, content: true });
+  const sections = usePageCollapse({ hero: false, stats: false, filters: false, content: false });
   const [equipment, setEquipment]   = useState<Equipment[]>([]);
   const [stats, setStats]           = useState<AvailabilityStats>(MOCK_STATS);
   const [loading, setLoading]       = useState(true);

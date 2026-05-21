@@ -138,7 +138,7 @@ function generateTeamReportPDF(stats: TeamLeaveStat[]) {
 // ─── MAIN PAGE ────────────────────────────────────────────────────────────────
 
 export default function LeaveManagementPage() {
-  const sections = usePageCollapse({ hero: true, requests: true, team: true, history: true, newRequest: true });
+  const sections = usePageCollapse({ hero: false, requests: false, team: false, history: false, newRequest: false });
   const [requests, setRequests] = useState<LeaveRequest[]>([]);
   const [teamStats, setTeamStats] = useState<TeamLeaveStat[]>([]);
   const [filters, setFilters] = useState<Filters>({ status: 'all', type: 'all', department: 'all' });

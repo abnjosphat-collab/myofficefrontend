@@ -195,7 +195,7 @@ function ReportListItem({ report, onDownload, onDelete, isLoading }: ReportCardP
 // ─── MAIN PAGE ────────────────────────────────────────────────────────────────
 
 export default function ReportsPage() {
-  const sections = usePageCollapse({ hero: true, searchFilters: true });
+  const sections = usePageCollapse({ hero: false, searchFilters: false });
   const [reports, setReports]           = useState<Report[]>([]);
   const [searchTerm, setSearchTerm]     = useState('');
   const [isLoading, setIsLoading]       = useState(false);

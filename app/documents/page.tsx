@@ -197,7 +197,7 @@ function FileActionsMenu({ doc, onPreview, onDownload, onRename, onDelete, onTog
 }
 
 export default function DocumentsPage() {
-  const sections = usePageCollapse({ searchFilters: true });
+  const sections = usePageCollapse({ searchFilters: false });
   const user = null as { name?: string; email?: string } | null;
 
   const [viewMode, setViewMode] = useState<string>('grid');
