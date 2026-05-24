@@ -3,6 +3,7 @@
 
 import { PageShell } from '@/components/PageShell';
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { toast } from 'sonner';
 import EquipmentForm from "@/components/EquipmentForm";
 import {
   Loader2, Plus, Search, Trash2, Edit, Briefcase, Calendar, Wrench, Phone,
