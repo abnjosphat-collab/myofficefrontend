@@ -8,7 +8,7 @@ import {
   Mail, Briefcase, Building, Calendar, GraduationCap, UserCheck,
   FilterX, Sparkles, UserRound, BriefcaseBusiness, Phone,
   ChevronLeft, ChevronRight, ArrowUpDown, List, LayoutGrid,
-  Filter, FileText, Award
+  Filter, FileText, Award, Download, FileSpreadsheet, FileDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageShell } from "@/components/PageShell";
@@ -800,6 +800,94 @@ export default function EmployeesPage() {
   };
   const clearFilters = () => { setSearch(''); setClassFilter('all'); setDeptFilter('all'); setRoleFilter('all'); };
 
+  const [showDlMenu, setShowDlMenu] = useState(false);
+
+  const downloadEmployeesExcel = async () => {
+    setShowDlMenu(false);
+    try {
+      const ExcelJS = (await import('exceljs')).default;
+      const { saveAs } = await import('file-saver');
+      const wb = new ExcelJS.Workbook();
+      wb.creator = 'Ozech MyOffice';
+      const ws = wb.addWorksheet('Personnel Registry');
+      ws.columns = [
+        { header: 'Employee ID',       key: 'id',      width: 14 },
+        { header: 'First Name',        key: 'fname',   width: 18 },
+        { header: 'Last Name',         key: 'lname',   width: 18 },
+        { header: 'Designation',       key: 'role',    width: 24 },
+        { header: 'Department',        key: 'dept',    width: 20 },
+        { header: 'Section',           key: 'section', width: 18 },
+        { header: 'Grade',             key: 'grade',   width: 10 },
+        { header: 'Employee Class',    key: 'class',   width: 16 },
+        { header: 'Email',             key: 'email',   width: 28 },
+        { header: 'Phone',             key: 'phone',   width: 16 },
+        { header: 'Date of Engagement',key: 'doe',     width: 18 },
+        { header: 'Supervisor',        key: 'super',   width: 20 },
+        { header: 'ID Number',         key: 'idnum',   width: 16 },
+      ];
+      const hdr = ws.getRow(1);
+      hdr.eachCell(cell => {
+        cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2A4D69' } };
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+      });
+      hdr.height = 18;
+      employees.forEach((e, i) => {
+        const row = ws.addRow({
+          id: e.employee_id, fname: e.first_name, lname: e.last_name,
+          role: e.designation || '', dept: e.department || '', section: e.section || '',
+          grade: e.grade || '', class: e.employee_class || '',
+          email: e.email || '', phone: e.phone || '',
+          doe: e.date_of_engagement ? new Date(e.date_of_engagement).toLocaleDateString('en-GB') : '',
+          super: e.supervisor || '', idnum: e.id_number || '',
+        });
+        if (i % 2 === 1) row.eachCell(cell => { cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0F4F8' } }; });
+      });
+      ws.autoFilter = { from: 'A1', to: 'M1' };
+      ws.views = [{ state: 'frozen', ySplit: 1 }];
+      const buf = await wb.xlsx.writeBuffer();
+      saveAs(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
+        `Personnel_Registry_${new Date().toISOString().slice(0, 10)}.xlsx`);
+      toast.success(`Excel exported — ${employees.length} employees`);
+    } catch (err: any) { toast.error(`Export failed: ${err.message}`); }
+  };
+
+  const downloadEmployeesPDF = async () => {
+    setShowDlMenu(false);
+    try {
+      const { default: jsPDF } = await import('jspdf');
+      const { default: autoTable } = await import('jspdf-autotable');
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+      doc.setFontSize(14); doc.setTextColor(42, 77, 105);
+      doc.text('Personnel Registry', 14, 14);
+      doc.setFontSize(8); doc.setTextColor(100, 100, 100);
+      doc.text(`Generated ${new Date().toLocaleDateString('en-GB')}  ·  ${employees.length} employees`, 14, 20);
+      autoTable(doc, {
+        startY: 25,
+        head: [['ID', 'Name', 'Designation', 'Department', 'Section', 'Grade', 'Class', 'Email', 'Phone', 'Engaged']],
+        body: employees.map(e => [
+          e.employee_id,
+          `${e.first_name} ${e.last_name}`,
+          e.designation || '',
+          e.department  || '',
+          e.section     || '',
+          e.grade       || '',
+          e.employee_class || '',
+          e.email || '',
+          e.phone || '',
+          e.date_of_engagement ? new Date(e.date_of_engagement).toLocaleDateString('en-GB') : '',
+        ]),
+        headStyles: { fillColor: [42, 77, 105], textColor: 255, fontStyle: 'bold', fontSize: 7.5 },
+        bodyStyles: { fontSize: 7.5 },
+        alternateRowStyles: { fillColor: [240, 244, 248] },
+        styles: { cellPadding: 1.5 },
+        margin: { left: 10, right: 10 },
+      });
+      doc.save(`Personnel_Registry_${new Date().toISOString().slice(0, 10)}.pdf`);
+      toast.success(`PDF exported — ${employees.length} employees`);
+    } catch (err: any) { toast.error(`Export failed: ${err.message}`); }
+  };
+
   return (
     <PageShell>
       <main className="container mx-auto px-4 py-8 space-y-4">
@@ -813,7 +901,33 @@ export default function EmployeesPage() {
           loading={isLoading}
           onNew={openAdd}
           newLabel="Add Employee"
-          actions={<MasterCollapseButton collapse={sections} />}
+          actions={
+            <>
+              <MasterCollapseButton collapse={sections} />
+              <div className="relative">
+                <button type="button" onClick={() => setShowDlMenu(p => !p)} disabled={employees.length === 0}
+                  className="h-8 px-3 flex items-center gap-1.5 text-xs rounded-xl font-semibold text-white/80 hover:text-white transition-all hover:-translate-y-0.5 bg-white/[0.07] hover:bg-white/[0.13] border border-white/[0.15] disabled:opacity-40 disabled:translate-y-0">
+                  <Download className="h-3.5 w-3.5" /> Download
+                </button>
+                {showDlMenu && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowDlMenu(false)} />
+                    <div className="absolute right-0 top-full mt-1 z-50 rounded-xl shadow-2xl overflow-hidden w-48"
+                      style={{ background: 'rgba(4,12,24,0.97)', border: '1px solid rgba(255,255,255,0.14)' }}>
+                      <button type="button" onClick={downloadEmployeesExcel}
+                        className="w-full flex items-center gap-2.5 px-4 py-3 text-xs text-white/85 hover:bg-white/[0.10] transition-all border-b border-white/[0.07]">
+                        <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-400" /> Export Excel (.xlsx)
+                      </button>
+                      <button type="button" onClick={downloadEmployeesPDF}
+                        className="w-full flex items-center gap-2.5 px-4 py-3 text-xs text-white/85 hover:bg-white/[0.10] transition-all">
+                        <FileDown className="h-3.5 w-3.5 text-rose-400" /> Export PDF
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            </>
+          }
           stats={[
             { label: 'Total Employees', value: stats.total,     textClass: 'text-[#86BBD8]', onClick: () => setClassFilter('all') },
             { label: 'Unique Roles',    value: stats.roles,     textClass: 'text-violet-400' },

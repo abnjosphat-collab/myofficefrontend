@@ -6,7 +6,7 @@ import {
   Calendar, Plus, Trash2, History, Users, Download, Upload,
   Filter, Search, Clock, CheckCircle, XCircle, AlertCircle,
   FileText, BarChart3, TrendingUp, Award, Zap, Send,
-  Printer, CalendarDays, Grid3X3, List, Mail, ChevronRight,
+  Printer, CalendarDays, Grid3X3, List, Mail, ChevronRight, FileSpreadsheet, FileDown,
 } from 'lucide-react';
 import { PageShell } from '@/components/PageShell';
 import { toast } from 'sonner';
@@ -180,6 +180,98 @@ export default function LeaveManagementPage() {
   const deleteRequest = (id: number) => {
     setRequests(p => p.filter(r => r.id !== id));
     toast.success('Request deleted.');
+  };
+
+  const [showDlMenu, setShowDlMenu] = useState(false);
+
+  const downloadLeavesExcel = async () => {
+    setShowDlMenu(false);
+    try {
+      const ExcelJS = (await import('exceljs')).default;
+      const { saveAs } = await import('file-saver');
+      const wb = new ExcelJS.Workbook();
+      wb.creator = 'Ozech MyOffice';
+      const ws = wb.addWorksheet('Leave Requests');
+      ws.columns = [
+        { header: 'Employee Name', key: 'name',     width: 24 },
+        { header: 'Employee ID',   key: 'id',       width: 14 },
+        { header: 'Department',    key: 'dept',     width: 18 },
+        { header: 'Leave Type',    key: 'type',     width: 18 },
+        { header: 'Start Date',    key: 'start',    width: 14 },
+        { header: 'End Date',      key: 'end',      width: 14 },
+        { header: 'Days',          key: 'days',     width: 8  },
+        { header: 'Reason',        key: 'reason',   width: 34 },
+        { header: 'Status',        key: 'status',   width: 12 },
+        { header: 'Priority',      key: 'priority', width: 12 },
+        { header: 'Submitted',     key: 'sub',      width: 14 },
+        { header: 'Approved By',   key: 'approver', width: 20 },
+      ];
+      const hdr = ws.getRow(1);
+      hdr.eachCell(cell => {
+        cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2A4D69' } };
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+      });
+      hdr.height = 18;
+      requests.forEach((r, i) => {
+        const row = ws.addRow({
+          name: r.employeeName, id: r.employeeId, dept: r.department,
+          type: getLeaveTypeInfo(r.leaveType).name,
+          start: r.startDate, end: r.endDate, days: r.totalDays,
+          reason: r.reason, status: r.status, priority: r.priority,
+          sub: r.submittedDate, approver: r.approvedBy || '',
+        });
+        if (i % 2 === 1) row.eachCell(cell => { cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0F4F8' } }; });
+        const statusCell = row.getCell('status');
+        if (r.status === 'approved') statusCell.font = { color: { argb: 'FF34D399' }, bold: true };
+        else if (r.status === 'rejected') statusCell.font = { color: { argb: 'FFF43F5E' }, bold: true };
+        else statusCell.font = { color: { argb: 'FFF59E0B' }, bold: true };
+      });
+      ws.autoFilter = { from: 'A1', to: 'L1' };
+      ws.views = [{ state: 'frozen', ySplit: 1 }];
+      const buf = await wb.xlsx.writeBuffer();
+      saveAs(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
+        `Leave_Requests_${new Date().toISOString().slice(0, 10)}.xlsx`);
+      toast.success(`Excel exported — ${requests.length} requests`);
+    } catch (err: any) { toast.error(`Export failed: ${err.message}`); }
+  };
+
+  const downloadLeavesPDF = async () => {
+    setShowDlMenu(false);
+    try {
+      const { default: jsPDF } = await import('jspdf');
+      const { default: autoTable } = await import('jspdf-autotable');
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+      doc.setFontSize(14); doc.setTextColor(42, 77, 105);
+      doc.text('Leave Requests Register', 14, 14);
+      doc.setFontSize(8); doc.setTextColor(100, 100, 100);
+      doc.text(`Generated ${new Date().toLocaleDateString('en-GB')}  ·  ${requests.length} requests`, 14, 20);
+      autoTable(doc, {
+        startY: 25,
+        head: [['Employee', 'ID', 'Department', 'Leave Type', 'Start', 'End', 'Days', 'Status', 'Priority', 'Submitted', 'Approved By']],
+        body: requests.map(r => [
+          r.employeeName, r.employeeId, r.department,
+          getLeaveTypeInfo(r.leaveType).name,
+          r.startDate, r.endDate, r.totalDays,
+          r.status, r.priority, r.submittedDate, r.approvedBy || '',
+        ]),
+        headStyles: { fillColor: [42, 77, 105], textColor: 255, fontStyle: 'bold', fontSize: 7.5 },
+        bodyStyles: { fontSize: 7.5 },
+        alternateRowStyles: { fillColor: [240, 244, 248] },
+        didParseCell: (data) => {
+          if (data.section === 'body' && data.column.index === 7) {
+            const val = String(data.cell.raw);
+            if (val === 'approved')  data.cell.styles.textColor = [52, 211, 153];
+            if (val === 'rejected')  data.cell.styles.textColor = [244, 63, 94];
+            if (val === 'pending')   data.cell.styles.textColor = [245, 158, 11];
+          }
+        },
+        styles: { cellPadding: 1.5 },
+        margin: { left: 10, right: 10 },
+      });
+      doc.save(`Leave_Requests_${new Date().toISOString().slice(0, 10)}.pdf`);
+      toast.success(`PDF exported — ${requests.length} requests`);
+    } catch (err: any) { toast.error(`Export failed: ${err.message}`); }
   };
 
   const filtered = requests.filter(r =>
@@ -487,6 +579,28 @@ export default function LeaveManagementPage() {
           actions={
             <>
               <MasterCollapseButton collapse={sections} />
+              <div className="relative">
+                <button type="button" onClick={() => setShowDlMenu(p => !p)} disabled={requests.length === 0}
+                  className="h-8 px-3 flex items-center gap-1.5 text-xs rounded-xl font-semibold text-white/80 hover:text-white transition-all hover:-translate-y-0.5 bg-white/[0.07] hover:bg-white/[0.13] border border-white/[0.15] disabled:opacity-40 disabled:translate-y-0">
+                  <Download className="h-3.5 w-3.5" /> Download
+                </button>
+                {showDlMenu && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowDlMenu(false)} />
+                    <div className="absolute right-0 top-full mt-1 z-50 rounded-xl shadow-2xl overflow-hidden w-48"
+                      style={{ background: 'rgba(4,12,24,0.97)', border: '1px solid rgba(255,255,255,0.14)' }}>
+                      <button type="button" onClick={downloadLeavesExcel}
+                        className="w-full flex items-center gap-2.5 px-4 py-3 text-xs text-white/85 hover:bg-white/[0.10] transition-all border-b border-white/[0.07]">
+                        <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-400" /> Export Excel (.xlsx)
+                      </button>
+                      <button type="button" onClick={downloadLeavesPDF}
+                        className="w-full flex items-center gap-2.5 px-4 py-3 text-xs text-white/85 hover:bg-white/[0.10] transition-all">
+                        <FileDown className="h-3.5 w-3.5 text-rose-400" /> Export PDF
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
               <GlassButton variant="primary" icon={Plus} onClick={() => {}}>New Request</GlassButton>
             </>
           }

@@ -8,7 +8,7 @@ import {
   Users, Package, Calendar, Tag,
   Award, Layers, ChevronRight,
   Shirt, Wind, CloudRain, Link2, ChevronsUp, ChevronsDown, X,
-  Flashlight, Pickaxe,
+  Flashlight, Pickaxe, Download, FileSpreadsheet, FileDown,
 } from 'lucide-react';
 import { PageShell } from '@/components/PageShell';
 import { toast } from 'sonner';
@@ -919,6 +919,125 @@ export default function PPEManagement() {
 
   const compColor = complianceRate == null ? '#86BBD8' : complianceRate >= 80 ? '#34d399' : complianceRate >= 60 ? '#f59e0b' : '#f43f5e';
 
+  const [showDlMenu, setShowDlMenu] = useState(false);
+
+  const downloadExcel = async () => {
+    setShowDlMenu(false);
+    try {
+      const ExcelJS = (await import('exceljs')).default;
+      const { saveAs } = await import('file-saver');
+      const wb = new ExcelJS.Workbook();
+      wb.creator = 'Ozech MyOffice';
+      const ws = wb.addWorksheet('PPE Register');
+      ws.columns = [
+        { header: 'Employee Name', key: 'name',    width: 26 },
+        { header: 'Employee ID',   key: 'id',      width: 14 },
+        { header: 'Position',      key: 'pos',     width: 22 },
+        { header: 'PPE Type',      key: 'type',    width: 22 },
+        { header: 'Item / Brand',  key: 'item',    width: 30 },
+        { header: 'Size',          key: 'size',    width: 10 },
+        { header: 'Issue Date',    key: 'issued',  width: 14 },
+        { header: 'Expiry Date',   key: 'expiry',  width: 14 },
+        { header: 'Condition',     key: 'cond',    width: 13 },
+        { header: 'Status',        key: 'status',  width: 13 },
+        { header: 'Issued By',     key: 'issuedby',width: 22 },
+        { header: 'Location',      key: 'loc',     width: 16 },
+        { header: 'Mine Section',  key: 'section', width: 16 },
+      ];
+      const hdr = ws.getRow(1);
+      hdr.eachCell(cell => {
+        cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2A4D69' } };
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        cell.border = { bottom: { style: 'thin', color: { argb: 'FF86BBD8' } } };
+      });
+      hdr.height = 18;
+      records.forEach((r, i) => {
+        const row = ws.addRow({
+          name:     r.employee_name,
+          id:       r.employee_id,
+          pos:      r.position || '',
+          type:     PPE_TYPES[r.ppe_type]?.name || r.ppe_type,
+          item:     r.item_name,
+          size:     r.size || '',
+          issued:   r.issue_date  ? new Date(r.issue_date).toLocaleDateString('en-GB')  : '',
+          expiry:   r.expiry_date ? new Date(r.expiry_date).toLocaleDateString('en-GB') : '',
+          cond:     CONDITION_LABELS[r.condition]  || r.condition,
+          status:   STATUS_LABELS[r.status]        || r.status,
+          issuedby: r.issued_by    || '',
+          loc:      r.location     || '',
+          section:  r.mine_section || '',
+        });
+        if (i % 2 === 1) {
+          row.eachCell(cell => {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0F4F8' } };
+          });
+        }
+        // Colour expiry cell red if overdue, amber if soon
+        const expCell = row.getCell('expiry');
+        if (r.expiry_date) {
+          if (isExpired(r.expiry_date))         expCell.font = { color: { argb: 'FFF43F5E' }, bold: true };
+          else if (isExpiringSoon(r.expiry_date)) expCell.font = { color: { argb: 'FFF59E0B' }, bold: true };
+        }
+      });
+      ws.autoFilter = { from: 'A1', to: 'M1' };
+      ws.views = [{ state: 'frozen', ySplit: 1 }];
+      const buf = await wb.xlsx.writeBuffer();
+      saveAs(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
+        `PPE_Register_${new Date().toISOString().slice(0, 10)}.xlsx`);
+      toast.success(`Excel exported — ${records.length} records`);
+    } catch (err: any) { toast.error(`Export failed: ${err.message}`); }
+  };
+
+  const downloadPDF = async () => {
+    setShowDlMenu(false);
+    try {
+      const { default: jsPDF } = await import('jspdf');
+      const { default: autoTable } = await import('jspdf-autotable');
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+      doc.setFontSize(14);
+      doc.setTextColor(42, 77, 105);
+      doc.text('PPE Register', 14, 14);
+      doc.setFontSize(8);
+      doc.setTextColor(100, 100, 100);
+      doc.text(`Generated ${new Date().toLocaleDateString('en-GB')}  ·  ${records.length} records  ·  ${employeesWithPPE.length} employees`, 14, 20);
+      autoTable(doc, {
+        startY: 25,
+        head: [['Employee', 'ID', 'Position', 'PPE Type', 'Item / Brand', 'Size', 'Issued', 'Expires', 'Condition', 'Status', 'Issued By']],
+        body: records.map(r => [
+          r.employee_name,
+          r.employee_id,
+          r.position || '',
+          PPE_TYPES[r.ppe_type]?.shortName || r.ppe_type,
+          r.item_name,
+          r.size || '',
+          r.issue_date  ? new Date(r.issue_date).toLocaleDateString('en-GB')  : '',
+          r.expiry_date ? new Date(r.expiry_date).toLocaleDateString('en-GB') : '',
+          CONDITION_LABELS[r.condition] || r.condition,
+          STATUS_LABELS[r.status]       || r.status,
+          r.issued_by || '',
+        ]),
+        headStyles: { fillColor: [42, 77, 105], textColor: 255, fontStyle: 'bold', fontSize: 7.5 },
+        bodyStyles: { fontSize: 7.5 },
+        alternateRowStyles: { fillColor: [240, 244, 248] },
+        didParseCell: (data) => {
+          if (data.section === 'body' && data.column.index === 7) {
+            const val = data.cell.raw as string;
+            if (val) {
+              const d = new Date(records[data.row.index]?.expiry_date ?? '');
+              if (isExpired(records[data.row.index]?.expiry_date))         data.cell.styles.textColor = [244, 63, 94];
+              else if (isExpiringSoon(records[data.row.index]?.expiry_date)) data.cell.styles.textColor = [245, 158, 11];
+            }
+          }
+        },
+        styles: { cellPadding: 1.5, overflow: 'linebreak' },
+        margin: { left: 10, right: 10 },
+      });
+      doc.save(`PPE_Register_${new Date().toISOString().slice(0, 10)}.pdf`);
+      toast.success(`PDF exported — ${records.length} records`);
+    } catch (err: any) { toast.error(`Export failed: ${err.message}`); }
+  };
+
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
@@ -951,6 +1070,33 @@ export default function PPEManagement() {
                 className="h-8 w-8 flex items-center justify-center rounded-lg bg-white/[0.07] hover:bg-white/[0.15] border border-white/[0.14] text-white/60 transition-all disabled:opacity-40">
                 <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
               </button>
+
+              {/* Download dropdown */}
+              <div className="relative">
+                <button type="button" onClick={() => setShowDlMenu(p => !p)} disabled={records.length === 0}
+                  className="h-8 px-3 flex items-center gap-1.5 text-xs rounded-xl font-semibold text-white/80 hover:text-white transition-all hover:-translate-y-0.5 bg-white/[0.07] hover:bg-white/[0.13] border border-white/[0.15] disabled:opacity-40 disabled:translate-y-0">
+                  <Download className="h-3.5 w-3.5" /> Download
+                </button>
+                {showDlMenu && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowDlMenu(false)} />
+                    <div className="absolute right-0 top-full mt-1 z-50 rounded-xl shadow-2xl overflow-hidden w-44"
+                      style={{ background: 'rgba(4,12,24,0.97)', border: '1px solid rgba(255,255,255,0.14)' }}>
+                      <button type="button" onClick={downloadExcel}
+                        className="w-full flex items-center gap-2.5 px-4 py-3 text-xs text-white/85 hover:bg-white/[0.10] transition-all border-b border-white/[0.07]">
+                        <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-400" />
+                        <span>Export Excel (.xlsx)</span>
+                      </button>
+                      <button type="button" onClick={downloadPDF}
+                        className="w-full flex items-center gap-2.5 px-4 py-3 text-xs text-white/85 hover:bg-white/[0.10] transition-all">
+                        <FileDown className="h-3.5 w-3.5 text-rose-400" />
+                        <span>Export PDF</span>
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+
               <button type="button" onClick={() => openIssueForm()}
                 className="h-8 px-3 flex items-center gap-1.5 text-xs rounded-xl font-semibold text-white transition-all hover:-translate-y-0.5"
                 style={{ background: 'linear-gradient(135deg,#2A4D69,#1e3a52)', border: '1px solid rgba(134,187,216,0.3)' }}>

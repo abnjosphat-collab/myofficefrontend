@@ -202,6 +202,8 @@ import {
   ZoomOut,
   ChevronsUp,
   ChevronsDown,
+  FileSpreadsheet,
+  FileDown,
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -2718,6 +2720,104 @@ export default function OvertimeManagementPage() {
     });
   };
 
+  const [showDlMenu, setShowDlMenu] = useState(false);
+
+  const downloadOvertimeExcel = async () => {
+    setShowDlMenu(false);
+    if (!overtime.length) { toast.warning('No data to export'); return; }
+    try {
+      const ExcelJS = (await import('exceljs')).default;
+      const { saveAs } = await import('file-saver');
+      const wb = new ExcelJS.Workbook();
+      wb.creator = 'Ozech MyOffice';
+      const ws = wb.addWorksheet('Overtime Register');
+      ws.columns = [
+        { header: 'Employee Name', key: 'name',    width: 24 },
+        { header: 'Employee ID',   key: 'id',      width: 14 },
+        { header: 'Position',      key: 'pos',     width: 22 },
+        { header: 'Department',    key: 'dept',    width: 18 },
+        { header: 'OT Type',       key: 'type',    width: 18 },
+        { header: 'Date',          key: 'date',    width: 14 },
+        { header: 'Start Time',    key: 'start',   width: 12 },
+        { header: 'End Time',      key: 'end',     width: 12 },
+        { header: 'Reason',        key: 'reason',  width: 34 },
+        { header: 'Status',        key: 'status',  width: 14 },
+        { header: 'Applied Date',  key: 'applied', width: 14 },
+        { header: 'Notes',         key: 'notes',   width: 28 },
+      ];
+      const hdr = ws.getRow(1);
+      hdr.eachCell(cell => {
+        cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2A4D69' } };
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+      });
+      hdr.height = 18;
+      overtime.forEach((r, i) => {
+        const row = ws.addRow({
+          name: r.employee_name, id: r.employee_id, pos: r.position || '',
+          dept: r.department || '', type: r.overtime_type || '',
+          date: r.date ? new Date(r.date).toLocaleDateString('en-GB') : '',
+          start: r.start_time || '', end: r.end_time || '',
+          reason: r.reason || '', status: r.status || '',
+          applied: r.applied_date ? new Date(r.applied_date).toLocaleDateString('en-GB') : '',
+          notes: r.notes || '',
+        });
+        if (i % 2 === 1) row.eachCell(cell => { cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0F4F8' } }; });
+        const sc = row.getCell('status');
+        if (r.status === 'approved')  sc.font = { color: { argb: 'FF34D399' }, bold: true };
+        else if (r.status === 'rejected') sc.font = { color: { argb: 'FFF43F5E' }, bold: true };
+        else if (r.status === 'pending')  sc.font = { color: { argb: 'FFF59E0B' }, bold: true };
+      });
+      ws.autoFilter = { from: 'A1', to: 'L1' };
+      ws.views = [{ state: 'frozen', ySplit: 1 }];
+      const buf = await wb.xlsx.writeBuffer();
+      saveAs(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
+        `Overtime_Register_${new Date().toISOString().slice(0, 10)}.xlsx`);
+      toast.success(`Excel exported — ${overtime.length} records`);
+    } catch (err: any) { toast.error(`Export failed: ${err.message}`); }
+  };
+
+  const downloadOvertimePDF = async () => {
+    setShowDlMenu(false);
+    if (!overtime.length) { toast.warning('No data to export'); return; }
+    try {
+      const { default: jsPDF } = await import('jspdf');
+      const { default: autoTable } = await import('jspdf-autotable');
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+      doc.setFontSize(14); doc.setTextColor(42, 77, 105);
+      doc.text('Overtime Register', 14, 14);
+      doc.setFontSize(8); doc.setTextColor(100, 100, 100);
+      doc.text(`Generated ${new Date().toLocaleDateString('en-GB')}  ·  ${overtime.length} records`, 14, 20);
+      autoTable(doc, {
+        startY: 25,
+        head: [['Employee', 'ID', 'Position', 'OT Type', 'Date', 'Start', 'End', 'Reason', 'Status', 'Applied']],
+        body: overtime.map(r => [
+          r.employee_name, r.employee_id, r.position || '',
+          r.overtime_type || '',
+          r.date ? new Date(r.date).toLocaleDateString('en-GB') : '',
+          r.start_time || '', r.end_time || '',
+          r.reason || '', r.status || '',
+          r.applied_date ? new Date(r.applied_date).toLocaleDateString('en-GB') : '',
+        ]),
+        headStyles: { fillColor: [42, 77, 105], textColor: 255, fontStyle: 'bold', fontSize: 7.5 },
+        bodyStyles: { fontSize: 7.5 },
+        alternateRowStyles: { fillColor: [240, 244, 248] },
+        didParseCell: (data) => {
+          if (data.section === 'body' && data.column.index === 8) {
+            const val = String(data.cell.raw);
+            if (val === 'approved')  data.cell.styles.textColor = [52, 211, 153];
+            if (val === 'rejected')  data.cell.styles.textColor = [244, 63, 94];
+            if (val === 'pending')   data.cell.styles.textColor = [245, 158, 11];
+          }
+        },
+        styles: { cellPadding: 1.5 },
+        margin: { left: 10, right: 10 },
+      });
+      doc.save(`Overtime_Register_${new Date().toISOString().slice(0, 10)}.pdf`);
+      toast.success(`PDF exported — ${overtime.length} records`);
+    } catch (err: any) { toast.error(`Export failed: ${err.message}`); }
+  };
+
   const clearFilters = () => {
     setStatusFilter('all');
     setTypeFilter('all');
@@ -3005,6 +3105,30 @@ export default function OvertimeManagementPage() {
                     <TooltipContent>Reload overtime data</TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
+                {/* Download dropdown */}
+                <div className="relative">
+                  <button type="button" onClick={() => setShowDlMenu(p => !p)} disabled={overtime.length === 0}
+                    className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-white/[0.08] hover:bg-white/[0.16] text-white/80 border border-white/15 transition-all disabled:opacity-40">
+                    <Download className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Download</span>
+                  </button>
+                  {showDlMenu && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setShowDlMenu(false)} />
+                      <div className="absolute right-0 top-full mt-1 z-50 rounded-xl shadow-2xl overflow-hidden w-48"
+                        style={{ background: 'rgba(4,12,24,0.97)', border: '1px solid rgba(255,255,255,0.14)' }}>
+                        <button type="button" onClick={downloadOvertimeExcel}
+                          className="w-full flex items-center gap-2.5 px-4 py-3 text-xs text-white/85 hover:bg-white/[0.10] transition-all border-b border-white/[0.07]">
+                          <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-400" /> Export Excel (.xlsx)
+                        </button>
+                        <button type="button" onClick={downloadOvertimePDF}
+                          className="w-full flex items-center gap-2.5 px-4 py-3 text-xs text-white/85 hover:bg-white/[0.10] transition-all">
+                          <FileDown className="h-3.5 w-3.5 text-rose-400" /> Export PDF
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>

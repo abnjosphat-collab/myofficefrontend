@@ -9,7 +9,7 @@ import {
   MapPin, FileText, BarChart3, Target, Building, Clock, Truck, AlertTriangle,
   CheckCircle, XCircle, Cpu, LayoutGrid, List, ChevronUp, ChevronDown,
   Server, Package, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
-  Filter, FilterX, RefreshCw,
+  Filter, FilterX, RefreshCw, Download, FileSpreadsheet, FileDown,
 } from "lucide-react";
 import {
   HeroPanel, GlassPanel, GlassButton, GlassBadge, GlassInput, GlassSelect,
@@ -416,6 +416,90 @@ const EquipmentManagement = () => {
   };
 
   const clearFilters = () => { setSearchTerm(''); setStatusFilter('all'); setCategoryFilter('all'); setLocationFilter('all'); setDepartmentFilter('all'); };
+
+  const [showDlMenu, setShowDlMenu] = useState(false);
+
+  const downloadEquipmentExcel = async () => {
+    setShowDlMenu(false);
+    try {
+      const ExcelJS = (await import('exceljs')).default;
+      const { saveAs } = await import('file-saver');
+      const wb = new ExcelJS.Workbook();
+      wb.creator = 'Ozech MyOffice';
+      const ws = wb.addWorksheet('Equipment Register');
+      ws.columns = [
+        { header: 'Equipment ID',    key: 'eqid',    width: 16 },
+        { header: 'Name',            key: 'name',    width: 28 },
+        { header: 'Category',        key: 'cat',     width: 18 },
+        { header: 'Status',          key: 'status',  width: 16 },
+        { header: 'Location',        key: 'loc',     width: 18 },
+        { header: 'Department',      key: 'dept',    width: 18 },
+        { header: 'Model',           key: 'model',   width: 20 },
+        { header: 'Serial Number',   key: 'serial',  width: 18 },
+        { header: 'Commission Date', key: 'comm',    width: 16 },
+        { header: 'Last Maintenance',key: 'lastmnt', width: 16 },
+        { header: 'Next Maintenance',key: 'nextmnt', width: 16 },
+        { header: 'Purchase Cost',   key: 'pcost',   width: 16 },
+        { header: 'Current Value',   key: 'cval',    width: 16 },
+        { header: 'Supplier',        key: 'supplier',width: 22 },
+      ];
+      const hdr = ws.getRow(1);
+      hdr.eachCell(cell => {
+        cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2A4D69' } };
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+      });
+      hdr.height = 18;
+      equipment.forEach((e, i) => {
+        const fmt = (d?: string) => d ? new Date(d).toLocaleDateString('en-GB') : '';
+        const row = ws.addRow({
+          eqid: e.equipment_id, name: e.name, cat: e.category || '', status: e.status || '',
+          loc: e.location || '', dept: e.department || '', model: e.model || '',
+          serial: e.serial_number || '', comm: fmt(e.commission_date),
+          lastmnt: fmt(e.last_maintenance), nextmnt: fmt(e.next_maintenance),
+          pcost: e.purchase_cost ?? '', cval: e.current_value ?? '', supplier: e.supplier || '',
+        });
+        if (i % 2 === 1) row.eachCell(cell => { cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0F4F8' } }; });
+      });
+      ws.autoFilter = { from: 'A1', to: 'N1' };
+      ws.views = [{ state: 'frozen', ySplit: 1 }];
+      const buf = await wb.xlsx.writeBuffer();
+      saveAs(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
+        `Equipment_Register_${new Date().toISOString().slice(0, 10)}.xlsx`);
+      toast.success(`Excel exported — ${equipment.length} assets`);
+    } catch (err: any) { toast.error(`Export failed: ${(err as Error).message}`); }
+  };
+
+  const downloadEquipmentPDF = async () => {
+    setShowDlMenu(false);
+    try {
+      const { default: jsPDF } = await import('jspdf');
+      const { default: autoTable } = await import('jspdf-autotable');
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+      doc.setFontSize(14); doc.setTextColor(42, 77, 105);
+      doc.text('Equipment Register', 14, 14);
+      doc.setFontSize(8); doc.setTextColor(100, 100, 100);
+      doc.text(`Generated ${new Date().toLocaleDateString('en-GB')}  ·  ${equipment.length} assets`, 14, 20);
+      const fmt = (d?: string) => d ? new Date(d).toLocaleDateString('en-GB') : '';
+      autoTable(doc, {
+        startY: 25,
+        head: [['ID', 'Name', 'Category', 'Status', 'Location', 'Department', 'Model', 'Serial No.', 'Commissioned', 'Next Maint.', 'Value']],
+        body: equipment.map(e => [
+          e.equipment_id, e.name, e.category || '', e.status || '', e.location || '',
+          e.department || '', e.model || '', e.serial_number || '',
+          fmt(e.commission_date), fmt(e.next_maintenance),
+          e.current_value != null ? `$${e.current_value.toLocaleString()}` : '',
+        ]),
+        headStyles: { fillColor: [42, 77, 105], textColor: 255, fontStyle: 'bold', fontSize: 7.5 },
+        bodyStyles: { fontSize: 7.5 },
+        alternateRowStyles: { fillColor: [240, 244, 248] },
+        styles: { cellPadding: 1.5 },
+        margin: { left: 10, right: 10 },
+      });
+      doc.save(`Equipment_Register_${new Date().toISOString().slice(0, 10)}.pdf`);
+      toast.success(`PDF exported — ${equipment.length} assets`);
+    } catch (err: any) { toast.error(`Export failed: ${(err as Error).message}`); }
+  };
   const hasActiveFilters = statusFilter !== 'all' || categoryFilter !== 'all' || locationFilter !== 'all' || departmentFilter !== 'all' || !!searchTerm;
 
   const metrics = useMemo(() => {
@@ -468,6 +552,28 @@ const EquipmentManagement = () => {
           {...sections.panel('hero')}
           actions={[
             <MasterCollapseButton key="collapse" collapse={sections} />,
+            <div key="download" className="relative">
+              <button type="button" onClick={() => setShowDlMenu(p => !p)} disabled={equipment.length === 0}
+                className="h-8 px-3 flex items-center gap-1.5 text-xs rounded-xl font-semibold text-white/80 hover:text-white transition-all hover:-translate-y-0.5 bg-white/[0.07] hover:bg-white/[0.13] border border-white/[0.15] disabled:opacity-40 disabled:translate-y-0">
+                <Download className="h-3.5 w-3.5" /> Download
+              </button>
+              {showDlMenu && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowDlMenu(false)} />
+                  <div className="absolute right-0 top-full mt-1 z-50 rounded-xl shadow-2xl overflow-hidden w-48"
+                    style={{ background: 'rgba(4,12,24,0.97)', border: '1px solid rgba(255,255,255,0.14)' }}>
+                    <button type="button" onClick={downloadEquipmentExcel}
+                      className="w-full flex items-center gap-2.5 px-4 py-3 text-xs text-white/85 hover:bg-white/[0.10] transition-all border-b border-white/[0.07]">
+                      <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-400" /> Export Excel (.xlsx)
+                    </button>
+                    <button type="button" onClick={downloadEquipmentPDF}
+                      className="w-full flex items-center gap-2.5 px-4 py-3 text-xs text-white/85 hover:bg-white/[0.10] transition-all">
+                      <FileDown className="h-3.5 w-3.5 text-rose-400" /> Export PDF
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>,
             <GlassButton key="add" icon={Plus} variant="primary" onClick={() => { setEditingEq(null); setIsFormOpen(true); }}>
               Add Equipment
             </GlassButton>,
