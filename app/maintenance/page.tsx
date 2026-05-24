@@ -162,7 +162,7 @@ interface WorkOrder {
 }
 
 // ==================== API ====================
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com';
 
 // Fields the backend may not have columns for yet — kept authoritative in localStorage
 const LOCAL_FIELDS: (keyof WorkOrder)[] = [

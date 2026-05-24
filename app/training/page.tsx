@@ -28,7 +28,7 @@ interface RefresherItem {
 }
 
 // --- Configuration ---
-const API_BASE_URL = 'http://localhost:8000/api/training'; 
+const API_BASE_URL = `${process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com'}/api/training`;
 
 // --- Utility Components (ShadCN/UI Style) ---
 const Card = ({ children, className = '' }: { children: React.ReactNode; className?: string }) => (<div className={`bg-white rounded-xl shadow-lg border border-slate-100/70 transition-all ${className}`}>{children}</div>);

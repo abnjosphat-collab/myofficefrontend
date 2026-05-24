@@ -18,7 +18,7 @@ import {
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com';
 const uid = () => Math.random().toString(36).slice(2);
 
 

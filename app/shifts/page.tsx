@@ -78,7 +78,7 @@ interface Employee {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const API_BASE      = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE      = process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com';
 const STANDBY_API   = `${API_BASE}/api/standby`;
 const EMPLOYEES_API = `${API_BASE}/api/employees`;
 const LEAVES_API    = `${API_BASE}/api/leaves`;

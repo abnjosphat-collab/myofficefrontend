@@ -66,7 +66,7 @@ interface ComplaintFormData {
 }
 
 // =============== CONSTANTS ===============
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com';
 const COMPLAINTS_API = `${API_BASE}/api/safety-complaints`;
 
 const COMPLAINT_TYPES: Record<string, { name: string; icon: React.ElementType; badge: BadgeVariant; description: string }> = {

@@ -168,7 +168,7 @@ import {
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
 
-const API_BASE_URL = 'http://localhost:8000/api/notices';
+const API_BASE_URL = `${process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com'}/api/notices`;
 
 // API Service - Updated to match SQL schema
 const noticeboardApi = {
@@ -1856,7 +1856,7 @@ export default function NoticeboardManagement() {
       } else if (msg.includes('500')) {
         alert('Error: Internal Server Error. Please check backend logs.');
       } else if (msg.includes('Network Error')) {
-        alert('Error: Cannot connect to backend. Make sure the server is running on http://localhost:8000');
+        alert('Error: Cannot connect to backend. Please check your connection.');
       } else {
         alert(`Error: ${msg}`);
       }

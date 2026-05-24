@@ -299,7 +299,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 
 // API Configuration
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com';
 const OVERTIME_API = `${API_BASE}/api/overtime`;
 const EMPLOYEES_API = `${API_BASE}/api/employees`;
 

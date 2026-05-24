@@ -92,19 +92,7 @@ import { format } from "date-fns";
 
 // API Configuration
 const getApiBase = (): string => {
-  const endpoints = [
-    process.env.NEXT_PUBLIC_API_URL,
-    'http://localhost:8000',
-    'http://127.0.0.1:8000',
-  ];
-  
-  for (const endpoint of endpoints) {
-    if (endpoint && endpoint.trim() !== '') {
-      return endpoint;
-    }
-  }
-  
-  return 'http://localhost:8000';
+  return process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com';
 };
 
 const API_BASE = getApiBase();

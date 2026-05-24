@@ -17,7 +17,7 @@ import * as XLSX from 'xlsx';
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com';
 
 const DEPARTMENTS = [
   'Mining', 'Engineering', 'Geology', 'Survey', 'Environment',

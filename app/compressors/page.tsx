@@ -315,10 +315,7 @@ interface AddCompressorFormData {
 // ─────────────────────────────────────────────────────────────────────────────
 
 // API Configuration - Use relative URL for same-origin or full URL for different origin
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 
-  (typeof window !== 'undefined' && window.location.origin.includes('localhost:3000') 
-    ? 'http://localhost:8000' 
-    : '/api');
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com';
 
 // Service intervals in hours
 const SERVICE_INTERVALS = [1000, 2000, 4000, 8000, 16000];

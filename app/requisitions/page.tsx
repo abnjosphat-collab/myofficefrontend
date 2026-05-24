@@ -136,7 +136,7 @@ const PRIORITIES: Array<Requisition['priority']> = ["Critical", "High", "Medium"
 const SECTIONS: Array<Requisition['section']> = ["Electrical", "Mechanical"];
 
 // ============= API Service - Fixed Base URL Handling =============
-const SERVER_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const SERVER_URL = process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com';
 const API_BASE_URL = `${SERVER_URL}/api/requisitions`;
 
 console.log('🔍 SERVER_URL:', SERVER_URL);

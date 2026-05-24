@@ -30,7 +30,7 @@ import {
 } from '@/components/shared';
 import { toast } from "sonner";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com';
 
 // =============== TYPES ===============
 type SectionType = 'Mechanical' | 'Electrical';

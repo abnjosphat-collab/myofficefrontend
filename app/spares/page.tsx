@@ -99,7 +99,7 @@ interface SortConfig { field: keyof Spare | 'status'; direction: 'asc' | 'desc';
 
 // ─── CONSTANTS & UTILS ───────────────────────────────────────────────────────
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com';
 
 interface StockStatus { label: string; color: string; }
 const getStockStatus = (current: number, min: number): StockStatus => {

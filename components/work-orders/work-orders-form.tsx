@@ -369,7 +369,7 @@ const createWorkOrder = async (workOrderData: any) => {
     console.log('📤 Sending work order to backend...', workOrderData);
     
     // CORRECTED ENDPOINT: Use the maintenance endpoint instead of direct work-orders
-    const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com';
     const response = await fetch(`${API_BASE}/api/maintenance/work-orders`, {
       method: 'POST',
       headers: {
@@ -412,7 +412,7 @@ const createWorkOrder = async (workOrderData: any) => {
 // Test backend connection function
 const testBackendConnection = async () => {
   try {
-    const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com';
     const response = await fetch(`${API_BASE}/api/maintenance/health`);
     const result = await response.json();
     console.log('🔧 Backend connection test:', result);

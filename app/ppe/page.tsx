@@ -66,7 +66,7 @@ interface FormState {
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com';
 const PPE_API  = `${API_BASE}/api/ppe`;
 
 const PPE_TYPES: Record<string, PPETypeInfo> = {

@@ -20,7 +20,7 @@ import {
 import { PageShell } from '@/components/PageShell';
 import { initials as getInitials } from '@/components/shared';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com';
 
 // ─────────────────── TYPES ───────────────────
 

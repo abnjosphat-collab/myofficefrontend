@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 
-export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com';
 
 export const glassInput =
   'w-full px-3 py-2 text-sm rounded-lg bg-white/[0.07] border border-white/[0.12] text-white placeholder:text-white/30 focus:outline-none focus:border-white/30 focus:bg-white/[0.11] transition-all';
