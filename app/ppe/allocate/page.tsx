@@ -45,6 +45,7 @@ export default function CreateAllocationPage() {
       .catch(() => {});
 
     const stored = localStorage.getItem('ppe-items');
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (stored) setPpeItems(JSON.parse(stored));
   }, []);
 

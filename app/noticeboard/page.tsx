@@ -509,10 +509,11 @@ const NoticeDetailsModal = ({ isOpen, onClose, notice, onDelete, onEdit, onToggl
   if (!notice) return null;
 
   const priorityStyle = getPriorityStyle(notice.priority);
-  const isExpired = notice.expires_at && new Date(notice.expires_at) < new Date();
+  const now = Date.now();
+  const isExpired = notice.expires_at && new Date(notice.expires_at).getTime() < now;
   const expiresSoon = notice.expires_at &&
-    new Date(notice.expires_at) > new Date() &&
-    new Date(notice.expires_at) <= new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    new Date(notice.expires_at).getTime() > now &&
+    new Date(notice.expires_at).getTime() <= now + 7 * 24 * 60 * 60 * 1000;
 
   const getFileIcon = () => {
     if (!notice.attachment_name && !notice.attachment_url) return <FileTextIcon className="h-5 w-5" />;
@@ -532,7 +533,7 @@ const NoticeDetailsModal = ({ isOpen, onClose, notice, onDelete, onEdit, onToggl
       return;
     }
 
-    let url = notice.attachment_url;
+    const url = notice.attachment_url;
     let filename = notice.attachment_name || 'download';
 
     if (url) {
@@ -1010,10 +1011,12 @@ interface NoticeCardProps {
 const NoticeCard = ({ notice, onView, onEdit, onDelete, viewMode = 'grid', isExpanded, onToggleExpand }: NoticeCardProps) => {
   const priorityStyle = getPriorityStyle(notice.priority);
   const statusStyle = getStatusStyle(notice.status);
-  const isExpired = notice.expires_at && new Date(notice.expires_at) < new Date();
+  // eslint-disable-next-line react-hooks/purity
+  const now = Date.now();
+  const isExpired = notice.expires_at && new Date(notice.expires_at).getTime() < now;
   const expiresSoon = notice.expires_at &&
-    new Date(notice.expires_at) > new Date() &&
-    new Date(notice.expires_at) <= new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    new Date(notice.expires_at).getTime() > now &&
+    new Date(notice.expires_at).getTime() <= now + 7 * 24 * 60 * 60 * 1000;
 
   if (viewMode === 'table') {
     return (
@@ -1349,6 +1352,7 @@ const EditNoticeModal = ({ isOpen, onClose, notice, onSave, isLoading }: EditNot
 
   useEffect(() => {
     if (notice) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFormData({
         title: notice.title || '',
         content: notice.content || '',

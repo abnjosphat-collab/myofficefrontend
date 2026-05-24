@@ -1577,7 +1577,7 @@ function VisualizationContent() {
                         <Brain className="h-12 w-12 text-gray-300 mx-auto mb-3" />
                         <p className="text-[#6B7B8E]">No AI analysis available</p>
                         <p className="text-sm text-gray-400 mt-1">
-                          Click "Run AI Analysis" to generate insights
+                          Click &quot;Run AI Analysis&quot; to generate insights
                         </p>
                       </div>
                     </CardContent>

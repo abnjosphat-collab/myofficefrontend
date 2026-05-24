@@ -787,7 +787,7 @@ export default function DesignStudio() {
                 </div>
                 
                 <Quote className="h-6 w-6 text-primary-200 mb-4" />
-                <p className="text-neutral-700 italic mb-6">"{testimonial.content}"</p>
+                <p className="text-neutral-700 italic mb-6">&quot;{testimonial.content}&quot;</p>
               </motion.div>
             ))}
           </div>
@@ -820,7 +820,7 @@ export default function DesignStudio() {
               Ready to Elevate Your Professional Image?
             </h2>
             <p className={`${typography.bodyLarge} mb-8 max-w-2xl mx-auto opacity-90`}>
-              Let's collaborate to create designs that communicate excellence and attention to detail.
+              Let&apos;s collaborate to create designs that communicate excellence and attention to detail.
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -862,7 +862,7 @@ export default function DesignStudio() {
               <span className={`${typography.caption} text-primary-600 font-semibold mb-2 block`}>CONTACT US</span>
               <h2 className={`${typography.h2} text-neutral-900 mb-6`}>Get in Touch</h2>
               <p className={`${typography.bodyLarge} text-neutral-600 mb-8`}>
-                Have a project in mind? Let's discuss how we can bring your vision to life with stunning, professional designs.
+                Have a project in mind? Let&apos;s discuss how we can bring your vision to life with stunning, professional designs.
               </p>
               
               <div className="space-y-6">

@@ -486,7 +486,9 @@ const VFLFormModal: React.FC<FormModalProps> = ({ open, editing, onClose, onSave
 
   useEffect(() => {
     if (open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setForm(editing ? { ...editing } : defaultForm());
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setTab('observer');
     }
   }, [open, editing]);

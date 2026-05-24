@@ -875,7 +875,7 @@ export default function HomePage() {
                 Summer Sale: Up to 50% Off
               </h2>
               <p className="text-rose-100 mb-8">
-                Don't miss out on our biggest sale of the season. Premium beauty essentials at unbeatable prices.
+                Don&apos;t miss out on our biggest sale of the season. Premium beauty essentials at unbeatable prices.
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
                 <Button className="bg-white text-rose-600 hover:bg-gray-100">
@@ -939,7 +939,7 @@ export default function HomePage() {
                         />
                       ))}
                     </div>
-                    <p className="text-gray-700 italic">"{testimonial.content}"</p>
+                    <p className="text-gray-700 italic">&quot;{testimonial.content}&quot;</p>
                   </CardContent>
                 </Card>
               </motion.div>

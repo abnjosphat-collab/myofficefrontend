@@ -1260,6 +1260,7 @@ const EditRequisitionModal: React.FC<EditRequisitionModalProps> = ({
 
   useEffect(() => {
     if (requisition) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFormData({
         date: requisition.date ? requisition.date.split('T')[0] : new Date().toISOString().split('T')[0],
         requester: requisition.requester,

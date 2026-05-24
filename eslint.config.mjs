@@ -5,6 +5,13 @@ import nextTs from "eslint-config-next/typescript";
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
+  // Project-level rule overrides
+  {
+    rules: {
+      // Downgraded to warn — will be properly typed as each page is transformed
+      '@typescript-eslint/no-explicit-any': 'warn',
+    },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:

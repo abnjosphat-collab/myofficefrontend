@@ -773,7 +773,7 @@ export default function PacheduFormPage() {
               <HeartHandshake className="h-6 w-6 text-amber-500" />
               Pachedu — Care Observations
             </h1>
-            <p className="text-white/40 text-sm mt-1">Be Your Brother's Keeper — track care observations and supportive actions.</p>
+            <p className="text-white/40 text-sm mt-1">Be Your Brother&apos;s Keeper — track care observations and supportive actions.</p>
           </div>
           <div className="flex items-center gap-2 self-start">
             <MasterCollapseButton collapse={sections} />
@@ -1140,7 +1140,7 @@ export default function PacheduFormPage() {
             </div>
 
             <p className="text-xs font-bold italic text-center text-amber-400/70 pb-2">
-              "Tinokutendai nekuita kuti PPM ive inoshandika zvisina njodzi."
+              &quot;Tinokutendai nekuita kuti PPM ive inoshandika zvisina njodzi.&quot;
             </p>
           </form>
         </GlassModal>

@@ -302,7 +302,7 @@ export default function DocumentsPage() {
   const updateFileInLocalStorage = (fileId: string, updates: Partial<DocumentFile>) => {
     const savedFiles = localStorage.getItem('ams_files_v2');
     if (savedFiles) {
-      let files: DocumentFile[] = JSON.parse(savedFiles);
+      const files: DocumentFile[] = JSON.parse(savedFiles);
       const fileIndex = files.findIndex((f: DocumentFile) => f.id === fileId);
       if (fileIndex !== -1) {
         files[fileIndex] = { ...files[fileIndex], ...updates, updated_at: new Date().toISOString() };

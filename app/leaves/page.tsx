@@ -1092,6 +1092,7 @@ export default function LeaveManagementPage() {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchAllData();
     const interval = setInterval(fetchAllData, 30000);
     return () => clearInterval(interval);

@@ -287,7 +287,7 @@ const QuotationGenerator = () => {
       doc.setFont('helvetica', 'bold');
       doc.text('BILL TO:', 20, 70);
       doc.setFont('helvetica', 'normal');
-      let clientY = 78;
+      const clientY = 78;
       if (client.name) doc.text(client.name, 20, clientY);
       if (client.company) doc.text(client.company, 20, clientY + 7);
       if (client.email) doc.text(client.email, 20, clientY + 14);
@@ -321,7 +321,7 @@ const QuotationGenerator = () => {
       doc.rect(120, finalY, 80, 60);
       doc.setFontSize(10);
       doc.setTextColor(75, 85, 99);
-      let summaryY = finalY + 10;
+      const summaryY = finalY + 10;
       doc.text('Subtotal:', 130, summaryY);
       doc.text(`${currencySymbol}${totals.subtotal}`, 180, summaryY, { align: 'right' });
       doc.text(`Tax (${quotation.taxRate}%):`, 130, summaryY + 8);

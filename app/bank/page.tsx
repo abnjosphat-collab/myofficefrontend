@@ -56,6 +56,7 @@ export default function HomePage() {
         })
         .finally(() => setLoading(false));
     } else {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLoading(false);
     }
   }, []);

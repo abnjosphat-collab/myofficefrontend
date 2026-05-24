@@ -8,7 +8,7 @@ import {
   Mail, Briefcase, Building, Calendar, GraduationCap, UserCheck,
   FilterX, Sparkles, UserRound, BriefcaseBusiness, Phone,
   ChevronLeft, ChevronRight, ArrowUpDown, List, LayoutGrid,
-  Filter, FileText, Award, Download, FileSpreadsheet, FileDown,
+  Filter, FileText, Award,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageShell } from "@/components/PageShell";
@@ -17,7 +17,8 @@ import {
   HeroPanel, GlassPanel, RecordsPanelHeader, FilterChips,
   fmtDate, initials as sharedInitials,
   usePageCollapse, MasterCollapseButton,
-  type StatItem,
+  DownloadButton,
+  type StatItem, type DLColumn,
 } from '@/components/shared';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,6 +51,7 @@ interface Employee {
   department?: string;
   grade?: string;
   qualifications?: string[];
+  employment_type?: 'NEC' | 'SALARIED' | '';
   drivers_license_class?: string;
   ppe_issue_date?: string;
   offences?: string[];
@@ -69,6 +71,7 @@ interface EmployeeFormData {
   date_of_engagement: string;
   designation: string;
   employee_class: string;
+  employment_type: 'NEC' | 'SALARIED' | '';
   supervisor: string;
   section: string;
   department: string;
@@ -90,6 +93,7 @@ type SortDir = 'asc' | 'desc';
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com';
 const EMPLOYEES_API = `${API_BASE}/api/employees`;
 const CLASS_OPTIONS = ['Permanent', 'Contract', 'Internship', 'Part-Time'] as const;
+const EMPLOYMENT_TYPES = ['NEC', 'SALARIED'] as const;
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 
@@ -118,6 +122,12 @@ function classPill(cls?: string) {
     'Part-Time':'bg-purple-500/20 text-purple-300 border-purple-500/30',
   };
   return map[cls || ''] ?? 'bg-white/10 text-white/55 border-white/12';
+}
+
+function etypePill(t?: string) {
+  if (t === 'NEC')     return 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30';
+  if (t === 'SALARIED') return 'bg-teal-500/20 text-teal-300 border-teal-500/30';
+  return null;
 }
 
 // ─── API ──────────────────────────────────────────────────────────────────────
@@ -156,7 +166,8 @@ interface EmployeeFormProps {
 const EMPTY_FORM: EmployeeFormData = {
   employee_id: '', first_name: '', last_name: '', id_number: '',
   email: '', phone: '', address: '', date_of_engagement: '', designation: '',
-  employee_class: '', supervisor: '', section: '', department: '', grade: '',
+  employee_class: '', employment_type: '', supervisor: '', section: '',
+  department: '', grade: '',
   qualifications: [], drivers_license_class: '', ppe_issue_date: '',
   offences: [], awards_recognition: [], other_positions: [], previous_employer: '',
 };
@@ -174,6 +185,7 @@ function EmployeeForm({ initialData, onSubmit, onCancel, isSubmitting }: Employe
       date_of_engagement: initialData.date_of_engagement || '',
       designation: initialData.designation || '',
       employee_class: initialData.employee_class || '',
+      employment_type: (initialData.employment_type as 'NEC' | 'SALARIED' | '') || '',
       supervisor: initialData.supervisor || '',
       section: initialData.section || '',
       department: initialData.department || '',
@@ -303,6 +315,26 @@ function EmployeeForm({ initialData, onSubmit, onCancel, isSubmitting }: Employe
                   {CLASS_OPTIONS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className={LBL}>Employment Type</Label>
+              <div className="flex gap-2">
+                {(['', 'NEC', 'SALARIED'] as const).map(t => (
+                  <button key={t || 'none'} type="button"
+                    onClick={() => set('employment_type', t)}
+                    className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition-all ${
+                      form.employment_type === t
+                        ? t === 'NEC'
+                          ? 'bg-indigo-500/30 text-indigo-200 border-indigo-500/50'
+                          : t === 'SALARIED'
+                          ? 'bg-teal-500/30 text-teal-200 border-teal-500/50'
+                          : 'bg-white/10 text-white/60 border-white/20'
+                        : 'bg-white/[0.04] text-white/35 border-white/10 hover:bg-white/[0.08] hover:text-white/60'
+                    }`}>
+                    {t || 'Not set'}
+                  </button>
+                ))}
+              </div>
             </div>
             {[
               { f: 'department',       label: 'Department' },
@@ -439,6 +471,11 @@ function EmployeeRow({ employee, onEdit, onDelete }: EmployeeRowProps) {
 
         {/* Right: pills + tenure + actions */}
         <div className="flex items-center gap-2 flex-shrink-0">
+          {employee.employment_type && etypePill(employee.employment_type) && (
+            <span className={`hidden sm:inline-flex text-[10px] px-2 py-0.5 rounded-full border font-bold ${etypePill(employee.employment_type)}`}>
+              {employee.employment_type}
+            </span>
+          )}
           <span className={`hidden sm:inline-flex text-[10px] px-2 py-0.5 rounded-full border font-medium ${classPill(employee.employee_class)}`}>
             {employee.employee_class || 'Unclassified'}
           </span>
@@ -621,6 +658,11 @@ function EmployeeCard({ employee, onEdit, onDelete }: EmployeeCardProps) {
               <span className="font-mono text-[#86BBD8]">{employee.employee_id}</span>
             </p>
             <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+              {employee.employment_type && etypePill(employee.employment_type) && (
+                <span className={`text-[10px] px-2 py-0.5 rounded-full border font-bold ${etypePill(employee.employment_type)}`}>
+                  {employee.employment_type}
+                </span>
+              )}
               <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${classPill(employee.employee_class)}`}>
                 {employee.employee_class || 'Unclassified'}
               </span>
@@ -722,6 +764,7 @@ export default function EmployeesPage() {
 
   const [search, setSearch] = useState('');
   const [classFilter, setClassFilter] = useState('all');
+  const [etypeFilter, setEtypeFilter] = useState('all');
   const [deptFilter, setDeptFilter] = useState('all');
   const [roleFilter, setRoleFilter] = useState('all');
   const [sortBy, setSortBy] = useState<SortField>('first_name');
@@ -756,9 +799,10 @@ export default function EmployeesPage() {
         (e.id_number?.toLowerCase() ?? '').includes(t)
       );
     }
-    if (classFilter !== 'all') list = list.filter(e => (e.employee_class || 'Unclassified') === classFilter);
-    if (deptFilter  !== 'all') list = list.filter(e => e.department === deptFilter);
-    if (roleFilter  !== 'all') list = list.filter(e => e.designation === roleFilter);
+    if (classFilter  !== 'all') list = list.filter(e => (e.employee_class || 'Unclassified') === classFilter);
+    if (etypeFilter  !== 'all') list = list.filter(e => (e.employment_type || '') === etypeFilter);
+    if (deptFilter   !== 'all') list = list.filter(e => e.department === deptFilter);
+    if (roleFilter   !== 'all') list = list.filter(e => e.designation === roleFilter);
     list.sort((a, b) => {
       let av: string, bv: string;
       if (sortBy === 'first_name') { av = `${a.first_name} ${a.last_name}`; bv = `${b.first_name} ${b.last_name}`; }
@@ -770,15 +814,15 @@ export default function EmployeesPage() {
 
   const totalPages = Math.ceil(filtered.length / PER_PAGE);
   const paged = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
-  useEffect(() => setPage(1), [search, classFilter, deptFilter, roleFilter, sortBy, sortDir]);
+  useEffect(() => setPage(1), [search, classFilter, etypeFilter, deptFilter, roleFilter, sortBy, sortDir]);
 
-  const activeFilterCount = [search, classFilter !== 'all', deptFilter !== 'all', roleFilter !== 'all'].filter(Boolean).length;
+  const activeFilterCount = [search, classFilter !== 'all', etypeFilter !== 'all', deptFilter !== 'all', roleFilter !== 'all'].filter(Boolean).length;
 
   const stats = useMemo(() => ({
-    total:     employees.length,
-    roles:     new Set(employees.map(e => e.designation).filter(Boolean)).size,
-    quals:     employees.reduce((s, e) => s + (e.qualifications?.length || 0), 0),
-    permanent: employees.filter(e => e.employee_class === 'Permanent').length,
+    total:    employees.length,
+    nec:      employees.filter(e => e.employment_type === 'NEC').length,
+    salaried: employees.filter(e => e.employment_type === 'SALARIED').length,
+    permanent:employees.filter(e => e.employee_class === 'Permanent').length,
   }), [employees]);
 
   const openAdd  = () => { setSelectedEmployee(null); setShowForm(true); };
@@ -800,93 +844,23 @@ export default function EmployeesPage() {
   };
   const clearFilters = () => { setSearch(''); setClassFilter('all'); setDeptFilter('all'); setRoleFilter('all'); };
 
-  const [showDlMenu, setShowDlMenu] = useState(false);
-
-  const downloadEmployeesExcel = async () => {
-    setShowDlMenu(false);
-    try {
-      const ExcelJS = (await import('exceljs')).default;
-      const { saveAs } = await import('file-saver');
-      const wb = new ExcelJS.Workbook();
-      wb.creator = 'Ozech MyOffice';
-      const ws = wb.addWorksheet('Personnel Registry');
-      ws.columns = [
-        { header: 'Employee ID',       key: 'id',      width: 14 },
-        { header: 'First Name',        key: 'fname',   width: 18 },
-        { header: 'Last Name',         key: 'lname',   width: 18 },
-        { header: 'Designation',       key: 'role',    width: 24 },
-        { header: 'Department',        key: 'dept',    width: 20 },
-        { header: 'Section',           key: 'section', width: 18 },
-        { header: 'Grade',             key: 'grade',   width: 10 },
-        { header: 'Employee Class',    key: 'class',   width: 16 },
-        { header: 'Email',             key: 'email',   width: 28 },
-        { header: 'Phone',             key: 'phone',   width: 16 },
-        { header: 'Date of Engagement',key: 'doe',     width: 18 },
-        { header: 'Supervisor',        key: 'super',   width: 20 },
-        { header: 'ID Number',         key: 'idnum',   width: 16 },
-      ];
-      const hdr = ws.getRow(1);
-      hdr.eachCell(cell => {
-        cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2A4D69' } };
-        cell.alignment = { horizontal: 'center', vertical: 'middle' };
-      });
-      hdr.height = 18;
-      employees.forEach((e, i) => {
-        const row = ws.addRow({
-          id: e.employee_id, fname: e.first_name, lname: e.last_name,
-          role: e.designation || '', dept: e.department || '', section: e.section || '',
-          grade: e.grade || '', class: e.employee_class || '',
-          email: e.email || '', phone: e.phone || '',
-          doe: e.date_of_engagement ? new Date(e.date_of_engagement).toLocaleDateString('en-GB') : '',
-          super: e.supervisor || '', idnum: e.id_number || '',
-        });
-        if (i % 2 === 1) row.eachCell(cell => { cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0F4F8' } }; });
-      });
-      ws.autoFilter = { from: 'A1', to: 'M1' };
-      ws.views = [{ state: 'frozen', ySplit: 1 }];
-      const buf = await wb.xlsx.writeBuffer();
-      saveAs(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
-        `Personnel_Registry_${new Date().toISOString().slice(0, 10)}.xlsx`);
-      toast.success(`Excel exported — ${employees.length} employees`);
-    } catch (err: any) { toast.error(`Export failed: ${err.message}`); }
-  };
-
-  const downloadEmployeesPDF = async () => {
-    setShowDlMenu(false);
-    try {
-      const { default: jsPDF } = await import('jspdf');
-      const { default: autoTable } = await import('jspdf-autotable');
-      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-      doc.setFontSize(14); doc.setTextColor(42, 77, 105);
-      doc.text('Personnel Registry', 14, 14);
-      doc.setFontSize(8); doc.setTextColor(100, 100, 100);
-      doc.text(`Generated ${new Date().toLocaleDateString('en-GB')}  ·  ${employees.length} employees`, 14, 20);
-      autoTable(doc, {
-        startY: 25,
-        head: [['ID', 'Name', 'Designation', 'Department', 'Section', 'Grade', 'Class', 'Email', 'Phone', 'Engaged']],
-        body: employees.map(e => [
-          e.employee_id,
-          `${e.first_name} ${e.last_name}`,
-          e.designation || '',
-          e.department  || '',
-          e.section     || '',
-          e.grade       || '',
-          e.employee_class || '',
-          e.email || '',
-          e.phone || '',
-          e.date_of_engagement ? new Date(e.date_of_engagement).toLocaleDateString('en-GB') : '',
-        ]),
-        headStyles: { fillColor: [42, 77, 105], textColor: 255, fontStyle: 'bold', fontSize: 7.5 },
-        bodyStyles: { fontSize: 7.5 },
-        alternateRowStyles: { fillColor: [240, 244, 248] },
-        styles: { cellPadding: 1.5 },
-        margin: { left: 10, right: 10 },
-      });
-      doc.save(`Personnel_Registry_${new Date().toISOString().slice(0, 10)}.pdf`);
-      toast.success(`PDF exported — ${employees.length} employees`);
-    } catch (err: any) { toast.error(`Export failed: ${err.message}`); }
-  };
+  const dlCols: DLColumn[] = [
+    { key: 'employee_id',       label: 'Employee ID',    width: 14 },
+    { key: 'first_name',        label: 'First Name',     width: 18 },
+    { key: 'last_name',         label: 'Last Name',      width: 18 },
+    { key: 'employment_type',   label: 'Type',           width: 10 },
+    { key: 'designation',       label: 'Designation',    width: 24 },
+    { key: 'department',        label: 'Department',     width: 20 },
+    { key: 'section',           label: 'Section',        width: 18 },
+    { key: 'grade',             label: 'Grade',          width: 10 },
+    { key: 'employee_class',    label: 'Class',          width: 14 },
+    { key: 'email',             label: 'Email',          width: 28 },
+    { key: 'phone',             label: 'Phone',          width: 16 },
+    { key: 'date_of_engagement',label: 'Date of Engagement', width: 18,
+      format: (v) => v ? new Date(String(v)).toLocaleDateString('en-GB') : '' },
+    { key: 'supervisor',        label: 'Supervisor',     width: 20 },
+    { key: 'id_number',         label: 'ID Number',      width: 16 },
+  ];
 
   return (
     <PageShell>
@@ -904,35 +878,20 @@ export default function EmployeesPage() {
           actions={
             <>
               <MasterCollapseButton collapse={sections} />
-              <div className="relative">
-                <button type="button" onClick={() => setShowDlMenu(p => !p)} disabled={employees.length === 0}
-                  className="h-8 px-3 flex items-center gap-1.5 text-xs rounded-xl font-semibold text-white/80 hover:text-white transition-all hover:-translate-y-0.5 bg-white/[0.07] hover:bg-white/[0.13] border border-white/[0.15] disabled:opacity-40 disabled:translate-y-0">
-                  <Download className="h-3.5 w-3.5" /> Download
-                </button>
-                {showDlMenu && (
-                  <>
-                    <div className="fixed inset-0 z-40" onClick={() => setShowDlMenu(false)} />
-                    <div className="absolute right-0 top-full mt-1 z-50 rounded-xl shadow-2xl overflow-hidden w-48"
-                      style={{ background: 'rgba(4,12,24,0.97)', border: '1px solid rgba(255,255,255,0.14)' }}>
-                      <button type="button" onClick={downloadEmployeesExcel}
-                        className="w-full flex items-center gap-2.5 px-4 py-3 text-xs text-white/85 hover:bg-white/[0.10] transition-all border-b border-white/[0.07]">
-                        <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-400" /> Export Excel (.xlsx)
-                      </button>
-                      <button type="button" onClick={downloadEmployeesPDF}
-                        className="w-full flex items-center gap-2.5 px-4 py-3 text-xs text-white/85 hover:bg-white/[0.10] transition-all">
-                        <FileDown className="h-3.5 w-3.5 text-rose-400" /> Export PDF
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
+              <DownloadButton
+                data={employees as unknown as Record<string, unknown>[]}
+                columns={dlCols}
+                filename={`Personnel_Registry_${new Date().toISOString().slice(0, 10)}`}
+                title="Personnel Registry"
+                subtitle={`${employees.length} employees · ${new Date().toLocaleDateString('en-GB')}`}
+              />
             </>
           }
           stats={[
-            { label: 'Total Employees', value: stats.total,     textClass: 'text-[#86BBD8]', onClick: () => setClassFilter('all') },
-            { label: 'Unique Roles',    value: stats.roles,     textClass: 'text-violet-400' },
-            { label: 'Qualifications',  value: stats.quals,     textClass: 'text-emerald-400' },
-            { label: 'Permanent Staff', value: stats.permanent, textClass: 'text-amber-400', onClick: () => setClassFilter('Permanent') },
+            { label: 'Total Staff',     value: stats.total,    textClass: 'text-[#86BBD8]', onClick: () => { setEtypeFilter('all'); setClassFilter('all'); } },
+            { label: 'NEC',             value: stats.nec,      textClass: 'text-indigo-400', onClick: () => setEtypeFilter('NEC') },
+            { label: 'Salaried',        value: stats.salaried, textClass: 'text-teal-400',   onClick: () => setEtypeFilter('SALARIED') },
+            { label: 'Permanent',       value: stats.permanent,textClass: 'text-amber-400',  onClick: () => setClassFilter('Permanent') },
           ] satisfies StatItem[]}
           {...sections.panel('hero')}
         />
@@ -965,9 +924,19 @@ export default function EmployeesPage() {
           contentClassName="px-5 pb-4 pt-3 space-y-3"
         >
           <FilterChips
+            label="Employment Type"
+            options={[
+              { value: 'all',      label: 'All Types' },
+              { value: 'NEC',      label: 'NEC' },
+              { value: 'SALARIED', label: 'Salaried' },
+            ]}
+            value={etypeFilter}
+            onChange={setEtypeFilter}
+          />
+          <FilterChips
             label="Employee Class"
             options={[
-              { value: 'all', label: 'All Staff' },
+              { value: 'all', label: 'All Classes' },
               ...CLASS_OPTIONS.map(c => ({ value: c, label: c })),
             ]}
             value={classFilter}

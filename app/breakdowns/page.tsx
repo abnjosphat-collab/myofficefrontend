@@ -3,146 +3,27 @@
 
 import React, { useState, useEffect, useMemo, useCallback, Fragment } from 'react';
 import { PageShell } from "@/components/PageShell";
-import { CollapsibleSection } from "@/components/CollapsibleSection";
 import {
-  AlertCircle,
-  CheckCircle,
-  Clock,
-  Download,
-  Edit,
-  Filter,
-  Loader2,
-  Plus,
-  RefreshCw,
-  Search,
-  Trash2,
-  TrendingUp,
-  Wrench,
-  X,
-  Calendar,
-  Eye,
-  AlertTriangle,
-  Activity,
-  Grid,
-  List,
-  Package,
-  Timer,
+  AlertCircle, CheckCircle, Clock, Edit, Filter, Loader2, Plus,
+  RefreshCw, Search, Trash2, TrendingUp, Wrench, X, Calendar,
+  Eye, AlertTriangle, Activity, Zap, ChevronDown, ChevronUp, User,
+  Clock4, TrendingDown, PlayCircle, CheckCheck, TimerOff, Shield,
+  Wind, FilterX, LayoutGrid, Table as TableIcon, ChevronRight,
   MapPin,
-  Building,
-  Zap,
-  ChevronDown,
-  ChevronUp,
-  User,
-  Clock4,
-  Printer,
-  TrendingDown,
-  Maximize2,
-  Minimize2,
-  PlayCircle,
-  PauseCircle,
-  CheckCheck,
-  Clock as ClockIcon,
-  Calendar as CalendarIcon,
-  Building as BuildingIcon,
-  User as UserIcon,
-  TimerOff,
-  Shield,
-  ToolCase,
-  Wind,
-  EyeOff,
-  FilterX,
-  LayoutGrid,
-  Table as TableIcon,
-  ChevronRight,
 } from 'lucide-react';
-
-// shadcn/ui imports
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogDescription,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { toast, Toaster } from 'sonner';
+import { toast } from 'sonner';
 import { format } from "date-fns";
+import {
+  HeroPanel, GlassPanel, GlassModal, GlassInput, GlassSelect, GlassTextarea,
+  usePageCollapse, MasterCollapseButton, DownloadButton, type DLColumn,
+} from '@/components/shared';
 
-// API Configuration
-const getApiBase = (): string => {
-  return process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com';
-};
+// ─── API ──────────────────────────────────────────────────────────────────────
 
-const API_BASE = getApiBase();
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com';
 const BREAKDOWN_API = `${API_BASE}/api/breakdowns`;
 
-// Utility function to test if backend is available
-const isBackendAvailable = async (): Promise<boolean> => {
-  try {
-    const response = await fetch(`${BREAKDOWN_API}/health/check`, {
-      method: 'GET',
-      headers: { 'Accept': 'application/json' },
-      mode: 'cors',
-      signal: AbortSignal.timeout(3000)
-    });
-    return response.ok;
-  } catch {
-    return false;
-  }
-};
-
-// Type Definitions
-interface StatusType {
-  name: string;
-  color: string;
-  icon: React.ElementType;
-  gradient: string;
-  bgColor: string;
-  textColor: string;
-  iconColor: string;
-}
-
-interface PriorityType {
-  name: string;
-  color: string;
-  icon: React.ElementType;
-  gradient: string;
-  bgColor: string;
-  textColor: string;
-  iconColor: string;
-}
-
-interface BreakdownType {
-  name: string;
-  color: string;
-  icon: React.ElementType;
-  gradient: string;
-  bgColor: string;
-  textColor: string;
-  iconColor: string;
-}
+// ─── TYPES ────────────────────────────────────────────────────────────────────
 
 interface SparePart {
   name: string;
@@ -225,1474 +106,593 @@ interface Filters {
   machine_name: string;
 }
 
-interface Metrics {
-  total_breakdowns: number;
-  active_breakdowns: number;
-  avg_resolution_hours: number;
-  total_cost: number;
-  trend_total: number;
-  critical_priority: number;
-  week_breakdowns: number;
-  open_breakdowns: number;
-  total_downtime_hours: number;
-  avg_downtime_hours: number;
-  efficiency_score: number;
-  resolved_this_week: number;
-}
+// ─── CONSTANTS ────────────────────────────────────────────────────────────────
 
-// Enhanced Configuration constants
-const STATUS_TYPES: Record<string, StatusType> = {
-  logged: { 
-    name: 'Logged', 
-    color: 'bg-blue-50 text-blue-700 border-blue-200', 
-    icon: ClockIcon,
-    gradient: 'from-blue-500 to-blue-600',
-    bgColor: 'bg-blue-500',
-    textColor: 'text-blue-700',
-    iconColor: 'text-blue-500'
-  },
-  in_progress: { 
-    name: 'In Progress', 
-    color: 'bg-amber-50 text-amber-700 border-amber-200', 
-    icon: PlayCircle,
-    gradient: 'from-amber-500 to-amber-600',
-    bgColor: 'bg-amber-500',
-    textColor: 'text-amber-700',
-    iconColor: 'text-amber-500'
-  },
-  resolved: { 
-    name: 'Resolved', 
-    color: 'bg-emerald-50 text-emerald-700 border-emerald-200', 
-    icon: CheckCheck,
-    gradient: 'from-emerald-500 to-emerald-600',
-    bgColor: 'bg-emerald-500',
-    textColor: 'text-emerald-700',
-    iconColor: 'text-emerald-500'
-  },
-  closed: { 
-    name: 'Closed', 
-    color: 'bg-slate-50 text-slate-700 border-slate-200', 
-    icon: CheckCircle,
-    gradient: 'from-slate-500 to-slate-600',
-    bgColor: 'bg-slate-500',
-    textColor: 'text-slate-700',
-    iconColor: 'text-slate-500'
-  },
-  cancelled: { 
-    name: 'Cancelled', 
-    color: 'bg-rose-50 text-rose-700 border-rose-200', 
-    icon: X,
-    gradient: 'from-rose-500 to-rose-600',
-    bgColor: 'bg-rose-500',
-    textColor: 'text-rose-700',
-    iconColor: 'text-rose-500'
-  }
+const STATUS_META: Record<string, { name: string; icon: React.ElementType; glass: string }> = {
+  logged:      { name: 'Logged',      icon: Clock,       glass: 'bg-blue-500/20 text-blue-300 border-blue-500/30' },
+  in_progress: { name: 'In Progress', icon: PlayCircle,  glass: 'bg-amber-500/20 text-amber-300 border-amber-500/30' },
+  resolved:    { name: 'Resolved',    icon: CheckCheck,  glass: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' },
+  closed:      { name: 'Closed',      icon: CheckCircle, glass: 'bg-slate-500/20 text-slate-300 border-slate-500/30' },
+  cancelled:   { name: 'Cancelled',   icon: X,           glass: 'bg-rose-500/20 text-rose-300 border-rose-500/30' },
 };
 
-const PRIORITY_TYPES: Record<string, PriorityType> = {
-  critical: { 
-    name: 'Critical', 
-    color: 'bg-rose-50 text-rose-700 border-rose-200', 
-    icon: AlertCircle,
-    gradient: 'from-rose-500 to-rose-600',
-    bgColor: 'bg-rose-500',
-    textColor: 'text-rose-700',
-    iconColor: 'text-rose-500'
-  },
-  high: { 
-    name: 'High', 
-    color: 'bg-orange-50 text-orange-700 border-orange-200', 
-    icon: AlertTriangle,
-    gradient: 'from-orange-500 to-orange-600',
-    bgColor: 'bg-orange-500',
-    textColor: 'text-orange-700',
-    iconColor: 'text-orange-500'
-  },
-  medium: { 
-    name: 'Medium', 
-    color: 'bg-amber-50 text-amber-700 border-amber-200', 
-    icon: Clock,
-    gradient: 'from-amber-500 to-amber-600',
-    bgColor: 'bg-amber-500',
-    textColor: 'text-amber-700',
-    iconColor: 'text-amber-500'
-  },
-  low: { 
-    name: 'Low', 
-    color: 'bg-blue-50 text-blue-700 border-blue-200', 
-    icon: Clock4,
-    gradient: 'from-blue-500 to-blue-600',
-    bgColor: 'bg-blue-500',
-    textColor: 'text-blue-700',
-    iconColor: 'text-blue-500'
-  }
+const PRIORITY_META: Record<string, { name: string; icon: React.ElementType; glass: string }> = {
+  critical: { name: 'Critical', icon: AlertCircle,  glass: 'bg-rose-500/20 text-rose-300 border-rose-500/30' },
+  high:     { name: 'High',     icon: AlertTriangle, glass: 'bg-orange-500/20 text-orange-300 border-orange-500/30' },
+  medium:   { name: 'Medium',   icon: Clock,         glass: 'bg-amber-500/20 text-amber-300 border-amber-500/30' },
+  low:      { name: 'Low',      icon: Clock4,         glass: 'bg-blue-500/20 text-blue-300 border-blue-500/30' },
 };
 
-const BREAKDOWN_TYPES: Record<string, BreakdownType> = {
-  mechanical: { 
-    name: 'Mechanical', 
-    color: 'bg-slate-50 text-slate-700 border-slate-200', 
-    icon: Wrench,
-    gradient: 'from-slate-500 to-slate-600',
-    bgColor: 'bg-slate-500',
-    textColor: 'text-slate-700',
-    iconColor: 'text-slate-500'
-  },
-  electrical: { 
-    name: 'Electrical', 
-    color: 'bg-yellow-50 text-yellow-700 border-yellow-200', 
-    icon: Zap,
-    gradient: 'from-yellow-500 to-yellow-600',
-    bgColor: 'bg-yellow-500',
-    textColor: 'text-yellow-700',
-    iconColor: 'text-yellow-500'
-  },
-  hydraulic: { 
-    name: 'Hydraulic', 
-    color: 'bg-blue-50 text-blue-700 border-blue-200', 
-    icon: Activity,
-    gradient: 'from-blue-500 to-blue-600',
-    bgColor: 'bg-blue-500',
-    textColor: 'text-blue-700',
-    iconColor: 'text-blue-500'
-  },
-  pneumatic: { 
-    name: 'Pneumatic', 
-    color: 'bg-indigo-50 text-indigo-700 border-indigo-200', 
-    icon: Wind,
-    gradient: 'from-indigo-500 to-indigo-600',
-    bgColor: 'bg-indigo-500',
-    textColor: 'text-indigo-700',
-    iconColor: 'text-indigo-500'
-  },
-  electronic: { 
-    name: 'Electronic', 
-    color: 'bg-purple-50 text-purple-700 border-purple-200', 
-    icon: Shield,
-    gradient: 'from-purple-500 to-purple-600',
-    bgColor: 'bg-purple-500',
-    textColor: 'text-purple-700',
-    iconColor: 'text-purple-500'
-  },
-  other: { 
-    name: 'Other', 
-    color: 'bg-gray-50 text-gray-700 border-gray-200', 
-    icon: ToolCase,
-    gradient: 'from-gray-500 to-gray-600',
-    bgColor: 'bg-gray-500',
-    textColor: 'text-gray-700',
-    iconColor: 'text-gray-500'
-  }
+const TYPE_META: Record<string, { name: string; icon: React.ElementType; glass: string }> = {
+  mechanical: { name: 'Mechanical', icon: Wrench,    glass: 'bg-slate-500/20 text-slate-300 border-slate-500/30' },
+  electrical: { name: 'Electrical', icon: Zap,       glass: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30' },
+  hydraulic:  { name: 'Hydraulic',  icon: Activity,  glass: 'bg-blue-500/20 text-blue-300 border-blue-500/30' },
+  pneumatic:  { name: 'Pneumatic',  icon: Wind,      glass: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30' },
+  electronic: { name: 'Electronic', icon: Shield,    glass: 'bg-purple-500/20 text-purple-300 border-purple-500/30' },
+  other:      { name: 'Other',      icon: Wrench,    glass: 'bg-gray-500/20 text-gray-300 border-gray-500/30' },
 };
 
-const DEPARTMENTS: string[] = ['Maintenance', 'Production', 'Engineering', 'Quality', 'Safety', 'Operations'];
-const ARTISANS: string[] = ['John Doe', 'Jane Smith', 'Mike Johnson', 'Sarah Williams', 'Robert Brown', 'Emily Davis', 'David Wilson', 'Lisa Anderson', 'James Taylor', 'Patricia Martinez'];
-const MACHINES: string[] = ['CNC Machine', 'Conveyor Belt', 'Compressor', 'Pump', 'Forklift', 'Generator', 'Mixer', 'Dryer', 'Press', 'Extruder'];
+const DEPARTMENTS = ['Maintenance', 'Production', 'Engineering', 'Quality', 'Safety', 'Operations'];
 
-// Helper Functions
-const timeToMinutes = (timeStr: string): number => {
-  if (!timeStr) return 0;
-  try {
-    const [hours, minutes] = timeStr.split(':').map(Number);
-    return hours * 60 + minutes;
-  } catch {
-    return 0;
-  }
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+
+const timeToMinutes = (t: string): number => {
+  if (!t) return 0;
+  try { const [h, m] = t.split(':').map(Number); return h * 60 + m; } catch { return 0; }
 };
 
-const minutesToDisplay = (minutes: number): { minutes: number; hours: number; display: string; decimal: number } => {
-  if (!minutes && minutes !== 0) return { minutes: 0, hours: 0, display: '0m', decimal: 0.0 };
-  
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  const decimal = parseFloat((minutes / 60).toFixed(2));
-  
-  let display = '';
-  if (hours > 0) {
-    display = `${hours}h ${mins > 0 ? `${mins}m` : ''}`.trim();
-  } else {
-    display = `${mins}m`;
-  }
-  
-  return {
-    minutes,
-    hours,
-    display,
-    decimal
-  };
+const minutesToDisplay = (minutes: number): string => {
+  if (!minutes && minutes !== 0) return '0m';
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return h > 0 ? `${h}h ${m > 0 ? `${m}m` : ''}`.trim() : `${m}m`;
 };
 
-const formatDate = (dateString: string | null | undefined): string => {
-  if (!dateString) return 'N/A';
-  try {
-    return format(new Date(dateString), 'MMM dd, yyyy');
-  } catch {
-    return 'Invalid Date';
-  }
+const formatDate = (s: string | null | undefined): string => {
+  if (!s) return 'N/A';
+  try { return format(new Date(s), 'MMM dd, yyyy'); } catch { return 'Invalid Date'; }
 };
 
-const formatTime = (timeString: string | null | undefined): string => {
-  if (!timeString) return '—';
-  if (timeString.includes(':')) {
-    const parts = timeString.split(':');
-    return `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}`;
-  }
-  return timeString;
+const formatTime = (s: string | null | undefined): string => {
+  if (!s) return '—';
+  if (s.includes(':')) { const p = s.split(':'); return `${p[0].padStart(2,'0')}:${p[1].padStart(2,'0')}`; }
+  return s;
 };
 
-const calculateDowntime = (breakdownStart: string | undefined, breakdownEnd: string | undefined): number => {
-  if (!breakdownStart || !breakdownEnd) return 0;
-  try {
-    const startTime = timeToMinutes(breakdownStart);
-    const endTime = timeToMinutes(breakdownEnd);
-    const downtime = endTime >= startTime ? endTime - startTime : (endTime + 1440) - startTime;
-    return Math.max(0, downtime);
-  } catch {
-    return 0;
-  }
+const calcDowntime = (start?: string, end?: string): number => {
+  if (!start || !end) return 0;
+  const s = timeToMinutes(start), e = timeToMinutes(end);
+  return Math.max(0, e >= s ? e - s : (e + 1440) - s);
 };
 
-const calculateTimeDifference = (startTime: string | undefined, endTime: string | undefined): number => {
-  if (!startTime || !endTime) return 0;
-  try {
-    const start = timeToMinutes(startTime);
-    const end = timeToMinutes(endTime);
-    return end >= start ? end - start : (end + 1440) - start;
-  } catch {
-    return 0;
-  }
+const sparesTotalCost = (spares: Breakdown['spares_used']): number => {
+  if (!spares || !Array.isArray(spares)) return 0;
+  return (spares as SpareUsed[]).reduce((t, s) => t + (parseFloat(s.total_cost?.toString() ?? '0') || 0), 0);
 };
 
-const calculateTotalDowntime = (breakdowns: Breakdown[]): number => {
-  if (!breakdowns || !Array.isArray(breakdowns)) return 0;
-  return breakdowns.reduce((total, breakdown) => {
-    const downtime = calculateDowntime(breakdown.breakdown_start, breakdown.breakdown_end);
-    return total + downtime;
-  }, 0);
-};
+// ─── API ──────────────────────────────────────────────────────────────────────
 
-// Get the numeric ID from breakdown
-const getBreakdownId = (breakdown: Breakdown): number => {
-  if (!breakdown) {
-    console.warn('getBreakdownId called with null/undefined breakdown');
-    return 0;
-  }
-  
-  if (breakdown.id && typeof breakdown.id === 'number') {
-    return breakdown.id;
-  }
-  
-  if (breakdown.id && typeof breakdown.id === 'string' && /^\d+$/.test(breakdown.id)) {
-    return parseInt(breakdown.id, 10);
-  }
-  
-  console.error('Could not find numeric ID in breakdown:', breakdown);
-  return 0;
-};
-
-// API Functions
 const fetchBreakdowns = async (filters: Record<string, string> = {}): Promise<Breakdown[]> => {
   try {
     const params = new URLSearchParams();
-    Object.entries(filters).forEach(([key, value]) => {
-      if (value && value !== 'all' && value !== '') {
-        params.append(key, String(value));
-      }
-    });
-
-    const url = `${BREAKDOWN_API}/get-breakdowns?${params.toString()}`;
-    console.log('Fetching breakdowns from:', url);
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
-      mode: 'cors',
-      cache: 'no-cache'
-    });
-    
-    if (!response.ok) {
-      console.error(`HTTP error! status: ${response.status}`);
-      return [];
-    }
-    
-    const data = await response.json();
-    console.log('Raw API response:', data);
-    
-    let breakdowns = [];
-    if (Array.isArray(data)) {
-      breakdowns = data;
-    } else if (data.data && Array.isArray(data.data)) {
-      breakdowns = data.data;
-    } else if (data.breakdowns && Array.isArray(data.breakdowns)) {
-      breakdowns = data.breakdowns;
-    } else if (data.results && Array.isArray(data.results)) {
-      breakdowns = data.results;
-    } else {
-      console.warn('Unexpected API response format:', data);
-      breakdowns = [];
-    }
-    
-    if (breakdowns.length > 0) {
-      console.log('First breakdown:', breakdowns[0]);
-    }
-    
-    return breakdowns;
-  } catch (error) {
-    console.error('Error fetching breakdowns:', error);
-    return [];
-  }
+    Object.entries(filters).forEach(([k, v]) => { if (v && v !== 'all' && v !== '') params.append(k, v); });
+    const r = await fetch(`${BREAKDOWN_API}/get-breakdowns?${params}`, { cache: 'no-cache' });
+    if (!r.ok) return [];
+    const data = await r.json();
+    if (Array.isArray(data)) return data;
+    return data.data ?? data.breakdowns ?? data.results ?? [];
+  } catch { return []; }
 };
 
-const calculateMetricsFromBreakdowns = (breakdowns: Breakdown[]): Metrics => {
-  if (!breakdowns || !Array.isArray(breakdowns)) {
-    return {
-      total_breakdowns: 0,
-      active_breakdowns: 0,
-      avg_resolution_hours: 0,
-      total_cost: 0,
-      trend_total: 0,
-      critical_priority: 0,
-      week_breakdowns: 0,
-      open_breakdowns: 0,
-      total_downtime_hours: 0,
-      avg_downtime_hours: 0,
-      efficiency_score: 0,
-      resolved_this_week: 0
-    };
-  }
-
-  const total_breakdowns = breakdowns.length;
-  const active_breakdowns = breakdowns.filter(b => b.status === 'logged' || b.status === 'in_progress').length;
-  const critical_priority = breakdowns.filter(b => b.priority === 'critical').length;
-  
-  const total_cost = breakdowns.reduce((total, b) => {
-    if (b.spares_used && Array.isArray(b.spares_used)) {
-      const spareCost = (b.spares_used as SparePart[]).reduce((sum: number, spare: SparePart) => {
-        return sum + (parseFloat(spare.total_cost.toString()) || 0);
-      }, 0);
-      return total + spareCost;
-    }
-    return total;
-  }, 0);
-  
-  const total_downtime_minutes = calculateTotalDowntime(breakdowns);
-  const total_downtime_hours = total_downtime_minutes / 60;
-  
-  const resolvedBreakdowns = breakdowns.filter(b => b.status === 'resolved' || b.status === 'closed');
-  let avg_resolution_hours = 0;
-  let avg_downtime_hours = 0;
-  
-  if (resolvedBreakdowns.length > 0) {
-    const resolvedDowntime = calculateTotalDowntime(resolvedBreakdowns);
-    avg_resolution_hours = parseFloat((resolvedDowntime / 60 / resolvedBreakdowns.length).toFixed(1));
-    avg_downtime_hours = parseFloat((total_downtime_hours / breakdowns.length).toFixed(1));
-  }
-  
-  const today = new Date();
-  const oneWeekAgo = new Date(today);
-  oneWeekAgo.setDate(today.getDate() - 7);
-  
-  const thisWeekBreakdowns = breakdowns.filter(b => {
-    if (!b.breakdown_date) return false;
-    const breakdownDate = new Date(b.breakdown_date);
-    return breakdownDate >= oneWeekAgo && breakdownDate <= today;
-  });
-  
-  const resolved_this_week = thisWeekBreakdowns.filter(b => b.status === 'resolved' || b.status === 'closed').length;
-  
-  const lastWeekBreakdowns = breakdowns.filter(b => {
-    if (!b.breakdown_date) return false;
-    const twoWeeksAgo = new Date(oneWeekAgo);
-    twoWeeksAgo.setDate(oneWeekAgo.getDate() - 7);
-    const breakdownDate = new Date(b.breakdown_date);
-    return breakdownDate >= twoWeeksAgo && breakdownDate < oneWeekAgo;
-  }).length;
-  
-  const trend_total = lastWeekBreakdowns > 0 ? Math.round(((thisWeekBreakdowns.length - lastWeekBreakdowns) / lastWeekBreakdowns) * 100) : 0;
-  const efficiency_score = resolvedBreakdowns.length > 0 ? Math.min(100, Math.round((100 - (avg_resolution_hours / 24 * 10)))) : 100;
-
-  return {
-    total_breakdowns,
-    active_breakdowns,
-    critical_priority,
-    total_cost,
-    avg_resolution_hours,
-    trend_total,
-    week_breakdowns: thisWeekBreakdowns.length,
-    open_breakdowns: active_breakdowns,
-    total_downtime_hours: parseFloat(total_downtime_hours.toFixed(1)),
-    avg_downtime_hours: parseFloat(avg_downtime_hours.toFixed(1)),
-    efficiency_score,
-    resolved_this_week
+const createBreakdown = async (fd: BreakdownFormData): Promise<unknown> => {
+  const body = {
+    machine_id: fd.machine_id || '', machine_name: fd.machine_name || '',
+    breakdown_description: fd.breakdown_description || '',
+    machine_description: fd.breakdown_description || '',
+    artisan_name: fd.artisan_name || '',
+    breakdown_date: fd.breakdown_date || new Date().toISOString().split('T')[0],
+    location: fd.location || '', department: fd.department || '',
+    breakdown_type: fd.breakdown_type || 'mechanical',
+    work_done: fd.work_done || '', artisan_recommendations: fd.artisan_recommendations || '',
+    status: fd.status || 'logged', priority: fd.priority || 'medium',
+    breakdown_start: fd.breakdown_start || '', breakdown_end: fd.breakdown_end || '',
+    work_start: fd.work_start || '', work_end: fd.work_end || '',
+    spares_used: (Array.isArray(fd.spares_used) ? fd.spares_used : []).map((s: SpareUsed) => ({
+      name: s.name || '', quantity: s.quantity || 1, part_number: s.part_number || '',
+      unit_price: s.unit_price || 0, total_cost: (s.quantity || 1) * (s.unit_price || 0),
+    })),
   };
+  const r = await fetch(`${BREAKDOWN_API}/`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (!r.ok) throw new Error(await r.text() || `HTTP ${r.status}`);
+  return r.json();
 };
 
-const createBreakdown = async (breakdownData: BreakdownFormData): Promise<any> => {
-  try {
-    const cleanData = { 
-      machine_id: breakdownData.machine_id || '',
-      machine_name: breakdownData.machine_name || '',
-      breakdown_description: breakdownData.breakdown_description || '',
-      machine_description: breakdownData.breakdown_description || '',
-      artisan_name: breakdownData.artisan_name || '',
-      breakdown_date: breakdownData.breakdown_date || new Date().toISOString().split('T')[0],
-      location: breakdownData.location || '',
-      department: breakdownData.department || '',
-      breakdown_type: breakdownData.breakdown_type || 'mechanical',
-      work_done: breakdownData.work_done || '',
-      artisan_recommendations: breakdownData.artisan_recommendations || '',
-      status: breakdownData.status || 'logged',
-      priority: breakdownData.priority || 'medium',
-      breakdown_start: breakdownData.breakdown_start || '',
-      breakdown_end: breakdownData.breakdown_end || '',
-      work_start: breakdownData.work_start || '',
-      work_end: breakdownData.work_end || '',
-      spares_used: breakdownData.spares_used || []
-    };
-    
-    if (!Array.isArray(cleanData.spares_used)) {
-      cleanData.spares_used = [];
-    }
-    
-    cleanData.spares_used = cleanData.spares_used.map((spare: SpareUsed) => ({
-      name: spare.name || '',
-      quantity: spare.quantity || 1,
-      part_number: spare.part_number || '',
-      unit_price: spare.unit_price || 0,
-      total_cost: (spare.quantity || 1) * (spare.unit_price || 0)
-    }));
-    
-    const response = await fetch(`${BREAKDOWN_API}/`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(cleanData)
-    });
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
-    }
-    
-    return await response.json();
-  } catch (error) {
-    console.error('Error creating breakdown:', error);
-    throw error;
-  }
-};
-
-const updateBreakdown = async (breakdownId: number, breakdownData: BreakdownFormData): Promise<any> => {
-  try {
-    if (!breakdownId || breakdownId === 0) {
-      throw new Error('Invalid breakdown ID: ID must be a positive number');
-    }
-    
-    const cleanData = { 
-      machine_id: breakdownData.machine_id || '',
-      machine_name: breakdownData.machine_name || '',
-      breakdown_description: breakdownData.breakdown_description || '',
-      machine_description: breakdownData.breakdown_description || '',
-      artisan_name: breakdownData.artisan_name || '',
-      breakdown_date: breakdownData.breakdown_date || '',
-      location: breakdownData.location || '',
-      department: breakdownData.department || '',
-      breakdown_type: breakdownData.breakdown_type || 'mechanical',
-      work_done: breakdownData.work_done || '',
-      artisan_recommendations: breakdownData.artisan_recommendations || '',
-      status: breakdownData.status || 'logged',
-      priority: breakdownData.priority || 'medium',
-      breakdown_start: breakdownData.breakdown_start || '',
-      breakdown_end: breakdownData.breakdown_end || '',
-      work_start: breakdownData.work_start || '',
-      work_end: breakdownData.work_end || '',
-      spares_used: breakdownData.spares_used || []
-    };
-    
-    if (!Array.isArray(cleanData.spares_used)) {
-      cleanData.spares_used = [];
-    }
-    
-    cleanData.spares_used = cleanData.spares_used.map((spare: SpareUsed) => ({
-      name: spare.name || '',
-      quantity: spare.quantity || 1,
-      part_number: spare.part_number || '',
-      unit_price: spare.unit_price || 0,
-      total_cost: (spare.quantity || 1) * (spare.unit_price || 0)
-    }));
-    
-    const url = `${BREAKDOWN_API}/${breakdownId}`;
-    console.log('Updating breakdown at:', url, 'with ID:', breakdownId);
-    
-    const response = await fetch(url, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(cleanData)
-    });
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(errorText || `Failed to update breakdown: ${response.status}`);
-    }
-    
-    return await response.json();
-  } catch (error) {
-    console.error('Error updating breakdown:', error);
-    throw error;
-  }
-};
-
-const deleteBreakdown = async (breakdownId: number): Promise<any> => {
-  try {
-    if (!breakdownId || breakdownId === 0) {
-      throw new Error('Invalid breakdown ID: ID must be a positive number');
-    }
-    
-    const url = `${BREAKDOWN_API}/${breakdownId}`;
-    console.log('Attempting DELETE at:', url);
-    console.log('Using numeric ID:', breakdownId, 'type:', typeof breakdownId);
-    
-    const response = await fetch(url, { 
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' }
-    });
-    
-    console.log('Delete response status:', response.status);
-    
-    if (response.status === 204) {
-      return { success: true };
-    }
-    
-    if (response.ok) {
-      const text = await response.text();
-      if (text) {
-        try {
-          return JSON.parse(text);
-        } catch {
-          return { success: true };
-        }
-      }
-      return { success: true };
-    }
-    
-    const errorText = await response.text();
-    throw new Error(errorText || `Delete failed with status: ${response.status}`);
-  } catch (error) {
-    console.error('Error deleting breakdown:', error);
-    throw error;
-  }
-};
-
-// Status Badge Component
-const StatusBadge = ({ status, size = 'sm' }: { status: string; size?: 'xs' | 'sm' }) => {
-  const statusConfig = STATUS_TYPES[status] || STATUS_TYPES.logged;
-  const Icon = statusConfig.icon;
-  const sizeClasses = size === 'xs' ? 'px-2 py-0.5 text-xs' : 'px-2.5 py-1 text-sm';
-  
-  return (
-    <Badge className={`${sizeClasses} font-medium border ${statusConfig.color} bg-opacity-100`}>
-      <Icon className="h-3 w-3 mr-1" />
-      {statusConfig.name}
-    </Badge>
-  );
-};
-
-const PriorityBadge = ({ priority, size = 'sm' }: { priority: string; size?: 'xs' | 'sm' }) => {
-  const priorityConfig = PRIORITY_TYPES[priority] || PRIORITY_TYPES.medium;
-  const Icon = priorityConfig.icon;
-  const sizeClasses = size === 'xs' ? 'px-2 py-0.5 text-xs' : 'px-2.5 py-1 text-sm';
-  
-  return (
-    <Badge className={`${sizeClasses} font-medium border ${priorityConfig.color} bg-opacity-100`}>
-      <Icon className="h-3 w-3 mr-1" />
-      {priorityConfig.name}
-    </Badge>
-  );
-};
-
-const TypeBadge = ({ type, size = 'sm' }: { type: string; size?: 'xs' | 'sm' }) => {
-  const typeConfig = BREAKDOWN_TYPES[type] || BREAKDOWN_TYPES.other;
-  const Icon = typeConfig.icon;
-  const sizeClasses = size === 'xs' ? 'px-2 py-0.5 text-xs' : 'px-2.5 py-1 text-sm';
-  
-  return (
-    <Badge variant="outline" className={`${sizeClasses} font-medium border ${typeConfig.color} bg-opacity-100`}>
-      <Icon className="h-3 w-3 mr-1" />
-      {typeConfig.name}
-    </Badge>
-  );
-};
-
-// Metric Card Component
-const MetricCard = ({ 
-  title, 
-  value, 
-  icon: Icon, 
-  color, 
-  description, 
-  loading, 
-  trend, 
-  change 
-}: { 
-  title: string;
-  value: string | number;
-  icon: React.ElementType;
-  color: string;
-  description?: string;
-  loading?: boolean;
-  trend?: number;
-  change?: number;
-}) => {
-  const colorMap: Record<string, string> = {
-    blue: 'from-blue-500 to-blue-600',
-    amber: 'from-amber-500 to-amber-600',
-    emerald: 'from-emerald-500 to-emerald-600',
-    purple: 'from-purple-500 to-purple-600',
-    rose: 'from-rose-500 to-rose-600',
-    gray: 'from-gray-500 to-gray-600'
+const updateBreakdown = async (id: number, fd: BreakdownFormData): Promise<unknown> => {
+  if (!id) throw new Error('Invalid ID');
+  const body = {
+    machine_id: fd.machine_id || '', machine_name: fd.machine_name || '',
+    breakdown_description: fd.breakdown_description || '',
+    machine_description: fd.breakdown_description || '',
+    artisan_name: fd.artisan_name || '',
+    breakdown_date: fd.breakdown_date || '',
+    location: fd.location || '', department: fd.department || '',
+    breakdown_type: fd.breakdown_type || 'mechanical',
+    work_done: fd.work_done || '', artisan_recommendations: fd.artisan_recommendations || '',
+    status: fd.status || 'logged', priority: fd.priority || 'medium',
+    breakdown_start: fd.breakdown_start || '', breakdown_end: fd.breakdown_end || '',
+    work_start: fd.work_start || '', work_end: fd.work_end || '',
+    spares_used: (Array.isArray(fd.spares_used) ? fd.spares_used : []).map((s: SpareUsed) => ({
+      name: s.name || '', quantity: s.quantity || 1, part_number: s.part_number || '',
+      unit_price: s.unit_price || 0, total_cost: (s.quantity || 1) * (s.unit_price || 0),
+    })),
   };
-  const gradient = colorMap[color] || colorMap.blue;
+  const r = await fetch(`${BREAKDOWN_API}/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (!r.ok) throw new Error(await r.text() || `HTTP ${r.status}`);
+  return r.json();
+};
 
-  if (loading) {
-    return (
-      <Card className="animate-pulse">
-        <CardContent className="p-6">
-          <div className="h-8 w-8 bg-gray-200 rounded-lg mb-3"></div>
-          <div className="h-6 bg-gray-200 rounded w-3/4 mb-2"></div>
-          <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-        </CardContent>
-      </Card>
-    );
-  }
+const deleteBreakdown = async (id: number): Promise<unknown> => {
+  if (!id) throw new Error('Invalid ID');
+  const r = await fetch(`${BREAKDOWN_API}/${id}`, { method: 'DELETE' });
+  if (r.status === 204) return { success: true };
+  if (r.ok) { const t = await r.text(); return t ? JSON.parse(t) : { success: true }; }
+  throw new Error(await r.text() || `HTTP ${r.status}`);
+};
 
+// ─── BADGE COMPONENTS ─────────────────────────────────────────────────────────
+
+const StatusBadge = ({ status }: { status: string }) => {
+  const m = STATUS_META[status] ?? STATUS_META.logged;
+  const Icon = m.icon;
   return (
-    <Card className="hover:shadow-lg transition-all duration-200">
-      <CardContent className="p-6">
-        <div className="flex items-start justify-between mb-3">
-          <div className={`p-2 rounded-lg bg-gradient-to-br ${gradient} text-white`}>
-            <Icon className="h-5 w-5" />
-          </div>
-          {trend !== undefined && (
-            <div className={`px-2 py-1 rounded text-xs font-medium ${trend > 0 ? 'bg-rose-100 text-rose-600' : 'bg-emerald-100 text-emerald-600'}`}>
-              {trend > 0 ? '+' : ''}{trend}%
-            </div>
-          )}
-        </div>
-        <div>
-          <p className="text-2xl font-bold text-gray-900">{value}</p>
-          <p className="text-sm font-medium text-gray-600 mt-1">{title}</p>
-          {description && <p className="text-xs text-gray-500 mt-2">{description}</p>}
-          {change !== undefined && (
-            <div className={`mt-2 text-xs flex items-center gap-1 ${change > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
-              {change > 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-              <span>{Math.abs(change)}% from last week</span>
-            </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border ${m.glass}`}>
+      <Icon className="h-2.5 w-2.5" />{m.name}
+    </span>
   );
 };
 
-// Dashboard Metrics Component
-const DashboardMetrics = ({ breakdowns, loading, filterDescription }: { breakdowns: Breakdown[]; loading: boolean; filterDescription: string }) => {
-  const metrics = useMemo(() => calculateMetricsFromBreakdowns(breakdowns), [breakdowns]);
-
-  const weekChanges = useMemo(() => {
-    const today = new Date();
-    const oneWeekAgo = new Date(today);
-    oneWeekAgo.setDate(today.getDate() - 7);
-    const twoWeeksAgo = new Date(oneWeekAgo);
-    twoWeeksAgo.setDate(oneWeekAgo.getDate() - 7);
-    
-    const thisWeek = breakdowns?.filter(b => {
-      if (!b.breakdown_date) return false;
-      const date = new Date(b.breakdown_date);
-      return date >= oneWeekAgo && date <= today;
-    }).length || 0;
-    
-    const lastWeek = breakdowns?.filter(b => {
-      if (!b.breakdown_date) return false;
-      const date = new Date(b.breakdown_date);
-      return date >= twoWeeksAgo && date < oneWeekAgo;
-    }).length || 0;
-    
-    return {
-      breakdowns_change: lastWeek > 0 ? Math.round(((thisWeek - lastWeek) / lastWeek) * 100) : 0,
-    };
-  }, [breakdowns]);
-
+const PriorityBadge = ({ priority }: { priority: string }) => {
+  const m = PRIORITY_META[priority] ?? PRIORITY_META.medium;
+  const Icon = m.icon;
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900">Overview Statistics</h3>
-          <p className="text-sm text-gray-500">{filterDescription}</p>
-        </div>
-      </div>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <MetricCard
-          title="Total Breakdowns"
-          value={metrics.total_breakdowns || 0}
-          icon={AlertTriangle}
-          color="blue"
-          description="All recorded breakdowns"
-          loading={loading}
-          trend={weekChanges.breakdowns_change}
-          change={weekChanges.breakdowns_change}
-        />
-        <MetricCard
-          title="Active Issues"
-          value={metrics.active_breakdowns || 0}
-          icon={Clock}
-          color="amber"
-          description="Requiring attention"
-          loading={loading}
-        />
-        <MetricCard
-          title="Avg. Resolution"
-          value={metrics.avg_resolution_hours ? `${metrics.avg_resolution_hours}h` : '0h'}
-          icon={Timer}
-          color="emerald"
-          description="Mean time to repair"
-          loading={loading}
-        />
-        <MetricCard
-          title="Total Downtime"
-          value={metrics.total_downtime_hours ? `${metrics.total_downtime_hours}h` : '0h'}
-          icon={TimerOff}
-          color="purple"
-          description="Total equipment downtime"
-          loading={loading}
-        />
-      </div>
-    </div>
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border ${m.glass}`}>
+      <Icon className="h-2.5 w-2.5" />{m.name}
+    </span>
   );
 };
 
-// Filter Bar Component
-const FilterBar = ({ 
-  filters, 
-  onFilterChange, 
-  onRefresh, 
-  loading, 
-  searchTerm, 
-  onSearchChange,
-  startDate,
-  endDate,
-  onStartDateChange,
-  onEndDateChange,
-  showDateRange,
-  onToggleDateRange,
-  onClearFilters,
-  activeFilterCount
-}: { 
-  filters: Filters; 
-  onFilterChange: (name: string, value: string) => void; 
-  onRefresh: () => void; 
-  loading: boolean; 
-  searchTerm: string; 
-  onSearchChange: (value: string) => void;
-  startDate: string;
-  endDate: string;
-  onStartDateChange: (date: string) => void;
-  onEndDateChange: (date: string) => void;
-  showDateRange: boolean;
-  onToggleDateRange: () => void;
-  onClearFilters: () => void;
-  activeFilterCount: number;
-}) => {
+const TypeBadge = ({ type }: { type: string }) => {
+  const m = TYPE_META[type] ?? TYPE_META.other;
+  const Icon = m.icon;
   return (
-    <div className="space-y-3">
-      {/* Search + Date Range — always visible */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative flex-1 min-w-[220px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#6B7B8E]" />
-          <Input
-            type="text"
-            placeholder="Search by machine, artisan, location…"
-            value={searchTerm}
-            onChange={(e) => onSearchChange(e.target.value)}
-            className="pl-9 text-sm bg-white"
-          />
-        </div>
-        <Button
-          variant={showDateRange ? "default" : "outline"}
-          size="sm"
-          onClick={onToggleDateRange}
-          title="Toggle date range filter"
-          className={showDateRange ? 'bg-[#2A4D69] text-white' : ''}
-        >
-          <CalendarIcon className="h-3.5 w-3.5 mr-1.5" />
-          Date Range
-        </Button>
-        <Button onClick={onRefresh} disabled={loading} variant="outline" size="sm" title="Refresh breakdown records">
-          {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 mr-1.5" />}
-          Refresh
-        </Button>
-      </div>
-
-      {/* Date Range Picker */}
-      {showDateRange && (
-        <div className="rounded-lg border bg-white p-4">
-          <div className="flex flex-col sm:flex-row gap-4 items-end">
-            <div className="flex-1">
-              <Label className="text-xs text-[#6B7B8E]">Start Date</Label>
-              <Input type="date" value={startDate} onChange={(e) => onStartDateChange(e.target.value)} className="mt-1" />
-            </div>
-            <div className="flex-1">
-              <Label className="text-xs text-[#6B7B8E]">End Date</Label>
-              <Input type="date" value={endDate} onChange={(e) => onEndDateChange(e.target.value)} className="mt-1" />
-            </div>
-            <Button variant="ghost" size="sm" onClick={() => {
-              const today = new Date();
-              const monthAgo = new Date();
-              monthAgo.setDate(today.getDate() - 30);
-              onStartDateChange(monthAgo.toISOString().split('T')[0]);
-              onEndDateChange(today.toISOString().split('T')[0]);
-            }}>Last 30 days</Button>
-          </div>
-        </div>
-      )}
-
-      {/* Advanced Filters — collapsed by default */}
-      <CollapsibleSection
-        title="Advanced Filters"
-        description="Filter by status, type, priority, department, artisan, or machine"
-        badge={
-          activeFilterCount > 0 ? (
-            <span className="ml-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-[#2A4D69] text-[10px] font-bold text-white">
-              {activeFilterCount}
-            </span>
-          ) : null
-        }
-      >
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3">
-          <div>
-            <Label className="text-xs font-medium text-[#6B7B8E]">Status</Label>
-            <Select value={filters.status} onValueChange={(v) => onFilterChange('status', v)}>
-              <SelectTrigger className="mt-1 h-9 bg-[#F0F5F9]"><SelectValue placeholder="All Status" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                {Object.entries(STATUS_TYPES).map(([key, config]) => (
-                  <SelectItem key={key} value={key}>{config.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label className="text-xs font-medium text-[#6B7B8E]">Type</Label>
-            <Select value={filters.breakdown_type} onValueChange={(v) => onFilterChange('breakdown_type', v)}>
-              <SelectTrigger className="mt-1 h-9 bg-[#F0F5F9]"><SelectValue placeholder="All Types" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                {Object.entries(BREAKDOWN_TYPES).map(([key, config]) => (
-                  <SelectItem key={key} value={key}>{config.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label className="text-xs font-medium text-[#6B7B8E]">Priority</Label>
-            <Select value={filters.priority} onValueChange={(v) => onFilterChange('priority', v)}>
-              <SelectTrigger className="mt-1 h-9 bg-[#F0F5F9]"><SelectValue placeholder="All Priorities" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Priorities</SelectItem>
-                {Object.entries(PRIORITY_TYPES).map(([key, config]) => (
-                  <SelectItem key={key} value={key}>{config.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label className="text-xs font-medium text-[#6B7B8E]">Department</Label>
-            <Select value={filters.department} onValueChange={(v) => onFilterChange('department', v)}>
-              <SelectTrigger className="mt-1 h-9 bg-[#F0F5F9]"><SelectValue placeholder="All Depts" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Departments</SelectItem>
-                {DEPARTMENTS.map(dept => (<SelectItem key={dept} value={dept}>{dept}</SelectItem>))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label className="text-xs font-medium text-[#6B7B8E]">Location</Label>
-            <Input
-              placeholder="Type location…"
-              value={filters.location !== 'all' ? filters.location : ''}
-              onChange={(e) => onFilterChange('location', e.target.value || 'all')}
-              className="mt-1 h-9 bg-[#F0F5F9]"
-            />
-          </div>
-          <div>
-            <Label className="text-xs font-medium text-[#6B7B8E]">Artisan</Label>
-            <Select value={filters.artisan_name} onValueChange={(v) => onFilterChange('artisan_name', v)}>
-              <SelectTrigger className="mt-1 h-9 bg-[#F0F5F9]"><SelectValue placeholder="All Artisans" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Artisans</SelectItem>
-                {ARTISANS.map(art => (<SelectItem key={art} value={art}>{art}</SelectItem>))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label className="text-xs font-medium text-[#6B7B8E]">Machine</Label>
-            <Select value={filters.machine_name} onValueChange={(v) => onFilterChange('machine_name', v)}>
-              <SelectTrigger className="mt-1 h-9 bg-[#F0F5F9]"><SelectValue placeholder="All Machines" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Machines</SelectItem>
-                {MACHINES.map(machine => (<SelectItem key={machine} value={machine}>{machine}</SelectItem>))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        {activeFilterCount > 0 && (
-          <div className="mt-3 flex justify-end">
-            <Button variant="ghost" size="sm" onClick={onClearFilters} className="text-[#6B7B8E] hover:text-[#2A4D69] gap-1">
-              <FilterX className="h-3.5 w-3.5" />Clear all filters
-            </Button>
-          </div>
-        )}
-      </CollapsibleSection>
-    </div>
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border ${m.glass}`}>
+      <Icon className="h-2.5 w-2.5" />{m.name}
+    </span>
   );
 };
 
-// Breakdown Card Component (Grid View)
-const BreakdownCard = ({ 
-  breakdown, 
-  onView, 
-  onEdit, 
-  onDelete,
-  isExpanded,
-  onToggleExpand
-}: { 
-  breakdown: Breakdown; 
-  onView: (breakdown: Breakdown) => void; 
-  onEdit: (breakdown: Breakdown) => void; 
-  onDelete: (breakdown: Breakdown) => void;
+// ─── BREAKDOWN CARD ──────────────────────────────────────────────────────────
+
+const BreakdownCard = ({
+  breakdown, onView, onEdit, onDelete, isExpanded, onToggleExpand,
+}: {
+  breakdown: Breakdown;
+  onView: (b: Breakdown) => void;
+  onEdit: (b: Breakdown) => void;
+  onDelete: (b: Breakdown) => void;
   isExpanded: boolean;
   onToggleExpand: () => void;
 }) => {
-  const downtime = minutesToDisplay(
-    calculateDowntime(breakdown.breakdown_start, breakdown.breakdown_end)
-  );
-  
-  const totalSparesCost = (breakdown.spares_used && Array.isArray(breakdown.spares_used)) 
-    ? breakdown.spares_used.reduce((total: number, spare: SpareUsed) => {
-        return total + (parseFloat(spare.total_cost?.toString() || '0') || 0);
-      }, 0)
-    : 0;
-  
-  const typeConfig = BREAKDOWN_TYPES[breakdown.breakdown_type] || BREAKDOWN_TYPES.other;
-  
+  const downtime = minutesToDisplay(calcDowntime(breakdown.breakdown_start, breakdown.breakdown_end));
+  const cost = sparesTotalCost(breakdown.spares_used);
+  const tm = TYPE_META[breakdown.breakdown_type] ?? TYPE_META.other;
+  const TypeIcon = tm.icon;
+
   return (
-    <Card className="group hover:shadow-lg transition-all duration-200 border border-gray-200">
-      <CardContent className="p-4">
+    <div className="oz-glass-dark rounded-2xl overflow-hidden group hover:border-white/[0.15] transition-all">
+      <div className="p-4">
+        {/* Header */}
         <div className="flex items-start justify-between mb-3">
-          <div className="flex items-center gap-2.5">
-            <div className="p-1.5 bg-gray-50 rounded border border-gray-200 group-hover:bg-blue-50 group-hover:border-blue-200 transition-colors">
-              <typeConfig.icon className={`h-4 w-4 ${typeConfig.iconColor}`} />
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className={`p-1.5 rounded-lg border ${tm.glass} shrink-0`}>
+              <TypeIcon className="h-3.5 w-3.5" />
             </div>
-            <div className="flex-1 min-w-0">
-              <h4 className="text-base font-semibold text-gray-900 truncate">{breakdown.machine_name}</h4>
-              <p className="text-xs text-gray-500">ID: {breakdown.machine_id}</p>
+            <div className="min-w-0">
+              <h4 className="text-sm font-semibold text-white truncate">{breakdown.machine_name}</h4>
+              <p className="text-xs text-white/40">ID: {breakdown.machine_id}</p>
             </div>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
+          <button
+            type="button"
             onClick={onToggleExpand}
-            title={isExpanded ? "Collapse details" : "Click to view details"}
+            className="h-7 w-7 flex items-center justify-center rounded-md bg-white/[0.07] border border-white/[0.12] text-white/40 hover:text-white hover:bg-white/[0.12] transition-all shrink-0"
           >
-            {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          </Button>
-        </div>
-        
-        <div className="mb-3">
-          <p className="text-sm text-gray-700 line-clamp-2 leading-snug">
-            {breakdown.breakdown_description || 'No description available'}
-          </p>
+            {isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+          </button>
         </div>
 
-        <div className="space-y-2 mb-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <PriorityBadge priority={breakdown.priority} size="xs" />
-            <TypeBadge type={breakdown.breakdown_type} size="xs" />
-            <StatusBadge status={breakdown.status} size="xs" />
-          </div>
-          
-          <div className="flex flex-wrap gap-2 text-xs">
-            <div className="flex items-center gap-1.5 text-gray-600">
-              <MapPin className="h-3 w-3" />
-              <span className="truncate">{breakdown.location}</span>
-            </div>
-            <div className="flex items-center gap-1.5 text-gray-600">
-              <UserIcon className="h-3 w-3" />
-              <span className="truncate">{breakdown.artisan_name || 'Unassigned'}</span>
-            </div>
-          </div>
+        {/* Description */}
+        <p className="text-xs text-white/55 line-clamp-2 mb-3 leading-relaxed">
+          {breakdown.breakdown_description || 'No description available'}
+        </p>
+
+        {/* Badges */}
+        <div className="flex flex-wrap gap-1.5 mb-3">
+          <PriorityBadge priority={breakdown.priority} />
+          <TypeBadge type={breakdown.breakdown_type} />
+          <StatusBadge status={breakdown.status} />
         </div>
-        
+
+        {/* Meta */}
+        <div className="flex flex-wrap gap-3 text-xs text-white/40 mb-3">
+          {breakdown.location && (
+            <span className="flex items-center gap-1">
+              <MapPin className="h-3 w-3" />{breakdown.location}
+            </span>
+          )}
+          {breakdown.artisan_name && (
+            <span className="flex items-center gap-1">
+              <User className="h-3 w-3" />{breakdown.artisan_name}
+            </span>
+          )}
+        </div>
+
+        {/* Stats row */}
         <div className="grid grid-cols-2 gap-2 mb-3">
-          <div className="bg-gray-50 rounded p-2 text-center">
-            <div className="text-sm font-semibold text-gray-900">{downtime.display}</div>
-            <div className="text-xs text-gray-500">Downtime</div>
+          <div className="bg-white/[0.04] border border-white/[0.08] rounded-xl p-2 text-center">
+            <div className="text-sm font-semibold text-[#86BBD8]">{downtime}</div>
+            <div className="text-[10px] text-white/40">Downtime</div>
           </div>
-          <div className="bg-gray-50 rounded p-2 text-center">
-            <div className="text-sm font-semibold text-gray-900">${totalSparesCost.toFixed(0)}</div>
-            <div className="text-xs text-gray-500">Cost</div>
+          <div className="bg-white/[0.04] border border-white/[0.08] rounded-xl p-2 text-center">
+            <div className="text-sm font-semibold text-emerald-400">${cost.toFixed(0)}</div>
+            <div className="text-[10px] text-white/40">Cost</div>
           </div>
         </div>
-        
+
+        {/* Expanded details */}
         {isExpanded && (
-          <div className="mt-3 pt-3 border-t border-gray-100 space-y-2">
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div>
-                <span className="text-gray-500">Breakdown Start:</span>
-                <span className="ml-1 font-medium">{formatTime(breakdown.breakdown_start)}</span>
-              </div>
-              <div>
-                <span className="text-gray-500">Breakdown End:</span>
-                <span className="ml-1 font-medium">{formatTime(breakdown.breakdown_end)}</span>
-              </div>
-              <div>
-                <span className="text-gray-500">Work Start:</span>
-                <span className="ml-1 font-medium">{formatTime(breakdown.work_start)}</span>
-              </div>
-              <div>
-                <span className="text-gray-500">Work End:</span>
-                <span className="ml-1 font-medium">{formatTime(breakdown.work_end)}</span>
-              </div>
-              <div className="col-span-2">
-                <span className="text-gray-500">Department:</span>
-                <span className="ml-1 font-medium">{breakdown.department}</span>
-              </div>
+          <div className="pt-3 border-t border-white/[0.07] space-y-1.5 mb-3">
+            <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+              <div><span className="text-white/35">B/down Start:</span> <span className="text-white/70 ml-1">{formatTime(breakdown.breakdown_start)}</span></div>
+              <div><span className="text-white/35">B/down End:</span> <span className="text-white/70 ml-1">{formatTime(breakdown.breakdown_end)}</span></div>
+              <div><span className="text-white/35">Work Start:</span> <span className="text-white/70 ml-1">{formatTime(breakdown.work_start)}</span></div>
+              <div><span className="text-white/35">Work End:</span> <span className="text-white/70 ml-1">{formatTime(breakdown.work_end)}</span></div>
+              <div className="col-span-2"><span className="text-white/35">Department:</span> <span className="text-white/70 ml-1">{breakdown.department}</span></div>
               {breakdown.work_done && (
-                <div className="col-span-2">
-                  <span className="text-gray-500">Work Done:</span>
-                  <span className="ml-1 font-medium line-clamp-2">{breakdown.work_done}</span>
-                </div>
+                <div className="col-span-2"><span className="text-white/35">Work Done:</span> <span className="text-white/70 ml-1 line-clamp-2">{breakdown.work_done}</span></div>
               )}
             </div>
           </div>
         )}
-        
-        <div className="flex items-center justify-between pt-3 border-t border-gray-100 mt-2">
-          <div className="flex items-center gap-1.5 text-xs text-gray-500">
-            <CalendarIcon className="h-3 w-3" />
-            <span>{formatDate(breakdown.breakdown_date)}</span>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between pt-3 border-t border-white/[0.07]">
+          <div className="flex items-center gap-1 text-xs text-white/35">
+            <Calendar className="h-3 w-3" />
+            {formatDate(breakdown.breakdown_date)}
           </div>
-          
           <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 text-gray-500 hover:text-blue-600"
-              onClick={() => onView(breakdown)}
-              title="View full details"
-            >
-              <Eye className="h-3.5 w-3.5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 text-gray-500 hover:text-amber-600"
-              onClick={() => onEdit(breakdown)}
-              title="Edit breakdown"
-            >
-              <Edit className="h-3.5 w-3.5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 text-gray-500 hover:text-rose-600"
-              onClick={() => onDelete(breakdown)}
-              title="Delete breakdown"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
+            {[
+              { icon: Eye, label: 'View', fn: () => onView(breakdown), cls: 'hover:text-[#86BBD8]' },
+              { icon: Edit, label: 'Edit', fn: () => onEdit(breakdown), cls: 'hover:text-amber-400' },
+              { icon: Trash2, label: 'Delete', fn: () => onDelete(breakdown), cls: 'hover:text-rose-400' },
+            ].map(({ icon: Ic, label, fn, cls }) => (
+              <button key={label} type="button" title={label} onClick={fn}
+                className={`h-7 w-7 flex items-center justify-center rounded-md bg-white/[0.04] border border-white/[0.08] text-white/40 ${cls} transition-all`}>
+                <Ic className="h-3.5 w-3.5" />
+              </button>
+            ))}
           </div>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 };
 
-// Breakdown Table Component (List View with Expand)
-const BreakdownTable = ({ 
-  breakdowns, 
-  onView, 
-  onEdit, 
-  onDelete, 
-  sortField, 
-  sortDirection, 
-  onSort,
-  expandedItems,
-  onToggleExpand
-}: { 
-  breakdowns: Breakdown[]; 
-  onView: (breakdown: Breakdown) => void; 
-  onEdit: (breakdown: Breakdown) => void; 
-  onDelete: (breakdown: Breakdown) => void; 
-  sortField: string; 
-  sortDirection: string; 
-  onSort: (field: string) => void;
+// ─── SORT BUTTON ──────────────────────────────────────────────────────────────
+
+const SortBtn = ({ field, label, sortField, sortDirection, onSort }: {
+  field: string; label: string; sortField: string; sortDirection: string; onSort: (f: string) => void;
+}) => {
+  const active = sortField === field;
+  return (
+    <button type="button" onClick={() => onSort(field)}
+      className="flex items-center gap-1 text-xs font-semibold text-white/50 uppercase tracking-wider hover:text-white/80 transition-colors">
+      {label}
+      <div className="flex flex-col">
+        <ChevronUp className={`h-2.5 w-2.5 -mb-0.5 ${active && sortDirection === 'asc' ? 'text-[#86BBD8]' : 'text-white/20'}`} />
+        <ChevronDown className={`h-2.5 w-2.5 ${active && sortDirection === 'desc' ? 'text-[#86BBD8]' : 'text-white/20'}`} />
+      </div>
+    </button>
+  );
+};
+
+// ─── BREAKDOWN TABLE ──────────────────────────────────────────────────────────
+
+const BreakdownTable = ({
+  breakdowns, onView, onEdit, onDelete, sortField, sortDirection, onSort, expandedItems, onToggleExpand,
+}: {
+  breakdowns: Breakdown[];
+  onView: (b: Breakdown) => void;
+  onEdit: (b: Breakdown) => void;
+  onDelete: (b: Breakdown) => void;
+  sortField: string;
+  sortDirection: string;
+  onSort: (f: string) => void;
   expandedItems: Set<string>;
   onToggleExpand: (id: string) => void;
 }) => {
-  const SortableHeader = ({ field, label }: { field: string; label: string }) => {
-    const isActive = sortField === field;
-    return (
-      <TableHead className="cursor-pointer hover:bg-gray-50" onClick={() => onSort(field)}>
-        <div className="flex items-center gap-1">
-          {label}
-          <div className="flex flex-col">
-            <ChevronUp className={`h-3 w-3 -mb-1 ${isActive && sortDirection === 'asc' ? 'text-blue-600' : 'text-gray-300'}`} />
-            <ChevronDown className={`h-3 w-3 ${isActive && sortDirection === 'desc' ? 'text-blue-600' : 'text-gray-300'}`} />
-          </div>
-        </div>
-      </TableHead>
-    );
-  };
 
   if (!breakdowns.length) {
     return (
-      <div className="text-center py-12">
-        <div className="mx-auto w-16 h-16 bg-[#F0F5F9] rounded-full flex items-center justify-center mb-4">
-          <AlertCircle className="h-8 w-8 text-[#2A4D69]" />
+      <div className="text-center py-16">
+        <div className="mx-auto w-14 h-14 rounded-full bg-white/[0.05] border border-white/[0.10] flex items-center justify-center mb-4">
+          <AlertCircle className="h-6 w-6 text-[#86BBD8]/60" />
         </div>
-        <h3 className="text-lg font-semibold text-[#2A4D69] mb-2">No breakdowns found</h3>
-        <p className="text-sm text-[#6B7B8E] mb-4">
-          No records match your current search or filters.<br />Try clearing filters, or log a new breakdown using the button above.
-        </p>
+        <p className="text-sm font-medium text-white/60">No breakdowns match your filters</p>
+        <p className="text-xs text-white/30 mt-1">Try clearing filters or log a new breakdown</p>
       </div>
     );
   }
 
   return (
-    <Card className="border border-gray-200 overflow-hidden">
-      <div className="overflow-x-auto">
-        <Table>
-          <TableHeader className="bg-gray-50">
-            <TableRow>
-              <TableHead className="w-10"></TableHead>
-              <SortableHeader field="machine_name" label="Machine" />
-              <SortableHeader field="breakdown_date" label="Date" />
-              <TableHead>Status</TableHead>
-              <TableHead>Priority</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Artisan</TableHead>
-              <TableHead>Downtime</TableHead>
-              <TableHead>Cost</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {breakdowns.map((breakdown) => {
-              const downtime = minutesToDisplay(
-                calculateDowntime(breakdown.breakdown_start, breakdown.breakdown_end)
-              );
-              
-              const totalSparesCost = (breakdown.spares_used && Array.isArray(breakdown.spares_used)) 
-                ? breakdown.spares_used.reduce((total: number, spare: SpareUsed) => {
-                    return total + (parseFloat(spare.total_cost?.toString() || '0') || 0);
-                  }, 0)
-                : 0;
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-white/[0.08]">
+            <th className="w-10 py-3 px-3" aria-label="Expand row"></th>
+            <th className="py-3 px-3 text-left"><SortBtn field="machine_name" label="Machine" sortField={sortField} sortDirection={sortDirection} onSort={onSort} /></th>
+            <th className="py-3 px-3 text-left"><SortBtn field="breakdown_date" label="Date" sortField={sortField} sortDirection={sortDirection} onSort={onSort} /></th>
+            <th className="py-3 px-3 text-left text-xs font-semibold text-white/50 uppercase tracking-wider">Status</th>
+            <th className="py-3 px-3 text-left text-xs font-semibold text-white/50 uppercase tracking-wider">Priority</th>
+            <th className="py-3 px-3 text-left text-xs font-semibold text-white/50 uppercase tracking-wider">Type</th>
+            <th className="py-3 px-3 text-left text-xs font-semibold text-white/50 uppercase tracking-wider">Artisan</th>
+            <th className="py-3 px-3 text-left text-xs font-semibold text-white/50 uppercase tracking-wider">Downtime</th>
+            <th className="py-3 px-3 text-left text-xs font-semibold text-white/50 uppercase tracking-wider">Cost</th>
+            <th className="py-3 px-3 text-right text-xs font-semibold text-white/50 uppercase tracking-wider">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {breakdowns.map((bd) => {
+            const downtime = minutesToDisplay(calcDowntime(bd.breakdown_start, bd.breakdown_end));
+            const cost = sparesTotalCost(bd.spares_used);
+            const rowId = String(bd.id);
+            const isExp = expandedItems.has(rowId);
 
-              const breakdownId = String(breakdown.id);
-              const isExpanded = expandedItems.has(breakdownId);
-
-              return (
-                <Fragment key={breakdownId}>
-                  <TableRow className="hover:bg-gray-50 transition-colors">
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={() => onToggleExpand(breakdownId)}
-                        title="Click to view details"
-                      >
-                        {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                      </Button>
-                    </TableCell>
-                    <TableCell>
-                      <div className="min-w-0">
-                        <div className="text-sm font-medium text-gray-900 truncate">
-                          {breakdown.machine_name}
+            return (
+              <Fragment key={rowId}>
+                <tr className="border-b border-white/[0.05] hover:bg-white/[0.03] transition-colors">
+                  <td className="py-2.5 px-3">
+                    <button type="button" onClick={() => onToggleExpand(rowId)}
+                      className="h-6 w-6 flex items-center justify-center rounded text-white/35 hover:text-white/70 transition-colors">
+                      {isExp ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                    </button>
+                  </td>
+                  <td className="py-2.5 px-3">
+                    <div className="font-medium text-white/85 truncate max-w-[140px]">{bd.machine_name}</div>
+                    <div className="text-xs text-white/35 truncate">{bd.machine_id}</div>
+                  </td>
+                  <td className="py-2.5 px-3 text-white/60 whitespace-nowrap">{formatDate(bd.breakdown_date)}</td>
+                  <td className="py-2.5 px-3"><StatusBadge status={bd.status} /></td>
+                  <td className="py-2.5 px-3"><PriorityBadge priority={bd.priority} /></td>
+                  <td className="py-2.5 px-3"><TypeBadge type={bd.breakdown_type} /></td>
+                  <td className="py-2.5 px-3 text-white/60 whitespace-nowrap">{bd.artisan_name || '—'}</td>
+                  <td className="py-2.5 px-3">
+                    <span className="flex items-center gap-1 text-[#86BBD8] font-medium">
+                      <Clock className="h-3 w-3" />{downtime}
+                    </span>
+                  </td>
+                  <td className="py-2.5 px-3 text-emerald-400 font-medium">${cost.toFixed(0)}</td>
+                  <td className="py-2.5 px-3">
+                    <div className="flex items-center justify-end gap-1">
+                      {[
+                        { icon: Eye, fn: () => onView(bd), cls: 'hover:text-[#86BBD8]', label: 'View' },
+                        { icon: Edit, fn: () => onEdit(bd), cls: 'hover:text-amber-400', label: 'Edit' },
+                        { icon: Trash2, fn: () => onDelete(bd), cls: 'hover:text-rose-400', label: 'Delete' },
+                      ].map(({ icon: Ic, fn, cls, label }) => (
+                        <button key={label} type="button" title={label} onClick={fn}
+                          className={`h-6 w-6 flex items-center justify-center rounded text-white/35 ${cls} transition-colors`}>
+                          <Ic className="h-3.5 w-3.5" />
+                        </button>
+                      ))}
+                    </div>
+                  </td>
+                </tr>
+                {isExp && (
+                  <tr className="border-b border-white/[0.05] bg-white/[0.02]">
+                    <td colSpan={10} className="px-4 py-3">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                        <div className="space-y-1">
+                          <p className="font-semibold text-white/60 uppercase tracking-wider text-[10px] mb-1.5">Breakdown Details</p>
+                          <p className="text-white/55"><span className="text-white/35">Description:</span> {bd.breakdown_description || '—'}</p>
+                          <p className="text-white/55"><span className="text-white/35">Location:</span> {bd.location}</p>
+                          <p className="text-white/55"><span className="text-white/35">Department:</span> {bd.department}</p>
                         </div>
-                        <div className="text-xs text-gray-500 truncate">
-                          {breakdown.machine_id}
+                        <div className="space-y-1">
+                          <p className="font-semibold text-white/60 uppercase tracking-wider text-[10px] mb-1.5">Timing</p>
+                          <p className="text-white/55"><span className="text-white/35">Breakdown:</span> {formatTime(bd.breakdown_start)} – {formatTime(bd.breakdown_end)}</p>
+                          <p className="text-white/55"><span className="text-white/35">Work:</span> {formatTime(bd.work_start)} – {formatTime(bd.work_end)}</p>
+                          <p className="text-white/55"><span className="text-white/35">Total Downtime:</span> {downtime}</p>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="font-semibold text-white/60 uppercase tracking-wider text-[10px] mb-1.5">Work & Recommendations</p>
+                          <p className="text-white/55 break-words"><span className="text-white/35">Work Done:</span> {bd.work_done || '—'}</p>
+                          <p className="text-white/55 break-words"><span className="text-white/35">Recommendations:</span> {bd.artisan_recommendations || '—'}</p>
                         </div>
                       </div>
-                    </TableCell>
-                    <TableCell className="text-sm text-gray-900">{formatDate(breakdown.breakdown_date)}</TableCell>
-                    <TableCell><StatusBadge status={breakdown.status} size="xs" /></TableCell>
-                    <TableCell><PriorityBadge priority={breakdown.priority} size="xs" /></TableCell>
-                    <TableCell><TypeBadge type={breakdown.breakdown_type} size="xs" /></TableCell>
-                    <TableCell className="text-sm">{breakdown.artisan_name || '—'}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1.5">
-                        <ClockIcon className="h-3.5 w-3.5 text-gray-400" />
-                        <span className="text-sm font-medium text-gray-900">{downtime.display}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-sm font-medium">${totalSparesCost.toFixed(0)}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7"
-                          onClick={() => onView(breakdown)}
-                          title="View details"
-                        >
-                          <Eye className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7"
-                          onClick={() => onEdit(breakdown)}
-                          title="Edit"
-                        >
-                          <Edit className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7"
-                          onClick={() => onDelete(breakdown)}
-                          title="Delete"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                  
-                  {isExpanded && (
-                    <TableRow className="bg-gray-50/50">
-                      <TableCell colSpan={10} className="p-4">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          <div className="space-y-1">
-                            <h5 className="text-sm font-semibold text-gray-700">Breakdown Details</h5>
-                            <p className="text-sm text-gray-600 break-words"><span className="text-gray-500">Description:</span> {breakdown.breakdown_description || '—'}</p>
-                            <p className="text-sm text-gray-600"><span className="text-gray-500">Location:</span> {breakdown.location}</p>
-                            <p className="text-sm text-gray-600"><span className="text-gray-500">Department:</span> {breakdown.department}</p>
-                          </div>
-                          <div className="space-y-1">
-                            <h5 className="text-sm font-semibold text-gray-700">Timing</h5>
-                            <p className="text-sm text-gray-600"><span className="text-gray-500">Breakdown:</span> {formatTime(breakdown.breakdown_start)} - {formatTime(breakdown.breakdown_end)}</p>
-                            <p className="text-sm text-gray-600"><span className="text-gray-500">Work:</span> {formatTime(breakdown.work_start)} - {formatTime(breakdown.work_end)}</p>
-                            <p className="text-sm text-gray-600"><span className="text-gray-500">Total Downtime:</span> {downtime.display}</p>
-                          </div>
-                          <div className="space-y-1">
-                            <h5 className="text-sm font-semibold text-gray-700">Work & Recommendations</h5>
-                            <p className="text-sm text-gray-600 break-words"><span className="text-gray-500">Work Done:</span> {breakdown.work_done || '—'}</p>
-                            <p className="text-sm text-gray-600 break-words"><span className="text-gray-500">Recommendations:</span> {breakdown.artisan_recommendations || '—'}</p>
-                          </div>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </Fragment>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </div>
-    </Card>
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
   );
 };
 
-// Breakdown Details Modal Component
-const BreakdownDetailsModal = ({ 
-  breakdown, 
-  isOpen, 
-  onClose, 
-  onEdit, 
-  onDelete 
-}: { 
-  breakdown: Breakdown | null; 
-  isOpen: boolean; 
-  onClose: () => void; 
-  onEdit: (breakdown: Breakdown) => void; 
-  onDelete: (breakdown: Breakdown) => void;
-}) => {
-  if (!isOpen || !breakdown) return null;
+// ─── DETAILS MODAL ────────────────────────────────────────────────────────────
 
-  const downtime = minutesToDisplay(
-    calculateDowntime(breakdown.breakdown_start, breakdown.breakdown_end)
-  );
-  
-  const totalSparesCost = (breakdown.spares_used && Array.isArray(breakdown.spares_used)) 
-    ? breakdown.spares_used.reduce((total: number, spare: SpareUsed) => {
-        return total + (parseFloat(spare.total_cost?.toString() || '0') || 0);
-      }, 0)
-    : 0;
+const DetailsModal = ({
+  breakdown, isOpen, onClose, onEdit, onDelete,
+}: {
+  breakdown: Breakdown | null;
+  isOpen: boolean;
+  onClose: () => void;
+  onEdit: (b: Breakdown) => void;
+  onDelete: (b: Breakdown) => void;
+}) => {
+  if (!breakdown) return null;
+  const downtime = minutesToDisplay(calcDowntime(breakdown.breakdown_start, breakdown.breakdown_end));
+  const cost = sparesTotalCost(breakdown.spares_used);
+
+  const labelCls = 'text-[10px] font-semibold text-white/40 uppercase tracking-wider block mb-0.5';
+  const valCls = 'text-sm text-white/80';
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-xl font-bold">{breakdown.machine_name}</DialogTitle>
-          <DialogDescription>
-            Breakdown ID: {breakdown.id}
-          </DialogDescription>
-        </DialogHeader>
-        
-        <div className="space-y-4 py-2">
-          <div className="flex flex-wrap gap-2">
-            <StatusBadge status={breakdown.status} />
-            <PriorityBadge priority={breakdown.priority} />
-            <TypeBadge type={breakdown.breakdown_type} />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label className="text-xs text-gray-500">Machine ID</Label>
-              <p className="text-sm font-medium">{breakdown.machine_id || '—'}</p>
-            </div>
-            <div>
-              <Label className="text-xs text-gray-500">Artisan</Label>
-              <p className="text-sm font-medium">{breakdown.artisan_name || 'Unassigned'}</p>
-            </div>
-            <div>
-              <Label className="text-xs text-gray-500">Location</Label>
-              <p className="text-sm font-medium">{breakdown.location || '—'}</p>
-            </div>
-            <div>
-              <Label className="text-xs text-gray-500">Department</Label>
-              <p className="text-sm font-medium">{breakdown.department || '—'}</p>
-            </div>
-            <div>
-              <Label className="text-xs text-gray-500">Breakdown Date</Label>
-              <p className="text-sm font-medium">{formatDate(breakdown.breakdown_date)}</p>
-            </div>
-            <div>
-              <Label className="text-xs text-gray-500">Total Downtime</Label>
-              <p className="text-sm font-medium">{downtime.display}</p>
-            </div>
-          </div>
-
-          <div>
-            <Label className="text-xs text-gray-500">Description</Label>
-            <div className="text-sm bg-gray-50 p-3 rounded-md mt-1 whitespace-pre-wrap break-words">
-              {breakdown.breakdown_description || 'No description'}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label className="text-xs text-gray-500">Breakdown Start</Label>
-              <p className="text-sm font-medium">{formatTime(breakdown.breakdown_start)}</p>
-            </div>
-            <div>
-              <Label className="text-xs text-gray-500">Breakdown End</Label>
-              <p className="text-sm font-medium">{formatTime(breakdown.breakdown_end)}</p>
-            </div>
-            <div>
-              <Label className="text-xs text-gray-500">Work Start</Label>
-              <p className="text-sm font-medium">{formatTime(breakdown.work_start)}</p>
-            </div>
-            <div>
-              <Label className="text-xs text-gray-500">Work End</Label>
-              <p className="text-sm font-medium">{formatTime(breakdown.work_end)}</p>
-            </div>
-          </div>
-
-          {breakdown.work_done && (
-            <div>
-              <Label className="text-xs text-gray-500">Work Performed</Label>
-              <div className="text-sm bg-gray-50 p-3 rounded-md mt-1 whitespace-pre-wrap break-words">
-                {breakdown.work_done}
-              </div>
-            </div>
-          )}
-
-          {breakdown.artisan_recommendations && (
-            <div>
-              <Label className="text-xs text-gray-500">Recommendations</Label>
-              <div className="text-sm bg-gray-50 p-3 rounded-md mt-1 whitespace-pre-wrap break-words">
-                {breakdown.artisan_recommendations}
-              </div>
-            </div>
-          )}
-
-          {breakdown.spares_used && Array.isArray(breakdown.spares_used) && breakdown.spares_used.length > 0 && (
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <Label className="text-xs text-gray-500">Spare Parts Used</Label>
-                <span className="text-sm font-semibold">Total: ${totalSparesCost.toFixed(2)}</span>
-              </div>
-              <div className="space-y-2">
-                {breakdown.spares_used.map((spare: SpareUsed, idx: number) => (
-                  <div key={idx} className="flex justify-between items-center p-2 bg-gray-50 rounded-md text-sm">
-                    <span>{spare.name} x{spare.quantity}</span>
-                    <span className="font-medium">${spare.total_cost?.toFixed(2)}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+    <GlassModal isOpen={isOpen} onClose={onClose} title={breakdown.machine_name} icon={Wrench} size="lg"
+      footer={
+        <>
+          <button type="button" onClick={onClose}
+            className="px-4 py-2 rounded-xl text-sm font-semibold text-white/60 bg-white/[0.07] border border-white/[0.12] hover:bg-white/[0.12] transition-all">
+            Close
+          </button>
+          <button type="button" onClick={() => { onEdit(breakdown); onClose(); }}
+            className="px-4 py-2 rounded-xl text-sm font-semibold text-white bg-amber-500/20 border border-amber-500/30 hover:bg-amber-500/30 transition-all">
+            Edit
+          </button>
+          <button type="button" onClick={() => { onDelete(breakdown); onClose(); }}
+            className="px-4 py-2 rounded-xl text-sm font-semibold text-white bg-rose-500/20 border border-rose-500/30 hover:bg-rose-500/30 transition-all">
+            Delete
+          </button>
+        </>
+      }>
+      <div className="space-y-4">
+        {/* Badges */}
+        <div className="flex flex-wrap gap-2">
+          <StatusBadge status={breakdown.status} />
+          <PriorityBadge priority={breakdown.priority} />
+          <TypeBadge type={breakdown.breakdown_type} />
         </div>
 
-        <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={onClose}>Close</Button>
-          <Button variant="outline" onClick={() => { onEdit(breakdown); onClose(); }}>Edit</Button>
-          <Button variant="destructive" onClick={() => { onDelete(breakdown); onClose(); }}>Delete</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        {/* Grid info */}
+        <div className="grid grid-cols-2 gap-3">
+          {[
+            { label: 'Machine ID', val: breakdown.machine_id || '—' },
+            { label: 'Artisan', val: breakdown.artisan_name || 'Unassigned' },
+            { label: 'Location', val: breakdown.location || '—' },
+            { label: 'Department', val: breakdown.department || '—' },
+            { label: 'Breakdown Date', val: formatDate(breakdown.breakdown_date) },
+            { label: 'Total Downtime', val: downtime },
+          ].map(({ label, val }) => (
+            <div key={label} className="bg-white/[0.04] border border-white/[0.08] rounded-xl p-3">
+              <span className={labelCls}>{label}</span>
+              <span className={valCls}>{val}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Description */}
+        <div>
+          <span className={labelCls}>Description</span>
+          <div className="bg-white/[0.04] border border-white/[0.08] rounded-xl p-3 text-sm text-white/70 whitespace-pre-wrap break-words">
+            {breakdown.breakdown_description || 'No description'}
+          </div>
+        </div>
+
+        {/* Times */}
+        <div className="grid grid-cols-2 gap-3">
+          {[
+            { label: 'Breakdown Start', val: formatTime(breakdown.breakdown_start) },
+            { label: 'Breakdown End', val: formatTime(breakdown.breakdown_end) },
+            { label: 'Work Start', val: formatTime(breakdown.work_start) },
+            { label: 'Work End', val: formatTime(breakdown.work_end) },
+          ].map(({ label, val }) => (
+            <div key={label} className="bg-white/[0.04] border border-white/[0.08] rounded-xl p-3">
+              <span className={labelCls}>{label}</span>
+              <span className={valCls}>{val}</span>
+            </div>
+          ))}
+        </div>
+
+        {breakdown.work_done && (
+          <div>
+            <span className={labelCls}>Work Performed</span>
+            <div className="bg-white/[0.04] border border-white/[0.08] rounded-xl p-3 text-sm text-white/70 whitespace-pre-wrap break-words">
+              {breakdown.work_done}
+            </div>
+          </div>
+        )}
+
+        {breakdown.artisan_recommendations && (
+          <div>
+            <span className={labelCls}>Recommendations</span>
+            <div className="bg-white/[0.04] border border-white/[0.08] rounded-xl p-3 text-sm text-white/70 whitespace-pre-wrap break-words">
+              {breakdown.artisan_recommendations}
+            </div>
+          </div>
+        )}
+
+        {/* Spares */}
+        {Array.isArray(breakdown.spares_used) && breakdown.spares_used.length > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className={labelCls}>Spare Parts Used</span>
+              <span className="text-xs font-semibold text-emerald-400">Total: ${cost.toFixed(2)}</span>
+            </div>
+            <div className="space-y-1.5">
+              {(breakdown.spares_used as SpareUsed[]).map((spare, i) => (
+                <div key={i} className="flex justify-between items-center bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2 text-sm">
+                  <span className="text-white/70">{spare.name} ×{spare.quantity}</span>
+                  <span className="text-emerald-400 font-medium">${spare.total_cost?.toFixed(2)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </GlassModal>
   );
 };
 
-// Breakdown Form Modal
-const BreakdownFormModal = ({ 
-  isOpen, 
-  onClose, 
-  onSubmit, 
-  initialData, 
-  mode = 'create' 
-}: { 
-  isOpen: boolean; 
-  onClose: () => void; 
-  onSubmit: (formData: BreakdownFormData) => Promise<void>; 
-  initialData: Breakdown | null; 
+// ─── FORM MODAL ───────────────────────────────────────────────────────────────
+
+const FORM_TABS = [
+  { key: 'basic', label: 'Basic' },
+  { key: 'details', label: 'Details' },
+  { key: 'spares', label: 'Spares' },
+  { key: 'timing', label: 'Timing' },
+] as const;
+
+type FormTab = (typeof FORM_TABS)[number]['key'];
+
+const EMPTY_FORM: BreakdownFormData = {
+  machine_id: '', machine_name: '', breakdown_description: '', artisan_name: '',
+  breakdown_date: new Date().toISOString().split('T')[0],
+  location: '', department: '', breakdown_type: 'mechanical', work_done: '',
+  artisan_recommendations: '', status: 'logged', priority: 'medium',
+  breakdown_start: '', breakdown_end: '', work_start: '', work_end: '', spares_used: [],
+};
+
+const FormModal = ({
+  isOpen, onClose, onSubmit, initialData, mode = 'create',
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (fd: BreakdownFormData) => Promise<void>;
+  initialData: Breakdown | null;
   mode?: 'create' | 'edit';
 }) => {
-  const [formData, setFormData] = useState<BreakdownFormData>({
-    machine_id: '',
-    machine_name: '',
-    breakdown_description: '',
-    artisan_name: '',
-    breakdown_date: new Date().toISOString().split('T')[0],
-    location: '',
-    department: '',
-    breakdown_type: 'mechanical',
-    work_done: '',
-    artisan_recommendations: '',
-    status: 'logged',
-    priority: 'medium',
-    breakdown_start: '',
-    breakdown_end: '',
-    work_start: '',
-    work_end: '',
-    spares_used: []
-  });
-
-  const [spareForm, setSpareForm] = useState({
-    name: '',
-    part_number: '',
-    quantity: 1,
-    unit_price: 0
-  });
-  
+  const [fd, setFd] = useState<BreakdownFormData>(EMPTY_FORM);
+  const [spareForm, setSpareForm] = useState({ name: '', part_number: '', quantity: 1, unit_price: 0 });
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [activeTab, setActiveTab] = useState('basic');
+  const [tab, setTab] = useState<FormTab>('basic');
 
   useEffect(() => {
     if (initialData) {
-      setFormData({
+      setFd({
         machine_id: initialData.machine_id || '',
         machine_name: initialData.machine_name || '',
         breakdown_description: initialData.breakdown_description || '',
@@ -1711,736 +711,583 @@ const BreakdownFormModal = ({
         breakdown_end: initialData.breakdown_end ?? '',
         work_start: initialData.work_start ?? '',
         work_end: initialData.work_end ?? '',
-        spares_used: Array.isArray(initialData.spares_used) ? initialData.spares_used : []
+        spares_used: Array.isArray(initialData.spares_used) ? initialData.spares_used : [],
       });
+    } else {
+      setFd(EMPTY_FORM);
     }
-  }, [initialData]);
+    setTab('basic');
+    setErrors({});
+  }, [initialData, isOpen]);
 
-  const validateForm = (): boolean => {
-    const newErrors: Record<string, string> = {};
-    if (!formData.machine_name.trim()) newErrors.machine_name = 'Machine name is required';
-    if (!formData.breakdown_description.trim()) newErrors.breakdown_description = 'Description is required';
-    if (!formData.artisan_name.trim()) newErrors.artisan_name = 'Artisan name is required';
-    if (!formData.location.trim()) newErrors.location = 'Location is required';
-    if (!formData.department) newErrors.department = 'Department is required';
-    
-    if (formData.breakdown_start && formData.breakdown_end) {
-      const start = timeToMinutes(formData.breakdown_start);
-      const end = timeToMinutes(formData.breakdown_end);
-      if (end < start) {
-        newErrors.breakdown_end = 'End time must be after start time';
-      }
-    }
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+  const set = (field: keyof BreakdownFormData, val: unknown) =>
+    setFd(p => ({ ...p, [field]: val }));
+
+  const validate = (): boolean => {
+    const e: Record<string, string> = {};
+    if (!fd.machine_name.trim()) e.machine_name = 'Machine name is required';
+    if (!fd.breakdown_description.trim()) e.breakdown_description = 'Description is required';
+    if (!fd.artisan_name.trim()) e.artisan_name = 'Artisan name is required';
+    if (!fd.location.trim()) e.location = 'Location is required';
+    if (!fd.department) e.department = 'Department is required';
+    setErrors(e);
+    return Object.keys(e).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateForm()) return;
-    
+    if (!validate()) return;
     setLoading(true);
     try {
-      await onSubmit(formData);
+      await onSubmit(fd);
       onClose();
-      toast.success(mode === 'create' ? 'Breakdown created successfully' : 'Breakdown updated successfully');
-    } catch (error: unknown) {
-      toast.error(error instanceof Error ? error.message : 'Failed to save breakdown');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to save breakdown');
     } finally {
       setLoading(false);
     }
   };
 
   const addSpare = () => {
-    if (!spareForm.name.trim()) {
-      setErrors({ ...errors, spare: 'Spare part name is required' });
-      return;
-    }
-    
-    const totalCost = spareForm.quantity * spareForm.unit_price;
-    const newSpare: SparePart = {
-      ...spareForm,
-      total_cost: totalCost
-    };
-    
-    setFormData(prev => ({
-      ...prev,
-      spares_used: [...prev.spares_used, newSpare]
-    }));
-    
+    if (!spareForm.name.trim()) { setErrors(p => ({ ...p, spare: 'Spare part name is required' })); return; }
+    const newSpare: SparePart = { ...spareForm, total_cost: spareForm.quantity * spareForm.unit_price };
+    setFd(p => ({ ...p, spares_used: [...p.spares_used, newSpare] }));
     setSpareForm({ name: '', part_number: '', quantity: 1, unit_price: 0 });
-    setErrors({ ...errors, spare: '' });
+    setErrors(p => ({ ...p, spare: '' }));
   };
 
-  const removeSpare = (index: number) => {
-    setFormData(prev => ({
-      ...prev,
-      spares_used: prev.spares_used.filter((_, i) => i !== index)
-    }));
-  };
+  const removeSpare = (idx: number) =>
+    setFd(p => ({ ...p, spares_used: p.spares_used.filter((_, i) => i !== idx) }));
 
-  if (!isOpen) return null;
+  const fieldCls = (k: string) => errors[k] ? 'border-rose-500/50' : '';
+  const err = (k: string) => errors[k] ? <p className="mt-1 text-[11px] text-rose-400">{errors[k]}</p> : null;
+
+  const calcPreview = fd.breakdown_start && fd.breakdown_end
+    ? minutesToDisplay(timeToMinutes(fd.breakdown_end) - timeToMinutes(fd.breakdown_start))
+    : null;
+
+  const statusOpts = Object.entries(STATUS_META).map(([k, v]) => ({ value: k, label: v.name }));
+  const priorityOpts = Object.entries(PRIORITY_META).map(([k, v]) => ({ value: k, label: v.name }));
+  const typeOpts = Object.entries(TYPE_META).map(([k, v]) => ({ value: k, label: v.name }));
+  const deptOpts = [{ value: '', label: 'Select department' }, ...DEPARTMENTS.map(d => ({ value: d, label: d }))];
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-xl font-bold">
-            {mode === 'create' ? 'Create New Breakdown' : 'Edit Breakdown'}
-          </DialogTitle>
-          <DialogDescription>
-            Fill in the details below to {mode === 'create' ? 'create a new' : 'update the'} breakdown record.
-          </DialogDescription>
-        </DialogHeader>
-        
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid grid-cols-4 mb-4">
-              <TabsTrigger value="basic">Basic</TabsTrigger>
-              <TabsTrigger value="details">Details</TabsTrigger>
-              <TabsTrigger value="spares">Spares</TabsTrigger>
-              <TabsTrigger value="timing">Timing</TabsTrigger>
-            </TabsList>
+    <GlassModal isOpen={isOpen} onClose={onClose} size="xl"
+      title={mode === 'create' ? 'Log New Breakdown' : 'Edit Breakdown'}
+      icon={Wrench}>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Tabs */}
+        <div className="flex gap-1 p-1 bg-white/[0.05] border border-white/[0.08] rounded-xl">
+          {FORM_TABS.map(t => (
+            <button key={t.key} type="button" onClick={() => setTab(t.key)}
+              className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold transition-all ${
+                tab === t.key
+                  ? 'bg-[#2A4D69] text-white border border-[#86BBD8]/20'
+                  : 'text-white/50 hover:text-white/80'
+              }`}>
+              {t.label}
+            </button>
+          ))}
+        </div>
 
-            <TabsContent value="basic" className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label>Machine Name *</Label>
-                  <Input
-                    value={formData.machine_name}
-                    onChange={(e) => setFormData(prev => ({ ...prev, machine_name: e.target.value }))}
-                    className={errors.machine_name ? "border-rose-500" : ""}
-                    placeholder="e.g., CNC Machine, Conveyor Belt"
-                  />
-                  {errors.machine_name && <p className="text-xs text-rose-600 mt-1">{errors.machine_name}</p>}
-                </div>
-                <div>
-                  <Label>Machine ID</Label>
-                  <Input
-                    value={formData.machine_id}
-                    onChange={(e) => setFormData(prev => ({ ...prev, machine_id: e.target.value }))}
-                    placeholder="Optional"
-                  />
-                </div>
-                <div>
-                  <Label>Artisan Name *</Label>
-                  <Input
-                    value={formData.artisan_name}
-                    onChange={(e) => setFormData(prev => ({ ...prev, artisan_name: e.target.value }))}
-                    className={errors.artisan_name ? "border-rose-500" : ""}
-                    placeholder="e.g., John Doe"
-                  />
-                  {errors.artisan_name && <p className="text-xs text-rose-600 mt-1">{errors.artisan_name}</p>}
-                </div>
-                <div>
-                  <Label>Breakdown Date *</Label>
-                  <Input
-                    type="date"
-                    value={formData.breakdown_date}
-                    onChange={(e) => setFormData(prev => ({ ...prev, breakdown_date: e.target.value }))}
-                  />
-                </div>
-                <div className="md:col-span-2">
-                  <Label>Description *</Label>
-                  <Textarea
-                    value={formData.breakdown_description}
-                    onChange={(e) => setFormData(prev => ({ ...prev, breakdown_description: e.target.value }))}
-                    rows={3}
-                    className={errors.breakdown_description ? "border-rose-500" : ""}
-                    placeholder="Describe what happened, symptoms, and initial observations"
-                  />
-                  {errors.breakdown_description && <p className="text-xs text-rose-600 mt-1">{errors.breakdown_description}</p>}
-                </div>
-              </div>
-            </TabsContent>
+        {/* Basic Tab */}
+        {tab === 'basic' && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <GlassInput label="Machine Name *" value={fd.machine_name}
+                onChange={e => set('machine_name', e.target.value)}
+                placeholder="e.g., CNC Machine" className={fieldCls('machine_name')} />
+              {err('machine_name')}
+            </div>
+            <GlassInput label="Machine ID" value={fd.machine_id}
+              onChange={e => set('machine_id', e.target.value)} placeholder="Optional" />
+            <div>
+              <GlassInput label="Artisan Name *" value={fd.artisan_name}
+                onChange={e => set('artisan_name', e.target.value)}
+                placeholder="e.g., John Doe" className={fieldCls('artisan_name')} />
+              {err('artisan_name')}
+            </div>
+            <GlassInput label="Breakdown Date *" type="date" value={fd.breakdown_date}
+              onChange={e => set('breakdown_date', e.target.value)} />
+            <div className="sm:col-span-2">
+              <GlassTextarea label="Description *" value={fd.breakdown_description}
+                onChange={e => set('breakdown_description', e.target.value)}
+                rows={3} placeholder="Describe what happened…"
+                className={fieldCls('breakdown_description')} />
+              {err('breakdown_description')}
+            </div>
+          </div>
+        )}
 
-            <TabsContent value="details" className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label>Status</Label>
-                  <Select value={formData.status} onValueChange={(v) => setFormData(prev => ({ ...prev, status: v }))}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(STATUS_TYPES).map(([key, config]) => (
-                        <SelectItem key={key} value={key}>{config.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Priority</Label>
-                  <Select value={formData.priority} onValueChange={(v) => setFormData(prev => ({ ...prev, priority: v }))}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(PRIORITY_TYPES).map(([key, config]) => (
-                        <SelectItem key={key} value={key}>{config.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Breakdown Type</Label>
-                  <Select value={formData.breakdown_type} onValueChange={(v) => setFormData(prev => ({ ...prev, breakdown_type: v }))}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(BREAKDOWN_TYPES).map(([key, config]) => (
-                        <SelectItem key={key} value={key}>{config.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Location *</Label>
-                  <Input
-                    value={formData.location}
-                    onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
-                    className={errors.location ? "border-rose-500" : ""}
-                    placeholder="e.g., Production Line A, Warehouse, Workshop"
-                  />
-                  {errors.location && <p className="text-xs text-rose-600 mt-1">{errors.location}</p>}
-                </div>
-                <div>
-                  <Label>Department *</Label>
-                  <Select value={formData.department} onValueChange={(v) => setFormData(prev => ({ ...prev, department: v }))}>
-                    <SelectTrigger className={errors.department ? "border-rose-500" : ""}><SelectValue placeholder="Select department" /></SelectTrigger>
-                    <SelectContent>
-                      {DEPARTMENTS.map(dept => (
-                        <SelectItem key={dept} value={dept}>{dept}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {errors.department && <p className="text-xs text-rose-600 mt-1">{errors.department}</p>}
-                </div>
-              </div>
-              <div>
-                <Label>Work Done</Label>
-                <Textarea
-                  value={formData.work_done}
-                  onChange={(e) => setFormData(prev => ({ ...prev, work_done: e.target.value }))}
-                  rows={2}
-                  placeholder="Describe the work performed to resolve the breakdown"
-                />
-              </div>
-              <div>
-                <Label>Recommendations</Label>
-                <Textarea
-                  value={formData.artisan_recommendations}
-                  onChange={(e) => setFormData(prev => ({ ...prev, artisan_recommendations: e.target.value }))}
-                  rows={2}
-                  placeholder="Enter recommendations for preventing future breakdowns"
-                />
-              </div>
-            </TabsContent>
+        {/* Details Tab */}
+        {tab === 'details' && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <GlassSelect label="Status" value={fd.status}
+              onChange={e => set('status', e.target.value)} options={statusOpts} />
+            <GlassSelect label="Priority" value={fd.priority}
+              onChange={e => set('priority', e.target.value)} options={priorityOpts} />
+            <GlassSelect label="Breakdown Type" value={fd.breakdown_type}
+              onChange={e => set('breakdown_type', e.target.value)} options={typeOpts} />
+            <div>
+              <GlassInput label="Location *" value={fd.location}
+                onChange={e => set('location', e.target.value)}
+                placeholder="e.g., Production Line A" className={fieldCls('location')} />
+              {err('location')}
+            </div>
+            <div>
+              <GlassSelect label="Department *" value={fd.department}
+                onChange={e => set('department', e.target.value)}
+                options={deptOpts} className={fieldCls('department')} />
+              {err('department')}
+            </div>
+            <div className="sm:col-span-2">
+              <GlassTextarea label="Work Done" value={fd.work_done}
+                onChange={e => set('work_done', e.target.value)}
+                rows={2} placeholder="Describe the work performed…" />
+            </div>
+            <div className="sm:col-span-2">
+              <GlassTextarea label="Recommendations" value={fd.artisan_recommendations}
+                onChange={e => set('artisan_recommendations', e.target.value)}
+                rows={2} placeholder="Enter recommendations…" />
+            </div>
+          </div>
+        )}
 
-            <TabsContent value="spares" className="space-y-4">
-              <Card>
-                <CardContent className="p-4">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
-                    <Input placeholder="Part Name" value={spareForm.name} onChange={(e) => setSpareForm(prev => ({ ...prev, name: e.target.value }))} />
-                    <Input placeholder="Part Number" value={spareForm.part_number} onChange={(e) => setSpareForm(prev => ({ ...prev, part_number: e.target.value }))} />
-                    <Input type="number" placeholder="Quantity" value={spareForm.quantity} onChange={(e) => setSpareForm(prev => ({ ...prev, quantity: parseInt(e.target.value) || 1 }))} />
-                    <Input type="number" placeholder="Unit Price" value={spareForm.unit_price} onChange={(e) => setSpareForm(prev => ({ ...prev, unit_price: parseFloat(e.target.value) || 0 }))} />
+        {/* Spares Tab */}
+        {tab === 'spares' && (
+          <div className="space-y-3">
+            <div className="bg-white/[0.04] border border-white/[0.08] rounded-xl p-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">
+                <GlassInput placeholder="Part Name" value={spareForm.name}
+                  onChange={e => setSpareForm(p => ({ ...p, name: e.target.value }))} />
+                <GlassInput placeholder="Part Number" value={spareForm.part_number}
+                  onChange={e => setSpareForm(p => ({ ...p, part_number: e.target.value }))} />
+                <GlassInput type="number" placeholder="Quantity" value={String(spareForm.quantity)}
+                  onChange={e => setSpareForm(p => ({ ...p, quantity: parseInt(e.target.value) || 1 }))} />
+                <GlassInput type="number" placeholder="Unit Price" value={String(spareForm.unit_price)}
+                  onChange={e => setSpareForm(p => ({ ...p, unit_price: parseFloat(e.target.value) || 0 }))} />
+              </div>
+              <button type="button" onClick={addSpare}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-[#2A4D69]/60 border border-[#86BBD8]/25 hover:bg-[#2A4D69]/80 transition-all">
+                <Plus className="h-3.5 w-3.5" />Add Spare
+              </button>
+              {errors.spare && <p className="mt-1 text-[11px] text-rose-400">{errors.spare}</p>}
+            </div>
+            {fd.spares_used.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-xs font-semibold text-white/50 uppercase tracking-wider">Parts Added</p>
+                {fd.spares_used.map((s, i) => (
+                  <div key={i} className="flex justify-between items-center bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2 text-sm">
+                    <div>
+                      <span className="text-white/80 font-medium">{s.name}</span>
+                      {s.part_number && <span className="text-white/35 ml-2 text-xs">({s.part_number})</span>}
+                      <span className="text-white/40 ml-2 text-xs">{s.quantity} × ${s.unit_price}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-emerald-400 font-semibold">${(s.quantity * s.unit_price).toFixed(2)}</span>
+                      <button type="button" title="Remove spare part" onClick={() => removeSpare(i)}
+                        className="h-6 w-6 flex items-center justify-center rounded text-rose-400/60 hover:text-rose-400 transition-colors">
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </div>
                   </div>
-                  <Button type="button" variant="outline" size="sm" onClick={addSpare} className="gap-1">
-                    <Plus className="h-3.5 w-3.5" /> Add Spare
-                  </Button>
-                  {errors.spare && <p className="text-xs text-rose-600 mt-2">{errors.spare}</p>}
-                </CardContent>
-              </Card>
-
-              {formData.spares_used.length > 0 && (
-                <div>
-                  <h4 className="text-sm font-medium mb-2">Spare Parts Used</h4>
-                  <div className="space-y-2">
-                    {formData.spares_used.map((spare, idx) => (
-                      <div key={idx} className="flex justify-between items-center p-2 bg-gray-50 rounded-md">
-                        <div>
-                          <span className="font-medium">{spare.name}</span>
-                          {spare.part_number && <span className="text-xs text-gray-500 ml-2">({spare.part_number})</span>}
-                          <span className="text-xs text-gray-500 ml-2">{spare.quantity} × ${spare.unit_price}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold">${(spare.quantity * spare.unit_price).toFixed(2)}</span>
-                          <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeSpare(idx)}>
-                            <Trash2 className="h-3.5 w-3.5 text-rose-500" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </TabsContent>
-
-            <TabsContent value="timing" className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label>Breakdown Start Time</Label>
-                  <Input type="time" value={formData.breakdown_start} onChange={(e) => setFormData(prev => ({ ...prev, breakdown_start: e.target.value }))} />
-                </div>
-                <div>
-                  <Label>Breakdown End Time</Label>
-                  <Input type="time" value={formData.breakdown_end} onChange={(e) => setFormData(prev => ({ ...prev, breakdown_end: e.target.value }))} />
-                  {errors.breakdown_end && <p className="text-xs text-rose-600 mt-1">{errors.breakdown_end}</p>}
-                </div>
-                <div>
-                  <Label>Work Start Time</Label>
-                  <Input type="time" value={formData.work_start} onChange={(e) => setFormData(prev => ({ ...prev, work_start: e.target.value }))} />
-                </div>
-                <div>
-                  <Label>Work End Time</Label>
-                  <Input type="time" value={formData.work_end} onChange={(e) => setFormData(prev => ({ ...prev, work_end: e.target.value }))} />
-                </div>
+                ))}
               </div>
-              {(formData.breakdown_start && formData.breakdown_end) && (
-                <Card className="bg-blue-50">
-                  <CardContent className="p-3">
-                    <p className="text-sm"><span className="font-medium">Calculated Downtime:</span> {minutesToDisplay(calculateTimeDifference(formData.breakdown_start, formData.breakdown_end)).display}</p>
-                  </CardContent>
-                </Card>
-              )}
-            </TabsContent>
-          </Tabs>
+            )}
+          </div>
+        )}
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-            <Button type="submit" disabled={loading}>
-              {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+        {/* Timing Tab */}
+        {tab === 'timing' && (
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <GlassInput label="Breakdown Start" type="time" value={fd.breakdown_start}
+                onChange={e => set('breakdown_start', e.target.value)} />
+              <div>
+                <GlassInput label="Breakdown End" type="time" value={fd.breakdown_end}
+                  onChange={e => set('breakdown_end', e.target.value)} />
+                {err('breakdown_end')}
+              </div>
+              <GlassInput label="Work Start" type="time" value={fd.work_start}
+                onChange={e => set('work_start', e.target.value)} />
+              <GlassInput label="Work End" type="time" value={fd.work_end}
+                onChange={e => set('work_end', e.target.value)} />
+            </div>
+            {calcPreview && (
+              <div className="bg-[#2A4D69]/20 border border-[#86BBD8]/20 rounded-xl p-3 text-sm">
+                <span className="text-white/50">Calculated Downtime: </span>
+                <span className="text-[#86BBD8] font-semibold">{calcPreview}</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Form footer */}
+        <div className="flex items-center justify-between pt-2 border-t border-white/[0.07]">
+          {/* Tab nav */}
+          <div className="flex gap-1">
+            {FORM_TABS.map((t, i) => (
+              <button key={t.key} type="button" onClick={() => setTab(t.key)}
+                className={`w-2 h-2 rounded-full transition-all ${tab === t.key ? 'bg-[#86BBD8]' : 'bg-white/20'}`}
+                title={t.label} />
+            ))}
+          </div>
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={onClose}
+              className="px-4 py-2 rounded-xl text-sm font-semibold text-white/60 bg-white/[0.07] border border-white/[0.12] hover:bg-white/[0.12] transition-all">
+              Cancel
+            </button>
+            <button type="submit" disabled={loading}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-[#2A4D69] to-[#1e3a52] border border-[#86BBD8]/25 hover:opacity-90 transition-all disabled:opacity-50">
+              {loading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
               {mode === 'create' ? 'Create Breakdown' : 'Update Breakdown'}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+            </button>
+          </div>
+        </div>
+      </form>
+    </GlassModal>
   );
 };
 
-// Main Breakdowns Page Component
+// ─── MAIN PAGE ────────────────────────────────────────────────────────────────
+
 const BreakdownsPage = () => {
   const [breakdowns, setBreakdowns] = useState<Breakdown[]>([]);
-  const [filteredBreakdowns, setFilteredBreakdowns] = useState<Breakdown[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('table');
   const [sortField, setSortField] = useState('breakdown_date');
   const [sortDirection, setSortDirection] = useState('desc');
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
-  
-  // Filter states
+
   const [filters, setFilters] = useState<Filters>({
-    status: 'all',
-    breakdown_type: 'all',
-    priority: 'all',
-    department: 'all',
-    location: 'all',
-    artisan_name: 'all',
-    machine_name: 'all'
+    status: 'all', breakdown_type: 'all', priority: 'all',
+    department: 'all', location: 'all', artisan_name: 'all', machine_name: 'all',
   });
   const [searchTerm, setSearchTerm] = useState('');
-  
-  // Date range states
   const [startDate, setStartDate] = useState(() => {
-    const date = new Date();
-    date.setDate(date.getDate() - 30);
-    return date.toISOString().split('T')[0];
+    const d = new Date(); d.setDate(d.getDate() - 30); return d.toISOString().split('T')[0];
   });
-  const [endDate, setEndDate] = useState(() => {
-    return new Date().toISOString().split('T')[0];
-  });
+  const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [showDateRange, setShowDateRange] = useState(false);
-  
-  // Modal states
-  const [detailsModalOpen, setDetailsModalOpen] = useState(false);
-  const [formModalOpen, setFormModalOpen] = useState(false);
-  const [selectedBreakdown, setSelectedBreakdown] = useState<Breakdown | null>(null);
+
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
+  const [selectedBd, setSelectedBd] = useState<Breakdown | null>(null);
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create');
-  
-  // Backend availability
-  const [backendAvailable, setBackendAvailable] = useState(true);
 
-  // Active filter count
+  const collapse = usePageCollapse({ hero: false, filters: false, records: false });
+
+  // ── Derived data ─────────────────────────────────────────────────────────────
+
+  const filteredBreakdowns = useMemo(() => {
+    let result = [...breakdowns];
+    if (searchTerm.trim()) {
+      const t = searchTerm.toLowerCase();
+      result = result.filter(b =>
+        b.machine_name?.toLowerCase().includes(t) ||
+        b.machine_id?.toLowerCase().includes(t) ||
+        b.breakdown_description?.toLowerCase().includes(t) ||
+        b.artisan_name?.toLowerCase().includes(t) ||
+        b.location?.toLowerCase().includes(t)
+      );
+    }
+    result.sort((a, b) => {
+      if (sortField === 'breakdown_date') {
+        const cmp = new Date(a.breakdown_date).getTime() - new Date(b.breakdown_date).getTime();
+        return sortDirection === 'asc' ? cmp : -cmp;
+      }
+      const av = a[sortField as keyof Breakdown];
+      const bv = b[sortField as keyof Breakdown];
+      const cmp = String(av ?? '').localeCompare(String(bv ?? ''));
+      return sortDirection === 'asc' ? cmp : -cmp;
+    });
+    return result;
+  }, [breakdowns, searchTerm, sortField, sortDirection]);
+
+  const metrics = useMemo(() => {
+    const total = filteredBreakdowns.length;
+    const active = filteredBreakdowns.filter(b => b.status === 'logged' || b.status === 'in_progress').length;
+    const critical = filteredBreakdowns.filter(b => b.priority === 'critical').length;
+    const totalDownMins = filteredBreakdowns.reduce((s, b) => s + calcDowntime(b.breakdown_start, b.breakdown_end), 0);
+    const resolved = filteredBreakdowns.filter(b => b.status === 'resolved' || b.status === 'closed');
+    const avgRes = resolved.length > 0
+      ? (resolved.reduce((s, b) => s + calcDowntime(b.breakdown_start, b.breakdown_end), 0) / 60 / resolved.length).toFixed(1)
+      : '0';
+    return { total, active, critical, totalDowntime: minutesToDisplay(totalDownMins), avgRes };
+  }, [filteredBreakdowns]);
+
   const activeFilterCount = useMemo(() => {
-    let count = 0;
-    if (filters.status !== 'all') count++;
-    if (filters.breakdown_type !== 'all') count++;
-    if (filters.priority !== 'all') count++;
-    if (filters.department !== 'all') count++;
-    if (filters.location !== 'all' && filters.location !== '') count++;
-    if (filters.artisan_name !== 'all') count++;
-    if (filters.machine_name !== 'all') count++;
-    if (searchTerm) count++;
-    if (showDateRange && (startDate !== endDate)) count++;
-    return count;
-  }, [filters, searchTerm, showDateRange, startDate, endDate]);
+    let c = 0;
+    if (filters.status !== 'all') c++;
+    if (filters.breakdown_type !== 'all') c++;
+    if (filters.priority !== 'all') c++;
+    if (filters.department !== 'all') c++;
+    if (filters.location !== 'all' && filters.location !== '') c++;
+    if (filters.artisan_name !== 'all') c++;
+    if (filters.machine_name !== 'all') c++;
+    if (searchTerm) c++;
+    if (showDateRange) c++;
+    return c;
+  }, [filters, searchTerm, showDateRange]);
 
-  // Filter description for metrics
-  const filterDescription = useMemo(() => {
-    const activeFilters: string[] = [];
-    if (filters.status !== 'all') activeFilters.push(`Status: ${STATUS_TYPES[filters.status]?.name}`);
-    if (filters.breakdown_type !== 'all') activeFilters.push(`Type: ${BREAKDOWN_TYPES[filters.breakdown_type]?.name}`);
-    if (filters.priority !== 'all') activeFilters.push(`Priority: ${PRIORITY_TYPES[filters.priority]?.name}`);
-    if (filters.department !== 'all') activeFilters.push(`Dept: ${filters.department}`);
-    if (filters.location !== 'all' && filters.location !== '') activeFilters.push(`Location: ${filters.location}`);
-    if (filters.artisan_name !== 'all') activeFilters.push(`Artisan: ${filters.artisan_name}`);
-    if (filters.machine_name !== 'all') activeFilters.push(`Machine: ${filters.machine_name}`);
-    if (searchTerm) activeFilters.push(`Search: "${searchTerm}"`);
-    if (showDateRange && startDate && endDate) activeFilters.push(`Date: ${formatDate(startDate)} - ${formatDate(endDate)}`);
-    
-    if (activeFilters.length === 0) return "All breakdowns";
-    return `Filtered by: ${activeFilters.join(', ')}`;
-  }, [filters, searchTerm, showDateRange, startDate, endDate]);
+  // ── Data loading ──────────────────────────────────────────────────────────────
 
   const loadBreakdowns = useCallback(async () => {
     setLoading(true);
     try {
-      const available = await isBackendAvailable();
-      setBackendAvailable(available);
-      
-      if (!available) {
-        setBreakdowns([]);
-        setFilteredBreakdowns([]);
-        setLoading(false);
-        return;
-      }
-      
-      const queryFilters: Record<string, string> = {};
-      if (filters.status !== 'all') queryFilters.status = filters.status;
-      if (filters.breakdown_type !== 'all') queryFilters.breakdown_type = filters.breakdown_type;
-      if (filters.priority !== 'all') queryFilters.priority = filters.priority;
-      if (filters.department !== 'all') queryFilters.department = filters.department;
-      if (filters.location !== 'all' && filters.location !== '') queryFilters.location = filters.location;
-      if (filters.artisan_name !== 'all') queryFilters.artisan_name = filters.artisan_name;
-      if (filters.machine_name !== 'all') queryFilters.machine_name = filters.machine_name;
-      if (startDate && endDate) {
-        queryFilters.start_date = startDate;
-        queryFilters.end_date = endDate;
-      }
-      
-      const data = await fetchBreakdowns(queryFilters);
-      setBreakdowns(data);
-    } catch (err) {
-      console.error('Failed to load breakdowns:', err);
-      toast.error('Failed to load breakdowns');
-      setBreakdowns([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [filters, startDate, endDate]);
+      const q: Record<string, string> = {};
+      if (filters.status !== 'all') q.status = filters.status;
+      if (filters.breakdown_type !== 'all') q.breakdown_type = filters.breakdown_type;
+      if (filters.priority !== 'all') q.priority = filters.priority;
+      if (filters.department !== 'all') q.department = filters.department;
+      if (filters.location !== 'all' && filters.location !== '') q.location = filters.location;
+      if (filters.artisan_name !== 'all') q.artisan_name = filters.artisan_name;
+      if (filters.machine_name !== 'all') q.machine_name = filters.machine_name;
+      if (showDateRange && startDate && endDate) { q.start_date = startDate; q.end_date = endDate; }
+      setBreakdowns(await fetchBreakdowns(q));
+    } catch { toast.error('Failed to load breakdowns'); setBreakdowns([]); }
+    finally { setLoading(false); }
+  }, [filters, startDate, endDate, showDateRange]);
 
-  // Apply local filters and search - FIXED SORTING LOGIC
-  useEffect(() => {
-    let result = [...breakdowns];
-    
-    if (searchTerm.trim()) {
-      const term = searchTerm.toLowerCase();
-      result = result.filter(breakdown =>
-        breakdown.machine_name?.toLowerCase().includes(term) ||
-        breakdown.machine_id?.toLowerCase().includes(term) ||
-        breakdown.breakdown_description?.toLowerCase().includes(term) ||
-        breakdown.artisan_name?.toLowerCase().includes(term) ||
-        breakdown.location?.toLowerCase().includes(term)
-      );
-    }
-    
-    // FIXED: Proper sorting that handles both strings and numbers
-    result.sort((a, b) => {
-      let aVal = a[sortField as keyof Breakdown];
-      let bVal = b[sortField as keyof Breakdown];
+  useEffect(() => { loadBreakdowns(); }, [loadBreakdowns]);
 
-      // Special handling for date field
-      if (sortField === 'breakdown_date') {
-        const aDate = new Date(aVal as string);
-        const bDate = new Date(bVal as string);
-        const comparison = aDate.getTime() - bDate.getTime();
-        return sortDirection === 'asc' ? comparison : -comparison;
-      }
+  // ── Handlers ──────────────────────────────────────────────────────────────────
 
-      // Safely convert values to strings for comparison
-      const aStr = aVal == null ? '' : String(aVal);
-      const bStr = bVal == null ? '' : String(bVal);
-      
-      const comparison = aStr.localeCompare(bStr);
-      return sortDirection === 'asc' ? comparison : -comparison;
-    });
-    
-    setFilteredBreakdowns(result);
-  }, [breakdowns, searchTerm, sortField, sortDirection]);
-
-  useEffect(() => {
-    loadBreakdowns();
-  }, [loadBreakdowns]);
-
-  const handleFilterChange = (filterName: string, value: string) => {
-    setFilters(prev => ({ ...prev, [filterName]: value }));
-  };
-
-  const clearAllFilters = () => {
-    setFilters({
-      status: 'all',
-      breakdown_type: 'all',
-      priority: 'all',
-      department: 'all',
-      location: 'all',
-      artisan_name: 'all',
-      machine_name: 'all'
-    });
+  const clearFilters = () => {
+    setFilters({ status: 'all', breakdown_type: 'all', priority: 'all', department: 'all', location: 'all', artisan_name: 'all', machine_name: 'all' });
     setSearchTerm('');
-    const today = new Date();
-    const monthAgo = new Date();
-    monthAgo.setDate(today.getDate() - 30);
-    setStartDate(monthAgo.toISOString().split('T')[0]);
-    setEndDate(today.toISOString().split('T')[0]);
     setShowDateRange(false);
-    toast.success('All filters cleared');
   };
 
   const handleSort = (field: string) => {
-    if (sortField === field) {
-      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortDirection('desc');
-    }
+    if (sortField === field) setSortDirection(p => p === 'asc' ? 'desc' : 'asc');
+    else { setSortField(field); setSortDirection('desc'); }
   };
 
-  const toggleExpand = (id: string) => {
-    setExpandedItems(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(id)) newSet.delete(id);
-      else newSet.add(id);
-      return newSet;
-    });
-  };
+  const toggleExpand = (id: string) =>
+    setExpandedItems(p => { const s = new Set(p); s.has(id) ? s.delete(id) : s.add(id); return s; });
 
-  const expandAll = () => {
-    const allIds = filteredBreakdowns.map(b => String(b.id));
-    setExpandedItems(new Set(allIds));
-    toast.info(`Expanded ${allIds.length} items`);
+  const handleView = (bd: Breakdown) => { setSelectedBd(bd); setDetailsOpen(true); };
+  const handleEdit = (bd: Breakdown) => {
+    if (!bd.id) { toast.error('Invalid breakdown ID'); return; }
+    setSelectedBd(bd); setFormMode('edit'); setFormOpen(true);
   };
-
-  const collapseAll = () => {
-    setExpandedItems(new Set());
-    toast.info('Collapsed all items');
-  };
-
-  const handleView = (breakdown: Breakdown) => {
-    setSelectedBreakdown(breakdown);
-    setDetailsModalOpen(true);
-  };
-
-  const handleEdit = (breakdown: Breakdown) => {
-    if (!breakdown.id || breakdown.id === 0) {
-      console.error('Invalid breakdown ID:', breakdown);
-      toast.error('Cannot edit: Invalid breakdown ID. Please refresh and try again.');
-      return;
-    }
-    setSelectedBreakdown(breakdown);
-    setFormMode('edit');
-    setFormModalOpen(true);
-  };
-
-  const handleDelete = async (breakdown: Breakdown) => {
-    if (!breakdown.id || breakdown.id === 0) {
-      console.error('Invalid breakdown ID:', breakdown);
-      toast.error('Cannot delete: Invalid breakdown ID. Please refresh and try again.');
-      return;
-    }
-    
-    if (window.confirm(`Are you sure you want to delete breakdown for "${breakdown.machine_name}"? This action cannot be undone.`)) {
-      try {
-        console.log('Deleting breakdown with ID:', breakdown.id);
-        await deleteBreakdown(breakdown.id);
-        toast.success('Breakdown deleted successfully');
-        await loadBreakdowns();
-      } catch (err: unknown) {
-        console.error('Delete error:', err);
-        toast.error(err instanceof Error ? err.message : 'Failed to delete breakdown. Please check the console for details.');
-      }
-    }
-  };
-
-  const handleCreate = () => {
-    setSelectedBreakdown(null);
-    setFormMode('create');
-    setFormModalOpen(true);
-  };
-
-  const handleFormSubmit = async (formData: BreakdownFormData) => {
+  const handleDelete = async (bd: Breakdown) => {
+    if (!bd.id) { toast.error('Invalid breakdown ID'); return; }
+    if (!window.confirm(`Delete breakdown for "${bd.machine_name}"? This cannot be undone.`)) return;
     try {
-      if (formMode === 'create') {
-        await createBreakdown(formData);
-        toast.success('Breakdown created successfully');
-      } else {
-        if (!selectedBreakdown?.id) {
-          throw new Error('Invalid breakdown ID');
-        }
-        await updateBreakdown(selectedBreakdown.id, formData);
-        toast.success('Breakdown updated successfully');
-      }
+      await deleteBreakdown(bd.id);
+      toast.success('Breakdown deleted');
       await loadBreakdowns();
-    } catch (err: unknown) {
-      console.error('Failed to save breakdown:', err);
-      toast.error(err instanceof Error ? err.message : 'Failed to save breakdown');
-      throw err;
+    } catch (e: unknown) { toast.error(e instanceof Error ? e.message : 'Delete failed'); }
+  };
+  const handleCreate = () => { setSelectedBd(null); setFormMode('create'); setFormOpen(true); };
+  const handleFormSubmit = async (formData: BreakdownFormData) => {
+    if (formMode === 'create') {
+      await createBreakdown(formData);
+      toast.success('Breakdown created');
+    } else {
+      if (!selectedBd?.id) throw new Error('Invalid ID');
+      await updateBreakdown(selectedBd.id, formData);
+      toast.success('Breakdown updated');
     }
+    await loadBreakdowns();
   };
 
-  const exportToCSV = () => {
-    const headers = ['Machine Name', 'Machine ID', 'Description', 'Status', 'Priority', 'Type', 'Location', 'Department', 'Artisan', 'Date', 'Downtime', 'Cost', 'Work Done', 'Recommendations'];
-    const csvRows = [
-      headers.join(','),
-      ...filteredBreakdowns.map(breakdown => {
-        const downtime = minutesToDisplay(calculateDowntime(breakdown.breakdown_start, breakdown.breakdown_end));
-        const totalSparesCost = (breakdown.spares_used && Array.isArray(breakdown.spares_used)) 
-          ? breakdown.spares_used.reduce((total: number, spare: SpareUsed) => total + (parseFloat(spare.total_cost?.toString() || '0') || 0), 0) : 0;
-        const row = [
-          `"${(breakdown.machine_name || '').replace(/"/g, '""')}"`,
-          `"${(breakdown.machine_id || '').replace(/"/g, '""')}"`,
-          `"${(breakdown.breakdown_description || '').replace(/"/g, '""')}"`,
-          `"${STATUS_TYPES[breakdown.status]?.name || ''}"`,
-          `"${PRIORITY_TYPES[breakdown.priority]?.name || ''}"`,
-          `"${BREAKDOWN_TYPES[breakdown.breakdown_type]?.name || ''}"`,
-          `"${(breakdown.location || '').replace(/"/g, '""')}"`,
-          `"${(breakdown.department || '').replace(/"/g, '""')}"`,
-          `"${(breakdown.artisan_name || '').replace(/"/g, '""')}"`,
-          `"${formatDate(breakdown.breakdown_date)}"`,
-          `"${downtime.display}"`,
-          `"${totalSparesCost.toFixed(2)}"`,
-          `"${(breakdown.work_done || '').replace(/"/g, '""')}"`,
-          `"${(breakdown.artisan_recommendations || '').replace(/"/g, '""')}"`
-        ];
-        return row.join(',');
-      })
-    ];
-    const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `breakdowns_${new Date().toISOString().split('T')[0]}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
-    toast.success(`Exported ${filteredBreakdowns.length} breakdowns`);
-  };
+  // ── Download columns ──────────────────────────────────────────────────────────
 
-  if (!backendAvailable && !loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-6">
-        <Card className="max-w-md mx-auto text-center p-8">
-          <AlertCircle className="h-12 w-12 text-rose-500 mx-auto mb-4" />
-          <h2 className="text-xl font-bold mb-2">Backend Unavailable</h2>
-          <p className="text-gray-500 mb-6">Unable to connect to the backend server. Please ensure it's running at {API_BASE}</p>
-          <Button onClick={loadBreakdowns} className="gap-2">
-            <RefreshCw className="h-4 w-4" /> Retry Connection
-          </Button>
-        </Card>
-      </div>
-    );
-  }
+  const dlCols: DLColumn[] = [
+    { key: 'machine_name', label: 'Machine' },
+    { key: 'machine_id', label: 'Machine ID' },
+    { key: 'breakdown_description', label: 'Description' },
+    { key: 'status', label: 'Status', format: v => STATUS_META[v as string]?.name ?? String(v ?? '') },
+    { key: 'priority', label: 'Priority', format: v => PRIORITY_META[v as string]?.name ?? String(v ?? '') },
+    { key: 'breakdown_type', label: 'Type', format: v => TYPE_META[v as string]?.name ?? String(v ?? '') },
+    { key: 'location', label: 'Location' },
+    { key: 'department', label: 'Department' },
+    { key: 'artisan_name', label: 'Artisan' },
+    { key: 'breakdown_date', label: 'Date', format: v => formatDate(v as string) },
+    { key: 'breakdown_start', label: 'B/down Start', format: v => formatTime(v as string) },
+    { key: 'breakdown_end', label: 'B/down End', format: v => formatTime(v as string) },
+    { key: 'work_done', label: 'Work Done' },
+    { key: 'artisan_recommendations', label: 'Recommendations' },
+  ];
+
+  const dlData = filteredBreakdowns.map(bd => ({
+    ...bd,
+    downtime: minutesToDisplay(calcDowntime(bd.breakdown_start, bd.breakdown_end)),
+    cost: sparesTotalCost(bd.spares_used).toFixed(2),
+  })) as unknown as Record<string, unknown>[];
+
+  // ─────────────────────────────────────────────────────────────────────────────
 
   return (
     <PageShell>
-      <Toaster position="top-right" richColors />
-      <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
-        {/* Ozech Page Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <nav className="flex items-center gap-1.5 text-xs text-[#6B7B8E] mb-2">
-              <span>Home</span>
-              <ChevronRight className="h-3 w-3" />
-              <span className="text-[#2A4D69] font-medium">Breakdowns</span>
-            </nav>
-            <h1 className="text-3xl font-bold text-[#2A4D69] font-heading tracking-tight">Equipment Breakdowns</h1>
-            <p className="text-[#6B7B8E] mt-1">Log, track, and resolve equipment failures. Click any record to view full details.</p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2 self-start">
-            <Button variant="outline" size="sm" onClick={exportToCSV} className="gap-1 border-[#2A4D69]/20 text-[#2A4D69]">
-              <Download className="h-4 w-4" /> Export
-            </Button>
-            <Button variant="outline" size="sm" onClick={expandAll} className="gap-1 border-[#2A4D69]/20 text-[#2A4D69]">
-              <Maximize2 className="h-4 w-4" /> Expand All
-            </Button>
-            <Button onClick={handleCreate} className="gap-1 bg-[#2A4D69] hover:bg-[#1e3a52] text-white">
-              <Plus className="h-4 w-4" /> New Breakdown
-            </Button>
-          </div>
-        </div>
+      <div className="max-w-7xl mx-auto px-4 py-6 space-y-4">
 
-        {/* Main Content */}
-        <div className="space-y-6">
-          {/* Dashboard Metrics */}
-          <DashboardMetrics 
-            breakdowns={filteredBreakdowns} 
-            loading={loading} 
-            filterDescription={filterDescription}
-          />
-
-          {/* Filters */}
-          <FilterBar
-            filters={filters}
-            onFilterChange={handleFilterChange}
-            onRefresh={loadBreakdowns}
-            loading={loading}
-            searchTerm={searchTerm}
-            onSearchChange={setSearchTerm}
-            startDate={startDate}
-            endDate={endDate}
-            onStartDateChange={setStartDate}
-            onEndDateChange={setEndDate}
-            showDateRange={showDateRange}
-            onToggleDateRange={() => setShowDateRange(!showDateRange)}
-            onClearFilters={clearAllFilters}
-            activeFilterCount={activeFilterCount}
-          />
-
-          {/* View Toggle & Results Count */}
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-gray-600">
-              Showing <span className="font-semibold text-gray-900">{filteredBreakdowns.length}</span> of{" "}
-              <span className="font-semibold text-gray-900">{breakdowns.length}</span> breakdowns
+        {/* Hero */}
+        <HeroPanel
+          icon={Wrench}
+          title="Equipment Breakdowns"
+          subtitle="Log, track, and resolve equipment failures"
+          onRefresh={loadBreakdowns}
+          loading={loading}
+          onNew={handleCreate}
+          newLabel="New Breakdown"
+          {...collapse.panel('hero')}
+          stats={[
+            { label: 'Total', value: metrics.total, textClass: 'text-[#86BBD8]' },
+            { label: 'Active', value: metrics.active, textClass: 'text-amber-400' },
+            { label: 'Critical', value: metrics.critical, textClass: 'text-rose-400' },
+            { label: 'Avg Resolution', value: `${metrics.avgRes}h`, textClass: 'text-emerald-400' },
+          ]}
+          actions={
+            <div className="flex items-center gap-1.5">
+              <MasterCollapseButton collapse={collapse} />
+              <DownloadButton
+                data={dlData}
+                columns={dlCols}
+                filename={`breakdowns_${new Date().toISOString().split('T')[0]}`}
+                title="Equipment Breakdowns"
+                subtitle={`${filteredBreakdowns.length} records`}
+              />
             </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant={viewMode === 'grid' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setViewMode('grid')}
-                className="gap-1"
-              >
-                <LayoutGrid className="h-4 w-4" /> Grid
-              </Button>
-              <Button
-                variant={viewMode === 'table' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setViewMode('table')}
-                className="gap-1"
-              >
-                <TableIcon className="h-4 w-4" /> List
-              </Button>
+          }
+        />
+
+        {/* Filters Panel */}
+        <GlassPanel
+          icon={Filter}
+          title="Filters"
+          {...(activeFilterCount > 0 ? { badge: (
+            <span className="ml-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-[#2A4D69] text-[10px] font-bold text-white">
+              {activeFilterCount}
+            </span>
+          ) } : {})}
+          {...collapse.panel('filters')}
+        >
+          <div className="p-4 space-y-3">
+            {/* Search + Date row */}
+            <div className="flex flex-wrap gap-2">
+              <div className="relative flex-1 min-w-[200px]">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/30 pointer-events-none" />
+                <input
+                  type="text"
+                  aria-label="Search breakdowns"
+                  placeholder="Search machine, artisan, location…"
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                  className="w-full bg-white/[0.07] border border-white/[0.12] rounded-xl text-sm text-white placeholder:text-white/25 h-9 pl-9 pr-3 focus:outline-none focus:border-[#86BBD8]/50 transition-colors"
+                />
+              </div>
+              <button type="button" onClick={() => setShowDateRange(p => !p)}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
+                  showDateRange ? 'bg-[#2A4D69]/60 text-white border-[#86BBD8]/30' : 'bg-white/[0.07] text-white/60 border-white/[0.12] hover:bg-white/[0.12]'
+                }`}>
+                <Calendar className="h-3.5 w-3.5" />Date Range
+              </button>
+              {activeFilterCount > 0 && (
+                <button type="button" onClick={clearFilters}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white/50 bg-white/[0.07] border border-white/[0.12] hover:bg-white/[0.12] hover:text-white transition-all">
+                  <FilterX className="h-3.5 w-3.5" />Clear
+                </button>
+              )}
+            </div>
+
+            {/* Date range pickers */}
+            {showDateRange && (
+              <div className="flex flex-wrap gap-3 bg-white/[0.04] border border-white/[0.08] rounded-xl p-3">
+                <GlassInput label="Start Date" type="date" value={startDate}
+                  onChange={e => setStartDate(e.target.value)} wrapperClassName="flex-1 min-w-[140px]" />
+                <GlassInput label="End Date" type="date" value={endDate}
+                  onChange={e => setEndDate(e.target.value)} wrapperClassName="flex-1 min-w-[140px]" />
+                <div className="self-end">
+                  <button type="button" onClick={() => {
+                    const t = new Date(), m = new Date(); m.setDate(t.getDate() - 30);
+                    setStartDate(m.toISOString().split('T')[0]); setEndDate(t.toISOString().split('T')[0]);
+                  }} className="px-3 py-1.5 rounded-xl text-xs font-semibold text-white/60 bg-white/[0.07] border border-white/[0.12] hover:bg-white/[0.12] transition-all">
+                    Last 30 days
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Filter dropdowns */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-2">
+              <GlassSelect value={filters.status} onChange={e => setFilters(p => ({ ...p, status: e.target.value }))}
+                options={[{ value: 'all', label: 'All Status' }, ...Object.entries(STATUS_META).map(([k, v]) => ({ value: k, label: v.name }))]} />
+              <GlassSelect value={filters.breakdown_type} onChange={e => setFilters(p => ({ ...p, breakdown_type: e.target.value }))}
+                options={[{ value: 'all', label: 'All Types' }, ...Object.entries(TYPE_META).map(([k, v]) => ({ value: k, label: v.name }))]} />
+              <GlassSelect value={filters.priority} onChange={e => setFilters(p => ({ ...p, priority: e.target.value }))}
+                options={[{ value: 'all', label: 'All Priorities' }, ...Object.entries(PRIORITY_META).map(([k, v]) => ({ value: k, label: v.name }))]} />
+              <GlassSelect value={filters.department} onChange={e => setFilters(p => ({ ...p, department: e.target.value }))}
+                options={[{ value: 'all', label: 'All Depts' }, ...DEPARTMENTS.map(d => ({ value: d, label: d }))]} />
+              <div className="relative">
+                <input
+                  type="text"
+                  aria-label="Filter by location"
+                  placeholder="Location…"
+                  value={filters.location !== 'all' ? filters.location : ''}
+                  onChange={e => setFilters(p => ({ ...p, location: e.target.value || 'all' }))}
+                  className="w-full bg-white/[0.07] border border-white/[0.12] rounded-xl text-sm text-white placeholder:text-white/25 h-9 px-3 focus:outline-none focus:border-[#86BBD8]/50 transition-colors"
+                />
+              </div>
+              <GlassSelect value={filters.artisan_name} onChange={e => setFilters(p => ({ ...p, artisan_name: e.target.value }))}
+                options={[{ value: 'all', label: 'All Artisans' }]} />
+              <GlassSelect value={filters.machine_name} onChange={e => setFilters(p => ({ ...p, machine_name: e.target.value }))}
+                options={[{ value: 'all', label: 'All Machines' }]} />
             </div>
           </div>
+        </GlassPanel>
 
-          {/* Content */}
+        {/* Records Panel */}
+        <GlassPanel
+          icon={TableIcon}
+          title="Breakdown Records"
+          count={`${filteredBreakdowns.length} of ${breakdowns.length}`}
+          {...collapse.panel('records')}
+          actions={
+            <div className="flex items-center gap-1">
+              <button type="button" onClick={() => setViewMode('table')}
+                className={`h-7 w-7 flex items-center justify-center rounded-md border transition-all text-xs ${
+                  viewMode === 'table' ? 'bg-[#2A4D69]/60 border-[#86BBD8]/30 text-white' : 'bg-white/[0.05] border-white/[0.10] text-white/40 hover:text-white/70'
+                }`} title="List view">
+                <TableIcon className="h-3.5 w-3.5" />
+              </button>
+              <button type="button" onClick={() => setViewMode('grid')}
+                className={`h-7 w-7 flex items-center justify-center rounded-md border transition-all text-xs ${
+                  viewMode === 'grid' ? 'bg-[#2A4D69]/60 border-[#86BBD8]/30 text-white' : 'bg-white/[0.05] border-white/[0.10] text-white/40 hover:text-white/70'
+                }`} title="Grid view">
+                <LayoutGrid className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          }
+        >
           {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {[...Array(6)].map((_, i) => (
-                <Card key={i} className="animate-pulse">
-                  <CardContent className="p-4">
-                    <div className="h-6 bg-gray-200 rounded w-3/4 mb-3"></div>
-                    <div className="h-4 bg-gray-200 rounded w-1/2 mb-4"></div>
-                    <div className="h-10 bg-gray-200 rounded"></div>
-                  </CardContent>
-                </Card>
-              ))}
+            <div className="flex items-center justify-center py-16 gap-2 text-white/40">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              <span className="text-sm">Loading breakdowns…</span>
+            </div>
+          ) : filteredBreakdowns.length === 0 ? (
+            <div className="text-center py-16">
+              <div className="mx-auto w-14 h-14 rounded-full bg-white/[0.05] border border-white/[0.10] flex items-center justify-center mb-4">
+                <AlertTriangle className="h-6 w-6 text-[#86BBD8]/60" />
+              </div>
+              <p className="text-sm font-medium text-white/60">No breakdowns found</p>
+              <p className="text-xs text-white/30 mt-1 mb-4">Try clearing filters or log a new breakdown</p>
+              <button type="button" onClick={handleCreate}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-[#2A4D69] to-[#1e3a52] border border-[#86BBD8]/25 hover:opacity-90 transition-all">
+                <Plus className="h-4 w-4" />Log First Breakdown
+              </button>
             </div>
           ) : viewMode === 'grid' ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredBreakdowns.map((breakdown) => {
-                const id = String(breakdown.id);
+            <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {filteredBreakdowns.map(bd => {
+                const id = String(bd.id);
                 return (
                   <BreakdownCard
                     key={id}
-                    breakdown={breakdown}
+                    breakdown={bd}
                     onView={handleView}
                     onEdit={handleEdit}
                     onDelete={handleDelete}
@@ -2463,35 +1310,22 @@ const BreakdownsPage = () => {
               onToggleExpand={toggleExpand}
             />
           )}
-
-          {/* Empty State */}
-          {!loading && filteredBreakdowns.length === 0 && (
-            <Card className="text-center py-12">
-              <CardContent>
-                <AlertTriangle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-500 mb-2">No breakdowns found</h3>
-                <p className="text-gray-400 mb-6">Try adjusting your filters or create a new breakdown record</p>
-                <Button onClick={handleCreate}>Create First Breakdown</Button>
-              </CardContent>
-            </Card>
-          )}
-        </div>
+        </GlassPanel>
       </div>
 
-      {/* Modals */}
-      <BreakdownDetailsModal
-        breakdown={selectedBreakdown}
-        isOpen={detailsModalOpen}
-        onClose={() => setDetailsModalOpen(false)}
+      <DetailsModal
+        breakdown={selectedBd}
+        isOpen={detailsOpen}
+        onClose={() => setDetailsOpen(false)}
         onEdit={handleEdit}
         onDelete={handleDelete}
       />
 
-      <BreakdownFormModal
-        isOpen={formModalOpen}
-        onClose={() => setFormModalOpen(false)}
+      <FormModal
+        isOpen={formOpen}
+        onClose={() => setFormOpen(false)}
         onSubmit={handleFormSubmit}
-        initialData={selectedBreakdown}
+        initialData={selectedBd}
         mode={formMode}
       />
     </PageShell>

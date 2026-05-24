@@ -276,18 +276,19 @@ function ComplaintForm({
 
 // ─── DETAIL MODAL ─────────────────────────────────────────────────────────────
 
+function DetailRow({ label, value, full }: { label: string; value?: string | null; full?: boolean }) {
+  return value ? (
+    <div className={full ? 'col-span-2' : ''}>
+      <p className={glassLabel}>{label}</p>
+      <p className="text-sm text-white/85">{value}</p>
+    </div>
+  ) : null;
+}
+
 function DetailModal({ complaint, onClose, onEdit }: {
   complaint: Complaint | null; onClose: () => void; onEdit: (c: Complaint) => void;
 }) {
   if (!complaint) return null;
-  const Row = ({ label, value, full }: { label: string; value?: string | null; full?: boolean }) => (
-    value ? (
-      <div className={full ? 'col-span-2' : ''}>
-        <p className={glassLabel}>{label}</p>
-        <p className="text-sm text-white/85">{value}</p>
-      </div>
-    ) : null
-  );
   return (
     <SafetyModal open={!!complaint} onClose={onClose} title="Complaint Detail"
       icon={MessageSquareWarning} accentColor={ACCENT} width="max-w-2xl">
@@ -303,17 +304,17 @@ function DetailModal({ complaint, onClose, onEdit }: {
         </div>
 
         <div className="grid grid-cols-2 gap-x-6 gap-y-3">
-          <Row label="Date"         value={complaint.date} />
-          <Row label="Raised By"    value={complaint.raisedBy || 'Anonymous'} />
-          <Row label="Section"      value={complaint.section} />
-          <Row label="Location"     value={complaint.location} />
-          <Row label="Issue Raised" value={complaint.issueRaised} full />
-          <Row label="Action Plan"  value={complaint.actionPlan} full />
-          <Row label="By Who"       value={complaint.byWho} />
-          <Row label="By When"      value={complaint.byWhen} />
-          <Row label="Supervisor"   value={complaint.supervisorName} />
-          <Row label="Signature"    value={complaint.supervisorSignature} />
-          <Row label="Date Closed"  value={complaint.dateClosed || undefined} />
+          <DetailRow label="Date"         value={complaint.date} />
+          <DetailRow label="Raised By"    value={complaint.raisedBy || 'Anonymous'} />
+          <DetailRow label="Section"      value={complaint.section} />
+          <DetailRow label="Location"     value={complaint.location} />
+          <DetailRow label="Issue Raised" value={complaint.issueRaised} full />
+          <DetailRow label="Action Plan"  value={complaint.actionPlan} full />
+          <DetailRow label="By Who"       value={complaint.byWho} />
+          <DetailRow label="By When"      value={complaint.byWhen} />
+          <DetailRow label="Supervisor"   value={complaint.supervisorName} />
+          <DetailRow label="Signature"    value={complaint.supervisorSignature} />
+          <DetailRow label="Date Closed"  value={complaint.dateClosed || undefined} />
         </div>
       </div>
       <div className="flex gap-2 px-5 py-4 border-t border-white/[0.08]">

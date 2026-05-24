@@ -768,8 +768,8 @@ const parseExperience = (content: string): Experience[] => {
           bulletPoints = [];
         }
         
-        let position = match[1].trim();
-        let company = match[2].trim();
+        const position = match[1].trim();
+        const company = match[2].trim();
         let dates = match[3] ? match[3].trim() : '';
         
         if (!dates) {
@@ -846,8 +846,8 @@ const parseEducation = (content: string): Education[] => {
           educations.push(currentEdu);
         }
         
-        let degree = match[1].trim();
-        let institution = match[2].trim();
+        const degree = match[1].trim();
+        const institution = match[2].trim();
         let dates = match[3] ? match[3].trim() : '';
         
         if (!dates) {
@@ -1705,7 +1705,7 @@ export default function CVFactory() {
                   Upload Your CV
                 </CardTitle>
                 <CardDescription className="text-blue-100">
-                  Upload any CV format and we'll help you transform it into an elegant masterpiece
+                  Upload any CV format and we&apos;ll help you transform it into an elegant masterpiece
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-12">

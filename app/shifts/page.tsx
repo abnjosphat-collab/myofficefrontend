@@ -151,7 +151,7 @@ const EVENT_TYPES: Record<EventType, {
 function ShiftBar({ pct, color, opacity = 0.75 }: { pct: number; color: string; opacity?: number }) {
   return (
     // Dynamic progress bar — width/color must be runtime values, inline style is intentional here
-    // eslint-disable-next-line react/forbid-dom-props
+     
     <div className="h-full rounded-full transition-[width] duration-300 ease-in-out"
       style={{ width: `${pct}%`, backgroundColor: color, opacity }} />
   );

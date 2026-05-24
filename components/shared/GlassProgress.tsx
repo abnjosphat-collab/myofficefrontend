@@ -1,4 +1,5 @@
 'use client';
+import type { CSSProperties } from 'react';
 
 interface GlassProgressProps {
   value: number;
@@ -33,8 +34,8 @@ export function GlassProgress({
     <div className={`flex items-center gap-2 ${className}`}>
       <div className={`flex-1 rounded-full bg-white/[0.08] overflow-hidden ${heightMap[size]}`}>
         <div
-          className={`${heightMap[size]} rounded-full transition-all ${fill}`}
-          style={{ width: `${pct}%` }}
+          className={`progress-fill ${heightMap[size]} rounded-full transition-all ${fill}`}
+          style={{ '--pw': `${pct}%` } as CSSProperties}
         />
       </div>
       {showLabel && (

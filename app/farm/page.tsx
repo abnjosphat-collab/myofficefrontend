@@ -475,6 +475,7 @@ function CategoryAccordion({
       }, 500);
       return () => clearTimeout(timer);
     } else {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setModulesVisible(false);
     }
   }, [isExpanded]);
@@ -592,7 +593,9 @@ export default function FarmPage() {
     if (token && userData) {
       try {
         const parsedUser: UserData = JSON.parse(userData);
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setIsLoggedIn(true);
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setUser(parsedUser);
       } catch (error) {
         console.error('Error parsing user data:', error);

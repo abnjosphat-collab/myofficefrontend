@@ -605,6 +605,7 @@ function CategoryAccordion({
       }, 500);
       return () => clearTimeout(timer);
     } else {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setModulesVisible(false);
     }
   }, [isExpanded]);

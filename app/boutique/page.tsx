@@ -936,7 +936,7 @@ export default function BoutiquePage() {
             <div className="container mx-auto px-4">
               <div className="text-center mb-8">
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">Shop by Category</h2>
-                <p className="text-gray-600">Find exactly what you're looking for</p>
+                <p className="text-gray-600">Find exactly what you&apos;re looking for</p>
               </div>
 
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">

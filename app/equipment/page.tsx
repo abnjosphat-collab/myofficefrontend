@@ -2,7 +2,7 @@
 'use client';
 
 import { PageShell } from '@/components/PageShell';
-import { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { toast } from 'sonner';
 import EquipmentForm from "@/components/EquipmentForm";
 import {
@@ -179,7 +179,7 @@ function ExpandedDetails({ eq }: { eq: EquipmentItem }) {
 function EquipmentCard({
   eq, onEdit, onDelete, expanded, onToggle,
 }: { eq: EquipmentItem; onEdit: (e: EquipmentItem) => void; onDelete: (id: number | string) => void; expanded: boolean; onToggle: () => void }) {
-  const StatusIcon = statusIcon(eq.status);
+  const statusIconComp = statusIcon(eq.status);
   const age = calcAge(eq.commission_date);
 
   return (
@@ -187,7 +187,7 @@ function EquipmentCard({
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           <div className="p-1.5 rounded-lg bg-[#2A4D69]/60 shrink-0">
-            <StatusIcon className="h-4 w-4 text-[#86BBD8]" />
+            {React.createElement(statusIconComp, { className: "h-4 w-4 text-[#86BBD8]" })}
           </div>
           <div className="min-w-0">
             <p className="font-bold text-sm text-white truncate">{eq.name}</p>
@@ -226,7 +226,7 @@ function EquipmentCard({
 function EquipmentListRow({
   eq, onEdit, onDelete, expanded, onToggle,
 }: { eq: EquipmentItem; onEdit: (e: EquipmentItem) => void; onDelete: (id: number | string) => void; expanded: boolean; onToggle: () => void }) {
-  const StatusIcon = statusIcon(eq.status);
+  const statusIconComp = statusIcon(eq.status);
   const mStatus = calcMaintenanceStatus(eq.last_maintenance, eq.maintenance_interval);
   const age = calcAge(eq.commission_date);
 
@@ -243,7 +243,7 @@ function EquipmentListRow({
           {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
         </button>
         <div className="p-1.5 rounded-lg bg-[#2A4D69]/60 shrink-0">
-          <StatusIcon className="h-4 w-4 text-[#86BBD8]" />
+          {React.createElement(statusIconComp, { className: "h-4 w-4 text-[#86BBD8]" })}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
@@ -279,7 +279,7 @@ function GlassPagination({ current, total, onPage, perPage, totalItems, onPerPag
   const pages: number[] = [];
   const max = 5;
   let start = Math.max(1, current - Math.floor(max / 2));
-  let end = Math.min(total, start + max - 1);
+  const end = Math.min(total, start + max - 1);
   if (end - start + 1 < max) start = Math.max(1, end - max + 1);
   for (let i = start; i <= end; i++) pages.push(i);
 

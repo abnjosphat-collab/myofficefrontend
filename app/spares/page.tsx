@@ -753,9 +753,7 @@ const CategoryTagPicker = React.memo(({ selected, onChange }: {
   selected: string[]; onChange: (cats: string[]) => void;
 }) => {
   const [inputVal, setInputVal] = useState('');
-  const [customCats, setCustomCats] = useState<string[]>([]);
-
-  useEffect(() => { setCustomCats(getCustomCats()); }, []);
+  const [customCats, setCustomCats] = useState<string[]>(() => getCustomCats());
 
   const allCats = useMemo(() => {
     const combined = [...ALL_PREDEFINED_CATS, ...customCats.filter(c => !ALL_PREDEFINED_CATS.includes(c))];
@@ -1126,7 +1124,7 @@ export default function SparesPage() {
 
   // Filtered & sorted spares
   const filteredSpares = useMemo(() => {
-    let list = spares.filter(s => {
+    const list = spares.filter(s => {
       if (showFavOnly && !favorites.has(s.id)) return false;
       if (categoryFilter !== 'all') {
         const inSingle = s.category === categoryFilter;

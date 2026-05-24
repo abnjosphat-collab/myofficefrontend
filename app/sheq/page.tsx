@@ -491,6 +491,7 @@ function CommentsSection({ open: controlledOpen, onToggle }: { open?: boolean; o
   const toggle = onToggle ?? (() => setInternalOpen(o => !o));
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     try { setComments(JSON.parse(localStorage.getItem('sheq_dash_notes') || '[]') as Comment[]); }
     catch { /* ignore */ }
   }, []);

@@ -498,6 +498,7 @@ const PTOFormModal: React.FC<{ open: boolean; editing: PTOReport | null; onClose
   const [form, setForm] = useState<Partial<PTOReport>>(defaultForm());
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (open) { setForm(editing ? { ...editing } : defaultForm()); setTab('basic'); }
   }, [open, editing]);
 

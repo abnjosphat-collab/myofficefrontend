@@ -3,12 +3,12 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   Shield, Plus, Search, RefreshCw, ChevronDown, ChevronUp,
-  CheckCircle2, XCircle, FileText, Eye, Loader2,
-  AlertCircle, Trash2, Edit, HardHat, AlertTriangle,
-  Users, Package, Calendar, Tag,
+  CheckCircle2, XCircle, FileText, Eye,
+  Trash2, Edit, HardHat, AlertTriangle,
+  Users, Package,
   Award, Layers, ChevronRight,
   Shirt, Wind, CloudRain, Link2, ChevronsUp, ChevronsDown, X,
-  Flashlight, Pickaxe, Download, FileSpreadsheet, FileDown,
+  Flashlight, Download, FileSpreadsheet, FileDown,
 } from 'lucide-react';
 import { PageShell } from '@/components/PageShell';
 import { toast } from 'sonner';
@@ -220,6 +220,7 @@ function IssuedByInput({ value, onChange, employees }: IssuedByInputProps) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState(value || '');
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setQ(value || ''); }, [value]);
 
   const filtered = useMemo(() => (q.length > 0
@@ -431,7 +432,7 @@ function EmployeePPECard({ employee, isExpanded, onToggle, onIssueNew, onEditIte
             <div className="text-center py-10 rounded-xl bg-white/[0.03] border border-white/[0.07] mt-2">
               <Shield className="h-10 w-10 mx-auto mb-3 text-white/25" />
               <p className="text-sm font-medium text-white/60">No PPE items issued yet</p>
-              <p className="text-xs text-white/40 mt-1">Click "Issue PPE" to add equipment for this employee</p>
+              <p className="text-xs text-white/40 mt-1">Click &quot;Issue PPE&quot; to add equipment for this employee</p>
             </div>
           )}
         </div>
@@ -1024,8 +1025,7 @@ export default function PPEManagement() {
           if (data.section === 'body' && data.column.index === 7) {
             const val = data.cell.raw as string;
             if (val) {
-              const d = new Date(records[data.row.index]?.expiry_date ?? '');
-              if (isExpired(records[data.row.index]?.expiry_date))         data.cell.styles.textColor = [244, 63, 94];
+                if (isExpired(records[data.row.index]?.expiry_date))         data.cell.styles.textColor = [244, 63, 94];
               else if (isExpiringSoon(records[data.row.index]?.expiry_date)) data.cell.styles.textColor = [245, 158, 11];
             }
           }

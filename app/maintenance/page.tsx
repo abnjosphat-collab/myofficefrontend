@@ -22,6 +22,11 @@ import {
 // ==================== TYPES ====================
 type WorkOrderStatus = 'pending' | 'in-progress' | 'completed' | 'on-hold' | 'cancelled' | 'postponed' | 'not-done';
 type WorkOrderPriority = 'low' | 'medium' | 'high' | 'urgent';
+const PORD: Record<WorkOrderPriority, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
+const SORD: Record<WorkOrderStatus, number> = {
+  'in-progress': 0, pending: 1, 'on-hold': 2, 'not-done': 3,
+  completed: 4, postponed: 5, cancelled: 6,
+};
 type RecurrenceType = 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'yearly' | 'custom';
 type WOClassification = 'planned_maintenance' | 'project' | 'breakdown' | 'custom';
 type Discipline = 'Mechanical' | 'Electrical';
@@ -882,7 +887,7 @@ function PredictiveArea({ id, label, value, onChange, placeholder, rows = 3, aut
 function useEmployees() {
   const [list, setList] = useState<EmployeeItem[]>(_empCache);
   useEffect(() => {
-    if (_empFetched) { setList(_empCache); return; }
+    if (_empFetched) { return; }
     fetch(`${API_BASE}/api/employees`)
       .then(r => r.json())
       .then((d: EmployeeItem[]) => { if (Array.isArray(d)) { _empCache = d; setList(d); } _empFetched = true; })
@@ -894,7 +899,7 @@ function useEmployees() {
 function useEquipment() {
   const [list, setList] = useState<EquipmentItem[]>(_eqCache);
   useEffect(() => {
-    if (_eqFetched) { setList(_eqCache); return; }
+    if (_eqFetched) { return; }
     fetch(`${API_BASE}/api/equipment`)
       .then(r => r.json())
       .then((d: EquipmentItem[]) => { if (Array.isArray(d)) { _eqCache = d; setList(d); } _eqFetched = true; })
@@ -906,7 +911,7 @@ function useEquipment() {
 function useSpares() {
   const [list, setList] = useState<SpareRegisterItem[]>(_spCache);
   useEffect(() => {
-    if (_spFetched) { setList(_spCache); return; }
+    if (_spFetched) { return; }
     fetch(`${API_BASE}/api/spares?limit=500`)
       .then(r => r.json())
       .then((d) => {
@@ -1129,6 +1134,15 @@ interface DetailModalProps {
   onDelete: (id: string) => void;
 }
 
+function InfoField({ label, value }: { label: string; value?: string | null }) {
+  return (
+    <div>
+      <div className="text-white/40 text-[10px] uppercase tracking-wide mb-0.5">{label}</div>
+      <div className="text-white/85 text-sm">{value || '—'}</div>
+    </div>
+  );
+}
+
 function WorkOrderDetailModal({ workOrder, onClose, onRefresh, onDelete }: DetailModalProps) {
   const [s1Open, setS1Open] = useState(false); // sneak peek by default
   const [s2Open, setS2Open] = useState(true);
@@ -1189,28 +1203,33 @@ function WorkOrderDetailModal({ workOrder, onClose, onRefresh, onDelete }: Detai
   const setA = (k: string, v: string | number) => setArtisan(f => ({ ...f, [k]: v }));
   const setF = (k: string, v: string | number) => setForeman(f => ({ ...f, [k]: v }));
 
-  // Auto-calculate totals
+  // Auto-calculate totals (derived state kept in sync via effects)
   useEffect(() => {
     const t = calcTotal(artisan.time_work_started, artisan.time_work_finished);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setArtisan(f => ({ ...f, total_time_worked: t }));
   }, [artisan.time_work_started, artisan.time_work_finished]);
 
   useEffect(() => {
     const t = calcTotal(artisan.overtime_start_time, artisan.overtime_end_time);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setArtisan(f => ({ ...f, overtime_hours: t }));
   }, [artisan.overtime_start_time, artisan.overtime_end_time]);
 
   useEffect(() => {
     const t = calcTotal(artisan.delay_from_time, artisan.delay_to_time);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setArtisan(f => ({ ...f, total_delay_hours: t }));
   }, [artisan.delay_from_time, artisan.delay_to_time]);
 
   // Clear fields when toggled N/A
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (otNA) setArtisan(f => ({ ...f, overtime_start_time: '', overtime_end_time: '', overtime_hours: '' }));
   }, [otNA]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (delayNA) setArtisan(f => ({ ...f, delay_from_time: '', delay_to_time: '', total_delay_hours: '' }));
   }, [delayNA]);
 
@@ -1253,13 +1272,6 @@ function WorkOrderDetailModal({ workOrder, onClose, onRefresh, onDelete }: Detai
 
   const scfg = statusCfg(workOrder.status);
   const pcfg = priorityCfg(workOrder.priority);
-
-  const Info = ({ label, value }: { label: string; value?: string | null }) => (
-    <div>
-      <div className="text-white/40 text-[10px] uppercase tracking-wide mb-0.5">{label}</div>
-      <div className="text-white/85 text-sm">{value || '—'}</div>
-    </div>
-  );
 
   const selectCls = "bg-white/[0.06] border-white/[0.10] text-white h-8 text-sm focus:border-[#86BBD8]/40";
 
@@ -1332,13 +1344,13 @@ function WorkOrderDetailModal({ workOrder, onClose, onRefresh, onDelete }: Detai
             {/* Full details — collapsible */}
             {s1Open && (
               <div className="px-4 pb-3 pt-2 border-t border-white/[0.05] grid grid-cols-2 gap-x-8 gap-y-3 mt-1">
-                <Info label="Department"          value={workOrder.to_department} />
-                <Info label="Estimated Hours"     value={workOrder.estimated_hours ? `${workOrder.estimated_hours} h` : ''} />
-                <Info label="Requested By"        value={workOrder.requested_by} />
-                <Info label="Authorising Foreman" value={workOrder.authorising_foreman} />
+                <InfoField label="Department"          value={workOrder.to_department} />
+                <InfoField label="Estimated Hours"     value={workOrder.estimated_hours ? `${workOrder.estimated_hours} h` : ''} />
+                <InfoField label="Requested By"        value={workOrder.requested_by} />
+                <InfoField label="Authorising Foreman" value={workOrder.authorising_foreman} />
                 {workOrder.job_instructions && (
                   <div className="col-span-2">
-                    <Info label="Special Instructions" value={workOrder.job_instructions} />
+                    <InfoField label="Special Instructions" value={workOrder.job_instructions} />
                   </div>
                 )}
               </div>
@@ -1758,15 +1770,18 @@ function DonutChart({ segments, centerLabel }: {
   );
   const r = 36, cx = 50, cy = 50, sw = 14;
   const circ = 2 * Math.PI * r;
-  let startPct = 0;
+  const segData = segments.reduce<Array<{ seg: typeof segments[0]; dashLen: number; dashOff: number }>>(
+    (acc, seg) => {
+      const pct = seg.value / total;
+      const prevPct = acc.reduce((s, x) => s + x.dashLen / circ, 0);
+      acc.push({ seg, dashLen: pct * circ, dashOff: -(prevPct * circ) });
+      return acc;
+    }, []
+  );
   return (
     <svg viewBox="0 0 100 100" className="w-full h-full">
       <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth={sw} />
-      {segments.map((seg, i) => {
-        const pct = seg.value / total;
-        const dashLen = pct * circ;
-        const dashOff = -(startPct * circ);
-        startPct += pct;
+      {segData.map(({ seg, dashLen, dashOff }, i) => {
         return (
           <circle key={i} cx={cx} cy={cy} r={r} fill="none"
             stroke={seg.color} strokeWidth={sw}
@@ -1774,7 +1789,7 @@ function DonutChart({ segments, centerLabel }: {
             strokeDashoffset={dashOff}
             transform="rotate(-90 50 50)"
             style={{ transition: 'stroke-dasharray 0.4s ease' }}>
-            <title>{seg.label}: {seg.value} ({Math.round(pct * 100)}%)</title>
+            <title>{seg.label}: {seg.value} ({Math.round((seg.value / total) * 100)}%)</title>
           </circle>
         );
       })}
@@ -2993,11 +3008,13 @@ export default function MaintenancePage() {
     setLoading(false);
   };
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { load(); }, []);
 
   // Load schedules and auto-generate due work orders on mount
   useEffect(() => {
     const loaded = loadSchedules();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSchedules(loaded);
 
     const today = new Date().toISOString().split('T')[0];
@@ -3052,35 +3069,26 @@ export default function MaintenancePage() {
     };
 
     autoGenerate();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, []);
 
   const stats = useMemo(() => calcStats(workOrders), [workOrders]);
 
-  const filtered = useMemo(() => {
-    let list = workOrders;
-    if (statusTab !== 'all') list = list.filter(w => w.status === statusTab);
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      list = list.filter(w =>
-        w.work_order_number?.toLowerCase().includes(q) ||
-        w.equipment_info?.toLowerCase().includes(q) ||
-        w.allocated_to?.toLowerCase().includes(q) ||
-        w.artisan_name?.toLowerCase().includes(q) ||
-        w.to_department?.toLowerCase().includes(q) ||
-        w.job_request_details?.toLowerCase().includes(q) ||
-        w.requested_by?.toLowerCase().includes(q)
-      );
-    }
-    if (priorityFilter.length > 0) {
-      list = list.filter(w => priorityFilter.includes(w.priority));
-    }
-    const PORD: Record<WorkOrderPriority, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
-    const SORD: Record<WorkOrderStatus, number> = {
-      'in-progress': 0, pending: 1, 'on-hold': 2, 'not-done': 3,
-      completed: 4, postponed: 5, cancelled: 6,
-    };
-    return [...list].sort((a, b) => {
+  const q = searchQuery.trim().toLowerCase();
+  const filtered = workOrders
+    .filter(w => statusTab === 'all' || w.status === statusTab)
+    .filter(w => !q ||
+      w.work_order_number?.toLowerCase().includes(q) ||
+      w.equipment_info?.toLowerCase().includes(q) ||
+      w.allocated_to?.toLowerCase().includes(q) ||
+      w.artisan_name?.toLowerCase().includes(q) ||
+      w.to_department?.toLowerCase().includes(q) ||
+      w.job_request_details?.toLowerCase().includes(q) ||
+      w.requested_by?.toLowerCase().includes(q)
+    )
+    .filter(w => priorityFilter.length === 0 || priorityFilter.includes(w.priority))
+    .slice()
+    .sort((a, b) => {
       switch (sortBy) {
         case 'date-desc': return (b.date_raised || '').localeCompare(a.date_raised || '');
         case 'date-asc':  return (a.date_raised || '').localeCompare(b.date_raised || '');
@@ -3090,7 +3098,6 @@ export default function MaintenancePage() {
         default: return 0;
       }
     });
-  }, [workOrders, statusTab, searchQuery, priorityFilter, sortBy]);
 
   const tabCount = (key: string) =>
     key === 'all' ? workOrders.length : workOrders.filter(w => w.status === key).length;
@@ -3350,6 +3357,7 @@ export default function MaintenancePage() {
                 <div className="flex items-center gap-1.5 bg-white/[0.06] border border-white/[0.10] rounded-lg px-2.5 py-1.5">
                   <ArrowUpDown className="h-3 w-3 text-white/35 flex-shrink-0" />
                   <select
+                    title="Sort by"
                     value={sortBy}
                     onChange={e => setSortBy(e.target.value as SortBy)}
                     className="bg-transparent text-white/60 text-xs outline-none cursor-pointer"

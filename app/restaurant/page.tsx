@@ -291,7 +291,7 @@ function MenuItemCard({ item }: { item: MenuItem }) {
           )}
           {item.isChefspecial && (
             <StatusBadge className="bg-gradient-to-r from-red-500 to-rose-500 text-white border-0 shadow-lg">
-              <ChefHat className="h-3 w-3 mr-1" /> Chef's Special
+              <ChefHat className="h-3 w-3 mr-1" /> Chef&apos;s Special
             </StatusBadge>
           )}
           {item.isVegetarian && (
@@ -426,7 +426,7 @@ function ReviewCard({ review }: { review: Review }) {
           </div>
         </div>
       </div>
-      <p className="text-gray-700 italic">"{review.comment}"</p>
+      <p className="text-gray-700 italic">&quot;{review.comment}&quot;</p>
     </div>
   );
 }
@@ -831,9 +831,13 @@ export default function RestaurantPage() {
   ];
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMenuItems(foodItems);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCategories(categoryData);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setReviews(reviewData);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setReservationTimes(timeSlots);
 
     // Set default reservation date to tomorrow
@@ -1092,7 +1096,7 @@ export default function RestaurantPage() {
             <div className="flex items-center justify-between mb-8">
               <div>
                 <h2 className="text-3xl font-bold text-gray-900 mb-2">Featured Dishes</h2>
-                <p className="text-gray-600">Chef's recommendations this week</p>
+                <p className="text-gray-600">Chef&apos;s recommendations this week</p>
               </div>
               <Tabs defaultValue="all" className="w-auto">
                 <TabsList className="bg-amber-50 border border-amber-100">

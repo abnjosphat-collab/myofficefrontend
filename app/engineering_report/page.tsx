@@ -2580,7 +2580,7 @@ export default function EngineeringDashboard() {
             <Card className="border-2 border-slate-200 shadow-lg">
               <CardHeader className="px-6 py-5 border-b-2 border-slate-100 bg-gradient-to-r from-slate-50 to-white">
                 <CardTitle className="text-xl font-bold text-slate-900">Create Daily Report</CardTitle>
-                <CardDescription className="text-slate-600">Complete today's engineering operations report</CardDescription>
+                <CardDescription className="text-slate-600">Complete today&apos;s engineering operations report</CardDescription>
               </CardHeader>
               <CardContent className="p-6">
                 <form onSubmit={saveReport} className="space-y-6">
@@ -3575,7 +3575,7 @@ export default function EngineeringDashboard() {
                         <FolderOpen className="w-4 h-4" />
                         Showing <span className="font-bold">{filteredReports.length}</span> reports
                         {searchTerm && (
-                          <span className="text-slate-500"> for "{searchTerm}"</span>
+                          <span className="text-slate-500"> for &quot;{searchTerm}&quot;</span>
                         )}
                       </div>
                       <div className="flex items-center gap-2">

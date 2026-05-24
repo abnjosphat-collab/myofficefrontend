@@ -6,6 +6,8 @@ export * from './utils';
 
 export { AvatarInitials } from './AvatarInitials';
 export { DeleteDialog } from './DeleteDialog';
+export { DownloadButton } from './DownloadButton';
+export type { DLColumn } from './DownloadButton';
 export { EmptyState } from './EmptyState';
 export { FilterChips } from './FilterChips';
 export { GlassBadge } from './GlassBadge';

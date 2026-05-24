@@ -571,3 +571,6 @@ select:focus option {
   .no-print { display: none !important; }
   .ozech-page-bg { background: white !important; }
 }
+
+/* Dynamic progress-bar fill — width is set via the --pw CSS variable */
+.progress-fill { width: var(--pw, 0%); }
