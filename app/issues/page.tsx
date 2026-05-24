@@ -8,7 +8,7 @@ import {
   PackageMinus, Search, Plus, Trash2, RefreshCw, ChevronRight,
   ChevronDown, ChevronUp, Loader2, Check, X, Clock,
   ClipboardList, Package, BarChart3, TrendingUp, TrendingDown,
-  Calendar, Activity, Users, DollarSign,
+  Calendar, Activity, Users, DollarSign, Download, FileSpreadsheet, FileDown,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -568,6 +568,135 @@ export default function IssuesPage() {
 
   const BAR_COLORS = ['#86BBD8', '#a78bfa', '#34d399', '#f59e0b', '#60a5fa', '#f43f5e', '#fb923c', '#2dd4bf'];
 
+  const [showDlMenu, setShowDlMenu] = useState(false);
+
+  const downloadIssuesExcel = async () => {
+    setShowDlMenu(false);
+    if (!issues.length) { toast.warning('No data to export'); return; }
+    try {
+      const ExcelJS = (await import('exceljs')).default;
+      const { saveAs } = await import('file-saver');
+      const wb = new ExcelJS.Workbook();
+      wb.creator = 'Ozech MyOffice';
+      // Sheet 1 — one row per issue
+      const ws = wb.addWorksheet('Stock Issues');
+      ws.columns = [
+        { header: 'Issue Date',    key: 'date',      width: 20 },
+        { header: 'Recipient',     key: 'recipient', width: 26 },
+        { header: 'Recipient ID',  key: 'rid',       width: 14 },
+        { header: 'Issued By',     key: 'issuedby',  width: 22 },
+        { header: 'Items (count)', key: 'items',     width: 14 },
+        { header: 'Total Cost',    key: 'cost',      width: 14 },
+        { header: 'Notes',         key: 'notes',     width: 34 },
+      ];
+      const hdr = ws.getRow(1);
+      hdr.eachCell(cell => {
+        cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2A4D69' } };
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+      });
+      hdr.height = 18;
+      issues.forEach((issue, i) => {
+        const cost = issueCost(issue);
+        const row = ws.addRow({
+          date:      issue.issued_at ? new Date(issue.issued_at).toLocaleString('en-GB') : '',
+          recipient: issue.recipient_name,
+          rid:       issue.recipient_id || '',
+          issuedby:  issue.issued_by || '',
+          items:     issue.items.length,
+          cost:      cost,
+          notes:     issue.notes || '',
+        });
+        if (i % 2 === 1) row.eachCell(cell => { cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0F4F8' } }; });
+        const costCell = row.getCell('cost');
+        costCell.numFmt = '"$"#,##0.00';
+      });
+      ws.autoFilter = { from: 'A1', to: 'G1' };
+      ws.views = [{ state: 'frozen', ySplit: 1 }];
+      // Sheet 2 — one row per line item
+      const ws2 = wb.addWorksheet('Line Items');
+      ws2.columns = [
+        { header: 'Issue Date',   key: 'date',      width: 20 },
+        { header: 'Recipient',    key: 'recipient', width: 26 },
+        { header: 'Stock Code',   key: 'code',      width: 16 },
+        { header: 'Description',  key: 'desc',      width: 36 },
+        { header: 'Qty',          key: 'qty',       width: 8  },
+        { header: 'Unit',         key: 'unit',      width: 8  },
+        { header: 'Unit Price',   key: 'uprice',    width: 14 },
+        { header: 'Line Total',   key: 'total',     width: 14 },
+      ];
+      const hdr2 = ws2.getRow(1);
+      hdr2.eachCell(cell => {
+        cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2A4D69' } };
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+      });
+      hdr2.height = 18;
+      let rowIdx = 0;
+      issues.forEach(issue => {
+        issue.items.forEach(item => {
+          const lineTotal = (item.unit_price || 0) * item.qty;
+          const row = ws2.addRow({
+            date:      issue.issued_at ? new Date(issue.issued_at).toLocaleDateString('en-GB') : '',
+            recipient: issue.recipient_name,
+            code:      item.stock_code || '',
+            desc:      item.description,
+            qty:       item.qty,
+            unit:      item.unit || '',
+            uprice:    item.unit_price ?? '',
+            total:     lineTotal,
+          });
+          if (rowIdx % 2 === 1) row.eachCell(cell => { cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0F4F8' } }; });
+          ['uprice', 'total'].forEach(k => { row.getCell(k).numFmt = '"$"#,##0.00'; });
+          rowIdx++;
+        });
+      });
+      ws2.autoFilter = { from: 'A1', to: 'H1' };
+      ws2.views = [{ state: 'frozen', ySplit: 1 }];
+      const buf = await wb.xlsx.writeBuffer();
+      saveAs(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
+        `Stock_Issues_${new Date().toISOString().slice(0, 10)}.xlsx`);
+      toast.success(`Excel exported — ${issues.length} issues`);
+    } catch (err: any) { toast.error(`Export failed: ${err.message}`); }
+  };
+
+  const downloadIssuesPDF = async () => {
+    setShowDlMenu(false);
+    if (!issues.length) { toast.warning('No data to export'); return; }
+    try {
+      const { default: jsPDF } = await import('jspdf');
+      const { default: autoTable } = await import('jspdf-autotable');
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+      doc.setFontSize(14); doc.setTextColor(42, 77, 105);
+      doc.text('Stock Issues Register', 14, 14);
+      doc.setFontSize(8); doc.setTextColor(100, 100, 100);
+      doc.text(
+        `Generated ${new Date().toLocaleDateString('en-GB')}  ·  ${issues.length} issues  ·  Total cost: ${formatCurrency(totalCostTracked)}`,
+        14, 20
+      );
+      autoTable(doc, {
+        startY: 25,
+        head: [['Issue Date', 'Recipient', 'Recipient ID', 'Issued By', 'Items', 'Total Cost', 'Notes']],
+        body: issues.map(issue => [
+          issue.issued_at ? new Date(issue.issued_at).toLocaleString('en-GB') : '',
+          issue.recipient_name,
+          issue.recipient_id || '',
+          issue.issued_by || '',
+          issue.items.length,
+          formatCurrency(issueCost(issue)),
+          issue.notes || '',
+        ]),
+        headStyles: { fillColor: [42, 77, 105], textColor: 255, fontStyle: 'bold', fontSize: 7.5 },
+        bodyStyles: { fontSize: 7.5 },
+        alternateRowStyles: { fillColor: [240, 244, 248] },
+        styles: { cellPadding: 1.5 },
+        margin: { left: 10, right: 10 },
+      });
+      doc.save(`Stock_Issues_${new Date().toISOString().slice(0, 10)}.pdf`);
+      toast.success(`PDF exported — ${issues.length} issues`);
+    } catch (err: any) { toast.error(`Export failed: ${err.message}`); }
+  };
+
   const employeeMapOptions = useCallback(
     (d: any[]) => d.map((e: any) => ({
       label: `${e.first_name} ${e.last_name}`,
@@ -602,6 +731,31 @@ export default function IssuesPage() {
                 className="h-8 w-8 flex items-center justify-center rounded-lg bg-white/[0.07] hover:bg-white/[0.15] border border-white/12 text-white/50 transition-all disabled:opacity-40">
                 <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
               </button>
+
+              {/* Download dropdown */}
+              <div className="relative">
+                <button type="button" onClick={() => setShowDlMenu(p => !p)} disabled={issues.length === 0}
+                  className="h-8 px-3 flex items-center gap-1.5 text-xs rounded-xl font-semibold text-white/80 hover:text-white transition-all hover:-translate-y-0.5 bg-white/[0.07] hover:bg-white/[0.13] border border-white/[0.15] disabled:opacity-40 disabled:translate-y-0">
+                  <Download className="h-3.5 w-3.5" /> Download
+                </button>
+                {showDlMenu && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowDlMenu(false)} />
+                    <div className="absolute right-0 top-full mt-1 z-50 rounded-xl shadow-2xl overflow-hidden w-48"
+                      style={{ background: 'rgba(4,12,24,0.97)', border: '1px solid rgba(255,255,255,0.14)' }}>
+                      <button type="button" onClick={downloadIssuesExcel}
+                        className="w-full flex items-center gap-2.5 px-4 py-3 text-xs text-white/85 hover:bg-white/[0.10] transition-all border-b border-white/[0.07]">
+                        <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-400" /> Export Excel (.xlsx)
+                      </button>
+                      <button type="button" onClick={downloadIssuesPDF}
+                        className="w-full flex items-center gap-2.5 px-4 py-3 text-xs text-white/85 hover:bg-white/[0.10] transition-all">
+                        <FileDown className="h-3.5 w-3.5 text-rose-400" /> Export PDF
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+
               <button title={sections.expanded.stats ? 'Hide stats' : 'Show stats'} onClick={() => sections.toggle('stats')}
                 className="h-8 w-8 flex items-center justify-center rounded-lg bg-white/[0.07] hover:bg-white/[0.15] border border-white/12 text-white/50 transition-all">
                 {sections.expanded.stats ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
