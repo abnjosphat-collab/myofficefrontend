@@ -683,7 +683,7 @@ function ExcelImportModal({ onImport, onExtracted, onClose }: ImportModalProps) 
       const rec = emptyRecord();
       Object.entries(row).forEach(([col, val]) => {
         const field = EXCEL_MAP[col.toLowerCase().trim()];
-        if (field) (rec as Record<string, unknown>)[field] = String(val ?? '').trim();
+        if (field) (rec as unknown as Record<string, unknown>)[field] = String(val ?? '').trim();
       });
       return rec;
     });
