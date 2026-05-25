@@ -2722,9 +2722,35 @@ export default function OvertimeManagementPage() {
 
   const [showDlMenu, setShowDlMenu] = useState(false);
 
+  const buildFilterLabel = () => {
+    const parts: string[] = [];
+    if (selectedEmployeeName) parts.push(selectedEmployeeName);
+    if (monthFilter) parts.push(MONTHS.find(m => m.value === monthFilter)?.label || monthFilter);
+    if (yearFilter) parts.push(yearFilter);
+    if (dateFrom && dateTo) parts.push(`${dateFrom} to ${dateTo}`);
+    else if (dateFrom) parts.push(`from ${dateFrom}`);
+    else if (dateTo) parts.push(`to ${dateTo}`);
+    if (selectedStatuses.length === 1) parts.push(selectedStatuses[0]);
+    if (selectedTypes.length === 1) parts.push(OVERTIME_TYPES[selectedTypes[0] as keyof typeof OVERTIME_TYPES]?.shortName || selectedTypes[0]);
+    return parts.length > 0 ? parts.join(' · ') : 'All Records';
+  };
+
+  const buildFilename = (ext: string) => {
+    const label = selectedEmployeeName
+      ? selectedEmployeeName.replace(/\s+/g, '_')
+      : monthFilter
+      ? MONTHS.find(m => m.value === monthFilter)?.label || monthFilter
+      : dateFrom && dateTo
+      ? `${dateFrom}_to_${dateTo}`
+      : dateFrom ? `from_${dateFrom}`
+      : dateTo ? `to_${dateTo}`
+      : new Date().toISOString().slice(0, 10);
+    return `Overtime_${label}.${ext}`;
+  };
+
   const downloadOvertimeExcel = async () => {
     setShowDlMenu(false);
-    if (!overtime.length) { toast.warning('No data to export'); return; }
+    if (!processedOvertime.length) { toast.warning('No data to export'); return; }
     try {
       const ExcelJS = (await import('exceljs')).default;
       const { saveAs } = await import('file-saver');
@@ -2752,7 +2778,7 @@ export default function OvertimeManagementPage() {
         cell.alignment = { horizontal: 'center', vertical: 'middle' };
       });
       hdr.height = 18;
-      overtime.forEach((r, i) => {
+      processedOvertime.forEach((r, i) => {
         const row = ws.addRow({
           name: r.employee_name, id: r.employee_id, pos: r.position || '',
           dept: r.department || '', type: r.overtime_type || '',
@@ -2772,14 +2798,14 @@ export default function OvertimeManagementPage() {
       ws.views = [{ state: 'frozen', ySplit: 1 }];
       const buf = await wb.xlsx.writeBuffer();
       saveAs(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
-        `Overtime_Register_${new Date().toISOString().slice(0, 10)}.xlsx`);
-      toast.success(`Excel exported — ${overtime.length} records`);
+        buildFilename('xlsx'));
+      toast.success(`Excel exported — ${processedOvertime.length} records`);
     } catch (err: any) { toast.error(`Export failed: ${err.message}`); }
   };
 
   const downloadOvertimePDF = async () => {
     setShowDlMenu(false);
-    if (!overtime.length) { toast.warning('No data to export'); return; }
+    if (!processedOvertime.length) { toast.warning('No data to export'); return; }
     try {
       const { default: jsPDF } = await import('jspdf');
       const { default: autoTable } = await import('jspdf-autotable');
@@ -2787,11 +2813,11 @@ export default function OvertimeManagementPage() {
       doc.setFontSize(14); doc.setTextColor(42, 77, 105);
       doc.text('Overtime Register', 14, 14);
       doc.setFontSize(8); doc.setTextColor(100, 100, 100);
-      doc.text(`Generated ${new Date().toLocaleDateString('en-GB')}  ·  ${overtime.length} records`, 14, 20);
+      doc.text(`${buildFilterLabel()}  ·  Generated ${new Date().toLocaleDateString('en-GB')}  ·  ${processedOvertime.length} records`, 14, 20);
       autoTable(doc, {
         startY: 25,
         head: [['Employee', 'ID', 'Position', 'OT Type', 'Date', 'Start', 'End', 'Reason', 'Status', 'Applied']],
-        body: overtime.map(r => [
+        body: processedOvertime.map(r => [
           r.employee_name, r.employee_id, r.position || '',
           r.overtime_type || '',
           r.date ? new Date(r.date).toLocaleDateString('en-GB') : '',
@@ -2813,8 +2839,8 @@ export default function OvertimeManagementPage() {
         styles: { cellPadding: 1.5 },
         margin: { left: 10, right: 10 },
       });
-      doc.save(`Overtime_Register_${new Date().toISOString().slice(0, 10)}.pdf`);
-      toast.success(`PDF exported — ${overtime.length} records`);
+      doc.save(buildFilename('pdf'));
+      toast.success(`PDF exported — ${processedOvertime.length} records`);
     } catch (err: any) { toast.error(`Export failed: ${err.message}`); }
   };
 
@@ -3107,7 +3133,7 @@ export default function OvertimeManagementPage() {
                 </TooltipProvider>
                 {/* Download dropdown */}
                 <div className="relative">
-                  <button type="button" onClick={() => setShowDlMenu(p => !p)} disabled={overtime.length === 0}
+                  <button type="button" onClick={() => setShowDlMenu(p => !p)} disabled={processedOvertime.length === 0}
                     className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-white/[0.08] hover:bg-white/[0.16] text-white/80 border border-white/15 transition-all disabled:opacity-40">
                     <Download className="h-3.5 w-3.5" />
                     <span className="hidden sm:inline">Download</span>

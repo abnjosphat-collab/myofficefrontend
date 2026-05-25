@@ -87,6 +87,7 @@ const CATEGORIES: Category[] = [
       { icon: Clock,          title: 'Standby',      description: 'On-call schedules and coverage tracking',    color: 'indigo', href: '/standby',     tags: ['Scheduling'] },
       { icon: CalendarDays,   title: 'Schedules',    description: 'Maintenance tasks and recurring schedules',  color: 'amber', href: '/schedules',    tags: ['Planning'] },
       { icon: ClipboardPlus,  title: 'Requisitions', description: 'Purchase and supply request management',     color: 'navy',  href: '/requisitions', tags: ['Procurement'] },
+      { icon: Wrench,         title: 'Services',     description: 'Track completed services, suppliers & invoices', color: 'sky', href: '/services',     tags: ['Services', 'Invoices'] },
     ],
   },
   {
@@ -284,10 +285,7 @@ function SearchResults({ query }: { query: string }) {
 
 // ─── Stats ────────────────────────────────────────────────────────────────────
 
-const STATS = [
-  { label: 'modules', value: '28', icon: Activity },
-  { label: 'categories', value: '6', icon: Building },
-];
+const STAT_ICONS = { modules: Activity, categories: Building };
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
@@ -398,11 +396,14 @@ export default function HomePage() {
         </div>
 
         {/* Stats bar — compact single row */}
-        <div className="bg-black/18 border-t border-white/10 relative z-10">
+        <div className="border-t border-white/10 relative z-10">
           <div className="container mx-auto px-4 py-2">
             <div className="flex items-center justify-center gap-5 flex-wrap">
-              {STATS.map(stat => {
-                const Icon = stat.icon;
+              {([
+                { label: 'modules', value: totalModules },
+                { label: 'categories', value: CATEGORIES.length },
+              ] as const).map(stat => {
+                const Icon = STAT_ICONS[stat.label];
                 return (
                   <div key={stat.label} className="flex items-center gap-1.5">
                     <Icon className="h-3 w-3 text-[#86BBD8]" />

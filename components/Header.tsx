@@ -12,7 +12,7 @@ import {
   ClipboardPlus, Clock4, Calculator, HardHat, ClipboardList,
   FileWarning, AlertOctagon, ShieldAlert, Eye, Target, MessageSquareWarning,
   LineChart, BarChart3, Megaphone, Home,
-  Utensils, Church, Database, ToolCase, PackageMinus, Car,
+  Utensils, Church, Database, ToolCase, PackageMinus, Car, Wrench,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -170,6 +170,7 @@ const NAV_GROUPS = [
       { icon: Clock,          title: 'Shifts',         href: '/shifts',        desc: 'Shift cycles & standby' },
       { icon: CalendarDays,   title: 'Schedules',     href: '/schedules',     desc: 'Task scheduling' },
       { icon: ClipboardPlus,  title: 'Requisitions',  href: '/requisitions',  desc: 'Purchase requests' },
+      { icon: Wrench,         title: 'Services',      href: '/services',      desc: 'Service tracker & invoices' },
     ],
   },
   {
@@ -221,7 +222,7 @@ function NavDropdown({ group }: { group: typeof NAV_GROUPS[0] }) {
         {group.label}
         <ChevronDown className="h-3.5 w-3.5 transition-transform duration-200 group-hover:rotate-180" />
       </button>
-      <div className="absolute top-full left-0 mt-2 hidden group-hover:block min-w-[220px] bg-[#1e3a52] rounded-xl shadow-2xl border border-white/10 p-1.5 z-50">
+      <div className="absolute top-full left-0 mt-2 hidden group-hover:block min-w-[220px] bg-black/60 backdrop-blur-xl rounded-xl shadow-2xl border border-white/10 p-1.5 z-50">
         {group.items.map(item => {
           const Icon = item.icon;
           return (
@@ -286,7 +287,7 @@ export function Header(_legacyProps?: LegacyHeaderProps) {
     : 'U';
 
   return (
-    <header className="sticky top-0 z-50 w-full bg-[#2A4D69] border-b border-white/10 shadow-md">
+    <header className="sticky top-0 z-50 w-full bg-black/20 backdrop-blur-md border-b border-white/10">
       <div className="container mx-auto px-4">
         <div className="flex h-14 items-center justify-between gap-4">
 
