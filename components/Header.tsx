@@ -12,7 +12,7 @@ import {
   ClipboardPlus, Clock4, Calculator, HardHat, ClipboardList,
   FileWarning, AlertOctagon, ShieldAlert, Eye, Target, MessageSquareWarning,
   LineChart, BarChart3, Megaphone, Home,
-  Utensils, Church, Database, ToolCase, PackageMinus, Car, Wrench,
+  Utensils, Church, Database, ToolCase, PackageMinus, Car, Wrench, Gauge,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -164,6 +164,7 @@ const NAV_GROUPS = [
     items: [
       { icon: ClipboardCheck, title: 'Maintenance',   href: '/maintenance',   desc: 'Work orders & PM' },
       { icon: AlertTriangle,  title: 'Breakdowns',    href: '/breakdowns',    desc: 'Equipment failures' },
+      { icon: Gauge,          title: 'Availability',  href: '/availabilities', desc: 'Machine availability %' },
       { icon: PackageOpen,    title: 'Spares',        href: '/spares',        desc: 'Spare parts stock' },
       { icon: PackageMinus,   title: 'Issues',        href: '/issues',        desc: 'Goods issued to staff' },
       { icon: Fan,            title: 'Compressors',   href: '/compressors',   desc: 'Compressor monitoring' },
