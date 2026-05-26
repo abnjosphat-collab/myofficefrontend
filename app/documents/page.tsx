@@ -617,12 +617,12 @@ export default function DocumentsPage() {
       {filteredDocuments.map(doc => (
         <div key={doc.id} onClick={() => handlePreview(doc)}
           className={`oz-glass-panel rounded-2xl p-4 cursor-pointer hover:bg-white/[0.12] transition-all group ${selectedItems.has(doc.id) ? 'ring-2 ring-[#86BBD8]/50' : ''}`}>
-          <div className="flex items-start justify-between mb-3">
-            <div className="flex items-start gap-2">
+          <div className="flex items-start justify-between mb-3 gap-2 min-w-0">
+            <div className="flex items-start gap-2 min-w-0 flex-1">
               <input type="checkbox" checked={selectedItems.has(doc.id)} onChange={() => toggleSelectItem(doc.id)}
-                onClick={e => e.stopPropagation()} className="mt-0.5 accent-[#86BBD8] h-3.5 w-3.5" />
-              {getFileIcon(doc.type)}
-              <div className="min-w-0">
+                onClick={e => e.stopPropagation()} className="mt-0.5 accent-[#86BBD8] h-3.5 w-3.5 shrink-0" />
+              <div className="shrink-0">{getFileIcon(doc.type)}</div>
+              <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold text-white truncate">{doc.name}</p>
                 <p className="text-xs text-white/40">{formatFileSize(doc.file_size)}</p>
               </div>
