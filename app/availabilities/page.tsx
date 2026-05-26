@@ -40,6 +40,7 @@ interface AvailRecord {
   availability_percentage: number;
   notes?: string;
   created_at?: string;
+  source?: 'breakdown' | 'manual';
 }
 
 interface EqSummaryRow {
@@ -143,14 +144,25 @@ export default function AvailabilitiesPage() {
     if (!quiet) setLoading(true);
     setRefreshing(true);
     try {
-      const [eqRes, recRes] = await Promise.all([
+      const [eqRes, bdRes, manualRes] = await Promise.all([
         fetch(`${API}/api/equipment`).catch(() => null),
+        fetch(`${API}/api/availability-records/from-breakdowns`).catch(() => null),
         fetch(`${API}/api/availability-records`).catch(() => null),
       ]);
       // eslint-disable-next-line react-hooks/set-state-in-effect
       if (eqRes?.ok) setEquipment(await eqRes.json());
+
+      const bdRecords: AvailRecord[]     = bdRes?.ok     ? await bdRes.json()     : [];
+      const manualRecords: AvailRecord[] = manualRes?.ok ? await manualRes.json() : [];
+
+      // Manual records override auto-computed ones for the same equipment+date
+      const manualKeys = new Set(manualRecords.map(r => `${r.equipment_id}_${r.date}`));
+      const merged = [
+        ...manualRecords,
+        ...bdRecords.filter(r => !manualKeys.has(`${r.equipment_id}_${r.date}`)),
+      ];
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      if (recRes?.ok) setRecords(await recRes.json());
+      setRecords(merged);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -245,6 +257,21 @@ export default function AvailabilitiesPage() {
   ];
 
   // ── CRUD handlers ──────────────────────────────────────────────────────────
+
+  async function prefillFromBreakdowns(eqId: string, date: string) {
+    if (!eqId || !date) return;
+    try {
+      const res = await fetch(
+        `${API}/api/availability-records/from-breakdowns?equipment_id=${eqId}&date_from=${date}&date_to=${date}`
+      );
+      if (res.ok) {
+        const data: AvailRecord[] = await res.json();
+        if (data.length > 0) {
+          setForm(f => ({ ...f, breakdown_hours: String(data[0].breakdown_hours) }));
+        }
+      }
+    } catch { /* silent — manual entry still works */ }
+  }
 
   function openNew() { setEditRec(null); setForm(EMPTY_FORM); setModalOpen(true); }
 
@@ -341,10 +368,15 @@ export default function AvailabilitiesPage() {
     },
     { key: 'operational_hours', header: 'Op. Hrs',   align: 'right', render: r => `${r.operational_hours}h` },
     { key: 'breakdown_hours',   header: 'Down. Hrs', align: 'right', render: r => <span className="text-red-400">{r.breakdown_hours}h</span> },
-    { key: 'notes', header: 'Notes', render: r => <span className="text-white/50 text-xs">{r.notes || '—'}</span> },
+    {
+      key: 'notes', header: 'Source / Notes',
+      render: r => r.source === 'breakdown'
+        ? <GlassBadge variant="neutral" size="sm">Auto</GlassBadge>
+        : <span className="text-white/50 text-xs">{r.notes || '—'}</span>,
+    },
     {
       key: 'actions', header: '',
-      render: r => (
+      render: r => r.source === 'breakdown' ? null : (
         <div className="flex gap-1">
           <GlassButton size="xs" variant="ghost" icon={Pencil} onClick={() => openEdit(r)} />
           <GlassButton size="xs" variant="danger" icon={Trash2} onClick={() => setDeleteTarget(r)} />
@@ -545,7 +577,7 @@ export default function AvailabilitiesPage() {
                     strokeWidth="12"
                     strokeDasharray={`${(fleet.avgAv / 100) * 251} 251`}
                     strokeLinecap="round"
-                    style={{ transition: 'stroke-dasharray 0.5s ease' }}
+                    className="transition-[stroke-dasharray] duration-500 ease-in-out"
                   />
                 </svg>
                 <div className="absolute text-center">
@@ -700,10 +732,21 @@ export default function AvailabilitiesPage() {
           <GlassSelect
             label="Equipment *"
             value={form.equipment_id}
-            onChange={e => setForm(f => ({ ...f, equipment_id: e.target.value }))}
+            onChange={e => {
+              const id = e.target.value;
+              setForm(f => ({ ...f, equipment_id: id }));
+              if (!editRec) prefillFromBreakdowns(id, form.date);
+            }}
             options={[{ value: '', label: 'Select equipment…' }, ...equipment.map(e => ({ value: String(e.id), label: e.name }))]}
           />
-          <GlassInput type="date" label="Date *" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
+          <GlassInput
+            type="date" label="Date *" value={form.date}
+            onChange={e => {
+              const d = e.target.value;
+              setForm(f => ({ ...f, date: d }));
+              if (!editRec) prefillFromBreakdowns(form.equipment_id, d);
+            }}
+          />
           <div className="grid grid-cols-2 gap-3">
             <GlassInput type="number" label="Operational Hours" value={form.operational_hours} min="0" step="0.5" onChange={e => setForm(f => ({ ...f, operational_hours: e.target.value }))} />
             <GlassInput type="number" label="Downtime Hours"    value={form.breakdown_hours}   min="0" step="0.5" onChange={e => setForm(f => ({ ...f, breakdown_hours: e.target.value }))} />
