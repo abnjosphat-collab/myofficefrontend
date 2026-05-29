@@ -29,3 +29,5 @@ export { MasterCollapseButton } from './MasterCollapseButton';
 export { RecordsPanelHeader } from './RecordsPanelHeader';
 export { usePageCollapse } from './usePageCollapse';
 export type { PageCollapseState } from './usePageCollapse';
+export { PhotoUpload } from './PhotoUpload';
+export type { PhotoUploadProps } from './PhotoUpload';

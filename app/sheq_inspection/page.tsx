@@ -18,7 +18,7 @@ import {
   SafetyPanel, SafetyTable, SafetyModal, FormField, ModalActions,
   RowActions, TabBar, AddButton,
 } from '@/components/safety';
-import { usePageCollapse, MasterCollapseButton } from '@/components/shared';
+import { usePageCollapse, MasterCollapseButton, PhotoUpload } from '@/components/shared';
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
@@ -55,6 +55,8 @@ interface SHEQFormData {
   hodSignature?: string;
   sheqSignature?: string;
   status: InspectionStatus;
+  before_photos: string[];
+  after_photos: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -96,6 +98,7 @@ const blankForm = (): Partial<SHEQFormData> => ({
   time: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
   department: '', section: 'mechanical', findings: [],
   hodName: '', sheqOfficialName: '', status: 'draft',
+  before_photos: [], after_photos: [],
 });
 
 // ─── FINDING FORM (inside modal) ──────────────────────────────────────────────
@@ -249,9 +252,10 @@ function InspectionFormModal({
           <TabBar
             active={tab} onChange={setTab} accentColor={ACCENT}
             tabs={[
-              { id: 'basic', label: 'Basic Info' },
+              { id: 'basic',    label: 'Basic Info' },
               { id: 'findings', label: `Findings (${findingCount})` },
-              { id: 'signoff', label: 'Sign-off' },
+              { id: 'photos',   label: `Photos (${((form.before_photos?.length || 0) + (form.after_photos?.length || 0))})` },
+              { id: 'signoff',  label: 'Sign-off' },
             ]}
           />
         </div>
@@ -338,6 +342,31 @@ function InspectionFormModal({
                   </button>
                 </>
               )}
+            </div>
+          )}
+
+          {/* ── Photos ── */}
+          {tab === 'photos' && (
+            <div className="space-y-6">
+              <PhotoUpload
+                label="Before Inspection"
+                description="State of the area / equipment before work began"
+                photos={form.before_photos ?? []}
+                onChange={urls => set({ before_photos: urls })}
+                folder="sheq/before"
+                maxPhotos={10}
+                accentColor={ACCENT}
+              />
+              <div className="border-t border-white/[0.06]" />
+              <PhotoUpload
+                label="After Inspection"
+                description="Condition after inspection / corrective actions"
+                photos={form.after_photos ?? []}
+                onChange={urls => set({ after_photos: urls })}
+                folder="sheq/after"
+                maxPhotos={10}
+                accentColor={ACCENT}
+              />
             </div>
           )}
 
@@ -443,6 +472,36 @@ function InspectionDetailModal({
           )}
         </div>
 
+        {/* Photos */}
+        {((inspection.before_photos?.length || 0) + (inspection.after_photos?.length || 0)) > 0 && (
+          <>
+            <div className="border-t border-white/[0.06]" />
+            <div className="space-y-4">
+              <h3 className="text-xs font-semibold text-white/50 uppercase tracking-wider">Photos</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {inspection.before_photos?.length > 0 && (
+                  <PhotoUpload
+                    label="Before Inspection"
+                    photos={inspection.before_photos}
+                    onChange={() => {}}
+                    disabled
+                    accentColor="#86BBD8"
+                  />
+                )}
+                {inspection.after_photos?.length > 0 && (
+                  <PhotoUpload
+                    label="After Inspection"
+                    photos={inspection.after_photos}
+                    onChange={() => {}}
+                    disabled
+                    accentColor="#86BBD8"
+                  />
+                )}
+              </div>
+            </div>
+          </>
+        )}
+
         <div className="border-t border-white/[0.06]" />
 
         {/* Sign-off boxes */}
@@ -497,6 +556,7 @@ function InspectionCard({
   const openCount = inspection.findings?.filter(f => f.status !== 'closed').length || 0;
   const closedCount = inspection.findings?.filter(f => f.status === 'closed').length || 0;
   const criticalCount = inspection.findings?.filter(f => f.priority === 'critical').length || 0;
+  const photoCount = (inspection.before_photos?.length || 0) + (inspection.after_photos?.length || 0);
 
   return (
     <div className="oz-glass-panel rounded-2xl overflow-hidden cursor-pointer hover:border-white/20 transition-all"
@@ -525,12 +585,13 @@ function InspectionCard({
       </div>
 
       {/* Mini stats */}
-      <div className="px-4 py-2 grid grid-cols-4 gap-1 border-b border-white/[0.05]">
+      <div className="px-4 py-2 grid grid-cols-5 gap-1 border-b border-white/[0.05]">
         {[
           { label: 'Total', value: inspection.findings?.length || 0, color: '#86BBD8' },
           { label: 'Open', value: openCount, color: '#f59e0b' },
           { label: 'Closed', value: closedCount, color: '#34d399' },
           { label: 'Critical', value: criticalCount, color: '#f43f5e' },
+          { label: 'Photos', value: photoCount, color: '#a78bfa' },
         ].map(s => (
           <div key={s.label} className="text-center">
             <div className="text-base font-bold leading-none" style={{ color: s.color }}>{s.value}</div>
