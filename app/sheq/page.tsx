@@ -1345,7 +1345,7 @@ export default function SHEQDashboardPage() {
             <CollapsibleSection
               title="Safety Analysis &amp; Recommendations"
               icon={<Shield size={15} />}
-              sub="Polars statistical analysis — hotspot detection, trend direction, risk scoring, rule-based recommendations"
+              sub="Hotspot detection · trend direction · risk scoring · prioritised recommendations across all safety modules"
               accent="#a855f7"
               open={sections.expanded.ai}
               onToggle={() => sections.toggle('ai')}
@@ -1372,7 +1372,7 @@ export default function SHEQDashboardPage() {
                 </button>
                 {aiResult && (
                   <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)' }}>
-                    {aiResult._records_analysed} records analysed · Polars statistical engine
+                    {aiResult._records_analysed} records analysed across all modules
                   </span>
                 )}
                 {aiError && (
@@ -1499,7 +1499,7 @@ export default function SHEQDashboardPage() {
                     </div>
 
                     <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.22)', textAlign: 'right' }}>
-                      Generated {aiResult.generated_at ? new Date(aiResult.generated_at).toLocaleString() : ''} · AI analysis may contain inaccuracies — review before acting
+                      Analysis generated {aiResult.generated_at ? new Date(aiResult.generated_at).toLocaleString() : ''} · Review recommendations with your safety team before acting
                     </div>
                   </div>
                 );
