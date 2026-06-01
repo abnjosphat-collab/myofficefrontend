@@ -439,27 +439,67 @@
 }
 
 /* ============================================
-   GLASSMORPHISM SYSTEM
+   HEADER & NAVIGATION
+   ============================================ */
+
+.oz-header {
+  background: rgba(4, 12, 24, 0.60);
+  -webkit-backdrop-filter: blur(40px) saturate(1.8) brightness(0.92);
+  backdrop-filter: blur(40px) saturate(1.8) brightness(0.92);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.07), 0 4px 40px rgba(0,0,0,0.32);
+}
+
+/* Desktop nav dropdown — floats above all page content */
+.oz-nav-dropdown {
+  background: rgba(3, 10, 22, 0.88);
+  -webkit-backdrop-filter: blur(48px) saturate(1.6);
+  backdrop-filter: blur(48px) saturate(1.6);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow:
+    0 24px 64px rgba(0, 0, 0, 0.55),
+    0 6px 18px rgba(0, 0, 0, 0.30),
+    inset 0 1px 0 rgba(255,255,255,0.08);
+  animation: oz-dropdown-enter 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
+  transform-origin: top left;
+}
+
+@keyframes oz-dropdown-enter {
+  from { opacity: 0; transform: scale(0.97) translateY(-6px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* ============================================
+   GLASSMORPHISM SYSTEM — Refined
    oz-glass-dark  — deep navy frosted glass (white text)
    oz-glass-bright — luminous frosted surface (dark text)
-   oz-glass-panel  — top-bar / callout wrapper
+   oz-glass-panel  — data tables / records containers
    ============================================ */
 
 .oz-glass-dark {
-  background: rgba(5, 15, 28, 0.72);
-  -webkit-backdrop-filter: blur(32px) saturate(1.4);
-  backdrop-filter: blur(32px) saturate(1.4);
-  border: 1px solid rgba(255, 255, 255, 0.13);
-  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.38), 0 2px 10px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255,255,255,0.06);
+  background: rgba(3, 11, 22, 0.70);
+  -webkit-backdrop-filter: blur(32px) saturate(1.6) brightness(0.94);
+  backdrop-filter: blur(32px) saturate(1.6) brightness(0.94);
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.36),
+    0 2px 8px  rgba(0, 0, 0, 0.20),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.12);
+  animation: oz-panel-enter 0.42s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 /* Heavier panel — for data tables, records containers */
 .oz-glass-panel {
-  background: rgba(4, 12, 24, 0.80);
-  -webkit-backdrop-filter: blur(36px) saturate(1.3);
-  backdrop-filter: blur(36px) saturate(1.3);
-  border: 1px solid rgba(255, 255, 255, 0.11);
-  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.45), 0 3px 12px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255,255,255,0.05);
+  background: rgba(2, 9, 18, 0.76);
+  -webkit-backdrop-filter: blur(40px) saturate(1.5) brightness(0.93);
+  backdrop-filter: blur(40px) saturate(1.5) brightness(0.93);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow:
+    0 12px 48px rgba(0, 0, 0, 0.42),
+    0 3px 10px  rgba(0, 0, 0, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.18);
+  animation: oz-panel-enter 0.42s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .oz-glass-bright {
@@ -471,10 +511,10 @@
 
 /* Section title bar — slim dark strip above a panel */
 .oz-section-bar {
-  background: rgba(3, 10, 20, 0.82);
-  -webkit-backdrop-filter: blur(20px);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: rgba(2, 8, 18, 0.84);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  backdrop-filter: blur(24px) saturate(1.4);
+  border: 1px solid rgba(255, 255, 255, 0.09);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.32);
 }
 
@@ -571,3 +611,379 @@ select:focus option {
 
 /* Dynamic progress-bar fill — width is set via the --pw CSS variable */
 .progress-fill { width: var(--pw, 0%); }
+
+/* Safety module action buttons — avoids inline gradient styles */
+.oz-btn-amber  { background: linear-gradient(135deg,#b45309,#92400e); border: 1px solid rgba(245,158,11,0.40); }
+.oz-btn-rose   { background: linear-gradient(135deg,#be123c,#9f1239); border: 1px solid rgba(244,63,94,0.40); }
+.oz-btn-brand  { background: linear-gradient(135deg,#2A4D69,#1e3a52); border: 1px solid rgba(134,187,216,0.30); }
+.oz-btn-purple { background: linear-gradient(135deg,#6d28d9,#a855f7); border: 1px solid rgba(168,85,247,0.45); }
+
+/* Progress bar — brand-to-emerald gradient (avoids inline style) */
+.oz-progress-gradient { background: linear-gradient(90deg, #2A4D69, #34d399); }
+
+/* Coloured stripe bars — report cards */
+.oz-stripe-rose   { background: linear-gradient(90deg, #f43f5e, #fb923c); }
+.oz-stripe-brand  { background: linear-gradient(90deg, #2A4D69, #86BBD8); }
+.oz-stripe-amber  { background: linear-gradient(90deg, #b45309, #f59e0b); }
+.oz-stripe-purple { background: linear-gradient(90deg, #6d28d9, #a855f7); }
+
+/* ============================================
+   DATE / TIME INPUTS — always dark scheme
+   Eliminates the need for [color-scheme:dark]
+   on every individual input across all pages
+   ============================================ */
+
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"],
+input[type="month"],
+input[type="week"] {
+  color-scheme: dark;
+}
+
+/* ============================================
+   MODAL ANIMATIONS
+   ============================================ */
+
+/* Backdrop — opacity only (backdrop-filter is applied statically via class, not animated) */
+@keyframes oz-backdrop-in  { from { opacity: 0; } to { opacity: 1; } }
+@keyframes oz-backdrop-out { from { opacity: 1; } to { opacity: 0; } }
+
+/* Panel — slide up + scale + fade */
+@keyframes oz-modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(28px) scale(0.94);
+    filter: blur(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+/* Panel exit — slide down + shrink + fade */
+@keyframes oz-modal-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(18px) scale(0.96);
+    filter: blur(1px);
+  }
+}
+
+.oz-modal-backdrop-in  { animation: oz-backdrop-in  0.22s ease both; }
+.oz-modal-backdrop-out { animation: oz-backdrop-out 0.20s ease both; }
+.oz-modal-panel-in     { animation: oz-modal-in     0.32s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.oz-modal-panel-out    { animation: oz-modal-out    0.20s cubic-bezier(0.4, 0, 1, 1) both; }
+
+/* ============================================
+   PANEL CONTENT — smooth grid expand/collapse
+   Usage: wrap children in .oz-panel-body
+          toggle .oz-panel-body--open
+   ============================================ */
+
+.oz-panel-body {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.oz-panel-body--open {
+  grid-template-rows: 1fr;
+}
+.oz-panel-body > .oz-panel-inner {
+  overflow: hidden;
+}
+
+/* ============================================
+   TABLE ROW STAGGER ENTRANCE
+   ============================================ */
+
+@keyframes oz-row-in {
+  from { opacity: 0; transform: translateX(-10px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.oz-table-row {
+  animation: oz-row-in 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: transform, opacity;
+}
+
+/* ============================================
+   SORTABLE COLUMN HEADER
+   ============================================ */
+
+.oz-sort-btn {
+  transition: color 0.15s ease, background 0.15s ease;
+}
+.oz-sort-btn:hover {
+  color: rgba(134, 187, 216, 0.9);
+  background: rgba(134, 187, 216, 0.06);
+  border-radius: 6px;
+}
+.oz-sort-btn.oz-sort-active {
+  color: #86BBD8;
+}
+
+/* ============================================
+   STAT CARD VALUE — count-up target element
+   ============================================ */
+
+.oz-stat-count {
+  font-variant-numeric: tabular-nums;
+  transition: color 0.2s ease;
+}
+
+/* ============================================
+   WORLD-CLASS ANIMATION SYSTEM
+   All keyframes use only opacity + transform
+   — GPU-composited, zero layout/paint cost
+   ============================================ */
+
+/* Panel slide-up — primary entrance for glass panels */
+@keyframes oz-panel-enter {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Page wrapper entrance — gentle blur + rise */
+@keyframes oz-page-enter {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Stat / info card — faster, tighter rise */
+@keyframes oz-card-enter {
+  from { opacity: 0; transform: translateY(14px) scale(0.985); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Side slide-in — for info panels, side drawers */
+@keyframes oz-slide-from-left {
+  from { opacity: 0; transform: translateX(-18px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes oz-slide-from-right {
+  from { opacity: 0; transform: translateX(18px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* Scale pop — badges, chips, small controls */
+@keyframes oz-pop-in {
+  from { opacity: 0; transform: scale(0.88); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* Fade only — overlays, tooltips */
+@keyframes oz-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ── Utility classes ─────────────────── */
+
+.oz-page-enter  { animation: oz-page-enter  0.52s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.oz-slide-up    { animation: oz-panel-enter  0.42s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.oz-slide-left  { animation: oz-slide-from-left  0.38s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.oz-slide-right { animation: oz-slide-from-right 0.38s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.oz-card-enter  { animation: oz-card-enter  0.36s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.oz-pop-in      { animation: oz-pop-in      0.28s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+.oz-fade-in     { animation: oz-fade-in     0.30s ease both; }
+
+/* ── Stagger system ──────────────────── */
+/* Apply .oz-stagger to a grid/flex container — children animate in sequence */
+
+.oz-stagger > *:nth-child(1)  { animation-delay:   0ms; }
+.oz-stagger > *:nth-child(2)  { animation-delay:  55ms; }
+.oz-stagger > *:nth-child(3)  { animation-delay: 110ms; }
+.oz-stagger > *:nth-child(4)  { animation-delay: 165ms; }
+.oz-stagger > *:nth-child(5)  { animation-delay: 220ms; }
+.oz-stagger > *:nth-child(6)  { animation-delay: 275ms; }
+.oz-stagger > *:nth-child(7)  { animation-delay: 330ms; }
+.oz-stagger > *:nth-child(8)  { animation-delay: 385ms; }
+.oz-stagger > *:nth-child(9)  { animation-delay: 440ms; }
+.oz-stagger > *:nth-child(10) { animation-delay: 495ms; }
+
+/* Fine-grained manual delays (supplement existing delay-* classes) */
+.oz-d0  { animation-delay:   0ms; }
+.oz-d1  { animation-delay:  55ms; }
+.oz-d2  { animation-delay: 110ms; }
+.oz-d3  { animation-delay: 165ms; }
+.oz-d4  { animation-delay: 220ms; }
+.oz-d5  { animation-delay: 275ms; }
+.oz-d6  { animation-delay: 330ms; }
+.oz-d7  { animation-delay: 385ms; }
+.oz-d8  { animation-delay: 440ms; }
+
+/* ============================================
+   TYPOGRAPHY — Elegant, world-class system
+   ============================================ */
+
+@layer base {
+  /* Refined body copy */
+  body {
+    font-size: 15px;
+    line-height: 1.6;
+    letter-spacing: -0.006em;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Headings — tighter tracking, stronger hierarchy */
+  h1 { font-size: 2rem;    letter-spacing: -0.030em; line-height: 1.15; }
+  h2 { font-size: 1.5rem;  letter-spacing: -0.025em; line-height: 1.20; }
+  h3 { font-size: 1.25rem; letter-spacing: -0.020em; line-height: 1.25; }
+  h4 { font-size: 1.05rem; letter-spacing: -0.015em; line-height: 1.30; }
+  h5 { font-size: 0.9rem;  letter-spacing: -0.010em; line-height: 1.35; }
+  h6 { font-size: 0.8rem;  letter-spacing:  0.010em; line-height: 1.40; text-transform: uppercase; }
+
+  /* Paragraph text — comfortable reading width */
+  p { max-width: 72ch; }
+
+  /* Small / label text — sharper */
+  small, .text-xs, .text-sm {
+    letter-spacing: 0.004em;
+  }
+}
+
+/* Glass surface typography refinements */
+.oz-glass-dark  h1, .oz-glass-dark  h2, .oz-glass-dark  h3,
+.oz-glass-panel h1, .oz-glass-panel h2, .oz-glass-panel h3 {
+  font-weight: 700;
+  letter-spacing: -0.022em;
+}
+
+/* Uppercase label style inside glass panels */
+.oz-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.40);
+}
+
+/* Numeric stat display */
+.oz-stat-value {
+  font-size: 1.75rem;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============================================
+   MICRO-INTERACTIONS — Hover lifts & focus
+   ============================================ */
+
+/* Interactive glass panels get a subtle lift on hover */
+.oz-glass-panel[role="button"],
+.oz-glass-panel.oz-interactive,
+button.oz-glass-panel,
+a.oz-glass-panel {
+  transition: transform 0.20s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.20s ease,
+              background 0.15s ease;
+}
+
+.oz-glass-panel[role="button"]:hover,
+.oz-glass-panel.oz-interactive:hover,
+button.oz-glass-panel:hover,
+a.oz-glass-panel:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 20px 64px rgba(0, 0, 0, 0.48),
+    0 4px 14px  rgba(0, 0, 0, 0.26),
+    inset 0 1px 0 rgba(255, 255, 255, 0.10);
+}
+
+/* Glass button press */
+.oz-glass-panel[role="button"]:active,
+button.oz-glass-panel:active {
+  transform: translateY(0) scale(0.992);
+}
+
+/* ============================================
+   SCROLLBAR — Refined, minimal
+   ============================================ */
+
+::-webkit-scrollbar       { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(134, 187, 216, 0.22);
+  border-radius: 999px;
+  transition: background 0.2s ease;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(134, 187, 216, 0.45);
+}
+::-webkit-scrollbar-corner { background: transparent; }
+
+/* ============================================
+   GLASS TABLE — More refined row styles
+   ============================================ */
+
+.oz-glass-panel table thead tr th,
+.oz-glass-dark   table thead tr th {
+  font-size: 0.63rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.38);
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+
+.oz-glass-panel table tbody tr,
+.oz-glass-dark   table tbody tr {
+  transition: background 0.12s ease;
+}
+
+.oz-glass-panel table tbody tr:hover,
+.oz-glass-dark   table tbody tr:hover {
+  background: rgba(134, 187, 216, 0.06);
+}
+
+/* ============================================
+   FOCUS RING — Brand-consistent, accessible
+   ============================================ */
+
+:focus-visible {
+  outline: 2px solid rgba(134, 187, 216, 0.70);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+/* Remove focus ring for mouse users */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* ============================================
+   SMOOTH PANEL COLLAPSE/EXPAND TRANSITION
+   Applied to collapsible panel content
+   ============================================ */
+
+.oz-panel-body {
+  overflow: hidden;
+  transition: max-height 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+              opacity    0.28s ease;
+}
+.oz-panel-body.oz-collapsed {
+  max-height: 0 !important;
+  opacity: 0;
+}
+
+/* ============================================
+   SELECTION COLOR — Brand blue
+   ============================================ */
+
+::selection {
+  background: rgba(134, 187, 216, 0.35);
+  color: inherit;
+}

@@ -27,6 +27,8 @@ import {
   GlassProgress,
   usePageCollapse,
   MasterCollapseButton,
+  EmployeeNameInput,
+  PredictiveInput,
 } from '@/components/shared';
 import { toast } from "sonner";
 
@@ -571,7 +573,7 @@ const defaultForm: Partial<PacheduReport> = {
   location: "", date: new Date().toISOString().split('T')[0],
   activityObserved: "", whatDidYouSee: "", reasons: "",
   behaviourType: "Unintentional", impacts: [], whatDidYouDo: "",
-  observerName: "", dept: "", sdwt: "", sectionChoice: "Mechanical",
+  observerName: "", dept: "Engineering", sdwt: "", sectionChoice: "Mechanical",
   checklist: [], status: "draft",
 };
 
@@ -1099,16 +1101,32 @@ export default function PacheduFormPage() {
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
-                    <GlassInput label="Observer Name" value={formData.observerName || ''}
-                      onChange={e => setFormData({ ...formData, observerName: e.target.value })}
-                      placeholder="Your name" />
-                    <GlassInput label="Department" value={formData.dept || ''}
-                      onChange={e => setFormData({ ...formData, dept: e.target.value })}
-                      placeholder="Your department" />
+                    <EmployeeNameInput
+                      label="Observer Name"
+                      value={formData.observerName || ''}
+                      onChange={(name, emp) => setFormData({
+                        ...formData,
+                        observerName: name,
+                        ...(emp?.department ? { dept: emp.department } : {}),
+                      })}
+                      placeholder="Select or type your name…"
+                    />
+                    <PredictiveInput
+                      label="Department"
+                      historyKey="pach_dept"
+                      value={formData.dept || ''}
+                      onChange={v => setFormData({ ...formData, dept: v })}
+                      placeholder="e.g. Engineering"
+                      hints={['Engineering', 'Mechanical', 'Electrical', 'Mining', 'Processing', 'Safety', 'Maintenance', 'Operations']}
+                    />
                     <div className="col-span-2">
-                      <GlassInput label="SDWT" value={formData.sdwt || ''}
-                        onChange={e => setFormData({ ...formData, sdwt: e.target.value })}
-                        placeholder="SDWT number" />
+                      <PredictiveInput
+                        label="SDWT"
+                        historyKey="pach_sdwt"
+                        value={formData.sdwt || ''}
+                        onChange={v => setFormData({ ...formData, sdwt: v })}
+                        placeholder="SDWT number"
+                      />
                     </div>
                   </div>
                 </div>

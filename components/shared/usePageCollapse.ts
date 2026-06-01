@@ -16,14 +16,25 @@ export interface PageCollapseState {
 /**
  * Manages collapse/expand state for all named sections on a page.
  *
+ * By default every section starts COLLAPSED regardless of the initial values
+ * you pass — giving every module page a clean, compact first load.
+ * Pass { defaultCollapsed: false } to honour the initial booleans instead.
+ *
  * Usage:
  *   const s = usePageCollapse({ hero: false, stats: false, records: false });
  *   <MasterCollapseButton collapse={s} />
  *   <HeroPanel {...s.panel('hero')} title="…" />
  *   <GlassPanel {...s.panel('stats')} title="…" />
  */
-export function usePageCollapse(initial: Record<string, boolean>): PageCollapseState {
-  const [expanded, setExpanded] = useState<Record<string, boolean>>(initial);
+export function usePageCollapse(
+  initial: Record<string, boolean>,
+  opts: { defaultCollapsed?: boolean } = {},
+): PageCollapseState {
+  const { defaultCollapsed = true } = opts;
+  const init = defaultCollapsed
+    ? Object.fromEntries(Object.keys(initial).map(k => [k, false]))
+    : initial;
+  const [expanded, setExpanded] = useState<Record<string, boolean>>(init);
 
   const toggle = useCallback((key: string) => {
     setExpanded(p => ({ ...p, [key]: !p[key] }));

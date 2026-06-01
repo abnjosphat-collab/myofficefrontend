@@ -18,7 +18,7 @@ import {
   SafetyPanel, SafetyTable, SafetyModal, FormField, ModalActions,
   RowActions, TabBar, AddButton,
 } from '@/components/safety';
-import { usePageCollapse, MasterCollapseButton, PhotoUpload } from '@/components/shared';
+import { usePageCollapse, MasterCollapseButton, PhotoUpload, EmployeeNameInput, PredictiveInput, type EmployeeRecord } from '@/components/shared';
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
@@ -272,20 +272,33 @@ function InspectionFormModal({
                     className={glassInput} />
                 </FormField>
                 <FormField label="Inspector(s)" required className="md:col-span-2">
-                  <input value={form.inspectors || ''} placeholder="John Doe, Jane Smith"
-                    onChange={e => set({ inspectors: e.target.value })}
-                    className={glassInput} />
-                  <p className="text-[10px] text-white/25 mt-1">Separate multiple names with commas</p>
+                  <EmployeeNameInput
+                    value={form.inspectors || ''}
+                    onChange={(name, emp) => {
+                      set({ inspectors: name });
+                      if (emp?.department) set({ department: emp.department });
+                    }}
+                    placeholder="Select or type inspector name(s)…"
+                  />
+                  <p className="text-[10px] text-white/25 mt-1">Separate multiple names with commas · pick from employee register or type freely</p>
                 </FormField>
                 <FormField label="Location" required>
-                  <input value={form.place || ''} placeholder="e.g. Main Warehouse"
-                    onChange={e => set({ place: e.target.value })}
-                    className={glassInput} />
+                  <PredictiveInput
+                    historyKey="sheq_location"
+                    value={form.place || ''}
+                    onChange={v => set({ place: v })}
+                    placeholder="e.g. Main Warehouse"
+                    hints={['Main Warehouse', 'Workshop', 'Electrical Substation', 'Crusher Bay', 'Processing Plant', 'Pit Area', 'Administration Block']}
+                  />
                 </FormField>
                 <FormField label="Department">
-                  <input value={form.department || ''} placeholder="e.g. Operations"
-                    onChange={e => set({ department: e.target.value })}
-                    className={glassInput} />
+                  <PredictiveInput
+                    historyKey="sheq_department"
+                    value={form.department || ''}
+                    onChange={v => set({ department: v })}
+                    placeholder="e.g. Engineering"
+                    hints={['Engineering', 'Mechanical', 'Electrical', 'Mining', 'Processing', 'Safety', 'HR', 'Administration', 'Operations', 'Maintenance']}
+                  />
                 </FormField>
                 <FormField label="Section" required>
                   <select value={form.section || 'mechanical'} title="Section"
@@ -375,14 +388,18 @@ function InspectionFormModal({
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <FormField label="Head of Department Name">
-                  <input value={form.hodName || ''} placeholder="e.g. Peter Moyo"
-                    onChange={e => set({ hodName: e.target.value })}
-                    className={glassInput} />
+                  <EmployeeNameInput
+                    value={form.hodName || ''}
+                    onChange={(name) => set({ hodName: name })}
+                    placeholder="Select or type HOD name…"
+                  />
                 </FormField>
                 <FormField label="SHEQ Official Name">
-                  <input value={form.sheqOfficialName || ''} placeholder="e.g. Sarah Johnson"
-                    onChange={e => set({ sheqOfficialName: e.target.value })}
-                    className={glassInput} />
+                  <EmployeeNameInput
+                    value={form.sheqOfficialName || ''}
+                    onChange={(name) => set({ sheqOfficialName: name })}
+                    placeholder="Select or type SHEQ official name…"
+                  />
                 </FormField>
               </div>
               <p className="text-[11px] text-white/25">Signatures will be captured after submission / approval.</p>

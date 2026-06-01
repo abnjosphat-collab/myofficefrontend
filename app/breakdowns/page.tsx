@@ -15,7 +15,8 @@ import { toast } from 'sonner';
 import { format } from "date-fns";
 import {
   HeroPanel, GlassPanel, GlassModal, GlassInput, GlassSelect, GlassTextarea,
-  usePageCollapse, MasterCollapseButton, DownloadButton, type DLColumn,
+  usePageCollapse, MasterCollapseButton, DownloadButton, DeleteDialog,
+  EmployeeNameInput, PredictiveInput, type DLColumn,
 } from '@/components/shared';
 
 // ─── API ──────────────────────────────────────────────────────────────────────
@@ -802,19 +803,30 @@ const FormModal = ({
             <GlassInput label="Machine ID" value={fd.machine_id}
               onChange={e => set('machine_id', e.target.value)} placeholder="Optional" />
             <div>
-              <GlassInput label="Artisan Name *" value={fd.artisan_name}
-                onChange={e => set('artisan_name', e.target.value)}
-                placeholder="e.g., John Doe" className={fieldCls('artisan_name')} />
-              {err('artisan_name')}
+              <EmployeeNameInput
+                label="Artisan Name *"
+                value={fd.artisan_name}
+                onChange={(name, emp) => {
+                  set('artisan_name', name);
+                  if (emp?.department) set('department', emp.department);
+                }}
+                placeholder="Select or type artisan name…"
+                error={errors.artisan_name}
+              />
             </div>
             <GlassInput label="Breakdown Date *" type="date" value={fd.breakdown_date}
               onChange={e => set('breakdown_date', e.target.value)} />
             <div className="sm:col-span-2">
-              <GlassTextarea label="Description *" value={fd.breakdown_description}
-                onChange={e => set('breakdown_description', e.target.value)}
-                rows={3} placeholder="Describe what happened…"
-                className={fieldCls('breakdown_description')} />
-              {err('breakdown_description')}
+              <PredictiveInput
+                label="Description *"
+                historyKey="bd_description"
+                value={fd.breakdown_description}
+                onChange={v => set('breakdown_description', v)}
+                multiline rows={3}
+                placeholder="Describe what happened…"
+                hints={['Machine stopped unexpectedly', 'Electrical fault detected', 'Mechanical failure on', 'Overheating reported on', 'Hydraulic leak detected', 'Belt snapped on']}
+                error={errors.breakdown_description}
+              />
             </div>
           </div>
         )}
@@ -829,10 +841,16 @@ const FormModal = ({
             <GlassSelect label="Breakdown Type" value={fd.breakdown_type}
               onChange={e => set('breakdown_type', e.target.value)} options={typeOpts} />
             <div>
-              <GlassInput label="Location *" value={fd.location}
-                onChange={e => set('location', e.target.value)}
-                placeholder="e.g., Production Line A" className={fieldCls('location')} />
-              {err('location')}
+              <PredictiveInput
+                label="Location *"
+                historyKey="bd_location"
+                value={fd.location}
+                onChange={v => set('location', v)}
+                onCommit={v => set('location', v)}
+                placeholder="e.g., Production Line A"
+                hints={['Main Workshop', 'Crusher Bay', 'Processing Plant', 'Pit Area', 'Conveyor Belt', 'Electrical Substation', 'Compressor Room', 'Administration Block']}
+                error={errors.location}
+              />
             </div>
             <div>
               <GlassSelect label="Department *" value={fd.department}
@@ -841,14 +859,26 @@ const FormModal = ({
               {err('department')}
             </div>
             <div className="sm:col-span-2">
-              <GlassTextarea label="Work Done" value={fd.work_done}
-                onChange={e => set('work_done', e.target.value)}
-                rows={2} placeholder="Describe the work performed…" />
+              <PredictiveInput
+                label="Work Done"
+                historyKey="bd_work_done"
+                value={fd.work_done}
+                onChange={v => set('work_done', v)}
+                multiline rows={2}
+                placeholder="Describe the work performed…"
+                hints={['Replaced bearing', 'Repaired electrical fault', 'Replaced belt', 'Cleaned and serviced', 'Replaced hydraulic seal', 'Calibrated sensor']}
+              />
             </div>
             <div className="sm:col-span-2">
-              <GlassTextarea label="Recommendations" value={fd.artisan_recommendations}
-                onChange={e => set('artisan_recommendations', e.target.value)}
-                rows={2} placeholder="Enter recommendations…" />
+              <PredictiveInput
+                label="Recommendations"
+                historyKey="bd_recommendations"
+                value={fd.artisan_recommendations}
+                onChange={v => set('artisan_recommendations', v)}
+                multiline rows={2}
+                placeholder="Enter recommendations…"
+                hints={['Schedule preventive maintenance', 'Replace worn components', 'Monitor closely for next 48 hours', 'Train operators on correct usage', 'Order spare parts']}
+              />
             </div>
           </div>
         )}
@@ -974,6 +1004,7 @@ const BreakdownsPage = () => {
   const [formOpen, setFormOpen] = useState(false);
   const [selectedBd, setSelectedBd] = useState<Breakdown | null>(null);
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create');
+  const [deleteTarget, setDeleteTarget] = useState<Breakdown | null>(null);
 
   const collapse = usePageCollapse({ hero: false, filters: false, records: false });
 
@@ -1072,11 +1103,15 @@ const BreakdownsPage = () => {
     if (!bd.id) { toast.error('Invalid breakdown ID'); return; }
     setSelectedBd(bd); setFormMode('edit'); setFormOpen(true);
   };
-  const handleDelete = async (bd: Breakdown) => {
+  const handleDelete = (bd: Breakdown) => {
     if (!bd.id) { toast.error('Invalid breakdown ID'); return; }
-    if (!window.confirm(`Delete breakdown for "${bd.machine_name}"? This cannot be undone.`)) return;
+    setDeleteTarget(bd);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget?.id) return;
     try {
-      await deleteBreakdown(bd.id);
+      await deleteBreakdown(deleteTarget.id);
       toast.success('Breakdown deleted');
       await loadBreakdowns();
     } catch (e: unknown) { toast.error(e instanceof Error ? e.message : 'Delete failed'); }
@@ -1327,6 +1362,14 @@ const BreakdownsPage = () => {
         onSubmit={handleFormSubmit}
         initialData={selectedBd}
         mode={formMode}
+      />
+
+      <DeleteDialog
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onDelete={confirmDelete}
+        title="Delete Breakdown"
+        description={`Delete the breakdown record for "${deleteTarget?.machine_name}" on ${deleteTarget?.breakdown_date}? This cannot be undone.`}
       />
     </PageShell>
   );

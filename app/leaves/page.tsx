@@ -2,7 +2,11 @@
 'use client';
 
 import { PageShell } from '@/components/PageShell';
-import { fmtDate as formatDate, fmtDateTime as formatDateTime, initials as getInitials, calcDays as calculateDays } from '@/components/shared';
+import {
+  fmtDate as formatDate, fmtDateTime as formatDateTime,
+  initials as getInitials, calcDays as calculateDays,
+  DownloadButton, type DLColumn,
+} from '@/components/shared';
 
 import React, { useState, useMemo, useEffect } from "react";
 import {
@@ -1023,6 +1027,24 @@ const LeaveDetailsModal = ({ leave, onClose, onEdit, onDelete, onStatusUpdate }:
   );
 };
 
+// ─── Download column definitions ─────────────────────────────────────────────
+const LEAVE_DL_COLS: DLColumn[] = [
+  { key: 'employee_name',  label: 'Employee' },
+  { key: 'employee_id',    label: 'Employee ID' },
+  { key: 'department',     label: 'Department',  format: v => String(v ?? '—') },
+  { key: 'position',       label: 'Position',    format: v => String(v ?? '—') },
+  { key: 'leave_type',     label: 'Leave Type',  format: v => LEAVE_TYPES[String(v)]?.name ?? String(v) },
+  { key: 'start_date',     label: 'Start Date' },
+  { key: 'end_date',       label: 'End Date' },
+  { key: 'total_days',     label: 'Days',        format: v => `${v} day${Number(v) === 1 ? '' : 's'}` },
+  { key: 'status',         label: 'Status',      format: v => String(v).charAt(0).toUpperCase() + String(v).slice(1) },
+  { key: 'reason',         label: 'Reason',      format: v => String(v ?? '') },
+  { key: 'contact_number', label: 'Contact No.', format: v => String(v ?? '') },
+  { key: 'handover_to',    label: 'Handover To', format: v => String(v ?? '') },
+  { key: 'applied_date',   label: 'Applied',     format: v => v ? new Date(String(v)).toLocaleDateString('en-GB') : '' },
+  { key: 'manager_name',   label: 'Manager',     format: v => String(v ?? '') },
+];
+
 // ============= Main Component =============
 export default function LeaveManagementPage() {
   const [leaves, setLeaves] = useState<Leave[]>([]);
@@ -1049,10 +1071,12 @@ export default function LeaveManagementPage() {
     total_days_requested: 0,
     average_days: 0
   });
-  const [showHeroStats, setShowHeroStats] = useState(true);
-  const [showTypeSummary, setShowTypeSummary] = useState(true);
-  const [showEmployeeSummary, setShowEmployeeSummary] = useState(true);
-  const [filterPanelMinimized, setFilterPanelMinimized] = useState(false);
+  // All summary/filter panels start COLLAPSED — user expands what they need
+  const [showHeroStats,        setShowHeroStats]        = useState(false);
+  const [showTypeSummary,      setShowTypeSummary]      = useState(false);
+  const [showEmployeeSummary,  setShowEmployeeSummary]  = useState(false);
+  const [filterPanelMinimized, setFilterPanelMinimized] = useState(true);
+  // Records panel starts OPEN — it's the primary thing to work with
   const [recordsPanelMinimized, setRecordsPanelMinimized] = useState(false);
 
 
@@ -1094,8 +1118,30 @@ export default function LeaveManagementPage() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchAllData();
-    const interval = setInterval(fetchAllData, 30000);
-    return () => clearInterval(interval);
+
+    // Only poll while the tab is visible — saves backend load when idle
+    let interval: ReturnType<typeof setInterval> | null = null;
+
+    function startPolling() {
+      interval = setInterval(() => {
+        if (document.visibilityState === 'visible') fetchAllData();
+      }, 30000);
+    }
+    function handleVisibility() {
+      if (document.visibilityState === 'visible') {
+        fetchAllData();        // immediate refresh on tab focus
+        if (!interval) startPolling();
+      } else {
+        if (interval) { clearInterval(interval); interval = null; }
+      }
+    }
+
+    startPolling();
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      if (interval) clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, []);
 
   const handleFormSuccess = (message: string) => {
@@ -1470,6 +1516,25 @@ export default function LeaveManagementPage() {
               />
             </div>
             <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+              <DownloadButton
+                data={filteredLeaves as unknown as Record<string, unknown>[]}
+                columns={LEAVE_DL_COLS}
+                filename={[
+                  'Leaves',
+                  searchTerm || null,
+                  filter !== 'all' ? filter : null,
+                  typeFilter !== 'all' ? typeFilter : null,
+                  dateFrom || null,
+                  dateTo ? `to_${dateTo}` : null,
+                ].filter(Boolean).join('_')}
+                title="Leave Records"
+                subtitle={[
+                  searchTerm && `Employee: ${searchTerm}`,
+                  filter !== 'all' && `Status: ${filter}`,
+                  typeFilter !== 'all' && `Type: ${typeFilter}`,
+                  (dateFrom || dateTo) && `${dateFrom || 'any'} → ${dateTo || 'any'}`,
+                ].filter(Boolean).join(' | ') || 'All records'}
+              />
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}

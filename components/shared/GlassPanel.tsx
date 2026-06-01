@@ -4,24 +4,17 @@ import { useState, type ReactNode, type ElementType } from 'react';
 import { ChevronUp, ChevronDown } from 'lucide-react';
 
 interface GlassPanelProps {
-  /** oz-glass-dark (hero-style) or oz-glass-panel (secondary panels) */
   variant?: 'dark' | 'panel';
   icon?: ElementType;
   title?: string;
-  /** Small count shown after title, e.g. "12 records" */
   count?: string | number;
-  /** Inline badge element next to the title (e.g. "Active" pill) */
   badge?: ReactNode;
-  /** Action buttons shown in the header before the collapse toggle */
   actions?: ReactNode;
   children: ReactNode;
   defaultOpen?: boolean;
   className?: string;
-  /** Class applied to the content wrapper div */
   contentClassName?: string;
-  /** Controlled open state — provided by usePageCollapse().panel(key) */
   open?: boolean;
-  /** Called when the toggle button is clicked in controlled mode */
   onToggle?: () => void;
 }
 
@@ -40,11 +33,9 @@ export function GlassPanel({
   onToggle,
 }: GlassPanelProps) {
   const [internalOpen, setInternalOpen] = useState(defaultOpen);
-  // If caller passes open/onToggle, use those; otherwise manage state internally
   const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
   const handleToggle = onToggle ?? (() => setInternalOpen(v => !v));
   const base = variant === 'dark' ? 'oz-glass-dark' : 'oz-glass-panel';
-
   const hasHeader = Icon || title || actions || badge || count !== undefined;
 
   return (
@@ -71,14 +62,20 @@ export function GlassPanel({
               onClick={handleToggle}
               className="h-9 w-9 sm:h-7 sm:w-7 flex items-center justify-center rounded-md bg-white/[0.07] hover:bg-white/[0.15] text-white/50 border border-white/12 transition-all"
             >
-              {open ? <ChevronUp className="h-3.5 w-3.5 sm:h-3 sm:w-3" /> : <ChevronDown className="h-3.5 w-3.5 sm:h-3 sm:w-3" />}
+              {open
+                ? <ChevronUp   className="h-3.5 w-3.5 sm:h-3 sm:w-3" />
+                : <ChevronDown className="h-3.5 w-3.5 sm:h-3 sm:w-3" />}
             </button>
           </div>
         </div>
       )}
-      {open && (
-        <div className={contentClassName}>{children}</div>
-      )}
+
+      {/* CSS-grid smooth expand / collapse */}
+      <div className={`oz-panel-body ${open ? 'oz-panel-body--open' : ''}`}>
+        <div className={`oz-panel-inner ${contentClassName}`}>
+          {children}
+        </div>
+      </div>
     </div>
   );
 }

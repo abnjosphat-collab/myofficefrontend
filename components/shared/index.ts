@@ -31,3 +31,7 @@ export { usePageCollapse } from './usePageCollapse';
 export type { PageCollapseState } from './usePageCollapse';
 export { PhotoUpload } from './PhotoUpload';
 export type { PhotoUploadProps } from './PhotoUpload';
+export { EmployeeNameInput } from './EmployeeNameInput';
+export type { EmployeeNameInputProps, EmployeeRecord } from './EmployeeNameInput';
+export { PredictiveInput } from './PredictiveInput';
+export type { PredictiveInputProps } from './PredictiveInput';

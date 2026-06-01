@@ -52,39 +52,79 @@ export function DownloadButton({
     const wb = new ExcelJS.Workbook();
     wb.creator = 'Ozech MyOffice';
     wb.created = new Date();
-    const ws = wb.addWorksheet(title ?? filename, { views: [{ state: 'frozen', ySplit: 1 }] });
+    const ws = wb.addWorksheet(title ?? filename);
 
+    // ── Optional title + subtitle rows ────────────────────────────────────
+    let headerRowNum = 1;
+
+    if (title) {
+      const titleRow = ws.addRow([title]);
+      titleRow.height = 26;
+      const tc = titleRow.getCell(1);
+      tc.font = { bold: true, size: 14, color: { argb: 'FF2A4D69' }, name: 'Calibri' };
+      ws.mergeCells(1, 1, 1, columns.length);
+      headerRowNum++;
+    }
+    if (subtitle) {
+      const subRow = ws.addRow([subtitle]);
+      subRow.height = 16;
+      subRow.getCell(1).font = { size: 9, color: { argb: 'FF6B7B8E' }, italic: true, name: 'Calibri' };
+      ws.mergeCells(headerRowNum, 1, headerRowNum, columns.length);
+      headerRowNum++;
+    }
+    if (title || subtitle) {
+      ws.addRow([]);   // blank spacer
+      headerRowNum++;
+    }
+
+    // ── Column definitions ─────────────────────────────────────────────────
     ws.columns = columns.map(c => ({
-      header: c.label, key: c.key,
-      width: c.width ?? Math.max(c.label.length + 4, 16),
+      header: c.label,
+      key:    c.key,
+      width:  c.width ?? Math.max(c.label.length + 6, 18),
     }));
 
-    const headerRow = ws.getRow(1);
-    headerRow.height = 22;
-    headerRow.eachCell(cell => {
-      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2A4D69' } };
-      cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11, name: 'Calibri' };
-      cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: false };
-      cell.border = { bottom: { style: 'medium', color: { argb: 'FF86BBD8' } } };
+    // ── Header row styling ─────────────────────────────────────────────────
+    const hdr = ws.getRow(headerRowNum);
+    hdr.height = 24;
+    hdr.eachCell(cell => {
+      cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2A4D69' } };
+      cell.font      = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11, name: 'Calibri' };
+      cell.alignment = { horizontal: 'center', vertical: 'middle' };
+      cell.border    = {
+        top:    { style: 'thin',   color: { argb: 'FF1A3650' } },
+        bottom: { style: 'medium', color: { argb: 'FF86BBD8' } },
+      };
     });
 
+    ws.views = [{ state: 'frozen', ySplit: headerRowNum }];
+
+    // ── Data rows — readable light-mode two-tone ───────────────────────────
     data.forEach((row, i) => {
       const values: Record<string, string> = {};
       columns.forEach(c => { values[c.key] = getVal(row, c); });
       const exRow = ws.addRow(values);
       exRow.height = 18;
+      const bg = i % 2 === 0 ? 'FFFFFFFF' : 'FFEFF6FA';  // white / very-light-blue
       exRow.eachCell(cell => {
-        if (i % 2 === 1) {
-          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0D1F2E' } };
-        }
-        cell.font = { color: { argb: 'FFD0D8E0' }, size: 10, name: 'Calibri' };
+        cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: bg } };
+        cell.font      = { color: { argb: 'FF1A2F44' }, size: 10, name: 'Calibri' };  // dark navy — readable on any bg
         cell.alignment = { vertical: 'middle' };
+        cell.border    = { bottom: { style: 'hair', color: { argb: 'FFCDDDE8' } } };
       });
     });
 
+    // ── Footer metadata ────────────────────────────────────────────────────
+    ws.addRow([]);
+    const footer = ws.addRow([
+      `Generated ${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })} · ${data.length} record${data.length !== 1 ? 's' : ''} · Ozech MyOffice`,
+    ]);
+    footer.getCell(1).font = { size: 8, color: { argb: 'FF9BAAB8' }, italic: true, name: 'Calibri' };
+    ws.mergeCells(footer.number, 1, footer.number, columns.length);
+
     ws.autoFilter = {
-      from: { row: 1, column: 1 },
-      to: { row: 1, column: columns.length },
+      from: { row: headerRowNum, column: 1 },
+      to:   { row: headerRowNum, column: columns.length },
     };
 
     const buf = await wb.xlsx.writeBuffer();

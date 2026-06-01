@@ -5,7 +5,7 @@ import {
   Shield, RefreshCw, TrendingUp, TrendingDown, AlertTriangle, CheckCircle,
   Target, Eye, ClipboardList, ClipboardCheck, Ban, ExternalLink, ChevronRight, MessageSquare,
   Activity, FileSearch, BarChart3, ChevronsDown, ChevronsUp, Calendar,
-  Clock, Zap, Bell, ChevronDown, ChevronUp,
+  Clock, Zap, Bell, ChevronDown, ChevronUp, HeartHandshake,
 } from 'lucide-react';
 import { usePageCollapse, MasterCollapseButton } from '@/components/shared';
 import Link from 'next/link';
@@ -15,16 +15,17 @@ import { safetyFetch, glassInput } from '@/components/safety';
 
 // ─── PALETTE ─────────────────────────────────────────────────────────────────
 const C = {
-  nm:   '#f59e0b',   // amber  — Near Miss
-  ws:   '#f43f5e',   // rose   — Work Stoppage
-  vfl:  '#10b981',   // emerald— VFL
-  pto:  '#818cf8',   // indigo — PTO
-  insp: '#06b6d4',   // cyan   — SHEQ Inspections
-  done: '#34d399',   // green  — completed
-  prog: '#60a5fa',   // blue   — in progress
-  pend: '#fbbf24',   // yellow — pending
-  high: '#ef4444',   // red    — high risk / danger
-  safe: '#10b981',   // green  — safe
+  nm:   '#f59e0b',   // amber   — Near Miss
+  ws:   '#f43f5e',   // rose    — Work Stoppage
+  vfl:  '#10b981',   // emerald — VFL
+  pto:  '#818cf8',   // indigo  — PTO
+  insp: '#06b6d4',   // cyan    — SHEQ Inspections
+  pach: '#a855f7',   // purple  — Pachedu behavioural observations
+  done: '#34d399',   // green   — completed
+  prog: '#60a5fa',   // blue    — in progress
+  pend: '#fbbf24',   // yellow  — pending
+  high: '#ef4444',   // red     — high risk / danger
+  safe: '#10b981',   // green   — safe
 };
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
@@ -39,16 +40,17 @@ interface WSStats   { total: number; actDone: number; actPend: number; actProg: 
 interface VFLStats  { total: number; safe: number; unsafe: number; draft: number; submitted: number; closed: number; actDone: number; actPend: number; actProg: number; actTotal: number; }
 interface PTOStats  { total: number; highRisk: number; initial: number; followup: number; actDone: number; actPend: number; actProg: number; actTotal: number; }
 interface InspStats { total: number; draft: number; submitted: number; approved: number; rejected: number; openFindings: number; closedFindings: number; criticalFindings: number; overdueFindings: number; }
+interface PachStats { total: number; intentional: number; unintentional: number; draft: number; submitted: number; reviewed: number; closed: number; }
 interface Totals    { totalReports: number; totalActions: number; totalActionsDone: number; totalActionsProg: number; totalActionsPend: number; }
 
 interface ComputedStats {
-  nm: NMStats; ws: WSStats; vfl: VFLStats; pto: PTOStats; insp: InspStats;
+  nm: NMStats; ws: WSStats; vfl: VFLStats; pto: PTOStats; insp: InspStats; pach: PachStats;
   totals: Totals; safetyScore: number;
   months: MonthBucket[];
-  moduleMonthly: { nm: number[]; ws: number[]; vfl: number[]; pto: number[]; insp: number[] };
+  moduleMonthly: { nm: number[]; ws: number[]; vfl: number[]; pto: number[]; insp: number[]; pach: number[] };
 }
 
-interface RawData { nm: any[]; ws: any[]; vfl: any[]; pto: any[]; insp: any[]; }
+interface RawData { nm: any[]; ws: any[]; vfl: any[]; pto: any[]; insp: any[]; pach: any[]; }
 interface Comment  { id: string; text: string; author: string; ts: string; }
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
@@ -105,11 +107,12 @@ async function fetchAllModules(): Promise<RawData> {
     safetyFetch<any[]>('/api/vfl/'),
     safetyFetch<any[]>('/api/pto/'),
     safetyFetch<any[]>('/sheq/'),
+    safetyFetch<any[]>('/api/pachedu/'),
   ]);
-  const [nm, ws, vfl, pto, insp] = settled.map(r =>
+  const [nm, ws, vfl, pto, insp, pach] = settled.map(r =>
     r.status === 'fulfilled' && Array.isArray(r.value) ? r.value : []
   );
-  return { nm, ws, vfl, pto, insp };
+  return { nm, ws, vfl, pto, insp, pach };
 }
 
 // ─── STATS COMPUTATION ────────────────────────────────────────────────────────
@@ -125,6 +128,13 @@ function computeStats(raw: RawData, from: Date | null, to: Date | null): Compute
   const ws   = filterByRange(raw.ws,   'ws',  from, to);
   const vfl  = filterByRange(raw.vfl,  'vfl', from, to);
   const pto  = filterByRange(raw.pto,  'pto', from, to);
+  const pach = (raw.pach || []).filter(r => {
+    const d = r.date ? new Date(r.date) : (r.created_at ? new Date(r.created_at) : null);
+    if (!d || isNaN(d.getTime())) return true;
+    if (from && d < from) return false;
+    if (to   && d > to)   return false;
+    return true;
+  });
   const insp = (raw.insp || []).filter(r => {
     const d = r.date ? new Date(r.date) : (r.createdAt ? new Date(r.createdAt) : null);
     if (!d || isNaN(d.getTime())) return true;
@@ -180,12 +190,21 @@ function computeStats(raw: RawData, from: Date | null, to: Date | null): Compute
   const inspCritical       = allFindings.filter((f: any) => f.priority === 'critical').length;
   const inspOverdue        = allFindings.filter((f: any) => f.status === 'overdue').length;
 
+  // Pachedu
+  const pachTotal         = pach.length;
+  const pachIntentional   = pach.filter(r => r.behaviourType === 'Intentional').length;
+  const pachUnintentional = pach.filter(r => r.behaviourType === 'Unintentional').length;
+  const pachDraft         = pach.filter(r => r.status === 'draft').length;
+  const pachSubmitted     = pach.filter(r => r.status === 'submitted').length;
+  const pachReviewed      = pach.filter(r => r.status === 'reviewed').length;
+  const pachClosed        = pach.filter(r => r.status === 'closed').length;
+
   // Totals
   const totalActionsPend = wsActPend + vflActPend + ptoActPend;
   const totalActionsProg = wsActProg + vflActProg + ptoActProg;
   const totalActionsDone = wsActDone + vflActDone + ptoActDone;
   const totalActions     = totalActionsPend + totalActionsProg + totalActionsDone;
-  const totalReports     = nmTotal + wsTotal + vflTotal + ptoTotal + inspTotal;
+  const totalReports     = nmTotal + wsTotal + vflTotal + ptoTotal + inspTotal + pachTotal;
 
   // Safety score
   const nmScore   = nmTotal   ? ((nmClosed || nmTotal - nmOpen) / nmTotal) * 100 : 100;
@@ -193,7 +212,9 @@ function computeStats(raw: RawData, from: Date | null, to: Date | null): Compute
   const ptoScore  = ptoTotal  ? ((ptoTotal - ptoHighRisk) / ptoTotal) * 100 : 100;
   const actScore  = totalActions ? (totalActionsDone / totalActions) * 100 : 100;
   const inspScore = inspTotal ? (inspApproved / inspTotal) * 100 : 100;
-  const safetyScore = Math.round((nmScore + vflScore + ptoScore + actScore + inspScore) / 5);
+  // Pachedu: closed + reviewed counts as resolved
+  const pachScore = pachTotal ? ((pachClosed + pachReviewed) / pachTotal) * 100 : 100;
+  const safetyScore = Math.round((nmScore + vflScore + ptoScore + actScore + inspScore + pachScore) / 6);
 
   // Monthly buckets — driven by selected range
   const now = new Date();
@@ -201,7 +222,7 @@ function computeStats(raw: RawData, from: Date | null, to: Date | null): Compute
     const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
     return { label: d.toLocaleDateString('en-US', { month: 'short' }), year: d.getFullYear(), month: d.getMonth(), count: 0 };
   });
-  [...nm, ...ws, ...vfl, ...pto, ...insp].forEach(r => {
+  [...nm, ...ws, ...vfl, ...pto, ...insp, ...pach].forEach(r => {
     const ds = r.submittedAt || r.created_at || r.date || r.createdAt;
     if (!ds) return;
     const d = new Date(ds);
@@ -216,12 +237,20 @@ function computeStats(raw: RawData, from: Date | null, to: Date | null): Compute
     return d.getFullYear() === m.year && d.getMonth() === m.month;
   }).length);
 
+  const pachMonthly = months.map(m => pach.filter(r => {
+    const ds = r.date || r.created_at;
+    if (!ds) return false;
+    const d = new Date(ds);
+    return d.getFullYear() === m.year && d.getMonth() === m.month;
+  }).length);
+
   return {
     nm:   { total: nmTotal, open: nmOpen, closed: nmClosed, high: nmHigh },
     ws:   { total: wsTotal, actDone: wsActDone, actPend: wsActPend, actProg: wsActProg, actTotal: wsActions.length },
     vfl:  { total: vflTotal, safe: vflSafe, unsafe: vflUnsafe, draft: vflDraft, submitted: vflSubmitted, closed: vflClosed, actDone: vflActDone, actPend: vflActPend, actProg: vflActProg, actTotal: vflActions.length },
     pto:  { total: ptoTotal, highRisk: ptoHighRisk, initial: ptoInitial, followup: ptoFollowup, actDone: ptoActDone, actPend: ptoActPend, actProg: ptoActProg, actTotal: ptoActions.length },
     insp: { total: inspTotal, draft: inspDraft, submitted: inspSubmitted, approved: inspApproved, rejected: inspRejected, openFindings: inspOpenFindings, closedFindings: inspClosedFindings, criticalFindings: inspCritical, overdueFindings: inspOverdue },
+    pach: { total: pachTotal, intentional: pachIntentional, unintentional: pachUnintentional, draft: pachDraft, submitted: pachSubmitted, reviewed: pachReviewed, closed: pachClosed },
     totals: { totalReports, totalActions, totalActionsDone, totalActionsProg, totalActionsPend },
     safetyScore,
     months,
@@ -231,6 +260,7 @@ function computeStats(raw: RawData, from: Date | null, to: Date | null): Compute
       vfl:  buildMonthly(vfl, 'vfl', months),
       pto:  buildMonthly(pto, 'pto', months),
       insp: inspMonthly,
+      pach: pachMonthly,
     },
   };
 }
@@ -573,12 +603,36 @@ const QUICK_OPTIONS: { key: QuickRange | 'custom'; label: string }[] = [
 
 // ─── MAIN PAGE ────────────────────────────────────────────────────────────────
 export default function SHEQDashboardPage() {
-  const sections = usePageCollapse({ score: false, modules: false, analytics: false, actions: false, notes: false });
-  const [raw,         setRaw]         = useState<RawData>({ nm: [], ws: [], vfl: [], pto: [], insp: [] });
+  const sections = usePageCollapse({ weekly: false, score: false, modules: false, analytics: false, actions: false, notes: false, ai: false });
+  const [raw,         setRaw]         = useState<RawData>({ nm: [], ws: [], vfl: [], pto: [], insp: [], pach: [] });
   const [loading,     setLoading]     = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // ── Weekly targets (persisted in localStorage) ──────────────────────────────
+  const DEFAULT_TARGETS = { vfl: 2, pto: 4, insp: 7, pach: 20, nm: 5 } as const;
+  type ModuleKey = keyof typeof DEFAULT_TARGETS;
+
+  const [weeklyTargets, setWeeklyTargets] = useState<Record<ModuleKey, number>>(() => {
+    try {
+      const s = typeof window !== 'undefined' ? localStorage.getItem('sheq_weekly_targets') : null;
+      return s ? { ...DEFAULT_TARGETS, ...JSON.parse(s) } : { ...DEFAULT_TARGETS };
+    } catch { return { ...DEFAULT_TARGETS }; }
+  });
+  const [editingTargets, setEditingTargets] = useState(false);
+  const [targetDraft,    setTargetDraft]    = useState({ ...DEFAULT_TARGETS } as Record<ModuleKey, number>);
+
+  function saveTargets() {
+    setWeeklyTargets({ ...targetDraft });
+    localStorage.setItem('sheq_weekly_targets', JSON.stringify(targetDraft));
+    setEditingTargets(false);
+  }
+
+  // AI analysis state
+  const [aiResult,    setAiResult]    = useState<Record<string, any> | null>(null);
+  const [aiLoading,   setAiLoading]   = useState(false);
+  const [aiError,     setAiError]     = useState('');
 
   // Filters
   const [quickRange,  setQuickRange]  = useState<QuickRange | 'custom'>('all');
@@ -597,6 +651,72 @@ export default function SHEQDashboardPage() {
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  const API_BASE = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000').replace(/\/$/, '');
+
+  const runAiAnalysis = useCallback(async () => {
+    setAiLoading(true);
+    setAiError('');
+    try {
+      const res = await fetch(`${API_BASE}/api/ai/safety-analysis`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          near_miss:    raw.nm,
+          work_stoppage: raw.ws,
+          vfl:          raw.vfl,
+          pto:          raw.pto,
+          inspections:  raw.insp,
+          pachedu:      raw.pach,
+          period_label: quickRange === 'all' ? 'all time' : quickRange,
+        }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      setAiResult(await res.json());
+      if (!sections.expanded.ai) sections.toggle('ai');
+    } catch (e) {
+      setAiError(`Analysis failed: ${(e as Error).message}`);
+    } finally {
+      setAiLoading(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [raw, quickRange]);
+
+  // ── Weekly actuals — records created Mon–Sun this calendar week ────────────
+  const weeklyActuals = useMemo(() => {
+    const now   = new Date();
+    const day   = now.getDay(); // 0 = Sun
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - (day === 0 ? 6 : day - 1));
+    monday.setHours(0, 0, 0, 0);
+
+    const inWeek = (r: any): boolean => {
+      const ds = r.date || r.submittedAt || r.created_at || r.createdAt || '';
+      if (!ds) return false;
+      const d = new Date(ds);
+      return !isNaN(d.getTime()) && d >= monday;
+    };
+
+    return {
+      vfl:  raw.vfl.filter(inWeek).length,
+      pto:  raw.pto.filter(inWeek).length,
+      insp: raw.insp.filter(inWeek).length,
+      pach: raw.pach.filter(inWeek).length,
+      nm:   raw.nm.filter(inWeek).length,
+    } as Record<ModuleKey, number>;
+  }, [raw]);
+
+  // Week label e.g. "Mon 26 May – Sun 1 Jun 2026"
+  const weekLabel = useMemo(() => {
+    const now    = new Date();
+    const day    = now.getDay();
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - (day === 0 ? 6 : day - 1));
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    const fmt = (d: Date) => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    return `${fmt(monday)} – ${fmt(sunday)} ${sunday.getFullYear()}`;
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -755,6 +875,159 @@ export default function SHEQDashboardPage() {
               ))}
             </div>
 
+            {/* ── WEEKLY PERFORMANCE vs TARGET ── */}
+            <CollapsibleSection
+              title="Weekly Performance vs Target"
+              icon={<Target size={15} />}
+              sub={`Week of ${weekLabel} · click a target to edit`}
+              accent="#a855f7"
+              open={sections.expanded.weekly}
+              onToggle={() => sections.toggle('weekly')}
+            >
+              {/* Target edit toolbar */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 14, gap: 8 }}>
+                {editingTargets ? (
+                  <>
+                    <button type="button" onClick={() => setEditingTargets(false)}
+                      style={{ fontSize: 11, padding: '5px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.55)', cursor: 'pointer' }}>
+                      Cancel
+                    </button>
+                    <button type="button" onClick={saveTargets}
+                      style={{ fontSize: 11, padding: '5px 14px', borderRadius: 8, background: '#a855f7', border: '1px solid rgba(168,85,247,0.5)', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
+                      Save Targets
+                    </button>
+                  </>
+                ) : (
+                  <button type="button" onClick={() => { setTargetDraft({ ...weeklyTargets }); setEditingTargets(true); }}
+                    style={{ fontSize: 11, padding: '5px 12px', borderRadius: 8, background: 'rgba(168,85,247,0.12)', border: '1px solid rgba(168,85,247,0.28)', color: '#a855f7', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
+                    ✎ Edit Targets
+                  </button>
+                )}
+              </div>
+
+              {/* Rows */}
+              {([
+                { key: 'vfl',  label: 'VFL Observations',  color: C.vfl,  icon: <Eye size={15} />,           href: '/vfl' },
+                { key: 'pto',  label: 'PTO Reports',        color: C.pto,  icon: <ClipboardList size={15} />, href: '/pto' },
+                { key: 'insp', label: 'Inspections',        color: C.insp, icon: <ClipboardCheck size={15} />,href: '/sheq_inspection' },
+                { key: 'pach', label: 'Pachedu',            color: C.pach, icon: <HeartHandshake size={15} />,href: '/pachedu' },
+                { key: 'nm',   label: 'Near Miss',          color: C.nm,   icon: <AlertTriangle size={15} />, href: '/near_miss' },
+              ] as { key: ModuleKey; label: string; color: string; icon: React.ReactNode; href: string }[]).map(({ key, label, color, icon, href }) => {
+                const actual   = weeklyActuals[key] ?? 0;
+                const target   = weeklyTargets[key] ?? 1;
+                const pct      = Math.min(Math.round((actual / target) * 100), 100);
+                const overflow = actual > target;
+                const barColor = overflow
+                  ? C.safe
+                  : pct >= 80  ? '#60a5fa'
+                  : pct >= 50  ? C.nm
+                  : C.high;
+                const statusLabel = overflow
+                  ? 'Exceeded ✓'
+                  : pct >= 100 ? 'On Target ✓'
+                  : pct >= 80  ? 'Almost'
+                  : pct >= 50  ? 'In Progress'
+                  : actual === 0 ? 'Not Started'
+                  : 'Below Target';
+                const statusColor = overflow || pct >= 100 ? C.safe : pct >= 80 ? '#60a5fa' : pct >= 50 ? C.nm : C.high;
+
+                return (
+                  <div key={key} style={{ display: 'grid', gridTemplateColumns: '28px 1fr 80px 90px 80px', alignItems: 'center', gap: 14, padding: '12px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                    {/* Icon */}
+                    <div style={{ color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{icon}</div>
+
+                    {/* Label + bar */}
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
+                        <Link href={href} style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.85)', textDecoration: 'none' }}>{label}</Link>
+                      </div>
+                      <div style={{ height: 7, borderRadius: 999, background: 'rgba(255,255,255,0.07)', overflow: 'hidden', position: 'relative' }}>
+                        <div style={{
+                          height: '100%', borderRadius: 999,
+                          width: `${pct}%`,
+                          background: `linear-gradient(90deg, ${barColor}99, ${barColor})`,
+                          transition: 'width 0.8s cubic-bezier(0.16,1,0.3,1)',
+                          boxShadow: pct > 0 ? `0 0 8px ${barColor}66` : 'none',
+                        }} />
+                      </div>
+                    </div>
+
+                    {/* Actual / Target */}
+                    <div style={{ textAlign: 'center' }}>
+                      {editingTargets ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'center' }}>
+                          <span style={{ fontSize: 16, fontWeight: 800, color }}>{actual}</span>
+                          <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.30)' }}>/</span>
+                          <input
+                            type="number" min={1} max={999}
+                            value={targetDraft[key]}
+                            onChange={e => setTargetDraft(p => ({ ...p, [key]: Math.max(1, parseInt(e.target.value) || 1) }))}
+                            style={{ width: 44, textAlign: 'center', background: 'rgba(168,85,247,0.15)', border: '1px solid rgba(168,85,247,0.45)', borderRadius: 7, color: '#a855f7', fontSize: 13, fontWeight: 800, padding: '2px 4px', outline: 'none' }}
+                          />
+                        </div>
+                      ) : (
+                        <div>
+                          <div style={{ fontSize: 16, fontWeight: 800, color }}>{actual}</div>
+                          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)' }}>of {target}</div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* % bar */}
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: 20, fontWeight: 900, color: barColor, lineHeight: 1 }}>
+                        {overflow ? `${Math.round((actual / target) * 100)}%` : `${pct}%`}
+                      </div>
+                      <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.30)', marginTop: 2 }}>achievement</div>
+                    </div>
+
+                    {/* Status badge */}
+                    <div style={{ textAlign: 'right' }}>
+                      <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 999, background: statusColor + '20', color: statusColor, border: `1px solid ${statusColor}40` }}>
+                        {statusLabel}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Summary footer */}
+              {(() => {
+                const keys: ModuleKey[] = ['vfl', 'pto', 'insp', 'pach', 'nm'];
+                const met = keys.filter(k => (weeklyActuals[k] ?? 0) >= weeklyTargets[k]).length;
+                const totalTarget = keys.reduce((s, k) => s + weeklyTargets[k], 0);
+                const totalActual = keys.reduce((s, k) => s + (weeklyActuals[k] ?? 0), 0);
+                const overall = Math.min(Math.round((totalActual / totalTarget) * 100), 100);
+                const overallColor = met === keys.length ? C.safe : met >= 3 ? '#60a5fa' : met >= 1 ? C.nm : C.high;
+                return (
+                  <div style={{ marginTop: 16, padding: '14px 18px', background: 'rgba(255,255,255,0.04)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+                    <div>
+                      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.40)', marginBottom: 4 }}>WEEKLY SUMMARY</div>
+                      <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.80)', fontWeight: 600 }}>
+                        <span style={{ color: overallColor, fontWeight: 800, fontSize: 18 }}>{met}</span>
+                        <span style={{ color: 'rgba(255,255,255,0.40)' }}> / {keys.length} modules on target</span>
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginBottom: 4 }}>Total Activities</div>
+                      <div style={{ fontSize: 22, fontWeight: 900, color: overallColor }}>{totalActual} <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.35)', fontWeight: 500 }}>/ {totalTarget}</span></div>
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginBottom: 4 }}>Overall Achievement</div>
+                      <div style={{ fontSize: 28, fontWeight: 900, color: overallColor, lineHeight: 1 }}>{overall}%</div>
+                    </div>
+                    {/* Mini overall bar */}
+                    <div style={{ flex: '1 0 120px', minWidth: 120 }}>
+                      <div style={{ height: 10, borderRadius: 999, background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+                        <div style={{ height: '100%', borderRadius: 999, width: `${overall}%`, background: `linear-gradient(90deg, ${overallColor}88, ${overallColor})`, transition: 'width 0.9s cubic-bezier(0.16,1,0.3,1)', boxShadow: `0 0 10px ${overallColor}55` }} />
+                      </div>
+                      <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.25)', marginTop: 4, textAlign: 'right' }}>{totalActual} completed this week</div>
+                    </div>
+                  </div>
+                );
+              })()}
+            </CollapsibleSection>
+
             {/* ── SCORE + TREND ── */}
             <CollapsibleSection title="Safety Score &amp; Trends" icon={<Shield size={15} />} sub="Weighted safety score across all modules + monthly activity trend" accent={sc} {...sections.panel('score')}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 20 }}>
@@ -896,21 +1169,41 @@ export default function SHEQDashboardPage() {
                 <ModuleCard label="SHEQ Inspections" href="/sheq_inspection" color={C.insp} icon={<ClipboardCheck size={17} />}
                   total={stats.insp.total}
                   donutSegments={[
-                    { value: stats.insp.approved,   color: C.safe,  label: 'Approved' },
-                    { value: stats.insp.submitted,  color: C.insp,  label: 'Submitted' },
+                    { value: stats.insp.approved,   color: C.safe,    label: 'Approved' },
+                    { value: stats.insp.submitted,  color: C.insp,    label: 'Submitted' },
                     { value: stats.insp.draft,      color: '#6b7280', label: 'Draft' },
-                    { value: stats.insp.rejected,   color: C.high,  label: 'Rejected' },
+                    { value: stats.insp.rejected,   color: C.high,    label: 'Rejected' },
                   ]}
                   miniStats={[
-                    { label: 'Approved', value: stats.insp.approved,      color: C.safe },
-                    { label: 'Open Fnds', value: stats.insp.openFindings, color: C.nm },
-                    { label: 'Critical',  value: stats.insp.criticalFindings, color: C.high },
+                    { label: 'Approved',  value: stats.insp.approved,          color: C.safe },
+                    { label: 'Open Fnds', value: stats.insp.openFindings,      color: C.nm },
+                    { label: 'Critical',  value: stats.insp.criticalFindings,  color: C.high },
                   ]}
                   legend={[
                     { label: 'Approved',  value: stats.insp.approved,  color: C.safe },
                     { label: 'Submitted', value: stats.insp.submitted, color: C.insp },
                     { label: 'Draft',     value: stats.insp.draft,     color: '#6b7280' },
                     { label: 'Rejected',  value: stats.insp.rejected,  color: C.high },
+                  ]} />
+
+                <ModuleCard label="Pachedu" href="/pachedu" color={C.pach} icon={<HeartHandshake size={17} />}
+                  total={stats.pach.total}
+                  donutSegments={[
+                    { value: stats.pach.closed,        color: C.safe,    label: 'Closed' },
+                    { value: stats.pach.reviewed,      color: C.pach,    label: 'Reviewed' },
+                    { value: stats.pach.submitted,     color: C.prog,    label: 'Submitted' },
+                    { value: stats.pach.draft,         color: '#6b7280', label: 'Draft' },
+                  ]}
+                  miniStats={[
+                    { label: 'Intentional',   value: stats.pach.intentional,   color: C.nm },
+                    { label: 'Unintentional', value: stats.pach.unintentional, color: C.pach },
+                    { label: 'Closed',        value: stats.pach.closed,        color: C.safe },
+                  ]}
+                  legend={[
+                    { label: 'Closed',    value: stats.pach.closed,    color: C.safe },
+                    { label: 'Reviewed',  value: stats.pach.reviewed,  color: C.pach },
+                    { label: 'Submitted', value: stats.pach.submitted, color: C.prog },
+                    { label: 'Draft',     value: stats.pach.draft,     color: '#6b7280' },
                   ]} />
               </div>
             </CollapsibleSection>
@@ -928,7 +1221,8 @@ export default function SHEQDashboardPage() {
                       { label: 'VFL',        value: stats.vfl.total,  color: C.vfl },
                       { label: 'PTO',        value: stats.pto.total,  color: C.pto },
                       { label: 'Insp.',      value: stats.insp.total, color: C.insp },
-                    ]} height={110} barWidth={44} gap={16} />
+                      { label: 'Pachedu',    value: stats.pach.total, color: C.pach },
+                    ]} height={110} barWidth={40} gap={14} />
                   </div>
                 </div>
 
@@ -972,6 +1266,28 @@ export default function SHEQDashboardPage() {
                       <div style={{ flex: 1 }}>
                         <ProgBar label="Safe Behaviour"   value={stats.vfl.safe}   max={stats.vfl.total} color={C.vfl} sub={`${stats.vfl.safe} of ${stats.vfl.total}`} />
                         <ProgBar label="Unsafe Behaviour" value={stats.vfl.unsafe} max={stats.vfl.total} color={C.high} sub={`${stats.vfl.unsafe} of ${stats.vfl.total}`} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Pachedu Behaviour */}
+                <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 12, padding: '16px 18px' }}>
+                  <SectionHeader icon={<HeartHandshake size={13} />} title="Pachedu Behaviour Breakdown" sub="Intentional vs Unintentional observations" color={C.pach} />
+                  {stats.pach.total === 0 ? <EmptyViz /> : (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 22, justifyContent: 'center' }}>
+                      <DonutChart
+                        segments={[
+                          { value: stats.pach.intentional,   color: C.nm,   label: 'Intentional' },
+                          { value: stats.pach.unintentional, color: C.pach, label: 'Unintentional' },
+                        ]}
+                        size={110} strokeWidth={17}
+                        label={stats.pach.total} sublabel="reports"
+                      />
+                      <div style={{ flex: 1 }}>
+                        <ProgBar label="Intentional"   value={stats.pach.intentional}   max={stats.pach.total} color={C.nm}   sub={`${stats.pach.intentional} of ${stats.pach.total}`} />
+                        <ProgBar label="Unintentional" value={stats.pach.unintentional} max={stats.pach.total} color={C.pach} sub={`${stats.pach.unintentional} of ${stats.pach.total}`} />
+                        <ProgBar label="Resolved (Closed + Reviewed)" value={stats.pach.closed + stats.pach.reviewed} max={stats.pach.total} color={C.safe} sub={`${stats.pach.closed + stats.pach.reviewed} of ${stats.pach.total}`} />
                       </div>
                     </div>
                   )}
@@ -1023,6 +1339,171 @@ export default function SHEQDashboardPage() {
                   </div>
                 ))}
               </div>
+            </CollapsibleSection>
+
+            {/* ── AI SAFETY INSIGHTS ── */}
+            <CollapsibleSection
+              title="AI Safety Insights"
+              icon={<Shield size={15} />}
+              sub="Claude AI analyses your data with Polars and generates prioritised recommendations"
+              accent="#a855f7"
+              open={sections.expanded.ai}
+              onToggle={() => sections.toggle('ai')}
+            >
+              {/* Trigger button */}
+              <div style={{ marginBottom: 18, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  disabled={aiLoading || loading}
+                  onClick={runAiAnalysis}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 8,
+                    padding: '9px 20px', borderRadius: 10, fontSize: 13, fontWeight: 700,
+                    background: aiLoading ? 'rgba(168,85,247,0.15)' : 'linear-gradient(135deg,#6d28d9,#a855f7)',
+                    color: '#fff', border: '1px solid rgba(168,85,247,0.45)',
+                    cursor: aiLoading ? 'not-allowed' : 'pointer', transition: 'all 0.2s',
+                    boxShadow: aiLoading ? 'none' : '0 4px 16px rgba(168,85,247,0.3)',
+                  }}
+                >
+                  {aiLoading
+                    ? <><span style={{ display: 'inline-block', animation: 'spin 1s linear infinite', marginRight: 4, fontSize: 14 }}>⟳</span> Analysing…</>
+                    : <><span style={{ fontSize: 16 }}>✦</span> {aiResult ? 'Re-analyse' : 'Analyse with AI'}</>
+                  }
+                </button>
+                {aiResult && (
+                  <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)' }}>
+                    {aiResult._records_analysed} records · model: {aiResult._source}
+                  </span>
+                )}
+                {aiError && (
+                  <span style={{ fontSize: 11, color: '#f87171', background: 'rgba(248,113,113,0.10)', padding: '4px 10px', borderRadius: 8 }}>
+                    {aiError}
+                  </span>
+                )}
+              </div>
+
+              {aiResult && !aiLoading && (() => {
+                const riskColors: Record<string, string> = { low: C.safe, medium: C.pend, high: C.nm, critical: C.high };
+                const priorityColors: Record<string, string> = { immediate: C.high, short_term: C.nm, long_term: C.prog };
+                const sevColor = (s: string) => riskColors[s] ?? '#60a5fa';
+
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+                    {/* Risk header */}
+                    <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+                      <div style={{ flex: 2, minWidth: 200, background: 'rgba(255,255,255,0.04)', borderRadius: 12, padding: '14px 18px' }}>
+                        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.40)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 1 }}>Executive Summary</div>
+                        <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.82)', lineHeight: 1.65 }}>{aiResult.summary}</p>
+                      </div>
+                      <div style={{ minWidth: 140, background: 'rgba(255,255,255,0.04)', borderRadius: 12, padding: '14px 18px', textAlign: 'center' }}>
+                        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.40)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 1 }}>Risk Level</div>
+                        <div style={{ fontSize: 32, fontWeight: 900, color: sevColor(aiResult.overall_risk), lineHeight: 1 }}>{aiResult.risk_score}</div>
+                        <div style={{ fontSize: 11, marginTop: 4, fontWeight: 700, textTransform: 'uppercase', color: sevColor(aiResult.overall_risk) }}>{aiResult.overall_risk}</div>
+                        {/* Mini gauge */}
+                        <div style={{ marginTop: 10, height: 6, borderRadius: 999, background: 'rgba(255,255,255,0.07)' }}>
+                          <div style={{ height: '100%', borderRadius: 999, width: `${aiResult.risk_score}%`, background: `linear-gradient(90deg, ${sevColor(aiResult.overall_risk)}99, ${sevColor(aiResult.overall_risk)})`, transition: 'width 0.8s' }} />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Problem Areas */}
+                    {(aiResult.problem_areas ?? []).length > 0 && (
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.55)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.8 }}>⚠ Problem Areas</div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 10 }}>
+                          {(aiResult.problem_areas as any[]).map((p: any, i: number) => (
+                            <div key={i} style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: '12px 14px', borderLeft: `3px solid ${sevColor(p.severity)}` }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                                <span style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.88)' }}>{p.title}</span>
+                                <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 999, background: sevColor(p.severity) + '22', color: sevColor(p.severity), border: `1px solid ${sevColor(p.severity)}44` }}>{p.severity?.toUpperCase()}</span>
+                              </div>
+                              <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', lineHeight: 1.55, margin: '0 0 6px' }}>{p.description}</p>
+                              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                {p.module && <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', background: 'rgba(255,255,255,0.06)', padding: '2px 7px', borderRadius: 6 }}>{p.module}</span>}
+                                {p.location_or_dept && <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', background: 'rgba(255,255,255,0.06)', padding: '2px 7px', borderRadius: 6 }}>📍 {p.location_or_dept}</span>}
+                                {p.count > 0 && <span style={{ fontSize: 10, color: C.nm, background: C.nm + '15', padding: '2px 7px', borderRadius: 6 }}>{p.count} incidents</span>}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Recommendations */}
+                    {(aiResult.recommendations ?? []).length > 0 && (
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.55)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.8 }}>✅ Recommendations</div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          {(aiResult.recommendations as any[]).map((r: any, i: number) => {
+                            const pc = priorityColors[r.priority] ?? '#60a5fa';
+                            return (
+                              <div key={i} style={{ display: 'flex', gap: 12, background: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: '10px 14px' }}>
+                                <div style={{ width: 70, flexShrink: 0, fontSize: 9, fontWeight: 800, padding: '3px 0', textAlign: 'center', borderRadius: 7, background: pc + '20', color: pc, border: `1px solid ${pc}40`, textTransform: 'uppercase', letterSpacing: 0.5, alignSelf: 'flex-start', marginTop: 2 }}>{r.priority?.replace('_', ' ')}</div>
+                                <div style={{ flex: 1 }}>
+                                  <div style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.88)', marginBottom: 2 }}>{r.action}</div>
+                                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.50)', lineHeight: 1.5 }}>{r.rationale}</div>
+                                  <div style={{ display: 'flex', gap: 10, marginTop: 5 }}>
+                                    {r.owner && <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)' }}>👤 {r.owner}</span>}
+                                    {r.target && <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)' }}>🎯 {r.target}</span>}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Trends + Locations */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                      {(aiResult.trends ?? []).length > 0 && (
+                        <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: '14px 16px' }}>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.45)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.8 }}>Trends</div>
+                          {(aiResult.trends as any[]).map((t: any, i: number) => {
+                            const dc = t.direction === 'improving' ? C.safe : t.direction === 'worsening' ? C.high : C.pend;
+                            const arrow = t.direction === 'improving' ? '↑' : t.direction === 'worsening' ? '↓' : '→';
+                            return (
+                              <div key={i} style={{ marginBottom: 10, paddingBottom: 10, borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 2 }}>
+                                  <span style={{ fontSize: 13, fontWeight: 800, color: dc }}>{arrow}</span>
+                                  <span style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.80)' }}>{t.metric}</span>
+                                </div>
+                                <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', lineHeight: 1.5, margin: 0 }}>{t.insight}</p>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                      {((aiResult.top_risk_locations ?? []).length > 0 || (aiResult.top_risk_departments ?? []).length > 0) && (
+                        <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: '14px 16px' }}>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.45)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.8 }}>Risk Hotspots</div>
+                          {(aiResult.top_risk_locations ?? []).length > 0 && (
+                            <div style={{ marginBottom: 12 }}>
+                              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginBottom: 5 }}>📍 Locations</div>
+                              {(aiResult.top_risk_locations as string[]).map((loc: string, i: number) => (
+                                <div key={i} style={{ fontSize: 12, color: C.nm, marginBottom: 3 }}>• {loc}</div>
+                              ))}
+                            </div>
+                          )}
+                          {(aiResult.top_risk_departments ?? []).length > 0 && (
+                            <div>
+                              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginBottom: 5 }}>🏭 Departments</div>
+                              {(aiResult.top_risk_departments as string[]).map((d: string, i: number) => (
+                                <div key={i} style={{ fontSize: 12, color: C.pend, marginBottom: 3 }}>• {d}</div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.22)', textAlign: 'right' }}>
+                      Generated {aiResult.generated_at ? new Date(aiResult.generated_at).toLocaleString() : ''} · AI analysis may contain inaccuracies — review before acting
+                    </div>
+                  </div>
+                );
+              })()}
             </CollapsibleSection>
 
             {/* ── COMMENTS ── */}

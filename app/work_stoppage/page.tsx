@@ -19,7 +19,7 @@ import {
   SafetyPanel, SafetyTable, SafetyModal, FormField, ModalActions,
   RowActions, TabBar, AddButton,
 } from '@/components/safety';
-import { usePageCollapse, MasterCollapseButton } from '@/components/shared';
+import { usePageCollapse, MasterCollapseButton, EmployeeNameInput, PredictiveInput } from '@/components/shared';
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
@@ -88,7 +88,7 @@ const newAction = (): CorrectiveAction => ({
 });
 const blankForm = (): Partial<WorkStoppageReport> => ({
   date: new Date().toISOString().split('T')[0],
-  department: '', section: 'General', description: '',
+  department: 'Engineering', section: 'General', description: '',
   investigationFindings: '', stoppageBy: '', stoppagePosition: '',
   acceptedBy: '', sheqCheckedBy: '', correctiveActions: [],
 });
@@ -270,21 +270,33 @@ function ReportFormModal({
                   </select>
                 </FormField>
                 <FormField label="Department" required className="md:col-span-2">
-                  <input value={form.department || ''} placeholder="e.g. Production, Maintenance, Operations"
-                    onChange={e => set({ department: e.target.value })}
-                    className={glassInput} />
+                  <PredictiveInput
+                    historyKey="ws_department"
+                    value={form.department || ''}
+                    onChange={v => set({ department: v })}
+                    placeholder="e.g. Engineering"
+                    hints={['Engineering', 'Mechanical', 'Electrical', 'Mining', 'Processing', 'Safety', 'Maintenance', 'Operations', 'HR', 'Administration']}
+                  />
                 </FormField>
                 <FormField label="Description of Unsafe Act / Potential Impact" required className="md:col-span-2">
-                  <textarea value={form.description || ''} rows={4}
+                  <PredictiveInput
+                    historyKey="ws_description"
+                    value={form.description || ''}
+                    onChange={v => set({ description: v })}
+                    multiline rows={4}
                     placeholder="Describe the unsafe condition, what happened, and what could have happened…"
-                    onChange={e => set({ description: e.target.value })}
-                    className={glassTextarea} />
+                    hints={['Unsafe working conditions observed at', 'Equipment operating without safety guards', 'Worker exposed to electrical hazard', 'Improper chemical storage detected', 'Slip/trip hazard identified at']}
+                  />
                 </FormField>
                 <FormField label="Investigation Findings" className="md:col-span-2">
-                  <textarea value={form.investigationFindings || ''} rows={3}
+                  <PredictiveInput
+                    historyKey="ws_findings"
+                    value={form.investigationFindings || ''}
+                    onChange={v => set({ investigationFindings: v })}
+                    multiline rows={3}
                     placeholder="Initial findings from the investigation…"
-                    onChange={e => set({ investigationFindings: e.target.value })}
-                    className={glassTextarea} />
+                    hints={['Root cause identified as', 'Contributing factors include', 'Immediate corrective action taken', 'Further investigation required']}
+                  />
                 </FormField>
               </div>
 
@@ -292,24 +304,38 @@ function ReportFormModal({
                 <p className="text-[10px] text-white/35 uppercase tracking-wider mb-3 font-semibold">Personnel</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <FormField label="Stoppage Issued By" required>
-                    <input value={form.stoppageBy || ''} placeholder="Name of person issuing stoppage"
-                      onChange={e => set({ stoppageBy: e.target.value })}
-                      className={glassInput} />
+                    <EmployeeNameInput
+                      value={form.stoppageBy || ''}
+                      onChange={(name, emp) => {
+                        set({ stoppageBy: name });
+                        if (emp?.designation) set({ stoppagePosition: emp.designation });
+                        if (emp?.department && !form.department?.trim()) set({ department: emp.department });
+                      }}
+                      placeholder="Select or type name…"
+                    />
                   </FormField>
                   <FormField label="Position">
-                    <input value={form.stoppagePosition || ''} placeholder="e.g. Safety Officer, Supervisor"
-                      onChange={e => set({ stoppagePosition: e.target.value })}
-                      className={glassInput} />
+                    <PredictiveInput
+                      historyKey="ws_position"
+                      value={form.stoppagePosition || ''}
+                      onChange={v => set({ stoppagePosition: v })}
+                      placeholder="e.g. Safety Officer, Supervisor"
+                      hints={['Safety Officer', 'Supervisor', 'Foreman', 'SHEQ Manager', 'Section Engineer', 'Shift Boss']}
+                    />
                   </FormField>
                   <FormField label="Accepted By">
-                    <input value={form.acceptedBy || ''} placeholder="Name & position of person accepting"
-                      onChange={e => set({ acceptedBy: e.target.value })}
-                      className={glassInput} />
+                    <EmployeeNameInput
+                      value={form.acceptedBy || ''}
+                      onChange={(name) => set({ acceptedBy: name })}
+                      placeholder="Select or type name…"
+                    />
                   </FormField>
                   <FormField label="SHEQ Checked By">
-                    <input value={form.sheqCheckedBy || ''} placeholder="Name & position of SHEQ representative"
-                      onChange={e => set({ sheqCheckedBy: e.target.value })}
-                      className={glassInput} />
+                    <EmployeeNameInput
+                      value={form.sheqCheckedBy || ''}
+                      onChange={(name) => set({ sheqCheckedBy: name })}
+                      placeholder="Select or type SHEQ representative…"
+                    />
                   </FormField>
                 </div>
               </div>
@@ -324,8 +350,7 @@ function ReportFormModal({
                   <Target className="h-10 w-10 mx-auto mb-3 opacity-20" />
                   <p className="text-sm text-white/35">No corrective actions added yet</p>
                   <button type="button" onClick={addAction}
-                    className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-white transition-all hover:-translate-y-0.5"
-                    style={{ background: 'linear-gradient(135deg,#2A4D69,#1e3a52)', border: '1px solid rgba(134,187,216,0.3)' }}>
+                    className="oz-btn-brand mt-3 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-white transition-all hover:-translate-y-0.5">
                     <Plus className="h-3.5 w-3.5" /> Add First Action
                   </button>
                 </div>
@@ -366,8 +391,8 @@ function ReportFormModal({
                   <span>{progressPct}%</span>
                 </div>
                 <div className="h-2 rounded-full bg-white/[0.07] overflow-hidden">
-                  <div className="h-full rounded-full transition-all"
-                    style={{ width: `${progressPct}%`, background: 'linear-gradient(90deg,#2A4D69,#34d399)' }} />
+                  <div className="oz-progress-gradient h-full rounded-full transition-all progress-fill"
+                    style={{ ['--pw' as string]: `${progressPct}%` }} />
                 </div>
               </div>
               {actions.length > 0 && (
@@ -437,7 +462,8 @@ function ReportDetailModal({
               <span>{completedCount}/{actions.length} completed ({pct}%)</span>
             </div>
             <div className="h-1.5 rounded-full bg-white/[0.07] overflow-hidden">
-              <div className="h-full rounded-full" style={{ width: `${pct}%`, background: '#34d399' }} />
+              <div className="h-full rounded-full bg-emerald-400 progress-fill"
+                style={{ ['--pw' as string]: `${pct}%` }} />
             </div>
           </div>
         )}
@@ -504,8 +530,7 @@ function ReportDetailModal({
           Close
         </button>
         <button type="button" onClick={() => { onClose(); onEdit(report); }}
-          className="px-4 py-2 rounded-xl text-sm font-semibold text-white inline-flex items-center gap-2 transition-all hover:-translate-y-0.5"
-          style={{ background: 'linear-gradient(135deg,#2A4D69,#1e3a52)', border: '1px solid rgba(134,187,216,0.3)' }}>
+          className="oz-btn-brand px-4 py-2 rounded-xl text-sm font-semibold text-white inline-flex items-center gap-2 transition-all hover:-translate-y-0.5">
           <Pencil className="h-3.5 w-3.5" /> Edit
         </button>
       </div>
@@ -534,7 +559,7 @@ function ReportCard({
     <div className="oz-glass-panel rounded-2xl overflow-hidden cursor-pointer hover:border-white/20 transition-all"
       onClick={e => { if (!(e.target as HTMLElement).closest('button')) onView(); }}>
       {/* Red top stripe */}
-      <div className="h-1 w-full" style={{ background: 'linear-gradient(90deg,#f43f5e,#fb923c)' }} />
+      <div className="h-1 w-full oz-stripe-rose" />
 
       <div className="px-4 py-3 border-b border-white/[0.06] flex items-center justify-between gap-2">
         <div className="flex items-center gap-2.5 min-w-0">
@@ -621,14 +646,13 @@ function ReportCard({
             </div>
           </div>
           <div className="flex gap-1.5 pt-1">
-            {[
-              { label: 'View', icon: Eye, fn: onView, color: '#86BBD8' },
-              { label: 'Edit', icon: Pencil, fn: onEdit, color: '#86BBD8' },
-              { label: 'Delete', icon: Trash2, fn: onDelete, color: '#f43f5e' },
-            ].map(({ label, icon: Icon, fn, color }) => (
-              <button key={label} type="button" onClick={fn}
-                className="flex-1 py-1.5 rounded-lg text-[11px] font-medium border transition-all hover:-translate-y-0.5 inline-flex items-center justify-center gap-1"
-                style={{ color, borderColor: `${color}25`, background: `${color}10` }}>
+            {([
+              { label: 'View',   icon: Eye,    fn: onView,   cls: 'text-[#86BBD8] border-[#86BBD8]/25 bg-[#86BBD8]/10' },
+              { label: 'Edit',   icon: Pencil, fn: onEdit,   cls: 'text-[#86BBD8] border-[#86BBD8]/25 bg-[#86BBD8]/10' },
+              { label: 'Delete', icon: Trash2, fn: onDelete, cls: 'text-[#f43f5e] border-[#f43f5e]/25 bg-[#f43f5e]/10' },
+            ] as const).map(({ label, icon: Icon, fn, cls }) => (
+              <button key={label} type="button" title={label} onClick={fn}
+                className={`flex-1 py-1.5 rounded-lg text-[11px] font-medium border transition-all hover:-translate-y-0.5 inline-flex items-center justify-center gap-1 ${cls}`}>
                 <Icon className="h-3 w-3" /> {label}
               </button>
             ))}
@@ -796,16 +820,14 @@ export default function WorkStoppagePage() {
               className="h-7 px-2.5 flex items-center gap-1 text-[11px] rounded-lg bg-white/[0.05] border border-white/10 text-white/40 hover:text-white/60 transition-all">
               <Minimize2 className="h-3 w-3" /> Collapse all
             </button>
-            {[
-              { mode: 'grid', icon: LayoutGrid },
-              { mode: 'list', icon: TableIcon },
-            ].map(({ mode, icon: Icon }) => (
-              <button key={mode} type="button"
-                onClick={() => setViewMode(mode as 'grid' | 'list')}
-                className="h-7 w-7 flex items-center justify-center rounded-lg border transition-all"
-                style={viewMode === mode
-                  ? { background: `${ACCENT}20`, borderColor: `${ACCENT}35`, color: ACCENT }
-                  : { background: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.10)', color: 'rgba(255,255,255,0.35)' }}>
+            {([['grid', LayoutGrid], ['list', TableIcon]] as const).map(([mode, Icon]) => (
+              <button key={mode} type="button" title={`${mode} view`}
+                onClick={() => setViewMode(mode)}
+                className={`h-7 w-7 flex items-center justify-center rounded-lg border transition-all ${
+                  viewMode === mode
+                    ? 'bg-[#f43f5e]/20 border-[#f43f5e]/35 text-[#f43f5e]'
+                    : 'bg-white/[0.05] border-white/10 text-white/35 hover:text-white/60'
+                }`}>
                 <Icon className="h-3.5 w-3.5" />
               </button>
             ))}

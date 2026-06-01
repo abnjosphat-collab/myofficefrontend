@@ -72,7 +72,7 @@ export function PageShell({ children, noFooter = false }: PageShellProps) {
       <div className="fixed inset-0 -z-10 bg-black/52" />
 
       <Header />
-      <main className="flex-1 flex flex-col">{children}</main>
+      <main className="oz-page-enter flex-1 flex flex-col">{children}</main>
       {!noFooter && <Footer />}
     </div>
   );

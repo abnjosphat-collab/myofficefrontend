@@ -14,7 +14,7 @@ import {
   SafetyPanel, SafetyModal, FormField, ModalActions,
   SafetyTable, RowActions, AddButton, LoadingState, EmptyState, TabBar
 } from '@/components/safety';
-import { usePageCollapse, MasterCollapseButton } from '@/components/shared';
+import { usePageCollapse, MasterCollapseButton, EmployeeNameInput, PredictiveInput } from '@/components/shared';
 
 // =============== TYPES ===============
 type SectionType = 'Mechanical' | 'Electrical';
@@ -150,7 +150,7 @@ const defaultForm = (): Partial<VFLReport> => ({
   observerName: '',
   designation: '',
   sectionChoice: 'Mechanical',
-  departmentSection: '',
+  departmentSection: 'Engineering',
   date: new Date().toISOString().split('T')[0],
   time: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
   behaviourCategory: 'Safe Behaviour',
@@ -538,13 +538,25 @@ const VFLFormModal: React.FC<FormModalProps> = ({ open, editing, onClose, onSave
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div style={{ gridColumn: '1 / -1' }}>
             <FormField label="Observer's Name *">
-              <input className={glassInput} value={form.observerName || ''} placeholder="Full name"
-                onChange={e => set('observerName', e.target.value)} title="Observer name" />
+              <EmployeeNameInput
+                value={form.observerName || ''}
+                onChange={(name, emp) => {
+                  set('observerName', name);
+                  if (emp?.designation)  set('designation', emp.designation);
+                  if (emp?.department)   set('departmentSection', emp.department);
+                }}
+                placeholder="Select or type observer name…"
+              />
             </FormField>
           </div>
           <FormField label="Designation">
-            <input className={glassInput} value={form.designation || ''} placeholder="Job title"
-              onChange={e => set('designation', e.target.value)} title="Designation" />
+            <PredictiveInput
+              historyKey="vfl_designation"
+              value={form.designation || ''}
+              onChange={v => set('designation', v)}
+              placeholder="Job title"
+              hints={['Safety Officer', 'Supervisor', 'Foreman', 'Engineer', 'Technician', 'SHEQ Manager', 'Shift Boss']}
+            />
           </FormField>
           <FormField label="Section *">
             <select className={glassSelect} value={form.sectionChoice || 'Mechanical'} title="Section"
@@ -554,8 +566,13 @@ const VFLFormModal: React.FC<FormModalProps> = ({ open, editing, onClose, onSave
           </FormField>
           <div style={{ gridColumn: '1 / -1' }}>
             <FormField label="Department/Section">
-              <input className={glassInput} value={form.departmentSection || ''} placeholder="e.g., Production, Maintenance"
-                onChange={e => set('departmentSection', e.target.value)} title="Department or section" />
+              <PredictiveInput
+                historyKey="vfl_department"
+                value={form.departmentSection || ''}
+                onChange={v => set('departmentSection', v)}
+                placeholder="e.g. Engineering"
+                hints={['Engineering', 'Mechanical', 'Electrical', 'Mining', 'Processing', 'Safety', 'Maintenance', 'Operations']}
+              />
             </FormField>
           </div>
           <FormField label="Date *">

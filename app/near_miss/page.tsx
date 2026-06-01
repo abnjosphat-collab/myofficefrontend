@@ -16,7 +16,7 @@ import {
   LoadingState, EmptyState, DateRangeFilter, ClearFiltersButton,
   safetyFetch,
 } from '@/components/safety';
-import { usePageCollapse, MasterCollapseButton } from '@/components/shared';
+import { usePageCollapse, MasterCollapseButton, EmployeeNameInput, PredictiveInput } from '@/components/shared';
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
@@ -90,7 +90,7 @@ function ReportFormModal({ open, onClose, onSave, report }: {
         time: report.time, location: report.location, description: report.description,
         witnessDetails: report.witnessDetails || '', reporterName: report.reporterName || '',
       } : {
-        department: '', section: 'General',
+        department: 'Engineering', section: 'General',
         date: new Date().toISOString().slice(0, 10),
         time: new Date().toTimeString().slice(0, 5),
         location: '', description: '', witnessDetails: '', reporterName: '',
@@ -114,8 +114,13 @@ function ReportFormModal({ open, onClose, onSave, report }: {
         <div className="p-5 space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <FormField label="Department" required>
-              <input type="text" value={form.department || ''} onChange={e => set('department', e.target.value)}
-                placeholder="Department where incident occurred" className={glassInput} />
+              <PredictiveInput
+                historyKey="nm_department"
+                value={form.department || ''}
+                onChange={v => set('department', v)}
+                placeholder="e.g. Engineering"
+                hints={['Engineering', 'Mechanical', 'Electrical', 'Mining', 'Processing', 'Safety', 'Maintenance', 'Operations', 'HR', 'Administration']}
+              />
             </FormField>
             <FormField label="Section">
               <select value={form.section || 'General'} onChange={e => set('section', e.target.value as any)}
@@ -134,22 +139,43 @@ function ReportFormModal({ open, onClose, onSave, report }: {
                 title="Incident time" placeholder="Time" className={glassInput} style={{ colorScheme: 'dark' }} />
             </FormField>
             <FormField label="Location" required className="col-span-2">
-              <input type="text" value={form.location || ''} onChange={e => set('location', e.target.value)}
-                placeholder="Specific location details" className={glassInput} />
+              <PredictiveInput
+                historyKey="nm_location"
+                value={form.location || ''}
+                onChange={v => set('location', v)}
+                placeholder="Specific location details"
+                hints={['Main Workshop', 'Crusher Bay', 'Processing Plant', 'Pit Area', 'Electrical Substation', 'Compressor Room', 'Conveyor Belt', 'Administration Block']}
+              />
             </FormField>
           </div>
           <FormField label="Description of Incident" required>
-            <textarea value={form.description || ''} onChange={e => set('description', e.target.value)}
-              placeholder="Describe what happened, as it occurred…" rows={4} className={glassTextarea} />
+            <PredictiveInput
+              historyKey="nm_description"
+              value={form.description || ''}
+              onChange={v => set('description', v)}
+              multiline rows={4}
+              placeholder="Describe what happened, as it occurred…"
+              hints={['While operating equipment', 'During routine maintenance', 'While working at height', 'Near moving machinery', 'Slipped on wet surface', 'Electrical flash observed']}
+            />
           </FormField>
           <div className="grid grid-cols-2 gap-3">
             <FormField label="Witness Details">
-              <input type="text" value={form.witnessDetails || ''} onChange={e => set('witnessDetails', e.target.value)}
-                placeholder="Names and contact info" className={glassInput} />
+              <PredictiveInput
+                historyKey="nm_witness"
+                value={form.witnessDetails || ''}
+                onChange={v => set('witnessDetails', v)}
+                placeholder="Names and contact info"
+              />
             </FormField>
             <FormField label="Reporter Name">
-              <input type="text" value={form.reporterName || ''} onChange={e => set('reporterName', e.target.value)}
-                placeholder="Your name (optional)" className={glassInput} />
+              <EmployeeNameInput
+                value={form.reporterName || ''}
+                onChange={(name, emp) => {
+                  set('reporterName', name);
+                  if (emp?.department && !form.department?.trim()) set('department', emp.department);
+                }}
+                placeholder="Select or type name (optional)"
+              />
             </FormField>
           </div>
         </div>
@@ -309,8 +335,7 @@ export default function NearMissPage() {
             <div className="flex items-center gap-2">
             <MasterCollapseButton collapse={sections} />
             <button type="button" onClick={() => { setEditingReport(null); setFormOpen(true); }}
-              className="h-8 px-3 flex items-center gap-1.5 text-xs rounded-xl font-semibold text-white transition-all hover:-translate-y-0.5"
-              style={{ background: 'linear-gradient(135deg,#b45309,#92400e)', border: '1px solid rgba(245,158,11,0.4)' }}>
+              className="oz-btn-amber h-8 px-3 flex items-center gap-1.5 text-xs rounded-xl font-semibold text-white transition-all hover:-translate-y-0.5">
               <AlertTriangle className="h-3.5 w-3.5" /> New Report
             </button>
             </div>
