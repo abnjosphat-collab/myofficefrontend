@@ -1343,9 +1343,9 @@ export default function SHEQDashboardPage() {
 
             {/* ── AI SAFETY INSIGHTS ── */}
             <CollapsibleSection
-              title="AI Safety Insights"
+              title="Safety Analysis &amp; Recommendations"
               icon={<Shield size={15} />}
-              sub="Claude AI analyses your data with Polars and generates prioritised recommendations"
+              sub="Polars statistical analysis — hotspot detection, trend direction, risk scoring, rule-based recommendations"
               accent="#a855f7"
               open={sections.expanded.ai}
               onToggle={() => sections.toggle('ai')}
@@ -1367,12 +1367,12 @@ export default function SHEQDashboardPage() {
                 >
                   {aiLoading
                     ? <><span style={{ display: 'inline-block', animation: 'spin 1s linear infinite', marginRight: 4, fontSize: 14 }}>⟳</span> Analysing…</>
-                    : <><span style={{ fontSize: 16 }}>✦</span> {aiResult ? 'Re-analyse' : 'Analyse with AI'}</>
+                    : <><span style={{ fontSize: 16 }}>✦</span> {aiResult ? 'Re-analyse' : 'Analyse'}</>
                   }
                 </button>
                 {aiResult && (
                   <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)' }}>
-                    {aiResult._records_analysed} records · model: {aiResult._source}
+                    {aiResult._records_analysed} records analysed · Polars statistical engine
                   </span>
                 )}
                 {aiError && (
