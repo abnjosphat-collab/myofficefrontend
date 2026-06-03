@@ -1,55 +1,107 @@
-// components/Header.tsx
-// Self-contained — reads auth state from localStorage internally.
-// Accepts optional legacy props for backward compatibility with existing pages.
+// components/Header.tsx — Supabase auth + Google OAuth + role-aware UI
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import {
-  Menu, X, LogIn, UserPlus, ChevronDown, LogOut,
+  Menu, X, LogIn, UserPlus, ChevronDown, LogOut, Shield,
   Users, Package, Folder, ClipboardCheck,
   AlertTriangle, PackageOpen, Fan, Clock, CalendarDays,
   ClipboardPlus, Clock4, Calculator, HardHat, ClipboardList,
   FileWarning, AlertOctagon, ShieldAlert, Eye, Target, MessageSquareWarning,
   LineChart, BarChart3, Megaphone, Home,
   Utensils, Church, Database, ToolCase, PackageMinus, Car, Wrench, Gauge,
-  HeartHandshake,
+  HeartHandshake, Settings, Activity, Droplets, Building2, FlaskConical,
+  TrendingUp, Layers, Award, Zap, BookOpen, LayoutDashboard,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useAuth } from '@/lib/auth-context';
+import type { UserRole } from '@/lib/auth-context';
 
-// ─── Auth Form ────────────────────────────────────────────────────────────────
+// ─── Role badge colours ───────────────────────────────────────────────────────
 
-function AuthForm({ defaultMode = 'login' }: { defaultMode?: 'login' | 'signup' }) {
-  const [mode, setMode] = useState<'login' | 'signup'>(defaultMode);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [name, setName] = useState('');
-  const [loading, setLoading] = useState(false);
+const ROLE_STYLES: Record<UserRole, string> = {
+  super_admin: 'bg-rose-500/25 text-rose-200 border border-rose-500/40',
+  admin:       'bg-amber-500/25 text-amber-200 border border-amber-500/40',
+  manager:     'bg-[#86BBD8]/25 text-[#86BBD8] border border-[#86BBD8]/40',
+  user:        'bg-white/10 text-white/60 border border-white/20',
+  viewer:      'bg-white/05 text-white/40 border border-white/10',
+};
 
-  const handleSubmit = (e: React.FormEvent) => {
+const ROLE_LABELS: Record<UserRole, string> = {
+  super_admin: 'Super Admin',
+  admin:       'Admin',
+  manager:     'Manager',
+  user:        'User',
+  viewer:      'Viewer',
+};
+
+// ─── Google logo SVG ──────────────────────────────────────────────────────────
+
+function GoogleIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" aria-hidden="true">
+      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+    </svg>
+  );
+}
+
+// ─── Auth Dialog (email + Google) ─────────────────────────────────────────────
+
+function AuthForm({ defaultMode = 'login', onClose }: {
+  defaultMode?: 'login' | 'signup';
+  onClose?: () => void;
+}) {
+  const { signInWithGoogle, signInWithEmail, signUpWithEmail } = useAuth();
+  const [mode, setMode]                   = useState<'login' | 'signup'>(defaultMode);
+  const [email, setEmail]                 = useState('');
+  const [password, setPassword]           = useState('');
+  const [name, setName]                   = useState('');
+  const [error, setError]                 = useState('');
+  const [loading, setLoading]             = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  const handleGoogleSignIn = async () => {
+    setGoogleLoading(true);
+    await signInWithGoogle();
+    // page redirects; no need to reset
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
+
+    if (mode === 'signup' && name.trim().length < 2) {
+      setError('Please enter your full name'); return;
+    }
+
     setLoading(true);
-    setTimeout(() => {
-      const userData = {
-        id: 1,
-        email,
-        name: mode === 'signup' ? name : email.split('@')[0],
-        role: 'user',
-      };
-      localStorage.setItem('token', 'demo_token');
-      localStorage.setItem('user', JSON.stringify(userData));
-      setLoading(false);
+
+    const result = mode === 'login'
+      ? await signInWithEmail(email, password)
+      : await signUpWithEmail(email, password, name);
+
+    setLoading(false);
+
+    if (result.error) {
+      setError(result.error);
+    } else {
+      // Signup and login both auto-sign-in immediately (no email verification)
+      onClose?.();
       window.location.reload();
-    }, 500);
+    }
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-2xl border border-[#2A4D69]/10 p-6">
+    <div className="bg-white rounded-2xl shadow-2xl border border-[#2A4D69]/10 p-6">
+      {/* Header */}
       <div className="text-center mb-5">
         <div className="flex justify-center mb-3">
           <div className="h-10 w-10 rounded-full bg-[#2A4D69] flex items-center justify-center text-white font-bold font-heading text-sm">
@@ -64,16 +116,39 @@ function AuthForm({ defaultMode = 'login' }: { defaultMode?: 'login' | 'signup' 
         </p>
       </div>
 
+      {/* Google OAuth */}
+      <button
+        type="button"
+        onClick={handleGoogleSignIn}
+        disabled={googleLoading}
+        className="w-full flex items-center justify-center gap-2.5 h-10 px-4 rounded-lg border border-[#2A4D69]/20 hover:border-[#2A4D69]/40 hover:bg-[#2A4D69]/05 transition-all duration-200 text-sm font-medium text-[#1a1a2e] mb-4"
+      >
+        {googleLoading ? (
+          <div className="h-4 w-4 border-2 border-[#2A4D69]/30 border-t-[#2A4D69] rounded-full animate-spin" />
+        ) : (
+          <GoogleIcon className="h-4 w-4" />
+        )}
+        {googleLoading ? 'Redirecting…' : `Continue with Google`}
+      </button>
+
+      {/* Divider */}
+      <div className="flex items-center gap-3 mb-4">
+        <div className="flex-1 h-px bg-[#2A4D69]/10" />
+        <span className="text-xs text-[#6B7B8E]">or with email</span>
+        <div className="flex-1 h-px bg-[#2A4D69]/10" />
+      </div>
+
+      {/* Email form */}
       <form onSubmit={handleSubmit} className="space-y-3">
         {mode === 'signup' && (
           <div className="space-y-1">
             <Label className="text-xs font-medium text-[#2A4D69]">Full name</Label>
             <Input
               type="text"
-              placeholder="As it appears on official documents"
+              placeholder="As on official documents"
               value={name}
               onChange={e => setName(e.target.value)}
-              className="border-[#2A4D69]/20 focus:border-[#2A4D69] focus:ring-[#2A4D69]/20 text-sm"
+              className="border-[#2A4D69]/20 focus:border-[#2A4D69] text-sm"
               required
             />
           </div>
@@ -86,7 +161,7 @@ function AuthForm({ defaultMode = 'login' }: { defaultMode?: 'login' | 'signup' 
             placeholder="you@company.com"
             value={email}
             onChange={e => setEmail(e.target.value)}
-            className="border-[#2A4D69]/20 focus:border-[#2A4D69] focus:ring-[#2A4D69]/20 text-sm"
+            className="border-[#2A4D69]/20 focus:border-[#2A4D69] text-sm"
             required
           />
         </div>
@@ -95,35 +170,28 @@ function AuthForm({ defaultMode = 'login' }: { defaultMode?: 'login' | 'signup' 
           <Label className="text-xs font-medium text-[#2A4D69]">Password</Label>
           <Input
             type="password"
-            placeholder="Your secure password"
+            placeholder="Minimum 6 characters"
             value={password}
             onChange={e => setPassword(e.target.value)}
-            className="border-[#2A4D69]/20 focus:border-[#2A4D69] focus:ring-[#2A4D69]/20 text-sm"
+            className="border-[#2A4D69]/20 focus:border-[#2A4D69] text-sm"
             required
+            minLength={6}
           />
         </div>
 
-        {mode === 'signup' && (
-          <div className="space-y-1">
-            <Label className="text-xs font-medium text-[#2A4D69]">Confirm password</Label>
-            <Input
-              type="password"
-              placeholder="Repeat your password"
-              value={confirmPassword}
-              onChange={e => setConfirmPassword(e.target.value)}
-              className="border-[#2A4D69]/20 focus:border-[#2A4D69] focus:ring-[#2A4D69]/20 text-sm"
-              required
-            />
+        {error && (
+          <div className="text-red-600 text-xs bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+            {error}
           </div>
         )}
 
         <Button
           type="submit"
           disabled={loading}
-          className="w-full bg-[#2A4D69] hover:bg-[#1e3a52] text-white font-semibold mt-1 transition-all duration-200"
+          className="w-full bg-[#2A4D69] hover:bg-[#1e3a52] text-white font-semibold mt-1"
         >
           {loading ? (
-            <span className="flex items-center justify-center gap-2">
+            <span className="flex items-center gap-2">
               <div className="h-3.5 w-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               {mode === 'login' ? 'Signing in…' : 'Creating account…'}
             </span>
@@ -136,7 +204,7 @@ function AuthForm({ defaultMode = 'login' }: { defaultMode?: 'login' | 'signup' 
           {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
           <button
             type="button"
-            onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
+            onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError(''); }}
             className="text-[#2A4D69] font-semibold hover:underline"
           >
             {mode === 'login' ? 'Sign up' : 'Sign in'}
@@ -147,9 +215,25 @@ function AuthForm({ defaultMode = 'login' }: { defaultMode?: 'login' | 'signup' 
   );
 }
 
-// ─── Nav Data ─────────────────────────────────────────────────────────────────
+// ─── Nav data ─────────────────────────────────────────────────────────────────
 
 const NAV_GROUPS = [
+  {
+    label: 'Engineering',
+    items: [
+      { icon: LayoutDashboard, title: 'Eng. Dashboard',   href: '/engineering-dashboard', desc: 'KPIs, availability & reliability' },
+      { icon: Activity,        title: 'Equipment Status', href: '/equipment-status',       desc: 'Live fleet status board' },
+      { icon: ClipboardCheck,  title: 'Job Cards',        href: '/job-cards',              desc: 'Work orders & job card system' },
+      { icon: Layers,          title: 'Shift Handover',   href: '/handover',               desc: 'End-of-shift handover reports' },
+      { icon: TrendingUp,      title: 'Reliability',      href: '/reliability',            desc: 'MTBF / MTTR analytics' },
+      { icon: Droplets,        title: 'Lubrication',      href: '/lubrication',            desc: 'Lube schedules & oil analysis' },
+      { icon: FlaskConical,    title: 'Cond. Monitoring', href: '/condition-monitoring',   desc: 'Vibration, thermal, oil samples' },
+      { icon: Gauge,           title: 'Production',       href: '/production',             desc: 'Daily production & mill data' },
+      { icon: BookOpen,        title: 'Failure Modes',    href: '/failure-modes',          desc: 'Failure mode register & FMEA' },
+      { icon: Award,           title: 'Competency',       href: '/competency',             desc: 'Skills & certification matrix' },
+      { icon: BarChart3,       title: 'Monthly Report',   href: '/engineering_report',     desc: 'Monthly engineering performance report' },
+    ],
+  },
   {
     label: 'Core',
     items: [
@@ -163,36 +247,38 @@ const NAV_GROUPS = [
   {
     label: 'Operations',
     items: [
-      { icon: ClipboardCheck, title: 'Maintenance',   href: '/maintenance',   desc: 'Work orders & PM' },
-      { icon: AlertTriangle,  title: 'Breakdowns',    href: '/breakdowns',    desc: 'Equipment failures' },
+      { icon: ClipboardCheck, title: 'Maintenance',   href: '/maintenance',    desc: 'Work orders & PM' },
+      { icon: AlertTriangle,  title: 'Breakdowns',    href: '/breakdowns',     desc: 'Equipment failures' },
       { icon: Gauge,          title: 'Availability',  href: '/availabilities', desc: 'Machine availability %' },
-      { icon: PackageOpen,    title: 'Spares',        href: '/spares',        desc: 'Spare parts stock' },
-      { icon: PackageMinus,   title: 'Issues',        href: '/issues',        desc: 'Goods issued to staff' },
-      { icon: Fan,            title: 'Compressors',   href: '/compressors',   desc: 'Compressor monitoring' },
-      { icon: Clock,          title: 'Shifts',         href: '/shifts',        desc: 'Shift cycles & standby' },
-      { icon: CalendarDays,   title: 'Schedules',     href: '/schedules',     desc: 'Task scheduling' },
-      { icon: ClipboardPlus,  title: 'Requisitions',  href: '/requisitions',  desc: 'Purchase requests' },
-      { icon: Wrench,         title: 'Services',      href: '/services',      desc: 'Service tracker & invoices' },
+      { icon: PackageOpen,    title: 'Spares',        href: '/spares',         desc: 'Spare parts stock' },
+      { icon: PackageMinus,   title: 'Issues',        href: '/issues',         desc: 'Goods issued to staff' },
+      { icon: Fan,            title: 'Compressors',   href: '/compressors',    desc: 'Compressor monitoring' },
+      { icon: Clock,          title: 'Shifts',        href: '/shifts',         desc: 'Shift cycles & standby' },
+      { icon: CalendarDays,   title: 'Schedules',     href: '/schedules',      desc: 'Task scheduling' },
+      { icon: ClipboardPlus,  title: 'Requisitions',  href: '/requisitions',   desc: 'Purchase requests' },
+      { icon: Wrench,         title: 'Services',        href: '/services',          desc: 'Service tracker & invoices' },
+      { icon: Building2,      title: 'Contractors',     href: '/contractors',        desc: 'Contractor & OEM management' },
+      { icon: Shield,         title: 'Compliance',      href: '/compliance-register',desc: 'Statutory inspections & certs' },
     ],
   },
   {
     label: 'Time & HR',
     items: [
-      { icon: Clock4,      title: 'Timesheets',  href: '/timesheets',  desc: 'Attendance tracking' },
-      { icon: Calculator,  title: 'Overtime',    href: '/overtime',    desc: 'OT approvals' },
-      { icon: CalendarDays, title: 'Leaves',     href: '/leaves',      desc: 'Leave management' },
+      { icon: Clock4,       title: 'Timesheets', href: '/timesheets', desc: 'Attendance tracking' },
+      { icon: Calculator,   title: 'Overtime',   href: '/overtime',   desc: 'OT approvals' },
+      { icon: CalendarDays, title: 'Leaves',     href: '/leaves',     desc: 'Leave management' },
     ],
   },
   {
     label: 'Safety',
     items: [
-      { icon: HardHat,      title: 'PPE',             href: '/ppe',            desc: 'Protective equipment' },
-      { icon: ClipboardList, title: 'SHEQ Inspections', href: '/sheq_inspection', desc: 'Safety inspections' },
-      { icon: FileWarning,  title: 'Near Miss',       href: '/near_miss',      desc: 'Incident reporting' },
-      { icon: AlertOctagon, title: 'Work Stoppage',   href: '/work_stoppage',  desc: 'SHEQ hold points' },
-      { icon: ShieldAlert,  title: 'SHEQ',            href: '/sheq',           desc: 'Safety & quality' },
-      { icon: Eye,          title: 'VFL',             href: '/vfl',            desc: 'Felt leadership' },
-      { icon: Target,       title: 'PTO',             href: '/pto',            desc: 'Task observations' },
+      { icon: HardHat,      title: 'PPE',               href: '/ppe',              desc: 'Protective equipment' },
+      { icon: ClipboardList, title: 'SHEQ Inspections', href: '/sheq_inspection',  desc: 'Safety inspections' },
+      { icon: FileWarning,  title: 'Near Miss',         href: '/near_miss',        desc: 'Incident reporting' },
+      { icon: AlertOctagon, title: 'Work Stoppage',     href: '/work_stoppage',    desc: 'SHEQ hold points' },
+      { icon: ShieldAlert,  title: 'SHEQ',              href: '/sheq',             desc: 'Safety & quality' },
+      { icon: Eye,          title: 'VFL',               href: '/vfl',              desc: 'Felt leadership' },
+      { icon: Target,       title: 'PTO',               href: '/pto',              desc: 'Task observations' },
       { icon: MessageSquareWarning, title: 'Safety Complaints', href: '/safety_complaints', desc: 'Complaints register' },
       { icon: HeartHandshake,       title: 'Pachedu',           href: '/pachedu',           desc: 'Behavioural observations' },
     ],
@@ -200,28 +286,31 @@ const NAV_GROUPS = [
   {
     label: 'Analytics',
     items: [
-      { icon: LineChart,  title: 'Visualization',  href: '/visualization',  desc: 'Dashboards & charts' },
-      { icon: BarChart3,  title: 'Reports',        href: '/reports',        desc: 'Generate reports' },
-      { icon: Megaphone,  title: 'Notice Board',   href: '/noticeboard',    desc: 'Announcements' },
+      { icon: LineChart, title: 'Visualization', href: '/visualization', desc: 'Dashboards & charts' },
+      { icon: BarChart3, title: 'Reports',       href: '/reports',       desc: 'Generate reports' },
+      { icon: Megaphone, title: 'Notice Board',  href: '/noticeboard',   desc: 'Announcements' },
     ],
   },
   {
     label: 'More',
     items: [
-      { icon: Home,     title: 'Room Rental',  href: '/roomRental',  desc: 'Property management' },
-      { icon: Utensils, title: 'Restaurant',   href: '/restaurant',  desc: 'F&B management' },
-      { icon: Church,   title: 'Church',       href: '/church',      desc: 'Community platform' },
-      { icon: Database, title: 'Stores',       href: '/stores',      desc: 'Inventory system' },
+      { icon: Home,     title: 'Room Rental', href: '/roomRental',  desc: 'Property management' },
+      { icon: Utensils, title: 'Restaurant',  href: '/restaurant',  desc: 'F&B management' },
+      { icon: Church,   title: 'Church',      href: '/church',      desc: 'Community platform' },
+      { icon: Database, title: 'Stores',      href: '/stores',      desc: 'Inventory system' },
     ],
   },
 ];
 
-// ─── Desktop Dropdown ─────────────────────────────────────────────────────────
+// ─── Desktop dropdown ──────────────────────────────────────────────────────────
 
 function NavDropdown({ group }: { group: typeof NAV_GROUPS[0] }) {
   return (
     <div className="relative group">
-      <button type="button" className="flex items-center gap-1 text-sm text-white/85 hover:text-white px-3 py-2 rounded-lg hover:bg-white/10 transition-all duration-200 font-medium">
+      <button
+        type="button"
+        className="flex items-center gap-1 text-sm text-white/85 hover:text-white px-3 py-2 rounded-lg hover:bg-white/10 transition-all duration-200 font-medium"
+      >
         {group.label}
         <ChevronDown className="h-3.5 w-3.5 transition-transform duration-200 group-hover:rotate-180" />
       </button>
@@ -232,7 +321,7 @@ function NavDropdown({ group }: { group: typeof NAV_GROUPS[0] }) {
             <Link
               key={item.href}
               href={item.href}
-              className="flex items-start gap-3 p-2.5 rounded-lg hover:bg-white/10 transition-all duration-150 group/item"
+              className="flex items-start gap-3 p-2.5 rounded-lg hover:bg-white/10 transition-all duration-150"
             >
               <div className="mt-0.5 p-1.5 rounded-md bg-[#86BBD8]/15">
                 <Icon className="h-3.5 w-3.5 text-[#86BBD8]" />
@@ -249,45 +338,26 @@ function NavDropdown({ group }: { group: typeof NAV_GROUPS[0] }) {
   );
 }
 
-// ─── Header Component ─────────────────────────────────────────────────────────
+// ─── Header ────────────────────────────────────────────────────────────────────
 
-interface LegacyHeaderProps {
-  isLoggedIn?: boolean;
-  user?: unknown;
-  onLogout?: () => void;
-}
-
-export function Header(_legacyProps?: LegacyHeaderProps) {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [user, setUser] = useState<{ name?: string; email?: string } | null>(null);
-  const [mobileOpen, setMobileOpen] = useState(false);
+export function Header() {
+  const { user, profile, loading, signOut, isAtLeast } = useAuth();
+  const [mobileOpen,  setMobileOpen]  = useState(false);
   const [mobileGroup, setMobileGroup] = useState<string | null>(null);
+  const [dialogOpen,  setDialogOpen]  = useState(false);
 
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    const userData = localStorage.getItem('user');
-    if (token && userData) {
-      try {
-        setIsLoggedIn(true);
-        setUser(JSON.parse(userData));
-      } catch {
-        // malformed user data — ignore
-      }
-    }
-  }, []);
+  const isLoggedIn = !!user;
+  const displayName = profile?.full_name ?? user?.email?.split('@')[0] ?? 'User';
+  const initials = displayName.split(' ').map(p => p[0]).join('').toUpperCase().slice(0, 2);
+  const avatarUrl = profile?.avatar_url ?? null;
+  const role = profile?.role ?? 'user';
+  const isAdmin = isAtLeast('admin');
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    setIsLoggedIn(false);
-    setUser(null);
+  const handleLogout = async () => {
+    await signOut();
     setMobileOpen(false);
     window.location.reload();
   };
-
-  const initials = user?.name
-    ? user.name.split(' ').map(p => p[0]).join('').toUpperCase().slice(0, 2)
-    : 'U';
 
   return (
     <header className="oz-header sticky top-0 z-[120] w-full border-b border-white/[0.10]">
@@ -315,18 +385,43 @@ export function Header(_legacyProps?: LegacyHeaderProps) {
             ))}
           </nav>
 
-          {/* Right side */}
+          {/* Right: auth */}
           <div className="flex items-center gap-2 shrink-0">
-            {isLoggedIn ? (
+            {loading ? (
+              <div className="h-6 w-16 rounded-lg bg-white/10 animate-pulse" />
+            ) : isLoggedIn ? (
               <div className="flex items-center gap-2">
+                {/* Role badge (admin+ only) */}
+                {isAdmin && (
+                  <Link
+                    href="/admin"
+                    className={`hidden sm:flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${ROLE_STYLES[role]} transition-opacity hover:opacity-80`}
+                  >
+                    <Shield className="h-3 w-3" />
+                    {ROLE_LABELS[role]}
+                  </Link>
+                )}
+
+                {/* Avatar + name */}
                 <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/10">
                   <Avatar className="h-6 w-6">
+                    {avatarUrl && <AvatarImage src={avatarUrl} alt={displayName} />}
                     <AvatarFallback className="bg-[#86BBD8] text-[#1e3a52] text-xs font-bold">
                       {initials}
                     </AvatarFallback>
                   </Avatar>
-                  <span className="text-sm text-white font-medium">{user?.name || 'User'}</span>
+                  <span className="text-sm text-white font-medium">{displayName}</span>
                 </div>
+
+                {/* Admin link */}
+                {isAdmin && (
+                  <Link href="/admin">
+                    <Button variant="ghost" size="icon" className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8 hidden sm:flex">
+                      <Settings className="h-4 w-4" />
+                    </Button>
+                  </Link>
+                )}
+
                 <Button
                   onClick={handleLogout}
                   variant="ghost"
@@ -339,7 +434,7 @@ export function Header(_legacyProps?: LegacyHeaderProps) {
               </div>
             ) : (
               <div className="hidden sm:flex items-center gap-2">
-                <Dialog>
+                <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                   <DialogTrigger asChild>
                     <Button
                       variant="ghost"
@@ -351,7 +446,8 @@ export function Header(_legacyProps?: LegacyHeaderProps) {
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="sm:max-w-sm p-0 border-0 bg-transparent shadow-none">
-                    <AuthForm defaultMode="login" />
+                    <DialogTitle className="sr-only">Sign In</DialogTitle>
+                    <AuthForm defaultMode="login" onClose={() => setDialogOpen(false)} />
                   </DialogContent>
                 </Dialog>
                 <Dialog>
@@ -365,13 +461,14 @@ export function Header(_legacyProps?: LegacyHeaderProps) {
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="sm:max-w-sm p-0 border-0 bg-transparent shadow-none">
+                    <DialogTitle className="sr-only">Create Account</DialogTitle>
                     <AuthForm defaultMode="signup" />
                   </DialogContent>
                 </Dialog>
               </div>
             )}
 
-            {/* Mobile menu toggle */}
+            {/* Mobile toggle */}
             <Button
               variant="ghost"
               size="icon"
@@ -387,7 +484,6 @@ export function Header(_legacyProps?: LegacyHeaderProps) {
         {/* Mobile menu */}
         {mobileOpen && (
           <div className="lg:hidden border-t border-white/10 pb-4">
-            {/* Home link */}
             <Link
               href="/"
               className="flex items-center min-h-[44px] px-4 text-sm text-white/85 hover:text-white hover:bg-white/10 font-medium transition-colors"
@@ -396,7 +492,6 @@ export function Header(_legacyProps?: LegacyHeaderProps) {
               Home
             </Link>
 
-            {/* Nav groups */}
             {NAV_GROUPS.map(group => (
               <div key={group.label} className="border-t border-white/[0.06]">
                 <button
@@ -428,19 +523,40 @@ export function Header(_legacyProps?: LegacyHeaderProps) {
               </div>
             ))}
 
-            {/* Mobile auth */}
+            {/* Mobile auth section */}
             <div className="pt-3 mt-1 border-t border-white/10 px-4">
               {isLoggedIn ? (
-                <div className="flex items-center justify-between min-h-[44px]">
-                  <div className="flex items-center gap-2">
-                    <Avatar className="h-8 w-8">
-                      <AvatarFallback className="bg-[#86BBD8] text-[#1e3a52] text-xs font-bold">{initials}</AvatarFallback>
-                    </Avatar>
-                    <span className="text-sm text-white">{user?.name}</span>
+                <div>
+                  <div className="flex items-center justify-between min-h-[44px]">
+                    <div className="flex items-center gap-2">
+                      <Avatar className="h-8 w-8">
+                        {avatarUrl && <AvatarImage src={avatarUrl} alt={displayName} />}
+                        <AvatarFallback className="bg-[#86BBD8] text-[#1e3a52] text-xs font-bold">{initials}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <div className="text-sm text-white font-medium">{displayName}</div>
+                        {isAdmin && (
+                          <div className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-semibold ${ROLE_STYLES[role]}`}>
+                            <Shield className="h-2.5 w-2.5" />
+                            {ROLE_LABELS[role]}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <Button onClick={handleLogout} variant="ghost" size="sm" className="text-white/70 hover:text-white gap-1.5 h-10">
+                      <LogOut className="h-4 w-4" /> Sign Out
+                    </Button>
                   </div>
-                  <Button onClick={handleLogout} variant="ghost" size="sm" className="text-white/70 hover:text-white gap-1.5 h-10">
-                    <LogOut className="h-4 w-4" /> Sign Out
-                  </Button>
+                  {isAdmin && (
+                    <Link
+                      href="/admin"
+                      className="flex items-center gap-2 mt-2 px-3 py-2 rounded-lg bg-white/10 text-sm text-white/80 hover:text-white hover:bg-white/15 transition-colors"
+                      onClick={() => setMobileOpen(false)}
+                    >
+                      <Settings className="h-4 w-4" />
+                      Admin Panel
+                    </Link>
+                  )}
                 </div>
               ) : (
                 <div className="flex gap-3 pt-1">

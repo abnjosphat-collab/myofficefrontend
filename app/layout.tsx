@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Montserrat, Inter, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sonner";
+import { Providers } from "@/components/Providers";
 
 const montserrat = Montserrat({
   variable: "--font-heading",
@@ -40,7 +41,9 @@ export default function RootLayout({
       <body
         className={`${montserrat.variable} ${inter.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        <Providers>
+          {children}
+        </Providers>
         <Toaster
           position="top-right"
           richColors

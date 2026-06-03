@@ -327,7 +327,7 @@ export function SafetyModal({
 }) {
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto"
+    <div className="fixed inset-0 z-[160] flex items-center justify-center p-4 overflow-y-auto"
       style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)' }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className={`w-full ${width} rounded-2xl shadow-2xl my-4`}

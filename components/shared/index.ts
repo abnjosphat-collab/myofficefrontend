@@ -35,3 +35,6 @@ export { EmployeeNameInput } from './EmployeeNameInput';
 export type { EmployeeNameInputProps, EmployeeRecord } from './EmployeeNameInput';
 export { PredictiveInput } from './PredictiveInput';
 export type { PredictiveInputProps } from './PredictiveInput';
+export { SignaturePad } from './SignaturePad';
+export type { SignatureResult } from './SignaturePad';
+export { ApprovalGate } from './ApprovalGate';

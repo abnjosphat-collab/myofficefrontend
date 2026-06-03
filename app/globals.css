@@ -439,6 +439,17 @@
 }
 
 /* ============================================
+   PROGRESS BAR UTILITY
+   data-pct attribute drives width via CSS attr()
+   ============================================ */
+
+/* Set --oz-pct on the element: style={{ '--oz-pct': `${n}%` }} */
+.oz-progress-fill {
+  width: var(--oz-pct, 0%);
+  transition: width 0.3s ease;
+}
+
+/* ============================================
    HEADER & NAVIGATION
    ============================================ */
 
@@ -682,6 +693,10 @@ input[type="week"] {
 .oz-modal-panel-in     { animation: oz-modal-in     0.32s cubic-bezier(0.16, 1, 0.3, 1) both; }
 .oz-modal-panel-out    { animation: oz-modal-out    0.20s cubic-bezier(0.4, 0, 1, 1) both; }
 
+/* oz-modal-enter: apply to the fixed wrapper — fades whole modal in instantly */
+.oz-modal-enter { animation: oz-backdrop-in 0.18s ease both; }
+.oz-modal-enter > *:not([class*="inset-0"]) { animation: oz-modal-in 0.26s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
 /* ============================================
    PANEL CONTENT — smooth grid expand/collapse
    Usage: wrap children in .oz-panel-body
@@ -748,13 +763,13 @@ input[type="week"] {
 /* Panel slide-up — primary entrance for glass panels */
 @keyframes oz-panel-enter {
   from { opacity: 0; transform: translateY(20px); }
-  to   { opacity: 1; transform: translateY(0); }
+  to   { opacity: 1; transform: none; }
 }
 
 /* Page wrapper entrance — gentle blur + rise */
 @keyframes oz-page-enter {
   from { opacity: 0; transform: translateY(12px); }
-  to   { opacity: 1; transform: translateY(0); }
+  to   { opacity: 1; transform: none; }
 }
 
 /* Stat / info card — faster, tighter rise */

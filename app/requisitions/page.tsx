@@ -143,6 +143,47 @@ const blankForm = (): Partial<Requisition> => ({
 
 // ─── FORM MODAL ───────────────────────────────────────────────────────────────
 
+// ─── Lightweight data types for linked lookups ────────────────────────────────
+interface EmpOption  { id: string; label: string; section: string; }
+interface EquipOption { id: string; label: string; section: string; }
+interface SpareOption { id: number; code: string; description: string; unit: string; price: number; }
+
+function useReqData(open: boolean) {
+  const [employees, setEmployees] = useState<EmpOption[]>([]);
+  const [equipment, setEquipment] = useState<EquipOption[]>([]);
+  const [spares,    setSpares]    = useState<SpareOption[]>([]);
+
+  useEffect(() => {
+    if (!open) return;
+    const base = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000').replace(/\/$/, '');
+    Promise.all([
+      fetch(`${base}/api/employees`).then(r => r.ok ? r.json() : []),
+      fetch(`${base}/api/equipment`).then(r => r.ok ? r.json() : []),
+      fetch(`${base}/api/spares`).then(r => r.ok ? r.json() : []),
+    ]).then(([emps, equip, sp]) => {
+      setEmployees((Array.isArray(emps) ? emps : []).map((e: Record<string,unknown>) => ({
+        id:      String(e.employee_id ?? e.id ?? ''),
+        label:   `${e.first_name ?? ''} ${e.last_name ?? ''}`.trim() || String(e.name ?? ''),
+        section: String(e.department ?? e.section ?? ''),
+      })));
+      setEquipment((Array.isArray(equip) ? equip : []).map((e: Record<string,unknown>) => ({
+        id:      String(e.id ?? ''),
+        label:   String(e.name ?? ''),
+        section: String(e.location ?? e.department ?? e.category ?? ''),
+      })));
+      setSpares((Array.isArray(sp) ? sp : []).map((s: Record<string,unknown>) => ({
+        id:          Number(s.id),
+        code:        String(s.stock_code ?? ''),
+        description: String(s.description ?? ''),
+        unit:        String(s.unit_of_measure ?? 'UN'),
+        price:       Number(s.unit_price ?? 0),
+      })));
+    }).catch(() => {});
+  }, [open]);
+
+  return { employees, equipment, spares };
+}
+
 function ReqModal({
   open, onClose, onSave, editing,
 }: {
@@ -152,6 +193,10 @@ function ReqModal({
 }) {
   const [form, setForm] = useState<Partial<Requisition>>(blankForm());
   const [saving, setSaving] = useState(false);
+  const [empSearch,   setEmpSearch]   = useState('');
+  const [spareSearch, setSpareSearch] = useState<Record<number, string>>({});
+  const [spareOpen,   setSpareOpen]   = useState<number | null>(null);
+  const { employees, equipment, spares } = useReqData(open);
 
   useEffect(() => {
     setForm(editing
@@ -217,14 +262,41 @@ function ReqModal({
       <div className="space-y-4">
         {/* Header fields */}
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          <div className="md:col-span-2">
+          {/* Requester — typeahead from employees */}
+          <div className="md:col-span-2 relative">
             <label className={LBL}>Requester *</label>
-            <input className={GIN} placeholder="Full name" value={form.requester ?? ''} onChange={e => set({ requester: e.target.value })} />
+            <input
+              className={GIN} placeholder="Type name to search employees…"
+              value={form.requester ?? ''} autoComplete="off"
+              onChange={e => { set({ requester: e.target.value }); setEmpSearch(e.target.value); }}
+              onFocus={e => setEmpSearch(e.target.value)}
+              onBlur={() => setTimeout(() => setEmpSearch(''), 200)}
+            />
+            {empSearch.length >= 1 && (() => {
+              const q = empSearch.toLowerCase();
+              const hits = employees.filter(e => e.label.toLowerCase().includes(q)).slice(0, 6);
+              if (!hits.length) return null;
+              return (
+                <div className="absolute z-50 top-full left-0 right-0 mt-1 rounded-xl bg-[rgba(5,15,28,0.97)] border border-white/10 shadow-xl overflow-hidden">
+                  {hits.map(e => (
+                    <button key={e.id} type="button"
+                      onMouseDown={() => { set({ requester: e.label, section: (SECTIONS.includes(e.section as Requisition['section']) ? e.section : form.section) as Requisition['section'] }); setEmpSearch(''); }}
+                      className="w-full flex items-center justify-between px-3 py-2 text-xs hover:bg-white/10 transition-colors text-left">
+                      <span className="text-white font-medium">{e.label}</span>
+                      <span className="text-white/35 ml-3 truncate">{e.id}{e.section ? ` · ${e.section}` : ''}</span>
+                    </button>
+                  ))}
+                </div>
+              );
+            })()}
           </div>
+
           <div>
             <label className={LBL}>Date *</label>
             <input type="date" title="Requisition date" className={GIN} value={form.date ?? ''} onChange={e => set({ date: e.target.value })} />
           </div>
+
+          {/* Section */}
           <div>
             <label className={LBL}>Section</label>
             <select title="Section" className={SEL} value={form.section ?? 'Mechanical'} onChange={e => set({ section: e.target.value as Requisition['section'] })}>
@@ -243,10 +315,24 @@ function ReqModal({
               {STATUSES.map(s => <option key={s} value={s} className="bg-[#0d1f35]">{s}</option>)}
             </select>
           </div>
-          <div>
-            <label className={LBL}>Required For</label>
-            <input className={GIN} placeholder="Machine, project, asset…" value={form.required_for ?? ''} onChange={e => set({ required_for: e.target.value })} />
+
+          {/* Required For — equipment picker */}
+          <div className="md:col-span-2">
+            <label className={LBL}>Required For (Equipment / Asset)</label>
+            <select title="Required for" className={SEL} value={form.required_for ?? ''}
+              onChange={e => {
+                const eq = equipment.find(x => x.label === e.target.value);
+                set({ required_for: e.target.value, ...(eq && SECTIONS.includes(eq.section as Requisition['section']) ? { section: eq.section as Requisition['section'] } : {}) });
+              }}>
+              <option value="" className="bg-[#0d1f35]">— Select equipment or type below —</option>
+              {equipment.map(eq => <option key={eq.id} value={eq.label} className="bg-[#0d1f35]">{eq.label}{eq.section ? ` (${eq.section})` : ''}</option>)}
+            </select>
+            {/* Fallback free-text if not in list */}
+            <input className={`${GIN} mt-1.5`} placeholder="Or type manually (project, work order, other…)"
+              value={equipment.find(eq => eq.label === form.required_for) ? '' : (form.required_for ?? '')}
+              onChange={e => set({ required_for: e.target.value })} />
           </div>
+
           <div>
             <label className={LBL}>Requisition #</label>
             <input className={GIN} placeholder="e.g. REQ-001" value={form.requisitionNumber ?? ''} onChange={e => set({ requisitionNumber: e.target.value })} />
@@ -629,8 +715,8 @@ export default function RequisitionsPage() {
                   </div>
                   <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
                     <div
-                      className={`h-full rounded-full transition-all progress-fill ${PRIORITY_BAR[label as Requisition['priority']]}`}
-                      style={{ ['--pw' as string]: `${(count / maxP) * 100}%` }}
+                      className={`h-full rounded-full oz-progress-fill ${PRIORITY_BAR[label as Requisition['priority']]}`}
+                      style={{ '--oz-pct': `${(count / maxP) * 100}%` } as React.CSSProperties}
                     />
                   </div>
                 </div>

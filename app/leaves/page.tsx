@@ -22,6 +22,8 @@ import {
 import Link from "next/link";
 
 import { toast } from "sonner";
+import { ApprovalGate, type SignatureResult } from '@/components/shared/ApprovalGate';
+import { supabase } from '@/lib/supabase';
 
 // Animation styles defined in globals.css
 
@@ -227,14 +229,24 @@ const updateLeave = async (leaveId: string, leaveData: Partial<Leave>): Promise<
 };
 
 const updateLeaveStatus = async (leaveId: string, status: Leave['status'], notes?: string): Promise<Leave> => {
-  const response = await fetch(`${LEAVES_API}/${leaveId}/status`, {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+
+  // Send JWT for approve/reject so backend can verify the approver's role
+  if (status === 'approved' || status === 'rejected') {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
+  }
+
+  const response = await fetch(`${LEAVES_API}/${leaveId}`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ status, notes }),
+    headers,
+    body: JSON.stringify({ status, ...(notes ? { notes } : {}) }),
   });
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`Failed to update status: ${response.status} - ${errorText}`);
+    let msg = `Status ${response.status}`;
+    try { const j = JSON.parse(errorText); msg = j.detail || msg; } catch { msg = errorText || msg; }
+    throw new Error(msg);
   }
   return await response.json();
 };
@@ -586,9 +598,9 @@ const LeaveApplicationForm = ({ onClose, onSuccess, editData }: {
   const LBL = "text-white/55 text-xs font-medium block mb-1";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-[rgba(5,15,28,0.97)] backdrop-blur-2xl border border-white/10 text-white shadow-2xl">
+    <div className="fixed inset-0 z-[160] flex items-center justify-center p-4 oz-modal-enter">
+      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+      <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-[rgba(5,15,28,0.97)] border border-white/10 text-white shadow-2xl">
         <div className="px-6 pt-5 pb-4 border-b border-white/[0.08] flex items-center justify-between">
           <div className="flex items-center gap-2.5 text-white text-lg font-bold">
             <div className="bg-[#86BBD8]/20 p-2 rounded-lg border border-[#86BBD8]/25">
@@ -856,12 +868,23 @@ const LeaveDetailsModal = ({ leave, onClose, onEdit, onDelete, onStatusUpdate }:
   const selectedLeaveType = LEAVE_TYPES[leave.leave_type] || LEAVE_TYPES.annual;
   const [updating, setUpdating] = useState(false);
   const [showStatusActions, setShowStatusActions] = useState(false);
+  const [pendingStatus, setPendingStatus] = useState<Leave['status'] | null>(null);
 
-  const handleStatusChange = async (newStatus: Leave['status']) => {
+  // Approve/reject require the ApprovalGate. Other changes go direct.
+  const handleStatusChange = (newStatus: Leave['status']) => {
+    if (newStatus === 'approved' || newStatus === 'rejected') {
+      setShowStatusActions(false);
+      setPendingStatus(newStatus);
+      return;
+    }
+    commitStatusChange(newStatus);
+  };
+
+  const commitStatusChange = async (newStatus: Leave['status'], _sig?: SignatureResult) => {
     setUpdating(true);
     try {
       await onStatusUpdate(leave.id, newStatus);
-      setShowStatusActions(false);
+      setPendingStatus(null);
       onClose();
     } catch (error) {
       console.error(error);
@@ -891,9 +914,21 @@ const LeaveDetailsModal = ({ leave, onClose, onEdit, onDelete, onStatusUpdate }:
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-[rgba(5,15,28,0.97)] backdrop-blur-2xl border border-white/10 text-white shadow-2xl">
+    <>
+      {pendingStatus && (
+        <ApprovalGate
+          title={pendingStatus === 'approved' ? 'Approve Leave Request' : 'Reject Leave Request'}
+          description={`${leave.employee_name} — ${leave.leave_type} · ${leave.total_days} day(s)`}
+          actionLabel={pendingStatus === 'approved' ? 'Sign & Approve' : 'Sign & Reject'}
+          requiredRole="manager"
+          variant={pendingStatus === 'approved' ? 'approve' : 'reject'}
+          onConfirm={async (sig) => { await commitStatusChange(pendingStatus, sig); }}
+          onCancel={() => setPendingStatus(null)}
+        />
+      )}
+    <div className="fixed inset-0 z-[160] flex items-center justify-center p-4 oz-modal-enter">
+      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+      <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-[rgba(5,15,28,0.97)] border border-white/10 text-white shadow-2xl">
         <div className="px-6 pt-5 pb-4 border-b border-white/[0.08] flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5 text-white text-lg font-bold min-w-0">
             <div className="p-2 rounded-lg bg-white/[0.07] border border-white/10 shrink-0">
@@ -1024,6 +1059,7 @@ const LeaveDetailsModal = ({ leave, onClose, onEdit, onDelete, onStatusUpdate }:
         </div>
       </div>
     </div>
+    </>
   );
 };
 
