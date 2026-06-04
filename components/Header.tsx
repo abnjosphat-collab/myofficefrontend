@@ -229,6 +229,8 @@ const NAV_GROUPS = [
       { icon: Droplets,        title: 'Lubrication',      href: '/lubrication',            desc: 'Lube schedules & oil analysis' },
       { icon: FlaskConical,    title: 'Cond. Monitoring', href: '/condition-monitoring',   desc: 'Vibration, thermal, oil samples' },
       { icon: Gauge,           title: 'Production',       href: '/production',             desc: 'Daily production & mill data' },
+      { icon: Building2,       title: 'Contractors',      href: '/contractors',            desc: 'Contractor & OEM management' },
+      { icon: Shield,          title: 'Compliance',       href: '/compliance-register',    desc: 'Statutory inspections & certs' },
       { icon: BookOpen,        title: 'Failure Modes',    href: '/failure-modes',          desc: 'Failure mode register & FMEA' },
       { icon: Award,           title: 'Competency',       href: '/competency',             desc: 'Skills & certification matrix' },
       { icon: BarChart3,       title: 'Monthly Report',   href: '/engineering_report',     desc: 'Monthly engineering performance report' },
@@ -256,9 +258,7 @@ const NAV_GROUPS = [
       { icon: Clock,          title: 'Shifts',        href: '/shifts',         desc: 'Shift cycles & standby' },
       { icon: CalendarDays,   title: 'Schedules',     href: '/schedules',      desc: 'Task scheduling' },
       { icon: ClipboardPlus,  title: 'Requisitions',  href: '/requisitions',   desc: 'Purchase requests' },
-      { icon: Wrench,         title: 'Services',        href: '/services',          desc: 'Service tracker & invoices' },
-      { icon: Building2,      title: 'Contractors',     href: '/contractors',        desc: 'Contractor & OEM management' },
-      { icon: Shield,         title: 'Compliance',      href: '/compliance-register',desc: 'Statutory inspections & certs' },
+      { icon: Wrench,         title: 'Services',        href: '/services',     desc: 'Service tracker & invoices' },
     ],
   },
   {
@@ -305,6 +305,7 @@ const NAV_GROUPS = [
 // ─── Desktop dropdown ──────────────────────────────────────────────────────────
 
 function NavDropdown({ group }: { group: typeof NAV_GROUPS[0] }) {
+  const wide = group.items.length > 6;
   return (
     <div className="relative group">
       <button
@@ -314,25 +315,27 @@ function NavDropdown({ group }: { group: typeof NAV_GROUPS[0] }) {
         {group.label}
         <ChevronDown className="h-3.5 w-3.5 transition-transform duration-200 group-hover:rotate-180" />
       </button>
-      <div className="oz-nav-dropdown absolute top-full left-0 mt-1.5 hidden group-hover:flex flex-col min-w-[220px] rounded-2xl p-1.5 z-[200]">
-        {group.items.map(item => {
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="flex items-start gap-3 p-2.5 rounded-lg hover:bg-white/10 transition-all duration-150"
-            >
-              <div className="mt-0.5 p-1.5 rounded-md bg-[#86BBD8]/15">
-                <Icon className="h-3.5 w-3.5 text-[#86BBD8]" />
-              </div>
-              <div>
-                <div className="text-sm font-medium text-white leading-tight">{item.title}</div>
-                <div className="text-xs text-white/50 mt-0.5">{item.desc}</div>
-              </div>
-            </Link>
-          );
-        })}
+      <div className={`oz-nav-dropdown absolute top-full left-0 mt-1.5 hidden group-hover:block rounded-2xl p-1.5 z-[200] max-h-[calc(100vh-5rem)] overflow-y-auto ${wide ? 'w-[460px]' : 'min-w-[220px]'}`}>
+        <div className={wide ? 'grid grid-cols-2 gap-0' : 'flex flex-col'}>
+          {group.items.map(item => {
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="flex items-start gap-3 p-2.5 rounded-lg hover:bg-white/10 transition-all duration-150"
+              >
+                <div className="mt-0.5 p-1.5 rounded-md bg-[#86BBD8]/15 shrink-0">
+                  <Icon className="h-3.5 w-3.5 text-[#86BBD8]" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-sm font-medium text-white leading-tight">{item.title}</div>
+                  <div className="text-xs text-white/50 mt-0.5 leading-snug">{item.desc}</div>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
