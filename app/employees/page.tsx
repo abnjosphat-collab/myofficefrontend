@@ -78,14 +78,13 @@ interface EmployeeFormData {
   grade: string;
   qualifications: string[];
   drivers_license_class: string;
-  ppe_issue_date: string;
   offences: string[];
   awards_recognition: string[];
   other_positions: string[];
   previous_employer: string;
 }
 
-type SortField = 'first_name' | 'employee_id' | 'designation' | 'department';
+type SortField = 'first_name' | 'employee_id' | 'designation' | 'department' | 'date_of_engagement';
 type SortDir = 'asc' | 'desc';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -125,9 +124,20 @@ function classPill(cls?: string) {
 }
 
 function etypePill(t?: string) {
-  if (t === 'NEC')     return 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30';
-  if (t === 'SALARIED') return 'bg-teal-500/20 text-teal-300 border-teal-500/30';
+  if (t === 'NEC')      return 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30';
+  if (t === 'SALARIED') return 'bg-teal-500/20   text-teal-300   border-teal-500/30';
   return null;
+}
+
+const SECTION_STYLE: Record<string, { pill: string; border: string }> = {
+  Mechanical:      { pill: 'bg-[#86BBD8]/20 text-[#86BBD8] border-[#86BBD8]/35',      border: 'border-l-[#86BBD8]' },
+  Electrical:      { pill: 'bg-amber-500/20 text-amber-300 border-amber-500/35',       border: 'border-l-amber-400' },
+  Civil:           { pill: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/35', border: 'border-l-emerald-400' },
+  Instrumentation: { pill: 'bg-violet-500/20 text-violet-300 border-violet-500/35',   border: 'border-l-violet-400' },
+};
+
+function sectionPill(section?: string) {
+  return SECTION_STYLE[section || ''] ?? { pill: 'bg-white/10 text-white/50 border-white/15', border: 'border-l-white/20' };
 }
 
 // ─── API ──────────────────────────────────────────────────────────────────────
@@ -168,7 +178,7 @@ const EMPTY_FORM: EmployeeFormData = {
   email: '', phone: '', address: '', date_of_engagement: '', designation: '',
   employee_class: '', employment_type: '', supervisor: '', section: '',
   department: '', grade: '',
-  qualifications: [], drivers_license_class: '', ppe_issue_date: '',
+  qualifications: [], drivers_license_class: '',
   offences: [], awards_recognition: [], other_positions: [], previous_employer: '',
 };
 
@@ -192,7 +202,6 @@ function EmployeeForm({ initialData, onSubmit, onCancel, isSubmitting }: Employe
       grade: initialData.grade || '',
       qualifications: initialData.qualifications || [],
       drivers_license_class: initialData.drivers_license_class || '',
-      ppe_issue_date: initialData.ppe_issue_date || '',
       offences: initialData.offences || [],
       awards_recognition: initialData.awards_recognition || [],
       other_positions: initialData.other_positions || [],
@@ -387,11 +396,6 @@ function EmployeeForm({ initialData, onSubmit, onCancel, isSubmitting }: Employe
                 <Input value={form.drivers_license_class} placeholder="Optional"
                   onChange={e => set('drivers_license_class', e.target.value)} className={GIN} />
               </div>
-              <div className="space-y-1.5">
-                <Label className={LBL}>PPE Issue Date</Label>
-                <input type="date" title="PPE issue date" value={form.ppe_issue_date}
-                  onChange={e => set('ppe_issue_date', e.target.value)} className={`${textInp} [color-scheme:dark]`} />
-              </div>
             </div>
             {([
               { f: 'other_positions'   as const, label: 'Other Positions',      k: 'pos'     as const, ph: 'Add position' },
@@ -448,10 +452,12 @@ function EmployeeRow({ employee, onEdit, onDelete }: EmployeeRowProps) {
   const name = `${employee.first_name} ${employee.last_name}`;
   const t = tenure(employee.date_of_engagement);
   const quals = employee.qualifications?.length ?? 0;
+  const sec = employee.section;
+  const secStyle = sectionPill(sec);
 
   return (
     <div className="border-b border-white/[0.05]">
-      <div className="flex items-center gap-3.5 px-5 py-3 hover:bg-white/[0.03] transition-colors group">
+      <div className={`flex items-center gap-3.5 px-5 py-3 hover:bg-white/[0.03] transition-colors group border-l-2 ${secStyle.border}`}>
         {/* Avatar */}
         <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-[#2A4D69] to-[#86BBD8] flex items-center justify-center text-white font-bold text-sm shadow-lg flex-shrink-0">
           {sharedInitials(`${employee.first_name} ${employee.last_name}`)}
@@ -465,7 +471,7 @@ function EmployeeRow({ employee, onEdit, onDelete }: EmployeeRowProps) {
           <div className="flex items-center gap-2 mt-0.5 flex-wrap">
             <span className="text-white/40 text-xs font-mono">{employee.employee_id}</span>
             {employee.designation && <span className="text-white/40 text-xs">· {employee.designation}</span>}
-            {employee.department  && <span className="text-white/30 text-xs">· {employee.department}</span>}
+            {employee.section     && <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium ${secStyle.pill}`}>{employee.section}</span>}
           </div>
         </button>
 
@@ -643,9 +649,10 @@ function EmployeeCard({ employee, onEdit, onDelete }: EmployeeCardProps) {
   const name = `${employee.first_name} ${employee.last_name}`;
   const quals = employee.qualifications?.length ?? 0;
   const t = tenure(employee.date_of_engagement);
+  const secStyle = sectionPill(employee.section);
 
   return (
-    <div className="oz-glass-dark rounded-2xl overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl">
+    <div className={`oz-glass-dark rounded-2xl overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl border-t-2 ${secStyle.border}`}>
       <div className="flex items-start justify-between px-5 py-4">
         <div className="flex items-center gap-3">
           <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-[#2A4D69] to-[#86BBD8] flex items-center justify-center text-white font-bold text-base shadow-lg shrink-0">
@@ -666,9 +673,9 @@ function EmployeeCard({ employee, onEdit, onDelete }: EmployeeCardProps) {
               <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${classPill(employee.employee_class)}`}>
                 {employee.employee_class || 'Unclassified'}
               </span>
-              {employee.department && (
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/[0.07] border border-white/10 text-white/50">
-                  {employee.department}
+              {employee.section && (
+                <span className={`text-[10px] px-2 py-0.5 rounded-full border font-semibold ${secStyle.pill}`}>
+                  {employee.section}
                 </span>
               )}
             </div>
@@ -763,10 +770,11 @@ export default function EmployeesPage() {
   const [showForm, setShowForm] = useState(false);
 
   const [search, setSearch] = useState('');
-  const [classFilter, setClassFilter] = useState('all');
-  const [etypeFilter, setEtypeFilter] = useState('all');
-  const [deptFilter, setDeptFilter] = useState('all');
-  const [roleFilter, setRoleFilter] = useState('all');
+  const [classFilter,   setClassFilter]   = useState('all');
+  const [etypeFilter,   setEtypeFilter]   = useState('all');
+  const [sectionFilter, setSectionFilter] = useState('all');
+  const [deptFilter,    setDeptFilter]    = useState('all');
+  const [roleFilter,    setRoleFilter]    = useState('all');
   const [sortBy, setSortBy] = useState<SortField>('first_name');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
@@ -785,8 +793,9 @@ export default function EmployeesPage() {
 
   useEffect(() => { reload(); }, [reload]);
 
-  const uniqueDepts = useMemo(() => [...new Set(employees.map(e => e.department).filter(Boolean) as string[])].sort(), [employees]);
-  const uniqueRoles = useMemo(() => [...new Set(employees.map(e => e.designation).filter(Boolean) as string[])].sort(), [employees]);
+  const uniqueDepts    = useMemo(() => [...new Set(employees.map(e => e.department).filter(Boolean) as string[])].sort(), [employees]);
+  const uniqueRoles    = useMemo(() => [...new Set(employees.map(e => e.designation).filter(Boolean) as string[])].sort(), [employees]);
+  const uniqueSections = useMemo(() => [...new Set(employees.map(e => e.section).filter(Boolean) as string[])].sort(), [employees]);
 
   const filtered = useMemo(() => {
     let list = [...employees];
@@ -796,27 +805,34 @@ export default function EmployeesPage() {
         `${e.first_name} ${e.last_name}`.toLowerCase().includes(t) ||
         e.employee_id?.toLowerCase().includes(t) ||
         (e.designation?.toLowerCase() ?? '').includes(t) ||
-        (e.id_number?.toLowerCase() ?? '').includes(t)
+        (e.id_number?.toLowerCase() ?? '').includes(t) ||
+        (e.section?.toLowerCase() ?? '').includes(t)
       );
     }
-    if (classFilter  !== 'all') list = list.filter(e => (e.employee_class || 'Unclassified') === classFilter);
-    if (etypeFilter  !== 'all') list = list.filter(e => (e.employment_type || '') === etypeFilter);
-    if (deptFilter   !== 'all') list = list.filter(e => e.department === deptFilter);
-    if (roleFilter   !== 'all') list = list.filter(e => e.designation === roleFilter);
+    if (classFilter   !== 'all') list = list.filter(e => (e.employee_class || 'Unclassified') === classFilter);
+    if (etypeFilter   !== 'all') list = list.filter(e => (e.employment_type || '') === etypeFilter);
+    if (sectionFilter !== 'all') list = list.filter(e => (e.section || '') === sectionFilter);
+    if (deptFilter    !== 'all') list = list.filter(e => e.department === deptFilter);
+    if (roleFilter    !== 'all') list = list.filter(e => e.designation === roleFilter);
     list.sort((a, b) => {
       let av: string, bv: string;
-      if (sortBy === 'first_name') { av = `${a.first_name} ${a.last_name}`; bv = `${b.first_name} ${b.last_name}`; }
-      else { av = a[sortBy] || ''; bv = b[sortBy] || ''; }
+      if (sortBy === 'first_name') {
+        av = `${a.first_name} ${a.last_name}`; bv = `${b.first_name} ${b.last_name}`;
+      } else if (sortBy === 'date_of_engagement') {
+        av = a.date_of_engagement || ''; bv = b.date_of_engagement || '';
+      } else {
+        av = (a[sortBy] as string) || ''; bv = (b[sortBy] as string) || '';
+      }
       return sortDir === 'asc' ? av > bv ? 1 : -1 : av < bv ? 1 : -1;
     });
     return list;
-  }, [employees, search, classFilter, deptFilter, roleFilter, sortBy, sortDir]);
+  }, [employees, search, classFilter, etypeFilter, sectionFilter, deptFilter, roleFilter, sortBy, sortDir]);
 
   const totalPages = Math.ceil(filtered.length / PER_PAGE);
   const paged = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
-  useEffect(() => setPage(1), [search, classFilter, etypeFilter, deptFilter, roleFilter, sortBy, sortDir]);
+  useEffect(() => setPage(1), [search, classFilter, etypeFilter, sectionFilter, deptFilter, roleFilter, sortBy, sortDir]);
 
-  const activeFilterCount = [search, classFilter !== 'all', etypeFilter !== 'all', deptFilter !== 'all', roleFilter !== 'all'].filter(Boolean).length;
+  const activeFilterCount = [search, classFilter !== 'all', etypeFilter !== 'all', sectionFilter !== 'all', deptFilter !== 'all', roleFilter !== 'all'].filter(Boolean).length;
 
   const stats = useMemo(() => ({
     total:    employees.length,
@@ -842,7 +858,7 @@ export default function EmployeesPage() {
       const m = err instanceof Error ? err.message : 'Save failed'; setError(m); toast.error(m);
     } finally { setIsSubmitting(false); }
   };
-  const clearFilters = () => { setSearch(''); setClassFilter('all'); setDeptFilter('all'); setRoleFilter('all'); };
+  const clearFilters = () => { setSearch(''); setClassFilter('all'); setEtypeFilter('all'); setSectionFilter('all'); setDeptFilter('all'); setRoleFilter('all'); };
 
   const dlCols: DLColumn[] = [
     { key: 'employee_id',       label: 'Employee ID',    width: 14 },
@@ -916,7 +932,7 @@ export default function EmployeesPage() {
             </span>
           ) : undefined}
           actions={activeFilterCount > 0 ? (
-            <button onClick={clearFilters}
+            <button type="button" onClick={clearFilters}
               className="h-6 px-2 flex items-center gap-1 rounded-md bg-white/[0.07] hover:bg-white/[0.15] text-white/50 text-[11px] border border-white/12 transition-all">
               <X className="h-2.5 w-2.5" /> Clear
             </button>
@@ -941,6 +957,17 @@ export default function EmployeesPage() {
             ]}
             value={classFilter}
             onChange={setClassFilter}
+          />
+          <FilterChips
+            label="Section"
+            options={[
+              { value: 'all', label: 'All Sections' },
+              { value: 'Mechanical',      label: '⚙ Mechanical' },
+              { value: 'Electrical',      label: '⚡ Electrical' },
+              ...uniqueSections.filter(s => s !== 'Mechanical' && s !== 'Electrical').map(s => ({ value: s, label: s })),
+            ]}
+            value={sectionFilter}
+            onChange={setSectionFilter}
           />
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="relative">
@@ -975,10 +1002,11 @@ export default function EmployeesPage() {
             searchPlaceholder="Search name, ID, role…"
             sortValue={sortBy}
             sortOptions={[
-              { value: 'first_name', label: 'Name A–Z' },
-              { value: 'employee_id', label: 'ID' },
-              { value: 'designation', label: 'Role' },
-              { value: 'department', label: 'Department' },
+              { value: 'first_name',        label: 'Name (A–Z)' },
+              { value: 'employee_id',        label: 'Employee ID' },
+              { value: 'designation',        label: 'Role' },
+              { value: 'department',         label: 'Department' },
+              { value: 'date_of_engagement', label: 'Date of Engagement' },
             ]}
             onSort={v => setSortBy(v as SortField)}
             viewMode={viewMode === 'list' ? 'table' : 'grid'}
