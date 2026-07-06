@@ -501,7 +501,7 @@ export default function OvertimePage() {
     const updated = await updateOT(approving.id, {
       status: 'approved',
       approved_by: sig.signerName,
-      approved_at: sig.timestamp,
+      approved_at: sig.signedAt,
       approval_signature: sig.dataUrl,
     });
     setRecords(prev => prev.map(r => r.id === approving.id ? updated : r));
@@ -514,7 +514,7 @@ export default function OvertimePage() {
     const updated = await updateOT(rejecting.id, {
       status: 'rejected',
       rejected_by: sig.signerName,
-      rejected_at: sig.timestamp,
+      rejected_at: sig.signedAt,
     });
     setRecords(prev => prev.map(r => r.id === rejecting.id ? updated : r));
     toast.success('Overtime rejected');
@@ -662,7 +662,7 @@ export default function OvertimePage() {
         : filtered.length === 0
         ? <EmptyState icon={Clock4} title="No overtime requests" message="No records match your filters." action={{ label: 'New Request', onClick: () => { setEditing(null); setFormOpen(true); } }} />
         : view === 'table'
-        ? <GlassTable columns={cols} data={filtered} onRowClick={r => setViewing(r)} rowKey={r => String(r.id)} />
+        ? <GlassTable<OTRecord> columns={cols} data={filtered} onRowClick={r => setViewing(r)} keyField={'id' satisfies keyof OTRecord} />
         : <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 p-4">
             {filtered.map(r => <GridCard key={String(r.id)} r={r} />)}
           </div>,
@@ -741,7 +741,7 @@ export default function OvertimePage() {
           actions={
             <>
               <MasterCollapseButton collapse={sections} />
-              <DownloadButton data={records} columns={DL_COLS} filename="overtime_records" />
+              <DownloadButton data={records as unknown as Record<string, unknown>[]} columns={DL_COLS} filename="overtime_records" />
               <GlassButton variant="primary" icon={Plus} size="sm" onClick={() => { setEditing(null); setFormOpen(true); }}>
                 New Request
               </GlassButton>

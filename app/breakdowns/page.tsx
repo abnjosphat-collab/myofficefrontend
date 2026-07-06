@@ -9,7 +9,7 @@ import {
   Eye, AlertTriangle, Activity, Zap, ChevronDown, ChevronUp, User,
   Clock4, TrendingDown, PlayCircle, CheckCheck, TimerOff, Shield,
   Wind, FilterX, LayoutGrid, Table as TableIcon, ChevronRight,
-  MapPin,
+  MapPin, Users, Package, PieChart, BarChart3, Layers, Building2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from "date-fns";
@@ -18,11 +18,95 @@ import {
   usePageCollapse, MasterCollapseButton, DownloadButton, DeleteDialog,
   EmployeeNameInput, PredictiveInput, type DLColumn,
 } from '@/components/shared';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  PieChart as RePieChart, Pie, Cell, AreaChart as ReAreaChart, Area,
+  LineChart as ReLineChart, Line, ComposedChart, ScatterChart as ReScatterChart, Scatter
+} from 'recharts';
 
 // ─── API ──────────────────────────────────────────────────────────────────────
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com';
 const BREAKDOWN_API = `${API_BASE}/api/breakdowns`;
+
+// ─── ANALYTICS TYPES / HELPERS (mirrored from analytics page) ─────────────────
+
+interface HeatmapData {
+  heatmap: { hour_day: number[][]; labels: { hours: string[]; days: string[] } };
+  hourly_distribution: { hour: string; count: number }[];
+  daily_distribution: { day: string; count: number }[];
+  top_problem_machines: { name: string; count: number; total_downtime: number; department: string; avg_downtime: number; avg_repair_time: number; avg_response_time: number }[];
+  top_artisans: { name: string; count: number; total_repair_time: number; avg_repair_time: number }[];
+  top_spare_parts: { name: string; count: number; total_cost: number; part_number: string; total_quantity: number }[];
+  breakdown_type_distribution: { type: string; count: number }[];
+  priority_distribution: { priority: string; count: number }[];
+  status_distribution: { status: string; count: number }[];
+  department_comparison: { department: string; count: number; downtime: number }[];
+  monthly_trends: { month: string; count: number }[];
+  weekly_trends: { week: string; count: number }[];
+  location_distribution: { location: string; count: number }[];
+  response_time_by_hour: { hour: string; avg_response_time: number; count: number }[];
+  machine_downtime_scatter: { name: string; breakdowns: number; total_downtime: number; avg_downtime: number; avg_repair_time: number; department: string }[];
+  artisan_performance: { name: string; count: number; total_repair_time: number; avg_repair_time: number }[];
+  summary: { total_breakdowns: number; unique_machines: number; unique_artisans: number; unique_spares: number; unique_departments: number; unique_types: number; total_downtime_minutes: number; total_repair_time_minutes: number; total_spare_cost: number };
+  response_time_heatmap: number[][];
+  type_hour_heatmap: Record<string, { hour: string; count: number }[]>;
+  type_day_heatmap: Record<string, { day: string; count: number }[]>;
+  dept_hour_heatmap: Record<string, { hour: string; count: number }[]>;
+  priority_hour_heatmap: Record<string, { hour: string; count: number }[]>;
+  artisan_hour_heatmap: Record<string, { hour: string; count: number }[]>;
+  location_hour_heatmap: Record<string, { hour: string; count: number }[]>;
+  monthly_day_heatmap: Record<string, { day: number; count: number }[]>;
+  filters_applied: { date_from: string | null; date_to: string | null; department: string | null; machine_id: string | null };
+  success: boolean;
+}
+
+const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+const getHeatmapColor = (value: number, max: number): string => {
+  if (value === 0) return 'rgba(255,255,255,0.03)';
+  const intensity = value / max;
+  if (intensity < 0.33) return `rgba(59, 130, 246, ${0.3 + 0.4 * intensity})`;
+  if (intensity < 0.66) return `rgba(245, 158, 11, ${0.4 + 0.4 * intensity})`;
+  return `rgba(239, 68, 68, ${0.5 + 0.5 * intensity})`;
+};
+
+const formatTimeMinutes = (minutes: number): string => {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return h > 0 ? `${h}h ${m > 0 ? `${m}m` : ''}`.trim() : `${m}m`;
+};
+
+const formatCurrency = (value: number): string => `$${value.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+
+const PIE_COLORS = [
+  '#3b82f6', '#ef4444', '#22c55e', '#f59e0b', '#8b5cf6',
+  '#ec4899', '#14b8a6', '#f97316', '#6366f1', '#84cc16',
+  '#0ea5e9', '#a855f7', '#eab308', '#10b981', '#06b6d4',
+];
+
+const HeatmapCell = ({ value, max, hour, day }: { value: number; max: number; hour: number; day: number }) => {
+  const color = getHeatmapColor(value, max);
+  return (
+    <div className="relative group cursor-pointer" title={`${String(hour).padStart(2, '0')}:00 - ${DAY_NAMES[day]}: ${value} breakdown${value !== 1 ? 's' : ''}`}>
+      <div className="w-full aspect-square rounded-sm transition-all duration-200 hover:scale-110" style={{ backgroundColor: color, border: value === max && max > 0 ? '2px solid rgba(255,255,255,0.6)' : '1px solid rgba(255,255,255,0.05)' }} />
+    </div>
+  );
+};
+
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="bg-black/90 border border-white/10 rounded-lg px-3 py-2 text-xs shadow-xl">
+      <p className="text-white/60 mb-1">{label}</p>
+      {payload.map((entry: any, idx: number) => (
+        <p key={idx} className="text-white/90 font-medium">{entry.name}: {entry.value.toLocaleString()}</p>
+      ))}
+    </div>
+  );
+};
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
@@ -986,6 +1070,7 @@ const BreakdownsPage = () => {
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('table');
   const [sortField, setSortField] = useState('breakdown_date');
+  const [activeView, setActiveView] = useState<'records' | 'analytics'>('records');
   const [sortDirection, setSortDirection] = useState('desc');
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
 
@@ -1275,7 +1360,25 @@ const BreakdownsPage = () => {
           </div>
         </GlassPanel>
 
-        {/* Records Panel */}
+        {/* View Toggle Tabs */}
+        <div className="flex items-center gap-1 p-1 bg-white/[0.05] border border-white/[0.08] rounded-xl w-fit">
+          <button type="button" onClick={() => setActiveView('records')}
+            className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              activeView === 'records' ? 'bg-[#2A4D69] text-white border border-[#86BBD8]/20' : 'text-white/50 hover:text-white/80'
+            }`}>
+            <TableIcon className="h-3.5 w-3.5 inline mr-1.5" />
+            Records
+          </button>
+          <button type="button" onClick={() => setActiveView('analytics')}
+            className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              activeView === 'analytics' ? 'bg-[#2A4D69] text-white border border-[#86BBD8]/20' : 'text-white/50 hover:text-white/80'
+            }`}>
+            <Activity className="h-3.5 w-3.5 inline mr-1.5" />
+            Analytics
+          </button>
+        </div>
+
+        {activeView === 'records' && (
         <GlassPanel
           icon={TableIcon}
           title="Breakdown Records"
@@ -1346,6 +1449,11 @@ const BreakdownsPage = () => {
             />
           )}
         </GlassPanel>
+        )}
+
+        {activeView === 'analytics' && (
+          <AnalyticsView filters={filters} searchTerm={searchTerm} startDate={startDate} endDate={endDate} />
+        )}
       </div>
 
       <DetailsModal
@@ -1372,6 +1480,327 @@ const BreakdownsPage = () => {
         description={`Delete the breakdown record for "${deleteTarget?.machine_name}" on ${deleteTarget?.breakdown_date}? This cannot be undone.`}
       />
     </PageShell>
+  );
+};
+
+// ─── ANALYTICS VIEW (inline) ──────────────────────────────────────────────────
+
+const AnalyticsView = ({ filters, searchTerm, startDate, endDate }: {
+  filters: Filters; searchTerm: string; startDate: string; endDate: string;
+}) => {
+  const [data, setData] = useState<HeatmapData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('overview');
+
+  const maxHeatmapValue = data ? Math.max(...data.heatmap.hour_day.flat(), 1) : 1;
+
+  const fetchAnalytics = async () => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams();
+      if (startDate) params.append('date_from', startDate);
+      if (endDate) params.append('date_to', endDate);
+      if (filters.department && filters.department !== 'all') params.append('department', filters.department);
+      const url = `${API_BASE}/api/breakdowns/analytics/heatmap?${params}`;
+      const res = await fetch(url);
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`HTTP ${res.status}: ${text || res.statusText}`);
+      }
+      const json = await res.json();
+      if (json.success) setData(json);
+    } catch (e) {
+      console.error('Analytics fetch error:', e);
+      const message = e instanceof Error ? e.message : 'Failed to load analytics';
+      toast.error(message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchAnalytics(); }, [startDate, endDate, filters.department]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-[#86BBD8]" />
+      </div>
+    );
+  }
+
+  if (!data) {
+    return (
+      <Card className="bg-white/[0.03] border-white/[0.08]">
+        <CardContent className="py-20 text-center">
+          <AlertTriangle className="h-12 w-12 text-white/20 mx-auto mb-4" />
+          <p className="text-white/40">No analytics data available</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const tabs: { key: string; label: string; icon: React.ElementType; content: React.ReactNode }[] = [
+    {
+      key: 'overview', label: 'Overview', icon: Layers,
+      content: (
+        <div className="space-y-6">
+          <Card className="bg-white/[0.03] border-white/[0.08]">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center gap-2 text-sm">
+                <TrendingUp className="h-4 w-4 text-emerald-400" /> Monthly Breakdown Trends
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {data.monthly_trends.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <ReAreaChart data={data.monthly_trends} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="monthlyGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                    <XAxis dataKey="month" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} />
+                    <YAxis tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Area type="monotone" dataKey="count" name="Breakdowns" stroke="#10b981" fill="url(#monthlyGradient)" strokeWidth={2} />
+                  </ReAreaChart>
+                </ResponsiveContainer>
+              ) : <p className="text-white/30 text-xs text-center py-8">No data</p>}
+            </CardContent>
+          </Card>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card className="bg-white/[0.03] border-white/[0.08]">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center gap-2 text-sm">
+                  <Building2 className="h-4 w-4 text-blue-400" /> Department Comparison
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {data.department_comparison.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={280}>
+                    <ComposedChart data={data.department_comparison} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                      <XAxis dataKey="department" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10 }} />
+                      <YAxis yAxisId="left" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10 }} />
+                      <YAxis yAxisId="right" orientation="right" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10 }} />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Bar yAxisId="left" dataKey="count" name="Breakdowns" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                      <Line yAxisId="right" type="monotone" dataKey="downtime" name="Downtime (min)" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                ) : <p className="text-white/30 text-xs text-center py-8">No data</p>}
+              </CardContent>
+            </Card>
+            <Card className="bg-white/[0.03] border-white/[0.08]">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center gap-2 text-sm">
+                  <PieChart className="h-4 w-4 text-violet-400" /> Breakdown Types
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {data.breakdown_type_distribution.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={280}>
+                    <RePieChart>
+                      <Pie data={data.breakdown_type_distribution} cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={2} dataKey="count" nameKey="type"
+                        label={(props: any) => `${props.type} (${(props.percent * 100).toFixed(0)}%)`} labelLine={{ stroke: 'rgba(255,255,255,0.2)' }}>
+                        {data.breakdown_type_distribution.map((_, idx) => <Cell key={idx} fill={PIE_COLORS[idx % PIE_COLORS.length]} />)}
+                      </Pie>
+                      <Tooltip content={<CustomTooltip />} />
+                    </RePieChart>
+                  </ResponsiveContainer>
+                ) : <p className="text-white/30 text-xs text-center py-8">No data</p>}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'heatmap', label: 'Heatmap', icon: Activity,
+      content: (
+        <div className="space-y-6">
+          <Card className="bg-white/[0.03] border-white/[0.08]">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center gap-2 text-sm">
+                <Activity className="h-4 w-4 text-violet-400" /> Hour × Day Heatmap
+              </CardTitle>
+              <CardDescription className="text-white/40">Darker = more breakdowns</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <div className="min-w-[600px]">
+                  <div className="grid grid-cols-[auto_1fr] gap-1 mb-1">
+                    <div className="w-12" />
+                    <div className="grid grid-cols-24 gap-0.5">
+                      {DAY_NAMES.map((d, i) => <div key={i} className="text-[9px] text-white/30 text-center" style={{ gridColumn: `${i + 1} / span 1` }}>{d.slice(0, 3)}</div>)}
+                    </div>
+                  </div>
+                  {data.heatmap.hour_day.map((row, hour) => (
+                    <div key={hour} className="grid grid-cols-[auto_1fr] gap-1 items-center">
+                      <div className="w-12 text-right text-[10px] text-white/40 pr-2">{String(hour).padStart(2, '0')}:00</div>
+                      <div className="grid grid-cols-24 gap-0.5">
+                        {row.map((value, day) => <HeatmapCell key={day} value={value} max={maxHeatmapValue} hour={hour} day={day} />)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      ),
+    },
+    {
+      key: 'machines', label: 'Machines', icon: Wrench,
+      content: (
+        <div className="space-y-6">
+          <Card className="bg-white/[0.03] border-white/[0.08]">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center gap-2 text-sm">
+                <Wrench className="h-4 w-4 text-red-400" /> Top Problem Machines
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {data.top_problem_machines.length > 0 ? (
+                <div className="space-y-4">
+                  {data.top_problem_machines.slice(0, 10).map((machine, idx) => {
+                    const maxCount = Math.max(...data.top_problem_machines.map(m => m.count));
+                    const pct = (machine.count / maxCount) * 100;
+                    return (
+                      <div key={idx} className="space-y-1.5">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1 min-w-0">
+                            <div className="text-white/90 text-sm font-medium truncate flex items-center gap-2">
+                              <span className="w-5 h-5 rounded-full bg-white/[0.06] flex items-center justify-center text-[10px] text-white/40 font-mono">{idx + 1}</span>
+                              {machine.name}
+                            </div>
+                            <div className="text-white/40 text-[10px] ml-7">{machine.department} · {formatTime(machine.total_downtime)} downtime</div>
+                          </div>
+                          <div className="text-right ml-3">
+                            <div className="text-white/90 text-sm font-semibold">{machine.count}</div>
+                            <div className="text-white/30 text-[10px]">breakdowns</div>
+                          </div>
+                        </div>
+                        <div className="h-2 bg-white/[0.06] rounded-full overflow-hidden ml-7">
+                          <div className="h-full bg-gradient-to-r from-red-500 to-red-400 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : <p className="text-white/30 text-xs text-center py-8">No data</p>}
+            </CardContent>
+          </Card>
+        </div>
+      ),
+    },
+    {
+      key: 'artisans', label: 'Artisans', icon: Users,
+      content: (
+        <Card className="bg-white/[0.03] border-white/[0.08]">
+          <CardHeader>
+            <CardTitle className="text-white flex items-center gap-2 text-sm">
+              <Users className="h-4 w-4 text-amber-400" /> Top Artisans
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {data.artisan_performance.length > 0 ? (
+              <div className="space-y-3">
+                {data.artisan_performance.slice(0, 10).map((a, idx) => {
+                  const maxCount = Math.max(...data.artisan_performance.map(x => x.count));
+                  const pct = (a.count / maxCount) * 100;
+                  return (
+                    <div key={idx} className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="w-5 h-5 rounded-full bg-white/[0.06] flex items-center justify-center text-[10px] text-white/40 font-mono">{idx + 1}</span>
+                          <span className="text-white/90 text-sm truncate">{a.name}</span>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-white/90 text-sm font-semibold">{a.count}</div>
+                          <div className="text-white/30 text-[10px]">avg {formatTime(a.avg_repair_time)}</div>
+                        </div>
+                      </div>
+                      <div className="h-1.5 bg-white/[0.06] rounded-full overflow-hidden ml-7">
+                        <div className="h-full bg-gradient-to-r from-amber-500 to-amber-400 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : <p className="text-white/30 text-xs text-center py-8">No data</p>}
+          </CardContent>
+        </Card>
+      ),
+    },
+    {
+      key: 'spares', label: 'Spares', icon: Package,
+      content: (
+        <Card className="bg-white/[0.03] border-white/[0.08]">
+          <CardHeader>
+            <CardTitle className="text-white flex items-center gap-2 text-sm">
+              <Package className="h-4 w-4 text-purple-400" /> Most Used Spare Parts
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {data.top_spare_parts.length > 0 ? (
+              <div className="space-y-3">
+                {data.top_spare_parts.slice(0, 10).map((spare, idx) => {
+                  const maxCount = Math.max(...data.top_spare_parts.map(s => s.count));
+                  const pct = (spare.count / maxCount) * 100;
+                  return (
+                    <div key={idx} className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="w-5 h-5 rounded-full bg-white/[0.06] flex items-center justify-center text-[10px] text-white/40 font-mono">{idx + 1}</span>
+                            <div>
+                              <div className="text-white/90 text-sm truncate">{spare.name}</div>
+                              {spare.part_number && <div className="text-white/30 text-[10px]">{spare.part_number}</div>}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right ml-2">
+                          <div className="text-white/90 text-sm font-semibold">{spare.total_quantity}×</div>
+                          <div className="text-amber-300/70 text-[10px]">${formatCurrency(spare.total_cost)}</div>
+                        </div>
+                      </div>
+                      <div className="h-1.5 bg-white/[0.06] rounded-full overflow-hidden ml-7">
+                        <div className="h-full bg-gradient-to-r from-purple-500 to-purple-400 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : <p className="text-white/30 text-xs text-center py-8">No data</p>}
+          </CardContent>
+        </Card>
+      ),
+    },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList className="bg-white/[0.05] border border-white/[0.08] p-1 w-full overflow-x-auto flex-nowrap">
+          {tabs.map(t => {
+            const Icon = t.icon;
+            return (
+              <TabsTrigger key={t.key} value={t.key} className="data-[state=active]:bg-[#2A4D69] data-[state=active]:text-white text-white/60 text-xs gap-1.5">
+                <Icon className="h-3.5 w-3.5" /> {t.label}
+              </TabsTrigger>
+            );
+          })}
+        </TabsList>
+        {tabs.map(t => (
+          <TabsContent key={t.key} value={t.key} className="space-y-6 mt-0">
+            {t.content}
+          </TabsContent>
+        ))}
+      </Tabs>
+    </div>
   );
 };
 

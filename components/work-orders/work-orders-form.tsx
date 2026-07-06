@@ -1088,6 +1088,11 @@ export function WorkOrderForm({ onBack, onSave }: WorkOrderFormProps) {
   const [backendStatus, setBackendStatus] = useState<'checking' | 'connected' | 'disconnected'>('checking');
   const { toast } = useToast();
 
+  // Scroll to top when tab changes
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [activeTab]);
+
   const handleInputChange = useCallback((field: string, value: string) => {
     setFormData(prev => ({
       ...prev,
@@ -1399,7 +1404,27 @@ export function WorkOrderForm({ onBack, onSave }: WorkOrderFormProps) {
             {/* Screen Layout with Enhanced Tabs */}
             <div className="screen-only">
               <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
-                <div className="border-b border-gray-200/60 pb-4">
+                {/* Mobile Progress Indicator */}
+                <div className="lg:hidden mb-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-medium text-gray-600">Step {['basic', 'details', 'work', 'signoff'].indexOf(activeTab) + 1} of 4</span>
+                    <span className="text-xs font-medium text-blue-600">
+                      {activeTab === 'basic' && 'Basic Info'}
+                      {activeTab === 'details' && 'Job Details'}
+                      {activeTab === 'work' && 'Work Analysis'}
+                      {activeTab === 'signoff' && 'Sign-off'}
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="bg-gradient-to-r from-blue-600 to-blue-800 h-2 rounded-full transition-all duration-500"
+                      style={{ width: `${((['basic', 'details', 'work', 'signoff'].indexOf(activeTab) + 1) / 4) * 100}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Desktop Horizontal Tabs */}
+                <div className="hidden lg:block border-b border-gray-200/60 pb-4">
                   <TabsList className="grid grid-cols-4 w-full bg-gray-100/80 p-1 rounded-xl backdrop-blur-sm">
                     {[
                       { value: "basic", label: "Basic Info", icon: FileText },
@@ -1419,6 +1444,80 @@ export function WorkOrderForm({ onBack, onSave }: WorkOrderFormProps) {
                       </TabsTrigger>
                     ))}
                   </TabsList>
+                </div>
+
+                {/* Mobile Horizontal Scrollable Tabs */}
+                <div className="lg:hidden">
+                  <div className="relative">
+                    <div className="flex overflow-x-auto scrollbar-hide border-b border-gray-200/60 pb-0 -mx-1 px-1">
+                      <div className="flex w-full min-w-max gap-1">
+                        {[
+                          { value: "basic", label: "Basic Info", icon: FileText, step: "1" },
+                          { value: "details", label: "Job Details", icon: Settings, step: "2" },
+                          { value: "work", label: "Work Analysis", icon: Workflow, step: "3" },
+                          { value: "signoff", label: "Sign-off", icon: FileCheck, step: "4" },
+                        ].map(({ value, label, icon: Icon, step }) => (
+                          <button
+                            key={value}
+                            type="button"
+                            onClick={() => setActiveTab(value)}
+                            className={`flex items-center gap-2 px-4 py-3 rounded-t-lg border-b-2 transition-all duration-300 whitespace-nowrap min-w-[120px] justify-center
+                              ${activeTab === value 
+                                ? 'border-blue-600 bg-blue-50/50 text-blue-900 font-semibold' 
+                                : 'border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                              }`}
+                          >
+                            <span className={`flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold
+                              ${activeTab === value 
+                                ? 'bg-blue-600 text-white' 
+                                : 'bg-gray-200 text-gray-600'
+                              }`}
+                            >
+                              {step}
+                            </span>
+                            <Icon className="h-4 w-4" />
+                            <span className="text-sm">{label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Mobile Quick Navigation Buttons */}
+                <div className="lg:hidden flex justify-between items-center mt-4 pt-4 border-t border-gray-200/60">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const currentIndex = ['basic', 'details', 'work', 'signoff'].indexOf(activeTab);
+                      if (currentIndex > 0) {
+                        setActiveTab(['basic', 'details', 'work', 'signoff'][currentIndex - 1]);
+                      }
+                    }}
+                    disabled={['basic', 'details', 'work', 'signoff'].indexOf(activeTab) === 0}
+                    className="gap-2 hover:bg-gray-100 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                    Previous
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="default"
+                    size="sm"
+                    onClick={() => {
+                      const currentIndex = ['basic', 'details', 'work', 'signoff'].indexOf(activeTab);
+                      if (currentIndex < 3) {
+                        setActiveTab(['basic', 'details', 'work', 'signoff'][currentIndex + 1]);
+                      }
+                    }}
+                    disabled={['basic', 'details', 'work', 'signoff'].indexOf(activeTab) === 3}
+                    className="gap-2 bg-blue-600 hover:bg-blue-700 text-white transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Next
+                    <ArrowLeft className="h-4 w-4 rotate-180" />
+                  </Button>
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-8">
