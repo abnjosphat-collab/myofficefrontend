@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { motion } from 'framer-motion';
 import {
   Shield, Plus, Search, RefreshCw, ChevronDown, ChevronUp,
   CheckCircle2, XCircle, FileText, Eye,
@@ -8,15 +9,16 @@ import {
   Users, Package,
   Award, Layers, ChevronRight,
   Shirt, Wind, CloudRain, Link2, ChevronsUp, ChevronsDown, X,
-  Flashlight, Download, FileSpreadsheet, FileDown,
+  Flashlight, Download, FileSpreadsheet, FileDown, Sun, Moon, Loader2, Check,
 } from 'lucide-react';
 import { PageShell } from '@/components/PageShell';
 import { toast } from 'sonner';
-import {
-  glassInput, glassLabel, glassTextarea,
-  SafetyModal, FormField, ModalActions, LoadingState,
-} from '@/components/safety';
+import { LoadingState } from '@/components/safety';
 import { usePageCollapse, MasterCollapseButton } from '@/components/shared';
+import {
+  useTheme, Collapse, AnimatedText, PulsingIcon, CenterModal,
+  staggerContainer, fadeUp, ACCENT, type Accent,
+} from '@/components/shared/theme';
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
@@ -174,6 +176,7 @@ interface EmployeeAutocompleteProps {
 }
 
 function EmployeeAutocomplete({ value, onChange, options, placeholder, onSelect }: EmployeeAutocompleteProps) {
+  const t = useTheme();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState(value || '');
 
@@ -185,20 +188,19 @@ function EmployeeAutocomplete({ value, onChange, options, placeholder, onSelect 
   return (
     <div className="relative">
       <input type="text" value={q} placeholder={placeholder}
-        className={glassInput}
+        className={`${t.inputBg} rounded-lg text-sm px-3 py-2 w-full transition-all focus:outline-none`}
         onChange={e => { setQ(e.target.value); onChange(e.target.value); setOpen(true); }}
         onFocus={() => setOpen(true)}
         onBlur={() => setTimeout(() => setOpen(false), 160)} />
       {open && filtered.length > 0 && (
-        <ul className="absolute top-full left-0 right-0 z-50 mt-1 rounded-xl shadow-2xl max-h-56 overflow-y-auto list-none p-0"
-          style={{ background: 'rgba(4,12,24,0.98)', border: '1px solid rgba(255,255,255,0.15)' }}>
+        <ul className={`absolute top-full left-0 right-0 z-50 mt-1 rounded-xl shadow-2xl max-h-56 overflow-y-auto list-none p-0 ${t.glass}`}>
           {filtered.map((opt, i) => (
             <li key={i}>
               <button type="button"
                 onMouseDown={e => { e.preventDefault(); setQ(opt.employee_id); onSelect(opt); setOpen(false); }}
-                className="w-full text-left px-3 py-2.5 text-xs hover:bg-white/[0.10] border-b border-white/[0.05] last:border-0 transition-all">
-                <div className="font-semibold text-white/90">{opt.employee_id}</div>
-                <div className="text-[11px] text-white/55 mt-0.5">{opt.employee_name} · {opt.position}</div>
+                className={`w-full text-left px-3 py-2.5 text-xs ${t.hoverBg} border-b ${t.border} last:border-0 transition-all`}>
+                <div className={`font-semibold ${t.textPrimary}`}>{opt.employee_id}</div>
+                <div className={`text-[11px] ${t.textFaint} mt-0.5`}>{opt.employee_name} · {opt.position}</div>
               </button>
             </li>
           ))}
@@ -217,6 +219,7 @@ interface IssuedByInputProps {
 }
 
 function IssuedByInput({ value, onChange, employees }: IssuedByInputProps) {
+  const t = useTheme();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState(value || '');
 
@@ -234,15 +237,14 @@ function IssuedByInput({ value, onChange, employees }: IssuedByInputProps) {
   return (
     <div className="relative">
       <input type="text" value={q} placeholder="Type a name or pick from employees…"
-        className={glassInput}
+        className={`${t.inputBg} rounded-lg text-sm px-3 py-2 w-full transition-all focus:outline-none`}
         onChange={e => { setQ(e.target.value); onChange(e.target.value); setOpen(true); }}
         onFocus={() => setOpen(true)}
         onBlur={() => setTimeout(() => setOpen(false), 160)} />
       {open && filtered.length > 0 && (
-        <ul className="absolute top-full left-0 right-0 z-50 mt-1 rounded-xl shadow-2xl max-h-56 overflow-y-auto list-none p-0"
-          style={{ background: 'rgba(4,12,24,0.98)', border: '1px solid rgba(255,255,255,0.15)' }}>
+        <ul className={`absolute top-full left-0 right-0 z-50 mt-1 rounded-xl shadow-2xl max-h-56 overflow-y-auto list-none p-0 ${t.glass}`}>
           {q.length === 0 && (
-            <li className="px-3 py-1.5 text-[10px] text-white/45 uppercase tracking-wider border-b border-white/[0.05]">
+            <li className={`px-3 py-1.5 text-[10px] ${t.textFaint} uppercase tracking-wider border-b ${t.border}`}>
               All employees — or keep typing to filter
             </li>
           )}
@@ -250,9 +252,9 @@ function IssuedByInput({ value, onChange, employees }: IssuedByInputProps) {
             <li key={i}>
               <button type="button"
                 onMouseDown={e => { e.preventDefault(); setQ(emp.employee_name); onChange(emp.employee_name); setOpen(false); }}
-                className="w-full text-left px-3 py-2.5 text-xs hover:bg-white/[0.10] border-b border-white/[0.05] last:border-0 transition-all">
-                <div className="font-semibold text-white/90">{emp.employee_name}</div>
-                <div className="text-[11px] text-white/55 mt-0.5">{emp.position} · {emp.employee_id}</div>
+                className={`w-full text-left px-3 py-2.5 text-xs ${t.hoverBg} border-b ${t.border} last:border-0 transition-all`}>
+                <div className={`font-semibold ${t.textPrimary}`}>{emp.employee_name}</div>
+                <div className={`text-[11px] ${t.textFaint} mt-0.5`}>{emp.position} · {emp.employee_id}</div>
               </button>
             </li>
           ))}
@@ -272,40 +274,45 @@ interface PPEItemCardProps {
 }
 
 function PPEItemCard({ record, onEdit, onDelete, onView }: PPEItemCardProps) {
+  const t = useTheme();
   const ppeType = PPE_TYPES[record.ppe_type] || PPE_TYPES.helmet;
   const Icon = ppeType.icon;
   const expiring = isExpiringSoon(record.expiry_date);
   const expired  = isExpired(record.expiry_date);
 
-  const accentBorder = expired
-    ? 'border-rose-500/40'
-    : expiring
-    ? 'border-amber-500/40'
-    : 'border-white/[0.10]';
+  const accentBorderColor = expired ? '#f43f5e' : expiring ? '#f59e0b' : undefined;
 
   return (
-    <div className={`group rounded-xl bg-white/[0.06] hover:bg-white/[0.11] border ${accentBorder} cursor-pointer transition-all duration-200 overflow-hidden`}
-      onClick={() => onView(record)}>
+    <motion.div
+      initial="rest" animate="rest" whileHover="hover" whileTap={{ scale: 0.985 }}
+      className={`group rounded-lg ${t.glassSoft} ${t.hoverBgSoft} border cursor-pointer transition-all duration-200 overflow-hidden`}
+      style={{ borderColor: accentBorderColor }}
+      onClick={() => onView(record)}
+    >
       {/* top stripe accent */}
       <div className="h-0.5 w-full" style={{ background: expired ? '#f43f5e' : expiring ? '#f59e0b' : ppeType.color }} />
 
       <div className="px-3.5 pt-3 pb-2 flex items-start justify-between gap-2">
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className={`p-2 rounded-lg shrink-0 ${ppeType.bgColor} border ${ppeType.borderColor}`}>
-            <Icon className={`h-3.5 w-3.5 ${ppeType.textColor}`} />
-          </div>
+          <motion.div
+            variants={{ rest: { scale: 1 }, hover: { scale: 1.08, transition: { duration: 0.25 } } }}
+            className="p-2 rounded-lg shrink-0 border"
+            style={{ background: `${ppeType.color}1A`, borderColor: `${ppeType.color}40` }}
+          >
+            <Icon className="h-3.5 w-3.5" style={{ color: ppeType.color }} />
+          </motion.div>
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-white/90 leading-tight truncate">{record.item_name}</p>
-            <p className="text-xs text-white/55 mt-0.5">{ppeType.name}</p>
+            <p className={`text-sm font-semibold ${t.textPrimary} leading-tight truncate`}>{record.item_name}</p>
+            <AnimatedText as="p" text={ppeType.name} className={`text-xs ${t.textSecondary} mt-0.5`} />
           </div>
         </div>
         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" onClick={e => e.stopPropagation()}>
           <button type="button" title="Edit" onClick={() => onEdit(record)}
-            className="h-6 w-6 flex items-center justify-center rounded hover:bg-[#86BBD8]/20 text-white/40 hover:text-[#86BBD8] transition-all">
+            className={`h-6 w-6 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-blue-500 transition-all`}>
             <Edit className="h-3 w-3" />
           </button>
           <button type="button" title="Delete" onClick={() => onDelete(record.id)}
-            className="h-6 w-6 flex items-center justify-center rounded hover:bg-rose-500/20 text-white/40 hover:text-rose-400 transition-all">
+            className={`h-6 w-6 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-rose-500 transition-all`}>
             <Trash2 className="h-3 w-3" />
           </button>
         </div>
@@ -313,21 +320,21 @@ function PPEItemCard({ record, onEdit, onDelete, onView }: PPEItemCardProps) {
 
       <div className="px-3.5 pb-3.5 space-y-1.5 text-xs">
         <div className="flex justify-between">
-          <span className="text-white/50">Issued</span>
-          <span className="text-white/80 font-medium">{fmtDate(record.issue_date)}</span>
+          <span className={t.textFaint}>Issued</span>
+          <span className={`${t.textMuted} font-medium`}>{fmtDate(record.issue_date)}</span>
         </div>
         {record.expiry_date && (
           <div className="flex justify-between">
-            <span className="text-white/50">Expires</span>
-            <span className={`font-semibold ${expired ? 'text-rose-300' : expiring ? 'text-amber-300' : 'text-white/80'}`}>
+            <span className={t.textFaint}>Expires</span>
+            <span className={`font-semibold ${expired ? 'text-rose-500' : expiring ? 'text-amber-500' : t.textMuted}`}>
               {fmtDate(record.expiry_date)}
             </span>
           </div>
         )}
         {record.size && (
           <div className="flex justify-between">
-            <span className="text-white/50">Size</span>
-            <span className="text-white/80 font-medium">{record.size}</span>
+            <span className={t.textFaint}>Size</span>
+            <span className={`${t.textMuted} font-medium`}>{record.size}</span>
           </div>
         )}
         <div className="flex justify-between items-center pt-0.5">
@@ -335,7 +342,7 @@ function PPEItemCard({ record, onEdit, onDelete, onView }: PPEItemCardProps) {
           <PPEStatusBadge status={record.status} />
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -352,51 +359,55 @@ interface EmployeePPECardProps {
 }
 
 function EmployeePPECard({ employee, isExpanded, onToggle, onIssueNew, onEditItem, onDeleteItem, onViewItem }: EmployeePPECardProps) {
+  const t = useTheme();
+  const [hovering, setHovering] = useState(false);
+  const visuallyExpanded = isExpanded || hovering;
+
   const active   = employee.records.filter(r => r.status === 'active');
   const expired  = employee.records.filter(r => isExpired(r.expiry_date) && r.status === 'active');
   const expiring = employee.records.filter(r => isExpiringSoon(r.expiry_date) && r.status === 'active');
   const hasAlert = expired.length > 0 || expiring.length > 0;
 
-  const borderCls = expired.length > 0
-    ? 'border-rose-500/35'
-    : expiring.length > 0
-    ? 'border-amber-500/35'
-    : 'border-white/[0.08]';
+  const borderColor = expired.length > 0 ? '#f43f5e59' : expiring.length > 0 ? '#f59e0b59' : undefined;
 
   return (
-    <div className={`oz-glass-dark rounded-2xl overflow-hidden border ${borderCls} transition-all duration-200`}>
+    <motion.div
+      onHoverStart={() => setHovering(true)}
+      onHoverEnd={() => setHovering(false)}
+      className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden border transition-all duration-200`}
+      style={{ borderColor }}
+    >
       {/* Header — always visible */}
       <div className="flex items-center justify-between px-5 py-4 gap-3">
         <button type="button" onClick={onToggle}
           className="flex items-center gap-3 min-w-0 flex-1 text-left hover:opacity-90 transition-opacity">
           {/* Avatar */}
-          <div className="h-11 w-11 rounded-xl flex items-center justify-center text-white font-bold text-lg shrink-0"
-            style={{ background: 'linear-gradient(135deg,#2A4D69,#86BBD8)' }}>
-            {employee.employee_name?.[0] || 'U'}
-          </div>
+          <PulsingIcon className={`h-11 w-11 rounded-xl flex items-center justify-center text-white font-bold text-lg shrink-0 bg-gradient-to-br ${ACCENT.blue.gradient} ${ACCENT.blue.solidGlow}`}>
+            <span>{employee.employee_name?.[0] || 'U'}</span>
+          </PulsingIcon>
 
           {/* Name + meta */}
           <div className="min-w-0">
-            <p className="text-base font-semibold text-white/95 leading-tight">{employee.employee_name}</p>
-            <p className="text-xs text-white/55 mt-0.5 truncate">{employee.position} · {employee.employee_id}</p>
+            <p className={`text-base font-semibold ${t.textPrimary} leading-tight`}>{employee.employee_name}</p>
+            <p className={`text-xs ${t.textSecondary} mt-0.5 truncate`}>{employee.position} · {employee.employee_id}</p>
 
             {/* Status chips */}
             <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-              <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-medium">
+              <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 border border-emerald-500/30 font-medium">
                 <CheckCircle2 className="h-3 w-3" /> {active.length} Active
               </span>
               {expired.length > 0 && (
-                <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30 font-medium">
+                <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-600 border border-rose-500/30 font-medium">
                   <XCircle className="h-3 w-3" /> {expired.length} Overdue
                 </span>
               )}
               {expiring.length > 0 && (
-                <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 font-medium">
+                <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 border border-amber-500/30 font-medium">
                   <AlertTriangle className="h-3 w-3" /> {expiring.length} Expiring
                 </span>
               )}
               {employee.records.length === 0 && (
-                <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-white/10 text-white/45 border border-white/15">
+                <span className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full ${t.chipBg} ${t.textFaint} border ${t.border}`}>
                   No items
                 </span>
               )}
@@ -406,21 +417,20 @@ function EmployeePPECard({ employee, isExpanded, onToggle, onIssueNew, onEditIte
 
         {/* Actions */}
         <div className="flex items-center gap-2 shrink-0">
-          <button type="button" onClick={() => onIssueNew(employee)}
-            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-semibold text-white/90 transition-all hover:-translate-y-0.5"
-            style={{ background: 'rgba(42,77,105,0.55)', border: '1px solid rgba(134,187,216,0.35)' }}>
+          <motion.button type="button" onClick={() => onIssueNew(employee)} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+            className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-semibold text-white transition-all bg-gradient-to-br ${ACCENT.blue.gradient} ${ACCENT.blue.solidGlow} ${ACCENT.blue.glow}`}>
             <Plus className="h-3 w-3" /> Issue PPE
-          </button>
+          </motion.button>
           <button type="button" title={isExpanded ? 'Collapse' : 'Expand'} onClick={onToggle}
-            className={`h-8 w-8 flex items-center justify-center rounded-lg border transition-all ${hasAlert ? 'bg-amber-500/10 border-amber-500/30 text-amber-300' : 'bg-white/[0.07] border-white/[0.15] text-white/65'} hover:bg-white/[0.15]`}>
-            {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            className={`h-8 w-8 flex items-center justify-center rounded-lg border transition-all ${hasAlert ? 'bg-amber-500/10 border-amber-500/30 text-amber-600' : `${t.glassSoft} ${t.textMuted}`} ${t.hoverBg}`}>
+            {visuallyExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           </button>
         </div>
       </div>
 
       {/* Expanded content */}
-      {isExpanded && (
-        <div className="px-5 pb-5 pt-1 border-t border-white/[0.08]">
+      <Collapse open={visuallyExpanded}>
+        <div className={`px-5 pb-5 pt-1 border-t ${t.border}`}>
           {employee.records.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pt-2">
               {employee.records.map(record => (
@@ -429,15 +439,15 @@ function EmployeePPECard({ employee, isExpanded, onToggle, onIssueNew, onEditIte
               ))}
             </div>
           ) : (
-            <div className="text-center py-10 rounded-xl bg-white/[0.03] border border-white/[0.07] mt-2">
-              <Shield className="h-10 w-10 mx-auto mb-3 text-white/25" />
-              <p className="text-sm font-medium text-white/60">No PPE items issued yet</p>
-              <p className="text-xs text-white/40 mt-1">Click &quot;Issue PPE&quot; to add equipment for this employee</p>
+            <div className={`text-center py-10 rounded-xl ${t.glassSoft} mt-2`}>
+              <Shield className={`h-10 w-10 mx-auto mb-3 ${t.textTertiary}`} />
+              <p className={`text-sm font-medium ${t.textMuted}`}>No PPE items issued yet</p>
+              <p className={`text-xs ${t.textFaint} mt-1`}>Click &quot;Issue PPE&quot; to add equipment for this employee</p>
             </div>
           )}
         </div>
-      )}
-    </div>
+      </Collapse>
+    </motion.div>
   );
 }
 
@@ -451,6 +461,7 @@ interface DetailModalProps {
 }
 
 function PPEDetailModal({ item, isOpen, onClose, onEdit }: DetailModalProps) {
+  const t = useTheme();
   if (!item) return null;
   const ppeType = PPE_TYPES[item.ppe_type] || PPE_TYPES.helmet;
   const Icon = ppeType.icon;
@@ -468,31 +479,48 @@ function PPEDetailModal({ item, isOpen, onClose, onEdit }: DetailModalProps) {
     { label: 'Location',    value: item.location || '—' },
     { label: 'Mine Section',value: item.mine_section || '—' },
     { label: 'Issued By',   value: item.issued_by || '—' },
-    { label: 'Notes',       value: item.notes || '—' },
   ];
 
   return (
-    <SafetyModal open={isOpen} onClose={onClose} icon={Icon} title="PPE Item Details" width="max-w-3xl">
-      <div className="p-5 grid grid-cols-2 sm:grid-cols-3 gap-3">
-        {fields.map(f => (
-          <div key={f.label} className="rounded-xl p-3 bg-white/[0.06] border border-white/[0.09]">
-            <div className={`${glassLabel} text-white/55`}>{f.label}</div>
-            <div className="text-sm text-white/85 font-medium break-words mt-1">{f.value}</div>
+    <CenterModal open={isOpen} onClose={onClose} title="PPE Item Details" subtitle={item.item_name} accent="blue" width="max-w-3xl">
+      <motion.div variants={staggerContainer} initial="hidden" animate="show" className="p-5 space-y-4">
+        <motion.div variants={fadeUp} className="flex items-center gap-3">
+          <PulsingIcon className="h-12 w-12 rounded-xl flex items-center justify-center shrink-0 border" style={{ background: `${ppeType.color}1A`, borderColor: `${ppeType.color}40` } as React.CSSProperties}>
+            <Icon className="h-5 w-5" style={{ color: ppeType.color }} />
+          </PulsingIcon>
+          <div>
+            <h3 className={`font-semibold ${t.textPrimary} text-base tracking-tight`}>{item.item_name}</h3>
+            <AnimatedText as="p" trigger="mount" text={ppeType.description} className={`text-[12.5px] ${t.textSecondary} mt-0.5`} />
           </div>
-        ))}
-      </div>
-      <div className="flex gap-2 px-5 py-4 border-t border-white/[0.08]">
+        </motion.div>
+
+        <motion.div variants={staggerContainer} className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          {fields.map(f => (
+            <motion.div key={f.label} variants={fadeUp} whileHover={{ y: -2 }} className={`rounded-xl p-3 ${t.glassSoft} ${t.shadow} transition-shadow duration-300`}>
+              <div className={`text-xs font-medium ${t.textFaint}`}>{f.label}</div>
+              <div className={`text-sm font-medium break-words mt-1 ${t.textMuted}`}>{f.value}</div>
+            </motion.div>
+          ))}
+        </motion.div>
+
+        {item.notes && (
+          <motion.div variants={fadeUp} className={`rounded-xl p-3 ${t.glassSoft}`}>
+            <div className={`text-xs font-medium ${t.textFaint} mb-1`}>Notes</div>
+            <AnimatedText as="p" trigger="mount" text={item.notes} className={`text-sm ${t.textMuted}`} />
+          </motion.div>
+        )}
+      </motion.div>
+      <div className={`flex gap-2 px-5 py-4 border-t ${t.border}`}>
         <button type="button" onClick={onClose}
-          className="flex-1 py-2 rounded-xl text-sm text-white/65 hover:text-white/90 border border-white/15 hover:border-white/25 transition-all">
+          className={`flex-1 py-2 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border} transition-all`}>
           Close
         </button>
-        <button type="button" onClick={() => { onEdit(item); onClose(); }}
-          className="flex-1 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:-translate-y-0.5"
-          style={{ background: 'linear-gradient(135deg,#2A4D69,#1e3a52)', border: '1px solid rgba(134,187,216,0.3)' }}>
+        <motion.button type="button" onClick={() => { onEdit(item); onClose(); }} whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}
+          className={`flex-1 py-2 rounded-xl text-sm font-semibold text-white transition-all bg-gradient-to-br ${ACCENT.blue.gradient} ${ACCENT.blue.solidGlow} ${ACCENT.blue.glow}`}>
           <Edit className="h-4 w-4 inline mr-2" />Edit Record
-        </button>
+        </motion.button>
       </div>
-    </SafetyModal>
+    </CenterModal>
   );
 }
 
@@ -515,7 +543,40 @@ const blankForm = (): FormState => ({
   notes: '', issued_by: '', location: 'Workshop', mine_section: '',
 });
 
+// Page-local, theme-aware replacements for the dark-only `FormField`/`ModalActions`
+// imported from @/components/safety — kept local so the shared component (used by
+// 6 other pages) doesn't need to change.
+function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
+  const t = useTheme();
+  return (
+    <div>
+      <label className={`text-xs font-medium ${t.textFaint} mb-1 block`}>
+        {label}{required && <span className="text-rose-500 ml-0.5">*</span>}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+function FormActions({ onCancel, submitting, submitLabel }: { onCancel: () => void; submitting?: boolean; submitLabel: string }) {
+  const t = useTheme();
+  return (
+    <div className={`flex gap-2 px-5 py-4 border-t ${t.border}`}>
+      <button type="button" onClick={onCancel}
+        className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border} transition-all`}>
+        Cancel
+      </button>
+      <motion.button type="submit" disabled={submitting} whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}
+        className={`flex-1 py-2.5 rounded-xl text-sm font-semibold text-white inline-flex items-center justify-center gap-2 transition-all bg-gradient-to-br ${ACCENT.blue.gradient} ${ACCENT.blue.solidGlow} disabled:opacity-50`}>
+        {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+        {submitLabel}
+      </motion.button>
+    </div>
+  );
+}
+
 function PPEIssueForm({ isOpen, onClose, onSubmit, initialData, employee, allEmployees }: IssueFormProps) {
+  const t = useTheme();
   const [form, setForm] = useState<FormState>(blankForm());
   const [saving, setSaving] = useState(false);
 
@@ -560,20 +621,22 @@ function PPEIssueForm({ isOpen, onClose, onSubmit, initialData, employee, allEmp
   const sel = (k: keyof FormState) => ({
     value: form[k] as string,
     onChange: (e: React.ChangeEvent<HTMLSelectElement>) => set(k, e.target.value as any),
-    className: glassInput,
-    style: { colorScheme: 'dark' as const },
+    className: `${t.inputBg} rounded-lg text-sm px-3 py-2 w-full transition-all focus:outline-none cursor-pointer`,
+    style: { colorScheme: t.light ? ('light' as const) : ('dark' as const) },
   });
 
+  const inputCls = `${t.inputBg} rounded-lg text-sm px-3 py-2 w-full transition-all focus:outline-none`;
+
   return (
-    <SafetyModal open={isOpen} onClose={onClose} icon={HardHat}
+    <CenterModal open={isOpen} onClose={onClose} accent="blue"
       title={initialData ? 'Edit PPE Record' : 'Issue New PPE'} width="max-w-2xl">
       <form onSubmit={handleSubmit}>
         <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
 
           {/* Employee lookup */}
-          <div className="rounded-xl bg-white/[0.04] border border-white/[0.08] p-4 space-y-3">
-            <p className="text-[11px] font-semibold text-white/55 uppercase tracking-wider">Employee</p>
-            <FormField label="Employee ID" required>
+          <div className={`rounded-xl ${t.glassSoft} p-4 space-y-3`}>
+            <p className={`text-[11px] font-semibold ${t.textFaint} uppercase tracking-wider`}>Employee</p>
+            <Field label="Employee ID" required>
               <EmployeeAutocomplete value={form.employee_id} options={allEmployees}
                 placeholder="Type employee ID or name to search…"
                 onChange={v => set('employee_id', v)}
@@ -583,89 +646,89 @@ function PPEIssueForm({ isOpen, onClose, onSubmit, initialData, employee, allEmp
                   set('position', opt.position);
                   if (opt.department) set('mine_section', opt.section || '');
                 }} />
-            </FormField>
+            </Field>
             <div className="grid grid-cols-2 gap-3">
-              <FormField label="Full Name" required>
+              <Field label="Full Name" required>
                 <input type="text" value={form.employee_name} onChange={e => set('employee_name', e.target.value)}
-                  className={glassInput} placeholder="Auto-filled from ID lookup" />
-              </FormField>
-              <FormField label="Position" required>
+                  className={inputCls} placeholder="Auto-filled from ID lookup" />
+              </Field>
+              <Field label="Position" required>
                 <input type="text" value={form.position} onChange={e => set('position', e.target.value)}
-                  className={glassInput} placeholder="Job title" />
-              </FormField>
+                  className={inputCls} placeholder="Job title" />
+              </Field>
             </div>
           </div>
 
           {/* PPE details */}
-          <div className="rounded-xl bg-white/[0.04] border border-white/[0.08] p-4 space-y-3">
-            <p className="text-[11px] font-semibold text-white/55 uppercase tracking-wider">PPE Details</p>
+          <div className={`rounded-xl ${t.glassSoft} p-4 space-y-3`}>
+            <p className={`text-[11px] font-semibold ${t.textFaint} uppercase tracking-wider`}>PPE Details</p>
             <div className="grid grid-cols-2 gap-3">
-              <FormField label="PPE Type" required>
+              <Field label="PPE Type" required>
                 <select title="PPE Type" {...sel('ppe_type')}>
-                  {Object.entries(PPE_TYPES).map(([k, t]) => <option key={k} value={k}>{t.name}</option>)}
+                  {Object.entries(PPE_TYPES).map(([k, pt]) => <option key={k} value={k}>{pt.name}</option>)}
                 </select>
-              </FormField>
-              <FormField label="Item Name / Brand" required>
+              </Field>
+              <Field label="Item Name / Brand" required>
                 <input type="text" value={form.item_name} onChange={e => set('item_name', e.target.value)}
-                  className={glassInput} placeholder="e.g. MSA V-Gard Helmet" />
-              </FormField>
+                  className={inputCls} placeholder="e.g. MSA V-Gard Helmet" />
+              </Field>
             </div>
             <div className="grid grid-cols-3 gap-3">
-              <FormField label="Size">
+              <Field label="Size">
                 <input type="text" value={form.size} onChange={e => set('size', e.target.value)}
-                  className={glassInput} placeholder="L, XL, 42…" />
-              </FormField>
-              <FormField label="Condition">
+                  className={inputCls} placeholder="L, XL, 42…" />
+              </Field>
+              <Field label="Condition">
                 <select title="Condition" {...sel('condition')}>
                   {Object.entries(CONDITION_LABELS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
                 </select>
-              </FormField>
-              <FormField label="Status">
+              </Field>
+              <Field label="Status">
                 <select title="Status" {...sel('status')}>
                   {Object.entries(STATUS_LABELS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
                 </select>
-              </FormField>
+              </Field>
             </div>
           </div>
 
           {/* Dates & location */}
-          <div className="rounded-xl bg-white/[0.04] border border-white/[0.08] p-4 space-y-3">
-            <p className="text-[11px] font-semibold text-white/55 uppercase tracking-wider">Dates & Location</p>
+          <div className={`rounded-xl ${t.glassSoft} p-4 space-y-3`}>
+            <p className={`text-[11px] font-semibold ${t.textFaint} uppercase tracking-wider`}>Dates & Location</p>
             <div className="grid grid-cols-3 gap-3">
-              <FormField label="Issue Date" required>
+              <Field label="Issue Date" required>
                 <input type="date" value={form.issue_date} onChange={e => set('issue_date', e.target.value)}
-                  title="Issue date" className={glassInput} style={{ colorScheme: 'dark' }} />
-              </FormField>
-              <FormField label="Expiry Date">
+                  title="Issue date" className={inputCls} style={{ colorScheme: t.light ? 'light' : 'dark' }} />
+              </Field>
+              <Field label="Expiry Date">
                 <input type="date" value={form.expiry_date} onChange={e => set('expiry_date', e.target.value)}
-                  title="Expiry date" className={glassInput} style={{ colorScheme: 'dark' }} />
-              </FormField>
-              <FormField label="Location">
+                  title="Expiry date" className={inputCls} style={{ colorScheme: t.light ? 'light' : 'dark' }} />
+              </Field>
+              <Field label="Location">
                 <select title="Location" {...sel('location')}>
                   {MINE_LOCATIONS.map(loc => <option key={loc} value={loc}>{loc}</option>)}
                 </select>
-              </FormField>
+              </Field>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <FormField label="Mine Section">
+              <Field label="Mine Section">
                 <input type="text" value={form.mine_section} onChange={e => set('mine_section', e.target.value)}
-                  className={glassInput} placeholder="Optional section" />
-              </FormField>
-              <FormField label="Issued By">
+                  className={inputCls} placeholder="Optional section" />
+              </Field>
+              <Field label="Issued By">
                 <IssuedByInput value={form.issued_by} onChange={v => set('issued_by', v)} employees={allEmployees} />
-              </FormField>
+              </Field>
             </div>
           </div>
 
-          <FormField label="Notes">
+          <Field label="Notes">
             <textarea value={form.notes} onChange={e => set('notes', e.target.value)}
-              rows={2} className={glassTextarea} placeholder="Any additional notes…" />
-          </FormField>
+              rows={2} className={`${inputCls} resize-none`} placeholder="Any additional notes…" />
+          </Field>
         </div>
-        <ModalActions onCancel={onClose} submitting={saving}
+        <FormActions onCancel={onClose} submitting={saving}
           submitLabel={initialData ? 'Update Record' : 'Issue PPE'} />
       </form>
-    </SafetyModal>
+    </CenterModal>
   );
 }
 
@@ -680,6 +743,7 @@ interface DueItemsProps {
 }
 
 function DueItemsList({ employees, filterType, onEditItem, onDeleteItem, onViewItem }: DueItemsProps) {
+  const t = useTheme();
   const [typeFilter, setTypeFilter] = useState('all');
   const [search, setSearch] = useState('');
 
@@ -702,10 +766,10 @@ function DueItemsList({ employees, filterType, onEditItem, onDeleteItem, onViewI
 
   if (items.length === 0 && !search && typeFilter === 'all') {
     return (
-      <div className="text-center py-12 bg-white/[0.04] rounded-xl border border-white/[0.07]">
+      <div className={`text-center py-12 ${t.glassSoft} rounded-xl`}>
         <CheckCircle2 className="h-12 w-12 mx-auto mb-3 text-emerald-400/60" />
-        <p className="font-semibold text-white/80">No {filterType === 'due' ? 'overdue' : 'expiring soon'} items</p>
-        <p className="text-sm text-white/50 mt-1">All PPE is up to date</p>
+        <p className={`font-semibold ${t.textPrimary}`}>No {filterType === 'due' ? 'overdue' : 'expiring soon'} items</p>
+        <p className={`text-sm ${t.textFaint} mt-1`}>All PPE is up to date</p>
       </div>
     );
   }
@@ -714,24 +778,24 @@ function DueItemsList({ employees, filterType, onEditItem, onDeleteItem, onViewI
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative flex-1 max-w-56">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-white/40" />
+          <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 ${t.textFaint}`} />
           <input type="text" placeholder="Search employee or item…" value={search}
             onChange={e => setSearch(e.target.value)}
-            className="pl-7 pr-3 py-1.5 w-full text-xs rounded-lg bg-white/[0.07] border border-white/[0.14] text-white/90 placeholder:text-white/35 focus:outline-none focus:border-white/30 transition-all" />
+            className={`pl-7 pr-3 py-1.5 w-full text-xs rounded-lg ${t.inputBg} transition-all`} />
         </div>
         <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} title="PPE Type filter"
-          className="px-2.5 py-1.5 text-xs rounded-lg bg-white/[0.07] border border-white/[0.14] text-white/85 focus:outline-none focus:border-white/30 transition-all cursor-pointer"
-          style={{ colorScheme: 'dark' }}>
+          className={`px-2.5 py-1.5 text-xs rounded-lg ${t.inputBg} transition-all cursor-pointer`}
+          style={{ colorScheme: t.light ? 'light' : 'dark' }}>
           <option value="all">All Types</option>
-          {Object.entries(PPE_TYPES).map(([k, t]) => <option key={k} value={k}>{t.name}</option>)}
+          {Object.entries(PPE_TYPES).map(([k, pt]) => <option key={k} value={k}>{pt.name}</option>)}
         </select>
       </div>
-      <div className="overflow-x-auto rounded-xl border border-white/[0.07]">
+      <div className={`overflow-x-auto rounded-xl border ${t.border}`}>
         <table className="w-full">
           <thead>
-            <tr className="border-b border-white/[0.08]">
+            <tr className={`border-b ${t.border}`}>
               {['Employee', 'Item', 'Type', 'Size', 'Expiry', 'Condition', 'Status', ''].map((h, i) => (
-                <th key={i} className={`py-2.5 text-[11px] font-semibold text-white/55 uppercase tracking-wider bg-white/[0.03] ${i === 0 ? 'pl-4 pr-3 text-left' : i === 7 ? 'px-3 w-20' : 'px-3 text-left'}`}>{h}</th>
+                <th key={i} className={`py-2.5 text-[11px] font-semibold ${t.textFaint} uppercase tracking-wider ${t.glassSoft} ${i === 0 ? 'pl-4 pr-3 text-left' : i === 7 ? 'px-3 w-20' : 'px-3 text-left'}`}>{h}</th>
               ))}
             </tr>
           </thead>
@@ -740,22 +804,22 @@ function DueItemsList({ employees, filterType, onEditItem, onDeleteItem, onViewI
               const ppeType = PPE_TYPES[item.ppe_type] || PPE_TYPES.helmet;
               const Icon = ppeType.icon;
               return (
-                <tr key={item.id} className="border-b border-white/[0.05] hover:bg-white/[0.04] cursor-pointer transition-colors"
+                <tr key={item.id} className={`border-b ${t.border} ${t.hoverBgSoft} cursor-pointer transition-colors`}
                   onClick={() => onViewItem(item)}>
                   <td className="pl-4 pr-3 py-3">
-                    <div className="text-sm font-semibold text-white/90">{item.employee_name}</div>
-                    <div className="text-[11px] text-white/50">{item.employee_id}</div>
+                    <div className={`text-sm font-semibold ${t.textPrimary}`}>{item.employee_name}</div>
+                    <div className={`text-[11px] ${t.textFaint}`}>{item.employee_id}</div>
                   </td>
                   <td className="px-3 py-3">
                     <div className="flex items-center gap-2">
-                      <div className={`p-1 rounded-lg ${ppeType.bgColor}`}><Icon className={`h-3.5 w-3.5 ${ppeType.textColor}`} /></div>
-                      <span className="text-sm text-white/85 font-medium">{item.item_name}</span>
+                      <div className="p-1 rounded-lg" style={{ background: `${ppeType.color}1A` }}><Icon className="h-3.5 w-3.5" style={{ color: ppeType.color }} /></div>
+                      <span className={`text-sm ${t.textSecondary} font-medium`}>{item.item_name}</span>
                     </div>
                   </td>
-                  <td className="px-3 py-3 text-xs text-white/65">{ppeType.name}</td>
-                  <td className="px-3 py-3 text-xs text-white/65">{item.size || '—'}</td>
+                  <td className={`px-3 py-3 text-xs ${t.textMuted}`}>{ppeType.name}</td>
+                  <td className={`px-3 py-3 text-xs ${t.textMuted}`}>{item.size || '—'}</td>
                   <td className="px-3 py-3">
-                    <span className={`text-xs font-semibold ${filterType === 'due' ? 'text-rose-300' : 'text-amber-300'}`}>
+                    <span className={`text-xs font-semibold ${filterType === 'due' ? 'text-rose-500' : 'text-amber-500'}`}>
                       {fmtDate(item.expiry_date)}
                     </span>
                   </td>
@@ -764,11 +828,11 @@ function DueItemsList({ employees, filterType, onEditItem, onDeleteItem, onViewI
                   <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-1">
                       <button type="button" title="Edit" onClick={() => onEditItem(item)}
-                        className="h-6 w-6 flex items-center justify-center rounded hover:bg-[#86BBD8]/15 text-white/35 hover:text-[#86BBD8] transition-all">
+                        className={`h-6 w-6 flex items-center justify-center rounded hover:bg-[#86BBD8]/15 ${t.textFaint} hover:text-[#86BBD8] transition-all`}>
                         <Edit className="h-3 w-3" />
                       </button>
                       <button type="button" title="Delete" onClick={() => onDeleteItem(item.id)}
-                        className="h-6 w-6 flex items-center justify-center rounded hover:bg-rose-500/20 text-white/35 hover:text-rose-400 transition-all">
+                        className={`h-6 w-6 flex items-center justify-center rounded hover:bg-rose-500/20 ${t.textFaint} hover:text-rose-500 transition-all`}>
                         <Trash2 className="h-3 w-3" />
                       </button>
                     </div>
@@ -779,7 +843,7 @@ function DueItemsList({ employees, filterType, onEditItem, onDeleteItem, onViewI
           </tbody>
         </table>
         {items.length === 0 && (
-          <div className="text-center py-8 text-white/45 text-sm">No items match the current filters</div>
+          <div className={`text-center py-8 ${t.textFaint} text-sm`}>No items match the current filters</div>
         )}
       </div>
     </div>
@@ -789,6 +853,7 @@ function DueItemsList({ employees, filterType, onEditItem, onDeleteItem, onViewI
 // ─── MAIN PAGE ────────────────────────────────────────────────────────────────
 
 export default function PPEManagement() {
+  const t = useTheme();
   const [records,      setRecords]      = useState<PPERecord[]>([]);
   const [apiEmployees, setApiEmployees] = useState<EmployeeRow[]>([]);
   const [stats,        setStats]        = useState<PPEStats | null>(null);
@@ -1045,51 +1110,66 @@ export default function PPEManagement() {
       <main className="container mx-auto px-4 py-8 space-y-4">
 
         {/* ── HERO ── */}
-        <div className="oz-glass-dark rounded-2xl overflow-hidden">
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}
+          style={{ boxShadow: t.light ? '0 8px 30px -14px rgba(15,23,42,0.14)' : undefined }}
+        >
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-6 py-4">
             <div className="flex items-center gap-3 min-w-0">
-              <div className="p-2.5 rounded-xl shrink-0" style={{ background: 'rgba(42,77,105,0.55)', border: '1px solid rgba(134,187,216,0.25)' }}>
-                <HardHat className="h-5 w-5 text-[#86BBD8]" />
-              </div>
+              <PulsingIcon className={`p-2.5 rounded-xl shrink-0 ${ACCENT.blue.chip} border ${t.border}`}>
+                <HardHat className={`h-5 w-5 ${ACCENT.blue.icon}`} />
+              </PulsingIcon>
               <div className="min-w-0">
-                <nav className="flex items-center gap-1.5 text-xs text-white/50 mb-0.5">
+                <nav className={`flex items-center gap-1.5 text-xs ${t.textFaint} mb-0.5`}>
                   <span>Home</span><ChevronRight className="h-3 w-3" />
-                  <span className="text-white/75 font-medium">PPE Management</span>
+                  <span className={`${t.textMuted} font-medium`}>PPE Management</span>
                 </nav>
-                <h1 className="text-xl font-bold text-white/95 font-heading tracking-tight">PPE Management</h1>
-                <p className="text-xs text-white/50 mt-0.5">Personal protective equipment tracking and compliance</p>
+                <h1 className={`text-xl font-bold ${t.textPrimary} font-heading tracking-tight`}>PPE Management</h1>
+                <AnimatedText
+                  as="p"
+                  trigger="mount"
+                  text="Personal protective equipment tracking and compliance"
+                  className={`text-xs ${t.textFaint} mt-0.5`}
+                />
               </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <MasterCollapseButton collapse={sections} />
+              <button type="button" onClick={t.toggle}
+                title={t.light ? 'Switch to dark mode' : 'Switch to light mode'}
+                className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.glassSoft} ${t.hoverBg} ${t.textMuted} transition-all`}>
+                {t.light ? <Moon className="h-3.5 w-3.5" /> : <Sun className="h-3.5 w-3.5" />}
+              </button>
               <button type="button" title={sections.expanded.heroStats ? 'Hide stats' : 'Show stats'} onClick={() => sections.toggle('heroStats')}
-                className="h-8 w-8 flex items-center justify-center rounded-lg bg-white/[0.07] hover:bg-white/[0.15] border border-white/[0.14] text-white/60 transition-all">
+                className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.glassSoft} ${t.hoverBg} ${t.textMuted} transition-all`}>
                 {sections.expanded.heroStats ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
               </button>
               <button type="button" title="Refresh" onClick={() => load(true)} disabled={refreshing}
-                className="h-8 w-8 flex items-center justify-center rounded-lg bg-white/[0.07] hover:bg-white/[0.15] border border-white/[0.14] text-white/60 transition-all disabled:opacity-40">
+                className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.glassSoft} ${t.hoverBg} ${t.textMuted} transition-all disabled:opacity-40`}>
                 <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
               </button>
 
               {/* Download dropdown */}
               <div className="relative">
                 <button type="button" onClick={() => setShowDlMenu(p => !p)} disabled={records.length === 0}
-                  className="h-8 px-3 flex items-center gap-1.5 text-xs rounded-xl font-semibold text-white/80 hover:text-white transition-all hover:-translate-y-0.5 bg-white/[0.07] hover:bg-white/[0.13] border border-white/[0.15] disabled:opacity-40 disabled:translate-y-0">
+                  className={`h-8 px-3 flex items-center gap-1.5 text-xs rounded-xl font-semibold ${t.textMuted} ${t.hoverText} transition-all hover:-translate-y-0.5 ${t.glassSoft} ${t.hoverBg} disabled:opacity-40 disabled:translate-y-0`}>
                   <Download className="h-3.5 w-3.5" /> Download
                 </button>
                 {showDlMenu && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setShowDlMenu(false)} />
-                    <div className="absolute right-0 top-full mt-1 z-50 rounded-xl shadow-2xl overflow-hidden w-44"
-                      style={{ background: 'rgba(4,12,24,0.97)', border: '1px solid rgba(255,255,255,0.14)' }}>
+                    <div className={`absolute right-0 top-full mt-1 z-50 rounded-xl shadow-2xl overflow-hidden w-44 ${t.glass}`}>
                       <button type="button" onClick={downloadExcel}
-                        className="w-full flex items-center gap-2.5 px-4 py-3 text-xs text-white/85 hover:bg-white/[0.10] transition-all border-b border-white/[0.07]">
-                        <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-400" />
+                        className={`w-full flex items-center gap-2.5 px-4 py-3 text-xs ${t.textMuted} ${t.hoverBg} transition-all border-b ${t.border}`}>
+                        <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-500" />
                         <span>Export Excel (.xlsx)</span>
                       </button>
                       <button type="button" onClick={downloadPDF}
-                        className="w-full flex items-center gap-2.5 px-4 py-3 text-xs text-white/85 hover:bg-white/[0.10] transition-all">
-                        <FileDown className="h-3.5 w-3.5 text-rose-400" />
+                        className={`w-full flex items-center gap-2.5 px-4 py-3 text-xs ${t.textMuted} ${t.hoverBg} transition-all`}>
+                        <FileDown className="h-3.5 w-3.5 text-rose-500" />
                         <span>Export PDF</span>
                       </button>
                     </div>
@@ -1097,18 +1177,17 @@ export default function PPEManagement() {
                 )}
               </div>
 
-              <button type="button" onClick={() => openIssueForm()}
-                className="h-8 px-3 flex items-center gap-1.5 text-xs rounded-xl font-semibold text-white transition-all hover:-translate-y-0.5"
-                style={{ background: 'linear-gradient(135deg,#2A4D69,#1e3a52)', border: '1px solid rgba(134,187,216,0.3)' }}>
+              <motion.button type="button" onClick={() => openIssueForm()} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                className={`h-8 px-3 flex items-center gap-1.5 text-xs rounded-lg font-semibold text-white transition-all bg-gradient-to-br ${ACCENT.blue.gradient} ${ACCENT.blue.solidGlow} ${ACCENT.blue.glow}`}>
                 <Plus className="h-3.5 w-3.5" /> Issue PPE
-              </button>
+              </motion.button>
             </div>
           </div>
 
           {sections.expanded.heroStats && enhancedStats && (
-            <div className="border-t border-white/[0.08] px-6 py-3 space-y-3">
+            <div className={`border-t ${t.border} px-6 py-3 space-y-3`}>
               {/* KPI chips */}
-              <div className="flex flex-wrap items-center gap-1">
+              <motion.div variants={staggerContainer} initial="hidden" animate="show" className="flex flex-wrap items-center gap-1">
                 {([
                   { icon: Users,        color: '#86BBD8', val: enhancedStats.unique_employees, label: 'Employees',   filter: 'all' as const },
                   { icon: CheckCircle2, color: '#34d399', val: enhancedStats.activeRecords,    label: 'Active PPE',  filter: 'active' as const },
@@ -1116,25 +1195,25 @@ export default function PPEManagement() {
                   enhancedStats.expired > 0      && { icon: XCircle,       color: '#f43f5e', val: enhancedStats.expired,      label: `Overdue (${enhancedStats.employeesWithExpired} emp)`,  filter: 'due' as const },
                   complianceRate != null && { icon: Award, color: compColor, val: `${complianceRate}%`, label: 'Compliance', filter: null },
                 ] as const).filter(Boolean).map((item: any, i: number, arr: any[]) => (
-                  <React.Fragment key={i}>
+                  <motion.div key={i} variants={fadeUp} className="contents">
                     <button type="button" onClick={() => item.filter && setFilterType(item.filter)} disabled={!item.filter}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-white/[0.08] transition-all disabled:cursor-default group">
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg ${t.hoverBg} transition-all disabled:cursor-default group`}>
                       <item.icon className="w-3.5 h-3.5" style={{ color: item.color }} />
                       <span className="text-base font-bold" style={{ color: item.color }}>{item.val}</span>
-                      <span className="text-xs text-white/60 group-hover:text-white/80 transition-colors">{item.label}</span>
+                      <span className={`text-xs ${t.textMuted} transition-colors`}>{item.label}</span>
                     </button>
-                    {i < arr.length - 1 && <span className="text-white/20 hidden sm:block">|</span>}
-                  </React.Fragment>
+                    {i < arr.length - 1 && <span className={`${t.textTertiary} hidden sm:block`}>|</span>}
+                  </motion.div>
                 ))}
-              </div>
+              </motion.div>
               {/* Compliance bar */}
               {complianceRate != null && (
                 <div>
                   <div className="flex justify-between text-[11px] mb-1">
-                    <span className="text-white/55">Compliance rate</span>
+                    <span className={t.textSecondary}>Compliance rate</span>
                     <span className="font-semibold" style={{ color: compColor }}>{complianceRate}%</span>
                   </div>
-                  <div className="h-1.5 rounded-full bg-white/[0.10] overflow-hidden">
+                  <div className={`h-1.5 rounded-full ${t.chipBg} overflow-hidden`}>
                     <div className="h-full rounded-full transition-all duration-700" style={{ width: `${complianceRate}%`, background: compColor }} />
                   </div>
                 </div>
@@ -1146,7 +1225,8 @@ export default function PPEManagement() {
                     const info = PPE_TYPES[type] || PPE_TYPES.helmet;
                     const Icon = info.icon;
                     return (
-                      <span key={type} className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border ${info.bgColor} ${info.textColor} ${info.borderColor}`}>
+                      <span key={type} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border"
+                        style={{ color: info.color, background: `${info.color}1A`, borderColor: `${info.color}40` }}>
                         <Icon className="h-3 w-3" />{info.shortName} <span className="font-bold">{count}</span>
                       </span>
                     );
@@ -1155,26 +1235,26 @@ export default function PPEManagement() {
               )}
             </div>
           )}
-        </div>
+        </motion.div>
 
         {/* ── PPE TYPE BREAKDOWN (collapsed by default) ── */}
         {records.length > 0 && (
-          <div className="oz-glass-panel rounded-2xl overflow-hidden">
+          <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
             <button type="button" onClick={() => sections.toggle('typeBreakdown')}
-              className="w-full flex items-center justify-between px-5 py-3 hover:bg-white/[0.04] transition-all">
+              className={`w-full flex items-center justify-between px-5 py-3 ${t.hoverBgSoft} transition-all`}>
               <div className="flex items-center gap-2">
-                <HardHat className="h-3.5 w-3.5 text-[#86BBD8]" />
-                <span className="text-xs font-semibold text-white/85 uppercase tracking-wider">PPE Type Breakdown</span>
-                <span className="text-[11px] text-white/45 font-normal normal-case tracking-normal">
+                <HardHat className={`h-3.5 w-3.5 ${ACCENT.blue.icon}`} />
+                <span className={`text-xs font-semibold ${t.textSecondary} uppercase tracking-wider`}>PPE Type Breakdown</span>
+                <span className={`text-[11px] ${t.textFaint} font-normal normal-case tracking-normal`}>
                   {typeCounts.length} types active
                 </span>
               </div>
               {sections.expanded.typeBreakdown
-                ? <ChevronUp className="h-3.5 w-3.5 text-white/50" />
-                : <ChevronDown className="h-3.5 w-3.5 text-white/50" />}
+                ? <ChevronUp className={`h-3.5 w-3.5 ${t.textFaint}`} />
+                : <ChevronDown className={`h-3.5 w-3.5 ${t.textFaint}`} />}
             </button>
-            {sections.expanded.typeBreakdown && (
-              <div className="px-4 pb-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 border-t border-white/[0.07]">
+            <Collapse open={!!sections.expanded.typeBreakdown}>
+              <div className={`px-4 pb-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 border-t ${t.border}`}>
                 {Object.entries(PPE_TYPES).map(([key, type]) => {
                   const Icon = type.icon;
                   const active  = records.filter(r => r.ppe_type === key && r.status === 'active').length;
@@ -1182,17 +1262,17 @@ export default function PPEManagement() {
                   const expiredC = records.filter(r => r.ppe_type === key && r.status === 'active' && isExpired(r.expiry_date)).length;
                   const soonC    = records.filter(r => r.ppe_type === key && r.status === 'active' && isExpiringSoon(r.expiry_date)).length;
                   return (
-                    <div key={key} className="rounded-xl p-4 mt-3 border border-white/[0.09] bg-white/[0.05] hover:bg-white/[0.09] transition-all">
+                    <div key={key} className={`rounded-xl p-4 mt-3 ${t.glassSoft} ${t.hoverBg} transition-all`}>
                       <div className="flex items-center gap-2 mb-3">
-                        <div className={`p-1.5 rounded-lg ${type.bgColor} border ${type.borderColor}`}><Icon className={`h-3.5 w-3.5 ${type.textColor}`} /></div>
-                        <span className="text-sm font-semibold text-white/90">{type.shortName}</span>
+                        <div className="p-1.5 rounded-lg" style={{ background: `${type.color}1A`, border: `1px solid ${type.color}40` }}><Icon className="h-3.5 w-3.5" style={{ color: type.color }} /></div>
+                        <span className={`text-sm font-semibold ${t.textPrimary}`}>{type.shortName}</span>
                       </div>
                       <div className="space-y-1.5">
-                        <div className="flex justify-between text-xs"><span className="text-white/55">Active</span><span className="font-bold text-emerald-300">{active}</span></div>
-                        {soonC    > 0 && <div className="flex justify-between text-xs"><span className="text-white/55">Expiring</span><span className="font-bold text-amber-300">{soonC}</span></div>}
-                        {expiredC > 0 && <div className="flex justify-between text-xs"><span className="text-white/55">Overdue</span><span className="font-bold text-rose-300">{expiredC}</span></div>}
-                        <div className="h-1 rounded-full bg-white/10 overflow-hidden mt-2">
-                          <div className="h-full bg-emerald-400/55 rounded-full"
+                        <div className="flex justify-between text-xs"><span className={t.textFaint}>Active</span><span className="font-bold text-emerald-500">{active}</span></div>
+                        {soonC    > 0 && <div className="flex justify-between text-xs"><span className={t.textFaint}>Expiring</span><span className="font-bold text-amber-500">{soonC}</span></div>}
+                        {expiredC > 0 && <div className="flex justify-between text-xs"><span className={t.textFaint}>Overdue</span><span className="font-bold text-rose-500">{expiredC}</span></div>}
+                        <div className={`h-1 rounded-full ${t.chipBg} overflow-hidden mt-2`}>
+                          <div className="h-full bg-emerald-400/70 rounded-full"
                             style={{ width: `${active > 0 ? Math.max(8, Math.round(((active - expiredC) / active) * 100)) : 0}%` }} />
                         </div>
                       </div>
@@ -1200,12 +1280,12 @@ export default function PPEManagement() {
                   );
                 })}
               </div>
-            )}
+            </Collapse>
           </div>
         )}
 
         {/* ── FILTER + EXPAND/COLLAPSE BAR ── */}
-        <div className="oz-glass-panel rounded-2xl overflow-hidden">
+        <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
           <div className="px-5 py-3 flex flex-wrap items-center gap-2 justify-between">
             {/* Filter pills */}
             <div className="flex flex-wrap gap-1.5">
@@ -1218,24 +1298,24 @@ export default function PPEManagement() {
                 <button key={value} type="button" onClick={() => setFilterType(value)}
                   className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border font-medium transition-all ${
                     filterType === value
-                      ? 'bg-[#86BBD8]/25 border-[#86BBD8]/40 text-white'
-                      : 'bg-white/[0.05] border-white/[0.12] text-white/65 hover:bg-white/[0.10] hover:text-white/90'
+                      ? `${ACCENT.blue.chip} ${ACCENT.blue.text}`
+                      : `${t.glassSoft} ${t.textMuted} ${t.hoverBg} ${t.hoverText}`
                   }`}>
                   {label}
-                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${filterType === value ? 'bg-white/20 text-white' : 'bg-white/[0.08] text-white/50'}`}>{count}</span>
+                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${filterType === value ? 'bg-white/20' : t.chipBg} ${filterType === value ? '' : t.textFaint}`}>{count}</span>
                 </button>
               ))}
             </div>
             {/* Search */}
             {(filterType === 'all' || filterType === 'active') && (
               <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-white/40" />
+                <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 ${t.textFaint}`} />
                 <input type="text" placeholder="Search employee…" value={searchTerm}
                   onChange={e => setSearchTerm(e.target.value)}
-                  className="pl-7 pr-8 py-1.5 text-xs w-44 rounded-lg bg-white/[0.07] border border-white/[0.14] text-white/90 placeholder:text-white/35 focus:outline-none focus:border-white/30 transition-all" />
+                  className={`pl-7 pr-8 py-1.5 text-xs w-44 rounded-lg ${t.inputBg} transition-all`} />
                 {searchTerm && (
                   <button type="button" onClick={() => setSearchTerm('')}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-white/35 hover:text-white/70 transition-colors">
+                    className={`absolute right-2 top-1/2 -translate-y-1/2 ${t.textFaint} ${t.hoverText} transition-colors`}>
                     <X className="h-3 w-3" />
                   </button>
                 )}
@@ -1245,32 +1325,32 @@ export default function PPEManagement() {
         </div>
 
         {/* ── RECORDS ── */}
-        <div className="oz-glass-panel rounded-2xl overflow-hidden">
+        <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
           {/* Collapsible header — click title area to toggle panel; Collapse All lives here */}
           <div className="flex items-center gap-2 px-5 py-3">
             <button type="button" onClick={() => sections.toggle('records')}
               className="flex items-center gap-2.5 min-w-0 flex-1 text-left hover:opacity-90 transition-opacity">
-              <FileText className="h-3.5 w-3.5 text-[#86BBD8] shrink-0" />
-              <span className="text-xs font-semibold text-white/85 uppercase tracking-wider">Records</span>
-              <span className="text-xs text-white/50 font-normal normal-case tracking-normal">
+              <FileText className={`h-3.5 w-3.5 ${ACCENT.blue.icon} shrink-0`} />
+              <span className={`text-xs font-semibold ${t.textSecondary} uppercase tracking-wider`}>Records</span>
+              <span className={`text-xs ${t.textFaint} font-normal normal-case tracking-normal`}>
                 {filteredEmployees.length} employee{filteredEmployees.length !== 1 ? 's' : ''} · {records.length} items
               </span>
               {sections.expanded.records
-                ? <ChevronUp className="h-3.5 w-3.5 text-white/45 ml-1" />
-                : <ChevronDown className="h-3.5 w-3.5 text-white/45 ml-1" />}
+                ? <ChevronUp className={`h-3.5 w-3.5 ${t.textFaint} ml-1`} />
+                : <ChevronDown className={`h-3.5 w-3.5 ${t.textFaint} ml-1`} />}
             </button>
             {/* Collapse All / Expand All — only visible when the panel is open and cards are shown */}
             {sections.expanded.records && (filterType === 'all' || filterType === 'active') && filteredEmployees.length > 0 && (
-              <button type="button" onClick={anyExpanded ? collapseAll : expandAll}
-                className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-semibold text-white border transition-all hover:-translate-y-0.5 shrink-0 ${anyExpanded ? 'bg-rose-500/20 border-rose-500/35' : 'bg-[#2A4D69]/55 border-[#86BBD8]/35'}`}>
+              <motion.button type="button" onClick={anyExpanded ? collapseAll : expandAll} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-semibold text-white border transition-all shrink-0 ${anyExpanded ? 'bg-rose-500/80 border-rose-500/35' : `bg-gradient-to-br ${ACCENT.blue.gradient} ${ACCENT.blue.solidGlow}`}`}>
                 {anyExpanded ? <ChevronsUp className="h-3.5 w-3.5" /> : <ChevronsDown className="h-3.5 w-3.5" />}
                 {anyExpanded ? 'Collapse All' : 'Expand All'}
-              </button>
+              </motion.button>
             )}
           </div>
 
-          {sections.expanded.records && (
-            <div className="border-t border-white/[0.08] p-4">
+          <Collapse open={!!sections.expanded.records}>
+            <div className={`border-t ${t.border} p-4`}>
               {loading ? (
                 <LoadingState message="Loading PPE records…" />
               ) : (filterType === 'soon-to-due' || filterType === 'due') ? (
@@ -1279,20 +1359,19 @@ export default function PPEManagement() {
                   onDeleteItem={handleDelete}
                   onViewItem={item => { setDetailItem(item); setShowDetail(true); }} />
               ) : filteredEmployees.length === 0 ? (
-                <div className="text-center py-16 rounded-xl bg-white/[0.03] border border-white/[0.07]">
-                  <HardHat className="h-12 w-12 mx-auto mb-4 text-white/20" />
-                  <p className="text-sm font-semibold text-white/65 mb-1">
+                <div className={`text-center py-16 rounded-xl ${t.glassSoft}`}>
+                  <HardHat className={`h-12 w-12 mx-auto mb-4 ${t.textTertiary}`} />
+                  <p className={`text-sm font-semibold ${t.textMuted} mb-1`}>
                     {records.length === 0 ? 'No PPE records yet' : 'No employees match your search'}
                   </p>
-                  <p className="text-xs text-white/40">
+                  <p className={`text-xs ${t.textFaint}`}>
                     {records.length === 0 ? 'Issue PPE to an employee to get started' : 'Try adjusting the search or filter'}
                   </p>
                   {records.length === 0 && (
-                    <button type="button" onClick={() => openIssueForm()}
-                      className="mt-4 inline-flex items-center gap-1.5 text-xs px-4 py-2 rounded-lg font-semibold text-white transition-all hover:-translate-y-0.5"
-                      style={{ background: 'rgba(42,77,105,0.55)', border: '1px solid rgba(134,187,216,0.3)' }}>
+                    <motion.button type="button" onClick={() => openIssueForm()} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                      className={`mt-4 inline-flex items-center gap-1.5 text-xs px-4 py-2 rounded-lg font-semibold text-white transition-all bg-gradient-to-br ${ACCENT.blue.gradient} ${ACCENT.blue.solidGlow}`}>
                       <Plus className="h-3.5 w-3.5" /> Issue First PPE
-                    </button>
+                    </motion.button>
                   )}
                 </div>
               ) : (
@@ -1306,13 +1385,13 @@ export default function PPEManagement() {
                       onDeleteItem={handleDelete}
                       onViewItem={item => { setDetailItem(item); setShowDetail(true); }} />
                   ))}
-                  <p className="text-center text-[11px] text-white/40 pt-1">
+                  <p className={`text-center text-[11px] ${t.textFaint} pt-1`}>
                     {filteredEmployees.length} employee{filteredEmployees.length !== 1 ? 's' : ''} · {records.length} PPE records total
                   </p>
                 </div>
               )}
             </div>
-          )}
+          </Collapse>
         </div>
       </main>
 
