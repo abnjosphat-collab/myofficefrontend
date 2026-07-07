@@ -12,13 +12,12 @@ import {
   Building, Utensils, Church, Database,
   AlertOctagon, ShieldAlert, ClipboardList, FileWarning, PackageOpen,
   ClipboardPlus, Target, Activity, Search, Sparkles, MessageSquareWarning,
-  Menu, Home, Settings,
+  Menu, Settings,
   Bell, Plus, Bookmark, ArrowUpRight, ArrowDownRight,
   CheckCircle2, Clock3, Lightbulb, ArrowRight, Server, Upload, User,
   ChevronsDownUp, ChevronsUpDown, X, Maximize2, SlidersHorizontal, Check,
   PanelLeftClose, PanelLeftOpen, Sun, Moon,
 } from 'lucide-react';
-import { Footer } from '@/components/Footer';
 
 // ─── Background wallpapers ───────────────────────────────────────────────────
 
@@ -90,6 +89,16 @@ const ACCENT: Record<Accent, {
   emerald: { chip: 'bg-emerald-50', icon: 'text-emerald-600', text: 'text-emerald-700', gradient: 'from-emerald-500 to-emerald-700', glow: 'hover:shadow-[0_20px_45px_-18px_rgba(5,150,105,0.4)]',    solidGlow: 'shadow-[0_16px_32px_-12px_rgba(5,150,105,0.4)]' },
   cyan:    { chip: 'bg-cyan-50',    icon: 'text-cyan-600',    text: 'text-cyan-700',    gradient: 'from-cyan-500 to-cyan-700',       glow: 'hover:shadow-[0_20px_45px_-18px_rgba(8,145,178,0.4)]',    solidGlow: 'shadow-[0_16px_32px_-12px_rgba(8,145,178,0.4)]' },
   violet:  { chip: 'bg-violet-50',  icon: 'text-violet-600',  text: 'text-violet-700',  gradient: 'from-violet-500 to-violet-700',   glow: 'hover:shadow-[0_20px_45px_-18px_rgba(124,58,237,0.4)]',   solidGlow: 'shadow-[0_16px_32px_-12px_rgba(124,58,237,0.4)]' },
+};
+
+// RGBA strings used for inline colored box-shadows (e.g. the centered modal's 3D glow)
+const ACCENT_RGBA: Record<Accent, string> = {
+  blue: 'rgba(37,99,235,0.35)',
+  amber: 'rgba(217,119,6,0.35)',
+  indigo: 'rgba(79,70,229,0.35)',
+  emerald: 'rgba(5,150,105,0.35)',
+  cyan: 'rgba(8,145,178,0.35)',
+  violet: 'rgba(124,58,237,0.35)',
 };
 
 interface Module {
@@ -254,9 +263,9 @@ function SlideOver({
   return (
     <AnimatePresence>
       {open && (
-        <>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <motion.div
-            className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50"
+            className="absolute inset-0 bg-slate-900/50 backdrop-blur-md"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -264,27 +273,39 @@ function SlideOver({
             onClick={onClose}
           />
           <motion.div
-            className={`fixed top-0 right-0 h-full w-full ${width} ${t.glass} z-50 shadow-2xl flex flex-col`}
-            initial={{ x: '100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '100%' }}
-            transition={{ type: 'spring', damping: 32, stiffness: 300 }}
+            className={`relative w-full ${width} max-h-[85vh] ${t.glass} rounded-xl ${t.shadow} flex flex-col overflow-hidden`}
+            style={{ boxShadow: `0 24px 60px -20px ${ACCENT_RGBA[accent]}, 0 8px 24px -10px rgba(0,0,0,0.3)` }}
+            initial={{ opacity: 0, scale: 0.92, y: 16 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.94, y: 10 }}
+            transition={{ type: 'spring', damping: 26, stiffness: 320 }}
           >
-            <div className={`relative px-6 py-6 bg-gradient-to-br ${a.gradient} shrink-0`}>
+            <div className={`relative px-5 py-4 border-b ${t.border} shrink-0 overflow-hidden`}>
+              {/* Soft themed glow wash — a hint of the accent colour instead of a solid block */}
+              <div
+                className={`absolute -top-10 -left-10 h-32 w-32 rounded-full bg-gradient-to-br ${a.gradient} opacity-[0.18] blur-2xl pointer-events-none`}
+              />
               <button
                 onClick={onClose}
-                className="absolute top-5 right-5 p-1.5 rounded-lg bg-white/15 hover:bg-white/25 text-white transition-colors"
+                className={`absolute top-4 right-4 p-1.5 rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-colors`}
                 type="button"
                 title="Close"
               >
                 <X className="h-4 w-4" />
               </button>
-              <h2 className="text-white font-semibold text-lg tracking-tight pr-10">{title}</h2>
-              {subtitle && <p className="text-white/80 text-[13px] mt-1 pr-10">{subtitle}</p>}
+              <h2 className={`relative font-semibold ${t.textPrimary} text-[13px] tracking-tight pr-10`}>{title}</h2>
+              {subtitle && (
+                <AnimatedText
+                  as="p"
+                  trigger="mount"
+                  text={subtitle}
+                  className={`relative ${t.textSecondary} text-[11px] mt-0.5 pr-10`}
+                />
+              )}
             </div>
             <div className="flex-1 overflow-y-auto">{children}</div>
           </motion.div>
-        </>
+        </div>
       )}
     </AnimatePresence>
   );
@@ -304,22 +325,22 @@ function TopNavigation({
 }) {
   const t = useTheme();
   return (
-    <header className={`sticky top-0 z-40 ${t.glass} border-x-0 border-t-0`}>
-      {/* Shell Bar — SAP Fiori style: logo, app/breadcrumb title, search, utility icons, avatar */}
+    <header
+      className={`sticky top-0 z-40 ${t.glass} backdrop-saturate-150 border-x-0 border-t-0`}
+      style={{ boxShadow: t.light ? '0 8px 30px -14px rgba(15,23,42,0.18)' : '0 8px 30px -12px rgba(0,0,0,0.5)' }}
+    >
+      {/* Shell Bar — SAP Fiori style: logo, search, utility icons, avatar */}
       <div className="flex items-center h-11 px-2 lg:px-3 gap-1">
         <button onClick={onMenuToggle} className={`h-11 w-11 flex items-center justify-center ${t.hoverBg} ${t.textMuted} lg:hidden shrink-0`} type="button" title="Toggle menu">
           <Menu className="h-5 w-5" />
         </button>
 
-        <Link href="/" className={`flex items-center gap-2 shrink-0 h-11 px-2 ${t.hoverBgSoft} transition-colors`}>
+        <Link href="/" className={`flex items-center gap-2 shrink-0 h-11 px-2 ${t.hoverBgSoft} transition-colors`} title="Home">
           <div className="h-6 w-6 rounded bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white font-bold text-[11px] shrink-0">
             M
           </div>
           <span className={`hidden sm:inline ${t.textPrimary} text-[14px] font-medium tracking-tight`}>MyOffice</span>
         </Link>
-
-        <div className={`hidden sm:block h-5 w-px ${t.light ? 'bg-gray-200' : 'bg-white/15'} mx-1 shrink-0`} />
-        <span className={`hidden sm:inline ${t.textSecondary} text-[13px] shrink-0`}>Home</span>
 
         <div className="flex-1" />
 
@@ -338,10 +359,10 @@ function TopNavigation({
           </div>
         )}
 
-        <div className="flex items-center shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={onCustomize}
-            className={`hidden sm:flex items-center gap-1.5 h-11 px-3 text-[13px] font-medium ${t.textMuted} ${t.hoverText} ${t.hoverBg} transition-colors`}
+            className={`hidden sm:flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-medium ${t.textMuted} ${t.hoverText} ${t.glassSoft} ${t.shadow} hover:shadow-[0_8px_20px_-8px_rgba(124,58,237,0.4)] transition-shadow duration-300`}
             type="button"
           >
             <SlidersHorizontal className="h-4 w-4" />
@@ -408,50 +429,41 @@ function SidebarNavigation({
 }) {
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({ favorites: true, modules: false, activity: false });
   const [expandedCats, setExpandedCats] = useState<Record<string, boolean>>({});
+  const [hoveredCat, setHoveredCat] = useState<string | null>(null);
+  const [hovered, setHovered] = useState(false);
   const t = useTheme();
+
+  // While pinned-collapsed, hovering the rail temporarily reveals the full sidebar —
+  // same "reveal on hover" pattern as the module tiles, without changing the pinned preference.
+  const visuallyCollapsed = collapsed && !hovered;
 
   const toggleSection = (id: string) => setExpandedSections(prev => ({ ...prev, [id]: !prev[id] }));
   const toggleCat = (id: string) => setExpandedCats(prev => ({ ...prev, [id]: !prev[id] }));
-
-  const navItems = [
-    { icon: Home, label: 'Dashboard', href: '/' },
-    { icon: BarChart3, label: 'Analytics', href: '/visualization' },
-    { icon: FileText, label: 'Reports', href: '/reports' },
-  ];
 
   return (
     <>
       {isOpen && <div className={`fixed inset-0 ${t.scrim} backdrop-blur-[1px] z-30 lg:hidden`} onClick={onClose} />}
       <aside
-        className={`fixed top-11 left-0 h-[calc(100vh-44px)] ${collapsed ? 'lg:w-[76px]' : 'lg:w-64'} w-64 ${t.glass} border-y-0 border-l-0 z-40 transition-[transform,width] duration-300 overflow-y-auto overflow-x-hidden flex flex-col ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}
+        onMouseEnter={() => collapsed && setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        className={`fixed top-11 left-0 h-[calc(100vh-44px)] ${visuallyCollapsed ? 'lg:w-[76px]' : 'lg:w-64'} w-64 ${t.glass} border-y-0 border-l-0 z-40 transition-[transform,width] duration-300 overflow-y-auto overflow-x-hidden flex flex-col ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}
       >
         {/* Collapse toggle — top, so it never collides with the Next.js dev indicator badge */}
-        <div className={`hidden lg:flex items-center ${collapsed ? 'justify-center' : 'justify-end'} px-3 py-2 border-b ${t.border} shrink-0`}>
+        <div className={`hidden lg:block px-3 py-2.5 border-b ${t.border} shrink-0`}>
           <button
             onClick={onToggleCollapsed}
             title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            className={`flex items-center justify-center h-8 w-8 rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-colors`}
+            className={`flex items-center gap-2 h-8 ${visuallyCollapsed ? 'w-8 justify-center px-0' : 'w-full px-2.5'} rounded-lg ${t.glassSoft} ${t.hoverBg} ${t.textMuted} ${t.hoverText} ${t.shadow} transition-all`}
             type="button"
           >
-            {collapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+            {collapsed ? <PanelLeftOpen className="h-4 w-4 shrink-0" /> : <PanelLeftClose className="h-4 w-4 shrink-0" />}
+            {!visuallyCollapsed && <span className="text-[12px] font-medium">Collapse</span>}
           </button>
         </div>
 
         <nav className="p-4 space-y-0.5 flex-1">
-          {navItems.map(item => (
-            <Link
-              key={item.label}
-              href={item.href}
-              title={collapsed ? item.label : undefined}
-              className={`flex items-center gap-3 px-3 py-2 rounded-lg ${t.textMuted} ${t.hoverBg} ${t.hoverText} font-medium text-sm transition-colors ${collapsed ? 'lg:justify-center' : ''}`}
-            >
-              <item.icon className="h-[18px] w-[18px] shrink-0" />
-              <span className={collapsed ? 'lg:hidden' : ''}>{item.label}</span>
-            </Link>
-          ))}
-
           {/* Favorites — user-customizable via the bookmark icon on any module tile */}
-          <div className={`mt-6 pt-5 border-t ${t.border} ${collapsed ? 'lg:hidden' : ''}`}>
+          <div className={`mt-6 pt-5 border-t ${t.border} ${visuallyCollapsed ? 'lg:hidden' : ''}`}>
             <button
               onClick={() => toggleSection('favorites')}
               className={`w-full flex items-center justify-between px-3 mb-1 text-[11px] font-semibold ${t.textTertiary} uppercase tracking-wider ${t.hoverText} transition-colors`}
@@ -480,7 +492,7 @@ function SidebarNavigation({
           </div>
 
           {/* All Modules — full expandable navigation tree */}
-          <div className={`mt-4 pt-4 border-t ${t.border} ${collapsed ? 'lg:hidden' : ''}`}>
+          <div className={`mt-4 pt-4 border-t ${t.border} ${visuallyCollapsed ? 'lg:hidden' : ''}`}>
             <button
               onClick={() => toggleSection('modules')}
               className={`w-full flex items-center justify-between px-3 mb-1 text-[11px] font-semibold ${t.textTertiary} uppercase tracking-wider ${t.hoverText} transition-colors`}
@@ -493,9 +505,13 @@ function SidebarNavigation({
               <div className="space-y-0.5 pt-1">
                 {CATEGORIES.map(cat => {
                   const a = ACCENT[cat.accent];
-                  const catOpen = !!expandedCats[cat.id];
+                  const catOpen = !!expandedCats[cat.id] || hoveredCat === cat.id;
                   return (
-                    <div key={cat.id}>
+                    <div
+                      key={cat.id}
+                      onMouseEnter={() => setHoveredCat(cat.id)}
+                      onMouseLeave={() => setHoveredCat(prev => (prev === cat.id ? null : prev))}
+                    >
                       <button
                         onClick={() => toggleCat(cat.id)}
                         type="button"
@@ -530,7 +546,7 @@ function SidebarNavigation({
           </div>
 
           {/* Recent Activity — optional, moved here from the main dashboard */}
-          <div className={`mt-4 pt-4 border-t ${t.border} ${collapsed ? 'lg:hidden' : ''}`}>
+          <div className={`mt-4 pt-4 border-t ${t.border} ${visuallyCollapsed ? 'lg:hidden' : ''}`}>
             <button
               onClick={() => toggleSection('activity')}
               className={`w-full flex items-center justify-between px-3 mb-1 text-[11px] font-semibold ${t.textTertiary} uppercase tracking-wider ${t.hoverText} transition-colors`}
@@ -554,7 +570,7 @@ function SidebarNavigation({
             </Collapse>
           </div>
 
-          {collapsed && (
+          {visuallyCollapsed && (
             <div className={`hidden lg:flex flex-col items-center gap-1 pt-4 mt-4 border-t ${t.border}`}>
               {favoriteModules.slice(0, 5).map(({ module, accent }) => {
                 const a = ACCENT[accent];
@@ -753,10 +769,14 @@ function CategorySection({
 }) {
   const a = ACCENT[category.accent];
   const t = useTheme();
+  const [hovering, setHovering] = useState(false);
+  const visuallyExpanded = isExpanded || hovering;
   return (
     <motion.div
       variants={fadeUp}
       id={category.id}
+      onHoverStart={() => setHovering(true)}
+      onHoverEnd={() => setHovering(false)}
       className={`${t.glass} rounded-2xl ${t.shadow} scroll-mt-24 overflow-hidden`}
     >
       <button
@@ -777,10 +797,10 @@ function CategorySection({
           </div>
           <p className={`text-[12px] ${t.textSecondary} mt-0.5`}>{category.description}</p>
         </div>
-        <ChevronDown className={`h-4 w-4 ${t.textFaint} transition-transform shrink-0 ${isExpanded ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`h-4 w-4 ${t.textFaint} transition-transform shrink-0 ${visuallyExpanded ? 'rotate-180' : ''}`} />
       </button>
 
-      <Collapse open={isExpanded}>
+      <Collapse open={visuallyExpanded}>
         <div className={`px-4 pb-4 pt-1 border-t ${t.border}`}>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 mt-4">
             {category.modules.map(module => (
@@ -809,9 +829,16 @@ function Panel({
   children: React.ReactNode; defaultOpen?: boolean; footer?: React.ReactNode;
 }) {
   const [open, setOpen] = useState(defaultOpen);
+  const [hovering, setHovering] = useState(false);
   const t = useTheme();
+  const visuallyOpen = open || hovering;
   return (
-    <motion.div variants={fadeUp} className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
+    <motion.div
+      variants={fadeUp}
+      onHoverStart={() => setHovering(true)}
+      onHoverEnd={() => setHovering(false)}
+      className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}
+    >
       <button onClick={() => setOpen(!open)} className={`w-full flex items-center justify-between px-5 py-4 ${t.hoverBgSoft} transition-colors text-left`} type="button">
         <div className="flex items-center gap-3 min-w-0">
           <div className={`h-9 w-9 rounded-lg flex items-center justify-center shrink-0 ${iconClass}`}>
@@ -822,9 +849,9 @@ function Panel({
             <p className={`text-[11px] ${t.textFaint} truncate`}>{subtitle}</p>
           </div>
         </div>
-        <ChevronDown className={`h-4 w-4 ${t.textFaint} transition-transform shrink-0 ${open ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`h-4 w-4 ${t.textFaint} transition-transform shrink-0 ${visuallyOpen ? 'rotate-180' : ''}`} />
       </button>
-      <Collapse open={open}>
+      <Collapse open={visuallyOpen}>
         <div className={`border-t ${t.border}`}>
           {children}
           {footer}
@@ -836,27 +863,52 @@ function Panel({
 
 // ─── Module quick-view content (inside SlideOver) ───────────────────────────
 
+const iconPop = {
+  hidden: { scale: 0.5, rotate: -8, opacity: 0 },
+  show: { scale: 1, rotate: 0, opacity: 1, transition: { type: 'spring', stiffness: 260, damping: 16, delay: 0.15 } },
+};
+
+/** Icon that pops in on mount, then breathes gently every few seconds to draw the eye back to it. */
+function PulsingIcon({ className, children }: { className: string; children: React.ReactNode }) {
+  return (
+    <motion.div variants={iconPop} className={className}>
+      <motion.div
+        animate={{ scale: [1, 1.08, 1] }}
+        transition={{ duration: 1.4, repeat: Infinity, repeatDelay: 3.2, ease: 'easeInOut' }}
+        className="flex items-center justify-center"
+      >
+        {children}
+      </motion.div>
+    </motion.div>
+  );
+}
+
 function ModuleQuickView({ module, accent }: { module: Module; accent: Accent }) {
   const a = ACCENT[accent];
   const t = useTheme();
   return (
-    <motion.div variants={staggerContainer} initial="hidden" animate="show" className="p-6 space-y-6">
-      <motion.div variants={fadeUp} className="flex items-center gap-4">
-        <div className={`h-14 w-14 rounded-2xl bg-gradient-to-br ${a.gradient} flex items-center justify-center ${a.solidGlow} shrink-0`}>
-          <module.icon className="h-6 w-6 text-white" />
-        </div>
+    <motion.div variants={staggerContainer} initial="hidden" animate="show" className="p-5 space-y-4">
+      <div className="flex items-center gap-3">
+        <PulsingIcon className={`h-10 w-10 rounded-lg bg-gradient-to-br ${a.gradient} flex items-center justify-center ${a.solidGlow} shrink-0`}>
+          <module.icon className="h-4 w-4 text-white" />
+        </PulsingIcon>
         <div>
-          <h3 className={`font-semibold ${t.textPrimary} text-lg tracking-tight`}>{module.title}</h3>
-          <p className={`text-[13px] ${t.textSecondary} mt-0.5`}>{module.description}</p>
+          <h3 className={`font-medium ${t.textPrimary} text-[12.5px] tracking-tight`}>{module.title}</h3>
+          <AnimatedText
+            as="p"
+            trigger="mount"
+            text={module.description}
+            className={`text-[10.5px] ${t.textSecondary} mt-0.5`}
+          />
         </div>
-      </motion.div>
+      </div>
 
       {module.metrics && (
-        <motion.div variants={staggerContainer} className="grid grid-cols-2 gap-3">
+        <motion.div variants={staggerContainer} className="grid grid-cols-2 gap-2">
           {module.metrics.map((m, i) => (
-            <motion.div key={i} variants={fadeUp} whileHover={{ y: -2 }} className={`rounded-xl ${t.chipBg} border ${t.border} ${t.shadow} ${a.glow} transition-shadow duration-300 p-4 text-center`}>
-              <p className={`text-2xl font-semibold ${t.textPrimary} tabular-nums`}>{m.value}</p>
-              <p className={`text-[11px] ${t.textTertiary} uppercase tracking-wide mt-1`}>{m.label}</p>
+            <motion.div key={i} variants={fadeUp} whileHover={{ y: -2 }} className={`rounded-lg ${t.chipBg} border ${t.border} ${t.shadow} ${a.glow} transition-shadow duration-300 p-2 text-center`}>
+              <p className={`text-base font-bold ${t.textPrimary} tabular-nums leading-none`}>{m.value}</p>
+              <p className={`text-[9px] ${t.textTertiary} uppercase tracking-wide mt-1`}>{m.label}</p>
             </motion.div>
           ))}
         </motion.div>
@@ -864,21 +916,21 @@ function ModuleQuickView({ module, accent }: { module: Module; accent: Accent })
 
       {module.tags && (
         <motion.div variants={fadeUp}>
-          <p className={`text-[11px] font-semibold ${t.textTertiary} uppercase tracking-wider mb-2`}>Tags</p>
+          <p className={`text-[10px] font-semibold ${t.textTertiary} uppercase tracking-wider mb-1.5`}>Tags</p>
           <div className="flex flex-wrap gap-1.5">
             {module.tags.map(tag => (
-              <span key={tag} className={`text-[12px] font-medium ${t.textMuted} ${t.chipBg} rounded-full px-2.5 py-1`}>{tag}</span>
+              <span key={tag} className={`text-[10.5px] font-medium ${t.textMuted} ${t.chipBg} rounded-full px-2 py-0.5`}>{tag}</span>
             ))}
           </div>
         </motion.div>
       )}
 
-      <motion.div variants={fadeUp}>
+      <motion.div variants={fadeUp} whileHover={{ scale: 1.015 }} whileTap={{ scale: 0.985 }}>
         <Link
           href={module.href}
-          className={`flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-gradient-to-br ${a.gradient} text-white text-sm font-semibold ${a.solidGlow} ${a.glow} hover:brightness-105 transition-all`}
+          className={`flex items-center justify-center gap-1.5 w-full py-2 rounded-lg bg-gradient-to-br ${a.gradient} text-white text-[11.5px] font-semibold ${a.solidGlow} ${a.glow} hover:brightness-110 transition-all duration-300 ease-out`}
         >
-          Open module <ArrowRight className="h-4 w-4" />
+          Open module <ArrowRight className="h-3 w-3" />
         </Link>
       </motion.div>
     </motion.div>
@@ -895,13 +947,13 @@ function CustomizeRow({
   const a = ACCENT[accent];
   const t = useTheme();
   return (
-    <motion.div variants={fadeUp} whileHover={{ x: 2 }} className="flex items-center gap-3 py-3">
-      <div className={`h-11 w-11 rounded-xl bg-gradient-to-br ${a.gradient} flex items-center justify-center shrink-0 ${a.solidGlow} ${a.glow} transition-shadow duration-300`}>
-        <Icon className="h-[18px] w-[18px] text-white" />
-      </div>
+    <motion.div variants={fadeUp} whileHover={{ x: 2 }} className="flex items-center gap-3 py-2.5">
+      <PulsingIcon className={`h-9 w-9 rounded-lg bg-gradient-to-br ${a.gradient} flex items-center justify-center shrink-0 ${a.solidGlow} ${a.glow} transition-shadow duration-300`}>
+        <Icon className="h-4 w-4 text-white" />
+      </PulsingIcon>
       <div className="flex-1 min-w-0">
-        <p className={`text-[13px] font-medium ${t.textPrimary}`}>{title}</p>
-        <p className={`text-[12px] ${t.textSecondary} mt-0.5`}>{description}</p>
+        <p className={`text-[12.5px] font-medium ${t.textPrimary}`}>{title}</p>
+        <AnimatedText as="p" trigger="mount" text={description} className={`text-[10.5px] ${t.textSecondary} mt-0.5`} />
       </div>
       <button
         onClick={onToggle}
@@ -1240,8 +1292,6 @@ export default function HomePage() {
               </div>
             </div>
           </div>
-
-          <Footer />
         </main>
       </div>
 
@@ -1265,7 +1315,7 @@ export default function HomePage() {
         accent="violet"
         width="max-w-lg"
       >
-        <motion.div variants={staggerContainer} initial="hidden" animate="show" className="p-6">
+        <motion.div variants={staggerContainer} initial="hidden" animate="show" className="p-5">
           <motion.p variants={fadeUp} className={`text-[11px] font-semibold ${t.textTertiary} uppercase tracking-wider mb-1`}>Key metrics</motion.p>
           <motion.div variants={staggerContainer} className={`divide-y ${t.divide}`}>
             {KPI_DATA.map(kpi => (
