@@ -5,9 +5,34 @@
 // don't import this are completely unaffected.
 'use client';
 
-import { createContext, useContext, useState, useMemo, type ReactNode } from 'react';
+import { createContext, useContext, useState, useMemo, useRef, useEffect, type ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
+
+/**
+ * Hover-intent: distinguishes "just passing over" from "actually wants this open".
+ * `openDelay` gates how long the pointer must dwell before `hovering` flips true;
+ * `closeDelay` gives a grace window before it flips back false, so a quick mouse
+ * slip off the element doesn't instantly collapse/close it.
+ */
+export function useHoverIntent(openDelay = 0, closeDelay = 400) {
+  const [hovering, setHovering] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+
+  const onHoverStart = () => {
+    if (timer.current) clearTimeout(timer.current);
+    if (openDelay > 0) timer.current = setTimeout(() => setHovering(true), openDelay);
+    else setHovering(true);
+  };
+  const onHoverEnd = () => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => setHovering(false), closeDelay);
+  };
+
+  return { hovering, onHoverStart, onHoverEnd };
+}
 
 // ─── Glass surface classes (dark mode — frosted cards over photo/dark background) ──
 
@@ -87,6 +112,55 @@ export const ACCENT_RGBA: Record<Accent, string> = {
   cyan: 'rgba(8,145,178,0.35)',
   violet: 'rgba(124,58,237,0.35)',
 };
+
+/** Hex equivalents of ACCENT_RGBA, for callers that need a plain hex (e.g. GlowCard/glowShadow). */
+export const ACCENT_HEX: Record<Accent, string> = {
+  blue: '#2563eb', amber: '#d97706', indigo: '#4f46e5',
+  emerald: '#059669', cyan: '#0891b2', violet: '#7c3aed',
+};
+
+/** Converts a `#rrggbb`/`#rgb` hex string to an `rgba(...)` string at the given alpha. */
+export function hexToRgba(hex: string, alpha: number): string {
+  const h = hex.replace('#', '');
+  const full = h.length === 3 ? h.split('').map(c => c + c).join('') : h;
+  const n = parseInt(full, 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${alpha})`;
+}
+
+/** Colored 3D drop-shadow for an arbitrary hex accent (e.g. per-record type colors that don't fit the 6-value ACCENT enum). */
+export function glowShadow(hex: string, alpha = 0.32): string {
+  return `0 16px 32px -14px ${hexToRgba(hex, alpha)}`;
+}
+
+// ─── GlowCard — reusable elevated glass tile with a colored hover shadow ────
+// The one shared "elegant card" primitive: glass surface, a neutral ambient shadow at
+// rest, and a colored 3D glow that fades in on hover (driven by a hex color) instead of
+// a colored border or stripe. Use this for any per-item card that needs an accent color
+// that doesn't fit the 6-value ACCENT enum (e.g. per-type hex palettes).
+export function GlowCard({
+  color, className = '', onClick, children,
+}: {
+  color: string; className?: string; onClick?: () => void; children: ReactNode;
+}) {
+  const t = useTheme();
+  return (
+    <motion.div
+      onClick={onClick}
+      initial="rest"
+      animate="rest"
+      whileHover="hover"
+      whileTap={onClick ? { scale: 0.985 } : undefined}
+      variants={{
+        rest: { y: 0, boxShadow: '0 0 0 0 rgba(0,0,0,0)' },
+        hover: { y: -3, boxShadow: `0 20px 40px -16px ${hexToRgba(color, 0.38)}` },
+      }}
+      transition={{ duration: 0.25 }}
+      className={`${t.glassSoft} rounded-lg ${onClick ? 'cursor-pointer' : ''} ${className}`}
+    >
+      {children}
+    </motion.div>
+  );
+}
 
 // ─── Motion variants ─────────────────────────────────────────────────────────
 

@@ -16,8 +16,8 @@ import { toast } from 'sonner';
 import { LoadingState } from '@/components/safety';
 import { usePageCollapse, MasterCollapseButton } from '@/components/shared';
 import {
-  useTheme, Collapse, AnimatedText, PulsingIcon, CenterModal,
-  staggerContainer, fadeUp, ACCENT, type Accent,
+  useTheme, Collapse, AnimatedText, PulsingIcon, CenterModal, GlowCard, glowShadow,
+  staggerContainer, fadeUp, ACCENT, ACCENT_HEX, type Accent,
 } from '@/components/shared/theme';
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
@@ -107,6 +107,12 @@ const isExpiringSoon = (d?: string | null, days = 30) => {
   return diff <= days && diff > 0;
 };
 const isExpired = (d?: string | null) => !!d && new Date(d) < new Date();
+
+const initials = (name?: string | null) => {
+  if (!name) return 'U';
+  const parts = name.trim().split(/\s+/);
+  return parts.length > 1 ? `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase() : parts[0].slice(0, 2).toUpperCase();
+};
 
 // ─── API ─────────────────────────────────────────────────────────────────────
 
@@ -280,24 +286,15 @@ function PPEItemCard({ record, onEdit, onDelete, onView }: PPEItemCardProps) {
   const expiring = isExpiringSoon(record.expiry_date);
   const expired  = isExpired(record.expiry_date);
 
-  const accentBorderColor = expired ? '#f43f5e' : expiring ? '#f59e0b' : undefined;
+  const glowColor = expired ? '#f43f5e' : expiring ? '#f59e0b' : ACCENT_HEX.blue;
 
   return (
-    <motion.div
-      initial="rest" animate="rest" whileHover="hover" whileTap={{ scale: 0.985 }}
-      className={`group rounded-lg ${t.glassSoft} ${t.hoverBgSoft} border cursor-pointer transition-all duration-200 overflow-hidden`}
-      style={{ borderColor: accentBorderColor }}
-      onClick={() => onView(record)}
-    >
-      {/* top stripe accent */}
-      <div className="h-0.5 w-full" style={{ background: expired ? '#f43f5e' : expiring ? '#f59e0b' : ppeType.color }} />
-
-      <div className="px-3.5 pt-3 pb-2 flex items-start justify-between gap-2">
+    <GlowCard color={glowColor} onClick={() => onView(record)} className={`group ${t.hoverBgSoft} overflow-hidden`}>
+      <div className="px-3.5 pt-3.5 pb-2 flex items-start justify-between gap-2">
         <div className="flex items-center gap-2.5 min-w-0">
           <motion.div
             variants={{ rest: { scale: 1 }, hover: { scale: 1.08, transition: { duration: 0.25 } } }}
-            className="p-2 rounded-lg shrink-0 border"
-            style={{ background: `${ppeType.color}1A`, borderColor: `${ppeType.color}40` }}
+            className={`p-2 rounded-lg shrink-0 ${t.chipBg}`}
           >
             <Icon className="h-3.5 w-3.5" style={{ color: ppeType.color }} />
           </motion.div>
@@ -342,7 +339,7 @@ function PPEItemCard({ record, onEdit, onDelete, onView }: PPEItemCardProps) {
           <PPEStatusBadge status={record.status} />
         </div>
       </div>
-    </motion.div>
+    </GlowCard>
   );
 }
 
@@ -368,22 +365,25 @@ function EmployeePPECard({ employee, isExpanded, onToggle, onIssueNew, onEditIte
   const expiring = employee.records.filter(r => isExpiringSoon(r.expiry_date) && r.status === 'active');
   const hasAlert = expired.length > 0 || expiring.length > 0;
 
-  const borderColor = expired.length > 0 ? '#f43f5e59' : expiring.length > 0 ? '#f59e0b59' : undefined;
+  const alertColor = expired.length > 0 ? '#f43f5e' : expiring.length > 0 ? '#f59e0b' : null;
 
   return (
     <motion.div
       onHoverStart={() => setHovering(true)}
       onHoverEnd={() => setHovering(false)}
-      className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden border transition-all duration-200`}
-      style={{ borderColor }}
+      className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden transition-shadow duration-300`}
+      style={{ boxShadow: alertColor ? glowShadow(alertColor, 0.22) : (hovering ? glowShadow(ACCENT_HEX.blue, 0.22) : undefined) }}
     >
       {/* Header — always visible */}
       <div className="flex items-center justify-between px-5 py-4 gap-3">
         <button type="button" onClick={onToggle}
           className="flex items-center gap-3 min-w-0 flex-1 text-left hover:opacity-90 transition-opacity">
           {/* Avatar */}
-          <PulsingIcon className={`h-11 w-11 rounded-xl flex items-center justify-center text-white font-bold text-lg shrink-0 bg-gradient-to-br ${ACCENT.blue.gradient} ${ACCENT.blue.solidGlow}`}>
-            <span>{employee.employee_name?.[0] || 'U'}</span>
+          <PulsingIcon
+            className={`relative h-11 w-11 rounded-full flex items-center justify-center text-white font-semibold text-[13px] tracking-wide shrink-0 bg-gradient-to-br ${ACCENT.blue.gradient} ${ACCENT.blue.solidGlow} ring-2 ${t.light ? 'ring-white' : 'ring-white/10'}`}
+          >
+            <span className="absolute inset-0 rounded-full bg-gradient-to-b from-white/25 to-transparent" />
+            <span className="relative">{initials(employee.employee_name)}</span>
           </PulsingIcon>
 
           {/* Name + meta */}
@@ -485,7 +485,7 @@ function PPEDetailModal({ item, isOpen, onClose, onEdit }: DetailModalProps) {
     <CenterModal open={isOpen} onClose={onClose} title="PPE Item Details" subtitle={item.item_name} accent="blue" width="max-w-3xl">
       <motion.div variants={staggerContainer} initial="hidden" animate="show" className="p-5 space-y-4">
         <motion.div variants={fadeUp} className="flex items-center gap-3">
-          <PulsingIcon className="h-12 w-12 rounded-xl flex items-center justify-center shrink-0 border" style={{ background: `${ppeType.color}1A`, borderColor: `${ppeType.color}40` } as React.CSSProperties}>
+          <PulsingIcon className={`h-12 w-12 rounded-xl flex items-center justify-center shrink-0 ${t.chipBg}`}>
             <Icon className="h-5 w-5" style={{ color: ppeType.color }} />
           </PulsingIcon>
           <div>
@@ -790,62 +790,54 @@ function DueItemsList({ employees, filterType, onEditItem, onDeleteItem, onViewI
           {Object.entries(PPE_TYPES).map(([k, pt]) => <option key={k} value={k}>{pt.name}</option>)}
         </select>
       </div>
-      <div className={`overflow-x-auto rounded-xl border ${t.border}`}>
-        <table className="w-full">
-          <thead>
-            <tr className={`border-b ${t.border}`}>
-              {['Employee', 'Item', 'Type', 'Size', 'Expiry', 'Condition', 'Status', ''].map((h, i) => (
-                <th key={i} className={`py-2.5 text-[11px] font-semibold ${t.textFaint} uppercase tracking-wider ${t.glassSoft} ${i === 0 ? 'pl-4 pr-3 text-left' : i === 7 ? 'px-3 w-20' : 'px-3 text-left'}`}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {items.map(item => {
-              const ppeType = PPE_TYPES[item.ppe_type] || PPE_TYPES.helmet;
-              const Icon = ppeType.icon;
-              return (
-                <tr key={item.id} className={`border-b ${t.border} ${t.hoverBgSoft} cursor-pointer transition-colors`}
-                  onClick={() => onViewItem(item)}>
-                  <td className="pl-4 pr-3 py-3">
-                    <div className={`text-sm font-semibold ${t.textPrimary}`}>{item.employee_name}</div>
-                    <div className={`text-[11px] ${t.textFaint}`}>{item.employee_id}</div>
-                  </td>
-                  <td className="px-3 py-3">
-                    <div className="flex items-center gap-2">
-                      <div className="p-1 rounded-lg" style={{ background: `${ppeType.color}1A` }}><Icon className="h-3.5 w-3.5" style={{ color: ppeType.color }} /></div>
-                      <span className={`text-sm ${t.textSecondary} font-medium`}>{item.item_name}</span>
+      {items.length === 0 ? (
+        <div className={`text-center py-8 ${t.textFaint} text-sm rounded-xl ${t.glassSoft}`}>No items match the current filters</div>
+      ) : (
+        <motion.div variants={staggerContainer} initial="hidden" animate="show" className="space-y-2">
+          {items.map(item => {
+            const ppeType = PPE_TYPES[item.ppe_type] || PPE_TYPES.helmet;
+            const Icon = ppeType.icon;
+            const glowColor = filterType === 'due' ? '#f43f5e' : '#f59e0b';
+            return (
+              <motion.div key={item.id} variants={fadeUp}>
+                <GlowCard color={glowColor} onClick={() => onViewItem(item)} className="p-3.5 flex items-center gap-3">
+                  <div className={`p-2 rounded-lg shrink-0 ${t.chipBg}`}><Icon className="h-4 w-4" style={{ color: ppeType.color }} /></div>
+
+                  <div className="min-w-0 flex-1 grid grid-cols-2 sm:grid-cols-4 gap-x-3 gap-y-1 items-center">
+                    <div className="min-w-0">
+                      <p className={`text-sm font-semibold ${t.textPrimary} truncate`}>{item.employee_name}</p>
+                      <p className={`text-[11px] ${t.textFaint} truncate`}>{item.employee_id}</p>
                     </div>
-                  </td>
-                  <td className={`px-3 py-3 text-xs ${t.textMuted}`}>{ppeType.name}</td>
-                  <td className={`px-3 py-3 text-xs ${t.textMuted}`}>{item.size || '—'}</td>
-                  <td className="px-3 py-3">
-                    <span className={`text-xs font-semibold ${filterType === 'due' ? 'text-rose-500' : 'text-amber-500'}`}>
-                      {fmtDate(item.expiry_date)}
-                    </span>
-                  </td>
-                  <td className="px-3 py-3"><ConditionBadge condition={item.condition} /></td>
-                  <td className="px-3 py-3"><PPEStatusBadge status={item.status} /></td>
-                  <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
-                    <div className="flex items-center justify-end gap-1">
-                      <button type="button" title="Edit" onClick={() => onEditItem(item)}
-                        className={`h-6 w-6 flex items-center justify-center rounded hover:bg-[#86BBD8]/15 ${t.textFaint} hover:text-[#86BBD8] transition-all`}>
-                        <Edit className="h-3 w-3" />
-                      </button>
-                      <button type="button" title="Delete" onClick={() => onDeleteItem(item.id)}
-                        className={`h-6 w-6 flex items-center justify-center rounded hover:bg-rose-500/20 ${t.textFaint} hover:text-rose-500 transition-all`}>
-                        <Trash2 className="h-3 w-3" />
-                      </button>
+                    <div className="min-w-0">
+                      <p className={`text-sm ${t.textSecondary} font-medium truncate`}>{item.item_name}</p>
+                      <p className={`text-[11px] ${t.textFaint} truncate`}>{ppeType.name}{item.size ? ` · ${item.size}` : ''}</p>
                     </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-        {items.length === 0 && (
-          <div className={`text-center py-8 ${t.textFaint} text-sm`}>No items match the current filters</div>
-        )}
-      </div>
+                    <div>
+                      <p className={`text-[11px] ${t.textFaint} uppercase tracking-wide`}>Expires</p>
+                      <p className="text-sm font-semibold" style={{ color: glowColor }}>{fmtDate(item.expiry_date)}</p>
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <ConditionBadge condition={item.condition} />
+                      <PPEStatusBadge status={item.status} />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
+                    <button type="button" title="Edit" onClick={() => onEditItem(item)}
+                      className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} hover:text-blue-500 transition-all`}>
+                      <Edit className="h-3.5 w-3.5" />
+                    </button>
+                    <button type="button" title="Delete" onClick={() => onDeleteItem(item.id)}
+                      className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} hover:text-rose-500 transition-all`}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </GlowCard>
+              </motion.div>
+            );
+          })}
+        </motion.div>
+      )}
     </div>
   );
 }
@@ -873,6 +865,9 @@ export default function PPEManagement() {
   const [searchTerm,    setSearchTerm]    = useState('');
   // All employee cards start collapsed (empty object = all false)
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  // Hovering the Expand All/Collapse All button previews the effect on every card
+  // before you commit to it with a click.
+  const [hoverAllPreview, setHoverAllPreview] = useState<'expand' | 'collapse' | null>(null);
 
   // ── Data loading ───────────────────────────────────────────────────────────
 
@@ -983,7 +978,7 @@ export default function PPEManagement() {
     catch (err: any) { toast.error(`Delete failed: ${err.message}`); }
   };
 
-  const compColor = complianceRate == null ? '#86BBD8' : complianceRate >= 80 ? '#34d399' : complianceRate >= 60 ? '#f59e0b' : '#f43f5e';
+  const compColor = complianceRate == null ? ACCENT_HEX.blue : complianceRate >= 80 ? '#10b981' : complianceRate >= 60 ? ACCENT_HEX.blue : '#f43f5e';
 
   const [showDlMenu, setShowDlMenu] = useState(false);
 
@@ -1189,8 +1184,8 @@ export default function PPEManagement() {
               {/* KPI chips */}
               <motion.div variants={staggerContainer} initial="hidden" animate="show" className="flex flex-wrap items-center gap-1">
                 {([
-                  { icon: Users,        color: '#86BBD8', val: enhancedStats.unique_employees, label: 'Employees',   filter: 'all' as const },
-                  { icon: CheckCircle2, color: '#34d399', val: enhancedStats.activeRecords,    label: 'Active PPE',  filter: 'active' as const },
+                  { icon: Users,        color: ACCENT_HEX.blue, val: enhancedStats.unique_employees, label: 'Employees',   filter: 'all' as const },
+                  { icon: CheckCircle2, color: '#10b981', val: enhancedStats.activeRecords,    label: 'Active PPE',  filter: 'active' as const },
                   enhancedStats.expiringSoon > 0 && { icon: AlertTriangle, color: '#f59e0b', val: enhancedStats.expiringSoon, label: `Expiring (${enhancedStats.employeesWithExpiring} emp)`, filter: 'soon-to-due' as const },
                   enhancedStats.expired > 0      && { icon: XCircle,       color: '#f43f5e', val: enhancedStats.expired,      label: `Overdue (${enhancedStats.employeesWithExpired} emp)`,  filter: 'due' as const },
                   complianceRate != null && { icon: Award, color: compColor, val: `${complianceRate}%`, label: 'Compliance', filter: null },
@@ -1199,7 +1194,7 @@ export default function PPEManagement() {
                     <button type="button" onClick={() => item.filter && setFilterType(item.filter)} disabled={!item.filter}
                       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg ${t.hoverBg} transition-all disabled:cursor-default group`}>
                       <item.icon className="w-3.5 h-3.5" style={{ color: item.color }} />
-                      <span className="text-base font-bold" style={{ color: item.color }}>{item.val}</span>
+                      <span className={`text-base font-bold ${t.textPrimary} tabular-nums`}>{item.val}</span>
                       <span className={`text-xs ${t.textMuted} transition-colors`}>{item.label}</span>
                     </button>
                     {i < arr.length - 1 && <span className={`${t.textTertiary} hidden sm:block`}>|</span>}
@@ -1211,10 +1206,13 @@ export default function PPEManagement() {
                 <div>
                   <div className="flex justify-between text-[11px] mb-1">
                     <span className={t.textSecondary}>Compliance rate</span>
-                    <span className="font-semibold" style={{ color: compColor }}>{complianceRate}%</span>
+                    <span className={`font-semibold ${t.textPrimary} tabular-nums`}>{complianceRate}%</span>
                   </div>
                   <div className={`h-1.5 rounded-full ${t.chipBg} overflow-hidden`}>
-                    <div className="h-full rounded-full transition-all duration-700" style={{ width: `${complianceRate}%`, background: compColor }} />
+                    <motion.div
+                      initial={{ width: 0 }} animate={{ width: `${complianceRate}%` }} transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+                      className="h-full rounded-full" style={{ background: compColor }}
+                    />
                   </div>
                 </div>
               )}
@@ -1225,9 +1223,8 @@ export default function PPEManagement() {
                     const info = PPE_TYPES[type] || PPE_TYPES.helmet;
                     const Icon = info.icon;
                     return (
-                      <span key={type} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border"
-                        style={{ color: info.color, background: `${info.color}1A`, borderColor: `${info.color}40` }}>
-                        <Icon className="h-3 w-3" />{info.shortName} <span className="font-bold">{count}</span>
+                      <span key={type} className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold ${t.chipBg} ${t.textMuted}`}>
+                        <Icon className="h-3 w-3" style={{ color: info.color }} />{info.shortName} <span className={t.textPrimary}>{count}</span>
                       </span>
                     );
                   })}
@@ -1262,9 +1259,9 @@ export default function PPEManagement() {
                   const expiredC = records.filter(r => r.ppe_type === key && r.status === 'active' && isExpired(r.expiry_date)).length;
                   const soonC    = records.filter(r => r.ppe_type === key && r.status === 'active' && isExpiringSoon(r.expiry_date)).length;
                   return (
-                    <div key={key} className={`rounded-xl p-4 mt-3 ${t.glassSoft} ${t.hoverBg} transition-all`}>
+                    <GlowCard key={key} color={ACCENT_HEX.blue} className="p-4 mt-3">
                       <div className="flex items-center gap-2 mb-3">
-                        <div className="p-1.5 rounded-lg" style={{ background: `${type.color}1A`, border: `1px solid ${type.color}40` }}><Icon className="h-3.5 w-3.5" style={{ color: type.color }} /></div>
+                        <div className={`p-1.5 rounded-lg ${t.chipBg}`}><Icon className="h-3.5 w-3.5" style={{ color: type.color }} /></div>
                         <span className={`text-sm font-semibold ${t.textPrimary}`}>{type.shortName}</span>
                       </div>
                       <div className="space-y-1.5">
@@ -1276,7 +1273,7 @@ export default function PPEManagement() {
                             style={{ width: `${active > 0 ? Math.max(8, Math.round(((active - expiredC) / active) * 100)) : 0}%` }} />
                         </div>
                       </div>
-                    </div>
+                    </GlowCard>
                   );
                 })}
               </div>
@@ -1341,8 +1338,11 @@ export default function PPEManagement() {
             </button>
             {/* Collapse All / Expand All — only visible when the panel is open and cards are shown */}
             {sections.expanded.records && (filterType === 'all' || filterType === 'active') && filteredEmployees.length > 0 && (
-              <motion.button type="button" onClick={anyExpanded ? collapseAll : expandAll} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-                className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-semibold text-white border transition-all shrink-0 ${anyExpanded ? 'bg-rose-500/80 border-rose-500/35' : `bg-gradient-to-br ${ACCENT.blue.gradient} ${ACCENT.blue.solidGlow}`}`}>
+              <motion.button type="button" onClick={anyExpanded ? collapseAll : expandAll}
+                onMouseEnter={() => setHoverAllPreview(anyExpanded ? 'collapse' : 'expand')}
+                onMouseLeave={() => setHoverAllPreview(null)}
+                whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-semibold transition-all shrink-0 ${anyExpanded ? `${t.glassSoft} ${t.textMuted} ${t.hoverText}` : `text-white bg-gradient-to-br ${ACCENT.blue.gradient} ${ACCENT.blue.solidGlow}`}`}>
                 {anyExpanded ? <ChevronsUp className="h-3.5 w-3.5" /> : <ChevronsDown className="h-3.5 w-3.5" />}
                 {anyExpanded ? 'Collapse All' : 'Expand All'}
               </motion.button>
@@ -1378,7 +1378,11 @@ export default function PPEManagement() {
                 <div className="space-y-2.5">
                   {filteredEmployees.map(emp => (
                     <EmployeePPECard key={emp.employee_id} employee={emp}
-                      isExpanded={!!expanded[emp.employee_id]}
+                      isExpanded={
+                        hoverAllPreview === 'expand' ? true :
+                        hoverAllPreview === 'collapse' ? false :
+                        !!expanded[emp.employee_id]
+                      }
                       onToggle={() => toggle(emp.employee_id)}
                       onIssueNew={openIssueForm}
                       onEditItem={r => { setEditData(r); setShowForm(true); }}
