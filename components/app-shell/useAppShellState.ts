@@ -7,7 +7,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { Accent } from '@/components/shared/theme';
 import {
   CATEGORIES, QUICK_ACTIONS, ALL_MODULES_BY_HREF,
-  USAGE_KEY, AUTO_QA_DISMISSED_KEY, MANUAL_QA_KEY, FAVORITES_KEY,
+  USAGE_KEY, AUTO_QA_DISMISSED_KEY, MANUAL_QA_KEY, FAVORITES_KEY, SIDEBAR_COLLAPSED_KEY,
   FREQUENT_THRESHOLD, FREQUENT_LIMIT,
   readJSON, writeJSON,
   type Module, type QuickAction,
@@ -15,10 +15,19 @@ import {
 
 export function useAppShellState() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsedState] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [customizeOpen, setCustomizeOpen] = useState(false);
+
+  // Persisted preference (a Settings-panel option) rather than pure UI state — a
+  // user who collapses the sidebar expects it to stay collapsed next session.
+  const setSidebarCollapsed = (value: boolean | ((prev: boolean) => boolean)) =>
+    setSidebarCollapsedState(prev => {
+      const next = typeof value === 'function' ? value(prev) : value;
+      writeJSON(SIDEBAR_COLLAPSED_KEY, next);
+      return next;
+    });
 
   // localStorage-backed — start with a server-safe default, populate post-mount (see
   // app/page.tsx's original comment: avoids a client/server hydration mismatch).
@@ -35,6 +44,7 @@ export function useAppShellState() {
     setQuickActionHrefs(new Set(readJSON<string[]>(MANUAL_QA_KEY, [])));
     setDismissedAutoHrefs(new Set(readJSON<string[]>(AUTO_QA_DISMISSED_KEY, [])));
     setUsageCounts(readJSON<Record<string, number>>(USAGE_KEY, {}));
+    setSidebarCollapsedState(readJSON<boolean>(SIDEBAR_COLLAPSED_KEY, false));
   }, []);
 
   useEffect(() => {
@@ -55,6 +65,15 @@ export function useAppShellState() {
     writeJSON(FAVORITES_KEY, Array.from(next));
     return next;
   });
+  /** Bulk-add — powers the homepage's "select multiple modules, favorite them in
+   * one go" flow, so pinning several modules is a single localStorage write
+   * instead of N separate toggles. */
+  const addFavorites = (hrefs: string[]) => setFavoriteHrefs(prev => {
+    const next = new Set(prev);
+    hrefs.forEach(h => next.add(h));
+    writeJSON(FAVORITES_KEY, Array.from(next));
+    return next;
+  });
   const toggleQuickAction = (href: string) => setQuickActionHrefs(prev => {
     const next = new Set(prev);
     next.has(href) ? next.delete(href) : next.add(href);
@@ -66,6 +85,21 @@ export function useAppShellState() {
     writeJSON(AUTO_QA_DISMISSED_KEY, Array.from(next));
     return next;
   });
+
+  /** Settings-panel action: wipes favorites/quick-actions/usage back to the
+   * app's defaults. Local-only (no server-side preferences exist), so this is
+   * a straightforward, fully-reversible localStorage reset. */
+  const resetCustomizations = () => {
+    const defaultFavorites = CATEGORIES.flatMap(c => c.modules.filter(m => m.featured).map(m => m.href));
+    writeJSON(FAVORITES_KEY, defaultFavorites);
+    writeJSON(MANUAL_QA_KEY, []);
+    writeJSON(AUTO_QA_DISMISSED_KEY, []);
+    writeJSON(USAGE_KEY, {});
+    setFavoriteHrefs(new Set(defaultFavorites));
+    setQuickActionHrefs(new Set());
+    setDismissedAutoHrefs(new Set());
+    setUsageCounts({});
+  };
 
   const favoriteModules = useMemo(() => {
     const result: { module: Module; accent: Accent }[] = [];
@@ -113,10 +147,11 @@ export function useAppShellState() {
     mobileSearchOpen, setMobileSearchOpen,
     searchQuery, setSearchQuery,
     customizeOpen, setCustomizeOpen,
-    favoriteHrefs, favoriteModules, toggleFavorite,
+    favoriteHrefs, favoriteModules, toggleFavorite, addFavorites,
     quickActionHrefs, customQuickActions, toggleQuickAction,
     dismissedAutoHrefs, dismissAutoAction,
     frequentQuickActions,
+    resetCustomizations,
   };
 }
 

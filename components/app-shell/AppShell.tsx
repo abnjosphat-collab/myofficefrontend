@@ -53,7 +53,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </main>
       </div>
 
-      <BottomBar sidebarCollapsed={s.sidebarCollapsed} onOpenCustomize={() => s.setCustomizeOpen(true)} />
+      <BottomBar
+        sidebarCollapsed={s.sidebarCollapsed}
+        onOpenCustomize={() => s.setCustomizeOpen(true)}
+        onToggleSidebarCollapsed={() => s.setSidebarCollapsed(!s.sidebarCollapsed)}
+        onResetCustomizations={s.resetCustomizations}
+      />
 
       <CenterModal
         open={s.customizeOpen}

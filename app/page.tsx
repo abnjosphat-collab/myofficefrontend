@@ -9,7 +9,7 @@ import {
   SlidersHorizontal, Palette, PanelLeftClose, Bell, ShieldAlert,
   ChevronsDownUp, ChevronsUpDown, ChevronLeft, ChevronRight, ChevronDown, X,
   ArrowUpRight, ArrowDownRight, ArrowRight, Check, Eye, EyeOff, Maximize2, Plus,
-  Pause, Play,
+  Pause, Play, CheckSquare, Square,
 } from 'lucide-react';
 import {
   useTheme, Collapse, AnimatedText, PulsingIcon, CenterModal, GlowCard, InfoCard, CountUp, EmptyState, StatCard, StatStrip,
@@ -100,9 +100,14 @@ function QuickActionCard({ action, onRemove }: { action: QuickAction; onRemove?:
 
 function ModuleCard({
   module, accent, onQuickView, isFavorite, onToggleFavorite, isQuickAction, onToggleQuickAction, accentHex,
+  selectMode = false, isSelected = false, onToggleSelected,
 }: {
   module: Module; accent: Accent; onQuickView: () => void; isFavorite: boolean; onToggleFavorite: () => void;
   isQuickAction: boolean; onToggleQuickAction: () => void; accentHex: string;
+  /** Multi-select-to-favorites mode (homepage toolbar) — when true, the card toggles
+   * selection instead of navigating, and shows a checkbox instead of the usual
+   * bookmark/quick-action/quick-view action row. */
+  selectMode?: boolean; isSelected?: boolean; onToggleSelected?: () => void;
 }) {
   const primaryMetric = module.metrics?.[0];
   const t = useTheme();
@@ -113,45 +118,56 @@ function ModuleCard({
       <InfoCard
         icon={module.icon}
         accentColor={accentHex}
-        href={module.href}
-        onClick={() => trackModuleUsage(module.href)}
+        href={selectMode ? undefined : module.href}
+        onClick={selectMode ? onToggleSelected : () => trackModuleUsage(module.href)}
         title={module.title}
         description={module.description}
         metricValue={primaryMetric?.value}
         metricLabel={primaryMetric?.label}
-        style={{ backgroundColor: tileBase }}
+        className={selectMode && isSelected ? 'ring-2 ring-blue-400/60' : ''}
+        style={{ backgroundColor: tileBase, cursor: selectMode ? 'pointer' : undefined }}
         badge={module.badge && (
           <span className={`text-[9px] font-medium ${t.textFaint} ${t.chipBg} rounded-full px-1.5 py-0.5 tabular-nums`}>
             {module.badge}
           </span>
         )}
       />
-      <div className="absolute top-2 right-2 flex items-center gap-1 transition-all">
-        <button
-          onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleFavorite(); }}
-          className={`p-1 rounded-md ${t.hoverBg} transition-colors ${isFavorite ? 'text-blue-400' : t.textFaint} ${t.hoverText}`}
-          type="button"
-          title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
-        >
-          <Bookmark className="h-3.5 w-3.5" fill={isFavorite ? 'currentColor' : 'none'} strokeWidth={1.75} />
-        </button>
-        <button
-          onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleQuickAction(); }}
-          className={`p-1 rounded-md ${t.hoverBg} transition-colors ${isQuickAction ? 'text-amber-400' : t.textFaint} ${t.hoverText}`}
-          type="button"
-          title={isQuickAction ? 'Remove from quick actions' : 'Add to quick actions'}
-        >
-          {isQuickAction ? <Check className="h-3.5 w-3.5" strokeWidth={1.75} /> : <Plus className="h-3.5 w-3.5" strokeWidth={1.75} />}
-        </button>
-        <button
-          onClick={(e) => { e.preventDefault(); e.stopPropagation(); onQuickView(); }}
-          className={`p-1 rounded-md ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-colors`}
-          type="button"
-          title="Quick view"
-        >
-          <Maximize2 className="h-3.5 w-3.5" strokeWidth={1.75} />
-        </button>
-      </div>
+      {selectMode ? (
+        <div className="absolute top-2 right-2">
+          <div className={`h-5 w-5 rounded-md flex items-center justify-center transition-colors ${
+            isSelected ? 'bg-blue-500 text-white' : `${t.chipBg} ${t.textFaint}`
+          }`}>
+            {isSelected && <Check className="h-3.5 w-3.5" strokeWidth={2.5} />}
+          </div>
+        </div>
+      ) : (
+        <div className="absolute top-2 right-2 flex items-center gap-1 transition-all">
+          <button
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleFavorite(); }}
+            className={`p-1 rounded-md ${t.hoverBg} transition-colors ${isFavorite ? 'text-blue-400' : t.textFaint} ${t.hoverText}`}
+            type="button"
+            title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+          >
+            <Bookmark className="h-3.5 w-3.5" fill={isFavorite ? 'currentColor' : 'none'} strokeWidth={1.75} />
+          </button>
+          <button
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleQuickAction(); }}
+            className={`p-1 rounded-md ${t.hoverBg} transition-colors ${isQuickAction ? 'text-amber-400' : t.textFaint} ${t.hoverText}`}
+            type="button"
+            title={isQuickAction ? 'Remove from quick actions' : 'Add to quick actions'}
+          >
+            {isQuickAction ? <Check className="h-3.5 w-3.5" strokeWidth={1.75} /> : <Plus className="h-3.5 w-3.5" strokeWidth={1.75} />}
+          </button>
+          <button
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onQuickView(); }}
+            className={`p-1 rounded-md ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-colors`}
+            type="button"
+            title="Quick view"
+          >
+            <Maximize2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -160,10 +176,12 @@ function ModuleCard({
 
 function CategorySection({
   category, isExpanded, onToggle, onQuickView, favorites, onToggleFavorite, quickActions, onToggleQuickAction, accentHex,
+  selectMode, selectedHrefs, onToggleSelected,
 }: {
   category: typeof CATEGORIES[0]; isExpanded: boolean; onToggle: () => void; onQuickView: (m: Module, accent: Accent) => void;
   favorites: Set<string>; onToggleFavorite: (href: string) => void;
   quickActions: Set<string>; onToggleQuickAction: (href: string) => void; accentHex: string;
+  selectMode: boolean; selectedHrefs: Set<string>; onToggleSelected: (href: string) => void;
 }) {
   const a = ACCENT[category.accent];
   const t = useTheme();
@@ -214,6 +232,9 @@ function CategorySection({
                   isQuickAction={quickActions.has(module.href)}
                   onToggleQuickAction={() => onToggleQuickAction(module.href)}
                   accentHex={accentHex}
+                  selectMode={selectMode}
+                  isSelected={selectedHrefs.has(module.href)}
+                  onToggleSelected={() => onToggleSelected(module.href)}
                 />
               </motion.div>
             ))}
@@ -465,6 +486,22 @@ function DashboardContent() {
   const allExpanded = Object.values(expandedMap).every(Boolean);
   const toggleAll = () => setExpandedMap(Object.fromEntries(CATEGORIES.map(c => [c.id, !allExpanded])));
 
+  // ── Multi-select-to-favorites: pick several module tiles at once, then pin them
+  // all in a single action instead of tapping the bookmark icon on each one. ──
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedHrefs, setSelectedHrefs] = useState<Set<string>>(new Set());
+  const toggleSelectMode = () => { setSelectMode(v => !v); setSelectedHrefs(new Set()); };
+  const toggleSelected = (href: string) => setSelectedHrefs(prev => {
+    const next = new Set(prev);
+    next.has(href) ? next.delete(href) : next.add(href);
+    return next;
+  });
+  const confirmAddSelectedToFavorites = () => {
+    s.addFavorites(Array.from(selectedHrefs));
+    setSelectMode(false);
+    setSelectedHrefs(new Set());
+  };
+
   const filteredCategories = useMemo(() => {
     if (!s.searchQuery) return CATEGORIES;
     const query = s.searchQuery.toLowerCase();
@@ -542,14 +579,26 @@ function DashboardContent() {
             <p className={`text-[13px] ${t.textSecondary} mt-0.5`}>Organise and access your business operations</p>
           </div>
           {!s.searchQuery && (
-            <button
-              onClick={toggleAll}
-              className={`flex items-center gap-1.5 text-[12px] font-medium ${t.textMuted} ${t.hoverText} ${t.glassSoft} rounded-lg px-2.5 py-1.5 transition-colors shrink-0`}
-              type="button"
-            >
-              {allExpanded ? <ChevronsDownUp className="h-3.5 w-3.5" /> : <ChevronsUpDown className="h-3.5 w-3.5" />}
-              {allExpanded ? 'Collapse all' : 'Expand all'}
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={toggleSelectMode}
+                className={`flex items-center gap-1.5 text-[12px] font-medium rounded-lg px-2.5 py-1.5 transition-colors ${
+                  selectMode ? `${ACCENT.blue.chip} ${ACCENT.blue.text}` : `${t.textMuted} ${t.hoverText} ${t.glassSoft}`
+                }`}
+                type="button"
+              >
+                {selectMode ? <CheckSquare className="h-3.5 w-3.5" /> : <Square className="h-3.5 w-3.5" />}
+                {selectMode ? 'Cancel selection' : 'Select modules'}
+              </button>
+              <button
+                onClick={toggleAll}
+                className={`flex items-center gap-1.5 text-[12px] font-medium ${t.textMuted} ${t.hoverText} ${t.glassSoft} rounded-lg px-2.5 py-1.5 transition-colors`}
+                type="button"
+              >
+                {allExpanded ? <ChevronsDownUp className="h-3.5 w-3.5" /> : <ChevronsUpDown className="h-3.5 w-3.5" />}
+                {allExpanded ? 'Collapse all' : 'Expand all'}
+              </button>
+            </div>
           )}
         </div>
 
@@ -571,11 +620,44 @@ function DashboardContent() {
                 quickActions={s.quickActionHrefs}
                 onToggleQuickAction={s.toggleQuickAction}
                 accentHex={accentHex}
+                selectMode={selectMode}
+                selectedHrefs={selectedHrefs}
+                onToggleSelected={toggleSelected}
               />
             ))}
           </motion.div>
         )}
       </div>
+
+      {/* Bulk "add selected to favorites" confirm bar */}
+      <AnimatePresence>
+        {selectMode && (
+          <motion.div
+            initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 16 }}
+            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+            className={`fixed bottom-12 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 ${t.glass} ${t.shadow} rounded-2xl px-4 py-2.5`}
+          >
+            <span className={`text-[13px] font-medium ${t.textPrimary}`}>
+              {selectedHrefs.size === 0 ? 'Tap modules to select them' : `${selectedHrefs.size} module${selectedHrefs.size === 1 ? '' : 's'} selected`}
+            </span>
+            <button
+              onClick={toggleSelectMode}
+              className={`text-[12.5px] font-medium ${t.textMuted} ${t.hoverText} transition-colors`}
+              type="button"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={confirmAddSelectedToFavorites}
+              disabled={selectedHrefs.size === 0}
+              className={`flex items-center gap-1.5 text-[12.5px] font-semibold text-white rounded-lg px-3 py-1.5 bg-gradient-to-br ${ACCENT.blue.gradient} ${ACCENT.blue.solidGlow} hover:brightness-110 transition-all disabled:opacity-40`}
+              type="button"
+            >
+              <Bookmark className="h-3.5 w-3.5" /> Add to Favorites
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <CenterModal
         open={!!quickView}

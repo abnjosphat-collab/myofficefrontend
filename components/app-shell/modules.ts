@@ -165,6 +165,7 @@ export const USAGE_KEY = 'oz_moduleUsage';
 export const AUTO_QA_DISMISSED_KEY = 'oz_qaDismissed';
 export const MANUAL_QA_KEY = 'oz_qaManual';
 export const FAVORITES_KEY = 'oz_favorites';
+export const SIDEBAR_COLLAPSED_KEY = 'oz_sidebarCollapsed';
 export const FREQUENT_THRESHOLD = 3;
 export const FREQUENT_LIMIT = 3;
 

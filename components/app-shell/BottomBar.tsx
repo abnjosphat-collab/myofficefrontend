@@ -5,15 +5,24 @@
 
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Bell, Check, Loader2, MessageCircle, Moon, Send, Settings, SlidersHorizontal, Sun } from 'lucide-react';
+import {
+  Bell, Check, ChevronsLeft, ChevronsRight, Loader2, MessageCircle, Moon,
+  RotateCcw, Send, Settings, SlidersHorizontal, Sun,
+} from 'lucide-react';
 import { useTheme, ACCENT } from '@/components/shared/theme';
 import { useDashboardData } from './useDashboardData';
 
-export function BottomBar({ sidebarCollapsed, onOpenCustomize }: { sidebarCollapsed: boolean; onOpenCustomize: () => void }) {
+export function BottomBar({
+  sidebarCollapsed, onOpenCustomize, onToggleSidebarCollapsed, onResetCustomizations,
+}: {
+  sidebarCollapsed: boolean; onOpenCustomize: () => void;
+  onToggleSidebarCollapsed: () => void; onResetCustomizations: () => void;
+}) {
   const t = useTheme();
   const [openMenu, setOpenMenu] = useState<'notifications' | 'feedback' | 'settings' | null>(null);
   const [feedbackText, setFeedbackText] = useState('');
   const [feedbackSent, setFeedbackSent] = useState(false);
+  const [resetConfirming, setResetConfirming] = useState(false);
   const { activity, loading: activityLoading } = useDashboardData();
 
   const toggleMenu = (menu: 'notifications' | 'feedback' | 'settings') =>
@@ -146,12 +155,30 @@ export function BottomBar({ sidebarCollapsed, onOpenCustomize }: { sidebarCollap
           <AnimatePresence>
             {openMenu === 'settings' && (
               <>
-                <div className="fixed inset-0 z-10" onClick={() => setOpenMenu(null)} />
+                <div className="fixed inset-0 z-10" onClick={() => { setOpenMenu(null); setResetConfirming(false); }} />
                 <motion.div
                   initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }}
                   transition={{ duration: 0.2 }}
-                  className={`absolute bottom-full right-0 mb-2 w-56 ${t.glass} rounded-xl ${t.shadow} overflow-hidden z-20`}
+                  className={`absolute bottom-full right-0 mb-2 w-64 ${t.glass} rounded-xl ${t.shadow} overflow-hidden z-20`}
                 >
+                  <div className={`px-3 py-2 text-[11px] font-semibold uppercase tracking-wide ${t.textFaint}`}>Appearance</div>
+                  <button
+                    onClick={() => { t.toggle(); setOpenMenu(null); }}
+                    type="button"
+                    className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-[12.5px] ${t.textMuted} ${t.hoverBg} ${t.hoverText} transition-colors`}
+                  >
+                    {t.light ? <Moon className="h-3.5 w-3.5" /> : <Sun className="h-3.5 w-3.5" />} Switch to {t.light ? 'dark' : 'light'} mode
+                  </button>
+                  <button
+                    onClick={() => { onToggleSidebarCollapsed(); setOpenMenu(null); }}
+                    type="button"
+                    className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-[12.5px] ${t.textMuted} ${t.hoverBg} ${t.hoverText} transition-colors`}
+                  >
+                    {sidebarCollapsed ? <ChevronsRight className="h-3.5 w-3.5" /> : <ChevronsLeft className="h-3.5 w-3.5" />}
+                    {sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                  </button>
+
+                  <div className={`px-3 py-2 mt-1 text-[11px] font-semibold uppercase tracking-wide border-t ${t.border} ${t.textFaint}`}>Dashboard</div>
                   <button
                     onClick={() => { onOpenCustomize(); setOpenMenu(null); }}
                     type="button"
@@ -159,13 +186,35 @@ export function BottomBar({ sidebarCollapsed, onOpenCustomize }: { sidebarCollap
                   >
                     <SlidersHorizontal className="h-3.5 w-3.5" /> Customize dashboard
                   </button>
-                  <button
-                    onClick={() => { t.toggle(); setOpenMenu(null); }}
-                    type="button"
-                    className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-[12.5px] ${t.textMuted} ${t.hoverBg} ${t.hoverText} transition-colors border-t ${t.border}`}
-                  >
-                    {t.light ? <Moon className="h-3.5 w-3.5" /> : <Sun className="h-3.5 w-3.5" />} Switch to {t.light ? 'dark' : 'light'} mode
-                  </button>
+                  {resetConfirming ? (
+                    <div className="px-3 py-2.5 space-y-2">
+                      <p className={`text-[12px] ${t.textFaint}`}>Reset favorites, quick actions and usage history?</p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setResetConfirming(false)}
+                          type="button"
+                          className={`flex-1 text-[12px] font-medium rounded-lg py-1.5 ${t.chipBg} ${t.textMuted} ${t.hoverBg} transition-colors`}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={() => { onResetCustomizations(); setResetConfirming(false); setOpenMenu(null); }}
+                          type="button"
+                          className="flex-1 text-[12px] font-semibold text-white rounded-lg py-1.5 bg-rose-500 hover:bg-rose-400 transition-colors"
+                        >
+                          Reset
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setResetConfirming(true)}
+                      type="button"
+                      className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-[12.5px] text-rose-500 hover:bg-rose-500/10 transition-colors`}
+                    >
+                      <RotateCcw className="h-3.5 w-3.5" /> Reset customizations
+                    </button>
+                  )}
                 </motion.div>
               </>
             )}
