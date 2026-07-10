@@ -2,11 +2,12 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { PageShell } from '@/components/PageShell';
+import { AppShell } from '@/components/app-shell';
 import { Activity, RefreshCw } from 'lucide-react';
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts';
+import { useTheme, PageHero, StatTile, ACCENT_HEX } from '@/components/shared/theme';
 
 const _API = (process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com').replace(/\/$/, '');
 
@@ -44,25 +45,31 @@ const EQUIPMENT_TABLE: EquipReliability[] = [
   { equipment: 'Conveyor CV01', section: 'Conveying', mtbf: 45, mttr: 1.1, failures: 2, availability: 98.3, rpn: 28 },
 ];
 
+interface BreakdownRecord {
+  equipment_name?: string; section?: string; location?: string;
+  downtime_hours?: number; duration_hours?: number;
+  breakdown_date?: string; date?: string; created_at?: string;
+}
 
 const rpnColor = (n: number) => n > 100 ? 'text-rose-400' : n >= 50 ? 'text-amber-400' : 'text-emerald-400';
 const availColor = (n: number) => n >= 95 ? 'text-emerald-400' : n >= 90 ? 'text-amber-400' : 'text-rose-400';
 
-const TOOLTIP_STYLE = { backgroundColor: '#0f1e2e', border: '1px solid rgba(134,187,216,0.2)', borderRadius: 12, color: '#fff', fontSize: 12 };
-
-export default function ReliabilityPage() {
-  const [table, setTable]     = useState<EquipReliability[]>(EQUIPMENT_TABLE);
+function ReliabilityContent() {
+  const t = useTheme();
+  const [table, setTable] = useState<EquipReliability[]>(EQUIPMENT_TABLE);
   const [mttrSect, setMttrSect] = useState<typeof MTTR_BY_SECTION>(MTTR_BY_SECTION);
-  const [loading, setLoading]   = useState(true);
+  const [loading, setLoading] = useState(true);
+
+  const tooltipStyle = { backgroundColor: t.light ? '#fff' : '#0f1e2e', border: `1px solid ${t.light ? 'rgba(15,23,42,0.1)' : 'rgba(134,187,216,0.2)'}`, borderRadius: 12, color: t.light ? '#0f172a' : '#fff', fontSize: 12 };
+  const axisColor = t.light ? 'rgba(15,23,42,0.4)' : 'rgba(255,255,255,0.4)';
+  const gridColor = t.light ? 'rgba(15,23,42,0.06)' : 'rgba(255,255,255,0.06)';
 
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
       const r = await fetch(`${_API}/api/breakdowns`);
       if (!r.ok) return;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const bds: any[] = await r.json();
-      // Group by equipment → compute MTBF, MTTR, failures, availability
+      const bds: BreakdownRecord[] = await r.json();
       const equipMap: Record<string, { failures: number; totalDowntime: number; firstDate: Date; lastDate: Date; section: string }> = {};
       const now = new Date();
       for (const bd of bds) {
@@ -70,7 +77,7 @@ export default function ReliabilityPage() {
         if (!equipMap[eq]) equipMap[eq] = { failures: 0, totalDowntime: 0, firstDate: now, lastDate: new Date(0), section: bd.section || bd.location || '—' };
         equipMap[eq].failures++;
         equipMap[eq].totalDowntime += Number(bd.downtime_hours || bd.duration_hours || 0);
-        const d = new Date(bd.breakdown_date || bd.date || bd.created_at);
+        const d = new Date(bd.breakdown_date || bd.date || bd.created_at || now);
         if (d < equipMap[eq].firstDate) equipMap[eq].firstDate = d;
         if (d > equipMap[eq].lastDate) equipMap[eq].lastDate = d;
       }
@@ -85,7 +92,6 @@ export default function ReliabilityPage() {
 
       if (derived.length) setTable(derived);
 
-      // MTTR by section
       const sectionMttr: Record<string, number[]> = {};
       for (const bd of bds) {
         const sec = bd.section || bd.location || 'Other';
@@ -100,108 +106,102 @@ export default function ReliabilityPage() {
 
   useEffect(() => { refresh(); }, [refresh]);
 
-  const fleetMTBF  = Math.round(table.reduce((s, e) => s + e.mtbf, 0) / Math.max(1, table.length));
-  const fleetMTTR  = (table.reduce((s, e) => s + e.mttr, 0) / Math.max(1, table.length)).toFixed(1);
+  const fleetMTBF = Math.round(table.reduce((s, e) => s + e.mtbf, 0) / Math.max(1, table.length));
+  const fleetMTTR = (table.reduce((s, e) => s + e.mttr, 0) / Math.max(1, table.length)).toFixed(1);
   const fleetAvail = (table.reduce((s, e) => s + e.availability, 0) / Math.max(1, table.length)).toFixed(1);
-  const highRPN    = table.filter(e => e.rpn > 100).length;
+  const highRPN = table.filter(e => e.rpn > 100).length;
 
   return (
-    <PageShell>
-      <section className="relative text-white">
-        <div className="container mx-auto px-4 pt-6 pb-3">
-          <div className="oz-glass-dark rounded-2xl overflow-hidden p-6">
-            <div className="flex items-center gap-3 mb-5">
-              <Activity className="w-7 h-7 text-[#86BBD8]" />
-              <div>
-                <h1 className="text-2xl font-bold tracking-tight">MTBF / MTTR Analytics</h1>
-                <p className="text-white/50 text-sm mt-0.5">Fleet reliability and availability performance</p>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {[
-                ['Fleet MTBF', `${fleetMTBF}d`, 'text-[#86BBD8]'],
-                ['Fleet MTTR', `${fleetMTTR}h`, 'text-amber-300'],
-                ['Availability', `${fleetAvail}%`, 'text-emerald-300'],
-                ['High RPN Items', highRPN, 'text-rose-300'],
-              ].map(([l, v, c]) => (
-                <div key={String(l)} className="bg-white/[0.06] rounded-xl p-3 text-center">
-                  <div className={`text-2xl font-bold ${c}`}>{v}</div>
-                  <div className="text-white/50 text-xs mt-0.5">{l}</div>
-                </div>
-              ))}
-            </div>
-          </div>
+    <main className="max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+      <PageHero
+        icon={Activity}
+        accent="violet"
+        crumbs={['Safety & Compliance', 'Reliability']}
+        title="MTBF / MTTR Analytics"
+        description="Fleet reliability and availability performance"
+        statsOpen
+        actions={
+          <button type="button" onClick={refresh} title="Refresh" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /></button>
+        }
+      >
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <StatTile icon={Activity} color={ACCENT_HEX.blue} label="Fleet MTBF" value={`${fleetMTBF}d`} />
+          <StatTile icon={Activity} color="#fbbf24" label="Fleet MTTR" value={`${fleetMTTR}h`} />
+          <StatTile icon={Activity} color="#34d399" label="Availability" value={`${fleetAvail}%`} />
+          <StatTile icon={Activity} color="#fb7185" label="High RPN Items" value={highRPN} />
         </div>
-      </section>
+      </PageHero>
 
-      {/* Charts */}
-      <section className="container mx-auto px-4 pb-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="oz-glass-panel rounded-2xl overflow-hidden p-5">
-            <h2 className="text-white font-semibold mb-4">MTBF Trend (days) — Last 6 Months</h2>
-            <ResponsiveContainer width="100%" height={220}>
-              <LineChart data={MTBF_TREND}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
-                <XAxis dataKey="month" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={TOOLTIP_STYLE} />
-                <Legend wrapperStyle={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }} />
-                <Line type="monotone" dataKey="SAGMill" name="SAG Mill" stroke="#86BBD8" strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="BallMill" name="Ball Mill" stroke="#34d399" strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="JawCrusher" name="Jaw Crusher" stroke="#fbbf24" strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="Compressor" name="Compressor" stroke="#a78bfa" strokeWidth={2} dot={false} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="oz-glass-panel rounded-2xl overflow-hidden p-5">
-            <h2 className="text-white font-semibold mb-4">MTTR by Section (hours)</h2>
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={mttrSect} barSize={32}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
-                <XAxis dataKey="section" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={TOOLTIP_STYLE} />
-                <Bar dataKey="mttr" name="MTTR (hrs)" fill="#86BBD8" fillOpacity={0.7} radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden p-5`}>
+          <h2 className={`font-semibold mb-4 ${t.textPrimary}`}>MTBF Trend (days) — Last 6 Months</h2>
+          <ResponsiveContainer width="100%" height={220}>
+            <LineChart data={MTBF_TREND}>
+              <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+              <XAxis dataKey="month" tick={{ fill: axisColor, fontSize: 11 }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fill: axisColor, fontSize: 11 }} axisLine={false} tickLine={false} />
+              <Tooltip contentStyle={tooltipStyle} />
+              <Legend wrapperStyle={{ fontSize: 11, color: axisColor }} />
+              <Line type="monotone" dataKey="SAGMill" name="SAG Mill" stroke="#86BBD8" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="BallMill" name="Ball Mill" stroke="#34d399" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="JawCrusher" name="Jaw Crusher" stroke="#fbbf24" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="Compressor" name="Compressor" stroke="#a78bfa" strokeWidth={2} dot={false} />
+            </LineChart>
+          </ResponsiveContainer>
         </div>
-      </section>
+        <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden p-5`}>
+          <h2 className={`font-semibold mb-4 ${t.textPrimary}`}>MTTR by Section (hours)</h2>
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={mttrSect} barSize={32}>
+              <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+              <XAxis dataKey="section" tick={{ fill: axisColor, fontSize: 11 }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fill: axisColor, fontSize: 11 }} axisLine={false} tickLine={false} />
+              <Tooltip contentStyle={tooltipStyle} />
+              <Bar dataKey="mttr" name="MTTR (hrs)" fill="#86BBD8" fillOpacity={0.7} radius={[6, 6, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
 
-      {/* Table */}
-      <section className="container mx-auto px-4 pb-8">
-        <div className="oz-glass-panel rounded-2xl overflow-hidden">
-          <div className="p-4 border-b border-white/10">
-            <h2 className="text-white font-semibold">Equipment Reliability Metrics</h2>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-white/[0.06]">
-                  {['Equipment', 'Section', 'MTBF (days)', 'MTTR (hrs)', 'Failures', 'Availability %', 'RPN Score'].map(h => (
-                    <th key={h} className="px-4 py-3 text-left text-white/40 text-xs font-medium">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/[0.04]">
-                {loading ? (
-                  <tr><td colSpan={7} className="text-center py-8"><RefreshCw className="h-5 w-5 animate-spin text-white/30 mx-auto" /></td></tr>
-                ) : table.sort((a, b) => b.rpn - a.rpn).map(eq => (
-                  <tr key={eq.equipment} className="hover:bg-white/[0.03] transition-colors">
-                    <td className="px-4 py-3 text-white font-medium">{eq.equipment}</td>
-                    <td className="px-4 py-3 text-white/60">{eq.section}</td>
-                    <td className="px-4 py-3 text-[#86BBD8] font-semibold">{eq.mtbf}</td>
-                    <td className="px-4 py-3 text-amber-300 font-semibold">{eq.mttr}</td>
-                    <td className="px-4 py-3 text-white/70">{eq.failures}</td>
-                    <td className="px-4 py-3"><span className={`font-semibold ${availColor(eq.availability)}`}>{eq.availability}%</span></td>
-                    <td className="px-4 py-3"><span className={`font-bold text-base ${rpnColor(eq.rpn)}`}>{eq.rpn}</span></td>
-                  </tr>
+      <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
+        <div className={`p-4 border-b ${t.border}`}>
+          <h2 className={`font-semibold ${t.textPrimary}`}>Equipment Reliability Metrics</h2>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className={`border-b ${t.border}`}>
+                {['Equipment', 'Section', 'MTBF (days)', 'MTTR (hrs)', 'Failures', 'Availability %', 'RPN Score'].map(h => (
+                  <th key={h} className={`px-4 py-3 text-left text-xs font-medium ${t.textFaint}`}>{h}</th>
                 ))}
-              </tbody>
-            </table>
-          </div>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan={7} className="text-center py-8"><RefreshCw className={`h-5 w-5 animate-spin mx-auto ${t.textFaint}`} /></td></tr>
+              ) : table.sort((a, b) => b.rpn - a.rpn).map(eq => (
+                <tr key={eq.equipment} className={`border-b ${t.border} last:border-0 ${t.hoverBgSoft} transition-colors`}>
+                  <td className={`px-4 py-3 font-medium ${t.textPrimary}`}>{eq.equipment}</td>
+                  <td className={`px-4 py-3 ${t.textMuted}`}>{eq.section}</td>
+                  <td className="px-4 py-3 text-blue-400 font-semibold">{eq.mtbf}</td>
+                  <td className="px-4 py-3 text-amber-400 font-semibold">{eq.mttr}</td>
+                  <td className={`px-4 py-3 ${t.textMuted}`}>{eq.failures}</td>
+                  <td className="px-4 py-3"><span className={`font-semibold ${availColor(eq.availability)}`}>{eq.availability}%</span></td>
+                  <td className="px-4 py-3"><span className={`font-bold text-base ${rpnColor(eq.rpn)}`}>{eq.rpn}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-      </section>
-    </PageShell>
+      </div>
+    </main>
+  );
+}
+
+export default function ReliabilityPage() {
+  return (
+    <AppShell>
+      <ReliabilityContent />
+    </AppShell>
   );
 }

@@ -65,7 +65,8 @@ import {
   ChevronDown,
   Home
 } from 'lucide-react';
-import { PageShell } from '@/components/PageShell';
+import { AppShell } from '@/components/app-shell';
+import { useTheme, PageHero } from '@/components/shared/theme';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -379,9 +380,10 @@ const getPageConfig = (pageId: string) => {
 
 // ===== MAIN COMPONENT CONTENT =====
 function VisualizationContent() {
+  const t = useTheme();
   const searchParams = useSearchParams();
   const router = useRouter();
-  
+
   // State
   const [selectedPage, setSelectedPage] = useState<PageOption>(pageOptions[0]);
   const [pageData, setPageData] = useState<PageData | null>(null);
@@ -848,7 +850,7 @@ function VisualizationContent() {
     : pageOptions.filter(page => page.category === activeCategory);
 
   return (
-    <PageShell>
+    <>
       {/* Fullscreen Chart Modal */}
       {fullscreenChart && pageData && (
         <div className="fixed inset-0 z-50 bg-black/90 flex flex-col">
@@ -917,28 +919,25 @@ function VisualizationContent() {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6 space-y-6">
-        {/* Page Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <nav className="flex items-center gap-1.5 text-xs text-[#6B7B8E] mb-2">
-              <span>Home</span>
-              <ChevronRight className="h-3 w-3" />
-              <span className="text-[#2A4D69] font-medium">Visualizations</span>
-            </nav>
-            <h1 className="text-3xl font-bold text-[#2A4D69] font-heading tracking-tight">Data Visualizations</h1>
-            <p className="text-[#6B7B8E] mt-1">Select a module to view tailored charts, analytics, and insights.</p>
-          </div>
-          <div className="flex items-center gap-2 self-start">
-            <Button variant="outline" onClick={handleRefresh} disabled={loading}>
-              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
-            <Button onClick={handleExport} disabled={!pageData} className="bg-[#2A4D69] hover:bg-[#1e3a52] text-white shadow-md">
-              <Download className="h-4 w-4 mr-2" />
-              Export
-            </Button>
-          </div>
-        </div>
+        <PageHero
+          icon={Eye}
+          accent="violet"
+          crumbs={['Analytics & Insights', 'Visualizations']}
+          title="Data Visualizations"
+          description="Select a module to view tailored charts, analytics, and insights."
+          actions={
+            <>
+              <Button variant="outline" onClick={handleRefresh} disabled={loading}>
+                <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+              <Button onClick={handleExport} disabled={!pageData} className="bg-[#2A4D69] hover:bg-[#1e3a52] text-white shadow-md">
+                <Download className="h-4 w-4 mr-2" />
+                Export
+              </Button>
+            </>
+          }
+        />
 
         {/* Page Selection */}
         <Card className="mb-8">
@@ -1012,7 +1011,7 @@ function VisualizationContent() {
                         selectedPage.id === page.id ? 'text-blue-500' : 'text-gray-400'
                       }`} />
                     </div>
-                    <p className="text-sm text-[#6B7B8E]">{page.description}</p>
+                    <p className={`text-sm ${t.textMuted}`}>{page.description}</p>
                     {selectedPage.id === page.id && (
                       <div className="mt-3 flex justify-end">
                         <Badge className="bg-blue-500">Selected</Badge>
@@ -1039,7 +1038,7 @@ function VisualizationContent() {
                       </div>
                       <div>
                         <h3 className="font-semibold">{page.name}</h3>
-                        <p className="text-sm text-[#6B7B8E]">{page.description}</p>
+                        <p className={`text-sm ${t.textMuted}`}>{page.description}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -1065,8 +1064,8 @@ function VisualizationContent() {
                   {selectedPage.icon}
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold text-[#2A4D69]">{selectedPage.name}</h2>
-                  <p className="text-[#6B7B8E]">{selectedPage.description}</p>
+                  <h2 className={`text-2xl font-bold ${t.textPrimary}`}>{selectedPage.name}</h2>
+                  <p className={`${t.textMuted}`}>{selectedPage.description}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -1097,13 +1096,13 @@ function VisualizationContent() {
                         <div className="flex items-center gap-2">
                           <div className={`p-2 rounded-lg ${
                             pkg.status === 'active' ? 'bg-green-100 text-green-600' :
-                            'bg-gray-100 text-[#6B7B8E]'
+                            `bg-gray-100 ${t.textMuted}`
                           }`}>
                             {pkg.icon}
                           </div>
                           <div>
                             <h3 className="font-semibold">{pkg.name}</h3>
-                            <p className="text-sm text-[#6B7B8E]">{pkg.description}</p>
+                            <p className={`text-sm ${t.textMuted}`}>{pkg.description}</p>
                           </div>
                         </div>
                         <Badge variant={pkg.status === 'active' ? 'default' : 'secondary'}>
@@ -1154,7 +1153,7 @@ function VisualizationContent() {
                   <div className="flex items-center justify-center h-64">
                     <div className="flex flex-col items-center gap-3">
                       <div className="h-8 w-8 animate-spin rounded-full border-3 border-gray-300 border-t-blue-600" />
-                      <p className="text-[#6B7B8E]">Loading visualizations for {selectedPage.name}...</p>
+                      <p className={`${t.textMuted}`}>Loading visualizations for {selectedPage.name}...</p>
                     </div>
                   </div>
                 ) : pageData ? (
@@ -1177,25 +1176,25 @@ function VisualizationContent() {
                             <div className="text-2xl font-bold text-blue-600">
                               {pageData.data_summary.total_records.toLocaleString()}
                             </div>
-                            <div className="text-sm text-[#6B7B8E]">Total Records</div>
+                            <div className={`text-sm ${t.textMuted}`}>Total Records</div>
                           </div>
                           <div className="p-4 bg-green-50 rounded-lg">
                             <div className="text-2xl font-bold text-green-600">
                               {pageData.data_summary.columns.length}
                             </div>
-                            <div className="text-sm text-[#6B7B8E]">Data Columns</div>
+                            <div className={`text-sm ${t.textMuted}`}>Data Columns</div>
                           </div>
                           <div className="p-4 bg-purple-50 rounded-lg">
                             <div className="text-2xl font-bold text-purple-600">
                               {Object.keys(pageData.visualizations).length}
                             </div>
-                            <div className="text-sm text-[#6B7B8E]">Visualizations</div>
+                            <div className={`text-sm ${t.textMuted}`}>Visualizations</div>
                           </div>
                           <div className="p-4 bg-amber-50 rounded-lg">
                             <div className="text-2xl font-bold text-amber-600">
                               {pageData.page_info.primary_metrics.length}
                             </div>
-                            <div className="text-sm text-[#6B7B8E]">Key Metrics</div>
+                            <div className={`text-sm ${t.textMuted}`}>Key Metrics</div>
                           </div>
                         </div>
 
@@ -1305,13 +1304,13 @@ function VisualizationContent() {
                   <>
                     <div className="flex justify-between items-center">
                       <div>
-                        <h2 className="text-2xl font-bold text-[#2A4D69] flex items-center gap-2">
+                        <h2 className={`text-2xl font-bold ${t.textPrimary} flex items-center gap-2`}>
                           <BarChart3 className="h-6 w-6" />
                           Interactive Visualizations
                         </h2>
-                        <p className="text-[#6B7B8E]">3D plots, animations, and real-time interactivity</p>
+                        <p className={`${t.textMuted}`}>3D plots, animations, and real-time interactivity</p>
                       </div>
-                      <div className="text-sm text-[#6B7B8E]">
+                      <div className={`text-sm ${t.textMuted}`}>
                         {Object.keys(pageData.visualizations).length} charts available
                       </div>
                     </div>
@@ -1342,7 +1341,7 @@ function VisualizationContent() {
                                   <div className="font-medium text-sm">
                                     {chart.layout?.title || key}
                                   </div>
-                                  <div className="flex items-center justify-between text-xs text-[#6B7B8E] mt-1">
+                                  <div className={`flex items-center justify-between text-xs ${t.textMuted} mt-1`}>
                                     <span>{chart.data?.[0]?.type} chart</span>
                                     <Maximize2 className="h-3 w-3" />
                                   </div>
@@ -1387,8 +1386,8 @@ function VisualizationContent() {
                 <div className="flex items-center gap-3">
                   <Brain className="h-8 w-8 text-purple-600" />
                   <div>
-                    <h2 className="text-2xl font-bold text-[#2A4D69]">🤖 AI Analysis</h2>
-                    <p className="text-[#6B7B8E]">
+                    <h2 className={`text-2xl font-bold ${t.textPrimary}`}>🤖 AI Analysis</h2>
+                    <p className={`${t.textMuted}`}>
                       Powered by Hugging Face Transformers for {selectedPage.name}
                     </p>
                   </div>
@@ -1398,7 +1397,7 @@ function VisualizationContent() {
                   <div className="flex items-center justify-center h-64">
                     <div className="flex flex-col items-center gap-3">
                       <div className="h-8 w-8 animate-spin rounded-full border-3 border-gray-300 border-t-purple-600" />
-                      <p className="text-[#6B7B8E]">AI is analyzing {selectedPage.name} data...</p>
+                      <p className={`${t.textMuted}`}>AI is analyzing {selectedPage.name} data...</p>
                     </div>
                   </div>
                 ) : aiAnalysis ? (
@@ -1432,19 +1431,19 @@ function VisualizationContent() {
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
                                   <div className="text-center p-2 bg-gray-50 rounded">
                                     <div className="font-bold">{insight.average.toFixed(1)}</div>
-                                    <div className="text-xs text-[#6B7B8E]">Avg</div>
+                                    <div className={`text-xs ${t.textMuted}`}>Avg</div>
                                   </div>
                                   <div className="text-center p-2 bg-gray-50 rounded">
                                     <div className="font-bold">{insight.median.toFixed(1)}</div>
-                                    <div className="text-xs text-[#6B7B8E]">Median</div>
+                                    <div className={`text-xs ${t.textMuted}`}>Median</div>
                                   </div>
                                   <div className="text-center p-2 bg-gray-50 rounded">
                                     <div className="font-bold">{insight.min.toFixed(1)}</div>
-                                    <div className="text-xs text-[#6B7B8E]">Min</div>
+                                    <div className={`text-xs ${t.textMuted}`}>Min</div>
                                   </div>
                                   <div className="text-center p-2 bg-gray-50 rounded">
                                     <div className="font-bold">{insight.max.toFixed(1)}</div>
-                                    <div className="text-xs text-[#6B7B8E]">Max</div>
+                                    <div className={`text-xs ${t.textMuted}`}>Max</div>
                                   </div>
                                 </div>
                               </div>
@@ -1475,7 +1474,7 @@ function VisualizationContent() {
                                 <div className="flex items-start justify-between">
                                   <div>
                                     <div className="font-medium">{rec.title}</div>
-                                    <div className="text-sm text-[#6B7B8E] mt-1">{rec.description}</div>
+                                    <div className={`text-sm ${t.textMuted} mt-1`}>{rec.description}</div>
                                   </div>
                                   <Badge variant={
                                     rec.priority === 'high' ? 'destructive' :
@@ -1513,13 +1512,13 @@ function VisualizationContent() {
                                     <span className="font-medium">{anomaly.metric}</span>
                                     <Badge variant="destructive">{anomaly.count} cases</Badge>
                                   </div>
-                                  <p className="text-sm text-[#6B7B8E]">{anomaly.description}</p>
+                                  <p className={`text-sm ${t.textMuted}`}>{anomaly.description}</p>
                                 </div>
                               ))
                             ) : (
                               <div className="text-center py-8">
                                 <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-3" />
-                                <p className="text-[#6B7B8E]">No anomalies detected</p>
+                                <p className={`${t.textMuted}`}>No anomalies detected</p>
                                 <p className="text-sm text-gray-400">Data patterns appear normal</p>
                               </div>
                             )}
@@ -1575,7 +1574,7 @@ function VisualizationContent() {
                     <CardContent className="py-12">
                       <div className="text-center">
                         <Brain className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                        <p className="text-[#6B7B8E]">No AI analysis available</p>
+                        <p className={`${t.textMuted}`}>No AI analysis available</p>
                         <p className="text-sm text-gray-400 mt-1">
                           Click &quot;Run AI Analysis&quot; to generate insights
                         </p>
@@ -1590,8 +1589,8 @@ function VisualizationContent() {
                 <div className="flex items-center gap-3">
                   <Zap className="h-8 w-8 text-amber-600" />
                   <div>
-                    <h2 className="text-2xl font-bold text-[#2A4D69]">⚡ Data Processing</h2>
-                    <p className="text-[#6B7B8E]">
+                    <h2 className={`text-2xl font-bold ${t.textPrimary}`}>⚡ Data Processing</h2>
+                    <p className={`${t.textMuted}`}>
                       Lightning-fast data processing with Polars (10-100x faster than pandas)
                     </p>
                   </div>
@@ -1611,7 +1610,7 @@ function VisualizationContent() {
                       <div className="space-y-4">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <Clock className="h-4 w-4 text-[#6B7B8E]" />
+                            <Clock className={`h-4 w-4 ${t.textMuted}`} />
                             <span>Processing Time</span>
                           </div>
                           <div className="text-2xl font-bold text-green-600">~10ms</div>
@@ -1622,7 +1621,7 @@ function VisualizationContent() {
                       <div className="space-y-4">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <MemoryStick className="h-4 w-4 text-[#6B7B8E]" />
+                            <MemoryStick className={`h-4 w-4 ${t.textMuted}`} />
                             <span>Memory Usage</span>
                           </div>
                           <div className="text-2xl font-bold text-blue-600">4.2MB</div>
@@ -1633,7 +1632,7 @@ function VisualizationContent() {
                       <div className="space-y-4">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <ArrowUpDown className="h-4 w-4 text-[#6B7B8E]" />
+                            <ArrowUpDown className={`h-4 w-4 ${t.textMuted}`} />
                             <span>Speed vs Pandas</span>
                           </div>
                           <div className="text-2xl font-bold text-purple-600">42x</div>
@@ -1664,7 +1663,7 @@ function VisualizationContent() {
                             <span className="font-medium">{op.operation}</span>
                             <Badge variant="outline">{op.time}</Badge>
                           </div>
-                          <div className="flex justify-between text-sm text-[#6B7B8E]">
+                          <div className={`flex justify-between text-sm ${t.textMuted}`}>
                             <span>{op.records} records</span>
                             <span className="flex items-center gap-1">
                               <Zap className="h-3 w-3 text-amber-500" />
@@ -1686,23 +1685,23 @@ function VisualizationContent() {
                       <div className="space-y-4">
                         <div className="grid grid-cols-2 gap-4">
                           <div className="p-3 bg-gray-50 rounded-lg">
-                            <div className="text-xl font-bold text-[#2A4D69]">
+                            <div className={`text-xl font-bold ${t.textPrimary}`}>
                               {pageData?.data_summary.total_records.toLocaleString() || '0'}
                             </div>
-                            <div className="text-sm text-[#6B7B8E]">Total Records</div>
+                            <div className={`text-sm ${t.textMuted}`}>Total Records</div>
                           </div>
                           <div className="p-3 bg-gray-50 rounded-lg">
-                            <div className="text-xl font-bold text-[#2A4D69]">
+                            <div className={`text-xl font-bold ${t.textPrimary}`}>
                               {pageData?.data_summary.columns.length || '0'}
                             </div>
-                            <div className="text-sm text-[#6B7B8E]">Columns</div>
+                            <div className={`text-sm ${t.textMuted}`}>Columns</div>
                           </div>
                         </div>
                         
                         <div className="p-4 bg-gradient-to-r from-amber-50 to-orange-50 rounded-lg">
                           <div className="text-center">
                             <div className="text-3xl font-bold text-amber-600">42x</div>
-                            <div className="text-sm text-[#6B7B8E]">Faster with Polars</div>
+                            <div className={`text-sm ${t.textMuted}`}>Faster with Polars</div>
                           </div>
                         </div>
                       </div>
@@ -1716,8 +1715,8 @@ function VisualizationContent() {
                 <div className="flex items-center gap-3">
                   <TrendingUp className="h-8 w-8 text-green-600" />
                   <div>
-                    <h2 className="text-2xl font-bold text-[#2A4D69]">📊 Static Publication Charts</h2>
-                    <p className="text-[#6B7B8E]">Matplotlib & Seaborn for reports and publications</p>
+                    <h2 className={`text-2xl font-bold ${t.textPrimary}`}>📊 Static Publication Charts</h2>
+                    <p className={`${t.textMuted}`}>Matplotlib & Seaborn for reports and publications</p>
                   </div>
                 </div>
 
@@ -1775,7 +1774,7 @@ function VisualizationContent() {
                           <div className="h-40 bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg flex items-center justify-center">
                             <div className="text-center">
                               <div className="text-4xl font-bold text-gray-400">{index + 1}</div>
-                              <div className="text-sm text-[#6B7B8E]">Chart Preview</div>
+                              <div className={`text-sm ${t.textMuted}`}>Chart Preview</div>
                             </div>
                           </div>
                           <div className="space-y-2">
@@ -1802,19 +1801,19 @@ function VisualizationContent() {
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       <Button variant="outline" className="flex-col h-auto py-4">
                         <div className="text-2xl mb-2">PNG</div>
-                        <div className="text-sm text-[#6B7B8E]">High resolution</div>
+                        <div className={`text-sm ${t.textMuted}`}>High resolution</div>
                       </Button>
                       <Button variant="outline" className="flex-col h-auto py-4">
                         <div className="text-2xl mb-2">PDF</div>
-                        <div className="text-sm text-[#6B7B8E]">Vector format</div>
+                        <div className={`text-sm ${t.textMuted}`}>Vector format</div>
                       </Button>
                       <Button variant="outline" className="flex-col h-auto py-4">
                         <div className="text-2xl mb-2">SVG</div>
-                        <div className="text-sm text-[#6B7B8E]">Scalable vector</div>
+                        <div className={`text-sm ${t.textMuted}`}>Scalable vector</div>
                       </Button>
                       <Button variant="outline" className="flex-col h-auto py-4">
                         <div className="text-2xl mb-2">HTML</div>
-                        <div className="text-sm text-[#6B7B8E]">Interactive</div>
+                        <div className={`text-sm ${t.textMuted}`}>Interactive</div>
                       </Button>
                     </div>
                   </CardContent>
@@ -1829,25 +1828,25 @@ function VisualizationContent() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             <div className="text-center p-4">
               <div className="text-3xl font-bold text-purple-600">{pageOptions.length}</div>
-              <div className="text-sm text-[#6B7B8E]">Pages Available</div>
+              <div className={`text-sm ${t.textMuted}`}>Pages Available</div>
             </div>
             <div className="text-center p-4">
               <div className="text-3xl font-bold text-blue-600">
                 {pageData ? Object.keys(pageData.visualizations).length : 0}
               </div>
-              <div className="text-sm text-[#6B7B8E]">Active Visualizations</div>
+              <div className={`text-sm ${t.textMuted}`}>Active Visualizations</div>
             </div>
             <div className="text-center p-4">
               <div className="text-3xl font-bold text-green-600">42x</div>
-              <div className="text-sm text-[#6B7B8E]">Processing Speed</div>
+              <div className={`text-sm ${t.textMuted}`}>Processing Speed</div>
             </div>
             <div className="text-center p-4">
               <div className="text-3xl font-bold text-amber-600">100%</div>
-              <div className="text-sm text-[#6B7B8E]">Interactive</div>
+              <div className={`text-sm ${t.textMuted}`}>Interactive</div>
             </div>
           </div>
           
-          <div className="mt-8 text-center text-sm text-[#6B7B8E]">
+          <div className={`mt-8 text-center text-sm ${t.textMuted}`}>
             <p>Select different pages to see tailored visualizations for each module.</p>
             <p className="mt-2">
               Packages: Plotly • Polars • Transformers • Matplotlib • Seaborn • NumPy
@@ -1855,22 +1854,29 @@ function VisualizationContent() {
           </div>
         </div>
       </main>
-    </PageShell>
+    </>
+  );
+}
+
+function VisualizationFallback() {
+  const t = useTheme();
+  return (
+    <div className="min-h-[60vh] flex items-center justify-center">
+      <div className="flex flex-col items-center gap-3">
+        <div className="h-8 w-8 animate-spin rounded-full border-3 border-gray-300 border-t-blue-600" />
+        <p className={`${t.textMuted}`}>Loading visualizations...</p>
+      </div>
+    </div>
   );
 }
 
 // ===== MAIN COMPONENT WITH SUSPENSE =====
 export default function VisualizationPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="h-8 w-8 animate-spin rounded-full border-3 border-gray-300 border-t-blue-600" />
-          <p className="text-[#6B7B8E]">Loading visualizations...</p>
-        </div>
-      </div>
-    }>
-      <VisualizationContent />
-    </Suspense>
+    <AppShell>
+      <Suspense fallback={<VisualizationFallback />}>
+        <VisualizationContent />
+      </Suspense>
+    </AppShell>
   );
 }

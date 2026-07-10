@@ -1,21 +1,17 @@
 // app/availability/page.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, ElementType } from 'react';
 import Link from 'next/link';
 import {
   ToolCase, AlertTriangle, BarChart3, Download, Gauge,
   LineChart, Plus, RefreshCw, Search, Settings,
-  Clock, Activity, Percent, Calculator, CalendarClock,
-  Calendar,
+  Clock, Activity, Percent, Calculator,
 } from 'lucide-react';
-import { PageShell } from '@/components/PageShell';
+import { AppShell } from '@/components/app-shell';
 import {
-  HeroPanel, GlassPanel, GlassStatCard, GlassBadge, GlassButton,
-  GlassInput, GlassSelect, GlassTable, GlassTabs, GlassProgress,
-  LoadingPane, StatItem, GlassTab, GlassColumn,
-  usePageCollapse, MasterCollapseButton,
-} from '@/components/shared';
+  useTheme, PageHero, StatTile, StatusBadge, SearchInput, ProgressBar, useCollapseSection, ACCENT_HEX, SelectField,
+} from '@/components/shared/theme';
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
@@ -75,15 +71,14 @@ const MOCK_STATS: AvailabilityStats = {
 const fmtDate = (d: string | null) =>
   d ? new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : 'Not scheduled';
 
-function statusBadge(status: Equipment['status']) {
-  const map: Record<Equipment['status'], { variant: 'success' | 'warning' | 'danger' | 'neutral'; label: string }> = {
-    operational: { variant: 'success', label: 'Operational' },
-    maintenance:  { variant: 'warning', label: 'Maintenance' },
-    breakdown:    { variant: 'danger',  label: 'Breakdown'   },
-    idle:         { variant: 'neutral', label: 'Idle'        },
+function statusCfg(status: Equipment['status']) {
+  const map: Record<Equipment['status'], { color: string; label: string }> = {
+    operational: { color: '#34d399', label: 'Operational' },
+    maintenance: { color: '#fbbf24', label: 'Maintenance' },
+    breakdown: { color: '#f87171', label: 'Breakdown' },
+    idle: { color: '#94a3b8', label: 'Idle' },
   };
-  const { variant, label } = map[status];
-  return <GlassBadge variant={variant}>{label}</GlassBadge>;
+  return map[status];
 }
 
 function avColor(pct: number) {
@@ -91,18 +86,25 @@ function avColor(pct: number) {
   if (pct >= 90) return 'text-amber-400';
   return 'text-red-400';
 }
+function avHex(pct: number) {
+  if (pct >= 95) return '#34d399';
+  if (pct >= 90) return '#fbbf24';
+  return '#f87171';
+}
 
 // ─── MAIN PAGE ────────────────────────────────────────────────────────────────
 
-export default function AvailabilitiesPage() {
-  const sections = usePageCollapse({ hero: false, stats: false, filters: false, content: false });
-  const [equipment, setEquipment]   = useState<Equipment[]>([]);
-  const [stats, setStats]           = useState<AvailabilityStats>(MOCK_STATS);
-  const [loading, setLoading]       = useState(true);
+function AvailabilityContent() {
+  const t = useTheme();
+  const sections = useCollapseSection({ hero: true, filters: true });
+  const [equipment, setEquipment] = useState<Equipment[]>([]);
+  const [stats, setStats] = useState<AvailabilityStats>(MOCK_STATS);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
-  const [statusFilter, setStatusFilter]     = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [tab, setTab] = useState<'overview' | 'detailed' | 'trends'>('overview');
 
   const fetchData = async (quiet = false) => {
     if (!quiet) setLoading(true);
@@ -126,279 +128,252 @@ export default function AvailabilitiesPage() {
   useEffect(() => { fetchData(); }, []);
 
   const categories = Array.from(new Set(equipment.map(e => e.category)));
+  const departments = Array.from(new Set(equipment.map(e => e.department)));
 
   const filtered = equipment.filter(eq => {
     const s = searchTerm.toLowerCase();
     const matchSearch = !s || eq.name.toLowerCase().includes(s) || eq.category.toLowerCase().includes(s) || eq.department.toLowerCase().includes(s);
-    const matchCat    = categoryFilter === 'all' || eq.category === categoryFilter;
-    const matchStatus = statusFilter   === 'all' || eq.status   === statusFilter;
+    const matchCat = categoryFilter === 'all' || eq.category === categoryFilter;
+    const matchStatus = statusFilter === 'all' || eq.status === statusFilter;
     return matchSearch && matchCat && matchStatus;
   });
 
-  // ── Stats for HeroPanel ───────────────────────────────────────────────────
-  const heroStats: StatItem[] = [
-    { label: 'Total Equipment', value: stats.totalEquipment },
-    { label: 'Operational',     value: stats.operational,   textClass: 'text-emerald-400' },
-    { label: 'Maintenance',     value: stats.inMaintenance, textClass: 'text-amber-400'   },
-    { label: 'Breakdown',       value: stats.inBreakdown,   textClass: 'text-red-400'     },
-    { label: 'Availability',    value: `${stats.overallAvailability.toFixed(1)}%`, textClass: avColor(stats.overallAvailability) },
-  ];
+  const selCls = `h-9 rounded-lg px-3 text-sm outline-none transition-colors ${t.inputBg}`;
+  const thCls = `text-left px-3 py-2 text-[10px] uppercase tracking-wide font-medium ${t.textFaint}`;
+  const tdCls = `px-3 py-2.5 text-sm ${t.textMuted}`;
 
-  // ── Columns for overview table ─────────────────────────────────────────────
-  const overviewCols: GlassColumn<Equipment>[] = [
-    { key: 'name',             header: 'Equipment',    render: eq => <span className="font-medium text-white">{eq.name}</span> },
-    { key: 'category',        header: 'Category'      },
-    { key: 'department',      header: 'Department'    },
-    { key: 'status',          header: 'Status',       render: eq => statusBadge(eq.status) },
-    { key: 'operationalHours', header: 'Op. Hours',   align: 'right', render: eq => `${eq.operationalHours.toFixed(1)}h` },
-    { key: 'breakdownHours',  header: 'Breakdown h',  align: 'right', render: eq => <span className="text-red-400">{eq.breakdownHours.toFixed(1)}h</span> },
-    {
-      key: 'availability', header: 'Availability', align: 'right',
-      render: eq => (
-        <div className="flex items-center gap-2 justify-end">
-          <span className={`font-bold text-sm ${avColor(eq.availability)}`}>{eq.availability.toFixed(1)}%</span>
-          <GlassProgress value={eq.availability} className="w-20" />
-        </div>
-      ),
-    },
-    { key: 'uptime',   header: 'Uptime',   align: 'right', render: eq => <span className="text-emerald-400">{eq.uptime.toFixed(1)}h</span> },
-    { key: 'downtime', header: 'Downtime', align: 'right', render: eq => <span className="text-red-400">{eq.downtime.toFixed(1)}h</span> },
-    {
-      key: 'actions', header: '',
-      render: eq => (
-        <div className="flex gap-1.5">
-          <Link href={`/breakdowns?equipment=${eq.id}`}>
-            <GlassButton size="xs" variant="ghost" icon={AlertTriangle}>Breakdowns</GlassButton>
-          </Link>
-          <Link href={`/maintenance?equipment=${eq.id}`}>
-            <GlassButton size="xs" variant="ghost" icon={Settings}>Maintenance</GlassButton>
-          </Link>
-        </div>
-      ),
-    },
-  ];
-
-  // ── Columns for detailed table ─────────────────────────────────────────────
-  const detailCols: GlassColumn<Equipment>[] = [
-    { key: 'name',   header: 'Equipment', render: eq => <span className="font-medium text-white">{eq.name}</span> },
-    {
-      key: 'mtbf', header: 'MTBF', align: 'center',
-      render: eq => (
-        <GlassBadge variant={eq.mtbf > 200 ? 'success' : eq.mtbf > 100 ? 'neutral' : 'danger'}>
-          {eq.mtbf.toFixed(1)}h
-        </GlassBadge>
-      ),
-    },
-    {
-      key: 'mttr', header: 'MTTR', align: 'center',
-      render: eq => (
-        <GlassBadge variant={eq.mttr < 5 ? 'success' : eq.mttr < 10 ? 'neutral' : 'danger'}>
-          {eq.mttr.toFixed(1)}h
-        </GlassBadge>
-      ),
-    },
-    { key: 'lastMaintenance', header: 'Last Maintenance', render: eq => <span className="text-white/60 text-xs">{fmtDate(eq.lastMaintenance)}</span> },
-    { key: 'nextMaintenance', header: 'Next Maintenance', render: eq => <span className="text-[#86BBD8] text-xs">{fmtDate(eq.nextMaintenance)}</span> },
-    {
-      key: 'breakdownFreq', header: 'BD Frequency', align: 'right',
-      render: eq => `${eq.breakdownHours > 0 ? (eq.breakdownHours / eq.operationalHours * 100).toFixed(1) : '0.0'}%`,
-    },
-    {
-      key: 'costImpact', header: 'Cost Impact', align: 'right',
-      render: eq => <span className="text-red-400 font-medium">${(eq.downtime * 250).toLocaleString()}</span>,
-    },
-  ];
-
-  // ── Department breakdown for Trends tab ───────────────────────────────────
-  const departments = Array.from(new Set(equipment.map(e => e.department)));
-
-  // ── Tabs ──────────────────────────────────────────────────────────────────
-  const tabs: GlassTab[] = [
-    {
-      key: 'overview',
-      label: 'Availability Overview',
-      icon: Gauge,
-      content: (
-        <GlassPanel title="Equipment Availability Dashboard" icon={Gauge} variant="dark">
-          <GlassTable
-            columns={overviewCols}
-            data={filtered}
-            keyField="id"
-            emptyMessage="No equipment data. Add equipment and breakdown data to start tracking."
-            stickyHeader
-            maxHeight="480px"
-          />
-        </GlassPanel>
-      ),
-    },
-    {
-      key: 'detailed',
-      label: 'Detailed Analysis',
-      icon: Calculator,
-      content: (
-        <GlassPanel title="Detailed Availability Analysis" icon={Calculator} variant="dark">
-          <GlassTable
-            columns={detailCols}
-            data={filtered}
-            keyField="id"
-            emptyMessage="No equipment data available for detailed analysis."
-            stickyHeader
-            maxHeight="480px"
-          />
-        </GlassPanel>
-      ),
-    },
-    {
-      key: 'trends',
-      label: 'Trends & Metrics',
-      icon: LineChart,
-      content: (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <GlassPanel title="Availability Trends" icon={LineChart} variant="dark">
-            <div className="p-5">
-              <div className="rounded-xl border border-white/[0.07] bg-white/[0.03] h-48 flex items-center justify-center mb-4">
-                <div className="text-center">
-                  <LineChart className="h-8 w-8 text-white/20 mx-auto mb-2" />
-                  <p className="text-sm text-white/40">Chart integration point</p>
-                  <p className={`text-lg font-bold mt-1 ${avColor(stats.overallAvailability)}`}>
-                    {stats.overallAvailability.toFixed(1)}% current
-                  </p>
-                </div>
-              </div>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between text-white/70">
-                  <span>Last month</span>
-                  <span className={`font-medium ${avColor(stats.monthAvailability)}`}>{stats.monthAvailability.toFixed(1)}%</span>
-                </div>
-                <div className="flex justify-between text-white/70">
-                  <span>Last week</span>
-                  <span className={`font-medium ${avColor(stats.weekAvailability)}`}>{stats.weekAvailability.toFixed(1)}%</span>
-                </div>
-              </div>
-            </div>
-          </GlassPanel>
-
-          <GlassPanel title="Department Comparison" icon={BarChart3} variant="dark">
-            <div className="p-5 space-y-3">
-              {departments.map(dept => {
-                const deptEq = equipment.filter(e => e.department === dept);
-                const deptAv = deptEq.length > 0
-                  ? deptEq.reduce((s, e) => s + e.availability, 0) / deptEq.length
-                  : 0;
-                return (
-                  <div key={dept}>
-                    <div className="flex justify-between mb-1">
-                      <span className="text-xs text-white/70">{dept}</span>
-                      <span className={`text-xs font-bold ${avColor(deptAv)}`}>{deptAv.toFixed(1)}%</span>
-                    </div>
-                    <GlassProgress value={deptAv} />
-                  </div>
-                );
-              })}
-              {departments.length === 0 && (
-                <p className="text-sm text-white/30 text-center py-4">No department data</p>
-              )}
-            </div>
-          </GlassPanel>
-        </div>
-      ),
-    },
+  const TABS: { key: typeof tab; label: string; icon: ElementType }[] = [
+    { key: 'overview', label: 'Availability Overview', icon: Gauge },
+    { key: 'detailed', label: 'Detailed Analysis', icon: Calculator },
+    { key: 'trends', label: 'Trends & Metrics', icon: LineChart },
   ];
 
   return (
-    <PageShell>
-      <main className="container mx-auto px-4 py-8 space-y-4">
-
-        <HeroPanel
-          icon={Gauge}
-          title="Equipment Availability"
-          subtitle="Track availability = (Operational Hours − Breakdown Hours) / Operational Hours × 100"
-          onRefresh={() => fetchData(true)}
-          loading={refreshing}
-          stats={heroStats}
-          {...sections.panel('hero')}
-          actions={
-            <>
-              <MasterCollapseButton collapse={sections} />
-              <GlassButton variant="secondary" icon={Download} size="sm" disabled={equipment.length === 0}>
-                Export
-              </GlassButton>
-              <Link href="/breakdowns">
-                <GlassButton variant="secondary" icon={AlertTriangle} size="sm">Breakdowns</GlassButton>
-              </Link>
-            </>
-          }
-        />
-
-        {/* Stat cards row */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <GlassStatCard label="Overall Availability" value={`${stats.overallAvailability.toFixed(1)}%`}
-            icon={Percent} valueClass={avColor(stats.overallAvailability)}>
-            <GlassProgress value={stats.overallAvailability} className="mt-2" />
-          </GlassStatCard>
-          <GlassStatCard label="Avg Uptime" value={`${stats.avgUptime.toFixed(1)}h`}
-            icon={Clock} valueClass="text-emerald-400" />
-          <GlassStatCard label="Avg Downtime" value={`${stats.avgDowntime.toFixed(1)}h`}
-            icon={Activity} valueClass="text-red-400" />
-          <GlassStatCard label="Total Downtime" value={`${stats.totalBreakdownHours.toFixed(0)}h`}
-            icon={AlertTriangle} valueClass="text-amber-400" />
+    <main className="max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+      <PageHero
+        icon={Gauge}
+        accent="violet"
+        crumbs={['Time & Attendance', 'Availability']}
+        title="Equipment Availability"
+        description="Track availability = (Operational Hours − Breakdown Hours) / Operational Hours × 100"
+        statsOpen={sections.expanded.hero}
+        actions={
+          <>
+            <button type="button" onClick={() => fetchData(true)} title="Refresh" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}>
+              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+            </button>
+            <button type="button" disabled={equipment.length === 0} className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-medium ${t.chipBg} ${t.textMuted} ${t.hoverBg} disabled:opacity-40`}>
+              <Download className="h-3.5 w-3.5" /> Export
+            </button>
+            <Link href="/breakdowns" className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-medium ${t.chipBg} ${t.textMuted} ${t.hoverBg}`}>
+              <AlertTriangle className="h-3.5 w-3.5" /> Breakdowns
+            </Link>
+          </>
+        }
+      >
+        <div className="grid grid-cols-3 sm:grid-cols-5 gap-4">
+          <StatTile icon={Gauge} color={ACCENT_HEX.blue} label="Total Equipment" value={stats.totalEquipment} />
+          <StatTile icon={Activity} color="#34d399" label="Operational" value={stats.operational} />
+          <StatTile icon={Settings} color="#fbbf24" label="Maintenance" value={stats.inMaintenance} />
+          <StatTile icon={AlertTriangle} color="#f87171" label="Breakdown" value={stats.inBreakdown} />
+          <StatTile icon={Percent} color={avHex(stats.overallAvailability)} label="Availability" value={`${stats.overallAvailability.toFixed(1)}%`} />
         </div>
+      </PageHero>
 
-        {/* Filters */}
-        <GlassPanel icon={Search} title="Filters" variant="panel" {...sections.panel('filters')}>
-          <div className="px-5 pb-4 pt-2 grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <GlassInput
-              icon={Search}
-              placeholder="Search by name, category, department…"
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-            />
-            <GlassSelect
-              value={categoryFilter}
-              onChange={e => setCategoryFilter(e.target.value)}
-              options={[
-                { value: 'all', label: 'All Categories' },
-                ...categories.map(c => ({ value: c, label: c })),
-              ]}
-            />
-            <GlassSelect
-              value={statusFilter}
-              onChange={e => setStatusFilter(e.target.value)}
-              options={[
-                { value: 'all',           label: 'All Status'    },
-                { value: 'operational',   label: 'Operational'   },
-                { value: 'maintenance',   label: 'Maintenance'   },
-                { value: 'breakdown',     label: 'Breakdown'     },
-                { value: 'idle',          label: 'Idle'          },
-              ]}
-            />
-          </div>
-          <div className="px-5 pb-3 text-xs text-white/35">
-            {filtered.length} of {equipment.length} equipment
-          </div>
-        </GlassPanel>
-
-        {/* Main content tabs */}
-        {loading ? (
-          <LoadingPane message="Loading equipment availability…" />
-        ) : (
-          <GlassTabs tabs={tabs} defaultTab="overview" />
-        )}
-
-        {/* Bottom actions */}
-        <div className="flex justify-end gap-2">
-          <Link href="/equipment">
-            <GlassButton variant="secondary" icon={ToolCase} size="sm">Manage Equipment</GlassButton>
-          </Link>
-          <Link href="/breakdowns/new">
-            <GlassButton variant="primary" icon={Plus} size="sm">Report Breakdown</GlassButton>
-          </Link>
-          <Link href="/reports/availability">
-            <GlassButton variant="secondary" icon={BarChart3} size="sm">Generate Report</GlassButton>
-          </Link>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className={`${t.glass} rounded-xl p-4`}>
+          <div className="flex items-center gap-1.5 mb-1"><Percent className="h-3.5 w-3.5 text-blue-400" /><span className={`text-xs ${t.textFaint}`}>Overall Availability</span></div>
+          <div className={`text-xl font-bold ${avColor(stats.overallAvailability)}`}>{stats.overallAvailability.toFixed(1)}%</div>
+          <div className="mt-2"><ProgressBar value={stats.overallAvailability} color={avHex(stats.overallAvailability)} showValue={false} /></div>
         </div>
+        <div className={`${t.glass} rounded-xl p-4`}>
+          <div className="flex items-center gap-1.5 mb-1"><Clock className="h-3.5 w-3.5 text-emerald-400" /><span className={`text-xs ${t.textFaint}`}>Avg Uptime</span></div>
+          <div className="text-xl font-bold text-emerald-400">{stats.avgUptime.toFixed(1)}h</div>
+        </div>
+        <div className={`${t.glass} rounded-xl p-4`}>
+          <div className="flex items-center gap-1.5 mb-1"><Activity className="h-3.5 w-3.5 text-red-400" /><span className={`text-xs ${t.textFaint}`}>Avg Downtime</span></div>
+          <div className="text-xl font-bold text-red-400">{stats.avgDowntime.toFixed(1)}h</div>
+        </div>
+        <div className={`${t.glass} rounded-xl p-4`}>
+          <div className="flex items-center gap-1.5 mb-1"><AlertTriangle className="h-3.5 w-3.5 text-amber-400" /><span className={`text-xs ${t.textFaint}`}>Total Downtime</span></div>
+          <div className="text-xl font-bold text-amber-400">{stats.totalBreakdownHours.toFixed(0)}h</div>
+        </div>
+      </div>
 
-      </main>
-    </PageShell>
+      <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
+        <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}>
+          <Search className="h-4 w-4 text-blue-400" />
+          <span className={`font-semibold text-sm ${t.textPrimary}`}>Filters</span>
+        </div>
+        <div className="px-5 pb-4 pt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <SearchInput value={searchTerm} onChange={setSearchTerm} placeholder="Search by name, category, department…" />
+          <SelectField size="filter" title="Category" value={categoryFilter} onChange={setCategoryFilter}
+            options={[{ value: 'all', label: 'All Categories' }, ...categories.map(c => ({ value: c, label: c }))]} />
+          <SelectField size="filter" title="Status" value={statusFilter} onChange={setStatusFilter}
+            options={[
+              { value: 'all', label: 'All Status' },
+              { value: 'operational', label: 'Operational' },
+              { value: 'maintenance', label: 'Maintenance' },
+              { value: 'breakdown', label: 'Breakdown' },
+              { value: 'idle', label: 'Idle' },
+            ]} />
+        </div>
+        <div className={`px-5 pb-3 text-xs ${t.textFaint}`}>{filtered.length} of {equipment.length} equipment</div>
+      </div>
+
+      <div className={`flex items-center gap-1 ${t.glassSoft} rounded-xl p-1 w-fit`}>
+        {TABS.map(tb => (
+          <button key={tb.key} type="button" onClick={() => setTab(tb.key)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${tab === tb.key ? 'bg-blue-500/20 text-blue-400' : `${t.textFaint} ${t.hoverText} ${t.hoverBg}`}`}>
+            <tb.icon className="h-4 w-4" />{tb.label}
+          </button>
+        ))}
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center py-16"><RefreshCw className={`h-6 w-6 animate-spin ${t.textFaint}`} /></div>
+      ) : tab === 'overview' ? (
+        <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
+          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}>
+            <Gauge className="h-4 w-4 text-blue-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Equipment Availability Dashboard</span>
+          </div>
+          {filtered.length === 0 ? (
+            <div className={`py-12 text-center text-sm ${t.textFaint}`}>No equipment data. Add equipment and breakdown data to start tracking.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className={`border-b ${t.border}`}>
+                  <tr>
+                    <th className={thCls}>Equipment</th><th className={thCls}>Category</th><th className={thCls}>Department</th>
+                    <th className={thCls}>Status</th><th className={`${thCls} text-right`}>Op. Hours</th><th className={`${thCls} text-right`}>Breakdown h</th>
+                    <th className={`${thCls} text-right`}>Availability</th><th className={`${thCls} text-right`}>Uptime</th><th className={`${thCls} text-right`}>Downtime</th><th className={thCls}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map(eq => {
+                    const scfg = statusCfg(eq.status);
+                    return (
+                      <tr key={eq.id} className={`border-b ${t.border} ${t.hoverBgSoft} transition-colors`}>
+                        <td className={tdCls}><span className={`font-medium ${t.textPrimary}`}>{eq.name}</span></td>
+                        <td className={tdCls}>{eq.category}</td>
+                        <td className={tdCls}>{eq.department}</td>
+                        <td className={tdCls}><StatusBadge color={scfg.color} label={scfg.label} /></td>
+                        <td className={`${tdCls} text-right`}>{eq.operationalHours.toFixed(1)}h</td>
+                        <td className={`${tdCls} text-right text-red-400`}>{eq.breakdownHours.toFixed(1)}h</td>
+                        <td className={`${tdCls} text-right`}>
+                          <div className="flex items-center gap-2 justify-end">
+                            <span className={`font-bold text-sm ${avColor(eq.availability)}`}>{eq.availability.toFixed(1)}%</span>
+                            <div className="w-20"><ProgressBar value={eq.availability} color={avHex(eq.availability)} showValue={false} /></div>
+                          </div>
+                        </td>
+                        <td className={`${tdCls} text-right text-emerald-400`}>{eq.uptime.toFixed(1)}h</td>
+                        <td className={`${tdCls} text-right text-red-400`}>{eq.downtime.toFixed(1)}h</td>
+                        <td className={tdCls}>
+                          <div className="flex gap-1.5 justify-end">
+                            <Link href={`/breakdowns?equipment=${eq.id}`} className={`flex items-center gap-1 px-2 py-1 rounded text-[11px] ${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText}`}><AlertTriangle className="h-3 w-3" /> Breakdowns</Link>
+                            <Link href={`/maintenance?equipment=${eq.id}`} className={`flex items-center gap-1 px-2 py-1 rounded text-[11px] ${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText}`}><Settings className="h-3 w-3" /> Maintenance</Link>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      ) : tab === 'detailed' ? (
+        <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
+          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}>
+            <Calculator className="h-4 w-4 text-blue-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Detailed Availability Analysis</span>
+          </div>
+          {filtered.length === 0 ? (
+            <div className={`py-12 text-center text-sm ${t.textFaint}`}>No equipment data available for detailed analysis.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className={`border-b ${t.border}`}>
+                  <tr>
+                    <th className={thCls}>Equipment</th><th className={`${thCls} text-center`}>MTBF</th><th className={`${thCls} text-center`}>MTTR</th>
+                    <th className={thCls}>Last Maintenance</th><th className={thCls}>Next Maintenance</th>
+                    <th className={`${thCls} text-right`}>BD Frequency</th><th className={`${thCls} text-right`}>Cost Impact</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map(eq => (
+                    <tr key={eq.id} className={`border-b ${t.border} ${t.hoverBgSoft} transition-colors`}>
+                      <td className={tdCls}><span className={`font-medium ${t.textPrimary}`}>{eq.name}</span></td>
+                      <td className={`${tdCls} text-center`}><StatusBadge color={eq.mtbf > 200 ? '#34d399' : eq.mtbf > 100 ? '#94a3b8' : '#f87171'} label={`${eq.mtbf.toFixed(1)}h`} /></td>
+                      <td className={`${tdCls} text-center`}><StatusBadge color={eq.mttr < 5 ? '#34d399' : eq.mttr < 10 ? '#94a3b8' : '#f87171'} label={`${eq.mttr.toFixed(1)}h`} /></td>
+                      <td className={`${tdCls} text-xs`}>{fmtDate(eq.lastMaintenance)}</td>
+                      <td className="px-3 py-2.5 text-xs text-blue-400">{fmtDate(eq.nextMaintenance)}</td>
+                      <td className={`${tdCls} text-right`}>{eq.breakdownHours > 0 ? (eq.breakdownHours / eq.operationalHours * 100).toFixed(1) : '0.0'}%</td>
+                      <td className={`${tdCls} text-right text-red-400 font-medium`}>${(eq.downtime * 250).toLocaleString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
+            <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}>
+              <LineChart className="h-4 w-4 text-blue-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Availability Trends</span>
+            </div>
+            <div className="p-5">
+              <div className={`rounded-xl border ${t.border} ${t.chipBg} h-48 flex items-center justify-center mb-4`}>
+                <div className="text-center">
+                  <LineChart className={`h-8 w-8 mx-auto mb-2 ${t.textFaint}`} />
+                  <p className={`text-sm ${t.textFaint}`}>Chart integration point</p>
+                  <p className={`text-lg font-bold mt-1 ${avColor(stats.overallAvailability)}`}>{stats.overallAvailability.toFixed(1)}% current</p>
+                </div>
+              </div>
+              <div className="space-y-2 text-sm">
+                <div className={`flex justify-between ${t.textMuted}`}><span>Last month</span><span className={`font-medium ${avColor(stats.monthAvailability)}`}>{stats.monthAvailability.toFixed(1)}%</span></div>
+                <div className={`flex justify-between ${t.textMuted}`}><span>Last week</span><span className={`font-medium ${avColor(stats.weekAvailability)}`}>{stats.weekAvailability.toFixed(1)}%</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
+            <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}>
+              <BarChart3 className="h-4 w-4 text-blue-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Department Comparison</span>
+            </div>
+            <div className="p-5 space-y-3">
+              {departments.map(dept => {
+                const deptEq = equipment.filter(e => e.department === dept);
+                const deptAv = deptEq.length > 0 ? deptEq.reduce((s, e) => s + e.availability, 0) / deptEq.length : 0;
+                return (
+                  <div key={dept}>
+                    <div className="flex justify-between mb-1">
+                      <span className={`text-xs ${t.textMuted}`}>{dept}</span>
+                      <span className={`text-xs font-bold ${avColor(deptAv)}`}>{deptAv.toFixed(1)}%</span>
+                    </div>
+                    <ProgressBar value={deptAv} color={avHex(deptAv)} showValue={false} />
+                  </div>
+                );
+              })}
+              {departments.length === 0 && <p className={`text-sm text-center py-4 ${t.textFaint}`}>No department data</p>}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="flex justify-end gap-2">
+        <Link href="/equipment" className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-medium ${t.chipBg} ${t.textMuted} ${t.hoverBg}`}><ToolCase className="h-3.5 w-3.5" /> Manage Equipment</Link>
+        <Link href="/breakdowns/new" className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-blue-500 to-blue-700 hover:brightness-110 transition-all"><Plus className="h-3.5 w-3.5" /> Report Breakdown</Link>
+        <Link href="/reports/availability" className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-medium ${t.chipBg} ${t.textMuted} ${t.hoverBg}`}><BarChart3 className="h-3.5 w-3.5" /> Generate Report</Link>
+      </div>
+    </main>
+  );
+}
+
+export default function AvailabilitiesPage() {
+  return (
+    <AppShell>
+      <AvailabilityContent />
+    </AppShell>
   );
 }

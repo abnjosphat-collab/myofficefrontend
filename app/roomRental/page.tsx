@@ -76,7 +76,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Slider } from "@/components/ui/slider";
-import { PageShell } from '@/components/PageShell';
+import { AppShell } from '@/components/app-shell';
 
 // Custom Badge component
 const Badge = ({ 
@@ -1115,7 +1115,7 @@ export default function RentalPage() {
   ];
 
   return (
-    <PageShell>
+    <AppShell>
       <style jsx global>{animationStyles}</style>
       {/* Page Header */}
       <div className="container mx-auto px-4 py-6">
@@ -1437,6 +1437,6 @@ export default function RentalPage() {
             </div>
           </div>
         </div>
-    </PageShell>
+    </AppShell>
   );
 }

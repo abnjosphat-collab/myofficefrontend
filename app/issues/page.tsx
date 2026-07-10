@@ -1,14 +1,19 @@
 // app/issues/page.tsx — Stock Issues: record & analyse items issued to personnel
 'use client';
 
-import { PageShell } from '@/components/PageShell';
-import { GLASS_INPUT as glassInput, GLASS_LABEL as glassLabel, formatCurrency, formatCurrencyShort, nowLocal, fmtDateTime as formatDateTime, usePageCollapse, MasterCollapseButton } from '@/components/shared';
+import { AppShell } from '@/components/app-shell';
+import { formatCurrency, formatCurrencyShort, nowLocal, fmtDateTime as formatDateTime } from '@/components/shared/utils';
+import {
+  useTheme, PageHero, StatTile, StatCard, FormField, SearchInput, PrimaryButton,
+  useCollapseSection, ACCENT_HEX, Combobox, type ComboOption,
+} from '@/components/shared/theme';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
-  PackageMinus, Search, Plus, Trash2, RefreshCw, ChevronRight,
-  ChevronDown, ChevronUp, Loader2, Check, X, Clock,
+  PackageMinus, Search, Plus, Trash2, RefreshCw,
+  ChevronDown, ChevronUp, Loader2, Check, X,
   ClipboardList, Package, BarChart3, TrendingUp, TrendingDown,
-  Calendar, Activity, Users, DollarSign, Download, FileSpreadsheet, FileDown,
+  Activity, Users, DollarSign, Download, FileSpreadsheet, FileDown,
+  Hash, Target, Layers, Gauge,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -20,7 +25,6 @@ import {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com';
 const uid = () => Math.random().toString(36).slice(2);
-
 
 // ─── INTERFACES ───────────────────────────────────────────────────────────────
 
@@ -103,10 +107,7 @@ interface PeriodPoint {
 }
 
 function buildTimeSeries(issues: StockIssue[], period: Period): PeriodPoint[] {
-  // Build a map of key → aggregated data
   const map = new Map<string, PeriodPoint>();
-
-  // Determine the range of keys to fill (last 30d / 13 weeks / 13 months)
   const now = new Date();
   const keys: string[] = [];
 
@@ -138,7 +139,6 @@ function buildTimeSeries(issues: StockIssue[], period: Period): PeriodPoint[] {
     }
   }
 
-  // Aggregate issues into the map
   for (const issue of issues) {
     const d = new Date(issue.issued_at);
     let k: string;
@@ -168,11 +168,10 @@ interface DescStats {
   stdDev: number;
   min: number;
   max: number;
-  costed: number; // issues with at least one priced item
+  costed: number;
 }
 
 function calcStats(costs: number[], allIssues: StockIssue[]): DescStats {
-  const nonZero = costs.filter(c => c > 0);
   if (costs.length === 0) return { total: 0, count: 0, mean: 0, median: 0, stdDev: 0, min: 0, max: 0, costed: 0 };
   const sorted = [...costs].sort((a, b) => a - b);
   const total = costs.reduce((a, b) => a + b, 0);
@@ -249,15 +248,14 @@ async function apiGetStats(): Promise<Stats> {
 // ─── COMBO FIELD ─────────────────────────────────────────────────────────────
 
 const ComboField = React.memo(({
-  fetchUrl, mapOptions, value, onChange, className, placeholder,
+  fetchUrl, mapOptions, value, onChange, placeholder,
 }: {
   fetchUrl: string;
   mapOptions: (d: any[]) => { label: string; sub?: string }[];
   value: string; onChange: (v: string) => void;
-  className?: string; placeholder?: string;
+  placeholder?: string;
 }) => {
   const [options, setOptions] = useState<{ label: string; sub?: string }[]>([]);
-  const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [fetched, setFetched] = useState(false);
 
@@ -271,38 +269,24 @@ const ComboField = React.memo(({
     } catch {} finally { setLoading(false); setFetched(true); }
   }, [fetched, fetchUrl, mapOptions]);
 
-  const filtered = useMemo(() => {
-    const t = value.toLowerCase();
-    if (!t) return options.slice(0, 10);
-    return options.filter(o => o.label.toLowerCase().includes(t) || (o.sub || '').toLowerCase().includes(t)).slice(0, 10);
+  const filtered = useMemo<ComboOption[]>(() => {
+    const q = value.toLowerCase();
+    const base = !q ? options.slice(0, 10)
+      : options.filter(o => o.label.toLowerCase().includes(q) || (o.sub || '').toLowerCase().includes(q)).slice(0, 10);
+    return base.map(o => ({ value: o.label, label: o.label, sub: o.sub }));
   }, [value, options]);
 
   return (
-    <div className="relative">
-      <input type="text" value={value} placeholder={placeholder} className={className}
-        onChange={e => { onChange(e.target.value); setOpen(true); }}
-        onFocus={() => { load(); setOpen(true); }}
-        onBlur={() => setTimeout(() => setOpen(false), 160)}
-        onKeyDown={e => {
-          if (e.key === 'Escape') setOpen(false);
-          if (e.key === 'Tab' && filtered.length > 0) { e.preventDefault(); onChange(filtered[0].label); setOpen(false); }
-        }}
-      />
-      {open && (loading || filtered.length > 0) && (
-        <div className="absolute top-full left-0 right-0 z-50 mt-0.5 rounded-xl overflow-hidden shadow-2xl max-h-52 overflow-y-auto"
-          style={{ background: 'rgba(4,12,24,0.98)', border: '1px solid rgba(255,255,255,0.15)' }}>
-          {loading && <div className="px-3 py-2 text-xs text-white/35 flex items-center gap-2"><Loader2 className="h-3 w-3 animate-spin" />Loading…</div>}
-          {filtered.map((o, i) => (
-            <button key={`${o.label}-${i}`} type="button"
-              onMouseDown={e => { e.preventDefault(); onChange(o.label); setOpen(false); }}
-              className="w-full text-left px-3 py-2 text-xs hover:bg-white/[0.08] transition-all border-b border-white/[0.05] last:border-0 flex items-center justify-between gap-2">
-              <div><span className="text-white/80">{o.label}</span>{o.sub && <span className="text-[10px] text-white/30 ml-2">{o.sub}</span>}</div>
-              {i === 0 && <span className="text-[10px] text-white/20">Tab ↵</span>}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+    <Combobox
+      value={value}
+      onChange={onChange}
+      onSelect={o => onChange(o.value)}
+      options={filtered}
+      loading={loading}
+      onFocusLoad={load}
+      placeholder={placeholder}
+      size="form"
+    />
   );
 });
 ComboField.displayName = 'ComboField';
@@ -310,110 +294,99 @@ ComboField.displayName = 'ComboField';
 // ─── SPARE PICKER ─────────────────────────────────────────────────────────────
 
 const SparePicker = React.memo(({
-  spares, value, onSelect, className, placeholder,
+  spares, value, onSelect, placeholder,
 }: {
   spares: Spare[]; value: string;
   onSelect: (s: Spare | null, text: string) => void;
-  className?: string; placeholder?: string;
+  placeholder?: string;
 }) => {
-  const [open, setOpen] = useState(false);
+  const t = useTheme();
   const filtered = useMemo(() => {
-    const t = value.toLowerCase();
-    if (!t) return spares.slice(0, 12);
+    const q = value.toLowerCase();
+    if (!q) return spares.slice(0, 12);
     return spares.filter(s =>
-      s.stock_code.toLowerCase().includes(t) ||
-      s.description.toLowerCase().includes(t) ||
-      (s.category || '').toLowerCase().includes(t)
+      s.stock_code.toLowerCase().includes(q) ||
+      s.description.toLowerCase().includes(q) ||
+      (s.category || '').toLowerCase().includes(q)
     ).slice(0, 12);
   }, [value, spares]);
 
+  const byCode = useMemo(() => {
+    const m = new Map<string, Spare>();
+    filtered.forEach(s => m.set(s.stock_code, s));
+    return m;
+  }, [filtered]);
+
+  const options = useMemo<ComboOption[]>(
+    () => filtered.map(s => ({ value: s.stock_code, label: s.stock_code, sub: s.description })),
+    [filtered],
+  );
+
   return (
-    <div className="relative">
-      <input type="text" value={value} placeholder={placeholder} className={className}
-        onChange={e => { onSelect(null, e.target.value); setOpen(true); }}
-        onFocus={() => setOpen(true)}
-        onBlur={() => setTimeout(() => setOpen(false), 160)}
-        onKeyDown={e => {
-          if (e.key === 'Escape') setOpen(false);
-          if (e.key === 'Tab' && filtered.length > 0) { e.preventDefault(); onSelect(filtered[0], filtered[0].stock_code); setOpen(false); }
-        }}
-      />
-      {open && filtered.length > 0 && (
-        <div className="absolute top-full left-0 z-50 mt-0.5 rounded-xl overflow-hidden shadow-2xl max-h-52 overflow-y-auto"
-          style={{ background: 'rgba(4,12,24,0.98)', border: '1px solid rgba(255,255,255,0.15)', minWidth: '300px' }}>
-          {filtered.map((s, i) => (
-            <button key={s.id} type="button"
-              onMouseDown={e => { e.preventDefault(); onSelect(s, s.stock_code); setOpen(false); }}
-              className="w-full text-left px-3 py-2 text-xs hover:bg-white/[0.08] transition-all border-b border-white/[0.05] last:border-0">
-              <div className="flex items-center justify-between gap-2">
-                <div className="min-w-0">
-                  <span className="font-mono text-[#86BBD8] font-semibold">{s.stock_code}</span>
-                  <span className="text-white/55 ml-2">{s.description.slice(0, 46)}</span>
-                </div>
-                <div className="flex items-center gap-3 flex-shrink-0 text-[10px]">
-                  <span className="text-[#86BBD8]/60">{formatCurrency(s.unit_price)}</span>
-                  <span className={s.current_quantity <= 0 ? 'text-rose-400' : 'text-white/30'}>qty: {s.current_quantity}</span>
-                  {i === 0 && <span className="text-white/20">Tab</span>}
-                </div>
-              </div>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+    <Combobox
+      value={value}
+      onChange={txt => onSelect(null, txt)}
+      onSelect={o => { const s = byCode.get(o.value); onSelect(s ?? null, s ? s.stock_code : o.value); }}
+      options={options}
+      size="filter"
+      minWidth={320}
+      placeholder={placeholder}
+      inputClassName="font-mono"
+      renderOption={(o) => {
+        const s = byCode.get(o.value);
+        if (!s) return <span className={t.textMuted}>{o.label}</span>;
+        return (
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <span className="font-mono text-[#86BBD8] font-semibold">{s.stock_code}</span>
+              <span className={`${t.textMuted} ml-2`}>{s.description.slice(0, 46)}</span>
+            </div>
+            <div className="flex items-center gap-3 flex-shrink-0 text-[10px]">
+              <span className="text-[#86BBD8]/80">{formatCurrency(s.unit_price)}</span>
+              <span className={s.current_quantity <= 0 ? 'text-rose-500' : t.textFaint}>qty: {s.current_quantity}</span>
+            </div>
+          </div>
+        );
+      }}
+    />
   );
 });
 SparePicker.displayName = 'SparePicker';
 
 // ─── CHART TOOLTIP STYLE ─────────────────────────────────────────────────────
 
-const tooltipStyle = {
-  contentStyle: {
-    background: 'rgba(4,12,24,0.97)',
-    border: '1px solid rgba(255,255,255,0.15)',
-    borderRadius: '12px',
-    color: 'rgba(255,255,255,0.85)',
-    fontSize: '12px',
-  },
-  itemStyle: { color: '#86BBD8' },
-  labelStyle: { color: 'rgba(255,255,255,0.5)', marginBottom: 4 },
-};
-
-const axisProps = {
-  tick: { fill: 'rgba(255,255,255,0.35)', fontSize: 10 },
-  axisLine: { stroke: 'rgba(255,255,255,0.08)' },
-  tickLine: false as const,
-};
-
-const gridProps = {
-  stroke: 'rgba(255,255,255,0.06)',
-  strokeDasharray: '3 3',
-};
-
-// ─── STAT CARD ────────────────────────────────────────────────────────────────
-
-function StatCard({ label, value, sub, color = '#86BBD8', trend }:
-  { label: string; value: string; sub?: string; color?: string; trend?: 'up' | 'down' | 'neutral' }) {
-  const TrendIcon = trend === 'up' ? TrendingUp : trend === 'down' ? TrendingDown : null;
-  return (
-    <div className="rounded-xl p-3.5 border border-white/[0.08] bg-white/[0.04]">
-      <div className="text-[10px] text-white/35 uppercase tracking-wider mb-1.5">{label}</div>
-      <div className="text-xl font-bold leading-none" style={{ color }}>{value}</div>
-      {sub && (
-        <div className="flex items-center gap-1 mt-1.5">
-          {TrendIcon && <TrendIcon className="h-3 w-3" style={{ color }} />}
-          <span className="text-[10px] text-white/35">{sub}</span>
-        </div>
-      )}
-    </div>
-  );
+function useChartStyle() {
+  const t = useTheme();
+  return useMemo(() => ({
+    tooltipStyle: {
+      contentStyle: {
+        background: t.light ? 'rgba(255,255,255,0.98)' : 'rgba(4,12,24,0.97)',
+        border: t.light ? '1px solid rgba(15,23,42,0.12)' : '1px solid rgba(255,255,255,0.15)',
+        borderRadius: '12px',
+        color: t.light ? 'rgba(15,23,42,0.85)' : 'rgba(255,255,255,0.85)',
+        fontSize: '12px',
+      },
+      itemStyle: { color: '#86BBD8' },
+      labelStyle: { color: t.light ? 'rgba(15,23,42,0.5)' : 'rgba(255,255,255,0.5)', marginBottom: 4 },
+    },
+    axisProps: {
+      tick: { fill: t.light ? 'rgba(15,23,42,0.45)' : 'rgba(255,255,255,0.35)', fontSize: 10 },
+      axisLine: { stroke: t.light ? 'rgba(15,23,42,0.1)' : 'rgba(255,255,255,0.08)' },
+      tickLine: false as const,
+    },
+    gridProps: {
+      stroke: t.light ? 'rgba(15,23,42,0.08)' : 'rgba(255,255,255,0.06)',
+      strokeDasharray: '3 3',
+    },
+  }), [t.light]);
 }
 
 // ─── MAIN PAGE ────────────────────────────────────────────────────────────────
 
-export default function IssuesPage() {
-  const sections = usePageCollapse({ stats: false, records: false });
-  // Data
+function IssuesPageContent() {
+  const t = useTheme();
+  const { tooltipStyle, axisProps, gridProps } = useChartStyle();
+  const sections = useCollapseSection({ stats: false, records: true });
   const [issues, setIssues] = useState<StockIssue[]>([]);
   const [serverStats, setServerStats] = useState<Stats>({ total: 0, today: 0, this_week: 0, unique_recipients: 0 });
   const [spares, setSpares] = useState<Spare[]>([]);
@@ -421,19 +394,15 @@ export default function IssuesPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // UI state
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
   const [logTab, setLogTab] = useState<'log' | 'analytics'>('log');
 
-  // Log filters
   const [search, setSearch] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
 
-  // Analytics
   const [period, setPeriod] = useState<Period>('week');
 
-  // Form
   const [recipient, setRecipient] = useState('');
   const [issuedBy, setIssuedBy] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -447,7 +416,6 @@ export default function IssuesPage() {
     { id: uid(), stockCode: '', description: '', qty: 1, unit: 'UN', unit_price: 0 },
   ]);
 
-  // Load data
   const loadData = useCallback(async (quiet = false) => {
     if (!quiet) setLoading(true);
     setRefreshing(true);
@@ -467,7 +435,6 @@ export default function IssuesPage() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // Item row handlers
   const addItem = () =>
     setItems(p => [...p, { id: uid(), stockCode: '', description: '', qty: 1, unit: 'UN', unit_price: 0 }]);
 
@@ -492,7 +459,6 @@ export default function IssuesPage() {
     }
   };
 
-  // Submit
   const handleSubmit = async () => {
     if (!recipient.trim()) { toast.error('Recipient name is required'); return; }
     const validItems = items.filter(i => i.description.trim() || i.stockCode.trim());
@@ -532,37 +498,31 @@ export default function IssuesPage() {
   const toggleRow = (id: number) =>
     setExpandedRows(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
-  // ── DERIVED DATA ────────────────────────────────────────────────────────────
-
   const filteredIssues = useMemo(() => {
     let list = issues;
     if (dateFrom) list = list.filter(i => i.issued_at >= dateFrom);
     if (dateTo) list = list.filter(i => i.issued_at.slice(0, 10) <= dateTo);
     if (search.trim()) {
-      const t = search.toLowerCase();
+      const s = search.toLowerCase();
       list = list.filter(i =>
-        i.recipient_name.toLowerCase().includes(t) ||
-        (i.recipient_id || '').toLowerCase().includes(t) ||
-        (i.issued_by || '').toLowerCase().includes(t) ||
-        (i.notes || '').toLowerCase().includes(t) ||
+        i.recipient_name.toLowerCase().includes(s) ||
+        (i.recipient_id || '').toLowerCase().includes(s) ||
+        (i.issued_by || '').toLowerCase().includes(s) ||
+        (i.notes || '').toLowerCase().includes(s) ||
         i.items.some(item =>
-          item.description.toLowerCase().includes(t) ||
-          (item.stock_code || '').toLowerCase().includes(t)
+          item.description.toLowerCase().includes(s) ||
+          (item.stock_code || '').toLowerCase().includes(s)
         )
       );
     }
     return list;
   }, [issues, search, dateFrom, dateTo]);
 
-  // Analytics computations (uses all issues, not filtered log)
   const timeSeries = useMemo(() => buildTimeSeries(issues, period), [issues, period]);
-
   const allCosts = useMemo(() => issues.map(issueCost), [issues]);
   const descStats = useMemo(() => calcStats(allCosts, issues), [allCosts, issues]);
-
   const topRecipients = useMemo(() => topBy(issues, 'recipient_name', 8), [issues]);
   const topItems = useMemo(() => topBy(issues, 'description', 8), [issues]);
-
   const totalCostTracked = useMemo(() => issues.reduce((s, i) => s + issueCost(i), 0), [issues]);
   const periodPeak = useMemo(() => timeSeries.reduce((best, pt) => pt.cost > best.cost ? pt : best, { cost: 0, label: '—' } as any), [timeSeries]);
 
@@ -578,16 +538,15 @@ export default function IssuesPage() {
       const { saveAs } = await import('file-saver');
       const wb = new ExcelJS.Workbook();
       wb.creator = 'Ozech MyOffice';
-      // Sheet 1 — one row per issue
       const ws = wb.addWorksheet('Stock Issues');
       ws.columns = [
-        { header: 'Issue Date',    key: 'date',      width: 20 },
-        { header: 'Recipient',     key: 'recipient', width: 26 },
-        { header: 'Recipient ID',  key: 'rid',       width: 14 },
-        { header: 'Issued By',     key: 'issuedby',  width: 22 },
-        { header: 'Items (count)', key: 'items',     width: 14 },
-        { header: 'Total Cost',    key: 'cost',      width: 14 },
-        { header: 'Notes',         key: 'notes',     width: 34 },
+        { header: 'Issue Date', key: 'date', width: 20 },
+        { header: 'Recipient', key: 'recipient', width: 26 },
+        { header: 'Recipient ID', key: 'rid', width: 14 },
+        { header: 'Issued By', key: 'issuedby', width: 22 },
+        { header: 'Items (count)', key: 'items', width: 14 },
+        { header: 'Total Cost', key: 'cost', width: 14 },
+        { header: 'Notes', key: 'notes', width: 34 },
       ];
       const hdr = ws.getRow(1);
       hdr.eachCell(cell => {
@@ -599,31 +558,29 @@ export default function IssuesPage() {
       issues.forEach((issue, i) => {
         const cost = issueCost(issue);
         const row = ws.addRow({
-          date:      issue.issued_at ? new Date(issue.issued_at).toLocaleString('en-GB') : '',
+          date: issue.issued_at ? new Date(issue.issued_at).toLocaleString('en-GB') : '',
           recipient: issue.recipient_name,
-          rid:       issue.recipient_id || '',
-          issuedby:  issue.issued_by || '',
-          items:     issue.items.length,
-          cost:      cost,
-          notes:     issue.notes || '',
+          rid: issue.recipient_id || '',
+          issuedby: issue.issued_by || '',
+          items: issue.items.length,
+          cost,
+          notes: issue.notes || '',
         });
         if (i % 2 === 1) row.eachCell(cell => { cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0F4F8' } }; });
-        const costCell = row.getCell('cost');
-        costCell.numFmt = '"$"#,##0.00';
+        row.getCell('cost').numFmt = '"$"#,##0.00';
       });
       ws.autoFilter = { from: 'A1', to: 'G1' };
       ws.views = [{ state: 'frozen', ySplit: 1 }];
-      // Sheet 2 — one row per line item
       const ws2 = wb.addWorksheet('Line Items');
       ws2.columns = [
-        { header: 'Issue Date',   key: 'date',      width: 20 },
-        { header: 'Recipient',    key: 'recipient', width: 26 },
-        { header: 'Stock Code',   key: 'code',      width: 16 },
-        { header: 'Description',  key: 'desc',      width: 36 },
-        { header: 'Qty',          key: 'qty',       width: 8  },
-        { header: 'Unit',         key: 'unit',      width: 8  },
-        { header: 'Unit Price',   key: 'uprice',    width: 14 },
-        { header: 'Line Total',   key: 'total',     width: 14 },
+        { header: 'Issue Date', key: 'date', width: 20 },
+        { header: 'Recipient', key: 'recipient', width: 26 },
+        { header: 'Stock Code', key: 'code', width: 16 },
+        { header: 'Description', key: 'desc', width: 36 },
+        { header: 'Qty', key: 'qty', width: 8 },
+        { header: 'Unit', key: 'unit', width: 8 },
+        { header: 'Unit Price', key: 'uprice', width: 14 },
+        { header: 'Line Total', key: 'total', width: 14 },
       ];
       const hdr2 = ws2.getRow(1);
       hdr2.eachCell(cell => {
@@ -637,14 +594,14 @@ export default function IssuesPage() {
         issue.items.forEach(item => {
           const lineTotal = (item.unit_price || 0) * item.qty;
           const row = ws2.addRow({
-            date:      issue.issued_at ? new Date(issue.issued_at).toLocaleDateString('en-GB') : '',
+            date: issue.issued_at ? new Date(issue.issued_at).toLocaleDateString('en-GB') : '',
             recipient: issue.recipient_name,
-            code:      item.stock_code || '',
-            desc:      item.description,
-            qty:       item.qty,
-            unit:      item.unit || '',
-            uprice:    item.unit_price ?? '',
-            total:     lineTotal,
+            code: item.stock_code || '',
+            desc: item.description,
+            qty: item.qty,
+            unit: item.unit || '',
+            uprice: item.unit_price ?? '',
+            total: lineTotal,
           });
           if (rowIdx % 2 === 1) row.eachCell(cell => { cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0F4F8' } }; });
           ['uprice', 'total'].forEach(k => { row.getCell(k).numFmt = '"$"#,##0.00'; });
@@ -705,130 +662,100 @@ export default function IssuesPage() {
     []
   );
 
-  // ── RENDER ──────────────────────────────────────────────────────────────────
+  const inputCls = `w-full h-9 px-3 rounded-lg text-sm outline-none transition-colors ${t.inputBg}`;
+  const rowInputCls = `w-full px-2.5 py-1.5 text-xs rounded-lg outline-none transition-colors ${t.inputBg}`;
 
   return (
-    <PageShell>
-      <main className="container mx-auto px-4 py-8 space-y-4">
-
-        {/* ─ PANEL 1: HERO ─────────────────────────────────────────────── */}
-        <div className="oz-glass-dark rounded-2xl overflow-hidden">
-          <div className="px-6 py-4 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="p-2.5 rounded-xl bg-[#2A4D69]/50 border border-[#86BBD8]/20 flex-shrink-0">
-                <PackageMinus className="h-5 w-5 text-[#86BBD8]" />
-              </div>
-              <div className="min-w-0">
-                <nav className="flex items-center gap-1.5 text-xs text-white/40 mb-0.5">
-                  <span>Home</span><ChevronRight className="h-3 w-3" /><span className="text-white/70 font-medium">Stock Issues</span>
-                </nav>
-                <h1 className="text-xl font-bold text-white font-heading tracking-tight">Stock Issues</h1>
-                <p className="text-xs text-white/35 mt-0.5">Record & track items issued to personnel</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <button onClick={() => loadData(true)} disabled={refreshing} title="Refresh"
-                className="h-8 w-8 flex items-center justify-center rounded-lg bg-white/[0.07] hover:bg-white/[0.15] border border-white/12 text-white/50 transition-all disabled:opacity-40">
-                <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+    <main className="max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+      <PageHero
+        icon={PackageMinus}
+        accent="violet"
+        crumbs={['Inventory', 'Stock Issues']}
+        title="Stock Issues"
+        description="Record & track items issued to personnel"
+        statsOpen={sections.expanded.stats}
+        actions={
+          <>
+            <button type="button" onClick={() => loadData(true)} disabled={refreshing} title="Refresh"
+              className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all disabled:opacity-40`}>
+              <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+            </button>
+            <div className="relative">
+              <button type="button" onClick={() => setShowDlMenu(p => !p)} disabled={issues.length === 0}
+                className={`h-8 px-3 flex items-center gap-1.5 text-xs rounded-lg font-semibold ${t.chipBg} ${t.hoverBg} ${t.textMuted} ${t.hoverText} transition-all disabled:opacity-40`}>
+                <Download className="h-3.5 w-3.5" /> Download
               </button>
-
-              {/* Download dropdown */}
-              <div className="relative">
-                <button type="button" onClick={() => setShowDlMenu(p => !p)} disabled={issues.length === 0}
-                  className="h-8 px-3 flex items-center gap-1.5 text-xs rounded-xl font-semibold text-white/80 hover:text-white transition-all hover:-translate-y-0.5 bg-white/[0.07] hover:bg-white/[0.13] border border-white/[0.15] disabled:opacity-40 disabled:translate-y-0">
-                  <Download className="h-3.5 w-3.5" /> Download
-                </button>
-                {showDlMenu && (
-                  <>
-                    <div className="fixed inset-0 z-40" onClick={() => setShowDlMenu(false)} />
-                    <div className="absolute right-0 top-full mt-1 z-50 rounded-xl shadow-2xl overflow-hidden w-48"
-                      style={{ background: 'rgba(4,12,24,0.97)', border: '1px solid rgba(255,255,255,0.14)' }}>
-                      <button type="button" onClick={downloadIssuesExcel}
-                        className="w-full flex items-center gap-2.5 px-4 py-3 text-xs text-white/85 hover:bg-white/[0.10] transition-all border-b border-white/[0.07]">
-                        <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-400" /> Export Excel (.xlsx)
-                      </button>
-                      <button type="button" onClick={downloadIssuesPDF}
-                        className="w-full flex items-center gap-2.5 px-4 py-3 text-xs text-white/85 hover:bg-white/[0.10] transition-all">
-                        <FileDown className="h-3.5 w-3.5 text-rose-400" /> Export PDF
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
-
-              <button title={sections.expanded.stats ? 'Hide stats' : 'Show stats'} onClick={() => sections.toggle('stats')}
-                className="h-8 w-8 flex items-center justify-center rounded-lg bg-white/[0.07] hover:bg-white/[0.15] border border-white/12 text-white/50 transition-all">
-                {sections.expanded.stats ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-              </button>
-              <MasterCollapseButton collapse={sections} />
+              {showDlMenu && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowDlMenu(false)} />
+                  <div className={`absolute right-0 top-full mt-1 z-50 rounded-xl overflow-hidden w-48 ${t.glass} ${t.shadow}`}>
+                    <button type="button" onClick={downloadIssuesExcel}
+                      className={`w-full flex items-center gap-2.5 px-4 py-3 text-xs ${t.textMuted} ${t.hoverBg} transition-all border-b ${t.border}`}>
+                      <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-500" /> Export Excel (.xlsx)
+                    </button>
+                    <button type="button" onClick={downloadIssuesPDF}
+                      className={`w-full flex items-center gap-2.5 px-4 py-3 text-xs ${t.textMuted} ${t.hoverBg} transition-all`}>
+                      <FileDown className="h-3.5 w-3.5 text-rose-500" /> Export PDF
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
-          </div>
-
-          {sections.expanded.stats && (
-            <div className="px-6 pb-4 pt-3 border-t border-white/[0.07] grid grid-cols-2 sm:grid-cols-5 gap-3">
-              {[
-                { label: 'Total Records', value: serverStats.total, color: '#86BBD8' },
-                { label: 'Today', value: serverStats.today, color: '#34d399' },
-                { label: 'This Week', value: serverStats.this_week, color: '#a78bfa' },
-                { label: 'Recipients', value: serverStats.unique_recipients, color: '#f59e0b' },
-                { label: 'Total Cost', value: formatCurrencyShort(totalCostTracked), color: '#60a5fa' },
-              ].map(s => (
-                <div key={s.label} className="rounded-xl p-3 border border-white/[0.08] bg-white/[0.05]">
-                  <div className="text-xl font-bold" style={{ color: s.color }}>{s.value}</div>
-                  <div className="text-[11px] text-white/45 mt-0.5">{s.label}</div>
-                </div>
-              ))}
-            </div>
-          )}
+            <button type="button" title={sections.expanded.stats ? 'Hide stats' : 'Show stats'} onClick={() => sections.toggle('stats')}
+              className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all`}>
+              {sections.expanded.stats ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+            </button>
+          </>
+        }
+      >
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+          <StatTile icon={Hash} color="#86BBD8" label="Total Records" value={serverStats.total} />
+          <StatTile icon={Activity} color="#34d399" label="Today" value={serverStats.today} />
+          <StatTile icon={Layers} color="#a78bfa" label="This Week" value={serverStats.this_week} />
+          <StatTile icon={Users} color="#f59e0b" label="Recipients" value={serverStats.unique_recipients} />
+          <StatTile icon={DollarSign} color="#60a5fa" label="Total Cost" value={formatCurrencyShort(totalCostTracked)} />
         </div>
+      </PageHero>
 
-        {sections.expanded.records && <>
-        {/* ─ PANEL 2: RECORD NEW ISSUE ─────────────────────────────────── */}
-        <div className="oz-glass-panel rounded-2xl overflow-hidden">
-          <div className="px-5 py-3 border-b border-white/[0.07] flex items-center gap-2">
+      {sections.expanded.records && <>
+        {/* Record new issue */}
+        <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
+          <div className={`px-5 py-3 border-b ${t.border} flex items-center gap-2`}>
             <ClipboardList className="h-3.5 w-3.5 text-[#86BBD8]" />
-            <span className="text-xs font-semibold text-white/80 uppercase tracking-wider">Record New Issue</span>
+            <span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Record New Issue</span>
           </div>
           <div className="p-5 space-y-4">
-            {/* Header fields */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              <div>
-                <label className={glassLabel}>Issued To *</label>
+              <FormField label="Issued To" required>
                 <ComboField fetchUrl="/api/employees" mapOptions={employeeMapOptions}
                   value={recipient} onChange={setRecipient}
-                  className={glassInput} placeholder="Name or employee ID…" />
-              </div>
-              <div>
-                <label className={glassLabel}>Date & Time</label>
-                <input type="datetime-local" value={issuedAt} onChange={e => setIssuedAt(e.target.value)}
-                  className={glassInput} style={{ colorScheme: 'dark' }} />
-              </div>
-              <div>
-                <label className={glassLabel}>Issued By</label>
+                  placeholder="Name or employee ID…" />
+              </FormField>
+              <FormField label="Date & Time">
+                <input type="datetime-local" value={issuedAt} onChange={e => setIssuedAt(e.target.value)} title="Date and time"
+                  className={inputCls} />
+              </FormField>
+              <FormField label="Issued By">
                 <ComboField fetchUrl="/api/employees" mapOptions={employeeMapOptions}
                   value={issuedBy} onChange={setIssuedBy}
-                  className={glassInput} placeholder="Your name or employee ID…" />
-              </div>
-              <div>
-                <label className={glassLabel}>Notes</label>
+                  placeholder="Your name or employee ID…" />
+              </FormField>
+              <FormField label="Notes">
                 <input type="text" value={notes} onChange={e => setNotes(e.target.value)}
-                  className={glassInput} placeholder="Reason, job no., project…" />
-              </div>
+                  className={inputCls} placeholder="Reason, job no., project…" />
+              </FormField>
             </div>
 
-            {/* Items */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <span className="text-[11px] font-semibold text-white/45 uppercase tracking-wider">Items to Issue</span>
-                <button onClick={addItem}
-                  className="inline-flex items-center gap-1 h-6 px-2.5 text-[11px] rounded-lg border font-medium text-white transition-all hover:-translate-y-0.5"
-                  style={{ background: 'rgba(42,77,105,0.5)', borderColor: 'rgba(134,187,216,0.3)' }}>
+                <span className={`text-[11px] font-semibold uppercase tracking-wider ${t.textFaint}`}>Items to Issue</span>
+                <button type="button" onClick={addItem}
+                  className={`inline-flex items-center gap-1 h-6 px-2.5 text-[11px] rounded-lg font-medium ${t.chipBg} ${t.hoverBg} ${t.textMuted} transition-all`}>
                   <Plus className="h-2.5 w-2.5" /> Add Item
                 </button>
               </div>
 
-              {/* Column labels */}
-              <div className="grid gap-2 px-1 mb-1 text-[10px] text-white/25 uppercase tracking-wider"
+              <div className={`grid gap-2 px-1 mb-1 text-[10px] uppercase tracking-wider ${t.textFaint}`}
                 style={{ gridTemplateColumns: '160px 1fr 88px 72px 88px 28px' }}>
                 <div>Stock Code</div><div>Description</div>
                 <div className="text-right">Qty</div><div className="text-center">Unit</div>
@@ -838,43 +765,38 @@ export default function IssuesPage() {
               <div className="space-y-1.5">
                 {items.map(item => (
                   <div key={item.id}
-                    className="grid gap-2 items-center rounded-xl p-2 bg-white/[0.03] border border-white/[0.06] hover:border-white/[0.10] transition-all"
+                    className={`grid gap-2 items-center rounded-xl p-2 ${t.chipBg} border ${t.border} transition-all`}
                     style={{ gridTemplateColumns: '160px 1fr 88px 72px 88px 28px' }}>
                     <SparePicker spares={spares} value={item.stockCode}
                       onSelect={(s, text) => handleSpareSelect(item.id, s, text)}
-                      className="w-full px-2.5 py-1.5 text-xs rounded-lg bg-white/[0.05] border border-white/10 text-white font-mono placeholder:text-white/25 focus:outline-none focus:border-white/30 transition-all"
                       placeholder="Code or search…" />
                     <input type="text" value={item.description}
                       onChange={e => updateItem(item.id, { description: e.target.value })}
-                      placeholder="Description…"
-                      className="w-full px-2.5 py-1.5 text-xs rounded-lg bg-white/[0.05] border border-white/10 text-white placeholder:text-white/25 focus:outline-none focus:border-white/30 transition-all" />
-                    <input type="number" min="0.01" step="any" value={item.qty}
+                      placeholder="Description…" className={rowInputCls} />
+                    <input type="number" min="0.01" step="any" value={item.qty} title="Quantity"
                       onChange={e => updateItem(item.id, { qty: Math.max(0.01, parseFloat(e.target.value) || 1) })}
-                      className="w-full px-2.5 py-1.5 text-xs rounded-lg bg-white/[0.05] border border-white/10 text-white text-right focus:outline-none focus:border-white/30 transition-all" />
-                    <input type="text" value={item.unit}
+                      className={`${rowInputCls} text-right`} />
+                    <input type="text" value={item.unit} title="Unit"
                       onChange={e => updateItem(item.id, { unit: e.target.value })}
-                      placeholder="UN"
-                      className="w-full px-2 py-1.5 text-xs rounded-lg bg-white/[0.05] border border-white/10 text-white text-center focus:outline-none focus:border-white/30 transition-all" />
-                    {/* Unit price — auto-filled from spare, editable */}
+                      placeholder="UN" className={`${rowInputCls} text-center`} />
                     <div className="relative">
-                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] text-white/30">$</span>
-                      <input type="number" min="0" step="0.01" value={item.unit_price}
+                      <span className={`absolute left-2 top-1/2 -translate-y-1/2 text-[10px] ${t.textFaint}`}>$</span>
+                      <input type="number" min="0" step="0.01" value={item.unit_price} title="Unit price"
                         onChange={e => updateItem(item.id, { unit_price: parseFloat(e.target.value) || 0 })}
-                        className="w-full pl-5 pr-2 py-1.5 text-xs rounded-lg bg-white/[0.05] border border-white/10 text-white text-right focus:outline-none focus:border-white/30 transition-all" />
+                        className={`${rowInputCls} pl-5 text-right`} />
                     </div>
-                    <button title="Remove item" onClick={() => removeItem(item.id)} disabled={items.length === 1}
-                      className="h-6 w-6 flex items-center justify-center rounded hover:bg-rose-500/20 text-white/20 hover:text-rose-400 disabled:opacity-20 disabled:cursor-not-allowed transition-all">
+                    <button type="button" title="Remove item" onClick={() => removeItem(item.id)} disabled={items.length === 1}
+                      className={`h-6 w-6 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-rose-500 disabled:opacity-20 disabled:cursor-not-allowed transition-all`}>
                       <X className="h-3 w-3" />
                     </button>
                   </div>
                 ))}
               </div>
 
-              {/* Running total */}
               {items.some(i => i.unit_price > 0) && (
                 <div className="flex justify-end mt-2 pr-8">
-                  <div className="text-xs text-white/40">
-                    Issue total: <span className="text-white font-semibold ml-1">
+                  <div className={`text-xs ${t.textFaint}`}>
+                    Issue total: <span className={`${t.textPrimary} font-semibold ml-1`}>
                       {formatCurrency(items.reduce((s, i) => s + i.unit_price * i.qty, 0))}
                     </span>
                   </div>
@@ -883,44 +805,40 @@ export default function IssuesPage() {
             </div>
 
             <div className="flex items-center justify-between pt-1">
-              <div className="text-[11px] text-white/30">
+              <div className={`text-[11px] ${t.textFaint}`}>
                 {items.filter(i => i.description.trim() || i.stockCode.trim()).length} item{items.filter(i => i.description.trim() || i.stockCode.trim()).length !== 1 ? 's' : ''} to{' '}
-                <span className="text-white/55">{recipient || '—'}</span>
+                <span className={t.textMuted}>{recipient || '—'}</span>
               </div>
-              <button onClick={handleSubmit} disabled={submitting}
-                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:-translate-y-0.5 hover:shadow-lg disabled:opacity-50 disabled:translate-y-0"
-                style={{ background: 'linear-gradient(135deg, #2A4D69, #1e3a52)', border: '1px solid rgba(134,187,216,0.3)' }}>
-                {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+              <PrimaryButton icon={submitting ? undefined : Check} accent="violet" onClick={handleSubmit} disabled={submitting} submitting={submitting}>
                 Record Issue
-              </button>
+              </PrimaryButton>
             </div>
           </div>
         </div>
 
-        {/* ─ PANEL 3: LOG / ANALYTICS ──────────────────────────────────── */}
-        <div className="oz-glass-panel rounded-2xl overflow-hidden">
-          {/* Tab header */}
-          <div className="px-5 py-3 border-b border-white/[0.07] flex items-center justify-between gap-3">
+        {/* Log / analytics */}
+        <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
+          <div className={`px-5 py-3 border-b ${t.border} flex items-center justify-between gap-3 flex-wrap`}>
             <div className="flex items-center gap-1">
               {([
                 { id: 'log', label: 'Issue Log', icon: Package },
                 { id: 'analytics', label: 'Analytics', icon: BarChart3 },
               ] as const).map(tab => (
-                <button key={tab.id} onClick={() => setLogTab(tab.id)}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${logTab === tab.id ? 'bg-[#86BBD8]/20 border border-[#86BBD8]/35 text-[#86BBD8]' : 'text-white/45 hover:text-white/70 hover:bg-white/[0.06] border border-transparent'}`}>
+                <button key={tab.id} type="button" onClick={() => setLogTab(tab.id)}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${logTab === tab.id ? 'bg-blue-500/15 text-blue-500' : `${t.textFaint} ${t.hoverBg} ${t.hoverText}`}`}>
                   <tab.icon className="h-3 w-3" />
                   {tab.label}
                 </button>
               ))}
             </div>
             {logTab === 'log' && (
-              <span className="text-[11px] text-white/30">{filteredIssues.length} record{filteredIssues.length !== 1 ? 's' : ''}</span>
+              <span className={`text-[11px] ${t.textFaint}`}>{filteredIssues.length} record{filteredIssues.length !== 1 ? 's' : ''}</span>
             )}
             {logTab === 'analytics' && (
               <div className="flex items-center gap-1">
                 {(['day', 'week', 'month'] as const).map(p => (
-                  <button key={p} onClick={() => setPeriod(p)}
-                    className={`h-6 px-2.5 text-[11px] rounded-lg border capitalize transition-all ${period === p ? 'bg-[#86BBD8]/20 border-[#86BBD8]/35 text-[#86BBD8]' : 'bg-white/[0.05] border-white/10 text-white/40 hover:text-white/60'}`}>
+                  <button key={p} type="button" onClick={() => setPeriod(p)}
+                    className={`h-6 px-2.5 text-[11px] rounded-lg capitalize transition-all ${period === p ? 'bg-blue-500/15 text-blue-500' : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}>
                     {p === 'day' ? 'Daily' : p === 'week' ? 'Weekly' : 'Monthly'}
                   </button>
                 ))}
@@ -928,24 +846,18 @@ export default function IssuesPage() {
             )}
           </div>
 
-          {/* ── LOG TAB ──────────────────────────────────────────────────── */}
           {logTab === 'log' && (
             <>
-              <div className="px-5 py-3 border-b border-white/[0.05] grid grid-cols-1 sm:grid-cols-3 gap-2">
-                <div className="relative">
-                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/30" />
-                  <input type="text" placeholder="Search recipient, item, notes…"
-                    value={search} onChange={e => setSearch(e.target.value)}
-                    className="pl-8 pr-3 py-1.5 w-full text-xs rounded-lg bg-white/[0.07] border border-white/12 text-white placeholder:text-white/30 focus:outline-none focus:border-white/30 transition-all" />
-                </div>
-                <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
-                  className="px-3 py-1.5 text-xs rounded-lg bg-white/[0.07] border border-white/12 text-white focus:outline-none focus:border-white/30 transition-all" style={{ colorScheme: 'dark' }} />
+              <div className={`px-5 py-3 border-b ${t.border} grid grid-cols-1 sm:grid-cols-3 gap-2`}>
+                <SearchInput value={search} onChange={setSearch} placeholder="Search recipient, item, notes…" />
+                <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} title="From date"
+                  className={`px-3 py-1.5 text-xs rounded-lg outline-none transition-colors ${t.inputBg}`} />
                 <div className="flex gap-2">
-                  <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
-                    className="flex-1 px-3 py-1.5 text-xs rounded-lg bg-white/[0.07] border border-white/12 text-white focus:outline-none focus:border-white/30 transition-all" style={{ colorScheme: 'dark' }} />
+                  <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} title="To date"
+                    className={`flex-1 px-3 py-1.5 text-xs rounded-lg outline-none transition-colors ${t.inputBg}`} />
                   {(search || dateFrom || dateTo) && (
-                    <button onClick={() => { setSearch(''); setDateFrom(''); setDateTo(''); }}
-                      className="h-7 px-2.5 rounded-lg bg-white/[0.07] hover:bg-white/[0.15] border border-white/12 text-white/40 text-xs transition-all flex items-center gap-1">
+                    <button type="button" onClick={() => { setSearch(''); setDateFrom(''); setDateTo(''); }}
+                      className={`h-7 px-2.5 rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textFaint} text-xs transition-all flex items-center gap-1`}>
                       <X className="h-3 w-3" /> Clear
                     </button>
                   )}
@@ -953,14 +865,14 @@ export default function IssuesPage() {
               </div>
 
               {loading ? (
-                <div className="flex items-center justify-center py-20 text-white/30 gap-2">
+                <div className={`flex items-center justify-center py-20 ${t.textFaint} gap-2`}>
                   <Loader2 className="h-5 w-5 animate-spin" /> Loading…
                 </div>
               ) : filteredIssues.length === 0 ? (
-                <div className="text-center py-20 text-white/25">
+                <div className={`text-center py-20 ${t.textFaint}`}>
                   <PackageMinus className="h-12 w-12 mx-auto mb-4 opacity-20" />
-                  <div className="text-sm font-medium">No issue records</div>
-                  <div className="text-xs mt-1 text-white/20">
+                  <div className={`text-sm font-medium ${t.textMuted}`}>No issue records</div>
+                  <div className="text-xs mt-1">
                     {search || dateFrom || dateTo ? 'No records match your filters' : 'Use the form above to record the first issue'}
                   </div>
                 </div>
@@ -968,9 +880,9 @@ export default function IssuesPage() {
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>
-                      <tr className="border-b border-white/[0.06]">
+                      <tr className={`border-b ${t.border}`}>
                         {['Date & Time', 'Issued To', 'Items', 'Cost', 'Issued By', 'Notes', ''].map((h, i) => (
-                          <th key={i} className={`py-2.5 text-[10px] font-semibold text-white/35 uppercase tracking-wider ${i === 0 ? 'pl-5 pr-3 text-left' : i === 3 ? 'px-3 text-right' : i === 6 ? 'px-3 w-16' : 'px-3 text-left'}`}>
+                          <th key={i} className={`py-2.5 text-[10px] font-semibold uppercase tracking-wider ${t.textFaint} ${i === 0 ? 'pl-5 pr-3 text-left' : i === 3 ? 'px-3 text-right' : i === 6 ? 'px-3 w-16' : 'px-3 text-left'}`}>
                             {h}
                           </th>
                         ))}
@@ -983,71 +895,71 @@ export default function IssuesPage() {
                         const hasCost = issue.items.some(i => (i.unit_price || 0) > 0);
                         return (
                           <React.Fragment key={issue.id}>
-                            <tr className={`border-b border-white/[0.04] cursor-pointer transition-colors ${expanded ? 'bg-white/[0.06]' : 'hover:bg-white/[0.03]'}`}
+                            <tr className={`border-b ${t.border} cursor-pointer transition-colors ${expanded ? t.chipBg : t.hoverBg}`}
                               onClick={() => toggleRow(issue.id)}>
-                              <td className="pl-5 pr-3 py-3 text-xs text-white/60 whitespace-nowrap">{formatDateTime(issue.issued_at)}</td>
+                              <td className={`pl-5 pr-3 py-3 text-xs ${t.textMuted} whitespace-nowrap`}>{formatDateTime(issue.issued_at)}</td>
                               <td className="px-3 py-3">
-                                <div className="text-xs font-semibold text-white">{issue.recipient_name}</div>
-                                {issue.recipient_id && <div className="text-[10px] text-white/35 mt-0.5 font-mono">{issue.recipient_id}</div>}
+                                <div className={`text-xs font-semibold ${t.textPrimary}`}>{issue.recipient_name}</div>
+                                {issue.recipient_id && <div className={`text-[10px] mt-0.5 font-mono ${t.textFaint}`}>{issue.recipient_id}</div>}
                               </td>
                               <td className="px-3 py-3">
-                                <div className="text-xs text-white/65">
-                                  <span className="font-semibold text-white">{issue.items.length}</span> item{issue.items.length !== 1 ? 's' : ''}
+                                <div className={`text-xs ${t.textMuted}`}>
+                                  <span className={`font-semibold ${t.textPrimary}`}>{issue.items.length}</span> item{issue.items.length !== 1 ? 's' : ''}
                                 </div>
                                 {issue.items[0] && (
-                                  <div className="text-[10px] text-white/30 mt-0.5 truncate max-w-[180px]">
-                                    {issue.items[0].stock_code && <span className="font-mono text-[#86BBD8]/60 mr-1">{issue.items[0].stock_code}</span>}
+                                  <div className={`text-[10px] mt-0.5 truncate max-w-[180px] ${t.textFaint}`}>
+                                    {issue.items[0].stock_code && <span className="font-mono text-[#86BBD8] mr-1">{issue.items[0].stock_code}</span>}
                                     {issue.items[0].description.slice(0, 35)}{issue.items.length > 1 && ' …'}
                                   </div>
                                 )}
                               </td>
                               <td className="px-3 py-3 text-right">
                                 {hasCost
-                                  ? <span className="text-xs font-semibold text-white">{formatCurrency(cost)}</span>
-                                  : <span className="text-[10px] text-white/20">—</span>
+                                  ? <span className={`text-xs font-semibold ${t.textPrimary}`}>{formatCurrency(cost)}</span>
+                                  : <span className={`text-[10px] ${t.textFaint}`}>—</span>
                                 }
                               </td>
-                              <td className="px-3 py-3 text-xs text-white/45">{issue.issued_by || '—'}</td>
-                              <td className="px-3 py-3 text-xs text-white/30 max-w-[160px]"><div className="truncate">{issue.notes || '—'}</div></td>
+                              <td className={`px-3 py-3 text-xs ${t.textFaint}`}>{issue.issued_by || '—'}</td>
+                              <td className={`px-3 py-3 text-xs ${t.textFaint} max-w-[160px]`}><div className="truncate">{issue.notes || '—'}</div></td>
                               <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
                                 <div className="flex items-center justify-end gap-1">
-                                  <button title={expanded ? 'Collapse' : 'Expand'}
+                                  <button type="button" title={expanded ? 'Collapse' : 'Expand'}
                                     onClick={e => { e.stopPropagation(); toggleRow(issue.id); }}
-                                    className="h-6 w-6 flex items-center justify-center rounded text-white/25 hover:text-white/70 transition-all">
+                                    className={`h-6 w-6 flex items-center justify-center rounded ${t.textFaint} ${t.hoverText} transition-all`}>
                                     {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
                                   </button>
-                                  <button title="Delete record"
+                                  <button type="button" title="Delete record"
                                     onClick={e => { e.stopPropagation(); handleDelete(issue.id); }}
-                                    className="h-6 w-6 flex items-center justify-center rounded hover:bg-rose-500/20 text-white/20 hover:text-rose-400 transition-all">
+                                    className={`h-6 w-6 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-rose-500 transition-all`}>
                                     <Trash2 className="h-3 w-3" />
                                   </button>
                                 </div>
                               </td>
                             </tr>
                             {expanded && (
-                              <tr className="border-b border-white/[0.04]">
+                              <tr className={`border-b ${t.border}`}>
                                 <td colSpan={7} className="pl-5 pr-5 py-3">
-                                  <div className="text-[10px] text-white/30 uppercase tracking-wider mb-2">Items Issued</div>
+                                  <div className={`text-[10px] uppercase tracking-wider mb-2 ${t.textFaint}`}>Items Issued</div>
                                   <div className="space-y-1">
                                     {issue.items.map((item, i) => (
-                                      <div key={i} className="flex items-center gap-4 text-xs px-3 py-2 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                                      <div key={i} className={`flex items-center gap-4 text-xs px-3 py-2 rounded-lg ${t.chipBg} border ${t.border}`}>
                                         {item.stock_code && <span className="font-mono text-[#86BBD8] font-semibold flex-shrink-0 w-24 truncate">{item.stock_code}</span>}
-                                        <span className="text-white/70 flex-1">{item.description}</span>
-                                        <span className="text-white font-semibold flex-shrink-0">{item.qty}</span>
-                                        <span className="text-white/40 flex-shrink-0 w-8 text-right">{item.unit || 'UN'}</span>
+                                        <span className={`${t.textMuted} flex-1`}>{item.description}</span>
+                                        <span className={`${t.textPrimary} font-semibold flex-shrink-0`}>{item.qty}</span>
+                                        <span className={`${t.textFaint} flex-shrink-0 w-8 text-right`}>{item.unit || 'UN'}</span>
                                         {(item.unit_price || 0) > 0
                                           ? <span className="text-[#86BBD8] flex-shrink-0 w-20 text-right font-medium">{formatCurrency((item.unit_price || 0) * item.qty)}</span>
-                                          : <span className="text-white/20 flex-shrink-0 w-20 text-right text-[10px]">no price</span>
+                                          : <span className={`${t.textFaint} flex-shrink-0 w-20 text-right text-[10px]`}>no price</span>
                                         }
                                       </div>
                                     ))}
                                   </div>
                                   {cost > 0 && (
                                     <div className="flex justify-end mt-2 pr-1">
-                                      <span className="text-xs text-white/40">Total: <span className="text-white font-semibold ml-1">{formatCurrency(cost)}</span></span>
+                                      <span className={`text-xs ${t.textFaint}`}>Total: <span className={`${t.textPrimary} font-semibold ml-1`}>{formatCurrency(cost)}</span></span>
                                     </div>
                                   )}
-                                  {issue.notes && <div className="mt-2 text-[11px] text-white/35 italic">Note: {issue.notes}</div>}
+                                  {issue.notes && <div className={`mt-2 text-[11px] italic ${t.textFaint}`}>Note: {issue.notes}</div>}
                                 </td>
                               </tr>
                             )}
@@ -1061,41 +973,38 @@ export default function IssuesPage() {
             </>
           )}
 
-          {/* ── ANALYTICS TAB ────────────────────────────────────────────── */}
           {logTab === 'analytics' && (
             <div className="p-5 space-y-6">
               {issues.length === 0 ? (
-                <div className="text-center py-16 text-white/25">
+                <div className={`text-center py-16 ${t.textFaint}`}>
                   <Activity className="h-12 w-12 mx-auto mb-4 opacity-20" />
                   <div className="text-sm">No data to analyse yet</div>
                 </div>
               ) : (
                 <>
-                  {/* ── DESCRIPTIVE STATS ROW ──────────────────────────── */}
                   <div>
-                    <div className="text-[11px] text-white/35 uppercase tracking-wider mb-2.5">Descriptive Statistics · All Time</div>
+                    <div className={`text-[11px] uppercase tracking-wider mb-2.5 ${t.textFaint}`}>Descriptive Statistics · All Time</div>
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
-                      <StatCard label="Total Cost" value={formatCurrency(descStats.total)} color="#86BBD8" />
-                      <StatCard label="Issues Tracked" value={`${descStats.costed} / ${descStats.count}`} sub="with cost data" color="#a78bfa" />
-                      <StatCard label="Mean / Issue" value={formatCurrency(descStats.mean)} color="#34d399" />
-                      <StatCard label="Median / Issue" value={formatCurrency(descStats.median)} color="#60a5fa" />
-                      <StatCard label="Std Deviation" value={formatCurrency(descStats.stdDev)} sub="spread of issue costs" color="#f59e0b" />
-                      <StatCard label="Range" value={`${formatCurrencyShort(descStats.min)} – ${formatCurrencyShort(descStats.max)}`} sub="min to max" color="#fb923c" />
+                      <StatCard icon={DollarSign} accent="blue" label="Total Cost" value={formatCurrency(descStats.total)} />
+                      <StatCard icon={Layers} accent="violet" label="Issues Tracked" value={`${descStats.costed} / ${descStats.count}`} />
+                      <StatCard icon={TrendingUp} accent="emerald" label="Mean / Issue" value={formatCurrency(descStats.mean)} />
+                      <StatCard icon={Target} accent="cyan" label="Median / Issue" value={formatCurrency(descStats.median)} />
+                      <StatCard icon={Gauge} accent="amber" label="Std Deviation" value={formatCurrency(descStats.stdDev)} />
+                      <StatCard icon={TrendingDown} accent="amber" label="Range" value={`${formatCurrencyShort(descStats.min)} – ${formatCurrencyShort(descStats.max)}`} />
                     </div>
                   </div>
 
-                  {/* ── COST OVER TIME CHART ───────────────────────────── */}
                   <div>
                     <div className="flex items-center justify-between mb-3">
                       <div>
-                        <div className="text-[11px] text-white/35 uppercase tracking-wider">Cost Over Time</div>
-                        <div className="text-[10px] text-white/20 mt-0.5">
+                        <div className={`text-[11px] uppercase tracking-wider ${t.textFaint}`}>Cost Over Time</div>
+                        <div className={`text-[10px] mt-0.5 ${t.textFaint}`}>
                           {period === 'day' ? 'Last 30 days' : period === 'week' ? 'Last 13 weeks' : 'Last 12 months'}
                           {periodPeak.cost > 0 && ` · Peak: ${periodPeak.label} (${formatCurrency(periodPeak.cost)})`}
                         </div>
                       </div>
                     </div>
-                    <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4" style={{ height: 260 }}>
+                    <div className={`rounded-xl ${t.chipBg} border ${t.border} p-4`} style={{ height: 260 }}>
                       <ResponsiveContainer width="100%" height="100%">
                         <AreaChart data={timeSeries} margin={{ top: 4, right: 12, bottom: 0, left: 8 }}>
                           <defs>
@@ -1119,7 +1028,7 @@ export default function IssuesPage() {
                             }
                           />
                           <Legend
-                            wrapperStyle={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', paddingTop: 8 }}
+                            wrapperStyle={{ fontSize: 11, color: t.light ? 'rgba(15,23,42,0.5)' : 'rgba(255,255,255,0.4)', paddingTop: 8 }}
                             formatter={(v) => v === 'cost' ? 'Total Cost' : 'Issue Count'}
                           />
                           <Area yAxisId="cost" type="monotone" dataKey="cost" stroke="#86BBD8" strokeWidth={2}
@@ -1131,29 +1040,26 @@ export default function IssuesPage() {
                     </div>
                   </div>
 
-                  {/* ── BOTTOM CHARTS ROW ──────────────────────────────── */}
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-
-                    {/* Top recipients */}
                     <div>
-                      <div className="text-[11px] text-white/35 uppercase tracking-wider mb-3 flex items-center gap-2">
+                      <div className={`text-[11px] uppercase tracking-wider mb-3 flex items-center gap-2 ${t.textFaint}`}>
                         <Users className="h-3 w-3" /> Top Recipients by Cost
                       </div>
                       {topRecipients.length === 0 ? (
-                        <div className="text-center py-8 text-white/20 text-xs">No cost data yet</div>
+                        <div className={`text-center py-8 ${t.textFaint} text-xs`}>No cost data yet</div>
                       ) : (
-                        <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4"
+                        <div className={`rounded-xl ${t.chipBg} border ${t.border} p-4`}
                           style={{ height: Math.max(180, topRecipients.length * 38 + 40) }}>
                           <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={topRecipients} layout="vertical" margin={{ top: 0, right: 16, bottom: 0, left: 8 }}>
                               <CartesianGrid {...gridProps} horizontal={false} />
                               <XAxis type="number" {...axisProps} axisLine={false} tickFormatter={formatCurrencyShort} />
                               <YAxis type="category" dataKey="name" {...axisProps} axisLine={false} width={110}
-                                tick={{ fill: 'rgba(255,255,255,0.55)', fontSize: 11 }} />
+                                tick={{ fill: t.light ? 'rgba(15,23,42,0.6)' : 'rgba(255,255,255,0.55)', fontSize: 11 }} />
                               <Tooltip {...tooltipStyle} formatter={(v: any) => [formatCurrency(Number(v)), 'Total Cost']} />
                               <Bar dataKey="cost" radius={[0, 4, 4, 0]} maxBarSize={22}>
                                 {topRecipients.map((_, i) => (
-                                  <Cell key={i} fill={BAR_COLORS[i % BAR_COLORS.length]} fillOpacity={0.75} />
+                                  <Cell key={i} fill={BAR_COLORS[i % BAR_COLORS.length]} fillOpacity={0.85} />
                                 ))}
                               </Bar>
                             </BarChart>
@@ -1162,15 +1068,14 @@ export default function IssuesPage() {
                       )}
                     </div>
 
-                    {/* Top items */}
                     <div>
-                      <div className="text-[11px] text-white/35 uppercase tracking-wider mb-3 flex items-center gap-2">
+                      <div className={`text-[11px] uppercase tracking-wider mb-3 flex items-center gap-2 ${t.textFaint}`}>
                         <Package className="h-3 w-3" /> Top Items by Cost
                       </div>
                       {topItems.filter(i => i.cost > 0).length === 0 ? (
-                        <div className="text-center py-8 text-white/20 text-xs">No costed items yet — add unit prices to spares</div>
+                        <div className={`text-center py-8 ${t.textFaint} text-xs`}>No costed items yet — add unit prices to spares</div>
                       ) : (
-                        <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4"
+                        <div className={`rounded-xl ${t.chipBg} border ${t.border} p-4`}
                           style={{ height: Math.max(180, Math.min(topItems.filter(i => i.cost > 0).length, 8) * 38 + 40) }}>
                           <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={topItems.filter(i => i.cost > 0)} layout="vertical"
@@ -1178,13 +1083,13 @@ export default function IssuesPage() {
                               <CartesianGrid {...gridProps} horizontal={false} />
                               <XAxis type="number" {...axisProps} axisLine={false} tickFormatter={formatCurrencyShort} />
                               <YAxis type="category" dataKey="name" {...axisProps} axisLine={false} width={130}
-                                tick={{ fill: 'rgba(255,255,255,0.55)', fontSize: 10 }} />
+                                tick={{ fill: t.light ? 'rgba(15,23,42,0.6)' : 'rgba(255,255,255,0.55)', fontSize: 10 }} />
                               <Tooltip {...tooltipStyle} formatter={(v: any, name: string) =>
                                 name === 'cost' ? [formatCurrency(Number(v)), 'Total Cost'] : [v, 'Qty Issued']
                               } />
                               <Bar dataKey="cost" radius={[0, 4, 4, 0]} maxBarSize={22}>
                                 {topItems.filter(i => i.cost > 0).map((_, i) => (
-                                  <Cell key={i} fill={BAR_COLORS[(i + 3) % BAR_COLORS.length]} fillOpacity={0.75} />
+                                  <Cell key={i} fill={BAR_COLORS[(i + 3) % BAR_COLORS.length]} fillOpacity={0.85} />
                                 ))}
                               </Bar>
                             </BarChart>
@@ -1194,30 +1099,29 @@ export default function IssuesPage() {
                     </div>
                   </div>
 
-                  {/* ── PERIOD BREAKDOWN TABLE ────────────────────────── */}
                   <div>
-                    <div className="text-[11px] text-white/35 uppercase tracking-wider mb-3">
+                    <div className={`text-[11px] uppercase tracking-wider mb-3 ${t.textFaint}`}>
                       {period === 'day' ? 'Daily' : period === 'week' ? 'Weekly' : 'Monthly'} Breakdown
                     </div>
-                    <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] overflow-hidden">
+                    <div className={`rounded-xl ${t.chipBg} border ${t.border} overflow-hidden`}>
                       <table className="w-full">
                         <thead>
-                          <tr className="border-b border-white/[0.06]">
+                          <tr className={`border-b ${t.border}`}>
                             {['Period', 'Issues', 'Items', 'Total Cost', 'Avg Cost / Issue'].map((h, i) => (
-                              <th key={i} className={`py-2.5 px-4 text-[10px] font-semibold text-white/35 uppercase tracking-wider ${i === 0 ? 'text-left' : 'text-right'}`}>{h}</th>
+                              <th key={i} className={`py-2.5 px-4 text-[10px] font-semibold uppercase tracking-wider ${t.textFaint} ${i === 0 ? 'text-left' : 'text-right'}`}>{h}</th>
                             ))}
                           </tr>
                         </thead>
                         <tbody>
                           {[...timeSeries].reverse().filter(pt => pt.count > 0 || pt.cost > 0).slice(0, 20).map((pt, i) => (
-                            <tr key={pt.key} className={`border-b border-white/[0.04] ${i % 2 === 0 ? '' : 'bg-white/[0.02]'}`}>
-                              <td className="px-4 py-2 text-xs text-white/70">{pt.label}</td>
-                              <td className="px-4 py-2 text-xs text-white/60 text-right">{pt.count || '—'}</td>
-                              <td className="px-4 py-2 text-xs text-white/60 text-right">{pt.itemCount || '—'}</td>
-                              <td className="px-4 py-2 text-xs text-right font-medium" style={{ color: pt.cost > 0 ? '#86BBD8' : 'rgba(255,255,255,0.2)' }}>
-                                {pt.cost > 0 ? formatCurrency(pt.cost) : '—'}
+                            <tr key={pt.key} className={`border-b ${t.border} ${i % 2 === 0 ? '' : t.chipBg}`}>
+                              <td className={`px-4 py-2 text-xs ${t.textMuted}`}>{pt.label}</td>
+                              <td className={`px-4 py-2 text-xs ${t.textMuted} text-right`}>{pt.count || '—'}</td>
+                              <td className={`px-4 py-2 text-xs ${t.textMuted} text-right`}>{pt.itemCount || '—'}</td>
+                              <td className="px-4 py-2 text-xs text-right font-medium" style={{ color: pt.cost > 0 ? '#86BBD8' : undefined }}>
+                                {pt.cost > 0 ? formatCurrency(pt.cost) : <span className={t.textFaint}>—</span>}
                               </td>
-                              <td className="px-4 py-2 text-xs text-white/45 text-right">
+                              <td className={`px-4 py-2 text-xs ${t.textFaint} text-right`}>
                                 {pt.count > 0 && pt.cost > 0 ? formatCurrency(pt.cost / pt.count) : '—'}
                               </td>
                             </tr>
@@ -1231,8 +1135,11 @@ export default function IssuesPage() {
             </div>
           )}
         </div>
-        </>}
-      </main>
-    </PageShell>
+      </>}
+    </main>
   );
+}
+
+export default function IssuesPage() {
+  return <AppShell><IssuesPageContent /></AppShell>;
 }

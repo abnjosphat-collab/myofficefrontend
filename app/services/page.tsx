@@ -4,22 +4,18 @@
 import { useState, useEffect, useRef } from 'react';
 import {
   Wrench, ClipboardList, DollarSign, Package, CheckCheck, Tag,
-  Building2, Hash, Calendar, MessageSquare, Phone,
+  Building2, Hash, Calendar, Phone,
   Trash2, Edit2, ChevronDown, ChevronUp, CheckCircle2, Circle,
   Filter, ArrowRight, Paperclip, Upload, X, FileDown, Download,
   ChevronsDown, ChevronsUp, Table2, LayoutGrid, FileSpreadsheet,
-  Eye, AlertCircle, Loader2,
+  Eye, AlertCircle, Loader2, Plus, Scan,
 } from 'lucide-react';
-import { PageShell } from '@/components/PageShell';
+import { AppShell } from '@/components/app-shell';
 import {
-  HeroPanel, GlassPanel, GlassModal, GlassInput, GlassSelect, GlassTextarea,
-  GlassBadge, GlassProgress, GlassTable, EmptyState, DeleteDialog,
-  DownloadButton, RecordsPanelHeader, GlassTabs,
-  PRIMARY_BTN, SECONDARY_BTN, fmtDate,
-  type DLColumn, type StatItem, type GlassColumn,
-} from '@/components/shared';
-import { Toaster } from '@/components/ui/sonner';
-import { toast } from 'sonner';
+  useTheme, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle,
+  FormField, FormActions, useCollapseSection, CenterModal, ProgressBar, ACCENT_HEX, GlowCard, SelectField,
+} from '@/components/shared/theme';
+import { Toaster, toast } from 'sonner';
 
 // ─── API ──────────────────────────────────────────────────────────────────────
 
@@ -150,39 +146,37 @@ function stagesDone(r: ServiceRecord): number {
   return [r.planning.signed, r.engineering_manager.signed, r.finance.signed,
     r.gm.signed, r.stores.signed, r.payment.done].filter(Boolean).length;
 }
-
 function isStageDone(r: ServiceRecord, key: StageKey): boolean {
   return key === 'payment' ? r.payment.done : (r[key] as StageData).signed;
 }
-
 function thisMonth(d: string): boolean {
   const now = new Date(); const dt = new Date(d);
   return dt.getMonth() === now.getMonth() && dt.getFullYear() === now.getFullYear();
 }
-
 function fmtBytes(n: number): string {
-  if (n < 1024)       return `${n} B`;
+  if (n < 1024) return `${n} B`;
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
   return `${(n / 1024 / 1024).toFixed(1)} MB`;
+}
+function fmtDate(d?: string) {
+  if (!d) return '—';
+  const dt = new Date(d);
+  return isNaN(dt.getTime()) ? '—' : dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 // ─── Stage Row ────────────────────────────────────────────────────────────────
 
-interface StageRowProps {
-  stage: typeof STAGES[number];
-  record: ServiceRecord;
-  onUpdate: (r: ServiceRecord) => void;
-}
-
-function StageRow({ stage, record, onUpdate }: StageRowProps) {
+function StageRow({ stage, record, onUpdate }: { stage: typeof STAGES[number]; record: ServiceRecord; onUpdate: (r: ServiceRecord) => void; }) {
+  const t = useTheme();
   const [open, setOpen] = useState(false);
-  const isPay   = stage.key === 'payment';
+  const isPay = stage.key === 'payment';
   const isStores = stage.key === 'stores';
   const done = isStageDone(record, stage.key);
   const Icon = stage.icon;
+  const inputCls = `w-full h-9 px-3 rounded-lg text-sm ${t.inputBg} focus:outline-none`;
 
   const data = isPay ? null
-    : record[stage.key as keyof Pick<ServiceRecord, 'planning'|'engineering_manager'|'finance'|'gm'|'stores'>] as StageData | StoresStage;
+    : record[stage.key as keyof Pick<ServiceRecord, 'planning' | 'engineering_manager' | 'finance' | 'gm' | 'stores'>] as StageData | StoresStage;
 
   function toggle() {
     if (isPay) {
@@ -196,7 +190,6 @@ function StageRow({ stage, record, onUpdate }: StageRowProps) {
       if (next) setOpen(true);
     }
   }
-
   function setPay(f: string, v: string) { onUpdate({ ...record, payment: { ...record.payment, [f]: v } }); }
   function setData(f: string, v: string) {
     const cur = record[stage.key as 'planning'] as StageData | StoresStage;
@@ -208,45 +201,45 @@ function StageRow({ stage, record, onUpdate }: StageRowProps) {
     : data ? [data.signed_by, data.signed_date ? fmtDate(data.signed_date) : '', isStores ? ((data as StoresStage).grv_number ? `GRV: ${(data as StoresStage).grv_number}` : '') : ''].filter(Boolean).join(' · ') : '';
 
   return (
-    <div className={`rounded-xl border overflow-hidden transition-all ${done ? 'border-[#86BBD8]/25 bg-[#86BBD8]/[0.07]' : 'border-white/[0.08] bg-white/[0.03]'}`}>
+    <div className={`rounded-xl overflow-hidden transition-all ${done ? 'bg-blue-500/[0.07]' : t.chipBg}`}>
       <div className="flex items-center gap-3 px-4 py-2.5">
         <button type="button" onClick={toggle} title={done ? `Unmark ${stage.label}` : `Mark ${stage.label} as complete`} className="shrink-0 transition-transform hover:scale-110">
-          {done ? <CheckCircle2 className="h-5 w-5 text-[#86BBD8]" /> : <Circle className="h-5 w-5 text-white/20" />}
+          {done ? <CheckCircle2 className="h-5 w-5 text-blue-400" /> : <Circle className={`h-5 w-5 ${t.textFaint}`} />}
         </button>
-        <div className="p-1.5 rounded-md bg-white/[0.06] border border-white/[0.10] shrink-0">
-          <Icon className="h-3.5 w-3.5 text-[#86BBD8]" />
+        <div className={`p-1.5 rounded-md ${t.chipBg} shrink-0`}>
+          <Icon className="h-3.5 w-3.5 text-blue-400" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className={`text-sm font-medium ${done ? 'text-white' : 'text-white/55'}`}>{stage.label}</p>
-          {done && summary && <p className="text-[11px] text-white/40 mt-0.5 truncate">{summary}</p>}
-          {!done && <p className="text-[11px] text-white/25 mt-0.5">Tap the circle when this stage is complete</p>}
+          <p className={`text-sm font-medium ${done ? t.textPrimary : t.textFaint}`}>{stage.label}</p>
+          {done && summary && <p className={`text-[11px] mt-0.5 truncate ${t.textFaint}`}>{summary}</p>}
+          {!done && <p className={`text-[11px] mt-0.5 ${t.textFaint}`}>Tap the circle when this stage is complete</p>}
         </div>
         <button type="button" onClick={() => setOpen(o => !o)} title={open ? 'Hide details' : 'Show details'}
-          className="h-7 w-7 flex items-center justify-center rounded-lg bg-white/[0.07] hover:bg-white/[0.13] text-white/35 border border-white/[0.09] transition-all shrink-0">
+          className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all shrink-0`}>
           {open ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
         </button>
       </div>
       {open && (
-        <div className="px-4 pb-4 pt-2 space-y-3 border-t border-white/[0.07]">
+        <div className={`px-4 pb-4 pt-2 space-y-3 border-t ${t.border}`}>
           {isPay ? (
             <>
               <div className="grid grid-cols-2 gap-3">
-                <GlassInput label="Paid by" placeholder="Name of person who made payment" value={record.payment.paid_by} onChange={e => setPay('paid_by', e.target.value)} />
-                <GlassInput label="Date of payment" type="date" value={record.payment.payment_date} onChange={e => setPay('payment_date', e.target.value)} />
+                <FormField label="Paid by"><input className={inputCls} placeholder="Name of person who made payment" value={record.payment.paid_by} onChange={e => setPay('paid_by', e.target.value)} /></FormField>
+                <FormField label="Date of payment"><input type="date" title="Date of payment" className={inputCls} value={record.payment.payment_date} onChange={e => setPay('payment_date', e.target.value)} /></FormField>
               </div>
-              <GlassInput label="Payment reference / transaction number" placeholder="e.g. EFT-2024-001 or cheque number" value={record.payment.payment_reference} onChange={e => setPay('payment_reference', e.target.value)} />
-              <GlassTextarea label="Payment comments" rows={2} placeholder="Any notes about this payment…" value={record.payment.comments} onChange={e => setPay('comments', e.target.value)} />
+              <FormField label="Payment reference / transaction number"><input className={inputCls} placeholder="e.g. EFT-2024-001 or cheque number" value={record.payment.payment_reference} onChange={e => setPay('payment_reference', e.target.value)} /></FormField>
+              <FormField label="Payment comments"><textarea rows={2} placeholder="Any notes about this payment…" value={record.payment.comments} onChange={e => setPay('comments', e.target.value)} className={`${inputCls} h-auto py-2 resize-none`} /></FormField>
             </>
           ) : (
             <>
               <div className="grid grid-cols-2 gap-3">
-                <GlassInput label="Signed / approved by" placeholder="Full name of approver" value={(data as StageData).signed_by} onChange={e => setData('signed_by', e.target.value)} />
-                <GlassInput label="Date signed" type="date" value={(data as StageData).signed_date} onChange={e => setData('signed_date', e.target.value)} />
+                <FormField label="Signed / approved by"><input className={inputCls} placeholder="Full name of approver" value={(data as StageData).signed_by} onChange={e => setData('signed_by', e.target.value)} /></FormField>
+                <FormField label="Date signed"><input type="date" title="Date signed" className={inputCls} value={(data as StageData).signed_date} onChange={e => setData('signed_date', e.target.value)} /></FormField>
               </div>
               {isStores && (
-                <GlassInput label="GRV Number (Goods Received Voucher)" placeholder="e.g. GRV-2024-001  —  issued by Stores on receipt" value={(data as StoresStage).grv_number} onChange={e => setData('grv_number', e.target.value)} />
+                <FormField label="GRV Number (Goods Received Voucher)"><input className={inputCls} placeholder="e.g. GRV-2024-001" value={(data as StoresStage).grv_number} onChange={e => setData('grv_number', e.target.value)} /></FormField>
               )}
-              <GlassTextarea label="Comments for this stage" rows={2} placeholder="e.g. Document handed to [name], awaiting countersignature…" value={(data as StageData).comments} onChange={e => setData('comments', e.target.value)} />
+              <FormField label="Comments for this stage"><textarea rows={2} placeholder="e.g. Document handed to [name], awaiting countersignature…" value={(data as StageData).comments} onChange={e => setData('comments', e.target.value)} className={`${inputCls} h-auto py-2 resize-none`} /></FormField>
             </>
           )}
         </div>
@@ -258,8 +251,9 @@ function StageRow({ stage, record, onUpdate }: StageRowProps) {
 // ─── Attachment Panel ─────────────────────────────────────────────────────────
 
 function AttachmentPanel({ serviceId }: { serviceId: string }) {
+  const t = useTheme();
   const [attachments, setAttachments] = useState<Attachment[]>([]);
-  const [loading, setLoading]   = useState(true);
+  const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -267,16 +261,8 @@ function AttachmentPanel({ serviceId }: { serviceId: string }) {
   useEffect(() => {
     fetch(`${API}/api/services/${serviceId}/attachments`)
       .then(r => r.json())
-      .then(data => {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setAttachments(Array.isArray(data) ? data : []);
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setLoading(false);
-      })
-      .catch(() => {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setLoading(false);
-      });
+      .then(data => { setAttachments(Array.isArray(data) ? data : []); setLoading(false); })
+      .catch(() => setLoading(false));
   }, [serviceId]);
 
   async function upload(file: File) {
@@ -288,13 +274,9 @@ function AttachmentPanel({ serviceId }: { serviceId: string }) {
       const att: Attachment = await r.json();
       setAttachments(prev => [att, ...prev]);
       toast.success('File attached');
-    } catch (e) {
-      toast.error(`Upload failed: ${e}`);
-    } finally {
-      setUploading(false);
-    }
+    } catch (e) { toast.error(`Upload failed: ${e}`); }
+    finally { setUploading(false); }
   }
-
   async function remove() {
     if (!deleteId) return;
     try {
@@ -305,47 +287,44 @@ function AttachmentPanel({ serviceId }: { serviceId: string }) {
     finally { setDeleteId(null); }
   }
 
-  if (loading) return <div className="py-6 text-center text-white/30 text-xs flex items-center justify-center gap-2"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading…</div>;
+  if (loading) return <div className={`py-6 text-center text-xs flex items-center justify-center gap-2 ${t.textFaint}`}><Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading…</div>;
 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-xs text-white/60 font-medium">Scanned hard copies &amp; supporting documents</p>
-          <p className="text-[11px] text-white/30 mt-0.5">Upload completion certificates, invoices, GRVs, or any other documents for this service.</p>
+          <p className={`text-xs font-medium ${t.textMuted}`}>Scanned hard copies &amp; supporting documents</p>
+          <p className={`text-[11px] mt-0.5 ${t.textFaint}`}>Upload completion certificates, invoices, GRVs, or any other documents.</p>
         </div>
         <button type="button" onClick={() => inputRef.current?.click()} disabled={uploading}
-          className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-semibold text-white border transition-all hover:-translate-y-0.5 bg-[#2A4D69]/60 border-[#86BBD8]/25 hover:bg-[#2A4D69]/90 disabled:opacity-50">
+          className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-semibold text-white bg-gradient-to-br from-blue-500 to-blue-700 hover:brightness-110 transition-all disabled:opacity-50">
           {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
           {uploading ? 'Uploading…' : 'Attach file'}
         </button>
-        <input ref={inputRef} type="file" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) upload(f); e.target.value = ''; }} />
+        <input ref={inputRef} type="file" title="Attach file" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) upload(f); e.target.value = ''; }} />
       </div>
 
       {attachments.length === 0 ? (
-        <div className="py-6 text-center border border-dashed border-white/10 rounded-xl">
-          <Paperclip className="h-6 w-6 text-white/15 mx-auto mb-2" />
-          <p className="text-xs text-white/30">No attachments yet</p>
-          <p className="text-[11px] text-white/20 mt-0.5">Click "Attach file" to upload a scanned document</p>
+        <div className={`py-6 text-center border border-dashed ${t.border} rounded-xl`}>
+          <Paperclip className={`h-6 w-6 mx-auto mb-2 ${t.textFaint}`} />
+          <p className={`text-xs ${t.textFaint}`}>No attachments yet</p>
         </div>
       ) : (
         <div className="space-y-1.5">
           {attachments.map(a => (
-            <div key={a.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.07] group">
-              <Paperclip className="h-3.5 w-3.5 text-[#86BBD8]/60 shrink-0" />
+            <div key={a.id} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl ${t.chipBg} group`}>
+              <Paperclip className="h-3.5 w-3.5 text-blue-400 shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="text-xs text-white/80 font-medium truncate">{a.filename}</p>
-                <p className="text-[11px] text-white/30">{fmtBytes(a.file_size)} · {fmtDate(a.created_at)}</p>
+                <p className={`text-xs font-medium truncate ${t.textMuted}`}>{a.filename}</p>
+                <p className={`text-[11px] ${t.textFaint}`}>{fmtBytes(a.file_size)} · {fmtDate(a.created_at)}</p>
               </div>
               <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
                 {a.file_url && (
-                  <a href={a.file_url} target="_blank" rel="noopener noreferrer" title="Download"
-                    className="h-6 w-6 flex items-center justify-center rounded-md bg-white/[0.07] hover:bg-[#86BBD8]/20 text-white/40 hover:text-[#86BBD8] transition-all">
+                  <a href={a.file_url} target="_blank" rel="noopener noreferrer" title="Download" className={`h-6 w-6 flex items-center justify-center rounded-md ${t.hoverBg} ${t.textFaint} hover:text-blue-400`}>
                     <Download className="h-3 w-3" />
                   </a>
                 )}
-                <button type="button" onClick={() => setDeleteId(a.id)} title="Remove attachment"
-                  className="h-6 w-6 flex items-center justify-center rounded-md bg-white/[0.07] hover:bg-red-500/15 text-white/40 hover:text-red-400 transition-all">
+                <button type="button" onClick={() => setDeleteId(a.id)} title="Remove attachment" className={`h-6 w-6 flex items-center justify-center rounded-md ${t.hoverBg} ${t.textFaint} hover:text-rose-500`}>
                   <X className="h-3 w-3" />
                 </button>
               </div>
@@ -354,373 +333,294 @@ function AttachmentPanel({ serviceId }: { serviceId: string }) {
         </div>
       )}
 
-      <DeleteDialog open={deleteId !== null} onClose={() => setDeleteId(null)} onDelete={remove}
-        title="Remove Attachment" description="This file will be permanently deleted." confirmLabel="Remove" />
+      <CenterModal open={deleteId !== null} onClose={() => setDeleteId(null)} title="Remove Attachment" accent="amber" width="max-w-sm">
+        <div className="p-5 space-y-4">
+          <p className={`text-sm ${t.textMuted}`}>This file will be permanently deleted.</p>
+          <div className="flex gap-2">
+            <button type="button" onClick={() => setDeleteId(null)} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border}`}>Cancel</button>
+            <button type="button" onClick={remove} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-rose-500 to-rose-700 hover:brightness-110">Remove</button>
+          </div>
+        </div>
+      </CenterModal>
     </div>
   );
 }
 
 // ─── Service Card ──────────────────────────────────────────────────────────────
 
-interface CardProps {
-  record: ServiceRecord;
-  expanded: boolean;
-  onToggle: () => void;
-  onUpdate: (r: ServiceRecord) => void;
-  onEdit: (r: ServiceRecord) => void;
-  onDelete: (id: string) => void;
-}
-
-function ServiceCard({ record, expanded, onToggle, onUpdate, onEdit, onDelete }: CardProps) {
+function ServiceCard({ record, expanded, onToggle, onUpdate, onEdit, onDelete }: {
+  record: ServiceRecord; expanded: boolean; onToggle: () => void; onUpdate: (r: ServiceRecord) => void; onEdit: (r: ServiceRecord) => void; onDelete: (id: string) => void;
+}) {
+  const t = useTheme();
+  const [pipeTab, setPipeTab] = useState<'pipeline' | 'attachments'>('pipeline');
   const done = stagesDone(record);
-  const statusInfo =
-    done === 6 ? { v: 'success' as const, label: 'Completed' } :
-    done === 0 ? { v: 'neutral' as const, label: 'Not Started' } :
-                 { v: 'warning' as const, label: `Stage ${done + 1} of 6` };
-
-  const pipelineContent = (
-    <div className="space-y-2">
-      <p className="text-[11px] text-white/35 mb-3">Tap the circle on each stage to mark it complete, then expand to record details.</p>
-      {STAGES.map(s => <StageRow key={s.key} stage={s} record={record} onUpdate={onUpdate} />)}
-      {record.general_comments && (
-        <div className="mt-1 p-3 rounded-xl bg-white/[0.04] border border-white/[0.06]">
-          <p className="text-[11px] text-white/40 uppercase tracking-wider mb-1">General Comments</p>
-          <p className="text-xs text-white/65">{record.general_comments}</p>
-        </div>
-      )}
-    </div>
-  );
+  const statusInfo = done === 6 ? { color: '#34d399', label: 'Completed' } : done === 0 ? { color: '#94a3b8', label: 'Not Started' } : { color: '#f59e0b', label: `Stage ${done + 1} of 6` };
 
   return (
-    <div className="oz-glass-panel rounded-2xl overflow-hidden flex flex-col">
-      {/* Card header */}
+    <GlowCard color={statusInfo.color} surface={`${t.glass} rounded-2xl`} className="overflow-hidden flex flex-col">
       <div className="px-4 sm:px-5 pt-4 pb-3">
         <div className="flex items-start justify-between gap-2 mb-2">
           <div className="flex items-center gap-1.5 flex-wrap">
-            <GlassBadge variant={statusInfo.v} size="sm">{statusInfo.label}</GlassBadge>
-            {record.category && <GlassBadge variant="info" size="sm">{record.category}</GlassBadge>}
+            <StatusBadge color={statusInfo.color} label={statusInfo.label} dot />
+            {record.category && <StatusBadge color={ACCENT_HEX.blue} label={record.category} />}
           </div>
           <div className="flex items-center gap-1 shrink-0">
-            <button type="button" onClick={() => onEdit(record)} title="Edit record"
-              className="h-7 w-7 flex items-center justify-center rounded-lg bg-white/[0.07] border border-white/[0.09] text-white/35 hover:text-white/80 hover:bg-white/[0.13] transition-all">
-              <Edit2 className="h-3.5 w-3.5" />
-            </button>
-            <button type="button" onClick={() => onDelete(record.id)} title="Delete record"
-              className="h-7 w-7 flex items-center justify-center rounded-lg bg-white/[0.07] border border-white/[0.09] text-white/35 hover:text-red-400 hover:bg-red-500/[0.12] transition-all">
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
+            <button type="button" onClick={() => onEdit(record)} title="Edit record" className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.chipBg} ${t.textFaint} ${t.hoverText}`}><Edit2 className="h-3.5 w-3.5" /></button>
+            <button type="button" onClick={() => onDelete(record.id)} title="Delete record" className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.chipBg} ${t.textFaint} hover:text-rose-500`}><Trash2 className="h-3.5 w-3.5" /></button>
           </div>
         </div>
 
-        <h3 className="text-sm font-semibold text-white leading-snug mb-1.5">{record.description || '—'}</h3>
+        <h3 className={`text-sm font-semibold leading-snug mb-1.5 ${t.textPrimary}`}>{record.description || '—'}</h3>
 
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          {record.supplier     && <span className="flex items-center gap-1 text-xs text-white/50"><Building2  className="h-3 w-3 shrink-0" />{record.supplier}</span>}
-          {record.contact_person && <span className="flex items-center gap-1 text-xs text-white/40"><Phone      className="h-3 w-3 shrink-0" />{record.contact_person}</span>}
-          {record.date         && <span className="flex items-center gap-1 text-xs text-white/40"><Calendar   className="h-3 w-3 shrink-0" />{fmtDate(record.date)}</span>}
-          {record.amount       && <span className="text-xs font-semibold text-[#86BBD8] ml-auto">{record.amount}</span>}
+          {record.supplier && <span className={`flex items-center gap-1 text-xs ${t.textFaint}`}><Building2 className="h-3 w-3 shrink-0" />{record.supplier}</span>}
+          {record.contact_person && <span className={`flex items-center gap-1 text-xs ${t.textFaint}`}><Phone className="h-3 w-3 shrink-0" />{record.contact_person}</span>}
+          {record.date && <span className={`flex items-center gap-1 text-xs ${t.textFaint}`}><Calendar className="h-3 w-3 shrink-0" />{fmtDate(record.date)}</span>}
+          {record.amount && <span className="text-xs font-semibold text-blue-400 ml-auto">{record.amount}</span>}
         </div>
 
         {(record.requisition_number || record.invoice_number || record.order_number) && (
           <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5">
-            {record.requisition_number && <span className="text-[11px] text-white/35 flex items-center gap-1"><Hash className="h-2.5 w-2.5" />REQ: {record.requisition_number}</span>}
-            {record.invoice_number     && <span className="text-[11px] text-white/35 flex items-center gap-1"><Hash className="h-2.5 w-2.5" />INV: {record.invoice_number}</span>}
-            {record.order_number       && <span className="text-[11px] text-white/35 flex items-center gap-1"><Hash className="h-2.5 w-2.5" />PO: {record.order_number}</span>}
+            {record.requisition_number && <span className={`text-[11px] flex items-center gap-1 ${t.textFaint}`}><Hash className="h-2.5 w-2.5" />REQ: {record.requisition_number}</span>}
+            {record.invoice_number && <span className={`text-[11px] flex items-center gap-1 ${t.textFaint}`}><Hash className="h-2.5 w-2.5" />INV: {record.invoice_number}</span>}
+            {record.order_number && <span className={`text-[11px] flex items-center gap-1 ${t.textFaint}`}><Hash className="h-2.5 w-2.5" />PO: {record.order_number}</span>}
           </div>
         )}
 
-        {/* Progress */}
         <div className="mt-3">
-          <div className="flex items-center justify-between text-[11px] mb-1.5">
-            <span className="text-white/35">Approval pipeline</span>
-            <span className="text-white/50 font-medium">{done}/6 stages</span>
-          </div>
-          <GlassProgress value={done} max={6} size="sm" colorClass={done === 6 ? 'bg-emerald-400' : done > 0 ? 'bg-[#86BBD8]' : undefined} />
+          <ProgressBar value={(done / 6) * 100} color={done === 6 ? '#34d399' : done > 0 ? ACCENT_HEX.blue : '#94a3b8'} label="Approval pipeline" />
           <div className="flex items-center gap-1 mt-2">
             {STAGES.map(s => (
               <div key={s.key} className="flex-1 text-center">
-                <div className={`mx-auto h-2 w-2 rounded-full transition-all ${isStageDone(record, s.key) ? 'bg-[#86BBD8]' : 'bg-white/12'}`} title={s.label} />
-                <span className="hidden sm:block text-[9px] text-white/25 mt-0.5 truncate">{s.short}</span>
+                <div className={`mx-auto h-2 w-2 rounded-full transition-all ${isStageDone(record, s.key) ? 'bg-blue-400' : t.chipBg}`} title={s.label} />
+                <span className={`hidden sm:block text-[9px] mt-0.5 truncate ${t.textFaint}`}>{s.short}</span>
               </div>
             ))}
           </div>
         </div>
       </div>
 
-      {/* Expand toggle */}
-      <div className="border-t border-white/[0.07]">
-        <button type="button" onClick={onToggle}
-          className="w-full flex items-center justify-between px-4 sm:px-5 py-2.5 text-xs text-white/45 hover:text-white/75 hover:bg-white/[0.04] transition-all">
+      <div className={`border-t ${t.border}`}>
+        <button type="button" onClick={onToggle} className={`w-full flex items-center justify-between px-4 sm:px-5 py-2.5 text-xs ${t.textFaint} ${t.hoverText} ${t.hoverBgSoft} transition-all`}>
           <span className="font-medium">{expanded ? 'Collapse' : 'Pipeline & Attachments'}</span>
           {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
         </button>
-
         {expanded && (
-          <div className="px-4 sm:px-5 pb-5 pt-1 border-t border-white/[0.05]">
-            <GlassTabs
-              variant="pills"
-              tabs={[
-                { key: 'pipeline',    label: 'Pipeline',    icon: ClipboardList, content: pipelineContent },
-                { key: 'attachments', label: 'Attachments', icon: Paperclip,     content: <AttachmentPanel serviceId={record.id} /> },
-              ]}
-            />
+          <div className={`px-4 sm:px-5 pb-5 pt-1 border-t ${t.border}`}>
+            <div className={`flex gap-1 ${t.glassSoft} rounded-lg p-1 w-fit mb-3`}>
+              {(['pipeline', 'attachments'] as const).map(k => (
+                <button key={k} type="button" onClick={() => setPipeTab(k)}
+                  className={`px-3 py-1.5 rounded-md text-xs font-medium capitalize transition-colors ${pipeTab === k ? 'bg-blue-500/20 text-blue-400' : `${t.textFaint} ${t.hoverText}`}`}>
+                  {k}
+                </button>
+              ))}
+            </div>
+            {pipeTab === 'pipeline' ? (
+              <div className="space-y-2">
+                <p className={`text-[11px] mb-3 ${t.textFaint}`}>Tap the circle on each stage to mark it complete, then expand to record details.</p>
+                {STAGES.map(s => <StageRow key={s.key} stage={s} record={record} onUpdate={onUpdate} />)}
+                {record.general_comments && (
+                  <div className={`mt-1 p-3 rounded-xl ${t.chipBg}`}>
+                    <p className={`text-[11px] uppercase tracking-wider mb-1 ${t.textFaint}`}>General Comments</p>
+                    <p className={`text-xs ${t.textMuted}`}>{record.general_comments}</p>
+                  </div>
+                )}
+              </div>
+            ) : <AttachmentPanel serviceId={record.id} />}
           </div>
         )}
       </div>
-    </div>
+    </GlowCard>
   );
 }
 
 // ─── List View ─────────────────────────────────────────────────────────────────
 
-interface ListViewProps {
-  records: ServiceRecord[];
-  onEdit: (r: ServiceRecord) => void;
-  onDelete: (id: string) => void;
-  onView: (r: ServiceRecord) => void;
-}
-
-function ListView({ records, onEdit, onDelete, onView }: ListViewProps) {
-  const columns: GlassColumn<ServiceRecord>[] = [
-    { key: 'date',        header: 'Date',        width: '100px', render: r => <span className="text-white/70 text-xs">{fmtDate(r.date)}</span> },
-    { key: 'description', header: 'Description', render: r => (
-        <div className="min-w-0">
-          <p className="text-sm text-white/90 font-medium truncate">{r.description || '—'}</p>
-          {r.supplier && <p className="text-[11px] text-white/40 truncate flex items-center gap-1"><Building2 className="h-2.5 w-2.5 shrink-0" />{r.supplier}</p>}
-        </div>
-      )},
-    { key: 'requisition_number', header: 'REQ #',   width: '110px', render: r => <span className="text-xs text-white/50">{r.requisition_number || '—'}</span> },
-    { key: 'amount',      header: 'Amount',      width: '110px', align: 'right', render: r => <span className="text-xs font-semibold text-[#86BBD8]">{r.amount || '—'}</span> },
-    { key: 'pipeline',    header: 'Pipeline',    width: '130px', align: 'center', render: r => {
-        const d = stagesDone(r);
-        return (
-          <div className="flex items-center gap-2">
-            <GlassProgress value={d} max={6} size="xs" colorClass={d === 6 ? 'bg-emerald-400' : d > 0 ? 'bg-[#86BBD8]' : undefined} className="flex-1" />
-            <span className="text-[11px] text-white/40 shrink-0">{d}/6</span>
-          </div>
-        );
-      }},
-    { key: 'category', header: 'Category', width: '120px', render: r => r.category ? <GlassBadge variant="info" size="sm">{r.category}</GlassBadge> : <span className="text-white/25 text-xs">—</span> },
-    { key: 'actions', header: '', width: '90px', align: 'right', render: r => (
-        <div className="flex items-center justify-end gap-1">
-          <button type="button" onClick={e => { e.stopPropagation(); onView(r); }} title="View pipeline"
-            className="h-6 w-6 flex items-center justify-center rounded-md text-white/35 hover:text-[#86BBD8] hover:bg-[#86BBD8]/10 transition-all">
-            <Eye className="h-3 w-3" />
-          </button>
-          <button type="button" onClick={e => { e.stopPropagation(); onEdit(r); }} title="Edit"
-            className="h-6 w-6 flex items-center justify-center rounded-md text-white/35 hover:text-white/80 hover:bg-white/[0.10] transition-all">
-            <Edit2 className="h-3 w-3" />
-          </button>
-          <button type="button" onClick={e => { e.stopPropagation(); onDelete(r.id); }} title="Delete"
-            className="h-6 w-6 flex items-center justify-center rounded-md text-white/35 hover:text-red-400 hover:bg-red-500/10 transition-all">
-            <Trash2 className="h-3 w-3" />
-          </button>
-        </div>
-      )},
-  ];
-
+function ListView({ records, onEdit, onDelete, onView }: { records: ServiceRecord[]; onEdit: (r: ServiceRecord) => void; onDelete: (id: string) => void; onView: (r: ServiceRecord) => void; }) {
+  const t = useTheme();
+  if (records.length === 0) return <p className={`py-12 text-center text-sm ${t.textFaint}`}>No service records found.</p>;
   return (
-    <GlassTable
-      columns={columns}
-      data={records}
-      keyField="id"
-      onRowClick={onView}
-      emptyMessage="No service records found."
-      stickyHeader
-      maxHeight="560px"
-    />
+    <div className={`${t.glass} rounded-2xl overflow-x-auto`}>
+      <table className="w-full text-sm">
+        <thead>
+          <tr className={`border-b ${t.border}`}>
+            {['Date', 'Description', 'REQ #', 'Amount', 'Pipeline', 'Category', ''].map(h => (
+              <th key={h} className={`text-left p-3 text-xs font-semibold uppercase tracking-wide ${t.textFaint}`}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {records.map(r => {
+            const d = stagesDone(r);
+            return (
+              <tr key={r.id} className={`border-b ${t.border} ${t.hoverBgSoft} cursor-pointer`} onClick={() => onView(r)}>
+                <td className={`p-3 text-xs ${t.textMuted}`}>{fmtDate(r.date)}</td>
+                <td className="p-3 min-w-0">
+                  <p className={`text-sm font-medium truncate ${t.textPrimary}`}>{r.description || '—'}</p>
+                  {r.supplier && <p className={`text-[11px] truncate flex items-center gap-1 ${t.textFaint}`}><Building2 className="h-2.5 w-2.5 shrink-0" />{r.supplier}</p>}
+                </td>
+                <td className={`p-3 text-xs ${t.textFaint}`}>{r.requisition_number || '—'}</td>
+                <td className="p-3 text-xs font-semibold text-blue-400 text-right">{r.amount || '—'}</td>
+                <td className="p-3">
+                  <div className="flex items-center gap-2">
+                    <ProgressBar value={(d / 6) * 100} color={d === 6 ? '#34d399' : d > 0 ? ACCENT_HEX.blue : '#94a3b8'} showValue={false} />
+                    <span className={`text-[11px] shrink-0 ${t.textFaint}`}>{d}/6</span>
+                  </div>
+                </td>
+                <td className="p-3">{r.category ? <StatusBadge color={ACCENT_HEX.blue} label={r.category} /> : <span className={`text-xs ${t.textFaint}`}>—</span>}</td>
+                <td className="p-3" onClick={e => e.stopPropagation()}>
+                  <div className="flex items-center justify-end gap-1">
+                    <button type="button" onClick={() => onView(r)} title="View pipeline" className={`h-6 w-6 flex items-center justify-center rounded-md ${t.textFaint} hover:text-blue-400 ${t.hoverBg}`}><Eye className="h-3 w-3" /></button>
+                    <button type="button" onClick={() => onEdit(r)} title="Edit" className={`h-6 w-6 flex items-center justify-center rounded-md ${t.textFaint} ${t.hoverText} ${t.hoverBg}`}><Edit2 className="h-3 w-3" /></button>
+                    <button type="button" onClick={() => onDelete(r.id)} title="Delete" className={`h-6 w-6 flex items-center justify-center rounded-md ${t.textFaint} hover:text-rose-500 ${t.hoverBg}`}><Trash2 className="h-3 w-3" /></button>
+                  </div>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
 // ─── Service Form ──────────────────────────────────────────────────────────────
 
-interface FormProps { initial: ServiceRecord; onSave: (r: ServiceRecord) => void; onClose: () => void; }
-
-function ServiceForm({ initial, onSave, onClose }: FormProps) {
+function ServiceForm({ initial, onSave, onClose }: { initial: ServiceRecord; onSave: (r: ServiceRecord) => void; onClose: () => void; }) {
+  const t = useTheme();
   const [form, setForm] = useState(initial);
   const set = (f: keyof ServiceRecord) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
     setForm(p => ({ ...p, [f]: e.target.value }));
+  const inputCls = `w-full h-9 px-3 rounded-lg text-sm ${t.inputBg} focus:outline-none`;
+
   return (
-    <div className="space-y-4">
+    <form onSubmit={e => { e.preventDefault(); onSave(form); }} className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
-        <div>
-          <GlassInput label="Date of service" type="date" value={form.date} onChange={set('date')} />
-          <p className="text-[11px] text-white/30 mt-1">When was the service completed?</p>
-        </div>
-        <div>
-          <GlassSelect label="Category" value={form.category} onChange={set('category')}
-            options={[{ value: '', label: 'Select a category…' }, ...CATS.map(c => ({ value: c, label: c }))]} />
-          <p className="text-[11px] text-white/30 mt-1">Type of service performed</p>
-        </div>
+        <FormField label="Date of service"><input type="date" title="Date of service" className={inputCls} value={form.date} onChange={set('date')} /></FormField>
+        <FormField label="Category">
+          <SelectField size="form" title="Category" value={form.category} onChange={v => setForm(p => ({ ...p, category: v }))}
+            placeholder="Select a category…" options={CATS.map(c => ({ value: c, label: c }))} />
+        </FormField>
       </div>
-      <div>
-        <GlassTextarea label="Description of service *" placeholder="Describe what service was performed — be specific, e.g. 'Replaced hydraulic pump on Compressor #3'" rows={3} value={form.description} onChange={set('description')} />
-        <p className="text-[11px] text-white/30 mt-1">Required. This appears as the record title on the tracker.</p>
-      </div>
+      <FormField label="Description of service" required>
+        <textarea placeholder="Describe what service was performed — e.g. 'Replaced hydraulic pump on Compressor #3'" rows={3} value={form.description} onChange={set('description')} className={`${inputCls} h-auto py-2 resize-none`} />
+      </FormField>
       <div className="grid grid-cols-2 gap-3">
-        <div>
-          <GlassInput label="Supplier / Contractor" placeholder="Company name" value={form.supplier} onChange={set('supplier')} icon={Building2} />
-          <p className="text-[11px] text-white/30 mt-1">Who performed or supplied the service?</p>
-        </div>
-        <div>
-          <GlassInput label="Contact person" placeholder="Representative's name" value={form.contact_person} onChange={set('contact_person')} icon={Phone} />
-          <p className="text-[11px] text-white/30 mt-1">Person to contact at the supplier</p>
-        </div>
+        <FormField label="Supplier / Contractor"><input className={inputCls} placeholder="Company name" value={form.supplier} onChange={set('supplier')} /></FormField>
+        <FormField label="Contact person"><input className={inputCls} placeholder="Representative's name" value={form.contact_person} onChange={set('contact_person')} /></FormField>
       </div>
-      <div className="p-3 rounded-xl bg-white/[0.04] border border-white/[0.07] space-y-3">
-        <p className="text-[11px] text-white/50 font-semibold uppercase tracking-wider">Reference Numbers</p>
+      <div className={`p-3 rounded-xl ${t.chipBg} space-y-3`}>
+        <p className={`text-[11px] font-semibold uppercase tracking-wider ${t.textFaint}`}>Reference Numbers</p>
         <div className="grid grid-cols-3 gap-3">
-          <div>
-            <GlassInput label="Requisition No." placeholder="REQ-..." icon={Hash} value={form.requisition_number} onChange={set('requisition_number')} />
-            <p className="text-[10px] text-white/25 mt-1">Purchase requisition</p>
-          </div>
-          <div>
-            <GlassInput label="Invoice No." placeholder="INV-..." icon={Hash} value={form.invoice_number} onChange={set('invoice_number')} />
-            <p className="text-[10px] text-white/25 mt-1">Supplier's invoice</p>
-          </div>
-          <div>
-            <GlassInput label="Order / PO No." placeholder="PO-..." icon={Hash} value={form.order_number} onChange={set('order_number')} />
-            <p className="text-[10px] text-white/25 mt-1">Purchase order</p>
-          </div>
+          <FormField label="Requisition No."><input className={inputCls} placeholder="REQ-..." value={form.requisition_number} onChange={set('requisition_number')} /></FormField>
+          <FormField label="Invoice No."><input className={inputCls} placeholder="INV-..." value={form.invoice_number} onChange={set('invoice_number')} /></FormField>
+          <FormField label="Order / PO No."><input className={inputCls} placeholder="PO-..." value={form.order_number} onChange={set('order_number')} /></FormField>
         </div>
       </div>
-      <div>
-        <GlassInput label="Total amount" placeholder="e.g. $1,500.00 or ZAR 18,500" value={form.amount} onChange={set('amount')} />
-        <p className="text-[11px] text-white/30 mt-1">Include currency symbol. This is for reference only — finance will confirm the figure.</p>
-      </div>
-      <div>
-        <GlassTextarea label="General comments / notes" placeholder="Any additional context — e.g. scope changes, verbal agreements, reference to email thread…" rows={2} value={form.general_comments} onChange={set('general_comments')} />
-      </div>
-      <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/[0.07]">
-        <button type="button" onClick={onClose} className={SECONDARY_BTN}>Cancel</button>
-        <button type="button" onClick={() => onSave(form)} disabled={!form.description.trim()} className={PRIMARY_BTN}>
-          {initial.description ? 'Save Changes' : 'Add Service Record'}
-        </button>
-      </div>
-    </div>
+      <FormField label="Total amount"><input className={inputCls} placeholder="e.g. $1,500.00" value={form.amount} onChange={set('amount')} /></FormField>
+      <FormField label="General comments / notes"><textarea placeholder="Any additional context…" rows={2} value={form.general_comments} onChange={set('general_comments')} className={`${inputCls} h-auto py-2 resize-none`} /></FormField>
+      <FormActions onCancel={onClose} submitLabel={initial.description ? 'Save Changes' : 'Add Service Record'} accent="violet" />
+    </form>
   );
 }
 
 // ─── Excel Import Modal ────────────────────────────────────────────────────────
 
 const EXCEL_MAP: Record<string, keyof ServiceRecord> = {
-  date:'date', 'service date':'date',
-  description:'description', service:'description', 'service description':'description',
-  supplier:'supplier', contractor:'supplier', vendor:'supplier',
-  contact:'contact_person', 'contact person':'contact_person',
-  req:'requisition_number', requisition:'requisition_number', 'req #':'requisition_number', 'req no':'requisition_number',
-  inv:'invoice_number', invoice:'invoice_number', 'inv #':'invoice_number', 'invoice no':'invoice_number',
-  po:'order_number', order:'order_number', 'purchase order':'order_number', 'po #':'order_number',
-  amount:'amount', cost:'amount', price:'amount', value:'amount', total:'amount',
-  category:'category', type:'category',
-  comments:'general_comments', comment:'general_comments', notes:'general_comments', note:'general_comments', remarks:'general_comments',
+  date: 'date', 'service date': 'date',
+  description: 'description', service: 'description', 'service description': 'description',
+  supplier: 'supplier', contractor: 'supplier', vendor: 'supplier',
+  contact: 'contact_person', 'contact person': 'contact_person',
+  req: 'requisition_number', requisition: 'requisition_number', 'req #': 'requisition_number', 'req no': 'requisition_number',
+  inv: 'invoice_number', invoice: 'invoice_number', 'inv #': 'invoice_number', 'invoice no': 'invoice_number',
+  po: 'order_number', order: 'order_number', 'purchase order': 'order_number', 'po #': 'order_number',
+  amount: 'amount', cost: 'amount', price: 'amount', value: 'amount', total: 'amount',
+  category: 'category', type: 'category',
+  comments: 'general_comments', comment: 'general_comments', notes: 'general_comments', note: 'general_comments', remarks: 'general_comments',
 };
-
 const SPREADSHEET_EXTS = new Set(['.xlsx', '.xls', '.csv']);
-const DOC_EXTS         = new Set(['.pdf', '.jpg', '.jpeg', '.png', '.webp', '.tiff', '.tif', '.bmp']);
-
 function fileMode(file: File): 'spreadsheet' | 'document' {
   const ext = '.' + (file.name.split('.').pop() ?? '').toLowerCase();
-  if (SPREADSHEET_EXTS.has(ext)) return 'spreadsheet';
-  return 'document';
+  return SPREADSHEET_EXTS.has(ext) ? 'spreadsheet' : 'document';
 }
 
-interface ImportModalProps {
-  onImport: (rows: ServiceRecord[]) => Promise<void>;
-  onExtracted: (partial: Partial<ServiceRecord>) => void;
-  onClose: () => void;
-}
-
-function ExcelImportModal({ onImport, onExtracted, onClose }: ImportModalProps) {
-  const [rows, setRows]         = useState<ServiceRecord[]>([]);
-  const [preview, setPreview]   = useState<string[][]>([]);
-  const [headers, setHeaders]   = useState<string[]>([]);
+function ExcelImportModal({ onImport, onExtracted, onClose }: {
+  onImport: (rows: ServiceRecord[]) => Promise<void>; onExtracted: (partial: Partial<ServiceRecord>) => void; onClose: () => void;
+}) {
+  const t = useTheme();
+  const [rows, setRows] = useState<ServiceRecord[]>([]);
+  const [preview, setPreview] = useState<string[][]>([]);
+  const [headers, setHeaders] = useState<string[]>([]);
   const [importing, setImporting] = useState(false);
-  const [scanning, setScanning]  = useState(false);
+  const [scanning, setScanning] = useState(false);
   const [scanError, setScanError] = useState('');
 
   async function handleFile(file: File) {
     setScanError('');
     if (fileMode(file) === 'document') {
-      // PDF / image → OCR extraction
       setScanning(true);
       try {
         const fd = new FormData(); fd.append('file', file);
-        const r  = await fetch(`${API}/api/services/ocr`, { method: 'POST', body: fd });
+        const r = await fetch(`${API}/api/services/ocr`, { method: 'POST', body: fd });
         if (!r.ok) { const e = await r.json(); throw new Error(e.detail || 'Extraction failed'); }
         const data = await r.json();
         const partial: Partial<ServiceRecord> = {
-          date: data.date ?? '', description: data.description ?? '',
-          supplier: data.supplier ?? '', contact_person: data.contact_person ?? '',
-          requisition_number: data.requisition_number ?? '', invoice_number: data.invoice_number ?? '',
-          order_number: data.order_number ?? '', amount: data.amount ?? '',
+          date: data.date ?? '', description: data.description ?? '', supplier: data.supplier ?? '',
+          contact_person: data.contact_person ?? '', requisition_number: data.requisition_number ?? '',
+          invoice_number: data.invoice_number ?? '', order_number: data.order_number ?? '', amount: data.amount ?? '',
           category: data.category ?? '', general_comments: data.general_comments ?? '',
         };
-        if (data.grv_number)        partial.stores  = { signed: false, signed_by: '', signed_date: '', comments: '', grv_number: data.grv_number };
+        if (data.grv_number) partial.stores = { signed: false, signed_by: '', signed_date: '', comments: '', grv_number: data.grv_number };
         if (data.payment_reference) partial.payment = { done: false, paid_by: '', payment_date: '', payment_reference: data.payment_reference, comments: '' };
         onExtracted(partial);
         onClose();
-      } catch (e: unknown) {
-        setScanError(e instanceof Error ? e.message : 'Extraction failed — try a clearer scan.');
-      } finally {
-        setScanning(false);
-      }
+      } catch (e: unknown) { setScanError(e instanceof Error ? e.message : 'Extraction failed — try a clearer scan.'); }
+      finally { setScanning(false); }
       return;
     }
-
-    // Spreadsheet → bulk rows
     const XLSX = await import('xlsx');
-    const buf  = await file.arrayBuffer();
-    const wb   = XLSX.read(buf, { type: 'array' });
-    const ws   = wb.Sheets[wb.SheetNames[0]];
-    const raw  = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: '' });
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type: 'array' });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: '' });
     if (!raw.length) { toast.error('No data found in the file'); return; }
-
     const hdrs = Object.keys(raw[0]);
     setHeaders(hdrs);
     setPreview(raw.slice(0, 5).map(r => hdrs.map(h => String(r[h] ?? ''))));
-    const mapped = raw.map(row => {
+    setRows(raw.map(row => {
       const rec = emptyRecord();
       Object.entries(row).forEach(([col, val]) => {
         const field = EXCEL_MAP[col.toLowerCase().trim()];
         if (field) (rec as unknown as Record<string, unknown>)[field] = String(val ?? '').trim();
       });
       return rec;
-    });
-    setRows(mapped);
+    }));
   }
 
-  async function doImport() {
-    setImporting(true);
-    try { await onImport(rows); onClose(); }
-    finally { setImporting(false); }
-  }
+  async function doImport(e: React.FormEvent) { e.preventDefault(); setImporting(true); try { await onImport(rows); onClose(); } finally { setImporting(false); } }
 
   return (
-    <div className="space-y-5">
+    <form onSubmit={doImport} className="space-y-5">
       <div className="grid grid-cols-2 gap-3">
-        <div className="p-3 rounded-xl bg-[#86BBD8]/[0.07] border border-[#86BBD8]/20">
-          <p className="text-xs text-white/70 font-semibold mb-1 flex items-center gap-1.5"><FileSpreadsheet className="h-3.5 w-3.5" /> Spreadsheet</p>
-          <p className="text-[11px] text-white/45 leading-relaxed">Excel (.xlsx, .xls) or CSV with headers: Date, Description, Supplier, Contact, REQ #, INV #, PO #, Amount, Category, Comments.</p>
+        <div className={`p-3 rounded-xl ${t.chipBg}`}>
+          <p className={`text-xs font-semibold mb-1 flex items-center gap-1.5 ${t.textMuted}`}><FileSpreadsheet className="h-3.5 w-3.5" /> Spreadsheet</p>
+          <p className={`text-[11px] leading-relaxed ${t.textFaint}`}>Excel (.xlsx, .xls) or CSV with headers: Date, Description, Supplier, Contact, REQ #, INV #, PO #, Amount, Category, Comments.</p>
         </div>
-        <div className="p-3 rounded-xl bg-violet-500/[0.07] border border-violet-500/20">
-          <p className="text-xs text-white/70 font-semibold mb-1 flex items-center gap-1.5"><Eye className="h-3.5 w-3.5" /> Document / Scan</p>
-          <p className="text-[11px] text-white/45 leading-relaxed">PDF, JPEG, PNG, TIFF, WEBP — OCR will read the text and pre-fill the form for you to review.</p>
+        <div className={`p-3 rounded-xl ${t.chipBg}`}>
+          <p className={`text-xs font-semibold mb-1 flex items-center gap-1.5 ${t.textMuted}`}><Eye className="h-3.5 w-3.5" /> Document / Scan</p>
+          <p className={`text-[11px] leading-relaxed ${t.textFaint}`}>PDF, JPEG, PNG, TIFF, WEBP — OCR will read the text and pre-fill the form for you to review.</p>
         </div>
       </div>
 
-      <div className="border-2 border-dashed border-white/15 rounded-xl p-6 text-center hover:border-[#86BBD8]/40 transition-colors">
+      <div className={`border-2 border-dashed ${t.border} rounded-xl p-6 text-center hover:border-blue-400/40 transition-colors`}>
         {scanning ? (
-          <div className="space-y-2">
-            <Loader2 className="h-8 w-8 text-[#86BBD8] mx-auto animate-spin" />
-            <p className="text-sm text-white/60">Reading document…</p>
-          </div>
+          <div className="space-y-2"><Loader2 className="h-8 w-8 text-blue-400 mx-auto animate-spin" /><p className={`text-sm ${t.textMuted}`}>Reading document…</p></div>
         ) : (
           <>
-            <Upload className="h-8 w-8 text-white/20 mx-auto mb-2" />
-            <p className="text-sm text-white/60 mb-1">Choose a spreadsheet, PDF, or image</p>
-            <p className="text-[11px] text-white/35 mb-3">.xlsx · .xls · .csv · .pdf · .jpg · .png · .tiff · .webp</p>
-            <label className={`cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white ${PRIMARY_BTN}`}>
+            <Upload className={`h-8 w-8 mx-auto mb-2 ${t.textFaint}`} />
+            <p className={`text-sm mb-1 ${t.textMuted}`}>Choose a spreadsheet, PDF, or image</p>
+            <p className={`text-[11px] mb-3 ${t.textFaint}`}>.xlsx · .xls · .csv · .pdf · .jpg · .png · .tiff · .webp</p>
+            <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-blue-500 to-blue-700 hover:brightness-110 transition-all">
               <Upload className="h-4 w-4" /> Browse file
               <input type="file" accept=".xlsx,.xls,.csv,.pdf,.jpg,.jpeg,.png,.webp,.tiff,.tif,.bmp" className="hidden"
                 onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); e.currentTarget.value = ''; }} />
@@ -729,113 +629,83 @@ function ExcelImportModal({ onImport, onExtracted, onClose }: ImportModalProps) 
         )}
       </div>
 
-      {scanError && (
-        <div className="flex items-start gap-2 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300 text-xs">
-          <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" /> {scanError}
-        </div>
-      )}
+      {scanError && <div className="flex items-start gap-2 p-3 rounded-xl bg-rose-500/10 text-rose-400 text-xs"><AlertCircle className="h-4 w-4 shrink-0 mt-0.5" /> {scanError}</div>}
 
       {preview.length > 0 && (
         <div>
-          <p className="text-xs text-white/60 font-semibold mb-2">Preview — first {preview.length} rows ({rows.length} total will be imported)</p>
-          <div className="overflow-x-auto rounded-xl border border-white/[0.09] bg-white/[0.03]">
+          <p className={`text-xs font-semibold mb-2 ${t.textMuted}`}>Preview — first {preview.length} rows ({rows.length} total will be imported)</p>
+          <div className={`overflow-x-auto rounded-xl ${t.chipBg}`}>
             <table className="w-full text-xs">
-              <thead><tr className="border-b border-white/[0.07]">{headers.map(h => <th key={h} className="px-3 py-2 text-left text-white/40 font-semibold whitespace-nowrap">{h}</th>)}</tr></thead>
-              <tbody>{preview.map((row, i) => <tr key={i} className="border-b border-white/[0.04]">{row.map((cell, j) => <td key={j} className="px-3 py-2 text-white/70 whitespace-nowrap max-w-[160px] truncate">{cell}</td>)}</tr>)}</tbody>
+              <thead><tr className={`border-b ${t.border}`}>{headers.map(h => <th key={h} className={`px-3 py-2 text-left font-semibold whitespace-nowrap ${t.textFaint}`}>{h}</th>)}</tr></thead>
+              <tbody>{preview.map((row, i) => <tr key={i} className={`border-b ${t.border}`}>{row.map((cell, j) => <td key={j} className={`px-3 py-2 whitespace-nowrap max-w-[160px] truncate ${t.textMuted}`}>{cell}</td>)}</tr>)}</tbody>
             </table>
           </div>
         </div>
       )}
 
-      <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/[0.07]">
-        <button type="button" onClick={onClose} className={SECONDARY_BTN}>Cancel</button>
-        <button type="button" onClick={doImport} disabled={rows.length === 0 || importing} className={PRIMARY_BTN}>
-          {importing ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Importing…</> : <><FileDown className="h-3.5 w-3.5" /> Import {rows.length > 0 ? `${rows.length} records` : ''}</>}
-        </button>
-      </div>
-    </div>
+      <FormActions onCancel={onClose} submitting={importing} submitLabel={`Import ${rows.length > 0 ? `${rows.length} records` : ''}`} accent="violet" />
+    </form>
   );
 }
 
 // ─── OCR Upload Modal ──────────────────────────────────────────────────────────
 
 function OcrUploadModal({ onExtracted, onClose }: { onExtracted: (partial: Partial<ServiceRecord>) => void; onClose: () => void; }) {
+  const t = useTheme();
   const [scanning, setScanning] = useState(false);
-  const [error, setError]       = useState('');
+  const [error, setError] = useState('');
 
   async function handleFile(file: File) {
     setScanning(true); setError('');
     try {
       const fd = new FormData(); fd.append('file', file);
-      const r  = await fetch(`${API}/api/services/ocr`, { method: 'POST', body: fd });
+      const r = await fetch(`${API}/api/services/ocr`, { method: 'POST', body: fd });
       if (!r.ok) { const e = await r.json(); throw new Error(e.detail || 'Extraction failed'); }
       const data = await r.json();
-      // Map extracted data to partial record
       const partial: Partial<ServiceRecord> = {
-        date:                data.date                 ?? '',
-        description:         data.description          ?? '',
-        supplier:            data.supplier             ?? '',
-        contact_person:      data.contact_person       ?? '',
-        requisition_number:  data.requisition_number   ?? '',
-        invoice_number:      data.invoice_number       ?? '',
-        order_number:        data.order_number         ?? '',
-        amount:              data.amount               ?? '',
-        category:            data.category             ?? '',
-        general_comments:    data.general_comments     ?? '',
+        date: data.date ?? '', description: data.description ?? '', supplier: data.supplier ?? '',
+        contact_person: data.contact_person ?? '', requisition_number: data.requisition_number ?? '',
+        invoice_number: data.invoice_number ?? '', order_number: data.order_number ?? '', amount: data.amount ?? '',
+        category: data.category ?? '', general_comments: data.general_comments ?? '',
       };
-      if (data.grv_number) {
-        partial.stores = { signed: false, signed_by: '', signed_date: '', comments: '', grv_number: data.grv_number };
-      }
-      if (data.payment_reference) {
-        partial.payment = { done: false, paid_by: '', payment_date: '', payment_reference: data.payment_reference, comments: '' };
-      }
+      if (data.grv_number) partial.stores = { signed: false, signed_by: '', signed_date: '', comments: '', grv_number: data.grv_number };
+      if (data.payment_reference) partial.payment = { done: false, paid_by: '', payment_date: '', payment_reference: data.payment_reference, comments: '' };
       onExtracted(partial);
       onClose();
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Extraction failed. Please try a clearer scan.');
-    } finally {
-      setScanning(false);
-    }
+    } catch (e: unknown) { setError(e instanceof Error ? e.message : 'Extraction failed. Please try a clearer scan.'); }
+    finally { setScanning(false); }
   }
 
   return (
     <div className="space-y-4">
-      <div className="p-4 rounded-xl bg-[#86BBD8]/[0.08] border border-[#86BBD8]/20">
-        <p className="text-xs text-white/70 font-semibold mb-1">How this works</p>
-        <p className="text-[11px] text-white/50 leading-relaxed">
-          Upload a scanned completion certificate, invoice, or any service document. Python OCR (PyMuPDF + EasyOCR) will extract the text and pre-fill the form — you can then review and edit before saving.
-          <br /><span className="text-white/40">Supported: PDF, JPEG, PNG, WEBP · Max 20 MB</span>
+      <div className={`p-4 rounded-xl ${t.chipBg}`}>
+        <p className={`text-xs font-semibold mb-1 ${t.textMuted}`}>How this works</p>
+        <p className={`text-[11px] leading-relaxed ${t.textFaint}`}>
+          Upload a scanned completion certificate, invoice, or any service document. OCR will extract the text and pre-fill the form — review and edit before saving.
+          <br />Supported: PDF, JPEG, PNG, WEBP · Max 20 MB
         </p>
       </div>
-
-      <div className="border-2 border-dashed border-white/15 rounded-xl p-8 text-center hover:border-[#86BBD8]/40 transition-colors">
+      <div className={`border-2 border-dashed ${t.border} rounded-xl p-8 text-center hover:border-blue-400/40 transition-colors`}>
         {scanning ? (
           <div className="space-y-3">
-            <Loader2 className="h-8 w-8 text-[#86BBD8] mx-auto animate-spin" />
-            <p className="text-sm text-white/60">Reading document…</p>
-            <p className="text-[11px] text-white/35">This may take a few seconds</p>
+            <Loader2 className="h-8 w-8 text-blue-400 mx-auto animate-spin" />
+            <p className={`text-sm ${t.textMuted}`}>Reading document…</p>
+            <p className={`text-[11px] ${t.textFaint}`}>This may take a few seconds</p>
           </div>
         ) : (
           <>
-            <FileDown className="h-8 w-8 text-white/20 mx-auto mb-2" />
-            <p className="text-sm text-white/60 mb-3">Choose a scanned document to extract data from</p>
-            <label className={`cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white ${PRIMARY_BTN}`}>
+            <FileDown className={`h-8 w-8 mx-auto mb-2 ${t.textFaint}`} />
+            <p className={`text-sm mb-3 ${t.textMuted}`}>Choose a scanned document to extract data from</p>
+            <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-blue-500 to-blue-700 hover:brightness-110 transition-all">
               <Upload className="h-4 w-4" /> Choose file
-              <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" className="hidden"
-                onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
+              <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
             </label>
           </>
         )}
       </div>
-
-      {error && (
-        <div className="flex items-start gap-2 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300 text-xs">
-          <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" /> {error}
-        </div>
-      )}
-
+      {error && <div className="flex items-start gap-2 p-3 rounded-xl bg-rose-500/10 text-rose-400 text-xs"><AlertCircle className="h-4 w-4 shrink-0 mt-0.5" /> {error}</div>}
       <div className="flex justify-end">
-        <button type="button" onClick={onClose} className={SECONDARY_BTN}>Cancel</button>
+        <button type="button" onClick={onClose} className={`h-9 px-4 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border}`}>Cancel</button>
       </div>
     </div>
   );
@@ -843,89 +713,73 @@ function OcrUploadModal({ onExtracted, onClose }: { onExtracted: (partial: Parti
 
 // ─── Page ──────────────────────────────────────────────────────────────────────
 
-export default function ServicesPage() {
-  const [records,   setRecords]   = useState<ServiceRecord[]>([]);
-  const [loading,   setLoading]   = useState(true);
-  const [apiError,  setApiError]  = useState('');
-  const [search,    setSearch]    = useState('');
-  const [dateFrom,  setDateFrom]  = useState('');
-  const [dateTo,    setDateTo]    = useState('');
-  const [filterCat,    setFilterCat]    = useState('');
+function ServicesPageContent() {
+  const t = useTheme();
+  const sections = useCollapseSection({ hero: true });
+  const [records, setRecords] = useState<ServiceRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [apiError, setApiError] = useState('');
+  const [search, setSearch] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [filterCat, setFilterCat] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
-  const [sortBy,    setSortBy]    = useState('newest');
-  const [viewMode,  setViewMode]  = useState<'grid' | 'table'>('grid');
-  const [showRecords, setShowRecords] = useState(true);
-  const [showFilters, setShowFilters] = useState(false);
-  const [expandedIds,   setExpandedIds]   = useState<Set<string>>(new Set());
-  const [formOpen,     setFormOpen]     = useState(false);
-  const [editRecord,   setEditRecord]   = useState<ServiceRecord | null>(null);
-  const [deleteId,     setDeleteId]     = useState<string | null>(null);
-  const [importOpen,   setImportOpen]   = useState(false);
-  const [ocrOpen,      setOcrOpen]      = useState(false);
-  const [viewRecord,   setViewRecord]   = useState<ServiceRecord | null>(null);
+  const [sortBy, setSortBy] = useState('newest');
+  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
+  const [showFilters, setShowFilters] = useState(true);
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [formOpen, setFormOpen] = useState(false);
+  const [editRecord, setEditRecord] = useState<ServiceRecord | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
+  const [ocrOpen, setOcrOpen] = useState(false);
+  const [viewRecord, setViewRecord] = useState<ServiceRecord | null>(null);
+  const [viewTab, setViewTab] = useState<'pipeline' | 'attachments'>('pipeline');
 
-  // Debounce sync timers per record
   const syncTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
-  // Load on mount
   useEffect(() => {
     fetch(`${API}/api/services`)
       .then(r => { if (!r.ok) throw new Error(`${r.status}`); return r.json(); })
-      .then(data => {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setRecords((data as Record<string, unknown>[]).map(fromApi));
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setLoading(false);
-      })
-      .catch(e => {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setApiError(`Could not connect to backend: ${e.message}`);
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setLoading(false);
-      });
+      .then(data => { setRecords((data as Record<string, unknown>[]).map(fromApi)); setLoading(false); })
+      .catch(e => { setApiError(`Could not connect to backend: ${e.message}`); setLoading(false); });
   }, []);
 
-  // Stats
-  const total      = records.length;
-  const inProg     = records.filter(r => { const d = stagesDone(r); return d > 0 && d < 6; }).length;
-  const completed  = records.filter(r => stagesDone(r) === 6).length;
+  const total = records.length;
+  const inProg = records.filter(r => { const d = stagesDone(r); return d > 0 && d < 6; }).length;
+  const completed = records.filter(r => stagesDone(r) === 6).length;
   const notStarted = records.filter(r => stagesDone(r) === 0).length;
   const monthCount = records.filter(r => thisMonth(r.date)).length;
 
-  // Filter + sort
   const q = search.toLowerCase();
   const processed = records
     .filter(r => {
-      if (q && ![r.description, r.supplier, r.requisition_number, r.invoice_number,
-        r.order_number, r.stores.grv_number, r.contact_person].some(v => v.toLowerCase().includes(q))) return false;
+      if (q && ![r.description, r.supplier, r.requisition_number, r.invoice_number, r.order_number, r.stores.grv_number, r.contact_person].some(v => v.toLowerCase().includes(q))) return false;
       if (dateFrom && r.date < dateFrom) return false;
-      if (dateTo   && r.date > dateTo)   return false;
-      if (filterCat    && r.category !== filterCat)    return false;
+      if (dateTo && r.date > dateTo) return false;
+      if (filterCat && r.category !== filterCat) return false;
       if (filterStatus) {
         const d = stagesDone(r);
         if (filterStatus === 'not_started' && d !== 0) return false;
         if (filterStatus === 'in_progress' && (d === 0 || d === 6)) return false;
-        if (filterStatus === 'completed'   && d !== 6) return false;
+        if (filterStatus === 'completed' && d !== 6) return false;
       }
       return true;
     })
     .sort((a, b) => {
-      if (sortBy === 'newest')        return b.created_at.localeCompare(a.created_at);
-      if (sortBy === 'oldest')        return a.created_at.localeCompare(b.created_at);
-      if (sortBy === 'date_desc')     return b.date.localeCompare(a.date);
-      if (sortBy === 'date_asc')      return a.date.localeCompare(b.date);
-      if (sortBy === 'supplier')      return a.supplier.localeCompare(b.supplier);
+      if (sortBy === 'newest') return b.created_at.localeCompare(a.created_at);
+      if (sortBy === 'oldest') return a.created_at.localeCompare(b.created_at);
+      if (sortBy === 'date_desc') return b.date.localeCompare(a.date);
+      if (sortBy === 'date_asc') return a.date.localeCompare(b.date);
+      if (sortBy === 'supplier') return a.supplier.localeCompare(b.supplier);
       if (sortBy === 'progress_desc') return stagesDone(b) - stagesDone(a);
       return 0;
     });
 
-  // Collapse / expand all
   const allExpanded = processed.length > 0 && processed.every(r => expandedIds.has(r.id));
-  function expandAll()   { setExpandedIds(new Set(processed.map(r => r.id))); }
+  function expandAll() { setExpandedIds(new Set(processed.map(r => r.id))); }
   function collapseAll() { setExpandedIds(new Set()); }
-  function toggleCard(id: string) {
-    setExpandedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
-  }
+  function toggleCard(id: string) { setExpandedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; }); }
 
   async function handleSave(r: ServiceRecord) {
     const isNew = !records.find(x => x.id === r.id);
@@ -965,6 +819,7 @@ export default function ServicesPage() {
       setRecords(prev => prev.filter(r => r.id !== deleteId));
       toast.success('Record deleted');
     } catch { toast.error('Delete failed'); }
+    setDeleteId(null);
   }
 
   async function handleBulkImport(rows: ServiceRecord[]) {
@@ -979,234 +834,215 @@ export default function ServicesPage() {
   }
 
   function handleOcrExtracted(partial: Partial<ServiceRecord>) {
-    const base = emptyRecord();
-    setEditRecord({ ...base, ...partial } as ServiceRecord);
+    setEditRecord({ ...emptyRecord(), ...partial } as ServiceRecord);
     setFormOpen(true);
     toast.success('Document scanned — review and save the extracted data');
   }
-
   function openEdit(r: ServiceRecord) { setEditRecord(r); setFormOpen(true); setViewRecord(null); }
 
   const anyFilter = !!(search || dateFrom || dateTo || filterCat || filterStatus);
-
-  // Download data (flat)
-  const dlColumns: DLColumn[] = [
-    { key: 'date',               label: 'Date',           format: v => fmtDate(String(v ?? '')) },
-    { key: 'description',        label: 'Description',    width: 32 },
-    { key: 'supplier',           label: 'Supplier',       width: 22 },
-    { key: 'contact_person',     label: 'Contact' },
-    { key: 'category',           label: 'Category' },
-    { key: 'amount',             label: 'Amount' },
-    { key: 'requisition_number', label: 'REQ #' },
-    { key: 'invoice_number',     label: 'INV #' },
-    { key: 'order_number',       label: 'PO #' },
-    { key: 'planning_signed',    label: 'Planning ✓' },
-    { key: 'eng_mgr_signed',     label: 'Eng. Mgr ✓' },
-    { key: 'finance_signed',     label: 'Finance ✓' },
-    { key: 'gm_signed',          label: 'GM ✓' },
-    { key: 'grv_number',         label: 'GRV #' },
-    { key: 'stores_signed',      label: 'Stores ✓' },
-    { key: 'payment_done',       label: 'Payment ✓' },
-    { key: 'payment_reference',  label: 'Pay Ref' },
-    { key: 'general_comments',   label: 'Comments',       width: 28 },
-  ];
-
-  const dlData = processed.map(r => ({
-    date: r.date,                            description: r.description,
-    supplier: r.supplier,                    contact_person: r.contact_person,
-    category: r.category,                    amount: r.amount,
-    requisition_number: r.requisition_number,invoice_number: r.invoice_number,
-    order_number: r.order_number,            planning_signed:   r.planning.signed ? 'Yes' : '—',
-    eng_mgr_signed: r.engineering_manager.signed ? 'Yes' : '—',
-    finance_signed:   r.finance.signed ? 'Yes' : '—',
-    gm_signed:        r.gm.signed ? 'Yes' : '—',
-    grv_number:       r.stores.grv_number,   stores_signed:     r.stores.signed ? 'Yes' : '—',
-    payment_done:     r.payment.done ? 'Yes' : '—',
-    payment_reference: r.payment.payment_reference,
-    general_comments: r.general_comments,
-  } as Record<string, unknown>));
-
-  const stats: StatItem[] = [
-    { label: 'Total',       value: total },
-    { label: 'In Progress', value: inProg,     textClass: 'text-amber-300' },
-    { label: 'Completed',   value: completed,  textClass: 'text-emerald-400' },
-    { label: 'Not Started', value: notStarted, textClass: 'text-white/50' },
-    { label: 'This Month',  value: monthCount, textClass: 'text-[#86BBD8]' },
-  ];
+  const clearFilters = () => { setSearch(''); setDateFrom(''); setDateTo(''); setFilterCat(''); setFilterStatus(''); };
 
   return (
-    <PageShell>
-      <div className="container mx-auto px-4 py-6 space-y-4">
-        <Toaster position="top-right" richColors />
+    <main className="max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+      <Toaster position="top-right" richColors />
 
-        {/* Hero */}
-        <HeroPanel
-          icon={Wrench}
-          title="Services Tracker"
-          subtitle="Track service completion, approval pipeline, suppliers and invoices"
-          onNew={() => { setEditRecord(null); setFormOpen(true); }}
-          newLabel="New Service"
-          stats={stats}
-          actions={
-            <div className="flex items-center gap-1.5">
-              <button type="button" onClick={() => setOcrOpen(true)} title="Scan a document with AI to extract data"
-                className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-semibold text-white border transition-all hover:-translate-y-0.5 bg-violet-500/20 border-violet-500/35 hover:bg-violet-500/30">
-                <Eye className="h-3.5 w-3.5" /> Scan
-              </button>
-              <button type="button" onClick={() => setImportOpen(true)} title="Import records from Excel spreadsheet"
-                className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-semibold text-white border transition-all hover:-translate-y-0.5 bg-[#86BBD8]/15 border-[#86BBD8]/25 hover:bg-[#86BBD8]/25">
-                <FileSpreadsheet className="h-3.5 w-3.5" /> Import
-              </button>
-              <DownloadButton data={dlData} columns={dlColumns} filename="Services_Tracker" title="Services Tracker"
-                subtitle={anyFilter ? `Filtered · ${processed.length} records` : `All records · ${total}`} />
-            </div>
-          }
-        />
+      <PageHero
+        icon={Wrench}
+        accent="violet"
+        crumbs={['Operations & Maintenance', 'Services']}
+        title="Services Tracker"
+        description="Track service completion, approval pipeline, suppliers and invoices"
+        statsOpen={sections.expanded.hero}
+        actions={
+          <>
+            <button type="button" onClick={() => setOcrOpen(true)} title="Scan a document to extract data"
+              className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-semibold text-white bg-gradient-to-br from-violet-500 to-violet-700 hover:brightness-110 transition-all">
+              <Scan className="h-3.5 w-3.5" /> Scan
+            </button>
+            <button type="button" onClick={() => setImportOpen(true)} title="Import records from Excel"
+              className={`inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-semibold ${t.textMuted} ${t.glassSoft} ${t.hoverText} transition-all`}>
+              <FileSpreadsheet className="h-3.5 w-3.5" /> Import
+            </button>
+            <button type="button" onClick={() => { setEditRecord(null); setFormOpen(true); }}
+              className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-blue-500 to-blue-700 hover:brightness-110 transition-all">
+              <Plus className="h-3.5 w-3.5" /> New Service
+            </button>
+          </>
+        }
+      >
+        <div className="flex flex-wrap gap-1">
+          <StatTile icon={Wrench} color={ACCENT_HEX.blue} value={total} label="Total" />
+          <StatTile icon={Loader2} color="#f59e0b" value={inProg} label="In Progress" />
+          <StatTile icon={CheckCircle2} color="#34d399" value={completed} label="Completed" />
+          <StatTile icon={Circle} color="#94a3b8" value={notStarted} label="Not Started" />
+          <StatTile icon={Calendar} color={ACCENT_HEX.violet} value={monthCount} label="This Month" />
+        </div>
+      </PageHero>
 
-        {/* API error banner */}
-        {apiError && (
-          <div className="flex items-start gap-3 p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-300 text-sm">
-            <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-            <div>
-              <p className="font-semibold">Backend not reachable</p>
-              <p className="text-xs text-red-300/70 mt-0.5">{apiError} — Make sure the backend is deployed and reachable at {API}.</p>
-            </div>
+      {apiError && (
+        <div className="flex items-start gap-3 p-4 rounded-2xl bg-rose-500/10 text-rose-400 text-sm">
+          <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+          <div><p className="font-semibold">Backend not reachable</p><p className="text-xs opacity-80 mt-0.5">{apiError} — Make sure the backend is running at {API}.</p></div>
+        </div>
+      )}
+
+      {/* Filters */}
+      <div className={`${t.glass} rounded-2xl ${t.shadow} p-4 space-y-4`}>
+        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+          <SearchInput value={search} onChange={setSearch} placeholder="Search description, supplier, REQ, INV, GRV…" className="flex-1" />
+          <div className="flex gap-2 flex-wrap items-center">
+            <button type="button" onClick={() => setShowFilters(v => !v)}
+              className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-medium transition-colors ${showFilters ? 'bg-blue-500/15 text-blue-400' : `${t.textMuted} ${t.glassSoft} ${t.hoverText}`}`}>
+              <Filter className="h-3.5 w-3.5" /> Filters
+            </button>
+            {anyFilter && <button type="button" onClick={clearFilters} className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-medium ${t.textFaint} ${t.hoverText} ${t.hoverBg}`}><X className="h-3.5 w-3.5" /> Clear</button>}
+            <ViewToggle value={viewMode} onChange={setViewMode} options={[{ value: 'grid', icon: LayoutGrid, label: 'Grid view' }, { value: 'table', icon: Table2, label: 'Table view' }]} />
+          </div>
+        </div>
+        {showFilters && (
+          <div className={`pt-4 border-t ${t.border} grid grid-cols-2 sm:grid-cols-4 gap-3`}>
+            <FormField label="Date from"><input type="date" title="Date from" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className={`w-full h-8 px-2 rounded text-[13px] ${t.inputBg} focus:outline-none`} /></FormField>
+            <FormField label="Date to"><input type="date" title="Date to" value={dateTo} onChange={e => setDateTo(e.target.value)} className={`w-full h-8 px-2 rounded text-[13px] ${t.inputBg} focus:outline-none`} /></FormField>
+            <FormField label="Category">
+              <SelectField size="filter" title="Category" value={filterCat} onChange={setFilterCat}
+                options={[{ value: '', label: 'All categories' }, ...CATS.map(c => ({ value: c, label: c }))]} />
+            </FormField>
+            <FormField label="Pipeline status">
+              <SelectField size="filter" title="Pipeline status" value={filterStatus} onChange={setFilterStatus}
+                options={[{ value: '', label: 'All statuses' }, { value: 'not_started', label: 'Not Started' }, { value: 'in_progress', label: 'In Progress' }, { value: 'completed', label: 'Completed' }]} />
+            </FormField>
           </div>
         )}
+      </div>
 
-        {/* Filters */}
-        <GlassPanel icon={Filter} title="Filters" open={showFilters} onToggle={() => setShowFilters(o => !o)} variant="panel"
-          actions={anyFilter ? <button type="button" onClick={() => { setSearch(''); setDateFrom(''); setDateTo(''); setFilterCat(''); setFilterStatus(''); }} className="text-[11px] text-rose-400 hover:text-rose-300 border border-rose-500/20 bg-rose-500/10 px-2 py-0.5 rounded-lg transition-all">Clear all</button> : undefined}>
-          <div className="px-5 py-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <GlassInput label="Date from" type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
-            <GlassInput label="Date to"   type="date" value={dateTo}   onChange={e => setDateTo(e.target.value)}   />
-            <GlassSelect label="Category" value={filterCat} onChange={e => setFilterCat(e.target.value)}
-              options={[{ value: '', label: 'All categories' }, ...CATS.map(c => ({ value: c, label: c }))]} />
-            <GlassSelect label="Pipeline status" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
-              options={[{ value: '', label: 'All statuses' }, { value: 'not_started', label: 'Not Started' }, { value: 'in_progress', label: 'In Progress' }, { value: 'completed', label: 'Completed' }]} />
+      {/* Records */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <p className={`text-sm ${t.textFaint}`}>Showing <span className={`font-semibold ${t.textPrimary}`}>{processed.length}</span> of {total}</p>
+          <div className="flex items-center gap-2">
+            <SelectField size="filter" title="Sort by" value={sortBy} onChange={setSortBy}
+              options={[
+                { value: 'newest', label: 'Newest first' },
+                { value: 'oldest', label: 'Oldest first' },
+                { value: 'date_desc', label: 'Date ↓' },
+                { value: 'date_asc', label: 'Date ↑' },
+                { value: 'supplier', label: 'Supplier A–Z' },
+                { value: 'progress_desc', label: 'Most progress' },
+              ]} />
+            {viewMode === 'grid' && processed.length > 0 && (
+              <button type="button" onClick={allExpanded ? collapseAll : expandAll} title={allExpanded ? 'Collapse all' : 'Expand all'}
+                className={`h-8 px-2 text-xs flex items-center gap-1 rounded-lg ${t.glassSoft} ${t.textFaint} ${t.hoverText}`}>
+                {allExpanded ? <><ChevronsUp className="h-3 w-3" /> Collapse all</> : <><ChevronsDown className="h-3 w-3" /> Expand all</>}
+              </button>
+            )}
           </div>
-        </GlassPanel>
-
-        {/* Records */}
-        <div className="oz-glass-panel rounded-2xl overflow-hidden">
-          <RecordsPanelHeader
-            icon={ClipboardList} title="Services" count={processed.length} total={total}
-            search={search} onSearch={setSearch} searchPlaceholder="Search description, supplier, REQ, INV, GRV…"
-            sortValue={sortBy} onSort={setSortBy}
-            sortOptions={[
-              { value: 'newest',        label: 'Newest first'  },
-              { value: 'oldest',        label: 'Oldest first'  },
-              { value: 'date_desc',     label: 'Date ↓'        },
-              { value: 'date_asc',      label: 'Date ↑'        },
-              { value: 'supplier',      label: 'Supplier A–Z'  },
-              { value: 'progress_desc', label: 'Most progress' },
-            ]}
-            viewMode={viewMode} onViewMode={setViewMode}
-            show={showRecords} onToggle={() => setShowRecords(o => !o)}
-            actions={
-              viewMode === 'grid' && processed.length > 0 ? (
-                <button type="button" onClick={allExpanded ? collapseAll : expandAll} title={allExpanded ? 'Collapse all cards' : 'Expand all cards'}
-                  className="h-7 px-2 text-xs flex items-center gap-1 rounded-lg bg-white/[0.07] border border-white/[0.12] text-white/50 hover:text-white/80 hover:bg-white/[0.12] transition-all">
-                  {allExpanded ? <><ChevronsUp className="h-3 w-3" /> Collapse all</> : <><ChevronsDown className="h-3 w-3" /> Expand all</>}
-                </button>
-              ) : undefined
-            }
-          />
-
-          {showRecords && (
-            <div className="p-4 sm:p-5">
-              {loading ? (
-                <div className="py-12 text-center flex items-center justify-center gap-2 text-white/30">
-                  <Loader2 className="h-5 w-5 animate-spin" /> Loading services…
-                </div>
-              ) : processed.length === 0 ? (
-                <EmptyState icon={Wrench}
-                  title={anyFilter ? 'No records match your filters' : 'No service records yet'}
-                  message={anyFilter ? 'Adjust your search or clear the filters.' : 'Click "New Service" to log the first record, or import from Excel.'}
-                  action={!anyFilter ? { label: 'Add Service', onClick: () => { setEditRecord(null); setFormOpen(true); } } : undefined}
-                />
-              ) : viewMode === 'grid' ? (
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
-                  {processed.map(r => (
-                    <ServiceCard key={r.id} record={r}
-                      expanded={expandedIds.has(r.id)} onToggle={() => toggleCard(r.id)}
-                      onUpdate={handleUpdate} onEdit={openEdit} onDelete={setDeleteId} />
-                  ))}
-                </div>
-              ) : (
-                <ListView records={processed} onEdit={openEdit} onDelete={setDeleteId} onView={r => setViewRecord(r)} />
-              )}
-            </div>
-          )}
         </div>
 
-        {/* Pipeline legend */}
-        <GlassPanel icon={ArrowRight} title="Approval Pipeline — Stage Order" variant="panel" defaultOpen={false}>
-          <div className="px-5 py-4">
-            <p className="text-[11px] text-white/40 mb-3">Records progress through these stages in order. Each stage must be signed off before payment is processed.</p>
-            <div className="flex flex-wrap gap-2">
-              {STAGES.map((s, i) => {
-                const Icon = s.icon;
-                return (
-                  <div key={s.key} className="flex items-center gap-2 px-3 py-2 rounded-xl border border-white/[0.10] bg-white/[0.04]">
-                    <span className="text-[11px] text-white/30 font-semibold">{i + 1}.</span>
-                    <Icon className="h-3.5 w-3.5 text-[#86BBD8]" />
-                    <span className="text-xs text-white/70">{s.label}</span>
-                  </div>
-                );
-              })}
-            </div>
+        {loading ? (
+          <div className={`${t.glass} rounded-2xl p-16 text-center flex items-center justify-center gap-2 ${t.textFaint}`}><Loader2 className="h-5 w-5 animate-spin" /> Loading services…</div>
+        ) : processed.length === 0 ? (
+          <div className={`${t.glass} rounded-2xl p-12 text-center`}>
+            <Wrench className={`h-12 w-12 ${t.textFaint} mx-auto mb-4`} />
+            <h3 className={`text-lg font-semibold ${t.textPrimary} mb-2`}>{anyFilter ? 'No records match your filters' : 'No service records yet'}</h3>
+            <p className={`text-sm mb-4 ${t.textFaint}`}>{anyFilter ? 'Adjust your search or clear the filters.' : 'Click "New Service" to log the first record, or import from Excel.'}</p>
+            {!anyFilter && (
+              <button type="button" onClick={() => { setEditRecord(null); setFormOpen(true); }} className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-blue-500 to-blue-700 hover:brightness-110">
+                <Plus className="h-3.5 w-3.5" /> Add Service
+              </button>
+            )}
           </div>
-        </GlassPanel>
+        ) : viewMode === 'grid' ? (
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+            {processed.map(r => (
+              <ServiceCard key={r.id} record={r} expanded={expandedIds.has(r.id)} onToggle={() => toggleCard(r.id)} onUpdate={handleUpdate} onEdit={openEdit} onDelete={setDeleteId} />
+            ))}
+          </div>
+        ) : (
+          <ListView records={processed} onEdit={openEdit} onDelete={setDeleteId} onView={r => setViewRecord(r)} />
+        )}
+      </div>
+
+      {/* Pipeline legend */}
+      <div className={`${t.glass} rounded-2xl ${t.shadow} p-5`}>
+        <h3 className={`text-sm font-semibold mb-1 ${t.textPrimary}`}>Approval Pipeline — Stage Order</h3>
+        <p className={`text-[11px] mb-3 ${t.textFaint}`}>Records progress through these stages in order. Each stage must be signed off before payment is processed.</p>
+        <div className="flex flex-wrap gap-2">
+          {STAGES.map((s, i) => (
+            <div key={s.key} className={`flex items-center gap-2 px-3 py-2 rounded-xl ${t.chipBg}`}>
+              <span className={`text-[11px] font-semibold ${t.textFaint}`}>{i + 1}.</span>
+              <s.icon className="h-3.5 w-3.5 text-blue-400" />
+              <span className={`text-xs ${t.textMuted}`}>{s.label}</span>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Add / Edit form */}
-      <GlassModal isOpen={formOpen} onClose={() => { setFormOpen(false); setEditRecord(null); }}
-        title={editRecord?.description ? 'Edit Service Record' : 'New Service Record'} icon={Wrench} size="lg">
-        <ServiceForm initial={editRecord ?? emptyRecord()} onSave={handleSave} onClose={() => { setFormOpen(false); setEditRecord(null); }} />
-      </GlassModal>
+      <CenterModal open={formOpen} onClose={() => { setFormOpen(false); setEditRecord(null); }} title={editRecord?.description ? 'Edit Service Record' : 'New Service Record'} accent="violet" width="max-w-2xl">
+        <div className="p-5">
+          <ServiceForm initial={editRecord ?? emptyRecord()} onSave={handleSave} onClose={() => { setFormOpen(false); setEditRecord(null); }} />
+        </div>
+      </CenterModal>
 
-      {/* List view detail / pipeline modal */}
-      <GlassModal isOpen={viewRecord !== null} onClose={() => setViewRecord(null)}
-        title={viewRecord?.description ?? 'Service Record'} icon={ClipboardList} size="xl">
+      {/* View / pipeline modal */}
+      <CenterModal open={viewRecord !== null} onClose={() => setViewRecord(null)} title={viewRecord?.description ?? 'Service Record'} accent="violet" width="max-w-2xl">
         {viewRecord && (
-          <div className="space-y-3">
-            <div className="flex items-center gap-2 flex-wrap mb-4">
+          <div className="p-5 space-y-3">
+            <div className="flex items-center gap-2 flex-wrap mb-2">
               {(() => { const d = stagesDone(viewRecord);
-                const info = d === 6 ? { v: 'success' as const, label: 'Completed' } : d === 0 ? { v: 'neutral' as const, label: 'Not Started' } : { v: 'warning' as const, label: `Stage ${d + 1} of 6` };
-                return <GlassBadge variant={info.v}>{info.label}</GlassBadge>;
+                const info = d === 6 ? { color: '#34d399', label: 'Completed' } : d === 0 ? { color: '#94a3b8', label: 'Not Started' } : { color: '#f59e0b', label: `Stage ${d + 1} of 6` };
+                return <StatusBadge color={info.color} label={info.label} dot />;
               })()}
-              {viewRecord.category && <GlassBadge variant="info">{viewRecord.category}</GlassBadge>}
-              {viewRecord.amount && <span className="text-sm font-semibold text-[#86BBD8]">{viewRecord.amount}</span>}
+              {viewRecord.category && <StatusBadge color={ACCENT_HEX.blue} label={viewRecord.category} />}
+              {viewRecord.amount && <span className="text-sm font-semibold text-blue-400">{viewRecord.amount}</span>}
             </div>
-            <GlassTabs variant="pills" tabs={[
-              { key: 'pipeline', label: 'Pipeline', icon: ClipboardList, content: (
-                <div className="space-y-2">
-                  {STAGES.map(s => <StageRow key={s.key} stage={s} record={viewRecord} onUpdate={r => { handleUpdate(r); setViewRecord(r); }} />)}
-                </div>
-              )},
-              { key: 'attachments', label: 'Attachments', icon: Paperclip, content: <AttachmentPanel serviceId={viewRecord.id} /> },
-            ]} />
-            <div className="flex justify-end gap-2 pt-2 border-t border-white/[0.07]">
-              <button type="button" onClick={() => openEdit(viewRecord)} className={SECONDARY_BTN}><Edit2 className="h-3.5 w-3.5" /> Edit Info</button>
+            <div className={`flex gap-1 ${t.glassSoft} rounded-lg p-1 w-fit`}>
+              {(['pipeline', 'attachments'] as const).map(k => (
+                <button key={k} type="button" onClick={() => setViewTab(k)}
+                  className={`px-3 py-1.5 rounded-md text-xs font-medium capitalize transition-colors ${viewTab === k ? 'bg-blue-500/20 text-blue-400' : `${t.textFaint} ${t.hoverText}`}`}>{k}</button>
+              ))}
+            </div>
+            {viewTab === 'pipeline' ? (
+              <div className="space-y-2">
+                {STAGES.map(s => <StageRow key={s.key} stage={s} record={viewRecord} onUpdate={r => { handleUpdate(r); setViewRecord(r); }} />)}
+              </div>
+            ) : <AttachmentPanel serviceId={viewRecord.id} />}
+            <div className={`flex justify-end gap-2 pt-2 border-t ${t.border}`}>
+              <button type="button" onClick={() => openEdit(viewRecord)} className={`h-9 px-4 rounded-xl text-sm ${t.textMuted} ${t.glassSoft} ${t.hoverText} inline-flex items-center gap-1.5`}><Edit2 className="h-3.5 w-3.5" /> Edit Info</button>
             </div>
           </div>
         )}
-      </GlassModal>
+      </CenterModal>
 
-      {/* Import (spreadsheet or document scan) */}
-      <GlassModal isOpen={importOpen} onClose={() => setImportOpen(false)} title="Import Records" icon={FileSpreadsheet} size="xl">
-        <ExcelImportModal onImport={handleBulkImport} onExtracted={handleOcrExtracted} onClose={() => setImportOpen(false)} />
-      </GlassModal>
+      {/* Import */}
+      <CenterModal open={importOpen} onClose={() => setImportOpen(false)} title="Import Records" accent="violet" width="max-w-2xl">
+        <div className="p-5"><ExcelImportModal onImport={handleBulkImport} onExtracted={handleOcrExtracted} onClose={() => setImportOpen(false)} /></div>
+      </CenterModal>
 
       {/* OCR scan */}
-      <GlassModal isOpen={ocrOpen} onClose={() => setOcrOpen(false)} title="Scan Document — Extract Data" icon={Eye} size="md">
-        <OcrUploadModal onExtracted={handleOcrExtracted} onClose={() => setOcrOpen(false)} />
-      </GlassModal>
+      <CenterModal open={ocrOpen} onClose={() => setOcrOpen(false)} title="Scan Document — Extract Data" accent="violet" width="max-w-lg">
+        <div className="p-5"><OcrUploadModal onExtracted={handleOcrExtracted} onClose={() => setOcrOpen(false)} /></div>
+      </CenterModal>
 
       {/* Delete confirm */}
-      <DeleteDialog open={deleteId !== null} onClose={() => setDeleteId(null)} onDelete={handleDelete}
-        description="This service record and all its pipeline data will be permanently deleted." />
-    </PageShell>
+      <CenterModal open={deleteId !== null} onClose={() => setDeleteId(null)} title="Delete Service Record" accent="amber" width="max-w-sm">
+        <div className="p-5 space-y-4">
+          <p className={`text-sm ${t.textMuted}`}>This service record and all its pipeline data will be permanently deleted.</p>
+          <div className="flex gap-2">
+            <button type="button" onClick={() => setDeleteId(null)} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border}`}>Cancel</button>
+            <button type="button" onClick={handleDelete} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-rose-500 to-rose-700 hover:brightness-110 inline-flex items-center justify-center gap-2"><Trash2 className="h-4 w-4" /> Delete</button>
+          </div>
+        </div>
+      </CenterModal>
+    </main>
+  );
+}
+
+export default function ServicesPage() {
+  return (
+    <AppShell>
+      <ServicesPageContent />
+    </AppShell>
   );
 }

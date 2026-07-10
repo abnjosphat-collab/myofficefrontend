@@ -9,15 +9,15 @@ import {
   Users, Package,
   Award, Layers, ChevronRight,
   Shirt, Wind, CloudRain, Link2, ChevronsUp, ChevronsDown, X,
-  Flashlight, Download, FileSpreadsheet, FileDown, Sun, Moon, Loader2, Check,
+  Flashlight, Download, FileSpreadsheet, FileDown, Sun, Moon,
 } from 'lucide-react';
-import { PageShell } from '@/components/PageShell';
+import { AppShell } from '@/components/app-shell';
 import { toast } from 'sonner';
-import { LoadingState } from '@/components/safety';
-import { usePageCollapse, MasterCollapseButton } from '@/components/shared';
 import {
-  useTheme, Collapse, AnimatedText, PulsingIcon, CenterModal, GlowCard, glowShadow,
+  useTheme, Collapse, AnimatedText, PulsingIcon, CenterModal, GlowCard,
   staggerContainer, fadeUp, ACCENT, ACCENT_HEX, type Accent,
+  StatusBadge, ListItemCard, StatTile, ProgressBar, FormField, FormActions,
+  useCollapseSection, SelectField,
 } from '@/components/shared/theme';
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
@@ -148,28 +148,8 @@ const deletePPERecord = async (id: string) => {
 };
 
 // ─── BADGES ───────────────────────────────────────────────────────────────────
-
-function PPEStatusBadge({ status }: { status: string }) {
-  const color = STATUS_COLORS_PPE[status] || '#86BBD8';
-  const label = STATUS_LABELS[status] || status;
-  return (
-    <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full"
-      style={{ color, background: `${color}22`, border: `1px solid ${color}40` }}>
-      <span className="h-1.5 w-1.5 rounded-full" style={{ background: color }} />{label}
-    </span>
-  );
-}
-
-function ConditionBadge({ condition }: { condition: string }) {
-  const color = CONDITION_COLORS[condition] || '#86BBD8';
-  const label = CONDITION_LABELS[condition] || condition;
-  return (
-    <span className="inline-flex items-center text-[11px] font-semibold px-2 py-0.5 rounded-full"
-      style={{ color, background: `${color}22`, border: `1px solid ${color}40` }}>
-      {label}
-    </span>
-  );
-}
+// Rendered via the shared `StatusBadge` component now (see imports) —
+// `STATUS_COLORS_PPE`/`CONDITION_COLORS`/labels below remain page-local data.
 
 // ─── EMPLOYEE AUTOCOMPLETE ────────────────────────────────────────────────────
 
@@ -282,64 +262,40 @@ interface PPEItemCardProps {
 function PPEItemCard({ record, onEdit, onDelete, onView }: PPEItemCardProps) {
   const t = useTheme();
   const ppeType = PPE_TYPES[record.ppe_type] || PPE_TYPES.helmet;
-  const Icon = ppeType.icon;
   const expiring = isExpiringSoon(record.expiry_date);
   const expired  = isExpired(record.expiry_date);
-
   const glowColor = expired ? '#f43f5e' : expiring ? '#f59e0b' : ACCENT_HEX.blue;
 
-  return (
-    <GlowCard color={glowColor} onClick={() => onView(record)} className={`group ${t.hoverBgSoft} overflow-hidden`}>
-      <div className="px-3.5 pt-3.5 pb-2 flex items-start justify-between gap-2">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <motion.div
-            variants={{ rest: { scale: 1 }, hover: { scale: 1.08, transition: { duration: 0.25 } } }}
-            className={`p-2 rounded-lg shrink-0 ${t.chipBg}`}
-          >
-            <Icon className="h-3.5 w-3.5" style={{ color: ppeType.color }} />
-          </motion.div>
-          <div className="min-w-0">
-            <p className={`text-sm font-semibold ${t.textPrimary} leading-tight truncate`}>{record.item_name}</p>
-            <AnimatedText as="p" text={ppeType.name} className={`text-xs ${t.textSecondary} mt-0.5`} />
-          </div>
-        </div>
-        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" onClick={e => e.stopPropagation()}>
-          <button type="button" title="Edit" onClick={() => onEdit(record)}
-            className={`h-6 w-6 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-blue-500 transition-all`}>
-            <Edit className="h-3 w-3" />
-          </button>
-          <button type="button" title="Delete" onClick={() => onDelete(record.id)}
-            className={`h-6 w-6 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-rose-500 transition-all`}>
-            <Trash2 className="h-3 w-3" />
-          </button>
-        </div>
-      </div>
+  const rows: { label: string; value: React.ReactNode; valueClassName?: string }[] = [
+    { label: 'Issued', value: fmtDate(record.issue_date) },
+  ];
+  if (record.expiry_date) {
+    rows.push({
+      label: 'Expires',
+      value: fmtDate(record.expiry_date),
+      valueClassName: `font-semibold ${expired ? 'text-rose-500' : expiring ? 'text-amber-500' : t.textMuted}`,
+    });
+  }
+  if (record.size) rows.push({ label: 'Size', value: record.size });
 
-      <div className="px-3.5 pb-3.5 space-y-1.5 text-xs">
-        <div className="flex justify-between">
-          <span className={t.textFaint}>Issued</span>
-          <span className={`${t.textMuted} font-medium`}>{fmtDate(record.issue_date)}</span>
-        </div>
-        {record.expiry_date && (
-          <div className="flex justify-between">
-            <span className={t.textFaint}>Expires</span>
-            <span className={`font-semibold ${expired ? 'text-rose-500' : expiring ? 'text-amber-500' : t.textMuted}`}>
-              {fmtDate(record.expiry_date)}
-            </span>
-          </div>
-        )}
-        {record.size && (
-          <div className="flex justify-between">
-            <span className={t.textFaint}>Size</span>
-            <span className={`${t.textMuted} font-medium`}>{record.size}</span>
-          </div>
-        )}
-        <div className="flex justify-between items-center pt-0.5">
-          <ConditionBadge condition={record.condition} />
-          <PPEStatusBadge status={record.status} />
-        </div>
-      </div>
-    </GlowCard>
+  return (
+    <ListItemCard
+      color={glowColor}
+      icon={ppeType.icon}
+      iconColor={ppeType.color}
+      title={record.item_name}
+      subtitle={ppeType.name}
+      rows={rows}
+      onClick={() => onView(record)}
+      onEdit={() => onEdit(record)}
+      onDelete={() => onDelete(record.id)}
+      badges={
+        <>
+          <StatusBadge color={CONDITION_COLORS[record.condition] || '#86BBD8'} label={CONDITION_LABELS[record.condition] || record.condition} />
+          <StatusBadge color={STATUS_COLORS_PPE[record.status] || '#86BBD8'} label={STATUS_LABELS[record.status] || record.status} dot />
+        </>
+      }
+    />
   );
 }
 
@@ -368,11 +324,13 @@ function EmployeePPECard({ employee, isExpanded, onToggle, onIssueNew, onEditIte
   const alertColor = expired.length > 0 ? '#f43f5e' : expiring.length > 0 ? '#f59e0b' : null;
 
   return (
-    <motion.div
+    <GlowCard
+      color={alertColor ?? ACCENT_HEX.blue}
+      forceGlow={!!alertColor}
       onHoverStart={() => setHovering(true)}
       onHoverEnd={() => setHovering(false)}
-      className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden transition-shadow duration-300`}
-      style={{ boxShadow: alertColor ? glowShadow(alertColor, 0.22) : (hovering ? glowShadow(ACCENT_HEX.blue, 0.22) : undefined) }}
+      surface={`${t.glass} rounded-2xl ${t.shadow}`}
+      className="overflow-hidden"
     >
       {/* Header — always visible */}
       <div className="flex items-center justify-between px-5 py-4 gap-3">
@@ -447,7 +405,7 @@ function EmployeePPECard({ employee, isExpanded, onToggle, onIssueNew, onEditIte
           )}
         </div>
       </Collapse>
-    </motion.div>
+    </GlowCard>
   );
 }
 
@@ -482,7 +440,7 @@ function PPEDetailModal({ item, isOpen, onClose, onEdit }: DetailModalProps) {
   ];
 
   return (
-    <CenterModal open={isOpen} onClose={onClose} title="PPE Item Details" subtitle={item.item_name} accent="blue" width="max-w-3xl">
+    <CenterModal open={isOpen} onClose={onClose} title="PPE Item Details" subtitle={item.item_name} accent="violet" width="max-w-3xl">
       <motion.div variants={staggerContainer} initial="hidden" animate="show" className="p-5 space-y-4">
         <motion.div variants={fadeUp} className="flex items-center gap-3">
           <PulsingIcon className={`h-12 w-12 rounded-xl flex items-center justify-center shrink-0 ${t.chipBg}`}>
@@ -543,37 +501,8 @@ const blankForm = (): FormState => ({
   notes: '', issued_by: '', location: 'Workshop', mine_section: '',
 });
 
-// Page-local, theme-aware replacements for the dark-only `FormField`/`ModalActions`
-// imported from @/components/safety — kept local so the shared component (used by
-// 6 other pages) doesn't need to change.
-function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
-  const t = useTheme();
-  return (
-    <div>
-      <label className={`text-xs font-medium ${t.textFaint} mb-1 block`}>
-        {label}{required && <span className="text-rose-500 ml-0.5">*</span>}
-      </label>
-      {children}
-    </div>
-  );
-}
-
-function FormActions({ onCancel, submitting, submitLabel }: { onCancel: () => void; submitting?: boolean; submitLabel: string }) {
-  const t = useTheme();
-  return (
-    <div className={`flex gap-2 px-5 py-4 border-t ${t.border}`}>
-      <button type="button" onClick={onCancel}
-        className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border} transition-all`}>
-        Cancel
-      </button>
-      <motion.button type="submit" disabled={submitting} whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}
-        className={`flex-1 py-2.5 rounded-xl text-sm font-semibold text-white inline-flex items-center justify-center gap-2 transition-all bg-gradient-to-br ${ACCENT.blue.gradient} ${ACCENT.blue.solidGlow} disabled:opacity-50`}>
-        {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-        {submitLabel}
-      </motion.button>
-    </div>
-  );
-}
+// `FormField`/`FormActions` now come from the shared design-system (promoted from
+// this page's own local versions — see the design-system migration plan).
 
 function PPEIssueForm({ isOpen, onClose, onSubmit, initialData, employee, allEmployees }: IssueFormProps) {
   const t = useTheme();
@@ -620,15 +549,14 @@ function PPEIssueForm({ isOpen, onClose, onSubmit, initialData, employee, allEmp
 
   const sel = (k: keyof FormState) => ({
     value: form[k] as string,
-    onChange: (e: React.ChangeEvent<HTMLSelectElement>) => set(k, e.target.value as any),
-    className: `${t.inputBg} rounded-lg text-sm px-3 py-2 w-full transition-all focus:outline-none cursor-pointer`,
-    style: { colorScheme: t.light ? ('light' as const) : ('dark' as const) },
+    onChange: (v: string) => set(k, v as any),
+    size: 'form' as const,
   });
 
   const inputCls = `${t.inputBg} rounded-lg text-sm px-3 py-2 w-full transition-all focus:outline-none`;
 
   return (
-    <CenterModal open={isOpen} onClose={onClose} accent="blue"
+    <CenterModal open={isOpen} onClose={onClose} accent="violet"
       title={initialData ? 'Edit PPE Record' : 'Issue New PPE'} width="max-w-2xl">
       <form onSubmit={handleSubmit}>
         <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
@@ -636,7 +564,7 @@ function PPEIssueForm({ isOpen, onClose, onSubmit, initialData, employee, allEmp
           {/* Employee lookup */}
           <div className={`rounded-xl ${t.glassSoft} p-4 space-y-3`}>
             <p className={`text-[11px] font-semibold ${t.textFaint} uppercase tracking-wider`}>Employee</p>
-            <Field label="Employee ID" required>
+            <FormField label="Employee ID" required>
               <EmployeeAutocomplete value={form.employee_id} options={allEmployees}
                 placeholder="Type employee ID or name to search…"
                 onChange={v => set('employee_id', v)}
@@ -646,16 +574,16 @@ function PPEIssueForm({ isOpen, onClose, onSubmit, initialData, employee, allEmp
                   set('position', opt.position);
                   if (opt.department) set('mine_section', opt.section || '');
                 }} />
-            </Field>
+            </FormField>
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Full Name" required>
+              <FormField label="Full Name" required>
                 <input type="text" value={form.employee_name} onChange={e => set('employee_name', e.target.value)}
                   className={inputCls} placeholder="Auto-filled from ID lookup" />
-              </Field>
-              <Field label="Position" required>
+              </FormField>
+              <FormField label="Position" required>
                 <input type="text" value={form.position} onChange={e => set('position', e.target.value)}
                   className={inputCls} placeholder="Job title" />
-              </Field>
+              </FormField>
             </div>
           </div>
 
@@ -663,31 +591,28 @@ function PPEIssueForm({ isOpen, onClose, onSubmit, initialData, employee, allEmp
           <div className={`rounded-xl ${t.glassSoft} p-4 space-y-3`}>
             <p className={`text-[11px] font-semibold ${t.textFaint} uppercase tracking-wider`}>PPE Details</p>
             <div className="grid grid-cols-2 gap-3">
-              <Field label="PPE Type" required>
-                <select title="PPE Type" {...sel('ppe_type')}>
-                  {Object.entries(PPE_TYPES).map(([k, pt]) => <option key={k} value={k}>{pt.name}</option>)}
-                </select>
-              </Field>
-              <Field label="Item Name / Brand" required>
+              <FormField label="PPE Type" required>
+                <SelectField title="PPE Type" {...sel('ppe_type')}
+                  options={Object.entries(PPE_TYPES).map(([k, pt]) => ({ value: k, label: pt.name }))} />
+              </FormField>
+              <FormField label="Item Name / Brand" required>
                 <input type="text" value={form.item_name} onChange={e => set('item_name', e.target.value)}
                   className={inputCls} placeholder="e.g. MSA V-Gard Helmet" />
-              </Field>
+              </FormField>
             </div>
             <div className="grid grid-cols-3 gap-3">
-              <Field label="Size">
+              <FormField label="Size">
                 <input type="text" value={form.size} onChange={e => set('size', e.target.value)}
                   className={inputCls} placeholder="L, XL, 42…" />
-              </Field>
-              <Field label="Condition">
-                <select title="Condition" {...sel('condition')}>
-                  {Object.entries(CONDITION_LABELS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
-                </select>
-              </Field>
-              <Field label="Status">
-                <select title="Status" {...sel('status')}>
-                  {Object.entries(STATUS_LABELS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
-                </select>
-              </Field>
+              </FormField>
+              <FormField label="Condition">
+                <SelectField title="Condition" {...sel('condition')}
+                  options={Object.entries(CONDITION_LABELS).map(([k, l]) => ({ value: k, label: l }))} />
+              </FormField>
+              <FormField label="Status">
+                <SelectField title="Status" {...sel('status')}
+                  options={Object.entries(STATUS_LABELS).map(([k, l]) => ({ value: k, label: l }))} />
+              </FormField>
             </div>
           </div>
 
@@ -695,35 +620,34 @@ function PPEIssueForm({ isOpen, onClose, onSubmit, initialData, employee, allEmp
           <div className={`rounded-xl ${t.glassSoft} p-4 space-y-3`}>
             <p className={`text-[11px] font-semibold ${t.textFaint} uppercase tracking-wider`}>Dates & Location</p>
             <div className="grid grid-cols-3 gap-3">
-              <Field label="Issue Date" required>
+              <FormField label="Issue Date" required>
                 <input type="date" value={form.issue_date} onChange={e => set('issue_date', e.target.value)}
                   title="Issue date" className={inputCls} style={{ colorScheme: t.light ? 'light' : 'dark' }} />
-              </Field>
-              <Field label="Expiry Date">
+              </FormField>
+              <FormField label="Expiry Date">
                 <input type="date" value={form.expiry_date} onChange={e => set('expiry_date', e.target.value)}
                   title="Expiry date" className={inputCls} style={{ colorScheme: t.light ? 'light' : 'dark' }} />
-              </Field>
-              <Field label="Location">
-                <select title="Location" {...sel('location')}>
-                  {MINE_LOCATIONS.map(loc => <option key={loc} value={loc}>{loc}</option>)}
-                </select>
-              </Field>
+              </FormField>
+              <FormField label="Location">
+                <SelectField title="Location" {...sel('location')}
+                  options={MINE_LOCATIONS.map(loc => ({ value: loc, label: loc }))} />
+              </FormField>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Mine Section">
+              <FormField label="Mine Section">
                 <input type="text" value={form.mine_section} onChange={e => set('mine_section', e.target.value)}
                   className={inputCls} placeholder="Optional section" />
-              </Field>
-              <Field label="Issued By">
+              </FormField>
+              <FormField label="Issued By">
                 <IssuedByInput value={form.issued_by} onChange={v => set('issued_by', v)} employees={allEmployees} />
-              </Field>
+              </FormField>
             </div>
           </div>
 
-          <Field label="Notes">
+          <FormField label="Notes">
             <textarea value={form.notes} onChange={e => set('notes', e.target.value)}
               rows={2} className={`${inputCls} resize-none`} placeholder="Any additional notes…" />
-          </Field>
+          </FormField>
         </div>
         <FormActions onCancel={onClose} submitting={saving}
           submitLabel={initialData ? 'Update Record' : 'Issue PPE'} />
@@ -783,12 +707,8 @@ function DueItemsList({ employees, filterType, onEditItem, onDeleteItem, onViewI
             onChange={e => setSearch(e.target.value)}
             className={`pl-7 pr-3 py-1.5 w-full text-xs rounded-lg ${t.inputBg} transition-all`} />
         </div>
-        <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} title="PPE Type filter"
-          className={`px-2.5 py-1.5 text-xs rounded-lg ${t.inputBg} transition-all cursor-pointer`}
-          style={{ colorScheme: t.light ? 'light' : 'dark' }}>
-          <option value="all">All Types</option>
-          {Object.entries(PPE_TYPES).map(([k, pt]) => <option key={k} value={k}>{pt.name}</option>)}
-        </select>
+        <SelectField size="filter" value={typeFilter} onChange={setTypeFilter} title="PPE Type filter"
+          options={[{ value: 'all', label: 'All Types' }, ...Object.entries(PPE_TYPES).map(([k, pt]) => ({ value: k, label: pt.name }))]} />
       </div>
       {items.length === 0 ? (
         <div className={`text-center py-8 ${t.textFaint} text-sm rounded-xl ${t.glassSoft}`}>No items match the current filters</div>
@@ -817,8 +737,8 @@ function DueItemsList({ employees, filterType, onEditItem, onDeleteItem, onViewI
                       <p className="text-sm font-semibold" style={{ color: glowColor }}>{fmtDate(item.expiry_date)}</p>
                     </div>
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <ConditionBadge condition={item.condition} />
-                      <PPEStatusBadge status={item.status} />
+                      <StatusBadge color={CONDITION_COLORS[item.condition] || '#86BBD8'} label={CONDITION_LABELS[item.condition] || item.condition} />
+                      <StatusBadge color={STATUS_COLORS_PPE[item.status] || '#86BBD8'} label={STATUS_LABELS[item.status] || item.status} dot />
                     </div>
                   </div>
 
@@ -858,9 +778,8 @@ export default function PPEManagement() {
   const [selEmployee,   setSelEmployee]   = useState<EmployeeWithPPE | null>(null);
   const [detailItem,    setDetailItem]    = useState<PPERecord | null>(null);
   const [showDetail,    setShowDetail]    = useState(false);
-  // Master collapse — all page sections. Pass sections.panel(key) to GlassPanel/HeroPanel,
-  // or read sections.expanded[key] / sections.toggle(key) for raw divs.
-  const sections = usePageCollapse({ heroStats: false, typeBreakdown: false, records: false });
+  // Master collapse — all page sections. Read sections.expanded[key] / sections.toggle(key).
+  const sections = useCollapseSection({ heroStats: false, typeBreakdown: false, records: false });
   const [filterType,    setFilterType]    = useState<'all' | 'active' | 'soon-to-due' | 'due'>('all');
   const [searchTerm,    setSearchTerm]    = useState('');
   // All employee cards start collapsed (empty object = all false)
@@ -1101,7 +1020,7 @@ export default function PPEManagement() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <PageShell>
+    <AppShell>
       <main className="container mx-auto px-4 py-8 space-y-4">
 
         {/* ── HERO ── */}
@@ -1132,7 +1051,10 @@ export default function PPEManagement() {
               </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              <MasterCollapseButton collapse={sections} />
+              <button type="button" onClick={sections.toggleAll} title={sections.allOpen ? 'Collapse all sections' : 'Expand all sections'}
+                className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.glassSoft} ${t.hoverBg} ${t.textMuted} transition-all`}>
+                {sections.allOpen ? <ChevronsUp className="h-3.5 w-3.5" /> : <ChevronsDown className="h-3.5 w-3.5" />}
+              </button>
               <button type="button" onClick={t.toggle}
                 title={t.light ? 'Switch to dark mode' : 'Switch to light mode'}
                 className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.glassSoft} ${t.hoverBg} ${t.textMuted} transition-all`}>
@@ -1191,30 +1113,15 @@ export default function PPEManagement() {
                   complianceRate != null && { icon: Award, color: compColor, val: `${complianceRate}%`, label: 'Compliance', filter: null },
                 ] as const).filter(Boolean).map((item: any, i: number, arr: any[]) => (
                   <motion.div key={i} variants={fadeUp} className="contents">
-                    <button type="button" onClick={() => item.filter && setFilterType(item.filter)} disabled={!item.filter}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg ${t.hoverBg} transition-all disabled:cursor-default group`}>
-                      <item.icon className="w-3.5 h-3.5" style={{ color: item.color }} />
-                      <span className={`text-base font-bold ${t.textPrimary} tabular-nums`}>{item.val}</span>
-                      <span className={`text-xs ${t.textMuted} transition-colors`}>{item.label}</span>
-                    </button>
+                    <StatTile icon={item.icon} color={item.color} value={item.val} label={item.label}
+                      onClick={item.filter ? () => setFilterType(item.filter) : undefined} />
                     {i < arr.length - 1 && <span className={`${t.textTertiary} hidden sm:block`}>|</span>}
                   </motion.div>
                 ))}
               </motion.div>
               {/* Compliance bar */}
               {complianceRate != null && (
-                <div>
-                  <div className="flex justify-between text-[11px] mb-1">
-                    <span className={t.textSecondary}>Compliance rate</span>
-                    <span className={`font-semibold ${t.textPrimary} tabular-nums`}>{complianceRate}%</span>
-                  </div>
-                  <div className={`h-1.5 rounded-full ${t.chipBg} overflow-hidden`}>
-                    <motion.div
-                      initial={{ width: 0 }} animate={{ width: `${complianceRate}%` }} transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-                      className="h-full rounded-full" style={{ background: compColor }}
-                    />
-                  </div>
-                </div>
+                <ProgressBar value={complianceRate} color={compColor} label="Compliance rate" />
               )}
               {/* PPE type chips */}
               {typeCounts.length > 0 && (
@@ -1352,7 +1259,9 @@ export default function PPEManagement() {
           <Collapse open={!!sections.expanded.records}>
             <div className={`border-t ${t.border} p-4`}>
               {loading ? (
-                <LoadingState message="Loading PPE records…" />
+                <div className={`flex items-center justify-center py-16 gap-2 ${t.textFaint}`}>
+                  <RefreshCw className="h-5 w-5 animate-spin" /> Loading PPE records…
+                </div>
               ) : (filterType === 'soon-to-due' || filterType === 'due') ? (
                 <DueItemsList employees={employeesWithPPE} filterType={filterType}
                   onEditItem={r => { setEditData(r); setShowForm(true); }}
@@ -1407,6 +1316,6 @@ export default function PPEManagement() {
       <PPEDetailModal item={detailItem} isOpen={showDetail}
         onClose={() => setShowDetail(false)}
         onEdit={item => { setEditData(item); setShowForm(true); }} />
-    </PageShell>
+    </AppShell>
   );
 }

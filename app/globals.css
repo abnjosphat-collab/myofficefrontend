@@ -1,3 +1,20 @@
+/* ============================================================================
+ * DEPRECATED LEGACY DESIGN SYSTEM — do not extend, do not use in new code.
+ *
+ * The `oklch()` CSS variable block below, and every `.oz-*`/`.ozech-*` class
+ * further down this file, are the pre-existing "Ozech brand" system that most
+ * pages still use. The canonical design system going forward is
+ * `components/shared/design-system/` (React/TS tokens, ACCENT palette, motion
+ * variants, GlowCard/PulsingIcon/AnimatedText/Collapse/CenterModal) — see
+ * MyOffice-Design-System.docx for the full spec.
+ *
+ * This legacy block stays only until every page has migrated (tracked
+ * category-by-category — see the design-system-migration plan). Once the last
+ * page migrates, delete this entire block plus every `.oz-*`/`.ozech-*` rule.
+ * Until then: fix bugs here if you must, but build anything new in
+ * `design-system/` and consume it from the page, not from here.
+ * ========================================================================= */
+
 @import "tailwindcss";
 @import "tw-animate-css";
 
@@ -529,35 +546,31 @@
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.32);
 }
 
-/* Scrollbar styling */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: oklch(0.75 0.02 234);
-  border-radius: 999px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: oklch(0.60 0.03 234);
-}
+/* Scrollbar styling — see the refined, canonical version further down this file
+   (search "SCROLLBAR — Refined, minimal"). This duplicate block was removed. */
 
 /* ============================================
    SELECT / DROPDOWN OPTION VISIBILITY
-   Native <option> elements don't inherit CSS;
-   force dark background so text is always readable
+   Native <option> elements don't inherit CSS, so they need an explicit
+   background/color per theme. Branches on [data-theme], set by ThemeProvider
+   (design-system/tokens.tsx) — defaults to the dark styling for legacy pages
+   that don't mount ThemeProvider and so never get a [data-theme] attribute.
    ============================================ */
 
 select option {
   background-color: #0d1f35;
   color: rgba(255, 255, 255, 0.88);
 }
-
 select:focus option {
   background-color: #0d1f35;
+}
+
+:root[data-theme="light"] select option {
+  background-color: #ffffff;
+  color: #111827;
+}
+:root[data-theme="light"] select:focus option {
+  background-color: #ffffff;
 }
 
 /* ============================================
@@ -639,9 +652,14 @@ select:focus option {
 .oz-stripe-purple { background: linear-gradient(90deg, #6d28d9, #a855f7); }
 
 /* ============================================
-   DATE / TIME INPUTS — always dark scheme
-   Eliminates the need for [color-scheme:dark]
-   on every individual input across all pages
+   DATE / TIME INPUTS — native calendar-picker icon
+   color-scheme controls the browser's built-in icon/UI color for
+   these input types. It MUST track the active app theme (data-theme
+   on <html>, set by ThemeProvider in design-system/tokens.tsx) — a
+   blanket `color-scheme: dark` here previously made the picker icon
+   render in its light/white form even in light mode, where it sat
+   invisibly on the light input background. Eliminates the need for
+   [color-scheme:dark] on every individual input across all pages.
    ============================================ */
 
 input[type="date"],
@@ -649,6 +667,14 @@ input[type="time"],
 input[type="datetime-local"],
 input[type="month"],
 input[type="week"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] input[type="date"],
+:root[data-theme="dark"] input[type="time"],
+:root[data-theme="dark"] input[type="datetime-local"],
+:root[data-theme="dark"] input[type="month"],
+:root[data-theme="dark"] input[type="week"] {
   color-scheme: dark;
 }
 

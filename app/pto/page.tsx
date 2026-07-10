@@ -1,20 +1,17 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, ElementType } from "react";
 import {
   ClipboardList, Target, Plus, Trash2, AlertTriangle,
   Eye, Pencil, LayoutGrid, Table as TableIcon,
-  RefreshCw, Wrench, Zap, ShieldAlert, BookOpen
+  RefreshCw, Wrench, Zap, ShieldAlert, BookOpen, Search, X,
 } from "lucide-react";
-import { PageShell } from '@/components/PageShell';
+import { AppShell } from '@/components/app-shell';
 import { toast } from "sonner";
 import {
-  safetyFetch, glassInput, glassLabel, glassTextarea, glassSelect,
-  SafetyHero, SafetyControls, SafetySearchBar, FilterPills, DateRangeFilter, ClearFiltersButton,
-  SafetyModal, FormField, ModalActions,
-  SafetyTable, RowActions, AddButton, LoadingState, EmptyState, TabBar
-} from '@/components/safety';
-import { usePageCollapse, MasterCollapseButton } from '@/components/shared';
+  useTheme, PageHero, StatTile, StatusBadge, SearchInput, ProgressBar, FormField, FormActions,
+  useCollapseSection, CenterModal, ACCENT_HEX, EmptyState, PrimaryButton, GlowCard, SelectField,
+} from '@/components/shared/theme';
 
 // =============== TYPES ===============
 type SectionType = 'Mechanical' | 'Electrical';
@@ -53,10 +50,10 @@ interface PTOReport {
 // =============== CONSTANTS ===============
 const SECTIONS: SectionType[] = ['Mechanical', 'Electrical'];
 const SECTION_COLORS: Record<SectionType, string> = { Mechanical: '#3b82f6', Electrical: '#f59e0b' };
-const SECTION_ICONS: Record<SectionType, React.ElementType> = { Mechanical: Wrench, Electrical: Zap };
+const SECTION_ICONS: Record<SectionType, ElementType> = { Mechanical: Wrench, Electrical: Zap };
 const OBS_COLORS: Record<ObservationType, string> = { Initial: '#a78bfa', 'Follow up': '#f97316' };
 const STATUS_COLORS: Record<ReportStatus, string> = {
-  draft: '#6b7280', submitted: '#3b82f6', reviewed: '#a78bfa', closed: '#10b981'
+  draft: '#94a3b8', submitted: '#3b82f6', reviewed: '#a78bfa', closed: '#10b981'
 };
 const ACTION_COLORS: Record<ActionStatus, string> = {
   Pending: '#f59e0b', 'In Progress': '#3b82f6', Completed: '#10b981'
@@ -73,11 +70,17 @@ const REMEDY_LABELS: Record<keyof SuggestedRemedies, string> = {
   retraining: 'Retraining', improvedPPE: 'Improved PPE', placementOfWorker: 'Placement of Worker'
 };
 
+const SAFETY_API = (process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com').replace(/\/$/, '');
+
 // =============== API FUNCTIONS ===============
-async function getPTOReports(params?: Record<string, string>): Promise<PTOReport[]> {
+async function safetyFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(`${SAFETY_API}${path}`, { headers: { 'Content-Type': 'application/json' }, ...init });
+  if (!res.ok) throw new Error(await res.text());
+  return res.status === 204 ? (undefined as T) : res.json();
+}
+async function getPTOReports(): Promise<PTOReport[]> {
   try {
-    const qs = params ? '?' + new URLSearchParams(params).toString() : '';
-    const data = await safetyFetch<PTOReport[]>(`/api/pto/${qs}`);
+    const data = await safetyFetch<PTOReport[]>(`/api/pto/`);
     return Array.isArray(data) ? data : [];
   } catch { return []; }
 }
@@ -97,11 +100,6 @@ const fmtDate = (s: string) => {
   try { return new Date(s).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }); }
   catch { return s; }
 };
-const fmtDateTime = (s: string) => {
-  if (!s) return '';
-  try { return new Date(s).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }); }
-  catch { return s; }
-};
 
 const newId = () => Math.random().toString(36).slice(2, 11);
 
@@ -118,84 +116,60 @@ const defaultForm = (): Partial<PTOReport> => ({
   observationScope: 'All', followUpNeeded: 'No', actionPlan: [], status: 'draft',
 });
 
-// =============== CHIP ===============
-const Chip: React.FC<{ label: string; color: string }> = ({ label, color }) => (
-  <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: color + '22', color, border: `1px solid ${color}55` }}>{label}</span>
-);
-
 // =============== YES/NO ROW ===============
-const YesNoRow: React.FC<{ label: string; value: YesNoType; onChange: (v: YesNoType) => void; name: string }> = ({ label, value, onChange, name }) => (
-  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: 8 }}>
-    <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.75)' }}>{label}</span>
-    <div style={{ display: 'flex', gap: 14 }}>
-      {(['Yes', 'No'] as YesNoType[]).map(opt => (
-        <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', fontSize: 13, color: opt === value ? (opt === 'Yes' ? '#34d399' : '#f87171') : 'rgba(255,255,255,0.45)', fontWeight: opt === value ? 700 : 400 }}>
-          <input type="radio" name={name} value={opt} checked={value === opt} onChange={() => onChange(opt)}
-            style={{ accentColor: opt === 'Yes' ? '#34d399' : '#f87171', cursor: 'pointer' }} />
-          {opt}
-        </label>
-      ))}
+function YesNoRow({ label, value, onChange, name }: { label: string; value: YesNoType; onChange: (v: YesNoType) => void; name: string }) {
+  const t = useTheme();
+  return (
+    <div className={`flex justify-between items-center px-3 py-2.5 rounded-lg ${t.chipBg}`}>
+      <span className={`text-sm ${t.textMuted}`}>{label}</span>
+      <div className="flex gap-3.5">
+        {(['Yes', 'No'] as YesNoType[]).map(opt => (
+          <label key={opt} className={`flex items-center gap-1.5 cursor-pointer text-sm ${opt === value ? (opt === 'Yes' ? 'text-emerald-400 font-bold' : 'text-red-400 font-bold') : t.textFaint}`}>
+            <input type="radio" name={name} value={opt} checked={value === opt} onChange={() => onChange(opt)}
+              className="cursor-pointer" style={{ accentColor: opt === 'Yes' ? '#34d399' : '#f87171' }} />
+            {opt}
+          </label>
+        ))}
+      </div>
     </div>
-  </div>
-);
+  );
+}
 
 // =============== ACTION PLAN ITEM CARD ===============
-const ActionPlanCard: React.FC<{ item: ActionPlanItem; index: number; onChange: (id: string, f: keyof ActionPlanItem, v: string) => void; onRemove: (id: string) => void }> = ({ item, index, onChange, onRemove }) => (
-  <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 10, padding: '14px 14px 10px' }}>
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-      <span style={{ fontSize: 11, fontWeight: 700, color: '#60a5fa', textTransform: 'uppercase', letterSpacing: 1 }}>Action #{index + 1}</span>
-      <button type="button" onClick={() => onRemove(item.id)} title="Remove"
-        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#f87171', padding: 2 }}>
-        <Trash2 size={14} />
-      </button>
-    </div>
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-      <div style={{ gridColumn: '1 / -1' }}>
-        <label className={glassLabel}>Required Action *</label>
-        <input className={glassInput} value={item.action} placeholder="Describe the required action..."
-          onChange={e => onChange(item.id, 'action', e.target.value)} title="Action" />
+function ActionPlanCard({ item, index, onChange, onRemove }: { item: ActionPlanItem; index: number; onChange: (id: string, f: keyof ActionPlanItem, v: string) => void; onRemove: (id: string) => void }) {
+  const t = useTheme();
+  const inputCls = `w-full h-9 rounded-lg px-3 text-sm outline-none transition-colors ${t.inputBg}`;
+  return (
+    <div className={`${t.chipBg} rounded-xl p-3.5`}>
+      <div className="flex justify-between items-center mb-2.5">
+        <span className="text-[11px] font-bold text-blue-400 uppercase tracking-wide">Action #{index + 1}</span>
+        <button type="button" onClick={() => onRemove(item.id)} title="Remove" className="text-red-400 hover:text-red-300 transition-colors"><Trash2 className="h-3.5 w-3.5" /></button>
       </div>
-      <div>
-        <label className={glassLabel}>By Whom *</label>
-        <input className={glassInput} value={item.byWhom} placeholder="Responsible person"
-          onChange={e => onChange(item.id, 'byWhom', e.target.value)} title="Responsible person" />
-      </div>
-      <div>
-        <label className={glassLabel}>By When *</label>
-        <input type="date" className={glassInput} value={item.byWhen} title="Due date" placeholder="Due date"
-          onChange={e => onChange(item.id, 'byWhen', e.target.value)} />
-      </div>
-      <div>
-        <label className={glassLabel}>Status</label>
-        <select className={glassSelect} value={item.status} title="Status"
-          onChange={e => onChange(item.id, 'status', e.target.value as ActionStatus)}>
-          <option value="Pending">Pending</option>
-          <option value="In Progress">In Progress</option>
-          <option value="Completed">Completed</option>
-        </select>
-      </div>
-      {item.status === 'Completed' && (
-        <div>
-          <label className={glassLabel}>Completed Date</label>
-          <input type="date" className={glassInput} value={item.completedDate || ''} title="Completed date" placeholder="Completed date"
-            onChange={e => onChange(item.id, 'completedDate', e.target.value)} />
+      <div className="grid grid-cols-2 gap-2">
+        <div className="col-span-2"><FormField label="Required Action *"><input className={inputCls} value={item.action} placeholder="Describe the required action..." onChange={e => onChange(item.id, 'action', e.target.value)} title="Action" /></FormField></div>
+        <FormField label="By Whom *"><input className={inputCls} value={item.byWhom} placeholder="Responsible person" onChange={e => onChange(item.id, 'byWhom', e.target.value)} title="Responsible person" /></FormField>
+        <FormField label="By When *"><input type="date" className={inputCls} value={item.byWhen} title="Due date" onChange={e => onChange(item.id, 'byWhen', e.target.value)} /></FormField>
+        <FormField label="Status">
+          <SelectField size="form" value={item.status} title="Status" onChange={v => onChange(item.id, 'status', v as ActionStatus)}
+            options={[{ value: 'Pending', label: 'Pending' }, { value: 'In Progress', label: 'In Progress' }, { value: 'Completed', label: 'Completed' }]} />
+        </FormField>
+        {item.status === 'Completed' && (
+          <FormField label="Completed Date"><input type="date" className={inputCls} value={item.completedDate || ''} title="Completed date" onChange={e => onChange(item.id, 'completedDate', e.target.value)} /></FormField>
+        )}
+        <div className="col-span-2">
+          <FormField label="Remarks (Optional)">
+            <textarea className={`w-full text-sm rounded-lg px-3 py-2 outline-none transition-colors resize-none ${t.inputBg}`} style={{ minHeight: 44 }} value={item.remarks || ''} placeholder="Additional notes..." onChange={e => onChange(item.id, 'remarks', e.target.value)} title="Remarks" />
+          </FormField>
         </div>
-      )}
-      <div style={{ gridColumn: '1 / -1' }}>
-        <label className={glassLabel}>Remarks (Optional)</label>
-        <textarea className={glassTextarea} style={{ minHeight: 44 }} value={item.remarks || ''} placeholder="Additional notes..."
-          onChange={e => onChange(item.id, 'remarks', e.target.value)} title="Remarks" />
       </div>
     </div>
-  </div>
-);
+  );
+}
 
 // =============== PTO CARD (Grid) ===============
-interface PTOCardProps {
-  report: PTOReport; index: number;
-  onView: (r: PTOReport) => void; onEdit: (r: PTOReport) => void; onDelete: (id: string) => void;
-}
-const PTOCard: React.FC<PTOCardProps> = ({ report, index, onView, onEdit, onDelete }) => {
+interface PTOCardProps { report: PTOReport; index: number; onView: (r: PTOReport) => void; onEdit: (r: PTOReport) => void; onDelete: (id: string) => void; }
+function PTOCard({ report, index, onView, onEdit, onDelete }: PTOCardProps) {
+  const t = useTheme();
   const SectionIcon = SECTION_ICONS[report.section];
   const sColor = SECTION_COLORS[report.section];
   const total = report.actionPlan?.length || 0;
@@ -205,85 +179,63 @@ const PTOCard: React.FC<PTOCardProps> = ({ report, index, onView, onEdit, onDele
   const hasRisk = report.riskAssessment.made === 'No' || report.riskAssessment.identified === 'No' || report.riskAssessment.effective === 'No';
 
   return (
-    <div onClick={() => onView(report)} style={{ cursor: 'pointer', borderRadius: 14, overflow: 'hidden', background: 'rgba(255,255,255,0.05)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.12)' }}>
-      <div style={{ height: 4, background: `linear-gradient(90deg,${sColor},${OBS_COLORS[report.observationType]})` }} />
-      <div style={{ padding: '14px 16px 12px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{ padding: 7, borderRadius: 8, background: sColor + '22' }}>
-              <SectionIcon size={16} style={{ color: sColor }} />
-            </div>
+    <GlowCard onClick={() => onView(report)} color={sColor} surface={`${t.glass} rounded-2xl`} className="overflow-hidden">
+      <div className="px-4 pt-3.5 pb-3">
+        <div className="flex justify-between items-start mb-2.5">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 rounded-lg" style={{ background: `${sColor}22` }}><SectionIcon className="h-4 w-4" style={{ color: sColor }} /></div>
             <div>
-              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 2 }}>PTO-{index + 1}</div>
-              <div style={{ fontWeight: 700, fontSize: 14, color: 'rgba(255,255,255,0.9)', lineHeight: 1.3, maxWidth: 180, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{report.jobTaskObserved}</div>
+              <div className={`text-[11px] mb-0.5 ${t.textFaint}`}>PTO-{index + 1}</div>
+              <div className={`font-bold text-sm leading-tight max-w-[180px] truncate ${t.textPrimary}`}>{report.jobTaskObserved}</div>
             </div>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end' }}>
-            <Chip label={report.section} color={sColor} />
-            <Chip label={report.observationType} color={OBS_COLORS[report.observationType]} />
+          <div className="flex flex-col gap-1 items-end">
+            <StatusBadge color={sColor} label={report.section} />
+            <StatusBadge color={OBS_COLORS[report.observationType]} label={report.observationType} />
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 10 }}>
-          {[
-            { label: `Observer: ${report.observerName}` },
-            { label: `Worker: ${report.workerName}` },
-            { label: fmtDate(report.date) },
-            { label: report.occupation || 'No occupation' },
-          ].map((item, i) => (
-            <div key={i} style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', padding: '4px 8px', background: 'rgba(255,255,255,0.04)', borderRadius: 6, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
-              {item.label}
-            </div>
+        <div className="grid grid-cols-2 gap-1.5 mb-2.5">
+          {[`Observer: ${report.observerName}`, `Worker: ${report.workerName}`, fmtDate(report.date), report.occupation || 'No occupation'].map((label, i) => (
+            <div key={i} className={`text-[11px] px-2 py-1 rounded ${t.chipBg} ${t.textFaint} truncate`}>{label}</div>
           ))}
         </div>
 
         {hasRisk && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 8, padding: '6px 10px', marginBottom: 10 }}>
-            <AlertTriangle size={13} style={{ color: '#f87171', flexShrink: 0 }} />
-            <span style={{ fontSize: 11, color: '#f87171', fontWeight: 600 }}>Risk Identified — Review Required</span>
+          <div className="flex items-center gap-1.5 bg-red-500/10 border border-red-500/25 rounded-lg px-2.5 py-1.5 mb-2.5">
+            <AlertTriangle className="h-3.5 w-3.5 text-red-400 flex-shrink-0" />
+            <span className="text-[11px] text-red-400 font-semibold">Risk Identified — Review Required</span>
           </div>
         )}
 
         {total > 0 && (
-          <div style={{ marginBottom: 10 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'rgba(255,255,255,0.4)', marginBottom: 4 }}>
-              <span>Action Progress</span><span>{pct}%</span>
-            </div>
-            <div style={{ height: 5, borderRadius: 999, background: 'rgba(255,255,255,0.08)' }}>
-              <div style={{ height: '100%', borderRadius: 999, width: `${pct}%`, background: pct === 100 ? '#10b981' : '#60a5fa' }} />
-            </div>
-            <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
-              <Chip label={`${total - done - inProg} Pending`} color="#f59e0b" />
-              <Chip label={`${inProg} Active`} color="#3b82f6" />
-              <Chip label={`${done} Done`} color="#10b981" />
+          <div className="mb-2.5">
+            <div className={`flex justify-between text-[10px] mb-1 ${t.textFaint}`}><span>Action Progress</span><span>{pct}%</span></div>
+            <ProgressBar value={pct} color={pct === 100 ? '#10b981' : '#60a5fa'} showValue={false} />
+            <div className="flex gap-1.5 mt-1.5">
+              <StatusBadge color="#f59e0b" label={`${total - done - inProg} Pending`} />
+              <StatusBadge color="#3b82f6" label={`${inProg} Active`} />
+              <StatusBadge color="#10b981" label={`${done} Done`} />
             </div>
           </div>
         )}
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: 10 }}>
-          <Chip label={report.status.charAt(0).toUpperCase() + report.status.slice(1)} color={STATUS_COLORS[report.status]} />
-          <div onClick={e => e.stopPropagation()} style={{ display: 'flex', gap: 6 }}>
-            <button onClick={() => onView(report)} title="View"
-              style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', color: 'rgba(255,255,255,0.7)', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
-              <Eye size={12} /> View
-            </button>
-            <button onClick={() => onEdit(report)} title="Edit"
-              style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', color: '#60a5fa', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
-              <Pencil size={12} /> Edit
-            </button>
-            <button onClick={() => onDelete(report.id)} title="Delete"
-              style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', color: '#f87171', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
-              <Trash2 size={12} /> Delete
-            </button>
+        <div className={`flex justify-between items-center border-t ${t.border} pt-2.5`}>
+          <StatusBadge color={STATUS_COLORS[report.status]} label={report.status.charAt(0).toUpperCase() + report.status.slice(1)} />
+          <div onClick={e => e.stopPropagation()} className="flex gap-1.5">
+            <button type="button" onClick={() => onView(report)} title="View" className={`${t.chipBg} ${t.hoverBg} rounded-md px-2 py-1 text-xs flex items-center gap-1 transition-colors ${t.textFaint}`}><Eye className="h-3 w-3" /> View</button>
+            <button type="button" onClick={() => onEdit(report)} title="Edit" className={`${t.chipBg} ${t.hoverBg} rounded-md px-2 py-1 text-xs flex items-center gap-1 transition-colors text-blue-400`}><Pencil className="h-3 w-3" /> Edit</button>
+            <button type="button" onClick={() => onDelete(report.id)} title="Delete" className={`${t.chipBg} ${t.hoverBg} rounded-md px-2 py-1 text-xs flex items-center gap-1 transition-colors text-red-400`}><Trash2 className="h-3 w-3" /> Delete</button>
           </div>
         </div>
       </div>
-    </div>
+    </GlowCard>
   );
-};
+}
 
 // =============== DETAIL MODAL ===============
-const PTODetailModal: React.FC<{ report: PTOReport | null; open: boolean; onClose: () => void; onEdit: (r: PTOReport) => void; onDelete: (id: string) => void; onStatusChange: (id: string, s: ReportStatus) => void }> = ({ report, open, onClose, onEdit, onDelete, onStatusChange }) => {
+function PTODetailModal({ report, open, onClose, onEdit, onDelete, onStatusChange }: { report: PTOReport | null; open: boolean; onClose: () => void; onEdit: (r: PTOReport) => void; onDelete: (id: string) => void; onStatusChange: (id: string, s: ReportStatus) => void }) {
+  const t = useTheme();
   if (!report) return null;
   const SectionIcon = SECTION_ICONS[report.section];
   const sColor = SECTION_COLORS[report.section];
@@ -292,213 +244,130 @@ const PTODetailModal: React.FC<{ report: PTOReport | null; open: boolean; onClos
   const inProg = report.actionPlan?.filter(a => a.status === 'In Progress').length || 0;
   const pct = total ? Math.round((done / total) * 100) : 0;
   const hasRisk = report.riskAssessment.made === 'No' || report.riskAssessment.identified === 'No' || report.riskAssessment.effective === 'No';
-  const infoStyle: React.CSSProperties = { background: 'rgba(255,255,255,0.05)', borderRadius: 8, padding: '8px 12px' };
 
   const reasonsList = (Object.keys(report.reasons) as (keyof Reasons)[]).filter(k => report.reasons[k]).map(k => REASON_LABELS[k]);
   const remediesList = (Object.keys(report.suggestedRemedies) as (keyof SuggestedRemedies)[]).filter(k => report.suggestedRemedies[k] === 'Yes').map(k => REMEDY_LABELS[k]);
 
+  const infoBox = `${t.chipBg} rounded-lg px-3 py-2`;
+
   return (
-    <SafetyModal open={open} onClose={onClose} title="Planned Task Observation Report" width="max-w-2xl">
-      {/* Status bar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.05)', borderRadius: 10, padding: '10px 14px', marginBottom: 16 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ padding: 7, borderRadius: 8, background: sColor + '22' }}>
-            <SectionIcon size={16} style={{ color: sColor }} />
+    <CenterModal open={open} onClose={onClose} title="Planned Task Observation Report" accent="violet" width="max-w-2xl">
+      <div className="p-5 space-y-4">
+        <div className={`flex justify-between items-center ${t.chipBg} rounded-xl px-3.5 py-2.5`}>
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 rounded-lg" style={{ background: `${sColor}22` }}><SectionIcon className="h-4 w-4" style={{ color: sColor }} /></div>
+            <div><span className={`font-bold ${t.textPrimary}`}>{report.section}</span><span className={`text-[11px] ml-2 ${t.textFaint}`}>{report.observationType}</span></div>
           </div>
+          <div className="flex gap-2 items-center">
+            {hasRisk && <StatusBadge color="#ef4444" label="Risk Identified" />}
+            <SelectField size="filter" title="Change status"
+              value={report.status} onChange={v => onStatusChange(report.id, v as ReportStatus)}
+              options={[{ value: 'draft', label: 'Draft' }, { value: 'submitted', label: 'Submitted' }, { value: 'reviewed', label: 'Reviewed' }, { value: 'closed', label: 'Closed' }]} />
+          </div>
+        </div>
+
+        {total > 0 && (
+          <div className={`${t.chipBg} rounded-xl px-3.5 py-3`}>
+            <div className="flex justify-between text-xs mb-1.5"><span className={t.textFaint}>Action Plan Progress</span><span className={`font-semibold ${t.textPrimary}`}>{done}/{total} completed</span></div>
+            <ProgressBar value={pct} color={pct === 100 ? '#10b981' : '#60a5fa'} showValue={false} />
+            <div className="flex gap-2 mt-2">
+              <StatusBadge color="#f59e0b" label={`${total - done - inProg} Pending`} />
+              <StatusBadge color="#3b82f6" label={`${inProg} In Progress`} />
+              <StatusBadge color="#10b981" label={`${done} Completed`} />
+            </div>
+          </div>
+        )}
+
+        <div className="grid grid-cols-4 gap-2">
+          {[{ label: 'Observer', val: report.observerName }, { label: 'Worker', val: report.workerName }, { label: 'Date', val: fmtDate(report.date) }, { label: 'Occupation', val: report.occupation || 'N/A' }].map(({ label, val }) => (
+            <div key={label} className={infoBox}><div className={`text-[10px] mb-0.5 ${t.textFaint}`}>{label}</div><div className={`text-sm font-semibold ${t.textPrimary}`}>{val}</div></div>
+          ))}
+        </div>
+
+        <div className={`${t.chipBg} rounded-xl px-3.5 py-3`}>
+          <div className={`font-bold text-xs uppercase tracking-wide mb-2.5 ${t.textFaint}`}>Task Details</div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className={`col-span-2 ${infoBox}`}><div className={`text-[10px] mb-0.5 ${t.textFaint}`}>Job/Task Observed</div><div className={`text-sm ${t.textMuted}`}>{report.jobTaskObserved}</div></div>
+            <div className={infoBox}><div className={`text-[10px] mb-0.5 ${t.textFaint}`}>SHEQ Reference</div><div className={`text-sm ${t.textMuted}`}>{report.sheqRefNo || 'N/A'}</div></div>
+            <div className={infoBox}><div className={`text-[10px] mb-0.5 ${t.textFaint}`}>Dept/Contractor</div><div className={`text-sm ${t.textMuted}`}>{report.deptSectionContractor || 'N/A'}</div></div>
+            <div className={infoBox}><div className={`text-[10px] mb-0.5 ${t.textFaint}`}>Time on Job</div><div className={`text-sm ${t.textMuted}`}>{report.timeOnJob.months || '0'}m, {report.timeOnJob.years || '0'}y</div></div>
+            <div className={infoBox}><div className={`text-[10px] mb-0.5 ${t.textFaint}`}>Told in Advance</div><StatusBadge color={report.notification.toldInAdvance === 'Yes' ? '#34d399' : '#f87171'} label={report.notification.toldInAdvance} /></div>
+          </div>
+        </div>
+
+        {reasonsList.length > 0 && (
+          <div className={`${t.chipBg} rounded-xl px-3.5 py-3`}>
+            <div className={`font-bold text-xs uppercase tracking-wide mb-2 ${t.textFaint}`}>Reasons for Observation</div>
+            <div className="flex flex-wrap gap-1.5">{reasonsList.map((r, i) => <StatusBadge key={i} color="#a78bfa" label={r} />)}</div>
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-2.5">
+          <div className={`${t.chipBg} rounded-xl px-3.5 py-3`}>
+            <div className={`font-bold text-xs uppercase tracking-wide mb-2 flex items-center gap-1.5 ${t.textFaint}`}><BookOpen className="h-3 w-3" /> Procedures</div>
+            {[{ label: 'Procedure Available', val: report.procedures.hasProcedure }, { label: 'Employee Familiar', val: report.procedures.familiarWithProcedure }].map(({ label, val }) => (
+              <div key={label} className={`flex justify-between items-center py-1.5 border-b ${t.border} last:border-0`}><span className={`text-xs ${t.textFaint}`}>{label}</span><StatusBadge color={val === 'Yes' ? '#34d399' : '#f87171'} label={val} /></div>
+            ))}
+          </div>
+          <div className={`${t.chipBg} rounded-xl px-3.5 py-3`}>
+            <div className={`font-bold text-xs uppercase tracking-wide mb-2 flex items-center gap-1.5 ${t.textFaint}`}><ShieldAlert className="h-3 w-3" /> Risk Assessment</div>
+            {[{ label: 'Assessment Made', val: report.riskAssessment.made }, { label: 'Hazards Identified', val: report.riskAssessment.identified }, { label: 'Controls Effective', val: report.riskAssessment.effective }].map(({ label, val }) => (
+              <div key={label} className={`flex justify-between items-center py-1.5 border-b ${t.border} last:border-0`}><span className={`text-xs ${t.textFaint}`}>{label}</span><StatusBadge color={val === 'Yes' ? '#34d399' : '#f87171'} label={val} /></div>
+            ))}
+          </div>
+        </div>
+
+        {remediesList.length > 0 && (
+          <div className={`${t.chipBg} rounded-xl px-3.5 py-3`}>
+            <div className={`font-bold text-xs uppercase tracking-wide mb-2 ${t.textFaint}`}>Suggested Remedies</div>
+            <div className="flex flex-wrap gap-1.5">{remediesList.map((r, i) => <StatusBadge key={i} color="#60a5fa" label={r} />)}</div>
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-2">
+          <div className={infoBox}><div className={`text-[10px] mb-1 ${t.textFaint}`}>Observation Scope</div><StatusBadge color={report.observationScope === 'All' ? '#34d399' : '#f59e0b'} label={report.observationScope} /></div>
+          <div className={infoBox}><div className={`text-[10px] mb-1 ${t.textFaint}`}>Follow-up Needed</div><StatusBadge color={report.followUpNeeded === 'Yes' ? '#f97316' : '#34d399'} label={report.followUpNeeded} /></div>
+        </div>
+
+        {report.actionPlan?.length > 0 && (
           <div>
-            <span style={{ fontWeight: 700, color: 'rgba(255,255,255,0.85)' }}>{report.section}</span>
-            <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginLeft: 8 }}>{report.observationType}</span>
-          </div>
-        </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          {hasRisk && <Chip label="Risk Identified" color="#ef4444" />}
-          <select title="Change status" className={glassSelect} style={{ width: 'auto', fontSize: 12, padding: '4px 8px' }}
-            value={report.status} onChange={e => onStatusChange(report.id, e.target.value as ReportStatus)}>
-            <option value="draft">Draft</option>
-            <option value="submitted">Submitted</option>
-            <option value="reviewed">Reviewed</option>
-            <option value="closed">Closed</option>
-          </select>
-        </div>
-      </div>
-
-      {/* Progress */}
-      {total > 0 && (
-        <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: '12px 14px', marginBottom: 16 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 6 }}>
-            <span style={{ color: 'rgba(255,255,255,0.6)' }}>Action Plan Progress</span>
-            <span style={{ color: 'rgba(255,255,255,0.8)', fontWeight: 600 }}>{done}/{total} completed</span>
-          </div>
-          <div style={{ height: 6, borderRadius: 999, background: 'rgba(255,255,255,0.08)', marginBottom: 8 }}>
-            <div style={{ height: '100%', borderRadius: 999, width: `${pct}%`, background: pct === 100 ? '#10b981' : '#60a5fa' }} />
-          </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <Chip label={`${total - done - inProg} Pending`} color="#f59e0b" />
-            <Chip label={`${inProg} In Progress`} color="#3b82f6" />
-            <Chip label={`${done} Completed`} color="#10b981" />
-          </div>
-        </div>
-      )}
-
-      {/* Info grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 8, marginBottom: 12 }}>
-        {[
-          { label: 'Observer', val: report.observerName },
-          { label: 'Worker', val: report.workerName },
-          { label: 'Date', val: fmtDate(report.date) },
-          { label: 'Occupation', val: report.occupation || 'N/A' },
-        ].map(({ label, val }) => (
-          <div key={label} style={infoStyle}>
-            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginBottom: 3 }}>{label}</div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.85)' }}>{val}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Task details */}
-      <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: '12px 14px', marginBottom: 12 }}>
-        <div style={{ fontWeight: 700, fontSize: 12, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 }}>Task Details</div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-          <div style={{ gridColumn: '1 / -1', ...infoStyle }}>
-            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginBottom: 3 }}>Job/Task Observed</div>
-            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.85)' }}>{report.jobTaskObserved}</div>
-          </div>
-          <div style={infoStyle}>
-            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginBottom: 3 }}>SHEQ Reference</div>
-            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.85)' }}>{report.sheqRefNo || 'N/A'}</div>
-          </div>
-          <div style={infoStyle}>
-            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginBottom: 3 }}>Dept/Contractor</div>
-            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.85)' }}>{report.deptSectionContractor || 'N/A'}</div>
-          </div>
-          <div style={infoStyle}>
-            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginBottom: 3 }}>Time on Job</div>
-            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.85)' }}>{report.timeOnJob.months || '0'}m, {report.timeOnJob.years || '0'}y</div>
-          </div>
-          <div style={infoStyle}>
-            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginBottom: 3 }}>Told in Advance</div>
-            <Chip label={report.notification.toldInAdvance} color={report.notification.toldInAdvance === 'Yes' ? '#34d399' : '#f87171'} />
-          </div>
-        </div>
-      </div>
-
-      {/* Reasons */}
-      {reasonsList.length > 0 && (
-        <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: '12px 14px', marginBottom: 12 }}>
-          <div style={{ fontWeight: 700, fontSize: 12, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Reasons for Observation</div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            {reasonsList.map((r, i) => <Chip key={i} label={r} color="#a78bfa" />)}
-          </div>
-        </div>
-      )}
-
-      {/* Procedures & Risk */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
-        <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: '12px 14px' }}>
-          <div style={{ fontWeight: 700, fontSize: 12, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 5 }}>
-            <BookOpen size={12} /> Procedures
-          </div>
-          {[
-            { label: 'Procedure Available', val: report.procedures.hasProcedure },
-            { label: 'Employee Familiar', val: report.procedures.familiarWithProcedure },
-          ].map(({ label, val }) => (
-            <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-              <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>{label}</span>
-              <Chip label={val} color={val === 'Yes' ? '#34d399' : '#f87171'} />
-            </div>
-          ))}
-        </div>
-        <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: '12px 14px' }}>
-          <div style={{ fontWeight: 700, fontSize: 12, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 5 }}>
-            <ShieldAlert size={12} /> Risk Assessment
-          </div>
-          {[
-            { label: 'Assessment Made', val: report.riskAssessment.made },
-            { label: 'Hazards Identified', val: report.riskAssessment.identified },
-            { label: 'Controls Effective', val: report.riskAssessment.effective },
-          ].map(({ label, val }) => (
-            <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-              <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>{label}</span>
-              <Chip label={val} color={val === 'Yes' ? '#34d399' : '#f87171'} />
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Remedies */}
-      {remediesList.length > 0 && (
-        <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: '12px 14px', marginBottom: 12 }}>
-          <div style={{ fontWeight: 700, fontSize: 12, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Suggested Remedies</div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            {remediesList.map((r, i) => <Chip key={i} label={r} color="#60a5fa" />)}
-          </div>
-        </div>
-      )}
-
-      {/* Scope & followup */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
-        <div style={infoStyle}>
-          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginBottom: 4 }}>Observation Scope</div>
-          <Chip label={report.observationScope} color={report.observationScope === 'All' ? '#34d399' : '#f59e0b'} />
-        </div>
-        <div style={infoStyle}>
-          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginBottom: 4 }}>Follow-up Needed</div>
-          <Chip label={report.followUpNeeded} color={report.followUpNeeded === 'Yes' ? '#f97316' : '#34d399'} />
-        </div>
-      </div>
-
-      {/* Action plan */}
-      {report.actionPlan?.length > 0 && (
-        <div style={{ marginBottom: 8 }}>
-          <div style={{ fontWeight: 700, fontSize: 12, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 }}>Action Plan ({report.actionPlan.length})</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {report.actionPlan.map((action, idx) => {
-              const ac = ACTION_COLORS[action.status];
-              return (
-                <div key={action.id} style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 8, padding: '10px 12px', borderLeft: `3px solid ${ac}` }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)' }}>Action #{idx + 1}</span>
-                    <Chip label={action.status} color={ac} />
+            <div className={`font-bold text-xs uppercase tracking-wide mb-2.5 ${t.textFaint}`}>Action Plan ({report.actionPlan.length})</div>
+            <div className="flex flex-col gap-2">
+              {report.actionPlan.map((action, idx) => {
+                const ac = ACTION_COLORS[action.status];
+                return (
+                  <div key={action.id} className={`${t.chipBg} rounded-lg px-3 py-2.5`} style={{ borderLeft: `3px solid ${ac}` }}>
+                    <div className="flex justify-between mb-1.5"><span className={`text-[11px] ${t.textFaint}`}>Action #{idx + 1}</span><StatusBadge color={ac} label={action.status} /></div>
+                    <div className={`text-sm mb-1.5 ${t.textMuted}`}>{action.action}</div>
+                    <div className={`flex gap-4 text-[11px] ${t.textFaint}`}>
+                      <span>By: {action.byWhom}</span><span>Due: {fmtDate(action.byWhen)}</span>
+                      {action.completedDate && <span>Completed: {fmtDate(action.completedDate)}</span>}
+                    </div>
+                    {action.remarks && <div className={`mt-1.5 text-xs italic ${t.textFaint} border-l-2 border-blue-400 pl-2`}>{action.remarks}</div>}
                   </div>
-                  <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', marginBottom: 6 }}>{action.action}</div>
-                  <div style={{ display: 'flex', gap: 16, fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>
-                    <span>By: {action.byWhom}</span>
-                    <span>Due: {fmtDate(action.byWhen)}</span>
-                    {action.completedDate && <span>Completed: {fmtDate(action.completedDate)}</span>}
-                  </div>
-                  {action.remarks && <div style={{ marginTop: 6, fontSize: 12, fontStyle: 'italic', color: 'rgba(255,255,255,0.45)', borderLeft: '2px solid #60a5fa', paddingLeft: 8 }}>{action.remarks}</div>}
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
-        </div>
-      )}
-
-      <div style={{ display: 'flex', gap: 8, padding: '14px 20px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-        <button type="button" onClick={() => { onClose(); onDelete(report.id); }}
-          style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 10, padding: '10px 16px', color: '#f87171', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
-          Delete
-        </button>
-        <button type="button" onClick={onClose}
-          style={{ flex: 1, padding: '10px', borderRadius: 10, fontSize: 13, color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.10)', background: 'none', cursor: 'pointer' }}>
-          Close
-        </button>
-        <button type="button" onClick={() => { onClose(); onEdit(report); }}
-          style={{ flex: 1, padding: '10px', borderRadius: 10, fontSize: 13, fontWeight: 600, color: '#fff', background: '#3b82f6', border: 'none', cursor: 'pointer' }}>
-          Edit
-        </button>
+        )}
       </div>
-    </SafetyModal>
+
+      <div className={`flex gap-2 px-5 py-4 border-t ${t.border}`}>
+        <button type="button" onClick={() => { onClose(); onDelete(report.id); }} className="bg-red-500/15 hover:bg-red-500/25 rounded-xl px-4 py-2.5 text-red-400 text-sm font-semibold transition-colors">Delete</button>
+        <button type="button" onClick={onClose} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border} transition-all`}>Close</button>
+        <PrimaryButton size="md" fullWidth onClick={() => { onClose(); onEdit(report); }}>Edit</PrimaryButton>
+      </div>
+    </CenterModal>
   );
-};
+}
 
 // =============== FORM MODAL ===============
-const PTOFormModal: React.FC<{ open: boolean; editing: PTOReport | null; onClose: () => void; onSave: (data: Partial<PTOReport>) => Promise<void>; saving: boolean }> = ({ open, editing, onClose, onSave, saving }) => {
+function PTOFormModal({ open, editing, onClose, onSave, saving }: { open: boolean; editing: PTOReport | null; onClose: () => void; onSave: (data: Partial<PTOReport>) => Promise<void>; saving: boolean }) {
+  const t = useTheme();
   const [tab, setTab] = useState<string>('basic');
   const [form, setForm] = useState<Partial<PTOReport>>(defaultForm());
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (open) { setForm(editing ? { ...editing } : defaultForm()); setTab('basic'); }
   }, [open, editing]);
 
@@ -508,14 +377,13 @@ const PTOFormModal: React.FC<{ open: boolean; editing: PTOReport | null; onClose
     ...prev,
     actionPlan: [...(prev.actionPlan || []), { id: newId(), no: (prev.actionPlan?.length || 0) + 1, action: '', byWhom: '', byWhen: '', status: 'Pending' }],
   }));
-
   const updateAction = (id: string, field: keyof ActionPlanItem, val: string) =>
     setForm(prev => ({ ...prev, actionPlan: prev.actionPlan?.map(a => a.id === id ? { ...a, [field]: val } : a) || [] }));
-
   const removeAction = (id: string) =>
     setForm(prev => ({ ...prev, actionPlan: prev.actionPlan?.filter(a => a.id !== id) || [] }));
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!form.observerName?.trim()) { toast.error('Observer name is required'); setTab('basic'); return; }
     if (!form.workerName?.trim()) { toast.error('Worker name is required'); setTab('basic'); return; }
     if (!form.jobTaskObserved?.trim()) { toast.error('Job/Task observed is required'); setTab('basic'); return; }
@@ -530,201 +398,144 @@ const PTOFormModal: React.FC<{ open: boolean; editing: PTOReport | null; onClose
     { id: 'actions', label: 'Action Plan' },
   ];
 
-  const checkStyle: React.CSSProperties = { accentColor: '#60a5fa', cursor: 'pointer', width: 15, height: 15 };
-  const checkLabelStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, color: 'rgba(255,255,255,0.75)', padding: '6px 0' };
+  const inputCls = `w-full h-9 rounded-lg px-3 text-sm outline-none transition-colors ${t.inputBg}`;
+  const checkLabelCls = `flex items-center gap-2 cursor-pointer text-sm py-1.5 ${t.textMuted}`;
 
   return (
-    <SafetyModal open={open} onClose={onClose}
-      title={editing ? 'Edit PTO Report' : 'New Planned Task Observation'}
-      width="max-w-2xl">
-      <TabBar tabs={tabs} active={tab} onChange={setTab} />
+    <CenterModal open={open} onClose={onClose} title={editing ? 'Edit PTO Report' : 'New Planned Task Observation'} accent="violet" width="max-w-2xl">
+      <div className={`flex gap-1 px-5 pt-4 border-b ${t.border} overflow-x-auto`}>
+        {tabs.map(tb => (
+          <button key={tb.id} type="button" onClick={() => setTab(tb.id)}
+            className={`px-3 py-2 text-xs font-medium rounded-t-lg whitespace-nowrap transition-colors ${tab === tb.id ? 'bg-blue-500/15 text-blue-400' : `${t.textFaint} ${t.hoverText}`}`}>
+            {tb.label}
+          </button>
+        ))}
+      </div>
 
-      {tab === 'basic' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <FormField label="Date *">
-            <input type="date" className={glassInput} value={form.date || ''} title="Date" placeholder="Date"
-              onChange={e => set('date', e.target.value)} />
-          </FormField>
-          <FormField label="Observer Name *">
-            <input className={glassInput} value={form.observerName || ''} placeholder="Observer's full name"
-              onChange={e => set('observerName', e.target.value)} title="Observer name" />
-          </FormField>
-          <FormField label="Section *">
-            <select className={glassSelect} value={form.section || 'Mechanical'} title="Section"
-              onChange={e => set('section', e.target.value as SectionType)}>
-              {SECTIONS.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
-          </FormField>
-          <FormField label="Dept / Contractor">
-            <input className={glassInput} value={form.deptSectionContractor || ''} placeholder="Department or contractor"
-              onChange={e => set('deptSectionContractor', e.target.value)} title="Department or contractor" />
-          </FormField>
-          <FormField label="Worker Name *">
-            <input className={glassInput} value={form.workerName || ''} placeholder="Worker's full name"
-              onChange={e => set('workerName', e.target.value)} title="Worker name" />
-          </FormField>
-          <FormField label="Occupation">
-            <input className={glassInput} value={form.occupation || ''} placeholder="Job title / occupation"
-              onChange={e => set('occupation', e.target.value)} title="Occupation" />
-          </FormField>
-          <div style={{ gridColumn: '1 / -1' }}>
-            <FormField label="Job / Task Observed *">
-              <input className={glassInput} value={form.jobTaskObserved || ''} placeholder="Describe the task being observed"
-                onChange={e => set('jobTaskObserved', e.target.value)} title="Job/task observed" />
+      <form onSubmit={handleSubmit} className="p-5 space-y-4">
+        {tab === 'basic' && (
+          <div className="grid grid-cols-2 gap-3">
+            <FormField label="Date *"><input type="date" className={inputCls} value={form.date || ''} title="Date" onChange={e => set('date', e.target.value)} /></FormField>
+            <FormField label="Observer Name *"><input className={inputCls} value={form.observerName || ''} placeholder="Observer's full name" onChange={e => set('observerName', e.target.value)} title="Observer name" /></FormField>
+            <FormField label="Section *">
+              <SelectField size="form" value={form.section || 'Mechanical'} title="Section" onChange={v => set('section', v as SectionType)}
+                options={SECTIONS.map(s => ({ value: s, label: s }))} />
+            </FormField>
+            <FormField label="Dept / Contractor"><input className={inputCls} value={form.deptSectionContractor || ''} placeholder="Department or contractor" onChange={e => set('deptSectionContractor', e.target.value)} title="Department or contractor" /></FormField>
+            <FormField label="Worker Name *"><input className={inputCls} value={form.workerName || ''} placeholder="Worker's full name" onChange={e => set('workerName', e.target.value)} title="Worker name" /></FormField>
+            <FormField label="Occupation"><input className={inputCls} value={form.occupation || ''} placeholder="Job title / occupation" onChange={e => set('occupation', e.target.value)} title="Occupation" /></FormField>
+            <div className="col-span-2"><FormField label="Job / Task Observed *"><input className={inputCls} value={form.jobTaskObserved || ''} placeholder="Describe the task being observed" onChange={e => set('jobTaskObserved', e.target.value)} title="Job/task observed" /></FormField></div>
+            <FormField label="SHEQ Reference No."><input className={inputCls} value={form.sheqRefNo || ''} placeholder="e.g., SHEQ-001" onChange={e => set('sheqRefNo', e.target.value)} title="SHEQ reference number" /></FormField>
+            <FormField label="Observation Type">
+              <SelectField size="form" value={form.observationType || 'Initial'} title="Observation type" onChange={v => set('observationType', v as ObservationType)}
+                options={[{ value: 'Initial', label: 'Initial' }, { value: 'Follow up', label: 'Follow up' }]} />
+            </FormField>
+            <FormField label="Time on Job (Months)"><input className={inputCls} value={form.timeOnJob?.months || ''} placeholder="0" onChange={e => set('timeOnJob', { ...form.timeOnJob, months: e.target.value })} title="Months on job" /></FormField>
+            <FormField label="Time on Job (Years)"><input className={inputCls} value={form.timeOnJob?.years || ''} placeholder="0" onChange={e => set('timeOnJob', { ...form.timeOnJob, years: e.target.value })} title="Years on job" /></FormField>
+            <div className="col-span-2"><YesNoRow label="Was the worker told in advance?" value={form.notification?.toldInAdvance || 'No'} name="toldInAdvance" onChange={v => set('notification', { toldInAdvance: v })} /></div>
+          </div>
+        )}
+
+        {tab === 'reasons' && (
+          <div className="flex flex-col gap-5">
+            <div>
+              <div className={`font-bold text-xs uppercase tracking-wide mb-2.5 ${t.textFaint}`}>Reasons for Observation</div>
+              <div className="grid grid-cols-2 gap-1">
+                {(Object.keys(REASON_LABELS) as (keyof Reasons)[]).map(key => (
+                  <label key={key} className={checkLabelCls}>
+                    <input type="checkbox" style={{ accentColor: '#60a5fa' }} className="cursor-pointer w-3.5 h-3.5" checked={form.reasons?.[key] || false} onChange={e => set('reasons', { ...form.reasons, [key]: e.target.checked })} />
+                    {REASON_LABELS[key]}
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div>
+              <div className={`font-bold text-xs uppercase tracking-wide mb-2.5 ${t.textFaint}`}>SHEQ Work Procedure</div>
+              <div className="flex flex-col gap-1.5">
+                <YesNoRow label="Is a SHEQ work procedure available?" value={form.procedures?.hasProcedure || 'No'} name="hasProcedure" onChange={v => set('procedures', { ...form.procedures, hasProcedure: v })} />
+                <YesNoRow label="Is the employee familiar with the procedure?" value={form.procedures?.familiarWithProcedure || 'No'} name="familiarWithProcedure" onChange={v => set('procedures', { ...form.procedures, familiarWithProcedure: v })} />
+              </div>
+            </div>
+            <div>
+              <div className={`font-bold text-xs uppercase tracking-wide mb-2.5 ${t.textFaint}`}>Suggested Remedies</div>
+              <div className="grid grid-cols-2 gap-1">
+                {(Object.keys(REMEDY_LABELS) as (keyof SuggestedRemedies)[]).map(key => (
+                  <label key={key} className={checkLabelCls}>
+                    <input type="checkbox" style={{ accentColor: '#60a5fa' }} className="cursor-pointer w-3.5 h-3.5" checked={form.suggestedRemedies?.[key] === 'Yes'} onChange={e => set('suggestedRemedies', { ...form.suggestedRemedies, [key]: e.target.checked ? 'Yes' : 'No' })} />
+                    {REMEDY_LABELS[key]}
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {tab === 'risk' && (
+          <div className="flex flex-col gap-5">
+            <div>
+              <div className={`font-bold text-xs uppercase tracking-wide mb-2.5 ${t.textFaint}`}>Risk Assessment</div>
+              <div className="flex flex-col gap-1.5">
+                <YesNoRow label="Has a risk assessment been made?" value={form.riskAssessment?.made || 'No'} name="raMade" onChange={v => set('riskAssessment', { ...form.riskAssessment, made: v })} />
+                <YesNoRow label="Have hazards/risks/controls been identified?" value={form.riskAssessment?.identified || 'No'} name="raIdentified" onChange={v => set('riskAssessment', { ...form.riskAssessment, identified: v })} />
+                <YesNoRow label="Are the controls effective?" value={form.riskAssessment?.effective || 'No'} name="raEffective" onChange={v => set('riskAssessment', { ...form.riskAssessment, effective: v })} />
+              </div>
+            </div>
+            <div>
+              <div className={`font-bold text-xs uppercase tracking-wide mb-2.5 ${t.textFaint}`}>Observation Scope & Follow-up</div>
+              <div className="flex flex-col gap-1.5">
+                <div className={`flex justify-between items-center px-3 py-2.5 rounded-lg ${t.chipBg}`}>
+                  <span className={`text-sm ${t.textMuted}`}>Observation Scope</span>
+                  <div className="flex gap-3.5">
+                    {(['All', 'Partial'] as const).map(opt => (
+                      <label key={opt} className={`flex items-center gap-1.5 cursor-pointer text-sm ${form.observationScope === opt ? 'text-blue-400 font-bold' : t.textFaint}`}>
+                        <input type="radio" name="scope" value={opt} checked={form.observationScope === opt} onChange={() => set('observationScope', opt)} style={{ accentColor: '#60a5fa' }} className="cursor-pointer" />
+                        {opt}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <YesNoRow label="Is a follow-up observation needed?" value={form.followUpNeeded || 'No'} name="followUp" onChange={v => set('followUpNeeded', v)} />
+              </div>
+            </div>
+            <FormField label="Report Status">
+              <SelectField size="form" value={form.status || 'draft'} title="Status" onChange={v => set('status', v as ReportStatus)}
+                options={[{ value: 'draft', label: 'Draft' }, { value: 'submitted', label: 'Submitted' }, { value: 'reviewed', label: 'Reviewed' }, { value: 'closed', label: 'Closed' }]} />
             </FormField>
           </div>
-          <FormField label="SHEQ Reference No.">
-            <input className={glassInput} value={form.sheqRefNo || ''} placeholder="e.g., SHEQ-001"
-              onChange={e => set('sheqRefNo', e.target.value)} title="SHEQ reference number" />
-          </FormField>
-          <FormField label="Observation Type">
-            <select className={glassSelect} value={form.observationType || 'Initial'} title="Observation type"
-              onChange={e => set('observationType', e.target.value as ObservationType)}>
-              <option value="Initial">Initial</option>
-              <option value="Follow up">Follow up</option>
-            </select>
-          </FormField>
-          <FormField label="Time on Job (Months)">
-            <input className={glassInput} value={form.timeOnJob?.months || ''} placeholder="0"
-              onChange={e => set('timeOnJob', { ...form.timeOnJob, months: e.target.value })} title="Months on job" />
-          </FormField>
-          <FormField label="Time on Job (Years)">
-            <input className={glassInput} value={form.timeOnJob?.years || ''} placeholder="0"
-              onChange={e => set('timeOnJob', { ...form.timeOnJob, years: e.target.value })} title="Years on job" />
-          </FormField>
-          <div style={{ gridColumn: '1 / -1' }}>
-            <YesNoRow label="Was the worker told in advance?" value={form.notification?.toldInAdvance || 'No'} name="toldInAdvance"
-              onChange={v => set('notification', { toldInAdvance: v })} />
-          </div>
-        </div>
-      )}
+        )}
 
-      {tab === 'reasons' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        {tab === 'actions' && (
           <div>
-            <div style={{ fontWeight: 700, fontSize: 13, color: 'rgba(255,255,255,0.7)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5 }}>Reasons for Observation</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
-              {(Object.keys(REASON_LABELS) as (keyof Reasons)[]).map(key => (
-                <label key={key} style={checkLabelStyle}>
-                  <input type="checkbox" style={checkStyle} checked={form.reasons?.[key] || false}
-                    onChange={e => set('reasons', { ...form.reasons, [key]: e.target.checked })} />
-                  {REASON_LABELS[key]}
-                </label>
-              ))}
+            <div className="flex justify-between items-center mb-3.5">
+              <div><div className={`font-bold text-sm ${t.textPrimary}`}>Action Plan</div><div className={`text-[11px] mt-0.5 ${t.textFaint}`}>Define corrective or improvement actions.</div></div>
+              <button type="button" onClick={addAction} className="flex items-center gap-1.5 bg-blue-500/15 hover:bg-blue-500/25 rounded-lg px-3 py-1.5 text-blue-400 text-sm font-semibold transition-colors"><Plus className="h-3.5 w-3.5" /> Add Action</button>
             </div>
-          </div>
-
-          <div>
-            <div style={{ fontWeight: 700, fontSize: 13, color: 'rgba(255,255,255,0.7)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5 }}>SHEQ Work Procedure</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <YesNoRow label="Is a SHEQ work procedure available?" value={form.procedures?.hasProcedure || 'No'} name="hasProcedure"
-                onChange={v => set('procedures', { ...form.procedures, hasProcedure: v })} />
-              <YesNoRow label="Is the employee familiar with the procedure?" value={form.procedures?.familiarWithProcedure || 'No'} name="familiarWithProcedure"
-                onChange={v => set('procedures', { ...form.procedures, familiarWithProcedure: v })} />
-            </div>
-          </div>
-
-          <div>
-            <div style={{ fontWeight: 700, fontSize: 13, color: 'rgba(255,255,255,0.7)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5 }}>Suggested Remedies</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
-              {(Object.keys(REMEDY_LABELS) as (keyof SuggestedRemedies)[]).map(key => (
-                <label key={key} style={checkLabelStyle}>
-                  <input type="checkbox" style={checkStyle} checked={form.suggestedRemedies?.[key] === 'Yes'}
-                    onChange={e => set('suggestedRemedies', { ...form.suggestedRemedies, [key]: e.target.checked ? 'Yes' : 'No' })} />
-                  {REMEDY_LABELS[key]}
-                </label>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {tab === 'risk' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          <div>
-            <div style={{ fontWeight: 700, fontSize: 13, color: 'rgba(255,255,255,0.7)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5 }}>Risk Assessment</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <YesNoRow label="Has a risk assessment been made?" value={form.riskAssessment?.made || 'No'} name="raMade"
-                onChange={v => set('riskAssessment', { ...form.riskAssessment, made: v })} />
-              <YesNoRow label="Have hazards/risks/controls been identified?" value={form.riskAssessment?.identified || 'No'} name="raIdentified"
-                onChange={v => set('riskAssessment', { ...form.riskAssessment, identified: v })} />
-              <YesNoRow label="Are the controls effective?" value={form.riskAssessment?.effective || 'No'} name="raEffective"
-                onChange={v => set('riskAssessment', { ...form.riskAssessment, effective: v })} />
-            </div>
-          </div>
-
-          <div>
-            <div style={{ fontWeight: 700, fontSize: 13, color: 'rgba(255,255,255,0.7)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5 }}>Observation Scope & Follow-up</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: 8 }}>
-                <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.75)' }}>Observation Scope</span>
-                <div style={{ display: 'flex', gap: 14 }}>
-                  {(['All', 'Partial'] as const).map(opt => (
-                    <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', fontSize: 13, color: form.observationScope === opt ? '#60a5fa' : 'rgba(255,255,255,0.45)', fontWeight: form.observationScope === opt ? 700 : 400 }}>
-                      <input type="radio" name="scope" value={opt} checked={form.observationScope === opt}
-                        onChange={() => set('observationScope', opt)} style={{ accentColor: '#60a5fa', cursor: 'pointer' }} />
-                      {opt}
-                    </label>
-                  ))}
-                </div>
+            {(form.actionPlan || []).length === 0 ? (
+              <div className={`text-center py-8 ${t.textFaint}`}>
+                <Target className="h-9 w-9 mx-auto mb-2" />
+                <div className="text-sm">No actions defined yet.</div>
+                <button type="button" onClick={addAction} className={`mt-2.5 ${t.chipBg} ${t.hoverBg} rounded-lg px-3.5 py-1.5 text-xs transition-colors ${t.textMuted}`}>+ Add First Action</button>
               </div>
-              <YesNoRow label="Is a follow-up observation needed?" value={form.followUpNeeded || 'No'} name="followUp"
-                onChange={v => set('followUpNeeded', v)} />
-            </div>
+            ) : (
+              <div className="flex flex-col gap-2.5">
+                {(form.actionPlan || []).map((item, idx) => (
+                  <ActionPlanCard key={item.id} item={item} index={idx} onChange={updateAction} onRemove={removeAction} />
+                ))}
+              </div>
+            )}
           </div>
+        )}
 
-          <FormField label="Report Status">
-            <select className={glassSelect} value={form.status || 'draft'} title="Status"
-              onChange={e => set('status', e.target.value as ReportStatus)}>
-              <option value="draft">Draft</option>
-              <option value="submitted">Submitted</option>
-              <option value="reviewed">Reviewed</option>
-              <option value="closed">Closed</option>
-            </select>
-          </FormField>
-        </div>
-      )}
-
-      {tab === 'actions' && (
-        <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: 14, color: 'rgba(255,255,255,0.85)' }}>Action Plan</div>
-              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>Define corrective or improvement actions.</div>
-            </div>
-            <button type="button" onClick={addAction}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(96,165,250,0.15)', border: '1px solid rgba(96,165,250,0.35)', borderRadius: 8, padding: '6px 12px', color: '#60a5fa', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
-              <Plus size={14} /> Add Action
-            </button>
-          </div>
-          {(form.actionPlan || []).length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '32px 0', color: 'rgba(255,255,255,0.3)' }}>
-              <Target size={36} style={{ margin: '0 auto 8px' }} />
-              <div style={{ fontSize: 13 }}>No actions defined yet.</div>
-              <button type="button" onClick={addAction}
-                style={{ marginTop: 10, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, padding: '6px 14px', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', fontSize: 12 }}>
-                + Add First Action
-              </button>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {(form.actionPlan || []).map((item, idx) => (
-                <ActionPlanCard key={item.id} item={item} index={idx} onChange={updateAction} onRemove={removeAction} />
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      <ModalActions onCancel={onClose} onSubmit={handleSubmit} submitting={saving}
-        submitLabel={editing ? 'Update PTO' : 'Submit PTO'} />
-    </SafetyModal>
+        <FormActions onCancel={onClose} submitting={saving} submitLabel={editing ? 'Update PTO' : 'Submit PTO'} accent="violet" />
+      </form>
+    </CenterModal>
   );
-};
+}
 
 // =============== MAIN PAGE ===============
-export default function CompletePTOFormPage() {
-  const sections = usePageCollapse({ stats: false, records: false });
+function PTOPageContent() {
+  const t = useTheme();
+  const sections = useCollapseSection({ hero: true, records: true });
   const [reports, setReports] = useState<PTOReport[]>([]);
   const [loading, setLoading] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
@@ -745,10 +556,8 @@ export default function CompletePTOFormPage() {
 
   const loadData = async () => {
     setLoading(true);
-    try {
-      const data = await getPTOReports();
-      setReports(data);
-    } catch { toast.error('Failed to load PTO reports'); }
+    try { setReports(await getPTOReports()); }
+    catch { toast.error('Failed to load PTO reports'); }
     finally { setLoading(false); }
   };
 
@@ -786,32 +595,25 @@ export default function CompletePTOFormPage() {
     const prev = reports.find(r => r.id === id);
     if (!prev) return;
     setReports(ps => ps.map(r => r.id === id ? { ...r, status } : r));
-    try {
-      await updatePTOReport(id, { status });
-      toast.success(`Status updated to ${status}`);
-    } catch {
-      setReports(ps => ps.map(r => r.id === id ? prev : r));
-      toast.error('Failed to update status');
-    }
+    try { await updatePTOReport(id, { status }); toast.success(`Status updated to ${status}`); }
+    catch { setReports(ps => ps.map(r => r.id === id ? prev : r)); toast.error('Failed to update status'); }
   };
 
   const clearFilters = () => { setSearch(''); setSectionFilter('all'); setStatusFilter('all'); setObsTypeFilter('all'); setDateFrom(''); setDateTo(''); };
 
-  const filtered = useMemo(() => {
-    return reports.filter(r => {
-      if (search) {
-        const q = search.toLowerCase();
-        if (![r.observerName, r.workerName, r.jobTaskObserved, r.occupation].some(s => s?.toLowerCase().includes(q))
-          && !r.actionPlan?.some(a => a.action?.toLowerCase().includes(q))) return false;
-      }
-      if (sectionFilter !== 'all' && r.section !== sectionFilter) return false;
-      if (statusFilter !== 'all' && r.status !== statusFilter) return false;
-      if (obsTypeFilter !== 'all' && r.observationType !== obsTypeFilter) return false;
-      if (dateFrom && r.date < dateFrom) return false;
-      if (dateTo && r.date > dateTo) return false;
-      return true;
-    });
-  }, [reports, search, sectionFilter, statusFilter, obsTypeFilter, dateFrom, dateTo]);
+  const filtered = useMemo(() => reports.filter(r => {
+    if (search) {
+      const q = search.toLowerCase();
+      if (![r.observerName, r.workerName, r.jobTaskObserved, r.occupation].some(s => s?.toLowerCase().includes(q))
+        && !r.actionPlan?.some(a => a.action?.toLowerCase().includes(q))) return false;
+    }
+    if (sectionFilter !== 'all' && r.section !== sectionFilter) return false;
+    if (statusFilter !== 'all' && r.status !== statusFilter) return false;
+    if (obsTypeFilter !== 'all' && r.observationType !== obsTypeFilter) return false;
+    if (dateFrom && r.date < dateFrom) return false;
+    if (dateTo && r.date > dateTo) return false;
+    return true;
+  }), [reports, search, sectionFilter, statusFilter, obsTypeFilter, dateFrom, dateTo]);
 
   const total = reports.length;
   const drafts = reports.filter(r => r.status === 'draft').length;
@@ -822,150 +624,137 @@ export default function CompletePTOFormPage() {
   const completedActions = reports.reduce((acc, r) => acc + (r.actionPlan?.filter(a => a.status === 'Completed').length || 0), 0);
   const highRisk = reports.filter(r => r.riskAssessment.made === 'No' || r.riskAssessment.identified === 'No' || r.riskAssessment.effective === 'No').length;
 
-  const hasFilters = search || sectionFilter !== 'all' || statusFilter !== 'all' || obsTypeFilter !== 'all' || dateFrom || dateTo;
+  const hasFilters = !!(search || sectionFilter !== 'all' || statusFilter !== 'all' || obsTypeFilter !== 'all' || dateFrom || dateTo);
 
-  const heroStats = [
-    { label: 'Total', value: total, color: '#60a5fa' },
-    { label: 'Draft', value: drafts, color: '#6b7280' },
-    { label: 'Submitted', value: submitted, color: '#3b82f6' },
-    { label: 'Reviewed', value: reviewed, color: '#a78bfa' },
-    { label: 'Closed', value: closed, color: '#10b981' },
-    { label: 'Actions', value: totalActions, color: '#f59e0b' },
-    { label: 'Completed', value: completedActions, color: '#34d399' },
-    { label: 'High Risk', value: highRisk, color: '#ef4444' },
-  ];
-
-  const tableColumns = ['Date', 'Observer', 'Worker', 'Task', 'Section', 'Type', 'Status', 'Risk', 'Actions'];
-  const tableRows = filtered.map(r => ({
-    id: r.id,
-    cells: [
-      fmtDate(r.date), r.observerName, r.workerName,
-      r.jobTaskObserved.slice(0, 30) + (r.jobTaskObserved.length > 30 ? '…' : ''),
-      r.section, r.observationType,
-      r.status.charAt(0).toUpperCase() + r.status.slice(1),
-      (r.riskAssessment.made === 'No' || r.riskAssessment.identified === 'No' || r.riskAssessment.effective === 'No') ? '⚠ High' : '—',
-    ],
-  }));
+  const selCls = `h-8 rounded-lg px-2.5 text-xs outline-none transition-colors ${t.inputBg}`;
+  const thCls = `text-left px-3 py-2 text-[10px] uppercase tracking-wide font-medium ${t.textFaint}`;
+  const tdCls = `px-3 py-2.5 text-sm ${t.textMuted}`;
 
   return (
-    <PageShell>
-      <main className="container mx-auto px-4 py-6 space-y-6">
+    <main className="max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+      <PageHero
+        icon={ClipboardList}
+        accent="violet"
+        crumbs={['Safety & Compliance', 'Planned Task Observation']}
+        title="Planned Task Observation"
+        description="Complete PTO forms with risk assessment and action tracking."
+        statsOpen={sections.expanded.hero}
+        actions={
+          <>
+            <button type="button" onClick={loadData} title="Refresh" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /></button>
+            <button type="button" onClick={() => setViewMode('grid')} title="Grid view" className={`h-8 w-8 flex items-center justify-center rounded-lg transition-all ${viewMode === 'grid' ? 'bg-blue-500/20 text-blue-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}><LayoutGrid className="h-3.5 w-3.5" /></button>
+            <button type="button" onClick={() => setViewMode('table')} title="Table view" className={`h-8 w-8 flex items-center justify-center rounded-lg transition-all ${viewMode === 'table' ? 'bg-blue-500/20 text-blue-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}><TableIcon className="h-3.5 w-3.5" /></button>
+            <PrimaryButton icon={Plus} onClick={() => { setEditing(null); setFormOpen(true); }}>New PTO</PrimaryButton>
+          </>
+        }
+      >
+        <div className="grid grid-cols-4 sm:grid-cols-8 gap-3">
+          <StatTile icon={ClipboardList} color={ACCENT_HEX.blue} label="Total" value={total} />
+          <StatTile icon={ClipboardList} color="#94a3b8" label="Draft" value={drafts} />
+          <StatTile icon={ClipboardList} color="#3b82f6" label="Submitted" value={submitted} />
+          <StatTile icon={ClipboardList} color="#a78bfa" label="Reviewed" value={reviewed} />
+          <StatTile icon={ClipboardList} color="#10b981" label="Closed" value={closed} />
+          <StatTile icon={Target} color="#f59e0b" label="Actions" value={totalActions} />
+          <StatTile icon={Target} color="#34d399" label="Completed" value={completedActions} />
+          <StatTile icon={AlertTriangle} color="#ef4444" label="High Risk" value={highRisk} />
+        </div>
+      </PageHero>
 
-        <SafetyHero
-          icon={ClipboardList}
-          title="Planned Task Observation"
-          subtitle="Complete PTO forms with risk assessment and action tracking."
-          accentColor="#60a5fa"
-          stats={heroStats}
-          showStats={sections.expanded.stats} onToggleStats={() => sections.toggle('stats')}
-          actions={
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <MasterCollapseButton collapse={sections} />
-              <button onClick={loadData} title="Refresh"
-                style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 8, padding: '7px 10px', cursor: 'pointer', color: 'rgba(255,255,255,0.7)' }}>
-                <RefreshCw size={15} />
-              </button>
-              <button onClick={() => setViewMode('grid')} title="Grid view"
-                style={{ background: viewMode === 'grid' ? 'rgba(96,165,250,0.18)' : 'rgba(255,255,255,0.07)', border: `1px solid ${viewMode === 'grid' ? '#60a5fa' : 'rgba(255,255,255,0.12)'}`, borderRadius: 8, padding: '7px 10px', cursor: 'pointer', color: viewMode === 'grid' ? '#60a5fa' : 'rgba(255,255,255,0.6)' }}>
-                <LayoutGrid size={15} />
-              </button>
-              <button onClick={() => setViewMode('table')} title="Table view"
-                style={{ background: viewMode === 'table' ? 'rgba(96,165,250,0.18)' : 'rgba(255,255,255,0.07)', border: `1px solid ${viewMode === 'table' ? '#60a5fa' : 'rgba(255,255,255,0.12)'}`, borderRadius: 8, padding: '7px 10px', cursor: 'pointer', color: viewMode === 'table' ? '#60a5fa' : 'rgba(255,255,255,0.6)' }}>
-                <TableIcon size={15} />
-              </button>
-              <AddButton label="New PTO" onClick={() => { setEditing(null); setFormOpen(true); }} />
-            </div>
-          }
-        />
-
-        {sections.expanded.records && <>
-        <SafetyControls>
-          <SafetySearchBar value={search} onChange={setSearch} placeholder="Search by observer, worker, task..." />
-          <FilterPills label="Section" value={sectionFilter} onChange={setSectionFilter}
-            options={[{ label: 'All', value: 'all' }, { label: 'Mechanical', value: 'Mechanical' }, { label: 'Electrical', value: 'Electrical' }]} />
-          <FilterPills label="Status" value={statusFilter} onChange={setStatusFilter}
-            options={[{ label: 'All', value: 'all' }, { label: 'Draft', value: 'draft' }, { label: 'Submitted', value: 'submitted' }, { label: 'Reviewed', value: 'reviewed' }, { label: 'Closed', value: 'closed' }]} />
-          <FilterPills label="Type" value={obsTypeFilter} onChange={setObsTypeFilter}
-            options={[{ label: 'All', value: 'all' }, { label: 'Initial', value: 'Initial' }, { label: 'Follow up', value: 'Follow up' }]} />
-          <DateRangeFilter from={dateFrom} to={dateTo} onFromChange={setDateFrom} onToChange={setDateTo} />
-          {hasFilters && <ClearFiltersButton onClick={clearFilters} />}
-          <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginLeft: 'auto' }}>{filtered.length} of {total}</span>
-        </SafetyControls>
+      {sections.expanded.records && <>
+        <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
+          <div className="px-5 py-3 flex flex-wrap items-center gap-2">
+            <SearchInput value={search} onChange={setSearch} placeholder="Search by observer, worker, task..." className="w-56" />
+            <SelectField size="filter" title="Section" value={sectionFilter} onChange={setSectionFilter}
+              options={[{ value: 'all', label: 'All Sections' }, { value: 'Mechanical', label: 'Mechanical' }, { value: 'Electrical', label: 'Electrical' }]} />
+            <SelectField size="filter" title="Status" value={statusFilter} onChange={setStatusFilter}
+              options={[{ value: 'all', label: 'All Status' }, { value: 'draft', label: 'Draft' }, { value: 'submitted', label: 'Submitted' }, { value: 'reviewed', label: 'Reviewed' }, { value: 'closed', label: 'Closed' }]} />
+            <SelectField size="filter" title="Type" value={obsTypeFilter} onChange={setObsTypeFilter}
+              options={[{ value: 'all', label: 'All Types' }, { value: 'Initial', label: 'Initial' }, { value: 'Follow up', label: 'Follow up' }]} />
+            <input type="date" title="From date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className={selCls} />
+            <input type="date" title="To date" value={dateTo} onChange={e => setDateTo(e.target.value)} className={selCls} />
+            {hasFilters && <button type="button" onClick={clearFilters} className={`flex items-center gap-1 text-xs px-2 py-1.5 rounded-lg transition-colors ${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText}`}><X className="h-3 w-3" /> Clear</button>}
+            <span className={`text-[11px] ml-auto ${t.textFaint}`}>{filtered.length} of {total}</span>
+          </div>
+        </div>
 
         {loading ? (
-          <LoadingState />
+          <div className="flex items-center justify-center py-16"><RefreshCw className={`h-6 w-6 animate-spin ${t.textFaint}`} /></div>
         ) : filtered.length === 0 ? (
-          <EmptyState
-            icon={ClipboardList}
-            title="No PTO reports found"
-            message={total === 0 ? 'Start by creating your first Planned Task Observation.' : 'Try adjusting your filters.'}
-            onAdd={total === 0 ? () => { setEditing(null); setFormOpen(true); } : clearFilters}
-            addLabel={total === 0 ? 'Create First PTO' : 'Clear Filters'}
-          />
+          <div className={`${t.glass} rounded-2xl ${t.shadow}`}>
+            <EmptyState icon={ClipboardList} title="No PTO reports found"
+              message={total === 0 ? 'Start by creating your first Planned Task Observation.' : 'Try adjusting your filters.'}
+              action={{ label: total === 0 ? 'Create First PTO' : 'Clear Filters', onClick: total === 0 ? () => { setEditing(null); setFormOpen(true); } : clearFilters }} />
+          </div>
         ) : viewMode === 'grid' ? (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
+          <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))' }}>
             {filtered.map((r, i) => (
-              <PTOCard key={r.id} report={r} index={i}
-                onView={r => { setSelectedReport(r); setDetailOpen(true); }}
-                onEdit={handleEdit}
-                onDelete={id => setDeleteTarget(id)}
-              />
+              <PTOCard key={r.id} report={r} index={i} onView={rep => { setSelectedReport(rep); setDetailOpen(true); }} onEdit={handleEdit} onDelete={id => setDeleteTarget(id)} />
             ))}
           </div>
         ) : (
-          <SafetyTable headers={['Date', 'Observer', 'Worker', 'Task', 'Section', 'Type', 'Status', 'Risk', ''].map(label => ({ label }))}>
-            {filtered.map(r => {
-              const hasRisk = r.riskAssessment.made === 'No' || r.riskAssessment.identified === 'No' || r.riskAssessment.effective === 'No';
-              return (
-                <tr key={r.id} onClick={() => { setSelectedReport(r); setDetailOpen(true); }}
-                  style={{ cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                  <td className="pl-5 pr-3 py-3 text-xs text-white/70">{fmtDate(r.date)}</td>
-                  <td className="px-3 py-3 text-xs text-white/70">{r.observerName}</td>
-                  <td className="px-3 py-3 text-xs text-white/70">{r.workerName}</td>
-                  <td className="px-3 py-3 text-xs text-white/60">{r.jobTaskObserved.slice(0, 30)}{r.jobTaskObserved.length > 30 ? '…' : ''}</td>
-                  <td className="px-3 py-3"><Chip label={r.section} color={SECTION_COLORS[r.section]} /></td>
-                  <td className="px-3 py-3"><Chip label={r.observationType} color={OBS_COLORS[r.observationType]} /></td>
-                  <td className="px-3 py-3"><Chip label={r.status.charAt(0).toUpperCase() + r.status.slice(1)} color={STATUS_COLORS[r.status]} /></td>
-                  <td className="px-3 py-3">{hasRisk ? <Chip label="⚠ High" color="#ef4444" /> : <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: 12 }}>—</span>}</td>
-                  <td className="px-3 py-3 text-right" onClick={e => e.stopPropagation()}>
-                    <RowActions onEdit={() => handleEdit(r)} onDelete={() => setDeleteTarget(r.id)} />
-                  </td>
-                </tr>
-              );
-            })}
-          </SafetyTable>
-        )}
-        </>}
-
-        <PTODetailModal
-          report={selectedReport}
-          open={detailOpen}
-          onClose={() => { setDetailOpen(false); setSelectedReport(null); }}
-          onEdit={r => { setDetailOpen(false); handleEdit(r); }}
-          onDelete={id => { setDetailOpen(false); setDeleteTarget(id); }}
-          onStatusChange={handleStatusChange}
-        />
-
-        <PTOFormModal
-          open={formOpen}
-          editing={editing}
-          onClose={() => { setFormOpen(false); setEditing(null); }}
-          onSave={handleSave}
-          saving={saving}
-        />
-
-        <SafetyModal open={!!deleteTarget} onClose={() => setDeleteTarget(null)}
-          title="Confirm Deletion" width="max-w-sm">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0 20px', color: 'rgba(255,255,255,0.7)', fontSize: 14 }}>
-            <AlertTriangle size={20} style={{ color: '#f87171', flexShrink: 0 }} />
-            Are you sure you want to delete this PTO report?
+          <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className={`border-b ${t.border}`}>
+                  <tr><th className={thCls}>Date</th><th className={thCls}>Observer</th><th className={thCls}>Worker</th><th className={thCls}>Task</th><th className={thCls}>Section</th><th className={thCls}>Type</th><th className={thCls}>Status</th><th className={thCls}>Risk</th><th className={thCls}></th></tr>
+                </thead>
+                <tbody>
+                  {filtered.map(r => {
+                    const hasRisk = r.riskAssessment.made === 'No' || r.riskAssessment.identified === 'No' || r.riskAssessment.effective === 'No';
+                    return (
+                      <tr key={r.id} onClick={() => { setSelectedReport(r); setDetailOpen(true); }} className={`border-b ${t.border} ${t.hoverBgSoft} transition-colors cursor-pointer`}>
+                        <td className={tdCls}>{fmtDate(r.date)}</td>
+                        <td className={tdCls}>{r.observerName}</td>
+                        <td className={tdCls}>{r.workerName}</td>
+                        <td className={tdCls}>{r.jobTaskObserved.slice(0, 30)}{r.jobTaskObserved.length > 30 ? '…' : ''}</td>
+                        <td className={tdCls}><StatusBadge color={SECTION_COLORS[r.section]} label={r.section} /></td>
+                        <td className={tdCls}><StatusBadge color={OBS_COLORS[r.observationType]} label={r.observationType} /></td>
+                        <td className={tdCls}><StatusBadge color={STATUS_COLORS[r.status]} label={r.status.charAt(0).toUpperCase() + r.status.slice(1)} /></td>
+                        <td className={tdCls}>{hasRisk ? <StatusBadge color="#ef4444" label="⚠ High" /> : <span className={t.textFaint}>—</span>}</td>
+                        <td className={tdCls} onClick={e => e.stopPropagation()}>
+                          <div className="flex gap-1 justify-end">
+                            <button type="button" title="Edit" onClick={() => handleEdit(r)} className={`p-1.5 rounded ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-colors`}><Pencil className="h-3 w-3" /></button>
+                            <button type="button" title="Delete" onClick={() => setDeleteTarget(r.id)} className={`p-1.5 rounded ${t.chipBg} hover:bg-rose-500/15 ${t.textFaint} hover:text-rose-400 transition-colors`}><Trash2 className="h-3 w-3" /></button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
-          <ModalActions onCancel={() => setDeleteTarget(null)}
-            onSubmit={() => deleteTarget && handleDelete(deleteTarget)}
-            submitLabel="Delete" />
-        </SafetyModal>
+        )}
+      </>}
 
-      </main>
-    </PageShell>
+      <PTODetailModal
+        report={selectedReport}
+        open={detailOpen}
+        onClose={() => { setDetailOpen(false); setSelectedReport(null); }}
+        onEdit={r => { setDetailOpen(false); handleEdit(r); }}
+        onDelete={id => { setDetailOpen(false); setDeleteTarget(id); }}
+        onStatusChange={handleStatusChange}
+      />
+
+      <PTOFormModal open={formOpen} editing={editing} onClose={() => { setFormOpen(false); setEditing(null); }} onSave={handleSave} saving={saving} />
+
+      <CenterModal open={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Confirm Deletion" accent="amber" width="max-w-sm">
+        <div className="p-5 space-y-4">
+          <div className={`flex items-center gap-3 text-sm ${t.textMuted}`}><AlertTriangle className="h-5 w-5 text-red-400 flex-shrink-0" /> Are you sure you want to delete this PTO report?</div>
+          <div className="flex gap-2">
+            <button type="button" onClick={() => setDeleteTarget(null)} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border} transition-all`}>Cancel</button>
+            <button type="button" onClick={() => deleteTarget && handleDelete(deleteTarget)} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-rose-500 to-rose-700 hover:brightness-110 transition-all">Delete</button>
+          </div>
+        </div>
+      </CenterModal>
+    </main>
+  );
+}
+
+export default function CompletePTOFormPage() {
+  return (
+    <AppShell>
+      <PTOPageContent />
+    </AppShell>
   );
 }

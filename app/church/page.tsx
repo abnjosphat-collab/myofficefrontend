@@ -113,7 +113,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
-import { PageShell } from '@/components/PageShell';
+import { AppShell } from '@/components/app-shell';
 
 // =============== ANIMATION STYLES ===============
 const animationStyles = `
@@ -920,7 +920,7 @@ export default function ChurchPage() {
   };
 
   return (
-    <PageShell>
+    <AppShell>
       <style jsx global>{animationStyles}</style>
       {/* Page Header */}
       <div className="container mx-auto px-4 py-6">
@@ -1319,6 +1319,6 @@ export default function ChurchPage() {
             </Card>
           </div>
         </main>
-    </PageShell>
+    </AppShell>
   );
 }

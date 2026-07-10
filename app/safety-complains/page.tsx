@@ -10,7 +10,7 @@ import {
   Table as TableIcon, Grid, MessageSquare, Check,
   Settings, Sun, HelpCircle, Info, Download, Zap, MapPin,
 } from "lucide-react";
-import { PageShell } from '@/components/PageShell';
+import { AppShell } from '@/components/app-shell';
 import {
   fmtDate as formatDate,
   initials as getInitials,
@@ -24,6 +24,7 @@ import {
   usePageCollapse,
   MasterCollapseButton,
 } from '@/components/shared';
+import { useTheme, GlowCard, ACCENT_HEX } from '@/components/shared/theme';
 import { toast } from "sonner";
 
 // =============== TYPES ===============
@@ -194,11 +195,14 @@ interface CardProps {
 }
 
 const ComplaintCard: React.FC<CardProps> = ({ complaint, onView, onEdit, onDelete }) => {
+  const t = useTheme();
   const [expanded, setExpanded] = useState(false);
   const cfg = COMPLAINT_TYPES[complaint.complaint_type] || COMPLAINT_TYPES.other;
 
   return (
-    <div className="rounded-2xl bg-[rgba(5,15,28,0.65)] border border-white/[0.08] backdrop-blur-sm overflow-hidden hover:border-white/[0.15] hover:shadow-xl transition-all duration-300">
+    // Whole card is the "View" click target (matching every other migrated card in the
+    // app) — expand/edit/delete/view all stopPropagation so they don't also trigger it.
+    <GlowCard color={ACCENT_HEX.violet} surface={`${t.glass} rounded-2xl`} className="overflow-hidden cursor-pointer" onClick={() => onView(complaint)}>
       <div className="p-4 border-b border-white/[0.06]">
         <div className="flex items-start gap-3">
           <AvatarInitials name={complaint.reported_by_name} className="shrink-0" />
@@ -208,7 +212,7 @@ const ComplaintCard: React.FC<CardProps> = ({ complaint, onView, onEdit, onDelet
               <MapPin className="h-3 w-3 shrink-0" />{complaint.location || 'No location'}
             </p>
           </div>
-          <button type="button" onClick={() => setExpanded(v => !v)} title={expanded ? 'Collapse' : 'Expand'}
+          <button type="button" onClick={e => { e.stopPropagation(); setExpanded(v => !v); }} title={expanded ? 'Collapse' : 'Expand'}
             className="p-1.5 rounded-lg text-white/40 hover:text-white/70 hover:bg-white/[0.05] transition-colors shrink-0">
             {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           </button>
@@ -232,7 +236,7 @@ const ComplaintCard: React.FC<CardProps> = ({ complaint, onView, onEdit, onDelet
       </div>
 
       {expanded && (
-        <div className="p-4 border-b border-white/[0.06] space-y-3">
+        <div className="p-4 border-b border-white/[0.06] space-y-3" onClick={e => e.stopPropagation()}>
           <div>
             <p className="text-[10px] text-white/40 flex items-center gap-1 mb-1"><MessageSquare className="h-3 w-3" /> Description</p>
             <p className="text-xs text-white/70 bg-white/[0.03] rounded-lg p-3 whitespace-pre-wrap">{complaint.description || 'No description'}</p>
@@ -246,7 +250,7 @@ const ComplaintCard: React.FC<CardProps> = ({ complaint, onView, onEdit, onDelet
         </div>
       )}
 
-      <div className="flex border-t border-white/[0.06]">
+      <div className="flex border-t border-white/[0.06]" onClick={e => e.stopPropagation()}>
         <button type="button" onClick={() => onView(complaint)}
           className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-white/50 hover:text-white/80 hover:bg-white/[0.03] transition-colors border-r border-white/[0.06]">
           <Eye className="h-3.5 w-3.5" /> View
@@ -260,7 +264,7 @@ const ComplaintCard: React.FC<CardProps> = ({ complaint, onView, onEdit, onDelet
           <Trash2 className="h-3.5 w-3.5" /> Delete
         </button>
       </div>
-    </div>
+    </GlowCard>
   );
 };
 
@@ -678,7 +682,7 @@ export default function SafetyComplaintsPage() {
   const hasFilters = searchTerm || typeFilter || severityFilter || statusFilter || dateFrom || dateTo;
 
   return (
-    <PageShell>
+    <AppShell>
       <main className="container mx-auto px-4 py-6 space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -928,6 +932,6 @@ export default function SafetyComplaintsPage() {
           </div>
         )}
       </main>
-    </PageShell>
+    </AppShell>
   );
 }

@@ -5,32 +5,17 @@ import React, { useState, useMemo, useEffect, useCallback } from "react";
 import {
   Users, Plus, Search, ChevronDown, ChevronUp, RefreshCw,
   Loader2, Clock, AlertCircle, Trash2, X, Edit,
-  Mail, Briefcase, Building, Calendar, GraduationCap, UserCheck,
+  Mail, Briefcase, GraduationCap, UserCheck,
   FilterX, Sparkles, UserRound, BriefcaseBusiness, Phone,
   ChevronLeft, ChevronRight, ArrowUpDown, List, LayoutGrid,
-  Filter, FileText, Award,
+  Filter, FileText, Award, Download,
 } from "lucide-react";
 import { toast } from "sonner";
-import { PageShell } from "@/components/PageShell";
+import { AppShell } from "@/components/app-shell";
 import {
-  IF as InfoField, EmptyState, LoadingPane,
-  HeroPanel, GlassPanel, RecordsPanelHeader, FilterChips,
-  fmtDate, initials as sharedInitials,
-  usePageCollapse, MasterCollapseButton,
-  DownloadButton,
-  type StatItem, type DLColumn,
-} from '@/components/shared';
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
-import {
-  Dialog, DialogContent, DialogDescription, DialogFooter,
-  DialogHeader, DialogTitle,
-} from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Label } from "@/components/ui/label";
+  useTheme, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle,
+  FormField, FormActions, useCollapseSection, CenterModal, ACCENT_HEX, GlowCard, SelectField,
+} from '@/components/shared/theme';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -92,12 +77,16 @@ type SortDir = 'asc' | 'desc';
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com';
 const EMPLOYEES_API = `${API_BASE}/api/employees`;
 const CLASS_OPTIONS = ['Permanent', 'Contract', 'Internship', 'Part-Time'] as const;
-const EMPLOYMENT_TYPES = ['NEC', 'SALARIED'] as const;
 
-// ─── Design tokens ────────────────────────────────────────────────────────────
+const CLASS_COLORS: Record<string, string> = {
+  Permanent: '#34d399', Contract: '#f59e0b', Internship: ACCENT_HEX.blue, 'Part-Time': '#a78bfa',
+};
+const ETYPE_COLORS: Record<string, string> = { NEC: ACCENT_HEX.indigo, SALARIED: '#14b8a6' };
+const SECTION_COLORS: Record<string, string> = {
+  Mechanical: ACCENT_HEX.blue, Electrical: '#f59e0b', Civil: '#34d399', Instrumentation: '#a78bfa',
+};
 
-const GIN = "bg-white/[0.07] border-white/[0.12] text-white placeholder:text-white/30 focus:border-[#86BBD8]/50 focus:bg-white/[0.10] h-9 text-sm";
-const LBL = "text-white/55 text-xs font-medium";
+function sectionColor(section?: string) { return SECTION_COLORS[section || ''] ?? '#94a3b8'; }
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
@@ -113,31 +102,14 @@ function tenure(eng?: string) {
   } catch { return '—'; }
 }
 
-function classPill(cls?: string) {
-  const map: Record<string, string> = {
-    Permanent:  'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
-    Contract:   'bg-amber-500/20  text-amber-300  border-amber-500/30',
-    Internship: 'bg-blue-500/20   text-blue-300   border-blue-500/30',
-    'Part-Time':'bg-purple-500/20 text-purple-300 border-purple-500/30',
-  };
-  return map[cls || ''] ?? 'bg-white/10 text-white/55 border-white/12';
+function fmtDate(d?: string) {
+  if (!d) return '—';
+  const dt = new Date(d);
+  return isNaN(dt.getTime()) ? '—' : dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-function etypePill(t?: string) {
-  if (t === 'NEC')      return 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30';
-  if (t === 'SALARIED') return 'bg-teal-500/20   text-teal-300   border-teal-500/30';
-  return null;
-}
-
-const SECTION_STYLE: Record<string, { pill: string; border: string }> = {
-  Mechanical:      { pill: 'bg-[#86BBD8]/20 text-[#86BBD8] border-[#86BBD8]/35',      border: 'border-l-[#86BBD8]' },
-  Electrical:      { pill: 'bg-amber-500/20 text-amber-300 border-amber-500/35',       border: 'border-l-amber-400' },
-  Civil:           { pill: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/35', border: 'border-l-emerald-400' },
-  Instrumentation: { pill: 'bg-violet-500/20 text-violet-300 border-violet-500/35',   border: 'border-l-violet-400' },
-};
-
-function sectionPill(section?: string) {
-  return SECTION_STYLE[section || ''] ?? { pill: 'bg-white/10 text-white/50 border-white/15', border: 'border-l-white/20' };
+function initials(name: string) {
+  return name.trim().split(/\s+/).map(p => p[0]).join('').toUpperCase().slice(0, 2);
 }
 
 // ─── API ──────────────────────────────────────────────────────────────────────
@@ -164,7 +136,44 @@ async function removeEmployee(id: number) {
   await apiFetch(`${EMPLOYEES_API}/${id}`, { method: 'DELETE' });
 }
 
-// ─── EmployeeForm — dark glass inputs ────────────────────────────────────────
+// ─── Small themed building blocks ────────────────────────────────────────────
+
+function InfoRow({ label, value }: { label: string; value?: React.ReactNode }) {
+  const t = useTheme();
+  return (
+    <div>
+      <div className={`text-[10px] uppercase tracking-wide mb-0.5 ${t.textFaint}`}>{label}</div>
+      <div className={`text-sm ${t.textMuted}`}>{value || '—'}</div>
+    </div>
+  );
+}
+
+function FilterChips({ label, options, value, onChange }: {
+  label: string; options: { value: string; label: string }[]; value: string; onChange: (v: string) => void;
+}) {
+  const t = useTheme();
+  return (
+    <div>
+      <p className={`text-xs font-medium mb-1.5 ${t.textFaint}`}>{label}</p>
+      <div className="flex flex-wrap gap-1.5">
+        {options.map(o => (
+          <button
+            key={o.value}
+            type="button"
+            onClick={() => onChange(o.value)}
+            className={`h-7 px-2.5 rounded-lg text-[12px] font-medium transition-colors ${
+              value === o.value ? 'bg-blue-500/20 text-blue-400' : `${t.textFaint} ${t.hoverText} ${t.hoverBg}`
+            }`}
+          >
+            {o.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── EmployeeForm ─────────────────────────────────────────────────────────────
 
 interface EmployeeFormProps {
   initialData?: Employee | null;
@@ -183,6 +192,7 @@ const EMPTY_FORM: EmployeeFormData = {
 };
 
 function EmployeeForm({ initialData, onSubmit, onCancel, isSubmitting }: EmployeeFormProps) {
+  const t = useTheme();
   const [form, setForm] = useState<EmployeeFormData>(
     initialData ? {
       employee_id: initialData.employee_id || '',
@@ -241,7 +251,7 @@ function EmployeeForm({ initialData, onSubmit, onCancel, isSubmitting }: Employe
     await onSubmit(form);
   };
 
-  const textInp = `flex w-full rounded-lg border px-3 py-2 text-sm outline-none transition-colors ${GIN}`;
+  const inputCls = `w-full h-9 px-3 rounded-lg text-sm ${t.inputBg} focus:outline-none`;
 
   const tabs = [
     { id: 'basic' as const, label: 'Personal', icon: UserRound },
@@ -250,195 +260,151 @@ function EmployeeForm({ initialData, onSubmit, onCancel, isSubmitting }: Employe
     { id: 'additional' as const, label: 'Additional', icon: Sparkles },
   ];
 
+  const tagInput = (f: 'qualifications' | 'other_positions' | 'awards_recognition' | 'offences', k: keyof typeof temps, ph: string, tint: string) => (
+    <div className="space-y-2">
+      <div className="flex gap-2">
+        <input
+          value={temps[k]}
+          placeholder={ph}
+          onChange={e => setTemps(p => ({ ...p, [k]: e.target.value }))}
+          onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addItem(f, temps[k], k))}
+          className={inputCls}
+        />
+        <button type="button" onClick={() => addItem(f, temps[k], k)}
+          className="px-3 h-9 rounded-lg bg-blue-500/15 hover:bg-blue-500/25 text-blue-400 text-sm font-medium transition-all whitespace-nowrap">
+          Add
+        </button>
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {(form[f] as string[]).map((item, i) => (
+          <span key={i} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium" style={{ color: tint, background: `${tint}18`, border: `1px solid ${tint}30` }}>
+            {item}
+            <button type="button" aria-label="Remove" onClick={() => rmItem(f, i)} className="hover:opacity-60 ml-0.5 transition-opacity"><X className="h-3 w-3" /></button>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
-      {/* Tabs */}
-      <div className="flex gap-1 border-b border-white/[0.08] pb-3 flex-wrap">
-        {tabs.map(t => {
-          const Icon = t.icon;
+      <div className={`flex gap-1 border-b ${t.border} pb-3 flex-wrap`}>
+        {tabs.map(tb => {
+          const Icon = tb.icon;
           return (
-            <button key={t.id} type="button" onClick={() => setTab(t.id)}
+            <button key={tb.id} type="button" onClick={() => setTab(tb.id)}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                tab === t.id
-                  ? 'bg-[#86BBD8]/20 text-white border border-[#86BBD8]/30'
-                  : 'text-white/45 hover:bg-white/[0.07] hover:text-white/70'
+                tab === tb.id ? 'bg-blue-500/15 text-blue-400' : `${t.textFaint} ${t.hoverBg} ${t.hoverText}`
               }`}>
-              <Icon className="h-3.5 w-3.5" />{t.label}
+              <Icon className="h-3.5 w-3.5" />{tb.label}
             </button>
           );
         })}
       </div>
 
-      <ScrollArea className="max-h-[54vh] pr-2">
+      <div className="max-h-[54vh] overflow-y-auto pr-1">
         {tab === 'basic' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pr-1">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {[
-              { f: 'employee_id', label: 'Employee ID *', ph: 'e.g. C1165, PM365', upper: true },
-              { f: 'first_name',  label: 'First Name *',  ph: 'First name' },
-              { f: 'last_name',   label: 'Last Name *',   ph: 'Last name' },
-              { f: 'id_number',   label: 'ID Number *',   ph: 'National ID or passport' },
-              { f: 'email',       label: 'Email',         ph: 'Optional', type: 'email' },
-              { f: 'phone',       label: 'Phone',         ph: 'Optional' },
-            ].map(({ f, label, ph, upper, type }) => (
-              <div key={f} className="space-y-1.5">
-                <Label htmlFor={f} className={LBL}>{label}</Label>
-                <Input id={f} type={type ?? 'text'} value={(form as unknown as Record<string, unknown>)[f] as string}
-                  onChange={e => set(f as keyof EmployeeFormData, upper ? e.target.value.toUpperCase() : e.target.value)}
-                  placeholder={ph} className={`${GIN} ${errors[f] ? 'border-red-500/50' : ''}`} />
-                {errors[f] && <p className="text-xs text-red-400">{errors[f]}</p>}
-              </div>
+              { f: 'employee_id' as const, label: 'Employee ID', ph: 'e.g. C1165, PM365', upper: true, required: true },
+              { f: 'first_name' as const,  label: 'First Name',  ph: 'First name', required: true },
+              { f: 'last_name' as const,   label: 'Last Name',   ph: 'Last name', required: true },
+              { f: 'id_number' as const,   label: 'ID Number',   ph: 'National ID or passport', required: true },
+              { f: 'email' as const,       label: 'Email',       ph: 'Optional', type: 'email' },
+              { f: 'phone' as const,       label: 'Phone',       ph: 'Optional' },
+            ].map(({ f, label, ph, upper, type, required }) => (
+              <FormField key={f} label={label} required={required}>
+                <input
+                  type={type ?? 'text'}
+                  value={form[f]}
+                  onChange={e => set(f, upper ? e.target.value.toUpperCase() : e.target.value)}
+                  placeholder={ph}
+                  className={`${inputCls} ${errors[f] ? 'ring-1 ring-rose-500/50' : ''}`}
+                />
+                {errors[f] && <p className="text-xs text-rose-500 mt-1">{errors[f]}</p>}
+              </FormField>
             ))}
-            <div className="md:col-span-2 space-y-1.5">
-              <Label className={LBL}>Address</Label>
-              <textarea value={form.address} rows={2} placeholder="Optional"
-                onChange={e => set('address', e.target.value)}
-                className={`${textInp} resize-none`} />
+            <div className="md:col-span-2">
+              <FormField label="Address">
+                <textarea value={form.address} rows={2} placeholder="Optional"
+                  onChange={e => set('address', e.target.value)}
+                  className={`${inputCls} h-auto py-2 resize-none`} />
+              </FormField>
             </div>
           </div>
         )}
 
         {tab === 'employment' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pr-1">
-            <div className="space-y-1.5">
-              <Label className={LBL}>Engagement Date *</Label>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormField label="Engagement Date" required>
               <input type="date" title="Date of engagement" value={form.date_of_engagement}
                 onChange={e => set('date_of_engagement', e.target.value)}
-                className={`${textInp} [color-scheme:dark] ${errors.date_of_engagement ? 'border-red-500/50' : ''}`} />
-              {errors.date_of_engagement && <p className="text-xs text-red-400">{errors.date_of_engagement}</p>}
-            </div>
-            <div className="space-y-1.5">
-              <Label className={LBL}>Designation *</Label>
-              <Input value={form.designation} placeholder="Job title / position"
+                className={`${inputCls} ${errors.date_of_engagement ? 'ring-1 ring-rose-500/50' : ''}`} />
+              {errors.date_of_engagement && <p className="text-xs text-rose-500 mt-1">{errors.date_of_engagement}</p>}
+            </FormField>
+            <FormField label="Designation" required>
+              <input value={form.designation} placeholder="Job title / position"
                 onChange={e => set('designation', e.target.value)}
-                className={`${GIN} ${errors.designation ? 'border-red-500/50' : ''}`} />
-              {errors.designation && <p className="text-xs text-red-400">{errors.designation}</p>}
-            </div>
-            <div className="space-y-1.5">
-              <Label className={LBL}>Employee Class</Label>
-              <Select value={form.employee_class || 'none'} onValueChange={v => set('employee_class', v === 'none' ? '' : v)}>
-                <SelectTrigger className="h-9 bg-white/[0.07] border-white/[0.12] text-white text-sm">
-                  <SelectValue placeholder="Select class" />
-                </SelectTrigger>
-                <SelectContent className="bg-[#0d1f33] border-white/10 text-white">
-                  <SelectItem value="none">None</SelectItem>
-                  {CLASS_OPTIONS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label className={LBL}>Employment Type</Label>
+                className={`${inputCls} ${errors.designation ? 'ring-1 ring-rose-500/50' : ''}`} />
+              {errors.designation && <p className="text-xs text-rose-500 mt-1">{errors.designation}</p>}
+            </FormField>
+            <FormField label="Employee Class">
+              <SelectField size="form"
+                title="Employee class"
+                value={form.employee_class || 'none'}
+                onChange={v => set('employee_class', v === 'none' ? '' : v)}
+                options={[{ value: 'none', label: 'None' }, ...CLASS_OPTIONS]}
+              />
+            </FormField>
+            <FormField label="Employment Type">
               <div className="flex gap-2">
-                {(['', 'NEC', 'SALARIED'] as const).map(t => (
-                  <button key={t || 'none'} type="button"
-                    onClick={() => set('employment_type', t)}
-                    className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition-all ${
-                      form.employment_type === t
-                        ? t === 'NEC'
-                          ? 'bg-indigo-500/30 text-indigo-200 border-indigo-500/50'
-                          : t === 'SALARIED'
-                          ? 'bg-teal-500/30 text-teal-200 border-teal-500/50'
-                          : 'bg-white/10 text-white/60 border-white/20'
-                        : 'bg-white/[0.04] text-white/35 border-white/10 hover:bg-white/[0.08] hover:text-white/60'
+                {(['', 'NEC', 'SALARIED'] as const).map(et => (
+                  <button key={et || 'none'} type="button"
+                    onClick={() => set('employment_type', et)}
+                    className={`flex-1 h-9 rounded-lg text-xs font-semibold transition-all ${
+                      form.employment_type === et
+                        ? et === 'NEC' ? 'bg-indigo-500/20 text-indigo-400' : et === 'SALARIED' ? 'bg-teal-500/20 text-teal-400' : `${t.chipBg} ${t.textMuted}`
+                        : `${t.hoverBg} ${t.textFaint}`
                     }`}>
-                    {t || 'Not set'}
+                    {et || 'Not set'}
                   </button>
                 ))}
               </div>
-            </div>
+            </FormField>
             {[
-              { f: 'department',       label: 'Department' },
-              { f: 'section',          label: 'Section' },
-              { f: 'grade',            label: 'Grade' },
-              { f: 'supervisor',       label: 'Supervisor' },
-              { f: 'previous_employer',label: 'Previous Employer' },
+              { f: 'department' as const,        label: 'Department' },
+              { f: 'section' as const,           label: 'Section' },
+              { f: 'grade' as const,             label: 'Grade' },
+              { f: 'supervisor' as const,        label: 'Supervisor' },
+              { f: 'previous_employer' as const, label: 'Previous Employer' },
             ].map(({ f, label }) => (
-              <div key={f} className="space-y-1.5">
-                <Label className={LBL}>{label}</Label>
-                <Input value={(form as unknown as Record<string, unknown>)[f] as string}
-                  onChange={e => set(f as keyof EmployeeFormData, e.target.value)}
-                  placeholder="Optional" className={GIN} />
-              </div>
+              <FormField key={f} label={label}>
+                <input value={form[f]} onChange={e => set(f, e.target.value)} placeholder="Optional" className={inputCls} />
+              </FormField>
             ))}
           </div>
         )}
 
         {tab === 'qualifications' && (
-          <div className="space-y-5 pr-1">
-            <div className="space-y-2">
-              <Label className={LBL}>Qualifications</Label>
-              <div className="flex gap-2">
-                <Input value={temps.qual} placeholder="Add a qualification"
-                  onChange={e => setTemps(p => ({ ...p, qual: e.target.value }))}
-                  onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addItem('qualifications', temps.qual, 'qual'))}
-                  className={GIN} />
-                <button type="button" onClick={() => addItem('qualifications', temps.qual, 'qual')}
-                  className="px-3 py-2 rounded-lg bg-[#86BBD8]/20 hover:bg-[#86BBD8]/35 text-white border border-[#86BBD8]/30 text-sm transition-all whitespace-nowrap">
-                  Add
-                </button>
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {form.qualifications.map((item, i) => (
-                  <span key={i} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#86BBD8]/15 text-[#86BBD8] text-xs border border-[#86BBD8]/25 font-medium">
-                    {item}
-                    <button type="button" aria-label="Remove" onClick={() => rmItem('qualifications', i)} className="hover:text-red-400 ml-0.5 transition-colors"><X className="h-3 w-3" /></button>
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
+          <FormField label="Qualifications">
+            {tagInput('qualifications', 'qual', 'Add a qualification', ACCENT_HEX.blue)}
+          </FormField>
         )}
 
         {tab === 'additional' && (
-          <div className="space-y-5 pr-1">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label className={LBL}>Driver&apos;s License Class</Label>
-                <Input value={form.drivers_license_class} placeholder="Optional"
-                  onChange={e => set('drivers_license_class', e.target.value)} className={GIN} />
-              </div>
-            </div>
-            {([
-              { f: 'other_positions'   as const, label: 'Other Positions',      k: 'pos'     as const, ph: 'Add position' },
-              { f: 'awards_recognition'as const, label: 'Awards & Recognition', k: 'award'   as const, ph: 'Add award or recognition' },
-              { f: 'offences'          as const, label: 'Offences',             k: 'offence' as const, ph: 'Add offence record' },
-            ]).map(({ f, label, k, ph }) => (
-              <div key={f} className="space-y-2">
-                <Label className={LBL}>{label}</Label>
-                <div className="flex gap-2">
-                  <Input value={temps[k]} placeholder={ph}
-                    onChange={e => setTemps(p => ({ ...p, [k]: e.target.value }))}
-                    onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addItem(f, temps[k], k))}
-                    className={GIN} />
-                  <button type="button" onClick={() => addItem(f, temps[k], k)}
-                    className="px-3 py-2 rounded-lg bg-[#86BBD8]/20 hover:bg-[#86BBD8]/35 text-white border border-[#86BBD8]/30 text-sm transition-all whitespace-nowrap">
-                    Add
-                  </button>
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {(form[f] as string[]).map((item, i) => (
-                    <span key={i} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/[0.08] text-white/70 text-xs border border-white/12">
-                      {item}
-                      <button type="button" aria-label="Remove" onClick={() => rmItem(f, i)} className="hover:text-red-400 ml-0.5 transition-colors"><X className="h-3 w-3" /></button>
-                    </span>
-                  ))}
-                </div>
-              </div>
-            ))}
+          <div className="space-y-5">
+            <FormField label="Driver's License Class">
+              <input value={form.drivers_license_class} placeholder="Optional"
+                onChange={e => set('drivers_license_class', e.target.value)} className={inputCls} />
+            </FormField>
+            <FormField label="Other Positions">{tagInput('other_positions', 'pos', 'Add position', '#a78bfa')}</FormField>
+            <FormField label="Awards & Recognition">{tagInput('awards_recognition', 'award', 'Add award or recognition', '#f59e0b')}</FormField>
+            <FormField label="Offences">{tagInput('offences', 'offence', 'Add offence record', '#f43f5e')}</FormField>
           </div>
         )}
-      </ScrollArea>
+      </div>
 
-      <DialogFooter className="gap-2 pt-4 border-t border-white/[0.08]">
-        <Button type="button" onClick={onCancel}
-          className="bg-white/[0.07] hover:bg-white/[0.14] text-white/70 border border-white/12">
-          Cancel
-        </Button>
-        <Button type="submit" disabled={isSubmitting}
-          className="bg-[#86BBD8]/25 hover:bg-[#86BBD8]/40 text-white border border-[#86BBD8]/35">
-          {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {initialData ? 'Save Changes' : 'Add Employee'}
-        </Button>
-      </DialogFooter>
+      <FormActions onCancel={onCancel} submitting={isSubmitting} submitLabel={initialData ? 'Save Changes' : 'Add Employee'} accent="violet" />
     </form>
   );
 }
@@ -448,189 +414,150 @@ function EmployeeForm({ initialData, onSubmit, onCancel, isSubmitting }: Employe
 interface EmployeeRowProps { employee: Employee; onEdit: (e: Employee) => void; onDelete: (e: Employee) => void; }
 
 function EmployeeRow({ employee, onEdit, onDelete }: EmployeeRowProps) {
+  const t = useTheme();
   const [expanded, setExpanded] = useState(false);
   const name = `${employee.first_name} ${employee.last_name}`;
-  const t = tenure(employee.date_of_engagement);
+  const ten = tenure(employee.date_of_engagement);
   const quals = employee.qualifications?.length ?? 0;
-  const sec = employee.section;
-  const secStyle = sectionPill(sec);
+  const secColor = sectionColor(employee.section);
 
   return (
-    <div className="border-b border-white/[0.05]">
-      <div className={`flex items-center gap-3.5 px-5 py-3 hover:bg-white/[0.03] transition-colors group border-l-2 ${secStyle.border}`}>
-        {/* Avatar */}
-        <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-[#2A4D69] to-[#86BBD8] flex items-center justify-center text-white font-bold text-sm shadow-lg flex-shrink-0">
-          {sharedInitials(`${employee.first_name} ${employee.last_name}`)}
+    <div className={`border-b ${t.border}`}>
+      <div className={`flex items-center gap-3.5 px-4 py-3 ${t.hoverBgSoft} transition-colors group border-l-2`} style={{ borderLeftColor: secColor }}>
+        <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white font-bold text-sm shrink-0">
+          {initials(name)}
         </div>
 
-        {/* Name + meta */}
         <button type="button" onClick={() => setExpanded(o => !o)} className="flex-1 min-w-0 text-left">
-          <div className="text-white/90 font-semibold text-sm group-hover:text-white transition-colors">
-            {name}
-          </div>
+          <div className={`font-semibold text-sm ${t.textPrimary}`}>{name}</div>
           <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-            <span className="text-white/40 text-xs font-mono">{employee.employee_id}</span>
-            {employee.designation && <span className="text-white/40 text-xs">· {employee.designation}</span>}
-            {employee.section     && <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium ${secStyle.pill}`}>{employee.section}</span>}
+            <span className={`text-xs font-mono ${t.textFaint}`}>{employee.employee_id}</span>
+            {employee.designation && <span className={`text-xs ${t.textFaint}`}>· {employee.designation}</span>}
+            {employee.section && <StatusBadge color={secColor} label={employee.section} />}
           </div>
         </button>
 
-        {/* Right: pills + tenure + actions */}
-        <div className="flex items-center gap-2 flex-shrink-0">
-          {employee.employment_type && etypePill(employee.employment_type) && (
-            <span className={`hidden sm:inline-flex text-[10px] px-2 py-0.5 rounded-full border font-bold ${etypePill(employee.employment_type)}`}>
-              {employee.employment_type}
-            </span>
+        <div className="flex items-center gap-2 shrink-0">
+          {employee.employment_type && (
+            <span className="hidden sm:block"><StatusBadge color={ETYPE_COLORS[employee.employment_type] ?? '#94a3b8'} label={employee.employment_type} /></span>
           )}
-          <span className={`hidden sm:inline-flex text-[10px] px-2 py-0.5 rounded-full border font-medium ${classPill(employee.employee_class)}`}>
-            {employee.employee_class || 'Unclassified'}
-          </span>
-          <span className="hidden md:flex items-center gap-1 text-[11px] text-white/35">
-            <Clock className="h-3 w-3" />{t}
-          </span>
-          {quals > 0 && (
-            <span className="hidden lg:flex items-center gap-1 text-[11px] text-white/35">
-              <GraduationCap className="h-3 w-3" />{quals}
-            </span>
-          )}
+          <span className="hidden sm:block"><StatusBadge color={CLASS_COLORS[employee.employee_class || ''] ?? '#94a3b8'} label={employee.employee_class || 'Unclassified'} /></span>
+          <span className={`hidden md:flex items-center gap-1 text-[11px] ${t.textFaint}`}><Clock className="h-3 w-3" />{ten}</span>
+          {quals > 0 && <span className={`hidden lg:flex items-center gap-1 text-[11px] ${t.textFaint}`}><GraduationCap className="h-3 w-3" />{quals}</span>}
         </div>
 
-        {/* Hover actions */}
         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
           {employee.email && (
             <button type="button" title="Send email" onClick={() => window.open(`mailto:${employee.email}`, '_blank')}
-              className="h-7 w-7 flex items-center justify-center rounded-lg bg-white/[0.06] hover:bg-white/[0.14] text-white/40 border border-white/10 transition-all">
+              className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all`}>
               <Mail className="h-3.5 w-3.5" />
             </button>
           )}
           {employee.phone && (
             <button type="button" title="Call" onClick={() => window.open(`tel:${employee.phone}`, '_self')}
-              className="h-7 w-7 flex items-center justify-center rounded-lg bg-white/[0.06] hover:bg-white/[0.14] text-white/40 border border-white/10 transition-all">
+              className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all`}>
               <Phone className="h-3.5 w-3.5" />
             </button>
           )}
           <button type="button" title="Edit employee" onClick={() => onEdit(employee)}
-            className="h-7 w-7 flex items-center justify-center rounded-lg bg-[#86BBD8]/[0.12] hover:bg-[#86BBD8]/25 text-[#86BBD8]/70 hover:text-[#86BBD8] border border-[#86BBD8]/20 transition-all">
+            className="h-7 w-7 flex items-center justify-center rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 transition-all">
             <Edit className="h-3.5 w-3.5" />
           </button>
           <button type="button" title="Delete employee" onClick={() => onDelete(employee)}
-            className="h-7 w-7 flex items-center justify-center rounded-lg bg-white/[0.06] hover:bg-red-500/15 text-white/30 hover:text-red-400 border border-white/10 transition-all">
+            className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} hover:text-rose-500 transition-all`}>
             <Trash2 className="h-3.5 w-3.5" />
           </button>
           <button type="button" title={expanded ? 'Collapse' : 'Expand'} onClick={() => setExpanded(o => !o)}
-            className="h-7 w-7 flex items-center justify-center rounded-lg bg-white/[0.06] hover:bg-white/[0.14] text-white/40 border border-white/10 transition-all">
+            className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all`}>
             {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
           </button>
         </div>
 
-        {/* Mobile expand */}
         <button type="button" title={expanded ? 'Collapse' : 'Expand'} onClick={() => setExpanded(o => !o)}
-          className="h-7 w-7 flex items-center justify-center rounded-lg text-white/25 hover:text-white/60 transition-all md:hidden">
+          className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.textFaint} ${t.hoverText} transition-all md:hidden`}>
           {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
         </button>
       </div>
 
-      {/* ── Expanded detail — maintenance style ─────────────────────────── */}
       {expanded && (
-        <div className="px-5 pb-4 pt-3 border-t border-white/[0.05] bg-white/[0.02] space-y-3">
+        <div className={`px-4 pb-4 pt-3 border-t ${t.border} ${t.hoverBgSoft} space-y-3`}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {/* Personal section */}
-            <div className="bg-white/[0.04] rounded-xl border border-white/[0.06] overflow-hidden">
-              <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-white/[0.05]">
-                <UserRound className="h-3.5 w-3.5 text-[#86BBD8]" />
-                <span className="text-xs font-semibold text-white/75 uppercase tracking-wider">Personal</span>
+            <div className={`${t.chipBg} rounded-xl overflow-hidden`}>
+              <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}>
+                <UserRound className="h-3.5 w-3.5 text-blue-400" />
+                <span className={`text-xs font-semibold uppercase tracking-wider ${t.textSecondary}`}>Personal</span>
               </div>
               <div className="px-3.5 py-3 grid grid-cols-2 gap-x-6 gap-y-2.5">
-                <InfoField label="ID Number" value={employee.id_number} />
-                <div>
-                  <div className="text-white/35 text-[10px] uppercase tracking-wide mb-0.5">Phone</div>
-                  {employee.phone
-                    ? <a href={`tel:${employee.phone}`} className="text-[#86BBD8] text-sm hover:text-white hover:underline transition-all">{employee.phone}</a>
-                    : <span className="text-white/80 text-sm">—</span>}
-                </div>
-                <div className="col-span-2">
-                  <div className="text-white/35 text-[10px] uppercase tracking-wide mb-0.5">Email</div>
-                  {employee.email
-                    ? <a href={`mailto:${employee.email}`} className="text-[#86BBD8] text-sm hover:text-white hover:underline transition-all">{employee.email}</a>
-                    : <span className="text-white/80 text-sm">—</span>}
-                </div>
-                {employee.address && <div className="col-span-2"><InfoField label="Address" value={employee.address} /></div>}
+                <InfoRow label="ID Number" value={employee.id_number} />
+                <InfoRow label="Phone" value={employee.phone ? <a href={`tel:${employee.phone}`} className="text-blue-400 hover:underline">{employee.phone}</a> : undefined} />
+                <div className="col-span-2"><InfoRow label="Email" value={employee.email ? <a href={`mailto:${employee.email}`} className="text-blue-400 hover:underline">{employee.email}</a> : undefined} /></div>
+                {employee.address && <div className="col-span-2"><InfoRow label="Address" value={employee.address} /></div>}
               </div>
             </div>
 
-            {/* Employment section */}
-            <div className="bg-white/[0.04] rounded-xl border border-white/[0.06] overflow-hidden">
-              <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-white/[0.05]">
-                <BriefcaseBusiness className="h-3.5 w-3.5 text-[#86BBD8]" />
-                <span className="text-xs font-semibold text-white/75 uppercase tracking-wider">Employment</span>
+            <div className={`${t.chipBg} rounded-xl overflow-hidden`}>
+              <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}>
+                <BriefcaseBusiness className="h-3.5 w-3.5 text-blue-400" />
+                <span className={`text-xs font-semibold uppercase tracking-wider ${t.textSecondary}`}>Employment</span>
               </div>
               <div className="px-3.5 py-3 grid grid-cols-2 gap-x-6 gap-y-2.5">
-                <InfoField label="Engaged" value={fmtDate(employee.date_of_engagement)} />
-                <InfoField label="Tenure"  value={t} />
-                <InfoField label="Section" value={employee.section} />
-                <InfoField label="Grade"   value={employee.grade} />
-                <InfoField label="Supervisor" value={employee.supervisor} />
-                <InfoField label="Prev. Employer" value={employee.previous_employer} />
+                <InfoRow label="Engaged" value={fmtDate(employee.date_of_engagement)} />
+                <InfoRow label="Tenure" value={ten} />
+                <InfoRow label="Section" value={employee.section} />
+                <InfoRow label="Grade" value={employee.grade} />
+                <InfoRow label="Supervisor" value={employee.supervisor} />
+                <InfoRow label="Prev. Employer" value={employee.previous_employer} />
               </div>
             </div>
           </div>
 
-          {/* Qualifications */}
           {quals > 0 && (
-            <div className="bg-white/[0.04] rounded-xl border border-white/[0.06] overflow-hidden">
-              <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-white/[0.05]">
-                <GraduationCap className="h-3.5 w-3.5 text-[#86BBD8]" />
-                <span className="text-xs font-semibold text-white/75 uppercase tracking-wider">Qualifications</span>
-                <span className="text-[10px] text-white/30 ml-1">{quals} recorded</span>
+            <div className={`${t.chipBg} rounded-xl overflow-hidden`}>
+              <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}>
+                <GraduationCap className="h-3.5 w-3.5 text-blue-400" />
+                <span className={`text-xs font-semibold uppercase tracking-wider ${t.textSecondary}`}>Qualifications</span>
+                <span className={`text-[10px] ml-1 ${t.textFaint}`}>{quals} recorded</span>
               </div>
               <div className="px-3.5 py-3 flex flex-wrap gap-1.5">
-                {employee.qualifications!.map((q, i) => (
-                  <span key={i} className="text-xs px-2.5 py-1 rounded-lg bg-[#86BBD8]/15 border border-[#86BBD8]/25 text-[#86BBD8] font-medium">{q}</span>
-                ))}
+                {employee.qualifications!.map((q, i) => <StatusBadge key={i} color={ACCENT_HEX.blue} label={q} />)}
               </div>
             </div>
           )}
 
-          {/* Awards & Other positions */}
           {((employee.awards_recognition?.length ?? 0) > 0 || (employee.other_positions?.length ?? 0) > 0) && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {(employee.awards_recognition?.length ?? 0) > 0 && (
-                <div className="bg-white/[0.04] rounded-xl border border-white/[0.06] overflow-hidden">
-                  <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-white/[0.05]">
-                    <Award className="h-3.5 w-3.5 text-[#86BBD8]" />
-                    <span className="text-xs font-semibold text-white/75 uppercase tracking-wider">Awards</span>
+                <div className={`${t.chipBg} rounded-xl overflow-hidden`}>
+                  <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}>
+                    <Award className="h-3.5 w-3.5 text-amber-400" />
+                    <span className={`text-xs font-semibold uppercase tracking-wider ${t.textSecondary}`}>Awards</span>
                   </div>
                   <div className="px-3.5 py-3 flex flex-wrap gap-1.5">
-                    {employee.awards_recognition!.map((a, i) => (
-                      <span key={i} className="text-xs px-2.5 py-1 rounded-lg bg-amber-500/15 border border-amber-500/25 text-amber-300">{a}</span>
-                    ))}
+                    {employee.awards_recognition!.map((a, i) => <StatusBadge key={i} color="#f59e0b" label={a} />)}
                   </div>
                 </div>
               )}
               {(employee.other_positions?.length ?? 0) > 0 && (
-                <div className="bg-white/[0.04] rounded-xl border border-white/[0.06] overflow-hidden">
-                  <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-white/[0.05]">
-                    <Briefcase className="h-3.5 w-3.5 text-[#86BBD8]" />
-                    <span className="text-xs font-semibold text-white/75 uppercase tracking-wider">Other Positions</span>
+                <div className={`${t.chipBg} rounded-xl overflow-hidden`}>
+                  <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}>
+                    <Briefcase className="h-3.5 w-3.5 text-violet-400" />
+                    <span className={`text-xs font-semibold uppercase tracking-wider ${t.textSecondary}`}>Other Positions</span>
                   </div>
                   <div className="px-3.5 py-3 flex flex-wrap gap-1.5">
-                    {employee.other_positions!.map((p, i) => (
-                      <span key={i} className="text-xs px-2.5 py-1 rounded-lg bg-violet-500/15 border border-violet-500/25 text-violet-300">{p}</span>
-                    ))}
+                    {employee.other_positions!.map((p, i) => <StatusBadge key={i} color="#a78bfa" label={p} />)}
                   </div>
                 </div>
               )}
             </div>
           )}
 
-          {/* Action row */}
           <div className="flex items-center gap-2 pt-1">
             <button type="button" onClick={() => onEdit(employee)}
-              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-[#86BBD8]/15 hover:bg-[#86BBD8]/25 text-[#86BBD8] border border-[#86BBD8]/25 transition-all font-medium">
+              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-blue-500/15 hover:bg-blue-500/25 text-blue-400 transition-all font-medium">
               <Edit className="h-3 w-3" /> Edit Employee
             </button>
             <button type="button" onClick={() => onDelete(employee)}
-              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-white/[0.05] hover:bg-red-500/15 text-white/40 hover:text-red-400 border border-white/10 transition-all">
+              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg ${t.hoverBg} ${t.textFaint} hover:text-rose-500 transition-all`}>
               <Trash2 className="h-3 w-3" /> Delete
             </button>
           </div>
@@ -645,123 +572,89 @@ function EmployeeRow({ employee, onEdit, onDelete }: EmployeeRowProps) {
 interface EmployeeCardProps { employee: Employee; onEdit: (e: Employee) => void; onDelete: (e: Employee) => void; }
 
 function EmployeeCard({ employee, onEdit, onDelete }: EmployeeCardProps) {
+  const t = useTheme();
   const [expanded, setExpanded] = useState(false);
   const name = `${employee.first_name} ${employee.last_name}`;
   const quals = employee.qualifications?.length ?? 0;
-  const t = tenure(employee.date_of_engagement);
-  const secStyle = sectionPill(employee.section);
+  const ten = tenure(employee.date_of_engagement);
+  const secColor = sectionColor(employee.section);
 
   return (
-    <div className={`oz-glass-dark rounded-2xl overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl border-t-2 ${secStyle.border}`}>
+    <GlowCard color={secColor} surface={`${t.glass} rounded-2xl`} className="overflow-hidden">
       <div className="flex items-start justify-between px-5 py-4">
-        <div className="flex items-center gap-3">
-          <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-[#2A4D69] to-[#86BBD8] flex items-center justify-center text-white font-bold text-base shadow-lg shrink-0">
-            {sharedInitials(`${employee.first_name} ${employee.last_name}`)}
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white font-bold text-base shrink-0">
+            {initials(name)}
           </div>
-          <div>
-            <p className="text-[15px] font-semibold text-white leading-tight">{name}</p>
-            <p className="text-xs text-white/50 mt-0.5">
-              {employee.designation || 'No role'}{' '}·{' '}
-              <span className="font-mono text-[#86BBD8]">{employee.employee_id}</span>
+          <div className="min-w-0">
+            <p className={`text-[15px] font-semibold leading-tight truncate ${t.textPrimary}`}>{name}</p>
+            <p className={`text-xs mt-0.5 ${t.textFaint}`}>
+              {employee.designation || 'No role'} · <span className="font-mono text-blue-400">{employee.employee_id}</span>
             </p>
             <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-              {employee.employment_type && etypePill(employee.employment_type) && (
-                <span className={`text-[10px] px-2 py-0.5 rounded-full border font-bold ${etypePill(employee.employment_type)}`}>
-                  {employee.employment_type}
-                </span>
-              )}
-              <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${classPill(employee.employee_class)}`}>
-                {employee.employee_class || 'Unclassified'}
-              </span>
-              {employee.section && (
-                <span className={`text-[10px] px-2 py-0.5 rounded-full border font-semibold ${secStyle.pill}`}>
-                  {employee.section}
-                </span>
-              )}
+              {employee.employment_type && <StatusBadge color={ETYPE_COLORS[employee.employment_type] ?? '#94a3b8'} label={employee.employment_type} />}
+              <StatusBadge color={CLASS_COLORS[employee.employee_class || ''] ?? '#94a3b8'} label={employee.employee_class || 'Unclassified'} />
+              {employee.section && <StatusBadge color={secColor} label={employee.section} />}
             </div>
           </div>
         </div>
         <button type="button" title={expanded ? 'Collapse' : 'Expand'} onClick={() => setExpanded(o => !o)}
-          className="h-7 w-7 flex items-center justify-center rounded-lg bg-white/[0.07] hover:bg-white/[0.15] text-white/40 border border-white/12 transition-all shrink-0">
+          className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all shrink-0`}>
           {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
         </button>
       </div>
 
-      {/* Stats strip */}
-      <div className="px-5 pb-4 pt-0 grid grid-cols-3 gap-3 border-t border-white/[0.05] pt-3">
-        <div>
-          <div className="text-white/30 text-[10px] uppercase tracking-wide mb-0.5">Joined</div>
-          <div className="text-white/65 text-xs">{fmtDate(employee.date_of_engagement)}</div>
-        </div>
-        <div>
-          <div className="text-white/30 text-[10px] uppercase tracking-wide mb-0.5">Tenure</div>
-          <div className="text-white/65 text-xs">{t}</div>
-        </div>
-        <div>
-          <div className="text-white/30 text-[10px] uppercase tracking-wide mb-0.5">Quals</div>
-          <div className="text-white/65 text-xs">{quals > 0 ? `${quals} recorded` : 'None'}</div>
-        </div>
+      <div className={`px-5 pb-4 pt-3 grid grid-cols-3 gap-3 border-t ${t.border}`}>
+        <InfoRow label="Joined" value={fmtDate(employee.date_of_engagement)} />
+        <InfoRow label="Tenure" value={ten} />
+        <InfoRow label="Quals" value={quals > 0 ? `${quals} recorded` : 'None'} />
       </div>
 
-      {/* Expanded detail */}
       {expanded && (
-        <div className="px-5 pb-4 border-t border-white/[0.05] space-y-3 pt-3">
+        <div className={`px-5 pb-4 border-t ${t.border} space-y-3 pt-3`}>
           <div className="grid grid-cols-2 gap-x-6 gap-y-2.5">
-            {employee.id_number  && <InfoField label="ID Number"   value={employee.id_number} />}
-            {employee.supervisor && <InfoField label="Supervisor"  value={employee.supervisor} />}
-            {employee.section    && <InfoField label="Section"     value={employee.section} />}
-            {employee.grade      && <InfoField label="Grade"       value={employee.grade} />}
+            {employee.id_number && <InfoRow label="ID Number" value={employee.id_number} />}
+            {employee.supervisor && <InfoRow label="Supervisor" value={employee.supervisor} />}
+            {employee.section && <InfoRow label="Section" value={employee.section} />}
+            {employee.grade && <InfoRow label="Grade" value={employee.grade} />}
           </div>
           {(employee.email || employee.phone) && (
             <div className="flex flex-wrap gap-3 pt-1">
-              {employee.email && (
-                <a href={`mailto:${employee.email}`} className="flex items-center gap-1.5 text-xs text-[#86BBD8] hover:text-white transition-all">
-                  <Mail className="h-3 w-3" />{employee.email}
-                </a>
-              )}
-              {employee.phone && (
-                <a href={`tel:${employee.phone}`} className="flex items-center gap-1.5 text-xs text-[#86BBD8] hover:text-white transition-all">
-                  <Phone className="h-3 w-3" />{employee.phone}
-                </a>
-              )}
+              {employee.email && <a href={`mailto:${employee.email}`} className="flex items-center gap-1.5 text-xs text-blue-400 hover:underline"><Mail className="h-3 w-3" />{employee.email}</a>}
+              {employee.phone && <a href={`tel:${employee.phone}`} className="flex items-center gap-1.5 text-xs text-blue-400 hover:underline"><Phone className="h-3 w-3" />{employee.phone}</a>}
             </div>
           )}
           {quals > 0 && (
             <div className="flex flex-wrap gap-1.5 pt-1">
-              {employee.qualifications!.map((q, i) => (
-                <span key={i} className="text-[10px] px-2 py-0.5 rounded-lg bg-[#86BBD8]/15 border border-[#86BBD8]/25 text-[#86BBD8] font-medium">{q}</span>
-              ))}
+              {employee.qualifications!.map((q, i) => <StatusBadge key={i} color={ACCENT_HEX.blue} label={q} />)}
             </div>
           )}
         </div>
       )}
 
-      {/* Footer actions */}
-      <div className="px-5 py-2.5 border-t border-white/[0.06] bg-white/[0.02] flex items-center gap-3">
-        <button type="button" onClick={() => onEdit(employee)}
-          className="flex items-center gap-1.5 text-[11px] text-white/45 hover:text-[#86BBD8] transition-all font-medium">
+      <div className={`px-5 py-2.5 border-t ${t.border} ${t.chipBg} flex items-center gap-3`}>
+        <button type="button" onClick={() => onEdit(employee)} className="flex items-center gap-1.5 text-[11px] font-medium text-blue-400 hover:brightness-125 transition-all">
           <Edit className="h-3 w-3" /> Edit
         </button>
-        <div className="h-3 w-px bg-white/[0.10]" />
+        <div className={`h-3 w-px ${t.border} border-l`} />
         {employee.email && (
-          <a href={`mailto:${employee.email}`}
-            className="flex items-center gap-1.5 text-[11px] text-white/35 hover:text-[#86BBD8] transition-all">
+          <a href={`mailto:${employee.email}`} className={`flex items-center gap-1.5 text-[11px] ${t.textFaint} hover:text-blue-400 transition-all`}>
             <Mail className="h-3 w-3" /> Email
           </a>
         )}
         <div className="flex-1" />
-        <button type="button" onClick={() => onDelete(employee)}
-          className="flex items-center gap-1.5 text-[11px] text-white/25 hover:text-red-400 transition-all">
+        <button type="button" onClick={() => onDelete(employee)} className={`flex items-center gap-1.5 text-[11px] ${t.textFaint} hover:text-rose-500 transition-all`}>
           <Trash2 className="h-3 w-3" /> Delete
         </button>
       </div>
-    </div>
+    </GlowCard>
   );
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
-export default function EmployeesPage() {
+function EmployeesPageContent() {
+  const t = useTheme();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -779,8 +672,9 @@ export default function EmployeesPage() {
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const [page, setPage] = useState(1);
+  const [showFilters, setShowFilters] = useState(true);
 
-  const sections = usePageCollapse({ hero: false, filters: false, records: false });
+  const sections = useCollapseSection({ hero: true });
 
   const PER_PAGE = 25;
 
@@ -800,13 +694,13 @@ export default function EmployeesPage() {
   const filtered = useMemo(() => {
     let list = [...employees];
     if (search) {
-      const t = search.toLowerCase();
+      const s = search.toLowerCase();
       list = list.filter(e =>
-        `${e.first_name} ${e.last_name}`.toLowerCase().includes(t) ||
-        e.employee_id?.toLowerCase().includes(t) ||
-        (e.designation?.toLowerCase() ?? '').includes(t) ||
-        (e.id_number?.toLowerCase() ?? '').includes(t) ||
-        (e.section?.toLowerCase() ?? '').includes(t)
+        `${e.first_name} ${e.last_name}`.toLowerCase().includes(s) ||
+        e.employee_id?.toLowerCase().includes(s) ||
+        (e.designation?.toLowerCase() ?? '').includes(s) ||
+        (e.id_number?.toLowerCase() ?? '').includes(s) ||
+        (e.section?.toLowerCase() ?? '').includes(s)
       );
     }
     if (classFilter   !== 'all') list = list.filter(e => (e.employee_class || 'Unclassified') === classFilter);
@@ -816,13 +710,9 @@ export default function EmployeesPage() {
     if (roleFilter    !== 'all') list = list.filter(e => e.designation === roleFilter);
     list.sort((a, b) => {
       let av: string, bv: string;
-      if (sortBy === 'first_name') {
-        av = `${a.first_name} ${a.last_name}`; bv = `${b.first_name} ${b.last_name}`;
-      } else if (sortBy === 'date_of_engagement') {
-        av = a.date_of_engagement || ''; bv = b.date_of_engagement || '';
-      } else {
-        av = (a[sortBy] as string) || ''; bv = (b[sortBy] as string) || '';
-      }
+      if (sortBy === 'first_name') { av = `${a.first_name} ${a.last_name}`; bv = `${b.first_name} ${b.last_name}`; }
+      else if (sortBy === 'date_of_engagement') { av = a.date_of_engagement || ''; bv = b.date_of_engagement || ''; }
+      else { av = (a[sortBy] as string) || ''; bv = (b[sortBy] as string) || ''; }
       return sortDir === 'asc' ? av > bv ? 1 : -1 : av < bv ? 1 : -1;
     });
     return list;
@@ -860,239 +750,221 @@ export default function EmployeesPage() {
   };
   const clearFilters = () => { setSearch(''); setClassFilter('all'); setEtypeFilter('all'); setSectionFilter('all'); setDeptFilter('all'); setRoleFilter('all'); };
 
-  const dlCols: DLColumn[] = [
-    { key: 'employee_id',       label: 'Employee ID',    width: 14 },
-    { key: 'first_name',        label: 'First Name',     width: 18 },
-    { key: 'last_name',         label: 'Last Name',      width: 18 },
-    { key: 'employment_type',   label: 'Type',           width: 10 },
-    { key: 'designation',       label: 'Designation',    width: 24 },
-    { key: 'department',        label: 'Department',     width: 20 },
-    { key: 'section',           label: 'Section',        width: 18 },
-    { key: 'grade',             label: 'Grade',          width: 10 },
-    { key: 'employee_class',    label: 'Class',          width: 14 },
-    { key: 'email',             label: 'Email',          width: 28 },
-    { key: 'phone',             label: 'Phone',          width: 16 },
-    { key: 'date_of_engagement',label: 'Date of Engagement', width: 18,
-      format: (v) => v ? new Date(String(v)).toLocaleDateString('en-GB') : '' },
-    { key: 'supervisor',        label: 'Supervisor',     width: 20 },
-    { key: 'id_number',         label: 'ID Number',      width: 16 },
-  ];
+  const downloadExcel = async () => {
+    try {
+      const ExcelJS = (await import('exceljs')).default;
+      const { saveAs } = await import('file-saver');
+      const wb = new ExcelJS.Workbook();
+      const ws = wb.addWorksheet('Personnel Registry');
+      ws.columns = [
+        { header: 'Employee ID', key: 'employee_id', width: 14 },
+        { header: 'First Name', key: 'first_name', width: 18 },
+        { header: 'Last Name', key: 'last_name', width: 18 },
+        { header: 'Type', key: 'employment_type', width: 10 },
+        { header: 'Designation', key: 'designation', width: 24 },
+        { header: 'Department', key: 'department', width: 20 },
+        { header: 'Section', key: 'section', width: 18 },
+        { header: 'Grade', key: 'grade', width: 10 },
+        { header: 'Class', key: 'employee_class', width: 14 },
+        { header: 'Email', key: 'email', width: 28 },
+        { header: 'Phone', key: 'phone', width: 16 },
+        { header: 'Date of Engagement', key: 'date_of_engagement', width: 18 },
+        { header: 'Supervisor', key: 'supervisor', width: 20 },
+        { header: 'ID Number', key: 'id_number', width: 16 },
+      ];
+      const hdr = ws.getRow(1);
+      hdr.eachCell(cell => {
+        cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2A4D69' } };
+      });
+      employees.forEach(e => ws.addRow({ ...e, date_of_engagement: fmtDate(e.date_of_engagement) }));
+      const buf = await wb.xlsx.writeBuffer();
+      saveAs(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `Personnel_Registry_${new Date().toISOString().slice(0, 10)}.xlsx`);
+      toast.success(`Excel exported — ${employees.length} employees`);
+    } catch (err) { toast.error(`Export failed: ${(err as Error).message}`); }
+  };
 
   return (
-    <PageShell>
-      <main className="container mx-auto px-4 py-8 space-y-4">
+    <main className="max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+      <PageHero
+        icon={Users}
+        accent="violet"
+        crumbs={['Core Management', 'Personnel']}
+        title="Personnel Registry"
+        description="Employee profiles, roles, and organisational structure."
+        statsOpen={sections.expanded.hero}
+        actions={
+          <>
+            <button type="button" onClick={reload} title="Refresh" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-colors`}>
+              <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+            </button>
+            <button type="button" onClick={downloadExcel} disabled={employees.length === 0} title="Download Excel"
+              className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-colors disabled:opacity-40`}>
+              <Download className="h-4 w-4" />
+            </button>
+            <button type="button" onClick={openAdd} className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-blue-500 to-blue-700 transition-all hover:brightness-110">
+              <Plus className="h-3.5 w-3.5" /> Add Employee
+            </button>
+          </>
+        }
+      >
+        <div className="flex flex-wrap gap-1">
+          <StatTile icon={Users} color={ACCENT_HEX.blue} value={stats.total} label="Total Staff" onClick={() => { setEtypeFilter('all'); setClassFilter('all'); }} />
+          <StatTile icon={BriefcaseBusiness} color={ACCENT_HEX.indigo} value={stats.nec} label="NEC" onClick={() => setEtypeFilter('NEC')} />
+          <StatTile icon={BriefcaseBusiness} color="#14b8a6" value={stats.salaried} label="Salaried" onClick={() => setEtypeFilter('SALARIED')} />
+          <StatTile icon={UserCheck} color={ACCENT_HEX.amber} value={stats.permanent} label="Permanent" onClick={() => setClassFilter('Permanent')} />
+        </div>
+      </PageHero>
 
-        {/* ── PANEL 1: Hero ────────────────────────────────────────── */}
-        <HeroPanel
-          icon={Users}
-          breadcrumb="Personnel"
-          title="Personnel Registry"
-          onRefresh={reload}
-          loading={isLoading}
-          onNew={openAdd}
-          newLabel="Add Employee"
-          actions={
-            <>
-              <MasterCollapseButton collapse={sections} />
-              <DownloadButton
-                data={employees as unknown as Record<string, unknown>[]}
-                columns={dlCols}
-                filename={`Personnel_Registry_${new Date().toISOString().slice(0, 10)}`}
-                title="Personnel Registry"
-                subtitle={`${employees.length} employees · ${new Date().toLocaleDateString('en-GB')}`}
-              />
-            </>
-          }
-          stats={[
-            { label: 'Total Staff',     value: stats.total,    textClass: 'text-[#86BBD8]', onClick: () => { setEtypeFilter('all'); setClassFilter('all'); } },
-            { label: 'NEC',             value: stats.nec,      textClass: 'text-indigo-400', onClick: () => setEtypeFilter('NEC') },
-            { label: 'Salaried',        value: stats.salaried, textClass: 'text-teal-400',   onClick: () => setEtypeFilter('SALARIED') },
-            { label: 'Permanent',       value: stats.permanent,textClass: 'text-amber-400',  onClick: () => setClassFilter('Permanent') },
-          ] satisfies StatItem[]}
-          {...sections.panel('hero')}
-        />
+      {error && (
+        <div className={`${t.glass} rounded-2xl p-4 flex items-center gap-3 border border-rose-500/30`}>
+          <AlertCircle className="h-5 w-5 text-rose-400 shrink-0" />
+          <p className="text-sm text-rose-400 flex-1">{error}</p>
+          <button type="button" onClick={() => setError(null)} className={`${t.textFaint} ${t.hoverText}`}><X className="h-4 w-4" /></button>
+        </div>
+      )}
 
-        {/* ── Error banner ─────────────────────────────────────────── */}
-        {error && (
-          <div className="oz-glass-dark rounded-xl p-3.5 flex items-start gap-3 border border-red-500/25">
-            <AlertCircle className="h-4 w-4 text-red-400 mt-0.5 flex-shrink-0" />
-            <p className="text-sm text-red-300 flex-1">{error}</p>
-            <button type="button" aria-label="Dismiss error" onClick={() => setError(null)} className="text-white/40 hover:text-white/70"><X className="h-4 w-4" /></button>
+      {/* Filters */}
+      <div className={`${t.glass} rounded-2xl ${t.shadow} p-4 space-y-4`}>
+        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+          <SearchInput value={search} onChange={setSearch} placeholder="Search name, ID, role…" className="flex-1" />
+          <div className="flex gap-2 flex-wrap items-center">
+            <button type="button" onClick={() => setShowFilters(v => !v)}
+              className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-medium transition-colors ${showFilters ? 'bg-blue-500/15 text-blue-400' : `${t.textMuted} ${t.hoverText} ${t.glassSoft}`}`}>
+              <Filter className="h-3.5 w-3.5" /> Filters
+              {activeFilterCount > 0 && <span className={`ml-1 px-1.5 py-0.5 ${t.chipBg} rounded text-[10px]`}>{activeFilterCount}</span>}
+            </button>
+            {activeFilterCount > 0 && (
+              <button type="button" onClick={clearFilters} className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-medium ${t.textFaint} ${t.hoverText} ${t.hoverBg} transition-colors`}>
+                <FilterX className="h-3.5 w-3.5" /> Clear
+              </button>
+            )}
+            <ViewToggle value={viewMode} onChange={setViewMode} options={[{ value: 'list', icon: List, label: 'List view' }, { value: 'grid', icon: LayoutGrid, label: 'Grid view' }]} />
+          </div>
+        </div>
+
+        {showFilters && (
+          <div className={`pt-4 border-t ${t.border} space-y-3`}>
+            <FilterChips label="Employment Type" value={etypeFilter} onChange={setEtypeFilter}
+              options={[{ value: 'all', label: 'All Types' }, { value: 'NEC', label: 'NEC' }, { value: 'SALARIED', label: 'Salaried' }]} />
+            <FilterChips label="Employee Class" value={classFilter} onChange={setClassFilter}
+              options={[{ value: 'all', label: 'All Classes' }, ...CLASS_OPTIONS.map(c => ({ value: c, label: c }))]} />
+            <FilterChips label="Section" value={sectionFilter} onChange={setSectionFilter}
+              options={[{ value: 'all', label: 'All Sections' }, ...uniqueSections.map(s => ({ value: s, label: s }))]} />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <p className={`text-xs font-medium mb-1.5 ${t.textFaint}`}>Department</p>
+                <SelectField size="filter" title="Filter by department" value={deptFilter} onChange={setDeptFilter}
+                  options={[{ value: 'all', label: 'All Departments' }, ...uniqueDepts.map(d => ({ value: d, label: d }))]} />
+              </div>
+              <div>
+                <p className={`text-xs font-medium mb-1.5 ${t.textFaint}`}>Role</p>
+                <SelectField size="filter" title="Filter by role" value={roleFilter} onChange={setRoleFilter}
+                  options={[{ value: 'all', label: 'All Roles' }, ...uniqueRoles.map(r => ({ value: r, label: r }))]} />
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Records */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <p className={`text-sm ${t.textFaint}`}>
+            Showing <span className={`font-semibold ${t.textPrimary}`}>{filtered.length}</span> of {employees.length} employees
+          </p>
+          <div className="flex items-center gap-2">
+            <SelectField size="filter" title="Sort by" value={sortBy} onChange={v => setSortBy(v as SortField)}
+              options={[
+                { value: 'first_name', label: 'Name (A–Z)' },
+                { value: 'employee_id', label: 'Employee ID' },
+                { value: 'designation', label: 'Role' },
+                { value: 'department', label: 'Department' },
+                { value: 'date_of_engagement', label: 'Date of Engagement' },
+              ]} />
+            <button type="button" title="Toggle sort direction" onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}
+              className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all`}>
+              <ArrowUpDown className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
+
+        {isLoading ? (
+          <div className={`${t.glass} rounded-2xl p-16 text-center`}>
+            <Loader2 className={`h-8 w-8 animate-spin ${t.textFaint} mx-auto`} />
+          </div>
+        ) : paged.length === 0 ? (
+          <div className={`${t.glass} rounded-2xl p-12 text-center`}>
+            {employees.length === 0 ? (
+              <>
+                <Users className={`h-12 w-12 ${t.textFaint} mx-auto mb-4`} />
+                <h3 className={`text-lg font-semibold ${t.textPrimary} mb-2`}>No employees yet</h3>
+                <p className={`text-sm mb-4 ${t.textFaint}`}>Add your first employee to get started.</p>
+                <button type="button" onClick={openAdd} className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-blue-500 to-blue-700 hover:brightness-110 transition-all">
+                  <Plus className="h-3.5 w-3.5" /> Add Employee
+                </button>
+              </>
+            ) : (
+              <>
+                <FilterX className={`h-12 w-12 ${t.textFaint} mx-auto mb-4`} />
+                <h3 className={`text-lg font-semibold ${t.textPrimary} mb-2`}>No results match your filters</h3>
+                <p className={`text-sm mb-4 ${t.textFaint}`}>Try adjusting your search or filters.</p>
+                <button type="button" onClick={clearFilters} className={`inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-[13px] font-medium ${t.textMuted} ${t.glassSoft} ${t.hoverText} transition-all`}>
+                  <FilterX className="h-3.5 w-3.5" /> Clear Filters
+                </button>
+              </>
+            )}
+          </div>
+        ) : viewMode === 'list' ? (
+          <div className={`${t.glass} rounded-2xl overflow-hidden`}>
+            {paged.map(e => <EmployeeRow key={e.id} employee={e} onEdit={openEdit} onDelete={onDelete} />)}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {paged.map(e => <EmployeeCard key={e.id} employee={e} onEdit={openEdit} onDelete={onDelete} />)}
           </div>
         )}
 
-        {/* ── PANEL 2: Filters ─────────────────────────────────────── */}
-        <GlassPanel
-          icon={Filter}
-          title="Filters"
-          {...sections.panel('filters')}
-          badge={activeFilterCount > 0 ? (
-            <span className="text-[11px] px-1.5 py-0.5 rounded bg-[#86BBD8]/20 text-[#86BBD8] border border-[#86BBD8]/30">
-              {activeFilterCount} active
-            </span>
-          ) : undefined}
-          actions={activeFilterCount > 0 ? (
-            <button type="button" onClick={clearFilters}
-              className="h-6 px-2 flex items-center gap-1 rounded-md bg-white/[0.07] hover:bg-white/[0.15] text-white/50 text-[11px] border border-white/12 transition-all">
-              <X className="h-2.5 w-2.5" /> Clear
+        {totalPages > 1 && (
+          <div className={`flex items-center justify-center gap-2 pt-4 border-t ${t.border}`}>
+            <button type="button" disabled={page === 1} onClick={() => setPage(p => Math.max(1, p - 1))}
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs ${t.textMuted} ${t.hoverText} ${t.hoverBg} disabled:opacity-30 transition-all`}>
+              <ChevronLeft className="h-3.5 w-3.5" /> Prev
             </button>
-          ) : undefined}
-          contentClassName="px-5 pb-4 pt-3 space-y-3"
-        >
-          <FilterChips
-            label="Employment Type"
-            options={[
-              { value: 'all',      label: 'All Types' },
-              { value: 'NEC',      label: 'NEC' },
-              { value: 'SALARIED', label: 'Salaried' },
-            ]}
-            value={etypeFilter}
-            onChange={setEtypeFilter}
-          />
-          <FilterChips
-            label="Employee Class"
-            options={[
-              { value: 'all', label: 'All Classes' },
-              ...CLASS_OPTIONS.map(c => ({ value: c, label: c })),
-            ]}
-            value={classFilter}
-            onChange={setClassFilter}
-          />
-          <FilterChips
-            label="Section"
-            options={[
-              { value: 'all', label: 'All Sections' },
-              { value: 'Mechanical',      label: '⚙ Mechanical' },
-              { value: 'Electrical',      label: '⚡ Electrical' },
-              ...uniqueSections.filter(s => s !== 'Mechanical' && s !== 'Electrical').map(s => ({ value: s, label: s })),
-            ]}
-            value={sectionFilter}
-            onChange={setSectionFilter}
-          />
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/30" />
-              <input type="text" placeholder="Search name, ID, role..."
-                value={search} onChange={e => setSearch(e.target.value)}
-                aria-label="Search employees"
-                className="pl-8 pr-3 py-2 w-full text-sm rounded-lg bg-white/[0.07] border border-white/12 text-white placeholder:text-white/30 focus:outline-none focus:border-white/30 focus:bg-white/[0.11] transition-all" />
-            </div>
-            <select aria-label="Filter by department" value={deptFilter} onChange={e => setDeptFilter(e.target.value)}
-              className="px-3 py-2 text-sm rounded-lg bg-white/[0.07] border border-white/12 text-white/70 focus:outline-none focus:border-white/30 transition-all">
-              <option value="all">All Departments</option>
-              {uniqueDepts.map(d => <option key={d} value={d}>{d}</option>)}
-            </select>
-            <select aria-label="Filter by role" value={roleFilter} onChange={e => setRoleFilter(e.target.value)}
-              className="px-3 py-2 text-sm rounded-lg bg-white/[0.07] border border-white/12 text-white/70 focus:outline-none focus:border-white/30 transition-all">
-              <option value="all">All Roles</option>
-              {uniqueRoles.map(r => <option key={r} value={r}>{r}</option>)}
-            </select>
+            <span className={`text-xs px-2 ${t.textFaint}`}>Page {page} of {totalPages}</span>
+            <button type="button" disabled={page === totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs ${t.textMuted} ${t.hoverText} ${t.hoverBg} disabled:opacity-30 transition-all`}>
+              Next <ChevronRight className="h-3.5 w-3.5" />
+            </button>
           </div>
-        </GlassPanel>
+        )}
+      </div>
 
-        {/* ── PANEL 3: Records ─────────────────────────────────────── */}
-        <div className="oz-glass-panel rounded-2xl overflow-hidden">
-          <RecordsPanelHeader
-            icon={FileText}
-            title="Records"
-            count={filtered.length}
-            total={employees.length !== filtered.length ? employees.length : undefined}
-            search={search}
-            onSearch={setSearch}
-            searchPlaceholder="Search name, ID, role…"
-            sortValue={sortBy}
-            sortOptions={[
-              { value: 'first_name',        label: 'Name (A–Z)' },
-              { value: 'employee_id',        label: 'Employee ID' },
-              { value: 'designation',        label: 'Role' },
-              { value: 'department',         label: 'Department' },
-              { value: 'date_of_engagement', label: 'Date of Engagement' },
-            ]}
-            onSort={v => setSortBy(v as SortField)}
-            viewMode={viewMode === 'list' ? 'table' : 'grid'}
-            onViewMode={v => setViewMode(v === 'table' ? 'list' : 'grid')}
-            show={sections.expanded.records}
-            onToggle={() => sections.toggle('records')}
-            actions={
-              <button type="button" aria-label="Toggle sort direction"
-                onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}
-                className="h-7 w-7 flex items-center justify-center rounded-lg bg-white/[0.07] hover:bg-white/[0.14] text-white/50 border border-white/12 transition-all">
-                <ArrowUpDown className="h-3.5 w-3.5" />
-              </button>
-            }
+      <CenterModal
+        open={showForm}
+        onClose={() => { setShowForm(false); setSelectedEmployee(null); }}
+        title={selectedEmployee ? `Edit — ${selectedEmployee.first_name} ${selectedEmployee.last_name}` : 'Add New Employee'}
+        subtitle={selectedEmployee ? `ID: ${selectedEmployee.employee_id} · All fields are editable` : 'Fields marked with * are required'}
+        accent="violet"
+        width="max-w-3xl"
+      >
+        <div className="p-5">
+          <EmployeeForm
+            initialData={selectedEmployee}
+            onSubmit={onSubmit}
+            onCancel={() => { setShowForm(false); setSelectedEmployee(null); }}
+            isSubmitting={isSubmitting}
           />
-
-          {sections.expanded.records && (
-            <div className="p-4">
-              {isLoading ? (
-                <LoadingPane />
-              ) : paged.length === 0 ? (
-                employees.length === 0 ? (
-                  <EmptyState icon={Users} title="No employees yet"
-                    message="Add your first employee to get started."
-                    action={{ label: 'Add Employee', onClick: openAdd }} />
-                ) : (
-                  <EmptyState icon={FilterX} title="No results match your filters"
-                    message="Try adjusting your search or filters."
-                    action={{ label: 'Clear Filters', onClick: clearFilters }} />
-                )
-              ) : viewMode === 'list' ? (
-                <div className="rounded-xl overflow-hidden border border-white/[0.07]">
-                  {paged.map(e => <EmployeeRow key={e.id} employee={e} onEdit={openEdit} onDelete={onDelete} />)}
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                  {paged.map(e => <EmployeeCard key={e.id} employee={e} onEdit={openEdit} onDelete={onDelete} />)}
-                </div>
-              )}
-
-              {totalPages > 1 && (
-                <div className="flex items-center justify-center gap-2 mt-4 pt-4 border-t border-white/[0.06]">
-                  <button type="button" disabled={page === 1} onClick={() => setPage(p => Math.max(1, p - 1))}
-                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white/[0.06] border border-white/12 text-xs text-white/60 hover:text-white/90 disabled:opacity-30 disabled:cursor-not-allowed transition-all">
-                    <ChevronLeft className="h-3.5 w-3.5" /> Prev
-                  </button>
-                  <span className="text-xs text-white/35 px-2">Page {page} of {totalPages}</span>
-                  <button type="button" disabled={page === totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white/[0.06] border border-white/12 text-xs text-white/60 hover:text-white/90 disabled:opacity-30 disabled:cursor-not-allowed transition-all">
-                    Next <ChevronRight className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
         </div>
+      </CenterModal>
+    </main>
+  );
+}
 
-      </main>
-
-      {/* ── Dark glass Add / Edit dialog ──────────────────────────────── */}
-      <Dialog open={showForm} onOpenChange={setShowForm}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto p-0 gap-0 rounded-2xl bg-[rgba(5,15,28,0.97)] backdrop-blur-2xl border border-white/10 text-white">
-          <DialogHeader className="px-6 pt-5 pb-4 border-b border-white/[0.08]">
-            <DialogTitle className="flex items-center gap-2.5 text-white text-lg font-bold">
-              <div className="bg-[#86BBD8]/20 p-2 rounded-lg border border-[#86BBD8]/25">
-                <Users className="h-4 w-4 text-[#86BBD8]" />
-              </div>
-              {selectedEmployee
-                ? `Edit — ${selectedEmployee.first_name} ${selectedEmployee.last_name}`
-                : 'Add New Employee'}
-            </DialogTitle>
-            <DialogDescription className="text-white/40 text-xs mt-1">
-              {selectedEmployee
-                ? `ID: ${selectedEmployee.employee_id} · All fields are editable`
-                : 'Fields marked with * are required'}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="px-6 py-5">
-            <EmployeeForm
-              initialData={selectedEmployee}
-              onSubmit={onSubmit}
-              onCancel={() => setShowForm(false)}
-              isSubmitting={isSubmitting}
-            />
-          </div>
-        </DialogContent>
-      </Dialog>
-    </PageShell>
+export default function EmployeesPage() {
+  return (
+    <AppShell>
+      <EmployeesPageContent />
+    </AppShell>
   );
 }

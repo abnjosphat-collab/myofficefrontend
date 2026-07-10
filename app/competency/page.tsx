@@ -2,25 +2,19 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { PageShell } from '@/components/PageShell';
+import { AppShell } from '@/components/app-shell';
 import { GraduationCap, X, RefreshCw } from 'lucide-react';
+import { useTheme, PageHero, StatTile } from '@/components/shared/theme';
 
 const _API = (process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com').replace(/\/$/, '');
 const COMP_URL = `${_API}/api/competency`;
 
 type SkillLevel = 0 | 1 | 2 | 3 | 4;
 
-interface Employee {
-  id: number; name: string; trade: string; department: string;
-  skills: Record<string, SkillLevel>;
-}
+interface Employee { id: number; name: string; trade: string; department: string; skills: Record<string, SkillLevel>; }
 
-const SKILL_AREAS = [
-  'SAG Mill Ops', 'Ball Mill Ops', 'Jaw Crusher', 'Compressor', 'Dewatering', 'Electrical MV', 'Slurry Pumps', 'Rigging & Lifting',
-];
+const SKILL_AREAS = ['SAG Mill Ops', 'Ball Mill Ops', 'Jaw Crusher', 'Compressor', 'Dewatering', 'Electrical MV', 'Slurry Pumps', 'Rigging & Lifting'];
 
-// Pivot flat DB rows (one per employee×skill) into grid format
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function pivotFromAPI(rows: any[]): Employee[] {
   const map = new Map<string, Employee>();
   for (const r of rows) {
@@ -32,23 +26,17 @@ function pivotFromAPI(rows: any[]): Employee[] {
 }
 
 const TRADES_STATIC = ['Millwright', 'Electrician', 'Fitter', 'Instrumentation'];
-const DEPTS_STATIC  = ['Milling', 'Crushing', 'Electrical', 'Dewatering', 'Compressors'];
+const DEPTS_STATIC = ['Milling', 'Crushing', 'Electrical', 'Dewatering', 'Compressors'];
 
-const LEVEL_CONFIG: Record<SkillLevel, { bg: string; label: string; text: string }> = {
-  0: { bg: 'bg-white/10', label: 'Not Assessed', text: 'text-white/20' },
-  1: { bg: 'bg-rose-500/60', label: 'Awareness', text: 'text-rose-200' },
-  2: { bg: 'bg-amber-500/60', label: 'Assisted', text: 'text-amber-200' },
-  3: { bg: 'bg-sky-500/60', label: 'Independent', text: 'text-sky-200' },
-  4: { bg: 'bg-emerald-500/70', label: 'Trainer', text: 'text-emerald-200' },
-};
+const LEVEL_HEX: Record<SkillLevel, string> = { 0: '#94a3b8', 1: '#f43f5e', 2: '#f59e0b', 3: '#38bdf8', 4: '#34d399' };
+const LEVEL_LABEL: Record<SkillLevel, string> = { 0: 'Not Assessed', 1: 'Awareness', 2: 'Assisted', 3: 'Independent', 4: 'Trainer' };
 
 interface Popover { empId: number; skill: string; x: number; y: number; }
 
-export default function CompetencyPage() {
+function CompetencyContent() {
+  const t = useTheme();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
-  // Raw API rows kept for update operations
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [rawRows, setRawRows] = useState<any[]>([]);
 
   const fetchEmployees = useCallback(async () => {
@@ -63,10 +51,7 @@ export default function CompetencyPage() {
   const [deptFilter, setDeptFilter] = useState('all');
   const [popover, setPopover] = useState<Popover | null>(null);
 
-  const displayed = employees
-    .filter(e => tradeFilter === 'all' || e.trade === tradeFilter)
-    .filter(e => deptFilter === 'all' || e.department === deptFilter);
-
+  const displayed = employees.filter(e => tradeFilter === 'all' || e.trade === tradeFilter).filter(e => deptFilter === 'all' || e.department === deptFilter);
   const fullyQualified = employees.filter(e => Object.values(e.skills).every(v => v >= 3)).length;
   const needsRenewal = employees.filter(e => Object.values(e.skills).some(v => v === 1)).length;
 
@@ -77,7 +62,6 @@ export default function CompetencyPage() {
 
   const setSkill = async (level: SkillLevel) => {
     if (!popover) return;
-    // Find the matching row in rawRows to get its id, or POST if new
     const existing = rawRows.find((r: any) => r.employee_id === String(popover.empId) && (r.skill_area === popover.skill || r.equipment_type === popover.skill));
     const emp = employees.find(e => e.id === popover.empId);
     try {
@@ -88,26 +72,24 @@ export default function CompetencyPage() {
       }
       fetchEmployees();
     } catch { /* ignore */ }
-    // Optimistic local update
     setEmployees(prev => prev.map(e => e.id === popover.empId ? { ...e, skills: { ...e.skills, [popover.skill]: level } } : e));
     setPopover(null);
   };
 
   return (
-    <PageShell>
-      {/* Popover */}
+    <main className="max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
       {popover && (
         <div className="fixed inset-0 z-50" onClick={() => setPopover(null)}>
-          <div className="absolute bg-[#0f1e2e] border border-white/15 rounded-xl p-2 shadow-xl" style={{ left: Math.min(popover.x - 80, window.innerWidth - 200), top: popover.y }} onClick={e => e.stopPropagation()}>
+          <div className={`absolute rounded-xl p-2 ${t.glass} ${t.shadow}`} style={{ left: Math.min(popover.x - 80, window.innerWidth - 200), top: popover.y }} onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-2 px-1">
-              <span className="text-white/60 text-xs font-medium">{popover.skill}</span>
-              <button onClick={() => setPopover(null)} className="text-white/30 hover:text-white"><X className="w-3.5 h-3.5" /></button>
+              <span className={`text-xs font-medium ${t.textMuted}`}>{popover.skill}</span>
+              <button type="button" onClick={() => setPopover(null)} className={`${t.textFaint} ${t.hoverText}`}><X className="w-3.5 h-3.5" /></button>
             </div>
             <div className="space-y-1">
               {([0, 1, 2, 3, 4] as SkillLevel[]).map(l => (
-                <button key={l} onClick={() => setSkill(l)} className={`w-full flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-white/[0.08] transition-colors text-left`}>
-                  <span className={`w-4 h-4 rounded ${LEVEL_CONFIG[l].bg} flex-shrink-0`} />
-                  <span className="text-xs text-white/70">{l} — {LEVEL_CONFIG[l].label}</span>
+                <button key={l} type="button" onClick={() => setSkill(l)} className={`w-full flex items-center gap-2 px-3 py-1.5 rounded-lg ${t.hoverBg} transition-colors text-left`}>
+                  <span className="w-4 h-4 rounded flex-shrink-0" style={{ background: LEVEL_HEX[l] }} />
+                  <span className={`text-xs ${t.textMuted}`}>{l} — {LEVEL_LABEL[l]}</span>
                 </button>
               ))}
             </div>
@@ -115,112 +97,97 @@ export default function CompetencyPage() {
         </div>
       )}
 
-      <section className="relative text-white">
-        <div className="container mx-auto px-4 pt-6 pb-3">
-          <div className="oz-glass-dark rounded-2xl overflow-hidden p-6">
-            <div className="flex items-center gap-3 mb-5">
-              <GraduationCap className="w-7 h-7 text-[#86BBD8]" />
-              <div>
-                <h1 className="text-2xl font-bold tracking-tight">Competency Matrix</h1>
-                <p className="text-white/50 text-sm mt-0.5">Employee skills and equipment qualification tracking</p>
-              </div>
-            </div>
-            <div className="grid grid-cols-3 gap-3">
-              {[['Total Assessed', employees.length, 'text-white'], ['Fully Certified', fullyQualified, 'text-emerald-300'], ['Need Renewal', needsRenewal, 'text-amber-300']].map(([l, v, c]) => (
-                <div key={String(l)} className="bg-white/[0.06] rounded-xl p-3 text-center">
-                  <div className={`text-2xl font-bold ${c}`}>{v}</div>
-                  <div className="text-white/50 text-xs mt-0.5">{l}</div>
-                </div>
-              ))}
-            </div>
-          </div>
+      <PageHero
+        icon={GraduationCap}
+        accent="violet"
+        crumbs={['Core Management', 'Competency Matrix']}
+        title="Competency Matrix"
+        description="Employee skills and equipment qualification tracking"
+        statsOpen
+      >
+        <div className="grid grid-cols-3 gap-3">
+          <StatTile icon={GraduationCap} color="#86BBD8" label="Total Assessed" value={employees.length} />
+          <StatTile icon={GraduationCap} color="#34d399" label="Fully Certified" value={fullyQualified} />
+          <StatTile icon={GraduationCap} color="#f59e0b" label="Need Renewal" value={needsRenewal} />
         </div>
-      </section>
+      </PageHero>
 
-      <section className="container mx-auto px-4 pb-4">
-        <div className="oz-glass-panel rounded-2xl overflow-hidden p-4">
-          <div className="flex gap-2 flex-wrap">
-            <div>
-              <span className="text-white/40 text-xs mr-2">Trade:</span>
-              {['all', ...TRADES_STATIC].map(t => (
-                <button key={t} onClick={() => setTradeFilter(t)} className={`mr-1 px-3 py-1 rounded-lg text-xs font-semibold border transition-colors ${tradeFilter === t ? 'bg-[#86BBD8]/25 border-[#86BBD8]/40 text-white' : 'bg-white/[0.05] border-white/10 text-white/50 hover:text-white'}`}>
-                  {t === 'all' ? 'All' : t}
-                </button>
-              ))}
-            </div>
-            <div>
-              <span className="text-white/40 text-xs mr-2">Dept:</span>
-              {['all', ...DEPTS_STATIC].map(d => (
-                <button key={d} onClick={() => setDeptFilter(d)} className={`mr-1 px-3 py-1 rounded-lg text-xs font-semibold border transition-colors ${deptFilter === d ? 'bg-[#86BBD8]/25 border-[#86BBD8]/40 text-white' : 'bg-white/[0.05] border-white/10 text-white/50 hover:text-white'}`}>
-                  {d === 'all' ? 'All' : d}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="container mx-auto px-4 pb-6">
-        <div className="oz-glass-panel rounded-2xl overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-white/[0.06]">
-                  <th className="px-4 py-3 text-left text-white/40 text-xs font-medium sticky left-0 bg-transparent">Employee</th>
-                  {SKILL_AREAS.map(s => (
-                    <th key={s} className="px-3 py-3 text-center text-white/40 text-xs font-medium whitespace-nowrap">{s}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/[0.04]">
-                {loading ? (
-                  <tr><td colSpan={20} className="text-center py-10"><RefreshCw className="h-5 w-5 animate-spin text-white/30 mx-auto" /></td></tr>
-                ) : displayed.map(emp => (
-                  <tr key={emp.id} className="hover:bg-white/[0.02] transition-colors">
-                    <td className="px-4 py-3 sticky left-0">
-                      <div className="text-white font-medium text-sm">{emp.name}</div>
-                      <div className="text-white/40 text-xs">{emp.trade} · {emp.department}</div>
-                    </td>
-                    {SKILL_AREAS.map(skill => {
-                      const level = emp.skills[skill] as SkillLevel ?? 0;
-                      const cfg = LEVEL_CONFIG[level];
-                      return (
-                        <td key={skill} className="px-3 py-3 text-center">
-                          <button
-                            title={`${emp.name} — ${skill}: ${cfg.label}. Click to edit.`}
-                            onClick={e => handleCellClick(emp.id, skill, e)}
-                            className={`w-8 h-8 rounded-lg ${cfg.bg} hover:ring-2 hover:ring-white/30 transition-all mx-auto flex items-center justify-center`}
-                          >
-                            {level > 0 && <span className={`text-[10px] font-bold ${cfg.text}`}>{level}</span>}
-                          </button>
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      {/* Legend */}
-      <section className="container mx-auto px-4 pb-8">
-        <div className="oz-glass-panel rounded-2xl p-4">
-          <div className="text-white/40 text-xs font-semibold uppercase tracking-wider mb-3">Skill Level Legend</div>
-          <div className="flex flex-wrap gap-4">
-            {([0, 1, 2, 3, 4] as SkillLevel[]).map(l => (
-              <div key={l} className="flex items-center gap-2">
-                <span className={`w-6 h-6 rounded ${LEVEL_CONFIG[l].bg} flex items-center justify-center`}>
-                  {l > 0 && <span className={`text-[10px] font-bold ${LEVEL_CONFIG[l].text}`}>{l}</span>}
-                </span>
-                <span className="text-white/60 text-xs">{l} — {LEVEL_CONFIG[l].label}</span>
-              </div>
+      <div className={`${t.glass} rounded-2xl ${t.shadow} p-4`}>
+        <div className="flex gap-2 flex-wrap">
+          <div>
+            <span className={`text-xs mr-2 ${t.textFaint}`}>Trade:</span>
+            {['all', ...TRADES_STATIC].map(tr => (
+              <button key={tr} type="button" onClick={() => setTradeFilter(tr)}
+                className={`mr-1 px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${tradeFilter === tr ? 'bg-blue-500/20 text-blue-500' : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}>
+                {tr === 'all' ? 'All' : tr}
+              </button>
             ))}
           </div>
-          <p className="text-white/30 text-xs mt-3">Click any cell to update the skill level for that employee and skill area.</p>
+          <div>
+            <span className={`text-xs mr-2 ${t.textFaint}`}>Dept:</span>
+            {['all', ...DEPTS_STATIC].map(d => (
+              <button key={d} type="button" onClick={() => setDeptFilter(d)}
+                className={`mr-1 px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${deptFilter === d ? 'bg-blue-500/20 text-blue-500' : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}>
+                {d === 'all' ? 'All' : d}
+              </button>
+            ))}
+          </div>
         </div>
-      </section>
-    </PageShell>
+      </div>
+
+      <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead><tr className={`border-b ${t.border}`}>
+              <th className={`px-4 py-3 text-left text-xs font-medium sticky left-0 ${t.textFaint}`}>Employee</th>
+              {SKILL_AREAS.map(s => <th key={s} className={`px-3 py-3 text-center text-xs font-medium whitespace-nowrap ${t.textFaint}`}>{s}</th>)}
+            </tr></thead>
+            <tbody className={`divide-y ${t.divide}`}>
+              {loading ? (
+                <tr><td colSpan={20} className="text-center py-10"><RefreshCw className={`h-5 w-5 animate-spin mx-auto ${t.textFaint}`} /></td></tr>
+              ) : displayed.map(emp => (
+                <tr key={emp.id} className={`${t.hoverBg} transition-colors`}>
+                  <td className="px-4 py-3 sticky left-0">
+                    <div className={`font-medium text-sm ${t.textPrimary}`}>{emp.name}</div>
+                    <div className={`text-xs ${t.textFaint}`}>{emp.trade} · {emp.department}</div>
+                  </td>
+                  {SKILL_AREAS.map(skill => {
+                    const level = emp.skills[skill] as SkillLevel ?? 0;
+                    const hex = LEVEL_HEX[level];
+                    return (
+                      <td key={skill} className="px-3 py-3 text-center">
+                        <button type="button" title={`${emp.name} — ${skill}: ${LEVEL_LABEL[level]}. Click to edit.`} onClick={e => handleCellClick(emp.id, skill, e)}
+                          className="w-8 h-8 rounded-lg hover:ring-2 hover:ring-blue-400/40 transition-all mx-auto flex items-center justify-center" style={{ background: `${hex}${level === 0 ? '20' : 'cc'}` }}>
+                          {level > 0 && <span className="text-[10px] font-bold text-white">{level}</span>}
+                        </button>
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className={`${t.glass} rounded-2xl ${t.shadow} p-4`}>
+        <div className={`text-xs font-semibold uppercase tracking-wider mb-3 ${t.textFaint}`}>Skill Level Legend</div>
+        <div className="flex flex-wrap gap-4">
+          {([0, 1, 2, 3, 4] as SkillLevel[]).map(l => (
+            <div key={l} className="flex items-center gap-2">
+              <span className="w-6 h-6 rounded flex items-center justify-center" style={{ background: `${LEVEL_HEX[l]}${l === 0 ? '20' : 'cc'}` }}>
+                {l > 0 && <span className="text-[10px] font-bold text-white">{l}</span>}
+              </span>
+              <span className={`text-xs ${t.textMuted}`}>{l} — {LEVEL_LABEL[l]}</span>
+            </div>
+          ))}
+        </div>
+        <p className={`text-xs mt-3 ${t.textFaint}`}>Click any cell to update the skill level for that employee and skill area.</p>
+      </div>
+    </main>
   );
+}
+
+export default function CompetencyPage() {
+  return <AppShell><CompetencyContent /></AppShell>;
 }

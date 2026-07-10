@@ -1,20 +1,17 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef, ElementType } from "react";
 import {
-  Eye, Save, Target, Plus, Trash2, Loader2, CheckCircle, AlertTriangle,
-  LayoutGrid, Table as TableIcon, ChevronRight, RefreshCw, HardHat, Zap,
-  MessageSquare, Clock, Send, FileText, CheckCircle2, X, PenTool
+  Eye, Target, Plus, Trash2, AlertTriangle,
+  LayoutGrid, Table as TableIcon, RefreshCw, HardHat, Zap,
+  MessageSquare, PenTool, X,
 } from "lucide-react";
-import { PageShell } from '@/components/PageShell';
+import { AppShell } from '@/components/app-shell';
 import { toast } from "sonner";
 import {
-  safetyFetch, glassInput, glassLabel, glassTextarea, glassSelect,
-  SafetyHero, SafetyControls, SafetySearchBar, FilterPills, DateRangeFilter, ClearFiltersButton,
-  SafetyPanel, SafetyModal, FormField, ModalActions,
-  SafetyTable, RowActions, AddButton, LoadingState, EmptyState, TabBar
-} from '@/components/safety';
-import { usePageCollapse, MasterCollapseButton, EmployeeNameInput, PredictiveInput } from '@/components/shared';
+  useTheme, PageHero, StatTile, StatusBadge, SearchInput, FormField, FormActions,
+  useCollapseSection, CenterModal, PrimaryButton, EmptyState, ProgressBar, ACCENT_HEX, GlowCard, SelectField,
+} from '@/components/shared/theme';
 
 // =============== TYPES ===============
 type SectionType = 'Mechanical' | 'Electrical';
@@ -25,33 +22,18 @@ type VFLStatus = 'draft' | 'submitted' | 'reviewed' | 'closed';
 type ActionStatus = 'Pending' | 'In Progress' | 'Completed';
 
 interface ActionItem {
-  id: string;
-  action: string;
-  responsible: string;
-  targetDate: string;
-  status: ActionStatus;
-  completedDate?: string;
-  remarks?: string;
+  id: string; action: string; responsible: string; targetDate: string;
+  status: ActionStatus; completedDate?: string; remarks?: string;
 }
 
 interface VFLReport {
-  id: string;
-  observerName: string;
-  designation: string;
-  sectionChoice: SectionType;
-  departmentSection: string;
-  date: string;
-  time: string;
-  behaviourCategory: BehaviourCategory;
-  observationType: ObservationType;
-  description: string;
-  coachingTechnique: CoachingTechnique;
-  actions: ActionItem[];
-  status: VFLStatus;
-  created_at: string;
-  updated_at?: string;
-  submitted_at?: string;
+  id: string; observerName: string; designation: string; sectionChoice: SectionType;
+  departmentSection: string; date: string; time: string; behaviourCategory: BehaviourCategory;
+  observationType: ObservationType; description: string; coachingTechnique: CoachingTechnique;
+  actions: ActionItem[]; status: VFLStatus; created_at: string; updated_at?: string; submitted_at?: string;
 }
+
+interface EmployeeItem { id: string; employee_id?: string; first_name: string; last_name: string; designation?: string; department?: string; }
 
 // =============== CONSTANTS ===============
 const SECTIONS: SectionType[] = ['Mechanical', 'Electrical'];
@@ -59,458 +41,293 @@ const BEHAVIOUR_CATEGORIES: BehaviourCategory[] = ['Safe Behaviour', 'Unsafe Beh
 const OBSERVATION_TYPES: ObservationType[] = ['Safe Behaviour', 'Safe Condition', 'At Risk Behaviour', 'At Risk Condition'];
 const COACHING_TECHNIQUES: CoachingTechnique[] = ['SBR', 'CC'];
 
-const SECTION_COLORS: Record<SectionType, string> = {
-  Mechanical: '#3b82f6',
-  Electrical: '#f59e0b',
-};
-const SECTION_ICONS: Record<SectionType, React.ElementType> = {
-  Mechanical: HardHat,
-  Electrical: Zap,
-};
+const SECTION_HEX: Record<SectionType, string> = { Mechanical: '#3b82f6', Electrical: '#f59e0b' };
+const SECTION_ICONS: Record<SectionType, ElementType> = { Mechanical: HardHat, Electrical: Zap };
+const BEHAVIOUR_HEX: Record<BehaviourCategory, string> = { 'Safe Behaviour': '#10b981', 'Unsafe Behaviour': '#ef4444' };
+const OBSERVATION_HEX: Record<ObservationType, string> = { 'Safe Behaviour': '#10b981', 'Safe Condition': '#34d399', 'At Risk Behaviour': '#f97316', 'At Risk Condition': '#ef4444' };
+const COACHING_DESC: Record<CoachingTechnique, string> = { SBR: 'Situation, Behaviour, Result', CC: 'Coaching Conversation' };
+const STATUS_HEX: Record<VFLStatus, string> = { draft: '#94a3b8', submitted: '#3b82f6', reviewed: '#a78bfa', closed: '#10b981' };
+const ACTION_HEX: Record<ActionStatus, string> = { Pending: '#f59e0b', 'In Progress': '#3b82f6', Completed: '#10b981' };
 
-const BEHAVIOUR_COLORS: Record<BehaviourCategory, string> = {
-  'Safe Behaviour': '#10b981',
-  'Unsafe Behaviour': '#ef4444',
-};
-
-const OBSERVATION_COLORS: Record<ObservationType, string> = {
-  'Safe Behaviour': '#10b981',
-  'Safe Condition': '#34d399',
-  'At Risk Behaviour': '#f97316',
-  'At Risk Condition': '#ef4444',
-};
-
-const COACHING_DESC: Record<CoachingTechnique, string> = {
-  SBR: 'Situation, Behaviour, Result',
-  CC: 'Coaching Conversation',
-};
-
-const STATUS_COLORS: Record<VFLStatus, string> = {
-  draft: '#6b7280',
-  submitted: '#3b82f6',
-  reviewed: '#a78bfa',
-  closed: '#10b981',
-};
-
-const ACTION_COLORS: Record<ActionStatus, string> = {
-  Pending: '#f59e0b',
-  'In Progress': '#3b82f6',
-  Completed: '#10b981',
-};
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com';
 
 // =============== API FUNCTIONS ===============
-async function getVFLReports(params?: Record<string, string>): Promise<VFLReport[]> {
-  try {
-    const qs = params ? '?' + new URLSearchParams(params).toString() : '';
-    const data = await safetyFetch<VFLReport[]>(`/api/vfl/${qs}`);
-    return Array.isArray(data) ? data : [];
-  } catch {
-    return [];
-  }
+async function safetyFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, { headers: { 'Content-Type': 'application/json' }, ...init });
+  if (!res.ok) throw new Error(await res.text());
+  return res.status === 204 ? (undefined as T) : res.json();
 }
-
-async function createVFLReport(report: Partial<VFLReport>): Promise<VFLReport> {
-  return safetyFetch<VFLReport>('/api/vfl/', {
-    method: 'POST',
-    body: JSON.stringify(report),
-  });
+async function getVFLReports(): Promise<VFLReport[]> {
+  try { const data = await safetyFetch<VFLReport[]>('/api/vfl/'); return Array.isArray(data) ? data : []; } catch { return []; }
 }
-
-async function updateVFLReport(id: string, report: Partial<VFLReport>): Promise<VFLReport> {
-  return safetyFetch<VFLReport>(`/api/vfl/${id}/`, {
-    method: 'PATCH',
-    body: JSON.stringify(report),
-  });
-}
-
-async function deleteVFLReport(id: string): Promise<void> {
-  return safetyFetch<void>(`/api/vfl/${id}/`, { method: 'DELETE' });
-}
+async function createVFLReport(report: Partial<VFLReport>): Promise<VFLReport> { return safetyFetch<VFLReport>('/api/vfl/', { method: 'POST', body: JSON.stringify(report) }); }
+async function updateVFLReport(id: string, report: Partial<VFLReport>): Promise<VFLReport> { return safetyFetch<VFLReport>(`/api/vfl/${id}/`, { method: 'PATCH', body: JSON.stringify(report) }); }
+async function deleteVFLReport(id: string): Promise<void> { return safetyFetch<void>(`/api/vfl/${id}/`, { method: 'DELETE' }); }
 
 // =============== HELPERS ===============
-const fmtDate = (s: string) => {
-  if (!s) return '';
-  try { return new Date(s).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }); }
-  catch { return s; }
-};
-const fmtTime = (s: string) => {
-  if (!s) return '';
-  try { return new Date(`2000-01-01T${s}`).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }); }
-  catch { return s; }
-};
-const fmtDateTime = (s: string) => {
-  if (!s) return '';
-  try { return new Date(s).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }); }
-  catch { return s; }
-};
-
+const fmtDate = (s: string) => { if (!s) return ''; try { return new Date(s).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }); } catch { return s; } };
+const fmtTime = (s: string) => { if (!s) return ''; try { return new Date(`2000-01-01T${s}`).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }); } catch { return s; } };
 const newId = () => Math.random().toString(36).slice(2, 11);
 
 const defaultForm = (): Partial<VFLReport> => ({
-  observerName: '',
-  designation: '',
-  sectionChoice: 'Mechanical',
-  departmentSection: 'Engineering',
-  date: new Date().toISOString().split('T')[0],
-  time: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
-  behaviourCategory: 'Safe Behaviour',
-  observationType: 'Safe Behaviour',
-  description: '',
-  coachingTechnique: 'SBR',
-  actions: [],
-  status: 'draft',
+  observerName: '', designation: '', sectionChoice: 'Mechanical', departmentSection: 'Engineering',
+  date: new Date().toISOString().split('T')[0], time: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
+  behaviourCategory: 'Safe Behaviour', observationType: 'Safe Behaviour', description: '',
+  coachingTechnique: 'SBR', actions: [], status: 'draft',
 });
 
-// =============== CHIP BADGE ===============
-const Chip: React.FC<{ label: string; color: string }> = ({ label, color }) => (
-  <span style={{
-    display: 'inline-flex', alignItems: 'center', padding: '2px 8px',
-    borderRadius: 999, fontSize: 11, fontWeight: 600,
-    background: color + '22', color, border: `1px solid ${color}55`,
-  }}>{label}</span>
-);
-
-// =============== ACTION ITEM CARD ===============
-interface ActionCardProps {
-  item: ActionItem;
-  index: number;
-  onChange: (id: string, field: keyof ActionItem, value: string) => void;
-  onRemove: (id: string) => void;
+// =============== PREDICTIVE / EMPLOYEE FIELDS ===============
+function usePredictiveHistory(key: string) {
+  const [history, setHistory] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try { return JSON.parse(localStorage.getItem(`vfl_hist_${key}`) || '[]'); } catch { return []; }
+  });
+  const remember = (val: string) => {
+    if (!val.trim()) return;
+    setHistory(prev => { const next = [val, ...prev.filter(v => v !== val)].slice(0, 20); localStorage.setItem(`vfl_hist_${key}`, JSON.stringify(next)); return next; });
+  };
+  return { history, remember };
 }
-const ActionItemCard: React.FC<ActionCardProps> = ({ item, index, onChange, onRemove }) => (
-  <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 10, padding: '14px 14px 10px' }}>
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-      <span style={{ fontSize: 11, fontWeight: 700, color: '#10b981', textTransform: 'uppercase', letterSpacing: 1 }}>Action #{index + 1}</span>
-      <button type="button" onClick={() => onRemove(item.id)} title="Remove action"
-        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#f87171', padding: 2 }}>
-        <Trash2 size={14} />
-      </button>
-    </div>
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
-      <div style={{ gridColumn: '1 / -1' }}>
-        <label className={glassLabel}>Action Description *</label>
-        <input className={glassInput} value={item.action} placeholder="Describe the action..."
-          onChange={e => onChange(item.id, 'action', e.target.value)} title="Action description" />
-      </div>
-      <div>
-        <label className={glassLabel}>Responsible Person *</label>
-        <input className={glassInput} value={item.responsible} placeholder="Full name"
-          onChange={e => onChange(item.id, 'responsible', e.target.value)} title="Responsible person" />
-      </div>
-      <div>
-        <label className={glassLabel}>Target Date *</label>
-        <input type="date" className={glassInput} value={item.targetDate} title="Target date" placeholder="Target date"
-          onChange={e => onChange(item.id, 'targetDate', e.target.value)} />
-      </div>
-      <div>
-        <label className={glassLabel}>Status</label>
-        <select className={glassSelect} value={item.status} title="Status"
-          onChange={e => onChange(item.id, 'status', e.target.value as ActionStatus)}>
-          <option value="Pending">Pending</option>
-          <option value="In Progress">In Progress</option>
-          <option value="Completed">Completed</option>
-        </select>
-      </div>
-      {item.status === 'Completed' && (
-        <div>
-          <label className={glassLabel}>Completed Date</label>
-          <input type="date" className={glassInput} value={item.completedDate || ''} title="Completed date" placeholder="Completed date"
-            onChange={e => onChange(item.id, 'completedDate', e.target.value)} />
+
+function PredictiveField({ historyKey, value, onChange, placeholder, hints }: { historyKey: string; value: string; onChange: (v: string) => void; placeholder?: string; hints?: string[]; }) {
+  const t = useTheme();
+  const { history, remember } = usePredictiveHistory(historyKey);
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const allOptions = useMemo(() => [...new Set([...history, ...(hints || [])])], [history, hints]);
+
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener('mousedown', h); return () => document.removeEventListener('mousedown', h);
+  }, []);
+
+  const q = value.toLowerCase();
+  const suggestions = q.length === 0 ? allOptions.slice(0, 6) : allOptions.filter(o => o.toLowerCase().includes(q) && o.toLowerCase() !== q).slice(0, 6);
+  const inputCls = `w-full rounded-lg px-3 py-1.5 text-sm outline-none transition-colors ${t.inputBg}`;
+
+  return (
+    <div className="relative" ref={ref}>
+      <input value={value} onChange={e => onChange(e.target.value)} onFocus={() => setOpen(true)} onBlur={() => { if (value.trim()) remember(value.trim()); }} placeholder={placeholder} className={inputCls} />
+      {open && suggestions.length > 0 && (
+        <div className={`absolute z-50 w-full mt-1 rounded-xl overflow-hidden ${t.glass} ${t.shadow}`}>
+          <div className="max-h-40 overflow-y-auto">{suggestions.map(s => <button key={s} type="button" onMouseDown={() => { onChange(s); setOpen(false); }} className={`w-full text-left px-3 py-2 text-xs ${t.textMuted} ${t.hoverBgSoft} transition-colors truncate`}>{s}</button>)}</div>
         </div>
       )}
-      <div style={{ gridColumn: '1 / -1' }}>
-        <label className={glassLabel}>Remarks (Optional)</label>
-        <textarea className={glassTextarea} style={{ minHeight: 48 }} value={item.remarks || ''} placeholder="Additional notes..."
-          onChange={e => onChange(item.id, 'remarks', e.target.value)} title="Remarks" />
+    </div>
+  );
+}
+
+let _empCache: EmployeeItem[] = [];
+let _empFetched = false;
+function useEmployees() {
+  const [list, setList] = useState<EmployeeItem[]>(_empCache);
+  useEffect(() => {
+    if (_empFetched) return;
+    fetch(`${API_BASE}/api/employees`).then(r => r.json()).then((d: EmployeeItem[]) => { if (Array.isArray(d)) { _empCache = d; setList(d); } _empFetched = true; }).catch(() => { _empFetched = true; });
+  }, []);
+  return list;
+}
+
+function EmployeeField({ value, onChange, placeholder }: { value: string; onChange: (name: string, emp?: EmployeeItem) => void; placeholder?: string }) {
+  const t = useTheme();
+  const employees = useEmployees();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener('mousedown', h); return () => document.removeEventListener('mousedown', h);
+  }, []);
+
+  const q = value.toLowerCase();
+  const suggestions = q.length === 0 ? employees.slice(0, 6) : employees.filter(e => `${e.first_name} ${e.last_name}`.toLowerCase().includes(q)).slice(0, 6);
+
+  return (
+    <div className="relative" ref={ref}>
+      <input value={value} onChange={e => { onChange(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)} placeholder={placeholder} className={`w-full rounded-lg px-3 py-1.5 text-sm outline-none transition-colors ${t.inputBg}`} />
+      {open && suggestions.length > 0 && (
+        <div className={`absolute z-50 w-full mt-1 rounded-xl overflow-hidden ${t.glass} ${t.shadow}`}>
+          <div className="max-h-40 overflow-y-auto">{suggestions.map(e => { const full = `${e.first_name} ${e.last_name}`; return <button key={e.id} type="button" onMouseDown={() => { onChange(full, e); setOpen(false); }} className={`w-full text-left px-3 py-2 text-xs ${t.textMuted} ${t.hoverBgSoft} transition-colors truncate`}>{full}{e.department ? ` · ${e.department}` : ''}</button>; })}</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// =============== ACTION ITEM CARD ===============
+function ActionItemCard({ item, index, onChange, onRemove }: { item: ActionItem; index: number; onChange: (id: string, field: keyof ActionItem, value: string) => void; onRemove: (id: string) => void; }) {
+  const t = useTheme();
+  const inputCls = `w-full rounded-lg px-3 py-1.5 text-sm outline-none transition-colors ${t.inputBg}`;
+  return (
+    <div className={`${t.chipBg} rounded-xl p-3.5`}>
+      <div className="flex justify-between items-center mb-2.5">
+        <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wide">Action #{index + 1}</span>
+        <button type="button" onClick={() => onRemove(item.id)} title="Remove action" className="text-red-400 hover:text-red-300 transition-colors"><Trash2 className="h-3.5 w-3.5" /></button>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <div className="col-span-2"><FormField label="Action Description" required><input className={inputCls} value={item.action} placeholder="Describe the action..." onChange={e => onChange(item.id, 'action', e.target.value)} /></FormField></div>
+        <FormField label="Responsible Person" required><input className={inputCls} value={item.responsible} placeholder="Full name" onChange={e => onChange(item.id, 'responsible', e.target.value)} /></FormField>
+        <FormField label="Target Date" required><input type="date" className={inputCls} value={item.targetDate} title="Target date" onChange={e => onChange(item.id, 'targetDate', e.target.value)} /></FormField>
+        <FormField label="Status">
+          <SelectField size="form" value={item.status} title="Status" onChange={v => onChange(item.id, 'status', v as ActionStatus)}
+            options={[{ value: 'Pending', label: 'Pending' }, { value: 'In Progress', label: 'In Progress' }, { value: 'Completed', label: 'Completed' }]} />
+        </FormField>
+        {item.status === 'Completed' && <FormField label="Completed Date"><input type="date" className={inputCls} value={item.completedDate || ''} title="Completed date" onChange={e => onChange(item.id, 'completedDate', e.target.value)} /></FormField>}
+        <div className="col-span-2"><FormField label="Remarks (Optional)"><textarea className={`${inputCls} resize-none`} style={{ minHeight: 48 }} value={item.remarks || ''} placeholder="Additional notes..." onChange={e => onChange(item.id, 'remarks', e.target.value)} /></FormField></div>
       </div>
     </div>
-  </div>
-);
+  );
+}
 
 // =============== VFL CARD (Grid) ===============
-interface VFLCardProps {
-  report: VFLReport;
-  index: number;
-  onView: (r: VFLReport) => void;
-  onEdit: (r: VFLReport) => void;
-  onDelete: (id: string) => void;
-}
-const VFLCard: React.FC<VFLCardProps> = ({ report, index, onView, onEdit, onDelete }) => {
+function VFLCard({ report, index, onView, onEdit, onDelete }: { report: VFLReport; index: number; onView: (r: VFLReport) => void; onEdit: (r: VFLReport) => void; onDelete: (id: string) => void; }) {
+  const t = useTheme();
   const SectionIcon = SECTION_ICONS[report.sectionChoice];
-  const bColor = BEHAVIOUR_COLORS[report.behaviourCategory];
-  const sColor = SECTION_COLORS[report.sectionChoice];
+  const bColor = BEHAVIOUR_HEX[report.behaviourCategory];
+  const sColor = SECTION_HEX[report.sectionChoice];
   const total = report.actions?.length || 0;
   const done = report.actions?.filter(a => a.status === 'Completed').length || 0;
   const inProg = report.actions?.filter(a => a.status === 'In Progress').length || 0;
   const pct = total ? Math.round((done / total) * 100) : 0;
 
   return (
-    <div onClick={() => onView(report)} style={{ cursor: 'pointer', position: 'relative', borderRadius: 14, overflow: 'hidden', background: 'rgba(255,255,255,0.05)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.12)', transition: 'box-shadow 0.2s' }}>
-      {/* Accent stripe */}
-      <div style={{ height: 4, background: `linear-gradient(90deg,${bColor},${sColor})` }} />
-      <div style={{ padding: '14px 16px 12px' }}>
-        {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{ padding: 7, borderRadius: 8, background: sColor + '22' }}>
-              <SectionIcon size={16} style={{ color: sColor }} />
-            </div>
-            <div>
-              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginBottom: 2 }}>VFL #{index + 1}</div>
-              <div style={{ fontWeight: 700, fontSize: 15, color: 'rgba(255,255,255,0.92)' }}>{report.observerName}</div>
-            </div>
+    <GlowCard onClick={() => onView(report)} color={sColor} surface={`${t.glass} rounded-2xl`} className="overflow-hidden">
+      <div className="px-4 pt-3.5 pb-3">
+        <div className="flex justify-between items-start mb-2.5">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 rounded-lg" style={{ background: `${sColor}22` }}><SectionIcon className="h-4 w-4" style={{ color: sColor }} /></div>
+            <div><div className={`text-[11px] mb-0.5 ${t.textFaint}`}>VFL #{index + 1}</div><div className={`font-bold text-[15px] ${t.textPrimary}`}>{report.observerName}</div></div>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end' }}>
-            <Chip label={report.sectionChoice} color={sColor} />
-            <Chip label={report.behaviourCategory} color={bColor} />
-          </div>
+          <div className="flex flex-col gap-1 items-end"><StatusBadge color={sColor} label={report.sectionChoice} /><StatusBadge color={bColor} label={report.behaviourCategory} /></div>
         </div>
 
-        {/* Info row */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 10 }}>
-          {[
-            { label: report.designation || 'No designation' },
-            { label: fmtDate(report.date) },
-            { label: fmtTime(report.time) },
-            { label: report.observationType },
-          ].map((item, i) => (
-            <div key={i} style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', padding: '4px 8px', background: 'rgba(255,255,255,0.04)', borderRadius: 6 }}>
-              {item.label}
-            </div>
+        <div className="grid grid-cols-2 gap-1.5 mb-2.5">
+          {[report.designation || 'No designation', fmtDate(report.date), fmtTime(report.time), report.observationType].map((label, i) => (
+            <div key={i} className={`text-[11px] px-2 py-1 rounded ${t.chipBg} ${t.textFaint}`}>{label}</div>
           ))}
         </div>
 
-        {/* Description */}
-        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginBottom: 10, lineHeight: 1.5, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
-          {report.description || 'No description recorded.'}
-        </div>
+        <div className={`text-xs mb-2.5 leading-relaxed line-clamp-2 ${t.textMuted}`}>{report.description || 'No description recorded.'}</div>
 
-        {/* Progress */}
         {total > 0 && (
-          <div style={{ marginBottom: 10 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'rgba(255,255,255,0.4)', marginBottom: 4 }}>
-              <span>Action Progress</span><span>{pct}%</span>
-            </div>
-            <div style={{ height: 5, borderRadius: 999, background: 'rgba(255,255,255,0.08)' }}>
-              <div style={{ height: '100%', borderRadius: 999, width: `${pct}%`, background: pct === 100 ? '#10b981' : '#3b82f6', transition: 'width 0.3s' }} />
-            </div>
-            <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
-              <Chip label={`${total - done - inProg} Pending`} color="#f59e0b" />
-              <Chip label={`${inProg} In Progress`} color="#3b82f6" />
-              <Chip label={`${done} Done`} color="#10b981" />
-            </div>
+          <div className="mb-2.5">
+            <div className={`flex justify-between text-[10px] mb-1 ${t.textFaint}`}><span>Action Progress</span><span>{pct}%</span></div>
+            <ProgressBar value={pct} color={pct === 100 ? '#10b981' : '#3b82f6'} showValue={false} />
+            <div className="flex gap-1.5 mt-1.5"><StatusBadge color="#f59e0b" label={`${total - done - inProg} Pending`} /><StatusBadge color="#3b82f6" label={`${inProg} In Progress`} /><StatusBadge color="#10b981" label={`${done} Done`} /></div>
           </div>
         )}
 
-        {/* Coaching + status */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: 10 }}>
-          <Chip label={`${report.coachingTechnique} — ${COACHING_DESC[report.coachingTechnique]}`} color="#a78bfa" />
-          <Chip label={report.status.charAt(0).toUpperCase() + report.status.slice(1)} color={STATUS_COLORS[report.status]} />
+        <div className={`flex justify-between items-center border-t ${t.border} pt-2.5`}>
+          <StatusBadge color="#a78bfa" label={`${report.coachingTechnique} — ${COACHING_DESC[report.coachingTechnique]}`} />
+          <StatusBadge color={STATUS_HEX[report.status]} label={report.status.charAt(0).toUpperCase() + report.status.slice(1)} />
         </div>
 
-        {/* Actions */}
-        <div onClick={e => e.stopPropagation()} style={{ display: 'flex', justifyContent: 'flex-end', gap: 6, marginTop: 10 }}>
-          <button onClick={() => onView(report)} title="View" style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', color: 'rgba(255,255,255,0.7)', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
-            <Eye size={12} /> View
-          </button>
-          <button onClick={() => onEdit(report)} title="Edit" style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', color: '#60a5fa', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
-            <PenTool size={12} /> Edit
-          </button>
-          <button onClick={() => onDelete(report.id)} title="Delete" style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', color: '#f87171', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
-            <Trash2 size={12} /> Delete
-          </button>
+        <div onClick={e => e.stopPropagation()} className="flex justify-end gap-1.5 mt-2.5">
+          <button type="button" onClick={() => onView(report)} title="View" className={`${t.chipBg} ${t.hoverBg} rounded-md px-2 py-1 text-xs flex items-center gap-1 transition-colors ${t.textFaint}`}><Eye className="h-3 w-3" /> View</button>
+          <button type="button" onClick={() => onEdit(report)} title="Edit" className={`${t.chipBg} ${t.hoverBg} rounded-md px-2 py-1 text-xs flex items-center gap-1 transition-colors text-blue-400`}><PenTool className="h-3 w-3" /> Edit</button>
+          <button type="button" onClick={() => onDelete(report.id)} title="Delete" className={`${t.chipBg} ${t.hoverBg} rounded-md px-2 py-1 text-xs flex items-center gap-1 transition-colors text-red-400`}><Trash2 className="h-3 w-3" /> Delete</button>
         </div>
       </div>
-    </div>
+    </GlowCard>
   );
-};
+}
 
 // =============== DETAIL MODAL ===============
-interface DetailModalProps {
-  report: VFLReport | null;
-  open: boolean;
-  onClose: () => void;
-  onEdit: (r: VFLReport) => void;
-  onDelete: (id: string) => void;
-  onStatusChange: (id: string, status: VFLStatus) => void;
-}
-const VFLDetailModal: React.FC<DetailModalProps> = ({ report, open, onClose, onEdit, onDelete, onStatusChange }) => {
+function VFLDetailModal({ report, open, onClose, onEdit, onDelete, onStatusChange }: {
+  report: VFLReport | null; open: boolean; onClose: () => void; onEdit: (r: VFLReport) => void; onDelete: (id: string) => void; onStatusChange: (id: string, status: VFLStatus) => void;
+}) {
+  const t = useTheme();
   if (!report) return null;
   const SectionIcon = SECTION_ICONS[report.sectionChoice];
-  const bColor = BEHAVIOUR_COLORS[report.behaviourCategory];
-  const sColor = SECTION_COLORS[report.sectionChoice];
-  const oColor = OBSERVATION_COLORS[report.observationType];
+  const bColor = BEHAVIOUR_HEX[report.behaviourCategory];
+  const sColor = SECTION_HEX[report.sectionChoice];
+  const oColor = OBSERVATION_HEX[report.observationType];
   const total = report.actions?.length || 0;
   const done = report.actions?.filter(a => a.status === 'Completed').length || 0;
   const inProg = report.actions?.filter(a => a.status === 'In Progress').length || 0;
   const pct = total ? Math.round((done / total) * 100) : 0;
-
-  const infoStyle: React.CSSProperties = { background: 'rgba(255,255,255,0.05)', borderRadius: 8, padding: '8px 12px' };
+  const infoBox = `${t.chipBg} rounded-lg px-3 py-2`;
 
   return (
-    <SafetyModal open={open} onClose={onClose} title="Visible Felt Leadership Observation" width="max-w-2xl">
-      {/* Status bar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.05)', borderRadius: 10, padding: '10px 14px', marginBottom: 16 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ padding: 7, borderRadius: 8, background: sColor + '22' }}>
-            <SectionIcon size={16} style={{ color: sColor }} />
+    <CenterModal open={open} onClose={onClose} title="Visible Felt Leadership Observation" accent="emerald" width="max-w-2xl">
+      <div className="px-5 py-4 space-y-4">
+        <div className={`flex justify-between items-center ${t.chipBg} rounded-xl px-3.5 py-2.5`}>
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 rounded-lg" style={{ background: `${sColor}22` }}><SectionIcon className="h-4 w-4" style={{ color: sColor }} /></div>
+            <span className={`font-semibold ${t.textPrimary}`}>{report.sectionChoice}</span>
           </div>
-          <span style={{ color: 'rgba(255,255,255,0.8)', fontWeight: 600, fontSize: 14 }}>{report.sectionChoice}</span>
+          <div className="flex gap-2 items-center">
+            <StatusBadge color={bColor} label={report.behaviourCategory} />
+            <SelectField size="filter" title="Change status" value={report.status} onChange={v => onStatusChange(report.id, v as VFLStatus)}
+              options={[{ value: 'draft', label: 'Draft' }, { value: 'submitted', label: 'Submitted' }, { value: 'reviewed', label: 'Reviewed' }, { value: 'closed', label: 'Closed' }]} />
+          </div>
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <Chip label={report.behaviourCategory} color={bColor} />
-          <select title="Change status" className={glassSelect} style={{ width: 'auto', fontSize: 12, padding: '4px 8px' }}
-            value={report.status} onChange={e => onStatusChange(report.id, e.target.value as VFLStatus)}>
-            <option value="draft">Draft</option>
-            <option value="submitted">Submitted</option>
-            <option value="reviewed">Reviewed</option>
-            <option value="closed">Closed</option>
-          </select>
-        </div>
-      </div>
 
-      {/* Progress */}
-      {total > 0 && (
-        <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: '12px 14px', marginBottom: 16 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 6 }}>
-            <span style={{ color: 'rgba(255,255,255,0.6)' }}>Action Progress</span>
-            <span style={{ color: 'rgba(255,255,255,0.8)', fontWeight: 600 }}>{done}/{total} completed</span>
+        {total > 0 && (
+          <div className={`${t.chipBg} rounded-xl px-3.5 py-3`}>
+            <div className="flex justify-between text-xs mb-1.5"><span className={t.textFaint}>Action Progress</span><span className={`font-semibold ${t.textPrimary}`}>{done}/{total} completed</span></div>
+            <ProgressBar value={pct} color={pct === 100 ? '#10b981' : '#3b82f6'} showValue={false} />
+            <div className="flex gap-2 mt-2"><StatusBadge color="#f59e0b" label={`${total - done - inProg} Pending`} /><StatusBadge color="#3b82f6" label={`${inProg} In Progress`} /><StatusBadge color="#10b981" label={`${done} Completed`} /></div>
           </div>
-          <div style={{ height: 6, borderRadius: 999, background: 'rgba(255,255,255,0.08)', marginBottom: 8 }}>
-            <div style={{ height: '100%', borderRadius: 999, width: `${pct}%`, background: pct === 100 ? '#10b981' : '#3b82f6' }} />
-          </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <Chip label={`${total - done - inProg} Pending`} color="#f59e0b" />
-            <Chip label={`${inProg} In Progress`} color="#3b82f6" />
-            <Chip label={`${done} Completed`} color="#10b981" />
-          </div>
-        </div>
-      )}
+        )}
 
-      {/* Info grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 8, marginBottom: 16 }}>
-        {[
-          { label: 'Observer', val: report.observerName },
-          { label: 'Designation', val: report.designation || 'N/A' },
-          { label: 'Date', val: fmtDate(report.date) },
-          { label: 'Time', val: fmtTime(report.time) },
-        ].map(({ label, val }) => (
-          <div key={label} style={infoStyle}>
-            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginBottom: 3 }}>{label}</div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.85)' }}>{val}</div>
-          </div>
-        ))}
-      </div>
-
-      {report.departmentSection && (
-        <div style={{ ...infoStyle, marginBottom: 16 }}>
-          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginBottom: 3 }}>Department/Section</div>
-          <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)' }}>{report.departmentSection}</div>
+        <div className="grid grid-cols-4 gap-2">
+          {[{ label: 'Observer', val: report.observerName }, { label: 'Designation', val: report.designation || 'N/A' }, { label: 'Date', val: fmtDate(report.date) }, { label: 'Time', val: fmtTime(report.time) }].map(({ label, val }) => (
+            <div key={label} className={infoBox}><div className={`text-[10px] mb-0.5 ${t.textFaint}`}>{label}</div><div className={`text-sm font-semibold ${t.textPrimary}`}>{val}</div></div>
+          ))}
         </div>
-      )}
 
-      {/* Observation details */}
-      <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: '14px', marginBottom: 16 }}>
-        <div style={{ fontWeight: 700, fontSize: 13, color: 'rgba(255,255,255,0.7)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5 }}>Observation Details</div>
-        <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-          <Chip label={report.observationType} color={oColor} />
-          <Chip label={`${report.coachingTechnique} — ${COACHING_DESC[report.coachingTechnique]}`} color="#a78bfa" />
-        </div>
-        <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.75)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
-          {report.description}
-        </div>
-      </div>
+        {report.departmentSection && <div className={infoBox}><div className={`text-[10px] mb-0.5 ${t.textFaint}`}>Department/Section</div><div className={`text-sm ${t.textMuted}`}>{report.departmentSection}</div></div>}
 
-      {/* Actions */}
-      {report.actions && report.actions.length > 0 && (
-        <div style={{ marginBottom: 8 }}>
-          <div style={{ fontWeight: 700, fontSize: 13, color: 'rgba(255,255,255,0.7)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-            Action Plan ({report.actions.length})
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {report.actions.map((action, idx) => {
-              const ac = ACTION_COLORS[action.status];
-              return (
-                <div key={action.id} style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 8, padding: '10px 12px', borderLeft: `3px solid ${ac}` }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)' }}>Action #{idx + 1}</span>
-                    <Chip label={action.status} color={ac} />
+        <div className={`${t.chipBg} rounded-xl px-3.5 py-3.5`}>
+          <div className={`font-bold text-xs uppercase tracking-wide mb-2.5 ${t.textFaint}`}>Observation Details</div>
+          <div className="flex gap-2 mb-2.5 flex-wrap"><StatusBadge color={oColor} label={report.observationType} /><StatusBadge color="#a78bfa" label={`${report.coachingTechnique} — ${COACHING_DESC[report.coachingTechnique]}`} /></div>
+          <div className={`text-sm leading-relaxed whitespace-pre-wrap ${t.textMuted}`}>{report.description}</div>
+        </div>
+
+        {report.actions && report.actions.length > 0 && (
+          <div>
+            <div className={`font-bold text-xs uppercase tracking-wide mb-2.5 ${t.textFaint}`}>Action Plan ({report.actions.length})</div>
+            <div className="flex flex-col gap-2">
+              {report.actions.map((action, idx) => {
+                const ac = ACTION_HEX[action.status];
+                return (
+                  <div key={action.id} className={`${t.chipBg} rounded-lg px-3 py-2.5`} style={{ borderLeft: `3px solid ${ac}` }}>
+                    <div className="flex justify-between mb-1.5"><span className={`text-[11px] ${t.textFaint}`}>Action #{idx + 1}</span><StatusBadge color={ac} label={action.status} /></div>
+                    <div className={`text-sm mb-1.5 ${t.textMuted}`}>{action.action}</div>
+                    <div className={`flex gap-4 text-[11px] ${t.textFaint}`}><span>By: {action.responsible}</span><span>Target: {fmtDate(action.targetDate)}</span>{action.completedDate && <span>Completed: {fmtDate(action.completedDate)}</span>}</div>
+                    {action.remarks && <div className={`mt-1.5 text-xs italic ${t.textFaint} border-l-2 border-emerald-400 pl-2`}>{action.remarks}</div>}
                   </div>
-                  <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', marginBottom: 6 }}>{action.action}</div>
-                  <div style={{ display: 'flex', gap: 16, fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>
-                    <span>By: {action.responsible}</span>
-                    <span>Target: {fmtDate(action.targetDate)}</span>
-                    {action.completedDate && <span>Completed: {fmtDate(action.completedDate)}</span>}
-                  </div>
-                  {action.remarks && (
-                    <div style={{ marginTop: 6, fontSize: 12, fontStyle: 'italic', color: 'rgba(255,255,255,0.45)', borderLeft: '2px solid #10b981', paddingLeft: 8 }}>
-                      {action.remarks}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
-        </div>
-      )}
-
-      <div style={{ display: 'flex', gap: 8, padding: '14px 20px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-        <button type="button" onClick={() => { onClose(); onDelete(report.id); }}
-          style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 10, padding: '10px 16px', color: '#f87171', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
-          Delete
-        </button>
-        <button type="button" onClick={onClose}
-          style={{ flex: 1, padding: '10px', borderRadius: 10, fontSize: 13, color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.10)', background: 'none', cursor: 'pointer' }}>
-          Close
-        </button>
-        <button type="button" onClick={() => { onClose(); onEdit(report); }}
-          style={{ flex: 1, padding: '10px', borderRadius: 10, fontSize: 13, fontWeight: 600, color: '#fff', background: '#3b82f6', border: 'none', cursor: 'pointer' }}>
-          Edit
-        </button>
+        )}
       </div>
-    </SafetyModal>
+      <div className={`flex gap-2 px-5 py-4 border-t ${t.border}`}>
+        <button type="button" onClick={() => { onClose(); onDelete(report.id); }} className="bg-red-500/15 hover:bg-red-500/25 rounded-xl px-4 py-2.5 text-red-400 text-sm font-semibold transition-colors">Delete</button>
+        <button type="button" onClick={onClose} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border} transition-all`}>Close</button>
+        <button type="button" onClick={() => { onClose(); onEdit(report); }} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-blue-500 to-blue-700 hover:brightness-110 transition-all">Edit</button>
+      </div>
+    </CenterModal>
   );
-};
+}
 
 // =============== FORM MODAL ===============
-interface FormModalProps {
-  open: boolean;
-  editing: VFLReport | null;
-  onClose: () => void;
-  onSave: (data: Partial<VFLReport>) => Promise<void>;
-  saving: boolean;
-}
-const VFLFormModal: React.FC<FormModalProps> = ({ open, editing, onClose, onSave, saving }) => {
+function VFLFormModal({ open, editing, onClose, onSave, saving }: { open: boolean; editing: VFLReport | null; onClose: () => void; onSave: (data: Partial<VFLReport>) => Promise<void>; saving: boolean; }) {
+  const t = useTheme();
   const [tab, setTab] = useState<string>('observer');
   const [form, setForm] = useState<Partial<VFLReport>>(defaultForm());
 
-  useEffect(() => {
-    if (open) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setForm(editing ? { ...editing } : defaultForm());
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setTab('observer');
-    }
-  }, [open, editing]);
+  useEffect(() => { if (open) { setForm(editing ? { ...editing } : defaultForm()); setTab('observer'); } }, [open, editing]);
 
   const set = (field: keyof VFLReport, val: unknown) => setForm(prev => ({ ...prev, [field]: val }));
+  const addAction = () => setForm(prev => ({ ...prev, actions: [...(prev.actions || []), { id: newId(), action: '', responsible: '', targetDate: '', status: 'Pending' }] }));
+  const updateAction = (id: string, field: keyof ActionItem, val: string) => setForm(prev => ({ ...prev, actions: prev.actions?.map(a => a.id === id ? { ...a, [field]: val } : a) || [] }));
+  const removeAction = (id: string) => setForm(prev => ({ ...prev, actions: prev.actions?.filter(a => a.id !== id) || [] }));
 
-  const addAction = () => {
-    setForm(prev => ({
-      ...prev,
-      actions: [...(prev.actions || []), { id: newId(), action: '', responsible: '', targetDate: '', status: 'Pending' }],
-    }));
-  };
-
-  const updateAction = (id: string, field: keyof ActionItem, val: string) => {
-    setForm(prev => ({ ...prev, actions: prev.actions?.map(a => a.id === id ? { ...a, [field]: val } : a) || [] }));
-  };
-
-  const removeAction = (id: string) => {
-    setForm(prev => ({ ...prev, actions: prev.actions?.filter(a => a.id !== id) || [] }));
-  };
-
-  const handleSubmit = async () => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!form.observerName?.trim()) { toast.error('Observer name is required'); setTab('observer'); return; }
     if (!form.date) { toast.error('Date is required'); setTab('observer'); return; }
     if (!form.time) { toast.error('Time is required'); setTab('observer'); return; }
@@ -518,181 +335,90 @@ const VFLFormModal: React.FC<FormModalProps> = ({ open, editing, onClose, onSave
     await onSave(form);
   };
 
-  const tabs = [
-    { id: 'observer', label: 'Observer Info' },
-    { id: 'observation', label: 'Observation' },
-    { id: 'actions', label: 'Action Plan' },
-  ];
-
-  const radioStyle: React.CSSProperties = { accentColor: '#10b981', cursor: 'pointer' };
-  const radioGroupStyle: React.CSSProperties = { display: 'flex', gap: 16, flexWrap: 'wrap' };
-  const radioLabelStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'rgba(255,255,255,0.75)', cursor: 'pointer' };
+  const tabs = [{ id: 'observer', label: 'Observer Info' }, { id: 'observation', label: 'Observation' }, { id: 'actions', label: 'Action Plan' }];
+  const inputCls = `w-full rounded-lg px-3 py-1.5 text-sm outline-none transition-colors ${t.inputBg}`;
+  const radioLabelCls = `flex items-center gap-1.5 text-sm cursor-pointer ${t.textMuted}`;
 
   return (
-    <SafetyModal open={open} onClose={onClose}
-      title={editing ? 'Edit VFL Observation' : 'New VFL Observation'}
-      width="max-w-2xl">
-      <TabBar tabs={tabs} active={tab} onChange={setTab} />
+    <CenterModal open={open} onClose={onClose} title={editing ? 'Edit VFL Observation' : 'New VFL Observation'} accent="emerald" width="max-w-2xl">
+      <div className={`flex gap-1 px-5 pt-4 border-b ${t.border} overflow-x-auto`}>
+        {tabs.map(tb => <button key={tb.id} type="button" onClick={() => setTab(tb.id)} className={`px-3 py-2 text-xs font-medium rounded-t-lg whitespace-nowrap transition-colors ${tab === tb.id ? 'bg-emerald-500/15 text-emerald-400' : `${t.textFaint} ${t.hoverText}`}`}>{tb.label}</button>)}
+      </div>
 
-      {tab === 'observer' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <div style={{ gridColumn: '1 / -1' }}>
-            <FormField label="Observer's Name *">
-              <EmployeeNameInput
-                value={form.observerName || ''}
-                onChange={(name, emp) => {
-                  set('observerName', name);
-                  if (emp?.designation)  set('designation', emp.designation);
-                  if (emp?.department)   set('departmentSection', emp.department);
-                }}
-                placeholder="Select or type observer name…"
-              />
+      <form onSubmit={handleSubmit} className="p-5 space-y-4">
+        {tab === 'observer' && (
+          <div className="grid grid-cols-2 gap-3">
+            <div className="col-span-2"><FormField label="Observer's Name" required><EmployeeField value={form.observerName || ''} onChange={(name, emp) => { set('observerName', name); if (emp?.designation) set('designation', emp.designation); if (emp?.department) set('departmentSection', emp.department); }} placeholder="Select or type observer name…" /></FormField></div>
+            <FormField label="Designation"><PredictiveField historyKey="vfl_designation" value={form.designation || ''} onChange={v => set('designation', v)} placeholder="Job title" hints={['Safety Officer', 'Supervisor', 'Foreman', 'Engineer', 'Technician', 'SHEQ Manager', 'Shift Boss']} /></FormField>
+            <FormField label="Section" required>
+              <SelectField size="form" value={form.sectionChoice || 'Mechanical'} title="Section" onChange={v => set('sectionChoice', v as SectionType)}
+                options={SECTIONS.map(s => ({ value: s, label: s }))} />
+            </FormField>
+            <div className="col-span-2"><FormField label="Department/Section"><PredictiveField historyKey="vfl_department" value={form.departmentSection || ''} onChange={v => set('departmentSection', v)} placeholder="e.g. Engineering" hints={['Engineering', 'Mechanical', 'Electrical', 'Mining', 'Processing', 'Safety', 'Maintenance', 'Operations']} /></FormField></div>
+            <FormField label="Date" required><input type="date" className={inputCls} value={form.date || ''} title="Observation date" onChange={e => set('date', e.target.value)} /></FormField>
+            <FormField label="Time" required><input type="time" className={inputCls} value={form.time || ''} title="Observation time" onChange={e => set('time', e.target.value)} /></FormField>
+            <FormField label="Status">
+              <SelectField size="form" value={form.status || 'draft'} title="Status" onChange={v => set('status', v as VFLStatus)}
+                options={[{ value: 'draft', label: 'Draft' }, { value: 'submitted', label: 'Submitted' }, { value: 'reviewed', label: 'Reviewed' }, { value: 'closed', label: 'Closed' }]} />
             </FormField>
           </div>
-          <FormField label="Designation">
-            <PredictiveInput
-              historyKey="vfl_designation"
-              value={form.designation || ''}
-              onChange={v => set('designation', v)}
-              placeholder="Job title"
-              hints={['Safety Officer', 'Supervisor', 'Foreman', 'Engineer', 'Technician', 'SHEQ Manager', 'Shift Boss']}
-            />
-          </FormField>
-          <FormField label="Section *">
-            <select className={glassSelect} value={form.sectionChoice || 'Mechanical'} title="Section"
-              onChange={e => set('sectionChoice', e.target.value as SectionType)}>
-              {SECTIONS.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
-          </FormField>
-          <div style={{ gridColumn: '1 / -1' }}>
-            <FormField label="Department/Section">
-              <PredictiveInput
-                historyKey="vfl_department"
-                value={form.departmentSection || ''}
-                onChange={v => set('departmentSection', v)}
-                placeholder="e.g. Engineering"
-                hints={['Engineering', 'Mechanical', 'Electrical', 'Mining', 'Processing', 'Safety', 'Maintenance', 'Operations']}
-              />
-            </FormField>
-          </div>
-          <FormField label="Date *">
-            <input type="date" className={glassInput} value={form.date || ''} title="Observation date" placeholder="Date"
-              onChange={e => set('date', e.target.value)} />
-          </FormField>
-          <FormField label="Time *">
-            <input type="time" className={glassInput} value={form.time || ''} title="Observation time" placeholder="Time"
-              onChange={e => set('time', e.target.value)} />
-          </FormField>
-          <FormField label="Status">
-            <select className={glassSelect} value={form.status || 'draft'} title="Status"
-              onChange={e => set('status', e.target.value as VFLStatus)}>
-              <option value="draft">Draft</option>
-              <option value="submitted">Submitted</option>
-              <option value="reviewed">Reviewed</option>
-              <option value="closed">Closed</option>
-            </select>
-          </FormField>
-        </div>
-      )}
+        )}
 
-      {tab === 'observation' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-          <div>
-            <label className={glassLabel} style={{ display: 'block', marginBottom: 8 }}>Behaviour Category *</label>
-            <div style={radioGroupStyle}>
-              {BEHAVIOUR_CATEGORIES.map(cat => (
-                <label key={cat} style={radioLabelStyle}>
-                  <input type="radio" style={radioStyle} name="behaviourCat" value={cat}
-                    checked={form.behaviourCategory === cat}
-                    onChange={() => set('behaviourCategory', cat)} />
-                  <span style={{ color: BEHAVIOUR_COLORS[cat], fontWeight: 600 }}>{cat}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <label className={glassLabel} style={{ display: 'block', marginBottom: 8 }}>Observation Type *</label>
-            <div style={{ ...radioGroupStyle, flexDirection: 'column', gap: 8 }}>
-              {OBSERVATION_TYPES.map(type => (
-                <label key={type} style={radioLabelStyle}>
-                  <input type="radio" style={radioStyle} name="obsType" value={type}
-                    checked={form.observationType === type}
-                    onChange={() => set('observationType', type)} />
-                  <span style={{ color: OBSERVATION_COLORS[type] }}>{type}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          <FormField label="Description *">
-            <textarea className={glassTextarea} style={{ minHeight: 100 }} value={form.description || ''}
-              placeholder="Relate details of the observation..." title="Description"
-              onChange={e => set('description', e.target.value)} />
-          </FormField>
-
-          <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: '12px 14px' }}>
-            <label className={glassLabel} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
-              <MessageSquare size={14} /> Coaching Technique Used *
-            </label>
-            <div style={radioGroupStyle}>
-              {COACHING_TECHNIQUES.map(tech => (
-                <label key={tech} style={radioLabelStyle}>
-                  <input type="radio" style={radioStyle} name="coaching" value={tech}
-                    checked={form.coachingTechnique === tech}
-                    onChange={() => set('coachingTechnique', tech)} />
-                  <span style={{ fontWeight: 700 }}>{tech}</span>
-                  <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)' }}>({COACHING_DESC[tech]})</span>
-                </label>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {tab === 'actions' && (
-        <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+        {tab === 'observation' && (
+          <div className="flex flex-col gap-5">
             <div>
-              <div style={{ fontWeight: 700, fontSize: 14, color: 'rgba(255,255,255,0.85)' }}>Actions to Rectify / Reinforce</div>
-              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>Define actions to address or reinforce behaviours.</div>
+              <div className={`text-xs font-medium mb-2 ${t.textFaint}`}>Behaviour Category *</div>
+              <div className="flex gap-4 flex-wrap">
+                {BEHAVIOUR_CATEGORIES.map(cat => (
+                  <label key={cat} className={radioLabelCls}><input type="radio" style={{ accentColor: '#10b981' }} name="behaviourCat" value={cat} checked={form.behaviourCategory === cat} onChange={() => set('behaviourCategory', cat)} /><span className="font-semibold" style={{ color: BEHAVIOUR_HEX[cat] }}>{cat}</span></label>
+                ))}
+              </div>
             </div>
-            <button type="button" onClick={addAction}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.35)', borderRadius: 8, padding: '6px 12px', color: '#10b981', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
-              <Plus size={14} /> Add Action
-            </button>
+            <div>
+              <div className={`text-xs font-medium mb-2 ${t.textFaint}`}>Observation Type *</div>
+              <div className="flex flex-col gap-2">
+                {OBSERVATION_TYPES.map(type => (
+                  <label key={type} className={radioLabelCls}><input type="radio" style={{ accentColor: '#10b981' }} name="obsType" value={type} checked={form.observationType === type} onChange={() => set('observationType', type)} /><span style={{ color: OBSERVATION_HEX[type] }}>{type}</span></label>
+                ))}
+              </div>
+            </div>
+            <FormField label="Description" required><textarea className={`${inputCls} resize-none`} style={{ minHeight: 100 }} value={form.description || ''} placeholder="Relate details of the observation..." onChange={e => set('description', e.target.value)} /></FormField>
+            <div className={`${t.chipBg} rounded-xl p-3.5`}>
+              <div className={`flex items-center gap-1.5 text-xs font-medium mb-2.5 ${t.textFaint}`}><MessageSquare className="h-3.5 w-3.5" /> Coaching Technique Used *</div>
+              <div className="flex gap-4 flex-wrap">
+                {COACHING_TECHNIQUES.map(tech => (
+                  <label key={tech} className={radioLabelCls}><input type="radio" style={{ accentColor: '#10b981' }} name="coaching" value={tech} checked={form.coachingTechnique === tech} onChange={() => set('coachingTechnique', tech)} /><span className={`font-bold ${t.textPrimary}`}>{tech}</span><span className={`text-[11px] ${t.textFaint}`}>({COACHING_DESC[tech]})</span></label>
+                ))}
+              </div>
+            </div>
           </div>
-          {(form.actions || []).length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '32px 0', color: 'rgba(255,255,255,0.3)' }}>
-              <Target size={36} style={{ margin: '0 auto 8px' }} />
-              <div style={{ fontSize: 13 }}>No actions added yet.</div>
-              <button type="button" onClick={addAction}
-                style={{ marginTop: 10, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, padding: '6px 14px', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', fontSize: 12 }}>
-                + Add First Action
-              </button>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {(form.actions || []).map((item, idx) => (
-                <ActionItemCard key={item.id} item={item} index={idx} onChange={updateAction} onRemove={removeAction} />
-              ))}
-            </div>
-          )}
-          <div style={{ marginTop: 14, textAlign: 'right', fontSize: 10, color: 'rgba(255,255,255,0.25)', fontStyle: 'italic', textTransform: 'uppercase', letterSpacing: 1 }}>
-            Observer Signature Required on Printout
-          </div>
-        </div>
-      )}
+        )}
 
-      <ModalActions onCancel={onClose} onSubmit={handleSubmit} submitting={saving}
-        submitLabel={editing ? 'Update VFL' : 'Save VFL'} />
-    </SafetyModal>
+        {tab === 'actions' && (
+          <div>
+            <div className="flex justify-between items-center mb-3.5">
+              <div><div className={`font-bold text-sm ${t.textPrimary}`}>Actions to Rectify / Reinforce</div><div className={`text-[11px] mt-0.5 ${t.textFaint}`}>Define actions to address or reinforce behaviours.</div></div>
+              <button type="button" onClick={addAction} className="flex items-center gap-1.5 bg-emerald-500/15 hover:bg-emerald-500/25 rounded-lg px-3 py-1.5 text-emerald-400 text-sm font-semibold transition-colors"><Plus className="h-3.5 w-3.5" /> Add Action</button>
+            </div>
+            {(form.actions || []).length === 0 ? (
+              <div className={`text-center py-8 ${t.textFaint}`}><Target className="h-9 w-9 mx-auto mb-2" /><div className="text-sm">No actions added yet.</div><button type="button" onClick={addAction} className={`mt-2.5 ${t.chipBg} ${t.hoverBg} rounded-lg px-3.5 py-1.5 text-xs transition-colors ${t.textMuted}`}>+ Add First Action</button></div>
+            ) : (
+              <div className="flex flex-col gap-2.5">{(form.actions || []).map((item, idx) => <ActionItemCard key={item.id} item={item} index={idx} onChange={updateAction} onRemove={removeAction} />)}</div>
+            )}
+            <div className={`mt-3.5 text-right text-[10px] italic uppercase tracking-wide ${t.textFaint}`}>Observer Signature Required on Printout</div>
+          </div>
+        )}
+
+        <FormActions onCancel={onClose} submitting={saving} submitLabel={editing ? 'Update VFL' : 'Save VFL'} accent="emerald" />
+      </form>
+    </CenterModal>
   );
-};
+}
 
 // =============== MAIN PAGE ===============
-export default function VFLObservationPage() {
-  const sections = usePageCollapse({ stats: false, records: false });
+function VFLObservationContent() {
+  const t = useTheme();
+  const sections = useCollapseSection({ hero: true, records: true });
   const [reports, setReports] = useState<VFLReport[]>([]);
   const [loading, setLoading] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
@@ -713,14 +439,9 @@ export default function VFLObservationPage() {
 
   const loadData = async () => {
     setLoading(true);
-    try {
-      const data = await getVFLReports();
-      setReports(data);
-    } catch {
-      toast.error('Failed to load VFL reports');
-    } finally {
-      setLoading(false);
-    }
+    try { setReports(await getVFLReports()); }
+    catch { toast.error('Failed to load VFL reports'); }
+    finally { setLoading(false); }
   };
 
   useEffect(() => { loadData(); }, []);
@@ -737,64 +458,40 @@ export default function VFLObservationPage() {
         setReports(prev => [created, ...prev]);
         toast.success('VFL observation recorded');
       }
-      setFormOpen(false);
-      setEditing(null);
-    } catch {
-      toast.error('Failed to save VFL report');
-    } finally {
-      setSaving(false);
-    }
+      setFormOpen(false); setEditing(null);
+    } catch { toast.error('Failed to save VFL report'); }
+    finally { setSaving(false); }
   };
 
-  const handleEdit = (r: VFLReport) => {
-    setEditing(r);
-    setFormOpen(true);
-  };
+  const handleEdit = (r: VFLReport) => { setEditing(r); setFormOpen(true); };
 
   const handleDelete = async (id: string) => {
-    try {
-      await deleteVFLReport(id);
-      setReports(prev => prev.filter(r => r.id !== id));
-      toast.success('VFL report deleted');
-      setDeleteTarget(null);
-    } catch {
-      toast.error('Failed to delete report');
-    }
+    try { await deleteVFLReport(id); setReports(prev => prev.filter(r => r.id !== id)); toast.success('VFL report deleted'); setDeleteTarget(null); }
+    catch { toast.error('Failed to delete report'); }
   };
 
   const handleStatusChange = async (id: string, status: VFLStatus) => {
     const prev = reports.find(r => r.id === id);
     if (!prev) return;
     setReports(ps => ps.map(r => r.id === id ? { ...r, status } : r));
-    try {
-      await updateVFLReport(id, { status });
-      toast.success(`Status updated to ${status}`);
-    } catch {
-      setReports(ps => ps.map(r => r.id === id ? prev : r));
-      toast.error('Failed to update status');
+    try { await updateVFLReport(id, { status }); toast.success(`Status updated to ${status}`); }
+    catch { setReports(ps => ps.map(r => r.id === id ? prev : r)); toast.error('Failed to update status'); }
+  };
+
+  const clearFilters = () => { setSearch(''); setSectionFilter('all'); setStatusFilter('all'); setBehaviourFilter('all'); setDateFrom(''); setDateTo(''); };
+
+  const filtered = useMemo(() => reports.filter(r => {
+    if (search) {
+      const q = search.toLowerCase();
+      if (![r.observerName, r.designation, r.description, r.departmentSection].some(s => s?.toLowerCase().includes(q)) && !r.actions?.some(a => a.action?.toLowerCase().includes(q))) return false;
     }
-  };
-
-  const clearFilters = () => {
-    setSearch(''); setSectionFilter('all'); setStatusFilter('all');
-    setBehaviourFilter('all'); setDateFrom(''); setDateTo('');
-  };
-
-  const filtered = useMemo(() => {
-    return reports.filter(r => {
-      if (search) {
-        const q = search.toLowerCase();
-        if (![r.observerName, r.designation, r.description, r.departmentSection].some(s => s?.toLowerCase().includes(q))
-          && !r.actions?.some(a => a.action?.toLowerCase().includes(q))) return false;
-      }
-      if (sectionFilter !== 'all' && r.sectionChoice !== sectionFilter) return false;
-      if (statusFilter !== 'all' && r.status !== statusFilter) return false;
-      if (behaviourFilter !== 'all' && r.behaviourCategory !== behaviourFilter) return false;
-      if (dateFrom && r.date < dateFrom) return false;
-      if (dateTo && r.date > dateTo) return false;
-      return true;
-    });
-  }, [reports, search, sectionFilter, statusFilter, behaviourFilter, dateFrom, dateTo]);
+    if (sectionFilter !== 'all' && r.sectionChoice !== sectionFilter) return false;
+    if (statusFilter !== 'all' && r.status !== statusFilter) return false;
+    if (behaviourFilter !== 'all' && r.behaviourCategory !== behaviourFilter) return false;
+    if (dateFrom && r.date < dateFrom) return false;
+    if (dateTo && r.date > dateTo) return false;
+    return true;
+  }), [reports, search, sectionFilter, statusFilter, behaviourFilter, dateFrom, dateTo]);
 
   const total = reports.length;
   const drafts = reports.filter(r => r.status === 'draft').length;
@@ -805,169 +502,119 @@ export default function VFLObservationPage() {
   const safe = reports.filter(r => r.behaviourCategory === 'Safe Behaviour').length;
   const totalActions = reports.reduce((acc, r) => acc + (r.actions?.length || 0), 0);
 
-  const hasFilters = search || sectionFilter !== 'all' || statusFilter !== 'all' || behaviourFilter !== 'all' || dateFrom || dateTo;
-
-  const heroStats = [
-    { label: 'Total', value: total, color: '#10b981' },
-    { label: 'Draft', value: drafts, color: '#6b7280' },
-    { label: 'Submitted', value: submitted, color: '#3b82f6' },
-    { label: 'Reviewed', value: reviewed, color: '#a78bfa' },
-    { label: 'Closed', value: closed, color: '#10b981' },
-    { label: 'Unsafe', value: unsafe, color: '#ef4444' },
-    { label: 'Safe', value: safe, color: '#34d399' },
-    { label: 'Actions', value: totalActions, color: '#60a5fa' },
-  ];
-
-  const sectionPills = [
-    { label: 'All', value: 'all' },
-    { label: 'Mechanical', value: 'Mechanical' },
-    { label: 'Electrical', value: 'Electrical' },
-  ];
-  const statusPills = [
-    { label: 'All', value: 'all' },
-    { label: 'Draft', value: 'draft' },
-    { label: 'Submitted', value: 'submitted' },
-    { label: 'Reviewed', value: 'reviewed' },
-    { label: 'Closed', value: 'closed' },
-  ];
-  const behaviourPills = [
-    { label: 'All', value: 'all' },
-    { label: 'Safe', value: 'Safe Behaviour' },
-    { label: 'Unsafe', value: 'Unsafe Behaviour' },
-  ];
-
-  const tableColumns = ['Date', 'Observer', 'Designation', 'Section', 'Behaviour', 'Coaching', 'Status', 'Actions'];
-  const tableRows = filtered.map(r => ({
-    id: r.id,
-    cells: [
-      fmtDate(r.date),
-      r.observerName,
-      r.designation || 'N/A',
-      r.sectionChoice,
-      r.behaviourCategory,
-      r.coachingTechnique,
-      r.status.charAt(0).toUpperCase() + r.status.slice(1),
-    ],
-  }));
+  const hasFilters = !!(search || sectionFilter !== 'all' || statusFilter !== 'all' || behaviourFilter !== 'all' || dateFrom || dateTo);
+  const selCls = `h-9 rounded-lg px-2.5 text-xs outline-none transition-colors ${t.inputBg}`;
+  const thCls = `text-left px-3 py-2 text-[10px] uppercase tracking-wide font-medium ${t.textFaint}`;
 
   return (
-    <PageShell>
-      <main className="container mx-auto px-4 py-6 space-y-6">
+    <main className="max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+      <PageHero
+        icon={Eye}
+        accent="violet"
+        crumbs={['Safety & Compliance', 'Visible Felt Leadership']}
+        title="Visible Felt Leadership"
+        description="Safety observations and coaching tracking."
+        statsOpen={sections.expanded.hero}
+        actions={
+          <>
+            <button type="button" onClick={loadData} title="Refresh" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /></button>
+            <button type="button" onClick={() => setViewMode('grid')} title="Grid view" className={`h-8 w-8 flex items-center justify-center rounded-lg transition-all ${viewMode === 'grid' ? 'bg-emerald-500/20 text-emerald-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}><LayoutGrid className="h-3.5 w-3.5" /></button>
+            <button type="button" onClick={() => setViewMode('table')} title="Table view" className={`h-8 w-8 flex items-center justify-center rounded-lg transition-all ${viewMode === 'table' ? 'bg-emerald-500/20 text-emerald-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}><TableIcon className="h-3.5 w-3.5" /></button>
+            <PrimaryButton icon={Plus} accent="emerald" onClick={() => { setEditing(null); setFormOpen(true); }}>New VFL</PrimaryButton>
+          </>
+        }
+      >
+        <div className="grid grid-cols-4 sm:grid-cols-8 gap-3">
+          <StatTile icon={Eye} color="#10b981" label="Total" value={total} />
+          <StatTile icon={Eye} color="#94a3b8" label="Draft" value={drafts} />
+          <StatTile icon={Eye} color={ACCENT_HEX.blue} label="Submitted" value={submitted} />
+          <StatTile icon={Eye} color="#a78bfa" label="Reviewed" value={reviewed} />
+          <StatTile icon={Eye} color="#10b981" label="Closed" value={closed} />
+          <StatTile icon={AlertTriangle} color="#ef4444" label="Unsafe" value={unsafe} />
+          <StatTile icon={Eye} color="#34d399" label="Safe" value={safe} />
+          <StatTile icon={Target} color="#60a5fa" label="Actions" value={totalActions} />
+        </div>
+      </PageHero>
 
-        {/* Hero */}
-        <SafetyHero
-          icon={Eye}
-          title="Visible Felt Leadership"
-          subtitle="Safety observations and coaching tracking."
-          accentColor="#10b981"
-          stats={heroStats}
-          showStats={sections.expanded.stats} onToggleStats={() => sections.toggle('stats')}
-          actions={
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <MasterCollapseButton collapse={sections} />
-              <button onClick={loadData} title="Refresh"
-                style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 8, padding: '7px 10px', cursor: 'pointer', color: 'rgba(255,255,255,0.7)' }}>
-                <RefreshCw size={15} />
-              </button>
-              <button onClick={() => setViewMode('grid')} title="Grid view"
-                style={{ background: viewMode === 'grid' ? 'rgba(16,185,129,0.18)' : 'rgba(255,255,255,0.07)', border: `1px solid ${viewMode === 'grid' ? '#10b981' : 'rgba(255,255,255,0.12)'}`, borderRadius: 8, padding: '7px 10px', cursor: 'pointer', color: viewMode === 'grid' ? '#10b981' : 'rgba(255,255,255,0.6)' }}>
-                <LayoutGrid size={15} />
-              </button>
-              <button onClick={() => setViewMode('table')} title="Table view"
-                style={{ background: viewMode === 'table' ? 'rgba(16,185,129,0.18)' : 'rgba(255,255,255,0.07)', border: `1px solid ${viewMode === 'table' ? '#10b981' : 'rgba(255,255,255,0.12)'}`, borderRadius: 8, padding: '7px 10px', cursor: 'pointer', color: viewMode === 'table' ? '#10b981' : 'rgba(255,255,255,0.6)' }}>
-                <TableIcon size={15} />
-              </button>
-              <AddButton label="New VFL" onClick={() => { setEditing(null); setFormOpen(true); }} />
-            </div>
-          }
-        />
+      {sections.expanded.records && <>
+        <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
+          <div className="px-5 py-3 flex flex-wrap items-center gap-2">
+            <SearchInput value={search} onChange={setSearch} placeholder="Search by observer, description, actions..." className="w-56" />
+            <SelectField size="filter" title="Section" value={sectionFilter} onChange={setSectionFilter} options={[{ value: 'all', label: 'All Sections' }, { value: 'Mechanical', label: 'Mechanical' }, { value: 'Electrical', label: 'Electrical' }]} />
+            <SelectField size="filter" title="Status" value={statusFilter} onChange={setStatusFilter} options={[{ value: 'all', label: 'All Status' }, { value: 'draft', label: 'Draft' }, { value: 'submitted', label: 'Submitted' }, { value: 'reviewed', label: 'Reviewed' }, { value: 'closed', label: 'Closed' }]} />
+            <SelectField size="filter" title="Behaviour" value={behaviourFilter} onChange={setBehaviourFilter} options={[{ value: 'all', label: 'All Behaviour' }, { value: 'Safe Behaviour', label: 'Safe' }, { value: 'Unsafe Behaviour', label: 'Unsafe' }]} />
+            <input type="date" title="From date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className={selCls} />
+            <input type="date" title="To date" value={dateTo} onChange={e => setDateTo(e.target.value)} className={selCls} />
+            {hasFilters && <button type="button" onClick={clearFilters} className={`flex items-center gap-1 text-xs px-2 py-1.5 rounded-lg transition-colors ${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText}`}><X className="h-3 w-3" /> Clear</button>}
+            <span className={`text-[11px] ml-auto ${t.textFaint}`}>{filtered.length} of {total}</span>
+          </div>
+        </div>
 
-        {sections.expanded.records && <>
-        {/* Controls */}
-        <SafetyControls>
-          <SafetySearchBar value={search} onChange={setSearch} placeholder="Search by observer, description, actions..." />
-          <FilterPills label="Section" options={sectionPills} value={sectionFilter} onChange={setSectionFilter} />
-          <FilterPills label="Status" options={statusPills} value={statusFilter} onChange={setStatusFilter} />
-          <FilterPills label="Behaviour" options={behaviourPills} value={behaviourFilter} onChange={setBehaviourFilter} />
-          <DateRangeFilter from={dateFrom} to={dateTo} onFromChange={setDateFrom} onToChange={setDateTo} />
-          {hasFilters && <ClearFiltersButton onClick={clearFilters} />}
-          <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginLeft: 'auto' }}>{filtered.length} of {total}</span>
-        </SafetyControls>
-
-        {/* Content */}
         {loading ? (
-          <LoadingState />
+          <div className="flex items-center justify-center py-16"><RefreshCw className={`h-6 w-6 animate-spin ${t.textFaint}`} /></div>
         ) : filtered.length === 0 ? (
-          <EmptyState
-            icon={Eye}
-            title="No VFL observations found"
-            message={total === 0 ? 'Start by recording your first VFL observation.' : 'Try adjusting your filters.'}
-            onAdd={total === 0 ? () => { setEditing(null); setFormOpen(true); } : clearFilters}
-            addLabel={total === 0 ? 'Create First VFL' : 'Clear Filters'}
-          />
+          <div className={`${t.glass} rounded-2xl ${t.shadow}`}>
+            <EmptyState icon={Eye} title="No VFL observations found" message={total === 0 ? 'Start by recording your first VFL observation.' : 'Try adjusting your filters.'}
+              action={{ label: total === 0 ? 'Create First VFL' : 'Clear Filters', onClick: total === 0 ? () => { setEditing(null); setFormOpen(true); } : clearFilters }} />
+          </div>
         ) : viewMode === 'grid' ? (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
-            {filtered.map((r, i) => (
-              <VFLCard key={r.id} report={r} index={i}
-                onView={r => { setSelectedReport(r); setDetailOpen(true); }}
-                onEdit={handleEdit}
-                onDelete={id => setDeleteTarget(id)}
-              />
-            ))}
+          <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))' }}>
+            {filtered.map((r, i) => <VFLCard key={r.id} report={r} index={i} onView={rep => { setSelectedReport(rep); setDetailOpen(true); }} onEdit={handleEdit} onDelete={id => setDeleteTarget(id)} />)}
           </div>
         ) : (
-          <SafetyTable headers={['Date', 'Observer', 'Designation', 'Section', 'Behaviour', 'Coaching', 'Status', ''].map(label => ({ label }))}>
-            {filtered.map(r => (
-              <tr key={r.id} onClick={() => { setSelectedReport(r); setDetailOpen(true); }}
-                style={{ cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                <td className="pl-5 pr-3 py-3 text-xs text-white/70">{fmtDate(r.date)}</td>
-                <td className="px-3 py-3 text-xs text-white/70">{r.observerName}</td>
-                <td className="px-3 py-3 text-xs text-white/60">{r.designation || 'N/A'}</td>
-                <td className="px-3 py-3 text-xs text-white/70">{r.sectionChoice}</td>
-                <td className="px-3 py-3"><Chip label={r.behaviourCategory} color={BEHAVIOUR_COLORS[r.behaviourCategory] || '#86BBD8'} /></td>
-                <td className="px-3 py-3 text-xs text-white/60">{r.coachingTechnique}</td>
-                <td className="px-3 py-3"><Chip label={r.status.charAt(0).toUpperCase() + r.status.slice(1)} color={STATUS_COLORS[r.status]} /></td>
-                <td className="px-3 py-3 text-right" onClick={e => e.stopPropagation()}>
-                  <RowActions onEdit={() => handleEdit(r)} onDelete={() => setDeleteTarget(r.id)} />
-                </td>
-              </tr>
-            ))}
-          </SafetyTable>
-        )}
-        </>}
-
-        {/* Modals */}
-        <VFLDetailModal
-          report={selectedReport}
-          open={detailOpen}
-          onClose={() => { setDetailOpen(false); setSelectedReport(null); }}
-          onEdit={r => { setDetailOpen(false); handleEdit(r); }}
-          onDelete={id => { setDetailOpen(false); setDeleteTarget(id); }}
-          onStatusChange={handleStatusChange}
-        />
-
-        <VFLFormModal
-          open={formOpen}
-          editing={editing}
-          onClose={() => { setFormOpen(false); setEditing(null); }}
-          onSave={handleSave}
-          saving={saving}
-        />
-
-        {/* Delete confirm */}
-        <SafetyModal open={!!deleteTarget} onClose={() => setDeleteTarget(null)}
-          title="Confirm Deletion" width="max-w-sm">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0 20px', color: 'rgba(255,255,255,0.7)', fontSize: 14 }}>
-            <AlertTriangle size={20} style={{ color: '#f87171', flexShrink: 0 }} />
-            Are you sure you want to delete this VFL observation?
+          <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className={`border-b ${t.border}`}><tr><th className={thCls}>Date</th><th className={thCls}>Observer</th><th className={thCls}>Designation</th><th className={thCls}>Section</th><th className={thCls}>Behaviour</th><th className={thCls}>Coaching</th><th className={thCls}>Status</th><th className={thCls}></th></tr></thead>
+                <tbody>
+                  {filtered.map(r => (
+                    <tr key={r.id} onClick={() => { setSelectedReport(r); setDetailOpen(true); }} className={`border-b ${t.border} ${t.hoverBgSoft} transition-colors cursor-pointer`}>
+                      <td className={tdCls(t)}>{fmtDate(r.date)}</td>
+                      <td className={tdCls(t)}>{r.observerName}</td>
+                      <td className={`px-3 py-2.5 text-xs ${t.textFaint}`}>{r.designation || 'N/A'}</td>
+                      <td className={tdCls(t)}>{r.sectionChoice}</td>
+                      <td className="px-3 py-2.5"><StatusBadge color={BEHAVIOUR_HEX[r.behaviourCategory] || ACCENT_HEX.blue} label={r.behaviourCategory} /></td>
+                      <td className={`px-3 py-2.5 text-xs ${t.textFaint}`}>{r.coachingTechnique}</td>
+                      <td className="px-3 py-2.5"><StatusBadge color={STATUS_HEX[r.status]} label={r.status.charAt(0).toUpperCase() + r.status.slice(1)} /></td>
+                      <td className="px-3 py-2.5" onClick={e => e.stopPropagation()}>
+                        <div className="flex gap-1 justify-end">
+                          <button type="button" title="Edit" onClick={() => handleEdit(r)} className={`p-1.5 rounded ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-colors`}><PenTool className="h-3 w-3" /></button>
+                          <button type="button" title="Delete" onClick={() => setDeleteTarget(r.id)} className={`p-1.5 rounded ${t.chipBg} hover:bg-rose-500/15 ${t.textFaint} hover:text-rose-400 transition-colors`}><Trash2 className="h-3 w-3" /></button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-          <ModalActions onCancel={() => setDeleteTarget(null)}
-            onSubmit={() => deleteTarget && handleDelete(deleteTarget)}
-            submitLabel="Delete"
-          />
-        </SafetyModal>
+        )}
+      </>}
 
-      </main>
-    </PageShell>
+      <VFLDetailModal report={selectedReport} open={detailOpen} onClose={() => { setDetailOpen(false); setSelectedReport(null); }}
+        onEdit={r => { setDetailOpen(false); handleEdit(r); }} onDelete={id => { setDetailOpen(false); setDeleteTarget(id); }} onStatusChange={handleStatusChange} />
+
+      <VFLFormModal open={formOpen} editing={editing} onClose={() => { setFormOpen(false); setEditing(null); }} onSave={handleSave} saving={saving} />
+
+      <CenterModal open={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Confirm Deletion" accent="amber" width="max-w-sm">
+        <div className="p-5 space-y-4">
+          <div className={`flex items-center gap-3 text-sm ${t.textMuted}`}><AlertTriangle className="h-5 w-5 text-red-400 flex-shrink-0" /> Are you sure you want to delete this VFL observation?</div>
+          <div className="flex gap-2">
+            <button type="button" onClick={() => setDeleteTarget(null)} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border} transition-all`}>Cancel</button>
+            <button type="button" onClick={() => deleteTarget && handleDelete(deleteTarget)} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-rose-500 to-rose-700 hover:brightness-110 transition-all">Delete</button>
+          </div>
+        </div>
+      </CenterModal>
+    </main>
+  );
+}
+
+function tdCls(t: ReturnType<typeof useTheme>) { return `px-3 py-2.5 text-sm ${t.textMuted}`; }
+
+export default function VFLObservationPage() {
+  return (
+    <AppShell>
+      <VFLObservationContent />
+    </AppShell>
   );
 }

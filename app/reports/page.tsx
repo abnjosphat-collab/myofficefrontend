@@ -5,18 +5,17 @@ import React, { useState, useEffect } from 'react';
 import type { ElementType } from 'react';
 import Link from 'next/link';
 import {
-  FilePieChart, Download, Calendar, TrendingUp, Wrench,
+  FilePieChart, Download, Calendar, Wrench,
   Calculator, Shield, Building, Eye, MoreHorizontal,
   Search, Plus, FileText, Trash2, RefreshCw, File,
-  Table as TableIcon, ChevronRight, Sparkles, DownloadCloud,
-  BarChart, Grid, List, X, SlidersHorizontal, Users,
+  Table as TableIcon, Sparkles, DownloadCloud,
+  BarChart, LayoutGrid, List, X, SlidersHorizontal, Users, Hash,
 } from 'lucide-react';
-import { PageShell } from '@/components/PageShell';
+import { AppShell } from '@/components/app-shell';
 import {
-  HeroPanel, GlassPanel, GlassStatCard, GlassBadge, GlassButton,
-  GlassInput, GlassSelect, GlassTabs, EmptyState, StatItem, GlassTab,
-  usePageCollapse, MasterCollapseButton,
-} from '@/components/shared';
+  useTheme, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle, PrimaryButton,
+  EmptyState, useCollapseSection, GlowCard, SelectField,
+} from '@/components/shared/theme';
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
@@ -38,18 +37,16 @@ interface ReportCardProps {
 
 const REPORTS_STORAGE_KEY = 'generated-reports';
 
-const TYPE_META: Record<string, { icon: ElementType; badge: 'purple' | 'info' | 'warning' | 'success' | 'neutral' }> = {
-  overtime:    { icon: Calculator, badge: 'purple'  },
-  personnel:   { icon: Users,      badge: 'info'    },
-  assets:      { icon: Wrench,     badge: 'info'    },
-  safety:      { icon: Shield,     badge: 'info'    },
-  maintenance: { icon: Building,   badge: 'warning' },
-  financial:   { icon: BarChart,   badge: 'success' },
+const TYPE_META: Record<string, { icon: ElementType; hex: string }> = {
+  overtime: { icon: Calculator, hex: '#a78bfa' },
+  personnel: { icon: Users, hex: '#60a5fa' },
+  assets: { icon: Wrench, hex: '#60a5fa' },
+  safety: { icon: Shield, hex: '#60a5fa' },
+  maintenance: { icon: Building, hex: '#f59e0b' },
+  financial: { icon: BarChart, hex: '#34d399' },
 };
-const FORMAT_ICON: Record<string, ElementType> = {
-  pdf: File, excel: TableIcon, word: FileText, csv: FileText,
-};
-const getTypeMeta = (t: string) => TYPE_META[t] ?? { icon: FileText, badge: 'neutral' as const };
+const FORMAT_ICON: Record<string, ElementType> = { pdf: File, excel: TableIcon, word: FileText, csv: FileText };
+const getTypeMeta = (t: string) => TYPE_META[t] ?? { icon: FileText, hex: '#94a3b8' };
 
 // ─── EXPORT HELPERS ───────────────────────────────────────────────────────────
 
@@ -90,129 +87,126 @@ const generateSampleReports = (): Report[] => {
 // ─── REPORT CARD ──────────────────────────────────────────────────────────────
 
 function ReportCard({ report, onDownload, onDelete, isLoading }: ReportCardProps) {
+  const t = useTheme();
   const [menuOpen, setMenuOpen] = useState(false);
-  const { icon: TypeIcon, badge } = getTypeMeta(report.type);
+  const { icon: TypeIcon, hex } = getTypeMeta(report.type);
   const FormatIcon = FORMAT_ICON[report.format] ?? FileText;
   const fmtDate = new Date(report.generatedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
   const fmtTime = new Date(report.generatedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
   const records = report.metadata?.totalRecords ?? report.data?.length ?? 0;
 
   return (
-    <div className="oz-glass-panel rounded-2xl overflow-hidden flex flex-col group hover:border-[#86BBD8]/25 transition-all border border-white/[0.07]">
-      {/* Header */}
-      <div className="p-4 flex items-start justify-between gap-3 border-b border-white/[0.06]">
+    <GlowCard color={hex} surface={`${t.glass} rounded-2xl`} className="overflow-hidden flex flex-col group">
+      <div className={`p-4 flex items-start justify-between gap-3 border-b ${t.border}`}>
         <div className="flex items-center gap-3 min-w-0">
-          <div className="p-2 rounded-lg bg-[#2A4D69]/40 border border-[#86BBD8]/15 shrink-0">
-            <TypeIcon className="h-4 w-4 text-[#86BBD8]" />
+          <div className="p-2 rounded-lg shrink-0" style={{ background: `${hex}20`, border: `1px solid ${hex}35` }}>
+            <TypeIcon className="h-4 w-4" style={{ color: hex }} />
           </div>
           <div className="min-w-0">
-            <h3 className="font-semibold text-white text-sm truncate group-hover:text-[#86BBD8] transition-colors">
-              {report.title}
-            </h3>
-            <p className="text-[11px] text-white/40 mt-0.5 line-clamp-1">
-              {report.description || 'No description provided'}
-            </p>
+            <h3 className={`font-semibold text-sm truncate ${t.textPrimary}`}>{report.title}</h3>
+            <p className={`text-[11px] mt-0.5 line-clamp-1 ${t.textFaint}`}>{report.description || 'No description provided'}</p>
           </div>
         </div>
         <div className="relative shrink-0">
-          <GlassButton size="xs" variant="ghost" onClick={() => setMenuOpen(m => !m)}>
+          <button type="button" title="More actions" onClick={() => setMenuOpen(m => !m)}
+            className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}>
             <MoreHorizontal className="h-3.5 w-3.5" />
-          </GlassButton>
+          </button>
           {menuOpen && (
-            <div className="absolute right-0 top-8 z-20 oz-glass-dark rounded-xl border border-white/[0.12] shadow-2xl min-w-[140px] py-1 overflow-hidden">
-              <button type="button" onClick={() => { onDownload(report); setMenuOpen(false); }} disabled={isLoading}
-                className="flex items-center gap-2 w-full px-3 py-2 text-xs text-white/70 hover:bg-white/[0.08] hover:text-white transition-colors">
-                <Download className="h-3 w-3" /> Download
-              </button>
-              <button type="button" onClick={() => { onDelete(report.id); setMenuOpen(false); }}
-                className="flex items-center gap-2 w-full px-3 py-2 text-xs text-red-400 hover:bg-red-500/10 transition-colors">
-                <Trash2 className="h-3 w-3" /> Delete
-              </button>
-            </div>
+            <>
+              <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
+              <div className={`absolute right-0 top-8 z-20 rounded-xl ${t.glass} ${t.shadow} min-w-[140px] py-1 overflow-hidden`}>
+                <button type="button" onClick={() => { onDownload(report); setMenuOpen(false); }} disabled={isLoading}
+                  className={`flex items-center gap-2 w-full px-3 py-2 text-xs ${t.textMuted} ${t.hoverBg} transition-colors`}>
+                  <Download className="h-3 w-3" /> Download
+                </button>
+                <button type="button" onClick={() => { onDelete(report.id); setMenuOpen(false); }}
+                  className="flex items-center gap-2 w-full px-3 py-2 text-xs text-rose-500 hover:bg-rose-500/10 transition-colors">
+                  <Trash2 className="h-3 w-3" /> Delete
+                </button>
+              </div>
+            </>
           )}
         </div>
       </div>
 
-      {/* Metadata */}
-      <div className="px-4 py-3 flex items-center justify-between gap-2 text-xs text-white/45">
-        <div className="flex items-center gap-1">
-          <Calendar className="h-3 w-3" />
-          {fmtDate} · {fmtTime}
-        </div>
+      <div className={`px-4 py-3 flex items-center justify-between gap-2 text-xs flex-wrap ${t.textFaint}`}>
+        <div className="flex items-center gap-1"><Calendar className="h-3 w-3" />{fmtDate} · {fmtTime}</div>
         <div className="flex items-center gap-2">
-          <GlassBadge variant={badge} size="sm">{report.type}</GlassBadge>
+          <StatusBadge color={hex} label={report.type} />
           <span className="flex items-center gap-1"><FormatIcon className="h-3 w-3" /> {(report.format ?? 'json').toUpperCase()}</span>
           <span>{records} rows</span>
         </div>
       </div>
 
-      {/* Actions */}
       <div className="px-4 pb-4 flex gap-2">
-        <Link href={`/reports/view/${report.id}`} className="flex-1">
-          <GlassButton size="sm" variant="secondary" icon={Eye} className="w-full">View</GlassButton>
+        <Link href={`/reports/view/${report.id}`} className={`flex-1 py-1.5 rounded-lg text-xs font-medium text-center ${t.chipBg} ${t.hoverBg} ${t.textMuted} inline-flex items-center justify-center gap-1.5`}>
+          <Eye className="h-3.5 w-3.5" /> View
         </Link>
-        <GlassButton size="sm" variant="primary" icon={DownloadCloud} loading={isLoading} onClick={() => onDownload(report)} className="flex-1">
-          Export
-        </GlassButton>
+        <PrimaryButton icon={DownloadCloud} accent="violet" submitting={isLoading} onClick={() => onDownload(report)} className="flex-1">Export</PrimaryButton>
       </div>
-    </div>
+    </GlowCard>
   );
 }
 
 function ReportListItem({ report, onDownload, onDelete, isLoading }: ReportCardProps) {
-  const { icon: TypeIcon, badge } = getTypeMeta(report.type);
+  const t = useTheme();
+  const { icon: TypeIcon, hex } = getTypeMeta(report.type);
   const FormatIcon = FORMAT_ICON[report.format] ?? FileText;
   const fmtDate = new Date(report.generatedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
   const records = report.metadata?.totalRecords ?? report.data?.length ?? 0;
 
   return (
-    <div className="oz-glass-panel rounded-2xl border border-white/[0.07] px-5 py-4 flex items-center gap-4">
-      <div className="p-2 rounded-lg bg-[#2A4D69]/40 border border-[#86BBD8]/15 shrink-0">
-        <TypeIcon className="h-4 w-4 text-[#86BBD8]" />
+    <GlowCard color={hex} surface={`${t.glass} rounded-2xl ${t.shadow}`} className="px-5 py-4 flex items-center gap-4">
+      <div className="p-2 rounded-lg shrink-0" style={{ background: `${hex}20`, border: `1px solid ${hex}35` }}>
+        <TypeIcon className="h-4 w-4" style={{ color: hex }} />
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-0.5">
-          <span className="font-semibold text-white text-sm truncate">{report.title}</span>
-          <GlassBadge variant={badge} size="sm">{report.type}</GlassBadge>
+          <span className={`font-semibold text-sm truncate ${t.textPrimary}`}>{report.title}</span>
+          <StatusBadge color={hex} label={report.type} />
         </div>
-        <div className="flex items-center gap-3 text-[11px] text-white/40">
+        <div className={`flex items-center gap-3 text-[11px] ${t.textFaint}`}>
           <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{fmtDate}</span>
           <span className="flex items-center gap-1"><FormatIcon className="h-3 w-3" />{(report.format ?? 'json').toUpperCase()}</span>
           <span>{records} rows</span>
         </div>
       </div>
       <div className="flex items-center gap-2 shrink-0">
-        <Link href={`/reports/view/${report.id}`}>
-          <GlassButton size="sm" variant="secondary" icon={Eye}>View</GlassButton>
+        <Link href={`/reports/view/${report.id}`} className={`h-8 px-3 rounded-lg text-xs font-medium ${t.chipBg} ${t.hoverBg} ${t.textMuted} inline-flex items-center gap-1.5`}>
+          <Eye className="h-3.5 w-3.5" /> View
         </Link>
-        <GlassButton size="sm" variant="primary" icon={DownloadCloud} loading={isLoading} onClick={() => onDownload(report)}>Export</GlassButton>
-        <GlassButton size="sm" variant="ghost" icon={Trash2} onClick={() => onDelete(report.id)} className="text-red-400 hover:text-red-300" />
+        <PrimaryButton icon={DownloadCloud} accent="violet" submitting={isLoading} onClick={() => onDownload(report)}>Export</PrimaryButton>
+        <button type="button" title="Delete" onClick={() => onDelete(report.id)}
+          className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} text-rose-500`}>
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
       </div>
-    </div>
+    </GlowCard>
   );
 }
 
 // ─── MAIN PAGE ────────────────────────────────────────────────────────────────
 
-export default function ReportsPage() {
-  const sections = usePageCollapse({ hero: false, searchFilters: false });
-  const [reports, setReports]           = useState<Report[]>([]);
-  const [searchTerm, setSearchTerm]     = useState('');
-  const [isLoading, setIsLoading]       = useState(false);
-  const [sortBy, setSortBy]             = useState('newest');
-  const [viewMode, setViewMode]         = useState<'grid' | 'list'>('grid');
-  const [showFilters, setShowFilters]   = useState(false);
-  const [selectedTypes, setSelectedTypes]   = useState<string[]>([]);
+function ReportsPageContent() {
+  const t = useTheme();
+  const sections = useCollapseSection({ hero: true, searchFilters: true });
+  const [reports, setReports] = useState<Report[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [sortBy, setSortBy] = useState('newest');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [showFilters, setShowFilters] = useState(false);
+  const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [selectedFormats, setSelectedFormats] = useState<string[]>([]);
-  const [dateRange, setDateRange]       = useState('all');
-
-  useEffect(() => { loadReports(); }, []);
+  const [dateRange, setDateRange] = useState('all');
+  const [activeTab, setActiveTab] = useState('all');
 
   const sortFn = (list: Report[], by: string) => {
     const s = [...list];
     if (by === 'newest') return s.sort((a, b) => new Date(b.generatedAt).getTime() - new Date(a.generatedAt).getTime());
     if (by === 'oldest') return s.sort((a, b) => new Date(a.generatedAt).getTime() - new Date(b.generatedAt).getTime());
-    if (by === 'name')   return s.sort((a, b) => a.title.localeCompare(b.title));
+    if (by === 'name') return s.sort((a, b) => a.title.localeCompare(b.title));
     return s;
   };
 
@@ -222,6 +216,8 @@ export default function ReportsPage() {
       setReports(sortFn(stored ? JSON.parse(stored) : generateSampleReports(), sortBy));
     } catch { setReports(sortFn(generateSampleReports(), sortBy)); }
   };
+
+  useEffect(() => { loadReports(); }, []);
 
   const saveReports = (next: Report[]) => {
     localStorage.setItem(REPORTS_STORAGE_KEY, JSON.stringify(next));
@@ -241,19 +237,17 @@ export default function ReportsPage() {
         columns: report.columns ?? report.metadata?.columns ?? [],
         totalRecords: report.data?.length ?? report.metadata?.totalRecords ?? 0,
       };
-      if (report.format === 'pdf')   exportToPDF(ed, report.title);
+      if (report.format === 'pdf') exportToPDF(ed, report.title);
       else if (report.format === 'excel') exportToExcel(ed, report.title);
-      else if (report.format === 'word')  exportToWord(ed, report.title);
-      else {
-        downloadBlob(new Blob([JSON.stringify(report.data, null, 2)], { type: 'application/json' }), `${report.title.replace(/\s+/g, '_')}.json`);
-      }
+      else if (report.format === 'word') exportToWord(ed, report.title);
+      else downloadBlob(new Blob([JSON.stringify(report.data, null, 2)], { type: 'application/json' }), `${report.title.replace(/\s+/g, '_')}.json`);
     } finally { setIsLoading(false); }
   };
 
   const isInRange = (dateStr: string) => {
     const d = new Date(dateStr), now = new Date();
     if (dateRange === 'today') return d.toDateString() === now.toDateString();
-    if (dateRange === 'week')  { const w = new Date(now); w.setDate(w.getDate() - 7); return d >= w; }
+    if (dateRange === 'week') { const w = new Date(now); w.setDate(w.getDate() - 7); return d >= w; }
     if (dateRange === 'month') { const m = new Date(now); m.setMonth(m.getMonth() - 1); return d >= m; }
     return true;
   };
@@ -262,7 +256,7 @@ export default function ReportsPage() {
     const s = searchTerm.toLowerCase();
     return (
       (!s || r.title.toLowerCase().includes(s) || r.type.toLowerCase().includes(s) || r.description?.toLowerCase().includes(s)) &&
-      (selectedTypes.length === 0   || selectedTypes.includes(r.type)) &&
+      (selectedTypes.length === 0 || selectedTypes.includes(r.type)) &&
       (selectedFormats.length === 0 || selectedFormats.includes(r.format ?? 'json')) &&
       isInRange(r.generatedAt)
     );
@@ -270,159 +264,140 @@ export default function ReportsPage() {
 
   const clearFilters = () => { setSelectedTypes([]); setSelectedFormats([]); setDateRange('all'); setSearchTerm(''); };
 
-  const heroStats: StatItem[] = [
-    { label: 'Total Reports', value: reports.length },
-    { label: 'This Week',    value: reports.filter(r => isInRange(r.generatedAt)).length, textClass: 'text-emerald-400' },
-    { label: 'Last Generated', value: reports[0] ? new Date(reports[0].generatedAt).toLocaleDateString() : '—', textClass: 'text-[#86BBD8]' },
-  ];
-
   const TYPE_TABS = ['all', 'overtime', 'personnel', 'assets', 'safety', 'maintenance', 'financial'];
-
-  const renderReports = (list: Report[]) =>
-    list.length === 0 ? (
-      <EmptyState icon={FilePieChart} title="No reports found"
-        message={reports.length === 0 ? 'Get started by creating your first report.' : 'No reports match your current filters.'}
-        action={{ label: 'Create Report', onClick: () => {} }} />
-    ) : viewMode === 'grid' ? (
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {list.map(r => <ReportCard key={r.id} report={r} onDownload={downloadReport} onDelete={deleteReport} isLoading={isLoading} />)}
-      </div>
-    ) : (
-      <div className="space-y-2">
-        {list.map(r => <ReportListItem key={r.id} report={r} onDownload={downloadReport} onDelete={deleteReport} isLoading={isLoading} />)}
-      </div>
-    );
-
-  const tabs: GlassTab[] = TYPE_TABS.map(type => ({
-    key: type,
-    label: type === 'all' ? 'All' : type.charAt(0).toUpperCase() + type.slice(1),
-    icon: type === 'all' ? FilePieChart : getTypeMeta(type).icon,
-    count: type === 'all' ? filtered.length : filtered.filter(r => r.type === type).length,
-    content: renderReports(type === 'all' ? filtered : filtered.filter(r => r.type === type)),
-  }));
-
-  const CHECKBOX_TYPES    = ['overtime', 'personnel', 'assets', 'safety', 'maintenance', 'financial'];
-  const CHECKBOX_FORMATS  = ['pdf', 'excel', 'word', 'csv', 'json'];
+  const CHECKBOX_TYPES = ['overtime', 'personnel', 'assets', 'safety', 'maintenance', 'financial'];
+  const CHECKBOX_FORMATS = ['pdf', 'excel', 'word', 'csv', 'json'];
+  const activeFilterCount = selectedTypes.length + selectedFormats.length + (dateRange !== 'all' ? 1 : 0);
+  const tabList = activeTab === 'all' ? filtered : filtered.filter(r => r.type === activeTab);
+  const selectCls = `h-9 px-3 rounded-lg text-xs outline-none transition-colors ${t.inputBg}`;
 
   return (
-    <PageShell>
-      <main className="container mx-auto px-4 sm:px-6 py-8 space-y-4">
+    <main className="max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+      <PageHero
+        icon={FilePieChart}
+        accent="violet"
+        crumbs={['Analytics & Insights', 'Reports']}
+        title="Reports & Analytics"
+        description="Manage, analyse, and export your operational reports."
+        statsOpen={sections.expanded.hero}
+        actions={
+          <>
+            <button type="button" onClick={loadReports} title="Refresh"
+              className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}>
+              <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+            </button>
+            <ViewToggle value={viewMode} onChange={setViewMode} options={[{ value: 'grid', icon: LayoutGrid, label: 'Grid view' }, { value: 'list', icon: List, label: 'List view' }]} />
+            <SelectField size="filter" value={sortBy} title="Sort by" onChange={v => { setSortBy(v); setReports(sortFn(reports, v)); }}
+              options={[{ value: 'newest', label: 'Newest First' }, { value: 'oldest', label: 'Oldest First' }, { value: 'name', label: 'Name A–Z' }]} />
+            <Link href="/reports/generate">
+              <PrimaryButton icon={Plus} accent="violet">New Report</PrimaryButton>
+            </Link>
+          </>
+        }
+      >
+        <div className="grid grid-cols-3 gap-3">
+          <StatTile icon={Hash} color="#60a5fa" label="Total Reports" value={reports.length} />
+          <StatTile icon={Sparkles} color="#34d399" label="This Week" value={reports.filter(r => isInRange(r.generatedAt)).length} />
+          <StatTile icon={Calendar} color="#86BBD8" label="Last Generated" value={reports[0] ? new Date(reports[0].generatedAt).toLocaleDateString() : '—'} />
+        </div>
+      </PageHero>
 
-        <HeroPanel
-          icon={FilePieChart}
-          title="Reports & Analytics"
-          subtitle="Manage, analyse, and export your operational reports."
-          onRefresh={loadReports}
-          loading={isLoading}
-          onNew={() => { }}
-          newLabel="New Report"
-          stats={heroStats}
-          {...sections.panel('hero')}
-          actions={
-            <>
-              <MasterCollapseButton collapse={sections} />
-              <GlassButton variant={viewMode === 'grid' ? 'primary' : 'secondary'} size="sm" icon={Grid} onClick={() => setViewMode('grid')} />
-              <GlassButton variant={viewMode === 'list' ? 'primary' : 'secondary'} size="sm" icon={List} onClick={() => setViewMode('list')} />
-              <GlassSelect
-                value={sortBy}
-                onChange={e => { setSortBy(e.target.value); setReports(sortFn(reports, e.target.value)); }}
-                options={[
-                  { value: 'newest', label: 'Newest First' },
-                  { value: 'oldest', label: 'Oldest First' },
-                  { value: 'name',   label: 'Name A–Z'    },
-                ]}
-                className="w-36"
-              />
-              <Link href="/reports/generate">
-                <GlassButton variant="primary" icon={Plus} size="sm">New Report</GlassButton>
-              </Link>
-            </>
-          }
-        />
-
-        {/* Search + filters panel */}
-        <GlassPanel icon={Search} title="Search & Filters" variant="panel" defaultOpen {...sections.panel('searchFilters')}>
-          <div className="px-5 pb-4 pt-2 space-y-3">
+      {sections.expanded.searchFilters && (
+        <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
+          <div className={`px-5 py-3 border-b ${t.border} flex items-center gap-2`}>
+            <Search className="h-3.5 w-3.5 text-blue-400" />
+            <span className={`font-semibold text-sm ${t.textPrimary}`}>Search & Filters</span>
+          </div>
+          <div className="p-5 space-y-3">
             <div className="flex gap-3">
-              <GlassInput
-                icon={Search}
-                className="flex-1"
-                placeholder="Search reports by name, type, or description…"
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-              />
-              <GlassButton
-                variant={showFilters ? 'primary' : 'secondary'}
-                icon={SlidersHorizontal}
-                onClick={() => setShowFilters(f => !f)}
-              >
-                Filters
-                {(selectedTypes.length + selectedFormats.length + (dateRange !== 'all' ? 1 : 0)) > 0 && (
-                  <span className="ml-1 px-1 rounded bg-[#86BBD8]/25 text-[10px]">
-                    {selectedTypes.length + selectedFormats.length + (dateRange !== 'all' ? 1 : 0)}
-                  </span>
-                )}
-              </GlassButton>
+              <SearchInput value={searchTerm} onChange={setSearchTerm} placeholder="Search reports by name, type, or description…" className="flex-1" />
+              <button type="button" onClick={() => setShowFilters(f => !f)}
+                className={`h-8 px-3 rounded-lg text-xs font-medium inline-flex items-center gap-1.5 transition-all ${showFilters ? 'bg-blue-500/15 text-blue-500' : `${t.chipBg} ${t.hoverBg} ${t.textMuted}`}`}>
+                <SlidersHorizontal className="h-3.5 w-3.5" /> Filters
+                {activeFilterCount > 0 && <span className="ml-1 px-1 rounded bg-blue-500/25 text-[10px]">{activeFilterCount}</span>}
+              </button>
             </div>
 
             {showFilters && (
-              <div className="rounded-xl border border-white/[0.08] bg-white/[0.04] p-4">
+              <div className={`rounded-xl border ${t.border} ${t.chipBg} p-4`}>
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-xs font-semibold text-white/50 uppercase tracking-wider">Filter Options</span>
-                  <GlassButton size="xs" variant="ghost" icon={X} onClick={clearFilters}>Clear All</GlassButton>
+                  <span className={`text-xs font-semibold uppercase tracking-wider ${t.textFaint}`}>Filter Options</span>
+                  <button type="button" onClick={clearFilters} className={`text-xs ${t.textFaint} ${t.hoverText} inline-flex items-center gap-1`}><X className="h-3 w-3" /> Clear All</button>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <p className="text-[11px] text-white/40 uppercase tracking-wider mb-2">Report Type</p>
+                    <p className={`text-[11px] uppercase tracking-wider mb-2 ${t.textFaint}`}>Report Type</p>
                     <div className="space-y-1.5">
-                      {CHECKBOX_TYPES.map(t => (
-                        <label key={t} className="flex items-center gap-2 cursor-pointer text-xs text-white/60 hover:text-white/90">
-                          <input type="checkbox" checked={selectedTypes.includes(t)} onChange={e => setSelectedTypes(p => e.target.checked ? [...p, t] : p.filter(x => x !== t))}
-                            className="rounded border-white/20 bg-white/[0.07] accent-[#86BBD8]" />
-                          {t.charAt(0).toUpperCase() + t.slice(1)}
+                      {CHECKBOX_TYPES.map(ty => (
+                        <label key={ty} className={`flex items-center gap-2 cursor-pointer text-xs ${t.textMuted} ${t.hoverText}`}>
+                          <input type="checkbox" checked={selectedTypes.includes(ty)} onChange={e => setSelectedTypes(p => e.target.checked ? [...p, ty] : p.filter(x => x !== ty))} className="accent-blue-600" />
+                          {ty.charAt(0).toUpperCase() + ty.slice(1)}
                         </label>
                       ))}
                     </div>
                   </div>
                   <div>
-                    <p className="text-[11px] text-white/40 uppercase tracking-wider mb-2">Format</p>
+                    <p className={`text-[11px] uppercase tracking-wider mb-2 ${t.textFaint}`}>Format</p>
                     <div className="space-y-1.5">
                       {CHECKBOX_FORMATS.map(f => (
-                        <label key={f} className="flex items-center gap-2 cursor-pointer text-xs text-white/60 hover:text-white/90">
-                          <input type="checkbox" checked={selectedFormats.includes(f)} onChange={e => setSelectedFormats(p => e.target.checked ? [...p, f] : p.filter(x => x !== f))}
-                            className="rounded border-white/20 bg-white/[0.07] accent-[#86BBD8]" />
+                        <label key={f} className={`flex items-center gap-2 cursor-pointer text-xs ${t.textMuted} ${t.hoverText}`}>
+                          <input type="checkbox" checked={selectedFormats.includes(f)} onChange={e => setSelectedFormats(p => e.target.checked ? [...p, f] : p.filter(x => x !== f))} className="accent-blue-600" />
                           {f.toUpperCase()}
                         </label>
                       ))}
                     </div>
                   </div>
                   <div>
-                    <p className="text-[11px] text-white/40 uppercase tracking-wider mb-2">Date Range</p>
-                    <GlassSelect
-                      value={dateRange}
-                      onChange={e => setDateRange(e.target.value)}
+                    <p className={`text-[11px] uppercase tracking-wider mb-2 ${t.textFaint}`}>Date Range</p>
+                    <SelectField size="filter" value={dateRange} title="Date range" onChange={setDateRange}
                       options={[
-                        { value: 'all',   label: 'All Time'   },
-                        { value: 'today', label: 'Today'      },
-                        { value: 'week',  label: 'Past Week'  },
+                        { value: 'all', label: 'All Time' },
+                        { value: 'today', label: 'Today' },
+                        { value: 'week', label: 'Past Week' },
                         { value: 'month', label: 'Past Month' },
-                      ]}
-                    />
+                      ]} />
                   </div>
                 </div>
               </div>
             )}
-
-            <p className="text-xs text-white/30">
-              Showing {filtered.length} of {reports.length} reports
-            </p>
+            <p className={`text-xs ${t.textFaint}`}>Showing {filtered.length} of {reports.length} reports</p>
           </div>
-        </GlassPanel>
+        </div>
+      )}
 
-        {/* Reports tabs */}
-        <GlassTabs tabs={tabs} defaultTab="all" />
+      <div className={`${t.glassSoft} rounded-xl p-1 flex gap-1 flex-wrap`}>
+        {TYPE_TABS.map(type => {
+          const count = type === 'all' ? filtered.length : filtered.filter(r => r.type === type).length;
+          const Icon = type === 'all' ? FilePieChart : getTypeMeta(type).icon;
+          return (
+            <button key={type} type="button" onClick={() => setActiveTab(type)}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${activeTab === type ? 'bg-blue-500/15 text-blue-500' : `${t.textFaint} ${t.hoverBg} ${t.hoverText}`}`}>
+              <Icon className="h-3.5 w-3.5" /> {type === 'all' ? 'All' : type.charAt(0).toUpperCase() + type.slice(1)}
+              <span className={`text-[10px] px-1 rounded-full ${t.chipBg}`}>{count}</span>
+            </button>
+          );
+        })}
+      </div>
 
-      </main>
-    </PageShell>
+      {tabList.length === 0 ? (
+        <div className={`${t.glass} rounded-2xl overflow-hidden`}>
+          <EmptyState icon={FilePieChart} title="No reports found"
+            message={reports.length === 0 ? 'Get started by creating your first report.' : 'No reports match your current filters.'}
+            action={{ label: 'Create Report', onClick: () => {} }} />
+        </div>
+      ) : viewMode === 'grid' ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {tabList.map(r => <ReportCard key={r.id} report={r} onDownload={downloadReport} onDelete={deleteReport} isLoading={isLoading} />)}
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {tabList.map(r => <ReportListItem key={r.id} report={r} onDownload={downloadReport} onDelete={deleteReport} isLoading={isLoading} />)}
+        </div>
+      )}
+    </main>
   );
+}
+
+export default function ReportsPage() {
+  return <AppShell><ReportsPageContent /></AppShell>;
 }

@@ -2,9 +2,10 @@
 'use client';
 
 import { useState } from 'react';
-import { PageShell } from '@/components/PageShell';
+import { AppShell } from '@/components/app-shell';
 import { ClipboardList, ChevronDown, ChevronUp, Plus, X, Moon, Sun, Clock, RefreshCw } from 'lucide-react';
 import { useModuleData } from '@/lib/useModuleData';
+import { useTheme, PageHero, StatTile, StatusBadge, FormField, PrimaryButton, SelectField } from '@/components/shared/theme';
 
 const SHIFTS = ['Day', 'Night', 'Afternoon'] as const;
 type Shift = typeof SHIFTS[number];
@@ -17,23 +18,20 @@ interface Handover {
   equipment_summary: EquipmentItem[];
 }
 
-const shiftIcon = (s: Shift) => s === 'Night' ? <Moon className="w-3 h-3" /> : s === 'Day' ? <Sun className="w-3 h-3" /> : <Clock className="w-3 h-3" />;
-const shiftColor = (s: Shift) => s === 'Night' ? 'bg-indigo-500/20 border-indigo-400/40 text-indigo-300' : s === 'Day' ? 'bg-amber-500/20 border-amber-400/40 text-amber-300' : 'bg-orange-500/20 border-orange-400/40 text-orange-300';
-const eqColor = (s: string) => s === 'Running' ? 'bg-emerald-500/20 border-emerald-400/40 text-emerald-300' : s === 'Standby' ? 'bg-sky-500/20 border-sky-400/40 text-sky-300' : s === 'Monitor' ? 'bg-amber-500/20 border-amber-400/40 text-amber-300' : 'bg-rose-500/20 border-rose-400/40 text-rose-300';
-
-const INPUT = 'bg-white/[0.07] border border-white/12 text-white placeholder:text-white/30 focus:outline-none focus:border-[#86BBD8]/50 rounded-xl px-3 py-2 text-sm w-full';
-const TEXTAREA = INPUT + ' resize-none';
+const SHIFT_ICON: Record<Shift, React.ElementType> = { Night: Moon, Day: Sun, Afternoon: Clock };
+const SHIFT_HEX: Record<Shift, string> = { Night: '#818cf8', Day: '#f59e0b', Afternoon: '#fb923c' };
+const EQ_HEX: Record<string, string> = { Running: '#34d399', Standby: '#38bdf8', Monitor: '#f59e0b', Breakdown: '#f43f5e' };
 
 const defaultEq: EquipmentItem[] = [{ name: '', status: 'Running' }];
 
-export default function HandoverPage() {
+function HandoverContent() {
+  const t = useTheme();
   const { data: records, loading, error, create, refetch } = useModuleData<Handover>('handover');
   const [expanded, setExpanded] = useState<number | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ handover_date: '', shift: 'Day' as Shift, section: '', outgoing_supervisor: '', incoming_supervisor: '', completed_work: '', outstanding_work: '', safety_concerns: '', equipment_summary: defaultEq });
 
   const toggle = (id: number) => setExpanded(prev => prev === id ? null : id);
-
   const addEq = () => setForm(f => ({ ...f, equipment_summary: [...f.equipment_summary, { name: '', status: 'Running' }] }));
   const removeEq = (i: number) => setForm(f => ({ ...f, equipment_summary: f.equipment_summary.filter((_, idx) => idx !== i) }));
   const updateEq = (i: number, field: keyof EquipmentItem, val: string) =>
@@ -47,133 +45,103 @@ export default function HandoverPage() {
     setShowForm(false);
   };
 
+  const inputCls = `w-full h-9 px-3 rounded-lg text-sm outline-none transition-colors ${t.inputBg}`;
+
   if (loading) return (
-    <PageShell>
-      <div className="flex flex-col items-center justify-center py-32 gap-3">
-        <RefreshCw className="h-5 w-5 animate-spin text-white/40" />
-        <span className="text-white/40 text-sm">Loading...</span>
-      </div>
-    </PageShell>
+    <main className="max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8">
+      <div className={`flex flex-col items-center justify-center py-32 gap-3 ${t.textFaint}`}><RefreshCw className="h-5 w-5 animate-spin" /><span className="text-sm">Loading...</span></div>
+    </main>
   );
 
   if (error) return (
-    <PageShell>
-      <div className="container mx-auto px-4 pt-6">
-        <div className="rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 px-5 py-4 text-sm">{error}</div>
-      </div>
-    </PageShell>
+    <main className="max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8">
+      <div className="rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-500 px-5 py-4 text-sm">{error}</div>
+    </main>
   );
 
   return (
-    <PageShell>
-      {/* Hero */}
-      <section className="relative text-white">
-        <div className="container mx-auto px-4 pt-6 pb-3">
-          <div className="oz-glass-dark rounded-2xl overflow-hidden p-6">
-            <div className="flex items-center justify-between flex-wrap gap-4">
-              <div className="flex items-center gap-3">
-                <ClipboardList className="w-7 h-7 text-[#86BBD8]" />
-                <div>
-                  <h1 className="text-2xl font-bold tracking-tight">Shift Handover Reports</h1>
-                  <p className="text-white/50 text-sm mt-0.5">End-of-shift transfer documentation</p>
-                </div>
-              </div>
-              <button onClick={() => setShowForm(s => !s)} className="flex items-center gap-2 bg-[#86BBD8]/25 hover:bg-[#86BBD8]/40 border border-[#86BBD8]/35 text-white font-semibold px-4 py-2 rounded-xl text-sm transition-colors">
-                <Plus className="w-4 h-4" /> New Handover
-              </button>
-            </div>
-            {/* Stats */}
-            <div className="grid grid-cols-3 gap-3 mt-5">
-              {[['Total Reports', records.length], ['This Week', records.filter(h => h.handover_date >= '2026-05-26').length], ['Sections', [...new Set(records.map(h => h.section))].length]].map(([l, v]) => (
-                <div key={String(l)} className="bg-white/[0.06] rounded-xl p-3 text-center">
-                  <div className="text-2xl font-bold text-[#86BBD8]">{v}</div>
-                  <div className="text-white/50 text-xs mt-0.5">{l}</div>
-                </div>
-              ))}
-            </div>
-          </div>
+    <main className="max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+      <PageHero
+        icon={ClipboardList}
+        accent="violet"
+        crumbs={['Operations & Maintenance', 'Shift Handover']}
+        title="Shift Handover Reports"
+        description="End-of-shift transfer documentation"
+        statsOpen
+        actions={<PrimaryButton icon={Plus} accent="violet" onClick={() => setShowForm(s => !s)}>New Handover</PrimaryButton>}
+      >
+        <div className="grid grid-cols-3 gap-3">
+          <StatTile icon={ClipboardList} color="#86BBD8" label="Total Reports" value={records.length} />
+          <StatTile icon={ClipboardList} color="#86BBD8" label="This Week" value={records.filter(h => h.handover_date >= '2026-05-26').length} />
+          <StatTile icon={ClipboardList} color="#86BBD8" label="Sections" value={[...new Set(records.map(h => h.section))].length} />
         </div>
-      </section>
+      </PageHero>
 
-      {/* New Handover Form */}
       {showForm && (
-        <section className="container mx-auto px-4 pb-2">
-          <div className="oz-glass-panel rounded-2xl overflow-hidden p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-white font-semibold">New Handover Report</h2>
-              <button onClick={() => setShowForm(false)} className="text-white/40 hover:text-white transition-colors"><X className="w-5 h-5" /></button>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-3">
-              <input type="date" value={form.handover_date} onChange={e => setForm(f => ({ ...f, handover_date: e.target.value }))} className={INPUT} />
-              <select value={form.shift} onChange={e => setForm(f => ({ ...f, shift: e.target.value as Shift }))} className={INPUT}>
-                {SHIFTS.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-              <input placeholder="Section" value={form.section} onChange={e => setForm(f => ({ ...f, section: e.target.value }))} className={INPUT} />
-              <input placeholder="Outgoing Supervisor" value={form.outgoing_supervisor} onChange={e => setForm(f => ({ ...f, outgoing_supervisor: e.target.value }))} className={INPUT} />
-              <input placeholder="Incoming Supervisor" value={form.incoming_supervisor} onChange={e => setForm(f => ({ ...f, incoming_supervisor: e.target.value }))} className={INPUT} />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
-              <textarea rows={3} placeholder="Completed work..." value={form.completed_work} onChange={e => setForm(f => ({ ...f, completed_work: e.target.value }))} className={TEXTAREA} />
-              <textarea rows={3} placeholder="Outstanding work..." value={form.outstanding_work} onChange={e => setForm(f => ({ ...f, outstanding_work: e.target.value }))} className={TEXTAREA} />
-              <textarea rows={3} placeholder="Safety concerns..." value={form.safety_concerns} onChange={e => setForm(f => ({ ...f, safety_concerns: e.target.value }))} className={TEXTAREA} />
-            </div>
-            <div className="mb-3">
-              <div className="text-white/50 text-xs mb-2">Equipment Summary</div>
-              {form.equipment_summary.map((eq, i) => (
-                <div key={i} className="flex gap-2 mb-2">
-                  <input placeholder="Equipment name" value={eq.name} onChange={e => updateEq(i, 'name', e.target.value)} className={INPUT} />
-                  <select value={eq.status} onChange={e => updateEq(i, 'status', e.target.value)} className="bg-white/[0.07] border border-white/12 text-white focus:outline-none focus:border-[#86BBD8]/50 rounded-xl px-3 py-2 text-sm min-w-[130px]">
-                    {['Running', 'Standby', 'Monitor', 'Breakdown'].map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                  <button onClick={() => removeEq(i)} className="text-white/40 hover:text-rose-400 transition-colors px-1"><X className="w-4 h-4" /></button>
-                </div>
-              ))}
-              <button onClick={addEq} className="text-[#86BBD8] text-xs hover:text-white transition-colors flex items-center gap-1"><Plus className="w-3 h-3" /> Add Equipment</button>
-            </div>
-            <button onClick={submit} className="bg-[#86BBD8]/25 hover:bg-[#86BBD8]/40 border border-[#86BBD8]/35 text-white font-semibold px-5 py-2 rounded-xl text-sm transition-colors">Submit Handover</button>
+        <div className={`${t.glass} rounded-2xl ${t.shadow} p-6`}>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className={`font-semibold ${t.textPrimary}`}>New Handover Report</h2>
+            <button type="button" onClick={() => setShowForm(false)} className={`${t.textFaint} ${t.hoverText} transition-colors`}><X className="w-5 h-5" /></button>
           </div>
-        </section>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-3">
+            <FormField label="Date"><input type="date" title="Handover date" value={form.handover_date} onChange={e => setForm(f => ({ ...f, handover_date: e.target.value }))} className={inputCls} /></FormField>
+            <FormField label="Shift">
+              <SelectField size="form" title="Shift" value={form.shift} onChange={v => setForm(f => ({ ...f, shift: v as Shift }))}
+                options={SHIFTS.map(s => ({ value: s, label: s }))} />
+            </FormField>
+            <FormField label="Section"><input placeholder="Section" value={form.section} onChange={e => setForm(f => ({ ...f, section: e.target.value }))} className={inputCls} /></FormField>
+            <FormField label="Outgoing Supervisor"><input placeholder="Outgoing Supervisor" value={form.outgoing_supervisor} onChange={e => setForm(f => ({ ...f, outgoing_supervisor: e.target.value }))} className={inputCls} /></FormField>
+            <FormField label="Incoming Supervisor"><input placeholder="Incoming Supervisor" value={form.incoming_supervisor} onChange={e => setForm(f => ({ ...f, incoming_supervisor: e.target.value }))} className={inputCls} /></FormField>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+            <FormField label="Completed Work"><textarea rows={3} placeholder="Completed work..." value={form.completed_work} onChange={e => setForm(f => ({ ...f, completed_work: e.target.value }))} className={`${inputCls} resize-none h-auto py-2`} /></FormField>
+            <FormField label="Outstanding Work"><textarea rows={3} placeholder="Outstanding work..." value={form.outstanding_work} onChange={e => setForm(f => ({ ...f, outstanding_work: e.target.value }))} className={`${inputCls} resize-none h-auto py-2`} /></FormField>
+            <FormField label="Safety Concerns"><textarea rows={3} placeholder="Safety concerns..." value={form.safety_concerns} onChange={e => setForm(f => ({ ...f, safety_concerns: e.target.value }))} className={`${inputCls} resize-none h-auto py-2`} /></FormField>
+          </div>
+          <div className="mb-3">
+            <div className={`text-xs mb-2 ${t.textFaint}`}>Equipment Summary</div>
+            {form.equipment_summary.map((eq, i) => (
+              <div key={i} className="flex gap-2 mb-2">
+                <input placeholder="Equipment name" value={eq.name} onChange={e => updateEq(i, 'name', e.target.value)} className={inputCls} />
+                <SelectField size="form" title="Equipment status" value={eq.status} onChange={v => updateEq(i, 'status', v)} className="min-w-[130px]"
+                  options={['Running', 'Standby', 'Monitor', 'Breakdown']} />
+                <button type="button" title="Remove equipment" onClick={() => removeEq(i)} className={`${t.textFaint} hover:text-rose-500 transition-colors px-1`}><X className="w-4 h-4" /></button>
+              </div>
+            ))}
+            <button type="button" onClick={addEq} className="text-blue-500 text-xs hover:opacity-80 transition-colors flex items-center gap-1"><Plus className="w-3 h-3" /> Add Equipment</button>
+          </div>
+          <PrimaryButton accent="violet" size="md" onClick={submit}>Submit Handover</PrimaryButton>
+        </div>
       )}
 
-      {/* List */}
-      <section className="container mx-auto px-4 pb-8">
-        <div className="oz-glass-panel rounded-2xl overflow-hidden">
-          <div className="p-4 border-b border-white/10">
-            <h2 className="text-white font-semibold">Handover History</h2>
-          </div>
-          <div className="divide-y divide-white/[0.06]">
-            {records.map(h => (
+      <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
+        <div className={`p-4 border-b ${t.border}`}><h2 className={`font-semibold ${t.textPrimary}`}>Handover History</h2></div>
+        <div className={`divide-y ${t.divide}`}>
+          {records.map(h => {
+            const ShiftIcon = SHIFT_ICON[h.shift];
+            return (
               <div key={h.id}>
-                <button onClick={() => toggle(h.id)} className="w-full flex items-center justify-between px-5 py-4 hover:bg-white/[0.03] transition-colors text-left">
+                <button type="button" onClick={() => toggle(h.id)} className={`w-full flex items-center justify-between px-5 py-4 ${t.hoverBg} transition-colors text-left`}>
                   <div className="flex items-center gap-3 flex-wrap">
-                    <span className="text-white font-medium text-sm">{h.handover_date}</span>
-                    <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${shiftColor(h.shift)}`}>{shiftIcon(h.shift)} {h.shift}</span>
-                    <span className="text-white/50 text-sm">{h.section}</span>
-                    <span className="text-white/40 text-xs">{h.outgoing_supervisor} → {h.incoming_supervisor}</span>
+                    <span className={`font-medium text-sm ${t.textPrimary}`}>{h.handover_date}</span>
+                    <StatusBadge color={SHIFT_HEX[h.shift]} label={h.shift} />
+                    <span className={`text-sm ${t.textFaint}`}>{h.section}</span>
+                    <span className={`text-xs ${t.textFaint}`}>{h.outgoing_supervisor} → {h.incoming_supervisor}</span>
                   </div>
-                  {expanded === h.id ? <ChevronUp className="w-4 h-4 text-white/40" /> : <ChevronDown className="w-4 h-4 text-white/40" />}
+                  {expanded === h.id ? <ChevronUp className={`w-4 h-4 ${t.textFaint}`} /> : <ChevronDown className={`w-4 h-4 ${t.textFaint}`} />}
                 </button>
                 {expanded === h.id && (
                   <div className="px-5 pb-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div><div className="text-blue-500 text-xs font-semibold mb-1 uppercase tracking-wider">Completed Work</div><p className={`text-sm leading-relaxed ${t.textMuted}`}>{h.completed_work}</p></div>
+                    <div><div className="text-amber-500 text-xs font-semibold mb-1 uppercase tracking-wider">Outstanding Work</div><p className={`text-sm leading-relaxed ${t.textMuted}`}>{h.outstanding_work}</p></div>
+                    <div><div className="text-rose-500 text-xs font-semibold mb-1 uppercase tracking-wider">Safety Concerns</div><p className={`text-sm leading-relaxed ${t.textMuted}`}>{h.safety_concerns}</p></div>
                     <div>
-                      <div className="text-[#86BBD8] text-xs font-semibold mb-1 uppercase tracking-wider">Completed Work</div>
-                      <p className="text-white/70 text-sm leading-relaxed">{h.completed_work}</p>
-                    </div>
-                    <div>
-                      <div className="text-amber-400 text-xs font-semibold mb-1 uppercase tracking-wider">Outstanding Work</div>
-                      <p className="text-white/70 text-sm leading-relaxed">{h.outstanding_work}</p>
-                    </div>
-                    <div>
-                      <div className="text-rose-400 text-xs font-semibold mb-1 uppercase tracking-wider">Safety Concerns</div>
-                      <p className="text-white/70 text-sm leading-relaxed">{h.safety_concerns}</p>
-                    </div>
-                    <div>
-                      <div className="text-white/50 text-xs font-semibold mb-2 uppercase tracking-wider">Equipment Status</div>
+                      <div className={`text-xs font-semibold mb-2 uppercase tracking-wider ${t.textFaint}`}>Equipment Status</div>
                       <div className="flex flex-wrap gap-2">
                         {(h.equipment_summary ?? []).map((eq, i) => (
                           <div key={i} className="flex items-center gap-1.5">
-                            <span className="text-white/70 text-xs">{eq.name}</span>
-                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${eqColor(eq.status)}`}>{eq.status}</span>
+                            <span className={`text-xs ${t.textMuted}`}>{eq.name}</span>
+                            <StatusBadge color={EQ_HEX[eq.status] ?? '#94a3b8'} label={eq.status} />
                           </div>
                         ))}
                       </div>
@@ -181,10 +149,14 @@ export default function HandoverPage() {
                   </div>
                 )}
               </div>
-            ))}
-          </div>
+            );
+          })}
         </div>
-      </section>
-    </PageShell>
+      </div>
+    </main>
   );
+}
+
+export default function HandoverPage() {
+  return <AppShell><HandoverContent /></AppShell>;
 }

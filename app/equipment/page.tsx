@@ -1,21 +1,21 @@
 // app/equipment/page.tsx
 'use client';
 
-import { PageShell } from '@/components/PageShell';
+import { AppShell } from '@/components/app-shell';
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { toast } from 'sonner';
 import EquipmentForm from "@/components/EquipmentForm";
 import {
-  Loader2, Plus, Search, Trash2, Edit, Briefcase, Calendar, Wrench, Phone,
-  MapPin, FileText, BarChart3, Target, Building, Clock, Truck, AlertTriangle,
-  CheckCircle, XCircle, Cpu, LayoutGrid, List, ChevronUp, ChevronDown,
+  Loader2, Plus, Trash2, Edit, Briefcase, Wrench, MapPin,
+  FileText, Target, Clock, Truck, AlertTriangle,
+  CheckCircle, XCircle, LayoutGrid, List,
   Server, Package, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
-  Filter, FilterX, RefreshCw, Download, FileSpreadsheet, FileDown,
+  Filter, FilterX, Download, FileSpreadsheet, FileDown,
 } from "lucide-react";
 import {
-  HeroPanel, GlassPanel, GlassButton, GlassBadge, GlassInput, GlassSelect,
-  GlassModal, usePageCollapse, MasterCollapseButton,
-} from "@/components/shared";
+  useTheme, PageHero, StatTile, StatusBadge, ListItemCard, SearchInput, ViewToggle,
+  useCollapseSection, CenterModal, ACCENT_HEX, SelectField,
+} from '@/components/shared/theme';
 import type { ElementType } from "react";
 
 interface EquipmentItem {
@@ -53,26 +53,20 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onr
 const API_BASE_URL = `${API_BASE}/api/equipment`;
 const ITEMS_PER_PAGE = 12;
 
-// --- Utility helpers ---
-function statusBadge(status: string | undefined) {
-  switch (status?.toLowerCase()) {
-    case 'operational': return <GlassBadge variant="success">Operational</GlassBadge>;
-    case 'maintenance': return <GlassBadge variant="warning">Maintenance</GlassBadge>;
-    case 'out_of_service': return <GlassBadge variant="danger">Out of Service</GlassBadge>;
-    case 'reserved': return <GlassBadge variant="info">Reserved</GlassBadge>;
-    case 'retired': return <GlassBadge variant="neutral">Retired</GlassBadge>;
-    default: return <GlassBadge variant="neutral">{status || 'Unknown'}</GlassBadge>;
-  }
-}
-
-function maintenanceBadge(status: string) {
-  switch (status) {
-    case 'Overdue': return <GlassBadge variant="danger">Overdue</GlassBadge>;
-    case 'Due Soon': return <GlassBadge variant="warning">Due Soon</GlassBadge>;
-    case 'Upcoming': return <GlassBadge variant="info">Upcoming</GlassBadge>;
-    default: return <GlassBadge variant="success">On Track</GlassBadge>;
-  }
-}
+const STATUS_COLORS: Record<string, string> = {
+  operational: '#34d399',
+  maintenance: '#f59e0b',
+  out_of_service: '#f43f5e',
+  reserved: ACCENT_HEX.blue,
+  retired: '#94a3b8',
+};
+const STATUS_LABELS: Record<string, string> = {
+  operational: 'Operational', maintenance: 'Maintenance', out_of_service: 'Out of Service',
+  reserved: 'Reserved', retired: 'Retired',
+};
+const MAINT_COLORS: Record<string, string> = {
+  Overdue: '#f43f5e', 'Due Soon': '#f59e0b', Upcoming: ACCENT_HEX.blue, 'On Track': '#34d399',
+};
 
 function statusIcon(status: string | undefined): ElementType {
   switch (status?.toLowerCase()) {
@@ -107,172 +101,12 @@ function calcMaintenanceStatus(last?: string, interval?: number): string {
   return 'On Track';
 }
 
-// --- Expanded details panel ---
-function ExpandedDetails({ eq }: { eq: EquipmentItem }) {
-  const age = calcAge(eq.commission_date);
-  const mStatus = calcMaintenanceStatus(eq.last_maintenance, eq.maintenance_interval);
-  return (
-    <div className="mt-4 pt-4 border-t border-white/10 grid grid-cols-1 sm:grid-cols-2 gap-4">
-      <div>
-        <p className="text-xs font-semibold text-[#86BBD8] mb-2 flex items-center gap-1"><FileText className="h-3.5 w-3.5" />Basic Info</p>
-        <div className="space-y-1 text-xs text-white/70">
-          <div className="flex justify-between"><span>Equipment ID</span><span className="text-white">{eq.equipment_id}</span></div>
-          <div className="flex justify-between"><span>Serial</span><span className="text-white">{eq.serial_number || 'N/A'}</span></div>
-          <div className="flex justify-between"><span>Model</span><span className="text-white">{eq.model || 'N/A'}</span></div>
-          <div className="flex justify-between"><span>Category</span><span className="text-white">{eq.category || 'N/A'}</span></div>
-        </div>
-      </div>
-      <div>
-        <p className="text-xs font-semibold text-[#86BBD8] mb-2 flex items-center gap-1"><MapPin className="h-3.5 w-3.5" />Location</p>
-        <div className="space-y-1 text-xs text-white/70">
-          <div className="flex justify-between"><span>Location</span><span className="text-white">{eq.location || 'N/A'}</span></div>
-          <div className="flex justify-between"><span>Department</span><span className="text-white">{eq.department || 'N/A'}</span></div>
-          <div className="flex justify-between"><span>Age</span><span className="text-white">{age}</span></div>
-          <div className="flex justify-between"><span>Commission</span><span className="text-white">{eq.commission_date || 'N/A'}</span></div>
-        </div>
-      </div>
-      <div>
-        <p className="text-xs font-semibold text-[#86BBD8] mb-2 flex items-center gap-1"><Truck className="h-3.5 w-3.5" />Supplier</p>
-        <div className="space-y-1 text-xs text-white/70">
-          <div className="flex justify-between"><span>Supplier</span><span className="text-white">{eq.supplier || 'N/A'}</span></div>
-          <div className="flex justify-between"><span>Contact</span><span className="text-white">{eq.supplier_contact || 'N/A'}</span></div>
-          <div className="flex justify-between">
-            <span>Phone</span>
-            {eq.supplier_phone
-              ? <button type="button" onClick={() => window.open(`tel:${eq.supplier_phone}`, '_self')} className="text-[#86BBD8] hover:underline">{eq.supplier_phone}</button>
-              : <span className="text-white">N/A</span>}
-          </div>
-          <div className="flex justify-between"><span>Warranty</span><span className="text-white">{eq.warranty_info || 'N/A'}</span></div>
-        </div>
-      </div>
-      <div>
-        <p className="text-xs font-semibold text-[#86BBD8] mb-2 flex items-center gap-1"><Wrench className="h-3.5 w-3.5" />Maintenance</p>
-        <div className="space-y-1 text-xs text-white/70">
-          <div className="flex justify-between"><span>Interval</span><span className="text-white">{eq.maintenance_interval ? `${eq.maintenance_interval} mo` : 'N/A'}</span></div>
-          <div className="flex justify-between"><span>Last</span><span className="text-white">{eq.last_maintenance || 'N/A'}</span></div>
-          <div className="flex justify-between"><span>Next Due</span><span className="text-white">{eq.next_maintenance || 'N/A'}</span></div>
-          <div className="flex items-center justify-between"><span>Status</span>{maintenanceBadge(mStatus)}</div>
-        </div>
-      </div>
-      {(eq.purchase_cost || eq.current_value) && (
-        <div>
-          <p className="text-xs font-semibold text-[#86BBD8] mb-2 flex items-center gap-1"><Target className="h-3.5 w-3.5" />Cost</p>
-          <div className="space-y-1 text-xs text-white/70">
-            {eq.purchase_cost && <div className="flex justify-between"><span>Purchase</span><span className="text-white">${eq.purchase_cost}</span></div>}
-            {eq.current_value && <div className="flex justify-between"><span>Current Value</span><span className="text-white">${eq.current_value}</span></div>}
-            {eq.depreciation_rate && <div className="flex justify-between"><span>Depreciation</span><span className="text-white">{eq.depreciation_rate}%</span></div>}
-          </div>
-        </div>
-      )}
-      {(eq.description || eq.specifications || eq.maintenance_notes) && (
-        <div className="sm:col-span-2 space-y-2">
-          {eq.description && <div><p className="text-xs font-semibold text-[#86BBD8] mb-1">Description</p><p className="text-xs text-white/70">{eq.description}</p></div>}
-          {eq.specifications && <div><p className="text-xs font-semibold text-[#86BBD8] mb-1">Specifications</p><p className="text-xs text-white/70">{eq.specifications}</p></div>}
-          {eq.maintenance_notes && <div><p className="text-xs font-semibold text-[#86BBD8] mb-1">Maintenance Notes</p><p className="text-xs text-white/70">{eq.maintenance_notes}</p></div>}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// --- Equipment grid card ---
-function EquipmentCard({
-  eq, onEdit, onDelete, expanded, onToggle,
-}: { eq: EquipmentItem; onEdit: (e: EquipmentItem) => void; onDelete: (id: number | string) => void; expanded: boolean; onToggle: () => void }) {
-  const statusIconComp = statusIcon(eq.status);
-  const age = calcAge(eq.commission_date);
-
-  return (
-    <div className="oz-glass-panel rounded-2xl p-4 flex flex-col gap-3">
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0">
-          <div className="p-1.5 rounded-lg bg-[#2A4D69]/60 shrink-0">
-            {React.createElement(statusIconComp, { className: "h-4 w-4 text-[#86BBD8]" })}
-          </div>
-          <div className="min-w-0">
-            <p className="font-bold text-sm text-white truncate">{eq.name}</p>
-            <p className="text-xs text-white/50">{eq.equipment_id}</p>
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={onToggle}
-          title={expanded ? 'Collapse' : 'Expand'}
-          aria-label={expanded ? 'Collapse details' : 'Expand details'}
-          className="h-7 w-7 flex items-center justify-center rounded-lg hover:bg-white/10 text-white/60 hover:text-white transition-colors shrink-0"
-        >
-          {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-        </button>
-      </div>
-
-      <div className="grid grid-cols-2 gap-2 text-xs">
-        <div className="flex items-center gap-1 text-white/60"><Briefcase className="h-3 w-3" /><span className="truncate">{eq.category || 'N/A'}</span></div>
-        <div className="flex items-center gap-1 text-white/60"><Clock className="h-3 w-3" /><span>{age}</span></div>
-        <div className="flex items-center gap-1 text-white/60"><MapPin className="h-3 w-3" /><span className="truncate">{eq.location || 'N/A'}</span></div>
-        <div>{statusBadge(eq.status)}</div>
-      </div>
-
-      {expanded && <ExpandedDetails eq={eq} />}
-
-      <div className="flex gap-2 pt-2 border-t border-white/10">
-        <GlassButton size="xs" icon={Edit} onClick={() => onEdit(eq)} className="flex-1">Edit</GlassButton>
-        <GlassButton size="xs" icon={Trash2} variant="danger" onClick={() => onDelete(eq.id)} title="Delete" aria-label="Delete equipment" />
-      </div>
-    </div>
-  );
-}
-
-// --- Equipment list row ---
-function EquipmentListRow({
-  eq, onEdit, onDelete, expanded, onToggle,
-}: { eq: EquipmentItem; onEdit: (e: EquipmentItem) => void; onDelete: (id: number | string) => void; expanded: boolean; onToggle: () => void }) {
-  const statusIconComp = statusIcon(eq.status);
-  const mStatus = calcMaintenanceStatus(eq.last_maintenance, eq.maintenance_interval);
-  const age = calcAge(eq.commission_date);
-
-  return (
-    <div className="oz-glass-panel rounded-2xl p-4">
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={onToggle}
-          title={expanded ? 'Collapse' : 'Expand'}
-          aria-label={expanded ? 'Collapse' : 'Expand'}
-          className="h-7 w-7 flex items-center justify-center rounded-lg hover:bg-white/10 text-white/60 hover:text-white transition-colors shrink-0"
-        >
-          {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-        </button>
-        <div className="p-1.5 rounded-lg bg-[#2A4D69]/60 shrink-0">
-          {React.createElement(statusIconComp, { className: "h-4 w-4 text-[#86BBD8]" })}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-bold text-sm text-white">{eq.name}</span>
-            {statusBadge(eq.status)}
-          </div>
-          <div className="flex items-center gap-3 text-xs text-white/50 mt-0.5 flex-wrap">
-            <span>{eq.equipment_id}</span>
-            {eq.category && <span className="flex items-center gap-1"><Briefcase className="h-3 w-3" />{eq.category}</span>}
-            {eq.location && <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{eq.location}</span>}
-            <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{age}</span>
-          </div>
-        </div>
-        <div className="shrink-0 hidden sm:block">{maintenanceBadge(mStatus)}</div>
-        <div className="flex gap-1 shrink-0">
-          <GlassButton size="xs" icon={Edit} onClick={() => onEdit(eq)} title="Edit" aria-label="Edit equipment" />
-          <GlassButton size="xs" icon={Trash2} variant="danger" onClick={() => onDelete(eq.id)} title="Delete" aria-label="Delete equipment" />
-        </div>
-      </div>
-      {expanded && <ExpandedDetails eq={eq} />}
-    </div>
-  );
-}
-
-// --- Simple glass pagination ---
-function GlassPagination({ current, total, onPage, perPage, totalItems, onPerPage }: {
+// --- Simple pagination (themed) ---
+function Pagination({ current, total, onPage, perPage, totalItems, onPerPage }: {
   current: number; total: number; onPage: (p: number) => void;
   perPage: number; totalItems: number; onPerPage: (n: number) => void;
 }) {
+  const t = useTheme();
   const from = (current - 1) * perPage + 1;
   const to = Math.min(current * perPage, totalItems);
 
@@ -284,39 +118,31 @@ function GlassPagination({ current, total, onPage, perPage, totalItems, onPerPag
   for (let i = start; i <= end; i++) pages.push(i);
 
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-white/10">
-      <p className="text-sm text-white/60">Showing {from}–{to} of {totalItems}</p>
+    <div className={`flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t ${t.border}`}>
+      <p className={`text-sm ${t.textFaint}`}>Showing {from}–{to} of {totalItems}</p>
       <div className="flex items-center gap-1 flex-wrap">
-        <GlassButton size="xs" icon={ChevronsLeft} onClick={() => onPage(1)} disabled={current === 1} title="First" aria-label="First page" />
-        <GlassButton size="xs" icon={ChevronLeft} onClick={() => onPage(current - 1)} disabled={current === 1} title="Previous" aria-label="Previous page" />
-        {start > 1 && <><button type="button" onClick={() => onPage(1)} className="h-7 w-7 text-xs text-white/60 hover:text-white hover:bg-white/10 rounded-lg transition-colors">1</button>{start > 2 && <span className="text-white/30">…</span>}</>}
+        <button type="button" onClick={() => onPage(1)} disabled={current === 1} title="First" className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} disabled:opacity-30 transition-colors`}><ChevronsLeft className="h-3.5 w-3.5" /></button>
+        <button type="button" onClick={() => onPage(current - 1)} disabled={current === 1} title="Previous" className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} disabled:opacity-30 transition-colors`}><ChevronLeft className="h-3.5 w-3.5" /></button>
+        {start > 1 && <><button type="button" onClick={() => onPage(1)} className={`h-7 w-7 text-xs ${t.textFaint} ${t.hoverText} ${t.hoverBg} rounded-lg transition-colors`}>1</button>{start > 2 && <span className={t.textFaint}>…</span>}</>}
         {pages.map(p => (
-          <button
-            key={p}
-            type="button"
-            onClick={() => onPage(p)}
-            className={`h-7 w-7 text-xs rounded-lg transition-colors ${p === current ? 'bg-[#2A4D69]/60 text-[#86BBD8] border border-[#86BBD8]/25' : 'text-white/60 hover:text-white hover:bg-white/10'}`}
-          >
-            {p}
-          </button>
+          <button key={p} type="button" onClick={() => onPage(p)} className={`h-7 w-7 text-xs rounded-lg transition-colors ${p === current ? 'bg-blue-500/20 text-blue-400' : `${t.textFaint} ${t.hoverText} ${t.hoverBg}`}`}>{p}</button>
         ))}
-        {end < total && <>{end < total - 1 && <span className="text-white/30">…</span>}<button type="button" onClick={() => onPage(total)} className="h-7 w-7 text-xs text-white/60 hover:text-white hover:bg-white/10 rounded-lg transition-colors">{total}</button></>}
-        <GlassButton size="xs" icon={ChevronRight} onClick={() => onPage(current + 1)} disabled={current === total} title="Next" aria-label="Next page" />
-        <GlassButton size="xs" icon={ChevronsRight} onClick={() => onPage(total)} disabled={current === total} title="Last" aria-label="Last page" />
-        <GlassSelect
-          options={[{value:'12',label:'12/page'},{value:'24',label:'24/page'},{value:'48',label:'48/page'},{value:'96',label:'96/page'}]}
+        {end < total && <>{end < total - 1 && <span className={t.textFaint}>…</span>}<button type="button" onClick={() => onPage(total)} className={`h-7 w-7 text-xs ${t.textFaint} ${t.hoverText} ${t.hoverBg} rounded-lg transition-colors`}>{total}</button></>}
+        <button type="button" onClick={() => onPage(current + 1)} disabled={current === total} title="Next" className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} disabled:opacity-30 transition-colors`}><ChevronRight className="h-3.5 w-3.5" /></button>
+        <button type="button" onClick={() => onPage(total)} disabled={current === total} title="Last" className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} disabled:opacity-30 transition-colors`}><ChevronsRight className="h-3.5 w-3.5" /></button>
+        <SelectField size="filter"
           value={String(perPage)}
-          onChange={e => onPerPage(Number(e.target.value))}
-          wrapperClassName="w-28"
-        />
+          onChange={v => onPerPage(Number(v))}
+          title="Items per page"
+          options={[12, 24, 48, 96].map(n => ({ value: String(n), label: `${n}/page` }))} />
       </div>
     </div>
   );
 }
 
-// --- Main page ---
-const EquipmentManagement = () => {
-  const sections = usePageCollapse({ hero: false, filtersSearch: false });
+function EquipmentPageContent() {
+  const t = useTheme();
+  const sections = useCollapseSection({ hero: true });
   const [equipment, setEquipment] = useState<EquipmentItem[]>([]);
   const [filtered, setFiltered] = useState<EquipmentItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -330,11 +156,11 @@ const EquipmentManagement = () => {
   const [departmentFilter, setDepartmentFilter] = useState('all');
   const [deleteConfirm, setDeleteConfirm] = useState<number | string | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [expandedItems, setExpandedItems] = useState<Set<number | string>>(new Set());
   const [currentPage, setCurrentPage] = useState(1);
   const [perPage, setPerPage] = useState(ITEMS_PER_PAGE);
   const [showFilters, setShowFilters] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [showDlMenu, setShowDlMenu] = useState(false);
 
   const uniqueLocations = useMemo(() => [...new Set(equipment.map(i => i.location).filter(Boolean) as string[])], [equipment]);
   const uniqueDepartments = useMemo(() => [...new Set(equipment.map(i => i.department).filter(Boolean) as string[])], [equipment]);
@@ -412,13 +238,7 @@ const EquipmentManagement = () => {
     }
   };
 
-  const toggleExpand = (id: number | string) => {
-    setExpandedItems(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
-  };
-
   const clearFilters = () => { setSearchTerm(''); setStatusFilter('all'); setCategoryFilter('all'); setLocationFilter('all'); setDepartmentFilter('all'); };
-
-  const [showDlMenu, setShowDlMenu] = useState(false);
 
   const downloadEquipmentExcel = async () => {
     setShowDlMenu(false);
@@ -468,7 +288,7 @@ const EquipmentManagement = () => {
       saveAs(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
         `Equipment_Register_${new Date().toISOString().slice(0, 10)}.xlsx`);
       toast.success(`Excel exported — ${equipment.length} assets`);
-    } catch (err: any) { toast.error(`Export failed: ${(err as Error).message}`); }
+    } catch (err) { toast.error(`Export failed: ${(err as Error).message}`); }
   };
 
   const downloadEquipmentPDF = async () => {
@@ -499,8 +319,9 @@ const EquipmentManagement = () => {
       });
       doc.save(`Equipment_Register_${new Date().toISOString().slice(0, 10)}.pdf`);
       toast.success(`PDF exported — ${equipment.length} assets`);
-    } catch (err: any) { toast.error(`Export failed: ${(err as Error).message}`); }
+    } catch (err) { toast.error(`Export failed: ${(err as Error).message}`); }
   };
+
   const hasActiveFilters = statusFilter !== 'all' || categoryFilter !== 'all' || locationFilter !== 'all' || departmentFilter !== 'all' || !!searchTerm;
 
   const metrics = useMemo(() => {
@@ -508,234 +329,243 @@ const EquipmentManagement = () => {
     const maintenance = equipment.filter(i => i.status?.toLowerCase() === 'maintenance').length;
     const outOfService = equipment.filter(i => i.status?.toLowerCase() === 'out_of_service').length;
     const reserved = equipment.filter(i => i.status?.toLowerCase() === 'reserved').length;
-    const retired = equipment.filter(i => i.status?.toLowerCase() === 'retired').length;
     const totalValue = equipment.reduce((s, i) => s + (i.current_value || 0), 0);
-    return { total: equipment.length, operational, maintenance, outOfService, reserved, retired, totalValue };
+    return { total: equipment.length, operational, maintenance, outOfService, reserved, totalValue };
   }, [equipment]);
 
   const totalPages = Math.ceil(filtered.length / perPage);
   const paginated = filtered.slice((currentPage - 1) * perPage, currentPage * perPage);
 
-  const heroStats = [
-    { label: 'Total Assets', value: metrics.total },
-    { label: 'Operational', value: metrics.operational, textClass: 'text-emerald-400', onClick: () => setStatusFilter('operational') },
-    { label: 'Maintenance', value: metrics.maintenance, textClass: 'text-amber-400', onClick: () => setStatusFilter('maintenance') },
-    { label: 'Out of Service', value: metrics.outOfService, textClass: 'text-red-400', onClick: () => setStatusFilter('out_of_service') },
-    { label: 'Reserved', value: metrics.reserved, textClass: 'text-[#86BBD8]', onClick: () => setStatusFilter('reserved') },
-    { label: 'Total Value', value: `$${metrics.totalValue.toLocaleString()}` },
+  const heroTiles = [
+    { icon: Server, color: ACCENT_HEX.blue, value: metrics.total, label: 'Total' },
+    { icon: CheckCircle, color: STATUS_COLORS.operational, value: metrics.operational, label: 'Operational', onClick: () => setStatusFilter('operational') },
+    { icon: Wrench, color: STATUS_COLORS.maintenance, value: metrics.maintenance, label: 'Maintenance', onClick: () => setStatusFilter('maintenance') },
+    { icon: XCircle, color: STATUS_COLORS.out_of_service, value: metrics.outOfService, label: 'Out of Service', onClick: () => setStatusFilter('out_of_service') },
+    { icon: Package, color: STATUS_COLORS.reserved, value: metrics.reserved, label: 'Reserved', onClick: () => setStatusFilter('reserved') },
+    { icon: Target, color: ACCENT_HEX.emerald, value: `$${metrics.totalValue.toLocaleString()}`, label: 'Value' },
   ];
 
   if (loading) {
     return (
-      <PageShell>
-        <main className="container mx-auto px-4 py-6">
-          <div className="flex items-center justify-center py-20">
-            <div className="text-center">
-              <Loader2 className="h-10 w-10 animate-spin text-[#86BBD8] mx-auto mb-4" />
-              <p className="text-white/60">Loading equipment data…</p>
-            </div>
+      <main className="max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8">
+        <div className="flex items-center justify-center py-20">
+          <div className="text-center">
+            <Loader2 className={`h-10 w-10 animate-spin ${t.textFaint} mx-auto mb-4`} />
+            <p className={t.textFaint}>Loading equipment data…</p>
           </div>
-        </main>
-      </PageShell>
+        </div>
+      </main>
     );
   }
 
   return (
-    <PageShell>
-      <main className="container mx-auto px-4 py-6 space-y-6">
-        <HeroPanel
-          title="Equipment Management"
-          subtitle="Track all equipment assets — status, location, maintenance history, and performance."
-          icon={Server}
-          stats={heroStats}
-          onRefresh={fetchEquipment}
-          loading={refreshing}
-          {...sections.panel('hero')}
-          actions={[
-            <MasterCollapseButton key="collapse" collapse={sections} />,
-            <div key="download" className="relative">
-              <button type="button" onClick={() => setShowDlMenu(p => !p)} disabled={equipment.length === 0}
-                className="h-8 px-3 flex items-center gap-1.5 text-xs rounded-xl font-semibold text-white/80 hover:text-white transition-all hover:-translate-y-0.5 bg-white/[0.07] hover:bg-white/[0.13] border border-white/[0.15] disabled:opacity-40 disabled:translate-y-0">
+    <main className="max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+      <PageHero
+        icon={Server}
+        accent="violet"
+        crumbs={['Core Management', 'Assets']}
+        title="Equipment Management"
+        description="Track all equipment assets — status, location, maintenance history, and performance."
+        statsOpen={sections.expanded.hero}
+        actions={
+          <>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowDlMenu(p => !p)}
+                disabled={equipment.length === 0}
+                className={`h-8 px-3 flex items-center gap-1.5 text-[13px] rounded-lg font-medium ${t.textMuted} ${t.hoverText} ${t.glassSoft} transition-colors disabled:opacity-40`}
+              >
                 <Download className="h-3.5 w-3.5" /> Download
               </button>
               {showDlMenu && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setShowDlMenu(false)} />
-                  <div className="absolute right-0 top-full mt-1 z-50 rounded-xl shadow-2xl overflow-hidden w-48"
-                    style={{ background: 'rgba(4,12,24,0.97)', border: '1px solid rgba(255,255,255,0.14)' }}>
-                    <button type="button" onClick={downloadEquipmentExcel}
-                      className="w-full flex items-center gap-2.5 px-4 py-3 text-xs text-white/85 hover:bg-white/[0.10] transition-all border-b border-white/[0.07]">
+                  <div className={`absolute right-0 top-full mt-1 z-50 rounded-xl ${t.shadow} overflow-hidden w-48 ${t.glass}`}>
+                    <button type="button" onClick={downloadEquipmentExcel} className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-[12.5px] ${t.textMuted} ${t.hoverBgSoft} transition-colors border-b ${t.border}`}>
                       <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-400" /> Export Excel (.xlsx)
                     </button>
-                    <button type="button" onClick={downloadEquipmentPDF}
-                      className="w-full flex items-center gap-2.5 px-4 py-3 text-xs text-white/85 hover:bg-white/[0.10] transition-all">
+                    <button type="button" onClick={downloadEquipmentPDF} className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-[12.5px] ${t.textMuted} ${t.hoverBgSoft} transition-colors`}>
                       <FileDown className="h-3.5 w-3.5 text-rose-400" /> Export PDF
                     </button>
                   </div>
                 </>
               )}
-            </div>,
-            <GlassButton key="add" icon={Plus} variant="primary" onClick={() => { setEditingEq(null); setIsFormOpen(true); }}>
-              Add Equipment
-            </GlassButton>,
-          ]}
-        />
-
-        {error && (
-          <div className="oz-glass-panel rounded-2xl p-4 flex items-center gap-3 border border-red-500/30">
-            <AlertTriangle className="h-5 w-5 text-red-400 shrink-0" />
-            <p className="text-sm text-red-300">{error}</p>
-            <button type="button" onClick={() => setError('')} className="ml-auto text-white/40 hover:text-white text-lg leading-none">×</button>
-          </div>
-        )}
-
-        {/* Filters */}
-        <GlassPanel title="Filters & Search" defaultOpen {...sections.panel('filtersSearch')}>
-          <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-            <GlassInput
-              placeholder="Search by name, ID, model, category…"
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              icon={Search}
-              wrapperClassName="flex-1"
-            />
-            <div className="flex gap-2 flex-wrap">
-              <GlassButton size="sm" icon={Filter} onClick={() => setShowFilters(v => !v)} variant={showFilters ? 'primary' : 'secondary'}>
-                Filters {hasActiveFilters && <span className="ml-1 px-1.5 py-0.5 bg-[#86BBD8]/30 rounded text-[10px]">{filtered.length}</span>}
-              </GlassButton>
-              {hasActiveFilters && <GlassButton size="sm" icon={FilterX} onClick={clearFilters} variant="ghost">Clear</GlassButton>}
-              <div className="flex rounded-xl overflow-hidden border border-white/10">
-                <button type="button" onClick={() => setViewMode('grid')} title="Grid view" aria-label="Grid view" className={`h-8 w-8 flex items-center justify-center transition-colors ${viewMode === 'grid' ? 'bg-[#2A4D69]/60 text-[#86BBD8]' : 'text-white/50 hover:text-white hover:bg-white/10'}`}><LayoutGrid className="h-4 w-4" /></button>
-                <button type="button" onClick={() => setViewMode('list')} title="List view" aria-label="List view" className={`h-8 w-8 flex items-center justify-center transition-colors ${viewMode === 'list' ? 'bg-[#2A4D69]/60 text-[#86BBD8]' : 'text-white/50 hover:text-white hover:bg-white/10'}`}><List className="h-4 w-4" /></button>
-              </div>
             </div>
-          </div>
+            <button
+              type="button"
+              onClick={() => { setEditingEq(null); setIsFormOpen(true); }}
+              className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-blue-500 to-blue-700 transition-all hover:brightness-110"
+            >
+              <Plus className="h-3.5 w-3.5" /> Add Equipment
+            </button>
+          </>
+        }
+      >
+        <div className="flex flex-wrap gap-1">
+          {heroTiles.map(tile => <StatTile key={tile.label} {...tile} />)}
+        </div>
+      </PageHero>
 
-          {showFilters && (
-            <div className="mt-4 pt-4 border-t border-white/10 grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <GlassSelect
-                label="Status"
-                value={statusFilter}
-                onChange={e => setStatusFilter(e.target.value)}
-                options={[{value:'all',label:'All Status'},{value:'operational',label:'Operational'},{value:'maintenance',label:'Maintenance'},{value:'out_of_service',label:'Out of Service'},{value:'reserved',label:'Reserved'},{value:'retired',label:'Retired'}]}
-              />
-              <GlassSelect
-                label="Category"
-                value={categoryFilter}
-                onChange={e => setCategoryFilter(e.target.value)}
-                options={[{value:'all',label:'All Categories'}, ...uniqueCategories.map(c => ({value:c,label:c}))]}
-              />
-              <GlassSelect
-                label="Location"
-                value={locationFilter}
-                onChange={e => setLocationFilter(e.target.value)}
-                options={[{value:'all',label:'All Locations'}, ...uniqueLocations.map(l => ({value:l,label:l}))]}
-              />
-              <GlassSelect
-                label="Department"
-                value={departmentFilter}
-                onChange={e => setDepartmentFilter(e.target.value)}
-                options={[{value:'all',label:'All Departments'}, ...uniqueDepartments.map(d => ({value:d,label:d}))]}
-              />
-            </div>
-          )}
-        </GlassPanel>
+      {error && (
+        <div className={`${t.glass} rounded-2xl p-4 flex items-center gap-3 border border-rose-500/30`}>
+          <AlertTriangle className="h-5 w-5 text-rose-400 shrink-0" />
+          <p className="text-sm text-rose-400">{error}</p>
+          <button type="button" onClick={() => setError('')} className={`ml-auto ${t.textFaint} ${t.hoverText} text-lg leading-none`}>×</button>
+        </div>
+      )}
 
-        <p className="text-sm text-white/60">
-          Showing <span className="font-semibold text-white">{filtered.length}</span> of {equipment.length} items
-          {hasActiveFilters && ' (filtered)'}
-        </p>
-
-        {/* Empty state */}
-        {filtered.length === 0 && (
-          <div className="oz-glass-panel rounded-2xl p-12 text-center">
-            <Server className="h-12 w-12 text-white/20 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-white mb-2">No Equipment Found</h3>
-            <p className="text-white/50 text-sm mb-4">
-              {equipment.length === 0 ? 'Add your first equipment asset to get started.' : 'Try adjusting your search or filters.'}
-            </p>
-            {equipment.length === 0 && (
-              <GlassButton icon={Plus} variant="primary" onClick={() => { setEditingEq(null); setIsFormOpen(true); }}>Add Equipment</GlassButton>
+      {/* Filters */}
+      <div className={`${t.glass} rounded-2xl ${t.shadow} p-4 space-y-4`}>
+        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+          <SearchInput value={searchTerm} onChange={setSearchTerm} placeholder="Search by name, ID, model, category…" className="flex-1" />
+          <div className="flex gap-2 flex-wrap items-center">
+            <button
+              type="button"
+              onClick={() => setShowFilters(v => !v)}
+              className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-medium transition-colors ${showFilters ? 'bg-blue-500/15 text-blue-400' : `${t.textMuted} ${t.hoverText} ${t.glassSoft}`}`}
+            >
+              <Filter className="h-3.5 w-3.5" /> Filters
+              {hasActiveFilters && <span className={`ml-1 px-1.5 py-0.5 ${t.chipBg} rounded text-[10px]`}>{filtered.length}</span>}
+            </button>
+            {hasActiveFilters && (
+              <button type="button" onClick={clearFilters} className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-medium ${t.textFaint} ${t.hoverText} ${t.hoverBg} transition-colors`}>
+                <FilterX className="h-3.5 w-3.5" /> Clear
+              </button>
             )}
+            <ViewToggle value={viewMode} onChange={setViewMode} options={[{ value: 'grid', icon: LayoutGrid, label: 'Grid view' }, { value: 'list', icon: List, label: 'List view' }]} />
           </div>
-        )}
+        </div>
 
-        {/* Grid view */}
-        {filtered.length > 0 && viewMode === 'grid' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {paginated.map(eq => (
-              <EquipmentCard
-                key={eq.id}
-                eq={eq}
-                onEdit={e => { setEditingEq(e); setIsFormOpen(true); }}
-                onDelete={setDeleteConfirm}
-                expanded={expandedItems.has(eq.id)}
-                onToggle={() => toggleExpand(eq.id)}
-              />
+        {showFilters && (
+          <div className={`pt-4 border-t ${t.border} grid grid-cols-2 sm:grid-cols-4 gap-3`}>
+            {[
+              { label: 'Status', value: statusFilter, onChange: setStatusFilter, options: [{ value: 'all', label: 'All Status' }, ...Object.entries(STATUS_LABELS).map(([value, label]) => ({ value, label }))] },
+              { label: 'Category', value: categoryFilter, onChange: setCategoryFilter, options: [{ value: 'all', label: 'All Categories' }, ...uniqueCategories.map(c => ({ value: c, label: c }))] },
+              { label: 'Location', value: locationFilter, onChange: setLocationFilter, options: [{ value: 'all', label: 'All Locations' }, ...uniqueLocations.map(l => ({ value: l, label: l }))] },
+              { label: 'Department', value: departmentFilter, onChange: setDepartmentFilter, options: [{ value: 'all', label: 'All Departments' }, ...uniqueDepartments.map(d => ({ value: d, label: d }))] },
+            ].map(f => (
+              <div key={f.label}>
+                <label className={`text-xs font-medium ${t.textFaint} mb-1 block`}>{f.label}</label>
+                <SelectField size="filter"
+                  value={f.value}
+                  onChange={f.onChange}
+                  title={f.label}
+                  options={f.options} />
+              </div>
             ))}
           </div>
         )}
+      </div>
 
-        {/* List view */}
-        {filtered.length > 0 && viewMode === 'list' && (
-          <div className="space-y-2">
-            {paginated.map(eq => (
-              <EquipmentListRow
+      <p className={`text-sm ${t.textFaint}`}>
+        Showing <span className={`font-semibold ${t.textPrimary}`}>{filtered.length}</span> of {equipment.length} items
+        {hasActiveFilters && ' (filtered)'}
+      </p>
+
+      {filtered.length === 0 ? (
+        <div className={`${t.glass} rounded-2xl p-12 text-center`}>
+          <Server className={`h-12 w-12 ${t.textFaint} mx-auto mb-4`} />
+          <h3 className={`text-lg font-semibold ${t.textPrimary} mb-2`}>No Equipment Found</h3>
+          <p className={`${t.textFaint} text-sm mb-4`}>
+            {equipment.length === 0 ? 'Add your first equipment asset to get started.' : 'Try adjusting your search or filters.'}
+          </p>
+          {equipment.length === 0 && (
+            <button type="button" onClick={() => { setEditingEq(null); setIsFormOpen(true); }} className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-blue-500 to-blue-700 hover:brightness-110 transition-all">
+              <Plus className="h-3.5 w-3.5" /> Add Equipment
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4' : 'space-y-2'}>
+          {paginated.map(eq => {
+            const status = eq.status?.toLowerCase() || 'unknown';
+            const mStatus = calcMaintenanceStatus(eq.last_maintenance, eq.maintenance_interval);
+            return (
+              <ListItemCard
                 key={eq.id}
-                eq={eq}
-                onEdit={e => { setEditingEq(e); setIsFormOpen(true); }}
-                onDelete={setDeleteConfirm}
-                expanded={expandedItems.has(eq.id)}
-                onToggle={() => toggleExpand(eq.id)}
+                color={STATUS_COLORS[status] || '#94a3b8'}
+                icon={statusIcon(eq.status)}
+                title={eq.name}
+                subtitle={eq.equipment_id}
+                onEdit={() => { setEditingEq(eq); setIsFormOpen(true); }}
+                onDelete={() => setDeleteConfirm(eq.id)}
+                badges={<>
+                  <StatusBadge color={STATUS_COLORS[status] || '#94a3b8'} label={STATUS_LABELS[status] || eq.status || 'Unknown'} dot />
+                  <StatusBadge color={MAINT_COLORS[mStatus] || '#94a3b8'} label={mStatus} />
+                </>}
+                rows={[
+                  { label: 'Category', value: <span className="inline-flex items-center gap-1"><Briefcase className="h-3 w-3" />{eq.category || 'N/A'}</span> },
+                  { label: 'Location', value: <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3" />{eq.location || 'N/A'}</span> },
+                  { label: 'Age', value: <span className="inline-flex items-center gap-1"><Clock className="h-3 w-3" />{calcAge(eq.commission_date)}</span> },
+                  { label: 'Supplier', value: <span className="inline-flex items-center gap-1"><Truck className="h-3 w-3" />{eq.supplier || 'N/A'}</span> },
+                ]}
               />
-            ))}
-          </div>
-        )}
+            );
+          })}
+        </div>
+      )}
 
-        {/* Pagination */}
-        {filtered.length > perPage && (
-          <GlassPagination
-            current={currentPage}
-            total={totalPages}
-            onPage={setCurrentPage}
-            perPage={perPage}
-            totalItems={filtered.length}
-            onPerPage={n => { setPerPage(n); setCurrentPage(1); }}
-          />
-        )}
+      {filtered.length > perPage && (
+        <Pagination
+          current={currentPage}
+          total={totalPages}
+          onPage={setCurrentPage}
+          perPage={perPage}
+          totalItems={filtered.length}
+          onPerPage={n => { setPerPage(n); setCurrentPage(1); }}
+        />
+      )}
 
-        {/* Equipment form modal */}
-        <GlassModal
-          isOpen={isFormOpen}
-          onClose={() => { setIsFormOpen(false); setEditingEq(null); }}
-          title={editingEq ? 'Edit Equipment' : 'Add New Equipment'}
-          size="xl"
-        >
+      {/* Equipment form modal */}
+      <CenterModal
+        open={isFormOpen}
+        onClose={() => { setIsFormOpen(false); setEditingEq(null); }}
+        title={editingEq ? 'Edit Equipment' : 'Add New Equipment'}
+        subtitle={editingEq ? editingEq.equipment_id : 'New asset'}
+        accent="violet"
+        width="max-w-3xl"
+      >
+        <div className="p-5">
           <EquipmentForm
             equipment={editingEq}
             onSubmit={handleFormSubmit}
             onCancel={() => { setIsFormOpen(false); setEditingEq(null); }}
           />
-        </GlassModal>
+        </div>
+      </CenterModal>
 
-        {/* Delete confirmation modal */}
-        <GlassModal
-          isOpen={!!deleteConfirm}
-          onClose={() => setDeleteConfirm(null)}
-          title="Confirm Deletion"
-          size="sm"
-          footer={
-            <div className="flex justify-end gap-2">
-              <GlassButton variant="secondary" onClick={() => setDeleteConfirm(null)}>Cancel</GlassButton>
-              <GlassButton variant="danger" icon={Trash2} onClick={() => deleteConfirm !== null && handleDelete(deleteConfirm)}>Delete</GlassButton>
-            </div>
-          }
-        >
-          <p className="text-white/70 text-sm">Are you sure you want to delete this equipment? This action cannot be undone.</p>
-        </GlassModal>
-      </main>
-    </PageShell>
+      {/* Delete confirmation modal */}
+      <CenterModal
+        open={!!deleteConfirm}
+        onClose={() => setDeleteConfirm(null)}
+        title="Confirm Deletion"
+        subtitle="This action cannot be undone"
+        accent="amber"
+        width="max-w-sm"
+      >
+        <div className="p-5 space-y-4">
+          <p className={`text-sm ${t.textMuted}`}>Are you sure you want to delete this equipment?</p>
+          <div className="flex gap-2">
+            <button type="button" onClick={() => setDeleteConfirm(null)} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border} transition-all`}>Cancel</button>
+            <button
+              type="button"
+              onClick={() => deleteConfirm !== null && handleDelete(deleteConfirm)}
+              className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-rose-500 to-rose-700 hover:brightness-110 transition-all inline-flex items-center justify-center gap-2"
+            >
+              <Trash2 className="h-4 w-4" /> Delete
+            </button>
+          </div>
+        </div>
+      </CenterModal>
+    </main>
   );
-};
+}
 
-export default EquipmentManagement;
+export default function EquipmentPage() {
+  return (
+    <AppShell>
+      <EquipmentPageContent />
+    </AppShell>
+  );
+}
