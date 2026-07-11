@@ -382,17 +382,19 @@ export function SearchInput({
 
 // ─── SelectField — THE canonical dropdown. Before this, every page hand-rolled a
 // `<select className="… t.inputBg …">` and the sizing drifted into 4+ different
-// height/padding/radius/font combinations across the app (sometimes two different
-// ones in the same file). Use this instead of a raw <select> anywhere.
+// height/padding/radius/font combinations across the app. Use this instead of a raw
+// <select> anywhere.
+//
+// It is a fully-custom (not native <select>) dropdown so the OPEN option list is
+// on-brand: the app's own font, theme colours, hover/selected states — a native
+// <select>'s option list is OS-rendered and can't be themed (wrong font, no dark mode).
+// The panel renders through a PORTAL to document.body (fixed-positioned from the
+// trigger) so no ancestor's overflow-hidden can clip it, and it's keyboard-accessible
+// (Enter/Space/↓ to open, ↑/↓ to move, Enter to pick, Esc to close).
 //
 // Two sizes ONLY, chosen by role — never hand-pick a third:
-//   • `filter` — compact, for filter/sort bars (sits beside SearchInput, matches its
-//     h-8 / text-[13px] / rounded-lg exactly so a filter row reads as one unit).
-//   • `form`   — comfortable, for add/edit modal fields (h-9 / text-sm, matches the
-//     shared form `inputCls` convention).
-// Both use `appearance-none` + a single custom ChevronDown so the closed control looks
-// identical across browsers (native select arrows differ per-OS). Font sizes come from
-// the same scale documented in tokens.tsx TYPE_SCALE — don't override them per call.
+//   • `filter` — compact, for filter/sort bars (matches SearchInput's h-8 / text-[13px]).
+//   • `form`   — comfortable, for add/edit modal fields (h-9 / text-sm).
 //
 // `options` accepts either `string[]` (value === label) or `{value,label}[]`.
 export function SelectField({
@@ -402,34 +404,106 @@ export function SelectField({
   onChange: (value: string) => void;
   options: readonly (string | { value: string; label: string })[];
   size?: 'form' | 'filter';
-  /** Shown as a disabled, non-selectable first row (e.g. "All Statuses"); omit if the
-   * first real option is already the default. */
+  /** Shown (muted) when no option is selected, e.g. "All Statuses". */
   placeholder?: string;
   title?: string;
   disabled?: boolean;
   className?: string;
 }) {
   const t = useTheme();
-  const sizeCls = size === 'filter'
-    ? 'h-8 pl-2.5 pr-8 text-[13px] rounded-lg'
-    : 'h-9 pl-3 pr-8 text-sm rounded-lg';
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(-1);
+  const [mounted, setMounted] = useState(false);
+  const [pos, setPos] = useState<{ top: number; left: number; width: number; above: boolean } | null>(null);
+
+  const opts = options.map(o => (typeof o === 'string' ? { value: o, label: o } : o));
+  const selected = opts.find(o => o.value === value);
+  const selectedIndex = opts.findIndex(o => o.value === value);
+
+  useEffect(() => setMounted(true), []);
+
+  const reposition = useCallback(() => {
+    const el = btnRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - r.bottom;
+    const above = spaceBelow < 240 && r.top > spaceBelow;
+    setPos({ top: above ? r.top : r.bottom, left: r.left, width: r.width, above });
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    reposition();
+    setActive(selectedIndex >= 0 ? selectedIndex : 0);
+    const on = () => reposition();
+    window.addEventListener('scroll', on, true);
+    window.addEventListener('resize', on);
+    return () => { window.removeEventListener('scroll', on, true); window.removeEventListener('resize', on); };
+  }, [open, reposition, selectedIndex]);
+
+  const commit = (v: string) => { onChange(v); setOpen(false); btnRef.current?.focus(); };
+
+  const sizeCls = size === 'filter' ? 'h-8 pl-2.5 pr-8 text-[13px] rounded-lg' : 'h-9 pl-3 pr-8 text-sm rounded-lg';
+
   return (
     <div className={`relative ${className}`}>
-      <select
-        value={value}
-        onChange={e => onChange(e.target.value)}
+      <button
+        ref={btnRef}
+        type="button"
         title={title}
         disabled={disabled}
-        className={`w-full appearance-none cursor-pointer outline-none transition-colors ${sizeCls} ${t.inputBg} disabled:opacity-50 disabled:cursor-default`}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen(o => !o)}
+        onKeyDown={e => {
+          if (disabled) return;
+          if (e.key === 'Escape') { setOpen(false); return; }
+          if (!open && (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); setOpen(true); return; }
+          if (!open) return;
+          if (e.key === 'ArrowDown') { e.preventDefault(); setActive(a => Math.min(a + 1, opts.length - 1)); }
+          else if (e.key === 'ArrowUp') { e.preventDefault(); setActive(a => Math.max(a - 1, 0)); }
+          else if (e.key === 'Enter') { e.preventDefault(); if (opts[active]) commit(opts[active].value); }
+        }}
+        className={`w-full flex items-center text-left outline-none cursor-pointer transition-colors ${sizeCls} ${t.inputBg} disabled:opacity-50 disabled:cursor-default`}
       >
-        {placeholder && <option value="" disabled>{placeholder}</option>}
-        {options.map(o => {
-          const val = typeof o === 'string' ? o : o.value;
-          const label = typeof o === 'string' ? o : o.label;
-          return <option key={val} value={val}>{label}</option>;
-        })}
-      </select>
-      <ChevronDown className={`pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 ${t.textFaint}`} />
+        <span className={`truncate ${selected ? '' : t.textFaint}`}>{selected ? selected.label : (placeholder ?? '')}</span>
+      </button>
+      <ChevronDown className={`pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 ${t.textFaint} transition-transform ${open ? 'rotate-180' : ''}`} />
+
+      {mounted && open && pos && createPortal(
+        <>
+          <div className="fixed inset-0 z-[9998]" onClick={() => setOpen(false)} />
+          <div
+            role="listbox"
+            style={{
+              position: 'fixed',
+              top: pos.above ? undefined : pos.top + 4,
+              bottom: pos.above ? window.innerHeight - pos.top + 4 : undefined,
+              left: pos.left,
+              width: pos.width,
+              zIndex: 9999,
+            }}
+            className={`rounded-lg overflow-hidden ${t.glass} ${t.shadow} max-h-60 overflow-y-auto py-1`}
+          >
+            {opts.map((o, i) => (
+              <button
+                key={o.value}
+                type="button"
+                role="option"
+                aria-selected={o.value === value}
+                onMouseDown={e => { e.preventDefault(); commit(o.value); }}
+                onMouseEnter={() => setActive(i)}
+                className={`w-full text-left px-3 py-1.5 text-[13px] flex items-center justify-between gap-2 transition-colors ${i === active ? t.chipBg : ''} ${o.value === value ? `font-medium ${t.textPrimary}` : t.textMuted}`}
+              >
+                <span className="truncate">{o.label}</span>
+                {o.value === value && <Check className="h-3.5 w-3.5 shrink-0 text-blue-400" />}
+              </button>
+            ))}
+          </div>
+        </>,
+        document.body,
+      )}
     </div>
   );
 }
