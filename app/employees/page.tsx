@@ -15,8 +15,8 @@ import { toast } from "sonner";
 import { AppShell } from "@/components/app-shell";
 import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle,
-  FormField, FormActions, useCollapseSection, CenterModal, ACCENT_HEX, GlowCard, SelectField,
-  GroupSection, Collapse, staggerContainer, fadeUp,
+  FormField, FormActions, useCollapseSection, CenterModal, ACCENT_HEX, SelectField,
+  GroupSection, RecordCard, staggerContainer, fadeUp,
 } from '@/components/shared/theme';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -83,15 +83,15 @@ const CLASS_OPTIONS = ['Permanent', 'Contract', 'Internship', 'Part-Time'] as co
 const CLASS_COLORS: Record<string, string> = {
   Permanent: '#34d399', Contract: '#f59e0b', Internship: ACCENT_HEX.blue, 'Part-Time': '#a78bfa',
 };
-const ETYPE_COLORS: Record<string, string> = { NEC: ACCENT_HEX.indigo, SALARIED: '#14b8a6' };
+const ETYPE_COLORS: Record<string, string> = { NEC: ACCENT_HEX.indigo, SALARIED: ACCENT_HEX.cyan };
 const SECTION_COLORS: Record<string, string> = {
-  Mechanical: ACCENT_HEX.blue, Electrical: '#f59e0b', Civil: '#34d399', Instrumentation: '#a78bfa',
+  Mechanical: ACCENT_HEX.blue, Electrical: ACCENT_HEX.amber, Civil: ACCENT_HEX.emerald, Instrumentation: ACCENT_HEX.violet,
 };
 
-// Palette for sections that aren't one of the predefined four — hashed so each
-// distinct section name always gets the same colour (like the homepage's per-category
-// accents), instead of every unknown section rendering the same flat grey.
-const GROUP_PALETTE = ['#60a5fa', '#f59e0b', '#34d399', '#a78bfa', '#f43f5e', '#22d3ee', '#fb923c', '#a3e635', '#e879f9'];
+// Palette for sections that aren't one of the predefined four — drawn from the shared
+// ACCENT_HEX brand palette (not arbitrary hexes) so every group colour stays in harmony
+// with the rest of the app; hashed so each distinct section name is stable.
+const GROUP_PALETTE = [ACCENT_HEX.blue, ACCENT_HEX.amber, ACCENT_HEX.emerald, ACCENT_HEX.violet, ACCENT_HEX.cyan, ACCENT_HEX.indigo];
 function sectionColor(section?: string) {
   if (!section) return '#94a3b8';
   if (SECTION_COLORS[section]) return SECTION_COLORS[section];
@@ -173,8 +173,8 @@ function FilterChips({ label, options, value, onChange }: {
             key={o.value}
             type="button"
             onClick={() => onChange(o.value)}
-            className={`h-7 px-2.5 rounded-lg text-[12px] font-medium transition-colors ${
-              value === o.value ? 'bg-blue-500/20 text-blue-400' : `${t.textFaint} ${t.hoverText} ${t.hoverBg}`
+            className={`h-8 px-2.5 rounded-lg text-[13px] font-medium transition-colors ${
+              value === o.value ? 'bg-blue-500/20 text-blue-400' : `${t.chipBg} ${t.textMuted} ${t.hoverText} ${t.hoverBg}`
             }`}
           >
             {o.label}
@@ -435,8 +435,8 @@ function EmployeeRow({ employee, onEdit, onDelete }: EmployeeRowProps) {
 
   return (
     <div className={`border-b ${t.border}`}>
-      <div className={`flex items-center gap-3.5 px-4 py-3 ${t.hoverBgSoft} transition-colors group border-l-2`} style={{ borderLeftColor: secColor }}>
-        <div className="h-10 w-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${secColor}1a` }}>
+      <div className={`flex items-center gap-3.5 px-4 py-3 ${t.hoverBgSoft} transition-colors group`}>
+        <div className="shrink-0">
           <UserRound className="h-5 w-5" style={{ color: secColor }} />
         </div>
 
@@ -579,85 +579,65 @@ function EmployeeRow({ employee, onEdit, onDelete }: EmployeeRowProps) {
   );
 }
 
-// ─── EmployeeCard — the same InfoCard tile the homepage module cards use (icon +
-// title + hover-revealed detail + GlowCard lift/glow), so a person reads exactly like
-// a "Personnel"/"Assets" tile. Clicking opens the quick-view popup below. No initials
-// avatar — a person icon tinted by the employee's section, matching the homepage. ──
+// ─── EmployeeCard — built on the shared RecordCard, so it inherits the exact homepage
+// module-card treatment (bare accent icon + pop, Montserrat title, GlowCard lift/glow).
+// Key summary always visible; the rest expands in place. ──
 
 function EmployeeCard({ employee, onEdit, onDelete }: { employee: Employee; onEdit: (e: Employee) => void; onDelete: (e: Employee) => void }) {
   const t = useTheme();
-  const [expanded, setExpanded] = useState(false);
-  const name = `${employee.first_name} ${employee.last_name}`;
   const secColor = sectionColor(employee.section);
   const ten = tenure(employee.date_of_engagement);
   const quals = employee.qualifications ?? [];
 
   return (
-    <GlowCard color={secColor} surface={`${t.glass} rounded-2xl`} className="overflow-hidden">
-      {/* Header: person icon (no initials), name, job title, section/type badges */}
-      <div className="p-4">
-        <div className="flex items-start gap-3">
-          <div className="h-11 w-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${secColor}1a` }}>
-            <UserRound className="h-[22px] w-[22px]" style={{ color: secColor }} />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className={`text-[15px] font-semibold leading-tight truncate ${t.textPrimary}`}>{name}</p>
-            <p className={`text-xs mt-0.5 truncate ${t.textMuted}`}>{employee.designation || 'No role'}</p>
-            <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-              {employee.section && <StatusBadge color={secColor} label={employee.section} />}
-              {employee.employment_type && <StatusBadge color={ETYPE_COLORS[employee.employment_type] ?? '#94a3b8'} label={employee.employment_type} />}
-            </div>
-          </div>
-          <button type="button" onClick={() => setExpanded(o => !o)} title={expanded ? 'Show less' : 'Expand details'}
-            className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all shrink-0`}>
-            {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-          </button>
-        </div>
-
-        {/* Key summary (always visible) */}
-        <div className={`mt-3 grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs ${t.textMuted}`}>
+    <RecordCard
+      icon={UserRound}
+      accentHex={secColor}
+      title={`${employee.first_name} ${employee.last_name}`}
+      subtitle={employee.designation || 'No role'}
+      badges={<>
+        {employee.section && <StatusBadge color={secColor} label={employee.section} />}
+        {employee.employment_type && <StatusBadge color={ETYPE_COLORS[employee.employment_type] ?? '#94a3b8'} label={employee.employment_type} />}
+      </>}
+      summary={
+        <div className={`grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs ${t.textMuted}`}>
           <SummaryItem icon={Hash} label="Mine No." value={employee.employee_id} />
           <SummaryItem icon={Phone} label="Phone" value={employee.phone} />
           {employee.address && <div className="col-span-2"><SummaryItem icon={MapPin} label="Address" value={employee.address} /></div>}
         </div>
+      }
+      actions={<>
+        <button onClick={() => onEdit(employee)} type="button" className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 text-white text-[12px] font-semibold hover:brightness-110 transition-all">
+          <Edit className="h-3.5 w-3.5" /> Edit
+        </button>
+        <button onClick={() => onDelete(employee)} type="button" className={`px-4 flex items-center justify-center gap-1.5 py-2 rounded-lg ${t.chipBg} text-rose-500 hover:bg-rose-500/10 text-[12px] font-semibold transition-all`}>
+          <Trash2 className="h-3.5 w-3.5" /> Delete
+        </button>
+      </>}
+    >
+      <div className="grid grid-cols-2 gap-x-4 gap-y-2.5">
+        <InfoRow label="ID Number" value={employee.id_number} />
+        <InfoRow label="Department" value={employee.department} />
+        <InfoRow label="Tenure" value={ten} />
+        <InfoRow label="Joined" value={fmtDate(employee.date_of_engagement)} />
+        <InfoRow label="Grade" value={employee.grade} />
+        <InfoRow label="Supervisor" value={employee.supervisor} />
+        <InfoRow label="Class" value={employee.employee_class || 'Unclassified'} />
       </div>
-
-      {/* Expanded — the rest of the detail, in-place */}
-      <Collapse open={expanded}>
-        <div className={`px-4 pb-4 border-t ${t.border} pt-3 space-y-3`}>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-2.5">
-            <InfoRow label="ID Number" value={employee.id_number} />
-            <InfoRow label="Department" value={employee.department} />
-            <InfoRow label="Tenure" value={ten} />
-            <InfoRow label="Joined" value={fmtDate(employee.date_of_engagement)} />
-            <InfoRow label="Grade" value={employee.grade} />
-            <InfoRow label="Supervisor" value={employee.supervisor} />
-            <InfoRow label="Class" value={employee.employee_class || 'Unclassified'} />
-          </div>
-          {employee.email && (
-            <a href={`mailto:${employee.email}`} className="flex items-center gap-1.5 text-xs text-blue-400 hover:underline w-fit">
-              <Mail className="h-3 w-3" />{employee.email}
-            </a>
-          )}
-          {quals.length > 0 && (
-            <div>
-              <p className={`text-[10px] font-semibold ${t.textTertiary} uppercase tracking-wider mb-1.5`}>Qualifications</p>
-              <div className="flex flex-wrap gap-1.5">
-                {quals.map((q, i) => <span key={i} className={`text-[10.5px] font-medium ${t.textMuted} ${t.chipBg} rounded-full px-2 py-0.5`}>{q}</span>)}
-              </div>
-            </div>
-          )}
-          <div className="flex gap-2 pt-1">
-            <button onClick={() => onEdit(employee)} type="button" className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 text-white text-[12px] font-semibold hover:brightness-110 transition-all">
-              <Edit className="h-3.5 w-3.5" /> Edit
-            </button>
-            <button onClick={() => onDelete(employee)} type="button" className={`px-4 flex items-center justify-center gap-1.5 py-2 rounded-lg ${t.chipBg} text-rose-500 hover:bg-rose-500/10 text-[12px] font-semibold transition-all`}>
-              <Trash2 className="h-3.5 w-3.5" /> Delete
-            </button>
+      {employee.email && (
+        <a href={`mailto:${employee.email}`} className="flex items-center gap-1.5 text-xs text-blue-400 hover:underline w-fit">
+          <Mail className="h-3 w-3" />{employee.email}
+        </a>
+      )}
+      {quals.length > 0 && (
+        <div>
+          <p className={`text-[10px] font-semibold ${t.textTertiary} uppercase tracking-wider mb-1.5`}>Qualifications</p>
+          <div className="flex flex-wrap gap-1.5">
+            {quals.map((q, i) => <span key={i} className={`text-[10.5px] font-medium ${t.textMuted} ${t.chipBg} rounded-full px-2 py-0.5`}>{q}</span>)}
           </div>
         </div>
-      </Collapse>
-    </GlowCard>
+      )}
+    </RecordCard>
   );
 }
 

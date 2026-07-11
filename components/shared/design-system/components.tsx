@@ -247,6 +247,66 @@ export function GroupSection({
   );
 }
 
+// ─── RecordCard — THE universal "list record" card. Carries the exact same visual
+// language as the homepage module tiles — GlowCard lift/glow, a bare accent-coloured
+// icon that pops on hover (tileIconItem), a heading-font (Montserrat, via the <h4>)
+// title — but sized for a data record and expandable in place. Every list page
+// (employees, equipment, inventory, spares…) should render its records with this so
+// they all read as one system instead of each hand-rolling its own card.
+//
+//   • `summary`  — always-visible rows under the header (key facts at a glance).
+//   • `children` — the expandable detail; when provided, a chevron reveals it via the
+//                   shared Collapse (same animation as GroupSection / the homepage).
+//   • `actions`  — rendered at the foot of the expanded area (e.g. Edit / Delete).
+export function RecordCard({
+  icon: Icon, accentHex, title, subtitle, badges, summary, actions, children, defaultOpen = false,
+}: {
+  icon: ElementType;
+  accentHex: string;
+  title: string;
+  subtitle?: string;
+  badges?: ReactNode;
+  summary?: ReactNode;
+  actions?: ReactNode;
+  children?: ReactNode;
+  defaultOpen?: boolean;
+}) {
+  const t = useTheme();
+  const [open, setOpen] = useState(defaultOpen);
+  const expandable = !!children;
+  return (
+    <GlowCard color={accentHex} surface={`${t.glass} rounded-2xl`} className="overflow-hidden">
+      <div className="p-4">
+        <div className="flex items-start gap-3">
+          <motion.div variants={tileIconItem} className="shrink-0 mt-0.5">
+            <Icon className="h-5 w-5" style={{ color: accentHex }} />
+          </motion.div>
+          <div className="min-w-0 flex-1">
+            <h4 className={`font-semibold text-[14px] leading-tight tracking-tight truncate ${t.textPrimary}`}>{title}</h4>
+            {subtitle && <p className={`text-xs mt-0.5 truncate ${t.textMuted}`}>{subtitle}</p>}
+            {badges && <div className="flex items-center gap-1.5 mt-2 flex-wrap">{badges}</div>}
+          </div>
+          {expandable && (
+            <button type="button" onClick={() => setOpen(o => !o)} title={open ? 'Show less' : 'Expand details'}
+              className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all shrink-0`}>
+              <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />
+            </button>
+          )}
+        </div>
+        {summary && <div className="mt-3">{summary}</div>}
+      </div>
+      {expandable && (
+        <Collapse open={open}>
+          <div className={`px-4 pb-4 border-t ${t.border} pt-3 space-y-3`}>
+            {children}
+            {actions && <div className="flex gap-2 pt-1">{actions}</div>}
+          </div>
+        </Collapse>
+      )}
+    </GlowCard>
+  );
+}
+
 // ─── StatCard — generalizes the homepage KPICard: an elevated glass tile (via
 // GlowCard, so it shares the exact same hover-lift as every other card in the app)
 // with an icon+label row, a big value, and an optional trend indicator.
