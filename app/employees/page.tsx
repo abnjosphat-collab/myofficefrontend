@@ -8,7 +8,7 @@ import {
   Loader2, Clock, AlertCircle, Trash2, X, Edit,
   Mail, Briefcase, GraduationCap, UserCheck,
   FilterX, Sparkles, UserRound, BriefcaseBusiness, Phone,
-  ArrowUpDown, List, LayoutGrid,
+  ArrowUpDown, List, LayoutGrid, Maximize2,
   Filter, FileText, Award, Download, ChevronsDownUp, ChevronsUpDown,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -16,7 +16,7 @@ import { AppShell } from "@/components/app-shell";
 import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle,
   FormField, FormActions, useCollapseSection, CenterModal, ACCENT_HEX, GlowCard, SelectField,
-  GroupSection, staggerContainer, fadeUp,
+  GroupSection, InfoCard, staggerContainer, fadeUp,
 } from '@/components/shared/theme';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -123,9 +123,6 @@ function fmtDate(d?: string) {
   return isNaN(dt.getTime()) ? '—' : dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-function initials(name: string) {
-  return name.trim().split(/\s+/).map(p => p[0]).join('').toUpperCase().slice(0, 2);
-}
 
 // ─── API ──────────────────────────────────────────────────────────────────────
 
@@ -439,8 +436,8 @@ function EmployeeRow({ employee, onEdit, onDelete }: EmployeeRowProps) {
   return (
     <div className={`border-b ${t.border}`}>
       <div className={`flex items-center gap-3.5 px-4 py-3 ${t.hoverBgSoft} transition-colors group border-l-2`} style={{ borderLeftColor: secColor }}>
-        <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white font-bold text-sm shrink-0">
-          {initials(name)}
+        <div className="h-10 w-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${secColor}1a` }}>
+          <UserRound className="h-5 w-5" style={{ color: secColor }} />
         </div>
 
         <button type="button" onClick={() => setExpanded(o => !o)} className="flex-1 min-w-0 text-left">
@@ -582,87 +579,112 @@ function EmployeeRow({ employee, onEdit, onDelete }: EmployeeRowProps) {
   );
 }
 
-// ─── EmployeeCard ─────────────────────────────────────────────────────────────
+// ─── EmployeeCard — the same InfoCard tile the homepage module cards use (icon +
+// title + hover-revealed detail + GlowCard lift/glow), so a person reads exactly like
+// a "Personnel"/"Assets" tile. Clicking opens the quick-view popup below. No initials
+// avatar — a person icon tinted by the employee's section, matching the homepage. ──
 
-interface EmployeeCardProps { employee: Employee; onEdit: (e: Employee) => void; onDelete: (e: Employee) => void; }
-
-function EmployeeCard({ employee, onEdit, onDelete }: EmployeeCardProps) {
+function EmployeeCard({ employee, onView }: { employee: Employee; onView: (e: Employee) => void }) {
   const t = useTheme();
-  const [expanded, setExpanded] = useState(false);
   const name = `${employee.first_name} ${employee.last_name}`;
-  const quals = employee.qualifications?.length ?? 0;
-  const ten = tenure(employee.date_of_engagement);
   const secColor = sectionColor(employee.section);
-
+  const ten = tenure(employee.date_of_engagement);
   return (
-    <GlowCard color={secColor} surface={`${t.glass} rounded-2xl`} className="overflow-hidden">
-      <div className="flex items-start justify-between px-5 py-4">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white font-bold text-base shrink-0">
-            {initials(name)}
-          </div>
-          <div className="min-w-0">
-            <p className={`text-[15px] font-semibold leading-tight truncate ${t.textPrimary}`}>{name}</p>
-            <p className={`text-xs mt-0.5 ${t.textFaint}`}>
-              {employee.designation || 'No role'} · <span className="font-mono text-blue-400">{employee.employee_id}</span>
-            </p>
-            <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-              {employee.employment_type && <StatusBadge color={ETYPE_COLORS[employee.employment_type] ?? '#94a3b8'} label={employee.employment_type} />}
-              <StatusBadge color={CLASS_COLORS[employee.employee_class || ''] ?? '#94a3b8'} label={employee.employee_class || 'Unclassified'} />
-              {employee.section && <StatusBadge color={secColor} label={employee.section} />}
-            </div>
-          </div>
-        </div>
-        <button type="button" title={expanded ? 'Collapse' : 'Expand'} onClick={() => setExpanded(o => !o)}
-          className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all shrink-0`}>
-          {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-        </button>
-      </div>
+    <div className="relative group">
+      <InfoCard
+        icon={UserRound}
+        iconColor={secColor}
+        accentColor={secColor}
+        metricValue={ten !== '—' ? ten : undefined}
+        metricLabel={ten !== '—' ? 'tenure' : undefined}
+        title={name}
+        description={employee.designation || 'No role'}
+        onClick={() => onView(employee)}
+        className="cursor-pointer"
+        badge={employee.employment_type
+          ? <StatusBadge color={ETYPE_COLORS[employee.employment_type] ?? '#94a3b8'} label={employee.employment_type} />
+          : undefined}
+      />
+      {/* Explicit quick-view affordance (matches the homepage module tile's Maximize2). */}
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); onView(employee); }}
+        title="View full details"
+        className={`absolute top-2 right-2 p-1 rounded-md ${t.hoverBg} ${t.textFaint} ${t.hoverText} opacity-0 group-hover:opacity-100 transition-all`}
+      >
+        <Maximize2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+      </button>
+    </div>
+  );
+}
 
-      <div className={`px-5 pb-4 pt-3 grid grid-cols-3 gap-3 border-t ${t.border}`}>
-        <InfoRow label="Joined" value={fmtDate(employee.date_of_engagement)} />
-        <InfoRow label="Tenure" value={ten} />
-        <InfoRow label="Quals" value={quals > 0 ? `${quals} recorded` : 'None'} />
-      </div>
+// ─── EmployeeQuickView — the popup shown when a card is clicked. Mirrors the homepage's
+// ModuleQuickView: an InfoCard header, a grid of facts, contact, qualifications, and
+// primary actions. Full details "at a glance" without leaving the grid. ──
 
-      {expanded && (
-        <div className={`px-5 pb-4 border-t ${t.border} space-y-3 pt-3`}>
-          <div className="grid grid-cols-2 gap-x-6 gap-y-2.5">
-            {employee.id_number && <InfoRow label="ID Number" value={employee.id_number} />}
-            {employee.supervisor && <InfoRow label="Supervisor" value={employee.supervisor} />}
-            {employee.section && <InfoRow label="Section" value={employee.section} />}
-            {employee.grade && <InfoRow label="Grade" value={employee.grade} />}
-          </div>
-          {(employee.email || employee.phone) && (
-            <div className="flex flex-wrap gap-3 pt-1">
-              {employee.email && <a href={`mailto:${employee.email}`} className="flex items-center gap-1.5 text-xs text-blue-400 hover:underline"><Mail className="h-3 w-3" />{employee.email}</a>}
-              {employee.phone && <a href={`tel:${employee.phone}`} className="flex items-center gap-1.5 text-xs text-blue-400 hover:underline"><Phone className="h-3 w-3" />{employee.phone}</a>}
-            </div>
-          )}
-          {quals > 0 && (
-            <div className="flex flex-wrap gap-1.5 pt-1">
-              {employee.qualifications!.map((q, i) => <StatusBadge key={i} color={ACCENT_HEX.blue} label={q} />)}
-            </div>
-          )}
-        </div>
+function EmployeeQuickView({ employee, onEdit, onDelete }: { employee: Employee; onEdit: () => void; onDelete: () => void }) {
+  const t = useTheme();
+  const name = `${employee.first_name} ${employee.last_name}`;
+  const secColor = sectionColor(employee.section);
+  const quals = employee.qualifications ?? [];
+  const facts: { label: string; value: React.ReactNode }[] = [
+    { label: 'Employee ID', value: employee.employee_id || '—' },
+    { label: 'Section', value: employee.section || '—' },
+    { label: 'Department', value: employee.department || '—' },
+    { label: 'Tenure', value: tenure(employee.date_of_engagement) },
+    { label: 'Class', value: employee.employee_class || 'Unclassified' },
+    { label: 'Grade', value: employee.grade || '—' },
+    { label: 'Joined', value: fmtDate(employee.date_of_engagement) },
+    { label: 'Supervisor', value: employee.supervisor || '—' },
+  ];
+  return (
+    <motion.div variants={staggerContainer} initial="hidden" animate="show" className="p-5 space-y-4">
+      <InfoCard
+        variant="header"
+        icon={UserRound}
+        accentColor={secColor}
+        title={name}
+        description={employee.designation || 'No role'}
+        animateText={false}
+        badge={employee.employment_type
+          ? <StatusBadge color={ETYPE_COLORS[employee.employment_type] ?? '#94a3b8'} label={employee.employment_type} />
+          : undefined}
+      />
+
+      <motion.div variants={staggerContainer} className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        {facts.map((f, i) => (
+          <motion.div key={i} variants={fadeUp} className={`rounded-lg ${t.chipBg} p-2.5`}>
+            <p className={`text-[9px] uppercase tracking-wide ${t.textFaint}`}>{f.label}</p>
+            <p className={`text-[12.5px] font-medium ${t.textMuted} truncate mt-0.5`}>{f.value}</p>
+          </motion.div>
+        ))}
+      </motion.div>
+
+      {(employee.email || employee.phone) && (
+        <motion.div variants={fadeUp} className="flex flex-wrap gap-3">
+          {employee.email && <a href={`mailto:${employee.email}`} className="flex items-center gap-1.5 text-xs text-blue-400 hover:underline"><Mail className="h-3 w-3" />{employee.email}</a>}
+          {employee.phone && <a href={`tel:${employee.phone}`} className="flex items-center gap-1.5 text-xs text-blue-400 hover:underline"><Phone className="h-3 w-3" />{employee.phone}</a>}
+        </motion.div>
       )}
 
-      <div className={`px-5 py-2.5 border-t ${t.border} ${t.chipBg} flex items-center gap-3`}>
-        <button type="button" onClick={() => onEdit(employee)} className="flex items-center gap-1.5 text-[11px] font-medium text-blue-400 hover:brightness-125 transition-all">
-          <Edit className="h-3 w-3" /> Edit
+      {quals.length > 0 && (
+        <motion.div variants={fadeUp}>
+          <p className={`text-[10px] font-semibold ${t.textTertiary} uppercase tracking-wider mb-1.5`}>Qualifications</p>
+          <div className="flex flex-wrap gap-1.5">
+            {quals.map((q, i) => <span key={i} className={`text-[10.5px] font-medium ${t.textMuted} ${t.chipBg} rounded-full px-2 py-0.5`}>{q}</span>)}
+          </div>
+        </motion.div>
+      )}
+
+      <motion.div variants={fadeUp} className="flex gap-2 pt-1">
+        <button onClick={onEdit} type="button" className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 text-white text-[12px] font-semibold hover:brightness-110 transition-all">
+          <Edit className="h-3.5 w-3.5" /> Edit Employee
         </button>
-        <div className={`h-3 w-px ${t.border} border-l`} />
-        {employee.email && (
-          <a href={`mailto:${employee.email}`} className={`flex items-center gap-1.5 text-[11px] ${t.textFaint} hover:text-blue-400 transition-all`}>
-            <Mail className="h-3 w-3" /> Email
-          </a>
-        )}
-        <div className="flex-1" />
-        <button type="button" onClick={() => onDelete(employee)} className={`flex items-center gap-1.5 text-[11px] ${t.textFaint} hover:text-rose-500 transition-all`}>
-          <Trash2 className="h-3 w-3" /> Delete
+        <button onClick={onDelete} type="button" className={`px-4 flex items-center justify-center gap-1.5 py-2 rounded-lg ${t.chipBg} text-rose-500 hover:bg-rose-500/10 text-[12px] font-semibold transition-all`}>
+          <Trash2 className="h-3.5 w-3.5" /> Delete
         </button>
-      </div>
-    </GlowCard>
+      </motion.div>
+    </motion.div>
   );
 }
 
@@ -676,6 +698,7 @@ function EmployeesPageContent() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [viewingEmployee, setViewingEmployee] = useState<Employee | null>(null);
 
   const [search, setSearch] = useState('');
   const [classFilter,   setClassFilter]   = useState('all');
@@ -979,7 +1002,7 @@ function EmployeesPageContent() {
                 {g.employees.map(e => (
                   <motion.div key={e.id} variants={fadeUp}>
                     {viewMode === 'grid'
-                      ? <EmployeeCard employee={e} onEdit={openEdit} onDelete={onDelete} />
+                      ? <EmployeeCard employee={e} onView={setViewingEmployee} />
                       : <EmployeeRow employee={e} onEdit={openEdit} onDelete={onDelete} />}
                   </motion.div>
                 ))}
@@ -1005,6 +1028,23 @@ function EmployeesPageContent() {
             isSubmitting={isSubmitting}
           />
         </div>
+      </CenterModal>
+
+      <CenterModal
+        open={!!viewingEmployee}
+        onClose={() => setViewingEmployee(null)}
+        title={viewingEmployee ? `${viewingEmployee.first_name} ${viewingEmployee.last_name}` : ''}
+        subtitle="Employee details"
+        accent="violet"
+        width="max-w-lg"
+      >
+        {viewingEmployee && (
+          <EmployeeQuickView
+            employee={viewingEmployee}
+            onEdit={() => { const e = viewingEmployee; setViewingEmployee(null); openEdit(e); }}
+            onDelete={() => { const e = viewingEmployee; setViewingEmployee(null); onDelete(e); }}
+          />
+        )}
       </CenterModal>
     </main>
   );
