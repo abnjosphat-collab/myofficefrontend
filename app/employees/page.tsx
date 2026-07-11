@@ -2,19 +2,21 @@
 'use client';
 
 import React, { useState, useMemo, useEffect, useCallback } from "react";
+import { motion } from "framer-motion";
 import {
   Users, Plus, Search, ChevronDown, ChevronUp, RefreshCw,
   Loader2, Clock, AlertCircle, Trash2, X, Edit,
   Mail, Briefcase, GraduationCap, UserCheck,
   FilterX, Sparkles, UserRound, BriefcaseBusiness, Phone,
-  ChevronLeft, ChevronRight, ArrowUpDown, List, LayoutGrid,
-  Filter, FileText, Award, Download,
+  ArrowUpDown, List, LayoutGrid,
+  Filter, FileText, Award, Download, ChevronsDownUp, ChevronsUpDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/app-shell";
 import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle,
   FormField, FormActions, useCollapseSection, CenterModal, ACCENT_HEX, GlowCard, SelectField,
+  GroupSection, staggerContainer, fadeUp,
 } from '@/components/shared/theme';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -86,7 +88,20 @@ const SECTION_COLORS: Record<string, string> = {
   Mechanical: ACCENT_HEX.blue, Electrical: '#f59e0b', Civil: '#34d399', Instrumentation: '#a78bfa',
 };
 
-function sectionColor(section?: string) { return SECTION_COLORS[section || ''] ?? '#94a3b8'; }
+// Palette for sections that aren't one of the predefined four — hashed so each
+// distinct section name always gets the same colour (like the homepage's per-category
+// accents), instead of every unknown section rendering the same flat grey.
+const GROUP_PALETTE = ['#60a5fa', '#f59e0b', '#34d399', '#a78bfa', '#f43f5e', '#22d3ee', '#fb923c', '#a3e635', '#e879f9'];
+function sectionColor(section?: string) {
+  if (!section) return '#94a3b8';
+  if (SECTION_COLORS[section]) return SECTION_COLORS[section];
+  let h = 0;
+  for (let i = 0; i < section.length; i++) h = (h * 31 + section.charCodeAt(i)) >>> 0;
+  return GROUP_PALETTE[h % GROUP_PALETTE.length];
+}
+
+// Stable display order for the section groups (the record accordions).
+const SECTION_ORDER = ['Mechanical', 'Electrical', 'Civil', 'Instrumentation'];
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
@@ -670,13 +685,13 @@ function EmployeesPageContent() {
   const [roleFilter,    setRoleFilter]    = useState('all');
   const [sortBy, setSortBy] = useState<SortField>('first_name');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
-  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
-  const [page, setPage] = useState(1);
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('grid');
+  // Records are grouped by section (homepage category-accordion vocabulary); this
+  // tracks which section groups the user has collapsed (default: all open).
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [showFilters, setShowFilters] = useState(true);
 
   const sections = useCollapseSection({ hero: true });
-
-  const PER_PAGE = 25;
 
   const reload = useCallback(async () => {
     setIsLoading(true); setError(null);
@@ -689,7 +704,6 @@ function EmployeesPageContent() {
 
   const uniqueDepts    = useMemo(() => [...new Set(employees.map(e => e.department).filter(Boolean) as string[])].sort(), [employees]);
   const uniqueRoles    = useMemo(() => [...new Set(employees.map(e => e.designation).filter(Boolean) as string[])].sort(), [employees]);
-  const uniqueSections = useMemo(() => [...new Set(employees.map(e => e.section).filter(Boolean) as string[])].sort(), [employees]);
 
   const filtered = useMemo(() => {
     let list = [...employees];
@@ -718,9 +732,35 @@ function EmployeesPageContent() {
     return list;
   }, [employees, search, classFilter, etypeFilter, sectionFilter, deptFilter, roleFilter, sortBy, sortDir]);
 
-  const totalPages = Math.ceil(filtered.length / PER_PAGE);
-  const paged = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
-  useEffect(() => setPage(1), [search, classFilter, etypeFilter, sectionFilter, deptFilter, roleFilter, sortBy, sortDir]);
+  // Group the filtered/sorted list by section — defined sections first (in a stable
+  // order), any other sections alphabetically, "Unassigned" last.
+  const grouped = useMemo(() => {
+    const map = new Map<string, Employee[]>();
+    for (const e of filtered) {
+      const key = e.section || 'Unassigned';
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(e);
+    }
+    const rank = (k: string) => {
+      if (k === 'Unassigned') return 999;
+      const i = SECTION_ORDER.indexOf(k);
+      return i === -1 ? 500 : i;
+    };
+    return [...map.keys()]
+      .sort((a, b) => rank(a) - rank(b) || a.localeCompare(b))
+      .map(section => ({ section, color: sectionColor(section === 'Unassigned' ? undefined : section), employees: map.get(section)! }));
+  }, [filtered]);
+
+  // A group is open unless the user collapsed it; an active search force-opens every
+  // group so matches are always visible.
+  const isGroupOpen = (section: string) => !!search || !collapsedGroups.has(section);
+  const toggleGroup = (section: string) => setCollapsedGroups(prev => {
+    const next = new Set(prev);
+    next.has(section) ? next.delete(section) : next.add(section);
+    return next;
+  });
+  const allGroupsOpen = grouped.every(g => !collapsedGroups.has(g.section));
+  const toggleAllGroups = () => setCollapsedGroups(allGroupsOpen ? new Set(grouped.map(g => g.section)) : new Set());
 
   const activeFilterCount = [search, classFilter !== 'all', etypeFilter !== 'all', sectionFilter !== 'all', deptFilter !== 'all', roleFilter !== 'all'].filter(Boolean).length;
 
@@ -849,8 +889,6 @@ function EmployeesPageContent() {
               options={[{ value: 'all', label: 'All Types' }, { value: 'NEC', label: 'NEC' }, { value: 'SALARIED', label: 'Salaried' }]} />
             <FilterChips label="Employee Class" value={classFilter} onChange={setClassFilter}
               options={[{ value: 'all', label: 'All Classes' }, ...CLASS_OPTIONS.map(c => ({ value: c, label: c }))]} />
-            <FilterChips label="Section" value={sectionFilter} onChange={setSectionFilter}
-              options={[{ value: 'all', label: 'All Sections' }, ...uniqueSections.map(s => ({ value: s, label: s }))]} />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <p className={`text-xs font-medium mb-1.5 ${t.textFaint}`}>Department</p>
@@ -867,11 +905,12 @@ function EmployeesPageContent() {
         )}
       </div>
 
-      {/* Records */}
+      {/* Records — grouped by section (homepage category-accordion vocabulary) */}
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <p className={`text-sm ${t.textFaint}`}>
             Showing <span className={`font-semibold ${t.textPrimary}`}>{filtered.length}</span> of {employees.length} employees
+            {grouped.length > 0 && <span> · {grouped.length} section{grouped.length === 1 ? '' : 's'}</span>}
           </p>
           <div className="flex items-center gap-2">
             <SelectField size="filter" title="Sort by" value={sortBy} onChange={v => setSortBy(v as SortField)}
@@ -886,6 +925,14 @@ function EmployeesPageContent() {
               className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all`}>
               <ArrowUpDown className="h-3.5 w-3.5" />
             </button>
+            <ViewToggle value={viewMode} onChange={setViewMode} options={[{ value: 'grid', icon: LayoutGrid, label: 'Card grid' }, { value: 'list', icon: List, label: 'Compact rows' }]} />
+            {grouped.length > 1 && !search && (
+              <button type="button" onClick={toggleAllGroups}
+                className={`flex items-center gap-1.5 text-[12px] font-medium ${t.textMuted} ${t.hoverText} ${t.glassSoft} rounded-lg px-2.5 py-1.5 transition-colors`}>
+                {allGroupsOpen ? <ChevronsDownUp className="h-3.5 w-3.5" /> : <ChevronsUpDown className="h-3.5 w-3.5" />}
+                {allGroupsOpen ? 'Collapse all' : 'Expand all'}
+              </button>
+            )}
           </div>
         </div>
 
@@ -893,7 +940,7 @@ function EmployeesPageContent() {
           <div className={`${t.glass} rounded-2xl p-16 text-center`}>
             <Loader2 className={`h-8 w-8 animate-spin ${t.textFaint} mx-auto`} />
           </div>
-        ) : paged.length === 0 ? (
+        ) : filtered.length === 0 ? (
           <div className={`${t.glass} rounded-2xl p-12 text-center`}>
             {employees.length === 0 ? (
               <>
@@ -915,28 +962,30 @@ function EmployeesPageContent() {
               </>
             )}
           </div>
-        ) : viewMode === 'list' ? (
-          <div className={`${t.glass} rounded-2xl overflow-hidden`}>
-            {paged.map(e => <EmployeeRow key={e.id} employee={e} onEdit={openEdit} onDelete={onDelete} />)}
-          </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {paged.map(e => <EmployeeCard key={e.id} employee={e} onEdit={openEdit} onDelete={onDelete} />)}
-          </div>
-        )}
-
-        {totalPages > 1 && (
-          <div className={`flex items-center justify-center gap-2 pt-4 border-t ${t.border}`}>
-            <button type="button" disabled={page === 1} onClick={() => setPage(p => Math.max(1, p - 1))}
-              className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs ${t.textMuted} ${t.hoverText} ${t.hoverBg} disabled:opacity-30 transition-all`}>
-              <ChevronLeft className="h-3.5 w-3.5" /> Prev
-            </button>
-            <span className={`text-xs px-2 ${t.textFaint}`}>Page {page} of {totalPages}</span>
-            <button type="button" disabled={page === totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-              className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs ${t.textMuted} ${t.hoverText} ${t.hoverBg} disabled:opacity-30 transition-all`}>
-              Next <ChevronRight className="h-3.5 w-3.5" />
-            </button>
-          </div>
+          <motion.div variants={staggerContainer} initial="hidden" animate="show" className="space-y-3">
+            {grouped.map(g => (
+              <GroupSection
+                key={g.section}
+                icon={Users}
+                accentHex={g.color}
+                title={g.section}
+                count={g.employees.length}
+                countLabel={g.employees.length === 1 ? 'person' : 'people'}
+                open={isGroupOpen(g.section)}
+                onToggle={() => toggleGroup(g.section)}
+                gridClassName={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4' : 'grid grid-cols-1 gap-0 -mx-4'}
+              >
+                {g.employees.map(e => (
+                  <motion.div key={e.id} variants={fadeUp}>
+                    {viewMode === 'grid'
+                      ? <EmployeeCard employee={e} onEdit={openEdit} onDelete={onDelete} />
+                      : <EmployeeRow employee={e} onEdit={openEdit} onDelete={onDelete} />}
+                  </motion.div>
+                ))}
+              </GroupSection>
+            ))}
+          </motion.div>
         )}
       </div>
 

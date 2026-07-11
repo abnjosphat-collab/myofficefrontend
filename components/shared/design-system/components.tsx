@@ -13,7 +13,7 @@ import { motion } from 'framer-motion';
 import { ChevronRight, ChevronDown, Loader2, Check, Search as SearchIcon, Pencil, Trash2, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { useTheme, ACCENT, ACCENT_HEX, SPACING, type Accent } from './tokens';
 import { GlowCard, PulsingIcon, AnimatedText, Collapse, CountUp } from './primitives';
-import { tileIconItem, tileTextContainer, tileTextItem } from './motion';
+import { tileIconItem, tileTextContainer, tileTextItem, staggerContainer, fadeUp } from './motion';
 
 // ─── useCollapseSection — drop-in replacement for the legacy usePageCollapse ────
 // Same shape (`sections.expanded.key`, `sections.toggle('key')`) so call sites
@@ -40,6 +40,9 @@ export function StatusBadge({ color, label, dot = false }: { color: string; labe
 }
 
 // ─── StatTile — generalizes PPE's hero KPI chips / a clickable stat strip item ──
+// Numeric values animate with the same eased CountUp the homepage hero uses, so every
+// page's hero stats share that "living dashboard" feel; string values (e.g. "4.2h",
+// "✓", "87%") render as-is.
 export function StatTile({
   icon: Icon, color, value, label, onClick,
 }: {
@@ -54,7 +57,9 @@ export function StatTile({
       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg ${t.hoverBg} transition-all disabled:cursor-default group`}
     >
       <Icon className="w-3.5 h-3.5" style={{ color }} />
-      <span className={`text-base font-bold ${t.textPrimary} tabular-nums`}>{value}</span>
+      <span className={`text-base font-bold ${t.textPrimary} tabular-nums`}>
+        {typeof value === 'number' ? <CountUp value={value} /> : value}
+      </span>
       <span className={`text-xs ${t.textMuted} transition-colors`}>{label}</span>
     </button>
   );
@@ -168,6 +173,77 @@ export function CollapsibleHeader({
         </button>
       </div>
     </div>
+  );
+}
+
+// ─── GroupSection — the homepage's category-accordion pattern, generalized. Use this
+// on any LIST page whose records read better grouped-and-summarized than as one flat
+// list (staff by section, equipment by area, spares by category…). It gives that page
+// the homepage's exact information structure: a collapsible glass panel per group, an
+// accent-colored icon, a headcount, optional summary chips, and a staggered grid of
+// items inside — instead of a single undifferentiated scroll.
+//
+// The caller supplies the grouping + the item cards (each wrapped in its own
+// `<motion.div variants={fadeUp}>` so items reveal in sequence, matching the homepage).
+export function GroupSection({
+  icon: Icon, accentHex, title, count, countLabel = 'items', description, summary,
+  open, onToggle, gridClassName = 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4', children,
+}: {
+  icon?: ElementType;
+  /** Accent color for the group (e.g. a section's assigned hex) — tints the icon. */
+  accentHex: string;
+  title: string;
+  count?: number;
+  countLabel?: string;
+  description?: string;
+  /** Optional trailing header content (e.g. mini stat chips summarizing the group). */
+  summary?: ReactNode;
+  open: boolean;
+  onToggle: () => void;
+  /** Layout for the items inside — defaults to the standard 1/2/3-col card grid. */
+  gridClassName?: string;
+  children: ReactNode;
+}) {
+  const t = useTheme();
+  return (
+    <motion.div variants={fadeUp} className={`${t.glass} rounded-2xl ${t.shadow} scroll-mt-24 overflow-hidden`}>
+      <button
+        onClick={onToggle}
+        className={`w-full flex items-center gap-3 px-4 py-3 ${t.hoverBgSoft} text-left group transition-colors`}
+        type="button"
+      >
+        {Icon && (
+          <div className="h-8 w-8 flex items-center justify-center shrink-0 rounded-lg group-hover:scale-105 transition-transform"
+            style={{ background: `${accentHex}1a` }}>
+            <Icon className="h-5 w-5" style={{ color: accentHex }} />
+          </div>
+        )}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <h3 className={`font-semibold ${t.textPrimary} text-[14px] tracking-tight`}>{title}</h3>
+            {count !== undefined && (
+              <span className={`text-[11px] font-medium ${t.textTertiary} tabular-nums`}>{count} {countLabel}</span>
+            )}
+          </div>
+          {description && <p className={`text-[12px] ${t.textSecondary} mt-0.5`}>{description}</p>}
+        </div>
+        {summary && <div className="flex items-center gap-2 shrink-0">{summary}</div>}
+        <ChevronDown className={`h-4 w-4 ${t.textFaint} transition-transform shrink-0 ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      <Collapse open={open}>
+        <div className={`px-4 pb-4 pt-1 border-t ${t.border}`}>
+          <motion.div
+            variants={staggerContainer}
+            initial="hidden"
+            animate={open ? 'show' : 'hidden'}
+            className={`${gridClassName} mt-4`}
+          >
+            {children}
+          </motion.div>
+        </div>
+      </Collapse>
+    </motion.div>
   );
 }
 
