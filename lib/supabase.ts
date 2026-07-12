@@ -1,10 +1,25 @@
-// lib/supabase.ts — browser Supabase client (auth only; all DB ops go through FastAPI)
+// lib/supabase.ts — browser Supabase client (auth only; all DB ops go through FastAPI,
+// which has its own connection via the backend's supabase_client.py — this file is
+// unrelated to that and only powers browser-side auth calls like sign-in/sign-up).
 import { createClient } from '@supabase/supabase-js';
 
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL  ?? '';
-const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
+const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-export const supabase = createClient(url, key, {
+// createClient() throws synchronously on an empty/invalid URL, and this module is
+// imported (transitively, via AuthContext) from pages across the app — so a missing
+// env var here doesn't just break auth, it crashes prerendering for every page and
+// fails the whole Vercel build. Fall back to a syntactically valid placeholder so the
+// build always succeeds; real auth still requires NEXT_PUBLIC_SUPABASE_URL and
+// NEXT_PUBLIC_SUPABASE_ANON_KEY to be set in the Vercel project's env vars.
+if (!url || !key) {
+  console.warn(
+    '[supabase] NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY are not set — ' +
+    'browser-side auth (sign-in/sign-up) will not work until they are configured.'
+  );
+}
+
+export const supabase = createClient(url || 'https://placeholder.supabase.co', key || 'placeholder-anon-key', {
   auth: {
     autoRefreshToken:   true,
     persistSession:     true,
