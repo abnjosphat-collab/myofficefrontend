@@ -4,13 +4,15 @@
 'use client';
 
 import { useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
-  Bell, Check, ChevronsLeft, ChevronsRight, Loader2, MessageCircle, Moon,
-  RotateCcw, Send, Settings, SlidersHorizontal, Sun,
-} from 'lucide-react';
-import { useTheme, ACCENT } from '@/components/shared/theme';
+  Bell, Check, PanelLeftClose, PanelLeftOpen, Loader2, MessageCircle, Moon,
+  RotateCcw, Send, Settings, SlidersHorizontal, Star, Sun, TextAa,
+} from '@/components/shared/theme';
+import { useTheme, ACCENT, useFontStyle, FONT_OPTIONS } from '@/components/shared/theme';
 import { useDashboardData } from './useDashboardData';
+import { saveFeedback } from '@/lib/usage';
 
 export function BottomBar({
   sidebarCollapsed, onOpenCustomize, onToggleSidebarCollapsed, onResetCustomizations,
@@ -19,8 +21,11 @@ export function BottomBar({
   onToggleSidebarCollapsed: () => void; onResetCustomizations: () => void;
 }) {
   const t = useTheme();
+  const pathname = usePathname();
+  const { font, setFont } = useFontStyle();
   const [openMenu, setOpenMenu] = useState<'notifications' | 'feedback' | 'settings' | null>(null);
   const [feedbackText, setFeedbackText] = useState('');
+  const [feedbackRating, setFeedbackRating] = useState(0);
   const [feedbackSent, setFeedbackSent] = useState(false);
   const [resetConfirming, setResetConfirming] = useState(false);
   const { activity, loading: activityLoading } = useDashboardData();
@@ -29,9 +34,13 @@ export function BottomBar({
     setOpenMenu(prev => (prev === menu ? null : menu));
 
   const sendFeedback = () => {
-    if (!feedbackText.trim()) return;
+    // Require at least a rating or a comment; persist to the usage store so it
+    // surfaces in the Usage Analyzer's feedback view (tagged with the current page).
+    if (!feedbackText.trim() && feedbackRating === 0) return;
+    saveFeedback(pathname, feedbackRating, feedbackText);
     setFeedbackSent(true);
     setFeedbackText('');
+    setFeedbackRating(0);
     setTimeout(() => { setFeedbackSent(false); setOpenMenu(null); }, 1600);
   };
 
@@ -119,7 +128,24 @@ export function BottomBar({
                     </div>
                   ) : (
                     <>
-                      <p className={`text-[12.5px] font-medium ${t.textPrimary} mb-2`}>Got a suggestion?</p>
+                      <p className={`text-[12.5px] font-medium ${t.textPrimary} mb-1`}>Got a suggestion?</p>
+                      <p className={`text-[11px] ${t.textFaint} mb-2`}>Rating this page — {pathname}</p>
+                      <div className="flex items-center gap-1 mb-2">
+                        {[1, 2, 3, 4, 5].map(n => (
+                          <button
+                            key={n}
+                            type="button"
+                            onClick={() => setFeedbackRating(n === feedbackRating ? 0 : n)}
+                            title={`${n} star${n > 1 ? 's' : ''}`}
+                            className="p-0.5 transition-transform hover:scale-110"
+                          >
+                            <Star
+                              className={`h-5 w-5 ${n <= feedbackRating ? 'text-amber-400' : t.textFaint}`}
+                              weight={n <= feedbackRating ? 'fill' : 'regular'}
+                            />
+                          </button>
+                        ))}
+                      </div>
                       <textarea
                         value={feedbackText}
                         onChange={(e) => setFeedbackText(e.target.value)}
@@ -159,7 +185,7 @@ export function BottomBar({
                 <motion.div
                   initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }}
                   transition={{ duration: 0.2 }}
-                  className={`absolute bottom-full right-0 mb-2 w-64 ${t.glass} rounded-xl ${t.shadow} overflow-hidden z-20`}
+                  className={`absolute bottom-full right-0 mb-2 w-72 ${t.glass} rounded-xl ${t.shadow} overflow-hidden z-20`}
                 >
                   <div className={`px-3 py-2 text-[11px] font-semibold uppercase tracking-wide ${t.textFaint}`}>Appearance</div>
                   <button
@@ -174,9 +200,29 @@ export function BottomBar({
                     type="button"
                     className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-[12.5px] ${t.textMuted} ${t.hoverBg} ${t.hoverText} transition-colors`}
                   >
-                    {sidebarCollapsed ? <ChevronsRight className="h-3.5 w-3.5" /> : <ChevronsLeft className="h-3.5 w-3.5" />}
+                    {sidebarCollapsed ? <PanelLeftOpen className="h-3.5 w-3.5" /> : <PanelLeftClose className="h-3.5 w-3.5" />}
                     {sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
                   </button>
+
+                  <div className={`px-3 pt-2.5 pb-1.5 mt-1 text-[11px] font-semibold uppercase tracking-wide border-t ${t.border} ${t.textFaint} flex items-center gap-1.5`}>
+                    <TextAa className="h-3 w-3" /> Typography
+                  </div>
+                  <div className="grid grid-cols-2 gap-1.5 px-3 pb-2.5">
+                    {FONT_OPTIONS.map(opt => (
+                      <button
+                        key={opt.id}
+                        onClick={() => setFont(opt.id)}
+                        type="button"
+                        style={{ fontFamily: opt.sample }}
+                        className={`flex items-center justify-between gap-1.5 px-2.5 py-2 rounded-lg text-[12.5px] transition-colors ${
+                          font === opt.id ? `${ACCENT.blue.chip} ${ACCENT.blue.text}` : `${t.chipBg} ${t.textMuted} ${t.hoverText} ${t.hoverBg}`
+                        }`}
+                      >
+                        {opt.label}
+                        {font === opt.id && <Check className="h-3 w-3 shrink-0" />}
+                      </button>
+                    ))}
+                  </div>
 
                   <div className={`px-3 py-2 mt-1 text-[11px] font-semibold uppercase tracking-wide border-t ${t.border} ${t.textFaint}`}>Dashboard</div>
                   <button

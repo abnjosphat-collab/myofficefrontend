@@ -1,6 +1,6 @@
 'use client';
 
-import { Plus } from 'lucide-react';
+import { Plus } from '@/components/shared/theme';
 import type { ElementType } from 'react';
 
 interface EmptyStateProps {

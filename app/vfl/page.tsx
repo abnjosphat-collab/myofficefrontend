@@ -5,7 +5,7 @@ import {
   Eye, Target, Plus, Trash2, AlertTriangle,
   LayoutGrid, Table as TableIcon, RefreshCw, HardHat, Zap,
   MessageSquare, PenTool, X,
-} from "lucide-react";
+} from "@/components/shared/theme";
 import { AppShell } from '@/components/app-shell';
 import { toast } from "sonner";
 import {
@@ -194,8 +194,8 @@ function VFLCard({ report, index, onView, onEdit, onDelete }: { report: VFLRepor
     <GlowCard onClick={() => onView(report)} color={sColor} surface={`${t.glass} rounded-2xl`} className="overflow-hidden">
       <div className="px-4 pt-3.5 pb-3">
         <div className="flex justify-between items-start mb-2.5">
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg" style={{ background: `${sColor}22` }}><SectionIcon className="h-4 w-4" style={{ color: sColor }} /></div>
+          <div className="flex items-center gap-2.5">
+            <SectionIcon className="h-5 w-5 shrink-0" style={{ color: sColor }} />
             <div><div className={`text-[11px] mb-0.5 ${t.textFaint}`}>VFL #{index + 1}</div><div className={`font-bold text-[15px] ${t.textPrimary}`}>{report.observerName}</div></div>
           </div>
           <div className="flex flex-col gap-1 items-end"><StatusBadge color={sColor} label={report.sectionChoice} /><StatusBadge color={bColor} label={report.behaviourCategory} /></div>

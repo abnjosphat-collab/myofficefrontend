@@ -13,7 +13,7 @@ import {
   MoreVertical, RefreshCw, Send,
   Wrench, Zap, X, Plus,
   Flag, AlertCircle, ChevronRight, ChevronDown, ChevronUp,
-} from "lucide-react";
+} from "@/components/shared/theme";
 import { AppShell } from '@/components/app-shell';
 import { fmtDate as formatDate, fmtDateTime as formatDateTime } from '@/components/shared/utils';
 import { EmployeeNameInput } from '@/components/shared/EmployeeNameInput';
@@ -225,9 +225,7 @@ const PacheduCard: React.FC<PacheduCardProps> = ({ report, index, onView, onEdit
       <div className={`p-4 border-b ${t.border}`}>
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="p-2.5 rounded-xl bg-amber-500/10 shrink-0">
-              <HeartHandshake className="h-5 w-5 text-amber-500" />
-            </div>
+            <HeartHandshake className="h-5 w-5 shrink-0" style={{ color: hasRisks ? '#f43f5e' : '#f59e0b' }} />
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-1.5 mb-1">
                 <StatusBadge color={SECTION_META[report.sectionChoice].hex} label={report.sectionChoice} />

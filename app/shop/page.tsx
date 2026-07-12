@@ -62,7 +62,7 @@ import {
   Triangle,
   Hexagon,
   Octagon
-} from "lucide-react";
+} from "@/components/shared/theme";
 
 export default function HomePage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);

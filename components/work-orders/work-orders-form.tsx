@@ -45,7 +45,7 @@ import {
   ClipboardList,
   FileEdit,
   Layers
-} from "lucide-react";
+} from "@/components/shared/theme";
 
 // Simple toast hook for notifications
 const useToast = () => {

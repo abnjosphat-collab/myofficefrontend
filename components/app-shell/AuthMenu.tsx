@@ -8,7 +8,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { ChevronDown, LogIn, LogOut, Settings, Shield, UserPlus } from 'lucide-react';
+import { ChevronDown, LogIn, LogOut, Settings, Shield, UserPlus } from '@/components/shared/theme';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/components/ui/dialog';

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, type ReactNode } from 'react';
-import { ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
+import { ChevronUp, ChevronDown, ChevronsUpDown } from '@/components/shared/theme';
 
 export interface GlassColumn<T> {
   key: string;

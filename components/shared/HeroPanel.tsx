@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, type ReactNode, type ElementType } from 'react';
-import { ChevronRight, ChevronUp, ChevronDown, Plus, RefreshCw } from 'lucide-react';
+import { ChevronRight, ChevronUp, ChevronDown, Plus, RefreshCw } from '@/components/shared/theme';
 
 export interface StatItem {
   label: string;

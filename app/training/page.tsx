@@ -6,7 +6,7 @@ import {
   AlertTriangle, Award, BarChart3, BookOpen, Calendar, CheckCircle,
   Download, FileText, Pencil, Percent, Plus, RefreshCw, Search,
   Shield, Trash2, UploadCloud, XCircle,
-} from 'lucide-react';
+} from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import {

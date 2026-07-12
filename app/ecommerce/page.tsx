@@ -68,7 +68,7 @@ import {
   AwardIcon,
   Badge,
   CircleDollarSign
-} from "lucide-react";
+} from "@/components/shared/theme";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";

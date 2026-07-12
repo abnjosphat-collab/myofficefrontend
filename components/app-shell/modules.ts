@@ -1,20 +1,25 @@
 // components/app-shell/modules.ts — shared module/category data + usage tracking,
 // extracted from app/page.tsx so any page's shell (sidebar, search, footer) can use it.
+// All icons come from the shared design-system icon module (Phosphor-backed,
+// solid/outline controlled globally by IconStyleProvider) — never import icons
+// directly from lucide/tabler/phosphor on the design-system surface. See
+// components/shared/design-system/icons.tsx.
 import {
-  Users, ToolCase, Shield, Clock, Calculator, Package, ClipboardCheck,
-  CalendarDays, AlertTriangle, Fan, Eye, BarChart3,
-  FileText, Folder, HardHat, Wrench, LineChart, Clock4, Megaphone,
-  Building, Utensils, Church, Database,
-  AlertOctagon, ShieldAlert, ClipboardList, FileWarning, PackageOpen,
-  ClipboardPlus, Target, MessageSquareWarning,
-  Plus, Upload, User,
-  Boxes, Gauge, Sun,
-  PackageMinus, Receipt, Settings, Award, Truck,
-  Activity, Radar, RefreshCcw, FileCheck2, Droplet, Factory, TrendingUp,
-  CalendarClock, FileCheck, HeartHandshake, GraduationCap, LayoutDashboard, FileBarChart,
-  ShoppingBag, ShoppingCart, Wheat, Printer, Landmark, FileUser,
-} from 'lucide-react';
+  Users, ToolCase, Package, CalendarDays, Fan, BarChart3,
+  HardHat, Wrench, LineChart, Clock4, Megaphone,
+  Building, Utensils, Church, ShieldAlert, FileWarning, PackageOpen,
+  Target, MessageSquareWarning, Upload, Boxes, PackageMinus,
+  Activity, RefreshCcw, FileCheck2, Factory, TrendingUp,
+  CalendarClock, HeartHandshake, GraduationCap, FileBarChart,
+  ShoppingBag, Wheat, Printer, Landmark, FileUser,
+  Shield, Clock, Calculator, ClipboardCheck, AlertTriangle,
+  Eye, FileText, Folder, Database, AlertOctagon,
+  ClipboardList, ClipboardPlus, Plus, User, Gauge,
+  Sun, Receipt, Settings, Award, Truck, Radar,
+  Droplet, FileCheck, LayoutDashboard, ShoppingCart,
+} from '@/components/shared/theme';
 import type { Accent } from '@/components/shared/theme';
+import { trackModuleOpen } from '@/lib/usage';
 
 export interface Module {
   icon: React.ElementType;
@@ -125,6 +130,7 @@ export const CATEGORIES: Category[] = [
       { icon: Megaphone, title: 'Notice Board',  description: 'Company announcements', href: '/noticeboard',   tags: ['Comms'], badge: '3' },
       { icon: LayoutDashboard, title: 'Engineering Dashboard', description: 'Live engineering KPIs', href: '/engineering-dashboard', tags: ['Dashboard'] },
       { icon: FileBarChart,    title: 'Engineering Report',    description: 'Monthly engineering report', href: '/engineering_report', tags: ['Reports'] },
+      { icon: Activity,        title: 'Usage Analyzer',        description: 'How the app is used — clicks, dwell, feedback', href: '/usage-analyzer', tags: ['Analytics'] },
     ],
   },
   {
@@ -184,4 +190,7 @@ export function trackModuleUsage(href: string) {
   const counts = readJSON<Record<string, number>>(USAGE_KEY, {});
   counts[href] = (counts[href] ?? 0) + 1;
   writeJSON(USAGE_KEY, counts);
+  // Also record a rich timestamped event for the Usage Analyzer (single
+  // instrumentation point — every module-open caller flows through here).
+  trackModuleOpen(href, ALL_MODULES_BY_HREF.get(href)?.module.title);
 }

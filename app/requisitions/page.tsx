@@ -6,7 +6,7 @@ import {
   ShoppingCart, Plus, Pencil, Trash2, Eye, Search, Filter,
   Zap, Wrench, Flag, DollarSign, FileText, BarChart3, X,
   CheckCircle2, Clock, XCircle,
-} from 'lucide-react';
+} from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
 import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput,

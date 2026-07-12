@@ -3,12 +3,51 @@
 // for a quick-reference table of what each of these is for.
 'use client';
 
-import { useState, useRef, useEffect, type ReactNode, type ElementType, type CSSProperties } from 'react';
+import { useState, useRef, useEffect, useCallback, type ReactNode, type ElementType, type CSSProperties } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Plus } from 'lucide-react';
+import { X, Plus } from './icons';
 import { useTheme, ACCENT, ACCENT_RGBA, type Accent } from './tokens';
 import { hexToRgba } from './color';
 import { fadeTextVariant, iconPop } from './motion';
+
+// ─── useScrollEdgeFlash / ScrollEdgeGlow — the sidebar's "hit the top/bottom of
+// the list" gradient flash (`SidebarNavigation.tsx`), extracted so any other
+// scrollable list can get the same depth cue. Wire `onScroll` onto the
+// scrollable element and render `<ScrollEdgeGlow edge={edge} />` (top) /
+// `edge="bottom"` inside it, positioned `sticky top-0`/`sticky bottom-0` at
+// the respective end — see `SelectField`/`Combobox` below for the reference
+// usage inside a portal-rendered dropdown panel.
+export function useScrollEdgeFlash() {
+  const [edge, setEdge] = useState<'top' | 'bottom' | null>(null);
+  const flash = useCallback((e: 'top' | 'bottom') => {
+    setEdge(e);
+    window.setTimeout(() => setEdge(prev => (prev === e ? null : prev)), 550);
+  }, []);
+  const onScroll = useCallback((ev: React.UIEvent<HTMLElement>) => {
+    const el = ev.currentTarget;
+    if (el.scrollTop <= 0) flash('top');
+    else if (el.scrollHeight - el.scrollTop - el.clientHeight <= 1) flash('bottom');
+  }, [flash]);
+  return { edge, onScroll };
+}
+
+export function ScrollEdgeGlow({ edge }: { edge: 'top' | 'bottom' }) {
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0, scaleX: 0.6 }} animate={{ opacity: 1, scaleX: 1 }} exit={{ opacity: 0 }}
+        transition={{ duration: 0.3 }}
+        className={`pointer-events-none sticky ${edge === 'top' ? 'top-0 -mb-6' : 'bottom-0 -mt-6'} left-0 right-0 h-6 z-10`}
+        style={{ background: edge === 'top' ? `linear-gradient(to bottom, ${ACCENT_RGBA.blue}, transparent)` : `linear-gradient(to top, ${ACCENT_RGBA.blue}, transparent)` }}
+      />
+    </AnimatePresence>
+  );
+}
+
+// (The former custom `SmartphoneFilled` SVG was removed — the "call"/phone-number
+// affordance now uses the shared icon module's `Phone` glyph (Phosphor DeviceMobile,
+// a solid smartphone at the default 'fill' weight), so it participates in the global
+// solid/outline toggle like every other icon instead of being a hardcoded solid SVG.)
 
 /**
  * Hover-intent: distinguishes "just passing over" from "actually wants this open".
@@ -256,11 +295,12 @@ export function CenterModal({
               />
               <button
                 onClick={onClose}
-                className={`absolute top-4 right-4 p-1.5 rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-colors`}
+                className={`absolute top-3.5 right-3.5 h-8 w-8 flex items-center justify-center rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-colors`}
                 type="button"
+                aria-label="Close"
                 title="Close"
               >
-                <X className="h-4 w-4" />
+                <X className="h-4 w-4 pointer-events-none" />
               </button>
               <h2 className={`relative font-semibold ${t.textPrimary} text-[13px] tracking-tight pr-10`}>{title}</h2>
               {subtitle && (

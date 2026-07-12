@@ -6,7 +6,7 @@ import {
   RefreshCw, ChevronUp, ChevronDown, ChevronRight,
   Search, X, Loader2, Plus, Trash2, Check,
   AlertCircle, TrendingUp, TrendingDown,
-} from 'lucide-react';
+} from '@/components/shared/theme';
 import { toast } from 'sonner';
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────

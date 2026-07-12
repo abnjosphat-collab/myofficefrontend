@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { Camera, Upload, X, ZoomIn, ImageIcon } from 'lucide-react';
+import { Camera, Upload, X, ZoomIn, ImageIcon } from '@/components/shared/theme';
 
 const API = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000').replace(/\/$/, '');
 

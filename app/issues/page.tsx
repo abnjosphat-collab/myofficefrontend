@@ -14,7 +14,7 @@ import {
   ClipboardList, Package, BarChart3, TrendingUp, TrendingDown,
   Activity, Users, DollarSign, Download, FileSpreadsheet, FileDown,
   Hash, Target, Layers, Gauge,
-} from 'lucide-react';
+} from '@/components/shared/theme';
 import { toast } from 'sonner';
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis,

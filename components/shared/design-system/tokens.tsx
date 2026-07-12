@@ -64,6 +64,57 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
 
+// ─── Body-typeface preference (one-click font switcher), persisted ────────────────
+// Four modern options; each maps to a next/font/google CSS variable set up in
+// app/layout.tsx (System skips the webfont entirely — it's the OS's own UI font,
+// which is what the whole app rendered as before Inter was ever wired up, and the
+// look this defaults back to). Headings stay on Montserrat regardless — see the
+// h1–h6 rule in globals.css — this only ever changes body/paragraph copy.
+export type FontChoice = 'system' | 'inter' | 'manrope' | 'jakarta' | 'sora';
+const FONT_KEY = 'oz_bodyFont';
+
+export const FONT_OPTIONS: { id: FontChoice; label: string; cssVar: string | null; sample: string }[] = [
+  { id: 'system', label: 'System',      cssVar: null,               sample: 'ui-sans-serif, system-ui, -apple-system, sans-serif' },
+  { id: 'inter',  label: 'Inter',       cssVar: 'var(--font-body)', sample: 'var(--font-body)' },
+  { id: 'manrope', label: 'Manrope',    cssVar: 'var(--font-manrope)', sample: 'var(--font-manrope)' },
+  { id: 'jakarta', label: 'Jakarta Sans', cssVar: 'var(--font-jakarta)', sample: 'var(--font-jakarta)' },
+  { id: 'sora',   label: 'Sora',        cssVar: 'var(--font-sora)', sample: 'var(--font-sora)' },
+];
+
+type FontStyleContextValue = { font: FontChoice; setFont: (f: FontChoice) => void };
+const FontStyleContext = createContext<FontStyleContextValue>({ font: 'system', setFont: () => {} });
+export const useFontStyle = () => useContext(FontStyleContext);
+
+/** App-wide body-typeface provider — mount once near the root (components/Providers.tsx).
+ *  Sets the `--font-active` CSS variable globals.css's `body` rule reads, so switching
+ *  is instant and every page shares exactly one typeface at a time (the thing that was
+ *  broken before: some elements had an explicit font, most silently fell back). */
+export function FontStyleProvider({ children }: { children: ReactNode }) {
+  const [font, setFontState] = useState<FontChoice>('system');
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(FONT_KEY) as FontChoice | null;
+      if (saved && FONT_OPTIONS.some(o => o.id === saved)) setFontState(saved);
+    } catch { /* storage unavailable — keep default */ }
+  }, []);
+  useEffect(() => {
+    const opt = FONT_OPTIONS.find(o => o.id === font);
+    // Set on <body> itself, not <html> — Tailwind v4's @theme engine treats any
+    // `--font-*`-prefixed custom property as a non-inheriting theme token, so a value
+    // set on the root element never reaches descendants. Setting it directly on the
+    // element the `body { font-family: var(--font-active, …) }` rule targets sidesteps
+    // that entirely (no inheritance needed).
+    document.body.style.setProperty('--font-active', opt?.cssVar ?? 'ui-sans-serif, system-ui, -apple-system, sans-serif');
+    document.documentElement.dataset.font = font;
+  }, [font]);
+  const setFont = (f: FontChoice) => {
+    setFontState(f);
+    try { localStorage.setItem(FONT_KEY, f); } catch { /* non-fatal */ }
+  };
+  const value = useMemo<FontStyleContextValue>(() => ({ font, setFont }), [font]);
+  return <FontStyleContext.Provider value={value}>{children}</FontStyleContext.Provider>;
+}
+
 // ─── Accent colour palette (shared across pages for consistent theming) ────
 
 export type Accent = 'blue' | 'amber' | 'indigo' | 'emerald' | 'cyan' | 'violet';

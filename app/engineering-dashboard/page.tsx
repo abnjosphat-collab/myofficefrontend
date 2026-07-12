@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { LayoutDashboard, TrendingUp, TrendingDown, Minus, Wrench, RefreshCw, Gauge, ClipboardCheck, Clock3, AlertTriangle, ClipboardList, Droplet, Users } from 'lucide-react';
+import { LayoutDashboard, TrendingUp, TrendingDown, Minus, Wrench, RefreshCw, Gauge, ClipboardCheck, Clock3, AlertTriangle, ClipboardList, Droplet, Users } from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
 import { useTheme, PageHero, StatCard, ACCENT_HEX, type Accent } from '@/components/shared/theme';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell } from 'recharts';

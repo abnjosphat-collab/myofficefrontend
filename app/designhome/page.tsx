@@ -51,7 +51,7 @@ import {
   Headphones,
   FileCheck,
   Clock as ClockIcon
-} from 'lucide-react';
+} from '@/components/shared/theme';
 
 // ====== PROFESSIONAL COLOR SCHEME ======
 const colors = {

@@ -69,7 +69,7 @@ import {
   MoreHorizontal,
   ArrowUpDown,
   Filter as FilterIcon
-} from 'lucide-react';
+} from '@/components/shared/theme';
 import { format, addDays, isBefore, startOfWeek, addWeeks } from 'date-fns';
 import { toast } from 'sonner';
 

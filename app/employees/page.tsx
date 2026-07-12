@@ -3,20 +3,20 @@
 
 import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import {
-  Users, Plus, Search, ChevronDown, ChevronUp, RefreshCw,
-  Loader2, Clock, AlertCircle, Trash2, X, Edit,
-  Mail, Briefcase, GraduationCap, UserCheck,
-  FilterX, Sparkles, UserRound, BriefcaseBusiness, Phone,
-  ArrowUpDown, List, LayoutGrid, Hash, MapPin,
-  Filter, FileText, Award, Download, ChevronsDownUp, ChevronsUpDown,
-} from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/app-shell";
+// All icons + components come from the shared design-system barrel (icons are
+// Phosphor-backed and respond to the global solid/outline toggle).
 import {
+  Users, RefreshCw, Loader2, UserCheck, ArrowUpDown, Hash,
+  FilterX, ChevronsDownUp, ChevronsUpDown, ChevronDown, ChevronUp,
+  Clock, AlertCircle, Trash2, X, Pencil, Mail, Briefcase,
+  GraduationCap, Sparkles, UserRound, BriefcaseBusiness,
+  List, LayoutGrid, MapPin, Filter, Award, Download, Plus, Phone,
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle,
   FormField, FormActions, useCollapseSection, CenterModal, ACCENT_HEX, SelectField,
   GroupSection, RecordCard, staggerContainer, fadeUp,
+  Subsection, InfoRow, SummaryItem,
 } from '@/components/shared/theme';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -88,20 +88,34 @@ const SECTION_COLORS: Record<string, string> = {
   Mechanical: ACCENT_HEX.blue, Electrical: ACCENT_HEX.amber, Civil: ACCENT_HEX.emerald, Instrumentation: ACCENT_HEX.violet,
 };
 
+// Stable display order for the section groups (the record accordions).
+const SECTION_ORDER = ['Mechanical', 'Electrical', 'Civil', 'Instrumentation'];
+
+// Case/whitespace-insensitive canonicalization — source data has inconsistent
+// casing ("Electrical" vs "electrical " etc.); without this, each variant was
+// treated as a distinct section, splitting one real group into several and
+// giving each a different (hashed) color — the "color chaos" bug. Every
+// display label AND every color lookup for a section must go through this
+// so the same real-world section always reads as one group, one color.
+function normalizeSection(section?: string): string {
+  const s = (section || '').trim();
+  if (!s) return 'Unassigned';
+  const canonical = SECTION_ORDER.find(c => c.toLowerCase() === s.toLowerCase());
+  return canonical ?? s;
+}
+
 // Palette for sections that aren't one of the predefined four — drawn from the shared
 // ACCENT_HEX brand palette (not arbitrary hexes) so every group colour stays in harmony
 // with the rest of the app; hashed so each distinct section name is stable.
 const GROUP_PALETTE = [ACCENT_HEX.blue, ACCENT_HEX.amber, ACCENT_HEX.emerald, ACCENT_HEX.violet, ACCENT_HEX.cyan, ACCENT_HEX.indigo];
 function sectionColor(section?: string) {
-  if (!section) return '#94a3b8';
-  if (SECTION_COLORS[section]) return SECTION_COLORS[section];
+  const s = normalizeSection(section);
+  if (s === 'Unassigned') return '#94a3b8';
+  if (SECTION_COLORS[s]) return SECTION_COLORS[s];
   let h = 0;
-  for (let i = 0; i < section.length; i++) h = (h * 31 + section.charCodeAt(i)) >>> 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
   return GROUP_PALETTE[h % GROUP_PALETTE.length];
 }
-
-// Stable display order for the section groups (the record accordions).
-const SECTION_ORDER = ['Mechanical', 'Electrical', 'Civil', 'Instrumentation'];
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
@@ -149,16 +163,8 @@ async function removeEmployee(id: number) {
 }
 
 // ─── Small themed building blocks ────────────────────────────────────────────
-
-function InfoRow({ label, value }: { label: string; value?: React.ReactNode }) {
-  const t = useTheme();
-  return (
-    <div>
-      <div className={`text-[10px] uppercase tracking-wide mb-0.5 ${t.textFaint}`}>{label}</div>
-      <div className={`text-sm ${t.textMuted}`}>{value || '—'}</div>
-    </div>
-  );
-}
+// InfoRow/SummaryItem now come from the shared design system (promoted from
+// this page's own local versions — see the design-system migration).
 
 function FilterChips({ label, options, value, onChange }: {
   label: string; options: { value: string; label: string }[]; value: string; onChange: (v: string) => void;
@@ -173,8 +179,8 @@ function FilterChips({ label, options, value, onChange }: {
             key={o.value}
             type="button"
             onClick={() => onChange(o.value)}
-            className={`h-8 px-2.5 rounded-lg text-[13px] font-medium transition-colors ${
-              value === o.value ? 'bg-blue-500/20 text-blue-400' : `${t.chipBg} ${t.textMuted} ${t.hoverText} ${t.hoverBg}`
+            className={`h-8 px-2.5 rounded-lg text-[13px] font-semibold transition-colors ${
+              value === o.value ? 'bg-blue-500/20 text-blue-400' : `${t.chipBg} ${t.textPrimary} ${t.hoverText} ${t.hoverBg}`
             }`}
           >
             {o.label}
@@ -445,7 +451,7 @@ function EmployeeRow({ employee, onEdit, onDelete }: EmployeeRowProps) {
           <div className="flex items-center gap-2 mt-0.5 flex-wrap">
             <span className={`text-xs font-mono ${t.textFaint}`}>{employee.employee_id}</span>
             {employee.designation && <span className={`text-xs ${t.textFaint}`}>· {employee.designation}</span>}
-            {employee.section && <StatusBadge color={secColor} label={employee.section} />}
+            {employee.section && <StatusBadge color={secColor} label={normalizeSection(employee.section)} />}
           </div>
         </button>
 
@@ -454,29 +460,29 @@ function EmployeeRow({ employee, onEdit, onDelete }: EmployeeRowProps) {
             <span className="hidden sm:block"><StatusBadge color={ETYPE_COLORS[employee.employment_type] ?? '#94a3b8'} label={employee.employment_type} /></span>
           )}
           <span className="hidden sm:block"><StatusBadge color={CLASS_COLORS[employee.employee_class || ''] ?? '#94a3b8'} label={employee.employee_class || 'Unclassified'} /></span>
-          <span className={`hidden md:flex items-center gap-1 text-[11px] ${t.textFaint}`}><Clock className="h-3 w-3" />{ten}</span>
-          {quals > 0 && <span className={`hidden lg:flex items-center gap-1 text-[11px] ${t.textFaint}`}><GraduationCap className="h-3 w-3" />{quals}</span>}
+          <span className={`hidden md:flex items-center gap-1 text-[11px] ${t.textFaint}`}><Clock className="h-3 w-3" style={{ color: secColor }} />{ten}</span>
+          {quals > 0 && <span className={`hidden lg:flex items-center gap-1 text-[11px] ${t.textFaint}`}><GraduationCap className="h-3 w-3" style={{ color: secColor }} />{quals}</span>}
         </div>
 
         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
           {employee.email && (
             <button type="button" title="Send email" onClick={() => window.open(`mailto:${employee.email}`, '_blank')}
-              className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all`}>
-              <Mail className="h-3.5 w-3.5" />
+              className="h-7 w-7 flex items-center justify-center rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 transition-all">
+              <Mail className="h-3.5 w-3.5" strokeWidth={1.75} />
             </button>
           )}
           {employee.phone && (
             <button type="button" title="Call" onClick={() => window.open(`tel:${employee.phone}`, '_self')}
-              className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all`}>
+              className="h-7 w-7 flex items-center justify-center rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 transition-all">
               <Phone className="h-3.5 w-3.5" />
             </button>
           )}
           <button type="button" title="Edit employee" onClick={() => onEdit(employee)}
             className="h-7 w-7 flex items-center justify-center rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 transition-all">
-            <Edit className="h-3.5 w-3.5" />
+            <Pencil className="h-3.5 w-3.5" />
           </button>
           <button type="button" title="Delete employee" onClick={() => onDelete(employee)}
-            className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} hover:text-rose-500 transition-all`}>
+            className="h-7 w-7 flex items-center justify-center rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 transition-all">
             <Trash2 className="h-3.5 w-3.5" />
           </button>
           <button type="button" title={expanded ? 'Collapse' : 'Expand'} onClick={() => setExpanded(o => !o)}
@@ -515,7 +521,7 @@ function EmployeeRow({ employee, onEdit, onDelete }: EmployeeRowProps) {
               <div className="px-3.5 py-3 grid grid-cols-2 gap-x-6 gap-y-2.5">
                 <InfoRow label="Engaged" value={fmtDate(employee.date_of_engagement)} />
                 <InfoRow label="Tenure" value={ten} />
-                <InfoRow label="Section" value={employee.section} />
+                <InfoRow label="Section" value={employee.section ? normalizeSection(employee.section) : undefined} />
                 <InfoRow label="Grade" value={employee.grade} />
                 <InfoRow label="Supervisor" value={employee.supervisor} />
                 <InfoRow label="Prev. Employer" value={employee.previous_employer} />
@@ -566,10 +572,10 @@ function EmployeeRow({ employee, onEdit, onDelete }: EmployeeRowProps) {
           <div className="flex items-center gap-2 pt-1">
             <button type="button" onClick={() => onEdit(employee)}
               className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-blue-500/15 hover:bg-blue-500/25 text-blue-400 transition-all font-medium">
-              <Edit className="h-3 w-3" /> Edit Employee
+              <Pencil className="h-3 w-3" /> Edit Employee
             </button>
             <button type="button" onClick={() => onDelete(employee)}
-              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg ${t.hoverBg} ${t.textFaint} hover:text-rose-500 transition-all`}>
+              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 transition-all font-medium">
               <Trash2 className="h-3 w-3" /> Delete
             </button>
           </div>
@@ -601,14 +607,14 @@ function EmployeeCard({ employee, onEdit, onDelete }: { employee: Employee; onEd
       </>}
       summary={
         <div className={`grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs ${t.textMuted}`}>
-          <SummaryItem icon={Hash} label="Mine No." value={employee.employee_id} />
-          <SummaryItem icon={Phone} label="Phone" value={employee.phone} />
-          {employee.address && <div className="col-span-2"><SummaryItem icon={MapPin} label="Address" value={employee.address} /></div>}
+          <SummaryItem icon={Hash} label="Mine No." value={employee.employee_id} color={secColor} />
+          <SummaryItem icon={Phone} label="Phone" value={employee.phone} color={secColor} />
+          {employee.address && <div className="col-span-2"><SummaryItem icon={MapPin} label="Address" value={employee.address} color={secColor} /></div>}
         </div>
       }
       actions={<>
         <button onClick={() => onEdit(employee)} type="button" className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 text-white text-[12px] font-semibold hover:brightness-110 transition-all">
-          <Edit className="h-3.5 w-3.5" /> Edit
+          <Pencil className="h-3.5 w-3.5" /> Edit
         </button>
         <button onClick={() => onDelete(employee)} type="button" className={`px-4 flex items-center justify-center gap-1.5 py-2 rounded-lg ${t.chipBg} text-rose-500 hover:bg-rose-500/10 text-[12px] font-semibold transition-all`}>
           <Trash2 className="h-3.5 w-3.5" /> Delete
@@ -626,7 +632,7 @@ function EmployeeCard({ employee, onEdit, onDelete }: { employee: Employee; onEd
       </div>
       {employee.email && (
         <a href={`mailto:${employee.email}`} className="flex items-center gap-1.5 text-xs text-blue-400 hover:underline w-fit">
-          <Mail className="h-3 w-3" />{employee.email}
+          <Mail className="h-3 w-3" strokeWidth={1.75} />{employee.email}
         </a>
       )}
       {quals.length > 0 && (
@@ -638,18 +644,6 @@ function EmployeeCard({ employee, onEdit, onDelete }: { employee: Employee; onEd
         </div>
       )}
     </RecordCard>
-  );
-}
-
-// One line of the always-visible summary on an employee card (icon + label + value).
-function SummaryItem({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value?: string }) {
-  const t = useTheme();
-  if (!value) return null;
-  return (
-    <span className="flex items-start gap-1.5 min-w-0">
-      <Icon className={`h-3 w-3 mt-0.5 shrink-0 ${t.textFaint}`} />
-      <span className="min-w-0 truncate"><span className={t.textFaint}>{label}: </span>{value}</span>
-    </span>
   );
 }
 
@@ -676,6 +670,10 @@ function EmployeesPageContent() {
   // Records are grouped by section (homepage category-accordion vocabulary); this
   // tracks which section groups the user has collapsed (default: all open).
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  // Within a section, records are further grouped into subsections by trade/
+  // designation (e.g. Mechanical → Fitters/Riggers/Boilermakers); tracked by
+  // "section::designation" key, default all open.
+  const [collapsedSubgroups, setCollapsedSubgroups] = useState<Set<string>>(new Set());
   const [showFilters, setShowFilters] = useState(true);
 
   const sections = useCollapseSection({ hero: true });
@@ -724,7 +722,7 @@ function EmployeesPageContent() {
   const grouped = useMemo(() => {
     const map = new Map<string, Employee[]>();
     for (const e of filtered) {
-      const key = e.section || 'Unassigned';
+      const key = normalizeSection(e.section);
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(e);
     }
@@ -735,7 +733,28 @@ function EmployeesPageContent() {
     };
     return [...map.keys()]
       .sort((a, b) => rank(a) - rank(b) || a.localeCompare(b))
-      .map(section => ({ section, color: sectionColor(section === 'Unassigned' ? undefined : section), employees: map.get(section)! }));
+      .map(section => {
+        const employeesInSection = map.get(section)!;
+        // Subsections within a section — grouped by designation/trade (e.g. inside
+        // Mechanical: Fitters, Riggers, Boilermakers). There's no separate
+        // "subsection" field in the data model, so `designation` doubles as it —
+        // that's exactly the trade/role breakdown the grouping is meant to show.
+        const subMap = new Map<string, Employee[]>();
+        for (const e of employeesInSection) {
+          const subKey = (e.designation || '').trim() || 'Other';
+          if (!subMap.has(subKey)) subMap.set(subKey, []);
+          subMap.get(subKey)!.push(e);
+        }
+        const subgroups = [...subMap.keys()]
+          .sort((a, b) => (a === 'Other' ? 1 : b === 'Other' ? -1 : a.localeCompare(b)))
+          .map(designation => ({ designation, employees: subMap.get(designation)! }));
+        // Only worth showing as subsections if grouping by designation actually
+        // consolidates people (at least one real trade with 2+ members) — with
+        // job-title data this granular, a "subsection per person" would just add
+        // clutter instead of the Fitters/Riggers/Boilermakers-style breakdown.
+        const hasMeaningfulSubgroups = subgroups.length > 1 && subgroups.some(sg => sg.employees.length > 1);
+        return { section, color: sectionColor(section === 'Unassigned' ? undefined : section), employees: employeesInSection, subgroups, hasMeaningfulSubgroups };
+      });
   }, [filtered]);
 
   // A group is open unless the user collapsed it; an active search force-opens every
@@ -748,6 +767,16 @@ function EmployeesPageContent() {
   });
   const allGroupsOpen = grouped.every(g => !collapsedGroups.has(g.section));
   const toggleAllGroups = () => setCollapsedGroups(allGroupsOpen ? new Set(grouped.map(g => g.section)) : new Set());
+
+  // Subsections (designation/trade groups within a section) default open too,
+  // and a search likewise force-opens them so matches stay visible.
+  const isSubOpen = (section: string, designation: string) => !!search || !collapsedSubgroups.has(`${section}::${designation}`);
+  const toggleSub = (section: string, designation: string) => setCollapsedSubgroups(prev => {
+    const key = `${section}::${designation}`;
+    const next = new Set(prev);
+    next.has(key) ? next.delete(key) : next.add(key);
+    return next;
+  });
 
   const activeFilterCount = [search, classFilter !== 'all', etypeFilter !== 'all', sectionFilter !== 'all', deptFilter !== 'all', roleFilter !== 'all'].filter(Boolean).length;
 
@@ -961,15 +990,37 @@ function EmployeesPageContent() {
                 countLabel={g.employees.length === 1 ? 'person' : 'people'}
                 open={isGroupOpen(g.section)}
                 onToggle={() => toggleGroup(g.section)}
-                gridClassName={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4' : 'grid grid-cols-1 gap-0 -mx-4'}
+                gridClassName={g.hasMeaningfulSubgroups ? 'space-y-1' : (viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4' : 'grid grid-cols-1 gap-0 -mx-4')}
               >
-                {g.employees.map(e => (
-                  <motion.div key={e.id} variants={fadeUp}>
-                    {viewMode === 'grid'
-                      ? <EmployeeCard employee={e} onEdit={openEdit} onDelete={onDelete} />
-                      : <EmployeeRow employee={e} onEdit={openEdit} onDelete={onDelete} />}
-                  </motion.div>
-                ))}
+                {g.hasMeaningfulSubgroups ? (
+                  g.subgroups.map(sg => (
+                    <Subsection
+                      key={sg.designation}
+                      label={sg.designation}
+                      color={g.color}
+                      count={sg.employees.length}
+                      open={isSubOpen(g.section, sg.designation)}
+                      onToggle={() => toggleSub(g.section, sg.designation)}
+                      gridClassName={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4' : 'grid grid-cols-1 gap-0'}
+                    >
+                      {sg.employees.map(e => (
+                        <motion.div key={e.id} variants={fadeUp}>
+                          {viewMode === 'grid'
+                            ? <EmployeeCard employee={e} onEdit={openEdit} onDelete={onDelete} />
+                            : <EmployeeRow employee={e} onEdit={openEdit} onDelete={onDelete} />}
+                        </motion.div>
+                      ))}
+                    </Subsection>
+                  ))
+                ) : (
+                  g.employees.map(e => (
+                    <motion.div key={e.id} variants={fadeUp}>
+                      {viewMode === 'grid'
+                        ? <EmployeeCard employee={e} onEdit={openEdit} onDelete={onDelete} />
+                        : <EmployeeRow employee={e} onEdit={openEdit} onDelete={onDelete} />}
+                    </motion.div>
+                  ))
+                )}
               </GroupSection>
             ))}
           </motion.div>

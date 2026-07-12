@@ -6,7 +6,7 @@ import {
   FileText, Eye, Pencil, LayoutGrid, Table as TableIcon,
   Maximize2, Minimize2, Wrench, Zap, AlertTriangle,
   Clock3, XCircle, Target, Loader2, RefreshCw, ChevronUp, ChevronDown, X,
-} from 'lucide-react';
+} from '@/components/shared/theme';
 import { toast } from 'sonner';
 import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, FormField, FormActions,
@@ -593,9 +593,7 @@ function InspectionCard({
     <GlowCard onClick={onView} color={ACCENT_HEX.violet} surface={`${t.glass} rounded-2xl`} className="overflow-hidden">
       <div className={`px-4 py-3 border-b ${t.border} flex items-center justify-between gap-2`}>
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="p-2 rounded-lg flex-shrink-0" style={{ background: `${sectionColor}18`, border: `1px solid ${sectionColor}30` }}>
-            <SectionIcon className="h-4 w-4" style={{ color: sectionColor }} />
-          </div>
+          <SectionIcon className="h-5 w-5 shrink-0" style={{ color: sectionColor }} />
           <div className="min-w-0">
             <p className={`text-[10px] ${t.textFaint}`}>#{index + 1}</p>
             <p className={`text-sm font-semibold truncate ${t.textPrimary}`}>{inspection.title}</p>

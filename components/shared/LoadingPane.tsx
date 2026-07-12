@@ -1,6 +1,6 @@
 'use client';
 
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw } from '@/components/shared/theme';
 
 interface LoadingPaneProps {
   message?: string;

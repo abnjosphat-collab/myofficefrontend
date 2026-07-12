@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Search, UserCircle, ChevronDown, X, Loader2 } from 'lucide-react';
+import { Search, UserCircle, ChevronDown, X, Loader2 } from '@/components/shared/theme';
 
 const API = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000').replace(/\/$/, '');
 

@@ -2,16 +2,17 @@
 'use client';
 
 import { AppShell } from '@/components/app-shell';
-import { useTheme, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle, FormField, FormActions, CenterModal, ACCENT_HEX, GlowCard, SelectField } from '@/components/shared/theme';
+import { useTheme, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle, FormField, FormActions, CenterModal, ACCENT_HEX, GlowCard, SelectField, GroupSection, staggerContainer, fadeUp } from '@/components/shared/theme';
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { motion } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import {
-  Package, Search, Plus, Edit, Trash2, Copy, RefreshCw, AlertTriangle,
+  Package, Search, Plus, Pencil, Trash2, Copy, RefreshCw, AlertTriangle,
   ChevronDown, ChevronUp, ShoppingCart, AlertOctagon,
   Loader2, List, X, Star, BarChart3, Filter,
   SortAsc, ChevronsUp, ChevronsDown, Grid3x3, MoreVertical, Check,
   Database, ClipboardList, Download, Upload,
-} from 'lucide-react';
+} from '@/components/shared/theme';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -59,6 +60,16 @@ const getStockStatus = (current: number, min: number): StockStatus => {
 };
 const PRIORITY_COLOR: Record<string, string> = { critical: '#f43f5e', high: '#f59e0b', medium: ACCENT_HEX.blue, low: '#94a3b8' };
 const PRIORITY_ORDER: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
+
+// Palette for categories — drawn from the shared ACCENT_HEX brand palette (not
+// arbitrary hexes), hashed so each distinct category name gets a stable color.
+const GROUP_PALETTE = [ACCENT_HEX.blue, ACCENT_HEX.amber, ACCENT_HEX.emerald, ACCENT_HEX.violet, ACCENT_HEX.cyan, ACCENT_HEX.indigo];
+function categoryColor(category?: string) {
+  if (!category) return '#94a3b8';
+  let h = 0;
+  for (let i = 0; i < category.length; i++) h = (h * 31 + category.charCodeAt(i)) >>> 0;
+  return GROUP_PALETTE[h % GROUP_PALETTE.length];
+}
 const uid = () => Math.random().toString(36).slice(2);
 const PAGE_SIZE = 24;
 
@@ -269,7 +280,7 @@ const SpareCard = React.memo(({ spare, isFavorite, isExpanded, onEdit, onDelete,
                 <button title="More options" className={`h-6 w-6 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} transition-all`}><MoreVertical className="h-3 w-3" /></button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => onEdit(spare)}><Edit className="h-4 w-4 mr-2" /> Edit</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onEdit(spare)}><Pencil className="h-4 w-4 mr-2" /> Edit</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => { navigator.clipboard.writeText(spare.stock_code); toast.success('Copied'); }}><Copy className="h-4 w-4 mr-2" /> Copy Code</DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="text-rose-500 focus:text-rose-500" onClick={() => onDelete(spare.id)}><Trash2 className="h-4 w-4 mr-2" /> Delete</DropdownMenuItem>
@@ -609,6 +620,9 @@ function SparesPageContent() {
   const [filterPanelMinimized, setFilterPanelMinimized] = useState(true);
   const [recordsPanelMinimized, setRecordsPanelMinimized] = useState(false);
   const [expandAllCards, setExpandAllCards] = useState(false);
+  // Grid view groups the current page's records by category (homepage
+  // category-accordion vocabulary); tracks which groups the user collapsed.
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
   const [search, setSearch] = useState('');
   const [catSearch, setCatSearch] = useState('');
@@ -715,6 +729,26 @@ function SparesPageContent() {
   const safeCurrentPage = Math.min(currentPage, totalPages);
   const paginatedSpares = useMemo(() => filteredSpares.slice((safeCurrentPage - 1) * PAGE_SIZE, safeCurrentPage * PAGE_SIZE), [filteredSpares, safeCurrentPage]);
   const clearFilters = () => { setSearch(''); setStockFilter('all'); setCategoryFilter('all'); setPriorityFilter('all'); setShowFavOnly(false); };
+
+  // Group the current page's grid-view cards by (primary) category — alphabetically,
+  // "Uncategorized" last. Table view is left flat (sortable columns already group work).
+  const groupedSpares = useMemo(() => {
+    const map = new Map<string, Spare[]>();
+    for (const s of paginatedSpares) {
+      const key = (s.categories && s.categories[0]) || s.category || 'Uncategorized';
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(s);
+    }
+    return [...map.keys()]
+      .sort((a, b) => (a === 'Uncategorized' ? 1 : b === 'Uncategorized' ? -1 : a.localeCompare(b)))
+      .map(category => ({ category, color: categoryColor(category === 'Uncategorized' ? undefined : category), items: map.get(category)! }));
+  }, [paginatedSpares]);
+  const isGroupOpen = (category: string) => !!search || !collapsedGroups.has(category);
+  const toggleGroup = (category: string) => setCollapsedGroups(prev => {
+    const next = new Set(prev);
+    next.has(category) ? next.delete(category) : next.add(category);
+    return next;
+  });
 
   const handleSave = async (data: SpareFormData) => {
     const payload = {
@@ -1063,12 +1097,28 @@ function SparesPageContent() {
                 )}
               </div>
             ) : viewMode === 'grid' ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {paginatedSpares.map(spare => (
-                  <SpareCard key={spare.id} spare={spare} isFavorite={favorites.has(spare.id)} isExpanded={isExpanded(spare.id)}
-                    onEdit={s => { setEditingSpare(s); setFormOpen(true); }} onDelete={id => setDeleteId(id)} onFavorite={toggleFavorite} onAddToReq={addToReq} onToggleExpand={() => toggleExpand(spare.id)} />
+              <motion.div variants={staggerContainer} initial="hidden" animate="show" className="space-y-3">
+                {groupedSpares.map(g => (
+                  <GroupSection
+                    key={g.category}
+                    icon={Package}
+                    accentHex={g.color}
+                    title={g.category}
+                    count={g.items.length}
+                    countLabel={g.items.length === 1 ? 'item' : 'items'}
+                    open={isGroupOpen(g.category)}
+                    onToggle={() => toggleGroup(g.category)}
+                    gridClassName="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+                  >
+                    {g.items.map(spare => (
+                      <motion.div key={spare.id} variants={fadeUp}>
+                        <SpareCard spare={spare} isFavorite={favorites.has(spare.id)} isExpanded={isExpanded(spare.id)}
+                          onEdit={s => { setEditingSpare(s); setFormOpen(true); }} onDelete={id => setDeleteId(id)} onFavorite={toggleFavorite} onAddToReq={addToReq} onToggleExpand={() => toggleExpand(spare.id)} />
+                      </motion.div>
+                    ))}
+                  </GroupSection>
                 ))}
-              </div>
+              </motion.div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -1106,7 +1156,7 @@ function SparesPageContent() {
                             <td className="p-3 text-right" onClick={e => e.stopPropagation()}>
                               <div className="flex items-center justify-end gap-1">
                                 <button title="Add to requisition" className={`h-7 w-7 inline-flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} hover:text-blue-400`} onClick={() => addToReq(spare)}><ShoppingCart className="h-3.5 w-3.5" /></button>
-                                <button title="Edit" className={`h-7 w-7 inline-flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint}`} onClick={() => { setEditingSpare(spare); setFormOpen(true); }}><Edit className="h-3.5 w-3.5" /></button>
+                                <button title="Edit" className={`h-7 w-7 inline-flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint}`} onClick={() => { setEditingSpare(spare); setFormOpen(true); }}><Pencil className="h-3.5 w-3.5" /></button>
                                 <button title="Delete" className={`h-7 w-7 inline-flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} hover:text-rose-500`} onClick={() => setDeleteId(spare.id)}><Trash2 className="h-3.5 w-3.5" /></button>
                               </div>
                             </td>

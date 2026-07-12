@@ -2,7 +2,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { CheckCircle, XCircle, AlertTriangle, Info, X } from 'lucide-react';
+import { CheckCircle, XCircle, AlertTriangle, Info, X } from '@/components/shared/theme';
 import { cn } from '@/lib/utils';
 
 const toastVariants = {

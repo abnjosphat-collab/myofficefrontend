@@ -1,6 +1,6 @@
 // frontend/app/layout.tsx
 import type { Metadata } from "next";
-import { Montserrat, Inter, Geist_Mono } from "next/font/google";
+import { Montserrat, Inter, Geist_Mono, Manrope, Plus_Jakarta_Sans, Sora } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sonner";
 import { Providers } from "@/components/Providers";
@@ -24,6 +24,14 @@ const geistMono = Geist_Mono({
   display: "swap",
 });
 
+// Extra body-typeface choices for the one-click font switcher (Settings > Typography —
+// see FontStyleProvider). Each is exposed as its own CSS variable; FontStyleProvider
+// points --font-active at whichever one the user picked (default: the system font
+// stack, i.e. none of these — see globals.css).
+const manrope = Manrope({ variable: "--font-manrope", subsets: ["latin"], display: "swap" });
+const plusJakarta = Plus_Jakarta_Sans({ variable: "--font-jakarta", subsets: ["latin"], display: "swap" });
+const sora = Sora({ variable: "--font-sora", subsets: ["latin"], display: "swap" });
+
 export const metadata: Metadata = {
   title: "MyOffice — Business Operating Platform by Ozech",
   description:
@@ -39,7 +47,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${montserrat.variable} ${inter.variable} ${geistMono.variable} antialiased`}
+        className={`${montserrat.variable} ${inter.variable} ${geistMono.variable} ${manrope.variable} ${plusJakarta.variable} ${sora.variable} antialiased`}
       >
         <Providers>
           {children}

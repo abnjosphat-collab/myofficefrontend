@@ -10,7 +10,7 @@ import { AppShell } from '@/components/app-shell';
 import {
   Download, Settings, Filter, Search, BarChart3, AlertTriangle, CheckCircle2, XCircle,
   TrendingUp, Wrench, Factory, ToolCase, FileText, Plus, Trash2, RefreshCw, Clock, ChevronRight,
-} from 'lucide-react';
+} from '@/components/shared/theme';
 import { format, addDays, isWithinInterval } from 'date-fns';
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────

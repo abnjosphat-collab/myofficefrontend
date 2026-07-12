@@ -113,6 +113,39 @@ Pass that color to `color` instead; if a persistent at-rest cue is truly
 needed on top of that, use a thin `border-l-2` at ~40-50% opacity, not the
 full-strength default.
 
+### `GroupSection` / `Subsection`
+
+`GroupSection` is the homepage-style collapsible category accordion — use it
+on any list page whose records read better grouped (staff by section,
+equipment by category, spares by area…) instead of one flat scroll.
+
+`Subsection` is a second grouping level that nests *inside* a `GroupSection`
+(e.g. within "Underground": Fitters/Riggers/Boilermakers by trade) —
+deliberately lighter than `GroupSection` itself (no separate glass card, just
+an indented header row + `Collapse`, since it already sits inside one).
+Promoted from the `employees` page's designation/trade breakdown. Only wire
+this up when grouping actually consolidates records — if every sub-group
+would have exactly one member, it's noise, not organization; gate it behind
+a check like `subgroups.some(sg => sg.items.length > 1)` before switching a
+`GroupSection`'s children over to a list of `Subsection`s.
+
+### `InfoRow` / `SummaryItem`
+
+The two small record-detail atoms every `RecordCard` uses:
+
+- `InfoRow` — a label/value key-value pair (ID numbers, dates, departments…)
+  inside a `RecordCard`'s expanded detail.
+- `SummaryItem` — one line of a `RecordCard`'s always-visible summary (icon +
+  label + value, e.g. "# Mine No.: C1234"). Pass `color` to tint the icon
+  with the record's own accent color instead of flat grey — a flat-grey
+  summary icon next to a vividly accent-colored record title/badges reads as
+  inconsistent ("some icons pop, some don't"); this was an actual reported
+  bug on the employees page, fixed by wiring `color={accentHex}` through.
+
+Both were hand-copied per-page before (employees, equipment, inventory,
+drivers, contractors each had an identical local copy) — always import these
+from the design system now instead of re-adding a local copy to a new page.
+
 ### `InfoCard`
 
 Built on `GlowCard`. The canonical "information display" card — used for the
@@ -167,6 +200,78 @@ Small reusable display atoms for a colored pill label, a hero-strip KPI
 chip, a bigger dashboard stat card, and a labeled progress bar,
 respectively — all theme-aware, all taking a `color` hex prop rather than a
 hardcoded Tailwind color class.
+
+### Icon conventions — the Phosphor icon system (`icons.tsx`)
+
+**Every page in the app** draws all icons from a single module —
+`components/shared/design-system/icons.tsx` — which re-exports
+[`@phosphor-icons/react`](https://phosphoricons.com) glyphs under the app's
+existing logical names (the same names the codebase used to import from
+lucide). **Import icons from the `@/components/shared/theme` barrel, never
+directly from `@phosphor-icons/react` (or any other icon package).** A direct
+import won't respond to the solid/outline toggle and reintroduces the
+mixed-family look this exists to prevent. `lucide-react` and `@tabler/icons-react`
+have both been fully removed as dependencies.
+
+Why Phosphor (not lucide/tabler): every Phosphor icon has both a `regular`
+(outline) and a `fill` (solid) weight, and Phosphor's `IconContext` sets a
+default `weight` for all icons at once. That's what makes a **global
+outline/solid toggle** possible in one place. lucide is outline-only; tabler
+only had `*Filled` for ~half the glyphs (which is what produced the earlier
+half-solid/half-outline mess). The former custom `SmartphoneFilled` SVG and
+the tabler dependency were both removed once Phosphor superseded them.
+
+- **Default is solid.** `IconStyleProvider` (in `icons.tsx`, mounted in
+  `components/Providers.tsx` inside `ThemeProvider`) bridges a persisted
+  preference (`oz_iconStyle` in localStorage, default `'solid'`) to Phosphor's
+  `IconContext` `weight` (`'fill'`/`'regular'`). The header toggle
+  (`TopNavigation`, next to the theme sun/moon; uses `useIconStyle()`) flips
+  it; every icon in the app changes instantly.
+- **Adding/using an icon**: import its logical name from the barrel
+  (`import { Users, Trash2, Phone } from '@/components/shared/theme'`). Sizing
+  via Tailwind `className="h-4 w-4"` works (Phosphor defaults to `size="1em"`,
+  which CSS width/height overrides); color via `style={{ color }}` /
+  `text-*` works (Phosphor defaults `fill="currentColor"`). Don't pass
+  `weight` per-icon — let the global toggle own it. Leftover lucide-only props
+  like `strokeWidth`/`absoluteStrokeWidth` are harmless (valid SVG attributes,
+  ignored by Phosphor's fill glyphs) but should be dropped when you touch a
+  line.
+- **`icons.tsx` covers the ~355 logical names the app already used** (verified
+  against Phosphor). For a genuinely new glyph, add a re-export line to
+  `icons.tsx` (e.g. `export { CircleHalf as IconStyleGlyph } from
+  '@phosphor-icons/react'`); don't import phosphor directly at the call site.
+  The `LucideIcon` type (used for `icon:` props) is also re-exported from
+  `icons.tsx` as `ElementType`.
+- **The logical→Phosphor mapping lives in `icons.tsx`.** A few notable choices:
+  `Phone` → `DeviceMobile` (a solid smartphone — the settled "call" affordance),
+  `ToolCase` → `Toolbox`, `Award` → `Medal`, `Wheat` → `Plant`, `Radar` →
+  `Broadcast`, `Landmark` → `Bank`, and within-category collisions on the
+  homepage were given distinct glyphs (`PackageMinus`/Stock Issues →
+  `HandDeposit`, `FileWarning`/Near Miss → `WarningDiamond`, `FileCheck`/
+  Compliance → `SealCheck`, `FileBarChart`/Eng Report → `PresentationChart`).
+  If you re-map one, keep same-category modules visually distinct.
+- **Per-context color tinting is preserved everywhere** — **not** flat purple.
+  Status/severity color-coding (red overdue, amber warning, green active,
+  section/category accents) stays; a filled icon that reads flat grey next to
+  a vividly accent-colored record should get `color={accentHex}` /
+  `style={{ color }}` (see `SummaryItem`'s `color` prop). The reference sheet
+  is monochrome, but ours stays semantically colored by explicit decision.
+- **Verify any icon change by screenshotting the running page**, not by
+  eyeballing source — several rounds of this work were revised after a real
+  render showed a glyph reading heavier/lighter than its neighbors at actual
+  size, or a within-category duplicate.
+
+**Scope:** the migration is **app-wide** — all 94 files that imported
+`lucide-react` were repointed to the barrel, so the toggle affects every page.
+A handful of Phosphor substitutions for specialized glyphs are cosmetic
+best-fits (e.g. `Beef`/`Drumstick` → `Cow`, `Sandwich` → `Hamburger`,
+`Radar` → `Broadcast`) — fine to refine per-page if one reads wrong, but
+change the mapping in `icons.tsx`, don't re-import lucide.
+
+For per-action glyph consistency (independent of solid/outline): **edit →
+`Pencil`**, **delete → `Trash2`**, **add → `Plus`**, **call/phone → `Phone`**
+(the smartphone). Reuse the established name; don't introduce a second glyph
+for the same action.
 
 ## Known gotchas (already fixed, but the underlying shape of bug can recur)
 

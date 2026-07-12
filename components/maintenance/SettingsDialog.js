@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Settings, Monitor, Sun, Moon, Grid, List, Kanban } from "lucide-react";
+import { Settings, Monitor, Sun, Moon, Grid, List, Kanban } from "@/components/shared/theme";
 
 export default function SettingsDialog({ preferences, onSave }) {
   const [open, setOpen] = useState(false);

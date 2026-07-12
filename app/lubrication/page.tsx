@@ -3,7 +3,7 @@
 
 import { useState } from 'react';
 import { AppShell } from '@/components/app-shell';
-import { Droplets, ChevronDown, ChevronUp, FlaskConical, RefreshCw } from 'lucide-react';
+import { Droplets, ChevronDown, ChevronUp, FlaskConical, RefreshCw } from '@/components/shared/theme';
 import { useModuleData } from '@/lib/useModuleData';
 import { useTheme, PageHero, StatTile, StatusBadge } from '@/components/shared/theme';
 

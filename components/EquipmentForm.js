@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, Save, X, AlertTriangle } from "lucide-react";
+import { Loader2, Save, X, AlertTriangle } from "@/components/shared/theme";
 
 const EquipmentForm = ({ equipment, onSubmit, onCancel }) => {
     const [formData, setFormData] = useState({

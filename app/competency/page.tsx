@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { AppShell } from '@/components/app-shell';
-import { GraduationCap, X, RefreshCw } from 'lucide-react';
+import { GraduationCap, X, RefreshCw } from '@/components/shared/theme';
 import { useTheme, PageHero, StatTile } from '@/components/shared/theme';
 
 const _API = (process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com').replace(/\/$/, '');

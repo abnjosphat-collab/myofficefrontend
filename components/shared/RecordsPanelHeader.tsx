@@ -1,7 +1,7 @@
 'use client';
 
 import { type ElementType, type ReactNode } from 'react';
-import { Search, LayoutGrid, List, ChevronUp, ChevronDown, Calendar } from 'lucide-react';
+import { Search, LayoutGrid, List, ChevronUp, ChevronDown, Calendar } from '@/components/shared/theme';
 
 interface SortOption {
   value: string;

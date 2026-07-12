@@ -8,7 +8,7 @@ import {
   ArrowLeft, FilePieChart, Download, Filter, Users, Calculator,
   Shield, Settings, Eye, Plus, X, FileText,
   AlertCircle, ToolCase, ChevronDown, ChevronUp, ChevronsUp, ChevronsDown,
-} from 'lucide-react';
+} from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
 import { useTheme, PageHero, FormField, PrimaryButton, useCollapseSection, SelectField } from '@/components/shared/theme';
 

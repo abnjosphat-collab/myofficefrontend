@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { User, Shield, Calendar, AlertCircle, CheckCircle, Loader2, Search, X } from "lucide-react";
+import { User, Shield, Calendar, AlertCircle, CheckCircle, Loader2, Search, X } from "@/components/shared/theme";
 
 const PpeAllocationForm = ({ ppeItem, employees, onSubmit, onCancel }) => {
     const [selectedEmployee, setSelectedEmployee] = useState(null);

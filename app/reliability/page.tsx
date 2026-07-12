@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { AppShell } from '@/components/app-shell';
-import { Activity, RefreshCw } from 'lucide-react';
+import { Activity, RefreshCw } from '@/components/shared/theme';
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts';

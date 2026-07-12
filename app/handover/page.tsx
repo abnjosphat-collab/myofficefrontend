@@ -3,7 +3,7 @@
 
 import { useState } from 'react';
 import { AppShell } from '@/components/app-shell';
-import { ClipboardList, ChevronDown, ChevronUp, Plus, X, Moon, Sun, Clock, RefreshCw } from 'lucide-react';
+import { ClipboardList, ChevronDown, ChevronUp, Plus, X, Moon, Sun, Clock, RefreshCw } from '@/components/shared/theme';
 import { useModuleData } from '@/lib/useModuleData';
 import { useTheme, PageHero, StatTile, StatusBadge, FormField, PrimaryButton, SelectField } from '@/components/shared/theme';
 

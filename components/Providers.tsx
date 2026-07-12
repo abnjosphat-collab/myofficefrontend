@@ -2,12 +2,16 @@
 'use client';
 
 import { AuthProvider } from '@/lib/auth-context';
-import { ThemeProvider } from '@/components/shared/theme';
+import { ThemeProvider, IconStyleProvider, FontStyleProvider } from '@/components/shared/theme';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <AuthProvider>
-      <ThemeProvider>{children}</ThemeProvider>
+      <ThemeProvider>
+        <IconStyleProvider>
+          <FontStyleProvider>{children}</FontStyleProvider>
+        </IconStyleProvider>
+      </ThemeProvider>
     </AuthProvider>
   );
 }

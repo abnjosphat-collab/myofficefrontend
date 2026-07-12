@@ -15,7 +15,7 @@ import {
   Building, User, Shield, Zap, Lightbulb, Copy, Printer,
   Edit3, Users, Sparkles, History, Send, FileUp,
   Palette, Eye, ChevronDown, ChevronUp, ChevronsUp, ChevronsDown,
-} from 'lucide-react';
+} from '@/components/shared/theme';
 
 interface QuotationItem { id: number; description: string; quantity: number; rate: number; amount: number; category: string; }
 interface ClientData { id?: number; name: string; company: string; email: string; phone: string; address: string; city: string; country: string; website?: string | undefined; }
@@ -593,9 +593,7 @@ const QuotationGeneratorContent = () => {
         {clientsList.map((c) => (
           <div key={c.id} className={`flex items-center justify-between p-3 ${t.chipBg} rounded-xl border ${t.border} transition-colors group`}>
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-emerald-500/15 rounded-full flex items-center justify-center text-emerald-500 font-semibold text-sm">
-                {c.name.split(' ').map(n => n[0]).join('')}
-              </div>
+              <User className="h-6 w-6 text-emerald-500 shrink-0" />
               <div>
                 <div className={`font-semibold text-sm ${t.textPrimary}`}>{c.name}</div>
                 <div className={`text-xs ${t.textFaint}`}>{c.company}</div>

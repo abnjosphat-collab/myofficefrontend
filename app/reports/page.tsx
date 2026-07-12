@@ -10,7 +10,7 @@ import {
   Search, Plus, FileText, Trash2, RefreshCw, File,
   Table as TableIcon, Sparkles, DownloadCloud,
   BarChart, LayoutGrid, List, X, SlidersHorizontal, Users, Hash,
-} from 'lucide-react';
+} from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
 import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle, PrimaryButton,

@@ -2,7 +2,7 @@
 // Full approval flow: auth check → role check → signature capture → confirm
 'use client';
 import { useState } from 'react';
-import { Lock, ShieldAlert, LogIn, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
+import { Lock, ShieldAlert, LogIn, CheckCircle2, XCircle, AlertTriangle } from '@/components/shared/theme';
 import { useAuth } from '@/lib/auth-context';
 import { SignaturePad, type SignatureResult } from './SignaturePad';
 import type { UserRole } from '@/lib/auth-context';

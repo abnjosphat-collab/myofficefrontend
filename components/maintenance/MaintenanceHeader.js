@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import QuickCreateDialog from "./QuickCreateDialog";
 import SettingsDialog from "./SettingsDialog";
-import { RefreshCw, ArrowLeft, Home, Wrench } from "lucide-react";
+import { RefreshCw, ArrowLeft, Home, Wrench } from "@/components/shared/theme";
 import Link from "next/link";
 
 export default function MaintenanceHeader({ 

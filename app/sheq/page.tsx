@@ -6,7 +6,7 @@ import {
   Target, Eye, ClipboardList, ClipboardCheck, Ban, ExternalLink, ChevronRight, MessageSquare,
   Activity, FileSearch, BarChart3, Calendar,
   Clock, Zap, Bell, ChevronDown, ChevronUp, HeartHandshake,
-} from 'lucide-react';
+} from '@/components/shared/theme';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { useTheme, useCollapseSection } from '@/components/shared/theme';

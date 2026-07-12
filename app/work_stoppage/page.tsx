@@ -6,7 +6,7 @@ import {
   AlertTriangle, Target, UserCircle, Building2,
   LayoutGrid, Table as TableIcon, Maximize2, Minimize2, RefreshCw,
   Wrench, Zap, ChevronDown, ChevronUp, X,
-} from 'lucide-react';
+} from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
 import { toast } from 'sonner';
 import {
@@ -424,7 +424,7 @@ function ReportCard({ report, expanded, onToggle, onView, onEdit, onDelete }: {
     <GlowCard onClick={onView} color="#f43f5e" surface={`${t.glass} rounded-2xl`} className="overflow-hidden">
       <div className={`px-4 py-3 border-b ${t.border} flex items-center justify-between gap-2`}>
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="p-2 rounded-lg flex-shrink-0" style={{ background: `${sColor}18` }}><SIcon className="h-4 w-4" style={{ color: sColor }} /></div>
+          <SIcon className="h-5 w-5 shrink-0" style={{ color: sColor }} />
           <div className="min-w-0"><p className={`text-[10px] ${t.textFaint}`}>{report.section} • {fmtDate(report.date)}</p><p className={`text-sm font-semibold truncate ${t.textPrimary}`}>{report.department}</p></div>
         </div>
         <div className="flex items-center gap-1.5 flex-shrink-0" onClick={e => e.stopPropagation()}>

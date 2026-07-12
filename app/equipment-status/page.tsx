@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { Activity, RefreshCw, Search, Check } from 'lucide-react';
+import { Activity, RefreshCw, Search, Check } from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
 import { useTheme, PageHero, CenterModal, FormField, PrimaryButton, EmptyState, GlowCard, SelectField } from '@/components/shared/theme';
 import { useEquipment, toBoardStatus, type BoardStatus } from '@/lib/useEquipment';

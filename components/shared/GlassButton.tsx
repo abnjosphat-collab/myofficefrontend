@@ -1,7 +1,7 @@
 'use client';
 
 import { type ButtonHTMLAttributes, type ElementType, type ReactNode, isValidElement, cloneElement } from 'react';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw } from '@/components/shared/theme';
 
 type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
 type ButtonSize = 'xs' | 'sm' | 'md' | 'lg';

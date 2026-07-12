@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { AppShell } from '@/components/app-shell';
-import { AlertOctagon, ChevronDown, ChevronUp, RefreshCw } from 'lucide-react';
+import { AlertOctagon, ChevronDown, ChevronUp, RefreshCw } from '@/components/shared/theme';
 import { useTheme, PageHero, StatTile, ACCENT_HEX } from '@/components/shared/theme';
 
 const _API = (process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com').replace(/\/$/, '');

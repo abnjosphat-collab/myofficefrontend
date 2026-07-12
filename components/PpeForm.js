@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { Shield, FileText, Wrench, DollarSign, AlertCircle, CheckCircle, Loader2 } from "lucide-react";
+import { Shield, FileText, Wrench, DollarSign, AlertCircle, CheckCircle, Loader2 } from "@/components/shared/theme";
 
 const PpeForm = ({ ppe, onSubmit, onCancel }) => {
     const [formData, setFormData] = useState({

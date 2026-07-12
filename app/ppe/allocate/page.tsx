@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Shield, Save } from 'lucide-react';
+import { ArrowLeft, Shield, Save } from '@/components/shared/theme';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AppShell } from '@/components/app-shell';

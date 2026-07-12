@@ -20,7 +20,7 @@ import {
   SlidersHorizontal, ArrowUpDown, Zap, Settings2, Package, BarChart2,
   Activity, Layers, AlertTriangle, TrendingUp, Cpu, Maximize2, Minimize2,
   List, LayoutGrid,
-} from "lucide-react";
+} from "@/components/shared/theme";
 
 // ==================== TYPES ====================
 type WorkOrderStatus = 'pending' | 'in-progress' | 'completed' | 'on-hold' | 'cancelled' | 'postponed' | 'not-done';

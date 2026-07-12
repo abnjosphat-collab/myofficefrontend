@@ -2,14 +2,14 @@
 
 import { useState, useEffect, useMemo, useCallback, ElementType } from 'react';
 import {
-  Clock, Eye, Pencil, Trash2, Users, Calendar, Activity, Shield,
+  Clock, Eye, Pencil, Trash2, Users, User, Calendar, Activity, Shield,
   Layers, ChevronsUpDown, Check, X, AlertCircle, TrendingUp,
   MoreVertical, ChevronLeft, ChevronRight,
   Sun, Sunrise, Sunset, Moon, Settings2,
   Umbrella, Stethoscope, Star, Landmark, Zap,
   RotateCcw, Timer, BookOpen, AlarmClock, SlidersHorizontal,
   Flag, RefreshCw, Plus, LayoutGrid, List,
-} from 'lucide-react';
+} from '@/components/shared/theme';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -222,13 +222,13 @@ function cycleProgress(a: ShiftAssignment): number {
   return Math.round(((((diff % cycleLen) + cycleLen) % cycleLen) / cycleLen) * 100);
 }
 
-function initials(name: string): string { return name.split(' ').filter(Boolean).slice(0, 2).map(s => s[0]?.toUpperCase() ?? '').join(''); }
-
 // ─── Small shared-shape components ────────────────────────────────────────────
 
-function Avatar({ name, size = 'sm' }: { name: string; size?: 'xs' | 'sm' | 'md' | 'lg' }) {
-  const dims = { xs: 'w-6 h-6 text-[9px]', sm: 'w-8 h-8 text-xs', md: 'w-9 h-9 text-xs', lg: 'w-11 h-11 text-sm' }[size];
-  return <div className={`${dims} rounded-full bg-blue-500/15 flex items-center justify-center flex-shrink-0 font-bold uppercase text-blue-400`}>{initials(name)}</div>;
+// Person identity marker — a bare accent person icon (app-wide convention;
+// replaced the old initials-in-a-circle avatar). `name` kept for call compatibility.
+function Avatar({ size = 'sm' }: { name?: string; size?: 'xs' | 'sm' | 'md' | 'lg' }) {
+  const dims = { xs: 'h-4 w-4', sm: 'h-5 w-5', md: 'h-5 w-5', lg: 'h-7 w-7' }[size];
+  return <User className={`${dims} text-blue-400 shrink-0`} />;
 }
 
 function DayStatusBadge({ status }: { status: DayStatus }) {

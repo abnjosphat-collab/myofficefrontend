@@ -8,7 +8,7 @@ import {
   FileBarChart, RefreshCw, Download, Calendar, Wrench, Activity,
   AlertTriangle, CheckCircle2, TrendingUp,
   Gauge, Shield, Package, ClipboardList, ChevronDown,
-} from 'lucide-react';
+} from '@/components/shared/theme';
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer,

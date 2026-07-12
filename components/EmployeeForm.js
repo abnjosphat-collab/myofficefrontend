@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { CheckCircle, XCircle, Info, User, Briefcase, Shield, ListTodo, Trophy, History } from "lucide-react";
+import { CheckCircle, XCircle, Info, User, Briefcase, Shield, ListTodo, Trophy, History } from "@/components/shared/theme";
 
 // --- Tab Components ---
 const Tabs = ({ children, activeTab, setActiveTab }) => (

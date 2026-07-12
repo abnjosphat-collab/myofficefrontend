@@ -20,6 +20,18 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Body typeface — deliberately UNLAYERED so it beats Tailwind's preflight, which sets
+   the default ui-sans-serif stack on <html> from inside @layer base. Without this rule
+   at all, body copy falls back to the system font while only <h1>–<h6> pick up a
+   webfont, making headings and everything else look like mismatched typefaces (that
+   was the original bug). `--font-active` is set by FontStyleProvider (a user-facing
+   Settings > Typography preference, default "System" — the look already in use
+   app-wide before that fix) so the whole app always shares ONE body typeface, whichever
+   one is selected. Headings stay Montserrat via the h1–h6 rule further down regardless. */
+body {
+  font-family: var(--font-active, ui-sans-serif, system-ui, -apple-system, sans-serif);
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

@@ -3,11 +3,11 @@
 
 import React, { useState, useEffect, ElementType } from 'react';
 import {
-  Calendar, Plus, Trash2, History, Users, Download, Upload,
+  Calendar, Plus, Trash2, History, Users, User, Download, Upload,
   CheckCircle, XCircle,
   FileText, BarChart3, TrendingUp, Award, Zap, Send,
   Printer, CalendarDays, Grid3X3, List, Mail, FileSpreadsheet, FileDown,
-} from 'lucide-react';
+} from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
 import { toast } from 'sonner';
 import { jsPDF } from 'jspdf';
@@ -89,8 +89,6 @@ function statusLabel(status: LeaveRequest['status']) {
   return status === 'approved' ? 'Approved' : status === 'rejected' ? 'Rejected' : 'Pending';
 }
 
-function initials(name: string) { return name.split(' ').map(n => n[0]).join(''); }
-
 function calcDays(start: string, end: string): number {
   if (!start || !end) return 0;
   return Math.ceil(Math.abs(new Date(end).getTime() - new Date(start).getTime()) / 86400000) + 1;
@@ -136,12 +134,10 @@ function generateTeamReportPDF(stats: TeamLeaveStat[]) {
 
 // ─── SMALL COMPONENTS ─────────────────────────────────────────────────────────
 
-function Avatar({ name }: { name: string }) {
-  return (
-    <div className="w-9 h-9 rounded-full bg-blue-500/15 flex items-center justify-center flex-shrink-0 text-xs font-bold uppercase text-blue-400">
-      {initials(name)}
-    </div>
-  );
+// Person identity marker — bare accent person icon (app-wide convention;
+// replaced the old initials circle). `name` kept for call compatibility.
+function Avatar({ }: { name?: string }) {
+  return <User className="h-6 w-6 text-blue-400 shrink-0" />;
 }
 
 function Panel({ icon: Icon, title, children, actions }: { icon: ElementType; title: string; children: React.ReactNode; actions?: React.ReactNode }) {

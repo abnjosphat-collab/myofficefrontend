@@ -10,9 +10,12 @@ import { useState, useRef, useEffect, useCallback, type ReactNode, type ElementT
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { ChevronRight, ChevronDown, Loader2, Check, Search as SearchIcon, Pencil, Trash2, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+// Icons come from the shared icon module (Phosphor-backed, solid/outline toggle-aware) —
+// not directly from lucide — so shared components render in the same icon family/style
+// as the rest of the app.
+import { ChevronRight, ChevronDown, Loader2, Check, SearchIcon, Pencil, Trash2, ArrowUpRight, ArrowDownRight } from './icons';
 import { useTheme, ACCENT, ACCENT_HEX, SPACING, type Accent } from './tokens';
-import { GlowCard, PulsingIcon, AnimatedText, Collapse, CountUp } from './primitives';
+import { GlowCard, PulsingIcon, AnimatedText, Collapse, CountUp, useScrollEdgeFlash, ScrollEdgeGlow } from './primitives';
 import { tileIconItem, tileTextContainer, tileTextItem, staggerContainer, fadeUp } from './motion';
 
 // ─── useCollapseSection — drop-in replacement for the legacy usePageCollapse ────
@@ -36,6 +39,46 @@ export function StatusBadge({ color, label, dot = false }: { color: string; labe
       {dot && <span className="h-1.5 w-1.5 rounded-full" style={{ background: color }} />}
       {label}
     </span>
+  );
+}
+
+// ─── CardIconButton — the small overlay action buttons that float on cards ──────
+// A single elegant treatment for the icon buttons that sit on card corners (pin to
+// favorites / quick actions, quick-view, dismiss, remove). Replaces the old bare
+// `p-1 rounded-md hover:bg` icons with a glassy, bordered control that lifts on hover
+// and shows a clear tinted "active" state. Reused across the homepage module cards,
+// quick-action cards and anywhere else a card needs corner actions, so they all match.
+export function CardIconButton({
+  icon: Icon, onClick, title, active = false, activeHex, filled = false,
+}: {
+  icon: ElementType; onClick: (e: React.MouseEvent) => void; title: string;
+  /** Toggle state — when true the button reads as "on" using `activeHex`. */
+  active?: boolean;
+  /** Accent colour (hex) for the active state; falls back to blue. */
+  activeHex?: string;
+  /** Render the glyph filled (e.g. a bookmark that's been pinned). */
+  filled?: boolean;
+}) {
+  const t = useTheme();
+  const hex = activeHex ?? ACCENT_HEX.blue;
+  return (
+    <motion.button
+      onClick={onClick}
+      type="button"
+      title={title}
+      whileHover={{ y: -1.5 }}
+      whileTap={{ scale: 0.88 }}
+      transition={{ type: 'spring', stiffness: 420, damping: 26 }}
+      className={`h-7 w-7 flex items-center justify-center rounded-lg border backdrop-blur-md transition-colors duration-200 ${
+        active ? '' : `${t.glassSoft} ${t.border} ${t.textFaint} ${t.hoverText}`
+      }`}
+      style={active ? { color: hex, background: `${hex}1f`, borderColor: `${hex}55` } : undefined}
+    >
+      {/* Phosphor icons are solid-path glyphs (unlike lucide's stroke paths) — forcing
+         fill="none" makes them render invisible. Use `weight="fill"` instead to get a
+         filled look, and leave the rest to the global solid/outline icon-style toggle. */}
+      <Icon className="h-[15px] w-[15px]" weight={filled ? 'fill' : undefined} />
+    </motion.button>
   );
 }
 
@@ -247,6 +290,83 @@ export function GroupSection({
   );
 }
 
+// ─── Subsection — a second grouping level nested inside a GroupSection (e.g.
+// Underground → Fitters/Riggers/Boilermakers by trade). Deliberately lighter
+// than GroupSection — no separate glass card, just an indented header row +
+// Collapse — since it already sits inside one; mirrors how the sidebar nests
+// modules under a category without wrapping each in its own panel. Adopted
+// from the employees-page trial (grouping by `designation` as a stand-in
+// trade/subsection field) — only show these when grouping actually
+// consolidates records (2+ members in at least one subgroup); otherwise a
+// flat list of individually-unique labels is just noise, not organization.
+export function Subsection({
+  label, color, count, countLabel, open, onToggle, gridClassName = 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4', children,
+}: {
+  label: string;
+  /** Accent color for the subsection dot — typically the parent group's color. */
+  color: string;
+  count: number;
+  countLabel?: string;
+  open: boolean;
+  onToggle: () => void;
+  /** Layout for the items inside — defaults to the standard 1/2/3-col card grid. */
+  gridClassName?: string;
+  children: ReactNode;
+}) {
+  const t = useTheme();
+  return (
+    <div>
+      <button type="button" onClick={onToggle}
+        className={`w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-left ${t.hoverBgSoft} transition-colors group`}>
+        <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: color }} />
+        <span className={`text-[12.5px] font-semibold ${t.textSecondary} tracking-tight`}>{label}</span>
+        <span className={`text-[11px] ${t.textTertiary} tabular-nums`}>{count}{countLabel ? ` ${countLabel}` : ''}</span>
+        <ChevronDown className={`h-3.5 w-3.5 ${t.textFaint} ml-auto transition-transform shrink-0 ${open ? 'rotate-180' : ''}`} />
+      </button>
+      <Collapse open={open}>
+        <div className={`${gridClassName} pt-2 pb-1 pl-4`}>
+          {children}
+        </div>
+      </Collapse>
+    </div>
+  );
+}
+
+// ─── InfoRow — the standard label/value key-value pair used throughout every
+// RecordCard's expanded detail (ID numbers, dates, departments…). Was
+// hand-copied per-page (employees, equipment, inventory, drivers,
+// contractors, ppe each had their own identical local copy) — promoted here
+// so every page shares one implementation instead of six drifting copies.
+export function InfoRow({ label, value }: { label: string; value?: ReactNode }) {
+  const t = useTheme();
+  return (
+    <div>
+      <div className={`text-[10px] uppercase tracking-wide mb-0.5 ${t.textFaint}`}>{label}</div>
+      <div className={`text-sm ${t.textMuted}`}>{value || '—'}</div>
+    </div>
+  );
+}
+
+// ─── SummaryItem — one line of a RecordCard's always-visible summary (icon +
+// label + value), e.g. "# Mine No.: C1234". Pass `color` to tint the icon
+// with the record's own accent color (section/status color) instead of flat
+// grey — flat-grey summary icons next to a vividly accent-colored record
+// title/badges read as inconsistent "some icons pop, some don't" (this was
+// flagged and fixed on the employees page); default (no `color`) falls back
+// to the muted `textFaint` tone for contexts that want it de-emphasized.
+export function SummaryItem({ icon: Icon, label, value, color, strokeWidth }: {
+  icon: ElementType; label: string; value?: string; color?: string; strokeWidth?: number;
+}) {
+  const t = useTheme();
+  if (!value) return null;
+  return (
+    <span className="flex items-start gap-1.5 min-w-0">
+      <Icon className={`h-3 w-3 mt-0.5 shrink-0 ${color ? '' : t.textFaint}`} strokeWidth={strokeWidth} style={color ? { color } : undefined} />
+      <span className="min-w-0 truncate"><span className={t.textFaint}>{label}: </span>{value}</span>
+    </span>
+  );
+}
+
 // ─── RecordCard — THE universal "list record" card. Carries the exact same visual
 // language as the homepage module tiles — GlowCard lift/glow, a bare accent-coloured
 // icon that pops on hover (tileIconItem), a heading-font (Montserrat, via the <h4>)
@@ -258,8 +378,17 @@ export function GroupSection({
 //   • `children` — the expandable detail; when provided, a chevron reveals it via the
 //                   shared Collapse (same animation as GroupSection / the homepage).
 //   • `actions`  — rendered at the foot of the expanded area (e.g. Edit / Delete).
+//   • `headerActions` — always-visible controls in the header, left of the chevron
+//                   (e.g. a primary "Issue PPE" button that must be reachable without
+//                   expanding).
+//   • `open`/`onToggle` — optional CONTROLLED expand state. Omit both for the default
+//                   self-managed (uncontrolled) behavior; pass both when a parent needs
+//                   to drive it (e.g. an Expand-all / Collapse-all control across cards).
+//                   Expansion is CLICK-ONLY — never wire it to hover (a hover-expand felt
+//                   twitchy on the PPE page and was removed).
 export function RecordCard({
-  icon: Icon, accentHex, title, subtitle, badges, summary, actions, children, defaultOpen = false,
+  icon: Icon, accentHex, title, subtitle, badges, summary, actions, headerActions, children,
+  defaultOpen = false, open: controlledOpen, onToggle,
 }: {
   icon: ElementType;
   accentHex: string;
@@ -268,11 +397,17 @@ export function RecordCard({
   badges?: ReactNode;
   summary?: ReactNode;
   actions?: ReactNode;
+  headerActions?: ReactNode;
   children?: ReactNode;
   defaultOpen?: boolean;
+  open?: boolean;
+  onToggle?: () => void;
 }) {
   const t = useTheme();
-  const [open, setOpen] = useState(defaultOpen);
+  const [internalOpen, setInternalOpen] = useState(defaultOpen);
+  const isControlled = controlledOpen !== undefined && onToggle !== undefined;
+  const open = isControlled ? controlledOpen! : internalOpen;
+  const toggle = isControlled ? onToggle! : () => setInternalOpen(o => !o);
   const expandable = !!children;
   return (
     <GlowCard color={accentHex} surface={`${t.glass} rounded-2xl`} className="overflow-hidden">
@@ -286,11 +421,16 @@ export function RecordCard({
             {subtitle && <p className={`text-xs mt-0.5 truncate ${t.textMuted}`}>{subtitle}</p>}
             {badges && <div className="flex items-center gap-1.5 mt-2 flex-wrap">{badges}</div>}
           </div>
-          {expandable && (
-            <button type="button" onClick={() => setOpen(o => !o)} title={open ? 'Show less' : 'Expand details'}
-              className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all shrink-0`}>
-              <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />
-            </button>
+          {(headerActions || expandable) && (
+            <div className="flex items-center gap-1.5 shrink-0">
+              {headerActions}
+              {expandable && (
+                <button type="button" onClick={toggle} title={open ? 'Show less' : 'Expand details'}
+                  className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all`}>
+                  <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />
+                </button>
+              )}
+            </div>
           )}
         </div>
         {summary && <div className="mt-3">{summary}</div>}
@@ -416,6 +556,7 @@ export function SelectField({
   const [active, setActive] = useState(-1);
   const [mounted, setMounted] = useState(false);
   const [pos, setPos] = useState<{ top: number; left: number; width: number; above: boolean } | null>(null);
+  const { edge: scrollEdge, onScroll: onListScroll } = useScrollEdgeFlash();
 
   const opts = options.map(o => (typeof o === 'string' ? { value: o, label: o } : o));
   const selected = opts.find(o => o.value === value);
@@ -465,7 +606,7 @@ export function SelectField({
           else if (e.key === 'ArrowUp') { e.preventDefault(); setActive(a => Math.max(a - 1, 0)); }
           else if (e.key === 'Enter') { e.preventDefault(); if (opts[active]) commit(opts[active].value); }
         }}
-        className={`w-full flex items-center text-left outline-none cursor-pointer transition-colors ${sizeCls} ${t.inputBg} disabled:opacity-50 disabled:cursor-default`}
+        className={`w-full flex items-center text-left outline-none cursor-pointer transition-all duration-300 hover:shadow-[0_8px_18px_-10px_rgba(37,99,235,0.45)] hover:-translate-y-px disabled:hover:translate-y-0 disabled:hover:shadow-none ${sizeCls} ${t.inputBg} disabled:opacity-50 disabled:cursor-default`}
       >
         <span className={`truncate ${selected ? '' : t.textFaint}`}>{selected ? selected.label : (placeholder ?? '')}</span>
       </button>
@@ -485,7 +626,9 @@ export function SelectField({
               zIndex: 9999,
             }}
             className={`rounded-lg overflow-hidden ${t.glass} ${t.shadow} max-h-60 overflow-y-auto py-1`}
+            onScroll={onListScroll}
           >
+            {scrollEdge === 'top' && <ScrollEdgeGlow edge="top" />}
             {opts.map((o, i) => (
               <button
                 key={o.value}
@@ -500,6 +643,7 @@ export function SelectField({
                 {o.value === value && <Check className="h-3.5 w-3.5 shrink-0 text-blue-400" />}
               </button>
             ))}
+            {scrollEdge === 'bottom' && <ScrollEdgeGlow edge="bottom" />}
           </div>
         </>,
         document.body,
@@ -551,6 +695,7 @@ export function Combobox({
   const [active, setActive] = useState(0);
   const [mounted, setMounted] = useState(false);
   const [pos, setPos] = useState<{ top: number; left: number; width: number; above: boolean } | null>(null);
+  const { edge: scrollEdge, onScroll: onListScroll } = useScrollEdgeFlash();
 
   useEffect(() => setMounted(true), []);
 
@@ -588,7 +733,7 @@ export function Combobox({
         placeholder={placeholder}
         title={title}
         disabled={disabled}
-        className={`w-full outline-none transition-colors ${sizeCls} ${t.inputBg} ${inputClassName}`}
+        className={`w-full outline-none transition-all duration-300 hover:shadow-[0_8px_18px_-10px_rgba(37,99,235,0.45)] hover:-translate-y-px focus:shadow-[0_8px_18px_-10px_rgba(37,99,235,0.45)] focus:-translate-y-px disabled:hover:translate-y-0 disabled:hover:shadow-none ${sizeCls} ${t.inputBg} ${inputClassName}`}
         onChange={e => { onChange(e.target.value); setOpen(true); }}
         onFocus={() => { onFocusLoad?.(); setOpen(true); }}
         onBlur={() => setTimeout(() => setOpen(false), 160)}
@@ -613,7 +758,9 @@ export function Combobox({
           }}
           className={`rounded-xl overflow-hidden ${t.glass} ${t.shadow} max-h-60 overflow-y-auto`}
           onMouseDown={e => e.preventDefault()}
+          onScroll={onListScroll}
         >
+          {scrollEdge === 'top' && <ScrollEdgeGlow edge="top" />}
           {loading && <div className={`px-3 py-2 text-xs ${t.textFaint} flex items-center gap-2`}><Loader2 className="h-3 w-3 animate-spin" />Loading…</div>}
           {!loading && options.length === 0 && emptyText && <div className={`px-3 py-3 text-xs text-center ${t.textFaint}`}>{emptyText}</div>}
           {options.map((o, i) => (
@@ -632,6 +779,7 @@ export function Combobox({
               )}
             </button>
           ))}
+          {scrollEdge === 'bottom' && <ScrollEdgeGlow edge="bottom" />}
         </div>,
         document.body,
       )}

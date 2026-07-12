@@ -3,17 +3,18 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
+import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Users, ClipboardCheck, Activity, Shield, Search, LayoutGrid, Bookmark, Zap,
+  Users, ClipboardCheck, Activity, Shield, Search, LayoutGrid, Bookmark, Sparkles,
   SlidersHorizontal, Palette, PanelLeftClose, Bell, ShieldAlert,
-  ChevronsDownUp, ChevronsUpDown, ChevronLeft, ChevronRight, ChevronDown, X,
+  ChevronLeft, ChevronRight, ChevronDown, X,
   ArrowUpRight, ArrowDownRight, ArrowRight, Check, Eye, EyeOff, Maximize2, Plus,
   Pause, Play, CheckSquare, Square,
-} from 'lucide-react';
+} from '@/components/shared/theme';
 import {
-  useTheme, Collapse, AnimatedText, PulsingIcon, CenterModal, GlowCard, InfoCard, CountUp, EmptyState, StatCard, StatStrip,
-  staggerContainer, fadeUp, ACCENT, ACCENT_RGBA, ACCENT_HEX, rgbaFromHexSafe, SPACING, type Accent,
+  useTheme, Collapse, AnimatedText, PulsingIcon, CenterModal, GlowCard, InfoCard, EmptyState, StatCard, StatStrip,
+  CardIconButton, staggerContainer, fadeUp, ACCENT, ACCENT_RGBA, ACCENT_HEX, rgbaFromHexSafe, SPACING, type Accent,
 } from '@/components/shared/theme';
 import {
   AppShell, useAppShell, CATEGORIES, QUICK_ACTIONS, trackModuleUsage, useDashboardData,
@@ -32,7 +33,7 @@ const INTRO_SLIDES: { icon: React.ElementType; accent: Accent; title: string; de
   { icon: LayoutGrid,  accent: 'blue',    title: 'Welcome to MyOffice', description: 'One workspace for personnel, operations, safety, inventory and analytics.' },
   { icon: Search,      accent: 'cyan',    title: 'Find anything, instantly', description: 'Use the search bar up top to jump straight to any module, employee or document.' },
   { icon: Bookmark,    accent: 'violet',  title: 'Make it yours', description: 'Hover a module tile and tap the bookmark icon to pin it to Favorites in the left pane.' },
-  { icon: Zap,         accent: 'amber',   title: 'One-click quick actions', description: 'Tap the + icon on any module to pin it as a Quick Action — or just use it often and MyOffice will suggest it automatically.' },
+  { icon: Sparkles,    accent: 'amber',   title: 'One-click quick actions', description: 'Tap the + icon on any module to pin it as a Quick Action — or just use it often and MyOffice will suggest it automatically.' },
   { icon: SlidersHorizontal, accent: 'indigo', title: 'Customize your dashboard', description: 'Click Customize in the top bar to manage your pinned favorites.' },
   { icon: Palette,     accent: 'violet',  title: 'Consistent everywhere', description: 'This same header, sidebar and footer follow you to every module in MyOffice.' },
   { icon: PanelLeftClose, accent: 'indigo', title: 'Navigate the left pane', description: 'Browse every module by category, collapse the sidebar to a slim rail, and check System Status or Tips further down.' },
@@ -66,7 +67,12 @@ function QuickActionCard({ action, onRemove }: { action: QuickAction; onRemove?:
   const a = ACCENT[action.accent];
   const t = useTheme();
   return (
-    <motion.div variants={fadeUp} className="relative group">
+    // Explicit initial/animate (not just inherited `variants`) — quick actions the user
+    // just pinned mount well after the grid's own stagger-in has already settled (the
+    // favorites/quick-actions localStorage read happens in a post-mount effect), and a
+    // child that only declares `variants` without its own initial/animate can get stuck
+    // at the "hidden" variant forever once the parent stops re-issuing "show".
+    <motion.div initial="hidden" animate="show" variants={fadeUp} className="relative group">
       <GlowCard color={ACCENT_HEX[action.accent]} surface={`${t.glassSoft} rounded-xl`}>
         <Link href={action.href} onClick={() => trackModuleUsage(action.href)} className="flex items-center gap-3 p-3.5">
           <div className="h-9 w-9 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
@@ -79,14 +85,13 @@ function QuickActionCard({ action, onRemove }: { action: QuickAction; onRemove?:
         </Link>
       </GlowCard>
       {onRemove && (
-        <button
-          onClick={(e) => { e.preventDefault(); e.stopPropagation(); onRemove(); }}
-          className={`absolute top-1.5 right-1.5 p-1 rounded-md ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-colors`}
-          type="button"
-          title={action.auto ? 'Dismiss suggestion' : 'Remove from quick actions'}
-        >
-          <X className="h-3 w-3" />
-        </button>
+        <div className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          <CardIconButton
+            icon={X}
+            title={action.auto ? 'Dismiss suggestion' : 'Remove from quick actions'}
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onRemove(); }}
+          />
+        </div>
       )}
     </motion.div>
   );
@@ -141,31 +146,35 @@ function ModuleCard({
           </div>
         </div>
       ) : (
-        <div className="absolute top-2 right-2 flex items-center gap-1 transition-all">
-          <button
-            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleFavorite(); }}
-            className={`p-1 rounded-md ${t.hoverBg} transition-colors ${isFavorite ? 'text-blue-400' : t.textFaint} ${t.hoverText}`}
-            type="button"
+        <div className="absolute top-2 right-2 flex items-center gap-1.5 transition-all">
+          <CardIconButton
+            icon={Bookmark}
+            active={isFavorite}
+            activeHex={ACCENT_HEX.blue}
+            filled={isFavorite}
             title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
-          >
-            <Bookmark className="h-3.5 w-3.5" fill={isFavorite ? 'currentColor' : 'none'} strokeWidth={1.75} />
-          </button>
-          <button
-            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleQuickAction(); }}
-            className={`p-1 rounded-md ${t.hoverBg} transition-colors ${isQuickAction ? 'text-amber-400' : t.textFaint} ${t.hoverText}`}
-            type="button"
+            onClick={(e) => {
+              e.preventDefault(); e.stopPropagation();
+              onToggleFavorite();
+              toast(isFavorite ? 'Removed from Favorites' : `Pinned “${module.title}” to Favorites`);
+            }}
+          />
+          <CardIconButton
+            icon={isQuickAction ? Check : Plus}
+            active={isQuickAction}
+            activeHex={ACCENT_HEX.amber}
             title={isQuickAction ? 'Remove from quick actions' : 'Add to quick actions'}
-          >
-            {isQuickAction ? <Check className="h-3.5 w-3.5" strokeWidth={1.75} /> : <Plus className="h-3.5 w-3.5" strokeWidth={1.75} />}
-          </button>
-          <button
-            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onQuickView(); }}
-            className={`p-1 rounded-md ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-colors`}
-            type="button"
+            onClick={(e) => {
+              e.preventDefault(); e.stopPropagation();
+              onToggleQuickAction();
+              toast(isQuickAction ? 'Removed from Quick Actions' : `Added “${module.title}” to Quick Actions`);
+            }}
+          />
+          <CardIconButton
+            icon={Maximize2}
             title="Quick view"
-          >
-            <Maximize2 className="h-3.5 w-3.5" strokeWidth={1.75} />
-          </button>
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onQuickView(); }}
+          />
         </div>
       )}
     </div>
@@ -455,7 +464,17 @@ function DashboardHeader() {
               />
             )}
             <span className={`text-[20px] font-semibold ${t.textPrimary} tracking-tight tabular-nums`}>
-              <CountUp value={stat.value} suffix={stat.suffix} delay={0.9 + i * 0.1} />
+              {/* Dissolve / emerge: the final figure fades in out of a soft blur rather
+                 than ticking up — re-keyed on the value so live-loaded stats re-emerge. */}
+              <motion.span
+                key={stat.value}
+                initial={{ opacity: 0, filter: 'blur(10px)', y: 6 }}
+                animate={{ opacity: 1, filter: 'blur(0px)', y: 0 }}
+                transition={{ duration: 0.7, delay: 0.9 + i * 0.1, ease: [0.22, 1, 0.36, 1] }}
+                className="inline-block"
+              >
+                {stat.value}{stat.suffix}
+              </motion.span>
             </span>
             <span className={`text-[12px] ${t.textFaint}`}>{stat.label}</span>
           </motion.div>
@@ -595,7 +614,7 @@ function DashboardContent() {
                 className={`flex items-center gap-1.5 text-[12px] font-medium ${t.textMuted} ${t.hoverText} ${t.glassSoft} rounded-lg px-2.5 py-1.5 transition-colors`}
                 type="button"
               >
-                {allExpanded ? <ChevronsDownUp className="h-3.5 w-3.5" /> : <ChevronsUpDown className="h-3.5 w-3.5" />}
+                <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-300 ${allExpanded ? 'rotate-180' : ''}`} />
                 {allExpanded ? 'Collapse all' : 'Expand all'}
               </button>
             </div>

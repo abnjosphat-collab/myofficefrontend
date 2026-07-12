@@ -3,14 +3,16 @@
 
 import { AppShell } from '@/components/app-shell';
 import { useState, useEffect, useMemo } from "react";
+import { motion } from "framer-motion";
 import Link from "next/link";
 import {
   Package, Truck, Plus, Filter, MapPin,
-  DollarSign, FilterX, Grid, List, RefreshCw,
-} from "lucide-react";
+  DollarSign, FilterX, Grid, List, RefreshCw, Pencil, Trash2, Eye, Hash,
+} from "@/components/shared/theme";
 import {
-  useTheme, PageHero, StatTile, StatusBadge, ListItemCard,
+  useTheme, PageHero, StatTile, StatusBadge, ProgressBar,
   SearchInput, ViewToggle, useCollapseSection, ACCENT_HEX,
+  GroupSection, RecordCard, staggerContainer, fadeUp, InfoRow, SummaryItem,
 } from '@/components/shared/theme';
 
 interface InventoryItem {
@@ -52,6 +54,68 @@ function getStockStatus(item: InventoryItem) {
   return 'in-stock';
 }
 
+// Palette for categories — drawn from the shared ACCENT_HEX brand palette (not
+// arbitrary hexes), hashed so each distinct category name gets a stable color.
+const GROUP_PALETTE = [ACCENT_HEX.blue, ACCENT_HEX.amber, ACCENT_HEX.emerald, ACCENT_HEX.violet, ACCENT_HEX.cyan, ACCENT_HEX.indigo];
+function categoryColor(category?: string) {
+  if (!category) return '#94a3b8';
+  let h = 0;
+  for (let i = 0; i < category.length; i++) h = (h * 31 + category.charCodeAt(i)) >>> 0;
+  return GROUP_PALETTE[h % GROUP_PALETTE.length];
+}
+
+// InfoRow/SummaryItem now come from the shared design system (promoted from
+// this page's own local versions — see the design-system migration).
+
+// ─── InventoryCard — built on the shared RecordCard so it inherits the exact
+// homepage module-card treatment (bare accent icon, Montserrat title, GlowCard
+// lift/glow). Key summary always visible; the rest expands in place. ──
+function InventoryCard({ item, onDelete }: { item: InventoryItem; onDelete: () => void }) {
+  const t = useTheme();
+  const status = getStockStatus(item);
+  const statusColor = STATUS_COLORS[status];
+  const stockPct = Math.min((item.currentStock / item.maxStock) * 100, 100);
+
+  return (
+    <RecordCard
+      icon={Package}
+      accentHex={statusColor}
+      title={item.name}
+      subtitle={`SKU: ${item.sku}`}
+      badges={<>
+        <StatusBadge color={statusColor} label={STATUS_LABELS[status]} dot />
+        {status === 'low-stock' && <StatusBadge color="#f59e0b" label="Needs Reorder" />}
+      </>}
+      summary={
+        <div className={`grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs ${t.textMuted}`}>
+          <SummaryItem icon={MapPin} label="Location" value={item.location} color={statusColor} />
+          <SummaryItem icon={Truck} label="Supplier" value={item.supplier} color={statusColor} />
+        </div>
+      }
+      actions={<>
+        <Link href={`/inventory/view/${item.id}`} className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg ${t.chipBg} ${t.textMuted} ${t.hoverText} text-[12px] font-semibold transition-all`}>
+          <Eye className="h-3.5 w-3.5" /> View
+        </Link>
+        <Link href={`/inventory/edit/${item.id}`} className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 text-white text-[12px] font-semibold hover:brightness-110 transition-all">
+          <Pencil className="h-3.5 w-3.5" /> Edit
+        </Link>
+        <button onClick={onDelete} type="button" className={`px-4 flex items-center justify-center gap-1.5 py-2 rounded-lg ${t.chipBg} text-rose-500 hover:bg-rose-500/10 text-[12px] font-semibold transition-all`}>
+          <Trash2 className="h-3.5 w-3.5" /> Delete
+        </button>
+      </>}
+    >
+      <div className="grid grid-cols-2 gap-x-4 gap-y-2.5">
+        <InfoRow label="Stock" value={`${item.currentStock}/${item.maxStock} ${item.unit}`} />
+        <InfoRow label="Unit Cost" value={`$${item.cost.toFixed(2)}`} />
+        <InfoRow label="Category" value={item.category} />
+        <InfoRow label="Last Restocked" value={new Date(item.lastRestocked).toLocaleDateString('en-GB')} />
+      </div>
+      <ProgressBar value={Math.round(stockPct)} color={statusColor} label="Stock level" />
+      {item.description && <p className={`text-xs ${t.textMuted}`}>{item.description}</p>}
+    </RecordCard>
+  );
+}
+
 function generateSampleInventory(): InventoryItem[] {
   return [
     { id: 'inv-001', name: 'Industrial Circuit Boards', sku: 'CB-IND-005', category: 'Electronics', description: 'High-temperature circuit boards for manufacturing equipment', currentStock: 45, minStock: 20, maxStock: 100, unit: 'pcs', cost: 125.50, supplier: 'TechSupply Inc', location: 'Shelf A-12', status: 'in-stock', lastRestocked: new Date(Date.now() - 7 * 86400000).toISOString() },
@@ -60,6 +124,46 @@ function generateSampleInventory(): InventoryItem[] {
     { id: 'inv-004', name: 'CNC Cutting Tools', sku: 'CNC-CT-3MM', category: 'Tools', description: '3mm carbide cutting tools for CNC machines', currentStock: 0, minStock: 15, maxStock: 80, unit: 'pcs', cost: 45.00, supplier: 'Global Tools', location: 'Tool Crib B', status: 'out-of-stock', lastRestocked: new Date(Date.now() - 30 * 86400000).toISOString() },
     { id: 'inv-005', name: 'Laser Printer Toner', sku: 'TONER-XL500', category: 'Office Supplies', description: 'High-yield toner for XL500 series printers', currentStock: 3, minStock: 5, maxStock: 20, unit: 'cartridges', cost: 89.99, supplier: 'Office Depot', location: 'Supply Closet', status: 'low-stock', lastRestocked: new Date(Date.now() - 21 * 86400000).toISOString() },
   ];
+}
+
+// ─── InventoryRow — compact list-view row, mirroring EmployeeRow's pattern. ──
+function InventoryRow({ item, onDelete }: { item: InventoryItem; onDelete: () => void }) {
+  const t = useTheme();
+  const status = getStockStatus(item);
+  const statusColor = STATUS_COLORS[status];
+
+  return (
+    <div className={`border-b ${t.border}`}>
+      <div className={`flex items-center gap-3.5 px-4 py-3 ${t.hoverBgSoft} transition-colors group`}>
+        <div className="shrink-0"><Package className="h-5 w-5" style={{ color: statusColor }} /></div>
+
+        <Link href={`/inventory/view/${item.id}`} className="flex-1 min-w-0 text-left">
+          <div className={`font-semibold text-sm ${t.textPrimary}`}>{item.name}</div>
+          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+            <span className={`text-xs font-mono ${t.textFaint}`}>{item.sku}</span>
+            {item.category && <span className={`text-xs ${t.textFaint}`}>· {item.category}</span>}
+            <StatusBadge color={statusColor} label={STATUS_LABELS[status]} dot />
+          </div>
+        </Link>
+
+        <div className="flex items-center gap-2 shrink-0">
+          <span className={`hidden sm:flex items-center gap-1 text-[11px] ${t.textFaint}`}><Hash className="h-3 w-3" style={{ color: statusColor }} />{item.currentStock}/{item.maxStock} {item.unit}</span>
+          {item.location && <span className={`hidden md:flex items-center gap-1 text-[11px] ${t.textFaint}`}><MapPin className="h-3 w-3" style={{ color: statusColor }} />{item.location}</span>}
+        </div>
+
+        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          <Link href={`/inventory/edit/${item.id}`} title="Edit item"
+            className="h-7 w-7 flex items-center justify-center rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 transition-all">
+            <Pencil className="h-3.5 w-3.5" />
+          </Link>
+          <button type="button" title="Delete item" onClick={onDelete}
+            className="h-7 w-7 flex items-center justify-center rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 transition-all">
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function InventoryPageContent() {
@@ -73,6 +177,9 @@ function InventoryPageContent() {
   const [selectedStatus, setSelectedStatus] = useState<string[]>([]);
   const [selectedSuppliers, setSelectedSuppliers] = useState<string[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  // Records are grouped by category (homepage category-accordion vocabulary); this
+  // tracks which category groups the user has collapsed (default: all open).
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
   const loadInventory = () => {
     setIsRefreshing(true);
@@ -123,6 +230,26 @@ function InventoryPageContent() {
   }), [inventory, searchTerm, selectedCategories, selectedStatus, selectedSuppliers]);
 
   const hasActiveFilters = !!(searchTerm || selectedCategories.length || selectedStatus.length || selectedSuppliers.length);
+
+  // Group the filtered list by category — alphabetically, "Uncategorized" last.
+  const grouped = useMemo(() => {
+    const map = new Map<string, InventoryItem[]>();
+    for (const item of filtered) {
+      const key = item.category || 'Uncategorized';
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(item);
+    }
+    return [...map.keys()]
+      .sort((a, b) => (a === 'Uncategorized' ? 1 : b === 'Uncategorized' ? -1 : a.localeCompare(b)))
+      .map(category => ({ category, color: categoryColor(category === 'Uncategorized' ? undefined : category), items: map.get(category)! }));
+  }, [filtered]);
+
+  const isGroupOpen = (category: string) => !!searchTerm || !collapsedGroups.has(category);
+  const toggleGroup = (category: string) => setCollapsedGroups(prev => {
+    const next = new Set(prev);
+    next.has(category) ? next.delete(category) : next.add(category);
+    return next;
+  });
 
   const clearFilters = () => {
     setSearchTerm('');
@@ -273,35 +400,29 @@ function InventoryPageContent() {
           )}
         </div>
       ) : (
-        <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4' : 'space-y-2'}>
-          {filtered.map(item => {
-            const status = getStockStatus(item);
-            const stockPct = Math.min((item.currentStock / item.maxStock) * 100, 100);
-            return (
-              <ListItemCard
-                key={item.id}
-                color={STATUS_COLORS[status]}
-                icon={Package}
-                title={item.name}
-                subtitle={`SKU: ${item.sku}`}
-                onClick={() => window.location.assign(`/inventory/view/${item.id}`)}
-                onEdit={() => window.location.assign(`/inventory/edit/${item.id}`)}
-                onDelete={() => { if (confirm('Delete this item?')) deleteItem(item.id); }}
-                badges={<>
-                  <StatusBadge color={STATUS_COLORS[status]} label={STATUS_LABELS[status]} dot />
-                  {status === 'low-stock' && <StatusBadge color="#f59e0b" label="Needs Reorder" />}
-                </>}
-                rows={[
-                  { label: 'Stock', value: `${item.currentStock}/${item.maxStock} ${item.unit}` },
-                  { label: 'Location', value: <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3" />{item.location}</span> },
-                  { label: 'Supplier', value: <span className="inline-flex items-center gap-1"><Truck className="h-3 w-3" />{item.supplier}</span> },
-                  { label: 'Unit cost', value: <span className="inline-flex items-center gap-1"><DollarSign className="h-3 w-3" />{item.cost.toFixed(2)}</span> },
-                  { label: 'Stock level', value: `${Math.round(stockPct)}%` },
-                ]}
-              />
-            );
-          })}
-        </div>
+        <motion.div variants={staggerContainer} initial="hidden" animate="show" className="space-y-3">
+          {grouped.map(g => (
+            <GroupSection
+              key={g.category}
+              icon={Package}
+              accentHex={g.color}
+              title={g.category}
+              count={g.items.length}
+              countLabel={g.items.length === 1 ? 'item' : 'items'}
+              open={isGroupOpen(g.category)}
+              onToggle={() => toggleGroup(g.category)}
+              gridClassName={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4' : 'grid grid-cols-1 gap-0 -mx-4'}
+            >
+              {g.items.map(item => (
+                <motion.div key={item.id} variants={fadeUp}>
+                  {viewMode === 'grid'
+                    ? <InventoryCard item={item} onDelete={() => { if (confirm('Delete this item?')) deleteItem(item.id); }} />
+                    : <InventoryRow item={item} onDelete={() => { if (confirm('Delete this item?')) deleteItem(item.id); }} />}
+                </motion.div>
+              ))}
+            </GroupSection>
+          ))}
+        </motion.div>
       )}
     </main>
   );

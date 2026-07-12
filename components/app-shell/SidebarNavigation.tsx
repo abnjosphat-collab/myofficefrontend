@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Bookmark, ChevronDown, Lightbulb, PanelLeftClose, PanelLeftOpen, Pencil, X,
-} from 'lucide-react';
+} from '@/components/shared/theme';
 import {
   useTheme, Collapse, staggerContainer, fadeUp, ACCENT_RGBA, rgbaFromHexSafe, type Accent,
 } from '@/components/shared/theme';
@@ -149,7 +149,7 @@ export function SidebarNavigation({
                   favoriteModules.map(({ module }) => (
                     <div key={module.href} className="relative flex items-center">
                       <Link href={module.href} onClick={() => trackModuleUsage(module.href)} className={`flex-1 flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-[13px] ${t.textMuted} ${t.hoverBg} ${t.hoverText} transition-all duration-300 hover:shadow-[0_8px_18px_-10px_rgba(37,99,235,0.45)] hover:-translate-y-px ${editingFavorites ? 'pr-8' : ''}`}>
-                        <Bookmark className="h-3.5 w-3.5 shrink-0 transition-colors" style={{ color: accentHex }} fill="none" strokeWidth={1.75} />
+                        <Bookmark className="h-3.5 w-3.5 shrink-0 transition-colors" style={{ color: accentHex }} weight="fill" />
                         <span className="truncate">{module.title}</span>
                       </Link>
                       {editingFavorites && (

@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronsUp, ChevronsDown } from 'lucide-react';
+import { ChevronsUp, ChevronsDown } from '@/components/shared/theme';
 import type { PageCollapseState } from './usePageCollapse';
 
 interface MasterCollapseButtonProps {

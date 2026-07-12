@@ -7,7 +7,7 @@ import {
   ChevronDown, ChevronUp, ClipboardList,
   TrendingUp, TrendingDown, AlertTriangle, CheckCircle2, Clock,
   BarChart3, Pencil, Trash2,
-} from 'lucide-react';
+} from '@/components/shared/theme';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import {

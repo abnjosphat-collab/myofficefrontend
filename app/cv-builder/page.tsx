@@ -101,7 +101,7 @@ import {
   Moon,
   Sun,
   Monitor
-} from 'lucide-react';
+} from '@/components/shared/theme';
 
 // ========== TYPES ==========
 interface PersonalInfo { firstName: string; lastName: string; title: string; summary: string; photo: string | null; }

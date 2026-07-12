@@ -7,7 +7,7 @@ import {
   ToolCase, AlertTriangle, BarChart3, Download, Gauge,
   LineChart, Plus, RefreshCw, Search, Settings,
   Clock, Activity, Percent, Calculator,
-} from 'lucide-react';
+} from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
 import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, ProgressBar, useCollapseSection, ACCENT_HEX, SelectField,

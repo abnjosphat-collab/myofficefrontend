@@ -64,7 +64,7 @@ import {
   Network,
   ChevronDown,
   Home
-} from 'lucide-react';
+} from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
 import { useTheme, PageHero } from '@/components/shared/theme';
 import { Button } from '@/components/ui/button';

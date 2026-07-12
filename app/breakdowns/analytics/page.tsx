@@ -9,7 +9,7 @@ import {
   Clock, Activity, Zap, MapPin, PieChart, Layers,
   ScatterChart, GitCompare, Hash,
   Building2, Timer, Gauge, List
-} from 'lucide-react';
+} from '@/components/shared/theme';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';

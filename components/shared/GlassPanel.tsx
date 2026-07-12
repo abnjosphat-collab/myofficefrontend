@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, type ReactNode, type ElementType } from 'react';
-import { ChevronUp, ChevronDown } from 'lucide-react';
+import { ChevronUp, ChevronDown } from '@/components/shared/theme';
 
 interface GlassPanelProps {
   variant?: 'dark' | 'panel';

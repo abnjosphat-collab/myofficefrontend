@@ -8,15 +8,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { toast } from 'sonner';
 import {
   ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Search, Download, Plus,
-  Clock, Users, Loader2, CheckCircle, XCircle, AlertTriangle,
+  Clock, Users, User, Loader2, CheckCircle, XCircle, AlertTriangle,
   CalendarDays, RefreshCw, Zap, Moon, Trash2, FileSpreadsheet,
   FileText, UserPlus, Briefcase, Building2, X, Check,
   LayoutGrid, Layers, Sun,
-} from 'lucide-react';
+} from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
 import { useTheme, PageHero, ACCENT_HEX, useCollapseSection, EmptyState } from '@/components/shared/theme';
 
@@ -112,10 +111,6 @@ const getNECPeriod = (month: Date): Period => {
   const y = month.getFullYear(), m = month.getMonth();
   return { start: new Date(y, m - 1, 13), end: new Date(y, m, 12) };
 };
-
-function initials(name: string): string {
-  return name.split(' ').filter(Boolean).slice(0, 2).map(s => s[0]?.toUpperCase() ?? '').join('');
-}
 
 // ─────────────────── API ───────────────────
 
@@ -577,7 +572,7 @@ function BulkAssignDialog({ initialEmployee, allEmployees, period, timesheets, o
                 return (
                   <button key={emp.id} type="button" onClick={() => toggleEmp(emp.id)}
                     className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${sel ? 'bg-blue-500/25 text-blue-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}>
-                    <Avatar className="h-4 w-4 shrink-0"><AvatarFallback className="text-[8px] bg-white/10 text-white/60">{initials(emp.name)}</AvatarFallback></Avatar>
+                    <User className="h-3.5 w-3.5 shrink-0" />
                     {emp.name}{sel && <Check className="w-3 h-3 opacity-70" />}
                   </button>
                 );
@@ -745,7 +740,7 @@ function BulkAddEmployeesDialog({ allEmployees, currentIds, onAdd, onClose }: {
             <button key={emp.id} type="button" onClick={() => toggle(emp.id)}
               className={`w-full flex items-center gap-3 p-2.5 rounded-lg text-left transition-colors ${selected.has(emp.id) ? 'bg-blue-500/15' : t.hoverBgSoft}`}>
               <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 ${selected.has(emp.id) ? 'bg-blue-500 border-blue-400' : `border ${t.border}`}`}>{selected.has(emp.id) && <Check className="w-2.5 h-2.5 text-white" />}</div>
-              <Avatar className="h-7 w-7 flex-shrink-0"><AvatarFallback className="text-[10px] bg-blue-500/20 text-blue-400">{initials(emp.name)}</AvatarFallback></Avatar>
+              <User className="h-5 w-5 shrink-0 text-blue-400" />
               <div className="flex-1 min-w-0"><div className={`text-sm font-medium truncate ${t.textPrimary}`}>{emp.name}</div><div className={`text-[10px] truncate ${t.textFaint}`}>{emp.position} · {emp.department}</div></div>
             </button>
           ))}
@@ -1120,7 +1115,7 @@ function TimesheetGrid({ employees, timesheets, days, onCellClick, onBulkAssign,
                     </button>
                   )}
                   <div className="flex items-center gap-2 pr-5">
-                    <Avatar className="h-8 w-8 flex-shrink-0"><AvatarFallback className="text-[10px] bg-blue-500/20 text-blue-400">{initials(emp.name)}</AvatarFallback></Avatar>
+                    <User className="h-5 w-5 shrink-0 text-blue-400" />
                     <div className="min-w-0 flex-1">
                       <p className={`text-sm font-medium truncate leading-tight ${t.textPrimary}`}>{emp.name}</p>
                       <p className={`text-[10px] truncate mt-0.5 ${t.textFaint}`}>{emp.position}</p>
@@ -1486,7 +1481,7 @@ function TimesheetsContent() {
               {tabEmployees.map(emp => (
                 <div key={emp.id} className="space-y-1">
                   <label className={`text-[10px] font-medium flex items-center gap-1.5 ${t.textFaint}`}>
-                    <Avatar className="h-4 w-4 shrink-0"><AvatarFallback className="text-[7px] bg-blue-500/20 text-blue-400">{initials(emp.name)}</AvatarFallback></Avatar>
+                    <User className="h-3.5 w-3.5 shrink-0 text-blue-400" />
                     {emp.name}
                   </label>
                   <textarea rows={2} placeholder={`Notes for ${emp.name.split(' ')[0]}…`} value={empNotes[emp.id] || ''} onChange={e => updateEmpNote(emp.id, e.target.value)}

@@ -6,7 +6,7 @@ import {
   Shield, Users, Search, ChevronDown, ChevronUp,
   Save, RefreshCw, AlertCircle, Check, X,
   Crown, Star, Briefcase, UserCheck, Eye as EyeIcon,
-} from 'lucide-react';
+} from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
 import { useTheme, PageHero, StatTile, StatusBadge, SearchInput, EmptyState } from '@/components/shared/theme';
 import { useAuth } from '@/lib/auth-context';

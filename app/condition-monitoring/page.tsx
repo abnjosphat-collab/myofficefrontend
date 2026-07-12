@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { AppShell } from '@/components/app-shell';
-import { Radar, Plus, X, RefreshCw } from 'lucide-react';
+import { Radar, Plus, X, RefreshCw } from '@/components/shared/theme';
 import { useTheme, PageHero, StatTile, StatusBadge, FormField, PrimaryButton, ACCENT_HEX, SelectField } from '@/components/shared/theme';
 
 const _API = (process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com').replace(/\/$/, '');

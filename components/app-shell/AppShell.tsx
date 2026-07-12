@@ -4,14 +4,15 @@
 // pages not yet migrated). No wallpaper here, per the homepage's design.
 'use client';
 
-import { useMemo } from 'react';
-import { Bookmark, X } from 'lucide-react';
+import { useMemo, useEffect } from 'react';
+import { Bookmark, X } from '@/components/shared/theme';
 import {
   useTheme, CenterModal, DEFAULT_BG_ACCENT, bgLayersFromHex,
 } from '@/components/shared/theme';
 import { TopNavigation } from './TopNavigation';
 import { SidebarNavigation } from './SidebarNavigation';
 import { BottomBar } from './BottomBar';
+import { UsageTracker } from './UsageTracker';
 import { useAppShellState } from './useAppShellState';
 import { AppShellContext } from './context';
 
@@ -21,8 +22,27 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const bgAccent = DEFAULT_BG_ACCENT;
   const bgLayers = useMemo(() => bgLayersFromHex(bgAccent), []);
 
+  // App-wide: clicking anywhere in a date/time input opens the native picker (not just
+  // the tiny calendar glyph). Delegated so it covers every page's date fields without
+  // each one wiring its own onClick. showPicker() needs a user gesture — a click is one.
+  useEffect(() => {
+    const PICKABLE = ['date', 'time', 'month', 'week', 'datetime-local'];
+    const onClick = (e: MouseEvent) => {
+      const el = e.target as HTMLElement;
+      if (el instanceof HTMLInputElement && PICKABLE.includes(el.type) && !el.disabled && !el.readOnly) {
+        const anyEl = el as HTMLInputElement & { showPicker?: () => void };
+        if (typeof anyEl.showPicker === 'function') {
+          try { anyEl.showPicker(); } catch { /* not allowed in this context — ignore */ }
+        }
+      }
+    };
+    document.addEventListener('click', onClick);
+    return () => document.removeEventListener('click', onClick);
+  }, []);
+
   return (
     <AppShellContext.Provider value={s}>
+    <UsageTracker />
     <div
       className="relative flex h-screen flex-col"
       style={{ background: t.light ? bgLayers.light : bgLayers.darkWash }}

@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import {
   Activity, AlertTriangle, BarChart3, Calendar, Check, Clock,
   FileText, Gauge, LineChart, Pencil, Percent, Plus, Search, Trash2, Download, RefreshCw, X,
-} from 'lucide-react';
+} from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
 import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, ProgressBar, FormField, FormActions,

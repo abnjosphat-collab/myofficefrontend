@@ -1,7 +1,7 @@
 // components/shared/SignaturePad.tsx — canvas-based digital signature
 'use client';
 import { useRef, useState } from 'react';
-import { Pen, RotateCcw } from 'lucide-react';
+import { Pen, RotateCcw } from '@/components/shared/theme';
 
 export interface SignatureResult {
   dataUrl:    string;   // base64 PNG

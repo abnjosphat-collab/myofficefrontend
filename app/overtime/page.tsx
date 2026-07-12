@@ -6,8 +6,8 @@ import { AppShell } from '@/components/app-shell';
 import {
   Clock4, Plus, Search, RefreshCw, CheckCircle2, XCircle,
   FileText, Eye, Trash2, Edit, Download, LayoutGrid, List, AlertCircle,
-  Sun, Moon, Briefcase, Calendar, X,
-} from 'lucide-react';
+  Sun, Moon, Briefcase, Calendar, X, User,
+} from '@/components/shared/theme';
 import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, ProgressBar, FormField, FormActions,
   useCollapseSection, CenterModal, ACCENT_HEX, EmptyState, PrimaryButton, GlowCard, SelectField,
@@ -87,10 +87,6 @@ function fmtDate(v?: string): string {
   return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
-function initials(name: string): string {
-  return name.split(' ').filter(Boolean).slice(0, 2).map(s => s[0]?.toUpperCase() ?? '').join('');
-}
-
 function blankForm(): OTForm {
   return {
     employee_name: '', employee_id: '', position: '', department: '',
@@ -145,13 +141,12 @@ function TypeBadge({ type }: { type: OTType }) {
   );
 }
 
-function Avatar({ name, size = 'sm' }: { name: string; size?: 'sm' | 'lg' }) {
-  const dims = size === 'lg' ? 'w-11 h-11 text-sm' : 'w-8 h-8 text-xs';
-  return (
-    <div className={`${dims} rounded-full bg-blue-500/15 flex items-center justify-center flex-shrink-0 font-bold uppercase text-blue-400`}>
-      {initials(name)}
-    </div>
-  );
+// Person identity marker — a bare accent person icon (matches the app-wide
+// convention; replaced the old initials-in-a-circle avatar). `name` kept in the
+// signature only for call-site compatibility.
+function Avatar({ size = 'sm' }: { name?: string; size?: 'sm' | 'lg' }) {
+  const dims = size === 'lg' ? 'h-7 w-7' : 'h-5 w-5';
+  return <User className={`${dims} text-blue-400 shrink-0`} />;
 }
 
 // ─── EMPLOYEE AUTOCOMPLETE ────────────────────────────────────────────────────

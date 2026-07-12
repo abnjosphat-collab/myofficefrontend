@@ -35,7 +35,7 @@ import {
   Award,
   Sparkles,
   ChevronUp
-} from "lucide-react";
+} from "@/components/shared/theme";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";

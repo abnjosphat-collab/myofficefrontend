@@ -10,7 +10,7 @@ import {
   Download, List, LayoutGrid, X, Edit,
   Stethoscope, Shield, Heart, Users, GraduationCap,
   CalendarDays, BarChart3, Filter, ChevronRight
-} from "lucide-react";
+} from "@/components/shared/theme";
 
 import { toast } from "sonner";
 import { ApprovalGate, type SignatureResult } from '@/components/shared/ApprovalGate';
@@ -97,9 +97,6 @@ function fmtDateTime(s?: string): string {
   if (!s) return '';
   try { return new Date(s).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }); }
   catch { return s; }
-}
-function initials(name: string): string {
-  return name.split(' ').filter(Boolean).slice(0, 2).map(s => s[0]?.toUpperCase() ?? '').join('');
 }
 function calcDays(start?: string, end?: string): number {
   if (!start || !end) return 0;
@@ -379,7 +376,7 @@ function LeaveApplicationForm({ onClose, onSuccess, editData }: { onClose: () =>
               className={`w-full h-9 flex items-center justify-between gap-2 px-3 rounded-lg text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed ${t.inputBg}`}>
               {formData.employee_name ? (
                 <div className="flex items-center gap-2 truncate">
-                  <div className="h-5 w-5 rounded-full bg-blue-500/20 flex items-center justify-center text-[9px] font-bold text-blue-400 shrink-0">{initials(formData.employee_name)}</div>
+                  <User className="h-4 w-4 text-blue-400 shrink-0" />
                   <span className={`font-medium truncate ${t.textPrimary}`}>{formData.employee_name}</span>
                   <span className={`text-xs shrink-0 ${t.textFaint}`}>• {formData.employee_id}</span>
                 </div>
@@ -402,7 +399,7 @@ function LeaveApplicationForm({ onClose, onSuccess, editData }: { onClose: () =>
                     <div className={`text-sm py-6 text-center ${t.textFaint}`}>No employee found.</div>
                   ) : filteredEmployees.map(emp => (
                     <button key={emp.id} type="button" onClick={() => handleEmployeeSelect(emp)} className={`w-full flex items-center gap-2.5 rounded-lg px-2 py-2 ${t.textMuted} ${t.hoverBgSoft} transition-colors`}>
-                      <div className="h-6 w-6 rounded-full bg-blue-500/20 flex items-center justify-center text-[10px] font-bold text-blue-400 shrink-0">{initials(emp.name)}</div>
+                      <User className="h-5 w-5 text-blue-400 shrink-0" />
                       <div className="flex-1 min-w-0 text-left">
                         <p className={`text-sm font-medium truncate ${t.textPrimary}`}>{emp.name}</p>
                         <p className={`text-xs truncate ${t.textFaint}`}><span className="font-mono text-blue-400">{emp.employee_id}</span>{emp.designation ? ` · ${emp.designation}` : ''}{emp.department ? ` · ${emp.department}` : ''}</p>
@@ -823,7 +820,7 @@ function LeaveManagementContent() {
                   const percentage = Math.round((emp.total_days / maxDays) * 100);
                   return (
                     <div key={emp.id} className={`flex items-center gap-3 p-3 rounded-lg ${t.hoverBgSoft} cursor-pointer transition-all`} onClick={() => { setSearchTerm(emp.name); setFilter('all'); }}>
-                      <div className="h-8 w-8 rounded-full bg-blue-500/15 flex items-center justify-center text-xs font-semibold text-blue-400 flex-shrink-0">{initials(emp.name)}</div>
+                      <User className="h-5 w-5 text-blue-400 shrink-0" />
                       <div className="flex-1 min-w-0">
                         <div className={`text-sm font-medium truncate ${t.textPrimary}`}>{emp.name}</div>
                         <div className="flex items-center gap-2 mt-0.5">

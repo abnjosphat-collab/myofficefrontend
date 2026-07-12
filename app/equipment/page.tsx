@@ -5,16 +5,19 @@ import { AppShell } from '@/components/app-shell';
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { toast } from 'sonner';
 import EquipmentForm from "@/components/EquipmentForm";
+import { motion } from "framer-motion";
 import {
-  Loader2, Plus, Trash2, Edit, Briefcase, Wrench, MapPin,
-  FileText, Target, Clock, Truck, AlertTriangle,
+  Loader2, Plus, Trash2, Pencil, Briefcase, Wrench, MapPin,
+  Target, Truck, AlertTriangle,
   CheckCircle, XCircle, LayoutGrid, List,
   Server, Package, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
   Filter, FilterX, Download, FileSpreadsheet, FileDown,
-} from "lucide-react";
+  ChevronDown, ChevronUp,
+} from "@/components/shared/theme";
 import {
-  useTheme, PageHero, StatTile, StatusBadge, ListItemCard, SearchInput, ViewToggle,
+  useTheme, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle,
   useCollapseSection, CenterModal, ACCENT_HEX, SelectField,
+  GroupSection, RecordCard, staggerContainer, fadeUp, InfoRow, SummaryItem,
 } from '@/components/shared/theme';
 import type { ElementType } from "react";
 
@@ -67,6 +70,16 @@ const STATUS_LABELS: Record<string, string> = {
 const MAINT_COLORS: Record<string, string> = {
   Overdue: '#f43f5e', 'Due Soon': '#f59e0b', Upcoming: ACCENT_HEX.blue, 'On Track': '#34d399',
 };
+
+// Palette for categories — drawn from the shared ACCENT_HEX brand palette (not
+// arbitrary hexes), hashed so each distinct category name gets a stable color.
+const GROUP_PALETTE = [ACCENT_HEX.blue, ACCENT_HEX.amber, ACCENT_HEX.emerald, ACCENT_HEX.violet, ACCENT_HEX.cyan, ACCENT_HEX.indigo];
+function categoryColor(category?: string) {
+  if (!category) return '#94a3b8';
+  let h = 0;
+  for (let i = 0; i < category.length; i++) h = (h * 31 + category.charCodeAt(i)) >>> 0;
+  return GROUP_PALETTE[h % GROUP_PALETTE.length];
+}
 
 function statusIcon(status: string | undefined): ElementType {
   switch (status?.toLowerCase()) {
@@ -140,6 +153,124 @@ function Pagination({ current, total, onPage, perPage, totalItems, onPerPage }: 
   );
 }
 
+// InfoRow/SummaryItem now come from the shared design system (promoted from
+// this page's own local versions — see the design-system migration).
+
+// ─── EquipmentCard — built on the shared RecordCard so it inherits the exact
+// homepage module-card treatment (bare accent icon, Montserrat title, GlowCard
+// lift/glow). Key summary always visible; the rest expands in place. ──
+function EquipmentCard({ eq, onEdit, onDelete }: { eq: EquipmentItem; onEdit: () => void; onDelete: () => void }) {
+  const t = useTheme();
+  const status = eq.status?.toLowerCase() || 'unknown';
+  const mStatus = calcMaintenanceStatus(eq.last_maintenance, eq.maintenance_interval);
+  const statusColor = STATUS_COLORS[status] || '#94a3b8';
+
+  return (
+    <RecordCard
+      icon={statusIcon(eq.status)}
+      accentHex={statusColor}
+      title={eq.name}
+      subtitle={eq.equipment_id}
+      badges={<>
+        <StatusBadge color={statusColor} label={STATUS_LABELS[status] || eq.status || 'Unknown'} dot />
+        <StatusBadge color={MAINT_COLORS[mStatus] || '#94a3b8'} label={mStatus} />
+      </>}
+      summary={
+        <div className={`grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs ${t.textMuted}`}>
+          <SummaryItem icon={MapPin} label="Location" value={eq.location} color={statusColor} />
+          <SummaryItem icon={Truck} label="Supplier" value={eq.supplier} color={statusColor} />
+        </div>
+      }
+      actions={<>
+        <button onClick={onEdit} type="button" className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 text-white text-[12px] font-semibold hover:brightness-110 transition-all">
+          <Pencil className="h-3.5 w-3.5" /> Edit
+        </button>
+        <button onClick={onDelete} type="button" className={`px-4 flex items-center justify-center gap-1.5 py-2 rounded-lg ${t.chipBg} text-rose-500 hover:bg-rose-500/10 text-[12px] font-semibold transition-all`}>
+          <Trash2 className="h-3.5 w-3.5" /> Delete
+        </button>
+      </>}
+    >
+      <div className="grid grid-cols-2 gap-x-4 gap-y-2.5">
+        <InfoRow label="Category" value={eq.category} />
+        <InfoRow label="Department" value={eq.department} />
+        <InfoRow label="Model" value={eq.model} />
+        <InfoRow label="Serial Number" value={eq.serial_number} />
+        <InfoRow label="Age" value={calcAge(eq.commission_date)} />
+        <InfoRow label="Supplier" value={eq.supplier} />
+        <InfoRow label="Next Maintenance" value={eq.next_maintenance ? new Date(eq.next_maintenance).toLocaleDateString('en-GB') : undefined} />
+        <InfoRow label="Current Value" value={eq.current_value != null ? `$${eq.current_value.toLocaleString()}` : undefined} />
+      </div>
+      {eq.maintenance_notes && (
+        <div>
+          <p className={`text-[10px] font-semibold ${t.textTertiary} uppercase tracking-wider mb-1.5`}>Maintenance Notes</p>
+          <p className={`text-xs ${t.textMuted}`}>{eq.maintenance_notes}</p>
+        </div>
+      )}
+    </RecordCard>
+  );
+}
+
+// ─── EquipmentRow — compact list-view row, mirroring EmployeeRow's pattern. ──
+function EquipmentRow({ eq, onEdit, onDelete }: { eq: EquipmentItem; onEdit: () => void; onDelete: () => void }) {
+  const t = useTheme();
+  const [expanded, setExpanded] = useState(false);
+  const status = eq.status?.toLowerCase() || 'unknown';
+  const mStatus = calcMaintenanceStatus(eq.last_maintenance, eq.maintenance_interval);
+  const statusColor = STATUS_COLORS[status] || '#94a3b8';
+  const Icon = statusIcon(eq.status);
+
+  return (
+    <div className={`border-b ${t.border}`}>
+      <div className={`flex items-center gap-3.5 px-4 py-3 ${t.hoverBgSoft} transition-colors group`}>
+        <div className="shrink-0"><Icon className="h-5 w-5" style={{ color: statusColor }} /></div>
+
+        <button type="button" onClick={() => setExpanded(o => !o)} className="flex-1 min-w-0 text-left">
+          <div className={`font-semibold text-sm ${t.textPrimary}`}>{eq.name}</div>
+          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+            <span className={`text-xs font-mono ${t.textFaint}`}>{eq.equipment_id}</span>
+            {eq.category && <span className={`text-xs ${t.textFaint}`}>· {eq.category}</span>}
+            <StatusBadge color={statusColor} label={STATUS_LABELS[status] || eq.status || 'Unknown'} dot />
+          </div>
+        </button>
+
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="hidden sm:block"><StatusBadge color={MAINT_COLORS[mStatus] || '#94a3b8'} label={mStatus} /></span>
+          {eq.location && <span className={`hidden md:flex items-center gap-1 text-[11px] ${t.textFaint}`}><MapPin className="h-3 w-3" style={{ color: statusColor }} />{eq.location}</span>}
+        </div>
+
+        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button type="button" title="Edit equipment" onClick={onEdit}
+            className="h-7 w-7 flex items-center justify-center rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 transition-all">
+            <Pencil className="h-3.5 w-3.5" />
+          </button>
+          <button type="button" title="Delete equipment" onClick={onDelete}
+            className="h-7 w-7 flex items-center justify-center rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 transition-all">
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+          <button type="button" title={expanded ? 'Collapse' : 'Expand'} onClick={() => setExpanded(o => !o)}
+            className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all`}>
+            {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+          </button>
+        </div>
+      </div>
+
+      {expanded && (
+        <div className={`px-4 pb-4 pt-3 border-t ${t.border} ${t.hoverBgSoft}`}>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-2.5">
+            <InfoRow label="Department" value={eq.department} />
+            <InfoRow label="Model" value={eq.model} />
+            <InfoRow label="Serial Number" value={eq.serial_number} />
+            <InfoRow label="Age" value={calcAge(eq.commission_date)} />
+            <InfoRow label="Supplier" value={eq.supplier} />
+            <InfoRow label="Next Maintenance" value={eq.next_maintenance ? new Date(eq.next_maintenance).toLocaleDateString('en-GB') : undefined} />
+            <InfoRow label="Current Value" value={eq.current_value != null ? `$${eq.current_value.toLocaleString()}` : undefined} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function EquipmentPageContent() {
   const t = useTheme();
   const sections = useCollapseSection({ hero: true });
@@ -161,6 +292,9 @@ function EquipmentPageContent() {
   const [showFilters, setShowFilters] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showDlMenu, setShowDlMenu] = useState(false);
+  // Records are grouped by category (homepage category-accordion vocabulary); this
+  // tracks which category groups the user has collapsed (default: all open).
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
   const uniqueLocations = useMemo(() => [...new Set(equipment.map(i => i.location).filter(Boolean) as string[])], [equipment]);
   const uniqueDepartments = useMemo(() => [...new Set(equipment.map(i => i.department).filter(Boolean) as string[])], [equipment]);
@@ -336,6 +470,27 @@ function EquipmentPageContent() {
   const totalPages = Math.ceil(filtered.length / perPage);
   const paginated = filtered.slice((currentPage - 1) * perPage, currentPage * perPage);
 
+  // Group the current page's items by category — defined categories alphabetically,
+  // "Uncategorized" last.
+  const grouped = useMemo(() => {
+    const map = new Map<string, EquipmentItem[]>();
+    for (const eq of paginated) {
+      const key = eq.category || 'Uncategorized';
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(eq);
+    }
+    return [...map.keys()]
+      .sort((a, b) => (a === 'Uncategorized' ? 1 : b === 'Uncategorized' ? -1 : a.localeCompare(b)))
+      .map(category => ({ category, color: categoryColor(category === 'Uncategorized' ? undefined : category), items: map.get(category)! }));
+  }, [paginated]);
+
+  const isGroupOpen = (category: string) => !!searchTerm || !collapsedGroups.has(category);
+  const toggleGroup = (category: string) => setCollapsedGroups(prev => {
+    const next = new Set(prev);
+    next.has(category) ? next.delete(category) : next.add(category);
+    return next;
+  });
+
   const heroTiles = [
     { icon: Server, color: ACCENT_HEX.blue, value: metrics.total, label: 'Total' },
     { icon: CheckCircle, color: STATUS_COLORS.operational, value: metrics.operational, label: 'Operational', onClick: () => setStatusFilter('operational') },
@@ -477,33 +632,29 @@ function EquipmentPageContent() {
           )}
         </div>
       ) : (
-        <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4' : 'space-y-2'}>
-          {paginated.map(eq => {
-            const status = eq.status?.toLowerCase() || 'unknown';
-            const mStatus = calcMaintenanceStatus(eq.last_maintenance, eq.maintenance_interval);
-            return (
-              <ListItemCard
-                key={eq.id}
-                color={STATUS_COLORS[status] || '#94a3b8'}
-                icon={statusIcon(eq.status)}
-                title={eq.name}
-                subtitle={eq.equipment_id}
-                onEdit={() => { setEditingEq(eq); setIsFormOpen(true); }}
-                onDelete={() => setDeleteConfirm(eq.id)}
-                badges={<>
-                  <StatusBadge color={STATUS_COLORS[status] || '#94a3b8'} label={STATUS_LABELS[status] || eq.status || 'Unknown'} dot />
-                  <StatusBadge color={MAINT_COLORS[mStatus] || '#94a3b8'} label={mStatus} />
-                </>}
-                rows={[
-                  { label: 'Category', value: <span className="inline-flex items-center gap-1"><Briefcase className="h-3 w-3" />{eq.category || 'N/A'}</span> },
-                  { label: 'Location', value: <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3" />{eq.location || 'N/A'}</span> },
-                  { label: 'Age', value: <span className="inline-flex items-center gap-1"><Clock className="h-3 w-3" />{calcAge(eq.commission_date)}</span> },
-                  { label: 'Supplier', value: <span className="inline-flex items-center gap-1"><Truck className="h-3 w-3" />{eq.supplier || 'N/A'}</span> },
-                ]}
-              />
-            );
-          })}
-        </div>
+        <motion.div variants={staggerContainer} initial="hidden" animate="show" className="space-y-3">
+          {grouped.map(g => (
+            <GroupSection
+              key={g.category}
+              icon={Briefcase}
+              accentHex={g.color}
+              title={g.category}
+              count={g.items.length}
+              countLabel={g.items.length === 1 ? 'item' : 'items'}
+              open={isGroupOpen(g.category)}
+              onToggle={() => toggleGroup(g.category)}
+              gridClassName={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4' : 'grid grid-cols-1 gap-0 -mx-4'}
+            >
+              {g.items.map(eq => (
+                <motion.div key={eq.id} variants={fadeUp}>
+                  {viewMode === 'grid'
+                    ? <EquipmentCard eq={eq} onEdit={() => { setEditingEq(eq); setIsFormOpen(true); }} onDelete={() => setDeleteConfirm(eq.id)} />
+                    : <EquipmentRow eq={eq} onEdit={() => { setEditingEq(eq); setIsFormOpen(true); }} onDelete={() => setDeleteConfirm(eq.id)} />}
+                </motion.div>
+              ))}
+            </GroupSection>
+          ))}
+        </motion.div>
       )}
 
       {filtered.length > perPage && (

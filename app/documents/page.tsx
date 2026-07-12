@@ -12,7 +12,7 @@ import {
   SortAsc, SortDesc, FilterX,
   Check, Edit3, Trash as TrashIcon,
   MessageSquare,
-} from 'lucide-react';
+} from '@/components/shared/theme';
 import { Toaster, toast } from 'sonner';
 import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle,

@@ -9,7 +9,7 @@ import {
   Filter, ArrowRight, Paperclip, Upload, X, FileDown, Download,
   ChevronsDown, ChevronsUp, Table2, LayoutGrid, FileSpreadsheet,
   Eye, AlertCircle, Loader2, Plus, Scan,
-} from 'lucide-react';
+} from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
 import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle,

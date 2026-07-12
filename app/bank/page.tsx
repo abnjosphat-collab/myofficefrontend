@@ -14,7 +14,7 @@ import {
   CreditCard,
   Smartphone,
   Lock
-} from 'lucide-react';
+} from '@/components/shared/theme';
 
 // Mock user type
 interface User {

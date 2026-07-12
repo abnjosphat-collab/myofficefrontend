@@ -3,7 +3,7 @@
 
 import { useState } from 'react';
 import { AppShell } from '@/components/app-shell';
-import { ShieldCheck, Plus, X, RefreshCw } from 'lucide-react';
+import { ShieldCheck, Plus, X, RefreshCw } from '@/components/shared/theme';
 import { useModuleData } from '@/lib/useModuleData';
 import { useTheme, PageHero, StatTile, StatusBadge, FormField, PrimaryButton, ACCENT_HEX } from '@/components/shared/theme';
 

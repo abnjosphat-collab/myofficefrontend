@@ -13,7 +13,7 @@ import {
   Utensils, Church, Database, ToolCase, PackageMinus, Car, Wrench, Gauge,
   HeartHandshake, Settings, Activity, Droplets, Building2, FlaskConical,
   TrendingUp, Layers, Award, Zap, BookOpen, LayoutDashboard,
-} from 'lucide-react';
+} from '@/components/shared/theme';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/components/ui/dialog';

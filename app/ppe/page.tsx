@@ -5,18 +5,18 @@ import { motion } from 'framer-motion';
 import {
   Shield, Plus, Search, RefreshCw, ChevronDown, ChevronUp,
   CheckCircle2, XCircle, FileText, Eye,
-  Trash2, Edit, HardHat, AlertTriangle,
-  Users, Package,
+  Trash2, Pencil, HardHat, AlertTriangle,
+  Users, UserRound, Package,
   Award, Layers, ChevronRight,
   Shirt, Wind, CloudRain, Link2, ChevronsUp, ChevronsDown, X,
   Flashlight, Download, FileSpreadsheet, FileDown, Sun, Moon,
-} from 'lucide-react';
+} from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
 import { toast } from 'sonner';
 import {
   useTheme, Collapse, AnimatedText, PulsingIcon, CenterModal, GlowCard,
   staggerContainer, fadeUp, ACCENT, ACCENT_HEX, type Accent,
-  StatusBadge, ListItemCard, StatTile, ProgressBar, FormField, FormActions,
+  StatusBadge, RecordCard, StatTile, ProgressBar, FormField, FormActions,
   useCollapseSection, SelectField,
 } from '@/components/shared/theme';
 
@@ -108,11 +108,6 @@ const isExpiringSoon = (d?: string | null, days = 30) => {
 };
 const isExpired = (d?: string | null) => !!d && new Date(d) < new Date();
 
-const initials = (name?: string | null) => {
-  if (!name) return 'U';
-  const parts = name.trim().split(/\s+/);
-  return parts.length > 1 ? `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase() : parts[0].slice(0, 2).toUpperCase();
-};
 
 // ─── API ─────────────────────────────────────────────────────────────────────
 
@@ -266,36 +261,41 @@ function PPEItemCard({ record, onEdit, onDelete, onView }: PPEItemCardProps) {
   const expired  = isExpired(record.expiry_date);
   const glowColor = expired ? '#f43f5e' : expiring ? '#f59e0b' : ACCENT_HEX.blue;
 
-  const rows: { label: string; value: React.ReactNode; valueClassName?: string }[] = [
-    { label: 'Issued', value: fmtDate(record.issue_date) },
-  ];
-  if (record.expiry_date) {
-    rows.push({
-      label: 'Expires',
-      value: fmtDate(record.expiry_date),
-      valueClassName: `font-semibold ${expired ? 'text-rose-500' : expiring ? 'text-amber-500' : t.textMuted}`,
-    });
-  }
-  if (record.size) rows.push({ label: 'Size', value: record.size });
-
   return (
-    <ListItemCard
-      color={glowColor}
+    <RecordCard
       icon={ppeType.icon}
-      iconColor={ppeType.color}
+      accentHex={ppeType.color}
       title={record.item_name}
       subtitle={ppeType.name}
-      rows={rows}
-      onClick={() => onView(record)}
-      onEdit={() => onEdit(record)}
-      onDelete={() => onDelete(record.id)}
-      badges={
-        <>
-          <StatusBadge color={CONDITION_COLORS[record.condition] || '#86BBD8'} label={CONDITION_LABELS[record.condition] || record.condition} />
-          <StatusBadge color={STATUS_COLORS_PPE[record.status] || '#86BBD8'} label={STATUS_LABELS[record.status] || record.status} dot />
-        </>
+      badges={<>
+        <StatusBadge color={CONDITION_COLORS[record.condition] || '#86BBD8'} label={CONDITION_LABELS[record.condition] || record.condition} />
+        <StatusBadge color={STATUS_COLORS_PPE[record.status] || '#86BBD8'} label={STATUS_LABELS[record.status] || record.status} dot />
+      </>}
+      summary={
+        <div className={`grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs ${t.textMuted}`}>
+          <span>Issued: {fmtDate(record.issue_date)}</span>
+          {record.expiry_date && (
+            <span className={`font-semibold ${expired ? 'text-rose-500' : expiring ? 'text-amber-500' : t.textMuted}`}>Expires: {fmtDate(record.expiry_date)}</span>
+          )}
+          {record.size && <span>Size: {record.size}</span>}
+        </div>
       }
-    />
+      actions={<>
+        <button onClick={() => onView(record)} type="button" className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg ${t.chipBg} ${t.textMuted} ${t.hoverText} text-[12px] font-semibold transition-all`}>
+          <Eye className="h-3.5 w-3.5" /> View
+        </button>
+        <button onClick={() => onEdit(record)} type="button" className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 text-white text-[12px] font-semibold hover:brightness-110 transition-all">
+          <Pencil className="h-3.5 w-3.5" /> Edit
+        </button>
+        <button onClick={() => onDelete(record.id)} type="button" className={`px-4 flex items-center justify-center gap-1.5 py-2 rounded-lg ${t.chipBg} text-rose-500 hover:bg-rose-500/10 text-[12px] font-semibold transition-all`}>
+          <Trash2 className="h-3.5 w-3.5" /> Delete
+        </button>
+      </>}
+    >
+      <div className={`text-xs ${glowColor === '#f43f5e' ? 'text-rose-500' : glowColor === '#f59e0b' ? 'text-amber-500' : t.textFaint}`}>
+        {expired ? 'Overdue for replacement' : expiring ? 'Expiring soon' : 'In date'}
+      </div>
+    </RecordCard>
   );
 }
 
@@ -313,99 +313,50 @@ interface EmployeePPECardProps {
 
 function EmployeePPECard({ employee, isExpanded, onToggle, onIssueNew, onEditItem, onDeleteItem, onViewItem }: EmployeePPECardProps) {
   const t = useTheme();
-  const [hovering, setHovering] = useState(false);
-  const visuallyExpanded = isExpanded || hovering;
 
   const active   = employee.records.filter(r => r.status === 'active');
   const expired  = employee.records.filter(r => isExpired(r.expiry_date) && r.status === 'active');
   const expiring = employee.records.filter(r => isExpiringSoon(r.expiry_date) && r.status === 'active');
-  const hasAlert = expired.length > 0 || expiring.length > 0;
-
-  const alertColor = expired.length > 0 ? '#f43f5e' : expiring.length > 0 ? '#f59e0b' : null;
+  // Accent = worst outstanding state (overdue → expiring → healthy blue). Drives the
+  // homepage-tile treatment: the bare person icon, the GlowCard hover-glow, the accents.
+  const accent = expired.length > 0 ? '#f43f5e' : expiring.length > 0 ? '#f59e0b' : ACCENT_HEX.blue;
 
   return (
-    <GlowCard
-      color={alertColor ?? ACCENT_HEX.blue}
-      forceGlow={!!alertColor}
-      onHoverStart={() => setHovering(true)}
-      onHoverEnd={() => setHovering(false)}
-      surface={`${t.glass} rounded-2xl ${t.shadow}`}
-      className="overflow-hidden"
-    >
-      {/* Header — always visible */}
-      <div className="flex items-center justify-between px-5 py-4 gap-3">
-        <button type="button" onClick={onToggle}
-          className="flex items-center gap-3 min-w-0 flex-1 text-left hover:opacity-90 transition-opacity">
-          {/* Avatar */}
-          <PulsingIcon
-            className={`relative h-11 w-11 rounded-full flex items-center justify-center text-white font-semibold text-[13px] tracking-wide shrink-0 bg-gradient-to-br ${ACCENT.blue.gradient} ${ACCENT.blue.solidGlow} ring-2 ${t.light ? 'ring-white' : 'ring-white/10'}`}
-          >
-            <span className="absolute inset-0 rounded-full bg-gradient-to-b from-white/25 to-transparent" />
-            <span className="relative">{initials(employee.employee_name)}</span>
-          </PulsingIcon>
-
-          {/* Name + meta */}
-          <div className="min-w-0">
-            <p className={`text-base font-semibold ${t.textPrimary} leading-tight`}>{employee.employee_name}</p>
-            <p className={`text-xs ${t.textSecondary} mt-0.5 truncate`}>{employee.position} · {employee.employee_id}</p>
-
-            {/* Status chips */}
-            <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-              <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 border border-emerald-500/30 font-medium">
-                <CheckCircle2 className="h-3 w-3" /> {active.length} Active
-              </span>
-              {expired.length > 0 && (
-                <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-600 border border-rose-500/30 font-medium">
-                  <XCircle className="h-3 w-3" /> {expired.length} Overdue
-                </span>
-              )}
-              {expiring.length > 0 && (
-                <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 border border-amber-500/30 font-medium">
-                  <AlertTriangle className="h-3 w-3" /> {expiring.length} Expiring
-                </span>
-              )}
-              {employee.records.length === 0 && (
-                <span className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full ${t.chipBg} ${t.textFaint} border ${t.border}`}>
-                  No items
-                </span>
-              )}
-            </div>
-          </div>
+    <RecordCard
+      icon={UserRound}
+      accentHex={accent}
+      title={employee.employee_name}
+      subtitle={`${employee.position} · ${employee.employee_id}`}
+      open={isExpanded}
+      onToggle={onToggle}
+      badges={<>
+        <StatusBadge color="#10b981" label={`${active.length} Active`} dot />
+        {expired.length > 0 && <StatusBadge color="#f43f5e" label={`${expired.length} Overdue`} />}
+        {expiring.length > 0 && <StatusBadge color="#f59e0b" label={`${expiring.length} Expiring`} />}
+        {employee.records.length === 0 && <StatusBadge color="#94a3b8" label="No items" />}
+      </>}
+      headerActions={
+        <button type="button" onClick={e => { e.stopPropagation(); onIssueNew(employee); }} title="Issue new PPE"
+          className="flex items-center gap-1.5 text-[12px] h-7 px-2.5 rounded-lg font-semibold text-white bg-gradient-to-br from-blue-500 to-blue-700 hover:brightness-110 transition-all">
+          <Plus className="h-3 w-3" /> Issue
         </button>
-
-        {/* Actions */}
-        <div className="flex items-center gap-2 shrink-0">
-          <motion.button type="button" onClick={() => onIssueNew(employee)} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-            className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-semibold text-white transition-all bg-gradient-to-br ${ACCENT.blue.gradient} ${ACCENT.blue.solidGlow} ${ACCENT.blue.glow}`}>
-            <Plus className="h-3 w-3" /> Issue PPE
-          </motion.button>
-          <button type="button" title={isExpanded ? 'Collapse' : 'Expand'} onClick={onToggle}
-            className={`h-8 w-8 flex items-center justify-center rounded-lg border transition-all ${hasAlert ? 'bg-amber-500/10 border-amber-500/30 text-amber-600' : `${t.glassSoft} ${t.textMuted}`} ${t.hoverBg}`}>
-            {visuallyExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          </button>
+      }
+    >
+      {employee.records.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {employee.records.map(record => (
+            <PPEItemCard key={record.id} record={record}
+              onEdit={onEditItem} onDelete={onDeleteItem} onView={onViewItem} />
+          ))}
         </div>
-      </div>
-
-      {/* Expanded content */}
-      <Collapse open={visuallyExpanded}>
-        <div className={`px-5 pb-5 pt-1 border-t ${t.border}`}>
-          {employee.records.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pt-2">
-              {employee.records.map(record => (
-                <PPEItemCard key={record.id} record={record}
-                  onEdit={onEditItem} onDelete={onDeleteItem} onView={onViewItem} />
-              ))}
-            </div>
-          ) : (
-            <div className={`text-center py-10 rounded-xl ${t.glassSoft} mt-2`}>
-              <Shield className={`h-10 w-10 mx-auto mb-3 ${t.textTertiary}`} />
-              <p className={`text-sm font-medium ${t.textMuted}`}>No PPE items issued yet</p>
-              <p className={`text-xs ${t.textFaint} mt-1`}>Click &quot;Issue PPE&quot; to add equipment for this employee</p>
-            </div>
-          )}
+      ) : (
+        <div className={`text-center py-8 rounded-xl ${t.glassSoft}`}>
+          <Shield className={`h-9 w-9 mx-auto mb-2 ${t.textTertiary}`} />
+          <p className={`text-sm font-medium ${t.textMuted}`}>No PPE items issued yet</p>
+          <p className={`text-xs ${t.textFaint} mt-1`}>Click &quot;Issue&quot; to add equipment for this employee</p>
         </div>
-      </Collapse>
-    </GlowCard>
+      )}
+    </RecordCard>
   );
 }
 
@@ -475,7 +426,7 @@ function PPEDetailModal({ item, isOpen, onClose, onEdit }: DetailModalProps) {
         </button>
         <motion.button type="button" onClick={() => { onEdit(item); onClose(); }} whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}
           className={`flex-1 py-2 rounded-xl text-sm font-semibold text-white transition-all bg-gradient-to-br ${ACCENT.blue.gradient} ${ACCENT.blue.solidGlow} ${ACCENT.blue.glow}`}>
-          <Edit className="h-4 w-4 inline mr-2" />Edit Record
+          <Pencil className="h-4 w-4 inline mr-2" />Edit Record
         </motion.button>
       </div>
     </CenterModal>
@@ -745,7 +696,7 @@ function DueItemsList({ employees, filterType, onEditItem, onDeleteItem, onViewI
                   <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
                     <button type="button" title="Edit" onClick={() => onEditItem(item)}
                       className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} hover:text-blue-500 transition-all`}>
-                      <Edit className="h-3.5 w-3.5" />
+                      <Pencil className="h-3.5 w-3.5" />
                     </button>
                     <button type="button" title="Delete" onClick={() => onDeleteItem(item.id)}
                       className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} hover:text-rose-500 transition-all`}>

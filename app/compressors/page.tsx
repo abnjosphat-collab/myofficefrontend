@@ -10,7 +10,7 @@ import {
   Calculator, CheckCheck, Timer, Save, Upload,
   ChevronDown, ChevronUp, Copy, Loader2, RefreshCw,
   XCircle,
-} from 'lucide-react';
+} from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
 import {
   useTheme, PageHero, StatTile, StatusBadge, ViewToggle,

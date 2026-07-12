@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { AppShell } from '@/components/app-shell';
-import { BarChart2, Plus, X } from 'lucide-react';
+import { BarChart2, Plus, X } from '@/components/shared/theme';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { useTheme, PageHero, StatCard, FormField, PrimaryButton, SelectField, type Accent } from '@/components/shared/theme';
 

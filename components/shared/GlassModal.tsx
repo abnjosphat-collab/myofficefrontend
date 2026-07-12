@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type ElementType, type ReactNode } from 'react';
-import { X } from 'lucide-react';
+import { X } from '@/components/shared/theme';
 
 interface GlassModalProps {
   isOpen: boolean;

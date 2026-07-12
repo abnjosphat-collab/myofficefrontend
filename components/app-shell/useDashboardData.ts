@@ -16,7 +16,7 @@
 import { useEffect, useState } from 'react';
 import {
   ClipboardPlus, AlertTriangle, type LucideIcon,
-} from 'lucide-react';
+} from '@/components/shared/theme';
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com').replace(/\/$/, '');
 
