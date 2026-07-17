@@ -585,6 +585,12 @@ export function SearchInput({
         placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        // Without this, browsers apply their own autofill heuristics to a bare
+        // <input type="search"> and can offer a saved value (e.g. the user's
+        // login email) — most visibly right after a nearby form submission
+        // (like an approval) refocuses the page.
+        autoComplete="off"
+        name="search"
         className={`w-full h-8 pl-8 pr-3 rounded-lg text-[13px] ${t.inputBg} focus:outline-none focus:shadow-[0_6px_20px_-6px_rgba(59,130,246,0.25)] transition-all duration-300`}
       />
     </div>
