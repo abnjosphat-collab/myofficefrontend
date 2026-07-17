@@ -13,6 +13,7 @@ import {
   enroll, verifyEnrollment, challengeAndVerify, unenroll,
   getVerifiedFactor, type EnrollResult,
 } from '@/lib/mfa';
+import { useAuth } from '@/lib/auth-context';
 
 const CODE_RE = /^\d{6}$/;
 
@@ -191,5 +192,23 @@ export function MfaChallenge({ onVerified, onCancel }: { onVerified: () => void;
         <button type="button" onClick={onCancel} className="w-full text-center text-xs text-[#6B7B8E] hover:text-[#2A4D69]">Cancel</button>
       )}
     </form>
+  );
+}
+
+// ─── GlobalMfaGate — the single enforcement point for 2FA ────────────────────
+// Mounted once, at the root (see components/Providers.tsx). AuthContext holds
+// user/session at null for as long as mfaPending is true — see the long
+// comment on applySession() in lib/auth-context.tsx for why the check has to
+// live there and not in each login form. This component only has to render
+// what that state says; it isn't itself part of the enforcement.
+export function GlobalMfaGate() {
+  const { mfaPending, completeMfaChallenge } = useAuth();
+  if (!mfaPending) return null;
+  return (
+    <div className="fixed inset-0 z-[999] flex items-center justify-center bg-[#050f1c] p-4">
+      <div className="w-full max-w-sm">
+        <MfaChallenge onVerified={completeMfaChallenge} />
+      </div>
+    </div>
   );
 }

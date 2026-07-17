@@ -1,45 +1,33 @@
 // app/auth/callback/page.tsx — handles Google OAuth PKCE code exchange
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { needsChallenge } from '@/lib/mfa';
-import { MfaChallenge } from '@/components/app-shell/mfa-ui';
 
 function CallbackHandler() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [mfa, setMfa] = useState<{ next: string } | null>(null); // 2FA required before redirect
 
   useEffect(() => {
     const code = searchParams.get('code');
     const next = searchParams.get('next') ?? '/';
 
     if (code) {
-      supabase.auth.exchangeCodeForSession(code).then(async ({ error }) => {
-        if (error) { console.error('[auth/callback]', error.message); router.replace(next); return; }
-        // OAuth exchange succeeded; if the account has 2FA enrolled the session is
-        // still aal1 — gate the redirect behind the 6-digit code.
-        try {
-          if (await needsChallenge()) { setMfa({ next }); return; }
-        } catch { /* proceed if the check itself errors */ }
+      // Just exchange the code and go — if this account has 2FA enrolled,
+      // AuthContext holds user/session at null until the challenge clears, and
+      // GlobalMfaGate (mounted at the root, so it's already on this page too)
+      // takes over automatically. It used to gate the redirect locally here,
+      // which duplicated the exact race that broke the password-login form —
+      // see applySession() in lib/auth-context.tsx.
+      supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
+        if (error) console.error('[auth/callback]', error.message);
         router.replace(next);
       });
     } else {
       router.replace('/');
     }
   }, [router, searchParams]);
-
-  if (mfa) {
-    return (
-      <div className="fixed inset-0 flex items-center justify-center bg-[#050f1c] p-4">
-        <div className="w-full max-w-sm">
-          <MfaChallenge onVerified={() => router.replace(mfa.next)} />
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="fixed inset-0 flex flex-col items-center justify-center bg-[#050f1c]">

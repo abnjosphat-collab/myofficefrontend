@@ -4,6 +4,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import type { User, Session } from '@supabase/supabase-js';
 import { supabase, UserProfile, UserRole, ROLE_ORDER, roleAtLeast, upsertProfile, getProfile } from './supabase';
+import { needsChallenge } from './mfa';
 
 // ─── Module permission catalogue ─────────────────────────────────────────────
 
@@ -31,6 +32,11 @@ interface AuthContextType {
   profile: UserProfile | null;
   session: Session | null;
   loading: boolean;
+  // True from the moment a session exists until its 2FA challenge (if any) is
+  // cleared. `user`/`session` stay null the whole time — see the comment on
+  // applySession() for why this has to be the single place MFA is enforced.
+  mfaPending: boolean;
+  completeMfaChallenge: () => Promise<void>;
   signInWithGoogle:  () => Promise<void>;
   signInWithEmail:   (email: string, password: string) => Promise<{ error: string | null }>;
   signUpWithEmail:   (email: string, password: string, name: string) => Promise<{ error: string | null }>;
@@ -45,10 +51,11 @@ const AuthContext = createContext<AuthContextType | null>(null);
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user,    setUser]    = useState<User | null>(null);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [user,       setUser]       = useState<User | null>(null);
+  const [profile,    setProfile]    = useState<UserProfile | null>(null);
+  const [session,    setSession]    = useState<Session | null>(null);
+  const [loading,    setLoading]    = useState(true);
+  const [mfaPending, setMfaPending] = useState(false);
 
   const loadProfile = async (u: User) => {
     const p = await upsertProfile(u);
@@ -61,26 +68,65 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (p) setProfile(p);
   };
 
+  // The single place a session is allowed to become "signed in". Every path
+  // that can produce a session (initial load, password/OAuth sign-in, token
+  // refresh, post-challenge elevation) funnels through here so MFA can only
+  // be enforced or bypassed in one place, not re-implemented per login form.
+  //
+  // This used to live as local state in each login form (check needsChallenge()
+  // after signInWithPassword, hold a 6-digit-code screen in front of the rest
+  // of the UI). That doesn't work: Supabase treats "has a valid session" as
+  // signed in regardless of AAL, so the moment signInWithPassword() resolves,
+  // this exact onAuthStateChange listener already fires and sets `user` —
+  // which flips isLoggedIn everywhere in the app, including inside the login
+  // form itself, unmounting the very component holding the "still need a
+  // code" state before it ever gets to render it. No error, no failed
+  // request — the form component (and its local state) is just gone.
+  //
+  // Gating here instead means `user`/`session` never become non-null until
+  // the challenge clears, so nothing downstream can ever observe a
+  // half-authenticated state, independent of which UI triggered the sign-in.
+  const applySession = async (next: Session | null) => {
+    if (!next) {
+      setSession(null); setUser(null); setProfile(null); setMfaPending(false);
+      return;
+    }
+    let requiresChallenge = false;
+    try { requiresChallenge = await needsChallenge(); }
+    catch { /* if the check itself fails, don't lock the user out */ }
+
+    if (requiresChallenge) {
+      setMfaPending(true);
+      return; // user/session stay null — nothing is "signed in" yet
+    }
+    setMfaPending(false);
+    setSession(next);
+    setUser(next.user);
+    await loadProfile(next.user);
+  };
+
   useEffect(() => {
-    // Initial session restore
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) loadProfile(session.user).finally(() => setLoading(false));
-      else setLoading(false);
+      applySession(session).finally(() => setLoading(false));
     });
 
-    // Live session changes (sign-in, sign-out, token refresh)
+    // Live session changes (sign-in, sign-out, token refresh, MFA verify).
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) loadProfile(session.user);
-      else setProfile(null);
+      applySession(session);
     });
 
     return () => subscription.unsubscribe();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Called by the global MFA gate after a successful challenge verify. The
+  // verify call elevates the client's session to aal2, which should already
+  // retrigger the onAuthStateChange listener above — this is a direct,
+  // synchronous confirmation so the UI doesn't wait on that firing.
+  const completeMfaChallenge = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    await applySession(session);
+  };
 
   const signInWithGoogle = async () => {
     await supabase.auth.signInWithOAuth({
@@ -126,7 +172,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider value={{
-      user, profile, session, loading,
+      user, profile, session, loading, mfaPending, completeMfaChallenge,
       signInWithGoogle, signInWithEmail, signUpWithEmail, signOut,
       refreshProfile, hasPermission, isAtLeast,
     }}>

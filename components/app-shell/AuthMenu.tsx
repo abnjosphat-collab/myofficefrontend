@@ -16,8 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/lib/auth-context';
 import { useTheme } from '@/components/shared/theme';
-import { needsChallenge } from '@/lib/mfa';
-import { MfaChallenge, SecurityPanel } from './mfa-ui';
+import { SecurityPanel } from './mfa-ui';
 // Role metadata is defined once in lib/roles.ts (labels + semantic badge colors) —
 // this used to keep its own copy. ROLE_BADGE keeps role colors semantic (manager
 // stays blue), independent of the app's brand color.
@@ -43,7 +42,6 @@ function AuthForm({ defaultMode = 'login', onClose }: { defaultMode?: 'login' | 
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-  const [mfaStep, setMfaStep] = useState(false); // login succeeded but a 2FA code is still required
 
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
@@ -65,23 +63,15 @@ function AuthForm({ defaultMode = 'login', onClose }: { defaultMode?: 'login' | 
       setError(result.error);
       return;
     }
-    // Password/OAuth check passed. If this account has 2FA enrolled, the session is
-    // only aal1 — gate completion behind the 6-digit code before letting them in.
-    try {
-      if (await needsChallenge()) { setMfaStep(true); return; }
-    } catch { /* if the check itself fails, don't lock the user out — proceed */ }
+    // If this account has 2FA enrolled, AuthContext holds user/session at null
+    // until the challenge clears — GlobalMfaGate (mounted at the root) reacts
+    // to that on its own. Reloading here isn't optional UX polish: it's what
+    // makes AuthContext re-derive from a clean mount instead of racing this
+    // dialog's own close against the auth-state listener that's about to fire
+    // from the same sign-in. See applySession() in lib/auth-context.tsx.
     onClose?.();
     window.location.reload();
   };
-
-  if (mfaStep) {
-    return (
-      <MfaChallenge
-        onVerified={() => { onClose?.(); window.location.reload(); }}
-        onCancel={() => setMfaStep(false)}
-      />
-    );
-  }
 
   return (
     <div className="bg-white rounded-2xl shadow-2xl border border-[#2A4D69]/10 p-6">
