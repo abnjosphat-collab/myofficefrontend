@@ -57,13 +57,30 @@ let _emp: EmployeeLookup[] | null = null;
 let _eq: EquipmentLookup[] | null = null;
 let _sp: SpareLookup[] | null = null;
 
+// In-flight promises, keyed by label. Caching only the *result* meant every
+// picker that mounted before the first fetch resolved fired its own duplicate
+// request — a modal with three employee pickers made three (visible as 8
+// parallel /api/employees calls when the create-work-order modal opened).
+// Sharing the promise means one fetch, and every waiting instance gets the
+// data the moment it lands.
+const _inflight = new Map<string, Promise<unknown[]>>();
+
 function useLookup<T>(cacheGet: () => T[] | null, cacheSet: (v: T[]) => void, load: () => Promise<T[]>, label: string): T[] {
   const [list, setList] = useState<T[]>(cacheGet() ?? []);
   useEffect(() => {
     if (cacheGet()) return; // already loaded this session
-    load()
-      .then((items) => { cacheSet(items); setList(items); })
+    let p = _inflight.get(label) as Promise<T[]> | undefined;
+    if (!p) {
+      p = load();
+      _inflight.set(label, p as Promise<unknown[]>);
+      // Clear on settle so a failure retries on the next mount instead of
+      // every future mount awaiting a forever-rejected promise.
+      p.finally(() => _inflight.delete(label)).catch(() => {});
+    }
+    let cancelled = false;
+    p.then((items) => { cacheSet(items); if (!cancelled) setList(items); })
       .catch((e) => console.warn(`Failed to load ${label}:`, e)); // retries next mount
+    return () => { cancelled = true; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   return list;
 }

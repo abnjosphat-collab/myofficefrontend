@@ -16,7 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   useTheme, PageHero, StatTile, StatusBadge, ViewToggle, FormField, FormActions,
   useCollapseSection, CenterModal, ProgressBar, ACCENT_HEX, GlowCard, SelectField,
-  useConfirm, SearchInput, EmptyState, LoadingState,
+  useConfirm, SearchInput, EmptyState, LoadingState, Combobox, type ComboOption,
 } from '@/components/shared/theme';
 import {
   Wrench, Plus, RefreshCw, CheckCircle2, Clock, PlayCircle, PauseCircle,
@@ -414,56 +414,54 @@ function PredictiveArea({ id, label, value, onChange, placeholder, rows = 3, aut
 // at the top of this file; the previously-local useEmployees/useEquipment/useSpares
 // (with their own caches + fetch) were removed in favor of that one implementation.
 
-function ACDropdown({ show, children }: { show: boolean; children: React.ReactNode }) {
-  const t = useTheme();
-  if (!show) return null;
-  return (
-    <div className={`absolute z-50 w-full mt-1 rounded-xl overflow-hidden ${t.glass} ${t.shadow}`}>
-      <div className="max-h-52 overflow-y-auto">{children}</div>
-    </div>
-  );
-}
 
-function PersonAutocomplete({ id, label, value, onChange, placeholder }: { id?: string; label?: string; value: string; onChange: (v: string) => void; placeholder?: string; }) {
+// The three pickers below all sit on the design system's Combobox, which owns
+// the dropdown, keyboard handling and outside-click dismissal. Each used to
+// hand-roll that machinery — three copies of the same effect and markup — and
+// only differed in how it filters and what a row looks like, which is all that
+// remains here.
+
+function PersonAutocomplete({ label, value, onChange, placeholder }: { label?: string; value: string; onChange: (v: string) => void; placeholder?: string; }) {
   const t = useTheme();
   const employees = useEmployees();
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
-    document.addEventListener('mousedown', h); return () => document.removeEventListener('mousedown', h);
-  }, []);
 
   const q = value.toLowerCase();
-  const suggestions = q.length === 0 ? employees.slice(0, 8) : employees.filter(e => {
+  const matches = q.length === 0 ? employees.slice(0, 8) : employees.filter(e => {
     const full = `${e.first_name} ${e.last_name}`.toLowerCase();
     return full.includes(q) || (e.employee_id || '').toLowerCase().includes(q) || (e.designation || '').toLowerCase().includes(q);
   }).slice(0, 8);
 
+  const byValue = new Map(matches.map(e => [String(e.id), e]));
+  const options: ComboOption[] = matches.map(e => ({
+    value: String(e.id),
+    label: `${e.first_name} ${e.last_name}`,
+    sub: [e.designation, e.department, e.section].filter(Boolean).join(' · '),
+  }));
+
   return (
     <FormField label={label || ''}>
-      <div className="relative" ref={ref}>
-        <input id={id} value={value} onChange={e => { onChange(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)}
-          placeholder={placeholder || 'Type to search employees, or enter name…'}
-          className={`w-full rounded-md px-3 py-1.5 text-sm outline-none transition-colors ${t.inputBg}`} />
-        <ACDropdown show={open && suggestions.length > 0}>
-          {suggestions.map(e => {
-            const full = `${e.first_name} ${e.last_name}`;
-            return (
-              <button key={e.id} type="button" onMouseDown={() => { onChange(full); setOpen(false); }}
-                className={`w-full flex items-center gap-2.5 px-3 py-2 text-left border-b ${t.border} last:border-0 ${t.hoverBgSoft} transition-colors`}>
-                <div className="w-7 h-7 rounded-full bg-brand-500/15 flex items-center justify-center flex-shrink-0 text-[10px] text-brand-400 font-bold uppercase">{e.first_name?.[0]}{e.last_name?.[0]}</div>
-                <div className="flex-1 min-w-0">
-                  <div className={`text-xs font-medium truncate ${t.textPrimary}`}>{full}</div>
-                  <div className={`text-[10px] truncate ${t.textFaint}`}>{e.designation}{e.department ? ` · ${e.department}` : ''}{e.section ? ` · ${e.section}` : ''}</div>
-                </div>
-                {e.employee_id && <span className={`text-[10px] flex-shrink-0 ${t.textFaint}`}>{e.employee_id}</span>}
-              </button>
-            );
-          })}
-        </ACDropdown>
-      </div>
+      <Combobox
+        value={value}
+        onChange={onChange}
+        onSelect={opt => onChange(opt.label)}
+        options={options}
+        placeholder={placeholder || 'Type to search employees, or enter name…'}
+        renderOption={opt => {
+          const e = byValue.get(opt.value);
+          return (
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-7 h-7 rounded-full bg-brand-500/15 flex items-center justify-center flex-shrink-0 text-[10px] text-brand-400 font-bold uppercase">
+                {e?.first_name?.[0]}{e?.last_name?.[0]}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className={`text-xs font-medium truncate ${t.textPrimary}`}>{opt.label}</div>
+                <div className={`text-[10px] truncate ${t.textFaint}`}>{opt.sub}</div>
+              </div>
+              {e?.employee_id && <span className={`text-[10px] flex-shrink-0 ${t.textFaint}`}>{e.employee_id}</span>}
+            </div>
+          );
+        }}
+      />
     </FormField>
   );
 }
@@ -474,42 +472,50 @@ function EquipmentAutocomplete({ value, onChange }: { value: string; onChange: (
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
-    document.addEventListener('mousedown', h); return () => document.removeEventListener('mousedown', h);
-  }, []);
-
+  // This field holds a comma-separated list — one work order per machine — so
+  // it filters on the fragment after the last comma and replaces only that
+  // fragment on select, rather than the whole value.
   const fragment = value.split(',').pop()?.trimStart() ?? '';
   const q = fragment.toLowerCase();
-  const suggestions = q.length === 0 ? equipment.slice(0, 8) : equipment.filter(e =>
+  const matches = q.length === 0 ? equipment.slice(0, 8) : equipment.filter(e =>
     (e.name || '').toLowerCase().includes(q) || (e.equipment_id || '').toLowerCase().includes(q) ||
     (e.department || '').toLowerCase().includes(q) || (e.location || '').toLowerCase().includes(q)
   ).slice(0, 8);
+
+  const byValue = new Map(matches.map(e => [String(e.id), e]));
+  const options: ComboOption[] = matches.map(e => ({
+    value: String(e.id),
+    label: e.name || e.equipment_id || '',
+    sub: [e.equipment_id, e.department, e.location].filter(Boolean).join(' · '),
+  }));
 
   const pick = (eq: EquipmentItem) => {
     const parts = value.split(',').map(s => s.trim()).filter(Boolean);
     parts.splice(parts.length > 0 && !value.endsWith(',') ? parts.length - 1 : parts.length, 1, eq.name || eq.equipment_id || '');
     onChange(parts.join(', '));
-    setOpen(false);
   };
 
   return (
     <div className="space-y-1.5">
-      <div className="relative" ref={ref}>
-        <input value={value} onChange={e => { onChange(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)}
-          placeholder="Type machine name — comma-separate for multiple…" className={`w-full rounded-md px-3 py-1.5 text-sm outline-none transition-colors ${t.inputBg}`} />
-        <ACDropdown show={open && suggestions.length > 0}>
-          {suggestions.map(eq => (
-            <button key={eq.id} type="button" onMouseDown={() => pick(eq)} className={`w-full flex items-center gap-2.5 px-3 py-2 text-left border-b ${t.border} last:border-0 ${t.hoverBgSoft} transition-colors`}>
+      <Combobox
+        value={value}
+        onChange={onChange}
+        onSelect={opt => { const eq = byValue.get(opt.value); if (eq) pick(eq); }}
+        options={options}
+        placeholder="Type machine name — comma-separate for multiple…"
+        renderOption={opt => {
+          const eq = byValue.get(opt.value);
+          return (
+            <div className="flex items-center gap-2.5 min-w-0">
               <div className="flex-1 min-w-0">
-                <div className={`text-xs font-medium truncate ${t.textPrimary}`}>{eq.name}</div>
-                <div className={`text-[10px] truncate ${t.textFaint}`}>{eq.equipment_id}{eq.department ? ` · ${eq.department}` : ''}{eq.location ? ` · ${eq.location}` : ''}</div>
+                <div className={`text-xs font-medium truncate ${t.textPrimary}`}>{opt.label}</div>
+                <div className={`text-[10px] truncate ${t.textFaint}`}>{opt.sub}</div>
               </div>
-              <StatusBadge color={eq.status === 'operational' ? '#4ade80' : '#fb923c'} label={eq.status || 'unknown'} />
-            </button>
-          ))}
-        </ACDropdown>
-      </div>
+              <StatusBadge color={eq?.status === 'operational' ? '#4ade80' : '#fb923c'} label={eq?.status || 'unknown'} />
+            </div>
+          );
+        }}
+      />
       {value.includes(',') && <p className="text-[10px] text-brand-400/70 px-0.5">{value.split(',').filter(s => s.trim()).length} machines — will create one work order each</p>}
     </div>
   );
@@ -518,39 +524,42 @@ function EquipmentAutocomplete({ value, onChange }: { value: string; onChange: (
 function SpareAutocomplete({ value, onChange, onSelect, placeholder }: { value: string; onChange: (v: string) => void; onSelect: (item: SpareRegisterItem) => void; placeholder?: string; }) {
   const t = useTheme();
   const spares = useSpares();
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
-    document.addEventListener('mousedown', h); return () => document.removeEventListener('mousedown', h);
-  }, []);
 
   const q = value.toLowerCase();
-  const suggestions = q.length === 0 ? spares.slice(0, 8) : spares.filter(s =>
+  const matches = q.length === 0 ? spares.slice(0, 8) : spares.filter(s =>
     (s.description || '').toLowerCase().includes(q) || (s.stock_code || '').toLowerCase().includes(q) || (s.category || '').toLowerCase().includes(q)
   ).slice(0, 8);
 
+  const byValue = new Map(matches.map(s => [String(s.id), s]));
+  const options: ComboOption[] = matches.map(s => ({
+    value: String(s.id),
+    label: s.description || '',
+    sub: [s.stock_code, s.category, s.unit_of_measure, s.current_quantity !== undefined ? `Stock: ${s.current_quantity}` : '']
+      .filter(Boolean).join(' · '),
+  }));
+
   return (
-    <div className="relative" ref={ref}>
-      <input value={value} onChange={e => { onChange(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)}
-        placeholder={placeholder || 'Search spares register or type manually…'} className={`w-full rounded-md px-3 py-1.5 text-sm outline-none transition-colors ${t.inputBg}`} />
-      <ACDropdown show={open && (suggestions.length > 0 || spares.length === 0)}>
-        {spares.length === 0 ? (
-          <div className={`px-3 py-3 text-xs flex items-center gap-2 ${t.textFaint}`}><RefreshCw className="h-3 w-3 animate-spin" /> Loading spares register…</div>
-        ) : suggestions.length === 0 ? (
-          <div className={`px-3 py-3 text-xs ${t.textFaint}`}>No matches — value will be saved as typed</div>
-        ) : suggestions.map(s => (
-          <button key={s.id} type="button" onMouseDown={() => { onSelect(s); setOpen(false); }} className={`w-full flex items-center gap-2.5 px-3 py-2 text-left border-b ${t.border} last:border-0 ${t.hoverBgSoft} transition-colors`}>
+    <Combobox
+      value={value}
+      onChange={onChange}
+      onSelect={opt => { const s = byValue.get(opt.value); if (s) onSelect(s); }}
+      options={options}
+      loading={spares.length === 0}
+      emptyText="No matches — value will be saved as typed"
+      placeholder={placeholder || 'Search spares register or type manually…'}
+      renderOption={opt => {
+        const s = byValue.get(opt.value);
+        return (
+          <div className="flex items-center gap-2.5 min-w-0">
             <div className="flex-1 min-w-0">
-              <div className={`text-xs font-medium truncate ${t.textPrimary}`}>{s.description}</div>
-              <div className={`text-[10px] truncate ${t.textFaint}`}>{s.stock_code}{s.category ? ` · ${s.category}` : ''}{s.unit_of_measure ? ` · ${s.unit_of_measure}` : ''}{s.current_quantity !== undefined ? ` · Stock: ${s.current_quantity}` : ''}</div>
+              <div className={`text-xs font-medium truncate ${t.textPrimary}`}>{opt.label}</div>
+              <div className={`text-[10px] truncate ${t.textFaint}`}>{opt.sub}</div>
             </div>
-            <span className="text-amber-400 text-xs font-mono flex-shrink-0">R {(s.unit_price || 0).toFixed(2)}</span>
-          </button>
-        ))}
-      </ACDropdown>
-    </div>
+            <span className="text-amber-400 text-xs font-mono flex-shrink-0">R {(s?.unit_price || 0).toFixed(2)}</span>
+          </div>
+        );
+      }}
+    />
   );
 }
 
@@ -659,7 +668,7 @@ function CreateWorkOrderModal({ isOpen, onClose, onCreated, editingOrder, allOrd
           <EquipmentAutocomplete value={form.equipment_info} onChange={v => set('equipment_info', v)} />
         </FormField>
         <FormField label="Department"><Input value={form.to_department} onChange={e => set('to_department', e.target.value)} placeholder="Engineering" className={`h-9 ${t.inputBg}`} /></FormField>
-        <PersonAutocomplete id="cwo-artisan" label="Allocated To (Artisan)" value={form.allocated_to} onChange={v => set('allocated_to', v)} />
+        <PersonAutocomplete label="Allocated To (Artisan)" value={form.allocated_to} onChange={v => set('allocated_to', v)} />
         <div className="grid grid-cols-3 gap-3">
           <FormField label="Priority">
             <Select value={form.priority} onValueChange={v => set('priority', v)}>
@@ -671,8 +680,8 @@ function CreateWorkOrderModal({ isOpen, onClose, onCreated, editingOrder, allOrd
           <FormField label="Date Raised"><Input type="date" title="Date raised" value={form.date_raised} onChange={e => set('date_raised', e.target.value)} className={`h-9 ${t.inputBg}`} /></FormField>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <PersonAutocomplete id="cwo-reqby" label="Requested By" value={form.requested_by} onChange={v => set('requested_by', v)} placeholder="Who is requesting this work?" />
-          <PersonAutocomplete id="cwo-foreman" label="Authorising Foreman" value={form.authorising_foreman} onChange={v => set('authorising_foreman', v)} />
+          <PersonAutocomplete label="Requested By" value={form.requested_by} onChange={v => set('requested_by', v)} placeholder="Who is requesting this work?" />
+          <PersonAutocomplete label="Authorising Foreman" value={form.authorising_foreman} onChange={v => set('authorising_foreman', v)} />
         </div>
         <FormField label="Job Request — What to Do" required><Textarea value={form.job_request_details} onChange={e => set('job_request_details', e.target.value)} placeholder="Describe exactly what the artisan needs to do…" rows={4} className={`resize-none ${t.inputBg}`} /></FormField>
         <FormField label="Special Instructions (optional)"><Textarea value={form.job_instructions} onChange={e => set('job_instructions', e.target.value)} placeholder="Safety notes, special tools, access requirements…" rows={2} className={`resize-none ${t.inputBg}`} /></FormField>
@@ -959,7 +968,7 @@ function WorkOrderDetailModal({ workOrder, onClose, onRefresh, onDelete }: Detai
               <div className={`border ${t.border} rounded-lg p-3 space-y-3`}>
                 <div className={`flex items-center gap-1.5 text-xs ${t.textFaint}`}><Signature className="h-3.5 w-3.5" /> Artisan Sign-off</div>
                 <div className="grid grid-cols-3 gap-3">
-                  <PersonAutocomplete id="a-name" label="Artisan Name" value={artisan.artisan_name} onChange={v => setA('artisan_name', v)} placeholder="Type to search employees…" />
+                  <PersonAutocomplete label="Artisan Name" value={artisan.artisan_name} onChange={v => setA('artisan_name', v)} placeholder="Type to search employees…" />
                   <ThemedInput id="a-sign" label="Signature (type name)" value={artisan.artisan_sign} onChange={v => setA('artisan_sign', v)} placeholder="Type name" autoComplete="name" />
                   <ThemedInput id="a-date" label="Date" type="date" value={artisan.artisan_date} onChange={v => setA('artisan_date', v)} />
                 </div>
@@ -995,7 +1004,7 @@ function WorkOrderDetailModal({ workOrder, onClose, onRefresh, onDelete }: Detai
               <div className={`border ${t.border} rounded-lg p-3 space-y-3`}>
                 <div className={`flex items-center gap-1.5 text-xs ${t.textFaint}`}><Signature className="h-3.5 w-3.5" /> Foreman Sign-off</div>
                 <div className="grid grid-cols-3 gap-3">
-                  <PersonAutocomplete id="f-name" label="Foreman Name" value={foreman.foreman_name} onChange={v => setF('foreman_name', v)} placeholder="Type to search employees…" />
+                  <PersonAutocomplete label="Foreman Name" value={foreman.foreman_name} onChange={v => setF('foreman_name', v)} placeholder="Type to search employees…" />
                   <ThemedInput id="f-sign" label="Signature (type name)" value={foreman.foreman_sign} onChange={v => setF('foreman_sign', v)} placeholder="Type name" autoComplete="name" />
                   <ThemedInput id="f-date" label="Date" type="date" value={foreman.foreman_date} onChange={v => setF('foreman_date', v)} />
                 </div>
@@ -1480,8 +1489,8 @@ function CreateScheduleModal({ isOpen, initial, onClose, onSave }: CreateSchedul
         <FormField label="Machine / Equipment" required><EquipmentAutocomplete value={form.equipment_info} onChange={v => set('equipment_info', v)} /></FormField>
         <FormField label="Department"><Input value={form.to_department} onChange={e => set('to_department', e.target.value)} placeholder="Engineering…" className={`h-9 ${t.inputBg}`} /></FormField>
         <div className="grid grid-cols-2 gap-3">
-          <PersonAutocomplete id="cs-artisan" label="Allocated To" value={form.allocated_to} onChange={v => set('allocated_to', v)} />
-          <PersonAutocomplete id="cs-foreman" label="Authorising Foreman" value={form.authorising_foreman} onChange={v => set('authorising_foreman', v)} />
+          <PersonAutocomplete label="Allocated To" value={form.allocated_to} onChange={v => set('allocated_to', v)} />
+          <PersonAutocomplete label="Authorising Foreman" value={form.authorising_foreman} onChange={v => set('authorising_foreman', v)} />
         </div>
         <div className="grid grid-cols-2 gap-3">
           <FormField label="Est. Hours"><Input type="number" min="0.5" step="0.5" value={form.estimated_hours} onChange={e => set('estimated_hours', e.target.value)} className={`h-9 ${t.inputBg}`} /></FormField>
