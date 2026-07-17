@@ -87,82 +87,135 @@ interface WorkOrder {
 
 // ==================== API ====================
 
+// The database is the only source of truth. These calls used to fall back to
+// localStorage and return { success: true } on failure, so a work order that
+// never reached the server showed a success toast and lived on in one browser
+// with a fake Date.now() id. They now throw, and callers report the failure.
+
+const LEGACY_WO_KEY = 'maint_work_orders';
+const LEGACY_UPLOAD_DONE = 'maint_local_fields_uploaded_v1';
+// Fields that used to exist only in the browser, before work_orders had columns
+// for them (supabase_migration_work_orders_classification.sql).
 const LOCAL_FIELDS: (keyof WorkOrder)[] = ['classification', 'classification_custom', 'failure_mode', 'discipline', 'trade', 'spares_used'];
 
-function lsRead(): WorkOrder[] { if (typeof window === 'undefined') return []; return JSON.parse(localStorage.getItem('maint_work_orders') || '[]'); }
-function lsWrite(list: WorkOrder[]) { localStorage.setItem('maint_work_orders', JSON.stringify(list)); }
-function lsMergeIn(patch: Partial<WorkOrder> & { id: string | number }) {
-  const list = lsRead();
-  const idx = list.findIndex(w => String(w.id) === String(patch.id));
-  if (idx >= 0) list[idx] = { ...list[idx], ...patch }; else list.unshift(patch as WorkOrder);
-  lsWrite(list);
-}
-function lsPatchFields(id: string, updates: Record<string, unknown>) {
-  const list = lsRead();
-  lsWrite(list.map(w => String(w.id) === String(id) ? { ...w, ...updates } : w));
-}
-
 async function getWorkOrders(): Promise<WorkOrder[]> {
-  const local = lsRead();
-  const localMap = new Map(local.map(w => [String(w.id), w]));
-  try {
-    const apiData = await api.get<WorkOrder[]>('/api/maintenance/work-orders');
-    if (!Array.isArray(apiData)) return local;
-    const apiIds = new Set(apiData.map(w => String(w.id)));
-    const localOnly = local.filter(w => !apiIds.has(String(w.id)));
-    const merged = apiData.map(w => {
-      const loc = localMap.get(String(w.id));
-      if (!loc) return w;
-      const extra: Partial<WorkOrder> = {};
-      for (const f of LOCAL_FIELDS) {
-        const apiVal = w[f]; const locVal = loc[f];
-        (extra as Record<string, unknown>)[f] = (apiVal !== null && apiVal !== undefined) ? apiVal : locVal;
-      }
-      return { ...w, ...extra };
-    });
-    return [...merged, ...localOnly];
-  } catch { return local; }
+  const data = await api.get<WorkOrder[]>('/api/maintenance/work-orders');
+  return Array.isArray(data) ? data : [];
 }
 
-async function createWorkOrder(data: Record<string, unknown>): Promise<{ success: boolean; data?: WorkOrder }> {
-  try {
-    const result = await api.post<any>('/api/maintenance/work-orders', data);
-    const full = { ...data, ...result } as WorkOrder;
-    lsMergeIn(full);
-    return { success: true, data: full };
-  } catch {
-    const wo = { ...data, id: Date.now().toString(), created_at: new Date().toISOString(), updated_at: new Date().toISOString() } as WorkOrder;
-    lsMergeIn(wo);
-    return { success: true, data: wo };
-  }
+async function createWorkOrder(data: Record<string, unknown>): Promise<WorkOrder> {
+  const result = await api.post<Partial<WorkOrder>>('/api/maintenance/work-orders', data);
+  return { ...data, ...result } as WorkOrder;
 }
-async function updateWorkOrder(id: string, updates: Record<string, unknown>): Promise<{ success: boolean }> {
-  const ts = new Date().toISOString();
-  try {
-    await api.patch(`/api/maintenance/work-orders/${id}`, { ...updates, updated_at: ts });
-    lsPatchFields(id, { ...updates, updated_at: ts });
-    return { success: true };
-  } catch { lsPatchFields(id, { ...updates, updated_at: ts }); return { success: true }; }
+
+async function updateWorkOrder(id: string, updates: Record<string, unknown>): Promise<void> {
+  await api.patch(`/api/maintenance/work-orders/${id}`, { ...updates, updated_at: new Date().toISOString() });
 }
-async function deleteWorkOrder(id: string): Promise<{ success: boolean }> {
-  try {
-    await api.delete(`/api/maintenance/work-orders/${id}`);
-    return { success: true };
-  } catch {
-    const prev: WorkOrder[] = JSON.parse(localStorage.getItem('maint_work_orders') || '[]');
-    localStorage.setItem('maint_work_orders', JSON.stringify(prev.filter(w => w.id !== id)));
-    return { success: true };
+
+async function deleteWorkOrder(id: string): Promise<void> {
+  await api.delete(`/api/maintenance/work-orders/${id}`);
+}
+
+/**
+ * One-time rescue of classification data stranded in this browser.
+ *
+ * Before work_orders had these columns, the page kept them in localStorage
+ * only — so a user's failure modes, disciplines and spares lived on their
+ * machine and nowhere else. Now that the columns exist, push anything the
+ * server is still missing before the local copy is discarded. Runs once per
+ * browser; only fills blanks, never overwrites a server value.
+ */
+async function uploadStrandedLocalFields(server: WorkOrder[]): Promise<number> {
+  if (typeof window === 'undefined') return 0;
+  if (localStorage.getItem(LEGACY_UPLOAD_DONE)) return 0;
+
+  let local: WorkOrder[] = [];
+  try { local = JSON.parse(localStorage.getItem(LEGACY_WO_KEY) || '[]'); } catch { local = []; }
+  if (!Array.isArray(local) || local.length === 0) {
+    localStorage.setItem(LEGACY_UPLOAD_DONE, new Date().toISOString());
+    return 0;
   }
+
+  const localMap = new Map(local.map(w => [String(w.id), w]));
+  let uploaded = 0;
+
+  for (const wo of server) {
+    const loc = localMap.get(String(wo.id));
+    if (!loc) continue;
+    const patch: Record<string, unknown> = {};
+    for (const f of LOCAL_FIELDS) {
+      const serverVal = wo[f];
+      const localVal = loc[f];
+      const serverBlank = serverVal === null || serverVal === undefined || serverVal === ''
+        || (Array.isArray(serverVal) && serverVal.length === 0);
+      const localHas = localVal !== null && localVal !== undefined && localVal !== ''
+        && !(Array.isArray(localVal) && localVal.length === 0);
+      if (serverBlank && localHas) patch[f] = localVal;
+    }
+    if (Object.keys(patch).length === 0) continue;
+    try {
+      await updateWorkOrder(String(wo.id), patch);
+      uploaded++;
+    } catch {
+      // Leave the flag unset so the next load retries rather than dropping data.
+      return uploaded;
+    }
+  }
+
+  localStorage.setItem(LEGACY_UPLOAD_DONE, new Date().toISOString());
+  localStorage.removeItem(LEGACY_WO_KEY);
+  return uploaded;
 }
 
 // ==================== SCHEDULE STORAGE ====================
 const SCHED_KEY = 'maint_schedules';
+const SCHED_UPLOAD_DONE = 'maint_schedules_uploaded_v1';
 const DOW = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 function ordinal(n: number): string { const s = ['th', 'st', 'nd', 'rd']; const v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
-function loadSchedules(): MaintenanceSchedule[] { if (typeof window === 'undefined') return []; return JSON.parse(localStorage.getItem(SCHED_KEY) || '[]'); }
-function persistSchedules(list: MaintenanceSchedule[]) { localStorage.setItem(SCHED_KEY, JSON.stringify(list)); }
+// Schedules are server-side. They used to live in localStorage, which meant a
+// schedule you created was invisible to everyone else, and nothing could raise
+// its work orders unless you happened to open this page.
+async function fetchSchedules(): Promise<MaintenanceSchedule[]> {
+  const data = await api.get<MaintenanceSchedule[]>('/api/schedules');
+  return Array.isArray(data) ? data : [];
+}
+async function createSchedule(s: Partial<MaintenanceSchedule>): Promise<MaintenanceSchedule> {
+  return api.post<MaintenanceSchedule>('/api/schedules', s);
+}
+async function updateSchedule(id: string | number, updates: Partial<MaintenanceSchedule>): Promise<MaintenanceSchedule> {
+  return api.patch<MaintenanceSchedule>(`/api/schedules/${id}`, updates);
+}
+async function deleteSchedule(id: string | number): Promise<void> {
+  await api.delete(`/api/schedules/${id}`);
+}
+
+/** One-time rescue of schedules stranded in this browser's localStorage. */
+async function uploadStrandedSchedules(): Promise<number> {
+  if (typeof window === 'undefined') return 0;
+  if (localStorage.getItem(SCHED_UPLOAD_DONE)) return 0;
+  let local: MaintenanceSchedule[] = [];
+  try { local = JSON.parse(localStorage.getItem(SCHED_KEY) || '[]'); } catch { local = []; }
+  if (!Array.isArray(local) || local.length === 0) {
+    localStorage.setItem(SCHED_UPLOAD_DONE, new Date().toISOString());
+    return 0;
+  }
+  let uploaded = 0;
+  for (const s of local) {
+    try {
+      // id/created_at are the browser's; the server assigns its own.
+      const { id: _id, created_at: _c, last_generated: _lg, ...rest } = s;
+      await createSchedule(rest);
+      uploaded++;
+    } catch {
+      return uploaded; // retry on next load rather than lose the schedule
+    }
+  }
+  localStorage.setItem(SCHED_UPLOAD_DONE, new Date().toISOString());
+  localStorage.removeItem(SCHED_KEY);
+  return uploaded;
+}
 
 function recurrenceLabel(s: MaintenanceSchedule): string {
   switch (s.recurrence_type) {
@@ -176,36 +229,11 @@ function recurrenceLabel(s: MaintenanceSchedule): string {
     default: return '';
   }
 }
-function getNextOccurrence(s: MaintenanceSchedule, from: Date): Date {
-  const d = new Date(from); d.setHours(0, 0, 0, 0);
-  switch (s.recurrence_type) {
-    case 'daily': { d.setDate(d.getDate() + 1); return d; }
-    case 'weekly': { d.setDate(d.getDate() + 7); return d; }
-    case 'biweekly': { d.setDate(d.getDate() + 14); return d; }
-    case 'monthly': return new Date(d.getFullYear(), d.getMonth() + 1, s.recurrence_dom);
-    case 'quarterly': {
-      const months = [...(s.recurrence_months ?? [0, 3, 6, 9])].sort((a, b) => a - b);
-      const cur = d.getMonth();
-      const next = months.find(m => m > cur);
-      return next !== undefined ? new Date(d.getFullYear(), next, s.recurrence_dom) : new Date(d.getFullYear() + 1, months[0] ?? 0, s.recurrence_dom);
-    }
-    case 'yearly': { const month = s.recurrence_months?.[0] ?? 0; return new Date(d.getFullYear() + 1, month, s.recurrence_dom); }
-    case 'custom': {
-      const todayStr = d.toISOString().split('T')[0];
-      const future = (s.specific_dates ?? []).filter(dt => dt > todayStr).sort();
-      return future.length > 0 ? new Date(future[0] + 'T00:00:00') : new Date(9999, 0, 1);
-    }
-    default: return new Date(9999, 0, 1);
-  }
-}
-function isScheduleDue(s: MaintenanceSchedule): boolean {
-  if (!s.active || !s.next_due_date) return false;
-  const today = new Date().toISOString().split('T')[0];
-  if (s.last_generated === today) return false;
-  const dueDate = new Date(s.next_due_date + 'T00:00:00');
-  dueDate.setDate(dueDate.getDate() - (s.advance_days || 0));
-  return dueDate.toISOString().split('T')[0] <= today;
-}
+// getNextOccurrence() and isScheduleDue() used to live here so the browser could
+// decide what was due and raise the work orders itself. The server owns both now
+// (app/routers/schedules.py), which is what makes generation happen whether or
+// not anyone opens this page, and stops two open tabs raising the same job
+// twice. recurrenceLabel() stays — describing a rule is a display concern.
 
 // ==================== HELPERS ====================
 function statusCfg(s: WorkOrderStatus) {
@@ -568,16 +596,24 @@ function CreateWorkOrderModal({ isOpen, onClose, onCreated, editingOrder, allOrd
         job_instructions: form.job_instructions, date_raised: form.date_raised,
         ...(form.classification ? { classification: form.classification } : {}),
       };
-      const { success } = await updateWorkOrder(editingOrder.id, updates);
-      setSaving(false);
-      if (success) { toast.success('Work order updated'); onCreated({ ...editingOrder, ...updates } as WorkOrder); onClose(); }
-      else toast.error('Failed to update work order');
+      try {
+        await updateWorkOrder(editingOrder.id, updates);
+        toast.success('Work order updated');
+        onCreated({ ...editingOrder, ...updates } as WorkOrder);
+        onClose();
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : 'Failed to update work order');
+      } finally {
+        setSaving(false);
+      }
       return;
     }
 
     const created: WorkOrder[] = [];
+    const failed: string[] = [];
     for (let i = 0; i < machines.length; i++) {
-      const result = await createWorkOrder({
+      try {
+        const wo = await createWorkOrder({
         work_order_number: nextWONumber(allOrders, created.length), equipment_info: machines[i],
         to_department: form.to_department, allocated_to: form.allocated_to, priority: form.priority,
         estimated_hours: form.estimated_hours, job_request_details: form.job_request_details,
@@ -593,17 +629,26 @@ function CreateWorkOrderModal({ isOpen, onClose, onCreated, editingOrder, allOrd
         time_work_started: '', time_work_finished: '', total_time_worked: '',
         overtime_start_time: '', overtime_end_time: '', overtime_hours: '',
         delay_from_time: '', delay_to_time: '', total_delay_hours: '',
-        status: 'pending', progress: 0,
-        ...(form.classification ? { classification: form.classification } : {}),
-      });
-      if (result.success && result.data) created.push(result.data);
+          status: 'pending', progress: 0,
+          ...(form.classification ? { classification: form.classification } : {}),
+        });
+        created.push(wo);
+      } catch (e) {
+        failed.push(machines[i]);
+        console.error('createWorkOrder failed for', machines[i], e);
+      }
     }
     setSaving(false);
+    if (failed.length > 0) {
+      // Say which machines did not get a work order. This used to report
+      // success and quietly keep them in localStorage.
+      toast.error(`Could not create work order${failed.length === 1 ? '' : 's'} for: ${failed.join(', ')}`);
+    }
     if (created.length > 0) {
       toast.success(created.length > 1 ? `${created.length} work orders created` : 'Work order created');
       setForm(blankForm());
       created.forEach(wo => onCreated(wo));
-      onClose();
+      if (failed.length === 0) onClose();
     } else toast.error('Failed to create work order');
   };
 
@@ -719,17 +764,29 @@ function WorkOrderDetailModal({ workOrder, onClose, onRefresh, onDelete }: Detai
       trade: artisan.discipline === 'Mechanical' ? artisan.trade || undefined : undefined,
       spares_used: artisanSpares.length > 0 ? artisanSpares : undefined,
     };
-    const result = await updateWorkOrder(workOrder.id, payload);
-    setSavingA(false);
-    if (result.success) { toast.success('Artisan report saved'); await onRefresh(); }
+    try {
+      await updateWorkOrder(workOrder.id, payload);
+      toast.success('Artisan report saved');
+      await onRefresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not save artisan report');
+    } finally {
+      setSavingA(false);
+    }
   };
 
   const saveForeman = async () => {
     setSavingF(true);
     if (foreman.foreman_name) localStorage.setItem('maint_foreman_name', foreman.foreman_name);
-    const result = await updateWorkOrder(workOrder.id, foreman);
-    setSavingF(false);
-    if (result.success) { toast.success('Foreman sign-off saved'); await onRefresh(); }
+    try {
+      await updateWorkOrder(workOrder.id, foreman);
+      toast.success('Foreman sign-off saved');
+      await onRefresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not save foreman sign-off');
+    } finally {
+      setSavingF(false);
+    }
   };
 
   const scfg = statusCfg(workOrder.status);
@@ -1529,7 +1586,9 @@ function MaintenancePageContent() {
     if (count === 0) return;
     if (!await confirm({ title: `Delete ${count} work order${count !== 1 ? 's' : ''}?`, message: 'This cannot be undone.', destructive: true, confirmLabel: `Delete ${count}` })) return;
     let failed = 0;
-    for (const id of selectedIds) { const { success } = await deleteWorkOrder(id); if (!success) failed++; }
+    for (const id of selectedIds) {
+      try { await deleteWorkOrder(id); } catch { failed++; }
+    }
     exitBulk();
     await load();
     if (failed === 0) toast.success(`${count} work order${count !== 1 ? 's' : ''} deleted`);
@@ -1537,6 +1596,8 @@ function MaintenancePageContent() {
   };
 
   const [schedules, setSchedules] = useState<MaintenanceSchedule[]>([]);
+  const [loadError, setLoadError] = useState('');
+  const [scheduleError, setScheduleError] = useState('');
   const [schedPanelOpen, setSchedPanelOpen] = useState(true);
   const [showCreateSched, setShowCreateSched] = useState(false);
   const [editingSched, setEditingSched] = useState<MaintenanceSchedule | null>(null);
@@ -1547,45 +1608,57 @@ function MaintenancePageContent() {
   const [showFilterMenu, setShowFilterMenu] = useState(false);
   const selectedOrder = useMemo(() => selectedOrderId ? workOrders.find(w => String(w.id) === String(selectedOrderId)) ?? null : null, [workOrders, selectedOrderId]);
 
-  const load = async () => { setLoading(true); const data = await getWorkOrders(); setWorkOrders(data); setLoading(false); };
-  useEffect(() => { load(); }, []);
+  const load = async () => {
+    setLoading(true);
+    try {
+      const data = await getWorkOrders();
+      setWorkOrders(data);
+      setLoadError('');
+    } catch (e) {
+      // Previously this fell back to localStorage and looked like success.
+      setLoadError(e instanceof Error ? e.message : 'Could not load work orders.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const loaded = loadSchedules();
-    setSchedules(loaded);
-    const today = new Date().toISOString().split('T')[0];
-    let updated = [...loaded];
-    let anyGenerated = false;
-
-    const autoGenerate = async () => {
-      for (const sched of loaded) {
-        if (!isScheduleDue(sched)) continue;
-        const result = await createWorkOrder({
-          work_order_number: `WO-${Date.now().toString().slice(-6)}`, equipment_info: sched.equipment_info,
-          to_department: sched.to_department, allocated_to: sched.allocated_to, authorising_foreman: sched.authorising_foreman,
-          estimated_hours: sched.estimated_hours, job_request_details: sched.job_request_details,
-          job_instructions: sched.job_instructions, priority: sched.priority,
-          to_section: '', from_department: '', from_section: '', account_number: '', user_lab_today: '',
-          date_raised: sched.next_due_date, time_raised: new Date().toTimeString().slice(0, 5),
-          job_type: { operational: false, maintenance: true, mining: false },
-          requested_by: 'Auto-generated', authorising_engineer: '', responsible_foreman: sched.authorising_foreman, manpower: [],
-          work_done_details: '', cause_of_failure: '', delay_details: '',
-          artisan_name: sched.allocated_to, artisan_sign: '', artisan_date: '',
-          foreman_name: '', foreman_sign: '', foreman_date: '',
-          time_work_started: '', time_work_finished: '', total_time_worked: '',
-          overtime_start_time: '', overtime_end_time: '', overtime_hours: '',
-          delay_from_time: '', delay_to_time: '', total_delay_hours: '',
-          status: 'pending', progress: 0,
-        });
-        if (result.success) {
-          const next = getNextOccurrence(sched, new Date(sched.next_due_date + 'T00:00:00'));
-          updated = updated.map(x => x.id === sched.id ? { ...x, last_generated: today, next_due_date: next.toISOString().split('T')[0] } : x);
-          anyGenerated = true;
+    (async () => {
+      setLoading(true);
+      try {
+        const data = await getWorkOrders();
+        setWorkOrders(data);
+        setLoadError('');
+        const rescued = await uploadStrandedLocalFields(data);
+        if (rescued > 0) {
+          toast.success(`Saved classification data from this browser to ${rescued} work order${rescued === 1 ? '' : 's'}`);
+          setWorkOrders(await getWorkOrders());
         }
+      } catch (e) {
+        setLoadError(e instanceof Error ? e.message : 'Could not load work orders.');
+      } finally {
+        setLoading(false);
       }
-      if (anyGenerated) { setSchedules(updated); persistSchedules(updated); toast.success('Recurring maintenance work orders generated'); load(); }
-    };
-    autoGenerate();
+    })();
+  }, []);
+
+  // Schedules come from the server, which also raises their work orders — see
+  // POST /api/schedules/generate, driven by cron. The browser used to do this
+  // on page load, which meant work orders were only raised if somebody opened
+  // the page, and two people opening it could raise the same job twice.
+  useEffect(() => {
+    (async () => {
+      try {
+        const rescued = await uploadStrandedSchedules();
+        if (rescued > 0) {
+          toast.success(`Moved ${rescued} schedule${rescued === 1 ? '' : 's'} from this browser to the server`);
+        }
+        setSchedules(await fetchSchedules());
+        setScheduleError('');
+      } catch (e) {
+        setScheduleError(e instanceof Error ? e.message : 'Could not load schedules.');
+      }
+    })();
   }, []);
 
   const stats = useMemo(() => calcStats(workOrders), [workOrders]);
@@ -1619,8 +1692,10 @@ function MaintenancePageContent() {
     const today = new Date().toISOString().split('T')[0];
     const machines = sched.equipment_info.split(',').map(s => s.trim()).filter(Boolean);
     const created: WorkOrder[] = [];
+    const failedMachines: string[] = [];
     for (let i = 0; i < machines.length; i++) {
-      const result = await createWorkOrder({
+      try {
+        const wo = await createWorkOrder({
         work_order_number: nextWONumber(workOrders, created.length), equipment_info: machines[i],
         to_department: sched.to_department, allocated_to: sched.allocated_to, authorising_foreman: sched.authorising_foreman,
         estimated_hours: sched.estimated_hours, job_request_details: sched.job_request_details,
@@ -1636,8 +1711,15 @@ function MaintenancePageContent() {
         overtime_start_time: '', overtime_end_time: '', overtime_hours: '',
         delay_from_time: '', delay_to_time: '', total_delay_hours: '',
         status: 'pending', progress: 0,
-      });
-      if (result.success && result.data) created.push(result.data);
+        });
+        created.push(wo);
+      } catch (e) {
+        failedMachines.push(machines[i]);
+        console.error('run schedule now failed for', machines[i], e);
+      }
+    }
+    if (failedMachines.length > 0) {
+      toast.error(`Could not create work order${failedMachines.length === 1 ? '' : 's'} for: ${failedMachines.join(', ')}`);
     }
     if (created.length > 0) {
       toast.success(created.length > 1 ? `${created.length} work orders created from "${sched.name}"` : `Work order created from "${sched.name}"`);
@@ -1707,7 +1789,13 @@ function MaintenancePageContent() {
                 <button type="button" onClick={() => setSchedPanelOpen(o => !o)} title={schedPanelOpen ? 'Collapse schedules' : 'Expand schedules'} className={`${t.chipBg} ${t.hoverBg} ${t.textFaint} rounded-lg p-1.5 transition-colors`}>{schedPanelOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}</button>
               </div>
             </div>
-            {schedPanelOpen && (schedules.length === 0 ? (
+            {schedPanelOpen && (scheduleError ? (
+              <EmptyState
+                icon={AlertTriangle}
+                title="Could not load schedules"
+                message={scheduleError}
+              />
+            ) : schedules.length === 0 ? (
               <EmptyState
                 icon={Repeat2}
                 title="No recurring schedules yet"
@@ -1717,8 +1805,27 @@ function MaintenancePageContent() {
             ) : (
               <div>{schedules.map(s => (
                 <ScheduleRow key={s.id} schedule={s} onEdit={() => { setEditingSched(s); setShowCreateSched(true); }} onRunNow={() => handleRunScheduleNow(s)}
-                  onDelete={async () => { if (await confirm({ title: `Delete schedule "${s.name}"?`, message: 'This cannot be undone.', destructive: true })) { const updated = schedules.filter(x => x.id !== s.id); setSchedules(updated); persistSchedules(updated); } }}
-                  onToggle={() => { const updated = schedules.map(x => x.id === s.id ? { ...x, active: !x.active } : x); setSchedules(updated); persistSchedules(updated); }} />
+                  onDelete={async () => {
+                    if (!await confirm({ title: `Delete schedule "${s.name}"?`, message: 'This cannot be undone.', destructive: true })) return;
+                    try {
+                      await deleteSchedule(s.id);
+                      setSchedules(prev => prev.filter(x => x.id !== s.id));
+                      toast.success('Schedule deleted');
+                    } catch (e) {
+                      toast.error(e instanceof Error ? e.message : 'Could not delete schedule');
+                    }
+                  }}
+                  onToggle={async () => {
+                    const next = !s.active;
+                    setSchedules(prev => prev.map(x => x.id === s.id ? { ...x, active: next } : x));
+                    try {
+                      await updateSchedule(s.id, { active: next });
+                    } catch (e) {
+                      // Put the toggle back — the server is the truth.
+                      setSchedules(prev => prev.map(x => x.id === s.id ? { ...x, active: !next } : x));
+                      toast.error(e instanceof Error ? e.message : 'Could not update schedule');
+                    }
+                  }} />
               ))}</div>
             ))}
           </div>
@@ -1808,6 +1915,15 @@ function MaintenancePageContent() {
               <div>
                 {loading ? (
                   <LoadingState label="Loading work orders…" />
+                ) : loadError ? (
+                  // The page used to fall back to localStorage here and show
+                  // stale browser data as though it were live.
+                  <EmptyState
+                    icon={AlertTriangle}
+                    title="Could not load work orders"
+                    message={loadError}
+                    action={{ label: 'Try again', onClick: load }}
+                  />
                 ) : filtered.length === 0 ? (
                   <EmptyState
                     icon={Wrench}
@@ -1855,10 +1971,24 @@ function MaintenancePageContent() {
       <CreateWorkOrderModal isOpen={showCreateModal} onClose={handleCloseCreateModal} onCreated={handleCreated} editingOrder={editingWO ?? undefined} allOrders={workOrders} />
       {selectedOrder && <WorkOrderDetailModal workOrder={selectedOrder} onClose={() => setSelectedOrderId(null)} onRefresh={load} onDelete={handleDelete} />}
       <CreateScheduleModal isOpen={showCreateSched} initial={editingSched} onClose={() => { setShowCreateSched(false); setEditingSched(null); }}
-        onSave={schedule => {
-          const updated = editingSched ? schedules.map(x => x.id === schedule.id ? schedule : x) : [schedule, ...schedules];
-          setSchedules(updated); persistSchedules(updated);
-          toast.success(editingSched ? 'Schedule updated' : 'Schedule created');
+        onSave={async schedule => {
+          try {
+            if (editingSched) {
+              const saved = await updateSchedule(schedule.id, schedule);
+              setSchedules(prev => prev.map(x => x.id === schedule.id ? { ...x, ...saved } : x));
+              toast.success('Schedule updated');
+            } else {
+              // Drop the browser-generated id; the server assigns the real one.
+              const { id: _id, created_at: _c, ...rest } = schedule;
+              const saved = await createSchedule(rest);
+              setSchedules(prev => [saved, ...prev]);
+              toast.success('Schedule created');
+            }
+            setShowCreateSched(false);
+            setEditingSched(null);
+          } catch (e) {
+            toast.error(e instanceof Error ? e.message : 'Could not save schedule');
+          }
         }} />
     </main>
   );
