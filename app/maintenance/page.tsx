@@ -16,7 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   useTheme, PageHero, StatTile, StatusBadge, ViewToggle, FormField, FormActions,
   useCollapseSection, CenterModal, ProgressBar, ACCENT_HEX, GlowCard, SelectField,
-  useConfirm, SearchInput, EmptyState, LoadingState, Combobox, type ComboOption,
+  useConfirm, SearchInput, EmptyState, LoadingState, Combobox, type ComboOption, InfoRow,
 } from '@/components/shared/theme';
 import {
   Wrench, Plus, RefreshCw, CheckCircle2, Clock, PlayCircle, PauseCircle,
@@ -704,11 +704,6 @@ function CreateWorkOrderModal({ isOpen, onClose, onCreated, editingOrder, allOrd
 // ==================== WORK ORDER DETAIL MODAL ====================
 interface DetailModalProps { workOrder: WorkOrder; onClose: () => void; onRefresh: () => void; onDelete: (id: string) => void; }
 
-function InfoField({ label, value }: { label: string; value?: string | null }) {
-  const t = useTheme();
-  return <div><div className={`text-[10px] uppercase tracking-wide mb-0.5 ${t.textFaint}`}>{label}</div><div className={`text-sm ${t.textMuted}`}>{value || '—'}</div></div>;
-}
-
 function WorkOrderDetailModal({ workOrder, onClose, onRefresh, onDelete }: DetailModalProps) {
   const t = useTheme();
   const confirm = useConfirm();
@@ -819,9 +814,9 @@ function WorkOrderDetailModal({ workOrder, onClose, onRefresh, onDelete }: Detai
             <span className={`ml-auto text-xs ${t.textFaint}`}>supervisor-issued · read-only</span>
           </div>
           <div className="px-4 pt-3 pb-2 grid grid-cols-3 gap-x-6 gap-y-2">
-            <InfoField label="Machine" value={workOrder.equipment_info} />
-            <InfoField label="Allocated To" value={workOrder.allocated_to || workOrder.artisan_name} />
-            <InfoField label="Date Raised" value={workOrder.date_raised} />
+            <InfoRow label="Machine" value={workOrder.equipment_info} />
+            <InfoRow label="Allocated To" value={workOrder.allocated_to || workOrder.artisan_name} />
+            <InfoRow label="Date Raised" value={workOrder.date_raised} />
             {workOrder.job_request_details && (
               <div className="col-span-3 mt-1">
                 <div className={`text-[10px] uppercase tracking-wide mb-0.5 ${t.textFaint}`}>Job</div>
@@ -831,11 +826,11 @@ function WorkOrderDetailModal({ workOrder, onClose, onRefresh, onDelete }: Detai
           </div>
           {s1Open && (
             <div className={`px-4 pb-3 pt-2 border-t ${t.border} grid grid-cols-2 gap-x-8 gap-y-3 mt-1`}>
-              <InfoField label="Department" value={workOrder.to_department} />
-              <InfoField label="Estimated Hours" value={workOrder.estimated_hours ? `${workOrder.estimated_hours} h` : ''} />
-              <InfoField label="Requested By" value={workOrder.requested_by} />
-              <InfoField label="Authorising Foreman" value={workOrder.authorising_foreman} />
-              {workOrder.job_instructions && <div className="col-span-2"><InfoField label="Special Instructions" value={workOrder.job_instructions} /></div>}
+              <InfoRow label="Department" value={workOrder.to_department} />
+              <InfoRow label="Estimated Hours" value={workOrder.estimated_hours ? `${workOrder.estimated_hours} h` : ''} />
+              <InfoRow label="Requested By" value={workOrder.requested_by} />
+              <InfoRow label="Authorising Foreman" value={workOrder.authorising_foreman} />
+              {workOrder.job_instructions && <div className="col-span-2"><InfoRow label="Special Instructions" value={workOrder.job_instructions} /></div>}
             </div>
           )}
           <button type="button" onClick={() => setS1Open(o => !o)} className={`w-full flex items-center justify-center gap-1.5 px-4 py-2 border-t ${t.border} ${t.hoverBgSoft} transition-colors text-brand-400/70 hover:text-brand-400 text-xs`}>
@@ -1373,10 +1368,10 @@ function WorkOrderRow({ workOrder, onClick, isExpanded, onToggle, onEdit }: { wo
       {isExpanded && (
         <div className={`px-14 pb-4 pt-2 ${t.chipBg} border-t ${t.border}`}>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-2.5">
-            <InfoField label="Artisan" value={artisanDisplay} />
-            <InfoField label="Foreman" value={foremanDisplay} />
-            <InfoField label="Time Worked" value={workOrder.total_time_worked} />
-            <InfoField label="Est. Hours" value={workOrder.estimated_hours ? `${workOrder.estimated_hours}h` : undefined} />
+            <InfoRow label="Artisan" value={artisanDisplay} />
+            <InfoRow label="Foreman" value={foremanDisplay} />
+            <InfoRow label="Time Worked" value={workOrder.total_time_worked} />
+            <InfoRow label="Est. Hours" value={workOrder.estimated_hours ? `${workOrder.estimated_hours}h` : undefined} />
             {(workOrder.work_done_details || workOrder.job_request_details) && (
               <div className="col-span-2 sm:col-span-4">
                 <div className={`text-[10px] uppercase tracking-wide mb-0.5 ${t.textFaint}`}>{workOrder.work_done_details ? 'Work Done' : 'Job Request'}</div>
@@ -1384,7 +1379,7 @@ function WorkOrderRow({ workOrder, onClick, isExpanded, onToggle, onEdit }: { wo
               </div>
             )}
             {workOrder.cause_of_failure && <div className="col-span-2 sm:col-span-4"><div className={`text-[10px] uppercase tracking-wide mb-0.5 ${t.textFaint}`}>Cause of Failure</div><div className={`text-xs line-clamp-2 ${t.textMuted}`}>{workOrder.cause_of_failure}</div></div>}
-            {workOrder.failure_mode && <InfoField label="Failure Mode" value={workOrder.failure_mode} />}
+            {workOrder.failure_mode && <InfoRow label="Failure Mode" value={workOrder.failure_mode} />}
             {workOrder.spares_used && workOrder.spares_used.length > 0 && (
               <div className="col-span-2 sm:col-span-4">
                 <div className={`text-[10px] uppercase tracking-wide mb-1 ${t.textFaint}`}>Spares Used</div>
