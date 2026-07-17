@@ -27,8 +27,22 @@ export type Factor = {
 };
 
 /** Begin TOTP enrollment. Returns the QR + secret to display. The factor is
- *  'unverified' until verifyEnrollment() succeeds. */
+ *  'unverified' until verifyEnrollment() succeeds.
+ *
+ *  A previous enroll attempt that was never confirmed (QR shown, code never
+ *  entered, dialog closed, tab crashed) leaves an 'unverified' factor behind.
+ *  Supabase's TOTP enroll rejects re-using the same friendly name while that
+ *  factor still exists, so retrying "Enable 2FA" failed with "A factor with
+ *  the friendly name ... already exists" and the user had no way forward
+ *  short of a dashboard edit. Clear any stale unverified factor under this
+ *  friendly name before asking for a fresh one — a verified factor is left
+ *  alone; that's a real, active enrollment and getVerifiedFactor() should
+ *  have already reported it as enrolled before this is ever called. */
 export async function enroll(friendlyName = 'Authenticator app'): Promise<EnrollResult> {
+  const existing = await listFactors();
+  const stale = existing.find(f => f.status === 'unverified' && f.friendlyName === friendlyName);
+  if (stale) await unenroll(stale.id);
+
   const { data, error } = await supabase.auth.mfa.enroll({
     factorType: 'totp',
     friendlyName,
