@@ -2,6 +2,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, ElementType, Fragment } from 'react';
+import { api as apiClient } from '@/lib/apiClient';
 import {
   MessageSquareWarning, Plus, X, RefreshCw,
   ChevronDown, ChevronUp, ClipboardList,
@@ -48,14 +49,7 @@ const STATUS_HEX: Record<string, string> = { open: '#f43f5e', 'in-progress': '#f
 
 // ─── API ──────────────────────────────────────────────────────────────────────
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com';
 const BASE = '/api/safety-complaints';
-
-async function safetyFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, { headers: { 'Content-Type': 'application/json' }, ...init });
-  if (!res.ok) throw new Error(await res.text());
-  return res.status === 204 ? (undefined as T) : res.json();
-}
 
 function toSnake(d: Partial<Complaint>): Record<string, unknown> {
   return {
@@ -77,10 +71,10 @@ function toSnake(d: Partial<Complaint>): Record<string, unknown> {
 }
 
 const api = {
-  list: () => safetyFetch<Complaint[]>(BASE + '/'),
-  create: (d: Partial<Complaint>) => safetyFetch<Complaint>(BASE + '/', { method: 'POST', body: JSON.stringify(toSnake(d)) }),
-  update: (id: string, d: Partial<Complaint>) => safetyFetch<Complaint>(`${BASE}/${id}`, { method: 'PATCH', body: JSON.stringify(toSnake(d)) }),
-  remove: (id: string) => safetyFetch<void>(`${BASE}/${id}`, { method: 'DELETE' }),
+  list: () => apiClient.get<Complaint[]>(BASE + '/'),
+  create: (d: Partial<Complaint>) => apiClient.post<Complaint>(BASE + '/', toSnake(d)),
+  update: (id: string, d: Partial<Complaint>) => apiClient.patch<Complaint>(`${BASE}/${id}`, toSnake(d)),
+  remove: (id: string) => apiClient.delete<void>(`${BASE}/${id}`),
 };
 
 // ─── STATS ────────────────────────────────────────────────────────────────────
@@ -266,7 +260,7 @@ function DetailModal({ complaint, onClose, onEdit }: {
       </div>
       <div className={`flex gap-2 px-5 py-4 border-t ${t.border}`}>
         <button type="button" onClick={onClose} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border} transition-all`}>Close</button>
-        <button type="button" onClick={() => { onClose(); onEdit(complaint); }} className="flex-1 py-2.5 rounded-xl text-sm font-medium text-blue-400 hover:text-blue-300 border border-blue-400/25 transition-all">Edit</button>
+        <button type="button" onClick={() => { onClose(); onEdit(complaint); }} className="flex-1 py-2.5 rounded-xl text-sm font-medium text-brand-400 hover:text-brand-300 border border-brand-400/25 transition-all">Edit</button>
       </div>
     </CenterModal>
   );
@@ -518,8 +512,8 @@ function SafetyComplaintsContent() {
           <>
             <button type="button" onClick={() => load(true)} title="Refresh" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}><RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} /></button>
             <div className={`flex rounded-lg overflow-hidden ${t.chipBg} text-xs`}>
-              <button type="button" onClick={() => setTab('records')} className={`px-3 py-1.5 transition-colors ${tab === 'records' ? 'bg-blue-500/20 text-blue-400' : `${t.textFaint} ${t.hoverText}`}`}>Records</button>
-              <button type="button" onClick={() => setTab('analytics')} className={`px-3 py-1.5 transition-colors flex items-center gap-1 ${tab === 'analytics' ? 'bg-blue-500/20 text-blue-400' : `${t.textFaint} ${t.hoverText}`}`}><BarChart3 className="h-3 w-3" /> Analytics</button>
+              <button type="button" onClick={() => setTab('records')} className={`px-3 py-1.5 transition-colors ${tab === 'records' ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} ${t.hoverText}`}`}>Records</button>
+              <button type="button" onClick={() => setTab('analytics')} className={`px-3 py-1.5 transition-colors flex items-center gap-1 ${tab === 'analytics' ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} ${t.hoverText}`}`}><BarChart3 className="h-3 w-3" /> Analytics</button>
             </div>
             <PrimaryButton icon={Plus} accent="amber" onClick={() => { setEditing(null); setFormOpen(true); }}>New Complaint</PrimaryButton>
           </>
@@ -589,7 +583,7 @@ function SafetyComplaintsContent() {
                             <td className="px-3 py-3">
                               <div className="flex items-center justify-end gap-0.5" onClick={e => e.stopPropagation()}>
                                 <button type="button" title="Expand" onClick={() => toggleRow(c.id)} className={`h-7 w-7 flex items-center justify-center rounded ${t.textFaint} ${t.hoverText} transition-all`}>{isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}</button>
-                                <button type="button" title="Edit" onClick={() => { setEditing(c); setFormOpen(true); }} className={`h-7 w-7 flex items-center justify-center rounded hover:bg-blue-500/15 ${t.textFaint} hover:text-blue-400 transition-all`}><Pencil className="h-3 w-3" /></button>
+                                <button type="button" title="Edit" onClick={() => { setEditing(c); setFormOpen(true); }} className={`h-7 w-7 flex items-center justify-center rounded hover:bg-brand-500/15 ${t.textFaint} hover:text-brand-400 transition-all`}><Pencil className="h-3 w-3" /></button>
                                 <button type="button" title="Delete" onClick={() => handleDelete(c.id)} className={`h-7 w-7 flex items-center justify-center rounded hover:bg-rose-500/20 ${t.textFaint} hover:text-rose-400 transition-all`}><Trash2 className="h-3 w-3" /></button>
                               </div>
                             </td>

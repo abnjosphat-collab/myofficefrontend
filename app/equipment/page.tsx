@@ -2,12 +2,13 @@
 'use client';
 
 import { AppShell } from '@/components/app-shell';
+import { api } from '@/lib/apiClient';
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { toast } from 'sonner';
 import EquipmentForm from "@/components/EquipmentForm";
 import { motion } from "framer-motion";
 import {
-  Loader2, Plus, Trash2, Pencil, Briefcase, Wrench, MapPin,
+  Plus, Trash2, Pencil, Briefcase, Wrench, MapPin,
   Target, Truck, AlertTriangle,
   CheckCircle, XCircle, LayoutGrid, List,
   Server, Package, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
@@ -17,8 +18,9 @@ import {
 import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle,
   useCollapseSection, CenterModal, ACCENT_HEX, SelectField,
-  GroupSection, RecordCard, staggerContainer, fadeUp, InfoRow, SummaryItem,
+  GroupSection, RecordCard, staggerContainer, fadeUp, InfoRow, SummaryItem, LoadingState,
 } from '@/components/shared/theme';
+import { formatDate } from '@/lib/format';
 import type { ElementType } from "react";
 
 interface EquipmentItem {
@@ -47,13 +49,6 @@ interface EquipmentItem {
   specifications?: string;
 }
 
-interface ValidationError {
-  loc?: string[];
-  msg: string;
-}
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com';
-const API_BASE_URL = `${API_BASE}/api/equipment`;
 const ITEMS_PER_PAGE = 12;
 
 const STATUS_COLORS: Record<string, string> = {
@@ -138,7 +133,7 @@ function Pagination({ current, total, onPage, perPage, totalItems, onPerPage }: 
         <button type="button" onClick={() => onPage(current - 1)} disabled={current === 1} title="Previous" className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} disabled:opacity-30 transition-colors`}><ChevronLeft className="h-3.5 w-3.5" /></button>
         {start > 1 && <><button type="button" onClick={() => onPage(1)} className={`h-7 w-7 text-xs ${t.textFaint} ${t.hoverText} ${t.hoverBg} rounded-lg transition-colors`}>1</button>{start > 2 && <span className={t.textFaint}>…</span>}</>}
         {pages.map(p => (
-          <button key={p} type="button" onClick={() => onPage(p)} className={`h-7 w-7 text-xs rounded-lg transition-colors ${p === current ? 'bg-blue-500/20 text-blue-400' : `${t.textFaint} ${t.hoverText} ${t.hoverBg}`}`}>{p}</button>
+          <button key={p} type="button" onClick={() => onPage(p)} className={`h-7 w-7 text-xs rounded-lg transition-colors ${p === current ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} ${t.hoverText} ${t.hoverBg}`}`}>{p}</button>
         ))}
         {end < total && <>{end < total - 1 && <span className={t.textFaint}>…</span>}<button type="button" onClick={() => onPage(total)} className={`h-7 w-7 text-xs ${t.textFaint} ${t.hoverText} ${t.hoverBg} rounded-lg transition-colors`}>{total}</button></>}
         <button type="button" onClick={() => onPage(current + 1)} disabled={current === total} title="Next" className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} disabled:opacity-30 transition-colors`}><ChevronRight className="h-3.5 w-3.5" /></button>
@@ -182,7 +177,7 @@ function EquipmentCard({ eq, onEdit, onDelete }: { eq: EquipmentItem; onEdit: ()
         </div>
       }
       actions={<>
-        <button onClick={onEdit} type="button" className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 text-white text-[12px] font-semibold hover:brightness-110 transition-all">
+        <button onClick={onEdit} type="button" className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 text-white text-[12px] font-semibold hover:brightness-110 transition-all">
           <Pencil className="h-3.5 w-3.5" /> Edit
         </button>
         <button onClick={onDelete} type="button" className={`px-4 flex items-center justify-center gap-1.5 py-2 rounded-lg ${t.chipBg} text-rose-500 hover:bg-rose-500/10 text-[12px] font-semibold transition-all`}>
@@ -197,7 +192,7 @@ function EquipmentCard({ eq, onEdit, onDelete }: { eq: EquipmentItem; onEdit: ()
         <InfoRow label="Serial Number" value={eq.serial_number} />
         <InfoRow label="Age" value={calcAge(eq.commission_date)} />
         <InfoRow label="Supplier" value={eq.supplier} />
-        <InfoRow label="Next Maintenance" value={eq.next_maintenance ? new Date(eq.next_maintenance).toLocaleDateString('en-GB') : undefined} />
+        <InfoRow label="Next Maintenance" value={eq.next_maintenance ? formatDate(eq.next_maintenance) : undefined} />
         <InfoRow label="Current Value" value={eq.current_value != null ? `$${eq.current_value.toLocaleString()}` : undefined} />
       </div>
       {eq.maintenance_notes && (
@@ -240,7 +235,7 @@ function EquipmentRow({ eq, onEdit, onDelete }: { eq: EquipmentItem; onEdit: () 
 
         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
           <button type="button" title="Edit equipment" onClick={onEdit}
-            className="h-7 w-7 flex items-center justify-center rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 transition-all">
+            className="h-7 w-7 flex items-center justify-center rounded-lg bg-brand-500/10 hover:bg-brand-500/20 text-brand-400 transition-all">
             <Pencil className="h-3.5 w-3.5" />
           </button>
           <button type="button" title="Delete equipment" onClick={onDelete}
@@ -262,7 +257,7 @@ function EquipmentRow({ eq, onEdit, onDelete }: { eq: EquipmentItem; onEdit: () 
             <InfoRow label="Serial Number" value={eq.serial_number} />
             <InfoRow label="Age" value={calcAge(eq.commission_date)} />
             <InfoRow label="Supplier" value={eq.supplier} />
-            <InfoRow label="Next Maintenance" value={eq.next_maintenance ? new Date(eq.next_maintenance).toLocaleDateString('en-GB') : undefined} />
+            <InfoRow label="Next Maintenance" value={eq.next_maintenance ? formatDate(eq.next_maintenance) : undefined} />
             <InfoRow label="Current Value" value={eq.current_value != null ? `$${eq.current_value.toLocaleString()}` : undefined} />
           </div>
         </div>
@@ -303,9 +298,7 @@ function EquipmentPageContent() {
   const fetchEquipment = useCallback(async () => {
     try {
       setRefreshing(true);
-      const res = await fetch(API_BASE_URL);
-      if (!res.ok) throw new Error('Failed to fetch equipment');
-      const data: EquipmentItem[] = await res.json();
+      const data = await api.get<EquipmentItem[]>('/api/equipment');
       setEquipment(data);
       setFiltered(data);
     } catch (err) {
@@ -339,20 +332,9 @@ function EquipmentPageContent() {
   const handleFormSubmit = async (formData: Record<string, unknown>) => {
     try {
       const isEditing = !!editingEq;
-      const url = isEditing ? `${API_BASE_URL}/${editingEq!.id}` : API_BASE_URL;
       const body = isEditing ? { id: editingEq!.id, ...formData } : formData;
-      const res = await fetch(url, { method: isEditing ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-      if (!res.ok) {
-        let msg = 'Failed to save equipment';
-        try {
-          const d = await res.json();
-          if (Array.isArray(d)) msg = (d as ValidationError[]).map(e => `${e.loc?.join('.')}: ${e.msg}`).join(', ');
-          else if (d.detail) msg = typeof d.detail === 'string' ? d.detail : JSON.stringify(d.detail);
-          else if (d.message) msg = typeof d.message === 'string' ? d.message : JSON.stringify(d.message);
-          else msg = JSON.stringify(d);
-        } catch { msg = res.statusText || `HTTP ${res.status}`; }
-        throw new Error(msg);
-      }
+      if (isEditing) await api.put(`/api/equipment/${editingEq!.id}`, body);
+      else await api.post('/api/equipment', body);
       setIsFormOpen(false);
       setEditingEq(null);
       fetchEquipment();
@@ -363,8 +345,7 @@ function EquipmentPageContent() {
 
   const handleDelete = async (id: number | string) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/${id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Failed to delete equipment');
+      await api.delete(`/api/equipment/${id}`);
       fetchEquipment();
       setDeleteConfirm(null);
     } catch (err) {
@@ -503,12 +484,7 @@ function EquipmentPageContent() {
   if (loading) {
     return (
       <main className="max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8">
-        <div className="flex items-center justify-center py-20">
-          <div className="text-center">
-            <Loader2 className={`h-10 w-10 animate-spin ${t.textFaint} mx-auto mb-4`} />
-            <p className={t.textFaint}>Loading equipment data…</p>
-          </div>
-        </div>
+        <LoadingState label="Loading equipment data…" />
       </main>
     );
   }
@@ -550,7 +526,7 @@ function EquipmentPageContent() {
             <button
               type="button"
               onClick={() => { setEditingEq(null); setIsFormOpen(true); }}
-              className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-blue-500 to-blue-700 transition-all hover:brightness-110"
+              className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 transition-all hover:brightness-110"
             >
               <Plus className="h-3.5 w-3.5" /> Add Equipment
             </button>
@@ -578,7 +554,7 @@ function EquipmentPageContent() {
             <button
               type="button"
               onClick={() => setShowFilters(v => !v)}
-              className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-medium transition-colors ${showFilters ? 'bg-blue-500/15 text-blue-400' : `${t.textMuted} ${t.hoverText} ${t.glassSoft}`}`}
+              className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-medium transition-colors ${showFilters ? 'bg-brand-500/15 text-brand-400' : `${t.textMuted} ${t.hoverText} ${t.glassSoft}`}`}
             >
               <Filter className="h-3.5 w-3.5" /> Filters
               {hasActiveFilters && <span className={`ml-1 px-1.5 py-0.5 ${t.chipBg} rounded text-[10px]`}>{filtered.length}</span>}
@@ -626,7 +602,7 @@ function EquipmentPageContent() {
             {equipment.length === 0 ? 'Add your first equipment asset to get started.' : 'Try adjusting your search or filters.'}
           </p>
           {equipment.length === 0 && (
-            <button type="button" onClick={() => { setEditingEq(null); setIsFormOpen(true); }} className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-blue-500 to-blue-700 hover:brightness-110 transition-all">
+            <button type="button" onClick={() => { setEditingEq(null); setIsFormOpen(true); }} className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all">
               <Plus className="h-3.5 w-3.5" /> Add Equipment
             </button>
           )}

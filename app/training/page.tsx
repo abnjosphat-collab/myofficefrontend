@@ -2,19 +2,19 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { api } from '@/lib/apiClient';
 import {
   AlertTriangle, Award, BarChart3, BookOpen, Calendar, CheckCircle,
   Download, FileText, Pencil, Percent, Plus, RefreshCw, Search,
   Shield, Trash2, UploadCloud, XCircle,
 } from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
+import { formatDate } from '@/lib/format';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import {
   useTheme, PageHero, StatTile, StatCard, StatusBadge, ProgressBar, FormField, FormActions,
   SearchInput, CenterModal, PrimaryButton, EmptyState, useCollapseSection, SelectField,
 } from '@/components/shared/theme';
-
-const API = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000').replace(/\/$/, '');
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
@@ -43,7 +43,7 @@ interface FormState {
 const STATUS_ORDER: Record<string, number> = { Expired: 3, 'Due Soon': 2, Valid: 1 };
 const STATUS_HEX: Record<string, string> = { Valid: '#34d399', 'Due Soon': '#f59e0b', Expired: '#f43f5e' };
 
-function fmtDate(d: string) { return d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'; }
+const fmtDate = (d: string) => formatDate(d); // standardized on the shared formatter
 function daysUntilExpiry(d: string): number { return Math.ceil((new Date(d).getTime() - Date.now()) / 86400000); }
 
 const EMPTY_FORM: FormState = { employee_name: '', employee_id: '', department: '', certification_name: '', expiry_date: '', required_refresher: '', certificate_file: null };
@@ -83,13 +83,13 @@ function TrainingContent() {
     setRefreshing(true);
     try {
       const [certsRes, rateRes, refreshRes] = await Promise.all([
-        fetch(`${API}/api/training`).catch(() => null),
-        fetch(`${API}/api/training/reports/compliance_rate`).catch(() => null),
-        fetch(`${API}/api/training/reports/due_refreshers`).catch(() => null),
+        api.get<any>('/api/training').catch(() => null),
+        api.get<any>('/api/training/reports/compliance_rate').catch(() => null),
+        api.get<any>('/api/training/reports/due_refreshers').catch(() => null),
       ]);
-      if (certsRes?.ok) setCerts(await certsRes.json());
-      if (rateRes?.ok) setCompliance(await rateRes.json());
-      if (refreshRes?.ok) setRefreshers(await refreshRes.json());
+      if (certsRes) setCerts(certsRes);
+      if (rateRes) setCompliance(rateRes);
+      if (refreshRes) setRefreshers(refreshRes);
     } catch (e) { setError(`Failed to load: ${(e as Error).message}`); }
     finally { setLoading(false); setRefreshing(false); }
   }, []);
@@ -134,10 +134,8 @@ function TrainingContent() {
       fd.append('required_refresher', form.required_refresher);
       if (form.certificate_file) fd.append('certificate_file', form.certificate_file);
 
-      const url = editCert ? `${API}/api/training/${editCert.id}` : `${API}/api/training`;
-      const method = editCert ? 'PUT' : 'POST';
-      const res = await fetch(url, { method, body: fd });
-      if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.detail ?? `HTTP ${res.status}`); }
+      if (editCert) await api.put(`/api/training/${editCert.id}`, fd);
+      else await api.post('/api/training', fd);
       setModalOpen(false);
       fetchAll(true);
     } catch (e) { setError(`Save failed: ${(e as Error).message}`); }
@@ -148,8 +146,7 @@ function TrainingContent() {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      const res = await fetch(`${API}/api/training/${deleteTarget.id}`, { method: 'DELETE' });
-      if (!res.ok && res.status !== 204) throw new Error(`HTTP ${res.status}`);
+      await api.delete(`/api/training/${deleteTarget.id}`);
       setDeleteTarget(null);
       fetchAll(true);
     } catch (e) { setError(`Delete failed: ${(e as Error).message}`); }
@@ -275,12 +272,12 @@ function TrainingContent() {
                         <td className="px-4 py-3 text-center"><StatusBadge color={STATUS_HEX[c.status] ?? '#94a3b8'} label={c.status} /></td>
                         <td className="px-4 py-3 text-center">
                           {c.certificate_url ? (
-                            <a href={c.certificate_url} target="_blank" rel="noopener noreferrer" title="Download certificate" className={`inline-flex h-7 w-7 items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-blue-500`}><Download className="h-3.5 w-3.5" /></a>
+                            <a href={c.certificate_url} target="_blank" rel="noopener noreferrer" title="Download certificate" className={`inline-flex h-7 w-7 items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-brand-500`}><Download className="h-3.5 w-3.5" /></a>
                           ) : <span className={`text-xs ${t.textFaint}`}>—</span>}
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex gap-1 justify-end">
-                            <button type="button" title="Edit" onClick={() => openEdit(c)} className={`h-7 w-7 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-blue-500`}><Pencil className="h-3.5 w-3.5" /></button>
+                            <button type="button" title="Edit" onClick={() => openEdit(c)} className={`h-7 w-7 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-brand-500`}><Pencil className="h-3.5 w-3.5" /></button>
                             <button type="button" title="Delete" onClick={() => setDeleteTarget(c)} className={`h-7 w-7 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-rose-500`}><Trash2 className="h-3.5 w-3.5" /></button>
                           </div>
                         </td>

@@ -15,24 +15,13 @@ import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/components/
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/lib/auth-context';
-import type { UserRole } from '@/lib/auth-context';
 import { useTheme } from '@/components/shared/theme';
-
-const ROLE_STYLES: Record<UserRole, string> = {
-  super_admin: 'bg-rose-500/20 text-rose-400 border border-rose-500/30',
-  admin:       'bg-amber-500/20 text-amber-400 border border-amber-500/30',
-  manager:     'bg-blue-500/20 text-blue-400 border border-blue-500/30',
-  user:        'bg-gray-400/15 text-gray-400 border border-gray-400/20',
-  viewer:      'bg-gray-400/10 text-gray-400 border border-gray-400/10',
-};
-
-const ROLE_LABELS: Record<UserRole, string> = {
-  super_admin: 'Super Admin',
-  admin:       'Admin',
-  manager:     'Manager',
-  user:        'User',
-  viewer:      'Viewer',
-};
+import { needsChallenge } from '@/lib/mfa';
+import { MfaChallenge, SecurityPanel } from './mfa-ui';
+// Role metadata is defined once in lib/roles.ts (labels + semantic badge colors) —
+// this used to keep its own copy. ROLE_BADGE keeps role colors semantic (manager
+// stays blue), independent of the app's brand color.
+import { ROLE_BADGE as ROLE_STYLES, ROLE_LABELS } from '@/lib/roles';
 
 function GoogleIcon({ className }: { className?: string }) {
   return (
@@ -54,6 +43,7 @@ function AuthForm({ defaultMode = 'login', onClose }: { defaultMode?: 'login' | 
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [mfaStep, setMfaStep] = useState(false); // login succeeded but a 2FA code is still required
 
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
@@ -73,11 +63,25 @@ function AuthForm({ defaultMode = 'login', onClose }: { defaultMode?: 'login' | 
     setLoading(false);
     if (result.error) {
       setError(result.error);
-    } else {
-      onClose?.();
-      window.location.reload();
+      return;
     }
+    // Password/OAuth check passed. If this account has 2FA enrolled, the session is
+    // only aal1 — gate completion behind the 6-digit code before letting them in.
+    try {
+      if (await needsChallenge()) { setMfaStep(true); return; }
+    } catch { /* if the check itself fails, don't lock the user out — proceed */ }
+    onClose?.();
+    window.location.reload();
   };
+
+  if (mfaStep) {
+    return (
+      <MfaChallenge
+        onVerified={() => { onClose?.(); window.location.reload(); }}
+        onCancel={() => setMfaStep(false)}
+      />
+    );
+  }
 
   return (
     <div className="bg-white rounded-2xl shadow-2xl border border-[#2A4D69]/10 p-6">
@@ -144,6 +148,7 @@ function AuthForm({ defaultMode = 'login', onClose }: { defaultMode?: 'login' | 
 export function AuthMenu() {
   const { user, profile, loading, signOut, isAtLeast } = useAuth();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [securityOpen, setSecurityOpen] = useState(false);
   const t = useTheme();
 
   const isLoggedIn = !!user;
@@ -178,7 +183,7 @@ export function AuthMenu() {
         </Dialog>
         <Dialog>
           <DialogTrigger asChild>
-            <button type="button" className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-blue-500 to-blue-700 transition-all hover:brightness-110">
+            <button type="button" className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 transition-all hover:brightness-110">
               <UserPlus className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Get Started</span>
             </button>
           </DialogTrigger>
@@ -203,6 +208,21 @@ export function AuthMenu() {
           <Settings className="h-4 w-4" />
         </Link>
       )}
+      <Dialog open={securityOpen} onOpenChange={setSecurityOpen}>
+        <DialogTrigger asChild>
+          <button
+            type="button"
+            title="Security & two-factor auth"
+            className={`h-8 w-8 hidden sm:flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}
+          >
+            <Shield className="h-3.5 w-3.5" />
+          </button>
+        </DialogTrigger>
+        <DialogContent className="sm:max-w-sm p-0 border-0 bg-transparent shadow-none">
+          <DialogTitle className="sr-only">Security</DialogTitle>
+          <SecurityPanel onDone={() => setSecurityOpen(false)} />
+        </DialogContent>
+      </Dialog>
       <button
         onClick={handleLogout}
         type="button"

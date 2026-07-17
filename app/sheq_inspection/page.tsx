@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { api } from '@/lib/apiClient';
+import { formatDate } from '@/lib/format';
 import {
   ClipboardCheck, Plus, Trash2, MapPin, UserCircle,
   FileText, Eye, Pencil, LayoutGrid, Table as TableIcon,
@@ -14,17 +16,7 @@ import {
 } from '@/components/shared/theme';
 import { PhotoUpload } from '@/components/shared/PhotoUpload';
 import { AppShell } from '@/components/app-shell';
-
-const API_BASE = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000').replace(/\/$/, '');
-async function safetyFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    headers: { 'Content-Type': 'application/json', ...(init?.headers || {}) },
-  });
-  if (!res.ok) throw new Error(`Request failed: ${res.status}`);
-  if (res.status === 204) return undefined as unknown as T;
-  return res.json();
-}
+import { useEmployees } from '@/hooks/useLookups';
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
@@ -81,22 +73,22 @@ const ACCENT = '#86BBD8';
 // ─── API ──────────────────────────────────────────────────────────────────────
 
 async function getInspections(): Promise<SHEQFormData[]> {
-  try { const data = await safetyFetch<SHEQFormData[]>('/api/sheq/'); return Array.isArray(data) ? data : []; } catch { return []; }
+  try { const data = await api.get<SHEQFormData[]>('/api/sheq/'); return Array.isArray(data) ? data : []; } catch { return []; }
 }
 async function createInspection(data: Partial<SHEQFormData>): Promise<SHEQFormData> {
-  return safetyFetch<SHEQFormData>('/api/sheq/', { method: 'POST', body: JSON.stringify(data) });
+  return api.post<SHEQFormData>('/api/sheq/', data);
 }
 async function updateInspection(id: string, data: Partial<SHEQFormData>): Promise<SHEQFormData> {
-  return safetyFetch<SHEQFormData>(`/api/sheq/${id}/`, { method: 'PATCH', body: JSON.stringify(data) });
+  return api.patch<SHEQFormData>(`/api/sheq/${id}/`, data);
 }
 async function deleteInspection(id: string): Promise<void> {
-  await safetyFetch(`/api/sheq/${id}/`, { method: 'DELETE' });
+  await api.delete(`/api/sheq/${id}/`);
 }
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 
 const uid = () => Math.random().toString(36).slice(2, 11);
-const fmtDate = (d: string) => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
+const fmtDate = (d: string) => (d ? formatDate(d) : '');
 const newFinding = (section: SectionType = 'mechanical'): InspectionFinding => ({
   id: uid(), finding: '', requiredAction: '', byWho: '', byWhen: '',
   status: 'open', priority: 'medium', section,
@@ -160,21 +152,6 @@ function PredictiveField({
       )}
     </div>
   );
-}
-
-let _empCache: { id: string; first_name: string; last_name: string; department?: string }[] | null = null;
-let _empFetched = false;
-function useEmployees() {
-  const [employees, setEmployees] = useState(_empCache || []);
-  useEffect(() => {
-    if (_empFetched) return;
-    _empFetched = true;
-    fetch(`${API_BASE}/api/employees/`).then(r => r.ok ? r.json() : []).then(data => {
-      const list = Array.isArray(data) ? data : [];
-      _empCache = list; setEmployees(list);
-    }).catch(() => {});
-  }, []);
-  return employees;
 }
 
 function EmployeeField({
@@ -347,7 +324,7 @@ function InspectionFormModal({
           {TABS.map(tb => (
             <button key={tb.id} type="button" onClick={() => setTab(tb.id)}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                tab === tb.id ? `${ACCENT_HEX.blue ? 'bg-blue-500/20 text-blue-400' : ''}` : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`
+                tab === tb.id ? `${ACCENT_HEX.blue ? 'bg-brand-500/20 text-brand-400' : ''}` : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`
               }`}>
               {tb.label}{tb.id === 'findings' && findingCount > 0 && ` (${findingCount})`}
               {tb.id === 'photos' && photoCount > 0 && ` (${photoCount})`}
@@ -418,7 +395,7 @@ function InspectionFormModal({
                     <FindingFormCard key={f.id} finding={f} index={i} onChange={updateFinding} onRemove={removeFinding} />
                   ))}
                   <button type="button" onClick={addFinding}
-                    className={`w-full py-2 rounded-xl text-xs ${t.textFaint} hover:text-blue-400 border border-dashed ${t.border} hover:border-blue-400/30 transition-all inline-flex items-center justify-center gap-1.5`}>
+                    className={`w-full py-2 rounded-xl text-xs ${t.textFaint} hover:text-brand-400 border border-dashed ${t.border} hover:border-brand-400/30 transition-all inline-flex items-center justify-center gap-1.5`}>
                     <Plus className="h-3 w-3" /> Add Another Finding
                   </button>
                 </>
@@ -897,7 +874,7 @@ function SHEQInspectionContent() {
                         <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
                           <div className="flex justify-end gap-1">
                             <button type="button" title="Edit" onClick={() => { setEditingInspection(inspection); setFormOpen(true); }}
-                              className={`h-7 w-7 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-blue-400`}><Pencil className="h-3.5 w-3.5" /></button>
+                              className={`h-7 w-7 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-brand-400`}><Pencil className="h-3.5 w-3.5" /></button>
                             <button type="button" title="Delete" onClick={() => handleDelete(inspection.id)}
                               className={`h-7 w-7 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-rose-400`}><Trash2 className="h-3.5 w-3.5" /></button>
                           </div>

@@ -2,6 +2,7 @@
 "use client";
 
 import { AppShell } from '@/components/app-shell';
+import { formatDate } from '@/lib/format';
 import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
@@ -96,7 +97,7 @@ function InventoryCard({ item, onDelete }: { item: InventoryItem; onDelete: () =
         <Link href={`/inventory/view/${item.id}`} className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg ${t.chipBg} ${t.textMuted} ${t.hoverText} text-[12px] font-semibold transition-all`}>
           <Eye className="h-3.5 w-3.5" /> View
         </Link>
-        <Link href={`/inventory/edit/${item.id}`} className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 text-white text-[12px] font-semibold hover:brightness-110 transition-all">
+        <Link href={`/inventory/edit/${item.id}`} className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 text-white text-[12px] font-semibold hover:brightness-110 transition-all">
           <Pencil className="h-3.5 w-3.5" /> Edit
         </Link>
         <button onClick={onDelete} type="button" className={`px-4 flex items-center justify-center gap-1.5 py-2 rounded-lg ${t.chipBg} text-rose-500 hover:bg-rose-500/10 text-[12px] font-semibold transition-all`}>
@@ -108,7 +109,7 @@ function InventoryCard({ item, onDelete }: { item: InventoryItem; onDelete: () =
         <InfoRow label="Stock" value={`${item.currentStock}/${item.maxStock} ${item.unit}`} />
         <InfoRow label="Unit Cost" value={`$${item.cost.toFixed(2)}`} />
         <InfoRow label="Category" value={item.category} />
-        <InfoRow label="Last Restocked" value={new Date(item.lastRestocked).toLocaleDateString('en-GB')} />
+        <InfoRow label="Last Restocked" value={formatDate(item.lastRestocked)} />
       </div>
       <ProgressBar value={Math.round(stockPct)} color={statusColor} label="Stock level" />
       {item.description && <p className={`text-xs ${t.textMuted}`}>{item.description}</p>}
@@ -153,7 +154,7 @@ function InventoryRow({ item, onDelete }: { item: InventoryItem; onDelete: () =>
 
         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
           <Link href={`/inventory/edit/${item.id}`} title="Edit item"
-            className="h-7 w-7 flex items-center justify-center rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 transition-all">
+            className="h-7 w-7 flex items-center justify-center rounded-lg bg-brand-500/10 hover:bg-brand-500/20 text-brand-400 transition-all">
             <Pencil className="h-3.5 w-3.5" />
           </Link>
           <button type="button" title="Delete item" onClick={onDelete}
@@ -308,7 +309,7 @@ function InventoryPageContent() {
             <button
               type="button"
               onClick={() => setShowFilters(v => !v)}
-              className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-medium transition-colors ${showFilters ? 'bg-blue-500/15 text-blue-400' : `${t.textMuted} ${t.hoverText} ${t.glassSoft}`}`}
+              className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-medium transition-colors ${showFilters ? 'bg-brand-500/15 text-brand-400' : `${t.textMuted} ${t.hoverText} ${t.glassSoft}`}`}
             >
               <Filter className="h-3.5 w-3.5" /> Filters
               {hasActiveFilters && <span className={`ml-1 px-1.5 py-0.5 ${t.chipBg} rounded text-[10px]`}>{filtered.length}</span>}
@@ -333,7 +334,7 @@ function InventoryPageContent() {
                       type="checkbox"
                       checked={selectedCategories.includes(cat)}
                       onChange={e => setSelectedCategories(prev => e.target.checked ? [...prev, cat] : prev.filter(c => c !== cat))}
-                      className="h-3.5 w-3.5 rounded accent-blue-500"
+                      className="h-3.5 w-3.5 rounded accent-brand-500"
                     />
                     <span className={`text-xs ${t.textMuted}`}>{cat}</span>
                   </label>
@@ -349,7 +350,7 @@ function InventoryPageContent() {
                       type="checkbox"
                       checked={selectedStatus.includes(s)}
                       onChange={e => setSelectedStatus(prev => e.target.checked ? [...prev, s] : prev.filter(x => x !== s))}
-                      className="h-3.5 w-3.5 rounded accent-blue-500"
+                      className="h-3.5 w-3.5 rounded accent-brand-500"
                     />
                     <span className={`text-xs ${t.textMuted}`}>{STATUS_LABELS[s]} ({statusCounts[s]})</span>
                   </label>
@@ -365,7 +366,7 @@ function InventoryPageContent() {
                       type="checkbox"
                       checked={selectedSuppliers.includes(sup)}
                       onChange={e => setSelectedSuppliers(prev => e.target.checked ? [...prev, sup] : prev.filter(s => s !== sup))}
-                      className="h-3.5 w-3.5 rounded accent-blue-500"
+                      className="h-3.5 w-3.5 rounded accent-brand-500"
                     />
                     <span className={`text-xs ${t.textMuted}`}>{sup}</span>
                   </label>

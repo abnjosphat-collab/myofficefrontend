@@ -4,6 +4,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from "react";
+import { api } from '@/lib/apiClient';
 import {
   HeartHandshake, Search, FilterX,
   AlertTriangle, CheckSquare, ShieldCheck,
@@ -24,7 +25,6 @@ import {
 } from '@/components/shared/theme';
 import { toast } from "sonner";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com';
 
 // =============== TYPES ===============
 type SectionType = 'Mechanical' | 'Electrical';
@@ -71,7 +71,7 @@ const BEHAVIOUR_TYPES: BehaviourType[] = ['Intentional', 'Unintentional'];
 
 const SECTION_ICONS: Record<SectionType, React.ElementType> = { Mechanical: Wrench, Electrical: Zap };
 const SECTION_META: Record<SectionType, { hex: string; barClass: string }> = {
-  Mechanical: { hex: '#60a5fa', barClass: 'bg-blue-500' },
+  Mechanical: { hex: '#60a5fa', barClass: 'bg-brand-500' },
   Electrical: { hex: '#f59e0b', barClass: 'bg-amber-500' },
 };
 const BEHAVIOUR_META: Record<BehaviourType, { hex: string; icon: React.ElementType }> = {
@@ -99,34 +99,21 @@ const CHECKLIST_CATEGORIES = [
 ];
 
 // =============== API FUNCTIONS ===============
-async function fetchAPI<T>(endpoint: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, { headers: { 'Content-Type': 'application/json' }, ...options });
-  if (!response.ok) {
-    const text = await response.text();
-    try { throw new Error(JSON.parse(text).detail || `API error: ${response.status}`); }
-    catch { throw new Error(text || `API error: ${response.status}`); }
-  }
-  if (response.status === 204) return {} as T;
-  const ct = response.headers.get('content-type');
-  if (ct?.includes('application/json')) return response.json();
-  return {} as T;
-}
-
 async function getPacheduReports(): Promise<PacheduReport[]> {
-  try { const data = await fetchAPI<PacheduReport[]>('/api/pachedu/'); return Array.isArray(data) ? data : []; } catch { return []; }
+  try { const data = await api.get<PacheduReport[]>('/api/pachedu/'); return Array.isArray(data) ? data : []; } catch { return []; }
 }
 async function createPacheduReport(report: Partial<PacheduReport>): Promise<PacheduReport | null> {
-  try { return await fetchAPI<PacheduReport>('/api/pachedu/', { method: 'POST', body: JSON.stringify(report) }); } catch { return null; }
+  try { return await api.post<PacheduReport>('/api/pachedu/', report); } catch { return null; }
 }
 async function updatePacheduReport(id: string, report: Partial<PacheduReport>): Promise<PacheduReport | null> {
-  try { return await fetchAPI<PacheduReport>(`/api/pachedu/${id}`, { method: 'PATCH', body: JSON.stringify(report) }); } catch { return null; }
+  try { return await api.patch<PacheduReport>(`/api/pachedu/${id}`, report); } catch { return null; }
 }
 async function deletePacheduReport(id: string): Promise<boolean> {
-  try { await fetchAPI(`/api/pachedu/${id}`, { method: 'DELETE' }); return true; } catch { return false; }
+  try { await api.delete(`/api/pachedu/${id}`); return true; } catch { return false; }
 }
 async function getPacheduStats(): Promise<PacheduStats> {
   try {
-    const data = await fetchAPI<Partial<PacheduStats>>('/api/pachedu/stats/overview');
+    const data = await api.get<Partial<PacheduStats>>('/api/pachedu/stats/overview');
     return {
       total: data?.total || 0, bySection: data?.bySection || { Mechanical: 0, Electrical: 0 }, byDept: data?.byDept || {},
       byBehaviour: data?.byBehaviour || { Intentional: 0, Unintentional: 0 }, totalImpacts: data?.totalImpacts || 0, totalChecklist: data?.totalChecklist || 0,
@@ -766,7 +753,7 @@ function PacheduContent() {
                   <div className="grid grid-cols-2 gap-2">
                     {IMPACT_OPTIONS.map(impact => (
                       <label key={impact} className="flex items-start gap-2 cursor-pointer group">
-                        <input type="checkbox" checked={formData.impacts?.includes(impact) || false} onChange={() => handleImpactToggle(impact)} className="mt-0.5 h-3.5 w-3.5 accent-blue-600 cursor-pointer" />
+                        <input type="checkbox" checked={formData.impacts?.includes(impact) || false} onChange={() => handleImpactToggle(impact)} className="mt-0.5 h-3.5 w-3.5 accent-brand-600 cursor-pointer" />
                         <span className={`text-xs leading-tight ${t.textMuted} ${t.groupHoverText}`}>{impact}</span>
                       </label>
                     ))}
@@ -778,7 +765,7 @@ function PacheduContent() {
                     <div className="flex gap-4">
                       {BEHAVIOUR_TYPES.map(type => (
                         <label key={type} className="flex items-center gap-2 cursor-pointer group">
-                          <input type="checkbox" checked={formData.behaviourType === type} onChange={() => setFormData({ ...formData, behaviourType: type })} className="h-4 w-4 accent-blue-600 cursor-pointer" />
+                          <input type="checkbox" checked={formData.behaviourType === type} onChange={() => setFormData({ ...formData, behaviourType: type })} className="h-4 w-4 accent-brand-600 cursor-pointer" />
                           <span className={`text-sm ${t.textMuted} ${t.groupHoverText}`}>{type}</span>
                         </label>
                       ))}
@@ -809,7 +796,7 @@ function PacheduContent() {
                     <p className="text-[10px] font-bold text-amber-500/90 uppercase tracking-wider border-b border-amber-500/20 pb-1">{category.name}</p>
                     {category.items.map(item => (
                       <label key={item} className="flex items-start gap-2 cursor-pointer group">
-                        <input type="checkbox" checked={formData.checklist?.includes(item) || false} onChange={() => handleChecklistToggle(item)} className="mt-0.5 h-3 w-3 accent-blue-600 cursor-pointer shrink-0" />
+                        <input type="checkbox" checked={formData.checklist?.includes(item) || false} onChange={() => handleChecklistToggle(item)} className="mt-0.5 h-3 w-3 accent-brand-600 cursor-pointer shrink-0" />
                         <span className={`text-[11px] leading-tight ${t.textMuted} ${t.groupHoverText}`}>{item}</span>
                       </label>
                     ))}

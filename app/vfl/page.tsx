@@ -7,6 +7,9 @@ import {
   MessageSquare, PenTool, X,
 } from "@/components/shared/theme";
 import { AppShell } from '@/components/app-shell';
+import { api } from '@/lib/apiClient';
+import { formatDate } from '@/lib/format';
+import { useEmployees, type EmployeeLookup } from '@/hooks/useLookups';
 import { toast } from "sonner";
 import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, FormField, FormActions,
@@ -33,7 +36,7 @@ interface VFLReport {
   actions: ActionItem[]; status: VFLStatus; created_at: string; updated_at?: string; submitted_at?: string;
 }
 
-interface EmployeeItem { id: string; employee_id?: string; first_name: string; last_name: string; designation?: string; department?: string; }
+type EmployeeItem = EmployeeLookup;
 
 // =============== CONSTANTS ===============
 const SECTIONS: SectionType[] = ['Mechanical', 'Electrical'];
@@ -49,23 +52,16 @@ const COACHING_DESC: Record<CoachingTechnique, string> = { SBR: 'Situation, Beha
 const STATUS_HEX: Record<VFLStatus, string> = { draft: '#94a3b8', submitted: '#3b82f6', reviewed: '#a78bfa', closed: '#10b981' };
 const ACTION_HEX: Record<ActionStatus, string> = { Pending: '#f59e0b', 'In Progress': '#3b82f6', Completed: '#10b981' };
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com';
-
 // =============== API FUNCTIONS ===============
-async function safetyFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, { headers: { 'Content-Type': 'application/json' }, ...init });
-  if (!res.ok) throw new Error(await res.text());
-  return res.status === 204 ? (undefined as T) : res.json();
-}
 async function getVFLReports(): Promise<VFLReport[]> {
-  try { const data = await safetyFetch<VFLReport[]>('/api/vfl/'); return Array.isArray(data) ? data : []; } catch { return []; }
+  try { const data = await api.get<VFLReport[]>('/api/vfl/'); return Array.isArray(data) ? data : []; } catch { return []; }
 }
-async function createVFLReport(report: Partial<VFLReport>): Promise<VFLReport> { return safetyFetch<VFLReport>('/api/vfl/', { method: 'POST', body: JSON.stringify(report) }); }
-async function updateVFLReport(id: string, report: Partial<VFLReport>): Promise<VFLReport> { return safetyFetch<VFLReport>(`/api/vfl/${id}/`, { method: 'PATCH', body: JSON.stringify(report) }); }
-async function deleteVFLReport(id: string): Promise<void> { return safetyFetch<void>(`/api/vfl/${id}/`, { method: 'DELETE' }); }
+async function createVFLReport(report: Partial<VFLReport>): Promise<VFLReport> { return api.post<VFLReport>('/api/vfl/', report); }
+async function updateVFLReport(id: string, report: Partial<VFLReport>): Promise<VFLReport> { return api.patch<VFLReport>(`/api/vfl/${id}/`, report); }
+async function deleteVFLReport(id: string): Promise<void> { return api.delete<void>(`/api/vfl/${id}/`); }
 
 // =============== HELPERS ===============
-const fmtDate = (s: string) => { if (!s) return ''; try { return new Date(s).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }); } catch { return s; } };
+const fmtDate = (s: string) => (s ? formatDate(s) : '');
 const fmtTime = (s: string) => { if (!s) return ''; try { return new Date(`2000-01-01T${s}`).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }); } catch { return s; } };
 const newId = () => Math.random().toString(36).slice(2, 11);
 
@@ -117,16 +113,6 @@ function PredictiveField({ historyKey, value, onChange, placeholder, hints }: { 
   );
 }
 
-let _empCache: EmployeeItem[] = [];
-let _empFetched = false;
-function useEmployees() {
-  const [list, setList] = useState<EmployeeItem[]>(_empCache);
-  useEffect(() => {
-    if (_empFetched) return;
-    fetch(`${API_BASE}/api/employees`).then(r => r.json()).then((d: EmployeeItem[]) => { if (Array.isArray(d)) { _empCache = d; setList(d); } _empFetched = true; }).catch(() => { _empFetched = true; });
-  }, []);
-  return list;
-}
 
 function EmployeeField({ value, onChange, placeholder }: { value: string; onChange: (name: string, emp?: EmployeeItem) => void; placeholder?: string }) {
   const t = useTheme();
@@ -224,7 +210,7 @@ function VFLCard({ report, index, onView, onEdit, onDelete }: { report: VFLRepor
 
         <div onClick={e => e.stopPropagation()} className="flex justify-end gap-1.5 mt-2.5">
           <button type="button" onClick={() => onView(report)} title="View" className={`${t.chipBg} ${t.hoverBg} rounded-md px-2 py-1 text-xs flex items-center gap-1 transition-colors ${t.textFaint}`}><Eye className="h-3 w-3" /> View</button>
-          <button type="button" onClick={() => onEdit(report)} title="Edit" className={`${t.chipBg} ${t.hoverBg} rounded-md px-2 py-1 text-xs flex items-center gap-1 transition-colors text-blue-400`}><PenTool className="h-3 w-3" /> Edit</button>
+          <button type="button" onClick={() => onEdit(report)} title="Edit" className={`${t.chipBg} ${t.hoverBg} rounded-md px-2 py-1 text-xs flex items-center gap-1 transition-colors text-brand-400`}><PenTool className="h-3 w-3" /> Edit</button>
           <button type="button" onClick={() => onDelete(report.id)} title="Delete" className={`${t.chipBg} ${t.hoverBg} rounded-md px-2 py-1 text-xs flex items-center gap-1 transition-colors text-red-400`}><Trash2 className="h-3 w-3" /> Delete</button>
         </div>
       </div>
@@ -307,7 +293,7 @@ function VFLDetailModal({ report, open, onClose, onEdit, onDelete, onStatusChang
       <div className={`flex gap-2 px-5 py-4 border-t ${t.border}`}>
         <button type="button" onClick={() => { onClose(); onDelete(report.id); }} className="bg-red-500/15 hover:bg-red-500/25 rounded-xl px-4 py-2.5 text-red-400 text-sm font-semibold transition-colors">Delete</button>
         <button type="button" onClick={onClose} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border} transition-all`}>Close</button>
-        <button type="button" onClick={() => { onClose(); onEdit(report); }} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-blue-500 to-blue-700 hover:brightness-110 transition-all">Edit</button>
+        <button type="button" onClick={() => { onClose(); onEdit(report); }} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all">Edit</button>
       </div>
     </CenterModal>
   );

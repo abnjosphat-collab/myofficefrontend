@@ -2,6 +2,7 @@
 'use client';
 
 import { AppShell } from '@/components/app-shell';
+import { api } from '@/lib/apiClient';
 import React, { useState, useMemo, useEffect, ElementType } from "react";
 import {
   Calendar, Plus, Search, RefreshCw, ChevronDown, ChevronUp,
@@ -14,7 +15,7 @@ import {
 
 import { toast } from "sonner";
 import { ApprovalGate, type SignatureResult } from '@/components/shared/ApprovalGate';
-import { supabase } from '@/lib/supabase';
+import { formatDate, formatDateTime } from '@/lib/format';
 import {
   useTheme, PageHero, StatusBadge, ACCENT_HEX, CenterModal, FormField,
   useCollapseSection, EmptyState, PrimaryButton, GlowCard, SelectField,
@@ -81,23 +82,14 @@ interface Stats {
 }
 
 // API Configuration
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com';
-const LEAVES_API = `${API_BASE}/api/leaves`;
-const EMPLOYEES_API = `${API_BASE}/api/employees`;
+
 
 // ---------- Utility Functions ----------
 const formatDays = (days: number): string => days === 1 ? '1 day' : `${days} days`;
 
-function fmtDate(s?: string): string {
-  if (!s) return '';
-  try { return new Date(s).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }); }
-  catch { return s; }
-}
-function fmtDateTime(s?: string): string {
-  if (!s) return '';
-  try { return new Date(s).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }); }
-  catch { return s; }
-}
+// Standardized on the shared formatters (canonical "16 Jul 2026" / "…, 14:30").
+const fmtDate = (s?: string): string => (s ? formatDate(s) : '');
+const fmtDateTime = (s?: string): string => (s ? formatDateTime(s) : '');
 function calcDays(start?: string, end?: string): number {
   if (!start || !end) return 0;
   const days = Math.ceil((new Date(end).getTime() - new Date(start).getTime()) / 86400000) + 1;
@@ -107,13 +99,7 @@ function calcDays(start?: string, end?: string): number {
 // ---------- API Functions ----------
 const fetchLeaves = async (): Promise<Leave[]> => {
   try {
-    const response = await fetch(LEAVES_API, { cache: 'no-store', headers: { 'Content-Type': 'application/json' } });
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Server error (leaves):', errorText);
-      throw new Error(`Failed to fetch leaves: ${response.status} - ${errorText}`);
-    }
-    const data = await response.json();
+    const data = await api.get<Leave[]>('/api/leaves');
     return Array.isArray(data) ? data : [];
   } catch (error) {
     console.error('Error fetching leaves:', error);
@@ -123,45 +109,20 @@ const fetchLeaves = async (): Promise<Leave[]> => {
 };
 
 const createLeave = async (leaveData: Partial<Leave>): Promise<Leave> => {
-  const response = await fetch(LEAVES_API, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...leaveData, applied_date: new Date().toISOString(), status: 'pending', total_days: calcDays(leaveData.start_date, leaveData.end_date) }),
-  });
-  if (!response.ok) throw new Error(`Failed to create leave: ${response.status} - ${await response.text()}`);
-  return response.json();
+  return api.post<Leave>('/api/leaves', { ...leaveData, applied_date: new Date().toISOString(), status: 'pending', total_days: calcDays(leaveData.start_date, leaveData.end_date) });
 };
 
 const updateLeave = async (leaveId: string, leaveData: Partial<Leave>): Promise<Leave> => {
-  const response = await fetch(`${LEAVES_API}/${leaveId}`, {
-    method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...leaveData, total_days: calcDays(leaveData.start_date, leaveData.end_date) }),
-  });
-  if (!response.ok) throw new Error(`Failed to update leave: ${response.status} - ${await response.text()}`);
-  const contentType = response.headers.get('content-type');
-  if (contentType?.includes('application/json')) return response.json();
-  return { ...leaveData, id: leaveId, total_days: calcDays(leaveData.start_date, leaveData.end_date) } as Leave;
+  const saved = await api.patch<Leave>(`/api/leaves/${leaveId}`, { ...leaveData, total_days: calcDays(leaveData.start_date, leaveData.end_date) });
+  return saved ?? ({ ...leaveData, id: leaveId, total_days: calcDays(leaveData.start_date, leaveData.end_date) } as Leave);
 };
 
 const updateLeaveStatus = async (leaveId: string, status: Leave['status'], notes?: string): Promise<Leave> => {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (status === 'approved' || status === 'rejected') {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
-  }
-  const response = await fetch(`${LEAVES_API}/${leaveId}`, { method: 'PATCH', headers, body: JSON.stringify({ status, ...(notes ? { notes } : {}) }) });
-  if (!response.ok) {
-    const errorText = await response.text();
-    let msg = `Status ${response.status}`;
-    try { const j = JSON.parse(errorText); msg = j.detail || msg; } catch { msg = errorText || msg; }
-    throw new Error(msg);
-  }
-  return response.json();
+  return api.patch<Leave>(`/api/leaves/${leaveId}`, { status, ...(notes ? { notes } : {}) });
 };
 
 const deleteLeave = async (leaveId: string): Promise<{ success: boolean; message: string }> => {
-  const response = await fetch(`${LEAVES_API}/${leaveId}`, { method: 'DELETE' });
-  if (!response.ok) throw new Error(`Failed to delete leave: ${response.status} - ${await response.text()}`);
-  return response.json();
+  return (await api.delete<{ success: boolean; message: string }>(`/api/leaves/${leaveId}`)) ?? { success: true, message: 'Deleted' };
 };
 
 // ---------- StatusBadge helper ----------
@@ -266,9 +227,7 @@ function LeaveApplicationForm({ onClose, onSuccess, editData }: { onClose: () =>
     const fetchEmployees = async () => {
       setLoadingEmployees(true);
       try {
-        const response = await fetch(EMPLOYEES_API);
-        if (!response.ok) { toast.error(`Failed to load employees: ${response.status}`); return; }
-        const data = await response.json();
+        const data = await api.get<Record<string, unknown>[]>('/api/employees');
         const employeeList = Array.isArray(data) ? data : [];
         const normalized = employeeList.map((emp: Record<string, unknown>) => {
           const id = typeof emp.id === 'number' ? emp.id : parseInt(String(emp.id)) || 0;
@@ -376,7 +335,7 @@ function LeaveApplicationForm({ onClose, onSuccess, editData }: { onClose: () =>
               className={`w-full h-9 flex items-center justify-between gap-2 px-3 rounded-lg text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed ${t.inputBg}`}>
               {formData.employee_name ? (
                 <div className="flex items-center gap-2 truncate">
-                  <User className="h-4 w-4 text-blue-400 shrink-0" />
+                  <User className="h-4 w-4 text-brand-400 shrink-0" />
                   <span className={`font-medium truncate ${t.textPrimary}`}>{formData.employee_name}</span>
                   <span className={`text-xs shrink-0 ${t.textFaint}`}>• {formData.employee_id}</span>
                 </div>
@@ -399,10 +358,10 @@ function LeaveApplicationForm({ onClose, onSuccess, editData }: { onClose: () =>
                     <div className={`text-sm py-6 text-center ${t.textFaint}`}>No employee found.</div>
                   ) : filteredEmployees.map(emp => (
                     <button key={emp.id} type="button" onClick={() => handleEmployeeSelect(emp)} className={`w-full flex items-center gap-2.5 rounded-lg px-2 py-2 ${t.textMuted} ${t.hoverBgSoft} transition-colors`}>
-                      <User className="h-5 w-5 text-blue-400 shrink-0" />
+                      <User className="h-5 w-5 text-brand-400 shrink-0" />
                       <div className="flex-1 min-w-0 text-left">
                         <p className={`text-sm font-medium truncate ${t.textPrimary}`}>{emp.name}</p>
-                        <p className={`text-xs truncate ${t.textFaint}`}><span className="font-mono text-blue-400">{emp.employee_id}</span>{emp.designation ? ` · ${emp.designation}` : ''}{emp.department ? ` · ${emp.department}` : ''}</p>
+                        <p className={`text-xs truncate ${t.textFaint}`}><span className="font-mono text-brand-400">{emp.employee_id}</span>{emp.designation ? ` · ${emp.designation}` : ''}{emp.department ? ` · ${emp.department}` : ''}</p>
                       </div>
                     </button>
                   ))}
@@ -545,7 +504,7 @@ function LeaveDetailsModal({ leave, onClose, onEdit, onDelete, onStatusUpdate }:
           {updating && <div className={`flex items-center gap-2 p-3 rounded-lg ${t.chipBg} ${t.textFaint}`}><Loader2 className="h-4 w-4 animate-spin" /><span className="text-sm">Updating...</span></div>}
 
           <div className={`${t.chipBg} rounded-xl overflow-hidden`}>
-            <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}><User className="h-3.5 w-3.5 text-blue-400" /><span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Employee</span></div>
+            <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}><User className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Employee</span></div>
             <div className="px-3.5 py-3 grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-2.5">
               <IF label="Name" value={leave.employee_name} /><IF label="Employee ID" value={leave.employee_id} /><IF label="Position" value={leave.position} />
               <IF label="Department" value={leave.department} /><IF label="Contact" value={leave.contact_number} />
@@ -554,7 +513,7 @@ function LeaveDetailsModal({ leave, onClose, onEdit, onDelete, onStatusUpdate }:
           </div>
 
           <div className={`${t.chipBg} rounded-xl overflow-hidden`}>
-            <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}><CalendarDays className="h-3.5 w-3.5 text-blue-400" /><span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Leave Details</span></div>
+            <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}><CalendarDays className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Leave Details</span></div>
             <div className="px-3.5 py-3 grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-2.5">
               <IF label="Type" value={selectedLeaveType.name} /><IF label="Start Date" value={fmtDate(leave.start_date)} /><IF label="End Date" value={fmtDate(leave.end_date)} />
               <div><div className={`text-[10px] uppercase tracking-wide mb-0.5 ${t.textFaint}`}>Duration</div><div className={`font-semibold text-sm ${t.textPrimary}`}>{formatDays(leave.total_days)}</div></div>
@@ -565,14 +524,14 @@ function LeaveDetailsModal({ leave, onClose, onEdit, onDelete, onStatusUpdate }:
 
           {leave.reason && (
             <div className={`${t.chipBg} rounded-xl overflow-hidden`}>
-              <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}><FileText className="h-3.5 w-3.5 text-blue-400" /><span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Reason</span></div>
+              <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}><FileText className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Reason</span></div>
               <p className={`px-3.5 py-3 text-sm whitespace-pre-wrap ${t.textFaint}`}>{leave.reason}</p>
             </div>
           )}
 
           {(leave.manager_approval || leave.hr_approval) && (
             <div className={`${t.chipBg} rounded-xl overflow-hidden`}>
-              <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}><CheckCircle2 className="h-3.5 w-3.5 text-blue-400" /><span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Approvals</span></div>
+              <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}><CheckCircle2 className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Approvals</span></div>
               <div className="px-3.5 py-3 flex gap-6">
                 {leave.manager_approval && <IF label="Manager" value={leave.manager_approval} />}
                 {leave.hr_approval && <IF label="HR" value={leave.hr_approval} />}
@@ -585,7 +544,7 @@ function LeaveDetailsModal({ leave, onClose, onEdit, onDelete, onStatusUpdate }:
             <div className="flex gap-2">
               <button type="button" onClick={() => { onEdit(leave); onClose(); }} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium ${t.chipBg} ${t.hoverBg} ${t.textMuted} transition-all`}><Edit className="h-3.5 w-3.5" /> Edit</button>
               <div className="relative">
-                <button type="button" onClick={() => setShowStatusActions(v => !v)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-gradient-to-br from-blue-500 to-blue-700 hover:brightness-110 transition-all">Update Status <ChevronDown className="h-3.5 w-3.5" /></button>
+                <button type="button" onClick={() => setShowStatusActions(v => !v)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all">Update Status <ChevronDown className="h-3.5 w-3.5" /></button>
                 {showStatusActions && (
                   <>
                     <div className="fixed inset-0 z-10" onClick={() => setShowStatusActions(false)} />
@@ -745,7 +704,7 @@ function LeaveManagementContent() {
 
   const activeFilterCount = [filter !== 'all', typeFilter !== 'all', !!dateFrom, !!dateTo, !!searchTerm].filter(Boolean).length;
   const inputCls = `px-3 py-2 w-full text-sm rounded-lg outline-none transition-colors ${t.inputBg}`;
-  const pillCls = (active: boolean) => `px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${active ? 'bg-blue-500/25 text-blue-400 font-semibold' : `${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText}`}`;
+  const pillCls = (active: boolean) => `px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${active ? 'bg-brand-500/25 text-brand-400 font-semibold' : `${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText}`}`;
 
   return (
     <main className="max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
@@ -764,12 +723,12 @@ function LeaveManagementContent() {
       >
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           {[
-            { label: 'Total', value: stats.total, textClass: 'text-blue-400', onClick: () => setFilter('all') },
+            { label: 'Total', value: stats.total, textClass: 'text-brand-400', onClick: () => setFilter('all') },
             { label: 'Total Days', value: stats.total_days_requested, textClass: 'text-violet-400', onClick: undefined },
             { label: 'Pending', value: stats.pending, textClass: 'text-amber-400', onClick: () => setFilter('pending') },
             { label: 'Approved', value: stats.approved, textClass: 'text-emerald-400', onClick: () => setFilter('approved') },
-            { label: 'On Leave Now', value: stats.on_leave_now, textClass: 'text-blue-400', onClick: undefined },
-            { label: 'Approval Rate', value: `${stats.approvalRate}%`, textClass: 'text-blue-400', onClick: undefined },
+            { label: 'On Leave Now', value: stats.on_leave_now, textClass: 'text-brand-400', onClick: undefined },
+            { label: 'Approval Rate', value: `${stats.approvalRate}%`, textClass: 'text-brand-400', onClick: undefined },
           ].map(stat => (
             <button type="button" key={stat.label} onClick={stat.onClick} className={`rounded-xl p-3 text-left ${t.chipBg} transition-all ${stat.onClick ? `${t.hoverBg} cursor-pointer` : 'cursor-default'}`}>
               <div className={`text-2xl font-bold ${stat.textClass}`}>{stat.value}</div>
@@ -782,7 +741,7 @@ function LeaveManagementContent() {
       {typeSummary.length > 0 && (
         <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
           <div className={`flex items-center justify-between px-5 py-3 border-b ${t.border}`}>
-            <div className="flex items-center gap-2"><BarChart3 className="h-3.5 w-3.5 text-blue-400" /><span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Leave Type Breakdown</span><span className={`text-[11px] ${t.textFaint}`}>click to filter</span></div>
+            <div className="flex items-center gap-2"><BarChart3 className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Leave Type Breakdown</span><span className={`text-[11px] ${t.textFaint}`}>click to filter</span></div>
             <button type="button" title={showTypeSummary ? 'Collapse' : 'Expand'} onClick={() => setShowTypeSummary(v => !v)} className={`h-6 w-6 flex items-center justify-center rounded-md ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-all`}>{showTypeSummary ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}</button>
           </div>
           {showTypeSummary && (
@@ -793,7 +752,7 @@ function LeaveManagementContent() {
                 return (
                   <GlowCard key={key} onClick={() => setTypeFilter(isActive ? 'all' : key)} color={type.color}
                     surface="rounded-xl overflow-hidden p-4"
-                    className={`group text-left cursor-pointer ${isActive ? `${t.chipBg} ring-1 ring-blue-400/40` : `${t.chipBg} ${t.hoverBg}`}`}>
+                    className={`group text-left cursor-pointer ${isActive ? `${t.chipBg} ring-1 ring-brand-400/40` : `${t.chipBg} ${t.hoverBg}`}`}>
                     <div className="flex items-center justify-between mb-2"><Icon className="h-4 w-4" style={{ color: type.color }} /><span className={`text-xs font-bold ${t.textPrimary}`}>{count}</span></div>
                     <div className={`text-xs font-semibold mb-0.5 ${t.textMuted}`}>{type.shortName}</div>
                     <div className={`text-[11px] ${t.textFaint}`}>{totalDays}d total</div>
@@ -809,7 +768,7 @@ function LeaveManagementContent() {
       {employeeSummary.length > 0 && (
         <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
           <div className={`flex items-center justify-between px-5 py-3 border-b ${t.border}`}>
-            <div className="flex items-center gap-2"><Users className="h-3.5 w-3.5 text-blue-400" /><span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Employee Summary</span><span className={`text-[11px] ${t.textFaint}`}>{employeeSummary.length} employees</span></div>
+            <div className="flex items-center gap-2"><Users className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Employee Summary</span><span className={`text-[11px] ${t.textFaint}`}>{employeeSummary.length} employees</span></div>
             <button type="button" title={showEmployeeSummary ? 'Collapse' : 'Expand'} onClick={() => setShowEmployeeSummary(v => !v)} className={`h-6 w-6 flex items-center justify-center rounded-md ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-all`}>{showEmployeeSummary ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}</button>
           </div>
           {showEmployeeSummary && (
@@ -820,11 +779,11 @@ function LeaveManagementContent() {
                   const percentage = Math.round((emp.total_days / maxDays) * 100);
                   return (
                     <div key={emp.id} className={`flex items-center gap-3 p-3 rounded-lg ${t.hoverBgSoft} cursor-pointer transition-all`} onClick={() => { setSearchTerm(emp.name); setFilter('all'); }}>
-                      <User className="h-5 w-5 text-blue-400 shrink-0" />
+                      <User className="h-5 w-5 text-brand-400 shrink-0" />
                       <div className="flex-1 min-w-0">
                         <div className={`text-sm font-medium truncate ${t.textPrimary}`}>{emp.name}</div>
                         <div className="flex items-center gap-2 mt-0.5">
-                          <div className={`h-1.5 rounded-full ${t.chipBg} overflow-hidden flex-1`}><div className="h-full bg-blue-400/60 rounded-full transition-all" style={{ width: `${percentage}%` }} /></div>
+                          <div className={`h-1.5 rounded-full ${t.chipBg} overflow-hidden flex-1`}><div className="h-full bg-brand-400/60 rounded-full transition-all" style={{ width: `${percentage}%` }} /></div>
                           <span className={`text-[11px] flex-shrink-0 ${t.textFaint}`}>{emp.total_days}d</span>
                         </div>
                       </div>
@@ -845,7 +804,7 @@ function LeaveManagementContent() {
       <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
         <div className={`flex items-center justify-between px-5 py-3 border-b ${t.border}`}>
           <div className="flex items-center gap-2">
-            <Filter className="h-3.5 w-3.5 text-blue-400" /><span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Filters</span>
+            <Filter className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Filters</span>
             {activeFilterCount > 0 && <StatusBadge color={ACCENT_HEX.blue} label={`${activeFilterCount} active`} />}
           </div>
           <div className="flex items-center gap-1">
@@ -887,7 +846,7 @@ function LeaveManagementContent() {
 
       <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
         <div className={`flex items-center gap-3 px-5 py-3 border-b ${t.border} flex-wrap`}>
-          <div className="flex items-center gap-2 shrink-0"><FileText className="h-3.5 w-3.5 text-blue-400" /><span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Records</span><span className={`text-[11px] ${t.textFaint}`}>{filteredLeaves.length} of {leaves.length}</span></div>
+          <div className="flex items-center gap-2 shrink-0"><FileText className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Records</span><span className={`text-[11px] ${t.textFaint}`}>{filteredLeaves.length} of {leaves.length}</span></div>
           <div className="flex-1 relative min-w-0 max-w-xs">
             <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 pointer-events-none ${t.textFaint}`} />
             <input type="text" placeholder="Search employee…" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className={`pl-7 pr-3 h-7 w-full text-xs rounded-lg outline-none transition-colors ${t.inputBg}`} />
@@ -907,8 +866,8 @@ function LeaveManagementContent() {
                 { value: 'name-desc', label: 'Name Z→A' },
               ]} />
             <div className={`flex rounded-lg border ${t.border} overflow-hidden`}>
-              <button type="button" title="Grid view" onClick={() => setViewMode('grid')} className={`h-7 w-7 flex items-center justify-center transition-all ${viewMode === 'grid' ? 'bg-blue-500/25 text-blue-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}><LayoutGrid className="h-3 w-3" /></button>
-              <button type="button" title="Table view" onClick={() => setViewMode('table')} className={`h-7 w-7 flex items-center justify-center border-l ${t.border} transition-all ${viewMode === 'table' ? 'bg-blue-500/25 text-blue-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}><List className="h-3 w-3" /></button>
+              <button type="button" title="Grid view" onClick={() => setViewMode('grid')} className={`h-7 w-7 flex items-center justify-center transition-all ${viewMode === 'grid' ? 'bg-brand-500/25 text-brand-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}><LayoutGrid className="h-3 w-3" /></button>
+              <button type="button" title="Table view" onClick={() => setViewMode('table')} className={`h-7 w-7 flex items-center justify-center border-l ${t.border} transition-all ${viewMode === 'table' ? 'bg-brand-500/25 text-brand-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}><List className="h-3 w-3" /></button>
             </div>
             <button type="button" title={recordsPanelMinimized ? 'Expand records' : 'Collapse records'} onClick={() => setRecordsPanelMinimized(v => !v)} className={`h-6 w-6 flex items-center justify-center rounded-md ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-all`}>{recordsPanelMinimized ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />}</button>
           </div>

@@ -1,7 +1,6 @@
 // lib/useEquipment.ts — shared hook: fetches equipment list from the API
 import { useState, useEffect, useCallback } from 'react';
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com';
+import { API_BASE } from '@/lib/config';
 
 export interface EquipmentItem {
   id: number | string;

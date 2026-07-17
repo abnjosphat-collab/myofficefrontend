@@ -249,11 +249,11 @@ function PropertyCard({ property }: { property: RentalProperty }) {
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-b from-blue-50/50 to-indigo-50/50 backdrop-blur-sm border border-blue-100/50 transition-all duration-500 group-hover:shadow-2xl group-hover:shadow-blue-200/50 group-hover:-translate-y-2">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-b from-brand-50/50 to-indigo-50/50 backdrop-blur-sm border border-brand-100/50 transition-all duration-500 group-hover:shadow-2xl group-hover:shadow-brand-200/50 group-hover:-translate-y-2">
         {/* Badges */}
         <div className="absolute top-3 left-3 z-10 flex flex-col gap-2">
           {property.isFeatured && (
-            <Badge className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white border-0 shadow-lg">
+            <Badge className="bg-gradient-to-r from-brand-500 to-indigo-500 text-white border-0 shadow-lg">
               <Sparkles className="h-3 w-3 mr-1" /> Featured
             </Badge>
           )}
@@ -280,7 +280,7 @@ function PropertyCard({ property }: { property: RentalProperty }) {
         {/* Property images */}
         <div className="relative h-56 overflow-hidden">
           <div 
-            className="absolute inset-0 bg-gradient-to-br from-blue-100/30 to-indigo-100/30 transition-all duration-500"
+            className="absolute inset-0 bg-gradient-to-br from-brand-100/30 to-indigo-100/30 transition-all duration-500"
             style={{
               backgroundImage: `url('${property.images[currentImageIndex]}')`,
               backgroundSize: 'cover',
@@ -308,7 +308,7 @@ function PropertyCard({ property }: { property: RentalProperty }) {
           
           {/* Quick view on hover */}
           <div className={`absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent transition-all duration-500 ${isHovered ? 'opacity-100' : 'opacity-0'}`}>
-            <Button className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-blue-700 shadow-xl">
+            <Button className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-brand-700 shadow-xl">
               <Eye className="h-4 w-4 mr-2" /> View Details
             </Button>
           </div>
@@ -318,7 +318,7 @@ function PropertyCard({ property }: { property: RentalProperty }) {
         <div className="p-4">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1 text-xs font-medium text-blue-700 bg-blue-100/50 px-2 py-1 rounded-full">
+              <div className="flex items-center gap-1 text-xs font-medium text-brand-700 bg-brand-100/50 px-2 py-1 rounded-full">
                 {getPropertyTypeIcon(property.type)}
                 <span className="capitalize">{property.type}</span>
               </div>
@@ -334,7 +334,7 @@ function PropertyCard({ property }: { property: RentalProperty }) {
             </div>
           </div>
           
-          <h3 className="font-semibold text-gray-800 mb-2 line-clamp-1 group-hover:text-blue-700 transition-colors duration-300">
+          <h3 className="font-semibold text-gray-800 mb-2 line-clamp-1 group-hover:text-brand-700 transition-colors duration-300">
             {property.title}
           </h3>
           
@@ -405,13 +405,13 @@ function FilterPanel({ filters, onFilterChange }: { filters: FilterOptions; onFi
   ];
 
   return (
-    <div className="bg-white rounded-2xl p-6 border border-blue-100 shadow-lg">
+    <div className="bg-white rounded-2xl p-6 border border-brand-100 shadow-lg">
       <div className="flex items-center justify-between mb-6">
         <h3 className="font-bold text-gray-800 text-lg">Filters</h3>
         <Button 
           variant="ghost" 
           size="sm" 
-          className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+          className="text-brand-600 hover:text-brand-700 hover:bg-brand-50"
           onClick={() => onFilterChange({
             priceRange: [500, 5000],
             propertyTypes: [],
@@ -464,7 +464,7 @@ function FilterPanel({ filters, onFilterChange }: { filters: FilterOptions; onFi
               }}
               className={`flex items-center gap-2 p-2 rounded-lg text-sm transition-all duration-300 ${
                 filters.propertyTypes.includes(type.id)
-                  ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                  ? 'bg-brand-50 text-brand-700 border border-brand-200'
                   : 'text-gray-700 hover:bg-gray-50 border border-gray-200'
               }`}
             >
@@ -486,7 +486,7 @@ function FilterPanel({ filters, onFilterChange }: { filters: FilterOptions; onFi
                 onClick={() => onFilterChange({ ...filters, bedrooms: num })}
                 className={`px-3 py-1.5 rounded-lg text-sm transition-all duration-300 ${
                   filters.bedrooms === num
-                    ? 'bg-blue-500 text-white'
+                    ? 'bg-brand-500 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
@@ -504,7 +504,7 @@ function FilterPanel({ filters, onFilterChange }: { filters: FilterOptions; onFi
                 onClick={() => onFilterChange({ ...filters, bathrooms: num })}
                 className={`px-3 py-1.5 rounded-lg text-sm transition-all duration-300 ${
                   filters.bathrooms === num
-                    ? 'bg-blue-500 text-white'
+                    ? 'bg-brand-500 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
@@ -530,7 +530,7 @@ function FilterPanel({ filters, onFilterChange }: { filters: FilterOptions; onFi
               }}
               className={`flex items-center gap-2 p-2 rounded-lg text-sm transition-all duration-300 ${
                 filters.amenities.includes(amenity.id)
-                  ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                  ? 'bg-brand-50 text-brand-700 border border-brand-200'
                   : 'text-gray-700 hover:bg-gray-50 border border-gray-200'
               }`}
             >
@@ -552,7 +552,7 @@ function FilterPanel({ filters, onFilterChange }: { filters: FilterOptions; onFi
               min="1"
               value={filters.minStay}
               onChange={(e) => onFilterChange({ ...filters, minStay: parseInt(e.target.value) || 1 })}
-              className="border-blue-200"
+              className="border-brand-200"
             />
           </div>
           <div>
@@ -562,7 +562,7 @@ function FilterPanel({ filters, onFilterChange }: { filters: FilterOptions; onFi
               min={filters.minStay}
               value={filters.maxStay}
               onChange={(e) => onFilterChange({ ...filters, maxStay: parseInt(e.target.value) || 36 })}
-              className="border-blue-200"
+              className="border-brand-200"
             />
           </div>
         </div>
@@ -575,7 +575,7 @@ function FilterPanel({ filters, onFilterChange }: { filters: FilterOptions; onFi
             type="checkbox"
             checked={filters.instantBook}
             onChange={(e) => onFilterChange({ ...filters, instantBook: e.target.checked })}
-            className="h-4 w-4 text-blue-500 rounded border-gray-300"
+            className="h-4 w-4 text-brand-500 rounded border-gray-300"
           />
           <span className="text-sm text-gray-700">Instant Book Available</span>
         </label>
@@ -584,7 +584,7 @@ function FilterPanel({ filters, onFilterChange }: { filters: FilterOptions; onFi
             type="checkbox"
             checked={filters.verifiedOnly}
             onChange={(e) => onFilterChange({ ...filters, verifiedOnly: e.target.checked })}
-            className="h-4 w-4 text-blue-500 rounded border-gray-300"
+            className="h-4 w-4 text-brand-500 rounded border-gray-300"
           />
           <span className="text-sm text-gray-700">Verified Properties Only</span>
         </label>
@@ -593,7 +593,7 @@ function FilterPanel({ filters, onFilterChange }: { filters: FilterOptions; onFi
             type="checkbox"
             checked={filters.superhostOnly}
             onChange={(e) => onFilterChange({ ...filters, superhostOnly: e.target.checked })}
-            className="h-4 w-4 text-blue-500 rounded border-gray-300"
+            className="h-4 w-4 text-brand-500 rounded border-gray-300"
           />
           <span className="text-sm text-gray-700">Superhost Properties Only</span>
         </label>
@@ -626,7 +626,7 @@ function SearchBar({ onSearch }: { onSearch: (query: string) => void }) {
   };
 
   return (
-    <div className="bg-white rounded-2xl p-6 border border-blue-100 shadow-xl">
+    <div className="bg-white rounded-2xl p-6 border border-brand-100 shadow-xl">
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Location */}
@@ -639,7 +639,7 @@ function SearchBar({ onSearch }: { onSearch: (query: string) => void }) {
                 placeholder="Where to?"
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
-                className="pl-10 border-blue-200 focus:border-blue-300 focus:ring-blue-200"
+                className="pl-10 border-brand-200 focus:border-brand-300 focus:ring-brand-200"
               />
             </div>
           </div>
@@ -653,7 +653,7 @@ function SearchBar({ onSearch }: { onSearch: (query: string) => void }) {
                 type="date"
                 value={checkIn}
                 onChange={(e) => setCheckIn(e.target.value)}
-                className="pl-10 border-blue-200 focus:border-blue-300 focus:ring-blue-200"
+                className="pl-10 border-brand-200 focus:border-brand-300 focus:ring-brand-200"
                 min={new Date().toISOString().split('T')[0]}
               />
             </div>
@@ -668,7 +668,7 @@ function SearchBar({ onSearch }: { onSearch: (query: string) => void }) {
                 type="date"
                 value={checkOut}
                 onChange={(e) => setCheckOut(e.target.value)}
-                className="pl-10 border-blue-200 focus:border-blue-300 focus:ring-blue-200"
+                className="pl-10 border-brand-200 focus:border-brand-300 focus:ring-brand-200"
                 min={checkIn}
               />
             </div>
@@ -685,7 +685,7 @@ function SearchBar({ onSearch }: { onSearch: (query: string) => void }) {
                 max="10"
                 value={guests}
                 onChange={(e) => setGuests(parseInt(e.target.value) || 1)}
-                className="pl-10 border-blue-200 focus:border-blue-300 focus:ring-blue-200"
+                className="pl-10 border-brand-200 focus:border-brand-300 focus:ring-brand-200"
               />
             </div>
           </div>
@@ -694,11 +694,11 @@ function SearchBar({ onSearch }: { onSearch: (query: string) => void }) {
         <div className="flex flex-col sm:flex-row gap-4">
           <Button 
             type="submit" 
-            className="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white px-8"
+            className="bg-gradient-to-r from-brand-500 to-indigo-500 hover:from-brand-600 hover:to-indigo-600 text-white px-8"
           >
             <Search className="h-4 w-4 mr-2" /> Search Properties
           </Button>
-          <Button variant="outline" className="border-blue-200 text-blue-600 hover:bg-blue-50">
+          <Button variant="outline" className="border-brand-200 text-brand-600 hover:bg-brand-50">
             <Filter className="h-4 w-4 mr-2" /> Advanced Filters
           </Button>
         </div>
@@ -737,13 +737,13 @@ function DropdownMenu({ title, items }: { title: string; items: { name: string; 
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
-      <button className="flex items-center gap-1 text-sm text-gray-700 hover:text-blue-600 px-4 py-2 rounded-lg hover:bg-blue-50 transition-all duration-300 font-medium">
+      <button className="flex items-center gap-1 text-sm text-gray-700 hover:text-brand-600 px-4 py-2 rounded-lg hover:bg-brand-50 transition-all duration-300 font-medium">
         {title}
         <ChevronDown className={`h-4 w-4 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
       
       <div 
-        className={`absolute top-full left-0 mt-1 min-w-[200px] bg-white/95 backdrop-blur-xl rounded-xl shadow-2xl border border-blue-100/50 overflow-hidden transition-all duration-300 z-50 ${
+        className={`absolute top-full left-0 mt-1 min-w-[200px] bg-white/95 backdrop-blur-xl rounded-xl shadow-2xl border border-brand-100/50 overflow-hidden transition-all duration-300 z-50 ${
           isOpen ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2 pointer-events-none'
         }`}
       >
@@ -752,9 +752,9 @@ function DropdownMenu({ title, items }: { title: string; items: { name: string; 
             <Link
               key={item.name}
               href={item.href}
-              className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:text-blue-600 hover:bg-blue-50/50 transition-all duration-300 group/item"
+              className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:text-brand-600 hover:bg-brand-50/50 transition-all duration-300 group/item"
             >
-              <div className="text-blue-500 group-hover/item:scale-110 transition-transform duration-300">
+              <div className="text-brand-500 group-hover/item:scale-110 transition-transform duration-300">
                 {item.icon}
               </div>
               {item.name}
@@ -1129,7 +1129,7 @@ export default function RentalPage() {
           <div className="text-center mb-8 animate-fade-in-up">
             <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
               Find Your Perfect
-              <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent"> Rental Space</span>
+              <span className="bg-gradient-to-r from-brand-600 to-indigo-600 bg-clip-text text-transparent"> Rental Space</span>
             </h1>
             <p className="text-lg text-gray-600 mb-8 max-w-2xl mx-auto">
               Discover comfortable and affordable rentals for any duration. Verified properties, trusted hosts, and seamless booking.
@@ -1146,7 +1146,7 @@ export default function RentalPage() {
             {stats.map((stat, index) => (
               <Card 
                 key={stat.label} 
-                className="border-blue-100 bg-white/50 backdrop-blur-sm animate-fade-in-up"
+                className="border-brand-100 bg-white/50 backdrop-blur-sm animate-fade-in-up"
                 style={{ animationDelay: `${index * 0.1}s` }}
               >
                 <CardContent className="p-4">
@@ -1165,7 +1165,7 @@ export default function RentalPage() {
                         </span>
                       </div>
                     </div>
-                    <div className="p-3 rounded-full bg-gradient-to-br from-blue-50 to-indigo-50 text-blue-500">
+                    <div className="p-3 rounded-full bg-gradient-to-br from-brand-50 to-indigo-50 text-brand-500">
                       {stat.icon}
                     </div>
                   </div>
@@ -1211,7 +1211,7 @@ export default function RentalPage() {
                     </div>
 
                     {/* Sort Dropdown */}
-                    <select className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-blue-500">
+                    <select className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-brand-500">
                       <option>Sort by: Recommended</option>
                       <option>Price: Low to High</option>
                       <option>Price: High to Low</option>
@@ -1223,7 +1223,7 @@ export default function RentalPage() {
 
                 {/* Property Type Tabs */}
                 <Tabs defaultValue="all" className="mb-6" onValueChange={setActiveTab}>
-                  <TabsList className="bg-blue-50/50 p-1 rounded-xl w-full overflow-x-auto">
+                  <TabsList className="bg-brand-50/50 p-1 rounded-xl w-full overflow-x-auto">
                     <TabsTrigger value="all" className="data-[state=active]:bg-white rounded-lg whitespace-nowrap">All Types</TabsTrigger>
                     <TabsTrigger value="apartment" className="data-[state=active]:bg-white rounded-lg whitespace-nowrap">Apartments</TabsTrigger>
                     <TabsTrigger value="house" className="data-[state=active]:bg-white rounded-lg whitespace-nowrap">Houses</TabsTrigger>
@@ -1234,7 +1234,7 @@ export default function RentalPage() {
 
                 {/* Quick Filters Bar */}
                 <div className="mb-6">
-                  <div className="bg-white rounded-xl p-4 border border-blue-100">
+                  <div className="bg-white rounded-xl p-4 border border-brand-100">
                     <div className="flex flex-col space-y-4">
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         {/* Price Range Quick Filter */}
@@ -1269,7 +1269,7 @@ export default function RentalPage() {
                                 onClick={() => setFilters({ ...filters, bedrooms: num })}
                                 className={`px-3 py-1.5 rounded-lg text-sm transition-all duration-300 ${
                                   filters.bedrooms === num
-                                    ? 'bg-blue-500 text-white'
+                                    ? 'bg-brand-500 text-white'
                                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                                 }`}
                               >
@@ -1297,7 +1297,7 @@ export default function RentalPage() {
                               onClick={() => setFilters({ ...filters, verifiedOnly: !filters.verifiedOnly })}
                               className={`px-3 py-1.5 rounded-lg text-sm transition-all duration-300 ${
                                 filters.verifiedOnly
-                                  ? 'bg-blue-500 text-white'
+                                  ? 'bg-brand-500 text-white'
                                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                               }`}
                             >
@@ -1321,7 +1321,7 @@ export default function RentalPage() {
                                 }}
                                 className={`px-3 py-1.5 rounded-lg text-sm transition-all duration-300 flex items-center gap-1 ${
                                   filters.amenities.includes(amenity)
-                                    ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                                    ? 'bg-brand-50 text-brand-700 border border-brand-200'
                                     : 'text-gray-700 hover:bg-gray-50 border border-gray-200'
                                 }`}
                               >
@@ -1339,7 +1339,7 @@ export default function RentalPage() {
                       <div className="flex justify-center">
                         <Button 
                           variant="outline" 
-                          className="border-blue-200 text-blue-600 hover:bg-blue-50"
+                          className="border-brand-200 text-brand-600 hover:bg-brand-50"
                           onClick={() => {
                             // Scroll to filter panel
                             const filterPanel = document.getElementById('filter-panel');
@@ -1368,12 +1368,12 @@ export default function RentalPage() {
                 ))}
               </div>
             ) : (
-              <div className="h-[600px] rounded-2xl border border-blue-200 bg-gradient-to-b from-blue-50/50 to-indigo-50/50 flex items-center justify-center">
+              <div className="h-[600px] rounded-2xl border border-brand-200 bg-gradient-to-b from-brand-50/50 to-indigo-50/50 flex items-center justify-center">
                 <div className="text-center">
-                  <Map className="h-16 w-16 text-blue-400 mx-auto mb-4" />
+                  <Map className="h-16 w-16 text-brand-400 mx-auto mb-4" />
                   <h3 className="text-lg font-semibold text-gray-700 mb-2">Interactive Map View</h3>
                   <p className="text-gray-600 mb-4">View properties on an interactive map</p>
-                  <Button className="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white">
+                  <Button className="bg-gradient-to-r from-brand-500 to-indigo-500 hover:from-brand-600 hover:to-indigo-600 text-white">
                     <Navigation className="h-4 w-4 mr-2" /> Open Full Map
                   </Button>
                 </div>
@@ -1419,15 +1419,15 @@ export default function RentalPage() {
         </div>
 
         {/* CTA Section */}
-        <div className="bg-gradient-to-r from-blue-500 to-indigo-500 mt-12">
+        <div className="bg-gradient-to-r from-brand-500 to-indigo-500 mt-12">
           <div className="container mx-auto px-4 py-12">
             <div className="max-w-4xl mx-auto text-center text-white">
               <h2 className="text-3xl font-bold mb-4">Ready to Find Your Perfect Stay?</h2>
-              <p className="text-lg mb-8 text-blue-100">
+              <p className="text-lg mb-8 text-brand-100">
                 Join thousands of happy renters who found their ideal home through RentSpace
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Button className="bg-white text-blue-600 hover:bg-blue-50 px-8">
+                <Button className="bg-white text-brand-600 hover:bg-brand-50 px-8">
                   Start Searching
                 </Button>
                 <Button variant="outline" className="border-white text-white hover:bg-white/10">

@@ -72,31 +72,31 @@ export default function HomePage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-brand-500"></div>
       </div>
     );
   }
 
   // If not logged in, show the landing page
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+    <div className="min-h-screen bg-gradient-to-b from-brand-50 to-white">
       {/* Navigation */}
       <nav className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center">
-              <span className="text-2xl font-bold text-blue-600">BankSecure</span>
+              <span className="text-2xl font-bold text-brand-600">BankSecure</span>
             </div>
             <div className="flex items-center space-x-4">
               <Link
                 href="/login"
-                className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium"
+                className="text-gray-700 hover:text-brand-600 px-3 py-2 rounded-md text-sm font-medium"
               >
                 Sign In
               </Link>
               <Link
                 href="/register"
-                className="bg-blue-600 text-white hover:bg-blue-700 px-4 py-2 rounded-md text-sm font-medium"
+                className="bg-brand-600 text-white hover:bg-brand-700 px-4 py-2 rounded-md text-sm font-medium"
               >
                 Open Account
               </Link>
@@ -119,7 +119,7 @@ export default function HomePage() {
             <div className="mt-10 flex flex-col sm:flex-row gap-4">
               <Link
                 href="/register"
-                className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-brand-600 hover:bg-brand-700"
               >
                 Get Started
                 <ArrowRight className="ml-2 h-5 w-5" />
@@ -157,8 +157,8 @@ export default function HomePage() {
           <div className="mt-16 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {/* Feature 1 */}
             <div className="p-6 border rounded-lg hover:shadow-lg transition">
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <Shield className="h-6 w-6 text-blue-600" />
+              <div className="w-12 h-12 bg-brand-100 rounded-lg flex items-center justify-center">
+                <Shield className="h-6 w-6 text-brand-600" />
               </div>
               <h3 className="mt-4 text-xl font-semibold">Bank‑Grade Security</h3>
               <p className="mt-2 text-gray-600">
@@ -168,8 +168,8 @@ export default function HomePage() {
 
             {/* Feature 2 */}
             <div className="p-6 border rounded-lg hover:shadow-lg transition">
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <Zap className="h-6 w-6 text-blue-600" />
+              <div className="w-12 h-12 bg-brand-100 rounded-lg flex items-center justify-center">
+                <Zap className="h-6 w-6 text-brand-600" />
               </div>
               <h3 className="mt-4 text-xl font-semibold">Instant Transfers</h3>
               <p className="mt-2 text-gray-600">
@@ -179,8 +179,8 @@ export default function HomePage() {
 
             {/* Feature 3 */}
             <div className="p-6 border rounded-lg hover:shadow-lg transition">
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <Globe className="h-6 w-6 text-blue-600" />
+              <div className="w-12 h-12 bg-brand-100 rounded-lg flex items-center justify-center">
+                <Globe className="h-6 w-6 text-brand-600" />
               </div>
               <h3 className="mt-4 text-xl font-semibold">Global Access</h3>
               <p className="mt-2 text-gray-600">
@@ -190,8 +190,8 @@ export default function HomePage() {
 
             {/* Feature 4 */}
             <div className="p-6 border rounded-lg hover:shadow-lg transition">
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <TrendingUp className="h-6 w-6 text-blue-600" />
+              <div className="w-12 h-12 bg-brand-100 rounded-lg flex items-center justify-center">
+                <TrendingUp className="h-6 w-6 text-brand-600" />
               </div>
               <h3 className="mt-4 text-xl font-semibold">Savings Goals</h3>
               <p className="mt-2 text-gray-600">
@@ -201,8 +201,8 @@ export default function HomePage() {
 
             {/* Feature 5 */}
             <div className="p-6 border rounded-lg hover:shadow-lg transition">
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <Users className="h-6 w-6 text-blue-600" />
+              <div className="w-12 h-12 bg-brand-100 rounded-lg flex items-center justify-center">
+                <Users className="h-6 w-6 text-brand-600" />
               </div>
               <h3 className="mt-4 text-xl font-semibold">Family Accounts</h3>
               <p className="mt-2 text-gray-600">
@@ -212,8 +212,8 @@ export default function HomePage() {
 
             {/* Feature 6 */}
             <div className="p-6 border rounded-lg hover:shadow-lg transition">
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <CreditCard className="h-6 w-6 text-blue-600" />
+              <div className="w-12 h-12 bg-brand-100 rounded-lg flex items-center justify-center">
+                <CreditCard className="h-6 w-6 text-brand-600" />
               </div>
               <h3 className="mt-4 text-xl font-semibold">Virtual Cards</h3>
               <p className="mt-2 text-gray-600">
@@ -225,18 +225,18 @@ export default function HomePage() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 bg-blue-600">
+      <section className="py-20 bg-brand-600">
         <div className="max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8">
           <h2 className="text-3xl font-bold text-white sm:text-4xl">
             Ready to take control of your finances?
           </h2>
-          <p className="mt-4 text-xl text-blue-100">
+          <p className="mt-4 text-xl text-brand-100">
             Join thousands of satisfied customers who trust BankSecure.
           </p>
           <div className="mt-10">
             <Link
               href="/register"
-              className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-blue-600 bg-white hover:bg-gray-50"
+              className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-brand-600 bg-white hover:bg-gray-50"
             >
               Open Your Free Account Today
               <ArrowRight className="ml-2 h-5 w-5" />

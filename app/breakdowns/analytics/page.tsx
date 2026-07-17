@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { api } from '@/lib/apiClient';
 import { AppShell } from '@/components/app-shell';
 import { toast } from 'sonner';
 import {
@@ -22,8 +23,6 @@ import {
   ComposedChart
 } from 'recharts';
 import { useTheme, PageHero, StatTile } from '@/components/shared/theme';
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com';
 
 // ===== TYPES =====
 interface HeatmapData {
@@ -236,10 +235,7 @@ function BreakdownAnalyticsContent() {
       if (department) params.append('department', department);
       if (machineId) params.append('machine_id', machineId);
 
-      const response = await fetch(`${API_BASE}/api/breakdowns/analytics/heatmap?${params}`);
-      if (!response.ok) throw new Error('Failed to fetch analytics');
-
-      const result: HeatmapData = await response.json();
+      const result = await api.get<HeatmapData>(`/api/breakdowns/analytics/heatmap?${params}`);
       if (result.success) {
         setData(result);
       } else {
@@ -434,8 +430,8 @@ function BreakdownAnalyticsContent() {
             <Card className={cardCls}>
               <CardContent className="p-3">
                 <div className="flex items-center gap-2">
-                  <div className="p-1.5 bg-blue-500/20 rounded-lg">
-                    <Wrench className="h-4 w-4 text-blue-400" />
+                  <div className="p-1.5 bg-brand-500/20 rounded-lg">
+                    <Wrench className="h-4 w-4 text-brand-400" />
                   </div>
                   <div>
                     <div className={`text-lg font-bold font-mono ${t.textPrimary}`}>{data.summary.unique_machines}</div>
@@ -592,7 +588,7 @@ function BreakdownAnalyticsContent() {
                 <Card className={cardCls}>
                   <CardHeader>
                     <CardTitle className={`flex items-center gap-2 text-sm ${t.textPrimary}`}>
-                      <Building2 className="h-4 w-4 text-blue-400" />
+                      <Building2 className="h-4 w-4 text-brand-400" />
                       Department Comparison
                     </CardTitle>
                     <CardDescription className={faintCls}>
@@ -900,7 +896,7 @@ function BreakdownAnalyticsContent() {
                 <Card className={cardCls}>
                   <CardHeader>
                     <CardTitle className={`flex items-center gap-2 text-sm ${t.textPrimary}`}>
-                      <Clock className="h-4 w-4 text-blue-400" />
+                      <Clock className="h-4 w-4 text-brand-400" />
                       Hourly Distribution
                     </CardTitle>
                     <CardDescription className={faintCls}>
@@ -1057,7 +1053,7 @@ function BreakdownAnalyticsContent() {
                 <Card className={cardCls}>
                   <CardHeader>
                     <CardTitle className={`flex items-center gap-2 text-sm ${t.textPrimary}`}>
-                      <Building2 className="h-4 w-4 text-blue-400" />
+                      <Building2 className="h-4 w-4 text-brand-400" />
                       Department × Hour Breakdown Distribution
                     </CardTitle>
                     <CardDescription className={faintCls}>
@@ -1787,7 +1783,7 @@ function BreakdownAnalyticsContent() {
               <Card className={cardCls}>
                 <CardHeader>
                   <CardTitle className={`flex items-center gap-2 text-sm ${t.textPrimary}`}>
-                    <Building2 className="h-4 w-4 text-blue-400" />
+                    <Building2 className="h-4 w-4 text-brand-400" />
                     Department Comparison
                   </CardTitle>
                   <CardDescription className={faintCls}>
@@ -1816,10 +1812,10 @@ function BreakdownAnalyticsContent() {
           </Tabs>
 
           {/* Info Banner */}
-          <Card className={`${t.glass} border-blue-500/20`}>
+          <Card className={`${t.glass} border-brand-500/20`}>
             <CardContent className="p-4">
               <div className="flex items-start gap-3">
-                <BarChart3 className="h-5 w-5 text-blue-400 flex-shrink-0 mt-0.5" />
+                <BarChart3 className="h-5 w-5 text-brand-400 flex-shrink-0 mt-0.5" />
                 <div className={`text-xs ${mutedCls}`}>
                   <p className={`font-semibold mb-1 ${t.textPrimary}`}>Comprehensive Analytics Dashboard</p>
                   <p>

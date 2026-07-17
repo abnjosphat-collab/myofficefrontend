@@ -129,7 +129,7 @@ function ModuleCard({
         description={module.description}
         metricValue={primaryMetric?.value}
         metricLabel={primaryMetric?.label}
-        className={selectMode && isSelected ? 'ring-2 ring-blue-400/60' : ''}
+        className={selectMode && isSelected ? 'ring-2 ring-brand-400/60' : ''}
         style={{ backgroundColor: tileBase, cursor: selectMode ? 'pointer' : undefined }}
         badge={module.badge && (
           <span className={`text-[9px] font-medium ${t.textFaint} ${t.chipBg} rounded-full px-1.5 py-0.5 tabular-nums`}>
@@ -140,7 +140,7 @@ function ModuleCard({
       {selectMode ? (
         <div className="absolute top-2 right-2">
           <div className={`h-5 w-5 rounded-md flex items-center justify-center transition-colors ${
-            isSelected ? 'bg-blue-500 text-white' : `${t.chipBg} ${t.textFaint}`
+            isSelected ? 'bg-brand-500 text-white' : `${t.chipBg} ${t.textFaint}`
           }`}>
             {isSelected && <Check className="h-3.5 w-3.5" strokeWidth={2.5} />}
           </div>

@@ -2,6 +2,7 @@
 'use client';
 
 import { useState } from 'react';
+import { authFetch } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 
 export default function AuthForm() {
@@ -59,7 +60,7 @@ export default function AuthForm() {
         body = { email, password, name };
       }
 
-      const response = await fetch(endpoint, {
+      const response = await authFetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),

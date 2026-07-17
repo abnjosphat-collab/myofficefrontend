@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef, ElementType } from 'react';
+import { api } from '@/lib/apiClient';
+import { formatDate } from '@/lib/format';
 import {
   Octagon, Plus, Trash2, Eye, Pencil,
   AlertTriangle, Target, UserCircle, Building2,
@@ -8,6 +10,7 @@ import {
   Wrench, Zap, ChevronDown, ChevronUp, X,
 } from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
+import { useEmployees, type EmployeeLookup } from '@/hooks/useLookups';
 import { toast } from 'sonner';
 import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, FormField, FormActions,
@@ -30,7 +33,7 @@ interface WorkStoppageReport {
   acceptedBy: string; sheqCheckedBy: string; correctiveActions: CorrectiveAction[]; submittedAt: string;
 }
 
-interface EmployeeItem { id: string; employee_id?: string; first_name: string; last_name: string; designation?: string; department?: string; }
+type EmployeeItem = EmployeeLookup;
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 
@@ -40,24 +43,17 @@ const SECTION_ICON: Record<SectionType, ElementType> = { Mechanical: Wrench, Ele
 const SECTION_HEX: Record<SectionType, string> = { Mechanical: '#86BBD8', Electrical: '#f59e0b', General: '#a78bfa' };
 const STATUS_HEX: Record<ActionStatus, string> = { Pending: '#f59e0b', 'In Progress': '#60a5fa', Completed: '#34d399' };
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com';
-
 // ─── API ──────────────────────────────────────────────────────────────────────
 
-async function safetyFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, { headers: { 'Content-Type': 'application/json' }, ...init });
-  if (!res.ok) throw new Error(await res.text());
-  return res.status === 204 ? (undefined as T) : res.json();
-}
-async function getReports(): Promise<WorkStoppageReport[]> { try { return await safetyFetch<WorkStoppageReport[]>('/api/work-stoppage/'); } catch { return []; } }
-async function createReport(data: Partial<WorkStoppageReport>): Promise<WorkStoppageReport> { return safetyFetch<WorkStoppageReport>('/api/work-stoppage/', { method: 'POST', body: JSON.stringify(data) }); }
-async function updateReport(id: string, data: Partial<WorkStoppageReport>): Promise<WorkStoppageReport> { return safetyFetch<WorkStoppageReport>(`/api/work-stoppage/${id}`, { method: 'PATCH', body: JSON.stringify(data) }); }
-async function deleteReport(id: string): Promise<void> { await safetyFetch(`/api/work-stoppage/${id}`, { method: 'DELETE' }); }
+async function getReports(): Promise<WorkStoppageReport[]> { try { const d = await api.get<WorkStoppageReport[]>('/api/work-stoppage/'); return Array.isArray(d) ? d : []; } catch { return []; } }
+async function createReport(data: Partial<WorkStoppageReport>): Promise<WorkStoppageReport> { return api.post<WorkStoppageReport>('/api/work-stoppage/', data); }
+async function updateReport(id: string, data: Partial<WorkStoppageReport>): Promise<WorkStoppageReport> { return api.patch<WorkStoppageReport>(`/api/work-stoppage/${id}`, data); }
+async function deleteReport(id: string): Promise<void> { await api.delete(`/api/work-stoppage/${id}`); }
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 
 const uid = () => Math.random().toString(36).slice(2, 11);
-const fmtDate = (d: string) => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
+const fmtDate = (d: string) => (d ? formatDate(d) : '');
 const newAction = (): CorrectiveAction => ({ id: uid(), finding: '', action: '', byWho: '', byWhen: '', status: 'Pending' });
 const blankForm = (): Partial<WorkStoppageReport> => ({
   date: new Date().toISOString().split('T')[0], department: 'Engineering', section: 'General', description: '',
@@ -112,16 +108,6 @@ function PredictiveField({ historyKey, value, onChange, placeholder, hints, mult
   );
 }
 
-let _empCache: EmployeeItem[] = [];
-let _empFetched = false;
-function useEmployees() {
-  const [list, setList] = useState<EmployeeItem[]>(_empCache);
-  useEffect(() => {
-    if (_empFetched) return;
-    fetch(`${API_BASE}/api/employees`).then(r => r.json()).then((d: EmployeeItem[]) => { if (Array.isArray(d)) { _empCache = d; setList(d); } _empFetched = true; }).catch(() => { _empFetched = true; });
-  }, []);
-  return list;
-}
 
 function EmployeeField({ value, onChange, placeholder }: { value: string; onChange: (name: string, emp?: EmployeeItem) => void; placeholder?: string }) {
   const t = useTheme();
@@ -291,12 +277,12 @@ function ReportFormModal({ open, onClose, onSave, report }: {
                 <div className={`text-center py-10 ${t.textFaint}`}>
                   <Target className="h-10 w-10 mx-auto mb-3 opacity-40" />
                   <p className="text-sm">No corrective actions added yet</p>
-                  <button type="button" onClick={addAction} className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-white bg-gradient-to-br from-blue-500 to-blue-700 hover:brightness-110 transition-all"><Plus className="h-3.5 w-3.5" /> Add First Action</button>
+                  <button type="button" onClick={addAction} className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all"><Plus className="h-3.5 w-3.5" /> Add First Action</button>
                 </div>
               ) : (
                 <>
                   {actions.map((a, i) => <CorrectiveActionCard key={a.id} action={a} index={i} onChange={updateAction} onRemove={removeAction} />)}
-                  <button type="button" onClick={addAction} className={`w-full py-2 rounded-xl text-xs border border-dashed ${t.border} ${t.textFaint} hover:text-blue-400 transition-all inline-flex items-center justify-center gap-1.5`}><Plus className="h-3 w-3" /> Add Another Action</button>
+                  <button type="button" onClick={addAction} className={`w-full py-2 rounded-xl text-xs border border-dashed ${t.border} ${t.textFaint} hover:text-brand-400 transition-all inline-flex items-center justify-center gap-1.5`}><Plus className="h-3 w-3" /> Add Another Action</button>
                 </>
               )}
             </div>
@@ -400,7 +386,7 @@ function ReportDetailModal({ report, open, onClose, onEdit }: {
       </div>
       <div className={`px-5 py-4 border-t ${t.border} flex justify-end gap-2`}>
         <button type="button" onClick={onClose} className={`px-4 py-2 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border} transition-all`}>Close</button>
-        <button type="button" onClick={() => { onClose(); onEdit(report); }} className="px-4 py-2 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-blue-500 to-blue-700 hover:brightness-110 inline-flex items-center gap-2 transition-all"><Pencil className="h-3.5 w-3.5" /> Edit</button>
+        <button type="button" onClick={() => { onClose(); onEdit(report); }} className="px-4 py-2 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 inline-flex items-center gap-2 transition-all"><Pencil className="h-3.5 w-3.5" /> Edit</button>
       </div>
     </CenterModal>
   );
@@ -464,8 +450,8 @@ function ReportCard({ report, expanded, onToggle, onView, onEdit, onDelete }: {
             <div><p className={`text-[10px] ${t.textFaint}`}>SHEQ Checked</p><p className={t.textFaint}>{report.sheqCheckedBy || 'Not specified'}</p></div>
           </div>
           <div className="flex gap-1.5 pt-1">
-            <button type="button" title="View" onClick={onView} className="flex-1 py-1.5 rounded-lg text-[11px] font-medium bg-blue-500/10 text-blue-400 transition-all hover:-translate-y-0.5 inline-flex items-center justify-center gap-1"><Eye className="h-3 w-3" /> View</button>
-            <button type="button" title="Edit" onClick={onEdit} className="flex-1 py-1.5 rounded-lg text-[11px] font-medium bg-blue-500/10 text-blue-400 transition-all hover:-translate-y-0.5 inline-flex items-center justify-center gap-1"><Pencil className="h-3 w-3" /> Edit</button>
+            <button type="button" title="View" onClick={onView} className="flex-1 py-1.5 rounded-lg text-[11px] font-medium bg-brand-500/10 text-brand-400 transition-all hover:-translate-y-0.5 inline-flex items-center justify-center gap-1"><Eye className="h-3 w-3" /> View</button>
+            <button type="button" title="Edit" onClick={onEdit} className="flex-1 py-1.5 rounded-lg text-[11px] font-medium bg-brand-500/10 text-brand-400 transition-all hover:-translate-y-0.5 inline-flex items-center justify-center gap-1"><Pencil className="h-3 w-3" /> Edit</button>
             <button type="button" title="Delete" onClick={onDelete} className="flex-1 py-1.5 rounded-lg text-[11px] font-medium bg-rose-500/10 text-rose-400 transition-all hover:-translate-y-0.5 inline-flex items-center justify-center gap-1"><Trash2 className="h-3 w-3" /> Delete</button>
           </div>
         </div>

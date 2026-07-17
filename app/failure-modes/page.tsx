@@ -2,12 +2,10 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { api } from '@/lib/apiClient';
 import { AppShell } from '@/components/app-shell';
 import { AlertOctagon, ChevronDown, ChevronUp, RefreshCw } from '@/components/shared/theme';
 import { useTheme, PageHero, StatTile, ACCENT_HEX } from '@/components/shared/theme';
-
-const _API = (process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com').replace(/\/$/, '');
-const FM_URL = `${_API}/api/failure-modes`;
 
 interface FailureModeAPI {
   id: number; equipment_type?: string; component?: string; failure_mode?: string; failure_cause?: string;
@@ -56,7 +54,7 @@ function FailureModesContent() {
 
   const fetchModes = useCallback(async () => {
     setLoading(true);
-    try { const r = await fetch(FM_URL); if (r.ok) setModes((await r.json() as FailureModeAPI[]).map(fromFMAPI)); }
+    try { setModes((await api.get<FailureModeAPI[]>('/api/failure-modes')).map(fromFMAPI)); }
     catch { /* network */ } finally { setLoading(false); }
   }, []);
   useEffect(() => { fetchModes(); }, [fetchModes]);
@@ -90,9 +88,9 @@ function FailureModesContent() {
         <div className={`p-4 border-b ${t.border} flex items-center justify-between flex-wrap gap-3`}>
           <h2 className={`font-semibold ${t.textPrimary}`}>Failure Modes</h2>
           <div className="flex gap-2 flex-wrap">
-            <button type="button" onClick={() => setEquipFilter('all')} className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${equipFilter === 'all' ? 'bg-blue-500/20 text-blue-400' : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}>All</button>
+            <button type="button" onClick={() => setEquipFilter('all')} className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${equipFilter === 'all' ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}>All</button>
             {EQ_TYPES_STATIC.map(eq => (
-              <button type="button" key={eq} onClick={() => setEquipFilter(eq)} className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${equipFilter === eq ? 'bg-blue-500/20 text-blue-400' : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}>{eq}</button>
+              <button type="button" key={eq} onClick={() => setEquipFilter(eq)} className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${equipFilter === eq ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}>{eq}</button>
             ))}
           </div>
         </div>
@@ -132,7 +130,7 @@ function FailureModesContent() {
                       <div><span className={t.textFaint}>Detectability: </span><span className={t.textMuted}>{m.detectability}/5</span></div>
                       <div><span className={t.textFaint}>Last Occurred: </span><span className={t.textMuted}>{m.lastOccurred}</span></div>
                     </div>
-                    <div className="text-blue-400 text-xs font-semibold uppercase tracking-wider mb-1">Corrective Actions</div>
+                    <div className="text-brand-400 text-xs font-semibold uppercase tracking-wider mb-1">Corrective Actions</div>
                     <p className={`text-sm leading-relaxed ${t.textMuted}`}>{m.corrective}</p>
                   </div>
                   <div>

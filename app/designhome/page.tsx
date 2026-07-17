@@ -1,4 +1,4 @@
-﻿// app/designhome/page.tsx
+// app/designhome/page.tsx
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -134,7 +134,7 @@ const portfolioItems = [
     image: '/portfolio/corporate-1.jpg',
     tags: ['Modern', 'Professional', 'Clean'],
     featured: true,
-    colorScheme: 'from-blue-100 to-cyan-100'
+    colorScheme: 'from-brand-100 to-cyan-100'
   },
   {
     id: 3,
@@ -189,7 +189,7 @@ const portfolioItems = [
     image: '/portfolio/resume-3.jpg',
     tags: ['Tech', 'Modern', 'Clean'],
     featured: false,
-    colorScheme: 'from-blue-100 to-indigo-100'
+    colorScheme: 'from-brand-100 to-indigo-100'
   },
   {
     id: 8,
@@ -222,7 +222,7 @@ const services = [
     description: "Professional designs for business events, conferences, and corporate gatherings. Brand-aligned and sophisticated.",
     features: ["Brand Alignment", "Multiple Formats", "Bulk Orders", "Digital RSVP", "Custom Envelopes"],
     price: "From $199",
-    color: "from-blue-500 to-cyan-500",
+    color: "from-brand-500 to-cyan-500",
     delivery: "5-7 days",
     revisions: "2 rounds included"
   },

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { api } from '@/lib/apiClient';
 import { motion } from 'framer-motion';
 import {
   Shield, Plus, Search, RefreshCw, ChevronDown, ChevronUp,
@@ -12,6 +13,7 @@ import {
   Flashlight, Download, FileSpreadsheet, FileDown, Sun, Moon,
 } from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
+import { formatDate } from '@/lib/format';
 import { toast } from 'sonner';
 import {
   useTheme, Collapse, AnimatedText, PulsingIcon, CenterModal, GlowCard,
@@ -68,13 +70,11 @@ interface FormState {
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com';
-const PPE_API  = `${API_BASE}/api/ppe`;
 
 const PPE_TYPES: Record<string, PPETypeInfo> = {
   helmet:        { name: 'Safety Helmet',        shortName: 'Helmet',     color: '#94a3b8', icon: HardHat,    bgColor: 'bg-slate-500/15',   textColor: 'text-slate-300',   borderColor: 'border-slate-400/25',   description: 'Head protection for underground and surface operations' },
   gloves:        { name: 'Safety Gloves',        shortName: 'Gloves',     color: '#f87171', icon: Shield,     bgColor: 'bg-rose-500/15',    textColor: 'text-rose-300',    borderColor: 'border-rose-500/25',    description: 'Hand protection for handling materials and chemicals' },
-  glasses:       { name: 'Safety Glasses',       shortName: 'Glasses',    color: '#60a5fa', icon: Eye,        bgColor: 'bg-blue-500/15',    textColor: 'text-blue-300',    borderColor: 'border-blue-500/25',    description: 'Eye protection from dust and debris' },
+  glasses:       { name: 'Safety Glasses',       shortName: 'Glasses',    color: '#60a5fa', icon: Eye,        bgColor: 'bg-brand-500/15',    textColor: 'text-brand-300',    borderColor: 'border-brand-500/25',    description: 'Eye protection from dust and debris' },
   vest:          { name: 'High-Vis Vest',         shortName: 'Vest',       color: '#fbbf24', icon: Shirt,      bgColor: 'bg-amber-500/15',   textColor: 'text-amber-300',   borderColor: 'border-amber-500/25',   description: 'High visibility clothing for surface operations' },
   gumboots:      { name: 'Safety Gum Boots',     shortName: 'GumBoots',   color: '#a78bfa', icon: Shield,     bgColor: 'bg-violet-500/15',  textColor: 'text-violet-300',  borderColor: 'border-violet-500/25',  description: 'Steel-toe foot protection' },
   safety_shoes:  { name: 'Safety Shoes',         shortName: 'Shoes',      color: '#38bdf8', icon: Package,    bgColor: 'bg-sky-500/15',     textColor: 'text-sky-300',     borderColor: 'border-sky-500/25',     description: 'Protective footwear for various work environments' },
@@ -95,11 +95,7 @@ const STATUS_LABELS: Record<string, string> = { active: 'Active', expired: 'Due'
 
 // ─── UTILITIES ────────────────────────────────────────────────────────────────
 
-const fmtDate = (s?: string | null) => {
-  if (!s) return 'Not specified';
-  try { return new Date(s).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }); }
-  catch { return s; }
-};
+const fmtDate = (s?: string | null) => (s ? formatDate(s) : 'Not specified');
 
 const isExpiringSoon = (d?: string | null, days = 30) => {
   if (!d) return false;
@@ -111,13 +107,11 @@ const isExpired = (d?: string | null) => !!d && new Date(d) < new Date();
 
 // ─── API ─────────────────────────────────────────────────────────────────────
 
-const fetchPPERecords  = async () => { const r = await fetch(PPE_API); if (!r.ok) throw new Error(`${r.status}`); return r.json() as Promise<PPERecord[]>; };
-const fetchPPEStats    = async () => { try { const r = await fetch(`${PPE_API}/stats/summary`); return r.ok ? r.json() as Promise<PPEStats> : null; } catch { return null; } };
+const fetchPPERecords  = async () => api.get<PPERecord[]>('/api/ppe');
+const fetchPPEStats    = async () => { try { return await api.get<PPEStats>('/api/ppe/stats/summary'); } catch { return null; } };
 const fetchAllEmployees = async (): Promise<EmployeeRow[]> => {
   try {
-    const r = await fetch(`${API_BASE}/api/employees/`);
-    if (!r.ok) return [];
-    const data: any[] = await r.json();
+    const data = await api.get<any[]>('/api/employees/');
     return data.map(e => ({
       employee_id: e.employee_id,
       employee_name: `${e.first_name || ''} ${e.last_name || ''}`.trim(),
@@ -130,17 +124,11 @@ const fetchAllEmployees = async (): Promise<EmployeeRow[]> => {
 const createPPERecord = async (data: Partial<FormState>) => {
   if (!data.employee_id?.trim()) throw new Error('Employee ID is required');
   if (!data.employee_name?.trim()) throw new Error('Employee name is required');
-  const r = await fetch(PPE_API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...data, department: 'MAINTENANCE', expiry_date: data.expiry_date || null }) });
-  if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || `HTTP ${r.status}`); }
-  return r.json();
+  return api.post('/api/ppe', { ...data, department: 'MAINTENANCE', expiry_date: data.expiry_date || null });
 };
-const updatePPERecord = async (id: string, data: Partial<FormState>) => {
-  const r = await fetch(`${PPE_API}/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...data, department: 'MAINTENANCE', expiry_date: data.expiry_date || null }) });
-  if (!r.ok) throw new Error(`${r.status}`); return r.json();
-};
-const deletePPERecord = async (id: string) => {
-  const r = await fetch(`${PPE_API}/${id}`, { method: 'DELETE' }); if (!r.ok) throw new Error(`${r.status}`); return r.json();
-};
+const updatePPERecord = async (id: string, data: Partial<FormState>) =>
+  api.patch(`/api/ppe/${id}`, { ...data, department: 'MAINTENANCE', expiry_date: data.expiry_date || null });
+const deletePPERecord = async (id: string) => api.delete(`/api/ppe/${id}`);
 
 // ─── BADGES ───────────────────────────────────────────────────────────────────
 // Rendered via the shared `StatusBadge` component now (see imports) —
@@ -284,7 +272,7 @@ function PPEItemCard({ record, onEdit, onDelete, onView }: PPEItemCardProps) {
         <button onClick={() => onView(record)} type="button" className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg ${t.chipBg} ${t.textMuted} ${t.hoverText} text-[12px] font-semibold transition-all`}>
           <Eye className="h-3.5 w-3.5" /> View
         </button>
-        <button onClick={() => onEdit(record)} type="button" className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 text-white text-[12px] font-semibold hover:brightness-110 transition-all">
+        <button onClick={() => onEdit(record)} type="button" className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 text-white text-[12px] font-semibold hover:brightness-110 transition-all">
           <Pencil className="h-3.5 w-3.5" /> Edit
         </button>
         <button onClick={() => onDelete(record.id)} type="button" className={`px-4 flex items-center justify-center gap-1.5 py-2 rounded-lg ${t.chipBg} text-rose-500 hover:bg-rose-500/10 text-[12px] font-semibold transition-all`}>
@@ -337,7 +325,7 @@ function EmployeePPECard({ employee, isExpanded, onToggle, onIssueNew, onEditIte
       </>}
       headerActions={
         <button type="button" onClick={e => { e.stopPropagation(); onIssueNew(employee); }} title="Issue new PPE"
-          className="flex items-center gap-1.5 text-[12px] h-7 px-2.5 rounded-lg font-semibold text-white bg-gradient-to-br from-blue-500 to-blue-700 hover:brightness-110 transition-all">
+          className="flex items-center gap-1.5 text-[12px] h-7 px-2.5 rounded-lg font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all">
           <Plus className="h-3 w-3" /> Issue
         </button>
       }
@@ -695,7 +683,7 @@ function DueItemsList({ employees, filterType, onEditItem, onDeleteItem, onViewI
 
                   <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
                     <button type="button" title="Edit" onClick={() => onEditItem(item)}
-                      className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} hover:text-blue-500 transition-all`}>
+                      className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} hover:text-brand-500 transition-all`}>
                       <Pencil className="h-3.5 w-3.5" />
                     </button>
                     <button type="button" title="Delete" onClick={() => onDeleteItem(item.id)}

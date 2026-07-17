@@ -2,6 +2,7 @@
 'use client';
 
 import { AppShell } from '@/components/app-shell';
+import { api } from '@/lib/apiClient';
 import { formatCurrency, formatCurrencyShort, nowLocal, fmtDateTime as formatDateTime } from '@/components/shared/utils';
 import {
   useTheme, PageHero, StatTile, StatCard, FormField, SearchInput, PrimaryButton,
@@ -23,7 +24,6 @@ import {
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com';
 const uid = () => Math.random().toString(36).slice(2);
 
 // ─── INTERFACES ───────────────────────────────────────────────────────────────
@@ -217,31 +217,20 @@ function topBy(issues: StockIssue[], key: 'recipient_name' | 'description', n = 
 // ─── API ─────────────────────────────────────────────────────────────────────
 
 async function apiGetIssues(): Promise<StockIssue[]> {
-  const r = await fetch(`${API_URL}/api/issues?limit=2000`);
-  if (!r.ok) throw new Error(`Fetch failed: ${r.status}`);
-  return r.json();
+  return api.get<StockIssue[]>('/api/issues?limit=2000');
 }
 
 async function apiCreateIssue(payload: object): Promise<StockIssue> {
-  const r = await fetch(`${API_URL}/api/issues`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  if (!r.ok) { const e = await r.json(); throw new Error(e.detail || 'Failed to record'); }
-  return r.json();
+  return api.post<StockIssue>('/api/issues', payload);
 }
 
 async function apiDeleteIssue(id: number): Promise<void> {
-  const r = await fetch(`${API_URL}/api/issues/${id}`, { method: 'DELETE' });
-  if (!r.ok) throw new Error('Failed to delete');
+  await api.delete(`/api/issues/${id}`);
 }
 
 async function apiGetStats(): Promise<Stats> {
   try {
-    const r = await fetch(`${API_URL}/api/issues/stats/summary`);
-    if (!r.ok) throw new Error();
-    return r.json();
+    return await api.get<Stats>('/api/issues/stats/summary');
   } catch { return { total: 0, today: 0, this_week: 0, unique_recipients: 0 }; }
 }
 
@@ -263,8 +252,7 @@ const ComboField = React.memo(({
     if (fetched) return;
     setLoading(true);
     try {
-      const r = await fetch(`${API_URL}${fetchUrl}`);
-      const data = await r.json();
+      const data = await api.get<any>(fetchUrl);
       setOptions(mapOptions(Array.isArray(data) ? data : []));
     } catch {} finally { setLoading(false); setFetched(true); }
   }, [fetched, fetchUrl, mapOptions]);
@@ -423,7 +411,7 @@ function IssuesPageContent() {
       const [issueData, statsData, spareData] = await Promise.all([
         apiGetIssues(),
         apiGetStats(),
-        fetch(`${API_URL}/api/spares?limit=5000`).then(r => r.ok ? r.json() : []).catch(() => []),
+        api.get<any[]>('/api/spares?limit=5000').catch(() => []),
       ]);
       setIssues(Array.isArray(issueData) ? issueData : []);
       setServerStats(statsData);
@@ -825,7 +813,7 @@ function IssuesPageContent() {
                 { id: 'analytics', label: 'Analytics', icon: BarChart3 },
               ] as const).map(tab => (
                 <button key={tab.id} type="button" onClick={() => setLogTab(tab.id)}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${logTab === tab.id ? 'bg-blue-500/15 text-blue-500' : `${t.textFaint} ${t.hoverBg} ${t.hoverText}`}`}>
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${logTab === tab.id ? 'bg-brand-500/15 text-brand-500' : `${t.textFaint} ${t.hoverBg} ${t.hoverText}`}`}>
                   <tab.icon className="h-3 w-3" />
                   {tab.label}
                 </button>
@@ -838,7 +826,7 @@ function IssuesPageContent() {
               <div className="flex items-center gap-1">
                 {(['day', 'week', 'month'] as const).map(p => (
                   <button key={p} type="button" onClick={() => setPeriod(p)}
-                    className={`h-6 px-2.5 text-[11px] rounded-lg capitalize transition-all ${period === p ? 'bg-blue-500/15 text-blue-500' : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}>
+                    className={`h-6 px-2.5 text-[11px] rounded-lg capitalize transition-all ${period === p ? 'bg-brand-500/15 text-brand-500' : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}>
                     {p === 'day' ? 'Daily' : p === 'week' ? 'Weekly' : 'Monthly'}
                   </button>
                 ))}

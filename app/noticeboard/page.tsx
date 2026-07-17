@@ -2,6 +2,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { api } from '@/lib/apiClient';
 import { AppShell } from '@/components/app-shell';
 import { fmtDate as formatDate, fmtDateTime as formatDateTime } from '@/components/shared/utils';
 import {
@@ -63,39 +64,27 @@ interface CalculatedStats {
 
 // ==================== API ====================
 
-const API_BASE_URL = `${process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com'}/api/notices`;
-
 const noticeboardApi = {
   async getAllNotices(filters: Record<string, string | boolean | undefined> = {}) {
     const params = new URLSearchParams();
     Object.entries(filters).forEach(([k, v]) => {
       if (v !== undefined && v !== null && v !== 'all') params.append(k, String(v));
     });
-    const url = `${API_BASE_URL}${params.toString() ? `?${params.toString()}` : ''}`;
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
+    const data = await api.get<any>(`/api/notices${params.toString() ? `?${params.toString()}` : ''}`);
     return Array.isArray(data) ? data : [];
   },
   async createNotice(data: NoticeFormData) {
-    const res = await fetch(API_BASE_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
-    if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
-    return res.json();
+    return api.post('/api/notices', data);
   },
   async updateNotice(id: string, data: NoticeFormData) {
-    const res = await fetch(`${API_BASE_URL}/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res.json();
+    return api.put(`/api/notices/${id}`, data);
   },
   async deleteNotice(id: string) {
-    const res = await fetch(`${API_BASE_URL}/${id}`, { method: 'DELETE' });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    await api.delete(`/api/notices/${id}`);
     return { success: true };
   },
   async togglePin(id: string, current: boolean) {
-    const res = await fetch(`${API_BASE_URL}/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ is_pinned: !current }) });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res.json();
+    return api.patch(`/api/notices/${id}`, { is_pinned: !current });
   },
 };
 
@@ -193,7 +182,7 @@ function NoticeDetailsModal({ isOpen, onClose, notice, onDelete, onEdit, onToggl
         {(notice.attachment_name || notice.attachment_url) && (
           <div className={`rounded-lg p-3 flex items-center justify-between gap-3 ${t.chipBg}`}>
             <div className="flex items-center gap-2 min-w-0">
-              <Paperclip className="h-4 w-4 text-blue-500 shrink-0" />
+              <Paperclip className="h-4 w-4 text-brand-500 shrink-0" />
               <div className="min-w-0">
                 <p className={`text-sm font-medium truncate ${t.textPrimary}`}>{notice.attachment_name || 'Unnamed file'}</p>
                 {notice.attachment_size && <p className={`text-[11px] ${t.textFaint}`}>{notice.attachment_size}</p>}
@@ -201,7 +190,7 @@ function NoticeDetailsModal({ isOpen, onClose, notice, onDelete, onEdit, onToggl
             </div>
             {notice.attachment_url && (
               <a href={notice.attachment_url} target="_blank" rel="noopener noreferrer" title="Download attachment"
-                className={`h-8 w-8 flex items-center justify-center rounded-lg shrink-0 ${t.hoverBg} ${t.textFaint} hover:text-blue-500`}>
+                className={`h-8 w-8 flex items-center justify-center rounded-lg shrink-0 ${t.hoverBg} ${t.textFaint} hover:text-brand-500`}>
                 <Download className="h-4 w-4" />
               </a>
             )}
@@ -256,7 +245,7 @@ function NoticeCard({ notice, onView, onEdit, onDelete }: {
           <StatusBadge color="#64748b" label={notice.category} />
           {isExpired && <StatusBadge color="#f43f5e" label="Expired" />}
           {expiresSoon && !isExpired && <StatusBadge color="#f59e0b" label="Expires Soon" />}
-          {notice.attachment_name && <Paperclip className="h-3.5 w-3.5 text-blue-500" />}
+          {notice.attachment_name && <Paperclip className="h-3.5 w-3.5 text-brand-500" />}
         </div>
       </div>
       <div className={`px-4 py-2.5 border-t ${t.border} flex items-center justify-between`}>
@@ -265,7 +254,7 @@ function NoticeCard({ notice, onView, onEdit, onDelete }: {
           <StatusBadge color={STATUS_HEX[notice.status] ?? '#94a3b8'} label={notice.status} />
         </div>
         <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
-          <button type="button" title="Edit" onClick={() => onEdit(notice)} className={`h-7 w-7 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-blue-500`}><Edit className="h-3.5 w-3.5" /></button>
+          <button type="button" title="Edit" onClick={() => onEdit(notice)} className={`h-7 w-7 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-brand-500`}><Edit className="h-3.5 w-3.5" /></button>
           <button type="button" title="Delete" onClick={() => { if (confirm('Delete this notice?')) onDelete(notice.id); }} className={`h-7 w-7 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-rose-500`}><Trash2 className="h-3.5 w-3.5" /></button>
         </div>
       </div>
@@ -372,11 +361,11 @@ function EditNoticeModal({ isOpen, onClose, notice, onSave, isLoading }: {
           </label>
           <div className="flex flex-wrap gap-6">
             <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={form.is_pinned} onChange={e => setForm(p => ({ ...p, is_pinned: e.target.checked }))} className="h-4 w-4 accent-blue-600" />
+              <input type="checkbox" checked={form.is_pinned} onChange={e => setForm(p => ({ ...p, is_pinned: e.target.checked }))} className="h-4 w-4 accent-brand-600" />
               <span className={`text-sm ${t.textMuted}`}>Pin to top</span>
             </label>
             <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={form.requires_acknowledgment} onChange={e => setForm(p => ({ ...p, requires_acknowledgment: e.target.checked }))} className="h-4 w-4 accent-blue-600" />
+              <input type="checkbox" checked={form.requires_acknowledgment} onChange={e => setForm(p => ({ ...p, requires_acknowledgment: e.target.checked }))} className="h-4 w-4 accent-brand-600" />
               <span className={`text-sm ${t.textMuted}`}>Require acknowledgment</span>
             </label>
           </div>
@@ -544,7 +533,7 @@ function NoticeboardContent() {
                   <td className={`px-3 py-2.5 text-xs ${t.textMuted}`}>{formatDate(notice.date)}</td>
                   <td className="px-3 py-2.5" onClick={e => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-1">
-                      <button type="button" title="Edit" onClick={() => { setEditingNotice(notice); setIsModalOpen(true); }} className={`h-7 w-7 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-blue-500`}><Edit className="h-3.5 w-3.5" /></button>
+                      <button type="button" title="Edit" onClick={() => { setEditingNotice(notice); setIsModalOpen(true); }} className={`h-7 w-7 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-brand-500`}><Edit className="h-3.5 w-3.5" /></button>
                       <button type="button" title="Delete" onClick={() => { if (confirm('Delete this notice?')) handleDeleteNotice(notice.id); }} className={`h-7 w-7 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-rose-500`}><Trash2 className="h-3.5 w-3.5" /></button>
                     </div>
                   </td>

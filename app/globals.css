@@ -33,6 +33,21 @@ body {
 }
 
 @theme inline {
+  /* Brand color scale — the app's single source of truth for the primary
+     action/interactive color. Utilities like `bg-brand-600`, `text-brand-500`,
+     `from-brand-500` all resolve here, and the actual values live in one place
+     (the --brand-* vars in :root below). To re-theme the whole app's action
+     color, edit those ~10 lines — nothing else. */
+  --color-brand-50: var(--brand-50);
+  --color-brand-100: var(--brand-100);
+  --color-brand-200: var(--brand-200);
+  --color-brand-300: var(--brand-300);
+  --color-brand-400: var(--brand-400);
+  --color-brand-500: var(--brand-500);
+  --color-brand-600: var(--brand-600);
+  --color-brand-700: var(--brand-700);
+  --color-brand-800: var(--brand-800);
+  --color-brand-900: var(--brand-900);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-body);
@@ -83,6 +98,20 @@ body {
 
 :root {
   --radius: 0.625rem;
+
+  /* ── Brand color (single source of truth for the app's action color) ──────────
+     Currently a rich purple (Tailwind purple scale). Change these to re-theme the
+     entire app's buttons/links/focus/active states in one place. */
+  --brand-50:  #faf5ff;
+  --brand-100: #f3e8ff;
+  --brand-200: #e9d5ff;
+  --brand-300: #d8b4fe;
+  --brand-400: #c084fc;
+  --brand-500: #a855f7;
+  --brand-600: #9333ea;
+  --brand-700: #7e22ce;
+  --brand-800: #6b21a8;
+  --brand-900: #581c87;
 
   /* Backgrounds */
   --background: oklch(0.978 0.006 234);

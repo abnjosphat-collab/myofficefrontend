@@ -2,13 +2,15 @@
 'use client';
 
 import React, { useState, useMemo, useEffect, useCallback } from "react";
+import { API_BASE } from '@/lib/config';
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { AppShell } from "@/components/app-shell";
+import { api } from "@/lib/apiClient";
 // All icons + components come from the shared design-system barrel (icons are
 // Phosphor-backed and respond to the global solid/outline toggle).
 import {
-  Users, RefreshCw, Loader2, UserCheck, ArrowUpDown, Hash,
+  Users, RefreshCw, UserCheck, ArrowUpDown, Hash,
   FilterX, ChevronsDownUp, ChevronsUpDown, ChevronDown, ChevronUp,
   Clock, AlertCircle, Trash2, X, Pencil, Mail, Briefcase,
   GraduationCap, Sparkles, UserRound, BriefcaseBusiness,
@@ -16,8 +18,9 @@ import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle,
   FormField, FormActions, useCollapseSection, CenterModal, ACCENT_HEX, SelectField,
   GroupSection, RecordCard, staggerContainer, fadeUp,
-  Subsection, InfoRow, SummaryItem,
+  Subsection, InfoRow, SummaryItem, LoadingState, AutofillInput,
 } from '@/components/shared/theme';
+import { formatDate } from '@/lib/format';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -76,7 +79,6 @@ type SortDir = 'asc' | 'desc';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com';
 const EMPLOYEES_API = `${API_BASE}/api/employees`;
 const CLASS_OPTIONS = ['Permanent', 'Contract', 'Internship', 'Part-Time'] as const;
 
@@ -131,35 +133,19 @@ function tenure(eng?: string) {
   } catch { return '—'; }
 }
 
-function fmtDate(d?: string) {
-  if (!d) return '—';
-  const dt = new Date(d);
-  return isNaN(dt.getTime()) ? '—' : dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-}
+// fmtDate was identical to the shared formatDate — alias it to the single source.
+const fmtDate = formatDate;
 
 
 // ─── API ──────────────────────────────────────────────────────────────────────
 
-async function apiFetch<T>(url: string, opts?: RequestInit): Promise<T> {
-  const r = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...opts });
-  if (!r.ok) {
-    const e = await r.json().catch(() => ({}));
-    const d = e.detail;
-    throw new Error(
-      Array.isArray(d) ? d.map((x: { msg?: string }) => x.msg || String(x)).join('; ')
-        : typeof d === 'string' ? d : e.message || `HTTP ${r.status}`
-    );
-  }
-  return r.json();
-}
-
-async function loadEmployees() { return apiFetch<Employee[]>(EMPLOYEES_API); }
+async function loadEmployees() { return api.get<Employee[]>(EMPLOYEES_API); }
 async function saveEmployee(data: EmployeeFormData, id?: number) {
-  if (id) return apiFetch<Employee>(`${EMPLOYEES_API}/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-  return apiFetch<Employee>(EMPLOYEES_API, { method: 'POST', body: JSON.stringify(data) });
+  if (id) return api.put<Employee>(`${EMPLOYEES_API}/${id}`, data);
+  return api.post<Employee>(EMPLOYEES_API, data);
 }
 async function removeEmployee(id: number) {
-  await apiFetch(`${EMPLOYEES_API}/${id}`, { method: 'DELETE' });
+  await api.delete(`${EMPLOYEES_API}/${id}`);
 }
 
 // ─── Small themed building blocks ────────────────────────────────────────────
@@ -180,7 +166,7 @@ function FilterChips({ label, options, value, onChange }: {
             type="button"
             onClick={() => onChange(o.value)}
             className={`h-8 px-2.5 rounded-lg text-[13px] font-semibold transition-colors ${
-              value === o.value ? 'bg-blue-500/20 text-blue-400' : `${t.chipBg} ${t.textPrimary} ${t.hoverText} ${t.hoverBg}`
+              value === o.value ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textPrimary} ${t.hoverText} ${t.hoverBg}`
             }`}
           >
             {o.label}
@@ -289,7 +275,7 @@ function EmployeeForm({ initialData, onSubmit, onCancel, isSubmitting }: Employe
           className={inputCls}
         />
         <button type="button" onClick={() => addItem(f, temps[k], k)}
-          className="px-3 h-9 rounded-lg bg-blue-500/15 hover:bg-blue-500/25 text-blue-400 text-sm font-medium transition-all whitespace-nowrap">
+          className="px-3 h-9 rounded-lg bg-brand-500/15 hover:bg-brand-500/25 text-brand-400 text-sm font-medium transition-all whitespace-nowrap">
           Add
         </button>
       </div>
@@ -312,7 +298,7 @@ function EmployeeForm({ initialData, onSubmit, onCancel, isSubmitting }: Employe
           return (
             <button key={tb.id} type="button" onClick={() => setTab(tb.id)}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                tab === tb.id ? 'bg-blue-500/15 text-blue-400' : `${t.textFaint} ${t.hoverBg} ${t.hoverText}`
+                tab === tb.id ? 'bg-brand-500/15 text-brand-400' : `${t.textFaint} ${t.hoverBg} ${t.hoverText}`
               }`}>
               <Icon className="h-3.5 w-3.5" />{tb.label}
             </button>
@@ -361,8 +347,8 @@ function EmployeeForm({ initialData, onSubmit, onCancel, isSubmitting }: Employe
               {errors.date_of_engagement && <p className="text-xs text-rose-500 mt-1">{errors.date_of_engagement}</p>}
             </FormField>
             <FormField label="Designation" required>
-              <input value={form.designation} placeholder="Job title / position"
-                onChange={e => set('designation', e.target.value)}
+              <AutofillInput field="designation" value={form.designation} placeholder="Job title / position"
+                onChange={v => set('designation', v)}
                 className={`${inputCls} ${errors.designation ? 'ring-1 ring-rose-500/50' : ''}`} />
               {errors.designation && <p className="text-xs text-rose-500 mt-1">{errors.designation}</p>}
             </FormField>
@@ -397,7 +383,7 @@ function EmployeeForm({ initialData, onSubmit, onCancel, isSubmitting }: Employe
               { f: 'previous_employer' as const, label: 'Previous Employer' },
             ].map(({ f, label }) => (
               <FormField key={f} label={label}>
-                <input value={form[f]} onChange={e => set(f, e.target.value)} placeholder="Optional" className={inputCls} />
+                <AutofillInput field={f} value={form[f]} onChange={v => set(f, v)} placeholder="Optional" className={inputCls} />
               </FormField>
             ))}
           </div>
@@ -467,7 +453,7 @@ function EmployeeRow({ employee, onEdit, onDelete }: EmployeeRowProps) {
         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
           {employee.email && (
             <button type="button" title="Send email" onClick={() => window.open(`mailto:${employee.email}`, '_blank')}
-              className="h-7 w-7 flex items-center justify-center rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 transition-all">
+              className="h-7 w-7 flex items-center justify-center rounded-lg bg-brand-500/10 hover:bg-brand-500/20 text-brand-400 transition-all">
               <Mail className="h-3.5 w-3.5" strokeWidth={1.75} />
             </button>
           )}
@@ -478,7 +464,7 @@ function EmployeeRow({ employee, onEdit, onDelete }: EmployeeRowProps) {
             </button>
           )}
           <button type="button" title="Edit employee" onClick={() => onEdit(employee)}
-            className="h-7 w-7 flex items-center justify-center rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 transition-all">
+            className="h-7 w-7 flex items-center justify-center rounded-lg bg-brand-500/10 hover:bg-brand-500/20 text-brand-400 transition-all">
             <Pencil className="h-3.5 w-3.5" />
           </button>
           <button type="button" title="Delete employee" onClick={() => onDelete(employee)}
@@ -502,20 +488,20 @@ function EmployeeRow({ employee, onEdit, onDelete }: EmployeeRowProps) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className={`${t.chipBg} rounded-xl overflow-hidden`}>
               <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}>
-                <UserRound className="h-3.5 w-3.5 text-blue-400" />
+                <UserRound className="h-3.5 w-3.5 text-brand-400" />
                 <span className={`text-xs font-semibold uppercase tracking-wider ${t.textSecondary}`}>Personal</span>
               </div>
               <div className="px-3.5 py-3 grid grid-cols-2 gap-x-6 gap-y-2.5">
                 <InfoRow label="ID Number" value={employee.id_number} />
-                <InfoRow label="Phone" value={employee.phone ? <a href={`tel:${employee.phone}`} className="text-blue-400 hover:underline">{employee.phone}</a> : undefined} />
-                <div className="col-span-2"><InfoRow label="Email" value={employee.email ? <a href={`mailto:${employee.email}`} className="text-blue-400 hover:underline">{employee.email}</a> : undefined} /></div>
+                <InfoRow label="Phone" value={employee.phone ? <a href={`tel:${employee.phone}`} className="text-brand-400 hover:underline">{employee.phone}</a> : undefined} />
+                <div className="col-span-2"><InfoRow label="Email" value={employee.email ? <a href={`mailto:${employee.email}`} className="text-brand-400 hover:underline">{employee.email}</a> : undefined} /></div>
                 {employee.address && <div className="col-span-2"><InfoRow label="Address" value={employee.address} /></div>}
               </div>
             </div>
 
             <div className={`${t.chipBg} rounded-xl overflow-hidden`}>
               <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}>
-                <BriefcaseBusiness className="h-3.5 w-3.5 text-blue-400" />
+                <BriefcaseBusiness className="h-3.5 w-3.5 text-brand-400" />
                 <span className={`text-xs font-semibold uppercase tracking-wider ${t.textSecondary}`}>Employment</span>
               </div>
               <div className="px-3.5 py-3 grid grid-cols-2 gap-x-6 gap-y-2.5">
@@ -532,7 +518,7 @@ function EmployeeRow({ employee, onEdit, onDelete }: EmployeeRowProps) {
           {quals > 0 && (
             <div className={`${t.chipBg} rounded-xl overflow-hidden`}>
               <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}>
-                <GraduationCap className="h-3.5 w-3.5 text-blue-400" />
+                <GraduationCap className="h-3.5 w-3.5 text-brand-400" />
                 <span className={`text-xs font-semibold uppercase tracking-wider ${t.textSecondary}`}>Qualifications</span>
                 <span className={`text-[10px] ml-1 ${t.textFaint}`}>{quals} recorded</span>
               </div>
@@ -571,7 +557,7 @@ function EmployeeRow({ employee, onEdit, onDelete }: EmployeeRowProps) {
 
           <div className="flex items-center gap-2 pt-1">
             <button type="button" onClick={() => onEdit(employee)}
-              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-blue-500/15 hover:bg-blue-500/25 text-blue-400 transition-all font-medium">
+              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-brand-500/15 hover:bg-brand-500/25 text-brand-400 transition-all font-medium">
               <Pencil className="h-3 w-3" /> Edit Employee
             </button>
             <button type="button" onClick={() => onDelete(employee)}
@@ -613,7 +599,7 @@ function EmployeeCard({ employee, onEdit, onDelete }: { employee: Employee; onEd
         </div>
       }
       actions={<>
-        <button onClick={() => onEdit(employee)} type="button" className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 text-white text-[12px] font-semibold hover:brightness-110 transition-all">
+        <button onClick={() => onEdit(employee)} type="button" className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 text-white text-[12px] font-semibold hover:brightness-110 transition-all">
           <Pencil className="h-3.5 w-3.5" /> Edit
         </button>
         <button onClick={() => onDelete(employee)} type="button" className={`px-4 flex items-center justify-center gap-1.5 py-2 rounded-lg ${t.chipBg} text-rose-500 hover:bg-rose-500/10 text-[12px] font-semibold transition-all`}>
@@ -631,7 +617,7 @@ function EmployeeCard({ employee, onEdit, onDelete }: { employee: Employee; onEd
         <InfoRow label="Class" value={employee.employee_class || 'Unclassified'} />
       </div>
       {employee.email && (
-        <a href={`mailto:${employee.email}`} className="flex items-center gap-1.5 text-xs text-blue-400 hover:underline w-fit">
+        <a href={`mailto:${employee.email}`} className="flex items-center gap-1.5 text-xs text-brand-400 hover:underline w-fit">
           <Mail className="h-3 w-3" strokeWidth={1.75} />{employee.email}
         </a>
       )}
@@ -858,7 +844,7 @@ function EmployeesPageContent() {
               className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-colors disabled:opacity-40`}>
               <Download className="h-4 w-4" />
             </button>
-            <button type="button" onClick={openAdd} className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-blue-500 to-blue-700 transition-all hover:brightness-110">
+            <button type="button" onClick={openAdd} className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 transition-all hover:brightness-110">
               <Plus className="h-3.5 w-3.5" /> Add Employee
             </button>
           </>
@@ -886,7 +872,7 @@ function EmployeesPageContent() {
           <SearchInput value={search} onChange={setSearch} placeholder="Search name, ID, role…" className="flex-1" />
           <div className="flex gap-2 flex-wrap items-center">
             <button type="button" onClick={() => setShowFilters(v => !v)}
-              className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-medium transition-colors ${showFilters ? 'bg-blue-500/15 text-blue-400' : `${t.textMuted} ${t.hoverText} ${t.glassSoft}`}`}>
+              className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-medium transition-colors ${showFilters ? 'bg-brand-500/15 text-brand-400' : `${t.textMuted} ${t.hoverText} ${t.glassSoft}`}`}>
               <Filter className="h-3.5 w-3.5" /> Filters
               {activeFilterCount > 0 && <span className={`ml-1 px-1.5 py-0.5 ${t.chipBg} rounded text-[10px]`}>{activeFilterCount}</span>}
             </button>
@@ -954,7 +940,7 @@ function EmployeesPageContent() {
 
         {isLoading ? (
           <div className={`${t.glass} rounded-2xl p-16 text-center`}>
-            <Loader2 className={`h-8 w-8 animate-spin ${t.textFaint} mx-auto`} />
+            <LoadingState />
           </div>
         ) : filtered.length === 0 ? (
           <div className={`${t.glass} rounded-2xl p-12 text-center`}>
@@ -963,7 +949,7 @@ function EmployeesPageContent() {
                 <Users className={`h-12 w-12 ${t.textFaint} mx-auto mb-4`} />
                 <h3 className={`text-lg font-semibold ${t.textPrimary} mb-2`}>No employees yet</h3>
                 <p className={`text-sm mb-4 ${t.textFaint}`}>Add your first employee to get started.</p>
-                <button type="button" onClick={openAdd} className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-blue-500 to-blue-700 hover:brightness-110 transition-all">
+                <button type="button" onClick={openAdd} className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all">
                   <Plus className="h-3.5 w-3.5" /> Add Employee
                 </button>
               </>

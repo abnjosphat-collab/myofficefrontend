@@ -2,14 +2,13 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { api } from '@/lib/apiClient';
 import { AppShell } from '@/components/app-shell';
 import { Activity, RefreshCw } from '@/components/shared/theme';
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts';
 import { useTheme, PageHero, StatTile, ACCENT_HEX } from '@/components/shared/theme';
-
-const _API = (process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com').replace(/\/$/, '');
 
 const MTBF_TREND = [
   { month: 'Jan', SAGMill: 18, BallMill: 24, JawCrusher: 12, Compressor: 45 },
@@ -67,9 +66,7 @@ function ReliabilityContent() {
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const r = await fetch(`${_API}/api/breakdowns`);
-      if (!r.ok) return;
-      const bds: BreakdownRecord[] = await r.json();
+      const bds = await api.get<BreakdownRecord[]>('/api/breakdowns');
       const equipMap: Record<string, { failures: number; totalDowntime: number; firstDate: Date; lastDate: Date; section: string }> = {};
       const now = new Date();
       for (const bd of bds) {
@@ -183,7 +180,7 @@ function ReliabilityContent() {
                 <tr key={eq.equipment} className={`border-b ${t.border} last:border-0 ${t.hoverBgSoft} transition-colors`}>
                   <td className={`px-4 py-3 font-medium ${t.textPrimary}`}>{eq.equipment}</td>
                   <td className={`px-4 py-3 ${t.textMuted}`}>{eq.section}</td>
-                  <td className="px-4 py-3 text-blue-400 font-semibold">{eq.mtbf}</td>
+                  <td className="px-4 py-3 text-brand-400 font-semibold">{eq.mtbf}</td>
                   <td className="px-4 py-3 text-amber-400 font-semibold">{eq.mttr}</td>
                   <td className={`px-4 py-3 ${t.textMuted}`}>{eq.failures}</td>
                   <td className="px-4 py-3"><span className={`font-semibold ${availColor(eq.availability)}`}>{eq.availability}%</span></td>

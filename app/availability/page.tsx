@@ -9,6 +9,7 @@ import {
   Clock, Activity, Percent, Calculator,
 } from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
+import { formatDate } from '@/lib/format';
 import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, ProgressBar, useCollapseSection, ACCENT_HEX, SelectField,
 } from '@/components/shared/theme';
@@ -68,8 +69,7 @@ const MOCK_STATS: AvailabilityStats = {
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 
-const fmtDate = (d: string | null) =>
-  d ? new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : 'Not scheduled';
+const fmtDate = (d: string | null) => (d ? formatDate(d) : 'Not scheduled');
 
 function statusCfg(status: Equipment['status']) {
   const map: Record<Equipment['status'], { color: string; label: string }> = {
@@ -182,7 +182,7 @@ function AvailabilityContent() {
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className={`${t.glass} rounded-xl p-4`}>
-          <div className="flex items-center gap-1.5 mb-1"><Percent className="h-3.5 w-3.5 text-blue-400" /><span className={`text-xs ${t.textFaint}`}>Overall Availability</span></div>
+          <div className="flex items-center gap-1.5 mb-1"><Percent className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs ${t.textFaint}`}>Overall Availability</span></div>
           <div className={`text-xl font-bold ${avColor(stats.overallAvailability)}`}>{stats.overallAvailability.toFixed(1)}%</div>
           <div className="mt-2"><ProgressBar value={stats.overallAvailability} color={avHex(stats.overallAvailability)} showValue={false} /></div>
         </div>
@@ -202,7 +202,7 @@ function AvailabilityContent() {
 
       <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
         <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}>
-          <Search className="h-4 w-4 text-blue-400" />
+          <Search className="h-4 w-4 text-brand-400" />
           <span className={`font-semibold text-sm ${t.textPrimary}`}>Filters</span>
         </div>
         <div className="px-5 pb-4 pt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -224,7 +224,7 @@ function AvailabilityContent() {
       <div className={`flex items-center gap-1 ${t.glassSoft} rounded-xl p-1 w-fit`}>
         {TABS.map(tb => (
           <button key={tb.key} type="button" onClick={() => setTab(tb.key)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${tab === tb.key ? 'bg-blue-500/20 text-blue-400' : `${t.textFaint} ${t.hoverText} ${t.hoverBg}`}`}>
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${tab === tb.key ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} ${t.hoverText} ${t.hoverBg}`}`}>
             <tb.icon className="h-4 w-4" />{tb.label}
           </button>
         ))}
@@ -235,7 +235,7 @@ function AvailabilityContent() {
       ) : tab === 'overview' ? (
         <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
           <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}>
-            <Gauge className="h-4 w-4 text-blue-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Equipment Availability Dashboard</span>
+            <Gauge className="h-4 w-4 text-brand-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Equipment Availability Dashboard</span>
           </div>
           {filtered.length === 0 ? (
             <div className={`py-12 text-center text-sm ${t.textFaint}`}>No equipment data. Add equipment and breakdown data to start tracking.</div>
@@ -285,7 +285,7 @@ function AvailabilityContent() {
       ) : tab === 'detailed' ? (
         <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
           <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}>
-            <Calculator className="h-4 w-4 text-blue-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Detailed Availability Analysis</span>
+            <Calculator className="h-4 w-4 text-brand-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Detailed Availability Analysis</span>
           </div>
           {filtered.length === 0 ? (
             <div className={`py-12 text-center text-sm ${t.textFaint}`}>No equipment data available for detailed analysis.</div>
@@ -306,7 +306,7 @@ function AvailabilityContent() {
                       <td className={`${tdCls} text-center`}><StatusBadge color={eq.mtbf > 200 ? '#34d399' : eq.mtbf > 100 ? '#94a3b8' : '#f87171'} label={`${eq.mtbf.toFixed(1)}h`} /></td>
                       <td className={`${tdCls} text-center`}><StatusBadge color={eq.mttr < 5 ? '#34d399' : eq.mttr < 10 ? '#94a3b8' : '#f87171'} label={`${eq.mttr.toFixed(1)}h`} /></td>
                       <td className={`${tdCls} text-xs`}>{fmtDate(eq.lastMaintenance)}</td>
-                      <td className="px-3 py-2.5 text-xs text-blue-400">{fmtDate(eq.nextMaintenance)}</td>
+                      <td className="px-3 py-2.5 text-xs text-brand-400">{fmtDate(eq.nextMaintenance)}</td>
                       <td className={`${tdCls} text-right`}>{eq.breakdownHours > 0 ? (eq.breakdownHours / eq.operationalHours * 100).toFixed(1) : '0.0'}%</td>
                       <td className={`${tdCls} text-right text-red-400 font-medium`}>${(eq.downtime * 250).toLocaleString()}</td>
                     </tr>
@@ -320,7 +320,7 @@ function AvailabilityContent() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
             <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}>
-              <LineChart className="h-4 w-4 text-blue-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Availability Trends</span>
+              <LineChart className="h-4 w-4 text-brand-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Availability Trends</span>
             </div>
             <div className="p-5">
               <div className={`rounded-xl border ${t.border} ${t.chipBg} h-48 flex items-center justify-center mb-4`}>
@@ -339,7 +339,7 @@ function AvailabilityContent() {
 
           <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
             <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}>
-              <BarChart3 className="h-4 w-4 text-blue-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Department Comparison</span>
+              <BarChart3 className="h-4 w-4 text-brand-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Department Comparison</span>
             </div>
             <div className="p-5 space-y-3">
               {departments.map(dept => {
@@ -363,7 +363,7 @@ function AvailabilityContent() {
 
       <div className="flex justify-end gap-2">
         <Link href="/equipment" className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-medium ${t.chipBg} ${t.textMuted} ${t.hoverBg}`}><ToolCase className="h-3.5 w-3.5" /> Manage Equipment</Link>
-        <Link href="/breakdowns/new" className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-blue-500 to-blue-700 hover:brightness-110 transition-all"><Plus className="h-3.5 w-3.5" /> Report Breakdown</Link>
+        <Link href="/breakdowns/new" className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all"><Plus className="h-3.5 w-3.5" /> Report Breakdown</Link>
         <Link href="/reports/availability" className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-medium ${t.chipBg} ${t.textMuted} ${t.hoverBg}`}><BarChart3 className="h-3.5 w-3.5" /> Generate Report</Link>
       </div>
     </main>

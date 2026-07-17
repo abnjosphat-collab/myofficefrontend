@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback, ElementType } from 'react';
+import { api as apiClient } from '@/lib/apiClient';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,8 +19,6 @@ import {
 } from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
 import { useTheme, PageHero, ACCENT_HEX, useCollapseSection, EmptyState } from '@/components/shared/theme';
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com';
 
 // ─────────────────── TYPES ───────────────────
 
@@ -116,9 +115,7 @@ const getNECPeriod = (month: Date): Period => {
 
 const api = {
   async employees(): Promise<Employee[]> {
-    const r = await fetch(`${API_BASE}/api/employees`, { headers: { Accept: 'application/json' } });
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    const data = await r.json() as Record<string, unknown>[];
+    const data = await apiClient.get<Record<string, unknown>[]>('/api/employees');
     return (data || []).map(d => ({
       id: String(d.id || Math.random().toString(36).slice(2)),
       employeeId: (() => { const v = String(d.employee_id || '').trim(); return (v === '' || v.toUpperCase() === 'TBA') ? '' : v; })(),
@@ -132,26 +129,19 @@ const api = {
   async timesheets(startDate: string, endDate: string): Promise<TimesheetEntry[]> {
     try {
       const p = new URLSearchParams({ start_date: startDate, end_date: endDate });
-      const r = await fetch(`${API_BASE}/api/timesheets?${p}`, { headers: { Accept: 'application/json' } });
-      if (!r.ok) return [];
-      return (await r.json() as TimesheetEntry[]) || [];
+      return (await apiClient.get<TimesheetEntry[]>(`/api/timesheets?${p}`)) || [];
     } catch { return []; }
   },
   async create(data: Omit<TimesheetEntry, 'id'>): Promise<TimesheetEntry> {
-    const r = await fetch(`${API_BASE}/api/timesheets`, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify(data) });
-    if (!r.ok) throw new Error(`${r.status}`);
-    const res = await r.json() as { data?: TimesheetEntry } | TimesheetEntry;
+    const res = await apiClient.post<{ data?: TimesheetEntry } | TimesheetEntry>('/api/timesheets', data);
     return (res as { data?: TimesheetEntry }).data || (res as TimesheetEntry);
   },
   async update(id: number, data: Partial<TimesheetEntry>): Promise<TimesheetEntry> {
-    const r = await fetch(`${API_BASE}/api/timesheets/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify(data) });
-    if (!r.ok) throw new Error(`${r.status}`);
-    const res = await r.json() as { data?: TimesheetEntry } | TimesheetEntry;
+    const res = await apiClient.patch<{ data?: TimesheetEntry } | TimesheetEntry>(`/api/timesheets/${id}`, data);
     return (res as { data?: TimesheetEntry }).data || (res as TimesheetEntry);
   },
   async delete(id: number): Promise<void> {
-    const r = await fetch(`${API_BASE}/api/timesheets/${id}`, { method: 'DELETE', headers: { Accept: 'application/json' } });
-    if (!r.ok) throw new Error(`${r.status}`);
+    await apiClient.delete(`/api/timesheets/${id}`);
   },
 };
 
@@ -164,7 +154,7 @@ function SectionHeader({ icon: Icon, title, sub, open, onToggle, children }: {
   return (
     <div className={`flex items-center justify-between px-5 py-3 border-b ${t.border}`}>
       <div className="flex items-center gap-2 flex-wrap">
-        <Icon className="h-3.5 w-3.5 text-blue-400 shrink-0" />
+        <Icon className="h-3.5 w-3.5 text-brand-400 shrink-0" />
         <span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>{title}</span>
         {sub && <span className={`text-[11px] ${t.textFaint}`}>{sub}</span>}
       </div>
@@ -350,7 +340,7 @@ function TimesheetEntryDialog({ employee, date, entry, onSave, onDelete, onClose
                 <SelectItem key={k} value={k}><span className="flex items-center gap-2"><c.Icon className="w-3.5 h-3.5" />{c.label}</span></SelectItem>
               ))}</SelectContent>
             </Select>
-            {LEAVE_STATUSES.has(form.status) && <p className="text-xs text-blue-400 bg-blue-500/10 rounded px-2 py-1">8 hours auto-assigned for {STATUS_CFG[form.status]?.label}</p>}
+            {LEAVE_STATUSES.has(form.status) && <p className="text-xs text-brand-400 bg-brand-500/10 rounded px-2 py-1">8 hours auto-assigned for {STATUS_CFG[form.status]?.label}</p>}
             {DOUBLE_TIME_STATUSES.has(form.status) && <p className="text-xs text-violet-400 bg-violet-500/10 rounded px-2 py-1 font-medium">All hours worked count as <strong>2.0× (double time)</strong> — enter the actual shift times below</p>}
             {ZERO_HOUR_STATUSES.has(form.status) && <p className={`text-xs ${t.chipBg} rounded px-2 py-1 ${t.textFaint}`}>0 hours recorded — {STATUS_CFG[form.status]?.label} days are not credited</p>}
           </div>
@@ -394,9 +384,9 @@ function TimesheetEntryDialog({ employee, date, entry, onSave, onDelete, onClose
             )}
           </div>
 
-          <div className="flex justify-between items-center p-3 bg-blue-500/10 rounded-lg">
+          <div className="flex justify-between items-center p-3 bg-brand-500/10 rounded-lg">
             <span className={`font-semibold text-sm ${t.textMuted}`}>Total Hours</span>
-            <span className="text-xl font-bold text-blue-400">{total.toFixed(2)}h</span>
+            <span className="text-xl font-bold text-brand-400">{total.toFixed(2)}h</span>
           </div>
 
           <div className="p-3 rounded-lg bg-orange-500/[0.08] space-y-2">
@@ -431,7 +421,7 @@ function TimesheetEntryDialog({ employee, date, entry, onSave, onDelete, onClose
             <Button variant="outline" size="sm" className="mr-auto text-red-400 hover:bg-red-500/10 bg-transparent" onClick={() => setConfirmDelete(true)}><Trash2 className="w-3.5 h-3.5 mr-1" /> Delete entry</Button>
           )}
           <Button variant="outline" className={`${t.textMuted} bg-transparent`} onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSave} disabled={saving} className="bg-blue-600 hover:bg-blue-700 text-white">{saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}Save</Button>
+          <Button onClick={handleSave} disabled={saving} className="bg-brand-600 hover:bg-brand-700 text-white">{saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}Save</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -564,14 +554,14 @@ function BulkAssignDialog({ initialEmployee, allEmployees, period, timesheets, o
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label className={`text-xs font-semibold uppercase tracking-wide ${t.textFaint}`}>Employees ({selectedEmpIds.size} selected)</Label>
-              <button type="button" onClick={toggleAllEmps} className="text-xs text-blue-400 hover:underline">{selectedEmpIds.size === allEmployees.length ? 'Deselect all' : 'Select all'}</button>
+              <button type="button" onClick={toggleAllEmps} className="text-xs text-brand-400 hover:underline">{selectedEmpIds.size === allEmployees.length ? 'Deselect all' : 'Select all'}</button>
             </div>
             <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto p-1">
               {allEmployees.map(emp => {
                 const sel = selectedEmpIds.has(emp.id);
                 return (
                   <button key={emp.id} type="button" onClick={() => toggleEmp(emp.id)}
-                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${sel ? 'bg-blue-500/25 text-blue-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}>
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${sel ? 'bg-brand-500/25 text-brand-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}>
                     <User className="h-3.5 w-3.5 shrink-0" />
                     {emp.name}{sel && <Check className="w-3 h-3 opacity-70" />}
                   </button>
@@ -595,7 +585,7 @@ function BulkAssignDialog({ initialEmployee, allEmployees, period, timesheets, o
               <div className="flex flex-wrap gap-1">
                 {shiftPresets.map(p => (
                   <button key={p.label} type="button" onClick={() => { setStartTime(p.from); setEndTime(p.to); }}
-                    className={`text-[11px] px-2 py-1 rounded transition-colors ${startTime === p.from && endTime === p.to ? 'bg-blue-500/25 text-blue-400 font-semibold' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}>
+                    className={`text-[11px] px-2 py-1 rounded transition-colors ${startTime === p.from && endTime === p.to ? 'bg-brand-500/25 text-brand-400 font-semibold' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}>
                     {p.label}
                   </button>
                 ))}
@@ -625,7 +615,7 @@ function BulkAssignDialog({ initialEmployee, allEmployees, period, timesheets, o
             <div className="flex flex-wrap gap-1.5">
               {quickSelects.map(q => (
                 <button key={q.label} type="button" onClick={q.action}
-                  className={`text-xs px-2.5 py-1 rounded-lg transition-colors font-medium ${q.label === 'Clear ×' ? 'text-red-400 hover:bg-red-500/10' : 'text-blue-400/80 hover:bg-blue-500/10'}`}>
+                  className={`text-xs px-2.5 py-1 rounded-lg transition-colors font-medium ${q.label === 'Clear ×' ? 'text-red-400 hover:bg-red-500/10' : 'text-brand-400/80 hover:bg-brand-500/10'}`}>
                   {q.label}
                 </button>
               ))}
@@ -633,7 +623,7 @@ function BulkAssignDialog({ initialEmployee, allEmployees, period, timesheets, o
             <div className={`flex items-end gap-2 p-2.5 rounded-lg ${t.chipBg}`}>
               <div className="flex-1 min-w-0"><Label className={`text-xs ${t.textFaint}`}>From</Label><Input type="date" value={rangeFrom} min={fmtDate(period.start)} max={fmtDate(period.end)} onChange={e => setRangeFrom(e.target.value)} className={`${fieldCls} mt-1`} /></div>
               <div className="flex-1 min-w-0"><Label className={`text-xs ${t.textFaint}`}>To</Label><Input type="date" value={rangeTo} min={fmtDate(period.start)} max={fmtDate(period.end)} onChange={e => setRangeTo(e.target.value)} className={`${fieldCls} mt-1`} /></div>
-              <Button type="button" variant="outline" size="sm" className="h-8 shrink-0 text-blue-400/80 bg-transparent" onClick={() => selectRange(rangeFrom, rangeTo)}>Add Range</Button>
+              <Button type="button" variant="outline" size="sm" className="h-8 shrink-0 text-brand-400/80 bg-transparent" onClick={() => selectRange(rangeFrom, rangeTo)}>Add Range</Button>
             </div>
           </div>
 
@@ -663,10 +653,10 @@ function BulkAssignDialog({ initialEmployee, allEmployees, period, timesheets, o
                     className={`relative h-10 w-full rounded-lg text-sm font-medium transition-all select-none ${
                       disabled ? 'opacity-20 cursor-not-allowed' :
                       isAnchor ? 'bg-amber-500 text-white shadow-lg ring-2 ring-amber-400/50' :
-                      sel ? 'bg-blue-500/30 text-blue-300 shadow-md' :
-                      inPreview ? 'bg-blue-500/15 text-blue-400' :
+                      sel ? 'bg-brand-500/30 text-brand-300 shadow-md' :
+                      inPreview ? 'bg-brand-500/15 text-brand-400' :
                       `${t.chipBg} ${t.textFaint} ${t.hoverBg}`
-                    } ${ds === today ? 'ring-2 ring-blue-400/50' : ''}`}>
+                    } ${ds === today ? 'ring-2 ring-brand-400/50' : ''}`}>
                     {day.getDate()}
                     {hasEntry && !sel && !inPreview && <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-emerald-400" />}
                     {sel && !isAnchor && <Check className="absolute top-0.5 right-0.5 w-2.5 h-2.5 opacity-70" />}
@@ -677,19 +667,19 @@ function BulkAssignDialog({ initialEmployee, allEmployees, period, timesheets, o
 
             <div className={`flex items-center justify-between text-xs pt-1 ${t.textFaint}`}>
               <div className="flex items-center gap-3">
-                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-blue-500/30 inline-block" /> Selected</span>
+                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-brand-500/30 inline-block" /> Selected</span>
                 <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-amber-500 inline-block" /> Anchor</span>
-                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-blue-500/15 inline-block" /> Preview</span>
+                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-brand-500/15 inline-block" /> Preview</span>
                 <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" /> Has entry</span>
               </div>
-              <span className={`font-semibold ${t.textMuted}`}>{selectedDates.size} days × {selectedEmpIds.size} emp = <span className="text-blue-400">{totalEntries} entries</span>{totalEntries > 0 && regHours > 0 && ` · ${(regHours * totalEntries).toFixed(0)}h total`}</span>
+              <span className={`font-semibold ${t.textMuted}`}>{selectedDates.size} days × {selectedEmpIds.size} emp = <span className="text-brand-400">{totalEntries} entries</span>{totalEntries > 0 && regHours > 0 && ` · ${(regHours * totalEntries).toFixed(0)}h total`}</span>
             </div>
           </div>
         </div>
 
         <div className={`shrink-0 flex items-center justify-between gap-2 pt-3 border-t ${t.border} mt-2`}>
           <Button variant="outline" className={`${t.textMuted} bg-transparent`} onClick={onClose}>Done</Button>
-          <Button onClick={handleApply} disabled={saving || totalEntries === 0} className="bg-blue-600 hover:bg-blue-700 text-white">
+          <Button onClick={handleApply} disabled={saving || totalEntries === 0} className="bg-brand-600 hover:bg-brand-700 text-white">
             {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}Apply {totalEntries > 0 ? `${totalEntries} entr${totalEntries !== 1 ? 'ies' : 'y'}` : '—'}
           </Button>
         </div>
@@ -731,23 +721,23 @@ function BulkAddEmployeesDialog({ allEmployees, currentIds, onAdd, onClose }: {
         </div>
         <div className={`flex items-center justify-between text-xs px-1 ${t.textFaint}`}>
           <span>{filtered.length} available · {selected.size} selected</span>
-          <button type="button" onClick={toggleAll} className="text-blue-400 hover:underline">{selected.size === filtered.length && filtered.length > 0 ? 'Deselect all' : 'Select all'}</button>
+          <button type="button" onClick={toggleAll} className="text-brand-400 hover:underline">{selected.size === filtered.length && filtered.length > 0 ? 'Deselect all' : 'Select all'}</button>
         </div>
         <div className="flex-1 overflow-y-auto space-y-1 min-h-0">
           {filtered.length === 0 ? (
             <p className={`text-xs text-center py-8 ${t.textFaint}`}>{allEmployees.length === 0 ? 'Loading…' : 'No employees available'}</p>
           ) : filtered.map(emp => (
             <button key={emp.id} type="button" onClick={() => toggle(emp.id)}
-              className={`w-full flex items-center gap-3 p-2.5 rounded-lg text-left transition-colors ${selected.has(emp.id) ? 'bg-blue-500/15' : t.hoverBgSoft}`}>
-              <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 ${selected.has(emp.id) ? 'bg-blue-500 border-blue-400' : `border ${t.border}`}`}>{selected.has(emp.id) && <Check className="w-2.5 h-2.5 text-white" />}</div>
-              <User className="h-5 w-5 shrink-0 text-blue-400" />
+              className={`w-full flex items-center gap-3 p-2.5 rounded-lg text-left transition-colors ${selected.has(emp.id) ? 'bg-brand-500/15' : t.hoverBgSoft}`}>
+              <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 ${selected.has(emp.id) ? 'bg-brand-500 border-brand-400' : `border ${t.border}`}`}>{selected.has(emp.id) && <Check className="w-2.5 h-2.5 text-white" />}</div>
+              <User className="h-5 w-5 shrink-0 text-brand-400" />
               <div className="flex-1 min-w-0"><div className={`text-sm font-medium truncate ${t.textPrimary}`}>{emp.name}</div><div className={`text-[10px] truncate ${t.textFaint}`}>{emp.position} · {emp.department}</div></div>
             </button>
           ))}
         </div>
         <DialogFooter className="gap-2">
           <Button variant="outline" className={`${t.textMuted} bg-transparent`} onClick={onClose}>Cancel</Button>
-          <Button onClick={handleAdd} disabled={selected.size === 0} className="bg-blue-600 hover:bg-blue-700 text-white">Add {selected.size > 0 ? selected.size : ''} Employee{selected.size !== 1 ? 's' : ''}</Button>
+          <Button onClick={handleAdd} disabled={selected.size === 0} className="bg-brand-600 hover:bg-brand-700 text-white">Add {selected.size > 0 ? selected.size : ''} Employee{selected.size !== 1 ? 's' : ''}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -1014,12 +1004,12 @@ function DownloadDialog({ employees, timesheets, period, periodType, onClose }: 
         <div className="space-y-4 py-2">
           <div className="space-y-2"><Label className={`text-xs font-semibold uppercase tracking-wide ${t.textFaint}`}>Format</Label>
             <div className="grid grid-cols-2 gap-2">{fmtOpts.map(([val, lbl, Icon]) => (
-              <button key={val} type="button" onClick={() => setFormat(val)} className={`flex items-center gap-2 p-3 border-2 rounded-lg text-sm transition-colors ${format === val ? 'border-blue-400/50 bg-blue-500/10 text-blue-400' : `${t.border} ${t.textFaint} ${t.hoverBg}`}`}><Icon className="w-4 h-4" />{lbl}</button>
+              <button key={val} type="button" onClick={() => setFormat(val)} className={`flex items-center gap-2 p-3 border-2 rounded-lg text-sm transition-colors ${format === val ? 'border-brand-400/50 bg-brand-500/10 text-brand-400' : `${t.border} ${t.textFaint} ${t.hoverBg}`}`}><Icon className="w-4 h-4" />{lbl}</button>
             ))}</div>
           </div>
           <div className="space-y-2"><Label className={`text-xs font-semibold uppercase tracking-wide ${t.textFaint}`}>Scope</Label>
             <div className="grid grid-cols-2 gap-2">{scopeOpts.map(([val, lbl, Icon]) => (
-              <button key={val} type="button" onClick={() => setScope(val)} className={`flex items-center gap-2 p-3 border-2 rounded-lg text-sm transition-colors ${scope === val ? 'border-blue-400/50 bg-blue-500/10 text-blue-400' : `${t.border} ${t.textFaint} ${t.hoverBg}`}`}><Icon className="w-4 h-4" />{lbl}</button>
+              <button key={val} type="button" onClick={() => setScope(val)} className={`flex items-center gap-2 p-3 border-2 rounded-lg text-sm transition-colors ${scope === val ? 'border-brand-400/50 bg-brand-500/10 text-brand-400' : `${t.border} ${t.textFaint} ${t.hoverBg}`}`}><Icon className="w-4 h-4" />{lbl}</button>
             ))}</div>
           </div>
           {scope === 'individual' && (
@@ -1030,7 +1020,7 @@ function DownloadDialog({ employees, timesheets, period, periodType, onClose }: 
         </div>
         <DialogFooter className="gap-2">
           <Button variant="outline" className={`${t.textMuted} bg-transparent`} onClick={onClose}>Cancel</Button>
-          <Button onClick={generate} disabled={generating} className="bg-blue-600 hover:bg-blue-700 text-white">{generating && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}Download</Button>
+          <Button onClick={generate} disabled={generating} className="bg-brand-600 hover:bg-brand-700 text-white">{generating && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}Download</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -1082,14 +1072,14 @@ function TimesheetGrid({ employees, timesheets, days, onCellClick, onBulkAssign,
               <TableHead key={ds} className={`text-center min-w-[70px] px-0.5 sticky top-0 z-20 ${stickyBg}`}>
                 <div className="flex flex-col items-center text-[9px] py-1">
                   <span className={t.textFaint}>{d.toLocaleDateString('default', { weekday: 'short' })}</span>
-                  <span className={`font-bold text-sm ${ds === today ? 'text-blue-400' : isWknd ? t.textFaint : t.textMuted}`}>{d.getDate()}</span>
+                  <span className={`font-bold text-sm ${ds === today ? 'text-brand-400' : isWknd ? t.textFaint : t.textMuted}`}>{d.getDate()}</span>
                   <span className={t.textFaint}>{d.toLocaleDateString('default', { month: 'short' })}</span>
                 </div>
               </TableHead>
             );
           })}
           <TableHead className={`text-center min-w-14 text-emerald-400 text-[10px] font-semibold sticky top-0 z-20 ${stickyBg}`}>Reg</TableHead>
-          <TableHead className={`text-center min-w-14 text-blue-400 text-[10px] font-semibold sticky top-0 z-20 ${stickyBg}`}>1.5×</TableHead>
+          <TableHead className={`text-center min-w-14 text-brand-400 text-[10px] font-semibold sticky top-0 z-20 ${stickyBg}`}>1.5×</TableHead>
           <TableHead className={`text-center min-w-14 text-sky-400 text-[10px] font-semibold sticky top-0 z-20 ${stickyBg}`}>2.0×</TableHead>
           <TableHead className={`text-center min-w-14 text-indigo-400 text-[10px] font-semibold sticky top-0 z-20 ${stickyBg}`}>Night</TableHead>
           <TableHead className={`text-center min-w-16 text-[10px] font-semibold sticky top-0 z-20 ${stickyBg} ${t.textMuted}`}>Total</TableHead>
@@ -1115,12 +1105,12 @@ function TimesheetGrid({ employees, timesheets, days, onCellClick, onBulkAssign,
                     </button>
                   )}
                   <div className="flex items-center gap-2 pr-5">
-                    <User className="h-5 w-5 shrink-0 text-blue-400" />
+                    <User className="h-5 w-5 shrink-0 text-brand-400" />
                     <div className="min-w-0 flex-1">
                       <p className={`text-sm font-medium truncate leading-tight ${t.textPrimary}`}>{emp.name}</p>
                       <p className={`text-[10px] truncate mt-0.5 ${t.textFaint}`}>{emp.position}</p>
                       <button type="button" title="Bulk assign shifts for this employee" onClick={() => onBulkAssign(emp)}
-                        className="mt-1.5 flex items-center gap-1 text-[10px] px-2 py-[3px] rounded-full bg-blue-500/10 text-blue-400/70 hover:bg-blue-500/20 hover:text-blue-400 transition-all duration-150 group/bulk">
+                        className="mt-1.5 flex items-center gap-1 text-[10px] px-2 py-[3px] rounded-full bg-brand-500/10 text-brand-400/70 hover:bg-brand-500/20 hover:text-brand-400 transition-all duration-150 group/bulk">
                         <CalendarDays className="w-2.5 h-2.5 group-hover/bulk:scale-110 transition-transform" /><span className="tracking-wide">Assign shifts</span>
                       </button>
                     </div>
@@ -1139,8 +1129,8 @@ function TimesheetGrid({ employees, timesheets, days, onCellClick, onBulkAssign,
                       <button type="button"
                         style={entry && cfg ? { backgroundColor: `${cfg.hex}18`, borderColor: `${cfg.hex}55`, color: cfg.hex } : undefined}
                         className={`w-full min-h-[60px] h-auto rounded-lg text-center flex flex-col items-center justify-center transition-all text-[9px] border gap-0.5 py-1.5 ${
-                          entry && cfg ? 'hover:brightness-110' : isToday ? 'bg-blue-500/10 border-blue-400/30 border-dashed hover:bg-blue-500/20' : `border-transparent ${t.hoverBg}`
-                        } ${isToday ? 'ring-1 ring-blue-400/30' : ''}`}
+                          entry && cfg ? 'hover:brightness-110' : isToday ? 'bg-brand-500/10 border-brand-400/30 border-dashed hover:bg-brand-500/20' : `border-transparent ${t.hoverBg}`
+                        } ${isToday ? 'ring-1 ring-brand-400/30' : ''}`}
                         onClick={() => onCellClick(emp, day, entry)}>
                         {entry && cfg ? (
                           <>
@@ -1150,12 +1140,12 @@ function TimesheetGrid({ employees, timesheets, days, onCellClick, onBulkAssign,
                               const displayH = isDT ? (entry.holiday_overtime_hours || 0) : (entry.regular_hours || 0);
                               return displayH > 0 ? <span className={`font-bold ${isDT ? 'text-amber-400' : t.textMuted}`}>{displayH.toFixed(1)}h{isDT ? ' ×2' : ''}</span> : null;
                             })()}
-                            {!DOUBLE_TIME_STATUSES.has(entry.status as StatusKey) && (entry.overtime_hours || 0) > 0 && <span className="text-blue-400 font-semibold">+{entry.overtime_hours!.toFixed(1)} OT</span>}
+                            {!DOUBLE_TIME_STATUSES.has(entry.status as StatusKey) && (entry.overtime_hours || 0) > 0 && <span className="text-brand-400 font-semibold">+{entry.overtime_hours!.toFixed(1)} OT</span>}
                             {(entry.nightshift_hours || 0) > 0 && <span className="text-sky-400 text-[8px]"><Moon className="w-2 h-2 inline -mt-px" />{entry.nightshift_hours!.toFixed(1)}n</span>}
                             {entry.standby_allowance && <span className="text-amber-400 text-[8px] font-medium">SB</span>}
                           </>
                         ) : (
-                          <span className={`text-base font-light ${isToday ? 'text-blue-400/50' : t.textFaint}`}>+</span>
+                          <span className={`text-base font-light ${isToday ? 'text-brand-400/50' : t.textFaint}`}>+</span>
                         )}
                       </button>
                       {entry && (
@@ -1168,7 +1158,7 @@ function TimesheetGrid({ employees, timesheets, days, onCellClick, onBulkAssign,
                                 {DOUBLE_TIME_STATUSES.has(entry.status as StatusKey)
                                   ? <p className="text-[9px] text-amber-400 font-semibold">{((entry.holiday_overtime_hours || 0) + (entry.regular_hours || 0)).toFixed(1)}h @ 2.0×</p>
                                   : <p className="text-[9px] text-emerald-400">{(entry.regular_hours || 0).toFixed(1)}h reg</p>}
-                                {!DOUBLE_TIME_STATUSES.has(entry.status as StatusKey) && (entry.overtime_hours || 0) > 0 && <p className="text-[9px] text-blue-400">+{entry.overtime_hours!.toFixed(1)}h OT 1.5×</p>}
+                                {!DOUBLE_TIME_STATUSES.has(entry.status as StatusKey) && (entry.overtime_hours || 0) > 0 && <p className="text-[9px] text-brand-400">+{entry.overtime_hours!.toFixed(1)}h OT 1.5×</p>}
                                 {(entry.nightshift_hours || 0) > 0 && <p className="text-[9px] text-sky-400">{entry.nightshift_hours!.toFixed(1)}h night</p>}
                                 {(entry.callout_overtime_hours || 0) > 0 && <p className="text-[9px] text-orange-400">{entry.callout_overtime_hours!.toFixed(1)}h callout</p>}
                               </div>
@@ -1184,10 +1174,10 @@ function TimesheetGrid({ employees, timesheets, days, onCellClick, onBulkAssign,
               })}
               <TableCell className="text-center py-2">
                 <div className="text-sm font-bold text-emerald-400">{totals.reg.toFixed(1)}</div>
-                {(totals.excess || 0) > 0 && <div className="text-[9px] text-blue-400">+{totals.excess!.toFixed(1)}→OT</div>}
+                {(totals.excess || 0) > 0 && <div className="text-[9px] text-brand-400">+{totals.excess!.toFixed(1)}→OT</div>}
               </TableCell>
               <TableCell className="text-center py-2">
-                <div className="text-sm font-bold text-blue-400">{totals.ot15.toFixed(1)}</div>
+                <div className="text-sm font-bold text-brand-400">{totals.ot15.toFixed(1)}</div>
                 {totals.standbyBonus > 0 && <div className="text-[9px] text-amber-400">+{totals.standbyBonus}SB</div>}
               </TableCell>
               <TableCell className="text-center py-2 text-sm font-bold text-sky-400">{totals.ot20.toFixed(1)}</TableCell>
@@ -1205,7 +1195,7 @@ function TimesheetGrid({ employees, timesheets, days, onCellClick, onBulkAssign,
             <TableRow className={`border-t-2 ${t.border} ${t.chipBg}`}>
               <TableCell className={`sticky left-0 z-10 ${stickyBg} border-r ${t.border} py-3`}>
                 <div className="flex items-center gap-2 px-1">
-                  <Users className="w-3.5 h-3.5 text-blue-400/60 shrink-0" />
+                  <Users className="w-3.5 h-3.5 text-brand-400/60 shrink-0" />
                   <div><p className={`text-xs font-bold uppercase tracking-wider ${t.textMuted}`}>Period Totals</p><p className={`text-[10px] ${t.textFaint}`}>{employees.length} employees</p></div>
                 </div>
               </TableCell>
@@ -1215,7 +1205,7 @@ function TimesheetGrid({ employees, timesheets, days, onCellClick, onBulkAssign,
                 return <TableCell key={fmtDate(day)} className={`text-center p-0.5 ${isWknd ? t.chipBg : ''}`}>{daySum > 0 && <span className={`text-[9px] font-medium ${t.textFaint}`}>{daySum.toFixed(0)}</span>}</TableCell>;
               })}
               <TableCell className="text-center py-3"><span className="text-sm font-bold text-emerald-400">{grand.reg.toFixed(1)}</span></TableCell>
-              <TableCell className="text-center py-3"><span className="text-sm font-bold text-blue-400">{grand.ot15.toFixed(1)}</span></TableCell>
+              <TableCell className="text-center py-3"><span className="text-sm font-bold text-brand-400">{grand.ot15.toFixed(1)}</span></TableCell>
               <TableCell className="text-center py-3"><span className="text-sm font-bold text-sky-400">{grand.ot20.toFixed(1)}</span></TableCell>
               <TableCell className="text-center py-3"><span className="text-sm font-bold text-indigo-400">{grand.night.toFixed(1)}</span></TableCell>
               <TableCell className="text-center py-3"><span className={`text-base font-extrabold ${t.textPrimary}`}>{grand.total.toFixed(1)}</span></TableCell>
@@ -1377,7 +1367,7 @@ function TimesheetsContent() {
           <>
             <div className={`flex items-center gap-1 ${t.chipBg} rounded-xl p-1`}>
               {(['salaried', 'nec'] as const).map(tb => (
-                <button key={tb} type="button" onClick={() => setActiveTab(tb)} className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-semibold transition-all ${activeTab === tb ? 'bg-blue-500/25 text-blue-400' : `${t.textFaint} ${t.hoverText}`}`}>
+                <button key={tb} type="button" onClick={() => setActiveTab(tb)} className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-semibold transition-all ${activeTab === tb ? 'bg-brand-500/25 text-brand-400' : `${t.textFaint} ${t.hoverText}`}`}>
                   {tb === 'salaried' ? <Briefcase className="w-3 h-3" /> : <Building2 className="w-3 h-3" />}{tb === 'salaried' ? 'Salaried' : 'NEC'}
                 </button>
               ))}
@@ -1388,7 +1378,7 @@ function TimesheetsContent() {
             <button type="button" title="Download timesheet" onClick={() => setShowDownload(true)} className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textMuted} transition-all`}>
               <Download className="h-3.5 w-3.5" /><span className="hidden sm:inline">Download</span>
             </button>
-            <button type="button" title="Add employees to this period" onClick={() => setShowBulkAdd(true)} className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg text-white font-semibold bg-gradient-to-br from-blue-500 to-blue-700 hover:brightness-110 transition-all">
+            <button type="button" title="Add employees to this period" onClick={() => setShowBulkAdd(true)} className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg text-white font-semibold bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all">
               <UserPlus className="h-3.5 w-3.5" /> Add Employees
             </button>
           </>
@@ -1396,7 +1386,7 @@ function TimesheetsContent() {
       >
         <div className="flex flex-wrap items-center gap-x-1 gap-y-2">
           {[
-            { icon: Users, val: `${tabEmployees.length}`, label: 'employees', color: 'text-blue-400' },
+            { icon: Users, val: `${tabEmployees.length}`, label: 'employees', color: 'text-brand-400' },
             { icon: Clock, val: `${summary.reg.toFixed(0)}h`, label: 'regular', color: 'text-emerald-400' },
             { icon: Zap, val: `${summary.ot15.toFixed(0)}h`, label: 'OT 1.5×', color: 'text-orange-400' },
             { icon: Zap, val: `${summary.ot20.toFixed(0)}h`, label: 'OT 2.0×', color: 'text-purple-400' },
@@ -1453,7 +1443,7 @@ function TimesheetsContent() {
         </SectionHeader>
         {showGrid && (
           loading ? (
-            <div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-blue-400" /><span className={`ml-2 text-sm ${t.textFaint}`}>Loading…</span></div>
+            <div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-brand-400" /><span className={`ml-2 text-sm ${t.textFaint}`}>Loading…</span></div>
           ) : (
             <TimesheetGrid
               employees={tabEmployees} timesheets={timesheets} days={days}
@@ -1481,7 +1471,7 @@ function TimesheetsContent() {
               {tabEmployees.map(emp => (
                 <div key={emp.id} className="space-y-1">
                   <label className={`text-[10px] font-medium flex items-center gap-1.5 ${t.textFaint}`}>
-                    <User className="h-3.5 w-3.5 shrink-0 text-blue-400" />
+                    <User className="h-3.5 w-3.5 shrink-0 text-brand-400" />
                     {emp.name}
                   </label>
                   <textarea rows={2} placeholder={`Notes for ${emp.name.split(' ')[0]}…`} value={empNotes[emp.id] || ''} onChange={e => updateEmpNote(emp.id, e.target.value)}

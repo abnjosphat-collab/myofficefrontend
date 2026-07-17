@@ -2,6 +2,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback, useRef, ElementType } from 'react';
+import { api } from '@/lib/apiClient';
 import { AppShell } from '@/components/app-shell';
 import {
   Clock4, Plus, Search, RefreshCw, CheckCircle2, XCircle,
@@ -13,6 +14,8 @@ import {
   useCollapseSection, CenterModal, ACCENT_HEX, EmptyState, PrimaryButton, GlowCard, SelectField,
 } from '@/components/shared/theme';
 import { ApprovalGate, type SignatureResult } from '@/components/shared/ApprovalGate';
+import { useEmployees, type EmployeeLookup } from '@/hooks/useLookups';
+import { formatDate } from '@/lib/format';
 import { toast } from 'sonner';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
@@ -20,8 +23,6 @@ import {
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 
-const API = (process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com').replace(/\/$/, '');
-const OT_API = `${API}/api/overtime`;
 
 const OT_TYPES = ['regular', 'weekend', 'emergency', 'project', 'holiday', 'night'] as const;
 type OTType = typeof OT_TYPES[number];
@@ -36,12 +37,12 @@ const STATUS_HEX: Record<OTStatus, string> = {
   pending: '#fbbf24', approved: '#34d399', rejected: '#f87171', paid: ACCENT_HEX.blue, cancelled: '#94a3b8',
 };
 const STATUS_COLOR: Record<OTStatus, string> = {
-  pending: 'text-amber-400', approved: 'text-emerald-400', rejected: 'text-rose-400', paid: 'text-blue-400', cancelled: 'text-white/40',
+  pending: 'text-amber-400', approved: 'text-emerald-400', rejected: 'text-rose-400', paid: 'text-brand-400', cancelled: 'text-white/40',
 };
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
-interface EmployeeItem { id: string; employee_id?: string; first_name: string; last_name: string; designation?: string; department?: string; phone?: string; }
+type EmployeeItem = EmployeeLookup;
 
 interface OTRecord {
   id: number | string;
@@ -80,12 +81,7 @@ function nowLocal(): string {
   return new Date(d.getTime() - tz).toISOString();
 }
 
-function fmtDate(v?: string): string {
-  if (!v) return '';
-  const d = new Date(v);
-  if (isNaN(d.getTime())) return v;
-  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-}
+const fmtDate = (v?: string): string => (v ? formatDate(v) : '');
 
 function blankForm(): OTForm {
   return {
@@ -100,24 +96,17 @@ function blankForm(): OTForm {
 // ─── API ──────────────────────────────────────────────────────────────────────
 
 async function fetchOT(): Promise<OTRecord[]> {
-  const r = await fetch(OT_API);
-  if (!r.ok) throw new Error(await r.text());
-  const data = await r.json();
+  const data = await api.get<OTRecord[]>('/api/overtime');
   return (Array.isArray(data) ? data : []) as OTRecord[];
 }
 async function createOT(body: Partial<OTForm>): Promise<OTRecord> {
-  const r = await fetch(OT_API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, status: 'pending', applied_date: new Date().toISOString() }) });
-  if (!r.ok) throw new Error(await r.text());
-  return r.json();
+  return api.post<OTRecord>('/api/overtime', { ...body, status: 'pending', applied_date: new Date().toISOString() });
 }
 async function updateOT(id: number | string, body: object): Promise<OTRecord> {
-  const r = await fetch(`${OT_API}/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-  if (!r.ok) throw new Error(await r.text());
-  return r.json();
+  return api.patch<OTRecord>(`/api/overtime/${id}`, body);
 }
 async function deleteOT(id: number | string): Promise<void> {
-  const r = await fetch(`${OT_API}/${id}`, { method: 'DELETE' });
-  if (!r.ok) throw new Error(await r.text());
+  await api.delete(`/api/overtime/${id}`);
 }
 
 // ─── HOURS UTIL ───────────────────────────────────────────────────────────────
@@ -146,21 +135,11 @@ function TypeBadge({ type }: { type: OTType }) {
 // signature only for call-site compatibility.
 function Avatar({ size = 'sm' }: { name?: string; size?: 'sm' | 'lg' }) {
   const dims = size === 'lg' ? 'h-7 w-7' : 'h-5 w-5';
-  return <User className={`${dims} text-blue-400 shrink-0`} />;
+  return <User className={`${dims} text-brand-400 shrink-0`} />;
 }
 
 // ─── EMPLOYEE AUTOCOMPLETE ────────────────────────────────────────────────────
 
-let _empCache: EmployeeItem[] = [];
-let _empFetched = false;
-function useEmployees() {
-  const [list, setList] = useState<EmployeeItem[]>(_empCache);
-  useEffect(() => {
-    if (_empFetched) return;
-    fetch(`${API}/api/employees`).then(r => r.json()).then((d: EmployeeItem[]) => { if (Array.isArray(d)) { _empCache = d; setList(d); } _empFetched = true; }).catch(() => { _empFetched = true; });
-  }, []);
-  return list;
-}
 
 function EmployeeAutocomplete({ value, onChange, disabled }: { value: string; onChange: (name: string, emp?: EmployeeItem) => void; disabled?: boolean }) {
   const t = useTheme();
@@ -271,7 +250,7 @@ function OTFormModal({ open, onClose, onSave, editing }: {
         <div className="grid grid-cols-3 gap-3">
           <FormField label="Start Time"><input type="time" className={inputCls} value={form.start_time} onChange={e => set('start_time', e.target.value)} /></FormField>
           <FormField label="End Time"><input type="time" className={inputCls} value={form.end_time} onChange={e => set('end_time', e.target.value)} /></FormField>
-          <FormField label="Duration"><div className={`${inputCls} flex items-center text-blue-400 font-semibold pointer-events-none`}>{hours > 0 ? `${hours.toFixed(1)}h` : '—'}</div></FormField>
+          <FormField label="Duration"><div className={`${inputCls} flex items-center text-brand-400 font-semibold pointer-events-none`}>{hours > 0 ? `${hours.toFixed(1)}h` : '—'}</div></FormField>
         </div>
 
         <FormField label="Reason" required>
@@ -489,7 +468,7 @@ function OvertimeContent() {
         </div>
         <TypeBadge type={r.overtime_type} />
         <div className={`mt-2 space-y-0.5 text-[11px] ${t.textFaint}`}>
-          <p>{fmtDate(r.date)} · {r.start_time}–{r.end_time} {hours > 0 && <span className="text-blue-400 font-semibold">({hours.toFixed(1)}h)</span>}</p>
+          <p>{fmtDate(r.date)} · {r.start_time}–{r.end_time} {hours > 0 && <span className="text-brand-400 font-semibold">({hours.toFixed(1)}h)</span>}</p>
           <p className="truncate">{r.reason}</p>
         </div>
         <div className="flex gap-1 mt-3">
@@ -536,15 +515,15 @@ function OvertimeContent() {
       </PageHero>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className={`${t.glass} rounded-xl p-4`}><div className="flex items-center gap-1.5 mb-1"><Clock4 className="h-3.5 w-3.5 text-blue-400" /><span className={`text-xs ${t.textFaint}`}>Total</span></div><div className={`text-xl font-bold ${t.textPrimary}`}>{stats.total}</div></div>
+        <div className={`${t.glass} rounded-xl p-4`}><div className="flex items-center gap-1.5 mb-1"><Clock4 className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs ${t.textFaint}`}>Total</span></div><div className={`text-xl font-bold ${t.textPrimary}`}>{stats.total}</div></div>
         <div className={`${t.glass} rounded-xl p-4`}><div className="flex items-center gap-1.5 mb-1"><Clock4 className="h-3.5 w-3.5 text-amber-400" /><span className={`text-xs ${t.textFaint}`}>Pending</span></div><div className="text-xl font-bold text-amber-400">{stats.pending}</div></div>
         <div className={`${t.glass} rounded-xl p-4`}><div className="flex items-center gap-1.5 mb-1"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" /><span className={`text-xs ${t.textFaint}`}>Approved</span></div><div className="text-xl font-bold text-emerald-400">{stats.approved}</div></div>
-        <div className={`${t.glass} rounded-xl p-4`}><div className="flex items-center gap-1.5 mb-1"><Calendar className="h-3.5 w-3.5 text-blue-400" /><span className={`text-xs ${t.textFaint}`}>OT Hours</span></div><div className="text-xl font-bold text-blue-400">{stats.totalHrs}h</div></div>
+        <div className={`${t.glass} rounded-xl p-4`}><div className="flex items-center gap-1.5 mb-1"><Calendar className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs ${t.textFaint}`}>OT Hours</span></div><div className="text-xl font-bold text-brand-400">{stats.totalHrs}h</div></div>
       </div>
 
       <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
         <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}>
-          <Search className="h-4 w-4 text-blue-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Filters</span>
+          <Search className="h-4 w-4 text-brand-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Filters</span>
         </div>
         <div className="px-5 pb-4 pt-3 space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
@@ -566,8 +545,8 @@ function OvertimeContent() {
               <X className="h-3.5 w-3.5" /> Clear
             </button>
             <div className="ml-auto flex gap-1">
-              <button type="button" title="Table view" onClick={() => setView('table')} className={`h-7 w-7 flex items-center justify-center rounded-lg transition-all ${view === 'table' ? 'bg-blue-500/20 text-blue-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}><List className="h-3.5 w-3.5" /></button>
-              <button type="button" title="Grid view" onClick={() => setView('grid')} className={`h-7 w-7 flex items-center justify-center rounded-lg transition-all ${view === 'grid' ? 'bg-blue-500/20 text-blue-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}><LayoutGrid className="h-3.5 w-3.5" /></button>
+              <button type="button" title="Table view" onClick={() => setView('table')} className={`h-7 w-7 flex items-center justify-center rounded-lg transition-all ${view === 'table' ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}><List className="h-3.5 w-3.5" /></button>
+              <button type="button" title="Grid view" onClick={() => setView('grid')} className={`h-7 w-7 flex items-center justify-center rounded-lg transition-all ${view === 'grid' ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}><LayoutGrid className="h-3.5 w-3.5" /></button>
             </div>
             <span className={`text-xs ${t.textFaint}`}>{filtered.length} of {records.length}</span>
           </div>
@@ -576,7 +555,7 @@ function OvertimeContent() {
 
       <div className={`flex items-center gap-1 ${t.glassSoft} rounded-xl p-1 w-fit`}>
         {([{ key: 'records', label: 'Records', icon: FileText }, { key: 'analytics', label: 'Analytics', icon: Calendar }] as { key: typeof mainTab; label: string; icon: ElementType }[]).map(tb => (
-          <button key={tb.key} type="button" onClick={() => setMainTab(tb.key)} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${mainTab === tb.key ? 'bg-blue-500/20 text-blue-400' : `${t.textFaint} ${t.hoverText} ${t.hoverBg}`}`}>
+          <button key={tb.key} type="button" onClick={() => setMainTab(tb.key)} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${mainTab === tb.key ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} ${t.hoverText} ${t.hoverBg}`}`}>
             <tb.icon className="h-4 w-4" />{tb.label}
           </button>
         ))}
@@ -614,7 +593,7 @@ function OvertimeContent() {
                         </td>
                         <td className={tdCls}><TypeBadge type={r.overtime_type} /></td>
                         <td className={tdCls}><p className="text-xs">{fmtDate(r.date)}</p><p className={`text-[10px] ${t.textFaint}`}>{r.start_time} – {r.end_time}</p></td>
-                        <td className={tdCls}><span className="text-xs font-semibold text-blue-400">{h > 0 ? `${h.toFixed(1)}h` : '—'}</span></td>
+                        <td className={tdCls}><span className="text-xs font-semibold text-brand-400">{h > 0 ? `${h.toFixed(1)}h` : '—'}</span></td>
                         <td className={tdCls}><span className={`text-xs max-w-[200px] truncate block ${t.textFaint}`}>{r.reason}</span></td>
                         <td className={tdCls}><StatusBadge color={STATUS_HEX[r.status]} label={r.status} /></td>
                         <td className={tdCls}>
@@ -642,7 +621,7 @@ function OvertimeContent() {
         <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-              <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><Clock4 className="h-4 w-4 text-blue-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>By Overtime Type</span></div>
+              <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><Clock4 className="h-4 w-4 text-brand-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>By Overtime Type</span></div>
               <div className="p-4">
                 <ResponsiveContainer width="100%" height={200}>
                   <BarChart data={byType} barSize={28}>
@@ -659,7 +638,7 @@ function OvertimeContent() {
             </div>
 
             <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-              <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><CheckCircle2 className="h-4 w-4 text-blue-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>By Status</span></div>
+              <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><CheckCircle2 className="h-4 w-4 text-brand-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>By Status</span></div>
               <div className="p-4 space-y-3">
                 {byStatus.map(({ status: s, count }) => {
                   const pct = records.length > 0 ? (count / records.length) * 100 : 0;
@@ -680,7 +659,7 @@ function OvertimeContent() {
             {STATUSES.map(s => (
               <div key={s} className={`${t.glass} rounded-xl p-4`}>
                 <div className="flex items-center gap-1.5 mb-1">
-                  {s === 'approved' ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" /> : s === 'rejected' ? <XCircle className="h-3.5 w-3.5 text-rose-400" /> : <Clock4 className="h-3.5 w-3.5 text-blue-400" />}
+                  {s === 'approved' ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" /> : s === 'rejected' ? <XCircle className="h-3.5 w-3.5 text-rose-400" /> : <Clock4 className="h-3.5 w-3.5 text-brand-400" />}
                   <span className={`text-xs ${t.textFaint}`}>{s.charAt(0).toUpperCase() + s.slice(1)}</span>
                 </div>
                 <div className={`text-xl font-bold ${STATUS_COLOR[s]}`}>{records.filter(r => r.status === s).length}</div>

@@ -2,16 +2,18 @@
 'use client';
 
 import { AppShell } from '@/components/app-shell';
+import { api } from '@/lib/apiClient';
 import {
   useTheme, PageHero, StatTile, StatusBadge, FormField, FormActions,
   SearchInput, ViewToggle, CenterModal, PrimaryButton, EmptyState, useCollapseSection, SelectField,
-  GroupSection, RecordCard, ACCENT_HEX, staggerContainer, fadeUp, InfoRow, SummaryItem,
+  GroupSection, RecordCard, ACCENT_HEX, staggerContainer, fadeUp, InfoRow, SummaryItem, LoadingState,
 } from '@/components/shared/theme';
+import { formatDate } from '@/lib/format';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   Car, Plus, Pencil, Trash2, RefreshCw, Phone,
-  ChevronDown, ChevronUp, Loader2, X, Building2,
+  ChevronDown, ChevronUp, X, Building2,
   FileSpreadsheet, FileText, CheckCircle2, AlertCircle, LayoutGrid, List,
 } from '@/components/shared/theme';
 import { toast } from 'sonner';
@@ -20,8 +22,6 @@ import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com';
 
 const DEPARTMENTS = [
   'Mining', 'Engineering', 'Geology', 'Survey', 'Environment',
@@ -74,23 +74,16 @@ const isExpiringSoon = (expiry?: string) => {
 // ─── API ─────────────────────────────────────────────────────────────────────
 
 async function apiGetDrivers(): Promise<Driver[]> {
-  const r = await fetch(`${API_URL}/api/drivers?limit=2000`);
-  if (!r.ok) throw new Error(`Failed to load drivers: ${r.status}`);
-  return r.json();
+  return api.get<Driver[]>('/api/drivers?limit=2000');
 }
 async function apiCreateDriver(payload: object): Promise<Driver> {
-  const r = await fetch(`${API_URL}/api/drivers`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-  if (!r.ok) { const e = await r.json(); throw new Error(e.detail || 'Failed to create'); }
-  return r.json();
+  return api.post<Driver>('/api/drivers', payload);
 }
 async function apiUpdateDriver(id: number, payload: object): Promise<Driver> {
-  const r = await fetch(`${API_URL}/api/drivers/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-  if (!r.ok) { const e = await r.json(); throw new Error(e.detail || 'Failed to update'); }
-  return r.json();
+  return api.put<Driver>(`/api/drivers/${id}`, payload);
 }
 async function apiDeleteDriver(id: number): Promise<void> {
-  const r = await fetch(`${API_URL}/api/drivers/${id}`, { method: 'DELETE' });
-  if (!r.ok) throw new Error('Failed to delete');
+  await api.delete(`/api/drivers/${id}`);
 }
 
 // ─── EXPORT HELPERS ───────────────────────────────────────────────────────────
@@ -277,7 +270,7 @@ function DriverModal({ open, onClose, onSave, initial, departments }: {
 
 function licenceExpiryNote(expiry?: string) {
   if (!expiry) return undefined;
-  const label = new Date(expiry).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  const label = formatDate(expiry);
   return isExpired(expiry) ? `EXPIRED · ${label}` : isExpiringSoon(expiry) ? `Expiring soon · ${label}` : `Expires ${label}`;
 }
 
@@ -311,7 +304,7 @@ function DriverCard({ driver, onEdit, onDelete }: { driver: Driver; onEdit: () =
         </div>
       }
       actions={<>
-        <button onClick={onEdit} type="button" className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 text-white text-[12px] font-semibold hover:brightness-110 transition-all">
+        <button onClick={onEdit} type="button" className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 text-white text-[12px] font-semibold hover:brightness-110 transition-all">
           <Pencil className="h-3.5 w-3.5" /> Edit
         </button>
         <button onClick={onDelete} type="button" className={`px-4 flex items-center justify-center gap-1.5 py-2 rounded-lg ${t.chipBg} text-rose-500 hover:bg-rose-500/10 text-[12px] font-semibold transition-all`}>
@@ -323,14 +316,14 @@ function DriverCard({ driver, onEdit, onDelete }: { driver: Driver; onEdit: () =
         <InfoRow label="Department" value={driver.department} />
         <InfoRow label="Licence Class" value={driver.license_class} />
         <InfoRow label="Licence Expiry" value={expiryNote && <span className={expiryTone}>{expiryNote}</span>} />
-        <InfoRow label="Updated" value={driver.updated_at ? new Date(driver.updated_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : undefined} />
+        <InfoRow label="Updated" value={driver.updated_at ? formatDate(driver.updated_at) : undefined} />
       </div>
       {(driver.phone_numbers?.length ?? 0) > 0 && (
         <div>
           <p className={`text-[10px] font-semibold ${t.textTertiary} uppercase tracking-wider mb-1.5`}>Phone Numbers</p>
           <div className="flex flex-wrap gap-1.5">
             {driver.phone_numbers!.map((p, i) => (
-              <a key={i} href={`tel:${p.replace(/\s/g, '')}`} className="flex items-center gap-1.5 text-xs text-blue-400 hover:underline">
+              <a key={i} href={`tel:${p.replace(/\s/g, '')}`} className="flex items-center gap-1.5 text-xs text-brand-400 hover:underline">
                 <Phone className="h-3 w-3" />{p}
               </a>
             ))}
@@ -368,7 +361,7 @@ function DriverRow({ driver, onEdit, onDelete }: { driver: Driver; onEdit: () =>
         <div className="flex items-center gap-2 shrink-0">
           {driver.phone_numbers?.[0] && (
             <a href={`tel:${driver.phone_numbers[0].replace(/\s/g, '')}`} onClick={e => e.stopPropagation()}
-              className={`hidden sm:flex items-center gap-1 text-[11px] text-blue-400 hover:underline`}>
+              className={`hidden sm:flex items-center gap-1 text-[11px] text-brand-400 hover:underline`}>
               <Phone className="h-3 w-3" />{driver.phone_numbers[0]}
             </a>
           )}
@@ -377,7 +370,7 @@ function DriverRow({ driver, onEdit, onDelete }: { driver: Driver; onEdit: () =>
 
         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
           <button type="button" title="Edit driver" onClick={onEdit}
-            className="h-7 w-7 flex items-center justify-center rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 transition-all">
+            className="h-7 w-7 flex items-center justify-center rounded-lg bg-brand-500/10 hover:bg-brand-500/20 text-brand-400 transition-all">
             <Pencil className="h-3.5 w-3.5" />
           </button>
           <button type="button" title="Remove driver" onClick={onDelete}
@@ -397,7 +390,7 @@ function DriverRow({ driver, onEdit, onDelete }: { driver: Driver; onEdit: () =>
             <InfoRow label="All Phone Numbers" value={(driver.phone_numbers?.length ?? 0) === 0 ? undefined : (
               <div className="space-y-0.5">
                 {driver.phone_numbers!.map((p, i) => (
-                  <a key={i} href={`tel:${p.replace(/\s/g, '')}`} className="flex items-center gap-1.5 text-blue-400 hover:underline">
+                  <a key={i} href={`tel:${p.replace(/\s/g, '')}`} className="flex items-center gap-1.5 text-brand-400 hover:underline">
                     <Phone className="h-3 w-3" />{p}
                   </a>
                 ))}
@@ -540,7 +533,7 @@ function DriversContent() {
             <div className="flex items-center gap-1 flex-wrap">
               {['all', ...departments].map(d => (
                 <button key={d} type="button" onClick={() => setDeptFilter(d)}
-                  className={`h-7 px-3 text-[11px] rounded-lg capitalize transition-all ${deptFilter === d ? 'bg-blue-500/15 text-blue-500' : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}>
+                  className={`h-7 px-3 text-[11px] rounded-lg capitalize transition-all ${deptFilter === d ? 'bg-brand-500/15 text-brand-500' : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}>
                   {d === 'all' ? 'All Depts' : d}
                 </button>
               ))}
@@ -548,7 +541,7 @@ function DriversContent() {
             <div className="flex items-center gap-1">
               {(['all', 'active', 'inactive', 'suspended'] as const).map(s => (
                 <button key={s} type="button" onClick={() => setStatusFilter(s)}
-                  className={`h-7 px-2.5 text-[11px] rounded-lg capitalize transition-all ${statusFilter === s ? 'bg-blue-500/15 text-blue-500' : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}>
+                  className={`h-7 px-2.5 text-[11px] rounded-lg capitalize transition-all ${statusFilter === s ? 'bg-brand-500/15 text-brand-500' : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}>
                   {s === 'all' ? 'All Status' : s}
                 </button>
               ))}
@@ -579,7 +572,7 @@ function DriversContent() {
           </div>
 
           {loading ? (
-            <div className={`flex items-center justify-center py-24 ${t.textFaint} gap-2`}><Loader2 className="h-5 w-5 animate-spin" /> Loading…</div>
+            <LoadingState label="Loading…" />
           ) : filtered.length === 0 ? (
             <EmptyState icon={Car} title="No drivers found"
               message={search || deptFilter !== 'all' || statusFilter !== 'all' ? 'No drivers match your filters' : 'Add the first authorised driver using the button above'} />

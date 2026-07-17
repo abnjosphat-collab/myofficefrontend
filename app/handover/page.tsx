@@ -108,7 +108,7 @@ function HandoverContent() {
                 <button type="button" title="Remove equipment" onClick={() => removeEq(i)} className={`${t.textFaint} hover:text-rose-500 transition-colors px-1`}><X className="w-4 h-4" /></button>
               </div>
             ))}
-            <button type="button" onClick={addEq} className="text-blue-500 text-xs hover:opacity-80 transition-colors flex items-center gap-1"><Plus className="w-3 h-3" /> Add Equipment</button>
+            <button type="button" onClick={addEq} className="text-brand-500 text-xs hover:opacity-80 transition-colors flex items-center gap-1"><Plus className="w-3 h-3" /> Add Equipment</button>
           </div>
           <PrimaryButton accent="violet" size="md" onClick={submit}>Submit Handover</PrimaryButton>
         </div>
@@ -132,7 +132,7 @@ function HandoverContent() {
                 </button>
                 {expanded === h.id && (
                   <div className="px-5 pb-5 grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div><div className="text-blue-500 text-xs font-semibold mb-1 uppercase tracking-wider">Completed Work</div><p className={`text-sm leading-relaxed ${t.textMuted}`}>{h.completed_work}</p></div>
+                    <div><div className="text-brand-500 text-xs font-semibold mb-1 uppercase tracking-wider">Completed Work</div><p className={`text-sm leading-relaxed ${t.textMuted}`}>{h.completed_work}</p></div>
                     <div><div className="text-amber-500 text-xs font-semibold mb-1 uppercase tracking-wider">Outstanding Work</div><p className={`text-sm leading-relaxed ${t.textMuted}`}>{h.outstanding_work}</p></div>
                     <div><div className="text-rose-500 text-xs font-semibold mb-1 uppercase tracking-wider">Safety Concerns</div><p className={`text-sm leading-relaxed ${t.textMuted}`}>{h.safety_concerns}</p></div>
                     <div>

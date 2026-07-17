@@ -2,6 +2,8 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback, useRef, Fragment } from 'react';
+import { api } from '@/lib/apiClient';
+import { type EmployeeLookup } from '@/hooks/useLookups';
 import { AppShell } from "@/components/app-shell";
 import {
   AlertCircle, CheckCircle, Clock, Edit, Filter, Loader2, Plus,
@@ -16,7 +18,7 @@ import { toast } from 'sonner';
 import { format } from "date-fns";
 import {
   useTheme, PageHero, StatTile, StatusBadge, ViewToggle,
-  FormField, FormActions, useCollapseSection, CenterModal, ACCENT_HEX, GlowCard, SelectField,
+  FormField, FormActions, useCollapseSection, CenterModal, ACCENT_HEX, GlowCard, SelectField, AutofillInput,
 } from '@/components/shared/theme';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -25,10 +27,6 @@ import {
 } from 'recharts';
 
 // ─── API ──────────────────────────────────────────────────────────────────────
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com';
-const BREAKDOWN_API = `${API_BASE}/api/breakdowns`;
-const EMPLOYEES_API = `${API_BASE}/api/employees`;
 
 // ─── ANALYTICS TYPES / HELPERS ────────────────────────────────────────────────
 
@@ -156,9 +154,7 @@ const fetchBreakdowns = async (filters: Record<string, string> = {}): Promise<Br
   try {
     const params = new URLSearchParams();
     Object.entries(filters).forEach(([k, v]) => { if (v && v !== 'all' && v !== '') params.append(k, v); });
-    const r = await fetch(`${BREAKDOWN_API}/get-breakdowns?${params}`, { cache: 'no-cache' });
-    if (!r.ok) return [];
-    const data = await r.json();
+    const data = await api.get<any>(`/api/breakdowns/get-breakdowns?${params}`);
     if (Array.isArray(data)) return data;
     return data.data ?? data.breakdowns ?? data.results ?? [];
   } catch { return []; }
@@ -181,28 +177,22 @@ function toApiBody(fd: BreakdownFormData) {
   };
 }
 const createBreakdown = async (fd: BreakdownFormData): Promise<unknown> => {
-  const r = await fetch(`${BREAKDOWN_API}/`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(toApiBody(fd)) });
-  if (!r.ok) throw new Error(await r.text() || `HTTP ${r.status}`);
-  return r.json();
+  return api.post('/api/breakdowns/', toApiBody(fd));
 };
 const updateBreakdown = async (id: number, fd: BreakdownFormData): Promise<unknown> => {
   if (!id) throw new Error('Invalid ID');
-  const r = await fetch(`${BREAKDOWN_API}/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(toApiBody(fd)) });
-  if (!r.ok) throw new Error(await r.text() || `HTTP ${r.status}`);
-  return r.json();
+  return api.patch(`/api/breakdowns/${id}`, toApiBody(fd));
 };
 const deleteBreakdown = async (id: number): Promise<unknown> => {
   if (!id) throw new Error('Invalid ID');
-  const r = await fetch(`${BREAKDOWN_API}/${id}`, { method: 'DELETE' });
-  if (r.status === 204) return { success: true };
-  if (r.ok) { const t = await r.text(); return t ? JSON.parse(t) : { success: true }; }
-  throw new Error(await r.text() || `HTTP ${r.status}`);
+  return (await api.delete(`/api/breakdowns/${id}`)) ?? { success: true };
 };
 
 // ─── Themed autocomplete field (replaces legacy EmployeeNameInput) ────────────
 
-interface EmployeeRecord { id: number; employee_id: string; first_name: string; last_name: string; designation?: string; department?: string; }
-function fullName(e: EmployeeRecord) { return `${e.first_name} ${e.last_name}`.trim(); }
+// Raw employee row from /api/employees — the shared lookup shape (all fields optional).
+type EmployeeRecord = EmployeeLookup;
+function fullName(e: EmployeeRecord) { return `${e.first_name ?? ''} ${e.last_name ?? ''}`.trim(); }
 
 function ArtisanField({ value, onChange, error }: { value: string; onChange: (name: string, emp: EmployeeRecord | null) => void; error?: string; }) {
   const t = useTheme();
@@ -210,7 +200,7 @@ function ArtisanField({ value, onChange, error }: { value: string; onChange: (na
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { fetch(EMPLOYEES_API).then(r => r.ok ? r.json() : []).then(setEmployees).catch(() => {}); }, []);
+  useEffect(() => { api.get<EmployeeRecord[]>('/api/employees').then(setEmployees).catch(() => {}); }, []);
   useEffect(() => {
     const h = (e: MouseEvent) => { if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false); };
     document.addEventListener('mousedown', h); return () => document.removeEventListener('mousedown', h);
@@ -219,7 +209,7 @@ function ArtisanField({ value, onChange, error }: { value: string; onChange: (na
   const filtered = useMemo(() => {
     if (!value.trim()) return employees.slice(0, 8);
     const q = value.toLowerCase();
-    return employees.filter(e => fullName(e).toLowerCase().includes(q) || e.employee_id.toLowerCase().includes(q)).slice(0, 10);
+    return employees.filter(e => fullName(e).toLowerCase().includes(q) || (e.employee_id ?? '').toLowerCase().includes(q)).slice(0, 10);
   }, [value, employees]);
 
   return (
@@ -240,10 +230,10 @@ function ArtisanField({ value, onChange, error }: { value: string; onChange: (na
               {filtered.map(emp => (
                 <button key={emp.id} type="button" onMouseDown={e => { e.preventDefault(); onChange(fullName(emp), emp); setOpen(false); }}
                   className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left transition-colors ${t.hoverBgSoft}`}>
-                  <div className="h-7 w-7 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-[10px] font-bold text-white shrink-0">{emp.first_name[0]}{emp.last_name[0]}</div>
+                  <div className="h-7 w-7 rounded-full bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center text-[10px] font-bold text-white shrink-0">{emp.first_name?.[0]}{emp.last_name?.[0]}</div>
                   <div className="flex-1 min-w-0">
                     <p className={`text-sm font-medium truncate ${t.textPrimary}`}>{fullName(emp)}</p>
-                    <p className={`text-[10px] truncate ${t.textFaint}`}><span className="font-mono text-blue-400">{emp.employee_id}</span>{emp.designation && ` · ${emp.designation}`}</p>
+                    <p className={`text-[10px] truncate ${t.textFaint}`}><span className="font-mono text-brand-400">{emp.employee_id}</span>{emp.designation && ` · ${emp.designation}`}</p>
                   </div>
                 </button>
               ))}
@@ -362,7 +352,7 @@ function BreakdownCard({ breakdown, onView, onEdit, onDelete, isExpanded, onTogg
         </div>
 
         <div className="grid grid-cols-2 gap-2 mb-3">
-          <div className={`${t.chipBg} rounded-xl p-2 text-center`}><div className="text-sm font-semibold text-blue-400">{downtime}</div><div className={`text-[10px] ${t.textFaint}`}>Downtime</div></div>
+          <div className={`${t.chipBg} rounded-xl p-2 text-center`}><div className="text-sm font-semibold text-brand-400">{downtime}</div><div className={`text-[10px] ${t.textFaint}`}>Downtime</div></div>
           <div className={`${t.chipBg} rounded-xl p-2 text-center`}><div className="text-sm font-semibold text-emerald-400">${cost.toFixed(0)}</div><div className={`text-[10px] ${t.textFaint}`}>Cost</div></div>
         </div>
 
@@ -382,7 +372,7 @@ function BreakdownCard({ breakdown, onView, onEdit, onDelete, isExpanded, onTogg
         <div className={`flex items-center justify-between pt-3 border-t ${t.border}`}>
           <div className={`flex items-center gap-1 text-xs ${t.textFaint}`}><Calendar className="h-3 w-3" />{formatDate(breakdown.breakdown_date)}</div>
           <div className="flex items-center gap-1">
-            <button type="button" title="View" onClick={() => onView(breakdown)} className={`h-7 w-7 flex items-center justify-center rounded-md ${t.chipBg} ${t.textFaint} hover:text-blue-400`}><Eye className="h-3.5 w-3.5" /></button>
+            <button type="button" title="View" onClick={() => onView(breakdown)} className={`h-7 w-7 flex items-center justify-center rounded-md ${t.chipBg} ${t.textFaint} hover:text-brand-400`}><Eye className="h-3.5 w-3.5" /></button>
             <button type="button" title="Edit" onClick={() => onEdit(breakdown)} className={`h-7 w-7 flex items-center justify-center rounded-md ${t.chipBg} ${t.textFaint} hover:text-amber-400`}><Edit className="h-3.5 w-3.5" /></button>
             <button type="button" title="Delete" onClick={() => onDelete(breakdown)} className={`h-7 w-7 flex items-center justify-center rounded-md ${t.chipBg} ${t.textFaint} hover:text-rose-500`}><Trash2 className="h-3.5 w-3.5" /></button>
           </div>
@@ -401,8 +391,8 @@ function SortBtn({ field, label, sortField, sortDirection, onSort }: { field: st
     <button type="button" onClick={() => onSort(field)} className={`flex items-center gap-1 text-xs font-semibold uppercase tracking-wider transition-colors ${t.textFaint} ${t.hoverText}`}>
       {label}
       <div className="flex flex-col">
-        <ChevronUp className={`h-2.5 w-2.5 -mb-0.5 ${active && sortDirection === 'asc' ? 'text-blue-400' : 'opacity-30'}`} />
-        <ChevronDown className={`h-2.5 w-2.5 ${active && sortDirection === 'desc' ? 'text-blue-400' : 'opacity-30'}`} />
+        <ChevronUp className={`h-2.5 w-2.5 -mb-0.5 ${active && sortDirection === 'asc' ? 'text-brand-400' : 'opacity-30'}`} />
+        <ChevronDown className={`h-2.5 w-2.5 ${active && sortDirection === 'desc' ? 'text-brand-400' : 'opacity-30'}`} />
       </div>
     </button>
   );
@@ -418,7 +408,7 @@ function BreakdownTable({ breakdowns, onView, onEdit, onDelete, sortField, sortD
   if (!breakdowns.length) {
     return (
       <div className="text-center py-16">
-        <div className={`mx-auto w-14 h-14 rounded-full ${t.chipBg} flex items-center justify-center mb-4`}><AlertCircle className="h-6 w-6 text-blue-400/60" /></div>
+        <div className={`mx-auto w-14 h-14 rounded-full ${t.chipBg} flex items-center justify-center mb-4`}><AlertCircle className="h-6 w-6 text-brand-400/60" /></div>
         <p className={`text-sm font-medium ${t.textMuted}`}>No breakdowns match your filters</p>
         <p className={`text-xs mt-1 ${t.textFaint}`}>Try clearing filters or log a new breakdown</p>
       </div>
@@ -459,11 +449,11 @@ function BreakdownTable({ breakdowns, onView, onEdit, onDelete, sortField, sortD
                   <td className="py-2.5 px-3"><StatusBadge color={pMeta.color} label={pMeta.name} /></td>
                   <td className="py-2.5 px-3"><StatusBadge color={tMeta.color} label={tMeta.name} /></td>
                   <td className={`py-2.5 px-3 whitespace-nowrap ${t.textMuted}`}>{bd.artisan_name || '—'}</td>
-                  <td className="py-2.5 px-3"><span className="flex items-center gap-1 text-blue-400 font-medium"><Clock className="h-3 w-3" />{downtime}</span></td>
+                  <td className="py-2.5 px-3"><span className="flex items-center gap-1 text-brand-400 font-medium"><Clock className="h-3 w-3" />{downtime}</span></td>
                   <td className="py-2.5 px-3 text-emerald-400 font-medium">${cost.toFixed(0)}</td>
                   <td className="py-2.5 px-3">
                     <div className="flex items-center justify-end gap-1">
-                      <button type="button" title="View" onClick={() => onView(bd)} className={`h-6 w-6 flex items-center justify-center rounded ${t.textFaint} hover:text-blue-400`}><Eye className="h-3.5 w-3.5" /></button>
+                      <button type="button" title="View" onClick={() => onView(bd)} className={`h-6 w-6 flex items-center justify-center rounded ${t.textFaint} hover:text-brand-400`}><Eye className="h-3.5 w-3.5" /></button>
                       <button type="button" title="Edit" onClick={() => onEdit(bd)} className={`h-6 w-6 flex items-center justify-center rounded ${t.textFaint} hover:text-amber-400`}><Edit className="h-3.5 w-3.5" /></button>
                       <button type="button" title="Delete" onClick={() => onDelete(bd)} className={`h-6 w-6 flex items-center justify-center rounded ${t.textFaint} hover:text-rose-500`}><Trash2 className="h-3.5 w-3.5" /></button>
                     </div>
@@ -655,7 +645,7 @@ function FormModal({ isOpen, onClose, onSubmit, initialData, mode = 'create' }: 
         <div className={`flex gap-1 p-1 ${t.glassSoft} rounded-xl`}>
           {FORM_TABS.map(tb => (
             <button key={tb.key} type="button" onClick={() => setTab(tb.key)}
-              className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold transition-all ${tab === tb.key ? 'bg-blue-500/20 text-blue-400' : `${t.textFaint} ${t.hoverText}`}`}>
+              className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold transition-all ${tab === tb.key ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} ${t.hoverText}`}`}>
               {tb.label}
             </button>
           ))}
@@ -664,7 +654,7 @@ function FormModal({ isOpen, onClose, onSubmit, initialData, mode = 'create' }: 
         {tab === 'basic' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <FormField label="Machine Name" required>
-              <input className={inputCls} value={fd.machine_name} onChange={e => set('machine_name', e.target.value)} placeholder="e.g., CNC Machine" />
+              <AutofillInput field="machine_name" className={inputCls} value={fd.machine_name} onChange={v => set('machine_name', v)} placeholder="e.g., CNC Machine" />
               {errors.machine_name && <p className="text-xs text-rose-500 mt-1">{errors.machine_name}</p>}
             </FormField>
             <FormField label="Machine ID"><input className={inputCls} value={fd.machine_id} onChange={e => set('machine_id', e.target.value)} placeholder="Optional" /></FormField>
@@ -711,7 +701,7 @@ function FormModal({ isOpen, onClose, onSubmit, initialData, mode = 'create' }: 
                 <input type="number" className={inputCls} placeholder="Quantity" value={String(spareForm.quantity)} onChange={e => setSpareForm(p => ({ ...p, quantity: parseInt(e.target.value) || 1 }))} />
                 <input type="number" className={inputCls} placeholder="Unit Price" value={String(spareForm.unit_price)} onChange={e => setSpareForm(p => ({ ...p, unit_price: parseFloat(e.target.value) || 0 }))} />
               </div>
-              <button type="button" onClick={addSpare} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-500/15 text-blue-400 hover:bg-blue-500/25 transition-all"><Plus className="h-3.5 w-3.5" />Add Spare</button>
+              <button type="button" onClick={addSpare} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-brand-500/15 text-brand-400 hover:bg-brand-500/25 transition-all"><Plus className="h-3.5 w-3.5" />Add Spare</button>
               {errors.spare && <p className="mt-1 text-[11px] text-rose-500">{errors.spare}</p>}
             </div>
             {fd.spares_used.length > 0 && (
@@ -739,7 +729,7 @@ function FormModal({ isOpen, onClose, onSubmit, initialData, mode = 'create' }: 
               <FormField label="Work Start"><input type="time" title="Work start" className={inputCls} value={fd.work_start} onChange={e => set('work_start', e.target.value)} /></FormField>
               <FormField label="Work End"><input type="time" title="Work end" className={inputCls} value={fd.work_end} onChange={e => set('work_end', e.target.value)} /></FormField>
             </div>
-            {calcPreview && <div className="bg-blue-500/[0.08] rounded-xl p-3 text-sm"><span className={t.textFaint}>Calculated Downtime: </span><span className="text-blue-400 font-semibold">{calcPreview}</span></div>}
+            {calcPreview && <div className="bg-brand-500/[0.08] rounded-xl p-3 text-sm"><span className={t.textFaint}>Calculated Downtime: </span><span className="text-brand-400 font-semibold">{calcPreview}</span></div>}
           </div>
         )}
 
@@ -884,7 +874,7 @@ function BreakdownsPageContent() {
         actions={
           <>
             <button type="button" onClick={downloadExcel} disabled={filteredBreakdowns.length === 0} title="Download Excel" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} disabled:opacity-40`}><Download className="h-4 w-4" /></button>
-            <button type="button" onClick={handleCreate} className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-blue-500 to-blue-700 hover:brightness-110 transition-all"><Plus className="h-3.5 w-3.5" /> New Breakdown</button>
+            <button type="button" onClick={handleCreate} className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all"><Plus className="h-3.5 w-3.5" /> New Breakdown</button>
           </>
         }
       >
@@ -905,8 +895,8 @@ function BreakdownsPageContent() {
               className={`w-full h-9 pl-9 pr-3 rounded-xl text-sm ${t.inputBg} focus:outline-none`} />
           </div>
           <div className="flex gap-2 flex-wrap items-center">
-            <button type="button" onClick={() => setShowDateRange(p => !p)} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${showDateRange ? 'bg-blue-500/15 text-blue-400' : `${t.chipBg} ${t.textMuted} ${t.hoverBg}`}`}><Calendar className="h-3.5 w-3.5" />Date Range</button>
-            <button type="button" onClick={() => setShowFilters(v => !v)} className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-medium transition-colors ${showFilters ? 'bg-blue-500/15 text-blue-400' : `${t.textMuted} ${t.glassSoft} ${t.hoverText}`}`}><Filter className="h-3.5 w-3.5" /> Filters {activeFilterCount > 0 && <span className={`ml-1 px-1.5 py-0.5 ${t.chipBg} rounded text-[10px]`}>{activeFilterCount}</span>}</button>
+            <button type="button" onClick={() => setShowDateRange(p => !p)} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${showDateRange ? 'bg-brand-500/15 text-brand-400' : `${t.chipBg} ${t.textMuted} ${t.hoverBg}`}`}><Calendar className="h-3.5 w-3.5" />Date Range</button>
+            <button type="button" onClick={() => setShowFilters(v => !v)} className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-medium transition-colors ${showFilters ? 'bg-brand-500/15 text-brand-400' : `${t.textMuted} ${t.glassSoft} ${t.hoverText}`}`}><Filter className="h-3.5 w-3.5" /> Filters {activeFilterCount > 0 && <span className={`ml-1 px-1.5 py-0.5 ${t.chipBg} rounded text-[10px]`}>{activeFilterCount}</span>}</button>
             {activeFilterCount > 0 && <button type="button" onClick={clearFilters} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold ${t.textFaint} ${t.chipBg} ${t.hoverText}`}><FilterX className="h-3.5 w-3.5" />Clear</button>}
           </div>
         </div>
@@ -935,8 +925,8 @@ function BreakdownsPageContent() {
 
       {/* View toggle tabs */}
       <div className={`flex items-center gap-1 p-1 ${t.glassSoft} rounded-xl w-fit`}>
-        <button type="button" onClick={() => setActiveView('records')} className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${activeView === 'records' ? 'bg-blue-500/20 text-blue-400' : `${t.textFaint} ${t.hoverText}`}`}><TableIcon className="h-3.5 w-3.5 inline mr-1.5" />Records</button>
-        <button type="button" onClick={() => setActiveView('analytics')} className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${activeView === 'analytics' ? 'bg-blue-500/20 text-blue-400' : `${t.textFaint} ${t.hoverText}`}`}><Activity className="h-3.5 w-3.5 inline mr-1.5" />Analytics</button>
+        <button type="button" onClick={() => setActiveView('records')} className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${activeView === 'records' ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} ${t.hoverText}`}`}><TableIcon className="h-3.5 w-3.5 inline mr-1.5" />Records</button>
+        <button type="button" onClick={() => setActiveView('analytics')} className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${activeView === 'analytics' ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} ${t.hoverText}`}`}><Activity className="h-3.5 w-3.5 inline mr-1.5" />Analytics</button>
       </div>
 
       {activeView === 'records' && (
@@ -949,10 +939,10 @@ function BreakdownsPageContent() {
             <div className={`flex items-center justify-center py-16 gap-2 ${t.textFaint}`}><Loader2 className="h-5 w-5 animate-spin" /><span className="text-sm">Loading breakdowns…</span></div>
           ) : filteredBreakdowns.length === 0 ? (
             <div className="text-center py-16">
-              <div className={`mx-auto w-14 h-14 rounded-full ${t.chipBg} flex items-center justify-center mb-4`}><AlertTriangle className="h-6 w-6 text-blue-400/60" /></div>
+              <div className={`mx-auto w-14 h-14 rounded-full ${t.chipBg} flex items-center justify-center mb-4`}><AlertTriangle className="h-6 w-6 text-brand-400/60" /></div>
               <p className={`text-sm font-medium ${t.textMuted}`}>No breakdowns found</p>
               <p className={`text-xs mt-1 mb-4 ${t.textFaint}`}>Try clearing filters or log a new breakdown</p>
-              <button type="button" onClick={handleCreate} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-blue-500 to-blue-700 hover:brightness-110"><Plus className="h-4 w-4" />Log First Breakdown</button>
+              <button type="button" onClick={handleCreate} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110"><Plus className="h-4 w-4" />Log First Breakdown</button>
             </div>
           ) : viewMode === 'grid' ? (
             <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -1005,9 +995,7 @@ function AnalyticsView({ filters, startDate, endDate }: { filters: Filters; star
         if (startDate) params.append('date_from', startDate);
         if (endDate) params.append('date_to', endDate);
         if (filters.department && filters.department !== 'all') params.append('department', filters.department);
-        const res = await fetch(`${API_BASE}/api/breakdowns/analytics/heatmap?${params}`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
+        const json = await api.get<any>(`/api/breakdowns/analytics/heatmap?${params}`);
         if (json.success) setData(json);
       } catch (e) { toast.error(e instanceof Error ? e.message : 'Failed to load analytics'); }
       finally { setLoading(false); }
@@ -1022,7 +1010,7 @@ function AnalyticsView({ filters, startDate, endDate }: { filters: Filters; star
     { key: 'spares', label: 'Spares', icon: Package },
   ];
 
-  if (loading) return <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-blue-400" /></div>;
+  if (loading) return <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-brand-400" /></div>;
   if (!data) return <div className={`${t.glass} rounded-2xl py-20 text-center`}><AlertTriangle className={`h-12 w-12 ${t.textFaint} mx-auto mb-4`} /><p className={t.textFaint}>No analytics data available</p></div>;
 
   const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: { name: string; value: number }[]; label?: string }) => {
@@ -1040,7 +1028,7 @@ function AnalyticsView({ filters, startDate, endDate }: { filters: Filters; star
       <div className={`flex gap-1 p-1 ${t.glassSoft} rounded-xl w-full overflow-x-auto flex-nowrap`}>
         {tabs.map(tb => (
           <button key={tb.key} type="button" onClick={() => setActiveTab(tb.key)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${activeTab === tb.key ? 'bg-blue-500/20 text-blue-400' : `${t.textFaint} ${t.hoverText}`}`}>
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${activeTab === tb.key ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} ${t.hoverText}`}`}>
             <tb.icon className="h-3.5 w-3.5" /> {tb.label}
           </button>
         ))}
@@ -1065,7 +1053,7 @@ function AnalyticsView({ filters, startDate, endDate }: { filters: Filters; star
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div className={`${t.glass} rounded-2xl p-4`}>
-              <h3 className={`flex items-center gap-2 text-sm font-semibold mb-3 ${t.textPrimary}`}><Building2 className="h-4 w-4 text-blue-400" /> Department Comparison</h3>
+              <h3 className={`flex items-center gap-2 text-sm font-semibold mb-3 ${t.textPrimary}`}><Building2 className="h-4 w-4 text-brand-400" /> Department Comparison</h3>
               {data.department_comparison.length > 0 ? (
                 <ResponsiveContainer width="100%" height={260}>
                   <ComposedChart data={data.department_comparison} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>

@@ -2,14 +2,16 @@
 'use client';
 
 import { AuthProvider } from '@/lib/auth-context';
-import { ThemeProvider, IconStyleProvider, FontStyleProvider } from '@/components/shared/theme';
+import { ThemeProvider, IconStyleProvider, FontStyleProvider, ConfirmProvider } from '@/components/shared/theme';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <AuthProvider>
       <ThemeProvider>
         <IconStyleProvider>
-          <FontStyleProvider>{children}</FontStyleProvider>
+          <FontStyleProvider>
+            <ConfirmProvider>{children}</ConfirmProvider>
+          </FontStyleProvider>
         </IconStyleProvider>
       </ThemeProvider>
     </AuthProvider>

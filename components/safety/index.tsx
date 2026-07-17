@@ -2,6 +2,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { API_BASE } from '@/lib/config';
 import {
   RefreshCw, ChevronUp, ChevronDown, ChevronRight,
   Search, X, Loader2, Plus, Trash2, Check,
@@ -11,7 +12,7 @@ import { toast } from 'sonner';
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 
-export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com';
+export const API_URL =API_BASE;
 
 export const glassInput =
   'w-full px-3 py-2 text-sm rounded-lg bg-white/[0.07] border border-white/[0.12] text-white placeholder:text-white/30 focus:outline-none focus:border-white/30 focus:bg-white/[0.11] transition-all';

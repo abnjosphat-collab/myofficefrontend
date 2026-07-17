@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, ElementType } from 'react';
+import { api } from '@/lib/apiClient';
 import {
   Clock, Eye, Pencil, Trash2, Users, User, Calendar, Activity, Shield,
   Layers, ChevronsUpDown, Check, X, AlertCircle, TrendingUp,
@@ -18,6 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
+import { formatDate } from '@/lib/format';
 import {
   useTheme, PageHero, StatTile, StatusBadge as ThemeStatusBadge, SearchInput, ProgressBar, FormField,
   useCollapseSection, CenterModal, ACCENT_HEX, EmptyState, PrimaryButton, GlowCard, SelectField,
@@ -43,10 +45,6 @@ interface Employee { id: string; name: string; designation?: string; department?
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com';
-const STANDBY_API = `${API_BASE}/api/standby`;
-const EMPLOYEES_API = `${API_BASE}/api/employees`;
-const LEAVES_API = `${API_BASE}/api/leaves`;
 
 const SHIFT_PATTERNS: Record<ShiftType, { label: string; color: string; icon: ElementType; on: number; off: number }> = {
   '10-4': { label: '10-4 Cycle', color: '#86BBD8', icon: Clock, on: 10, off: 4 },
@@ -174,7 +172,7 @@ function getDayCellInfo(a: ShiftAssignment, ds: string): { timing: typeof SHIFT_
 
 function stripTime(d: Date) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
 function d2s(d: Date): string { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
-function fmtDate(s?: string): string { if (!s) return ''; try { return new Date(s).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }); } catch { return s; } }
+const fmtDate = (s?: string): string => (s ? formatDate(s) : '');
 
 const WD = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
@@ -228,7 +226,7 @@ function cycleProgress(a: ShiftAssignment): number {
 // replaced the old initials-in-a-circle avatar). `name` kept for call compatibility.
 function Avatar({ size = 'sm' }: { name?: string; size?: 'xs' | 'sm' | 'md' | 'lg' }) {
   const dims = { xs: 'h-4 w-4', sm: 'h-5 w-5', md: 'h-5 w-5', lg: 'h-7 w-7' }[size];
-  return <User className={`${dims} text-blue-400 shrink-0`} />;
+  return <User className={`${dims} text-brand-400 shrink-0`} />;
 }
 
 function DayStatusBadge({ status }: { status: DayStatus }) {
@@ -363,7 +361,7 @@ function ScheduleEventModal({ assignment, prefillDate, onSave, onClose, saving }
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <div className={`text-xs font-medium ${t.textFaint}`}>All events for {assignment.employee_name.split(' ')[0]} ({allEvents.length})</div>
-              <button type="button" onClick={() => setForm(emptyForm(prefillDate, 'annual_leave'))} className="text-xs text-blue-400/70 hover:text-blue-400 transition-colors">+ New</button>
+              <button type="button" onClick={() => setForm(emptyForm(prefillDate, 'annual_leave'))} className="text-xs text-brand-400/70 hover:text-brand-400 transition-colors">+ New</button>
             </div>
             <div className="space-y-1 max-h-36 overflow-y-auto pr-1">
               {allEvents.map(ev => {
@@ -377,7 +375,7 @@ function ScheduleEventModal({ assignment, prefillDate, onSave, onClose, saving }
                       <div className="font-semibold leading-tight" style={{ color: active ? ty.color : undefined }}>{ty.label}</div>
                       <div className={`text-[10px] ${t.textFaint}`}>{fmtDate(ev.from)}{ev.to && ev.to !== ev.from ? ` → ${fmtDate(ev.to)}` : ''}{ev.note ? ` · ${ev.note}` : ''}</div>
                     </div>
-                    <button type="button" aria-label="Edit event" onClick={() => loadEvent(ev)} className="shrink-0 text-blue-400/40 hover:text-blue-400 transition-colors"><Pencil className="h-3 w-3" /></button>
+                    <button type="button" aria-label="Edit event" onClick={() => loadEvent(ev)} className="shrink-0 text-brand-400/40 hover:text-brand-400 transition-colors"><Pencil className="h-3 w-3" /></button>
                     <button type="button" aria-label="Delete event" onClick={() => deleteEvent(ev.id)} className="shrink-0 text-red-400/40 hover:text-red-400 transition-colors"><X className="h-3 w-3" /></button>
                   </div>
                 );
@@ -461,11 +459,11 @@ function ScheduleView({ assignments, leaves, onView, onUpdateOverrides }: {
               const holiday = holidays.get(ds);
               return (
                 <div key={ds} title={holiday ?? undefined}
-                  className={`flex flex-col items-center py-1 border-b-2 ${isWknd && !holiday ? 'opacity-40' : ''} ${isToday ? 'bg-blue-500/[0.08]' : holiday ? 'bg-pink-500/[0.10]' : ''}`}
+                  className={`flex flex-col items-center py-1 border-b-2 ${isWknd && !holiday ? 'opacity-40' : ''} ${isToday ? 'bg-brand-500/[0.08]' : holiday ? 'bg-pink-500/[0.10]' : ''}`}
                   style={{ width: COL, borderBottomColor: holiday ? 'rgba(244,114,182,0.4)' : 'transparent' }}>
                   {holiday && <span className="text-[7px] text-pink-400 font-bold leading-none uppercase tracking-tight truncate w-full text-center px-0.5">{holiday.replace(/[''']/g, '').slice(0, 6)}</span>}
                   <span className={`text-[9px] ${holiday ? 'text-pink-400/70' : t.textFaint}`}>{WD[d.getDay()]}</span>
-                  <span className={`text-xs font-bold ${isToday ? 'text-blue-400' : holiday ? 'text-pink-400' : t.textFaint}`}>{d.getDate()}</span>
+                  <span className={`text-xs font-bold ${isToday ? 'text-brand-400' : holiday ? 'text-pink-400' : t.textFaint}`}>{d.getDate()}</span>
                   {holiday && <Flag className="h-2.5 w-2.5 text-pink-400/80" />}
                 </div>
               );
@@ -512,7 +510,7 @@ function ScheduleView({ assignments, leaves, onView, onUpdateOverrides }: {
                 const cellStyle = cellColor ? { backgroundColor: `${cellColor}18`, borderColor: `${cellColor}40`, color: cellColor } : undefined;
 
                 return (
-                  <div key={ds} style={{ width: COL }} className={`flex items-stretch py-1 px-1 ${isToday ? 'bg-blue-500/[0.07]' : isHoliday ? 'bg-pink-500/[0.05]' : ''}`}>
+                  <div key={ds} style={{ width: COL }} className={`flex items-stretch py-1 px-1 ${isToday ? 'bg-brand-500/[0.07]' : isHoliday ? 'bg-pink-500/[0.05]' : ''}`}>
                     <button type="button"
                       title={event ? `${et?.label ?? 'Event'}: ${event.from}${event.to !== event.from ? ` → ${event.to}` : ''}${event.note ? ` · ${event.note}` : ''}`
                         : leave ? `${et?.label ?? 'Leave'} (${leave.status}) · ${leave.start_date} → ${leave.end_date}${leave.reason ? ` · ${leave.reason}` : ''}`
@@ -579,7 +577,7 @@ function ScheduleView({ assignments, leaves, onView, onUpdateOverrides }: {
         <span className={`w-px h-5 ${t.chipBg}`} />
         <span className="flex items-center gap-1.5"><span className="relative w-7 h-7 rounded-lg bg-emerald-500/[0.20] inline-flex items-center justify-center"><Umbrella className="h-3.5 w-3.5 text-emerald-400" /></span>Leave (synced)</span>
         <span className="flex items-center gap-1.5"><span className="w-7 h-7 rounded-lg bg-pink-500/[0.20] inline-flex items-center justify-center"><Landmark className="h-3.5 w-3.5 text-pink-400" /></span>Public Holiday</span>
-        <span className="flex items-center gap-1.5 ml-auto"><span className="w-7 h-7 rounded-lg bg-blue-500/[0.10] inline-block" />Today</span>
+        <span className="flex items-center gap-1.5 ml-auto"><span className="w-7 h-7 rounded-lg bg-brand-500/[0.10] inline-block" />Today</span>
       </div>
 
       {eventModal && <ScheduleEventModal assignment={eventModal.assignment} prefillDate={eventModal.prefillDate} onSave={handleSaveEvents} onClose={() => setEventModal(null)} saving={saving} />}
@@ -635,7 +633,7 @@ function ShiftCard({ assignment, onView, onEdit, onDelete }: { assignment: Shift
 
         <div className={`flex items-center gap-3 text-[11px] ${t.textFaint}`}>
           <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> From {fmtDate(assignment.cycle_start_date)}</span>
-          {status === 'off' && nextOn > 0 && <span className="flex items-center gap-1 text-blue-400/70"><TrendingUp className="h-3 w-3" /> On in {nextOn}d</span>}
+          {status === 'off' && nextOn > 0 && <span className="flex items-center gap-1 text-brand-400/70"><TrendingUp className="h-3 w-3" /> On in {nextOn}d</span>}
         </div>
       </div>
 
@@ -663,7 +661,7 @@ function ShiftDetailModal({ assignment, open, onClose, onEdit, onDelete }: { ass
       </div>
       <div className="px-6 pb-6 space-y-4">
         <div className={`${t.chipBg} rounded-xl overflow-hidden`}>
-          <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}><Users className="h-3.5 w-3.5 text-blue-400" /><span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Employee</span></div>
+          <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}><Users className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Employee</span></div>
           <div className="px-3.5 py-3 grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-2.5">
             <InfoField label="Employee ID" value={assignment.employee_id} /><InfoField label="Designation" value={assignment.designation} />
             <InfoField label="Department" value={assignment.department} /><InfoField label="Section" value={assignment.section} /><InfoField label="Phone" value={assignment.phone} />
@@ -671,7 +669,7 @@ function ShiftDetailModal({ assignment, open, onClose, onEdit, onDelete }: { ass
         </div>
 
         <div className={`${t.chipBg} rounded-xl overflow-hidden`}>
-          <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}><Clock className="h-3.5 w-3.5 text-blue-400" /><span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Shift Pattern</span></div>
+          <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}><Clock className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Shift Pattern</span></div>
           <div className="px-3.5 py-3 grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-2.5">
             <InfoField label="Shift Type" value={pattern.label} />
             {assignment.shift_type !== 'standby' && <><InfoField label="On Days" value={assignment.on_days} /><InfoField label="Off Days" value={assignment.off_days} /></>}
@@ -683,7 +681,7 @@ function ShiftDetailModal({ assignment, open, onClose, onEdit, onDelete }: { ass
 
         {assignment.shift_type !== 'standby' && (
           <div className={`${t.chipBg} rounded-xl overflow-hidden`}>
-            <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}><Activity className="h-3.5 w-3.5 text-blue-400" /><span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Cycle Position</span></div>
+            <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}><Activity className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Cycle Position</span></div>
             <div className="px-3.5 py-3">
               <div className={`flex justify-between text-xs mb-2 ${t.textFaint}`}><span>Progress through current cycle</span><span className={`font-semibold ${t.textMuted}`}>{progress}%</span></div>
               <ProgressBar value={progress} color={pattern.color} showValue={false} />
@@ -694,7 +692,7 @@ function ShiftDetailModal({ assignment, open, onClose, onEdit, onDelete }: { ass
 
         {(assignment.shift_timing_periods || []).length > 0 && (
           <div className={`${t.chipBg} rounded-xl overflow-hidden`}>
-            <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}><Clock className="h-3.5 w-3.5 text-blue-400" /><span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Timing Blocks</span><span className={`ml-auto text-xs ${t.textFaint}`}>{(assignment.shift_timing_periods || []).length} block{(assignment.shift_timing_periods || []).length > 1 ? 's' : ''}</span></div>
+            <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}><Clock className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Timing Blocks</span><span className={`ml-auto text-xs ${t.textFaint}`}>{(assignment.shift_timing_periods || []).length} block{(assignment.shift_timing_periods || []).length > 1 ? 's' : ''}</span></div>
             <div className="px-3.5 py-3 space-y-1.5">
               {(assignment.shift_timing_periods || []).map((blk, i) => {
                 const tm = blk.label ? SHIFT_TIMING_PRESETS[blk.label] : null;
@@ -716,7 +714,7 @@ function ShiftDetailModal({ assignment, open, onClose, onEdit, onDelete }: { ass
 
         {(assignment.day_overrides || []).length > 0 && (
           <div className={`${t.chipBg} rounded-xl overflow-hidden`}>
-            <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}><Calendar className="h-3.5 w-3.5 text-blue-400" /><span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Schedule Events</span><span className={`ml-auto text-xs ${t.textFaint}`}>{(assignment.day_overrides || []).length} event{(assignment.day_overrides || []).length > 1 ? 's' : ''}</span></div>
+            <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}><Calendar className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Schedule Events</span><span className={`ml-auto text-xs ${t.textFaint}`}>{(assignment.day_overrides || []).length} event{(assignment.day_overrides || []).length > 1 ? 's' : ''}</span></div>
             <div className="px-3.5 py-3 space-y-1.5 max-h-48 overflow-y-auto">
               {(assignment.day_overrides as ScheduleEvent[]).map((ev, i) => {
                 const ty = EVENT_TYPES[ev.type as EventType] ?? EVENT_TYPES.custom;
@@ -739,7 +737,7 @@ function ShiftDetailModal({ assignment, open, onClose, onEdit, onDelete }: { ass
 
         {assignment.notes && (
           <div className={`${t.chipBg} rounded-xl overflow-hidden`}>
-            <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}><AlertCircle className="h-3.5 w-3.5 text-blue-400" /><span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Notes</span></div>
+            <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}><AlertCircle className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Notes</span></div>
             <p className={`px-3.5 py-3 text-sm leading-relaxed ${t.textFaint}`}>{assignment.notes}</p>
           </div>
         )}
@@ -807,10 +805,8 @@ function ShiftAssignForm({ open, onClose, editing, employees, onSaved }: { open:
         notes: form.notes || null, is_active: form.is_active, standby_periods: form.standby_periods,
         shift_label: form.shift_label || null, shift_hours: form.shift_hours || null, shift_timing_periods: form.shift_timing_periods,
       };
-      const url = editing ? `${STANDBY_API}/${editing.id}` : STANDBY_API;
-      const method = editing ? 'PUT' : 'POST';
-      const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-      if (!res.ok) throw new Error(await res.text());
+      if (editing) await api.put(`/api/standby/${editing.id}`, payload);
+      else await api.post('/api/standby', payload);
       toast.success(editing ? 'Assignment updated' : 'Assignment created');
       onSaved();
       onClose();
@@ -826,7 +822,7 @@ function ShiftAssignForm({ open, onClose, editing, employees, onSaved }: { open:
     <CenterModal open={open} onClose={onClose} title={editing ? 'Edit Assignment' : 'Assign Shift'} subtitle={editing ? 'Update shift assignment details' : 'Set up a new shift cycle for an employee'} accent="violet" width="max-w-xl">
       <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
         <div className={`${t.chipBg} rounded-xl overflow-hidden`}>
-          <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}><Users className="h-3.5 w-3.5 text-blue-400" /><span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Employee</span></div>
+          <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}><Users className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Employee</span></div>
           <div className="px-3.5 py-3 space-y-3">
             <FormField label="Employee">
               <Popover open={empOpen} onOpenChange={setEmpOpen}>
@@ -864,7 +860,7 @@ function ShiftAssignForm({ open, onClose, editing, employees, onSaved }: { open:
         </div>
 
         <div className={`${t.chipBg} rounded-xl overflow-hidden`}>
-          <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}><Clock className="h-3.5 w-3.5 text-blue-400" /><span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Shift Pattern</span></div>
+          <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}><Clock className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Shift Pattern</span></div>
           <div className="px-3.5 py-3 space-y-3">
             <FormField label="Shift Type">
               <SelectField size="form" title="Shift type" value={form.shift_type} onChange={v => onShiftTypeChange(v as ShiftType)}
@@ -882,8 +878,8 @@ function ShiftAssignForm({ open, onClose, editing, employees, onSaved }: { open:
 
         <div className={`${t.chipBg} rounded-xl overflow-hidden`}>
           <div className={`flex items-center justify-between px-3.5 py-2.5 border-b ${t.border}`}>
-            <div className="flex items-center gap-2"><Clock className="h-3.5 w-3.5 text-blue-400" /><span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Shift Timing</span></div>
-            <button type="button" onClick={() => setForm(p => ({ ...p, shift_timing_periods: [...p.shift_timing_periods, { from: p.cycle_start_date, to: p.cycle_start_date, label: p.shift_label || '', start_time: '', end_time: '' }] }))} className="text-xs px-2 py-1 rounded-lg bg-blue-500/10 text-blue-400/80 hover:bg-blue-500/20 transition-all">+ Add Block</button>
+            <div className="flex items-center gap-2"><Clock className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Shift Timing</span></div>
+            <button type="button" onClick={() => setForm(p => ({ ...p, shift_timing_periods: [...p.shift_timing_periods, { from: p.cycle_start_date, to: p.cycle_start_date, label: p.shift_label || '', start_time: '', end_time: '' }] }))} className="text-xs px-2 py-1 rounded-lg bg-brand-500/10 text-brand-400/80 hover:bg-brand-500/20 transition-all">+ Add Block</button>
           </div>
           <div className="px-3.5 py-3 space-y-4">
             <div>
@@ -993,17 +989,20 @@ function ShiftsContent() {
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [aRes, eRes, lRes] = await Promise.all([fetch(STANDBY_API), fetch(EMPLOYEES_API), fetch(LEAVES_API)]);
-      if (aRes.ok) setAssignments(await aRes.json());
-      if (eRes.ok) {
-        const raw = await eRes.json() as Record<string, unknown>[];
-        setEmployees(raw.map(e => ({
+      const [aRes, eRes, lRes] = await Promise.all([
+        api.get<any[]>('/api/standby').catch(() => null),
+        api.get<Record<string, unknown>[]>('/api/employees').catch(() => null),
+        api.get<any[]>('/api/leaves').catch(() => null),
+      ]);
+      if (aRes) setAssignments(aRes);
+      if (eRes) {
+        setEmployees(eRes.map(e => ({
           id: String(e.id), name: (`${e.first_name || ''} ${e.last_name || ''}`).trim() || String(e.employee_id || 'Employee'),
           designation: (e.designation || e.position || '') as string, department: (e.department || '') as string,
           section: (e.section || '') as string, phone: (e.phone || '') as string,
         })));
       }
-      if (lRes.ok) setLeaves(await lRes.json());
+      if (lRes) setLeaves(lRes);
     } catch { toast.error('Failed to load shifts data'); }
     finally { setLoading(false); }
   }, []);
@@ -1054,8 +1053,7 @@ function ShiftsContent() {
   }, [assignments, filterType, filterStatus, search, sortKey]);
 
   const handleUpdateOverrides = useCallback(async (id: number, overrides: DayOverride[]) => {
-    const res = await fetch(`${STANDBY_API}/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ day_overrides: overrides }) });
-    if (!res.ok) throw new Error(await res.text());
+    await api.put(`/api/standby/${id}`, { day_overrides: overrides });
     setAssignments(prev => prev.map(a => a.id === id ? { ...a, day_overrides: overrides } : a));
   }, []);
 
@@ -1091,7 +1089,7 @@ function ShiftsContent() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><Layers className="h-4 w-4 text-blue-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Shift Patterns</span></div>
+          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><Layers className="h-4 w-4 text-brand-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Shift Patterns</span></div>
           <div className="p-4 grid grid-cols-2 gap-3">
             {breakdown.map(({ type, count, percentage }) => {
               const p = SHIFT_PATTERNS[type];
@@ -1100,7 +1098,7 @@ function ShiftsContent() {
               return (
                 <GlowCard key={type} onClick={() => setFilterType(isActive ? 'all' : type)} color={p.color}
                   surface="rounded-xl p-4"
-                  className={`group text-left cursor-pointer ${isActive ? `${t.chipBg} ring-1 ring-blue-400/40` : `${t.chipBg} ${t.hoverBg}`}`}>
+                  className={`group text-left cursor-pointer ${isActive ? `${t.chipBg} ring-1 ring-brand-400/40` : `${t.chipBg} ${t.hoverBg}`}`}>
                   <div className="flex items-center justify-between mb-2"><Icon className="h-4 w-4" style={{ color: p.color }} /><span className={`text-xs font-bold ${t.textPrimary}`}>{count}</span></div>
                   <div className={`text-xs font-semibold mb-0.5 ${t.textMuted}`}>{p.label}</div>
                   <div className={`mt-2 h-1 rounded-full ${t.chipBg} overflow-hidden`}><ProgressBar value={percentage} color={p.color} showValue={false} /></div>
@@ -1111,7 +1109,7 @@ function ShiftsContent() {
         </div>
 
         <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><Users className="h-4 w-4 text-blue-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Roster</span><span className={`ml-auto text-xs ${t.textFaint}`}>{assignments.length} assigned</span></div>
+          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><Users className="h-4 w-4 text-brand-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Roster</span><span className={`ml-auto text-xs ${t.textFaint}`}>{assignments.length} assigned</span></div>
           <ScrollArea className="h-[220px]">
             <div className="space-y-1 p-4">
               {assignments.length === 0 ? <p className={`py-8 text-center text-sm ${t.textFaint}`}>No assignments yet</p> : assignments.slice(0, 20).map(a => {
@@ -1134,21 +1132,21 @@ function ShiftsContent() {
 
       <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
         <div className={`flex items-center justify-between px-5 py-3 border-b ${t.border}`}>
-          <div className="flex items-center gap-2"><Layers className="h-4 w-4 text-blue-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Filters</span>{hasFilters() && <ThemeStatusBadge color={ACCENT_HEX.blue} label="Active" />}</div>
+          <div className="flex items-center gap-2"><Layers className="h-4 w-4 text-brand-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Filters</span>{hasFilters() && <ThemeStatusBadge color={ACCENT_HEX.blue} label="Active" />}</div>
           {hasFilters() && <button type="button" onClick={clearFilters} className={`text-xs ${t.textFaint} ${t.hoverText} flex items-center gap-1 transition-colors`}><X className="h-3 w-3" /> Clear</button>}
         </div>
         <div className="px-5 py-4 space-y-3">
           <div>
             <div className={`text-xs font-medium mb-1.5 ${t.textFaint}`}>Pattern</div>
             <div className="flex flex-wrap gap-1.5">
-              <button type="button" onClick={() => setFilterType('all')} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${filterType === 'all' ? 'bg-blue-500/20 text-blue-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}>All Patterns</button>
+              <button type="button" onClick={() => setFilterType('all')} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${filterType === 'all' ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}>All Patterns</button>
               {Object.entries(SHIFT_PATTERNS).map(([k, v]) => <button key={k} type="button" onClick={() => setFilterType(filterType === k ? 'all' : k as ShiftType)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${filterType === k ? '' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`} style={filterType === k ? { backgroundColor: `${v.color}22`, color: v.color } : undefined}>{v.label}</button>)}
             </div>
           </div>
           <div>
             <div className={`text-xs font-medium mb-1.5 ${t.textFaint}`}>Today&apos;s Status</div>
             <div className="flex flex-wrap gap-1.5">
-              <button type="button" onClick={() => setFilterStatus('all')} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${filterStatus === 'all' ? 'bg-blue-500/20 text-blue-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}>All Statuses</button>
+              <button type="button" onClick={() => setFilterStatus('all')} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${filterStatus === 'all' ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}>All Statuses</button>
               {(['on', 'on+standby', 'off', 'standby'] as DayStatus[]).map(s => <button key={s} type="button" onClick={() => setFilterStatus(filterStatus === s ? 'all' : s)} className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all" style={filterStatus === s ? { backgroundColor: `${STATUS_COLORS[s].hex}22`, color: STATUS_COLORS[s].hex } : undefined}>{STATUS_COLORS[s].label}</button>)}
             </div>
           </div>
@@ -1163,12 +1161,12 @@ function ShiftsContent() {
           <SelectField size="filter" value={sortKey} onChange={v => setSortKey(v as SortKey)} title="Sort by"
             options={SORT_OPTIONS.map(o => ({ value: o.value, label: o.label }))} />
           <button type="button" title="Schedule view — see everyone's shifts for the next 4 weeks" onClick={() => setViewMode(v => v === 'schedule' ? 'grid' : 'schedule')}
-            className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg transition-all ${viewMode === 'schedule' ? 'bg-blue-500/20 text-blue-400 font-semibold' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}>
+            className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg transition-all ${viewMode === 'schedule' ? 'bg-brand-500/20 text-brand-400 font-semibold' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}>
             <Calendar className="w-3 h-3" /> Schedule
           </button>
           <div className="ml-auto flex items-center gap-1.5">
-            <button type="button" title="Grid view" onClick={() => setViewMode('grid')} className={`h-8 w-8 flex items-center justify-center rounded-lg transition-all ${viewMode === 'grid' ? 'bg-blue-500/20 text-blue-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}><LayoutGrid className="h-3.5 w-3.5" /></button>
-            <button type="button" title="Table view" onClick={() => setViewMode('table')} className={`h-8 w-8 flex items-center justify-center rounded-lg transition-all ${viewMode === 'table' ? 'bg-blue-500/20 text-blue-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}><List className="h-3.5 w-3.5" /></button>
+            <button type="button" title="Grid view" onClick={() => setViewMode('grid')} className={`h-8 w-8 flex items-center justify-center rounded-lg transition-all ${viewMode === 'grid' ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}><LayoutGrid className="h-3.5 w-3.5" /></button>
+            <button type="button" title="Table view" onClick={() => setViewMode('table')} className={`h-8 w-8 flex items-center justify-center rounded-lg transition-all ${viewMode === 'table' ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}><List className="h-3.5 w-3.5" /></button>
             <button type="button" title={showRecords ? 'Collapse' : 'Expand'} onClick={() => setShowRecords(v => !v)} className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textFaint}`}>{showRecords ? '−' : '+'}</button>
           </div>
         </div>
@@ -1225,8 +1223,7 @@ function ShiftsContent() {
             <button type="button" onClick={() => setDeleteTarget(null)} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border} transition-all`}>Cancel</button>
             <button type="button" onClick={async () => {
               try {
-                const res = await fetch(`${STANDBY_API}/${deleteTarget!.id}`, { method: 'DELETE' });
-                if (!res.ok) throw new Error(await res.text());
+                await api.delete(`/api/standby/${deleteTarget!.id}`);
                 toast.success('Assignment removed');
                 setDeleteTarget(null);
                 fetchAll();

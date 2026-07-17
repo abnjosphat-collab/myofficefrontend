@@ -40,8 +40,8 @@ export function TopNavigation({
   // decorations, which together read as a doubled/messy edge.)
   const searchCls = `w-full h-9 pl-9 pr-3 rounded-xl text-[13px] border transition-all duration-200 focus:outline-none ${
     t.light
-      ? 'bg-gray-100/70 border-gray-200/80 text-gray-900 placeholder-gray-400 focus:bg-white focus:border-blue-400/60 focus:ring-2 focus:ring-blue-400/15'
-      : 'bg-white/[0.06] border-white/10 text-white placeholder-white/40 focus:bg-white/[0.09] focus:border-blue-300/40 focus:ring-2 focus:ring-blue-300/15'
+      ? 'bg-gray-100/70 border-gray-200/80 text-gray-900 placeholder-gray-400 focus:bg-white focus:border-brand-400/60 focus:ring-2 focus:ring-brand-400/15'
+      : 'bg-white/[0.06] border-white/10 text-white placeholder-white/40 focus:bg-white/[0.09] focus:border-brand-300/40 focus:ring-2 focus:ring-brand-300/15'
   }`;
 
   const searchMatches = useMemo(() => {
@@ -233,13 +233,13 @@ export function TopNavigation({
                       ) : notifications.length === 0 ? (
                         <div className={`px-3 py-6 text-center text-[12px] ${t.textFaint}`}>No recent activity</div>
                       ) : notifications.map(item => (
-                        <div key={item.id} className={`flex items-start gap-2 px-3 py-2 ${t.hoverBgSoft} ${item.unread ? (t.light ? 'bg-blue-50/60' : 'bg-blue-500/10') : ''}`}>
+                        <div key={item.id} className={`flex items-start gap-2 px-3 py-2 ${t.hoverBgSoft} ${item.unread ? (t.light ? 'bg-brand-50/60' : 'bg-brand-500/10') : ''}`}>
                           <item.icon className={`h-3.5 w-3.5 mt-0.5 shrink-0 ${item.status === 'critical' ? 'text-rose-400' : t.textFaint}`} />
                           <div className="min-w-0 flex-1">
                             <p className={`text-[12px] ${t.textMuted} truncate`}>{item.action}</p>
                             <p className={`text-[10.5px] ${t.textFaint}`}>{item.time ? `${item.time} ago` : ''}{item.user ? ` · ${item.user}` : ''}</p>
                           </div>
-                          {item.unread && <span className="mt-1 h-1.5 w-1.5 rounded-full bg-blue-500 shrink-0" />}
+                          {item.unread && <span className="mt-1 h-1.5 w-1.5 rounded-full bg-brand-500 shrink-0" />}
                         </div>
                       ))}
                     </div>

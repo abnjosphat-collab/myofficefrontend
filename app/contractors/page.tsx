@@ -2,6 +2,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { api } from '@/lib/apiClient';
 import { motion } from 'framer-motion';
 import { AppShell } from '@/components/app-shell';
 import { HardHat, Star, ChevronDown, ChevronUp, Plus, X, RefreshCw, LayoutGrid, List } from '@/components/shared/theme';
@@ -10,8 +11,6 @@ import {
   ViewToggle, GroupSection, RecordCard, ACCENT_HEX, staggerContainer, fadeUp, InfoRow,
 } from '@/components/shared/theme';
 
-const _API = (process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com').replace(/\/$/, '');
-const CONT_URL = `${_API}/api/contractors`;
 
 const fromContAPI = (d: any): Contractor => ({
   id: d.id, company: d.company_name || '', trade: d.trade || '',
@@ -156,7 +155,7 @@ function ContractorsContent() {
 
   const fetchContractors = useCallback(async () => {
     setLoading(true);
-    try { const r = await fetch(CONT_URL); if (r.ok) setContractors((await r.json()).map(fromContAPI)); }
+    try { setContractors((await api.get<any[]>('/api/contractors')).map(fromContAPI)); }
     catch { /* network */ } finally { setLoading(false); }
   }, []);
   useEffect(() => { fetchContractors(); }, [fetchContractors]);
@@ -194,8 +193,8 @@ function ContractorsContent() {
     if (!form.company) return;
     try {
       const body = { company_name: form.company, trade: form.trade, contact_name: form.contact, phone: form.phone, contract_end: form.contractExpiry || null, insurance_expiry: form.insuranceExpiry || null, status: 'active', performance_rating: 3 };
-      const r = await fetch(CONT_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-      if (r.ok) fetchContractors();
+      await api.post('/api/contractors', body);
+      fetchContractors();
     } catch { /* ignore */ }
     setForm({ company: '', trade: 'Mechanical', contact: '', phone: '', contractExpiry: '', insuranceExpiry: '' });
     setShowAdd(false);
@@ -252,7 +251,7 @@ function ContractorsContent() {
               options={[{ value: 'all', label: 'All Trades' }, ...TRADES.map(tr => ({ value: tr, label: tr }))]} />
             {(['all', 'active', 'inactive'] as const).map(s => (
               <button type="button" key={s} onClick={() => setStatusFilter(s)}
-                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${statusFilter === s ? 'bg-blue-500/20 text-blue-500' : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}>
+                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${statusFilter === s ? 'bg-brand-500/20 text-brand-500' : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}>
                 {s.charAt(0).toUpperCase() + s.slice(1)}
               </button>
             ))}

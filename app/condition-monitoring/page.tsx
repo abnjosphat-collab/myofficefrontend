@@ -2,12 +2,10 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { api } from '@/lib/apiClient';
 import { AppShell } from '@/components/app-shell';
 import { Radar, Plus, X, RefreshCw } from '@/components/shared/theme';
 import { useTheme, PageHero, StatTile, StatusBadge, FormField, PrimaryButton, ACCENT_HEX, SelectField } from '@/components/shared/theme';
-
-const _API = (process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com').replace(/\/$/, '');
-const CM_URL = `${_API}/api/condition-monitoring`;
 
 type CMResult = 'normal' | 'caution' | 'critical';
 type CMType = 'Oil Analysis' | 'Vibration' | 'Thermography';
@@ -43,7 +41,7 @@ function ConditionMonitoringContent() {
 
   const fetchReadings = useCallback(async () => {
     setLoading(true);
-    try { const r = await fetch(CM_URL); if (r.ok) setReadings((await r.json() as CMReadingAPI[]).map(fromCMAPI)); }
+    try { setReadings((await api.get<CMReadingAPI[]>('/api/condition-monitoring')).map(fromCMAPI)); }
     catch { /* network error */ } finally { setLoading(false); }
   }, []);
   useEffect(() => { fetchReadings(); }, [fetchReadings]);
@@ -54,7 +52,7 @@ function ConditionMonitoringContent() {
   const submit = async () => {
     if (!form.equipment || !form.date) return;
     const body = { equipment_name: form.equipment, component: form.component, monitoring_type: form.type, sampled_date: form.date, value: parseFloat(form.value) || null, unit: form.unit, result: form.result, technician: form.technician, notes: form.notes };
-    try { const r = await fetch(CM_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); if (r.ok) fetchReadings(); }
+    try { await api.post('/api/condition-monitoring', body); fetchReadings(); }
     catch { /* ignore */ }
     setForm({ equipment: '', component: '', type: 'Vibration', date: '', value: '', unit: '', result: 'normal', technician: '', notes: '' });
     setShowAdd(false);
@@ -118,7 +116,7 @@ function ConditionMonitoringContent() {
           <h2 className={`font-semibold ${t.textPrimary}`}>Monitoring Records</h2>
           <div className="flex gap-1">
             {(['All', ...CM_TYPES] as const).map(ty => (
-              <button key={ty} type="button" onClick={() => setTab(ty)} className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${tab === ty ? 'bg-blue-500/20 text-blue-400' : `${t.textFaint} ${t.hoverText}`}`}>{ty}</button>
+              <button key={ty} type="button" onClick={() => setTab(ty)} className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${tab === ty ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} ${t.hoverText}`}`}>{ty}</button>
             ))}
           </div>
         </div>

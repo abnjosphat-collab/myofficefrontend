@@ -2,6 +2,8 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { api } from '@/lib/apiClient';
+import { formatDate } from '@/lib/format';
 import {
   ShoppingCart, Plus, Pencil, Trash2, Eye, Search, Filter,
   Zap, Wrench, Flag, DollarSign, FileText, BarChart3, X,
@@ -10,7 +12,7 @@ import {
 import { AppShell } from '@/components/app-shell';
 import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput,
-  FormField, FormActions, useCollapseSection, CenterModal, ProgressBar, ACCENT_HEX, SelectField,
+  FormField, FormActions, useCollapseSection, CenterModal, ProgressBar, ACCENT_HEX, SelectField, LoadingState, AutofillInput,
 } from '@/components/shared/theme';
 import { toast } from 'sonner';
 
@@ -61,16 +63,10 @@ const PRIORITY_COLOR: Record<Requisition['priority'], string> = {
 function formatCurrency(v: number) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(v || 0);
 }
-function fmtDate(d?: string) {
-  if (!d) return '—';
-  const dt = new Date(d);
-  return isNaN(dt.getTime()) ? '—' : dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-}
+const fmtDate = (d?: string) => formatDate(d);
 
 // ─── API ──────────────────────────────────────────────────────────────────────
 
-const API = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000').replace(/\/$/, '');
-const BASE = `${API}/api/requisitions`;
 
 function fromBackend(d: Record<string, unknown>): Requisition {
   return {
@@ -96,24 +92,17 @@ function fromBackend(d: Record<string, unknown>): Requisition {
 }
 
 async function apiGet(): Promise<Requisition[]> {
-  const r = await fetch(BASE);
-  if (!r.ok) throw new Error(await r.text());
-  const data: unknown[] = await r.json();
+  const data = await api.get<unknown[]>('/api/requisitions');
   return (Array.isArray(data) ? data : []).map(d => fromBackend(d as Record<string, unknown>));
 }
 async function apiCreate(body: object): Promise<Requisition> {
-  const r = await fetch(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-  if (!r.ok) throw new Error(await r.text());
-  return fromBackend(await r.json());
+  return fromBackend(await api.post<Record<string, unknown>>('/api/requisitions', body));
 }
 async function apiUpdate(id: string, body: object): Promise<Requisition> {
-  const r = await fetch(`${BASE}/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-  if (!r.ok) throw new Error(await r.text());
-  return fromBackend(await r.json());
+  return fromBackend(await api.patch<Record<string, unknown>>(`/api/requisitions/${id}`, body));
 }
 async function apiDelete(id: string): Promise<void> {
-  const r = await fetch(`${BASE}/${id}`, { method: 'DELETE' });
-  if (!r.ok) throw new Error(await r.text());
+  await api.delete(`/api/requisitions/${id}`);
 }
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
@@ -140,8 +129,8 @@ function useReqData(open: boolean) {
   useEffect(() => {
     if (!open) return;
     Promise.all([
-      fetch(`${API}/api/employees`).then(r => r.ok ? r.json() : []),
-      fetch(`${API}/api/equipment`).then(r => r.ok ? r.json() : []),
+      api.get<any[]>('/api/employees').catch(() => []),
+      api.get<any[]>('/api/equipment').catch(() => []),
     ]).then(([emps, equip]) => {
       setEmployees((Array.isArray(emps) ? emps : []).map((e: Record<string, unknown>) => ({
         id: String(e.employee_id ?? e.id ?? ''),
@@ -279,7 +268,7 @@ function ReqModal({ open, onClose, onSave, editing }: {
         <div>
           <div className="flex items-center justify-between mb-2">
             <span className={`text-xs font-semibold uppercase tracking-wider ${t.textFaint}`}>Line Items</span>
-            <button type="button" onClick={addItem} className="flex items-center gap-1 h-7 px-2.5 rounded-lg text-xs font-medium bg-blue-500/15 text-blue-400 hover:bg-blue-500/25 transition-colors">
+            <button type="button" onClick={addItem} className="flex items-center gap-1 h-7 px-2.5 rounded-lg text-xs font-medium bg-brand-500/15 text-brand-400 hover:bg-brand-500/25 transition-colors">
               <Plus className="h-3 w-3" /> Add Item
             </button>
           </div>
@@ -288,7 +277,7 @@ function ReqModal({ open, onClose, onSave, editing }: {
               <div key={i} className={`grid grid-cols-12 gap-2 p-3 rounded-xl ${t.chipBg}`}>
                 <div className="col-span-5">
                   <FormField label="Description" required>
-                    <input className={inputCls} placeholder="Item description" value={it.description} onChange={e => setItem(i, { description: e.target.value })} />
+                    <AutofillInput field="item_description" className={inputCls} placeholder="Item description" value={it.description} onChange={v => setItem(i, { description: v })} />
                   </FormField>
                 </div>
                 <div className="col-span-2">
@@ -406,7 +395,7 @@ function ReqDetailModal({ req, onClose, onEdit }: { req: Requisition; onClose: (
         <div className="flex gap-2">
           <button type="button" onClick={onClose} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border} transition-all`}>Close</button>
           <button type="button" onClick={() => { onClose(); onEdit(); }}
-            className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-blue-500 to-blue-700 hover:brightness-110 transition-all inline-flex items-center justify-center gap-2">
+            className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all inline-flex items-center justify-center gap-2">
             <Pencil className="h-4 w-4" /> Edit
           </button>
         </div>
@@ -515,7 +504,7 @@ function RequisitionsPageContent() {
         statsOpen={sections.expanded.hero}
         actions={
           <button type="button" onClick={() => { setEditing(null); setFormOpen(true); }}
-            className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-blue-500 to-blue-700 hover:brightness-110 transition-all">
+            className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all">
             <Plus className="h-3.5 w-3.5" /> New Requisition
           </button>
         }
@@ -535,7 +524,7 @@ function RequisitionsPageContent() {
           <SearchInput value={search} onChange={setSearch} placeholder="Search requisitions…" className="flex-1" />
           <div className="flex gap-2 flex-wrap items-center">
             <button type="button" onClick={() => setShowFilters(v => !v)}
-              className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-medium transition-colors ${showFilters ? 'bg-blue-500/15 text-blue-400' : `${t.textMuted} ${t.glassSoft} ${t.hoverText}`}`}>
+              className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-medium transition-colors ${showFilters ? 'bg-brand-500/15 text-brand-400' : `${t.textMuted} ${t.glassSoft} ${t.hoverText}`}`}>
               <Filter className="h-3.5 w-3.5" /> Filters
             </button>
             {hasFilters && (
@@ -573,7 +562,7 @@ function RequisitionsPageContent() {
       <div className={`flex gap-1 ${t.glassSoft} rounded-lg p-1 w-fit`}>
         {([{ id: 'records', label: 'Records', icon: FileText }, { id: 'analytics', label: 'Analytics', icon: BarChart3 }] as const).map(tb => (
           <button key={tb.id} type="button" onClick={() => setTab(tb.id)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${tab === tb.id ? 'bg-blue-500/20 text-blue-400' : `${t.textFaint} ${t.hoverText}`}`}>
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${tab === tb.id ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} ${t.hoverText}`}`}>
             <tb.icon className="h-3.5 w-3.5" /> {tb.label}
           </button>
         ))}
@@ -581,14 +570,14 @@ function RequisitionsPageContent() {
 
       {loading ? (
         <div className={`${t.glass} rounded-2xl p-16 text-center`}>
-          <div className={`h-8 w-8 border-2 border-t-transparent rounded-full animate-spin mx-auto ${t.textFaint}`} style={{ borderColor: 'currentColor', borderTopColor: 'transparent' }} />
+          <LoadingState />
         </div>
       ) : tab === 'records' ? (
         <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
           <div className={`flex items-center justify-between px-4 py-3 border-b ${t.border}`}>
             <h3 className={`text-sm font-semibold ${t.textPrimary}`}>Requisitions ({filtered.length})</h3>
             <button type="button" onClick={() => { setEditing(null); setFormOpen(true); }}
-              className="flex items-center gap-1.5 h-7 px-2.5 rounded-lg text-xs font-medium bg-blue-500/15 text-blue-400 hover:bg-blue-500/25 transition-colors">
+              className="flex items-center gap-1.5 h-7 px-2.5 rounded-lg text-xs font-medium bg-brand-500/15 text-brand-400 hover:bg-brand-500/25 transition-colors">
               <Plus className="h-3 w-3" /> New Req
             </button>
           </div>
@@ -598,7 +587,7 @@ function RequisitionsPageContent() {
               <h3 className={`text-lg font-semibold ${t.textPrimary} mb-2`}>No requisitions</h3>
               <p className={`text-sm mb-4 ${t.textFaint}`}>Adjust filters or create your first requisition.</p>
               <button type="button" onClick={() => { setEditing(null); setFormOpen(true); }}
-                className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-blue-500 to-blue-700 hover:brightness-110 transition-all">
+                className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all">
                 <Plus className="h-3.5 w-3.5" /> New Req
               </button>
             </div>
@@ -619,7 +608,7 @@ function RequisitionsPageContent() {
                     return (
                       <tr key={r.id} className={`border-b ${t.border} ${t.hoverBgSoft} cursor-pointer`} onClick={() => setViewing(r)}>
                         <td className="p-3">
-                          <p className="font-mono text-xs font-semibold text-blue-400">{r.requisitionNumber}</p>
+                          <p className="font-mono text-xs font-semibold text-brand-400">{r.requisitionNumber}</p>
                           <p className={`text-[10px] ${t.textFaint}`}>#{r.lineNumber}</p>
                         </td>
                         <td className={`p-3 text-xs ${t.textMuted}`}>{fmtDate(r.date)}</td>
@@ -631,7 +620,7 @@ function RequisitionsPageContent() {
                         <td className="p-3" onClick={e => e.stopPropagation()}>
                           <div className="flex gap-1 justify-end">
                             <button type="button" title="View" onClick={() => setViewing(r)} className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}><Eye className="h-3.5 w-3.5" /></button>
-                            <button type="button" title="Edit" onClick={() => { setEditing(r); setFormOpen(true); }} className="h-7 w-7 flex items-center justify-center rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-400"><Pencil className="h-3.5 w-3.5" /></button>
+                            <button type="button" title="Edit" onClick={() => { setEditing(r); setFormOpen(true); }} className="h-7 w-7 flex items-center justify-center rounded-lg bg-brand-500/10 hover:bg-brand-500/20 text-brand-400"><Pencil className="h-3.5 w-3.5" /></button>
                             <button type="button" title="Delete" onClick={() => setDelTarget(r)} className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} hover:text-rose-500`}><Trash2 className="h-3.5 w-3.5" /></button>
                           </div>
                         </td>

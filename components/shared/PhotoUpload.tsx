@@ -1,9 +1,11 @@
 'use client';
 
 import { useRef, useState } from 'react';
+import { API_BASE } from '@/lib/config';
+import { authFetch } from '@/lib/api';
 import { Camera, Upload, X, ZoomIn, ImageIcon } from '@/components/shared/theme';
 
-const API = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000').replace(/\/$/, '');
+const API = API_BASE;
 
 // All common image formats including HEIC/HEIF from phone cameras
 const ACCEPTED =
@@ -55,7 +57,7 @@ export function PhotoUpload({
         const fd = new FormData();
         fd.append('file', file);
         fd.append('folder', folder);
-        const res = await fetch(`${API}/api/photos/upload`, { method: 'POST', body: fd });
+        const res = await authFetch(`${API}/api/photos/upload`, { method: 'POST', body: fd });
         if (!res.ok) {
           const body = await res.text();
           throw new Error(body || `HTTP ${res.status}`);

@@ -1,6 +1,7 @@
 'use client';
 
 import { AppShell } from '@/components/app-shell';
+import { api } from '@/lib/apiClient';
 import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import {
   Upload, FileSpreadsheet, CheckCircle2, AlertTriangle, X,
@@ -9,8 +10,6 @@ import {
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { useTheme, PageHero, PrimaryButton } from '@/components/shared/theme';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com';
 
 // ─── TYPES ───────────────────────────────────────────────────────────────────
 
@@ -182,15 +181,7 @@ function SpareImportContent() {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      const res = await fetch(`${API_URL}/api/spares/infer`, {
-        method: 'POST',
-        body: formData,
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error((err as any).detail || `HTTP ${res.status}`);
-      }
-      const data: InferResult = await res.json();
+      const data = await api.post<InferResult>('/api/spares/infer', formData);
       setInferResult(data);
       toast.success(`Parsed ${data.total_rows} rows — columns mapped automatically`);
     } catch (err: any) {
@@ -232,20 +223,11 @@ function SpareImportContent() {
         safety_stock:     false,
         lead_time_days:   0,
       }));
-      const res = await fetch(`${API_URL}/api/spares/bulk`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          items,
-          skip_existing: importMode === 'skip',
-          upsert:        importMode === 'upsert',
-        }),
+      const data = await api.post<any>('/api/spares/bulk', {
+        items,
+        skip_existing: importMode === 'skip',
+        upsert:        importMode === 'upsert',
       });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error((err as any).detail || `HTTP ${res.status}`);
-      }
-      const data = await res.json();
       setResult(data);
       toast.success(`${data.created} inserted, ${data.updated ?? 0} updated`);
     } catch (err: any) {

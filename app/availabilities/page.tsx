@@ -2,6 +2,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, ElementType } from 'react';
+import { api } from '@/lib/apiClient';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
@@ -16,8 +17,6 @@ import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, ProgressBar, FormField, FormActions,
   useCollapseSection, CenterModal, ACCENT_HEX, EmptyState, PrimaryButton, SelectField,
 } from '@/components/shared/theme';
-
-const API = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000').replace(/\/$/, '');
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
@@ -184,15 +183,12 @@ function AvailabilitiesContent() {
     if (!quiet) setLoading(true);
     setRefreshing(true);
     try {
-      const [eqRes, bdRes, manualRes] = await Promise.all([
-        fetch(`${API}/api/equipment`).catch(() => null),
-        fetch(`${API}/api/availability-records/from-breakdowns`).catch(() => null),
-        fetch(`${API}/api/availability-records`).catch(() => null),
+      const [eqData, bdRecords, manualRecords] = await Promise.all([
+        api.get<any[]>('/api/equipment').catch(() => null),
+        api.get<AvailRecord[]>('/api/availability-records/from-breakdowns').catch(() => [] as AvailRecord[]),
+        api.get<AvailRecord[]>('/api/availability-records').catch(() => [] as AvailRecord[]),
       ]);
-      if (eqRes?.ok) setEquipment(await eqRes.json());
-
-      const bdRecords: AvailRecord[] = bdRes?.ok ? await bdRes.json() : [];
-      const manualRecords: AvailRecord[] = manualRes?.ok ? await manualRes.json() : [];
+      if (eqData) setEquipment(eqData);
 
       const manualKeys = new Set(manualRecords.map(r => `${r.equipment_id}_${r.date}`));
       const merged = [
@@ -278,11 +274,8 @@ function AvailabilitiesContent() {
   async function prefillFromBreakdowns(eqId: string, date: string) {
     if (!eqId || !date) return;
     try {
-      const res = await fetch(`${API}/api/availability-records/from-breakdowns?equipment_id=${eqId}&date_from=${date}&date_to=${date}`);
-      if (res.ok) {
-        const data: AvailRecord[] = await res.json();
-        if (data.length > 0) setForm(f => ({ ...f, breakdown_hours: String(data[0].breakdown_hours) }));
-      }
+      const data = await api.get<AvailRecord[]>(`/api/availability-records/from-breakdowns?equipment_id=${eqId}&date_from=${date}&date_to=${date}`);
+      if (data.length > 0) setForm(f => ({ ...f, breakdown_hours: String(data[0].breakdown_hours) }));
     } catch { /* silent — manual entry still works */ }
   }
 
@@ -300,10 +293,8 @@ function AvailabilitiesContent() {
       const op = parseFloat(form.operational_hours) || 0;
       const bd = Math.min(parseFloat(form.breakdown_hours) || 0, op);
       const payload = { equipment_id: parseInt(form.equipment_id), date: form.date, operational_hours: op, breakdown_hours: bd, availability_percentage: calcPct(op, bd), notes: form.notes };
-      const url = editRec ? `${API}/api/availability-records/${editRec.id}` : `${API}/api/availability-records`;
-      const method = editRec ? 'PUT' : 'POST';
-      const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-      if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.detail ?? `HTTP ${res.status}`); }
+      if (editRec) await api.put(`/api/availability-records/${editRec.id}`, payload);
+      else await api.post('/api/availability-records', payload);
       setModalOpen(false);
       toast.success(editRec ? 'Record updated' : 'Record logged');
       fetchAll(true);
@@ -318,8 +309,9 @@ function AvailabilitiesContent() {
 
   async function doDelete() {
     if (!deleteTarget) return;
-    const res = await fetch(`${API}/api/availability-records/${deleteTarget.id}`, { method: 'DELETE' });
-    if (!res.ok) { toast.error(`Delete failed: HTTP ${res.status}`); return; }
+    try {
+      await api.delete(`/api/availability-records/${deleteTarget.id}`);
+    } catch (e) { toast.error(`Delete failed: ${(e as Error).message}`); return; }
     setDeleteTarget(null);
     toast.success('Record deleted');
     fetchAll(true);
@@ -418,7 +410,7 @@ function AvailabilitiesContent() {
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className={`${t.glass} rounded-xl p-4`}>
-          <div className="flex items-center gap-1.5 mb-1"><Percent className="h-3.5 w-3.5 text-blue-400" /><span className={`text-xs ${t.textFaint}`}>Fleet Availability</span></div>
+          <div className="flex items-center gap-1.5 mb-1"><Percent className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs ${t.textFaint}`}>Fleet Availability</span></div>
           <div className={`text-xl font-bold ${avColor(fleet.avgAv)}`}>{fleet.avgAv.toFixed(1)}%</div>
           <div className="mt-2"><ProgressBar value={fleet.avgAv} color={avHex(fleet.avgAv)} showValue={false} /></div>
         </div>
@@ -431,14 +423,14 @@ function AvailabilitiesContent() {
           <div className={`text-xl font-bold ${fleet.below90 > 0 ? 'text-red-400' : 'text-emerald-400'}`}>{fleet.below90}</div>
         </div>
         <div className={`${t.glass} rounded-xl p-4`}>
-          <div className="flex items-center gap-1.5 mb-1"><Activity className="h-3.5 w-3.5 text-blue-400" /><span className={`text-xs ${t.textFaint}`}>Records (period)</span></div>
+          <div className="flex items-center gap-1.5 mb-1"><Activity className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs ${t.textFaint}`}>Records (period)</span></div>
           <div className={`text-xl font-bold ${t.textPrimary}`}>{fleet.count}</div>
         </div>
       </div>
 
       <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
         <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}>
-          <Search className="h-4 w-4 text-blue-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Filters</span>
+          <Search className="h-4 w-4 text-brand-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Filters</span>
         </div>
         <div className="px-5 pb-4 pt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <SearchInput value={search} onChange={setSearch} placeholder="Search equipment…" />
@@ -462,7 +454,7 @@ function AvailabilitiesContent() {
       <div className={`flex items-center gap-1 ${t.glassSoft} rounded-xl p-1 w-fit`}>
         {TABS.map(tb => (
           <button key={tb.key} type="button" onClick={() => setMainTab(tb.key)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${mainTab === tb.key ? 'bg-blue-500/20 text-blue-400' : `${t.textFaint} ${t.hoverText} ${t.hoverBg}`}`}>
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${mainTab === tb.key ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} ${t.hoverText} ${t.hoverBg}`}`}>
             <tb.icon className="h-4 w-4" />{tb.label}
           </button>
         ))}
@@ -473,7 +465,7 @@ function AvailabilitiesContent() {
       ) : mainTab === 'overview' ? (
         <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
           <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}>
-            <Gauge className="h-4 w-4 text-blue-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Equipment Availability — Latest Entry</span>
+            <Gauge className="h-4 w-4 text-brand-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Equipment Availability — Latest Entry</span>
           </div>
           {eqSummary.length === 0 ? (
             <EmptyState icon={Gauge} title="No Records Yet" message="Log your first availability record using the button above." action={{ label: 'Log Record', onClick: openNew }} />
@@ -508,11 +500,11 @@ function AvailabilitiesContent() {
       ) : mainTab === 'period' ? (
         <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
           <div className={`flex items-center justify-between px-5 py-3 border-b ${t.border}`}>
-            <div className="flex items-center gap-2"><Calendar className="h-4 w-4 text-blue-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>By {period.charAt(0).toUpperCase() + period.slice(1)}</span></div>
+            <div className="flex items-center gap-2"><Calendar className="h-4 w-4 text-brand-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>By {period.charAt(0).toUpperCase() + period.slice(1)}</span></div>
             <div className="flex gap-1">
               {(['day', 'week', 'month'] as const).map(p => (
                 <button key={p} type="button" onClick={() => setPeriod(p)}
-                  className={`px-2.5 py-1 text-[11px] rounded-lg font-semibold transition-all ${period === p ? 'bg-blue-500/20 text-blue-400' : `${t.textFaint} ${t.hoverText} ${t.hoverBg}`}`}>
+                  className={`px-2.5 py-1 text-[11px] rounded-lg font-semibold transition-all ${period === p ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} ${t.hoverText} ${t.hoverBg}`}`}>
                   {p.charAt(0).toUpperCase() + p.slice(1)}
                 </button>
               ))}
@@ -549,7 +541,7 @@ function AvailabilitiesContent() {
       ) : mainTab === 'analytics' ? (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-            <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><BarChart3 className="h-4 w-4 text-blue-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>By Department</span></div>
+            <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><BarChart3 className="h-4 w-4 text-brand-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>By Department</span></div>
             <div className="p-5 space-y-3">
               {deptStats.length === 0 ? <p className={`text-sm text-center py-8 ${t.textFaint}`}>No data — log records first</p> : deptStats.map(({ dept, avg }) => (
                 <div key={dept}>
@@ -578,7 +570,7 @@ function AvailabilitiesContent() {
           </div>
 
           <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-            <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><LineChart className="h-4 w-4 text-blue-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Period Summary</span></div>
+            <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><LineChart className="h-4 w-4 text-brand-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Period Summary</span></div>
             <div className="p-5 space-y-3 text-sm">
               {periodRows.length > 0 ? (() => {
                 const avgs = periodRows.map(r => r.avgAvailability);
@@ -601,7 +593,7 @@ function AvailabilitiesContent() {
           </div>
 
           <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-            <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><Activity className="h-4 w-4 text-blue-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Fleet Health</span></div>
+            <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><Activity className="h-4 w-4 text-brand-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Fleet Health</span></div>
             <div className="p-5 flex flex-col items-center gap-4">
               <GaugeRing pct={fleet.avgAv} />
               <div className={`w-full space-y-2 text-xs ${t.textMuted}`}>
@@ -615,8 +607,8 @@ function AvailabilitiesContent() {
       ) : (
         <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
           <div className={`flex items-center justify-between px-5 py-3 border-b ${t.border}`}>
-            <div className="flex items-center gap-2"><FileText className="h-4 w-4 text-blue-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>All Records ({filtered.length})</span></div>
-            <button type="button" onClick={openNew} className={`flex items-center gap-1.5 h-7 px-2.5 rounded-lg text-xs font-medium bg-blue-500/15 hover:bg-blue-500/25 text-blue-400 transition-colors`}><Plus className="h-3.5 w-3.5" /> Log Record</button>
+            <div className="flex items-center gap-2"><FileText className="h-4 w-4 text-brand-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>All Records ({filtered.length})</span></div>
+            <button type="button" onClick={openNew} className={`flex items-center gap-1.5 h-7 px-2.5 rounded-lg text-xs font-medium bg-brand-500/15 hover:bg-brand-500/25 text-brand-400 transition-colors`}><Plus className="h-3.5 w-3.5" /> Log Record</button>
           </div>
           {filtered.length === 0 ? (
             <EmptyState icon={FileText} title="No Records" message="No availability records match the current filters." action={{ label: 'Log Record', onClick: openNew }} />

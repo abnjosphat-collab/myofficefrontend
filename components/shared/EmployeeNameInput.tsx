@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { API_BASE } from '@/lib/config';
 import { Search, UserCircle, ChevronDown, X, Loader2 } from '@/components/shared/theme';
 
-const API = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000').replace(/\/$/, '');
+const API = API_BASE;
 
 export interface EmployeeRecord {
   id: number;

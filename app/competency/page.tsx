@@ -2,12 +2,10 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { api } from '@/lib/apiClient';
 import { AppShell } from '@/components/app-shell';
 import { GraduationCap, X, RefreshCw } from '@/components/shared/theme';
 import { useTheme, PageHero, StatTile } from '@/components/shared/theme';
-
-const _API = (process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com').replace(/\/$/, '');
-const COMP_URL = `${_API}/api/competency`;
 
 type SkillLevel = 0 | 1 | 2 | 3 | 4;
 
@@ -42,8 +40,8 @@ function CompetencyContent() {
   const fetchEmployees = useCallback(async () => {
     setLoading(true);
     try {
-      const r = await fetch(COMP_URL);
-      if (r.ok) { const rows = await r.json(); setRawRows(rows); setEmployees(pivotFromAPI(rows)); }
+      const rows = await api.get<any[]>('/api/competency');
+      setRawRows(rows); setEmployees(pivotFromAPI(rows));
     } catch { /* network */ } finally { setLoading(false); }
   }, []);
   useEffect(() => { fetchEmployees(); }, [fetchEmployees]);
@@ -66,9 +64,9 @@ function CompetencyContent() {
     const emp = employees.find(e => e.id === popover.empId);
     try {
       if (existing) {
-        await fetch(`${COMP_URL}/${existing.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ skill_level: level }) });
+        await api.patch(`/api/competency/${existing.id}`, { skill_level: level });
       } else if (emp) {
-        await fetch(COMP_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ employee_id: String(emp.id), employee_name: emp.name, trade: emp.trade, equipment_type: popover.skill, skill_area: popover.skill, skill_level: level }) });
+        await api.post('/api/competency', { employee_id: String(emp.id), employee_name: emp.name, trade: emp.trade, equipment_type: popover.skill, skill_area: popover.skill, skill_level: level });
       }
       fetchEmployees();
     } catch { /* ignore */ }
@@ -118,7 +116,7 @@ function CompetencyContent() {
             <span className={`text-xs mr-2 ${t.textFaint}`}>Trade:</span>
             {['all', ...TRADES_STATIC].map(tr => (
               <button key={tr} type="button" onClick={() => setTradeFilter(tr)}
-                className={`mr-1 px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${tradeFilter === tr ? 'bg-blue-500/20 text-blue-500' : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}>
+                className={`mr-1 px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${tradeFilter === tr ? 'bg-brand-500/20 text-brand-500' : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}>
                 {tr === 'all' ? 'All' : tr}
               </button>
             ))}
@@ -127,7 +125,7 @@ function CompetencyContent() {
             <span className={`text-xs mr-2 ${t.textFaint}`}>Dept:</span>
             {['all', ...DEPTS_STATIC].map(d => (
               <button key={d} type="button" onClick={() => setDeptFilter(d)}
-                className={`mr-1 px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${deptFilter === d ? 'bg-blue-500/20 text-blue-500' : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}>
+                className={`mr-1 px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${deptFilter === d ? 'bg-brand-500/20 text-brand-500' : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}>
                 {d === 'all' ? 'All' : d}
               </button>
             ))}
@@ -157,7 +155,7 @@ function CompetencyContent() {
                     return (
                       <td key={skill} className="px-3 py-3 text-center">
                         <button type="button" title={`${emp.name} — ${skill}: ${LEVEL_LABEL[level]}. Click to edit.`} onClick={e => handleCellClick(emp.id, skill, e)}
-                          className="w-8 h-8 rounded-lg hover:ring-2 hover:ring-blue-400/40 transition-all mx-auto flex items-center justify-center" style={{ background: `${hex}${level === 0 ? '20' : 'cc'}` }}>
+                          className="w-8 h-8 rounded-lg hover:ring-2 hover:ring-brand-400/40 transition-all mx-auto flex items-center justify-center" style={{ background: `${hex}${level === 0 ? '20' : 'cc'}` }}>
                           {level > 0 && <span className="text-[10px] font-bold text-white">{level}</span>}
                         </button>
                       </td>

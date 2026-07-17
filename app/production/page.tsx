@@ -2,13 +2,11 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { api } from '@/lib/apiClient';
 import { AppShell } from '@/components/app-shell';
 import { BarChart2, Plus, X } from '@/components/shared/theme';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { useTheme, PageHero, StatCard, FormField, PrimaryButton, SelectField, type Accent } from '@/components/shared/theme';
-
-const _API = (process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com').replace(/\/$/, '');
-const PROD_URL = `${_API}/api/production`;
 
 const fromProdAPI = (d: any): ProductionRecord => ({
   id: d.id, date: d.prod_date || '', shift: d.shift || '',
@@ -41,7 +39,7 @@ function ProductionContent() {
   const [records, setRecords] = useState<ProductionRecord[]>([]);
 
   const fetchRecords = useCallback(async () => {
-    try { const r = await fetch(PROD_URL); if (r.ok) setRecords((await r.json()).map(fromProdAPI)); }
+    try { setRecords((await api.get<any[]>('/api/production')).map(fromProdAPI)); }
     catch { /* network */ }
   }, []);
   useEffect(() => { fetchRecords(); }, [fetchRecords]);
@@ -54,8 +52,8 @@ function ProductionContent() {
     if (!form.date || !form.tonnesMilled) return;
     try {
       const body = { prod_date: form.date, shift: form.shift, tonnes_milled: +form.tonnesMilled, feed_rate_tph: +form.feedRate, grade_gpt: +form.grade, recovery_pct: +form.recovery, gold_produced_oz: +form.goldOz, mill_availability: +form.millAvail, power_kwh: +form.powerKwh, downtime_hours: +form.downtimeHrs, downtime_reason: form.downtimeReason, comments: form.comments };
-      const r = await fetch(PROD_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-      if (r.ok) fetchRecords();
+      await api.post('/api/production', body);
+      fetchRecords();
     } catch { /* ignore */ }
     setShowForm(false);
   };

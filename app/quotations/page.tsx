@@ -7,6 +7,7 @@ import { jsPDF } from 'jspdf';
 import { saveAs } from 'file-saver';
 import { Document, Packer, Paragraph, TextRun, AlignmentType, Table, TableCell, TableRow, WidthType, BorderStyle } from 'docx';
 import { AppShell } from '@/components/app-shell';
+import { formatDate } from '@/lib/format';
 import {
   useTheme, PageHero, StatTile, StatusBadge, FormField, PrimaryButton, useCollapseSection, GlowCard, ACCENT_HEX, SelectField,
 } from '@/components/shared/theme';
@@ -24,7 +25,7 @@ interface QuotationTemplate { id: string; name: string; category: string; color:
 
 const QUOTATION_TEMPLATES = [
   {
-    id: 'premium-web', name: 'Premium Web Development', category: 'Technology', color: 'bg-gradient-to-r from-blue-600 to-purple-600', icon: '💻',
+    id: 'premium-web', name: 'Premium Web Development', category: 'Technology', color: 'bg-gradient-to-r from-brand-600 to-purple-600', icon: '💻',
     items: [
       { description: 'Premium Website Design & UI/UX', quantity: 1, rate: 3500, amount: 3500 },
       { description: 'Advanced Frontend Development', quantity: 1, rate: 4500, amount: 4500 },
@@ -66,7 +67,7 @@ const CURRENCIES = [
 ];
 
 const PREMIUM_THEMES = [
-  { id: 'executive', name: 'Executive', dotClass: 'bg-blue-700' },
+  { id: 'executive', name: 'Executive', dotClass: 'bg-brand-700' },
   { id: 'modern', name: 'Modern', dotClass: 'bg-violet-600' },
   { id: 'corporate', name: 'Corporate', dotClass: 'bg-emerald-600' },
   { id: 'luxury', name: 'Luxury', dotClass: 'bg-red-600' },
@@ -91,7 +92,7 @@ function Panel({ id, title, icon: Icon, badge, actions, sections, children }: {
     <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
       <div className={`flex items-center justify-between gap-2 px-4 py-3 border-b ${t.border} flex-wrap`}>
         <button type="button" onClick={() => sections.toggle(id)} className="flex items-center gap-2 min-w-0 flex-1 text-left">
-          <Icon className="h-3.5 w-3.5 text-blue-400 shrink-0" />
+          <Icon className="h-3.5 w-3.5 text-brand-400 shrink-0" />
           <span className={`text-sm font-semibold ${t.textPrimary}`}>{title}</span>
           {badge && <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${t.chipBg} ${t.textFaint}`}>{badge}</span>}
         </button>
@@ -341,7 +342,7 @@ const QuotationGeneratorContent = () => {
             <div className="grid grid-cols-2 gap-2">
               {PREMIUM_THEMES.map(theme => (
                 <button key={theme.id} type="button" onClick={() => setQuotation({ ...quotation, theme: theme.id })}
-                  className={`p-2.5 rounded-xl border-2 transition-all text-left ${quotation.theme === theme.id ? 'border-blue-500/60 bg-blue-500/10' : `${t.border} hover:border-blue-400/40`}`}>
+                  className={`p-2.5 rounded-xl border-2 transition-all text-left ${quotation.theme === theme.id ? 'border-brand-500/60 bg-brand-500/10' : `${t.border} hover:border-brand-400/40`}`}>
                   <div className="flex items-center gap-2">
                     <div className={`w-3.5 h-3.5 rounded-full shrink-0 ${theme.dotClass}`} />
                     <span className={`text-xs font-medium ${t.textMuted}`}>{theme.name}</span>
@@ -412,7 +413,7 @@ const QuotationGeneratorContent = () => {
       <div className={`${previewMode ? 'xl:col-span-3' : 'xl:col-span-2'} space-y-4`}>
         <div className="flex justify-end">
           <button type="button" onClick={() => setPreviewMode(!previewMode)}
-            className={`h-8 px-3 rounded-lg text-xs font-medium inline-flex items-center gap-1.5 transition-all ${previewMode ? 'bg-blue-500/15 text-blue-500' : `${t.chipBg} ${t.hoverBg} ${t.textMuted}`}`}>
+            className={`h-8 px-3 rounded-lg text-xs font-medium inline-flex items-center gap-1.5 transition-all ${previewMode ? 'bg-brand-500/15 text-brand-500' : `${t.chipBg} ${t.hoverBg} ${t.textMuted}`}`}>
             <Eye className="h-3.5 w-3.5" /> {previewMode ? 'Edit Mode' : 'Preview Mode'}
           </button>
         </div>
@@ -430,7 +431,7 @@ const QuotationGeneratorContent = () => {
                   <p className="text-slate-600 text-sm">{company.phone} • {company.email}</p>
                 </div>
                 <div className="text-right">
-                  <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">QUOTATION</h2>
+                  <h2 className="text-3xl font-bold bg-gradient-to-r from-brand-600 to-purple-600 bg-clip-text text-transparent">QUOTATION</h2>
                   <div className="mt-3 space-y-1 text-sm">
                     <p className="text-slate-600 font-semibold">#{quotation.quotationNumber}</p>
                     <p className="text-slate-600">Date: {quotation.date}</p>
@@ -458,7 +459,7 @@ const QuotationGeneratorContent = () => {
                 </div>
               </div>
               <div className="mb-8">
-                <div className="bg-gradient-to-r from-slate-900 to-blue-900 text-white px-4 py-3 rounded-t-lg">
+                <div className="bg-gradient-to-r from-slate-900 to-brand-900 text-white px-4 py-3 rounded-t-lg">
                   <h3 className="font-semibold">Quotation Items</h3>
                 </div>
                 <table className="w-full border border-slate-200 rounded-b-lg overflow-hidden">
@@ -491,7 +492,7 @@ const QuotationGeneratorContent = () => {
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-8 text-sm">
-                <div><h4 className="font-semibold text-slate-900 mb-3">Notes</h4><div className="bg-blue-50 p-4 rounded-lg"><p className="text-slate-700 whitespace-pre-line">{quotation.notes}</p></div></div>
+                <div><h4 className="font-semibold text-slate-900 mb-3">Notes</h4><div className="bg-brand-50 p-4 rounded-lg"><p className="text-slate-700 whitespace-pre-line">{quotation.notes}</p></div></div>
                 <div><h4 className="font-semibold text-slate-900 mb-3">Terms & Conditions</h4><div className="bg-slate-50 p-4 rounded-lg"><p className="text-slate-700 whitespace-pre-line">{quotation.terms}</p></div></div>
               </div>
               <div className="mt-8 pt-6 border-t border-slate-200 text-center text-slate-500 text-sm">
@@ -504,7 +505,7 @@ const QuotationGeneratorContent = () => {
               {items.map((item, index) => (
                 <div key={item.id} className={`grid grid-cols-12 gap-2 items-end p-3 ${t.chipBg} rounded-xl border ${t.border}`}>
                   <div className="col-span-1 flex items-end justify-center pb-1">
-                    <div className="w-7 h-7 bg-blue-500/20 rounded-lg flex items-center justify-center text-blue-500 font-semibold text-xs">{index + 1}</div>
+                    <div className="w-7 h-7 bg-brand-500/20 rounded-lg flex items-center justify-center text-brand-500 font-semibold text-xs">{index + 1}</div>
                   </div>
                   <div className="col-span-5"><FormField label="Description"><input value={item.description} onChange={(e) => updateItem(item.id, 'description', e.target.value)} placeholder="Item description" className={inputCls} /></FormField></div>
                   <div className="col-span-2"><FormField label="Quantity"><input type="number" value={item.quantity} onChange={(e) => updateItem(item.id, 'quantity', parseInt(e.target.value) || 0)} className={inputCls} /></FormField></div>
@@ -532,7 +533,7 @@ const QuotationGeneratorContent = () => {
                   <div className={`flex flex-col justify-center border-l ${t.border} pl-6`}>
                     <div className={`text-xs uppercase tracking-wider mb-1 ${t.textFaint}`}>Total Amount</div>
                     <div className="text-2xl font-bold text-[#86BBD8]">{currencySymbol} {totals.total}</div>
-                    <div className={`text-xs mt-1 ${t.textFaint}`}>Valid until: {quotation.validUntil ? new Date(quotation.validUntil).toLocaleDateString() : 'Not set'}</div>
+                    <div className={`text-xs mt-1 ${t.textFaint}`}>Valid until: {quotation.validUntil ? formatDate(quotation.validUntil) : 'Not set'}</div>
                   </div>
                 </div>
               </div>
@@ -670,7 +671,7 @@ const QuotationGeneratorContent = () => {
       <div className={`${t.glassSoft} rounded-xl p-1 flex gap-1 flex-wrap`}>
         {TABS.map(tab => (
           <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id)}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${activeTab === tab.id ? 'bg-blue-500/15 text-blue-500' : `${t.textFaint} ${t.hoverBg} ${t.hoverText}`}`}>
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${activeTab === tab.id ? 'bg-brand-500/15 text-brand-500' : `${t.textFaint} ${t.hoverBg} ${t.hoverText}`}`}>
             <tab.icon className="h-3.5 w-3.5" /> {tab.label}
           </button>
         ))}

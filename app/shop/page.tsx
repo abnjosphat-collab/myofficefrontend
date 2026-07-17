@@ -1,4 +1,4 @@
-﻿// app/shop/page.tsx
+// app/shop/page.tsx
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -111,7 +111,7 @@ export default function HomePage() {
     { id: 1, name: "Skincare", icon: <Droplets className="w-8 h-8" />, products: 142, color: "bg-rose-50", gradient: "from-rose-400 to-pink-500" },
     { id: 2, name: "Makeup", icon: <Sparkles className="w-8 h-8" />, products: 89, color: "bg-purple-50", gradient: "from-purple-400 to-violet-500" },
     { id: 3, name: "Hair Care", icon: <Flower className="w-8 h-8" />, products: 76, color: "bg-amber-50", gradient: "from-amber-400 to-orange-500" },
-    { id: 4, name: "Fragrance", icon: <Waves className="w-8 h-8" />, products: 54, color: "bg-blue-50", gradient: "from-blue-400 to-cyan-500" },
+    { id: 4, name: "Fragrance", icon: <Waves className="w-8 h-8" />, products: 54, color: "bg-brand-50", gradient: "from-brand-400 to-cyan-500" },
     { id: 5, name: "Wellness", icon: <Smile className="w-8 h-8" />, products: 38, color: "bg-emerald-50", gradient: "from-emerald-400 to-teal-500" },
     { id: 6, name: "Bath & Body", icon: <Shell className="w-8 h-8" />, products: 67, color: "bg-pink-50", gradient: "from-pink-400 to-rose-500" }
   ];
@@ -195,7 +195,7 @@ export default function HomePage() {
       rating: 4.9,
       reviews: 89,
       icon: <Waves className="w-16 h-16" />,
-      gradient: "from-blue-200 to-cyan-200",
+      gradient: "from-brand-200 to-cyan-200",
       badge: "Luxury",
       badgeColor: "bg-amber-500",
       isNew: false,

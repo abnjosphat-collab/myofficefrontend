@@ -12,6 +12,7 @@ import {
   BarChart, LayoutGrid, List, X, SlidersHorizontal, Users, Hash,
 } from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
+import { formatDate, formatTime } from '@/lib/format';
 import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle, PrimaryButton,
   EmptyState, useCollapseSection, GlowCard, SelectField,
@@ -91,8 +92,8 @@ function ReportCard({ report, onDownload, onDelete, isLoading }: ReportCardProps
   const [menuOpen, setMenuOpen] = useState(false);
   const { icon: TypeIcon, hex } = getTypeMeta(report.type);
   const FormatIcon = FORMAT_ICON[report.format] ?? FileText;
-  const fmtDate = new Date(report.generatedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-  const fmtTime = new Date(report.generatedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  const fmtDate = formatDate(report.generatedAt);
+  const fmtTime = formatTime(report.generatedAt);
   const records = report.metadata?.totalRecords ?? report.data?.length ?? 0;
 
   return (
@@ -153,7 +154,7 @@ function ReportListItem({ report, onDownload, onDelete, isLoading }: ReportCardP
   const t = useTheme();
   const { icon: TypeIcon, hex } = getTypeMeta(report.type);
   const FormatIcon = FORMAT_ICON[report.format] ?? FileText;
-  const fmtDate = new Date(report.generatedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  const fmtDate = formatDate(report.generatedAt);
   const records = report.metadata?.totalRecords ?? report.data?.length ?? 0;
 
   return (
@@ -298,23 +299,23 @@ function ReportsPageContent() {
         <div className="grid grid-cols-3 gap-3">
           <StatTile icon={Hash} color="#60a5fa" label="Total Reports" value={reports.length} />
           <StatTile icon={Sparkles} color="#34d399" label="This Week" value={reports.filter(r => isInRange(r.generatedAt)).length} />
-          <StatTile icon={Calendar} color="#86BBD8" label="Last Generated" value={reports[0] ? new Date(reports[0].generatedAt).toLocaleDateString() : '—'} />
+          <StatTile icon={Calendar} color="#86BBD8" label="Last Generated" value={reports[0] ? formatDate(reports[0].generatedAt) : '—'} />
         </div>
       </PageHero>
 
       {sections.expanded.searchFilters && (
         <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
           <div className={`px-5 py-3 border-b ${t.border} flex items-center gap-2`}>
-            <Search className="h-3.5 w-3.5 text-blue-400" />
+            <Search className="h-3.5 w-3.5 text-brand-400" />
             <span className={`font-semibold text-sm ${t.textPrimary}`}>Search & Filters</span>
           </div>
           <div className="p-5 space-y-3">
             <div className="flex gap-3">
               <SearchInput value={searchTerm} onChange={setSearchTerm} placeholder="Search reports by name, type, or description…" className="flex-1" />
               <button type="button" onClick={() => setShowFilters(f => !f)}
-                className={`h-8 px-3 rounded-lg text-xs font-medium inline-flex items-center gap-1.5 transition-all ${showFilters ? 'bg-blue-500/15 text-blue-500' : `${t.chipBg} ${t.hoverBg} ${t.textMuted}`}`}>
+                className={`h-8 px-3 rounded-lg text-xs font-medium inline-flex items-center gap-1.5 transition-all ${showFilters ? 'bg-brand-500/15 text-brand-500' : `${t.chipBg} ${t.hoverBg} ${t.textMuted}`}`}>
                 <SlidersHorizontal className="h-3.5 w-3.5" /> Filters
-                {activeFilterCount > 0 && <span className="ml-1 px-1 rounded bg-blue-500/25 text-[10px]">{activeFilterCount}</span>}
+                {activeFilterCount > 0 && <span className="ml-1 px-1 rounded bg-brand-500/25 text-[10px]">{activeFilterCount}</span>}
               </button>
             </div>
 
@@ -330,7 +331,7 @@ function ReportsPageContent() {
                     <div className="space-y-1.5">
                       {CHECKBOX_TYPES.map(ty => (
                         <label key={ty} className={`flex items-center gap-2 cursor-pointer text-xs ${t.textMuted} ${t.hoverText}`}>
-                          <input type="checkbox" checked={selectedTypes.includes(ty)} onChange={e => setSelectedTypes(p => e.target.checked ? [...p, ty] : p.filter(x => x !== ty))} className="accent-blue-600" />
+                          <input type="checkbox" checked={selectedTypes.includes(ty)} onChange={e => setSelectedTypes(p => e.target.checked ? [...p, ty] : p.filter(x => x !== ty))} className="accent-brand-600" />
                           {ty.charAt(0).toUpperCase() + ty.slice(1)}
                         </label>
                       ))}
@@ -341,7 +342,7 @@ function ReportsPageContent() {
                     <div className="space-y-1.5">
                       {CHECKBOX_FORMATS.map(f => (
                         <label key={f} className={`flex items-center gap-2 cursor-pointer text-xs ${t.textMuted} ${t.hoverText}`}>
-                          <input type="checkbox" checked={selectedFormats.includes(f)} onChange={e => setSelectedFormats(p => e.target.checked ? [...p, f] : p.filter(x => x !== f))} className="accent-blue-600" />
+                          <input type="checkbox" checked={selectedFormats.includes(f)} onChange={e => setSelectedFormats(p => e.target.checked ? [...p, f] : p.filter(x => x !== f))} className="accent-brand-600" />
                           {f.toUpperCase()}
                         </label>
                       ))}
@@ -371,7 +372,7 @@ function ReportsPageContent() {
           const Icon = type === 'all' ? FilePieChart : getTypeMeta(type).icon;
           return (
             <button key={type} type="button" onClick={() => setActiveTab(type)}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${activeTab === type ? 'bg-blue-500/15 text-blue-500' : `${t.textFaint} ${t.hoverBg} ${t.hoverText}`}`}>
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${activeTab === type ? 'bg-brand-500/15 text-brand-500' : `${t.textFaint} ${t.hoverBg} ${t.hoverText}`}`}>
               <Icon className="h-3.5 w-3.5" /> {type === 'all' ? 'All' : type.charAt(0).toUpperCase() + type.slice(1)}
               <span className={`text-[10px] px-1 rounded-full ${t.chipBg}`}>{count}</span>
             </button>

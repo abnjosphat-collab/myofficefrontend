@@ -1,7 +1,12 @@
 // frontend/app/maintenance/page.tsx
 'use client';
 import { useState, useEffect, useMemo, ElementType, useRef } from "react";
+import { api } from '@/lib/apiClient';
 import { AppShell } from "@/components/app-shell";
+import {
+  useEmployees, useEquipment, useSpares,
+  type EmployeeLookup, type EquipmentLookup, type SpareLookup,
+} from "@/hooks/useLookups";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,10 +16,11 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   useTheme, PageHero, StatTile, StatusBadge, ViewToggle, FormField, FormActions,
   useCollapseSection, CenterModal, ProgressBar, ACCENT_HEX, GlowCard, SelectField,
+  useConfirm, SearchInput, EmptyState, LoadingState,
 } from '@/components/shared/theme';
 import {
   Wrench, Plus, RefreshCw, CheckCircle2, Clock, PlayCircle, PauseCircle,
-  Search, ChevronDown, ChevronUp, ChevronRight, X, XCircle, AlertCircle,
+  ChevronDown, ChevronUp, ChevronRight, X, XCircle, AlertCircle,
   CalendarOff, ClipboardCheck, FileText, Trash2, Save, Signature,
   HardHat, ShieldCheck, Timer, CalendarClock, Pencil, Repeat2,
   SlidersHorizontal, ArrowUpDown, Zap, Settings2, Package, BarChart2,
@@ -45,17 +51,7 @@ const FAILURE_MODES = [
 const MECHANICAL_TRADES: Trade[] = ['Fitter', 'Boilermaker', 'Rigger', 'Plumber', 'Carpenter'];
 
 interface SpareItem { id: string; name: string; quantity: number; unit_cost: number; }
-interface SpareRegisterItem {
-  id: number | string; stock_code: string; description: string; unit_price: number;
-  unit_of_measure?: string; category?: string; current_quantity?: number;
-}
-
-let _empCache: EmployeeItem[] = [];
-let _empFetched = false;
-let _eqCache: EquipmentItem[] = [];
-let _eqFetched = false;
-let _spCache: SpareRegisterItem[] = [];
-let _spFetched = false;
+type SpareRegisterItem = SpareLookup;
 
 interface MaintenanceSchedule {
   id: string; name: string; equipment_info: string; to_department: string; allocated_to: string;
@@ -65,8 +61,10 @@ interface MaintenanceSchedule {
   specific_dates: string[]; advance_days: number; active: boolean; next_due_date: string;
   last_generated: string; created_at: string;
 }
-interface EquipmentItem { id: string; equipment_id: string; name: string; category?: string; department?: string; location?: string; status?: string; }
-interface EmployeeItem { id: string; employee_id?: string; first_name: string; last_name: string; designation?: string; department?: string; section?: string; }
+// Picker record types + fetch hooks are shared (hooks/useLookups) — these are aliases
+// so existing references in this file keep working.
+type EquipmentItem = EquipmentLookup;
+type EmployeeItem = EmployeeLookup;
 
 interface WorkOrder {
   id: string; work_order_number: string; equipment_info: string; to_department: string; to_section: string;
@@ -88,7 +86,7 @@ interface WorkOrder {
 }
 
 // ==================== API ====================
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com';
+
 const LOCAL_FIELDS: (keyof WorkOrder)[] = ['classification', 'classification_custom', 'failure_mode', 'discipline', 'trade', 'spares_used'];
 
 function lsRead(): WorkOrder[] { if (typeof window === 'undefined') return []; return JSON.parse(localStorage.getItem('maint_work_orders') || '[]'); }
@@ -108,9 +106,7 @@ async function getWorkOrders(): Promise<WorkOrder[]> {
   const local = lsRead();
   const localMap = new Map(local.map(w => [String(w.id), w]));
   try {
-    const res = await fetch(`${API_BASE}/api/maintenance/work-orders`);
-    if (!res.ok) throw new Error(`${res.status}`);
-    const apiData: WorkOrder[] = await res.json();
+    const apiData = await api.get<WorkOrder[]>('/api/maintenance/work-orders');
     if (!Array.isArray(apiData)) return local;
     const apiIds = new Set(apiData.map(w => String(w.id)));
     const localOnly = local.filter(w => !apiIds.has(String(w.id)));
@@ -130,9 +126,7 @@ async function getWorkOrders(): Promise<WorkOrder[]> {
 
 async function createWorkOrder(data: Record<string, unknown>): Promise<{ success: boolean; data?: WorkOrder }> {
   try {
-    const res = await fetch(`${API_BASE}/api/maintenance/work-orders`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
-    if (!res.ok) throw new Error(`${res.status}`);
-    const result = await res.json();
+    const result = await api.post<any>('/api/maintenance/work-orders', data);
     const full = { ...data, ...result } as WorkOrder;
     lsMergeIn(full);
     return { success: true, data: full };
@@ -145,16 +139,14 @@ async function createWorkOrder(data: Record<string, unknown>): Promise<{ success
 async function updateWorkOrder(id: string, updates: Record<string, unknown>): Promise<{ success: boolean }> {
   const ts = new Date().toISOString();
   try {
-    const res = await fetch(`${API_BASE}/api/maintenance/work-orders/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...updates, updated_at: ts }) });
-    if (!res.ok) throw new Error(`${res.status}`);
+    await api.patch(`/api/maintenance/work-orders/${id}`, { ...updates, updated_at: ts });
     lsPatchFields(id, { ...updates, updated_at: ts });
     return { success: true };
   } catch { lsPatchFields(id, { ...updates, updated_at: ts }); return { success: true }; }
 }
 async function deleteWorkOrder(id: string): Promise<{ success: boolean }> {
   try {
-    const res = await fetch(`${API_BASE}/api/maintenance/work-orders/${id}`, { method: 'DELETE' });
-    if (!res.ok) throw new Error(`${res.status}`);
+    await api.delete(`/api/maintenance/work-orders/${id}`);
     return { success: true };
   } catch {
     const prev: WorkOrder[] = JSON.parse(localStorage.getItem('maint_work_orders') || '[]');
@@ -382,7 +374,7 @@ function PredictiveArea({ id, label, value, onChange, placeholder, rows = 3, aut
       {ghost && (
         <div className="flex items-center gap-2 px-0.5 mt-1">
           <kbd className={`text-[9px] rounded px-1 py-px font-mono leading-none ${t.chipBg} ${t.textFaint}`}>Tab</kbd>
-          <button type="button" onClick={accept} className="text-[11px] text-blue-400 bg-blue-500/[0.08] hover:bg-blue-500/[0.16] px-2 py-0.5 rounded transition-colors max-w-[240px] truncate">{ghost.trim()}</button>
+          <button type="button" onClick={accept} className="text-[11px] text-brand-400 bg-brand-500/[0.08] hover:bg-brand-500/[0.16] px-2 py-0.5 rounded transition-colors max-w-[240px] truncate">{ghost.trim()}</button>
           <span className={`text-[10px] hidden sm:inline ${t.textFaint}`}>or click to accept</span>
         </div>
       )}
@@ -390,31 +382,9 @@ function PredictiveArea({ id, label, value, onChange, placeholder, rows = 3, aut
   );
 }
 
-// ==================== AUTOCOMPLETE HELPERS ====================
-function useEmployees() {
-  const [list, setList] = useState<EmployeeItem[]>(_empCache);
-  useEffect(() => {
-    if (_empFetched) return;
-    fetch(`${API_BASE}/api/employees`).then(r => r.json()).then((d: EmployeeItem[]) => { if (Array.isArray(d)) { _empCache = d; setList(d); } _empFetched = true; }).catch(() => { _empFetched = true; });
-  }, []);
-  return list;
-}
-function useEquipment() {
-  const [list, setList] = useState<EquipmentItem[]>(_eqCache);
-  useEffect(() => {
-    if (_eqFetched) return;
-    fetch(`${API_BASE}/api/equipment`).then(r => r.json()).then((d: EquipmentItem[]) => { if (Array.isArray(d)) { _eqCache = d; setList(d); } _eqFetched = true; }).catch(() => { _eqFetched = true; });
-  }, []);
-  return list;
-}
-function useSpares() {
-  const [list, setList] = useState<SpareRegisterItem[]>(_spCache);
-  useEffect(() => {
-    if (_spFetched) return;
-    fetch(`${API_BASE}/api/spares?limit=500`).then(r => r.json()).then((d) => { const items: SpareRegisterItem[] = Array.isArray(d) ? d : (d?.results ?? []); _spCache = items; setList(items); _spFetched = true; }).catch(() => { _spFetched = true; });
-  }, []);
-  return list;
-}
+// Autocomplete data sources come from the shared hooks (hooks/useLookups) — imported
+// at the top of this file; the previously-local useEmployees/useEquipment/useSpares
+// (with their own caches + fetch) were removed in favor of that one implementation.
 
 function ACDropdown({ show, children }: { show: boolean; children: React.ReactNode }) {
   const t = useTheme();
@@ -455,7 +425,7 @@ function PersonAutocomplete({ id, label, value, onChange, placeholder }: { id?: 
             return (
               <button key={e.id} type="button" onMouseDown={() => { onChange(full); setOpen(false); }}
                 className={`w-full flex items-center gap-2.5 px-3 py-2 text-left border-b ${t.border} last:border-0 ${t.hoverBgSoft} transition-colors`}>
-                <div className="w-7 h-7 rounded-full bg-blue-500/15 flex items-center justify-center flex-shrink-0 text-[10px] text-blue-400 font-bold uppercase">{e.first_name?.[0]}{e.last_name?.[0]}</div>
+                <div className="w-7 h-7 rounded-full bg-brand-500/15 flex items-center justify-center flex-shrink-0 text-[10px] text-brand-400 font-bold uppercase">{e.first_name?.[0]}{e.last_name?.[0]}</div>
                 <div className="flex-1 min-w-0">
                   <div className={`text-xs font-medium truncate ${t.textPrimary}`}>{full}</div>
                   <div className={`text-[10px] truncate ${t.textFaint}`}>{e.designation}{e.department ? ` · ${e.department}` : ''}{e.section ? ` · ${e.section}` : ''}</div>
@@ -490,7 +460,7 @@ function EquipmentAutocomplete({ value, onChange }: { value: string; onChange: (
 
   const pick = (eq: EquipmentItem) => {
     const parts = value.split(',').map(s => s.trim()).filter(Boolean);
-    parts.splice(parts.length > 0 && !value.endsWith(',') ? parts.length - 1 : parts.length, 1, eq.name || eq.equipment_id);
+    parts.splice(parts.length > 0 && !value.endsWith(',') ? parts.length - 1 : parts.length, 1, eq.name || eq.equipment_id || '');
     onChange(parts.join(', '));
     setOpen(false);
   };
@@ -512,7 +482,7 @@ function EquipmentAutocomplete({ value, onChange }: { value: string; onChange: (
           ))}
         </ACDropdown>
       </div>
-      {value.includes(',') && <p className="text-[10px] text-blue-400/70 px-0.5">{value.split(',').filter(s => s.trim()).length} machines — will create one work order each</p>}
+      {value.includes(',') && <p className="text-[10px] text-brand-400/70 px-0.5">{value.split(',').filter(s => s.trim()).length} machines — will create one work order each</p>}
     </div>
   );
 }
@@ -665,7 +635,7 @@ function CreateWorkOrderModal({ isOpen, onClose, onCreated, editingOrder, allOrd
           <div className="flex flex-wrap gap-2">
             {([{ key: 'planned_maintenance', label: 'Planned Maint.' }, { key: 'project', label: 'Project' }, { key: 'breakdown', label: 'Breakdown' }, { key: 'custom', label: 'Other / Custom' }] as { key: WOClassification; label: string }[]).map(opt => (
               <button key={opt.key} type="button" onClick={() => set('classification', form.classification === opt.key ? '' : opt.key)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${form.classification === opt.key ? 'bg-blue-500/20 text-blue-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}>
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${form.classification === opt.key ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}>
                 {opt.label}
               </button>
             ))}
@@ -687,6 +657,7 @@ function InfoField({ label, value }: { label: string; value?: string | null }) {
 
 function WorkOrderDetailModal({ workOrder, onClose, onRefresh, onDelete }: DetailModalProps) {
   const t = useTheme();
+  const confirm = useConfirm();
   const [s1Open, setS1Open] = useState(false);
   const [s2Open, setS2Open] = useState(true);
   const [s3Open, setS3Open] = useState(true);
@@ -777,7 +748,7 @@ function WorkOrderDetailModal({ workOrder, onClose, onRefresh, onDelete }: Detai
         {/* SECTION 1: Work Request */}
         <div className={`${t.chipBg} rounded-xl overflow-hidden`}>
           <div className={`flex items-center gap-2 px-4 py-3 border-b ${t.border}`}>
-            <FileText className="h-4 w-4 text-blue-400" />
+            <FileText className="h-4 w-4 text-brand-400" />
             <span className={`font-semibold text-sm ${t.textPrimary}`}>Work Request</span>
             <span className={`ml-auto text-xs ${t.textFaint}`}>supervisor-issued · read-only</span>
           </div>
@@ -801,7 +772,7 @@ function WorkOrderDetailModal({ workOrder, onClose, onRefresh, onDelete }: Detai
               {workOrder.job_instructions && <div className="col-span-2"><InfoField label="Special Instructions" value={workOrder.job_instructions} /></div>}
             </div>
           )}
-          <button type="button" onClick={() => setS1Open(o => !o)} className={`w-full flex items-center justify-center gap-1.5 px-4 py-2 border-t ${t.border} ${t.hoverBgSoft} transition-colors text-blue-400/70 hover:text-blue-400 text-xs`}>
+          <button type="button" onClick={() => setS1Open(o => !o)} className={`w-full flex items-center justify-center gap-1.5 px-4 py-2 border-t ${t.border} ${t.hoverBgSoft} transition-colors text-brand-400/70 hover:text-brand-400 text-xs`}>
             {s1Open ? <><ChevronUp className="h-3.5 w-3.5" /> Show less</> : <><ChevronDown className="h-3.5 w-3.5" /> View full details</>}
           </button>
         </div>
@@ -822,7 +793,7 @@ function WorkOrderDetailModal({ workOrder, onClose, onRefresh, onDelete }: Detai
                 <div className="flex flex-wrap gap-1.5">
                   {([{ v: 'planned_maintenance', label: 'Planned Maintenance' }, { v: 'project', label: 'Project' }, { v: 'breakdown', label: 'Breakdown' }, { v: 'custom', label: 'Other / Custom' }] as { v: WOClassification; label: string }[]).map(opt => (
                     <button key={opt.v} type="button" onClick={() => setA('classification', opt.v)}
-                      className={`px-2.5 py-1 rounded text-xs transition-colors ${artisan.classification === opt.v ? 'bg-blue-500/20 text-blue-400 font-medium' : `${t.hoverBg} ${t.textFaint}`}`}>
+                      className={`px-2.5 py-1 rounded text-xs transition-colors ${artisan.classification === opt.v ? 'bg-brand-500/20 text-brand-400 font-medium' : `${t.hoverBg} ${t.textFaint}`}`}>
                       {opt.label}
                     </button>
                   ))}
@@ -841,7 +812,7 @@ function WorkOrderDetailModal({ workOrder, onClose, onRefresh, onDelete }: Detai
                     <div className="flex gap-1.5">
                       {(['Mechanical', 'Electrical'] as Discipline[]).map(d => (
                         <button key={d} type="button" onClick={() => { setA('discipline', d); if (d === 'Electrical') setA('trade', ''); }}
-                          className={`flex-1 flex items-center justify-center gap-1 py-1 rounded text-xs transition-colors ${artisan.discipline === d ? 'bg-blue-500/20 text-blue-400 font-medium' : `${t.hoverBg} ${t.textFaint}`}`}>
+                          className={`flex-1 flex items-center justify-center gap-1 py-1 rounded text-xs transition-colors ${artisan.discipline === d ? 'bg-brand-500/20 text-brand-400 font-medium' : `${t.hoverBg} ${t.textFaint}`}`}>
                           {d === 'Mechanical' ? <Settings2 className="h-3 w-3" /> : <Zap className="h-3 w-3" />}{d}
                         </button>
                       ))}
@@ -907,7 +878,7 @@ function WorkOrderDetailModal({ workOrder, onClose, onRefresh, onDelete }: Detai
               <div className={`border ${t.border} rounded-lg p-3 space-y-3`}>
                 <div className={`flex items-center gap-1.5 text-xs ${t.textFaint}`}><Package className="h-3.5 w-3.5 text-amber-400/80" /> Spares Used</div>
                 <div className="grid grid-cols-[1fr_70px_80px_auto] gap-2 items-end">
-                  <FormField label="Spare / Part"><SpareAutocomplete value={newSpare.name} onChange={v => setNewSpare(s => ({ ...s, name: v }))} onSelect={item => setNewSpare(s => ({ ...s, name: item.description, unit_cost: String(item.unit_price ?? 0) }))} placeholder="Search spares register or type…" /></FormField>
+                  <FormField label="Spare / Part"><SpareAutocomplete value={newSpare.name} onChange={v => setNewSpare(s => ({ ...s, name: v }))} onSelect={item => setNewSpare(s => ({ ...s, name: item.description ?? '', unit_cost: String(item.unit_price ?? 0) }))} placeholder="Search spares register or type…" /></FormField>
                   <FormField label="Qty"><input type="number" min="0.01" step="0.01" value={newSpare.quantity} onChange={e => setNewSpare(s => ({ ...s, quantity: e.target.value }))} className={`w-full rounded px-2 py-1.5 text-xs outline-none transition-colors ${t.inputBg}`} /></FormField>
                   <FormField label="Unit Cost (R)"><input type="number" min="0" step="0.01" value={newSpare.unit_cost} onChange={e => setNewSpare(s => ({ ...s, unit_cost: e.target.value }))} className={`w-full rounded px-2 py-1.5 text-xs outline-none transition-colors ${t.inputBg}`} /></FormField>
                   <button type="button" onClick={addArtisanSpare} className="h-[30px] px-2.5 bg-amber-500/15 hover:bg-amber-500/25 rounded text-amber-400 text-xs font-medium transition-colors">Add</button>
@@ -978,7 +949,7 @@ function WorkOrderDetailModal({ workOrder, onClose, onRefresh, onDelete }: Detai
         </div>
 
         <div className="flex justify-end pt-1">
-          <button type="button" onClick={() => { if (confirm('Delete this work order? This cannot be undone.')) { onDelete(workOrder.id); onClose(); } }} className="flex items-center gap-1.5 text-rose-500/70 hover:text-rose-500 text-xs transition-colors">
+          <button type="button" onClick={async () => { if (await confirm({ title: 'Delete this work order?', message: 'This cannot be undone.', destructive: true })) { onDelete(workOrder.id); onClose(); } }} className="flex items-center gap-1.5 text-rose-500/70 hover:text-rose-500 text-xs transition-colors">
             <Trash2 className="h-3 w-3" /> Delete work order
           </button>
         </div>
@@ -1078,7 +1049,7 @@ function TimeHeatmap({ hourBuckets }: { hourBuckets: number[] }) {
 
 function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }) {
   return (
-    <span className="inline-flex items-center gap-1 bg-blue-500/10 text-blue-400/90 text-[10px] px-2 py-0.5 rounded-full">
+    <span className="inline-flex items-center gap-1 bg-brand-500/10 text-brand-400/90 text-[10px] px-2 py-0.5 rounded-full">
       {label}<button type="button" onClick={onRemove} className="hover:opacity-70 transition-opacity ml-0.5 flex-shrink-0"><X className="h-2.5 w-2.5" /></button>
     </span>
   );
@@ -1114,9 +1085,9 @@ function AnalyticsFilterBar({ allOrders, filters, onChange }: { allOrders: WorkO
   return (
     <div className={`${t.chipBg} rounded-xl overflow-hidden`}>
       <button type="button" onClick={() => setOpen(o => !o)} className={`w-full flex items-center gap-2.5 px-4 py-2.5 ${t.hoverBgSoft} transition-colors text-left`}>
-        <SlidersHorizontal className="h-3.5 w-3.5 text-blue-400/80 flex-shrink-0" />
+        <SlidersHorizontal className="h-3.5 w-3.5 text-brand-400/80 flex-shrink-0" />
         <span className={`text-xs font-medium ${t.textMuted}`}>Filter Analytics</span>
-        {activeCount > 0 && <span className="bg-blue-500/20 text-blue-400 text-[10px] font-semibold px-1.5 py-px rounded-full">{activeCount}</span>}
+        {activeCount > 0 && <span className="bg-brand-500/20 text-brand-400 text-[10px] font-semibold px-1.5 py-px rounded-full">{activeCount}</span>}
         <div className="flex-1" />
         {activeCount > 0 && !open && <button type="button" onClick={e => { e.stopPropagation(); clearAll(); }} className={`text-[10px] transition-colors px-2 py-0.5 rounded-lg flex-shrink-0 ${t.textFaint} ${t.hoverText} ${t.hoverBg}`}>Clear all</button>}
         {open ? <ChevronUp className={`h-3.5 w-3.5 flex-shrink-0 ${t.textFaint}`} /> : <ChevronDown className={`h-3.5 w-3.5 flex-shrink-0 ${t.textFaint}`} />}
@@ -1166,12 +1137,12 @@ function ArtisanCostChart({ artisanCost }: { artisanCost: ReturnType<typeof calc
           <div className="flex items-center justify-between">
             <span className={`text-xs truncate max-w-[120px] ${t.textMuted}`}>{a.name}</span>
             <div className="flex items-center gap-3 text-[10px] text-right">
-              <span className="text-blue-400/80">{a.hours.toFixed(1)}h</span>
+              <span className="text-brand-400/80">{a.hours.toFixed(1)}h</span>
               {a.sparesCost > 0 && <span className="text-amber-400/80">${a.sparesCost.toLocaleString('en-US', { maximumFractionDigits: 0 })}</span>}
               <span className={t.textFaint}>({a.count} WO)</span>
             </div>
           </div>
-          <div className={`h-2 ${t.chipBg} rounded-full overflow-hidden`}><div className="h-full rounded-full bg-blue-400/50 transition-all duration-500" style={{ width: `${(a.hours / maxHours) * 100}%` }} /></div>
+          <div className={`h-2 ${t.chipBg} rounded-full overflow-hidden`}><div className="h-full rounded-full bg-brand-400/50 transition-all duration-500" style={{ width: `${(a.hours / maxHours) * 100}%` }} /></div>
         </div>
       ))}
     </div>
@@ -1215,7 +1186,7 @@ function AnalyticsPanel({ stats, standalone, rawOrders = [] }: { stats: ReturnTy
           { label: 'Total WOs', value: activeStats.total, color: t.textPrimary, sub: activeFilterCount > 0 ? `of ${stats.total}` : undefined },
           { label: 'Breakdowns', value: activeStats.breakdowns, color: 'text-red-400', sub: activeStats.total > 0 ? `${Math.round(activeStats.breakdowns / activeStats.total * 100)}%` : '—' },
           { label: 'Planned Maint.', value: activeStats.plannedMaintenance, color: 'text-green-400', sub: undefined },
-          { label: 'Breakdown Hrs', value: `${activeStats.artisanCost.reduce((a, x) => a + x.hours, 0).toFixed(1)}h`, color: 'text-blue-400', sub: undefined },
+          { label: 'Breakdown Hrs', value: `${activeStats.artisanCost.reduce((a, x) => a + x.hours, 0).toFixed(1)}h`, color: 'text-brand-400', sub: undefined },
           { label: 'Spares Cost', value: `$${activeStats.sparesTotalCost.toLocaleString('en-US', { maximumFractionDigits: 0 })}`, color: 'text-amber-400', sub: undefined },
           { label: 'Completion', value: `${activeStats.efficiency}%`, color: activeStats.efficiency >= 70 ? 'text-green-400' : activeStats.efficiency >= 40 ? 'text-yellow-400' : 'text-red-400', sub: `${activeStats.completed}/${activeStats.total}` },
         ].map(k => (
@@ -1229,7 +1200,7 @@ function AnalyticsPanel({ stats, standalone, rawOrders = [] }: { stats: ReturnTy
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
         <div className={`${t.glass} rounded-xl p-4`}>
-          <div className={`text-xs font-medium mb-3 flex items-center gap-1.5 ${t.textMuted}`}><Layers className="h-3.5 w-3.5 text-blue-400" /> WO Classification</div>
+          <div className={`text-xs font-medium mb-3 flex items-center gap-1.5 ${t.textMuted}`}><Layers className="h-3.5 w-3.5 text-brand-400" /> WO Classification</div>
           <div className="h-28"><DonutChart segments={classSegs} centerLabel={String(activeStats.total)} /></div>
           <ChartLegend items={classSegs.map(s => ({ ...s, total: activeStats.total }))} />
         </div>
@@ -1253,7 +1224,7 @@ function AnalyticsPanel({ stats, standalone, rawOrders = [] }: { stats: ReturnTy
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
         <div className={`${t.glass} rounded-xl p-4`}>
-          <div className={`text-xs font-medium mb-3 flex items-center gap-1.5 ${t.textMuted}`}><HardHat className="h-3.5 w-3.5 text-blue-400" /> Artisan Hours (Breakdowns)</div>
+          <div className={`text-xs font-medium mb-3 flex items-center gap-1.5 ${t.textMuted}`}><HardHat className="h-3.5 w-3.5 text-brand-400" /> Artisan Hours (Breakdowns)</div>
           <ArtisanCostChart artisanCost={activeStats.artisanCost} />
           {activeStats.artisanCost.length > 0 && <div className={`mt-3 text-[10px] ${t.textFaint}`}>Hours shown as a cost proxy. Spares cost in USD ($) shown where entered.</div>}
         </div>
@@ -1358,7 +1329,7 @@ function WorkOrderRow({ workOrder, onClick, isExpanded, onToggle, onEdit }: { wo
               </div>
             )}
           </div>
-          <div className="mt-3 flex justify-end"><button type="button" onClick={onClick} className="text-blue-400/80 hover:text-blue-400 text-xs flex items-center gap-1.5 transition-colors">Open full details <ChevronRight className="h-3 w-3" /></button></div>
+          <div className="mt-3 flex justify-end"><button type="button" onClick={onClick} className="text-brand-400/80 hover:text-brand-400 text-xs flex items-center gap-1.5 transition-colors">Open full details <ChevronRight className="h-3 w-3" /></button></div>
         </div>
       )}
     </div>
@@ -1376,11 +1347,11 @@ function ScheduleRow({ schedule, onEdit, onDelete, onToggle, onRunNow }: { sched
         <div className={`font-medium text-sm truncate ${t.textPrimary}`}>{schedule.name}</div>
         <div className={`text-xs truncate ${t.textFaint}`}>{schedule.equipment_info}{schedule.to_department ? ` · ${schedule.to_department}` : ''}{schedule.allocated_to ? ` — ${schedule.allocated_to}` : ''}</div>
       </div>
-      <div className="text-blue-400/70 text-xs flex-shrink-0 hidden md:block w-52 truncate"><Repeat2 className="h-3 w-3 inline mr-1 opacity-60" />{recurrenceLabel(schedule)}</div>
+      <div className="text-brand-400/70 text-xs flex-shrink-0 hidden md:block w-52 truncate"><Repeat2 className="h-3 w-3 inline mr-1 opacity-60" />{recurrenceLabel(schedule)}</div>
       <div className="flex-shrink-0 hidden sm:block text-right"><div className={`text-[10px] uppercase tracking-wide ${t.textFaint}`}>Next</div><div className={`text-xs ${t.textMuted}`}>{schedule.next_due_date || '—'}</div></div>
       <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: pcfg.color }} title={pcfg.label} />
       <div className="flex items-center gap-1.5 flex-shrink-0">
-        <button type="button" onClick={onRunNow} title="Create work order(s) from this schedule now" className="text-[10px] px-2.5 py-0.5 rounded transition-colors text-blue-400 bg-blue-500/[0.10] hover:bg-blue-500/[0.20] whitespace-nowrap font-medium">Create Work Order(s)</button>
+        <button type="button" onClick={onRunNow} title="Create work order(s) from this schedule now" className="text-[10px] px-2.5 py-0.5 rounded transition-colors text-brand-400 bg-brand-500/[0.10] hover:bg-brand-500/[0.20] whitespace-nowrap font-medium">Create Work Order(s)</button>
         <button type="button" onClick={onToggle} className={`text-[10px] px-2 py-0.5 rounded transition-colors ${schedule.active ? 'text-green-400 bg-green-500/10 hover:bg-green-500/20' : `${t.textFaint} ${t.chipBg} ${t.hoverBg}`}`}>{schedule.active ? 'Active' : 'Paused'}</button>
         <button type="button" onClick={onEdit} title="Edit schedule" className={`${t.chipBg} ${t.hoverBg} rounded p-1.5 transition-colors`}><Pencil className={`h-3 w-3 ${t.textFaint}`} /></button>
         <button type="button" onClick={onDelete} title="Delete schedule" className={`${t.chipBg} hover:bg-rose-500/[0.15] rounded p-1.5 transition-colors`}><Trash2 className={`h-3 w-3 ${t.textFaint}`} /></button>
@@ -1466,22 +1437,22 @@ function CreateScheduleModal({ isOpen, initial, onClose, onSave }: CreateSchedul
         </div>
 
         <div className={`space-y-3 border ${t.border} rounded-xl p-4`}>
-          <div className={`flex items-center gap-2 text-sm font-medium ${t.textMuted}`}><Repeat2 className="h-4 w-4 text-blue-400" /> Recurrence</div>
+          <div className={`flex items-center gap-2 text-sm font-medium ${t.textMuted}`}><Repeat2 className="h-4 w-4 text-brand-400" /> Recurrence</div>
           <div className="flex flex-wrap gap-1.5">
             {(['daily', 'weekly', 'biweekly', 'monthly', 'quarterly', 'yearly', 'custom'] as RecurrenceType[]).map(rt => (
-              <button key={rt} type="button" onClick={() => set('recurrence_type', rt)} className={`px-3 py-1 rounded-lg text-xs transition-colors capitalize ${form.recurrence_type === rt ? 'bg-blue-500/20 text-blue-400 font-medium' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}>{rt}</button>
+              <button key={rt} type="button" onClick={() => set('recurrence_type', rt)} className={`px-3 py-1 rounded-lg text-xs transition-colors capitalize ${form.recurrence_type === rt ? 'bg-brand-500/20 text-brand-400 font-medium' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}>{rt}</button>
             ))}
           </div>
           {(form.recurrence_type === 'weekly' || form.recurrence_type === 'biweekly') && (
             <FormField label="Day of Week">
-              <div className="flex gap-1">{DOW.map((d, i) => <button key={d} type="button" onClick={() => set('recurrence_dow', i)} className={`flex-1 py-1.5 rounded text-[11px] transition-colors ${form.recurrence_dow === i ? 'bg-blue-500/20 text-blue-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}>{d.slice(0, 3)}</button>)}</div>
+              <div className="flex gap-1">{DOW.map((d, i) => <button key={d} type="button" onClick={() => set('recurrence_dow', i)} className={`flex-1 py-1.5 rounded text-[11px] transition-colors ${form.recurrence_dow === i ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}>{d.slice(0, 3)}</button>)}</div>
             </FormField>
           )}
           {(form.recurrence_type === 'monthly' || form.recurrence_type === 'quarterly' || form.recurrence_type === 'yearly') && (
             <FormField label="Day of Month (1–28)"><Input type="number" min="1" max="28" value={form.recurrence_dom} onChange={e => set('recurrence_dom', Math.min(28, Math.max(1, parseInt(e.target.value) || 1)))} className={`h-9 ${t.inputBg}`} /></FormField>
           )}
           {form.recurrence_type === 'quarterly' && (
-            <FormField label="Which months"><div className="flex flex-wrap gap-1.5">{MON.map((m, i) => <button key={m} type="button" onClick={() => toggleMonth(i)} className={`px-2.5 py-1 rounded text-[11px] transition-colors ${form.recurrence_months.includes(i) ? 'bg-blue-500/20 text-blue-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}>{m}</button>)}</div></FormField>
+            <FormField label="Which months"><div className="flex flex-wrap gap-1.5">{MON.map((m, i) => <button key={m} type="button" onClick={() => toggleMonth(i)} className={`px-2.5 py-1 rounded text-[11px] transition-colors ${form.recurrence_months.includes(i) ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}>{m}</button>)}</div></FormField>
           )}
           {form.recurrence_type === 'yearly' && (
             <FormField label="Month of Year">
@@ -1495,7 +1466,7 @@ function CreateScheduleModal({ isOpen, initial, onClose, onSave }: CreateSchedul
             <FormField label="Specific Dates">
               <div className="flex gap-2">
                 <Input type="date" title="Add date" value={newDate} onChange={e => setNewDate(e.target.value)} className={`flex-1 h-9 ${t.inputBg}`} />
-                <Button type="button" onClick={addDate} size="sm" className="bg-blue-500/15 hover:bg-blue-500/25 text-blue-400">Add</Button>
+                <Button type="button" onClick={addDate} size="sm" className="bg-brand-500/15 hover:bg-brand-500/25 text-brand-400">Add</Button>
               </div>
               {form.specific_dates.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 mt-1">
@@ -1527,6 +1498,7 @@ const STATUS_TABS = [
 // ==================== MAIN PAGE ====================
 function MaintenancePageContent() {
   const t = useTheme();
+  const confirm = useConfirm();
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const sections = useCollapseSection({ hero: true });
@@ -1555,7 +1527,7 @@ function MaintenancePageContent() {
   const handleBulkDelete = async () => {
     const count = selectedIds.size;
     if (count === 0) return;
-    if (!confirm(`Permanently delete ${count} work order${count !== 1 ? 's' : ''}? This cannot be undone.`)) return;
+    if (!await confirm({ title: `Delete ${count} work order${count !== 1 ? 's' : ''}?`, message: 'This cannot be undone.', destructive: true, confirmLabel: `Delete ${count}` })) return;
     let failed = 0;
     for (const id of selectedIds) { const { success } = await deleteWorkOrder(id); if (!success) failed++; }
     exitBulk();
@@ -1686,7 +1658,7 @@ function MaintenancePageContent() {
         actions={
           <>
             <button type="button" onClick={load} title="Refresh" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /></button>
-            {mainTab === 'workorders' && <button type="button" onClick={() => setShowCreateModal(true)} className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-blue-500 to-blue-700 hover:brightness-110 transition-all"><Plus className="h-3.5 w-3.5" /> New Work Order</button>}
+            {mainTab === 'workorders' && <button type="button" onClick={() => setShowCreateModal(true)} className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all"><Plus className="h-3.5 w-3.5" /> New Work Order</button>}
           </>
         }
       >
@@ -1694,7 +1666,7 @@ function MaintenancePageContent() {
           {[
             { label: 'Total', value: stats.total, color: t.textPrimary },
             { label: 'Pending', value: stats.pending, color: 'text-yellow-400' },
-            { label: 'In Progress', value: stats.inProgress, color: 'text-blue-400' },
+            { label: 'In Progress', value: stats.inProgress, color: 'text-brand-400' },
             { label: 'Completed', value: stats.completed, color: 'text-green-400' },
             { label: 'On Hold', value: stats.onHold, color: 'text-orange-400' },
             { label: 'Overdue', value: stats.overdue, color: 'text-red-400' },
@@ -1713,7 +1685,7 @@ function MaintenancePageContent() {
           const active = mainTab === tb.key;
           return (
             <button key={tb.key} type="button" onClick={() => { setMainTab(tb.key); if (tb.key === 'workorders' && bulkMode) exitBulk(); }}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${active ? 'bg-blue-500/20 text-blue-400' : `${t.textFaint} ${t.hoverText} ${t.hoverBg}`}`}>
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${active ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} ${t.hoverText} ${t.hoverBg}`}`}>
               <tb.icon className="h-4 w-4" />{tb.label}
             </button>
           );
@@ -1726,26 +1698,26 @@ function MaintenancePageContent() {
           <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
             <div className={`flex items-center justify-between px-5 py-3 border-b ${t.border}`}>
               <div className="flex items-center gap-2">
-                <CalendarClock className="h-4 w-4 text-blue-400" />
+                <CalendarClock className="h-4 w-4 text-brand-400" />
                 <span className={`font-semibold text-sm ${t.textPrimary}`}>Recurring Schedules</span>
                 {schedules.length > 0 && <span className={`text-xs ${t.chipBg} rounded-full px-2 py-0.5 ${t.textFaint}`}>{schedules.filter(s => s.active).length} active</span>}
               </div>
               <div className="flex items-center gap-2">
-                <Button size="sm" onClick={() => { setEditingSched(null); setShowCreateSched(true); }} className="bg-blue-500/15 hover:bg-blue-500/25 text-blue-400 gap-1.5 h-7 text-xs"><Plus className="h-3.5 w-3.5" /> New Schedule</Button>
+                <Button size="sm" onClick={() => { setEditingSched(null); setShowCreateSched(true); }} className="bg-brand-500/15 hover:bg-brand-500/25 text-brand-400 gap-1.5 h-7 text-xs"><Plus className="h-3.5 w-3.5" /> New Schedule</Button>
                 <button type="button" onClick={() => setSchedPanelOpen(o => !o)} title={schedPanelOpen ? 'Collapse schedules' : 'Expand schedules'} className={`${t.chipBg} ${t.hoverBg} ${t.textFaint} rounded-lg p-1.5 transition-colors`}>{schedPanelOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}</button>
               </div>
             </div>
             {schedPanelOpen && (schedules.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-10 text-center">
-                <div className={`${t.chipBg} p-4 rounded-2xl mb-3`}><Repeat2 className={`h-7 w-7 ${t.textFaint}`} /></div>
-                <div className={`text-sm font-medium ${t.textMuted}`}>No recurring schedules yet</div>
-                <div className={`text-xs mt-1 mb-4 ${t.textFaint}`}>Set up schedules to auto-generate work orders — every week, month, quarter, or custom dates.</div>
-                <Button size="sm" onClick={() => { setEditingSched(null); setShowCreateSched(true); }} className="bg-blue-500/15 hover:bg-blue-500/25 text-blue-400 gap-1.5"><Plus className="h-3.5 w-3.5" /> Create First Schedule</Button>
-              </div>
+              <EmptyState
+                icon={Repeat2}
+                title="No recurring schedules yet"
+                message="Set up schedules to auto-generate work orders — every week, month, quarter, or custom dates."
+                action={{ label: 'Create First Schedule', onClick: () => { setEditingSched(null); setShowCreateSched(true); } }}
+              />
             ) : (
               <div>{schedules.map(s => (
                 <ScheduleRow key={s.id} schedule={s} onEdit={() => { setEditingSched(s); setShowCreateSched(true); }} onRunNow={() => handleRunScheduleNow(s)}
-                  onDelete={() => { if (confirm(`Delete schedule "${s.name}"? This cannot be undone.`)) { const updated = schedules.filter(x => x.id !== s.id); setSchedules(updated); persistSchedules(updated); } }}
+                  onDelete={async () => { if (await confirm({ title: `Delete schedule "${s.name}"?`, message: 'This cannot be undone.', destructive: true })) { const updated = schedules.filter(x => x.id !== s.id); setSchedules(updated); persistSchedules(updated); } }}
                   onToggle={() => { const updated = schedules.map(x => x.id === s.id ? { ...x, active: !x.active } : x); setSchedules(updated); persistSchedules(updated); }} />
               ))}</div>
             ))}
@@ -1758,7 +1730,7 @@ function MaintenancePageContent() {
                 {STATUS_TABS.map(tab => {
                   const active = statusTab === tab.key;
                   return (
-                    <button type="button" key={tab.key} onClick={() => setStatusTab(tab.key)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${active ? 'bg-blue-500/20 text-blue-400 font-semibold' : `${t.chipBg} ${t.textMuted} ${t.hoverBg}`}`}>
+                    <button type="button" key={tab.key} onClick={() => setStatusTab(tab.key)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${active ? 'bg-brand-500/20 text-brand-400 font-semibold' : `${t.chipBg} ${t.textMuted} ${t.hoverBg}`}`}>
                       {tab.label}<span className={`ml-1.5 text-[10px] ${active ? '' : t.textFaint}`}>{tabCount(tab.key)}</span>
                     </button>
                   );
@@ -1779,7 +1751,7 @@ function MaintenancePageContent() {
                 </div>
 
                 <div className="relative">
-                  <button type="button" onClick={() => setShowFilterMenu(o => !o)} className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg transition-colors ${priorityFilter.length > 0 ? 'bg-blue-500/15 text-blue-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}>
+                  <button type="button" onClick={() => setShowFilterMenu(o => !o)} className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg transition-colors ${priorityFilter.length > 0 ? 'bg-brand-500/15 text-brand-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}>
                     <SlidersHorizontal className="h-3.5 w-3.5" />{priorityFilter.length > 0 ? `Priority (${priorityFilter.length})` : 'Filter'}
                   </button>
                   {showFilterMenu && (
@@ -1790,7 +1762,7 @@ function MaintenancePageContent() {
                         const active = priorityFilter.includes(p);
                         return (
                           <button key={p} type="button" onClick={() => setPriorityFilter(prev => active ? prev.filter(x => x !== p) : [...prev, p])} className={`w-full flex items-center gap-2.5 py-1.5 text-left transition-colors ${t.hoverText}`}>
-                            <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center transition-colors ${active ? 'bg-blue-500 border-blue-500' : `border ${t.border}`}`}>{active && <div className="w-1.5 h-1.5 rounded-sm bg-white" />}</div>
+                            <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center transition-colors ${active ? 'bg-brand-500 border-brand-500' : `border ${t.border}`}`}>{active && <div className="w-1.5 h-1.5 rounded-sm bg-white" />}</div>
                             <div className="w-2 h-2 rounded-full" style={{ backgroundColor: pcfg.color }} />
                             <span className={`text-xs capitalize ${t.textMuted}`}>{p}</span>
                           </button>
@@ -1801,11 +1773,7 @@ function MaintenancePageContent() {
                   )}
                 </div>
 
-                <div className="relative">
-                  <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none ${t.textFaint}`} />
-                  <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search machine, artisan, WO#…" className={`rounded-lg pl-8 pr-8 py-1.5 text-sm w-52 outline-none transition-colors ${t.inputBg}`} />
-                  {searchQuery && <button type="button" onClick={() => setSearchQuery('')} aria-label="Clear search" className={`absolute right-2.5 top-1/2 -translate-y-1/2 ${t.textFaint} ${t.hoverText} transition-colors`}><X className="h-3.5 w-3.5" /></button>}
-                </div>
+                <SearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search machine, artisan, WO#…" className="w-52" />
 
                 {!panelMinimized && <ViewToggle value={woViewMode} onChange={setWoViewMode} options={[{ value: 'list', icon: List, label: 'List view' }, { value: 'grid', icon: LayoutGrid, label: 'Grid view' }]} />}
 
@@ -1823,9 +1791,9 @@ function MaintenancePageContent() {
             </div>
 
             {bulkMode && !panelMinimized && (
-              <div className={`flex items-center gap-3 px-5 py-2.5 bg-blue-500/[0.06] border-b ${t.border}`}>
+              <div className={`flex items-center gap-3 px-5 py-2.5 bg-brand-500/[0.06] border-b ${t.border}`}>
                 <button type="button" onClick={() => selectedIds.size === filtered.length ? clearSelect() : selectAll()} className={`flex items-center gap-2 text-xs ${t.textMuted} ${t.hoverText} transition-colors`}>
-                  <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors flex-shrink-0 ${selectedIds.size === filtered.length && filtered.length > 0 ? 'bg-blue-500 border-blue-500' : selectedIds.size > 0 ? 'bg-blue-500/40 border-blue-500' : `border ${t.border} bg-transparent`}`}>
+                  <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors flex-shrink-0 ${selectedIds.size === filtered.length && filtered.length > 0 ? 'bg-brand-500 border-brand-500' : selectedIds.size > 0 ? 'bg-brand-500/40 border-brand-500' : `border ${t.border} bg-transparent`}`}>
                     {selectedIds.size > 0 && <div className="w-2 h-0.5 bg-white rounded-full" />}
                   </div>
                   {selectedIds.size === 0 ? 'Select all' : `${selectedIds.size} selected`}
@@ -1839,14 +1807,14 @@ function MaintenancePageContent() {
             {!panelMinimized && (
               <div>
                 {loading ? (
-                  <div className="flex items-center justify-center py-16"><RefreshCw className={`h-6 w-6 animate-spin ${t.textFaint}`} /></div>
+                  <LoadingState label="Loading work orders…" />
                 ) : filtered.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-16 text-center">
-                    <div className={`${t.chipBg} p-4 rounded-2xl mb-3`}><Wrench className={`h-8 w-8 ${t.textFaint}`} /></div>
-                    <div className={`font-medium mb-1 ${t.textMuted}`}>{searchQuery || statusTab !== 'all' ? 'No matching work orders' : 'No work orders yet'}</div>
-                    <div className={`text-sm mb-4 ${t.textFaint}`}>{searchQuery || statusTab !== 'all' ? 'Try clearing the search or filter' : 'Create the first one with "New Work Order"'}</div>
-                    {!searchQuery && statusTab === 'all' && <Button onClick={() => setShowCreateModal(true)} size="sm" className="bg-blue-500/15 hover:bg-blue-500/25 text-blue-400 gap-1"><Plus className="h-3.5 w-3.5" /> New Work Order</Button>}
-                  </div>
+                  <EmptyState
+                    icon={Wrench}
+                    title={searchQuery || statusTab !== 'all' ? 'No matching work orders' : 'No work orders yet'}
+                    message={searchQuery || statusTab !== 'all' ? 'Try clearing the search or filter' : 'Create the first one with "New Work Order"'}
+                    action={!searchQuery && statusTab === 'all' ? { label: 'New Work Order', onClick: () => setShowCreateModal(true) } : undefined}
+                  />
                 ) : woViewMode === 'grid' ? (
                   <div className="p-4">
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
@@ -1857,10 +1825,10 @@ function MaintenancePageContent() {
                 ) : (
                   <div>
                     {filtered.map(wo => (
-                      <div key={wo.id} className={`flex items-stretch transition-colors ${bulkMode && selectedIds.has(String(wo.id)) ? 'bg-blue-500/[0.05]' : ''}`}>
+                      <div key={wo.id} className={`flex items-stretch transition-colors ${bulkMode && selectedIds.has(String(wo.id)) ? 'bg-brand-500/[0.05]' : ''}`}>
                         {bulkMode && (
                           <div className={`flex items-center px-4 border-r ${t.border}`}>
-                            <button type="button" onClick={() => toggleSelect(wo.id)} className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors flex-shrink-0 ${selectedIds.has(String(wo.id)) ? 'bg-blue-500 border-blue-500' : `border ${t.border} bg-transparent`}`}>
+                            <button type="button" onClick={() => toggleSelect(wo.id)} className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors flex-shrink-0 ${selectedIds.has(String(wo.id)) ? 'bg-brand-500 border-brand-500' : `border ${t.border} bg-transparent`}`}>
                               {selectedIds.has(String(wo.id)) && <svg viewBox="0 0 10 8" className="w-2.5 h-2 fill-none stroke-white stroke-2"><polyline points="1,4 4,7 9,1" strokeLinecap="round" strokeLinejoin="round" /></svg>}
                             </button>
                           </div>
@@ -1872,7 +1840,7 @@ function MaintenancePageContent() {
                     ))}
                     <div className={`px-5 py-2.5 border-t ${t.border} flex items-center justify-between`}>
                       <span className={`text-xs ${t.textFaint}`}>{filtered.length} of {workOrders.length} work orders</span>
-                      {bulkMode && selectedIds.size > 0 && <span className="text-blue-400/70 text-xs">{selectedIds.size} selected</span>}
+                      {bulkMode && selectedIds.size > 0 && <span className="text-brand-400/70 text-xs">{selectedIds.size} selected</span>}
                     </div>
                   </div>
                 )}

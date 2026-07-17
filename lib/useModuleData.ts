@@ -1,7 +1,9 @@
 // lib/useModuleData.ts — generic CRUD hook for engineering module pages
 import { useState, useEffect, useCallback } from 'react';
+import { API_BASE } from '@/lib/config';
+import { authFetch } from '@/lib/api';
 
-const BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com').replace(/\/$/, '');
+const BASE_URL = API_BASE;
 
 export function useModuleData<T>(endpoint: string) {
   const [data,    setData]    = useState<T[]>([]);
@@ -27,7 +29,7 @@ export function useModuleData<T>(endpoint: string) {
   useEffect(() => { refetch(); }, [refetch]);
 
   const create = async (body: Partial<T>): Promise<T | null> => {
-    const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const r = await authFetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     if (!r.ok) throw new Error(await r.text());
     const created: T = await r.json();
     setData(prev => [created, ...prev]);
@@ -35,7 +37,7 @@ export function useModuleData<T>(endpoint: string) {
   };
 
   const update = async (id: number | string, body: Partial<T>): Promise<T | null> => {
-    const r = await fetch(`${url}/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const r = await authFetch(`${url}/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     if (!r.ok) throw new Error(await r.text());
     const updated: T = await r.json();
     setData(prev => prev.map((item: any) => item.id === id ? updated : item));
@@ -43,7 +45,7 @@ export function useModuleData<T>(endpoint: string) {
   };
 
   const remove = async (id: number | string): Promise<void> => {
-    const r = await fetch(`${url}/${id}`, { method: 'DELETE' });
+    const r = await authFetch(`${url}/${id}`, { method: 'DELETE' });
     if (!r.ok) throw new Error(await r.text());
     setData(prev => prev.filter((item: any) => item.id !== id));
   };

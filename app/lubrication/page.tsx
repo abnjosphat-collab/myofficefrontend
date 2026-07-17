@@ -76,7 +76,7 @@ function LubricationContent() {
           <div className="flex gap-1">
             {(['schedules', 'samples'] as const).map(tab => (
               <button key={tab} type="button" onClick={() => setActiveTab(tab)}
-                className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${activeTab === tab ? 'bg-blue-500/15 text-blue-500' : `${t.textFaint} ${t.hoverText}`}`}>
+                className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${activeTab === tab ? 'bg-brand-500/15 text-brand-500' : `${t.textFaint} ${t.hoverText}`}`}>
                 {tab === 'schedules' ? 'Lube Schedules' : <span className="flex items-center gap-1"><FlaskConical className="w-3.5 h-3.5" /> Oil Samples</span>}
               </button>
             ))}
@@ -85,7 +85,7 @@ function LubricationContent() {
             <div className="flex gap-2">
               {(['all', 'current', 'due_soon', 'overdue'] as const).map(s => (
                 <button key={s} type="button" onClick={() => setFilter(s)}
-                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${filter === s ? 'bg-blue-500/20 text-blue-500' : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}>
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${filter === s ? 'bg-brand-500/20 text-brand-500' : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}>
                   {s === 'all' ? 'All' : s === 'due_soon' ? 'Due Soon' : s.charAt(0).toUpperCase() + s.slice(1)}
                 </button>
               ))}

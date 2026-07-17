@@ -251,7 +251,7 @@ export function EmptyState({
       {message && <div className={`text-xs mt-1 mb-4 max-w-xs ${t.textFaint}`}>{message}</div>}
       {action && (
         <button type="button" onClick={action.onClick}
-          className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-blue-500 to-blue-700 hover:brightness-110 transition-all">
+          className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all">
           <Plus className="h-3.5 w-3.5" /> {action.label}
         </button>
       )}
@@ -262,7 +262,7 @@ export function EmptyState({
 // ─── Themed centered modal (replaces ad-hoc slide-overs / dark-only modals) ─
 
 export function CenterModal({
-  open, onClose, title, subtitle, accent = 'blue', width = 'max-w-md', children,
+  open, onClose, title, subtitle, accent = 'violet', width = 'max-w-md', children,
 }: {
   open: boolean; onClose: () => void; title: string; subtitle?: string;
   accent?: Accent; width?: string; children: ReactNode;

@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, ElementType } from "react";
+import { api } from '@/lib/apiClient';
+import { formatDate } from '@/lib/format';
 import {
   ClipboardList, Target, Plus, Trash2, AlertTriangle,
   Eye, Pencil, LayoutGrid, Table as TableIcon,
@@ -70,36 +72,25 @@ const REMEDY_LABELS: Record<keyof SuggestedRemedies, string> = {
   retraining: 'Retraining', improvedPPE: 'Improved PPE', placementOfWorker: 'Placement of Worker'
 };
 
-const SAFETY_API = (process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com').replace(/\/$/, '');
-
 // =============== API FUNCTIONS ===============
-async function safetyFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${SAFETY_API}${path}`, { headers: { 'Content-Type': 'application/json' }, ...init });
-  if (!res.ok) throw new Error(await res.text());
-  return res.status === 204 ? (undefined as T) : res.json();
-}
 async function getPTOReports(): Promise<PTOReport[]> {
   try {
-    const data = await safetyFetch<PTOReport[]>(`/api/pto/`);
+    const data = await api.get<PTOReport[]>('/api/pto/');
     return Array.isArray(data) ? data : [];
   } catch { return []; }
 }
 async function createPTOReport(report: Partial<PTOReport>): Promise<PTOReport> {
-  return safetyFetch<PTOReport>('/api/pto/', { method: 'POST', body: JSON.stringify(report) });
+  return api.post<PTOReport>('/api/pto/', report);
 }
 async function updatePTOReport(id: string, report: Partial<PTOReport>): Promise<PTOReport> {
-  return safetyFetch<PTOReport>(`/api/pto/${id}/`, { method: 'PATCH', body: JSON.stringify(report) });
+  return api.patch<PTOReport>(`/api/pto/${id}/`, report);
 }
 async function deletePTOReport(id: string): Promise<void> {
-  return safetyFetch<void>(`/api/pto/${id}/`, { method: 'DELETE' });
+  return api.delete<void>(`/api/pto/${id}/`);
 }
 
 // =============== HELPERS ===============
-const fmtDate = (s: string) => {
-  if (!s) return '';
-  try { return new Date(s).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }); }
-  catch { return s; }
-};
+const fmtDate = (s: string) => (s ? formatDate(s) : '');
 
 const newId = () => Math.random().toString(36).slice(2, 11);
 
@@ -142,7 +133,7 @@ function ActionPlanCard({ item, index, onChange, onRemove }: { item: ActionPlanI
   return (
     <div className={`${t.chipBg} rounded-xl p-3.5`}>
       <div className="flex justify-between items-center mb-2.5">
-        <span className="text-[11px] font-bold text-blue-400 uppercase tracking-wide">Action #{index + 1}</span>
+        <span className="text-[11px] font-bold text-brand-400 uppercase tracking-wide">Action #{index + 1}</span>
         <button type="button" onClick={() => onRemove(item.id)} title="Remove" className="text-red-400 hover:text-red-300 transition-colors"><Trash2 className="h-3.5 w-3.5" /></button>
       </div>
       <div className="grid grid-cols-2 gap-2">
@@ -224,7 +215,7 @@ function PTOCard({ report, index, onView, onEdit, onDelete }: PTOCardProps) {
           <StatusBadge color={STATUS_COLORS[report.status]} label={report.status.charAt(0).toUpperCase() + report.status.slice(1)} />
           <div onClick={e => e.stopPropagation()} className="flex gap-1.5">
             <button type="button" onClick={() => onView(report)} title="View" className={`${t.chipBg} ${t.hoverBg} rounded-md px-2 py-1 text-xs flex items-center gap-1 transition-colors ${t.textFaint}`}><Eye className="h-3 w-3" /> View</button>
-            <button type="button" onClick={() => onEdit(report)} title="Edit" className={`${t.chipBg} ${t.hoverBg} rounded-md px-2 py-1 text-xs flex items-center gap-1 transition-colors text-blue-400`}><Pencil className="h-3 w-3" /> Edit</button>
+            <button type="button" onClick={() => onEdit(report)} title="Edit" className={`${t.chipBg} ${t.hoverBg} rounded-md px-2 py-1 text-xs flex items-center gap-1 transition-colors text-brand-400`}><Pencil className="h-3 w-3" /> Edit</button>
             <button type="button" onClick={() => onDelete(report.id)} title="Delete" className={`${t.chipBg} ${t.hoverBg} rounded-md px-2 py-1 text-xs flex items-center gap-1 transition-colors text-red-400`}><Trash2 className="h-3 w-3" /> Delete</button>
           </div>
         </div>
@@ -343,7 +334,7 @@ function PTODetailModal({ report, open, onClose, onEdit, onDelete, onStatusChang
                       <span>By: {action.byWhom}</span><span>Due: {fmtDate(action.byWhen)}</span>
                       {action.completedDate && <span>Completed: {fmtDate(action.completedDate)}</span>}
                     </div>
-                    {action.remarks && <div className={`mt-1.5 text-xs italic ${t.textFaint} border-l-2 border-blue-400 pl-2`}>{action.remarks}</div>}
+                    {action.remarks && <div className={`mt-1.5 text-xs italic ${t.textFaint} border-l-2 border-brand-400 pl-2`}>{action.remarks}</div>}
                   </div>
                 );
               })}
@@ -406,7 +397,7 @@ function PTOFormModal({ open, editing, onClose, onSave, saving }: { open: boolea
       <div className={`flex gap-1 px-5 pt-4 border-b ${t.border} overflow-x-auto`}>
         {tabs.map(tb => (
           <button key={tb.id} type="button" onClick={() => setTab(tb.id)}
-            className={`px-3 py-2 text-xs font-medium rounded-t-lg whitespace-nowrap transition-colors ${tab === tb.id ? 'bg-blue-500/15 text-blue-400' : `${t.textFaint} ${t.hoverText}`}`}>
+            className={`px-3 py-2 text-xs font-medium rounded-t-lg whitespace-nowrap transition-colors ${tab === tb.id ? 'bg-brand-500/15 text-brand-400' : `${t.textFaint} ${t.hoverText}`}`}>
             {tb.label}
           </button>
         ))}
@@ -487,7 +478,7 @@ function PTOFormModal({ open, editing, onClose, onSave, saving }: { open: boolea
                   <span className={`text-sm ${t.textMuted}`}>Observation Scope</span>
                   <div className="flex gap-3.5">
                     {(['All', 'Partial'] as const).map(opt => (
-                      <label key={opt} className={`flex items-center gap-1.5 cursor-pointer text-sm ${form.observationScope === opt ? 'text-blue-400 font-bold' : t.textFaint}`}>
+                      <label key={opt} className={`flex items-center gap-1.5 cursor-pointer text-sm ${form.observationScope === opt ? 'text-brand-400 font-bold' : t.textFaint}`}>
                         <input type="radio" name="scope" value={opt} checked={form.observationScope === opt} onChange={() => set('observationScope', opt)} style={{ accentColor: '#60a5fa' }} className="cursor-pointer" />
                         {opt}
                       </label>
@@ -508,7 +499,7 @@ function PTOFormModal({ open, editing, onClose, onSave, saving }: { open: boolea
           <div>
             <div className="flex justify-between items-center mb-3.5">
               <div><div className={`font-bold text-sm ${t.textPrimary}`}>Action Plan</div><div className={`text-[11px] mt-0.5 ${t.textFaint}`}>Define corrective or improvement actions.</div></div>
-              <button type="button" onClick={addAction} className="flex items-center gap-1.5 bg-blue-500/15 hover:bg-blue-500/25 rounded-lg px-3 py-1.5 text-blue-400 text-sm font-semibold transition-colors"><Plus className="h-3.5 w-3.5" /> Add Action</button>
+              <button type="button" onClick={addAction} className="flex items-center gap-1.5 bg-brand-500/15 hover:bg-brand-500/25 rounded-lg px-3 py-1.5 text-brand-400 text-sm font-semibold transition-colors"><Plus className="h-3.5 w-3.5" /> Add Action</button>
             </div>
             {(form.actionPlan || []).length === 0 ? (
               <div className={`text-center py-8 ${t.textFaint}`}>
@@ -642,8 +633,8 @@ function PTOPageContent() {
         actions={
           <>
             <button type="button" onClick={loadData} title="Refresh" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /></button>
-            <button type="button" onClick={() => setViewMode('grid')} title="Grid view" className={`h-8 w-8 flex items-center justify-center rounded-lg transition-all ${viewMode === 'grid' ? 'bg-blue-500/20 text-blue-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}><LayoutGrid className="h-3.5 w-3.5" /></button>
-            <button type="button" onClick={() => setViewMode('table')} title="Table view" className={`h-8 w-8 flex items-center justify-center rounded-lg transition-all ${viewMode === 'table' ? 'bg-blue-500/20 text-blue-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}><TableIcon className="h-3.5 w-3.5" /></button>
+            <button type="button" onClick={() => setViewMode('grid')} title="Grid view" className={`h-8 w-8 flex items-center justify-center rounded-lg transition-all ${viewMode === 'grid' ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}><LayoutGrid className="h-3.5 w-3.5" /></button>
+            <button type="button" onClick={() => setViewMode('table')} title="Table view" className={`h-8 w-8 flex items-center justify-center rounded-lg transition-all ${viewMode === 'table' ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}><TableIcon className="h-3.5 w-3.5" /></button>
             <PrimaryButton icon={Plus} onClick={() => { setEditing(null); setFormOpen(true); }}>New PTO</PrimaryButton>
           </>
         }

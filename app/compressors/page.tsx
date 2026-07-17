@@ -2,6 +2,9 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { API_BASE } from '@/lib/config';
+import { authFetch } from '@/lib/api';
+import { api } from '@/lib/apiClient';
 import { toast } from 'sonner';
 import {
   Calendar, Download, ChevronLeft, ChevronRight, Settings, Search,
@@ -12,6 +15,7 @@ import {
   XCircle,
 } from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
+import { formatDate } from '@/lib/format';
 import {
   useTheme, PageHero, StatTile, StatusBadge, ViewToggle,
   FormField, useCollapseSection, CenterModal, ProgressBar, ACCENT_HEX, GlowCard, SelectField,
@@ -56,7 +60,7 @@ interface AddCompressorFormData { name: string; model: string; capacity: string;
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com';
+const API_BASE_URL =API_BASE;
 const SERVICE_INTERVALS = [1000, 2000, 4000, 8000, 16000];
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ElementType }> = {
@@ -73,8 +77,11 @@ const RATING_COLOR: Record<string, string> = { Excellent: '#34d399', Good: ACCEN
 
 // ─── API UTILITY ──────────────────────────────────────────────────────────────
 
+// Domain wrapper over authFetch (attaches the auth token, same base as lib/apiClient):
+// translates the DB check-constraint failure into a human-readable message. Callers
+// pass a full URL and pre-stringified body, so this stays a thin fetch-shaped helper.
 const enhancedFetch = async (url: string, options: RequestInit = {}): Promise<unknown> => {
-  const r = await fetch(url, { ...options, headers: { 'Content-Type': 'application/json', ...(options.headers as Record<string, string> | undefined) } });
+  const r = await authFetch(url, { ...options, headers: { 'Content-Type': 'application/json', ...(options.headers as Record<string, string> | undefined) } });
   if (!r.ok) {
     let msg = `HTTP ${r.status}`;
     try {
@@ -233,7 +240,7 @@ function CompressorReadingsSystem() {
   const getPreviousReadingInfo = (id: number) => {
     const prev = previousReadings[id];
     if (!prev) return { running: 0, loaded: 0, date: 'No previous reading' };
-    return { running: prev.total_running_hours, loaded: prev.total_loaded_hours, date: prev.date === 'Initial' ? 'Initial' : new Date(prev.date).toLocaleDateString() };
+    return { running: prev.total_running_hours, loaded: prev.total_loaded_hours, date: prev.date === 'Initial' ? 'Initial' : formatDate(prev.date) };
   };
   const validateReading = (id: number, newRun: number, newLoad: number): boolean => {
     const prev = previousReadings[id];
@@ -290,9 +297,7 @@ function CompressorReadingsSystem() {
   const generateCSVReport = async () => {
     try {
       const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-      const r = await fetch(`${API_BASE_URL}/api/compressors/export`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ start_date: startDate, end_date: new Date().toISOString().split('T')[0], format: 'csv' }) });
-      if (!r.ok) throw new Error('Export failed');
-      const blob = await r.blob();
+      const blob = await api.blob('/api/compressors/export', 'POST', { start_date: startDate, end_date: new Date().toISOString().split('T')[0], format: 'csv' });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a'); a.href = url; a.download = `compressor-report-${new Date().toISOString().split('T')[0]}.csv`; a.click();
       window.URL.revokeObjectURL(url);
@@ -303,9 +308,7 @@ function CompressorReadingsSystem() {
   const importData = async (file: File) => {
     const fd = new FormData(); fd.append('file', file);
     try {
-      const r = await fetch(`${API_BASE_URL}/api/compressors/import`, { method: 'POST', body: fd });
-      if (!r.ok) throw new Error('Import failed');
-      const result = await r.json() as { errors?: unknown[]; imported_count?: number };
+      const result = await api.post<{ errors?: unknown[]; imported_count?: number }>('/api/compressors/import', fd);
       if (result.errors?.length) toast.warning(`Imported with ${result.errors.length} errors`);
       else toast.success(`Imported ${result.imported_count} compressors`);
       await loadAllData();
@@ -346,7 +349,7 @@ function CompressorReadingsSystem() {
       <GlowCard color={si?.isUrgent ? '#f43f5e' : ACCENT_HEX.blue} surface={`${t.glass} rounded-2xl`} className="overflow-hidden">
         <div className={`px-4 py-3 border-b ${t.border} flex items-center justify-between`}>
           <div className="flex items-center gap-2.5">
-            <div className={`w-9 h-9 rounded-full ${t.chipBg} flex items-center justify-center`}><Gauge className="h-4 w-4 text-blue-400" /></div>
+            <div className={`w-9 h-9 rounded-full ${t.chipBg} flex items-center justify-center`}><Gauge className="h-4 w-4 text-brand-400" /></div>
             <div>
               <div className={`font-semibold text-sm flex items-center gap-1.5 ${t.textPrimary}`}>
                 {compressor.name}
@@ -370,8 +373,8 @@ function CompressorReadingsSystem() {
               <span className={t.textFaint}>{prevInfo.date}</span>
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <div className="text-center"><div className="text-sm font-semibold text-blue-400">{prevInfo.running.toFixed(1)}h</div><div className={`text-[10px] ${t.textFaint}`}>Running</div></div>
-              <div className="text-center"><div className="text-sm font-semibold text-blue-400">{prevInfo.loaded.toFixed(1)}h</div><div className={`text-[10px] ${t.textFaint}`}>Loaded</div></div>
+              <div className="text-center"><div className="text-sm font-semibold text-brand-400">{prevInfo.running.toFixed(1)}h</div><div className={`text-[10px] ${t.textFaint}`}>Running</div></div>
+              <div className="text-center"><div className="text-sm font-semibold text-brand-400">{prevInfo.loaded.toFixed(1)}h</div><div className={`text-[10px] ${t.textFaint}`}>Loaded</div></div>
             </div>
           </div>
 
@@ -393,14 +396,14 @@ function CompressorReadingsSystem() {
           </div>
 
           {showDailyHours && (
-            <div className="bg-blue-500/[0.08] rounded-xl p-3">
+            <div className="bg-brand-500/[0.08] rounded-xl p-3">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-semibold text-blue-400">Daily Calculated</span>
-                <span className="flex items-center gap-1 text-[10px] text-blue-400/70"><Calculator className="h-3 w-3" />Auto</span>
+                <span className="text-xs font-semibold text-brand-400">Daily Calculated</span>
+                <span className="flex items-center gap-1 text-[10px] text-brand-400/70"><Calculator className="h-3 w-3" />Auto</span>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="text-center">
-                  <div className="text-xl font-bold text-blue-400">{dailyRunning.toFixed(1)}h</div>
+                  <div className="text-xl font-bold text-brand-400">{dailyRunning.toFixed(1)}h</div>
                   <div className={`text-[10px] ${t.textFaint}`}>Running Today</div>
                   <div className={`text-[10px] ${t.textFaint}`}>({prevInfo.running.toFixed(1)} → {inp.totalRunning || 0}h)</div>
                 </div>
@@ -441,7 +444,7 @@ function CompressorReadingsSystem() {
           </FormField>
 
           <button type="button" onClick={handleSave} disabled={saving}
-            className="w-full py-2 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-blue-500 to-blue-700 hover:brightness-110 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+            className="w-full py-2 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
             {saving ? <><Loader2 className="h-4 w-4 animate-spin" />Saving…</> : 'Save Entry'}
           </button>
         </div>
@@ -452,7 +455,7 @@ function CompressorReadingsSystem() {
   // ── Add Compressor Modal ─────────────────────────────────────────────────────
 
   function AddCompressorForm() {
-    const [fd, setFd] = useState<AddCompressorFormData>({ name: '', model: '', capacity: '', location: 'Main Plant', status: 'standby', total_running_hours: 0, total_loaded_hours: 0, color: 'bg-blue-500' });
+    const [fd, setFd] = useState<AddCompressorFormData>({ name: '', model: '', capacity: '', location: 'Main Plant', status: 'standby', total_running_hours: 0, total_loaded_hours: 0, color: 'bg-brand-500' });
     const handleSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
       if (!fd.name || !fd.model || !fd.capacity) { toast.error('Please fill required fields'); return; }
@@ -478,7 +481,7 @@ function CompressorReadingsSystem() {
           </div>
           <div className={`flex gap-2 pt-2 border-t ${t.border}`}>
             <button type="button" onClick={() => setShowAddCompressor(false)} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border}`}>Cancel</button>
-            <button type="submit" disabled={isSaving.type === 'add'} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-blue-500 to-blue-700 hover:brightness-110 disabled:opacity-50 inline-flex items-center justify-center gap-2">
+            <button type="submit" disabled={isSaving.type === 'add'} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 disabled:opacity-50 inline-flex items-center justify-center gap-2">
               {isSaving.type === 'add' ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />Adding…</> : 'Add Compressor'}
             </button>
           </div>
@@ -509,7 +512,7 @@ function CompressorReadingsSystem() {
           <div className="flex gap-2">
             <button type="button" onClick={() => setStatusUpdateDialog({ open: false, compressorId: null, currentStatus: '' })} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border}`}>Cancel</button>
             <button type="button" onClick={() => updateCompressorStatus(statusUpdateDialog.compressorId, sel)} disabled={isSaving.type === 'status' || sel === statusUpdateDialog.currentStatus}
-              className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-blue-500 to-blue-700 hover:brightness-110 disabled:opacity-50 inline-flex items-center justify-center gap-2">
+              className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 disabled:opacity-50 inline-flex items-center justify-center gap-2">
               {isSaving.type === 'status' ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />Updating…</> : 'Update Status'}
             </button>
           </div>
@@ -559,7 +562,7 @@ function CompressorReadingsSystem() {
           <>
             <button type="button" onClick={loadAllData} title="Refresh" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}><RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} /></button>
             <button type="button" onClick={downloadExcel} disabled={compressors.length === 0} title="Download Excel" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} disabled:opacity-40`}><Download className="h-4 w-4" /></button>
-            <button type="button" onClick={() => setShowAddCompressor(true)} className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-blue-500 to-blue-700 hover:brightness-110 transition-all">
+            <button type="button" onClick={() => setShowAddCompressor(true)} className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all">
               <Plus className="h-3.5 w-3.5" /> Add Compressor
             </button>
           </>
@@ -581,7 +584,7 @@ function CompressorReadingsSystem() {
         <div className={`flex gap-1 p-2 border-b ${t.border}`}>
           {tabs.map(tb => (
             <button key={tb.key} type="button" onClick={() => setActiveTab(tb.key)}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-semibold transition-all ${activeTab === tb.key ? 'bg-blue-500/20 text-blue-400' : `${t.textFaint} ${t.hoverText} ${t.hoverBg}`}`}>
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-semibold transition-all ${activeTab === tb.key ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} ${t.hoverText} ${t.hoverBg}`}`}>
               <tb.icon className="h-3.5 w-3.5" />{tb.label}
             </button>
           ))}
@@ -593,7 +596,7 @@ function CompressorReadingsSystem() {
             <div className="flex flex-col lg:flex-row lg:items-center gap-3">
               <div className="flex items-center gap-2">
                 <button type="button" onClick={previousDay} title="Previous day" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.glassSoft} ${t.textFaint} ${t.hoverText}`}><ChevronLeft className="h-4 w-4" /></button>
-                <span className={`text-sm font-semibold min-w-[110px] text-center ${t.textPrimary}`}>{mounted ? currentDate.toLocaleDateString() : ''}</span>
+                <span className={`text-sm font-semibold min-w-[110px] text-center ${t.textPrimary}`}>{mounted ? formatDate(currentDate) : ''}</span>
                 <button type="button" onClick={nextDay} title="Next day" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.glassSoft} ${t.textFaint} ${t.hoverText}`}><ChevronRight className="h-4 w-4" /></button>
                 <button type="button" onClick={goToToday} className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${t.textMuted} ${t.glassSoft} ${t.hoverText}`}>Today</button>
               </div>
@@ -618,8 +621,8 @@ function CompressorReadingsSystem() {
                 { label: 'Urgent Only', val: filters.showMaintenance, set: (v: boolean) => setFilters(p => ({ ...p, showMaintenance: v })) },
               ].map(({ label, val, set }) => (
                 <button key={label} type="button" onClick={() => set(!val)}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${val ? 'bg-blue-500/15 text-blue-400' : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}>
-                  <div className={`w-3 h-3 rounded-full border transition-all ${val ? 'bg-blue-400 border-blue-400' : `border ${t.border}`}`} />
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${val ? 'bg-brand-500/15 text-brand-400' : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}>
+                  <div className={`w-3 h-3 rounded-full border transition-all ${val ? 'bg-brand-400 border-brand-400' : `border ${t.border}`}`} />
                   {label}
                 </button>
               ))}
@@ -651,7 +654,7 @@ function CompressorReadingsSystem() {
                           <tr className={`border-b ${t.border} ${t.hoverBgSoft} transition-colors`}>
                             <td className="py-2.5 px-3">
                               <div className="flex items-center gap-2.5">
-                                <div className={`w-7 h-7 rounded-full ${t.chipBg} flex items-center justify-center`}><Gauge className="h-3.5 w-3.5 text-blue-400" /></div>
+                                <div className={`w-7 h-7 rounded-full ${t.chipBg} flex items-center justify-center`}><Gauge className="h-3.5 w-3.5 text-brand-400" /></div>
                                 <div><div className={`font-medium ${t.textMuted}`}>{c.name}</div><div className={`text-xs ${t.textFaint}`}>{c.model}</div></div>
                               </div>
                             </td>
@@ -661,8 +664,8 @@ function CompressorReadingsSystem() {
                               </button>
                             </td>
                             <td className={`py-2.5 px-3 ${t.textMuted}`}>{c.location}</td>
-                            <td className="py-2.5 px-3"><div className="font-medium text-blue-400">{c.total_running_hours.toFixed(1)}h</div><div className={`text-xs ${t.textFaint}`}>Prev: {prevInfo.running.toFixed(1)}h</div></td>
-                            <td className="py-2.5 px-3"><div className="font-medium text-blue-400">{c.total_loaded_hours.toFixed(1)}h</div><div className={`text-xs ${t.textFaint}`}>Prev: {prevInfo.loaded.toFixed(1)}h</div></td>
+                            <td className="py-2.5 px-3"><div className="font-medium text-brand-400">{c.total_running_hours.toFixed(1)}h</div><div className={`text-xs ${t.textFaint}`}>Prev: {prevInfo.running.toFixed(1)}h</div></td>
+                            <td className="py-2.5 px-3"><div className="font-medium text-brand-400">{c.total_loaded_hours.toFixed(1)}h</div><div className={`text-xs ${t.textFaint}`}>Prev: {prevInfo.loaded.toFixed(1)}h</div></td>
                             <td className="py-2.5 px-3">{si ? <span className="text-sm font-semibold" style={{ color: URGENCY_COLOR[si.urgency] }}>{si.interval}h in {si.daysRemaining}d</span> : <span className={t.textFaint}>—</span>}</td>
                             <td className="py-2.5 px-3">
                               <button type="button" onClick={() => setExpandedCompressor(isExp ? null : c.id)} className={`h-7 w-7 flex items-center justify-center rounded-md ${t.textFaint} ${t.hoverText} transition-colors`}>
@@ -684,7 +687,7 @@ function CompressorReadingsSystem() {
                 <Gauge className={`h-12 w-12 ${t.textFaint} mx-auto mb-4`} />
                 <p className={`text-sm font-medium ${t.textMuted}`}>No compressors found</p>
                 <p className={`text-xs mt-1 mb-4 ${t.textFaint}`}>Adjust filters or add a new compressor</p>
-                <button type="button" onClick={() => setShowAddCompressor(true)} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-blue-500 to-blue-700 hover:brightness-110 transition-all">
+                <button type="button" onClick={() => setShowAddCompressor(true)} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all">
                   <Plus className="h-4 w-4" />Add First Compressor
                 </button>
               </div>
@@ -703,7 +706,7 @@ function CompressorReadingsSystem() {
                     surface={`${t.glass} rounded-xl`} className="p-4">
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2.5">
-                        <div className={`w-8 h-8 rounded-full ${t.chipBg} flex items-center justify-center`}><Gauge className="h-4 w-4 text-blue-400" /></div>
+                        <div className={`w-8 h-8 rounded-full ${t.chipBg} flex items-center justify-center`}><Gauge className="h-4 w-4 text-brand-400" /></div>
                         <div><div className={`font-semibold ${t.textMuted}`}>{svc.compressor_name}</div><div className={`text-xs ${t.textFaint}`}>Current: {svc.current_hours}h · Next: {svc.next_service_hours}h</div></div>
                       </div>
                       <div className="text-right">
@@ -735,7 +738,7 @@ function CompressorReadingsSystem() {
                   <div className="p-3 space-y-2">
                     {SERVICE_INTERVALS.map(iv => (
                       <div key={iv} className={`flex items-center justify-between px-3 py-2 ${t.chipBg} rounded-xl`}>
-                        <div className="flex items-center gap-2"><Timer className="h-3.5 w-3.5 text-blue-400" /><span className={`text-sm font-semibold ${t.textMuted}`}>{iv}h</span></div>
+                        <div className="flex items-center gap-2"><Timer className="h-3.5 w-3.5 text-brand-400" /><span className={`text-sm font-semibold ${t.textMuted}`}>{iv}h</span></div>
                         <span className={`text-xs ${t.textFaint}`}>{compressors.filter(c => calculateNextService(c.total_running_hours)?.interval === iv).length} due</span>
                       </div>
                     ))}
@@ -744,7 +747,7 @@ function CompressorReadingsSystem() {
                 <div className={`${t.glass} rounded-xl overflow-hidden`}>
                   <div className={`px-4 py-3 border-b ${t.border}`}><p className={`text-xs font-semibold uppercase tracking-wider ${t.textFaint}`}>Export Data</p></div>
                   <div className="p-3 space-y-2">
-                    <button type="button" onClick={generateCSVReport} className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm ${t.textMuted} ${t.chipBg} ${t.hoverBg} transition-all`}><FileText className="h-4 w-4 text-blue-400" />Export to CSV</button>
+                    <button type="button" onClick={generateCSVReport} className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm ${t.textMuted} ${t.chipBg} ${t.hoverBg} transition-all`}><FileText className="h-4 w-4 text-brand-400" />Export to CSV</button>
                     <label className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm ${t.textMuted} ${t.chipBg} ${t.hoverBg} transition-all cursor-pointer`}>
                       <Upload className="h-4 w-4 text-amber-400" />Import from CSV
                       <input type="file" accept=".csv" aria-label="Import CSV file" className="hidden" onChange={async e => { const f = e.target.files?.[0]; if (f) { try { await importData(f); } catch { /* handled */ } } }} />
@@ -783,7 +786,7 @@ function CompressorReadingsSystem() {
                               <td className={`py-2.5 px-3 font-medium ${t.textMuted}`}>{m.compressor_name}</td>
                               <td className="py-2.5 px-3">
                                 <div className="flex items-center gap-1.5">
-                                  <div className={`w-2 h-2 rounded-full ${m.avg_efficiency >= 80 ? 'bg-emerald-500' : m.avg_efficiency >= 60 ? 'bg-blue-500' : m.avg_efficiency >= 40 ? 'bg-amber-500' : 'bg-rose-500'}`} />
+                                  <div className={`w-2 h-2 rounded-full ${m.avg_efficiency >= 80 ? 'bg-emerald-500' : m.avg_efficiency >= 60 ? 'bg-brand-500' : m.avg_efficiency >= 40 ? 'bg-amber-500' : 'bg-rose-500'}`} />
                                   <span className={t.textMuted}>{m.avg_efficiency}%</span>
                                 </div>
                               </td>
@@ -855,7 +858,7 @@ function CompressorReadingsSystem() {
                         return (
                           <>
                             {best && <div className="flex items-center gap-2 p-3 rounded-xl bg-emerald-500/10"><TrendingUp className="h-4 w-4 text-emerald-400 shrink-0" /><div><div className="text-xs font-semibold text-emerald-400">Best Performer</div><div className={`text-xs ${t.textFaint}`}>{best.compressor_name} ({best.avg_efficiency}%)</div></div></div>}
-                            {mostActive && <div className="flex items-center gap-2 p-3 rounded-xl bg-blue-500/10"><Activity className="h-4 w-4 text-blue-400 shrink-0" /><div><div className="text-xs font-semibold text-blue-400">Most Active</div><div className={`text-xs ${t.textFaint}`}>{mostActive.compressor_name} ({mostActive.total_running_hours}h)</div></div></div>}
+                            {mostActive && <div className="flex items-center gap-2 p-3 rounded-xl bg-brand-500/10"><Activity className="h-4 w-4 text-brand-400 shrink-0" /><div><div className="text-xs font-semibold text-brand-400">Most Active</div><div className={`text-xs ${t.textFaint}`}>{mostActive.compressor_name} ({mostActive.total_running_hours}h)</div></div></div>}
                             {needsAtt.length > 0 && <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-500/10"><AlertTriangle className="h-4 w-4 text-amber-400 shrink-0" /><div><div className="text-xs font-semibold text-amber-400">Needs Attention</div><div className={`text-xs ${t.textFaint}`}>{needsAtt.length} compressor{needsAtt.length > 1 ? 's' : ''}</div></div></div>}
                           </>
                         );
@@ -905,7 +908,7 @@ function CompressorReadingsSystem() {
                       <p className={`text-xs font-semibold uppercase tracking-wider mb-2 ${t.textFaint}`}>Age Distribution</p>
                       <div className="grid grid-cols-4 gap-2">
                         {[{ v: managementData.summary.age_distribution.less_than_year ?? 0, l: '< 1yr' }, { v: managementData.summary.age_distribution["1_3_years"] ?? 0, l: '1-3yr' }, { v: managementData.summary.age_distribution["3_5_years"] ?? 0, l: '3-5yr' }, { v: managementData.summary.age_distribution.more_than_5 ?? 0, l: '> 5yr' }].map(({ v, l }) => (
-                          <div key={l} className={`text-center ${t.chipBg} rounded-xl p-2`}><div className="text-lg font-bold text-blue-400">{v}</div><div className={`text-[10px] ${t.textFaint}`}>{l}</div></div>
+                          <div key={l} className={`text-center ${t.chipBg} rounded-xl p-2`}><div className="text-lg font-bold text-brand-400">{v}</div><div className={`text-[10px] ${t.textFaint}`}>{l}</div></div>
                         ))}
                       </div>
                     </div>
@@ -927,7 +930,7 @@ function CompressorReadingsSystem() {
                             <div><div className={`font-medium ${t.textMuted}`}>{a.title}</div><div className={`text-xs mt-0.5 ${t.textFaint}`}>{a.message}</div></div>
                             {!a.is_read && <StatusBadge color="#f43f5e" label="New" />}
                           </div>
-                          <div className={`text-[10px] mt-1.5 ${t.textFaint}`}>{new Date(a.created_at).toLocaleDateString()}</div>
+                          <div className={`text-[10px] mt-1.5 ${t.textFaint}`}>{formatDate(a.created_at)}</div>
                         </div>
                       ))}
                     </div>
@@ -953,7 +956,7 @@ function CompressorReadingsSystem() {
                   <div className={`px-4 py-3 border-b ${t.border}`}><p className={`text-xs font-semibold uppercase tracking-wider ${t.textFaint}`}>System Actions</p></div>
                   <div className="p-3 space-y-2">
                     {[
-                      { icon: RefreshCw, label: 'Refresh All Data', fn: loadAllData, cls: 'text-blue-400' },
+                      { icon: RefreshCw, label: 'Refresh All Data', fn: loadAllData, cls: 'text-brand-400' },
                       { icon: Download, label: 'Export System Report', fn: generateCSVReport, cls: 'text-emerald-400' },
                     ].map(({ icon: Ic, label, fn, cls }) => (
                       <button key={label} type="button" onClick={fn} className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm ${t.textMuted} ${t.chipBg} ${t.hoverBg} transition-all`}>

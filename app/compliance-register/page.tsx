@@ -98,7 +98,7 @@ function ComplianceRegisterContent() {
           <h2 className={`font-semibold ${t.textPrimary}`}>Compliance Items</h2>
           <div className="flex gap-2 flex-wrap">
             {(['all', 'current', 'due_soon', 'overdue'] as const).map(s => (
-              <button key={s} type="button" onClick={() => setFilter(s)} className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${filter === s ? 'bg-blue-500/20 text-blue-400' : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}>
+              <button key={s} type="button" onClick={() => setFilter(s)} className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${filter === s ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}>
                 {s === 'all' ? 'All' : s === 'due_soon' ? 'Due Soon' : s.charAt(0).toUpperCase() + s.slice(1)}
               </button>
             ))}

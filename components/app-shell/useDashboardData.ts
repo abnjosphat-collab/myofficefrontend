@@ -14,11 +14,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { API_BASE } from '@/lib/config';
 import {
   ClipboardPlus, AlertTriangle, type LucideIcon,
 } from '@/components/shared/theme';
-
-const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com').replace(/\/$/, '');
 
 export interface DashboardStats {
   employeeCount: number | null;

@@ -137,7 +137,7 @@ function generateTeamReportPDF(stats: TeamLeaveStat[]) {
 // Person identity marker — bare accent person icon (app-wide convention;
 // replaced the old initials circle). `name` kept for call compatibility.
 function Avatar({ }: { name?: string }) {
-  return <User className="h-6 w-6 text-blue-400 shrink-0" />;
+  return <User className="h-6 w-6 text-brand-400 shrink-0" />;
 }
 
 function Panel({ icon: Icon, title, children, actions }: { icon: ElementType; title: string; children: React.ReactNode; actions?: React.ReactNode }) {
@@ -145,7 +145,7 @@ function Panel({ icon: Icon, title, children, actions }: { icon: ElementType; ti
   return (
     <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
       <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border} flex-wrap`}>
-        <Icon className="h-4 w-4 text-blue-400" />
+        <Icon className="h-4 w-4 text-brand-400" />
         <span className={`font-semibold text-sm ${t.textPrimary}`}>{title}</span>
         {actions && <div className="ml-auto flex items-center gap-2 flex-wrap">{actions}</div>}
       </div>
@@ -362,7 +362,7 @@ function LeaveManagementContent() {
       <div className={`flex items-center gap-1 ${t.glassSoft} rounded-xl p-1 w-fit flex-wrap`}>
         {TABS.map(tb => (
           <button key={tb.key} type="button" onClick={() => setTab(tb.key)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${tab === tb.key ? 'bg-blue-500/20 text-blue-400' : `${t.textFaint} ${t.hoverText} ${t.hoverBg}`}`}>
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${tab === tb.key ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} ${t.hoverText} ${t.hoverBg}`}`}>
             <tb.icon className="h-4 w-4" />{tb.label}{tb.count !== undefined && <span className={`text-[10px] ${tab === tb.key ? '' : t.textFaint}`}>{tb.count}</span>}
           </button>
         ))}
@@ -466,8 +466,8 @@ function LeaveManagementContent() {
               options={[{ value: 'all', label: 'All Status' }, { value: 'pending', label: 'Pending' }, { value: 'approved', label: 'Approved' }, { value: 'rejected', label: 'Rejected' }]} />
             <SelectField size="filter" title="Type" value={filters.type} onChange={v => setFilters(p => ({ ...p, type: v }))}
               options={[{ value: 'all', label: 'All Types' }, ...LEAVE_TYPES.map(lt => ({ value: lt.id, label: lt.name }))]} />
-            <button type="button" title="List view" onClick={() => setViewMode('list')} className={`h-8 w-8 flex items-center justify-center rounded-lg transition-all ${viewMode === 'list' ? 'bg-blue-500/20 text-blue-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}><List className="h-3.5 w-3.5" /></button>
-            <button type="button" title="Grid view" onClick={() => setViewMode('grid')} className={`h-8 w-8 flex items-center justify-center rounded-lg transition-all ${viewMode === 'grid' ? 'bg-blue-500/20 text-blue-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}><Grid3X3 className="h-3.5 w-3.5" /></button>
+            <button type="button" title="List view" onClick={() => setViewMode('list')} className={`h-8 w-8 flex items-center justify-center rounded-lg transition-all ${viewMode === 'list' ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}><List className="h-3.5 w-3.5" /></button>
+            <button type="button" title="Grid view" onClick={() => setViewMode('grid')} className={`h-8 w-8 flex items-center justify-center rounded-lg transition-all ${viewMode === 'grid' ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}><Grid3X3 className="h-3.5 w-3.5" /></button>
           </>
         }>
           {filtered.length === 0 ? (
@@ -557,7 +557,7 @@ function LeaveManagementContent() {
                     </div>
                     <div className="flex gap-4 text-center">
                       <div><p className="text-lg font-bold text-emerald-400">{s?.annualRemaining ?? 0}</p><p className={`text-[10px] ${t.textFaint}`}>Annual left</p></div>
-                      <div><p className="text-lg font-bold text-blue-400">{s?.sickUsed ?? 0}</p><p className={`text-[10px] ${t.textFaint}`}>Sick used</p></div>
+                      <div><p className="text-lg font-bold text-brand-400">{s?.sickUsed ?? 0}</p><p className={`text-[10px] ${t.textFaint}`}>Sick used</p></div>
                       <div><p className="text-lg font-bold text-purple-400">{s?.personalUsed ?? 0}</p><p className={`text-[10px] ${t.textFaint}`}>Personal</p></div>
                     </div>
                   </div>
@@ -576,7 +576,7 @@ function LeaveManagementContent() {
         <div className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className={`${t.glass} rounded-xl p-4`}><div className="flex items-center gap-1.5 mb-1"><TrendingUp className="h-3.5 w-3.5 text-emerald-400" /><span className={`text-xs ${t.textFaint}`}>Approval Rate</span></div><div className="text-xl font-bold text-emerald-400">78%</div></div>
-            <div className={`${t.glass} rounded-xl p-4`}><div className="flex items-center gap-1.5 mb-1"><CalendarDays className="h-3.5 w-3.5 text-blue-400" /><span className={`text-xs ${t.textFaint}`}>Avg. Days/Employee</span></div><div className={`text-xl font-bold ${t.textPrimary}`}>42</div></div>
+            <div className={`${t.glass} rounded-xl p-4`}><div className="flex items-center gap-1.5 mb-1"><CalendarDays className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs ${t.textFaint}`}>Avg. Days/Employee</span></div><div className={`text-xl font-bold ${t.textPrimary}`}>42</div></div>
             <div className={`${t.glass} rounded-xl p-4`}><div className="flex items-center gap-1.5 mb-1"><BarChart3 className="h-3.5 w-3.5 text-amber-400" /><span className={`text-xs ${t.textFaint}`}>Sick Leave Usage</span></div><div className="text-xl font-bold text-amber-400">15%</div></div>
           </div>
           <Panel icon={History} title="Recent Activity" actions={

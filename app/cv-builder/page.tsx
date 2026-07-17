@@ -1,4 +1,4 @@
-﻿// app/cv-builder/page.jsx
+// app/cv-builder/page.jsx
 'use client';
 
 import { useState, useRef } from 'react';
@@ -422,13 +422,13 @@ const TemplateModernSilk = ({ cvData }: { cvData: CvData }) => {
   return (
     <div className="bg-white min-h-[842px] max-w-[1100px] mx-auto shadow-2xl border border-gray-200 overflow-hidden rounded-3xl">
       {/* Header with Gradient */}
-      <div className="bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 text-white p-12">
+      <div className="bg-gradient-to-r from-brand-600 via-brand-500 to-cyan-500 text-white p-12">
         <div className="flex items-start justify-between">
           <div className="flex-1">
             <h1 className="text-6xl font-bold mb-4 tracking-tight">
               {personalInfo.firstName} <span className="text-cyan-200">{personalInfo.lastName}</span>
             </h1>
-            <p className="text-2xl font-light tracking-wide text-blue-100 mb-8">{personalInfo.title}</p>
+            <p className="text-2xl font-light tracking-wide text-brand-100 mb-8">{personalInfo.title}</p>
             
             <div className="flex flex-wrap gap-8">
               {contact?.email && (
@@ -468,7 +468,7 @@ const TemplateModernSilk = ({ cvData }: { cvData: CvData }) => {
           <div className="col-span-2 space-y-12">
             {/* Summary */}
             {personalInfo.summary && (
-              <div className="bg-gradient-to-r from-blue-50 to-cyan-50 p-8 rounded-2xl border border-blue-100">
+              <div className="bg-gradient-to-r from-brand-50 to-cyan-50 p-8 rounded-2xl border border-brand-100">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">Professional Summary</h2>
                 <p className="text-gray-700 leading-relaxed text-lg">{personalInfo.summary}</p>
               </div>
@@ -477,21 +477,21 @@ const TemplateModernSilk = ({ cvData }: { cvData: CvData }) => {
             {/* Experience */}
             {experience.length > 0 && (
               <div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-8 pb-4 border-b border-blue-200">Work Experience</h2>
+                <h2 className="text-2xl font-bold text-gray-900 mb-8 pb-4 border-b border-brand-200">Work Experience</h2>
                 <div className="space-y-10">
                   {experience.map((exp: Experience, index: number) => (
                     <div key={index} className="group">
                       <div className="flex justify-between items-start mb-4">
                         <div>
-                          <h3 className="text-xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors">{exp.position}</h3>
-                          <p className="text-lg text-blue-600 font-semibold">{exp.company}</p>
+                          <h3 className="text-xl font-bold text-gray-900 group-hover:text-brand-600 transition-colors">{exp.position}</h3>
+                          <p className="text-lg text-brand-600 font-semibold">{exp.company}</p>
                         </div>
                         <div className="text-sm text-gray-500 bg-gray-100 px-4 py-2 rounded-full">
                           {exp.startDate} - {exp.current ? 'Present' : exp.endDate}
                         </div>
                       </div>
                       {exp.description && (
-                        <p className="text-gray-600 leading-relaxed pl-6 border-l-4 border-blue-200">
+                        <p className="text-gray-600 leading-relaxed pl-6 border-l-4 border-brand-200">
                           {exp.description}
                         </p>
                       )}
@@ -507,17 +507,17 @@ const TemplateModernSilk = ({ cvData }: { cvData: CvData }) => {
             {/* Skills */}
             {skills.length > 0 && (
               <div className="bg-white p-8 rounded-2xl border border-gray-200 shadow-lg">
-                <h3 className="text-xl font-bold text-gray-900 mb-6 pb-3 border-b border-blue-200">Expertise</h3>
+                <h3 className="text-xl font-bold text-gray-900 mb-6 pb-3 border-b border-brand-200">Expertise</h3>
                 <div className="space-y-5">
                   {skills.map((skill: Skill, index: number) => (
                     <div key={index}>
                       <div className="flex justify-between mb-1">
                         <span className="text-sm font-medium text-gray-700">{skill.name}</span>
-                        <span className="text-xs text-blue-600 font-bold">{skill.level}%</span>
+                        <span className="text-xs text-brand-600 font-bold">{skill.level}%</span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
                         <div 
-                          className="bg-gradient-to-r from-blue-600 to-cyan-500 h-2 rounded-full"
+                          className="bg-gradient-to-r from-brand-600 to-cyan-500 h-2 rounded-full"
                           style={{ width: `${skill.level}%` }}
                         ></div>
                       </div>
@@ -530,12 +530,12 @@ const TemplateModernSilk = ({ cvData }: { cvData: CvData }) => {
             {/* Education */}
             {education.length > 0 && (
               <div className="bg-gradient-to-br from-white to-gray-50 p-8 rounded-2xl border border-gray-200">
-                <h3 className="text-xl font-bold text-gray-900 mb-6 pb-3 border-b border-blue-200">Education</h3>
+                <h3 className="text-xl font-bold text-gray-900 mb-6 pb-3 border-b border-brand-200">Education</h3>
                 <div className="space-y-6">
                   {education.map((edu: Education, index: number) => (
                     <div key={index} className="space-y-2">
                       <h4 className="font-bold text-gray-900">{edu.degree}</h4>
-                      <p className="text-blue-600 font-semibold">{edu.institution}</p>
+                      <p className="text-brand-600 font-semibold">{edu.institution}</p>
                       <p className="text-sm text-gray-500">{edu.startDate} - {edu.current ? 'Present' : edu.endDate}</p>
                     </div>
                   ))}
@@ -545,7 +545,7 @@ const TemplateModernSilk = ({ cvData }: { cvData: CvData }) => {
 
             {/* Projects */}
             {projects.length > 0 && (
-              <div className="bg-gradient-to-r from-cyan-50 to-blue-50 p-8 rounded-2xl border border-cyan-100">
+              <div className="bg-gradient-to-r from-cyan-50 to-brand-50 p-8 rounded-2xl border border-cyan-100">
                 <h3 className="text-xl font-bold text-gray-900 mb-6">Notable Projects</h3>
                 <div className="space-y-4">
                   {projects.map((project: Project, index: number) => (
@@ -1578,8 +1578,8 @@ export default function CVFactory() {
       key={template.id}
       className={`relative overflow-hidden rounded-2xl border-2 transition-all duration-300 cursor-pointer group ${
         activeTemplate === template.id 
-          ? 'border-blue-500 ring-2 ring-blue-500/20 scale-[1.02]' 
-          : 'border-gray-200 hover:border-blue-300 hover:scale-[1.02]'
+          ? 'border-brand-500 ring-2 ring-brand-500/20 scale-[1.02]' 
+          : 'border-gray-200 hover:border-brand-300 hover:scale-[1.02]'
       }`}
       onClick={() => setActiveTemplate(template.id)}
     >
@@ -1591,7 +1591,7 @@ export default function CVFactory() {
             <p className="text-sm text-gray-500">{template.category}</p>
           </div>
           {activeTemplate === template.id && (
-            <Badge className="bg-blue-500">Selected</Badge>
+            <Badge className="bg-brand-500">Selected</Badge>
           )}
         </div>
         
@@ -1612,17 +1612,17 @@ export default function CVFactory() {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50/30">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-brand-50/30">
       {/* Navigation */}
       <div className="sticky top-0 z-50 bg-white/90 backdrop-blur-lg border-b border-gray-200 shadow-sm">
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600">
+              <div className="p-2 rounded-xl bg-gradient-to-r from-brand-600 to-purple-600">
                 <Wand2 className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                <h1 className="text-xl font-bold bg-gradient-to-r from-brand-600 to-purple-600 bg-clip-text text-transparent">
                   CV Factory
                 </h1>
                 <p className="text-xs text-gray-600">Transform any CV into elegance</p>
@@ -1699,20 +1699,20 @@ export default function CVFactory() {
         {activeTab === 'upload' && (
           <div className="max-w-4xl mx-auto">
             <Card className="border-0 shadow-2xl">
-              <CardHeader className="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+              <CardHeader className="bg-gradient-to-r from-brand-600 to-purple-600 text-white">
                 <CardTitle className="flex items-center gap-3 text-2xl">
                   <Upload className="h-8 w-8" />
                   Upload Your CV
                 </CardTitle>
-                <CardDescription className="text-blue-100">
+                <CardDescription className="text-brand-100">
                   Upload any CV format and we&apos;ll help you transform it into an elegant masterpiece
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-12">
                 <div className="text-center mb-8">
                   <div className="inline-flex flex-col items-center gap-4">
-                    <div className="p-6 rounded-2xl bg-gradient-to-br from-blue-100 to-purple-100">
-                      <FileUp className="h-16 w-16 text-blue-600" />
+                    <div className="p-6 rounded-2xl bg-gradient-to-br from-brand-100 to-purple-100">
+                      <FileUp className="h-16 w-16 text-brand-600" />
                     </div>
                     <div>
                       <h3 className="text-2xl font-bold text-gray-900">Drop your CV here</h3>
@@ -1722,7 +1722,7 @@ export default function CVFactory() {
                 </div>
 
                 <div className="space-y-6">
-                  <div className="border-2 border-dashed border-gray-300 rounded-2xl p-8 text-center hover:border-blue-500 transition-colors">
+                  <div className="border-2 border-dashed border-gray-300 rounded-2xl p-8 text-center hover:border-brand-500 transition-colors">
                     <input
                       type="file"
                       ref={fileInputRef}
@@ -1746,15 +1746,15 @@ export default function CVFactory() {
                     
                     {isProcessing && (
                       <div className="mt-6">
-                        <RefreshCw className="h-8 w-8 animate-spin mx-auto text-blue-500" />
+                        <RefreshCw className="h-8 w-8 animate-spin mx-auto text-brand-500" />
                         <p className="mt-2 text-gray-600">Processing your file...</p>
                       </div>
                     )}
                   </div>
 
                   <div className="grid grid-cols-3 gap-4">
-                    <div className="p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl text-center">
-                      <div className="text-2xl font-bold text-blue-600">1</div>
+                    <div className="p-4 bg-gradient-to-br from-brand-50 to-brand-100 rounded-xl text-center">
+                      <div className="text-2xl font-bold text-brand-600">1</div>
                       <div className="text-sm font-semibold text-gray-700">Upload</div>
                       <p className="text-xs text-gray-600 mt-1">Upload any CV file</p>
                     </div>
@@ -1781,7 +1781,7 @@ export default function CVFactory() {
             {/* Left Sidebar */}
             <div className="lg:col-span-1 space-y-6">
               <Card className="border-0 shadow-xl">
-                <CardHeader className="bg-gradient-to-r from-blue-500 to-blue-600 text-white">
+                <CardHeader className="bg-gradient-to-r from-brand-500 to-brand-600 text-white">
                   <CardTitle className="text-lg">Extraction Tools</CardTitle>
                 </CardHeader>
                 <CardContent className="p-6 space-y-4">
@@ -1904,7 +1904,7 @@ export default function CVFactory() {
             <div className="lg:col-span-3 space-y-8">
               {editorMode === 'text' ? (
                 <Card className="border-0 shadow-xl">
-                  <CardHeader className="bg-gradient-to-r from-blue-50 to-cyan-50">
+                  <CardHeader className="bg-gradient-to-r from-brand-50 to-cyan-50">
                     <CardTitle className="flex items-center gap-2">
                       <AlignLeft className="h-5 w-5" />
                       Text Editor
@@ -1954,7 +1954,7 @@ JavaScript, React, Node.js, Python, AWS, Docker, PostgreSQL`}
               ) : (
                 <>
                   <Card className="border-0 shadow-xl">
-                    <CardHeader className="bg-gradient-to-r from-blue-50 to-cyan-50">
+                    <CardHeader className="bg-gradient-to-r from-brand-50 to-cyan-50">
                       <CardTitle className="flex items-center gap-2">
                         <User className="h-5 w-5" />
                         Personal Information
@@ -2297,7 +2297,7 @@ JavaScript, React, Node.js, Python, AWS, Docker, PostgreSQL`}
                   <Button 
                     onClick={downloadWord}
                     disabled={isGeneratingWord}
-                    className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white"
+                    className="bg-gradient-to-r from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700 text-white"
                   >
                     {isGeneratingWord ? (
                       <RefreshCw className="h-4 w-4 animate-spin" />

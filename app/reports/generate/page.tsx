@@ -10,6 +10,7 @@ import {
   AlertCircle, ToolCase, ChevronDown, ChevronUp, ChevronsUp, ChevronsDown,
 } from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
+import { formatDate } from '@/lib/format';
 import { useTheme, PageHero, FormField, PrimaryButton, useCollapseSection, SelectField } from '@/components/shared/theme';
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
@@ -53,7 +54,7 @@ function Panel({ id, title, icon: Icon, sections, children }: {
   return (
     <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
       <button type="button" onClick={() => sections.toggle(id)} className={`w-full flex items-center justify-between gap-2 px-4 py-3 border-b ${t.border}`}>
-        <div className="flex items-center gap-2 min-w-0"><Icon className="h-3.5 w-3.5 text-blue-400 shrink-0" /><span className={`text-sm font-semibold ${t.textPrimary}`}>{title}</span></div>
+        <div className="flex items-center gap-2 min-w-0"><Icon className="h-3.5 w-3.5 text-brand-400 shrink-0" /><span className={`text-sm font-semibold ${t.textPrimary}`}>{title}</span></div>
         {open ? <ChevronUp className={`h-3.5 w-3.5 ${t.textFaint}`} /> : <ChevronDown className={`h-3.5 w-3.5 ${t.textFaint}`} />}
       </button>
       {open && <div className="p-4">{children}</div>}
@@ -67,7 +68,7 @@ function Toggle({ checked, onChange, label, description }: { checked: boolean; o
     <div className="flex items-center justify-between py-2">
       <div><p className={`text-sm font-medium ${t.textMuted}`}>{label}</p>{description && <p className={`text-xs mt-0.5 ${t.textFaint}`}>{description}</p>}</div>
       <button type="button" role="switch" title={label} aria-checked={checked} onClick={() => onChange(!checked)}
-        className={`relative h-6 w-10 rounded-full transition-all ${checked ? 'bg-blue-500' : t.chipBg}`}>
+        className={`relative h-6 w-10 rounded-full transition-all ${checked ? 'bg-brand-500' : t.chipBg}`}>
         <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all ${checked ? 'left-4' : 'left-0.5'}`} />
       </button>
     </div>
@@ -112,7 +113,7 @@ function GenerateReportContent() {
   useEffect(() => {
     const tmpl = TEMPLATES[reportType as keyof typeof TEMPLATES];
     if (tmpl) {
-      setReportName(`${tmpl.name} - ${new Date().toLocaleDateString()}`);
+      setReportName(`${tmpl.name} - ${formatDate(new Date())}`);
       setDescription(tmpl.description);
       setSelectedColumns(tmpl.defaultColumns);
     }
@@ -196,8 +197,8 @@ function GenerateReportContent() {
                 const active = reportType === key;
                 return (
                   <button key={key} type="button" onClick={() => setReportType(key)}
-                    className={`p-4 rounded-xl text-left transition-all border ${active ? 'border-blue-500/40 bg-blue-500/10' : `${t.border} ${t.chipBg} hover:border-blue-400/30`}`}>
-                    <div className={`p-2 rounded-lg ${t.chipBg} w-fit mb-2`}><Icon className={`h-4 w-4 ${active ? 'text-blue-500' : t.textFaint}`} /></div>
+                    className={`p-4 rounded-xl text-left transition-all border ${active ? 'border-brand-500/40 bg-brand-500/10' : `${t.border} ${t.chipBg} hover:border-brand-400/30`}`}>
+                    <div className={`p-2 rounded-lg ${t.chipBg} w-fit mb-2`}><Icon className={`h-4 w-4 ${active ? 'text-brand-500' : t.textFaint}`} /></div>
                     <h3 className={`font-semibold text-xs mb-0.5 ${t.textMuted}`}>{tmplItem.name}</h3>
                     <p className={`text-[11px] line-clamp-2 ${t.textFaint}`}>{tmplItem.description}</p>
                   </button>
@@ -233,7 +234,7 @@ function GenerateReportContent() {
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
               {cols.map(col => (
                 <label key={col.id} className={`flex items-center gap-2 cursor-pointer text-xs py-1 ${t.textMuted} ${t.hoverText}`}>
-                  <input type="checkbox" checked={selectedColumns.includes(col.id)} onChange={() => toggleColumn(col.id)} className="accent-blue-600" />
+                  <input type="checkbox" checked={selectedColumns.includes(col.id)} onChange={() => toggleColumn(col.id)} className="accent-brand-600" />
                   {col.label}
                 </label>
               ))}
@@ -271,13 +272,13 @@ function GenerateReportContent() {
           <Panel id="reportSummary" title="Report Summary" icon={TemplateIcon} sections={sections}>
             <div className="space-y-4">
               <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20"><TemplateIcon className="h-5 w-5 text-blue-500" /></div>
+                <div className="p-2.5 rounded-xl bg-brand-500/10 border border-brand-500/20"><TemplateIcon className="h-5 w-5 text-brand-500" /></div>
                 <div><p className={`font-semibold text-sm ${t.textPrimary}`}>{reportName || 'Untitled Report'}</p><p className={`text-xs ${t.textFaint}`}>{tmpl?.name}</p></div>
               </div>
               <div className="space-y-2 text-xs">
                 {[
                   { k: 'Columns', v: `${selectedColumns.length} selected` },
-                  { k: 'Date Range', v: dateRange.start && dateRange.end ? `${new Date(dateRange.start).toLocaleDateString()} – ${new Date(dateRange.end).toLocaleDateString()}` : 'All dates' },
+                  { k: 'Date Range', v: dateRange.start && dateRange.end ? `${formatDate(dateRange.start)} – ${formatDate(dateRange.end)}` : 'All dates' },
                   { k: 'Format', v: format.toUpperCase() },
                   { k: 'Filters', v: `${filters.length}` },
                 ].map(row => (

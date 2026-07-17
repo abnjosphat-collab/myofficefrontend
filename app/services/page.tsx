@@ -2,6 +2,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { api } from '@/lib/apiClient';
 import {
   Wrench, ClipboardList, DollarSign, Package, CheckCheck, Tag,
   Building2, Hash, Calendar, Phone,
@@ -11,6 +12,7 @@ import {
   Eye, AlertCircle, Loader2, Plus, Scan,
 } from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
+import { formatDate } from '@/lib/format';
 import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle,
   FormField, FormActions, useCollapseSection, CenterModal, ProgressBar, ACCENT_HEX, GlowCard, SelectField,
@@ -18,8 +20,6 @@ import {
 import { Toaster, toast } from 'sonner';
 
 // ─── API ──────────────────────────────────────────────────────────────────────
-
-const API = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000').replace(/\/$/, '');
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -158,11 +158,8 @@ function fmtBytes(n: number): string {
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
   return `${(n / 1024 / 1024).toFixed(1)} MB`;
 }
-function fmtDate(d?: string) {
-  if (!d) return '—';
-  const dt = new Date(d);
-  return isNaN(dt.getTime()) ? '—' : dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-}
+// fmtDate was identical to the shared formatDate — alias to the single source.
+const fmtDate = formatDate;
 
 // ─── Stage Row ────────────────────────────────────────────────────────────────
 
@@ -201,13 +198,13 @@ function StageRow({ stage, record, onUpdate }: { stage: typeof STAGES[number]; r
     : data ? [data.signed_by, data.signed_date ? fmtDate(data.signed_date) : '', isStores ? ((data as StoresStage).grv_number ? `GRV: ${(data as StoresStage).grv_number}` : '') : ''].filter(Boolean).join(' · ') : '';
 
   return (
-    <div className={`rounded-xl overflow-hidden transition-all ${done ? 'bg-blue-500/[0.07]' : t.chipBg}`}>
+    <div className={`rounded-xl overflow-hidden transition-all ${done ? 'bg-brand-500/[0.07]' : t.chipBg}`}>
       <div className="flex items-center gap-3 px-4 py-2.5">
         <button type="button" onClick={toggle} title={done ? `Unmark ${stage.label}` : `Mark ${stage.label} as complete`} className="shrink-0 transition-transform hover:scale-110">
-          {done ? <CheckCircle2 className="h-5 w-5 text-blue-400" /> : <Circle className={`h-5 w-5 ${t.textFaint}`} />}
+          {done ? <CheckCircle2 className="h-5 w-5 text-brand-400" /> : <Circle className={`h-5 w-5 ${t.textFaint}`} />}
         </button>
         <div className={`p-1.5 rounded-md ${t.chipBg} shrink-0`}>
-          <Icon className="h-3.5 w-3.5 text-blue-400" />
+          <Icon className="h-3.5 w-3.5 text-brand-400" />
         </div>
         <div className="flex-1 min-w-0">
           <p className={`text-sm font-medium ${done ? t.textPrimary : t.textFaint}`}>{stage.label}</p>
@@ -259,8 +256,7 @@ function AttachmentPanel({ serviceId }: { serviceId: string }) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    fetch(`${API}/api/services/${serviceId}/attachments`)
-      .then(r => r.json())
+    api.get<Attachment[]>(`/api/services/${serviceId}/attachments`)
       .then(data => { setAttachments(Array.isArray(data) ? data : []); setLoading(false); })
       .catch(() => setLoading(false));
   }, [serviceId]);
@@ -269,9 +265,7 @@ function AttachmentPanel({ serviceId }: { serviceId: string }) {
     setUploading(true);
     try {
       const fd = new FormData(); fd.append('file', file);
-      const r = await fetch(`${API}/api/services/${serviceId}/attachments`, { method: 'POST', body: fd });
-      if (!r.ok) throw new Error(await r.text());
-      const att: Attachment = await r.json();
+      const att = await api.post<Attachment>(`/api/services/${serviceId}/attachments`, fd);
       setAttachments(prev => [att, ...prev]);
       toast.success('File attached');
     } catch (e) { toast.error(`Upload failed: ${e}`); }
@@ -280,7 +274,7 @@ function AttachmentPanel({ serviceId }: { serviceId: string }) {
   async function remove() {
     if (!deleteId) return;
     try {
-      await fetch(`${API}/api/services/${serviceId}/attachments/${deleteId}`, { method: 'DELETE' });
+      await api.delete(`/api/services/${serviceId}/attachments/${deleteId}`);
       setAttachments(prev => prev.filter(a => a.id !== deleteId));
       toast.success('Attachment removed');
     } catch { toast.error('Delete failed'); }
@@ -297,7 +291,7 @@ function AttachmentPanel({ serviceId }: { serviceId: string }) {
           <p className={`text-[11px] mt-0.5 ${t.textFaint}`}>Upload completion certificates, invoices, GRVs, or any other documents.</p>
         </div>
         <button type="button" onClick={() => inputRef.current?.click()} disabled={uploading}
-          className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-semibold text-white bg-gradient-to-br from-blue-500 to-blue-700 hover:brightness-110 transition-all disabled:opacity-50">
+          className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all disabled:opacity-50">
           {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
           {uploading ? 'Uploading…' : 'Attach file'}
         </button>
@@ -313,14 +307,14 @@ function AttachmentPanel({ serviceId }: { serviceId: string }) {
         <div className="space-y-1.5">
           {attachments.map(a => (
             <div key={a.id} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl ${t.chipBg} group`}>
-              <Paperclip className="h-3.5 w-3.5 text-blue-400 shrink-0" />
+              <Paperclip className="h-3.5 w-3.5 text-brand-400 shrink-0" />
               <div className="flex-1 min-w-0">
                 <p className={`text-xs font-medium truncate ${t.textMuted}`}>{a.filename}</p>
                 <p className={`text-[11px] ${t.textFaint}`}>{fmtBytes(a.file_size)} · {fmtDate(a.created_at)}</p>
               </div>
               <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
                 {a.file_url && (
-                  <a href={a.file_url} target="_blank" rel="noopener noreferrer" title="Download" className={`h-6 w-6 flex items-center justify-center rounded-md ${t.hoverBg} ${t.textFaint} hover:text-blue-400`}>
+                  <a href={a.file_url} target="_blank" rel="noopener noreferrer" title="Download" className={`h-6 w-6 flex items-center justify-center rounded-md ${t.hoverBg} ${t.textFaint} hover:text-brand-400`}>
                     <Download className="h-3 w-3" />
                   </a>
                 )}
@@ -376,7 +370,7 @@ function ServiceCard({ record, expanded, onToggle, onUpdate, onEdit, onDelete }:
           {record.supplier && <span className={`flex items-center gap-1 text-xs ${t.textFaint}`}><Building2 className="h-3 w-3 shrink-0" />{record.supplier}</span>}
           {record.contact_person && <span className={`flex items-center gap-1 text-xs ${t.textFaint}`}><Phone className="h-3 w-3 shrink-0" />{record.contact_person}</span>}
           {record.date && <span className={`flex items-center gap-1 text-xs ${t.textFaint}`}><Calendar className="h-3 w-3 shrink-0" />{fmtDate(record.date)}</span>}
-          {record.amount && <span className="text-xs font-semibold text-blue-400 ml-auto">{record.amount}</span>}
+          {record.amount && <span className="text-xs font-semibold text-brand-400 ml-auto">{record.amount}</span>}
         </div>
 
         {(record.requisition_number || record.invoice_number || record.order_number) && (
@@ -392,7 +386,7 @@ function ServiceCard({ record, expanded, onToggle, onUpdate, onEdit, onDelete }:
           <div className="flex items-center gap-1 mt-2">
             {STAGES.map(s => (
               <div key={s.key} className="flex-1 text-center">
-                <div className={`mx-auto h-2 w-2 rounded-full transition-all ${isStageDone(record, s.key) ? 'bg-blue-400' : t.chipBg}`} title={s.label} />
+                <div className={`mx-auto h-2 w-2 rounded-full transition-all ${isStageDone(record, s.key) ? 'bg-brand-400' : t.chipBg}`} title={s.label} />
                 <span className={`hidden sm:block text-[9px] mt-0.5 truncate ${t.textFaint}`}>{s.short}</span>
               </div>
             ))}
@@ -410,7 +404,7 @@ function ServiceCard({ record, expanded, onToggle, onUpdate, onEdit, onDelete }:
             <div className={`flex gap-1 ${t.glassSoft} rounded-lg p-1 w-fit mb-3`}>
               {(['pipeline', 'attachments'] as const).map(k => (
                 <button key={k} type="button" onClick={() => setPipeTab(k)}
-                  className={`px-3 py-1.5 rounded-md text-xs font-medium capitalize transition-colors ${pipeTab === k ? 'bg-blue-500/20 text-blue-400' : `${t.textFaint} ${t.hoverText}`}`}>
+                  className={`px-3 py-1.5 rounded-md text-xs font-medium capitalize transition-colors ${pipeTab === k ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} ${t.hoverText}`}`}>
                   {k}
                 </button>
               ))}
@@ -460,7 +454,7 @@ function ListView({ records, onEdit, onDelete, onView }: { records: ServiceRecor
                   {r.supplier && <p className={`text-[11px] truncate flex items-center gap-1 ${t.textFaint}`}><Building2 className="h-2.5 w-2.5 shrink-0" />{r.supplier}</p>}
                 </td>
                 <td className={`p-3 text-xs ${t.textFaint}`}>{r.requisition_number || '—'}</td>
-                <td className="p-3 text-xs font-semibold text-blue-400 text-right">{r.amount || '—'}</td>
+                <td className="p-3 text-xs font-semibold text-brand-400 text-right">{r.amount || '—'}</td>
                 <td className="p-3">
                   <div className="flex items-center gap-2">
                     <ProgressBar value={(d / 6) * 100} color={d === 6 ? '#34d399' : d > 0 ? ACCENT_HEX.blue : '#94a3b8'} showValue={false} />
@@ -470,7 +464,7 @@ function ListView({ records, onEdit, onDelete, onView }: { records: ServiceRecor
                 <td className="p-3">{r.category ? <StatusBadge color={ACCENT_HEX.blue} label={r.category} /> : <span className={`text-xs ${t.textFaint}`}>—</span>}</td>
                 <td className="p-3" onClick={e => e.stopPropagation()}>
                   <div className="flex items-center justify-end gap-1">
-                    <button type="button" onClick={() => onView(r)} title="View pipeline" className={`h-6 w-6 flex items-center justify-center rounded-md ${t.textFaint} hover:text-blue-400 ${t.hoverBg}`}><Eye className="h-3 w-3" /></button>
+                    <button type="button" onClick={() => onView(r)} title="View pipeline" className={`h-6 w-6 flex items-center justify-center rounded-md ${t.textFaint} hover:text-brand-400 ${t.hoverBg}`}><Eye className="h-3 w-3" /></button>
                     <button type="button" onClick={() => onEdit(r)} title="Edit" className={`h-6 w-6 flex items-center justify-center rounded-md ${t.textFaint} ${t.hoverText} ${t.hoverBg}`}><Edit2 className="h-3 w-3" /></button>
                     <button type="button" onClick={() => onDelete(r.id)} title="Delete" className={`h-6 w-6 flex items-center justify-center rounded-md ${t.textFaint} hover:text-rose-500 ${t.hoverBg}`}><Trash2 className="h-3 w-3" /></button>
                   </div>
@@ -561,9 +555,7 @@ function ExcelImportModal({ onImport, onExtracted, onClose }: {
       setScanning(true);
       try {
         const fd = new FormData(); fd.append('file', file);
-        const r = await fetch(`${API}/api/services/ocr`, { method: 'POST', body: fd });
-        if (!r.ok) { const e = await r.json(); throw new Error(e.detail || 'Extraction failed'); }
-        const data = await r.json();
+        const data = await api.post<any>('/api/services/ocr', fd);
         const partial: Partial<ServiceRecord> = {
           date: data.date ?? '', description: data.description ?? '', supplier: data.supplier ?? '',
           contact_person: data.contact_person ?? '', requisition_number: data.requisition_number ?? '',
@@ -612,15 +604,15 @@ function ExcelImportModal({ onImport, onExtracted, onClose }: {
         </div>
       </div>
 
-      <div className={`border-2 border-dashed ${t.border} rounded-xl p-6 text-center hover:border-blue-400/40 transition-colors`}>
+      <div className={`border-2 border-dashed ${t.border} rounded-xl p-6 text-center hover:border-brand-400/40 transition-colors`}>
         {scanning ? (
-          <div className="space-y-2"><Loader2 className="h-8 w-8 text-blue-400 mx-auto animate-spin" /><p className={`text-sm ${t.textMuted}`}>Reading document…</p></div>
+          <div className="space-y-2"><Loader2 className="h-8 w-8 text-brand-400 mx-auto animate-spin" /><p className={`text-sm ${t.textMuted}`}>Reading document…</p></div>
         ) : (
           <>
             <Upload className={`h-8 w-8 mx-auto mb-2 ${t.textFaint}`} />
             <p className={`text-sm mb-1 ${t.textMuted}`}>Choose a spreadsheet, PDF, or image</p>
             <p className={`text-[11px] mb-3 ${t.textFaint}`}>.xlsx · .xls · .csv · .pdf · .jpg · .png · .tiff · .webp</p>
-            <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-blue-500 to-blue-700 hover:brightness-110 transition-all">
+            <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all">
               <Upload className="h-4 w-4" /> Browse file
               <input type="file" accept=".xlsx,.xls,.csv,.pdf,.jpg,.jpeg,.png,.webp,.tiff,.tif,.bmp" className="hidden"
                 onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); e.currentTarget.value = ''; }} />
@@ -659,9 +651,7 @@ function OcrUploadModal({ onExtracted, onClose }: { onExtracted: (partial: Parti
     setScanning(true); setError('');
     try {
       const fd = new FormData(); fd.append('file', file);
-      const r = await fetch(`${API}/api/services/ocr`, { method: 'POST', body: fd });
-      if (!r.ok) { const e = await r.json(); throw new Error(e.detail || 'Extraction failed'); }
-      const data = await r.json();
+      const data = await api.post<any>('/api/services/ocr', fd);
       const partial: Partial<ServiceRecord> = {
         date: data.date ?? '', description: data.description ?? '', supplier: data.supplier ?? '',
         contact_person: data.contact_person ?? '', requisition_number: data.requisition_number ?? '',
@@ -685,10 +675,10 @@ function OcrUploadModal({ onExtracted, onClose }: { onExtracted: (partial: Parti
           <br />Supported: PDF, JPEG, PNG, WEBP · Max 20 MB
         </p>
       </div>
-      <div className={`border-2 border-dashed ${t.border} rounded-xl p-8 text-center hover:border-blue-400/40 transition-colors`}>
+      <div className={`border-2 border-dashed ${t.border} rounded-xl p-8 text-center hover:border-brand-400/40 transition-colors`}>
         {scanning ? (
           <div className="space-y-3">
-            <Loader2 className="h-8 w-8 text-blue-400 mx-auto animate-spin" />
+            <Loader2 className="h-8 w-8 text-brand-400 mx-auto animate-spin" />
             <p className={`text-sm ${t.textMuted}`}>Reading document…</p>
             <p className={`text-[11px] ${t.textFaint}`}>This may take a few seconds</p>
           </div>
@@ -696,7 +686,7 @@ function OcrUploadModal({ onExtracted, onClose }: { onExtracted: (partial: Parti
           <>
             <FileDown className={`h-8 w-8 mx-auto mb-2 ${t.textFaint}`} />
             <p className={`text-sm mb-3 ${t.textMuted}`}>Choose a scanned document to extract data from</p>
-            <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-blue-500 to-blue-700 hover:brightness-110 transition-all">
+            <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all">
               <Upload className="h-4 w-4" /> Choose file
               <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
             </label>
@@ -739,9 +729,8 @@ function ServicesPageContent() {
   const syncTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   useEffect(() => {
-    fetch(`${API}/api/services`)
-      .then(r => { if (!r.ok) throw new Error(`${r.status}`); return r.json(); })
-      .then(data => { setRecords((data as Record<string, unknown>[]).map(fromApi)); setLoading(false); })
+    api.get<Record<string, unknown>[]>('/api/services')
+      .then(data => { setRecords(data.map(fromApi)); setLoading(false); })
       .catch(e => { setApiError(`Could not connect to backend: ${e.message}`); setLoading(false); });
   }, []);
 
@@ -785,15 +774,11 @@ function ServicesPageContent() {
     const isNew = !records.find(x => x.id === r.id);
     try {
       if (isNew) {
-        const res = await fetch(`${API}/api/services`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(toApi(r)) });
-        if (!res.ok) throw new Error(await res.text());
-        const saved = fromApi(await res.json());
+        const saved = fromApi(await api.post<Record<string, unknown>>('/api/services', toApi(r)));
         setRecords(prev => [saved, ...prev]);
         toast.success('Service record added');
       } else {
-        const res = await fetch(`${API}/api/services/${r.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(toApi(r)) });
-        if (!res.ok) throw new Error(await res.text());
-        const saved = fromApi(await res.json());
+        const saved = fromApi(await api.put<Record<string, unknown>>(`/api/services/${r.id}`, toApi(r)));
         setRecords(prev => prev.map(x => x.id === saved.id ? saved : x));
         toast.success('Record updated');
       }
@@ -806,8 +791,7 @@ function ServicesPageContent() {
     if (syncTimers.current[r.id]) clearTimeout(syncTimers.current[r.id]);
     syncTimers.current[r.id] = setTimeout(async () => {
       try {
-        const res = await fetch(`${API}/api/services/${r.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(toApi(r)) });
-        if (!res.ok) throw new Error();
+        await api.put(`/api/services/${r.id}`, toApi(r));
       } catch { toast.error('Auto-save failed — your changes may not be synced'); }
     }, 1200);
   }
@@ -815,7 +799,7 @@ function ServicesPageContent() {
   async function handleDelete() {
     if (!deleteId) return;
     try {
-      await fetch(`${API}/api/services/${deleteId}`, { method: 'DELETE' });
+      await api.delete(`/api/services/${deleteId}`);
       setRecords(prev => prev.filter(r => r.id !== deleteId));
       toast.success('Record deleted');
     } catch { toast.error('Delete failed'); }
@@ -826,8 +810,8 @@ function ServicesPageContent() {
     let ok = 0;
     for (const row of rows) {
       try {
-        const res = await fetch(`${API}/api/services`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(toApi(row)) });
-        if (res.ok) { const saved = fromApi(await res.json()); setRecords(prev => [saved, ...prev]); ok++; }
+        const saved = fromApi(await api.post<Record<string, unknown>>('/api/services', toApi(row)));
+        setRecords(prev => [saved, ...prev]); ok++;
       } catch { /* continue */ }
     }
     toast.success(`Imported ${ok} of ${rows.length} records`);
@@ -865,7 +849,7 @@ function ServicesPageContent() {
               <FileSpreadsheet className="h-3.5 w-3.5" /> Import
             </button>
             <button type="button" onClick={() => { setEditRecord(null); setFormOpen(true); }}
-              className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-blue-500 to-blue-700 hover:brightness-110 transition-all">
+              className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all">
               <Plus className="h-3.5 w-3.5" /> New Service
             </button>
           </>
@@ -883,7 +867,7 @@ function ServicesPageContent() {
       {apiError && (
         <div className="flex items-start gap-3 p-4 rounded-2xl bg-rose-500/10 text-rose-400 text-sm">
           <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-          <div><p className="font-semibold">Backend not reachable</p><p className="text-xs opacity-80 mt-0.5">{apiError} — Make sure the backend is running at {API}.</p></div>
+          <div><p className="font-semibold">Backend not reachable</p><p className="text-xs opacity-80 mt-0.5">{apiError} — Make sure the backend is running.</p></div>
         </div>
       )}
 
@@ -893,7 +877,7 @@ function ServicesPageContent() {
           <SearchInput value={search} onChange={setSearch} placeholder="Search description, supplier, REQ, INV, GRV…" className="flex-1" />
           <div className="flex gap-2 flex-wrap items-center">
             <button type="button" onClick={() => setShowFilters(v => !v)}
-              className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-medium transition-colors ${showFilters ? 'bg-blue-500/15 text-blue-400' : `${t.textMuted} ${t.glassSoft} ${t.hoverText}`}`}>
+              className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-medium transition-colors ${showFilters ? 'bg-brand-500/15 text-brand-400' : `${t.textMuted} ${t.glassSoft} ${t.hoverText}`}`}>
               <Filter className="h-3.5 w-3.5" /> Filters
             </button>
             {anyFilter && <button type="button" onClick={clearFilters} className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-medium ${t.textFaint} ${t.hoverText} ${t.hoverBg}`}><X className="h-3.5 w-3.5" /> Clear</button>}
@@ -947,7 +931,7 @@ function ServicesPageContent() {
             <h3 className={`text-lg font-semibold ${t.textPrimary} mb-2`}>{anyFilter ? 'No records match your filters' : 'No service records yet'}</h3>
             <p className={`text-sm mb-4 ${t.textFaint}`}>{anyFilter ? 'Adjust your search or clear the filters.' : 'Click "New Service" to log the first record, or import from Excel.'}</p>
             {!anyFilter && (
-              <button type="button" onClick={() => { setEditRecord(null); setFormOpen(true); }} className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-blue-500 to-blue-700 hover:brightness-110">
+              <button type="button" onClick={() => { setEditRecord(null); setFormOpen(true); }} className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110">
                 <Plus className="h-3.5 w-3.5" /> Add Service
               </button>
             )}
@@ -971,7 +955,7 @@ function ServicesPageContent() {
           {STAGES.map((s, i) => (
             <div key={s.key} className={`flex items-center gap-2 px-3 py-2 rounded-xl ${t.chipBg}`}>
               <span className={`text-[11px] font-semibold ${t.textFaint}`}>{i + 1}.</span>
-              <s.icon className="h-3.5 w-3.5 text-blue-400" />
+              <s.icon className="h-3.5 w-3.5 text-brand-400" />
               <span className={`text-xs ${t.textMuted}`}>{s.label}</span>
             </div>
           ))}
@@ -995,12 +979,12 @@ function ServicesPageContent() {
                 return <StatusBadge color={info.color} label={info.label} dot />;
               })()}
               {viewRecord.category && <StatusBadge color={ACCENT_HEX.blue} label={viewRecord.category} />}
-              {viewRecord.amount && <span className="text-sm font-semibold text-blue-400">{viewRecord.amount}</span>}
+              {viewRecord.amount && <span className="text-sm font-semibold text-brand-400">{viewRecord.amount}</span>}
             </div>
             <div className={`flex gap-1 ${t.glassSoft} rounded-lg p-1 w-fit`}>
               {(['pipeline', 'attachments'] as const).map(k => (
                 <button key={k} type="button" onClick={() => setViewTab(k)}
-                  className={`px-3 py-1.5 rounded-md text-xs font-medium capitalize transition-colors ${viewTab === k ? 'bg-blue-500/20 text-blue-400' : `${t.textFaint} ${t.hoverText}`}`}>{k}</button>
+                  className={`px-3 py-1.5 rounded-md text-xs font-medium capitalize transition-colors ${viewTab === k ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} ${t.hoverText}`}`}>{k}</button>
               ))}
             </div>
             {viewTab === 'pipeline' ? (

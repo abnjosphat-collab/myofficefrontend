@@ -2,6 +2,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { api } from '@/lib/apiClient';
 import { AppShell } from '@/components/app-shell';
 import { useTheme, PageHero, StatCard, type Accent } from '@/components/shared/theme';
 import {
@@ -14,7 +15,6 @@ import {
   Tooltip, ResponsiveContainer,
 } from 'recharts';
 
-const API = (process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com').replace(/\/$/, '');
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 function pad2(n: number) { return String(n).padStart(2, '0'); }
@@ -83,17 +83,17 @@ function EngineeringReportContent() {
     setLoading(true);
     try {
       const [bdR, jcR, prR, coR, luR] = await Promise.allSettled([
-        fetch(`${API}/api/breakdowns`),
-        fetch(`${API}/api/job-cards`),
-        fetch(`${API}/api/production`),
-        fetch(`${API}/api/compliance`),
-        fetch(`${API}/api/lubrication`),
+        api.get<any[]>('/api/breakdowns'),
+        api.get<any[]>('/api/job-cards'),
+        api.get<any[]>('/api/production'),
+        api.get<any[]>('/api/compliance'),
+        api.get<any[]>('/api/lubrication'),
       ]);
-      if (bdR.status === 'fulfilled' && bdR.value.ok) setBreakdowns(await bdR.value.json());
-      if (jcR.status === 'fulfilled' && jcR.value.ok) setJobCards(await jcR.value.json());
-      if (prR.status === 'fulfilled' && prR.value.ok) setProduction(await prR.value.json());
-      if (coR.status === 'fulfilled' && coR.value.ok) setCompliance(await coR.value.json());
-      if (luR.status === 'fulfilled' && luR.value.ok) setLube(await luR.value.json());
+      if (bdR.status === 'fulfilled') setBreakdowns(bdR.value);
+      if (jcR.status === 'fulfilled') setJobCards(jcR.value);
+      if (prR.status === 'fulfilled') setProduction(prR.value);
+      if (coR.status === 'fulfilled') setCompliance(coR.value);
+      if (luR.status === 'fulfilled') setLube(luR.value);
     } catch { /* silently use empty fallback */ }
     setLoading(false);
   }, []);

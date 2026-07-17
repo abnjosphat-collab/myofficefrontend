@@ -1,6 +1,8 @@
 // components/work-orders/work-orders-form.tsx
 'use client';
 import React from 'react'
+import { API_BASE } from '@/lib/config';
+import { authFetch } from '@/lib/api';
 import { useState, useCallback, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -192,7 +194,7 @@ const FormSection = ({
       ${compact ? 'print:mb-1' : 'print:mb-2'} ${className}`}>
       <CardHeader className={`${compact ? 'pb-2 print:pb-0' : 'pb-3 print:pb-0'} print:px-3 print:pt-1`}>
         <div className="flex items-center gap-2">
-          {Icon && <Icon className="w-4 h-4 text-blue-600 print:hidden" />}
+          {Icon && <Icon className="w-4 h-4 text-brand-600 print:hidden" />}
           <CardTitle className={`${compact ? 'text-sm' : 'text-base'} font-semibold text-gray-800 tracking-wide 
             print:text-sm print:text-gray-900 print:font-bold font-sans print:leading-tight`}>
             {title}
@@ -227,7 +229,7 @@ const LinedTextarea = ({
       <Textarea
         value={value}
         onChange={onChange}
-        className={`bg-white/50 border-gray-300/80 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all duration-200
+        className={`bg-white/50 border-gray-300/80 focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20 transition-all duration-200
           print:border print:border-gray-300 print:bg-white font-sans resize-none print:text-xs print:leading-tight
           ${expanded ? 'min-h-[300px] print:min-h-[180px]' : ''} 
           group-hover:border-gray-400/60 ${className}`}
@@ -369,8 +371,8 @@ const createWorkOrder = async (workOrderData: any) => {
     console.log('📤 Sending work order to backend...', workOrderData);
     
     // CORRECTED ENDPOINT: Use the maintenance endpoint instead of direct work-orders
-    const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com';
-    const response = await fetch(`${API_BASE}/api/maintenance/work-orders`, {
+
+    const response = await authFetch(`${API_BASE}/api/maintenance/work-orders`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -412,7 +414,7 @@ const createWorkOrder = async (workOrderData: any) => {
 // Test backend connection function
 const testBackendConnection = async () => {
   try {
-    const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com';
+
     const response = await fetch(`${API_BASE}/api/maintenance/health`);
     const result = await response.json();
     console.log('🔧 Backend connection test:', result);
@@ -432,7 +434,7 @@ const HeaderSection = ({ formData, onInputChange }: { formData: WorkOrderFormDat
       <div className="space-y-4 print:space-y-1">
         <div className="space-y-2 print:space-y-0">
           <div className="flex items-center gap-2">
-            <Building className="w-4 h-4 text-blue-600 print:hidden" />
+            <Building className="w-4 h-4 text-brand-600 print:hidden" />
             <Label className="text-sm font-semibold text-gray-800 tracking-wide print:text-xs print:text-gray-900 print:font-semibold font-sans print:leading-tight">
               TO DEPARTMENT
             </Label>
@@ -443,7 +445,7 @@ const HeaderSection = ({ formData, onInputChange }: { formData: WorkOrderFormDat
               <Input
                 value={formData.toDepartment}
                 onChange={(e) => onInputChange('toDepartment', e.target.value)}
-                className="bg-white/50 border-gray-300/80 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all duration-200
+                className="bg-white/50 border-gray-300/80 focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20 transition-all duration-200
                   print:text-xs print:py-0 print:h-5 print:bg-white print:border-gray-300 font-sans"
               />
             </div>
@@ -452,7 +454,7 @@ const HeaderSection = ({ formData, onInputChange }: { formData: WorkOrderFormDat
               <Input
                 value={formData.toSection}
                 onChange={(e) => onInputChange('toSection', e.target.value)}
-                className="bg-white/50 border-gray-300/80 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all duration-200
+                className="bg-white/50 border-gray-300/80 focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20 transition-all duration-200
                   print:text-xs print:py-0 print:h-5 print:bg-white print:border-gray-300 font-sans"
               />
             </div>
@@ -464,7 +466,7 @@ const HeaderSection = ({ formData, onInputChange }: { formData: WorkOrderFormDat
       <div className="space-y-4 print:space-y-1">
         <div className="space-y-2 print:space-y-0">
           <div className="flex items-center gap-2">
-            <Building className="w-4 h-4 text-blue-600 print:hidden" />
+            <Building className="w-4 h-4 text-brand-600 print:hidden" />
             <Label className="text-sm font-semibold text-gray-800 tracking-wide print:text-xs print:text-gray-900 print:font-semibold font-sans print:leading-tight">
               FROM DEPARTMENT
             </Label>
@@ -475,7 +477,7 @@ const HeaderSection = ({ formData, onInputChange }: { formData: WorkOrderFormDat
               <Input
                 value={formData.fromDepartment}
                 onChange={(e) => onInputChange('fromDepartment', e.target.value)}
-                className="bg-white/50 border-gray-300/80 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all duration-200
+                className="bg-white/50 border-gray-300/80 focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20 transition-all duration-200
                   print:text-xs print:py-0 print:h-5 print:bg-white print:border-gray-300 font-sans"
               />
             </div>
@@ -484,7 +486,7 @@ const HeaderSection = ({ formData, onInputChange }: { formData: WorkOrderFormDat
               <Input
                 value={formData.fromSection}
                 onChange={(e) => onInputChange('fromSection', e.target.value)}
-                className="bg-white/50 border-gray-300/80 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all duration-200
+                className="bg-white/50 border-gray-300/80 focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20 transition-all duration-200
                   print:text-xs print:py-0 print:h-5 print:bg-white print:border-gray-300 font-sans"
               />
             </div>
@@ -496,7 +498,7 @@ const HeaderSection = ({ formData, onInputChange }: { formData: WorkOrderFormDat
       <div className="space-y-4 print:space-y-1">
         <div className="space-y-2 print:space-y-0">
           <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-blue-600 print:hidden" />
+            <Calendar className="w-4 h-4 text-brand-600 print:hidden" />
             <Label className="text-sm font-semibold text-gray-800 tracking-wide print:text-xs print:text-gray-900 print:font-semibold font-sans print:leading-tight">
               DATE & TIME
             </Label>
@@ -508,7 +510,7 @@ const HeaderSection = ({ formData, onInputChange }: { formData: WorkOrderFormDat
                 type="date"
                 value={formData.dateRaised}
                 onChange={(e) => onInputChange('dateRaised', e.target.value)}
-                className="bg-white/50 border-gray-300/80 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all duration-200
+                className="bg-white/50 border-gray-300/80 focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20 transition-all duration-200
                   print:text-xs print:py-0 print:h-5 print:bg-white print:border-gray-300 font-sans"
               />
             </div>
@@ -518,7 +520,7 @@ const HeaderSection = ({ formData, onInputChange }: { formData: WorkOrderFormDat
                 type="time"
                 value={formData.timeRaised}
                 onChange={(e) => onInputChange('timeRaised', e.target.value)}
-                className="bg-white/50 border-gray-300/80 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all duration-200
+                className="bg-white/50 border-gray-300/80 focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20 transition-all duration-200
                   print:text-xs print:py-0 print:h-5 print:bg-white print:border-gray-300 font-sans"
               />
             </div>
@@ -528,7 +530,7 @@ const HeaderSection = ({ formData, onInputChange }: { formData: WorkOrderFormDat
             <Input
               value={formData.workOrderNumber}
               onChange={(e) => onInputChange('workOrderNumber', e.target.value)}
-              className="bg-white/50 border-gray-300/80 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all duration-200
+              className="bg-white/50 border-gray-300/80 focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20 transition-all duration-200
                 font-mono print:text-xs print:py-0 print:h-5 print:bg-white print:border-gray-300"
             />
           </div>
@@ -539,7 +541,7 @@ const HeaderSection = ({ formData, onInputChange }: { formData: WorkOrderFormDat
       <div className="space-y-4 print:space-y-1">
         <div className="space-y-2 print:space-y-0">
           <div className="flex items-center gap-2">
-            <FileBarChart className="w-4 h-4 text-blue-600 print:hidden" />
+            <FileBarChart className="w-4 h-4 text-brand-600 print:hidden" />
             <Label className="text-sm font-semibold text-gray-800 tracking-wide print:text-xs print:text-gray-900 font-sans print:leading-tight">ACCOUNT INFORMATION</Label>
           </div>
           <div className="space-y-3 print:space-y-1">
@@ -548,7 +550,7 @@ const HeaderSection = ({ formData, onInputChange }: { formData: WorkOrderFormDat
               <Input
                 value={formData.accountNumber}
                 onChange={(e) => onInputChange('accountNumber', e.target.value)}
-                className="bg-white/50 border-gray-300/80 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all duration-200
+                className="bg-white/50 border-gray-300/80 focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20 transition-all duration-200
                   print:text-xs print:py-0 print:h-5 print:bg-white print:border-gray-300 font-sans"
                 placeholder=""
               />
@@ -558,7 +560,7 @@ const HeaderSection = ({ formData, onInputChange }: { formData: WorkOrderFormDat
               <Input
                 value={formData.userLabToday}
                 onChange={(e) => onInputChange('userLabToday', e.target.value)}
-                className="bg-white/50 border-gray-300/80 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all duration-200
+                className="bg-white/50 border-gray-300/80 focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20 transition-all duration-200
                   print:text-xs print:py-0 print:h-5 print:bg-white print:border-gray-300 font-sans"
                 placeholder=""
               />
@@ -571,7 +573,7 @@ const HeaderSection = ({ formData, onInputChange }: { formData: WorkOrderFormDat
     {/* Equipment Information */}
     <div className="space-y-2 print:space-y-0">
       <div className="flex items-center gap-2">
-        <ToolCase className="w-4 h-4 text-blue-600 print:hidden" />
+        <ToolCase className="w-4 h-4 text-brand-600 print:hidden" />
         <Label className="text-sm font-semibold text-gray-800 tracking-wide print:text-xs print:text-gray-900 font-sans print:leading-tight">EQUIPMENT INFORMATION</Label>
       </div>
       <LinedTextarea
@@ -592,7 +594,7 @@ const JobRequestDetailsSection = ({ formData, onInputChange }: {
   <div className="space-y-6 print:space-y-1">
     <div className="space-y-2 print:space-y-0">
       <div className="flex items-center gap-2">
-        <ClipboardList className="w-4 h-4 text-blue-600 print:hidden" />
+        <ClipboardList className="w-4 h-4 text-brand-600 print:hidden" />
         <Label className="text-sm font-semibold text-gray-800 tracking-wide print:text-xs print:text-gray-900 font-sans print:leading-tight">
           JOB REQUEST DETAILS
         </Label>
@@ -618,7 +620,7 @@ const JobRequestDetailsSection = ({ formData, onInputChange }: {
         <Input
           value={formData.requestedBy}
           onChange={(e) => onInputChange('requestedBy', e.target.value)}
-          className="bg-white/50 border-gray-300/80 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all duration-200
+          className="bg-white/50 border-gray-300/80 focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20 transition-all duration-200
             print:text-xs print:py-0 print:h-5 print:bg-white print:border-gray-300 font-sans"
           placeholder=""
         />
@@ -631,7 +633,7 @@ const JobRequestDetailsSection = ({ formData, onInputChange }: {
         <Input
           value={formData.authorisingForeman}
           onChange={(e) => onInputChange('authorisingForeman', e.target.value)}
-          className="bg-white/50 border-gray-300/80 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all duration-200
+          className="bg-white/50 border-gray-300/80 focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20 transition-all duration-200
             print:text-xs print:py-0 print:h-5 print:bg-white print:border-gray-300 font-sans"
           placeholder=""
         />
@@ -644,7 +646,7 @@ const JobRequestDetailsSection = ({ formData, onInputChange }: {
         <Input
           value={formData.authorisingEngineer}
           onChange={(e) => onInputChange('authorisingEngineer', e.target.value)}
-          className="bg-white/50 border-gray-300/80 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all duration-200
+          className="bg-white/50 border-gray-300/80 focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20 transition-all duration-200
             print:text-xs print:py-0 print:h-5 print:bg-white print:border-gray-300 font-sans"
           placeholder=""
         />
@@ -662,7 +664,7 @@ const JobRequestDetailsSection = ({ formData, onInputChange }: {
         <Input
           value={formData.allocatedTo}
           onChange={(e) => onInputChange('allocatedTo', e.target.value)}
-          className="bg-white/50 border-gray-300/80 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all duration-200
+          className="bg-white/50 border-gray-300/80 focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20 transition-all duration-200
             print:text-xs print:py-0 print:h-5 print:bg-white print:border-gray-300 font-sans"
           placeholder=""
         />
@@ -675,7 +677,7 @@ const JobRequestDetailsSection = ({ formData, onInputChange }: {
         <Input
           value={formData.estimatedHours}
           onChange={(e) => onInputChange('estimatedHours', e.target.value)}
-          className="bg-white/50 border-gray-300/80 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all duration-200
+          className="bg-white/50 border-gray-300/80 focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20 transition-all duration-200
             print:text-xs print:py-0 print:h-5 print:bg-white print:border-gray-300 font-sans"
           placeholder=""
         />
@@ -695,7 +697,7 @@ const JobClassificationSection = ({ formData, onJobTypeChange, onInputChange, on
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 print:gap-2 print:grid-cols-2">
       <div className="space-y-3 print:space-y-1">
         <div className="flex items-center gap-2">
-          <Layers className="w-4 h-4 text-blue-600 print:hidden" />
+          <Layers className="w-4 h-4 text-brand-600 print:hidden" />
           <Label className="text-sm font-semibold text-gray-800 tracking-wide print:text-xs print:text-gray-900 font-sans print:leading-tight">JOB TYPE CLASSIFICATION</Label>
         </div>
         <div className="grid grid-cols-1 gap-2 print:gap-0">
@@ -708,14 +710,14 @@ const JobClassificationSection = ({ formData, onJobTypeChange, onInputChange, on
               key={key} 
               className={`flex items-center space-x-3 p-3 rounded-lg border transition-all duration-300 cursor-pointer hover:shadow-sm print:p-1 print:rounded print:space-x-1 print:border print:text-xs ${
                 formData.jobType[key] 
-                  ? 'border-blue-500 bg-blue-50/80 print:bg-gray-100 print:border-gray-400' 
+                  ? 'border-brand-500 bg-brand-50/80 print:bg-gray-100 print:border-gray-400' 
                   : 'border-gray-200 bg-white/50 hover:bg-gray-50/50 print:bg-white'
               }`}
               onClick={() => onJobTypeChange(key)}
             >
               <div className={`flex-shrink-0 flex items-center justify-center h-5 w-5 rounded-md border transition-all duration-300 print:h-3 print:w-3 print:rounded ${
                 formData.jobType[key] 
-                  ? 'bg-blue-500 border-blue-500 text-white print:bg-gray-600 print:border-gray-600' 
+                  ? 'bg-brand-500 border-brand-500 text-white print:bg-gray-600 print:border-gray-600' 
                   : 'border-gray-300 bg-white print:bg-white print:border-gray-400'
               }`}>
                 {formData.jobType[key] && (
@@ -733,7 +735,7 @@ const JobClassificationSection = ({ formData, onJobTypeChange, onInputChange, on
                 variant={formData.jobType[key] ? "default" : "outline"}
                 className={`font-mono text-xs print:text-[9px] print:px-1 print:py-0 ${
                   formData.jobType[key] 
-                    ? 'bg-blue-100 text-blue-800 border-blue-200' 
+                    ? 'bg-brand-100 text-brand-800 border-brand-200' 
                     : 'bg-gray-100 text-gray-700 border-gray-200'
                 }`}
               >
@@ -748,7 +750,7 @@ const JobClassificationSection = ({ formData, onJobTypeChange, onInputChange, on
         {/* Time Tracking Section */}
         <div className="space-y-3 print:space-y-1">
           <div className="flex items-center gap-2">
-            <Clock className="w-4 h-4 text-blue-600 print:hidden" />
+            <Clock className="w-4 h-4 text-brand-600 print:hidden" />
             <Label className="text-sm font-semibold text-gray-800 tracking-wide print:text-xs print:text-gray-900 font-sans print:leading-tight">WORK TIME TRACKING</Label>
           </div>
           <div className="grid grid-cols-3 gap-3 print:gap-1 print:grid-cols-3">
@@ -758,7 +760,7 @@ const JobClassificationSection = ({ formData, onJobTypeChange, onInputChange, on
                 type="time"
                 value={formData.timeWorkStarted}
                 onChange={(e) => onInputChange('timeWorkStarted', e.target.value)}
-                className="bg-white/50 border-gray-300/80 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all duration-200
+                className="bg-white/50 border-gray-300/80 focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20 transition-all duration-200
                   print:text-xs print:py-0 print:h-5 print:bg-white print:border-gray-300 font-sans"
               />
             </div>
@@ -768,7 +770,7 @@ const JobClassificationSection = ({ formData, onJobTypeChange, onInputChange, on
                 type="time"
                 value={formData.timeWorkFinished}
                 onChange={(e) => onInputChange('timeWorkFinished', e.target.value)}
-                className="bg-white/50 border-gray-300/80 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all duration-200
+                className="bg-white/50 border-gray-300/80 focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20 transition-all duration-200
                   print:text-xs print:py-0 print:h-5 print:bg-white print:border-gray-300 font-sans"
               />
             </div>
@@ -778,7 +780,7 @@ const JobClassificationSection = ({ formData, onJobTypeChange, onInputChange, on
                 <Input
                   value={formData.totalTimeWorked}
                   onChange={(e) => onInputChange('totalTimeWorked', e.target.value)}
-                  className="bg-white/50 border-gray-300/80 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all duration-200
+                  className="bg-white/50 border-gray-300/80 focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20 transition-all duration-200
                     print:text-xs print:py-0 print:h-5 print:bg-white print:border-gray-300 font-sans font-mono"
                   placeholder="0.00"
                 />
@@ -798,7 +800,7 @@ const JobClassificationSection = ({ formData, onJobTypeChange, onInputChange, on
         {/* Overtime Section */}
         <div className="space-y-3 print:space-y-1 pt-4 print:pt-1 border-t border-gray-200 print:border-gray-300">
           <div className="flex items-center gap-2">
-            <Watch className="w-4 h-4 text-blue-600 print:hidden" />
+            <Watch className="w-4 h-4 text-brand-600 print:hidden" />
             <Label className="text-sm font-semibold text-gray-800 tracking-wide print:text-xs print:text-gray-900 font-sans print:leading-tight">OVERTIME TRACKING</Label>
           </div>
           <div className="grid grid-cols-2 gap-3 print:gap-1 print:grid-cols-2">
@@ -808,7 +810,7 @@ const JobClassificationSection = ({ formData, onJobTypeChange, onInputChange, on
                 type="time"
                 value={formData.overtimeStartTime}
                 onChange={(e) => onInputChange('overtimeStartTime', e.target.value)}
-                className="bg-white/50 border-gray-300/80 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all duration-200
+                className="bg-white/50 border-gray-300/80 focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20 transition-all duration-200
                   print:text-xs print:py-0 print:h-5 print:bg-white print:border-gray-300 font-sans"
               />
             </div>
@@ -818,7 +820,7 @@ const JobClassificationSection = ({ formData, onJobTypeChange, onInputChange, on
                 type="time"
                 value={formData.overtimeEndTime}
                 onChange={(e) => onInputChange('overtimeEndTime', e.target.value)}
-                className="bg-white/50 border-gray-300/80 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all duration-200
+                className="bg-white/50 border-gray-300/80 focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20 transition-all duration-200
                   print:text-xs print:py-0 print:h-5 print:bg-white print:border-gray-300 font-sans"
               />
             </div>
@@ -829,7 +831,7 @@ const JobClassificationSection = ({ formData, onJobTypeChange, onInputChange, on
               <Input
                 value={formData.overtimeHours}
                 onChange={(e) => onInputChange('overtimeHours', e.target.value)}
-                className="bg-white/50 border-gray-300/80 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all duration-200
+                className="bg-white/50 border-gray-300/80 focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20 transition-all duration-200
                   print:text-xs print:py-0 print:h-5 print:bg-white print:border-gray-300 font-sans font-mono"
                 placeholder="0.00"
               />
@@ -837,7 +839,7 @@ const JobClassificationSection = ({ formData, onJobTypeChange, onInputChange, on
                 type="button" 
                 size="sm" 
                 onClick={onCalculateOvertime}
-                className="print:hidden bg-blue-500 hover:bg-blue-600 text-white print:py-0 print:px-1 print:text-[8px] print:h-4"
+                className="print:hidden bg-brand-500 hover:bg-brand-600 text-white print:py-0 print:px-1 print:text-[8px] print:h-4"
               >
                 <Calculator className="h-3 w-3 print:h-2 print:w-2" />
               </Button>
@@ -856,7 +858,7 @@ const WorkAnalysisSection = ({ formData, onInputChange }: {
   <div className="space-y-6 print:space-y-1">
     <div className="space-y-2 print:space-y-0">
       <div className="flex items-center gap-2">
-        <ClipboardCheck className="w-4 h-4 text-blue-600 print:hidden" />
+        <ClipboardCheck className="w-4 h-4 text-brand-600 print:hidden" />
         <Label className="text-sm font-semibold text-gray-800 tracking-wide print:text-xs print:text-gray-900 font-sans print:leading-tight">
           WORK PERFORMED
         </Label>
@@ -875,7 +877,7 @@ const WorkAnalysisSection = ({ formData, onInputChange }: {
     
     <div className="space-y-2 print:space-y-0">
       <div className="flex items-center gap-2">
-        <Shield className="w-4 h-4 text-blue-600 print:hidden" />
+        <Shield className="w-4 h-4 text-brand-600 print:hidden" />
         <Label className="text-sm font-semibold text-gray-800 tracking-wide print:text-xs print:text-gray-900 font-sans print:leading-tight">JOB INSTRUCTIONS & SAFETY</Label>
       </div>
       <LinedTextarea
@@ -891,7 +893,7 @@ const WorkAnalysisSection = ({ formData, onInputChange }: {
 
     <div className="space-y-2 print:space-y-0">
       <div className="flex items-center gap-2">
-        <AlertCircle className="w-4 h-4 text-blue-600 print:hidden" />
+        <AlertCircle className="w-4 h-4 text-brand-600 print:hidden" />
         <Label className="text-sm font-semibold text-gray-800 tracking-wide print:text-xs print:text-gray-900 font-sans print:leading-tight">
           CAUSE OF FAILURE ANALYSIS
         </Label>
@@ -915,7 +917,7 @@ const DelaysSection = ({ formData, onInputChange, onCalculateDelay }: {
   <div className="space-y-4 print:space-y-1">
     <div className="space-y-2 print:space-y-0">
       <div className="flex items-center gap-2">
-        <LineChart className="w-4 h-4 text-blue-600 print:hidden" />
+        <LineChart className="w-4 h-4 text-brand-600 print:hidden" />
         <Label className="text-sm font-semibold text-gray-800 tracking-wide print:text-xs print:text-gray-900 font-sans print:leading-tight">DELAY DETAILS</Label>
       </div>
       <LinedTextarea
@@ -935,7 +937,7 @@ const DelaysSection = ({ formData, onInputChange, onCalculateDelay }: {
           type="time"
           value={formData.delayFromTime}
           onChange={(e) => onInputChange('delayFromTime', e.target.value)}
-          className="bg-white/50 border-gray-300/80 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all duration-200
+          className="bg-white/50 border-gray-300/80 focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20 transition-all duration-200
             print:text-xs print:py-0 print:h-5 print:bg-white print:border-gray-300 font-sans"
         />
       </div>
@@ -945,7 +947,7 @@ const DelaysSection = ({ formData, onInputChange, onCalculateDelay }: {
           type="time"
           value={formData.delayToTime}
           onChange={(e) => onInputChange('delayToTime', e.target.value)}
-          className="bg-white/50 border-gray-300/80 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all duration-200
+          className="bg-white/50 border-gray-300/80 focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20 transition-all duration-200
             print:text-xs print:py-0 print:h-5 print:bg-white print:border-gray-300 font-sans"
         />
       </div>
@@ -955,7 +957,7 @@ const DelaysSection = ({ formData, onInputChange, onCalculateDelay }: {
           <Input
             value={formData.totalDelayHours}
             onChange={(e) => onInputChange('totalDelayHours', e.target.value)}
-            className="bg-white/50 border-gray-300/80 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all duration-200
+            className="bg-white/50 border-gray-300/80 focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20 transition-all duration-200
               print:text-xs print:py-0 print:h-5 print:bg-white print:border-gray-300 font-sans font-mono"
             placeholder="0.00"
           />
@@ -963,7 +965,7 @@ const DelaysSection = ({ formData, onInputChange, onCalculateDelay }: {
             type="button" 
             size="sm" 
             onClick={onCalculateDelay}
-            className="print:hidden bg-blue-500 hover:bg-blue-600 text-white print:py-0 print:px-1 print:text-[8px] print:h-4"
+            className="print:hidden bg-brand-500 hover:bg-brand-600 text-white print:py-0 print:px-1 print:text-[8px] print:h-4"
           >
             <Calculator className="h-3 w-3 print:h-2 print:w-2" />
           </Button>
@@ -999,7 +1001,7 @@ const SignOffSection = ({ formData, onInputChange }: {
   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 print:gap-2 print:grid-cols-2">
     <div className="space-y-3 print:space-y-1">
       <div className="flex items-center gap-2">
-        <FileSignature className="w-4 h-4 text-blue-600 print:hidden" />
+        <FileSignature className="w-4 h-4 text-brand-600 print:hidden" />
         <Label className="text-sm font-semibold text-gray-800 tracking-wide print:text-xs print:text-gray-900 font-sans print:leading-tight">ARTISAN SIGN-OFF</Label>
       </div>
       <div className="space-y-3 print:space-y-0">
@@ -1009,7 +1011,7 @@ const SignOffSection = ({ formData, onInputChange }: {
             <Input
               value={formData.artisanName}
               onChange={(e) => onInputChange('artisanName', e.target.value)}
-              className="bg-white/50 border-gray-300/80 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all duration-200
+              className="bg-white/50 border-gray-300/80 focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20 transition-all duration-200
                 print:text-xs print:py-0 print:h-5 print:bg-white print:border-gray-300 font-sans"
             />
           </div>
@@ -1018,7 +1020,7 @@ const SignOffSection = ({ formData, onInputChange }: {
             <Input
               value={formData.artisanSign}
               onChange={(e) => onInputChange('artisanSign', e.target.value)}
-              className="bg-white/50 border-gray-300/80 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all duration-200
+              className="bg-white/50 border-gray-300/80 focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20 transition-all duration-200
                 print:text-xs print:py-0 print:h-5 print:bg-white print:border-gray-300 font-sans"
             />
           </div>
@@ -1028,7 +1030,7 @@ const SignOffSection = ({ formData, onInputChange }: {
               type="date"
               value={formData.artisanDate}
               onChange={(e) => onInputChange('artisanDate', e.target.value)}
-              className="bg-white/50 border-gray-300/80 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all duration-200
+              className="bg-white/50 border-gray-300/80 focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20 transition-all duration-200
                 print:text-xs print:py-0 print:h-5 print:bg-white print:border-gray-300 font-sans"
             />
           </div>
@@ -1037,7 +1039,7 @@ const SignOffSection = ({ formData, onInputChange }: {
     </div>
     <div className="space-y-3 print:space-y-1">
       <div className="flex items-center gap-2">
-        <FileEdit className="w-4 h-4 text-blue-600 print:hidden" />
+        <FileEdit className="w-4 h-4 text-brand-600 print:hidden" />
         <Label className="text-sm font-semibold text-gray-800 tracking-wide print:text-xs print:text-gray-900 font-sans print:leading-tight">FOREMAN SIGN-OFF</Label>
       </div>
       <div className="space-y-3 print:space-y-0">
@@ -1047,7 +1049,7 @@ const SignOffSection = ({ formData, onInputChange }: {
             <Input
               value={formData.foremanName}
               onChange={(e) => onInputChange('foremanName', e.target.value)}
-              className="bg-white/50 border-gray-300/80 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all duration-200
+              className="bg-white/50 border-gray-300/80 focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20 transition-all duration-200
                 print:text-xs print:py-0 print:h-5 print:bg-white print:border-gray-300 font-sans"
             />
           </div>
@@ -1056,7 +1058,7 @@ const SignOffSection = ({ formData, onInputChange }: {
             <Input
               value={formData.foremanSign}
               onChange={(e) => onInputChange('foremanSign', e.target.value)}
-              className="bg-white/50 border-gray-300/80 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all duration-200
+              className="bg-white/50 border-gray-300/80 focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20 transition-all duration-200
                 print:text-xs print:py-0 print:h-5 print:bg-white print:border-gray-300 font-sans"
             />
           </div>
@@ -1066,7 +1068,7 @@ const SignOffSection = ({ formData, onInputChange }: {
               type="date"
               value={formData.foremanDate}
               onChange={(e) => onInputChange('foremanDate', e.target.value)}
-              className="bg-white/50 border-gray-300/80 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all duration-200
+              className="bg-white/50 border-gray-300/80 focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20 transition-all duration-200
                 print:text-xs print:py-0 print:h-5 print:bg-white print:border-gray-300 font-sans"
             />
           </div>
@@ -1305,17 +1307,17 @@ export function WorkOrderForm({ onBack, onSave }: WorkOrderFormProps) {
   }, [toast]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50/30 p-4 print:p-0 font-sans">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-brand-50/30 p-4 print:p-0 font-sans">
       <div className="max-w-7xl mx-auto print:max-w-none print:mx-0">
         {/* Enhanced Header */}
         <div className="mb-8 print:hidden">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-6">
             <div className="flex items-center gap-4">
-              <div className="p-3 bg-gradient-to-br from-blue-600 to-blue-800 rounded-2xl shadow-lg">
+              <div className="p-3 bg-gradient-to-br from-brand-600 to-brand-800 rounded-2xl shadow-lg">
                 <ClipboardCheck className="w-7 h-7 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-blue-700 to-blue-900 bg-clip-text text-transparent tracking-tight">
+                <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-brand-700 to-brand-900 bg-clip-text text-transparent tracking-tight">
                   Work Order Management
                 </h1>
                 <p className="text-gray-600 mt-1 font-medium">
@@ -1324,16 +1326,16 @@ export function WorkOrderForm({ onBack, onSave }: WorkOrderFormProps) {
                 <div className="flex items-center gap-3 mt-2">
                   <div className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${
                     backendStatus === 'connected' ? 'bg-green-100 text-green-800' : 
-                    backendStatus === 'disconnected' ? 'bg-orange-100 text-orange-800' : 'bg-blue-100 text-blue-800'
+                    backendStatus === 'disconnected' ? 'bg-orange-100 text-orange-800' : 'bg-brand-100 text-brand-800'
                   }`}>
                     <div className={`w-2 h-2 rounded-full ${
                       backendStatus === 'connected' ? 'bg-green-500' : 
-                      backendStatus === 'disconnected' ? 'bg-orange-500' : 'bg-blue-500'
+                      backendStatus === 'disconnected' ? 'bg-orange-500' : 'bg-brand-500'
                     }`} />
                     {backendStatus === 'connected' ? 'Database Connected' : 
                      backendStatus === 'disconnected' ? 'Using Local Storage' : 'Checking Connection...'}
                   </div>
-                  <Badge variant="outline" className="font-mono text-xs bg-blue-50 text-blue-700 border-blue-200">
+                  <Badge variant="outline" className="font-mono text-xs bg-brand-50 text-brand-700 border-brand-200">
                     Ref: {formData.workOrderNumber}
                   </Badge>
                 </div>
@@ -1356,7 +1358,7 @@ export function WorkOrderForm({ onBack, onSave }: WorkOrderFormProps) {
                   variant="outline" 
                   size="sm" 
                   onClick={generatePDF} 
-                  className="gap-2 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 transition-all duration-300"
+                  className="gap-2 hover:bg-brand-50 hover:text-brand-700 hover:border-brand-300 transition-all duration-300"
                 >
                   <Download className="h-4 w-4" />
                   Export PDF
@@ -1378,7 +1380,7 @@ export function WorkOrderForm({ onBack, onSave }: WorkOrderFormProps) {
         {/* Main Form Container */}
         <div className="bg-white/90 backdrop-blur-sm rounded-2xl border border-gray-200/80 shadow-xl overflow-hidden print:shadow-none print:border-0 print:bg-transparent">
           {/* Form Header */}
-          <div className="border-b border-gray-200/80 bg-gradient-to-r from-blue-50/80 to-white p-6 print:hidden">
+          <div className="border-b border-gray-200/80 bg-gradient-to-r from-brand-50/80 to-white p-6 print:hidden">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-xl font-bold text-gray-900 tracking-tight">
@@ -1393,7 +1395,7 @@ export function WorkOrderForm({ onBack, onSave }: WorkOrderFormProps) {
                   <div className="text-sm font-medium text-gray-700">Status</div>
                   <div className="text-xs text-gray-500">Ready for submission</div>
                 </div>
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl flex items-center justify-center shadow-md">
+                <div className="w-12 h-12 bg-gradient-to-br from-brand-500 to-brand-700 rounded-xl flex items-center justify-center shadow-md">
                   <FileText className="w-6 h-6 text-white" />
                 </div>
               </div>
@@ -1408,7 +1410,7 @@ export function WorkOrderForm({ onBack, onSave }: WorkOrderFormProps) {
                 <div className="lg:hidden mb-4">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-xs font-medium text-gray-600">Step {['basic', 'details', 'work', 'signoff'].indexOf(activeTab) + 1} of 4</span>
-                    <span className="text-xs font-medium text-blue-600">
+                    <span className="text-xs font-medium text-brand-600">
                       {activeTab === 'basic' && 'Basic Info'}
                       {activeTab === 'details' && 'Job Details'}
                       {activeTab === 'work' && 'Work Analysis'}
@@ -1417,7 +1419,7 @@ export function WorkOrderForm({ onBack, onSave }: WorkOrderFormProps) {
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div 
-                      className="bg-gradient-to-r from-blue-600 to-blue-800 h-2 rounded-full transition-all duration-500"
+                      className="bg-gradient-to-r from-brand-600 to-brand-800 h-2 rounded-full transition-all duration-500"
                       style={{ width: `${((['basic', 'details', 'work', 'signoff'].indexOf(activeTab) + 1) / 4) * 100}%` }}
                     />
                   </div>
@@ -1463,13 +1465,13 @@ export function WorkOrderForm({ onBack, onSave }: WorkOrderFormProps) {
                             onClick={() => setActiveTab(value)}
                             className={`flex items-center gap-2 px-4 py-3 rounded-t-lg border-b-2 transition-all duration-300 whitespace-nowrap min-w-[120px] justify-center
                               ${activeTab === value 
-                                ? 'border-blue-600 bg-blue-50/50 text-blue-900 font-semibold' 
+                                ? 'border-brand-600 bg-brand-50/50 text-brand-900 font-semibold' 
                                 : 'border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                               }`}
                           >
                             <span className={`flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold
                               ${activeTab === value 
-                                ? 'bg-blue-600 text-white' 
+                                ? 'bg-brand-600 text-white' 
                                 : 'bg-gray-200 text-gray-600'
                               }`}
                             >
@@ -1513,7 +1515,7 @@ export function WorkOrderForm({ onBack, onSave }: WorkOrderFormProps) {
                       }
                     }}
                     disabled={['basic', 'details', 'work', 'signoff'].indexOf(activeTab) === 3}
-                    className="gap-2 bg-blue-600 hover:bg-blue-700 text-white transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="gap-2 bg-brand-600 hover:bg-brand-700 text-white transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Next
                     <ArrowLeft className="h-4 w-4 rotate-180" />
@@ -1579,7 +1581,7 @@ export function WorkOrderForm({ onBack, onSave }: WorkOrderFormProps) {
                         variant="outline" 
                         type="button" 
                         onClick={saveDraft} 
-                        className="gap-2 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 transition-all duration-300"
+                        className="gap-2 hover:bg-brand-50 hover:text-brand-700 hover:border-brand-300 transition-all duration-300"
                         disabled={isSubmitting}
                       >
                         Save Draft
@@ -1587,7 +1589,7 @@ export function WorkOrderForm({ onBack, onSave }: WorkOrderFormProps) {
                     </div>
                     <Button 
                       type="submit" 
-                      className="gap-2 bg-gradient-to-r from-blue-600 to-blue-800 hover:from-blue-700 hover:to-blue-900 
+                      className="gap-2 bg-gradient-to-r from-brand-600 to-brand-800 hover:from-brand-700 hover:to-brand-900 
                         shadow-lg hover:shadow-xl transition-all duration-300 text-white"
                       disabled={isSubmitting}
                     >
@@ -1608,7 +1610,7 @@ export function WorkOrderForm({ onBack, onSave }: WorkOrderFormProps) {
                   <div className="flex justify-between items-start">
                     <div>
                       <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 bg-blue-900 rounded print:bg-black"></div>
+                        <div className="w-4 h-4 bg-brand-900 rounded print:bg-black"></div>
                         <h1 className="text-base font-bold text-gray-900 font-sans">MAINTENANCE WORK ORDER</h1>
                       </div>
                       <p className="text-sm text-gray-700 font-sans mt-1">WORK ORDER DOCUMENTATION</p>
@@ -1645,7 +1647,7 @@ export function WorkOrderForm({ onBack, onSave }: WorkOrderFormProps) {
                   <div className="flex justify-between items-start">
                     <div>
                       <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 bg-blue-900 rounded print:bg-black"></div>
+                        <div className="w-4 h-4 bg-brand-900 rounded print:bg-black"></div>
                         <h1 className="text-base font-bold text-gray-900 font-sans">MAINTENANCE WORK ORDER</h1>
                       </div>
                       <p className="text-sm text-gray-700 font-sans mt-1">CONTINUED - COMPLETION & SIGN-OFF</p>

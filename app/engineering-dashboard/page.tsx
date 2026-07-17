@@ -1,11 +1,10 @@
 'use client';
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { api } from '@/lib/apiClient';
 import { LayoutDashboard, TrendingUp, TrendingDown, Minus, Wrench, RefreshCw, Gauge, ClipboardCheck, Clock3, AlertTriangle, ClipboardList, Droplet, Users } from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
 import { useTheme, PageHero, StatCard, ACCENT_HEX, type Accent } from '@/components/shared/theme';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
-
-const _API = (process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com').replace(/\/$/, '');
 
 const availabilityTrend = [
   { month: 'Jan', target: 85, actual: 82 }, { month: 'Feb', target: 85, actual: 84 },
@@ -103,12 +102,12 @@ function EngineeringDashboardContent() {
     setLoading(true);
     try {
       const [jcRes, bdRes] = await Promise.all([
-        fetch(`${_API}/api/job-cards?status=open`),
-        fetch(`${_API}/api/breakdowns`),
+        api.get<any[]>('/api/job-cards?status=open').catch(() => null),
+        api.get<any[]>('/api/breakdowns').catch(() => null),
       ]);
 
-      if (jcRes.ok) {
-        const jcs: any[] = await jcRes.json();
+      if (jcRes) {
+        const jcs = jcRes;
         setOpenWOs(jcs.slice(0, 10).map(j => ({
           id: j.job_no || `JC-${j.id}`,
           title: j.title,
@@ -118,8 +117,8 @@ function EngineeringDashboardContent() {
         })));
       }
 
-      if (bdRes.ok) {
-        const bds: any[] = await bdRes.json();
+      if (bdRes) {
+        const bds = bdRes;
         const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
         const now = new Date();
         const monthlyCounts: Record<string, number> = {};

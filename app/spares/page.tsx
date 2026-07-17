@@ -2,6 +2,8 @@
 'use client';
 
 import { AppShell } from '@/components/app-shell';
+import { formatDate } from '@/lib/format';
+import { api } from '@/lib/apiClient';
 import { useTheme, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle, FormField, FormActions, CenterModal, ACCENT_HEX, GlowCard, SelectField, GroupSection, staggerContainer, fadeUp } from '@/components/shared/theme';
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
@@ -46,10 +48,8 @@ interface SortConfig { field: keyof Spare | 'status'; direction: 'asc' | 'desc';
 
 // ─── CONSTANTS & UTILS ───────────────────────────────────────────────────────
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com';
-
 function formatCurrency(v: number) { return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(v || 0); }
-function formatDate(d?: string) { if (!d) return '—'; const dt = new Date(d); return isNaN(dt.getTime()) ? '—' : dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }); }
+// formatDate was identical to the shared one — imported at the top instead.
 
 interface StockStatus { label: string; color: string; }
 const getStockStatus = (current: number, min: number): StockStatus => {
@@ -151,7 +151,7 @@ const EntityComboInput = React.memo(({ fetchUrl, mapOptions, value, onChange, pl
   const ensureFetched = useCallback(async () => {
     if (fetched) return;
     setLoading(true);
-    try { const r = await fetch(`${API_URL}${fetchUrl}`); const data = await r.json(); setOptions(mapOptions(Array.isArray(data) ? data : [])); }
+    try { const data = await api.get<any>(fetchUrl); setOptions(mapOptions(Array.isArray(data) ? data : [])); }
     catch {} finally { setFetched(true); setLoading(false); }
   }, [fetched, fetchUrl, mapOptions]);
 
@@ -213,34 +213,27 @@ const reqToDbPayload = (req: SavedRequisition) => ({
   lines: req.lines, grand_total: req.grand_total,
 });
 const apiGetSavedReqs = async (): Promise<SavedRequisition[]> => {
-  try { const r = await fetch(`${API_URL}/api/spares/saved-requisitions`); if (!r.ok) return []; const data = await r.json(); return (Array.isArray(data) ? data : []).map(dbRowToReq); } catch { return []; }
+  try { const data = await api.get<any[]>('/api/spares/saved-requisitions'); return (Array.isArray(data) ? data : []).map(dbRowToReq); } catch { return []; }
 };
 const apiCreateSavedReq = async (req: SavedRequisition): Promise<SavedRequisition | null> => {
-  try { const r = await fetch(`${API_URL}/api/spares/saved-requisitions`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(reqToDbPayload(req)) }); if (!r.ok) return null; return dbRowToReq(await r.json()); } catch { return null; }
+  try { return dbRowToReq(await api.post('/api/spares/saved-requisitions', reqToDbPayload(req))); } catch { return null; }
 };
-const apiDeleteSavedReq = async (id: string): Promise<boolean> => { try { const r = await fetch(`${API_URL}/api/spares/saved-requisitions/${id}`, { method: 'DELETE' }); return r.ok; } catch { return false; } };
+const apiDeleteSavedReq = async (id: string): Promise<boolean> => { try { await api.delete(`/api/spares/saved-requisitions/${id}`); return true; } catch { return false; } };
 
 // ─── API ─────────────────────────────────────────────────────────────────────
 
 async function apiFetchAll(): Promise<Spare[]> {
-  const r = await fetch(`${API_URL}/api/spares`);
-  if (!r.ok) throw new Error(`Fetch failed: ${r.status}`);
-  const d = await r.json();
+  const d = await api.get<any>('/api/spares');
   return Array.isArray(d) ? d : d?.items ?? d?.data ?? [];
 }
 async function apiCreate(data: Partial<SpareFormData>): Promise<Spare> {
-  const r = await fetch(`${API_URL}/api/spares`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
-  if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || 'Create failed'); }
-  return r.json();
+  return api.post<Spare>('/api/spares', data);
 }
 async function apiUpdate(id: number, data: Partial<SpareFormData>): Promise<Spare> {
-  const r = await fetch(`${API_URL}/api/spares/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
-  if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || 'Update failed'); }
-  return r.json();
+  return api.put<Spare>(`/api/spares/${id}`, data);
 }
 async function apiDelete(id: number): Promise<void> {
-  const r = await fetch(`${API_URL}/api/spares/${id}`, { method: 'DELETE' });
-  if (!r.ok) throw new Error('Delete failed');
+  await api.delete(`/api/spares/${id}`);
 }
 
 // ─── SPARE CARD ──────────────────────────────────────────────────────────────
@@ -313,7 +306,7 @@ const SpareCard = React.memo(({ spare, isFavorite, isExpanded, onEdit, onDelete,
             <div className={`text-sm font-bold ${t.textPrimary}`}>{formatCurrency(spare.unit_price)}<span className={`text-[10px] ml-1 ${t.textFaint}`}>/{spare.unit_of_measure || 'UN'}</span></div>
             <div className={`text-[10px] ${t.textFaint}`}>Inv: {formatCurrency(invValue)}</div>
           </div>
-          <button onClick={() => onAddToReq(spare)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-white transition-all hover:-translate-y-0.5 bg-gradient-to-br from-blue-500 to-blue-700 hover:brightness-110">
+          <button onClick={() => onAddToReq(spare)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-white transition-all hover:-translate-y-0.5 bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110">
             <ShoppingCart className="h-3 w-3" /> Add to Req
           </button>
         </div>
@@ -338,7 +331,7 @@ const SpareCard = React.memo(({ spare, isFavorite, isExpanded, onEdit, onDelete,
               <div className={`text-[10px] uppercase tracking-wide ${t.textFaint}`}>Pricing</div>
               <div className="flex justify-between"><span className={t.textFaint}>Unit Price</span><span className={`font-semibold ${t.textMuted}`}>{formatCurrency(spare.unit_price)}</span></div>
               <div className="flex justify-between"><span className={t.textFaint}>Inv. Value</span><span className={t.textMuted}>{formatCurrency(invValue)}</span></div>
-              <div className="flex justify-between"><span className={t.textFaint}>Safety Stock</span><span className={spare.safety_stock ? 'text-blue-400' : t.textFaint}>{spare.safety_stock ? 'Yes' : 'No'}</span></div>
+              <div className="flex justify-between"><span className={t.textFaint}>Safety Stock</span><span className={spare.safety_stock ? 'text-brand-400' : t.textFaint}>{spare.safety_stock ? 'Yes' : 'No'}</span></div>
             </div>
           </div>
           {(spare.supplier || spare.storage_location || spare.last_ordered_date || spare.lead_time_days) && (
@@ -455,7 +448,7 @@ const SearchableDropdown = React.memo(({ value, onChange, options, placeholder =
             <div className="max-h-48 overflow-y-auto">
               {filtered.map(o => (
                 <button key={o.value} type="button" onClick={() => { onChange(o.value); setOpen(false); setSearch(''); }}
-                  className={`w-full text-left px-3 py-2 text-xs transition-all border-b ${t.border} last:border-0 ${value === o.value ? 'bg-blue-500/15 text-blue-400' : `${t.textMuted} ${t.hoverBgSoft}`}`}>
+                  className={`w-full text-left px-3 py-2 text-xs transition-all border-b ${t.border} last:border-0 ${value === o.value ? 'bg-brand-500/15 text-brand-400' : `${t.textMuted} ${t.hoverBgSoft}`}`}>
                   {o.label}
                 </button>
               ))}
@@ -483,14 +476,14 @@ const CategoryTagPicker = React.memo(({ selected, onChange }: { selected: string
     if (!selected.includes(val)) onChange([...selected, val]);
     setInputVal('');
   };
-  const pillCls = (active: boolean) => `text-[11px] px-2 py-0.5 rounded-full transition-all ${active ? 'bg-blue-500/20 text-blue-400' : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`;
+  const pillCls = (active: boolean) => `text-[11px] px-2 py-0.5 rounded-full transition-all ${active ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`;
 
   return (
     <div className="space-y-2">
       {selected.length > 0 && (
         <div className="flex flex-wrap gap-1">
           {selected.map(cat => (
-            <span key={cat} className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full font-medium bg-blue-500/15 text-blue-400">
+            <span key={cat} className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full font-medium bg-brand-500/15 text-brand-400">
               {cat}<button type="button" onClick={() => toggle(cat)} className="hover:opacity-70 transition-opacity leading-none">×</button>
             </span>
           ))}
@@ -552,7 +545,7 @@ function SpareFormDialog({ open, onClose, onSave, editData }: {
 
   const section = (title: string, children: React.ReactNode) => (
     <div className={`rounded-xl ${t.chipBg} p-3 space-y-3`}>
-      <div className="text-[11px] font-semibold text-blue-400 uppercase tracking-wider">{title}</div>
+      <div className="text-[11px] font-semibold text-brand-400 uppercase tracking-wider">{title}</div>
       {children}
     </div>
   );
@@ -872,7 +865,7 @@ function SparesPageContent() {
   const SortBtn = ({ field, label }: { field: SortConfig['field']; label: string }) => {
     const active = sortConfig.field === field;
     const Icon = active ? (sortConfig.direction === 'asc' ? ChevronsUp : ChevronsDown) : SortAsc;
-    return <button onClick={() => handleSort(field)} className={`inline-flex items-center gap-1 text-[11px] transition-all ${active ? 'text-blue-400' : `${t.textFaint} ${t.hoverText}`}`}>{label} <Icon className="h-3 w-3" /></button>;
+    return <button onClick={() => handleSort(field)} className={`inline-flex items-center gap-1 text-[11px] transition-all ${active ? 'text-brand-400' : `${t.textFaint} ${t.hoverText}`}`}>{label} <Icon className="h-3 w-3" /></button>;
   };
 
   return (
@@ -886,11 +879,11 @@ function SparesPageContent() {
         actions={
           <>
             <button onClick={() => loadData(true)} disabled={refreshing} title="Refresh" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} disabled:opacity-40`}><RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} /></button>
-            <button onClick={() => setShowRequisition(v => !v)} className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${showRequisition ? 'bg-blue-500/20 text-blue-400' : `${t.chipBg} ${t.textMuted} ${t.hoverBg}`}`}>
-              <ShoppingCart className="h-3.5 w-3.5" /> Requisition {reqLines.length > 0 && <span className="px-1 rounded-full bg-blue-500/30 text-[10px]">{reqLines.length}</span>}
+            <button onClick={() => setShowRequisition(v => !v)} className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${showRequisition ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textMuted} ${t.hoverBg}`}`}>
+              <ShoppingCart className="h-3.5 w-3.5" /> Requisition {reqLines.length > 0 && <span className="px-1 rounded-full bg-brand-500/30 text-[10px]">{reqLines.length}</span>}
             </button>
             <Link href="/spares/import"><button className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold ${t.textMuted} ${t.chipBg} ${t.hoverBg}`}><Upload className="h-3.5 w-3.5" /> Import Excel</button></Link>
-            <button onClick={() => { setEditingSpare(null); setFormOpen(true); }} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-blue-500 to-blue-700 hover:brightness-110 transition-all"><Plus className="h-4 w-4" /> Add Spare</button>
+            <button onClick={() => { setEditingSpare(null); setFormOpen(true); }} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all"><Plus className="h-4 w-4" /> Add Spare</button>
             <button title={showStats ? 'Hide stats' : 'Show stats'} onClick={() => setShowStats(v => !v)} className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}>{showStats ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}</button>
           </>
         }
@@ -910,10 +903,10 @@ function SparesPageContent() {
         <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
           <div className={`flex items-center justify-between px-5 py-3 border-b ${t.border}`}>
             <div className="flex items-center gap-2">
-              <BarChart3 className="h-3.5 w-3.5 text-blue-400" />
+              <BarChart3 className="h-3.5 w-3.5 text-brand-400" />
               <span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Category Breakdown</span>
               <span className={`text-[11px] ${t.textFaint}`}>{categoryBreakdown.length} categories — click to filter</span>
-              {categoryFilter !== 'all' && <button onClick={() => setCategoryFilter('all')} className="text-[11px] px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-400">{categoryFilter} ×</button>}
+              {categoryFilter !== 'all' && <button onClick={() => setCategoryFilter('all')} className="text-[11px] px-1.5 py-0.5 rounded bg-brand-500/15 text-brand-400">{categoryFilter} ×</button>}
             </div>
             <button title={showCategoryBreakdown ? 'Hide categories' : 'Show categories'} onClick={() => setShowCategoryBreakdown(v => !v)} className={`h-6 w-6 flex items-center justify-center rounded-md ${t.chipBg} ${t.hoverBg} ${t.textFaint}`}>{showCategoryBreakdown ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}</button>
           </div>
@@ -931,13 +924,13 @@ function SparesPageContent() {
                   return (
                     <GlowCard key={cat} onClick={() => setCategoryFilter(isActive ? 'all' : cat)} color={catColor}
                       surface="rounded-xl p-3"
-                      className={`text-left cursor-pointer ${isActive ? 'bg-blue-500/15 ring-1 ring-blue-400/40' : `${t.chipBg} ${t.hoverBg}`}`}>
+                      className={`text-left cursor-pointer ${isActive ? 'bg-brand-500/15 ring-1 ring-brand-400/40' : `${t.chipBg} ${t.hoverBg}`}`}>
                       <div className="flex items-start justify-between mb-2">
                         <span className={`text-[11px] font-semibold leading-tight break-words ${t.textMuted}`}>{cat}</span>
                         {hasIssues && (out > 0 ? <AlertOctagon className="h-3 w-3 text-rose-500 flex-shrink-0 ml-1 mt-0.5" /> : <AlertTriangle className="h-3 w-3 text-amber-500 flex-shrink-0 ml-1 mt-0.5" />)}
                       </div>
                       <div className="flex items-baseline gap-1 mb-2"><span className={`text-base font-bold ${t.textPrimary}`}>{count}</span><span className={`text-[10px] ${t.textFaint}`}>items</span></div>
-                      <div className={`h-1 rounded-full ${t.chipBg} overflow-hidden mb-1.5`}><div className="h-full rounded-full bg-blue-400/60" style={{ width: `${pct}%` }} /></div>
+                      <div className={`h-1 rounded-full ${t.chipBg} overflow-hidden mb-1.5`}><div className="h-full rounded-full bg-brand-400/60" style={{ width: `${pct}%` }} /></div>
                       {hasIssues ? (
                         <div className="flex gap-1 flex-wrap">
                           {out > 0 && <span className="text-[9px] px-1 py-0.5 rounded bg-rose-500/15 text-rose-500">{out} out</span>}
@@ -958,25 +951,25 @@ function SparesPageContent() {
         <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
           <div className={`flex items-center justify-between px-5 py-3 border-b ${t.border} flex-wrap gap-2`}>
             <div className="flex items-center gap-2">
-              <ShoppingCart className="h-3.5 w-3.5 text-blue-400" />
+              <ShoppingCart className="h-3.5 w-3.5 text-brand-400" />
               <span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Requisition / Price Builder</span>
               {reqLines.length > 0 && <span className={`text-[11px] ${t.textFaint}`}>{reqLines.length} line{reqLines.length !== 1 ? 's' : ''} · {formatCurrency(reqGrandTotal)}</span>}
             </div>
             <div className="flex items-center gap-1.5 flex-wrap justify-end">
-              <button onClick={() => setShowSavedReqs(v => !v)} className={`inline-flex items-center gap-1 h-6 px-2 text-[11px] rounded-lg transition-all ${showSavedReqs ? 'bg-blue-500/20 text-blue-400' : `${t.chipBg} ${t.textMuted} ${t.hoverBg}`}`}><ClipboardList className="h-2.5 w-2.5" /> Saved {savedReqs.length > 0 && `(${savedReqs.length})`}</button>
+              <button onClick={() => setShowSavedReqs(v => !v)} className={`inline-flex items-center gap-1 h-6 px-2 text-[11px] rounded-lg transition-all ${showSavedReqs ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textMuted} ${t.hoverBg}`}`}><ClipboardList className="h-2.5 w-2.5" /> Saved {savedReqs.length > 0 && `(${savedReqs.length})`}</button>
               {reqLines.length > 0 && (<>
                 {showSavePrompt ? (
                   <div className="flex items-center gap-1">
                     <input autoFocus value={saveReqName} onChange={e => setSaveReqName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') saveCurrentRequisition(); if (e.key === 'Escape') setShowSavePrompt(false); }} placeholder="Requisition name…" className={`h-6 px-2 text-[11px] rounded-lg w-36 ${t.inputBg} focus:outline-none`} />
-                    <button onClick={saveCurrentRequisition} className="h-6 px-2 text-[11px] rounded-lg bg-blue-500/20 text-blue-400 hover:bg-blue-500/30">Save</button>
+                    <button onClick={saveCurrentRequisition} className="h-6 px-2 text-[11px] rounded-lg bg-brand-500/20 text-brand-400 hover:bg-brand-500/30">Save</button>
                     <button type="button" title="Cancel" onClick={() => setShowSavePrompt(false)} className={`h-6 w-6 flex items-center justify-center rounded ${t.textFaint} ${t.hoverText}`}><X className="h-3 w-3" /></button>
                   </div>
                 ) : <button onClick={() => setShowSavePrompt(true)} className={`inline-flex items-center gap-1 h-6 px-2 text-[11px] rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textMuted}`}><Database className="h-2.5 w-2.5" /> Save</button>}
                 <button onClick={copyRequisition} className={`inline-flex items-center gap-1 h-6 px-2 text-[11px] rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textMuted}`}><Copy className="h-2.5 w-2.5" /> Copy</button>
-                <button onClick={downloadRequisitionPDF} className="inline-flex items-center gap-1 h-6 px-2 text-[11px] rounded-lg bg-blue-500/20 hover:bg-blue-500/30 text-blue-400"><Download className="h-2.5 w-2.5" /> PDF</button>
+                <button onClick={downloadRequisitionPDF} className="inline-flex items-center gap-1 h-6 px-2 text-[11px] rounded-lg bg-brand-500/20 hover:bg-brand-500/30 text-brand-400"><Download className="h-2.5 w-2.5" /> PDF</button>
                 <button onClick={() => { setReqLines([]); setReqHeader(defaultReqHeader); }} className={`h-6 px-2 text-[11px] rounded-lg ${t.chipBg} hover:bg-rose-500/15 ${t.textFaint} hover:text-rose-500`}>Clear</button>
               </>)}
-              <button onClick={() => addReqLine()} className="inline-flex items-center gap-1 h-6 px-2 text-[11px] rounded-lg text-white font-medium bg-blue-500/80 hover:bg-blue-500"><Plus className="h-2.5 w-2.5" /> Add Line</button>
+              <button onClick={() => addReqLine()} className="inline-flex items-center gap-1 h-6 px-2 text-[11px] rounded-lg text-white font-medium bg-brand-500/80 hover:bg-brand-500"><Plus className="h-2.5 w-2.5" /> Add Line</button>
               <button title="Close" onClick={() => setShowRequisition(false)} className={`h-6 w-6 flex items-center justify-center rounded-md ${t.chipBg} ${t.hoverBg} ${t.textFaint}`}><X className="h-3 w-3" /></button>
             </div>
           </div>
@@ -997,11 +990,11 @@ function SparesPageContent() {
                       <span>{req.lines.length} item{req.lines.length !== 1 ? 's' : ''}</span><span>·</span><span className={`font-medium ${t.textMuted}`}>{formatCurrency(req.grand_total)}</span>
                       {req.header.requester && <><span>·</span><span>{req.header.requester}</span></>}
                       {req.header.required_for && <><span>·</span><span className="italic">{req.header.required_for}</span></>}
-                      <span>·</span><span>{new Date(req.updated_at || req.saved_at).toLocaleDateString()}</span>
+                      <span>·</span><span>{formatDate(req.updated_at || req.saved_at)}</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0 ml-3">
-                    <button onClick={() => loadSavedRequisition(req)} className="h-6 px-2.5 text-[11px] rounded-lg bg-blue-500/15 text-blue-400 hover:bg-blue-500/25">Load</button>
+                    <button onClick={() => loadSavedRequisition(req)} className="h-6 px-2.5 text-[11px] rounded-lg bg-brand-500/15 text-brand-400 hover:bg-brand-500/25">Load</button>
                     <button title="Delete" onClick={() => deleteSavedReq(req.id)} className={`h-6 w-6 flex items-center justify-center rounded-lg opacity-0 group-hover:opacity-100 hover:bg-rose-500/15 ${t.textFaint} hover:text-rose-500`}><X className="h-3 w-3" /></button>
                   </div>
                 </div>
@@ -1040,9 +1033,9 @@ function SparesPageContent() {
       <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
         <div className={`flex items-center justify-between px-5 py-3 border-b ${t.border}`}>
           <div className="flex items-center gap-2">
-            <Filter className="h-3.5 w-3.5 text-blue-400" />
+            <Filter className="h-3.5 w-3.5 text-brand-400" />
             <span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Filters</span>
-            {activeFilterCount > 0 && <span className="text-[11px] px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-400">{activeFilterCount} active</span>}
+            {activeFilterCount > 0 && <span className="text-[11px] px-1.5 py-0.5 rounded bg-brand-500/15 text-brand-400">{activeFilterCount} active</span>}
           </div>
           <div className="flex items-center gap-1">
             {activeFilterCount > 0 && <button onClick={clearFilters} className={`h-6 px-2 flex items-center gap-1 rounded-md ${t.chipBg} ${t.hoverBg} ${t.textFaint} text-[11px]`}><X className="h-2.5 w-2.5" /> Clear</button>}
@@ -1056,8 +1049,8 @@ function SparesPageContent() {
               <div><div className={`text-[11px] mb-1.5 ${t.textFaint}`}>Category</div><SearchableDropdown value={categoryFilter} onChange={setCategoryFilter} placeholder="All categories" options={[{ value: 'all', label: 'All categories' }, ...ALL_PREDEFINED_CATS.map(c => ({ value: c, label: c })), ...categories.filter(c => !ALL_PREDEFINED_CATS.includes(c)).map(c => ({ value: c, label: c }))]} /></div>
               {categoryFilter !== 'all' && <button onClick={() => setCategoryFilter('all')} className={`h-9 px-3 inline-flex items-center gap-1.5 rounded-lg text-xs ${t.chipBg} ${t.textMuted} ${t.hoverBg} self-end`}><X className="h-3 w-3" /> Clear: {categoryFilter}</button>}
             </div>
-            <div><div className={`text-[11px] mb-1.5 ${t.textFaint}`}>Stock Status</div><div className="flex flex-wrap gap-1.5">{[['all', 'All'], ['out', 'Out of Stock'], ['low', 'Low Stock'], ['adequate', 'Adequate'], ['in', 'In Stock']].map(([v, l]) => <button key={v} onClick={() => setStockFilter(v)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${stockFilter === v ? 'bg-blue-500/20 text-blue-400 font-semibold' : `${t.chipBg} ${t.textMuted} ${t.hoverBg}`}`}>{l}</button>)}</div></div>
-            <div><div className={`text-[11px] mb-1.5 ${t.textFaint}`}>Priority</div><div className="flex flex-wrap gap-1.5">{[['all', 'All'], ['critical', 'Critical'], ['high', 'High'], ['medium', 'Medium'], ['low', 'Low']].map(([v, l]) => <button key={v} onClick={() => setPriorityFilter(v)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${priorityFilter === v ? 'bg-blue-500/20 text-blue-400 font-semibold' : `${t.chipBg} ${t.textMuted} ${t.hoverBg}`}`}>{l}</button>)}</div></div>
+            <div><div className={`text-[11px] mb-1.5 ${t.textFaint}`}>Stock Status</div><div className="flex flex-wrap gap-1.5">{[['all', 'All'], ['out', 'Out of Stock'], ['low', 'Low Stock'], ['adequate', 'Adequate'], ['in', 'In Stock']].map(([v, l]) => <button key={v} onClick={() => setStockFilter(v)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${stockFilter === v ? 'bg-brand-500/20 text-brand-400 font-semibold' : `${t.chipBg} ${t.textMuted} ${t.hoverBg}`}`}>{l}</button>)}</div></div>
+            <div><div className={`text-[11px] mb-1.5 ${t.textFaint}`}>Priority</div><div className="flex flex-wrap gap-1.5">{[['all', 'All'], ['critical', 'Critical'], ['high', 'High'], ['medium', 'Medium'], ['low', 'Low']].map(([v, l]) => <button key={v} onClick={() => setPriorityFilter(v)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${priorityFilter === v ? 'bg-brand-500/20 text-brand-400 font-semibold' : `${t.chipBg} ${t.textMuted} ${t.hoverBg}`}`}>{l}</button>)}</div></div>
             <div className="flex flex-wrap items-center gap-4 pt-1">
               <div className={`flex items-center gap-2 text-[11px] ${t.textFaint}`}>
                 <span className="font-semibold uppercase tracking-wider">Sort:</span>
@@ -1072,7 +1065,7 @@ function SparesPageContent() {
       {/* Records */}
       <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
         <div className={`flex items-center gap-3 px-5 py-3 border-b ${t.border} flex-wrap`}>
-          <div className="flex items-center gap-2 flex-shrink-0"><Package className="h-3.5 w-3.5 text-blue-400" /><span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Records</span><span className={`text-[11px] ${t.textFaint}`}>{filteredSpares.length} of {spares.length}</span></div>
+          <div className="flex items-center gap-2 flex-shrink-0"><Package className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Records</span><span className={`text-[11px] ${t.textFaint}`}>{filteredSpares.length} of {spares.length}</span></div>
           <div className="flex-1 min-w-0 max-w-xs"><SearchInput value={search} onChange={setSearch} placeholder="Search spares…" /></div>
           <div className="flex items-center gap-1.5 flex-shrink-0 ml-auto">
             {viewMode === 'grid' && <button onClick={handleToggleExpandAll} title={expandAllCards ? 'Collapse all' : 'Expand all'} className={`h-7 px-2 inline-flex items-center gap-1 text-[11px] rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textFaint}`}>{expandAllCards ? <ChevronsUp className="h-3 w-3" /> : <ChevronsDown className="h-3 w-3" />}{expandAllCards ? 'Collapse' : 'Expand'}</button>}
@@ -1093,7 +1086,7 @@ function SparesPageContent() {
                 {activeFilterCount > 0 ? (
                   <button onClick={clearFilters} className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm ${t.textMuted} ${t.chipBg} ${t.hoverBg}`}><X className="h-4 w-4" /> Clear Filters</button>
                 ) : (
-                  <button onClick={() => setFormOpen(true)} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-blue-500 to-blue-700 hover:brightness-110"><Plus className="h-4 w-4" /> Add Spare Part</button>
+                  <button onClick={() => setFormOpen(true)} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110"><Plus className="h-4 w-4" /> Add Spare Part</button>
                 )}
               </div>
             ) : viewMode === 'grid' ? (
@@ -1126,7 +1119,7 @@ function SparesPageContent() {
                     <tr className={`border-b ${t.border}`}>
                       {[['Stock Code', 'stock_code'], ['Description', 'description'], ['Category', null], ['Machine', 'machine_type'], ['Stock', 'current_quantity'], ['Unit Price', 'unit_price'], ['Value', null], ['Status', 'status'], ['Priority', 'priority']].map(([label, field]) => (
                         <th key={label as string} className={`text-left p-3 text-xs font-semibold uppercase tracking-wide ${t.textFaint} ${field ? `cursor-pointer ${t.hoverText}` : ''}`} onClick={() => field && handleSort(field as SortConfig['field'])}>
-                          <div className="flex items-center gap-1">{label}{field && sortConfig.field === field && (sortConfig.direction === 'asc' ? <ChevronsUp className="h-3 w-3 text-blue-400" /> : <ChevronsDown className="h-3 w-3 text-blue-400" />)}</div>
+                          <div className="flex items-center gap-1">{label}{field && sortConfig.field === field && (sortConfig.direction === 'asc' ? <ChevronsUp className="h-3 w-3 text-brand-400" /> : <ChevronsDown className="h-3 w-3 text-brand-400" />)}</div>
                         </th>
                       ))}
                       <th className={`p-3 text-xs font-semibold uppercase tracking-wide w-8 ${t.textFaint}`}><span className="sr-only">Expand</span></th>
@@ -1155,7 +1148,7 @@ function SparesPageContent() {
                             <td className="p-3" onClick={e => e.stopPropagation()}><button title={rowExpanded ? 'Collapse' : 'Expand'} onClick={toggleTableRow} className={`h-6 w-6 flex items-center justify-center rounded ${t.textFaint} ${t.hoverText}`}>{rowExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}</button></td>
                             <td className="p-3 text-right" onClick={e => e.stopPropagation()}>
                               <div className="flex items-center justify-end gap-1">
-                                <button title="Add to requisition" className={`h-7 w-7 inline-flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} hover:text-blue-400`} onClick={() => addToReq(spare)}><ShoppingCart className="h-3.5 w-3.5" /></button>
+                                <button title="Add to requisition" className={`h-7 w-7 inline-flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} hover:text-brand-400`} onClick={() => addToReq(spare)}><ShoppingCart className="h-3.5 w-3.5" /></button>
                                 <button title="Edit" className={`h-7 w-7 inline-flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint}`} onClick={() => { setEditingSpare(spare); setFormOpen(true); }}><Pencil className="h-3.5 w-3.5" /></button>
                                 <button title="Delete" className={`h-7 w-7 inline-flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} hover:text-rose-500`} onClick={() => setDeleteId(spare.id)}><Trash2 className="h-3.5 w-3.5" /></button>
                               </div>
@@ -1168,7 +1161,7 @@ function SparesPageContent() {
                                   <div><div className={`text-[10px] uppercase tracking-wide mb-0.5 ${t.textFaint}`}>Full Description</div><div className={`leading-relaxed ${t.textMuted}`}>{spare.description}</div></div>
                                   <div><div className={`text-[10px] uppercase tracking-wide mb-0.5 ${t.textFaint}`}>Stock Levels</div><div className={t.textMuted}>Current: <span className={`font-semibold ${t.textPrimary}`}>{spare.current_quantity}</span> · Min: {spare.min_quantity} · Max: {spare.max_quantity}</div></div>
                                   <div><div className={`text-[10px] uppercase tracking-wide mb-0.5 ${t.textFaint}`}>Pricing</div><div className={t.textMuted}>Unit: <span className={`font-semibold ${t.textPrimary}`}>{formatCurrency(spare.unit_price)}</span> · Inv: {formatCurrency(invVal)}</div></div>
-                                  <div><div className={`text-[10px] uppercase tracking-wide mb-0.5 ${t.textFaint}`}>Unit of Measure</div><div className={t.textMuted}>{spare.unit_of_measure || 'UN'} {spare.safety_stock && <span className="ml-1 text-blue-400">· Safety Stock</span>}</div></div>
+                                  <div><div className={`text-[10px] uppercase tracking-wide mb-0.5 ${t.textFaint}`}>Unit of Measure</div><div className={t.textMuted}>{spare.unit_of_measure || 'UN'} {spare.safety_stock && <span className="ml-1 text-brand-400">· Safety Stock</span>}</div></div>
                                   {spare.supplier && <div><div className={`text-[10px] uppercase tracking-wide mb-0.5 ${t.textFaint}`}>Supplier</div><div className={t.textMuted}>{spare.supplier}</div></div>}
                                   {spare.storage_location && <div><div className={`text-[10px] uppercase tracking-wide mb-0.5 ${t.textFaint}`}>Storage Location</div><div className={t.textMuted}>{spare.storage_location}</div></div>}
                                   {spare.last_ordered_date && <div><div className={`text-[10px] uppercase tracking-wide mb-0.5 ${t.textFaint}`}>Last Ordered</div><div className={t.textMuted}>{formatDate(spare.last_ordered_date)}</div></div>}
@@ -1193,7 +1186,7 @@ function SparesPageContent() {
                   <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={safeCurrentPage === 1} className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.chipBg} ${t.textFaint} ${t.hoverBg} disabled:opacity-25`}><ChevronDown className="h-3.5 w-3.5 rotate-90" /></button>
                   {Array.from({ length: totalPages }, (_, i) => i + 1).filter(p => p === 1 || p === totalPages || Math.abs(p - safeCurrentPage) <= 2).reduce<(number | '…')[]>((acc, p, i, arr) => { if (i > 0 && p - (arr[i - 1] as number) > 1) acc.push('…'); acc.push(p); return acc; }, []).map((p, i) =>
                     p === '…' ? <span key={`ellipsis-${i}`} className={`h-7 w-6 flex items-center justify-center text-xs ${t.textFaint}`}>…</span>
-                      : <button key={p} onClick={() => setCurrentPage(p as number)} className={`h-7 min-w-[28px] px-1.5 flex items-center justify-center rounded-lg text-xs font-medium transition-all ${safeCurrentPage === p ? 'bg-blue-500/20 text-blue-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}>{p}</button>
+                      : <button key={p} onClick={() => setCurrentPage(p as number)} className={`h-7 min-w-[28px] px-1.5 flex items-center justify-center rounded-lg text-xs font-medium transition-all ${safeCurrentPage === p ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}>{p}</button>
                   )}
                   <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={safeCurrentPage === totalPages} className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.chipBg} ${t.textFaint} ${t.hoverBg} disabled:opacity-25`}><ChevronDown className="h-3.5 w-3.5 -rotate-90" /></button>
                   <button onClick={() => setCurrentPage(totalPages)} disabled={safeCurrentPage === totalPages} className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.chipBg} ${t.textFaint} ${t.hoverBg} disabled:opacity-25 text-xs font-bold`}>»</button>

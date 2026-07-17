@@ -739,9 +739,9 @@ function EquipmentAvailabilityContent() {
                 <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0" />
                 <div><div className="font-semibold text-sm text-amber-500">Maintenance Due</div><div className={`text-xs ${t.textMuted}`}>{stats.maintenanceDue} equipment due for maintenance</div></div>
               </div>
-              <div className="flex items-center gap-3 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
-                <TrendingUp className="w-5 h-5 text-blue-500 shrink-0" />
-                <div><div className="font-semibold text-sm text-blue-500">Optimal Utilization</div><div className={`text-xs ${t.textMuted}`}>Average utilization at {stats.utilizationRate}%</div></div>
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-brand-500/10 border border-brand-500/20">
+                <TrendingUp className="w-5 h-5 text-brand-500 shrink-0" />
+                <div><div className="font-semibold text-sm text-brand-500">Optimal Utilization</div><div className={`text-xs ${t.textMuted}`}>Average utilization at {stats.utilizationRate}%</div></div>
               </div>
             </div>
 

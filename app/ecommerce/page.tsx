@@ -665,7 +665,7 @@ export default function EcommercePage() {
     { 
       name: "Estée Lauder", 
       logo: "EL",
-      color: "from-blue-900 to-blue-700",
+      color: "from-brand-900 to-brand-700",
       textColor: "text-white"
     },
     { 
@@ -1326,7 +1326,7 @@ export default function EcommercePage() {
                     <span className="text-sm text-gray-600">Secure Payment</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Shield className="h-4 w-4 text-blue-500" />
+                    <Shield className="h-4 w-4 text-brand-500" />
                     <span className="text-sm text-gray-600">SSL Encrypted</span>
                   </div>
                 </div>

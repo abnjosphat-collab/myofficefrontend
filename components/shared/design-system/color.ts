@@ -4,8 +4,10 @@
 // `rgbaFromHexSafe`) duplicated inside app/page.tsx purely to support the
 // background-accent wash. Consolidated here so there is exactly one hex parser.
 
-/** Default accent used whenever a caller passes an invalid/missing hex. */
-export const DEFAULT_BG_ACCENT = '#7c3aed';
+/** Default accent used whenever a caller passes an invalid/missing hex. Aligned with
+ *  the app's richer-purple brand accent (ACCENT_HEX.violet) so the background wash and
+ *  the action color share the same purple. */
+export const DEFAULT_BG_ACCENT = '#9333ea';
 
 export function hexToRgbTuple(hex: string): [number, number, number] {
   const h = hex.replace('#', '');

@@ -345,13 +345,13 @@ function getColorClasses(color: ColorType) {
       card: 'bg-amber-50/80'
     },
     blue: { 
-      bg: 'bg-blue-600', 
-      hover: 'hover:bg-blue-700', 
-      light: 'bg-blue-100/70', 
-      text: 'text-blue-800', 
-      border: 'border-blue-200/60',
-      icon: 'text-blue-700',
-      card: 'bg-blue-50/80'
+      bg: 'bg-brand-600', 
+      hover: 'hover:bg-brand-700', 
+      light: 'bg-brand-100/70', 
+      text: 'text-brand-800', 
+      border: 'border-brand-200/60',
+      icon: 'text-brand-700',
+      card: 'bg-brand-50/80'
     },
     green: { 
       bg: 'bg-green-600', 

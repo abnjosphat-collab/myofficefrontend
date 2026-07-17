@@ -89,7 +89,7 @@ const PlotComponent = dynamic(
     ssr: false,
     loading: () => (
       <div className="h-full w-full flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600"></div>
       </div>
     ),
   }
@@ -197,7 +197,7 @@ const pageOptions: PageOption[] = [
     name: 'Assets',
     description: 'Equipment performance and availability metrics',
     icon: <Building className="h-5 w-5" />,
-    color: 'bg-blue-500',
+    color: 'bg-brand-500',
     category: 'operations',
     link: '/equipment'
   },
@@ -991,7 +991,7 @@ function VisualizationContent() {
                     onClick={() => handlePageSelect(page)}
                     className={`p-4 border rounded-lg text-left transition-all hover:shadow-lg ${
                       selectedPage.id === page.id 
-                        ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200' 
+                        ? 'border-brand-500 bg-brand-50 ring-2 ring-brand-200' 
                         : 'border-gray-200 bg-white hover:border-gray-300'
                     }`}
                   >
@@ -1008,13 +1008,13 @@ function VisualizationContent() {
                         </div>
                       </div>
                       <ChevronRight className={`h-5 w-5 ${
-                        selectedPage.id === page.id ? 'text-blue-500' : 'text-gray-400'
+                        selectedPage.id === page.id ? 'text-brand-500' : 'text-gray-400'
                       }`} />
                     </div>
                     <p className={`text-sm ${t.textMuted}`}>{page.description}</p>
                     {selectedPage.id === page.id && (
                       <div className="mt-3 flex justify-end">
-                        <Badge className="bg-blue-500">Selected</Badge>
+                        <Badge className="bg-brand-500">Selected</Badge>
                       </div>
                     )}
                   </button>
@@ -1028,7 +1028,7 @@ function VisualizationContent() {
                     onClick={() => handlePageSelect(page)}
                     className={`w-full p-3 border rounded-lg text-left transition-all flex items-center justify-between ${
                       selectedPage.id === page.id 
-                        ? 'border-blue-500 bg-blue-50' 
+                        ? 'border-brand-500 bg-brand-50' 
                         : 'border-gray-200 hover:border-gray-300'
                     }`}
                   >
@@ -1044,7 +1044,7 @@ function VisualizationContent() {
                     <div className="flex items-center gap-2">
                       <Badge variant="outline">{page.category}</Badge>
                       <ChevronRight className={`h-4 w-4 ${
-                        selectedPage.id === page.id ? 'text-blue-500' : 'text-gray-400'
+                        selectedPage.id === page.id ? 'text-brand-500' : 'text-gray-400'
                       }`} />
                     </div>
                   </button>
@@ -1172,8 +1172,8 @@ function VisualizationContent() {
                       </CardHeader>
                       <CardContent>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                          <div className="p-4 bg-blue-50 rounded-lg">
-                            <div className="text-2xl font-bold text-blue-600">
+                          <div className="p-4 bg-brand-50 rounded-lg">
+                            <div className="text-2xl font-bold text-brand-600">
                               {pageData.data_summary.total_records.toLocaleString()}
                             </div>
                             <div className={`text-sm ${t.textMuted}`}>Total Records</div>
@@ -1334,7 +1334,7 @@ function VisualizationContent() {
                                   }}
                                   className={`w-full p-3 text-left rounded-lg border transition-all ${
                                     activeChartKey === key 
-                                      ? 'border-blue-500 bg-blue-50' 
+                                      ? 'border-brand-500 bg-brand-50' 
                                       : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                                   }`}
                                 >
@@ -1624,7 +1624,7 @@ function VisualizationContent() {
                             <MemoryStick className={`h-4 w-4 ${t.textMuted}`} />
                             <span>Memory Usage</span>
                           </div>
-                          <div className="text-2xl font-bold text-blue-600">4.2MB</div>
+                          <div className="text-2xl font-bold text-brand-600">4.2MB</div>
                         </div>
                         <Progress value={65} className="h-2" />
                       </div>
@@ -1780,7 +1780,7 @@ function VisualizationContent() {
                           <div className="space-y-2">
                             {chart.features.map((feature, i) => (
                               <div key={i} className="flex items-center gap-2 text-sm">
-                                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                                <div className="w-2 h-2 bg-brand-500 rounded-full"></div>
                                 {feature}
                               </div>
                             ))}
@@ -1831,7 +1831,7 @@ function VisualizationContent() {
               <div className={`text-sm ${t.textMuted}`}>Pages Available</div>
             </div>
             <div className="text-center p-4">
-              <div className="text-3xl font-bold text-blue-600">
+              <div className="text-3xl font-bold text-brand-600">
                 {pageData ? Object.keys(pageData.visualizations).length : 0}
               </div>
               <div className={`text-sm ${t.textMuted}`}>Active Visualizations</div>

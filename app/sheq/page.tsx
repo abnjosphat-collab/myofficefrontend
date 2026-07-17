@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { api } from '@/lib/apiClient';
+import { formatDateTime } from '@/lib/format';
 import {
   Shield, RefreshCw, TrendingUp, TrendingDown, AlertTriangle, CheckCircle,
   Target, Eye, ClipboardList, ClipboardCheck, Ban, ExternalLink, ChevronRight, MessageSquare,
@@ -11,14 +13,6 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import { useTheme, useCollapseSection } from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
-
-const API_BASE = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000').replace(/\/$/, '');
-async function safetyFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, { ...init, headers: { 'Content-Type': 'application/json', ...(init?.headers || {}) } });
-  if (!res.ok) throw new Error(`Request failed: ${res.status}`);
-  if (res.status === 204) return undefined as unknown as T;
-  return res.json();
-}
 
 // ─── PALETTE ─────────────────────────────────────────────────────────────────
 const C = {
@@ -101,12 +95,12 @@ function scoreLabel(s: number) { if (s >= 80) return 'Good Standing'; if (s >= 6
 // ─── DATA FETCHING ────────────────────────────────────────────────────────────
 async function fetchAllModules(): Promise<RawData> {
   const settled = await Promise.allSettled([
-    safetyFetch<any[]>('/api/nearmiss/'),
-    safetyFetch<any[]>('/api/work-stoppage/'),
-    safetyFetch<any[]>('/api/vfl/'),
-    safetyFetch<any[]>('/api/pto/'),
-    safetyFetch<any[]>('/api/sheq/'),
-    safetyFetch<any[]>('/api/pachedu/'),
+    api.get<any[]>('/api/nearmiss/'),
+    api.get<any[]>('/api/work-stoppage/'),
+    api.get<any[]>('/api/vfl/'),
+    api.get<any[]>('/api/pto/'),
+    api.get<any[]>('/api/sheq/'),
+    api.get<any[]>('/api/pachedu/'),
   ]);
   const [nm, ws, vfl, pto, insp, pach] = settled.map(r => (r.status === 'fulfilled' && Array.isArray(r.value) ? r.value : []));
   return { nm, ws, vfl, pto, insp, pach };
@@ -466,7 +460,7 @@ function CommentsSection({ open, onToggle, P }: { open: boolean; onToggle: () =>
               <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', background: P.chipTrack, borderRadius: 9, padding: '10px 13px', gap: 10, borderLeft: '3px solid #60a5fa44' }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 13, color: P.textPrimary, lineHeight: 1.55 }}>{c.text}</div>
-                  <div style={{ fontSize: 10, color: P.textFaintest, marginTop: 4 }}>{c.author} · {new Date(c.ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
+                  <div style={{ fontSize: 10, color: P.textFaintest, marginTop: 4 }}>{c.author} · {formatDateTime(c.ts)}</div>
                 </div>
                 <button type="button" onClick={() => persist(comments.filter(x => x.id !== c.id))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: P.textFaintest, fontSize: 17, padding: '0 4px', lineHeight: 1, flexShrink: 0 }}>×</button>
               </div>
@@ -525,12 +519,7 @@ function SHEQDashboardContent() {
   const runAiAnalysis = useCallback(async () => {
     setAiLoading(true); setAiError('');
     try {
-      const res = await fetch(`${API_BASE}/api/ai/safety-analysis`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ near_miss: raw.nm, work_stoppage: raw.ws, vfl: raw.vfl, pto: raw.pto, inspections: raw.insp, pachedu: raw.pach, period_label: quickRange === 'all' ? 'all time' : quickRange }),
-      });
-      if (!res.ok) throw new Error(await res.text());
-      setAiResult(await res.json());
+      setAiResult(await api.post('/api/ai/safety-analysis', { near_miss: raw.nm, work_stoppage: raw.ws, vfl: raw.vfl, pto: raw.pto, inspections: raw.insp, pachedu: raw.pach, period_label: quickRange === 'all' ? 'all time' : quickRange }));
       if (!sections.expanded.ai) sections.toggle('ai');
     } catch (e) { setAiError(`Analysis failed: ${(e as Error).message}`); }
     finally { setAiLoading(false); }

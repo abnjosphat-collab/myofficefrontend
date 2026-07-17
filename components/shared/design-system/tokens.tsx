@@ -23,10 +23,12 @@ export function themeClasses(light: boolean) {
     glassSoft: light ? LIGHT_GLASS_SOFT : GLASS_SOFT,
     shadow: light ? LIGHT_SHADOW : SHADOW_AMBIENT,
     textPrimary: light ? 'text-gray-900' : 'text-white',
-    textSecondary: light ? 'text-gray-500' : 'text-white/55',
-    textTertiary: light ? 'text-gray-400' : 'text-white/35',
-    textFaint: light ? 'text-gray-400' : 'text-white/40',
-    textMuted: light ? 'text-gray-600' : 'text-white/70',
+    // Light-mode text/icons were washing out (gray-400/500 read as faint gray, not
+    // black) — darkened one step each for legibility. Dark mode is unchanged.
+    textSecondary: light ? 'text-gray-600' : 'text-white/55',
+    textTertiary: light ? 'text-gray-500' : 'text-white/35',
+    textFaint: light ? 'text-gray-500' : 'text-white/40',
+    textMuted: light ? 'text-gray-700' : 'text-white/70',
     border: light ? 'border-gray-200' : 'border-white/10',
     divide: light ? 'divide-gray-100' : 'divide-white/10',
     hoverBg: light ? 'hover:bg-gray-100' : 'hover:bg-white/10',
@@ -35,14 +37,14 @@ export function themeClasses(light: boolean) {
     groupHoverText: light ? 'group-hover:text-gray-900' : 'group-hover:text-white',
     chipBg: light ? 'bg-gray-100' : 'bg-white/10',
     inputBg: light
-      ? 'bg-gray-100 border border-gray-200 text-gray-900 placeholder-gray-400 focus:bg-white focus:border-blue-400'
-      : 'bg-white/10 border border-white/10 text-white placeholder-white/40 focus:border-blue-300/50 focus:bg-white/15',
+      ? 'bg-gray-100 border border-gray-200 text-gray-900 placeholder-gray-400 focus:bg-white focus:border-brand-400'
+      : 'bg-white/10 border border-white/10 text-white placeholder-white/40 focus:border-brand-300/50 focus:bg-white/15',
     trendUp: light ? 'text-emerald-600' : 'text-emerald-300',
     trendDown: light ? 'text-rose-600' : 'text-rose-300',
     ring: light ? 'ring-gray-100' : 'ring-slate-900/80',
     scrim: light ? 'bg-gray-900/10' : 'bg-slate-900/50',
-    linkText: light ? 'text-blue-600' : 'text-blue-300',
-    linkHover: light ? 'hover:text-blue-700' : 'hover:text-blue-200',
+    linkText: light ? 'text-brand-600' : 'text-brand-300',
+    linkHover: light ? 'hover:text-brand-700' : 'hover:text-brand-200',
     pageBg: light ? 'bg-gray-50' : 'bg-slate-900',
   };
 }
@@ -127,7 +129,10 @@ export const ACCENT: Record<Accent, {
   indigo:  { chip: 'bg-indigo-50',  icon: 'text-indigo-600',  text: 'text-indigo-700',  gradient: 'from-indigo-500 to-indigo-700',   glow: 'hover:shadow-[0_20px_45px_-18px_rgba(79,70,229,0.4)]',    solidGlow: 'shadow-[0_16px_32px_-12px_rgba(79,70,229,0.4)]' },
   emerald: { chip: 'bg-emerald-50', icon: 'text-emerald-600', text: 'text-emerald-700', gradient: 'from-emerald-500 to-emerald-700', glow: 'hover:shadow-[0_20px_45px_-18px_rgba(5,150,105,0.4)]',    solidGlow: 'shadow-[0_16px_32px_-12px_rgba(5,150,105,0.4)]' },
   cyan:    { chip: 'bg-cyan-50',    icon: 'text-cyan-600',    text: 'text-cyan-700',    gradient: 'from-cyan-500 to-cyan-700',       glow: 'hover:shadow-[0_20px_45px_-18px_rgba(8,145,178,0.4)]',    solidGlow: 'shadow-[0_16px_32px_-12px_rgba(8,145,178,0.4)]' },
-  violet:  { chip: 'bg-violet-50',  icon: 'text-violet-600',  text: 'text-violet-700',  gradient: 'from-violet-500 to-violet-700',   glow: 'hover:shadow-[0_20px_45px_-18px_rgba(124,58,237,0.4)]',   solidGlow: 'shadow-[0_16px_32px_-12px_rgba(124,58,237,0.4)]' },
+  // "violet" is the app's default brand/action accent — it reads from the central
+  // `brand` color scale (globals.css --brand-*), so it and every page swept to
+  // `brand-*` share ONE definition. Re-theme by editing --brand-* in one place.
+  violet:  { chip: 'bg-brand-50',   icon: 'text-brand-600',   text: 'text-brand-700',   gradient: 'from-brand-500 to-brand-700',     glow: 'hover:shadow-[0_20px_45px_-18px_rgba(147,51,234,0.45)]',  solidGlow: 'shadow-[0_16px_32px_-12px_rgba(147,51,234,0.45)]' },
 };
 
 /** RGBA strings for inline colored box-shadows (e.g. a centered modal's 3D glow). */
@@ -137,13 +142,13 @@ export const ACCENT_RGBA: Record<Accent, string> = {
   indigo: 'rgba(79,70,229,0.35)',
   emerald: 'rgba(5,150,105,0.35)',
   cyan: 'rgba(8,145,178,0.35)',
-  violet: 'rgba(124,58,237,0.35)',
+  violet: 'rgba(147,51,234,0.35)',
 };
 
 /** Hex equivalents of ACCENT_RGBA, for callers that need a plain hex (e.g. GlowCard/glowShadow). */
 export const ACCENT_HEX: Record<Accent, string> = {
   blue: '#2563eb', amber: '#d97706', indigo: '#4f46e5',
-  emerald: '#059669', cyan: '#0891b2', violet: '#7c3aed',
+  emerald: '#059669', cyan: '#0891b2', violet: '#9333ea',
 };
 
 // ─── Type scale ──────────────────────────────────────────────────────────────

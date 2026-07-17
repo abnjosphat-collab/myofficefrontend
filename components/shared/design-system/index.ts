@@ -10,3 +10,4 @@ export * from './motion';
 export * from './icons';
 export * from './primitives';
 export * from './components';
+export * from './confirm';

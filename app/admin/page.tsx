@@ -5,24 +5,16 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   Shield, Users, Search, ChevronDown, ChevronUp,
   Save, RefreshCw, AlertCircle, Check, X,
-  Crown, Star, Briefcase, UserCheck, Eye as EyeIcon,
 } from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
 import { useTheme, PageHero, StatTile, StatusBadge, SearchInput, EmptyState } from '@/components/shared/theme';
 import { useAuth } from '@/lib/auth-context';
-import { supabase, UserProfile, UserRole, ROLE_LABELS, ROLE_ORDER } from '@/lib/supabase';
+import type { UserProfile, UserRole } from '@/lib/supabase';
+// Role labels/order/meta come from the single source (lib/roles.ts).
+import { ROLE_LABELS, ROLE_ORDER, ROLE_META } from '@/lib/roles';
 import { MODULE_ACTIONS } from '@/lib/auth-context';
+import { api } from '@/lib/apiClient';
 import { useRouter } from 'next/navigation';
-
-// ─── Role meta ────────────────────────────────────────────────────────────────
-
-const ROLE_META: Record<UserRole, { icon: React.ElementType; hex: string; desc: string }> = {
-  super_admin: { icon: Crown, hex: '#fb7185', desc: 'Full system access including role management' },
-  admin: { icon: Star, hex: '#f59e0b', desc: 'Edit access to all modules, cannot manage roles' },
-  manager: { icon: Briefcase, hex: '#86BBD8', desc: 'Approval rights for HR & operations' },
-  user: { icon: UserCheck, hex: '#94a3b8', desc: 'Standard user — view + limited edit via permissions' },
-  viewer: { icon: EyeIcon, hex: '#64748b', desc: 'Read-only access across the platform' },
-};
 
 const MODULE_LABELS: Record<string, string> = {
   employees: 'Personnel', equipment: 'Assets', inventory: 'Inventory', documents: 'Documents',
@@ -138,7 +130,7 @@ function UserRow({ profile, currentUserId, currentRole, onSave }: UserRowProps) 
                           const active = modPerms.includes(action);
                           return (
                             <button key={action} type="button" onClick={() => togglePerm(mod, action)}
-                              className={`flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-medium border transition-all ${active ? 'bg-blue-500/15 border-blue-500/40 text-blue-500' : `${t.chipBg} ${t.border} ${t.textFaint} ${t.hoverText}`}`}>
+                              className={`flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-medium border transition-all ${active ? 'bg-brand-500/15 border-brand-500/40 text-brand-500' : `${t.chipBg} ${t.border} ${t.textFaint} ${t.hoverText}`}`}>
                               {active ? <Check className="h-2.5 w-2.5" /> : <X className="h-2.5 w-2.5" />}{action}
                             </button>
                           );
@@ -153,7 +145,7 @@ function UserRow({ profile, currentUserId, currentRole, onSave }: UserRowProps) 
 
           <div className="flex justify-end">
             <button type="button" onClick={handleSave} disabled={!isDirty || saving}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${saved ? 'bg-emerald-500/15 text-emerald-500' : isDirty ? 'bg-blue-500/20 hover:bg-blue-500/30 text-blue-500' : `${t.chipBg} ${t.textFaint} cursor-not-allowed`}`}>
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${saved ? 'bg-emerald-500/15 text-emerald-500' : isDirty ? 'bg-brand-500/20 hover:bg-brand-500/30 text-brand-500' : `${t.chipBg} ${t.textFaint} cursor-not-allowed`}`}>
               {saving ? <><RefreshCw className="h-3.5 w-3.5 animate-spin" />Saving…</> : saved ? <><Check className="h-3.5 w-3.5" />Saved</> : <><Save className="h-3.5 w-3.5" />Save changes</>}
             </button>
           </div>
@@ -181,17 +173,21 @@ function AdminContent() {
   const fetchUsers = useCallback(async () => {
     setFetching(true);
     setError('');
-    const { data, error } = await supabase.from('user_profiles').select('*').order('created_at', { ascending: true });
-    if (error) setError(error.message);
-    else setUsers((data ?? []) as UserProfile[]);
+    try {
+      setUsers(await api.get<UserProfile[]>('/api/admin/users'));
+    } catch (e) {
+      setError((e as Error).message);
+    }
     setFetching(false);
   }, []);
 
   useEffect(() => { if (!loading && profile && isAtLeast('admin')) fetchUsers(); }, [loading, profile, isAtLeast, fetchUsers]);
 
   const handleSave = async (id: string, role: UserRole, permissions: Record<string, string[]>) => {
-    const { error } = await supabase.from('user_profiles').update({ role, permissions, updated_at: new Date().toISOString() }).eq('id', id);
-    if (!error) setUsers(prev => prev.map(u => u.id === id ? { ...u, role, permissions } : u));
+    try {
+      await api.patch(`/api/admin/users/${id}`, { role, permissions });
+      setUsers(prev => prev.map(u => u.id === id ? { ...u, role, permissions } : u));
+    } catch { /* surfaced via row state elsewhere */ }
   };
 
   const filtered = users.filter(u => {
@@ -238,13 +234,13 @@ function AdminContent() {
       <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
         <div className={`flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-5 py-3.5 border-b ${t.border}`}>
           <div className="flex items-center gap-2">
-            <Users className="h-4 w-4 text-blue-500" />
+            <Users className="h-4 w-4 text-brand-500" />
             <span className={`text-sm font-semibold ${t.textPrimary}`}>{filtered.length} {filtered.length === 1 ? 'user' : 'users'}</span>
           </div>
           <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
             <div className="flex items-center gap-1 flex-wrap">
               <button type="button" onClick={() => setRoleFilter('all')}
-                className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${roleFilter === 'all' ? 'bg-blue-500/20 text-blue-500' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}>
+                className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${roleFilter === 'all' ? 'bg-brand-500/20 text-brand-500' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}>
                 All
               </button>
               {(ROLE_ORDER as UserRole[]).map(r => {

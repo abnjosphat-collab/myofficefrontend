@@ -666,9 +666,9 @@ export default function RestaurantPage() {
     {
       id: 'seafood',
       name: 'Seafood',
-      icon: <Fish className="h-6 w-6 text-blue-600" />,
+      icon: <Fish className="h-6 w-6 text-brand-600" />,
       count: 10,
-      color: 'bg-gradient-to-br from-blue-100 to-cyan-100'
+      color: 'bg-gradient-to-br from-brand-100 to-cyan-100'
     },
     {
       id: 'desserts',
@@ -1195,7 +1195,7 @@ export default function RestaurantPage() {
               {[
                 { name: "Michelin Guide", year: "2024", icon: <Award className="h-8 w-8 text-red-600" /> },
                 { name: "Wine Spectator", year: "2023", icon: <Wine className="h-8 w-8 text-purple-600" /> },
-                { name: "AAA Diamond", year: "2024", icon: <Gem className="h-8 w-8 text-blue-600" /> },
+                { name: "AAA Diamond", year: "2024", icon: <Gem className="h-8 w-8 text-brand-600" /> },
                 { name: "Best Fine Dining", year: "2023", icon: <Trophy className="h-8 w-8 text-amber-600" /> },
               ].map((award, index) => (
                 <div 

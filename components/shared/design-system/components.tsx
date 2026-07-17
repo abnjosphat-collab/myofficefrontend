@@ -6,7 +6,7 @@
 // not the default).
 'use client';
 
-import { useState, useRef, useEffect, useCallback, type ReactNode, type ElementType, type CSSProperties } from 'react';
+import { useState, useRef, useEffect, useCallback, useId, type ReactNode, type ElementType, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
@@ -15,6 +15,7 @@ import { motion } from 'framer-motion';
 // as the rest of the app.
 import { ChevronRight, ChevronDown, Loader2, Check, SearchIcon, Pencil, Trash2, ArrowUpRight, ArrowDownRight } from './icons';
 import { useTheme, ACCENT, ACCENT_HEX, SPACING, type Accent } from './tokens';
+import { getInputSuggestions, recordInput } from '@/lib/inputHistory';
 import { GlowCard, PulsingIcon, AnimatedText, Collapse, CountUp, useScrollEdgeFlash, ScrollEdgeGlow } from './primitives';
 import { tileIconItem, tileTextContainer, tileTextItem, staggerContainer, fadeUp } from './motion';
 
@@ -27,6 +28,31 @@ export function useCollapseSection(initial: Record<string, boolean>) {
   const allOpen = Object.values(expanded).every(Boolean);
   const toggleAll = () => setExpanded(Object.fromEntries(Object.keys(expanded).map(k => [k, !allOpen])));
   return { expanded, toggle, allOpen, toggleAll };
+}
+
+// ─── Spinner / LoadingState — the one shared loading indicator ──────────────────
+// Replaces ~53 hand-rolled `border-2 border-t-transparent rounded-full animate-spin`
+// divs scattered across pages. Spinner is the bare ring; LoadingState centers it with
+// an optional label for a whole-panel loading state.
+export function Spinner({ size = 16, className = '' }: { size?: number; className?: string }) {
+  return (
+    <span
+      role="status"
+      aria-label="Loading"
+      className={`inline-block rounded-full border-2 border-current border-t-transparent animate-spin align-[-0.125em] ${className}`}
+      style={{ width: size, height: size }}
+    />
+  );
+}
+
+export function LoadingState({ label = 'Loading…', className = '' }: { label?: string; className?: string }) {
+  const t = useTheme();
+  return (
+    <div className={`flex flex-col items-center justify-center gap-3 py-12 ${t.textFaint} ${className}`}>
+      <Spinner size={22} className="text-brand-500" />
+      {label && <span className="text-[12.5px]">{label}</span>}
+    </div>
+  );
 }
 
 // ─── StatusBadge — generalizes PPE's ConditionBadge/PPEStatusBadge ──────────────
@@ -134,6 +160,51 @@ export function ProgressBar({
   );
 }
 
+// ─── AutofillInput — text input that remembers & suggests recent entries ────────
+// A drop-in text input backed by a native <datalist>, populated from the values the
+// user has previously typed into fields sharing the same `field` key (lib/inputHistory).
+// Records the committed value on blur. Native datalist means browser-style suggestions
+// with zero custom dropdown/positioning code, and it composes with FormField like any
+// other input. Use for free-text fields that repeat a lot (department, location,
+// section, designation, machine/artisan name) — not for selects, dates, or unique IDs.
+export function AutofillInput({
+  field, value, onChange, placeholder, type = 'text', required, className, onBlur,
+}: {
+  /** Stable history key — values are grouped and suggested per key (e.g. "department"). */
+  field: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  type?: string;
+  required?: boolean;
+  className?: string;
+  onBlur?: () => void;
+}) {
+  const t = useTheme();
+  const listId = useId();
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  // Refresh suggestions as the user types (prefix/substring filtered).
+  useEffect(() => { setSuggestions(getInputSuggestions(field, value)); }, [field, value]);
+  return (
+    <>
+      <input
+        list={listId}
+        type={type}
+        value={value}
+        required={required}
+        placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)}
+        onBlur={() => { recordInput(field, value); onBlur?.(); }}
+        autoComplete="off"
+        className={className ?? `w-full h-9 px-3 rounded-lg text-sm ${t.inputBg} focus:outline-none`}
+      />
+      <datalist id={listId}>
+        {suggestions.map((s) => <option key={s} value={s} />)}
+      </datalist>
+    </>
+  );
+}
+
 // ─── FormField / FormActions — promoted verbatim from PPE's page-local versions ─
 export function FormField({ label, required, children }: { label: string; required?: boolean; children: ReactNode }) {
   const t = useTheme();
@@ -148,7 +219,7 @@ export function FormField({ label, required, children }: { label: string; requir
 }
 
 export function FormActions({
-  onCancel, submitting, submitLabel, accent = 'blue',
+  onCancel, submitting, submitLabel, accent = 'violet',
 }: {
   onCancel: () => void; submitting?: boolean; submitLabel: string; accent?: Accent;
 }) {
@@ -170,7 +241,7 @@ export function FormActions({
 // page's "New X" / "Add Y" header action and every modal's submit button should use
 // this instead of hand-rolling the gradient class string per page.
 export function PrimaryButton({
-  icon: Icon, children, onClick, type = 'button', disabled, submitting, accent = 'blue', size = 'sm', fullWidth = false, className = '',
+  icon: Icon, children, onClick, type = 'button', disabled, submitting, accent = 'violet', size = 'sm', fullWidth = false, className = '',
 }: {
   icon?: ElementType; children: ReactNode; onClick?: () => void; type?: 'button' | 'submit';
   disabled?: boolean; submitting?: boolean; accent?: Accent; size?: 'sm' | 'md'; fullWidth?: boolean; className?: string;
@@ -204,7 +275,7 @@ export function CollapsibleHeader({
   return (
     <div className={`flex items-center justify-between px-5 py-3 border-b ${t.border} flex-wrap gap-2`}>
       <div className="flex items-center gap-2 flex-wrap min-w-0">
-        <Icon className="h-4 w-4 text-blue-400 shrink-0" />
+        <Icon className="h-4 w-4 text-brand-400 shrink-0" />
         <span className={`font-semibold text-sm ${t.textPrimary}`}>{title}</span>
         {sub && <span className={`text-xs ${t.textFaint}`}>{sub}</span>}
       </div>
@@ -451,7 +522,7 @@ export function RecordCard({
 // GlowCard, so it shares the exact same hover-lift as every other card in the app)
 // with an icon+label row, a big value, and an optional trend indicator.
 export function StatCard({
-  icon: Icon, accent = 'blue', label, value, trend,
+  icon: Icon, accent = 'violet', label, value, trend,
 }: {
   icon: ElementType; accent?: Accent; label: string; value: string | number;
   trend?: { direction: 'up' | 'down'; label: string };
@@ -640,7 +711,7 @@ export function SelectField({
                 className={`w-full text-left px-3 py-1.5 text-[13px] flex items-center justify-between gap-2 transition-colors ${i === active ? t.chipBg : ''} ${o.value === value ? `font-medium ${t.textPrimary}` : t.textMuted}`}
               >
                 <span className="truncate">{o.label}</span>
-                {o.value === value && <Check className="h-3.5 w-3.5 shrink-0 text-blue-400" />}
+                {o.value === value && <Check className="h-3.5 w-3.5 shrink-0 text-brand-400" />}
               </button>
             ))}
             {scrollEdge === 'bottom' && <ScrollEdgeGlow edge="bottom" />}
@@ -803,7 +874,7 @@ export function ViewToggle<T extends string>({
           title={opt.label}
           onClick={() => onChange(opt.value)}
           className={`h-7 w-7 flex items-center justify-center rounded-md transition-colors ${
-            value === opt.value ? `${ACCENT.blue.chip} ${ACCENT.blue.text}` : `${t.textFaint} ${t.hoverText}`
+            value === opt.value ? `${ACCENT.violet.chip} ${ACCENT.violet.text}` : `${t.textFaint} ${t.hoverText}`
           }`}
         >
           <opt.icon className="h-3.5 w-3.5" />
@@ -844,7 +915,7 @@ export function ListItemCard({
           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" onClick={e => e.stopPropagation()}>
             {onEdit && (
               <button type="button" title="Edit" onClick={onEdit}
-                className={`h-6 w-6 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-blue-500 transition-all`}>
+                className={`h-6 w-6 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-brand-500 transition-all`}>
                 <Pencil className="h-3 w-3" />
               </button>
             )}
@@ -878,7 +949,7 @@ export function ListItemCard({
 
 // ─── PageHero — generalizes PPE's hero block ────────────────────────────────────
 export function PageHero({
-  icon: Icon, accent = 'blue', crumbs, title, description, actions, statsOpen, children,
+  icon: Icon, accent = 'violet', crumbs, title, description, actions, statsOpen, children,
 }: {
   icon: React.ElementType; accent?: Accent;
   crumbs?: string[]; title: string; description?: string;

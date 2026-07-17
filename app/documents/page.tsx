@@ -2,6 +2,7 @@
 'use client';
 
 import { AppShell } from '@/components/app-shell';
+import { api } from '@/lib/apiClient';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Folder, FileText, Upload, Search, Trash2, X, HardDrive, Archive,
@@ -80,8 +81,6 @@ interface CustomSubfolders {
 }
 
 // ─── API ──────────────────────────────────────────────────────────────────────
-
-const API = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000').replace(/\/$/, '');
 
 const BASE_CATEGORIES: Category[] = [
   { id: '1', name: 'Organizational Context', icon: Building, color: ACCENT_HEX.indigo, description: 'Internal/external issues, stakeholder requirements, AMS scope' },
@@ -274,9 +273,7 @@ function DocumentsPageContent() {
     try {
       const params = new URLSearchParams({ category_id: currentCategory.id });
       if (currentFolder) params.set('folder_id', currentFolder);
-      const r = await fetch(`${API}/api/documents?${params}`);
-      if (!r.ok) throw new Error(await r.text());
-      const data: Record<string, unknown>[] = await r.json();
+      const data = await api.get<Record<string, unknown>[]>(`/api/documents?${params}`);
       setDocuments(data.map(fromDb));
     } catch (e) {
       toast.error(`Failed to load files: ${e}`);
@@ -304,9 +301,7 @@ function DocumentsPageContent() {
         fd.append('category_name', currentCategory.name);
         fd.append('folder_id',     currentFolder ?? '');
         fd.append('folder_path',   folderPath);
-        const r = await fetch(`${API}/api/documents/upload`, { method: 'POST', body: fd });
-        if (!r.ok) throw new Error(await r.text());
-        newDocs.push(fromDb(await r.json()));
+        newDocs.push(fromDb(await api.post<Record<string, unknown>>('/api/documents/upload', fd)));
       } catch (e) {
         toast.error(`Failed to upload "${pf.file.name}": ${e}`);
       }
@@ -328,8 +323,7 @@ function DocumentsPageContent() {
   async function deleteDoc(item: DeleteItem) {
     if (!item.id) return;
     try {
-      const r = await fetch(`${API}/api/documents/${item.id}`, { method: 'DELETE' });
-      if (!r.ok) throw new Error(await r.text());
+      await api.delete(`/api/documents/${item.id}`);
       setDocuments(prev => prev.filter(d => d.id !== item.id));
       toast.success(`"${item.name}" deleted`);
     } catch (e) { toast.error(`Delete failed: ${e}`); }
@@ -337,10 +331,7 @@ function DocumentsPageContent() {
 
   async function updateDoc(id: string, updates: Partial<DocumentFile>) {
     try {
-      const r = await fetch(`${API}/api/documents/${id}`, {
-        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updates),
-      });
-      if (!r.ok) throw new Error(await r.text());
+      await api.put(`/api/documents/${id}`, updates);
       setDocuments(prev => prev.map(d => d.id === id ? { ...d, ...updates } : d));
     } catch (e) { toast.error(`Update failed: ${e}`); }
   }
@@ -520,7 +511,7 @@ function DocumentsPageContent() {
               <div className="p-2.5 rounded-xl mb-3 w-fit" style={{ background: `${cat.color}22` }}>
                 <Icon className="h-5 w-5" style={{ color: cat.color }} />
               </div>
-              <h3 className={`font-semibold mb-1 ${t.textPrimary} group-hover:text-blue-400 transition-colors`}>{cat.name}</h3>
+              <h3 className={`font-semibold mb-1 ${t.textPrimary} group-hover:text-brand-400 transition-colors`}>{cat.name}</h3>
               <p className={`text-xs line-clamp-2 ${t.textFaint}`}>{cat.description}</p>
             </GlowCard>
           );
@@ -545,7 +536,7 @@ function DocumentsPageContent() {
               <FolderPlus className="h-3.5 w-3.5" /> New Folder
             </button>
             <button type="button" onClick={() => setIsUploadOpen(true)}
-              className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-blue-500 to-blue-700 hover:brightness-110 transition-all">
+              className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all">
               <Upload className="h-3.5 w-3.5" /> Upload
             </button>
           </div>
@@ -556,7 +547,7 @@ function DocumentsPageContent() {
             <h3 className={`text-lg font-semibold ${t.textPrimary} mb-2`}>No folders yet</h3>
             <p className={`text-sm mb-4 ${t.textFaint}`}>Create your first folder to start organising documents</p>
             <button type="button" onClick={() => setIsCreateFolderOpen(true)}
-              className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-blue-500 to-blue-700 hover:brightness-110 transition-all">
+              className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all">
               <FolderPlus className="h-3.5 w-3.5" /> Create Folder
             </button>
           </div>
@@ -568,8 +559,8 @@ function DocumentsPageContent() {
                 <GlowCard key={name} onClick={() => handleSubfolderClick(name)} color={ACCENT_HEX.blue}
                   surface={`${t.glass} rounded-2xl`} className="p-4 group flex items-center justify-between gap-2">
                   <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <div className="p-2 rounded-lg bg-blue-500/15 shrink-0">
-                      <Folder className="h-4 w-4 text-blue-400" />
+                    <div className="p-2 rounded-lg bg-brand-500/15 shrink-0">
+                      <Folder className="h-4 w-4 text-brand-400" />
                     </div>
                     <span className={`font-medium text-sm truncate ${t.textPrimary}`}>{name}</span>
                   </div>
@@ -606,7 +597,7 @@ function DocumentsPageContent() {
             <div className="flex items-start justify-between mb-3 gap-2 min-w-0">
               <div className="flex items-start gap-2 min-w-0 flex-1">
                 <input type="checkbox" checked={selectedItems.has(doc.id)} onChange={() => toggleSelectItem(doc.id)}
-                  onClick={e => e.stopPropagation()} title={`Select ${doc.name}`} className="mt-0.5 accent-blue-500 h-3.5 w-3.5 shrink-0" />
+                  onClick={e => e.stopPropagation()} title={`Select ${doc.name}`} className="mt-0.5 accent-brand-500 h-3.5 w-3.5 shrink-0" />
                 <fi.icon className="h-5 w-5 shrink-0" style={{ color: fi.color }} />
                 <div className="min-w-0 flex-1">
                   <p className={`text-sm font-semibold truncate ${t.textPrimary}`}>{doc.name}</p>
@@ -641,7 +632,7 @@ function DocumentsPageContent() {
       <table className="w-full text-sm">
         <thead>
           <tr className={`border-b ${t.border}`}>
-            <th className="w-10 p-3"><input type="checkbox" title="Select all" checked={selectedItems.size === filteredDocuments.length && filteredDocuments.length > 0} onChange={handleSelectAll} className="accent-blue-500" /></th>
+            <th className="w-10 p-3"><input type="checkbox" title="Select all" checked={selectedItems.size === filteredDocuments.length && filteredDocuments.length > 0} onChange={handleSelectAll} className="accent-brand-500" /></th>
             <th className="w-10 p-3"><span className="sr-only">File type icon</span></th>
             <th className={`text-left p-3 font-medium cursor-pointer ${t.textSecondary} ${t.hoverText}`} onClick={() => { setSortBy('name'); setSortOrder(o => o === 'asc' ? 'desc' : 'asc'); }}>
               Name {sortBy === 'name' && (sortOrder === 'asc' ? <SortAsc className="inline h-3 w-3 ml-1" /> : <SortDesc className="inline h-3 w-3 ml-1" />)}
@@ -658,7 +649,7 @@ function DocumentsPageContent() {
             const fi = fileIconFor(doc.type);
             return (
               <tr key={doc.id} className={`border-b ${t.border} ${t.hoverBgSoft} cursor-pointer group`} onClick={() => handlePreview(doc)}>
-                <td className="p-3" onClick={e => e.stopPropagation()}><input type="checkbox" title={`Select ${doc.name}`} checked={selectedItems.has(doc.id)} onChange={() => toggleSelectItem(doc.id)} className="accent-blue-500" /></td>
+                <td className="p-3" onClick={e => e.stopPropagation()}><input type="checkbox" title={`Select ${doc.name}`} checked={selectedItems.has(doc.id)} onChange={() => toggleSelectItem(doc.id)} className="accent-brand-500" /></td>
                 <td className="p-3"><fi.icon className="h-4 w-4" style={{ color: fi.color }} /></td>
                 <td className={`p-3 font-medium ${t.textPrimary}`}>
                   <div className="flex items-center gap-2">{doc.name}{doc.starred && <Star className="h-3 w-3 fill-amber-400 text-amber-400" />}</div>
@@ -700,7 +691,7 @@ function DocumentsPageContent() {
           )}
           <ViewToggle value={viewMode} onChange={setViewMode} options={[{ value: 'grid', icon: Grid2X2, label: 'Grid view' }, { value: 'table', icon: ListTree, label: 'Table view' }]} />
           <button type="button" onClick={() => setIsUploadOpen(true)}
-            className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-blue-500 to-blue-700 hover:brightness-110 transition-all">
+            className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all">
             <Upload className="h-3.5 w-3.5" /> Upload
           </button>
         </div>
@@ -712,13 +703,13 @@ function DocumentsPageContent() {
           <div className={`flex ${t.glassSoft} rounded-lg p-0.5`}>
             {(['all', 'starred', 'recent'] as const).map(tab => (
               <button key={tab} type="button" onClick={() => setActiveTab(tab)}
-                className={`h-7 px-3 text-xs rounded-md transition-colors capitalize font-medium ${activeTab === tab ? 'bg-blue-500/20 text-blue-400' : `${t.textFaint} ${t.hoverText}`}`}>
+                className={`h-7 px-3 text-xs rounded-md transition-colors capitalize font-medium ${activeTab === tab ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} ${t.hoverText}`}`}>
                 {tab}
               </button>
             ))}
           </div>
           <button type="button" onClick={() => setShowFilters(v => !v)}
-            className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-medium transition-colors ${showFilters ? 'bg-blue-500/15 text-blue-400' : `${t.textMuted} ${t.glassSoft} ${t.hoverText}`}`}>
+            className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-medium transition-colors ${showFilters ? 'bg-brand-500/15 text-brand-400' : `${t.textMuted} ${t.glassSoft} ${t.hoverText}`}`}>
             <Filter className="h-3.5 w-3.5" /> Filters {hasActiveFilters && <span className={`ml-1 px-1.5 py-0.5 ${t.chipBg} rounded text-[10px]`}>!</span>}
           </button>
           {hasActiveFilters && (
@@ -771,7 +762,7 @@ function DocumentsPageContent() {
           <h3 className={`text-lg font-semibold ${t.textPrimary} mb-2`}>No files found</h3>
           <p className={`text-sm mb-4 ${t.textFaint}`}>{hasActiveFilters ? 'Try adjusting your search or filters' : 'Upload your first document'}</p>
           {!hasActiveFilters && (
-            <button type="button" onClick={() => setIsUploadOpen(true)} className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-blue-500 to-blue-700 hover:brightness-110 transition-all">
+            <button type="button" onClick={() => setIsUploadOpen(true)} className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all">
               <Upload className="h-3.5 w-3.5" /> Upload Files
             </button>
           )}
@@ -866,7 +857,7 @@ function DocumentsPageContent() {
       {/* Upload Modal */}
       <CenterModal open={isUploadOpen} onClose={() => { setIsUploadOpen(false); setPendingFiles([]); }} title="Upload Files" accent="violet" width="max-w-2xl">
         <form className="p-5 space-y-4" onSubmit={e => { e.preventDefault(); uploadFilesToApi(); }}>
-          <div className={`border-2 border-dashed ${t.border} rounded-xl p-6 text-center cursor-pointer hover:border-blue-400/40 transition-all`}
+          <div className={`border-2 border-dashed ${t.border} rounded-xl p-6 text-center cursor-pointer hover:border-brand-400/40 transition-all`}
             onClick={() => fileInputRef.current?.click()}>
             <Upload className={`h-8 w-8 mx-auto ${t.textFaint} mb-2`} />
             <p className={`text-sm mb-2 ${t.textFaint}`}>Click to browse or drag and drop files</p>

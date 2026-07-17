@@ -6,6 +6,9 @@ import {
   AlertTriangle, RefreshCw, Users, X,
 } from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
+import { api } from '@/lib/apiClient';
+import { formatDate } from '@/lib/format';
+import { useEmployees, type EmployeeLookup } from '@/hooks/useLookups';
 import { toast } from 'sonner';
 import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, FormField, FormActions,
@@ -27,37 +30,30 @@ interface NearMissReport {
   submittedAt: string;
 }
 
-interface EmployeeItem { id: string; employee_id?: string; first_name: string; last_name: string; department?: string; }
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://myofficebackend.onrender.com';
+type EmployeeItem = EmployeeLookup;
 
 // ─── API ─────────────────────────────────────────────────────────────────────
 
-async function safetyFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, { headers: { 'Content-Type': 'application/json' }, ...init });
-  if (!res.ok) throw new Error(await res.text());
-  return res.status === 204 ? (undefined as T) : res.json();
-}
 async function getReports(): Promise<NearMissReport[]> {
-  try { const data = await safetyFetch<NearMissReport[]>('/api/nearmiss/'); return Array.isArray(data) ? data : []; }
+  try { const data = await api.get<NearMissReport[]>('/api/nearmiss/'); return Array.isArray(data) ? data : []; }
   catch { return []; }
 }
 async function createReport(report: Partial<NearMissReport>): Promise<NearMissReport | null> {
-  try { return await safetyFetch<NearMissReport>('/api/nearmiss/', { method: 'POST', body: JSON.stringify(report) }); }
+  try { return await api.post<NearMissReport>('/api/nearmiss/', report); }
   catch { return null; }
 }
 async function updateReport(id: string, report: Partial<NearMissReport>): Promise<NearMissReport | null> {
-  try { return await safetyFetch<NearMissReport>(`/api/nearmiss/${id}`, { method: 'PATCH', body: JSON.stringify(report) }); }
+  try { return await api.patch<NearMissReport>(`/api/nearmiss/${id}`, report); }
   catch { return null; }
 }
 async function deleteReport(id: string): Promise<boolean> {
-  try { await safetyFetch(`/api/nearmiss/${id}`, { method: 'DELETE' }); return true; }
+  try { await api.delete(`/api/nearmiss/${id}`); return true; }
   catch { return false; }
 }
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 
-const fmtDate = (s: string) => s ? new Date(s).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
+const fmtDate = (s: string) => (s ? formatDate(s) : '');
 const fmtTime = (s: string) => { try { return new Date(`2000-01-01T${s}`).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }); } catch { return s; } };
 const SECTION_HEX: Record<NearMissReport['section'], string> = { Mechanical: '#86BBD8', Electrical: '#fbbf24', General: '#a78bfa' };
 
@@ -134,16 +130,6 @@ function PredictiveField({ historyKey, value, onChange, placeholder, hints, mult
   );
 }
 
-let _empCache: EmployeeItem[] = [];
-let _empFetched = false;
-function useEmployees() {
-  const [list, setList] = useState<EmployeeItem[]>(_empCache);
-  useEffect(() => {
-    if (_empFetched) return;
-    fetch(`${API_BASE}/api/employees`).then(r => r.json()).then((d: EmployeeItem[]) => { if (Array.isArray(d)) { _empCache = d; setList(d); } _empFetched = true; }).catch(() => { _empFetched = true; });
-  }, []);
-  return list;
-}
 
 function EmployeeField({ value, onChange, placeholder }: { value: string; onChange: (name: string, emp?: EmployeeItem) => void; placeholder?: string }) {
   const t = useTheme();
@@ -305,7 +291,7 @@ function ReportDetailModal({ report, open, onClose, onEdit, onDelete }: {
       </div>
       <div className={`flex gap-2 px-5 py-4 border-t ${t.border}`}>
         <button type="button" onClick={onClose} className={`flex-1 py-2 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border} transition-all`}>Close</button>
-        <button type="button" onClick={() => { onClose(); onEdit(report); }} className="flex-1 py-2 rounded-xl text-sm font-medium text-blue-400 hover:text-blue-300 border border-blue-400/25 transition-all">Edit</button>
+        <button type="button" onClick={() => { onClose(); onEdit(report); }} className="flex-1 py-2 rounded-xl text-sm font-medium text-brand-400 hover:text-brand-300 border border-brand-400/25 transition-all">Edit</button>
         <button type="button" onClick={() => { onClose(); onDelete(report.id); }} className="flex-1 py-2 rounded-xl text-sm font-medium text-rose-400 hover:bg-rose-500/20 border border-rose-500/25 transition-all">Delete</button>
       </div>
     </CenterModal>
