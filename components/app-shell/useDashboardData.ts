@@ -78,7 +78,9 @@ export function useDashboardData() {
         safeJson(`${API_BASE}/api/maintenance/work-orders/stats/summary`),
         safeJson(`${API_BASE}/api/equipment`),
         safeJson(`${API_BASE}/api/breakdowns/dashboard/overview`),
-        safeJson(`${API_BASE}/api/maintenance/work-orders`),
+        // Only the newest 6 are ever shown (sliced below) — no reason to pull
+        // the entire table over the wire on every page load.
+        safeJson(`${API_BASE}/api/maintenance/work-orders?limit=6`),
         safeJson(`${API_BASE}/api/breakdowns/get-breakdowns?limit=6`),
       ]);
       if (cancelled) return;
