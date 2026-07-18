@@ -55,13 +55,38 @@ export const ThemeContext = createContext<Theme>({ light: true, toggle: () => {}
 export const useTheme = () => useContext(ThemeContext);
 
 /** App-wide theme provider — mount once near the root (see components/Providers.tsx). */
+export const THEME_KEY = 'myoffice_theme';
+
 export function ThemeProvider({ children }: { children: ReactNode }) {
+  // Starts light on the server and on the first client render so hydration matches
+  // the prerendered HTML; the inline script in app/layout.tsx has already set the
+  // real theme on <html> before paint, so there's no flash — this effect just
+  // brings React's state into line with it.
   const [light, setLight] = useState(true);
-  const value = useMemo(() => ({ light, toggle: () => setLight(l => !l), ...themeClasses(light) }), [light]);
+  useEffect(() => {
+    if (localStorage.getItem(THEME_KEY) === 'dark') setLight(false);
+  }, []);
+
+  const value = useMemo(() => ({
+    light,
+    toggle: () => setLight(l => {
+      const next = !l;
+      localStorage.setItem(THEME_KEY, next ? 'light' : 'dark');
+      return next;
+    }),
+    ...themeClasses(light),
+  }), [light]);
   // Reflect the current mode onto the root element so plain CSS (globals.css) can branch
   // on it too — e.g. native <select>/<option> styling, which can't read React context.
   useEffect(() => {
     document.documentElement.dataset.theme = light ? 'light' : 'dark';
+    // ALSO toggle the `.dark` class. globals.css defines the entire dark palette
+    // (--background, --card, --popover, --border, every --sidebar-*) under a
+    // `.dark` selector, but nothing ever added that class — so `body { bg-background }`
+    // stayed near-white in dark mode. All the glass surfaces are translucent white
+    // meant to sit on a dark page, so on a white body they washed out and the violet
+    // ambient glows bled through: the whole app went flat purple.
+    document.documentElement.classList.toggle('dark', !light);
   }, [light]);
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }

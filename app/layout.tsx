@@ -46,6 +46,17 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        {/* Applies the saved theme to <html> before first paint. Without this, every
+            load renders light and only flips once ThemeProvider's effect runs — a
+            white flash on each navigation for anyone using dark mode. Kept in sync
+            with THEME_KEY / the .dark class in design-system/tokens.tsx. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var d=localStorage.getItem('myoffice_theme')==='dark';document.documentElement.classList.toggle('dark',d);document.documentElement.dataset.theme=d?'dark':'light';}catch(e){}})();`,
+          }}
+        />
+      </head>
       <body
         className={`${montserrat.variable} ${inter.variable} ${geistMono.variable} ${manrope.variable} ${plusJakarta.variable} ${sora.variable} antialiased`}
       >
