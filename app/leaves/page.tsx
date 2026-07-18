@@ -71,8 +71,6 @@ interface Leave {
   updated_at?: string;
   department?: string;
   manager_name?: string;
-  manager_approval?: 'pending' | 'approved' | 'rejected';
-  hr_approval?: 'pending' | 'approved' | 'rejected';
   supporting_docs?: string[];
 }
 
@@ -529,15 +527,9 @@ function LeaveDetailsModal({ leave, onClose, onEdit, onDelete, onStatusUpdate }:
             </div>
           )}
 
-          {(leave.manager_approval || leave.hr_approval) && (
-            <div className={`${t.chipBg} rounded-xl overflow-hidden`}>
-              <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}><CheckCircle2 className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Approvals</span></div>
-              <div className="px-3.5 py-3 flex gap-6">
-                {leave.manager_approval && <IF label="Manager" value={leave.manager_approval} />}
-                {leave.hr_approval && <IF label="HR" value={leave.hr_approval} />}
-              </div>
-            </div>
-          )}
+          {/* Two-stage manager/HR approval UI removed 2026-07-18: the fields it
+              rendered never existed in the backend or DB, so the block could never
+              display. Rebuild from git history if the feature is ever wanted. */}
 
           <div className="flex flex-wrap gap-2 justify-between pt-1">
             <button type="button" onClick={handleDelete} disabled={updating} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 transition-all disabled:opacity-50"><Trash2 className="h-3.5 w-3.5" /> Delete</button>
