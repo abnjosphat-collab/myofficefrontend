@@ -116,19 +116,13 @@ function ModuleCard({
 }) {
   const primaryMetric = module.metrics?.[0];
   const t = useTheme();
-  // Plain white card. No tint, no accent edge — every coloured-surface variant
-  // (full wash, corner gradient, spine) read as muddy. The category colour now
-  // lives only in the icon and the metric value, against a clean white field.
-  const tileStyle: CSSProperties = {
-    backgroundColor: t.light ? '#ffffff' : 'rgba(255,255,255,0.05)',
-  };
-
+  // The plain-white surface, 16:9 aspect and sharper corners this card used to set
+  // locally are now InfoCard's defaults (see TILE_SURFACE / TILE_ASPECT / RADIUS.chip
+  // in the design system), so every page adopting InfoCard inherits the same tile.
   return (
     <div className="relative group">
       <InfoCard
         icon={module.icon}
-        aspect="aspect-[16/9]"
-        radius="rounded-md"
         accentColor={accentHex}
         href={selectMode ? undefined : module.href}
         onClick={selectMode ? onToggleSelected : () => trackModuleUsage(module.href)}
@@ -137,7 +131,7 @@ function ModuleCard({
         metricValue={primaryMetric?.value}
         metricLabel={primaryMetric?.label}
         className={selectMode && isSelected ? 'ring-2 ring-brand-400/60' : ''}
-        style={{ ...tileStyle, cursor: selectMode ? 'pointer' : undefined }}
+        style={{ cursor: selectMode ? 'pointer' : undefined }}
         badge={module.badge && (
           <span className={`text-[9px] font-medium ${t.textFaint} ${t.chipBg} rounded-full px-1.5 py-0.5 tabular-nums`}>
             {module.badge}
@@ -668,11 +662,17 @@ function DashboardContent() {
 
   const totalResults = filteredCategories.reduce((sum, cat) => sum + cat.modules.length, 0);
 
-  const visibleActions: QuickAction[] = [
-    ...QUICK_ACTIONS,
-    ...s.customQuickActions,
-    ...s.frequentQuickActions,
-  ];
+  // Dedupe by href, since a module can now be reached by more than one of these
+  // lists. Precedence: an explicit pin beats an earned "Frequently used" card, and
+  // both beat the static builtin — otherwise a heavily-used module renders twice
+  // (e.g. "New Work Order" and "Maintenance", both pointing at /maintenance).
+  // Builtins keep their leading position so the row doesn't reshuffle underneath
+  // the user; a replaced one simply drops out.
+  const visibleActions: QuickAction[] = (() => {
+    const earned = [...s.customQuickActions, ...s.frequentQuickActions];
+    const claimed = new Set(earned.map(a => a.href));
+    return [...QUICK_ACTIONS.filter(a => !claimed.has(a.href)), ...earned];
+  })();
 
   const accentHex = '#7c3aed';
 
@@ -715,7 +715,12 @@ function DashboardContent() {
               <QuickActionCard
                 key={action.id}
                 action={action}
-                onRemove={action.removable ? () => s.toggleQuickAction(action.href) : undefined}
+                // Auto ("Frequently used") suggestions aren't in quickActionHrefs, so
+                // toggleQuickAction would *add* them — pinning the card instead of
+                // removing it. They need the dismissal list instead.
+                onRemove={action.removable
+                  ? () => action.auto ? s.dismissAutoAction(action.href) : s.toggleQuickAction(action.href)
+                  : undefined}
               />
             ))}
           </motion.div>

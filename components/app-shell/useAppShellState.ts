@@ -6,7 +6,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Accent } from '@/components/shared/theme';
 import {
-  CATEGORIES, QUICK_ACTIONS, ALL_MODULES_BY_HREF,
+  CATEGORIES, ALL_MODULES_BY_HREF,
   USAGE_KEY, AUTO_QA_DISMISSED_KEY, MANUAL_QA_KEY, FAVORITES_KEY, SIDEBAR_COLLAPSED_KEY,
   FREQUENT_THRESHOLD, FREQUENT_LIMIT,
   readJSON, writeJSON,
@@ -123,12 +123,15 @@ export function useAppShellState() {
     return result;
   }, [quickActionHrefs]);
 
+  // Builtin hrefs are deliberately NOT excluded here. A module the user actually
+  // leans on (Maintenance, say) used to be permanently ineligible just because a
+  // static builtin already pointed at it, so the heaviest-used module in the app
+  // could never earn a "Frequently used" card. Consumers dedupe by href instead and
+  // let the earned card replace the builtin — see visibleActions in app/page.tsx.
   const frequentQuickActions = useMemo(() => {
-    const builtinHrefs = new Set(QUICK_ACTIONS.map(a => a.href));
     return Object.entries(usageCounts)
       .filter(([href, count]) =>
         count >= FREQUENT_THRESHOLD &&
-        !builtinHrefs.has(href) &&
         !quickActionHrefs.has(href) &&
         !dismissedAutoHrefs.has(href) &&
         ALL_MODULES_BY_HREF.has(href)
