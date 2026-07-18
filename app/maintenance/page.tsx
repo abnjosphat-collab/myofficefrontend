@@ -18,6 +18,7 @@ import {
   useTheme, PageHero, StatTile, StatusBadge, ViewToggle, FormField, FormActions,
   useCollapseSection, CenterModal, ProgressBar, ACCENT_HEX, GlowCard, SelectField,
   useConfirm, SearchInput, EmptyState, LoadingState, Combobox, type ComboOption, InfoRow,
+  TYPE_SCALE, RADIUS,
 } from '@/components/shared/theme';
 import {
   Wrench, Plus, RefreshCw, CheckCircle2, Clock, PlayCircle, PauseCircle,
@@ -863,14 +864,14 @@ function WorkOrderDetailModal({ workOrder, onClose, onRefresh, onDelete }: Detai
       </div>
       <div className="px-5 pb-5">
         <Tabs value={activeTab} onValueChange={v => setActiveTab(v as typeof activeTab)}>
-          <TabsList className={`w-full ${t.chipBg} p-1 h-auto rounded-xl mb-4`}>
-            <TabsTrigger value="request" className={`flex-1 gap-1.5 font-medium data-[state=active]:bg-brand-500/15 ${light ? 'data-[state=active]:text-brand-700' : 'data-[state=active]:text-brand-400'} data-[state=active]:shadow-sm ${subLabel}`}>
+          <TabsList className={`w-full ${t.chipBg} p-[3px] h-auto ${RADIUS.tile} mb-4`}>
+            <TabsTrigger value="request" className={`flex-1 gap-1.5 py-1.5 ${TYPE_SCALE.body} font-medium tracking-tight data-[state=active]:bg-brand-500/15 ${light ? 'data-[state=active]:text-brand-700' : 'data-[state=active]:text-brand-400'} data-[state=active]:shadow-sm ${subLabel}`}>
               <FileText className="h-3.5 w-3.5" /> Work Request
             </TabsTrigger>
-            <TabsTrigger value="artisan" className={`flex-1 gap-1.5 font-medium data-[state=active]:bg-cyan-500/15 ${light ? 'data-[state=active]:text-cyan-700' : 'data-[state=active]:text-cyan-400'} data-[state=active]:shadow-sm ${subLabel}`}>
+            <TabsTrigger value="artisan" className={`flex-1 gap-1.5 py-1.5 ${TYPE_SCALE.body} font-medium tracking-tight data-[state=active]:bg-cyan-500/15 ${light ? 'data-[state=active]:text-cyan-700' : 'data-[state=active]:text-cyan-400'} data-[state=active]:shadow-sm ${subLabel}`}>
               <HardHat className="h-3.5 w-3.5" /> Artisan Report
             </TabsTrigger>
-            <TabsTrigger value="foreman" className={`flex-1 gap-1.5 font-medium data-[state=active]:bg-violet-500/15 ${light ? 'data-[state=active]:text-violet-700' : 'data-[state=active]:text-violet-400'} data-[state=active]:shadow-sm ${subLabel}`}>
+            <TabsTrigger value="foreman" className={`flex-1 gap-1.5 py-1.5 ${TYPE_SCALE.body} font-medium tracking-tight data-[state=active]:bg-violet-500/15 ${light ? 'data-[state=active]:text-violet-700' : 'data-[state=active]:text-violet-400'} data-[state=active]:shadow-sm ${subLabel}`}>
               <ShieldCheck className="h-3.5 w-3.5" /> Foreman Sign-off
             </TabsTrigger>
           </TabsList>
@@ -879,8 +880,8 @@ function WorkOrderDetailModal({ workOrder, onClose, onRefresh, onDelete }: Detai
           <TabsContent value="request">
             <div className={`${t.glassSoft} ${t.shadow} rounded-xl overflow-hidden`}>
               <div className={`flex items-center gap-2 px-4 py-3 border-b ${t.border}`}>
-                <FileText className={`h-4 w-4 ${ic.brand}`} />
-                <span className={`font-semibold text-sm ${t.textPrimary}`}>Work Request</span>
+                <FileText className={`h-3.5 w-3.5 ${ic.brand}`} />
+                <span className={`font-semibold ${TYPE_SCALE.body} tracking-tight ${t.textPrimary}`}>Work Request</span>
                 <span className={`ml-auto text-xs ${t.textFaint}`}>supervisor-issued · read-only</span>
               </div>
               <div className="px-4 pt-3 pb-3 grid grid-cols-3 gap-x-6 gap-y-2">
@@ -1837,13 +1838,13 @@ function MaintenancePageContent() {
       </PageHero>
 
       {/* Page tab bar */}
-      <div className={`flex items-center gap-1 ${t.glassSoft} rounded-xl p-1 w-fit`}>
+      <div className={`flex items-center gap-0.5 ${t.glassSoft} ${RADIUS.tile} p-[3px] w-fit`}>
         {([{ key: 'workorders', label: 'Work Orders', icon: Wrench }, { key: 'analytics', label: 'Analytics & Insights', icon: BarChart2 }] as { key: 'workorders' | 'analytics'; label: string; icon: ElementType }[]).map(tb => {
           const active = mainTab === tb.key;
           return (
             <button key={tb.key} type="button" onClick={() => { setMainTab(tb.key); if (tb.key === 'workorders' && bulkMode) exitBulk(); }}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${active ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} ${t.hoverText} ${t.hoverBg}`}`}>
-              <tb.icon className="h-4 w-4" />{tb.label}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 ${RADIUS.chip} ${TYPE_SCALE.body} font-medium tracking-tight transition-colors ${active ? 'bg-brand-500/15 text-brand-400' : `${t.textMuted} ${t.hoverText} ${t.hoverBg}`}`}>
+              <tb.icon className="h-3.5 w-3.5" />{tb.label}
             </button>
           );
         })}
@@ -1912,7 +1913,7 @@ function MaintenancePageContent() {
                 {STATUS_TABS.map(tab => {
                   const active = statusTab === tab.key;
                   return (
-                    <button type="button" key={tab.key} onClick={() => setStatusTab(tab.key)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${active ? 'bg-brand-500/20 text-brand-400 font-semibold' : `${t.chipBg} ${t.textMuted} ${t.hoverBg}`}`}>
+                    <button type="button" key={tab.key} onClick={() => setStatusTab(tab.key)} className={`px-2.5 py-1 ${RADIUS.chip} ${TYPE_SCALE.label} font-medium tracking-tight transition-colors ${active ? 'bg-brand-500/15 text-brand-400' : `${t.chipBg} ${t.textMuted} ${t.hoverBg}`}`}>
                       {tab.label}<span className={`ml-1.5 text-[10px] ${active ? '' : t.textFaint}`}>{tabCount(tab.key)}</span>
                     </button>
                   );
