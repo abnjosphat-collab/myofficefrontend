@@ -819,7 +819,7 @@ function WorkOrderDetailModal({ workOrder, onClose, onRefresh, onDelete }: Detai
 
           {/* TAB: Work Request */}
           <TabsContent value="request">
-            <div className={`${t.chipBg} rounded-xl overflow-hidden`}>
+            <div className={`${t.glassSoft} ${t.shadow} rounded-xl overflow-hidden`}>
               <div className={`flex items-center gap-2 px-4 py-3 border-b ${t.border}`}>
                 <FileText className="h-4 w-4 text-brand-400" />
                 <span className={`font-semibold text-sm ${t.textPrimary}`}>Work Request</span>
@@ -832,7 +832,7 @@ function WorkOrderDetailModal({ workOrder, onClose, onRefresh, onDelete }: Detai
                 {workOrder.job_request_details && (
                   <div className="col-span-3 mt-1">
                     <div className={`text-[10px] uppercase tracking-wide mb-0.5 ${t.textFaint}`}>Job</div>
-                    <div className={`text-xs leading-relaxed ${t.textMuted}`}>{workOrder.job_request_details}</div>
+                    <div className={`text-xs leading-relaxed ${t.textPrimary}`}>{workOrder.job_request_details}</div>
                   </div>
                 )}
               </div>

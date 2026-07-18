@@ -413,7 +413,10 @@ export function InfoRow({ label, value }: { label: string; value?: ReactNode }) 
   return (
     <div>
       <div className={`text-[10px] uppercase tracking-wide mb-0.5 ${t.textFaint}`}>{label}</div>
-      <div className={`text-sm ${t.textMuted}`}>{value || '—'}</div>
+      {/* Value in textPrimary (near-black), not textMuted — a key/value pair reads as
+          "faint label, sharp value". The muted grey looked washed-out next to the
+          polished homepage cards. */}
+      <div className={`text-sm font-medium ${t.textPrimary}`}>{value || '—'}</div>
     </div>
   );
 }
