@@ -10,11 +10,11 @@ import {
   SlidersHorizontal, Palette, PanelLeftClose, Bell, ShieldAlert,
   ChevronLeft, ChevronRight, ChevronDown, X,
   ArrowUpRight, ArrowDownRight, ArrowRight, Check, Eye, EyeOff, Maximize2, Plus,
-  Pause, Play, CheckSquare, Square,
+  Pause, Play, CheckSquare, Square, List,
 } from '@/components/shared/theme';
 import {
   useTheme, Collapse, AnimatedText, PulsingIcon, CenterModal, GlowCard, InfoCard, EmptyState, StatCard, StatStrip,
-  CardIconButton, staggerContainer, fadeUp, ACCENT, ACCENT_RGBA, ACCENT_HEX, rgbaFromHexSafe, SPACING, type Accent,
+  CardIconButton, ViewToggle, staggerContainer, fadeUp, ACCENT, ACCENT_RGBA, ACCENT_HEX, rgbaFromHexSafe, SPACING, type Accent,
 } from '@/components/shared/theme';
 import {
   AppShell, useAppShell, CATEGORIES, QUICK_ACTIONS, trackModuleUsage, useDashboardData,
@@ -116,13 +116,11 @@ function ModuleCard({
 }) {
   const primaryMetric = module.metrics?.[0];
   const t = useTheme();
-  // Accent as detail, not wash: a crisp near-white (glass in dark mode) surface
-  // with a fine accent top edge and a soft accent gradient falling away from the
-  // top-left corner. A full-card tint read as a dull pastel block; this keeps the
-  // category colour present but lets the surface stay clean and high-contrast.
+  // Plain white card. No tint, no accent edge — every coloured-surface variant
+  // (full wash, corner gradient, spine) read as muddy. The category colour now
+  // lives only in the icon and the metric value, against a clean white field.
   const tileStyle: CSSProperties = {
-    backgroundImage: `linear-gradient(135deg, ${rgbaFromHexSafe(accentHex, t.light ? 0.13 : 0.22)} 0%, ${rgbaFromHexSafe(accentHex, t.light ? 0.03 : 0.05)} 55%, transparent 100%)`,
-    borderTop: `2px solid ${rgbaFromHexSafe(accentHex, t.light ? 0.55 : 0.75)}`,
+    backgroundColor: t.light ? '#ffffff' : 'rgba(255,255,255,0.05)',
   };
 
   return (
@@ -190,16 +188,111 @@ function ModuleCard({
   );
 }
 
+type ModuleViewMode = 'grid' | 'list';
+const VIEW_MODE_KEY = 'home_module_view';
+
+// ─── Module Row (list view) ─────────────────────────────────────────────────
+// The same module as ModuleCard, laid out as a dense row: icon, title +
+// description on one line, metric right-aligned, actions on hover. Trades the
+// tile grid's scannability-by-shape for many more modules visible at once.
+
+function ModuleRow({
+  module, onQuickView, isFavorite, onToggleFavorite, isQuickAction, onToggleQuickAction, accentHex,
+  selectMode = false, isSelected = false, onToggleSelected,
+}: {
+  module: Module; onQuickView: () => void; isFavorite: boolean; onToggleFavorite: () => void;
+  isQuickAction: boolean; onToggleQuickAction: () => void; accentHex: string;
+  selectMode?: boolean; isSelected?: boolean; onToggleSelected?: () => void;
+}) {
+  const t = useTheme();
+  const primaryMetric = module.metrics?.[0];
+
+  const inner = (
+    <>
+      {selectMode && (
+        <div className={`h-4 w-4 rounded shrink-0 flex items-center justify-center transition-colors ${
+          isSelected ? 'bg-brand-500 text-white' : `border ${t.border}`
+        }`}>
+          {isSelected && <Check className="h-3 w-3" strokeWidth={3} />}
+        </div>
+      )}
+      <module.icon className="h-4 w-4 shrink-0" style={{ color: accentHex }} />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <span className={`text-[13px] font-medium ${t.textPrimary} truncate`}>{module.title}</span>
+          {module.badge && (
+            <span className={`text-[9px] font-medium ${t.textFaint} ${t.chipBg} rounded-full px-1.5 py-0.5 tabular-nums shrink-0`}>{module.badge}</span>
+          )}
+        </div>
+        {module.description && (
+          <p className={`text-[11.5px] ${t.textTertiary} truncate mt-0.5`}>{module.description}</p>
+        )}
+      </div>
+      {primaryMetric && (
+        <div className="hidden sm:flex items-baseline gap-1 shrink-0 mr-1">
+          <span className={`text-[13px] font-bold ${t.textPrimary} tabular-nums`}>{primaryMetric.value}</span>
+          <span className={`text-[9px] font-medium ${t.textTertiary} uppercase tracking-wide`}>{primaryMetric.label}</span>
+        </div>
+      )}
+    </>
+  );
+
+  // Same hover treatment as the sidebar's nav links — a 1px lift with a soft
+  // coloured shadow over 300ms — but tinted with the category's own accent
+  // rather than the sidebar's fixed blue, so a row never glows a colour that
+  // fights its icon. The colour rides in on a CSS variable because Tailwind
+  // can't take a runtime value in an arbitrary shadow.
+  const rowCls = `group flex items-center gap-3 px-3 py-2.5 rounded-md ${t.hoverBgSoft} transition-all duration-300 hover:-translate-y-px hover:shadow-[0_8px_18px_-10px_var(--row-glow)]`;
+  const glowVar = { '--row-glow': rgbaFromHexSafe(accentHex, 0.45) } as CSSProperties;
+
+  return (
+    <div className="relative">
+      {selectMode ? (
+        <div onClick={onToggleSelected} style={glowVar} className={`${rowCls} cursor-pointer ${isSelected ? 'ring-1 ring-brand-400/60' : ''}`}>{inner}</div>
+      ) : (
+        <Link href={module.href} onClick={() => trackModuleUsage(module.href)} style={glowVar} className={rowCls}>{inner}</Link>
+      )}
+      {!selectMode && (
+        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+          <CardIconButton
+            icon={Bookmark} active={isFavorite} activeHex={ACCENT_HEX.blue} filled={isFavorite}
+            title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+            onClick={(e) => {
+              e.preventDefault(); e.stopPropagation();
+              onToggleFavorite();
+              toast(isFavorite ? 'Removed from Favorites' : `Pinned “${module.title}” to Favorites`);
+            }}
+          />
+          <CardIconButton
+            icon={isQuickAction ? Check : Plus} active={isQuickAction} activeHex={ACCENT_HEX.amber}
+            title={isQuickAction ? 'Remove from quick actions' : 'Add to quick actions'}
+            onClick={(e) => {
+              e.preventDefault(); e.stopPropagation();
+              onToggleQuickAction();
+              toast(isQuickAction ? 'Removed from Quick Actions' : `Added “${module.title}” to Quick Actions`);
+            }}
+          />
+          <CardIconButton
+            icon={Maximize2} title="Quick view"
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onQuickView(); }}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Category Section ───────────────────────────────────────────────────────
 
 function CategorySection({
   category, isExpanded, onToggle, onQuickView, favorites, onToggleFavorite, quickActions, onToggleQuickAction, accentHex,
-  selectMode, selectedHrefs, onToggleSelected,
+  selectMode, selectedHrefs, onToggleSelected, viewMode,
 }: {
   category: typeof CATEGORIES[0]; isExpanded: boolean; onToggle: () => void; onQuickView: (m: Module, accent: Accent) => void;
   favorites: Set<string>; onToggleFavorite: (href: string) => void;
   quickActions: Set<string>; onToggleQuickAction: (href: string) => void; accentHex: string;
   selectMode: boolean; selectedHrefs: Set<string>; onToggleSelected: (href: string) => void;
+  viewMode: ModuleViewMode;
 }) {
   const a = ACCENT[category.accent];
   const t = useTheme();
@@ -237,23 +330,40 @@ function CategorySection({
             variants={staggerContainer}
             initial="hidden"
             animate={visuallyExpanded ? 'show' : 'hidden'}
-            className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 mt-4"
+            className={viewMode === 'grid'
+              ? 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 mt-4'
+              : 'flex flex-col mt-2'}
           >
             {category.modules.map(module => (
               <motion.div key={module.href} variants={fadeUp}>
-                <ModuleCard
-                  module={module}
-                  accent={category.accent}
-                  onQuickView={() => onQuickView(module, category.accent)}
-                  isFavorite={favorites.has(module.href)}
-                  onToggleFavorite={() => onToggleFavorite(module.href)}
-                  isQuickAction={quickActions.has(module.href)}
-                  onToggleQuickAction={() => onToggleQuickAction(module.href)}
-                  accentHex={accentHex}
-                  selectMode={selectMode}
-                  isSelected={selectedHrefs.has(module.href)}
-                  onToggleSelected={() => onToggleSelected(module.href)}
-                />
+                {viewMode === 'grid' ? (
+                  <ModuleCard
+                    module={module}
+                    accent={category.accent}
+                    onQuickView={() => onQuickView(module, category.accent)}
+                    isFavorite={favorites.has(module.href)}
+                    onToggleFavorite={() => onToggleFavorite(module.href)}
+                    isQuickAction={quickActions.has(module.href)}
+                    onToggleQuickAction={() => onToggleQuickAction(module.href)}
+                    accentHex={accentHex}
+                    selectMode={selectMode}
+                    isSelected={selectedHrefs.has(module.href)}
+                    onToggleSelected={() => onToggleSelected(module.href)}
+                  />
+                ) : (
+                  <ModuleRow
+                    module={module}
+                    onQuickView={() => onQuickView(module, category.accent)}
+                    isFavorite={favorites.has(module.href)}
+                    onToggleFavorite={() => onToggleFavorite(module.href)}
+                    isQuickAction={quickActions.has(module.href)}
+                    onToggleQuickAction={() => onToggleQuickAction(module.href)}
+                    accentHex={accentHex}
+                    selectMode={selectMode}
+                    isSelected={selectedHrefs.has(module.href)}
+                    onToggleSelected={() => onToggleSelected(module.href)}
+                  />
+                )}
               </motion.div>
             ))}
           </motion.div>
@@ -519,6 +629,19 @@ function DashboardContent() {
   const [selectMode, setSelectMode] = useState(false);
   const [selectedHrefs, setSelectedHrefs] = useState<Set<string>>(new Set());
   const toggleSelectMode = () => { setSelectMode(v => !v); setSelectedHrefs(new Set()); };
+
+  // Grid vs list, remembered across visits. Starts at 'grid' on both server and
+  // first client render — reading localStorage during render would mismatch the
+  // prerendered HTML — then syncs to the stored preference on mount.
+  const [viewMode, setViewMode] = useState<ModuleViewMode>('grid');
+  useEffect(() => {
+    const saved = localStorage.getItem(VIEW_MODE_KEY);
+    if (saved === 'grid' || saved === 'list') setViewMode(saved);
+  }, []);
+  const changeViewMode = (v: ModuleViewMode) => {
+    setViewMode(v);
+    localStorage.setItem(VIEW_MODE_KEY, v);
+  };
   const toggleSelected = (href: string) => setSelectedHrefs(prev => {
     const next = new Set(prev);
     next.has(href) ? next.delete(href) : next.add(href);
@@ -608,6 +731,14 @@ function DashboardContent() {
           </div>
           {!s.searchQuery && (
             <div className="flex items-center gap-2 shrink-0">
+              <ViewToggle
+                value={viewMode}
+                onChange={changeViewMode}
+                options={[
+                  { value: 'grid' as ModuleViewMode, icon: LayoutGrid, label: 'Grid view' },
+                  { value: 'list' as ModuleViewMode, icon: List, label: 'List view' },
+                ]}
+              />
               <button
                 onClick={toggleSelectMode}
                 className={`flex items-center gap-1.5 text-[12px] font-medium rounded-lg px-2.5 py-1.5 transition-colors ${
@@ -651,6 +782,7 @@ function DashboardContent() {
                 selectMode={selectMode}
                 selectedHrefs={selectedHrefs}
                 onToggleSelected={toggleSelected}
+                viewMode={viewMode}
               />
             ))}
           </motion.div>
