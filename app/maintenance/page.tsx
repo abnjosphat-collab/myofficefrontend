@@ -261,6 +261,20 @@ function priorityCfg(p: WorkOrderPriority) {
 const CLASS_COLORS: Record<string, string> = { breakdown: '#f87171', planned_maintenance: '#4ade80', project: '#60a5fa', custom: '#c084fc' };
 const CLASS_SHORT: Record<string, string> = { planned_maintenance: 'PM', project: 'Proj', breakdown: 'BKD', custom: 'Custom' };
 
+const DONE_STATUSES: WorkOrderStatus[] = ['completed', 'cancelled'];
+
+/**
+ * Overdue = has a due date that has already passed, and the job is still open.
+ *
+ * Compares ISO date strings rather than Date objects: `new Date('2026-07-18') <
+ * new Date()` is true from one second past midnight on the 18th, which marks a
+ * job due *today* as already late. Cancelled work can't be overdue either.
+ */
+function isOverdue(w: Pick<WorkOrder, 'due_date' | 'status'>, today = new Date().toISOString().split('T')[0]): boolean {
+  if (!w.due_date || DONE_STATUSES.includes(w.status)) return false;
+  return w.due_date < today;
+}
+
 function calcStats(orders: WorkOrder[]) {
   const by = (s: WorkOrderStatus) => orders.filter(o => o.status === s).length;
   const total = orders.length;
@@ -290,7 +304,7 @@ function calcStats(orders: WorkOrder[]) {
 
   return {
     total, pending: by('pending'), inProgress: by('in-progress'), completed, onHold: by('on-hold'),
-    overdue: orders.filter(o => o.due_date && o.status !== 'completed' && new Date(o.due_date) < new Date()).length,
+    overdue: orders.filter(o => isOverdue(o)).length,
     efficiency: total > 0 ? Math.round((completed / total) * 100) : 0,
     plannedMaintenance: byClass('planned_maintenance'), projects: byClass('project'), breakdowns: byClass('breakdown'), customClass: byClass('custom'),
     mechanical: byDiscipline('Mechanical'), electrical: byDiscipline('Electrical'),
@@ -572,7 +586,7 @@ function CreateWorkOrderModal({ isOpen, onClose, onCreated, editingOrder, allOrd
   const blankForm = () => ({
     equipment_info: '', to_department: 'Engineering', allocated_to: '', priority: 'medium' as WorkOrderPriority,
     estimated_hours: '2', job_request_details: '', requested_by: '', authorising_foreman: '', job_instructions: '',
-    date_raised: new Date().toISOString().split('T')[0], classification: '' as WOClassification | '',
+    date_raised: new Date().toISOString().split('T')[0], due_date: '', classification: '' as WOClassification | '',
   });
   const fromOrder = (wo: WorkOrder) => ({
     equipment_info: wo.equipment_info || '', to_department: wo.to_department || 'Engineering',
@@ -580,7 +594,7 @@ function CreateWorkOrderModal({ isOpen, onClose, onCreated, editingOrder, allOrd
     estimated_hours: wo.estimated_hours || '2', job_request_details: wo.job_request_details || '',
     requested_by: wo.requested_by || '', authorising_foreman: wo.authorising_foreman || wo.responsible_foreman || '',
     job_instructions: wo.job_instructions || '', date_raised: wo.date_raised || new Date().toISOString().split('T')[0],
-    classification: (wo.classification || '') as WOClassification | '',
+    due_date: wo.due_date || '', classification: (wo.classification || '') as WOClassification | '',
   });
 
   const [form, setForm] = useState(editingOrder ? fromOrder(editingOrder) : blankForm());
@@ -604,6 +618,9 @@ function CreateWorkOrderModal({ isOpen, onClose, onCreated, editingOrder, allOrd
         job_request_details: form.job_request_details, requested_by: form.requested_by,
         authorising_foreman: form.authorising_foreman, responsible_foreman: form.authorising_foreman,
         job_instructions: form.job_instructions, date_raised: form.date_raised,
+        // Explicit null (not '' — the API rejects that for a date column, and not
+        // omitted — that would silently keep the old date) so clearing works.
+        due_date: form.due_date || null,
         ...(form.classification ? { classification: form.classification } : {}),
       };
       try {
@@ -640,6 +657,8 @@ function CreateWorkOrderModal({ isOpen, onClose, onCreated, editingOrder, allOrd
         overtime_start_time: '', overtime_end_time: '', overtime_hours: '',
         delay_from_time: '', delay_to_time: '', total_delay_hours: '',
           status: 'pending', progress: 0,
+          // Omitted when blank — '' fails date validation on the API.
+          ...(form.due_date ? { due_date: form.due_date } : {}),
           ...(form.classification ? { classification: form.classification } : {}),
         });
         created.push(wo);
@@ -670,7 +689,7 @@ function CreateWorkOrderModal({ isOpen, onClose, onCreated, editingOrder, allOrd
         </FormField>
         <FormField label="Department"><Input value={form.to_department} onChange={e => set('to_department', e.target.value)} placeholder="Engineering" className={`h-9 ${t.inputBg}`} /></FormField>
         <PersonAutocomplete label="Allocated To (Artisan)" value={form.allocated_to} onChange={v => set('allocated_to', v)} />
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <FormField label="Priority">
             <Select value={form.priority} onValueChange={v => set('priority', v)}>
               <SelectTrigger className={`h-9 ${t.inputBg}`}><SelectValue /></SelectTrigger>
@@ -679,6 +698,9 @@ function CreateWorkOrderModal({ isOpen, onClose, onCreated, editingOrder, allOrd
           </FormField>
           <FormField label="Est. Hours"><Input type="number" min="0.5" step="0.5" value={form.estimated_hours} onChange={e => set('estimated_hours', e.target.value)} className={`h-9 ${t.inputBg}`} /></FormField>
           <FormField label="Date Raised"><Input type="date" title="Date raised" value={form.date_raised} onChange={e => set('date_raised', e.target.value)} className={`h-9 ${t.inputBg}`} /></FormField>
+          {/* Drives the Overdue KPI and the overdue badge on each row. Optional —
+              blank means "no deadline", not "due today". */}
+          <FormField label="Due Date"><Input type="date" title="Due date — when this work must be complete" min={form.date_raised} value={form.due_date} onChange={e => set('due_date', e.target.value)} className={`h-9 ${t.inputBg}`} /></FormField>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <PersonAutocomplete label="Requested By" value={form.requested_by} onChange={v => set('requested_by', v)} placeholder="Who is requesting this work?" />
@@ -807,6 +829,7 @@ function WorkOrderDetailModal({ workOrder, onClose, onRefresh, onDelete }: Detai
 
   const scfg = statusCfg(workOrder.status);
   const pcfg = priorityCfg(workOrder.priority);
+  const overdue = isOverdue(workOrder);
 
   return (
     <CenterModal open onClose={onClose} title={`#${workOrder.work_order_number}`} subtitle={workOrder.equipment_info} accent="violet" width="max-w-3xl">
@@ -842,6 +865,9 @@ function WorkOrderDetailModal({ workOrder, onClose, onRefresh, onDelete }: Detai
                 <InfoRow label="Machine" value={workOrder.equipment_info} />
                 <InfoRow label="Allocated To" value={workOrder.allocated_to || workOrder.artisan_name} />
                 <InfoRow label="Date Raised" value={workOrder.date_raised} />
+                <InfoRow label="Due Date" value={workOrder.due_date
+                  ? <span className={overdue ? 'text-rose-600 font-semibold' : ''}>{workOrder.due_date}{overdue && ' — overdue'}</span>
+                  : undefined} />
                 {workOrder.job_request_details && (
                   <div className="col-span-3 mt-1">
                     <div className={`text-[10px] uppercase tracking-wide mb-0.5 ${t.textFaint}`}>Job</div>
@@ -1347,6 +1373,7 @@ function WorkOrderRow({ workOrder, onClick, isExpanded, onToggle, onEdit }: { wo
   const pcfg = priorityCfg(workOrder.priority);
   const artisanDisplay = workOrder.allocated_to || workOrder.artisan_name || '—';
   const foremanDisplay = workOrder.authorising_foreman || workOrder.foreman_name || workOrder.responsible_foreman || '—';
+  const overdue = isOverdue(workOrder);
 
   return (
     <div className={`border-b ${t.border}`}>
@@ -1358,6 +1385,7 @@ function WorkOrderRow({ workOrder, onClick, isExpanded, onToggle, onEdit }: { wo
             <span className={`font-medium text-sm truncate transition-colors ${t.textPrimary}`}>{workOrder.equipment_info}</span>
             {workOrder.classification && <StatusBadge color={CLASS_COLORS[workOrder.classification]} label={workOrder.classification === 'custom' ? (workOrder.classification_custom?.slice(0, 6) || 'Custom') : CLASS_SHORT[workOrder.classification]} />}
             {workOrder.discipline && <StatusBadge color={workOrder.discipline === 'Electrical' ? '#fbbf24' : ACCENT_HEX.blue} label={`${workOrder.discipline === 'Electrical' ? '⚡' : '⚙'} ${workOrder.trade || workOrder.discipline}`} />}
+            {overdue && <StatusBadge color="#e11d48" label={`Overdue · ${workOrder.due_date}`} dot />}
           </div>
           <div className={`text-xs truncate mt-0.5 ${t.textFaint}`}>{artisanDisplay}{workOrder.to_department ? ` · ${workOrder.to_department}` : ''}</div>
         </button>
@@ -1377,6 +1405,9 @@ function WorkOrderRow({ workOrder, onClick, isExpanded, onToggle, onEdit }: { wo
             <InfoRow label="Foreman" value={foremanDisplay} />
             <InfoRow label="Time Worked" value={workOrder.total_time_worked} />
             <InfoRow label="Est. Hours" value={workOrder.estimated_hours ? `${workOrder.estimated_hours}h` : undefined} />
+            <InfoRow label="Due Date" value={workOrder.due_date
+              ? <span className={overdue ? 'text-rose-600 font-semibold' : ''}>{workOrder.due_date}{overdue && ' — overdue'}</span>
+              : undefined} />
             {(workOrder.work_done_details || workOrder.job_request_details) && (
               <div className="col-span-2 sm:col-span-4">
                 <div className={`text-[10px] uppercase tracking-wide mb-0.5 ${t.textFaint}`}>{workOrder.work_done_details ? 'Work Done' : 'Job Request'}</div>
