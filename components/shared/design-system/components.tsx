@@ -1021,12 +1021,14 @@ export function PageHero({
 // anything a specific card needs on top (metrics grid, tags, a CTA button, badges…).
 export function InfoCard({
   icon: Icon, iconColor, accentColor, badge, metricValue, metricLabel, title, description,
-  variant = 'tile', aspect = 'aspect-[3/2]', href, onClick, animateText = true, elevated = false, children, className = '', style,
+  variant = 'tile', aspect = 'aspect-[3/2]', radius = 'rounded-lg', href, onClick, animateText = true, elevated = false, children, className = '', style,
 }: {
   icon: ElementType; iconColor?: string; accentColor: string; badge?: ReactNode;
   metricValue?: ReactNode; metricLabel?: string; title: string; description?: string;
   /** Rest-state lift + accent glow before hover — see GlowCard's `elevated`. */
   elevated?: boolean;
+  /** Corner radius class for the tile surface (e.g. "rounded-md" for a sharper card). */
+  radius?: string;
   variant?: 'tile' | 'header';
   /** Only used by variant="tile" — the fixed width:height ratio of the grid tile. */
   aspect?: string;
@@ -1086,10 +1088,10 @@ export function InfoCard({
     </>
   );
 
-  const surfaceCls = `flex flex-col justify-between ${aspect} ${t.glassSoft} rounded-lg ${SPACING.cardPad} ${className}`;
+  const surfaceCls = `flex flex-col justify-between ${aspect} ${t.glassSoft} ${radius} ${SPACING.cardPad} ${className}`;
 
   return (
-    <GlowCard color={accentColor} surface="rounded-lg" elevated={elevated}>
+    <GlowCard color={accentColor} surface={radius} elevated={elevated}>
       {href ? (
         <Link href={href} onClick={onClick} className={surfaceCls} style={style}>{inner}</Link>
       ) : (

@@ -1,7 +1,7 @@
 // app/page.tsx — Ozech MyOffice Enterprise ERP Dashboard
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, type CSSProperties } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -116,17 +116,21 @@ function ModuleCard({
 }) {
   const primaryMetric = module.metrics?.[0];
   const t = useTheme();
-  // Richer accent wash than the old 0.05/0.09 — the tiles read washed-out while
-  // scrolling; the tint plus GlowCard's `elevated` rest-lift makes each module
-  // visibly a raised, tinted object before any hover.
-  const tileBase = rgbaFromHexSafe(accentHex, t.light ? 0.09 : 0.14);
+  // Accent as detail, not wash: a crisp near-white (glass in dark mode) surface
+  // with a fine accent top edge and a soft accent gradient falling away from the
+  // top-left corner. A full-card tint read as a dull pastel block; this keeps the
+  // category colour present but lets the surface stay clean and high-contrast.
+  const tileStyle: CSSProperties = {
+    backgroundImage: `linear-gradient(135deg, ${rgbaFromHexSafe(accentHex, t.light ? 0.13 : 0.22)} 0%, ${rgbaFromHexSafe(accentHex, t.light ? 0.03 : 0.05)} 55%, transparent 100%)`,
+    borderTop: `2px solid ${rgbaFromHexSafe(accentHex, t.light ? 0.55 : 0.75)}`,
+  };
 
   return (
     <div className="relative group">
       <InfoCard
         icon={module.icon}
-        elevated
         aspect="aspect-[16/9]"
+        radius="rounded-md"
         accentColor={accentHex}
         href={selectMode ? undefined : module.href}
         onClick={selectMode ? onToggleSelected : () => trackModuleUsage(module.href)}
@@ -135,7 +139,7 @@ function ModuleCard({
         metricValue={primaryMetric?.value}
         metricLabel={primaryMetric?.label}
         className={selectMode && isSelected ? 'ring-2 ring-brand-400/60' : ''}
-        style={{ backgroundColor: tileBase, cursor: selectMode ? 'pointer' : undefined }}
+        style={{ ...tileStyle, cursor: selectMode ? 'pointer' : undefined }}
         badge={module.badge && (
           <span className={`text-[9px] font-medium ${t.textFaint} ${t.chipBg} rounded-full px-1.5 py-0.5 tabular-nums`}>
             {module.badge}
