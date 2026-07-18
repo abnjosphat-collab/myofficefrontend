@@ -1021,10 +1021,12 @@ export function PageHero({
 // anything a specific card needs on top (metrics grid, tags, a CTA button, badges…).
 export function InfoCard({
   icon: Icon, iconColor, accentColor, badge, metricValue, metricLabel, title, description,
-  variant = 'tile', aspect = 'aspect-[3/2]', href, onClick, animateText = true, children, className = '', style,
+  variant = 'tile', aspect = 'aspect-[3/2]', href, onClick, animateText = true, elevated = false, children, className = '', style,
 }: {
   icon: ElementType; iconColor?: string; accentColor: string; badge?: ReactNode;
   metricValue?: ReactNode; metricLabel?: string; title: string; description?: string;
+  /** Rest-state lift + accent glow before hover — see GlowCard's `elevated`. */
+  elevated?: boolean;
   variant?: 'tile' | 'header';
   /** Only used by variant="tile" — the fixed width:height ratio of the grid tile. */
   aspect?: string;
@@ -1087,7 +1089,7 @@ export function InfoCard({
   const surfaceCls = `flex flex-col justify-between ${aspect} ${t.glassSoft} rounded-lg ${SPACING.cardPad} ${className}`;
 
   return (
-    <GlowCard color={accentColor} surface="rounded-lg">
+    <GlowCard color={accentColor} surface="rounded-lg" elevated={elevated}>
       {href ? (
         <Link href={href} onClick={onClick} className={surfaceCls} style={style}>{inner}</Link>
       ) : (

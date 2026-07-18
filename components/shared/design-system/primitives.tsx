@@ -145,13 +145,17 @@ export function PulsingIcon({ className, children }: { className: string; childr
 // Use this for any per-item card that needs an accent color that doesn't fit the
 // 6-value ACCENT enum (e.g. per-type hex palettes).
 export function GlowCard({
-  color, className = '', surface, onClick, onHoverStart, onHoverEnd, forceGlow = false, style, children,
+  color, className = '', surface, onClick, onHoverStart, onHoverEnd, forceGlow = false, elevated = false, style, children,
 }: {
   color: string; className?: string; onClick?: () => void; children: ReactNode;
   /** Optional passthrough if a caller also needs raw hover state (e.g. to expand content on hover). */
   onHoverStart?: () => void; onHoverEnd?: () => void;
   /** Shows the hover glow at rest too — for persistent states (e.g. an alert) that shouldn't need a hover to be visible. */
   forceGlow?: boolean;
+  /** Vivid rest shadows: a deeper drop shadow plus a hint of the card's accent glow
+   * before any hover, so tiles read as raised, tappable objects while scanning the
+   * grid. Position at rest is unchanged — only the hover moves the card. */
+  elevated?: boolean;
   /** Override the default `glassSoft rounded-lg` surface (e.g. a heavier `glass rounded-2xl` panel-style card). */
   surface?: string;
   /** Static inline style passthrough (e.g. a per-item `borderTopColor`) — merged with, not
@@ -177,12 +181,14 @@ export function GlowCard({
             `inset 0 -1.5px 0 0 ${t.light ? 'rgba(0,0,0,0.10)' : 'rgba(0,0,0,0.5)'}`,
             `inset 1px 0 0 0 ${t.light ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.06)'}`,
             `inset -1px 0 0 0 ${t.light ? 'rgba(0,0,0,0.05)' : 'rgba(0,0,0,0.3)'}`,
-            `0 4px 10px -4px ${t.light ? 'rgba(0,0,0,0.10)' : 'rgba(0,0,0,0.4)'}`,
-            '0 26px 48px -18px rgba(0,0,0,0)',
+            elevated
+              ? `0 10px 24px -8px ${t.light ? 'rgba(0,0,0,0.20)' : 'rgba(0,0,0,0.60)'}`
+              : `0 4px 10px -4px ${t.light ? 'rgba(0,0,0,0.10)' : 'rgba(0,0,0,0.4)'}`,
+            elevated ? `0 16px 34px -14px ${hexToRgba(color, t.light ? 0.32 : 0.42)}` : '0 26px 48px -18px rgba(0,0,0,0)',
           ].join(', '),
         },
         hover: {
-          y: forceGlow ? 0 : -5,
+          y: forceGlow ? 0 : elevated ? -6 : -5,
           boxShadow: [
             `inset 0 1.5px 0 0 ${t.light ? 'rgba(255,255,255,1)' : 'rgba(255,255,255,0.22)'}`,
             `inset 0 -1.5px 0 0 ${t.light ? 'rgba(0,0,0,0.14)' : 'rgba(0,0,0,0.6)'}`,

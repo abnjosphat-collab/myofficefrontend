@@ -8,6 +8,7 @@
 // - 204 / empty bodies resolve to undefined.
 import { authFetch } from '@/lib/api';
 import { API_BASE } from '@/lib/config';
+import { toast } from 'sonner';
 
 export class ApiError extends Error {
   status: number;
@@ -16,6 +17,28 @@ export class ApiError extends Error {
     this.name = 'ApiError';
     this.status = status;
   }
+}
+
+// On any 401, offer the way in: a toast with a "Sign in" action that goes to
+// /login?next=<current page>. Before this, a signed-out user hitting a gated
+// function just saw the failure with no path to the login (which only existed
+// as a header dialog, hidden entirely on small screens). Throttled so a page
+// firing several requests at once doesn't stack identical toasts.
+let lastAuthToast = 0;
+function offerSignIn() {
+  if (typeof window === 'undefined') return;
+  const now = Date.now();
+  if (now - lastAuthToast < 5000) return;
+  lastAuthToast = now;
+  toast.error('You need to sign in to do this', {
+    action: {
+      label: 'Sign in',
+      onClick: () => {
+        const here = window.location.pathname + window.location.search;
+        window.location.href = `/login?next=${encodeURIComponent(here)}`;
+      },
+    },
+  });
 }
 
 function resolve(path: string): string {
@@ -58,7 +81,10 @@ function buildInit(method: string, body?: unknown): RequestInit {
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   const res = await authFetch(resolve(path), buildInit(method, body));
-  if (!res.ok) throw new ApiError(await extractError(res), res.status);
+  if (!res.ok) {
+    if (res.status === 401) offerSignIn();
+    throw new ApiError(await extractError(res), res.status);
+  }
   if (res.status === 204) return undefined as T;
   const text = await res.text();
   return (text ? JSON.parse(text) : undefined) as T;
@@ -67,7 +93,10 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 /** Like request() but resolves to a Blob (file downloads: CSV/PDF export, etc.). */
 async function requestBlob(method: string, path: string, body?: unknown): Promise<Blob> {
   const res = await authFetch(resolve(path), buildInit(method, body));
-  if (!res.ok) throw new ApiError(await extractError(res), res.status);
+  if (!res.ok) {
+    if (res.status === 401) offerSignIn();
+    throw new ApiError(await extractError(res), res.status);
+  }
   return res.blob();
 }
 

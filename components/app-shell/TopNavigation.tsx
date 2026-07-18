@@ -124,7 +124,14 @@ export function TopNavigation({
                   <Link
                     key={module.href}
                     href={module.href}
-                    onClick={() => commitSearch()}
+                    // Navigate on mousedown, not click: pressing a result blurs the
+                    // input, whose 150ms grace timer unmounts this dropdown — a press
+                    // held longer than that removed the row before its click ever
+                    // fired, so results silently did nothing on slower clicks.
+                    // preventDefault keeps the input from blurring; commitSearch
+                    // routes + clears. href stays for middle-click/new-tab.
+                    onMouseDown={(e) => { if (e.button === 0 && !e.ctrlKey && !e.metaKey && !e.shiftKey) { e.preventDefault(); commitSearch(module.href); } }}
+                    onClick={(e) => { if (!e.ctrlKey && !e.metaKey && !e.shiftKey) e.preventDefault(); }}
                     className={`group/row flex items-center gap-2.5 px-3 py-2 ${t.hoverBgSoft} transition-colors`}
                   >
                     <module.icon className={`h-3.5 w-3.5 shrink-0 ${t.textMuted}`} />
@@ -277,7 +284,9 @@ export function TopNavigation({
                   <Link
                     key={module.href}
                     href={module.href}
-                    onClick={() => commitSearch()}
+                    // commitSearch(href) rather than commitSearch(): also clears the
+                    // query and closes the mobile search panel after navigating.
+                    onClick={() => commitSearch(module.href)}
                     className={`group/row flex items-center gap-2.5 px-3 py-2 ${t.hoverBgSoft} transition-colors`}
                   >
                     <module.icon className={`h-3.5 w-3.5 shrink-0 ${t.textMuted}`} />

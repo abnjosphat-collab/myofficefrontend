@@ -33,7 +33,14 @@ function GoogleIcon({ className }: { className?: string }) {
   );
 }
 
-function AuthForm({ defaultMode = 'login', onClose }: { defaultMode?: 'login' | 'signup'; onClose?: () => void }) {
+export function AuthForm({ defaultMode = 'login', onClose, redirectTo }: {
+  defaultMode?: 'login' | 'signup'; onClose?: () => void;
+  /** Where to land after a successful sign-in. Defaults to reloading the current URL —
+   * the /login page passes its ?next= target instead. Either way it's a full document
+   * navigation, which is what keeps AuthContext re-deriving from a clean mount (the
+   * MFA race fix — see applySession() in lib/auth-context.tsx). */
+  redirectTo?: string;
+}) {
   const { signInWithGoogle, signInWithEmail, signUpWithEmail } = useAuth();
   const [mode, setMode] = useState<'login' | 'signup'>(defaultMode);
   const [email, setEmail] = useState('');
@@ -70,7 +77,8 @@ function AuthForm({ defaultMode = 'login', onClose }: { defaultMode?: 'login' | 
     // dialog's own close against the auth-state listener that's about to fire
     // from the same sign-in. See applySession() in lib/auth-context.tsx.
     onClose?.();
-    window.location.reload();
+    if (redirectTo) window.location.replace(redirectTo);
+    else window.location.reload();
   };
 
   return (

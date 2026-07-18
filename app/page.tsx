@@ -116,12 +116,17 @@ function ModuleCard({
 }) {
   const primaryMetric = module.metrics?.[0];
   const t = useTheme();
-  const tileBase = rgbaFromHexSafe(accentHex, t.light ? 0.05 : 0.09);
+  // Richer accent wash than the old 0.05/0.09 — the tiles read washed-out while
+  // scrolling; the tint plus GlowCard's `elevated` rest-lift makes each module
+  // visibly a raised, tinted object before any hover.
+  const tileBase = rgbaFromHexSafe(accentHex, t.light ? 0.09 : 0.14);
 
   return (
     <div className="relative group">
       <InfoCard
         icon={module.icon}
+        elevated
+        aspect="aspect-[16/9]"
         accentColor={accentHex}
         href={selectMode ? undefined : module.href}
         onClick={selectMode ? onToggleSelected : () => trackModuleUsage(module.href)}
