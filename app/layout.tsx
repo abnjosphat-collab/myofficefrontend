@@ -45,7 +45,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    // suppressHydrationWarning: the inline script below stamps `data-theme` and the
+    // `.dark` class onto <html> before React hydrates, so the client attributes
+    // deliberately differ from the server-rendered ones. Scoped to this element's own
+    // attributes only — it does not suppress warnings for any child.
+    <html lang="en" suppressHydrationWarning>
       <head>
         {/* Applies the saved theme to <html> before first paint. Without this, every
             load renders light and only flips once ThemeProvider's effect runs — a
