@@ -34,9 +34,13 @@ type EmployeeItem = EmployeeLookup;
 
 // ─── API ─────────────────────────────────────────────────────────────────────
 
+// Throws on failure — deliberately. This used to `catch { return [] }`, which made
+// a server outage indistinguishable from "no reports yet": loadReports' own
+// catch could never fire and the page rendered the friendly empty state, inviting
+// you to file the first report over data that simply hadn't loaded.
 async function getReports(): Promise<NearMissReport[]> {
-  try { const data = await api.get<NearMissReport[]>('/api/nearmiss/'); return Array.isArray(data) ? data : []; }
-  catch { return []; }
+  const data = await api.get<NearMissReport[]>('/api/nearmiss/');
+  return Array.isArray(data) ? data : [];
 }
 async function createReport(report: Partial<NearMissReport>): Promise<NearMissReport | null> {
   try { return await api.post<NearMissReport>('/api/nearmiss/', report); }
@@ -304,6 +308,7 @@ function NearMissContent() {
   const t = useTheme();
   const sections = useCollapseSection({ hero: true, records: true });
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const [reports, setReports] = useState<NearMissReport[]>([]);
 
@@ -321,8 +326,11 @@ function NearMissContent() {
   const loadReports = async (quiet = false) => {
     if (!quiet) setLoading(true);
     setRefreshing(true);
-    try { setReports(await getReports()); }
-    catch { toast.error('Failed to load reports'); }
+    try { setReports(await getReports()); setLoadError(''); }
+    catch (e) {
+      setLoadError(e instanceof Error ? e.message : 'Could not load reports.');
+      toast.error('Failed to load reports');
+    }
     finally { setLoading(false); setRefreshing(false); }
   };
 
@@ -420,6 +428,11 @@ function NearMissContent() {
           <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><AlertTriangle className="h-4 w-4 text-amber-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Near Miss Reports</span><span className={`ml-auto text-xs ${t.textFaint}`}>{filteredReports.length}</span></div>
           {loading ? (
             <div className="flex items-center justify-center py-16"><RefreshCw className={`h-6 w-6 animate-spin ${t.textFaint}`} /></div>
+          ) : loadError ? (
+            // Never show the friendly "no reports yet" state over a failed load.
+            <EmptyState icon={AlertTriangle} title="Could not load reports"
+              message={loadError}
+              action={{ label: 'Try again', onClick: () => loadReports() }} />
           ) : filteredReports.length === 0 ? (
             <EmptyState icon={AlertTriangle} title="No reports found"
               message={hasFilters ? 'No records match your filters' : 'Submit the first near miss report using the button above'}

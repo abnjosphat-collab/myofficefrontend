@@ -73,11 +73,11 @@ const REMEDY_LABELS: Record<keyof SuggestedRemedies, string> = {
 };
 
 // =============== API FUNCTIONS ===============
+// Throws on failure — the `catch { return [] }` this replaces made a server
+// outage indistinguishable from "no PTO reports yet".
 async function getPTOReports(): Promise<PTOReport[]> {
-  try {
-    const data = await api.get<PTOReport[]>('/api/pto/');
-    return Array.isArray(data) ? data : [];
-  } catch { return []; }
+  const data = await api.get<PTOReport[]>('/api/pto/');
+  return Array.isArray(data) ? data : [];
 }
 async function createPTOReport(report: Partial<PTOReport>): Promise<PTOReport> {
   return api.post<PTOReport>('/api/pto/', report);
@@ -529,6 +529,7 @@ function PTOPageContent() {
   const sections = useCollapseSection({ hero: true, records: true });
   const [reports, setReports] = useState<PTOReport[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
 
   const [selectedReport, setSelectedReport] = useState<PTOReport | null>(null);
@@ -547,8 +548,11 @@ function PTOPageContent() {
 
   const loadData = async () => {
     setLoading(true);
-    try { setReports(await getPTOReports()); }
-    catch { toast.error('Failed to load PTO reports'); }
+    try { setReports(await getPTOReports()); setLoadError(''); }
+    catch (e) {
+      setLoadError(e instanceof Error ? e.message : 'Could not load PTO reports.');
+      toast.error('Failed to load PTO reports');
+    }
     finally { setLoading(false); }
   };
 
@@ -670,6 +674,12 @@ function PTOPageContent() {
 
         {loading ? (
           <div className="flex items-center justify-center py-16"><RefreshCw className={`h-6 w-6 animate-spin ${t.textFaint}`} /></div>
+        ) : loadError ? (
+          // Don't invite a first PTO over data that merely failed to load.
+          <div className={`${t.glass} rounded-2xl ${t.shadow}`}>
+            <EmptyState icon={ClipboardList} title="Could not load PTO reports" message={loadError}
+              action={{ label: 'Try again', onClick: () => loadData() }} />
+          </div>
         ) : filtered.length === 0 ? (
           <div className={`${t.glass} rounded-2xl ${t.shadow}`}>
             <EmptyState icon={ClipboardList} title="No PTO reports found"

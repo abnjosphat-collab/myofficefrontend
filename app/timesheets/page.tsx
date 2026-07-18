@@ -126,11 +126,11 @@ const api = {
       is_active: d.is_active !== false,
     }));
   },
+  // Throws on failure — the `catch { return [] }` this replaces made a server
+  // outage indistinguishable from "nobody logged time this period".
   async timesheets(startDate: string, endDate: string): Promise<TimesheetEntry[]> {
-    try {
-      const p = new URLSearchParams({ start_date: startDate, end_date: endDate });
-      return (await apiClient.get<TimesheetEntry[]>(`/api/timesheets?${p}`)) || [];
-    } catch { return []; }
+    const p = new URLSearchParams({ start_date: startDate, end_date: endDate });
+    return (await apiClient.get<TimesheetEntry[]>(`/api/timesheets?${p}`)) || [];
   },
   async create(data: Omit<TimesheetEntry, 'id'>): Promise<TimesheetEntry> {
     const res = await apiClient.post<{ data?: TimesheetEntry } | TimesheetEntry>('/api/timesheets', data);

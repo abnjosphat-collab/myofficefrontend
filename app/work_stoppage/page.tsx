@@ -45,7 +45,9 @@ const STATUS_HEX: Record<ActionStatus, string> = { Pending: '#f59e0b', 'In Progr
 
 // ─── API ──────────────────────────────────────────────────────────────────────
 
-async function getReports(): Promise<WorkStoppageReport[]> { try { const d = await api.get<WorkStoppageReport[]>('/api/work-stoppage/'); return Array.isArray(d) ? d : []; } catch { return []; } }
+// Throws on failure — the `catch { return [] }` this replaces made a server
+// outage indistinguishable from "no work stoppages yet".
+async function getReports(): Promise<WorkStoppageReport[]> { const d = await api.get<WorkStoppageReport[]>('/api/work-stoppage/'); return Array.isArray(d) ? d : []; }
 async function createReport(data: Partial<WorkStoppageReport>): Promise<WorkStoppageReport> { return api.post<WorkStoppageReport>('/api/work-stoppage/', data); }
 async function updateReport(id: string, data: Partial<WorkStoppageReport>): Promise<WorkStoppageReport> { return api.patch<WorkStoppageReport>(`/api/work-stoppage/${id}`, data); }
 async function deleteReport(id: string): Promise<void> { await api.delete(`/api/work-stoppage/${id}`); }

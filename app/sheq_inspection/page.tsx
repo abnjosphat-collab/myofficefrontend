@@ -72,8 +72,11 @@ const ACCENT = '#86BBD8';
 
 // ─── API ──────────────────────────────────────────────────────────────────────
 
+// Throws on failure — the `catch { return [] }` this replaces made a server
+// outage indistinguishable from "no inspections yet".
 async function getInspections(): Promise<SHEQFormData[]> {
-  try { const data = await api.get<SHEQFormData[]>('/api/sheq/'); return Array.isArray(data) ? data : []; } catch { return []; }
+  const data = await api.get<SHEQFormData[]>('/api/sheq/');
+  return Array.isArray(data) ? data : [];
 }
 async function createInspection(data: Partial<SHEQFormData>): Promise<SHEQFormData> {
   return api.post<SHEQFormData>('/api/sheq/', data);

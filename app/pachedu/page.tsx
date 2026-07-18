@@ -99,8 +99,12 @@ const CHECKLIST_CATEGORIES = [
 ];
 
 // =============== API FUNCTIONS ===============
+// Throws on failure — the `catch { return [] }` this replaces made a server
+// outage look like "no reports yet". loadData already sets an error state; it
+// just never got the chance to.
 async function getPacheduReports(): Promise<PacheduReport[]> {
-  try { const data = await api.get<PacheduReport[]>('/api/pachedu/'); return Array.isArray(data) ? data : []; } catch { return []; }
+  const data = await api.get<PacheduReport[]>('/api/pachedu/');
+  return Array.isArray(data) ? data : [];
 }
 async function createPacheduReport(report: Partial<PacheduReport>): Promise<PacheduReport | null> {
   try { return await api.post<PacheduReport>('/api/pachedu/', report); } catch { return null; }

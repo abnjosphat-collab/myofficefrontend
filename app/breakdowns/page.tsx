@@ -150,14 +150,14 @@ const sparesTotalCost = (spares: Breakdown['spares_used']): number => {
 
 // ─── API ──────────────────────────────────────────────────────────────────────
 
+// Throws on failure — the `catch { return [] }` this replaces made a server
+// outage indistinguishable from "no breakdowns match these filters".
 const fetchBreakdowns = async (filters: Record<string, string> = {}): Promise<Breakdown[]> => {
-  try {
-    const params = new URLSearchParams();
-    Object.entries(filters).forEach(([k, v]) => { if (v && v !== 'all' && v !== '') params.append(k, v); });
-    const data = await api.get<any>(`/api/breakdowns/get-breakdowns?${params}`);
-    if (Array.isArray(data)) return data;
-    return data.data ?? data.breakdowns ?? data.results ?? [];
-  } catch { return []; }
+  const params = new URLSearchParams();
+  Object.entries(filters).forEach(([k, v]) => { if (v && v !== 'all' && v !== '') params.append(k, v); });
+  const data = await api.get<any>(`/api/breakdowns/get-breakdowns?${params}`);
+  if (Array.isArray(data)) return data;
+  return data.data ?? data.breakdowns ?? data.results ?? [];
 };
 
 function toApiBody(fd: BreakdownFormData) {
@@ -745,6 +745,7 @@ function BreakdownsPageContent() {
   const t = useTheme();
   const [breakdowns, setBreakdowns] = useState<Breakdown[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('table');
   const [sortField, setSortField] = useState('breakdown_date');
   const [activeView, setActiveView] = useState<'records' | 'analytics'>('records');
@@ -808,7 +809,14 @@ function BreakdownsPageContent() {
       if (filters.location !== 'all' && filters.location !== '') q.location = filters.location;
       if (showDateRange && startDate && endDate) { q.start_date = startDate; q.end_date = endDate; }
       setBreakdowns(await fetchBreakdowns(q));
-    } catch { toast.error('Failed to load breakdowns'); setBreakdowns([]); }
+      setLoadError('');
+    } catch (e) {
+      // Keep the error visible instead of blanking the list into a "no breakdowns
+      // found / log your first" state that looks like an empty database.
+      setLoadError(e instanceof Error ? e.message : 'Could not load breakdowns.');
+      toast.error('Failed to load breakdowns');
+      setBreakdowns([]);
+    }
     finally { setLoading(false); }
   }, [filters, startDate, endDate, showDateRange]);
 
@@ -937,6 +945,13 @@ function BreakdownsPageContent() {
           </div>
           {loading ? (
             <div className={`flex items-center justify-center py-16 gap-2 ${t.textFaint}`}><Loader2 className="h-5 w-5 animate-spin" /><span className="text-sm">Loading breakdowns…</span></div>
+          ) : loadError ? (
+            <div className="text-center py-16">
+              <div className={`mx-auto w-14 h-14 rounded-full ${t.chipBg} flex items-center justify-center mb-4`}><AlertTriangle className="h-6 w-6 text-rose-400/70" /></div>
+              <p className={`text-sm font-medium ${t.textMuted}`}>Could not load breakdowns</p>
+              <p className={`text-xs mt-1 mb-4 ${t.textFaint}`}>{loadError}</p>
+              <button type="button" onClick={() => loadBreakdowns()} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110"><Loader2 className="h-4 w-4" />Try again</button>
+            </div>
           ) : filteredBreakdowns.length === 0 ? (
             <div className="text-center py-16">
               <div className={`mx-auto w-14 h-14 rounded-full ${t.chipBg} flex items-center justify-center mb-4`}><AlertTriangle className="h-6 w-6 text-brand-400/60" /></div>

@@ -53,8 +53,11 @@ const STATUS_HEX: Record<VFLStatus, string> = { draft: '#94a3b8', submitted: '#3
 const ACTION_HEX: Record<ActionStatus, string> = { Pending: '#f59e0b', 'In Progress': '#3b82f6', Completed: '#10b981' };
 
 // =============== API FUNCTIONS ===============
+// Throws on failure — the `catch { return [] }` this replaces made a server
+// outage look like "no reports yet", so loadData's own catch never fired.
 async function getVFLReports(): Promise<VFLReport[]> {
-  try { const data = await api.get<VFLReport[]>('/api/vfl/'); return Array.isArray(data) ? data : []; } catch { return []; }
+  const data = await api.get<VFLReport[]>('/api/vfl/');
+  return Array.isArray(data) ? data : [];
 }
 async function createVFLReport(report: Partial<VFLReport>): Promise<VFLReport> { return api.post<VFLReport>('/api/vfl/', report); }
 async function updateVFLReport(id: string, report: Partial<VFLReport>): Promise<VFLReport> { return api.patch<VFLReport>(`/api/vfl/${id}/`, report); }
@@ -407,6 +410,7 @@ function VFLObservationContent() {
   const sections = useCollapseSection({ hero: true, records: true });
   const [reports, setReports] = useState<VFLReport[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
 
   const [selectedReport, setSelectedReport] = useState<VFLReport | null>(null);
@@ -425,8 +429,11 @@ function VFLObservationContent() {
 
   const loadData = async () => {
     setLoading(true);
-    try { setReports(await getVFLReports()); }
-    catch { toast.error('Failed to load VFL reports'); }
+    try { setReports(await getVFLReports()); setLoadError(''); }
+    catch (e) {
+      setLoadError(e instanceof Error ? e.message : 'Could not load VFL reports.');
+      toast.error('Failed to load VFL reports');
+    }
     finally { setLoading(false); }
   };
 
@@ -538,6 +545,13 @@ function VFLObservationContent() {
 
         {loading ? (
           <div className="flex items-center justify-center py-16"><RefreshCw className={`h-6 w-6 animate-spin ${t.textFaint}`} /></div>
+        ) : loadError ? (
+          // Never invite the user to "record their first observation" over data
+          // that merely failed to load.
+          <div className={`${t.glass} rounded-2xl ${t.shadow}`}>
+            <EmptyState icon={Eye} title="Could not load VFL reports" message={loadError}
+              action={{ label: 'Try again', onClick: () => loadData() }} />
+          </div>
         ) : filtered.length === 0 ? (
           <div className={`${t.glass} rounded-2xl ${t.shadow}`}>
             <EmptyState icon={Eye} title="No VFL observations found" message={total === 0 ? 'Start by recording your first VFL observation.' : 'Try adjusting your filters.'}
