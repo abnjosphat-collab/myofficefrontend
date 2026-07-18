@@ -14,7 +14,7 @@ import { motion } from 'framer-motion';
 // not directly from lucide — so shared components render in the same icon family/style
 // as the rest of the app.
 import { ChevronRight, ChevronDown, Loader2, Check, SearchIcon, Pencil, Trash2, ArrowUpRight, ArrowDownRight } from './icons';
-import { useTheme, ACCENT, ACCENT_HEX, SPACING, type Accent } from './tokens';
+import { useTheme, ACCENT, ACCENT_HEX, SPACING, RADIUS, TILE_SURFACE, TILE_ASPECT, type Accent } from './tokens';
 import { getInputSuggestions, recordInput } from '@/lib/inputHistory';
 import { GlowCard, PulsingIcon, AnimatedText, Collapse, CountUp, useScrollEdgeFlash, ScrollEdgeGlow } from './primitives';
 import { tileIconItem, tileTextContainer, tileTextItem, staggerContainer, fadeUp } from './motion';
@@ -1021,7 +1021,7 @@ export function PageHero({
 // anything a specific card needs on top (metrics grid, tags, a CTA button, badges…).
 export function InfoCard({
   icon: Icon, iconColor, accentColor, badge, metricValue, metricLabel, title, description,
-  variant = 'tile', aspect = 'aspect-[3/2]', radius = 'rounded-lg', href, onClick, animateText = true, elevated = false, children, className = '', style,
+  variant = 'tile', aspect = TILE_ASPECT, radius = RADIUS.chip, href, onClick, animateText = true, elevated = false, children, className = '', style,
 }: {
   icon: ElementType; iconColor?: string; accentColor: string; badge?: ReactNode;
   metricValue?: ReactNode; metricLabel?: string; title: string; description?: string;
@@ -1090,12 +1090,20 @@ export function InfoCard({
 
   const surfaceCls = `flex flex-col justify-between ${aspect} ${t.glassSoft} ${radius} ${SPACING.cardPad} ${className}`;
 
+  // glassSoft still supplies the border and blur; this overrides only its background
+  // tint, giving the plain field TILE_SURFACE documents. Caller `style` spreads last
+  // so a tile that genuinely needs a different surface can still say so.
+  const tileStyle: CSSProperties = {
+    backgroundColor: t.light ? TILE_SURFACE.light : TILE_SURFACE.dark,
+    ...style,
+  };
+
   return (
     <GlowCard color={accentColor} surface={radius} elevated={elevated}>
       {href ? (
-        <Link href={href} onClick={onClick} className={surfaceCls} style={style}>{inner}</Link>
+        <Link href={href} onClick={onClick} className={surfaceCls} style={tileStyle}>{inner}</Link>
       ) : (
-        <div onClick={onClick} className={surfaceCls} style={style}>{inner}</div>
+        <div onClick={onClick} className={surfaceCls} style={tileStyle}>{inner}</div>
       )}
     </GlowCard>
   );

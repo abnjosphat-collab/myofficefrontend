@@ -209,6 +209,21 @@ export const SPACING = {
   cardTextGap: 'mt-1',
 } as const;
 
+/** The module-tile surface, arrived at over several rounds of homepage iteration.
+ *  A plain, untinted field — every coloured-surface variant tried (full accent wash,
+ *  corner gradient, accent spine) read as muddy, because colour spread thin over a
+ *  large area goes grey. The category accent belongs in small saturated elements
+ *  instead: the icon and the metric value, against this clean field.
+ *  Pair with RADIUS.chip and TILE_ASPECT, and let GlowCard supply the rest shadow —
+ *  tiles sit flat at rest and only lift on hover. */
+export const TILE_SURFACE = {
+  light: '#ffffff',
+  dark: 'rgba(255,255,255,0.05)',
+} as const;
+
+/** Short tiles. 3:2 was tried first and read too tall/heavy in a dense grid. */
+export const TILE_ASPECT = 'aspect-[16/9]';
+
 export const RADIUS = {
   input: 'rounded',        // search input
   chip: 'rounded-md',      // icon buttons, small chips
