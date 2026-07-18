@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   useTheme, PageHero, StatTile, StatusBadge, ViewToggle, FormField, FormActions,
   useCollapseSection, CenterModal, ProgressBar, ACCENT_HEX, GlowCard, SelectField,
@@ -707,9 +708,7 @@ interface DetailModalProps { workOrder: WorkOrder; onClose: () => void; onRefres
 function WorkOrderDetailModal({ workOrder, onClose, onRefresh, onDelete }: DetailModalProps) {
   const t = useTheme();
   const confirm = useConfirm();
-  const [s1Open, setS1Open] = useState(false);
-  const [s2Open, setS2Open] = useState(true);
-  const [s3Open, setS3Open] = useState(true);
+  const [activeTab, setActiveTab] = useState<'request' | 'artisan' | 'foreman'>('artisan');
   const [savingA, setSavingA] = useState(false);
   const [savingF, setSavingF] = useState(false);
   const [otNA, setOtNA] = useState(false);
@@ -804,51 +803,52 @@ function WorkOrderDetailModal({ workOrder, onClose, onRefresh, onDelete }: Detai
           <StatusBadge color={pcfg.color} label={pcfg.label} />
         </div>
       </div>
-      <div className="px-5 pb-5 space-y-4">
+      <div className="px-5 pb-5">
+        <Tabs value={activeTab} onValueChange={v => setActiveTab(v as typeof activeTab)}>
+          <TabsList className={`w-full ${t.chipBg} p-1 h-auto rounded-xl mb-4`}>
+            <TabsTrigger value="request" className={`flex-1 gap-1.5 data-[state=active]:bg-brand-500/15 data-[state=active]:text-brand-400 data-[state=active]:shadow-none ${t.textFaint}`}>
+              <FileText className="h-3.5 w-3.5" /> Work Request
+            </TabsTrigger>
+            <TabsTrigger value="artisan" className={`flex-1 gap-1.5 data-[state=active]:bg-cyan-500/15 data-[state=active]:text-cyan-400 data-[state=active]:shadow-none ${t.textFaint}`}>
+              <HardHat className="h-3.5 w-3.5" /> Artisan Report
+            </TabsTrigger>
+            <TabsTrigger value="foreman" className={`flex-1 gap-1.5 data-[state=active]:bg-violet-500/15 data-[state=active]:text-violet-400 data-[state=active]:shadow-none ${t.textFaint}`}>
+              <ShieldCheck className="h-3.5 w-3.5" /> Foreman Sign-off
+            </TabsTrigger>
+          </TabsList>
 
-        {/* SECTION 1: Work Request */}
-        <div className={`${t.chipBg} rounded-xl overflow-hidden`}>
-          <div className={`flex items-center gap-2 px-4 py-3 border-b ${t.border}`}>
-            <FileText className="h-4 w-4 text-brand-400" />
-            <span className={`font-semibold text-sm ${t.textPrimary}`}>Work Request</span>
-            <span className={`ml-auto text-xs ${t.textFaint}`}>supervisor-issued · read-only</span>
-          </div>
-          <div className="px-4 pt-3 pb-2 grid grid-cols-3 gap-x-6 gap-y-2">
-            <InfoRow label="Machine" value={workOrder.equipment_info} />
-            <InfoRow label="Allocated To" value={workOrder.allocated_to || workOrder.artisan_name} />
-            <InfoRow label="Date Raised" value={workOrder.date_raised} />
-            {workOrder.job_request_details && (
-              <div className="col-span-3 mt-1">
-                <div className={`text-[10px] uppercase tracking-wide mb-0.5 ${t.textFaint}`}>Job</div>
-                <div className={`text-xs leading-relaxed ${t.textMuted} ${s1Open ? '' : 'line-clamp-2'}`}>{workOrder.job_request_details}</div>
+          {/* TAB: Work Request */}
+          <TabsContent value="request">
+            <div className={`${t.chipBg} rounded-xl overflow-hidden`}>
+              <div className={`flex items-center gap-2 px-4 py-3 border-b ${t.border}`}>
+                <FileText className="h-4 w-4 text-brand-400" />
+                <span className={`font-semibold text-sm ${t.textPrimary}`}>Work Request</span>
+                <span className={`ml-auto text-xs ${t.textFaint}`}>supervisor-issued · read-only</span>
               </div>
-            )}
-          </div>
-          {s1Open && (
-            <div className={`px-4 pb-3 pt-2 border-t ${t.border} grid grid-cols-2 gap-x-8 gap-y-3 mt-1`}>
-              <InfoRow label="Department" value={workOrder.to_department} />
-              <InfoRow label="Estimated Hours" value={workOrder.estimated_hours ? `${workOrder.estimated_hours} h` : ''} />
-              <InfoRow label="Requested By" value={workOrder.requested_by} />
-              <InfoRow label="Authorising Foreman" value={workOrder.authorising_foreman} />
-              {workOrder.job_instructions && <div className="col-span-2"><InfoRow label="Special Instructions" value={workOrder.job_instructions} /></div>}
+              <div className="px-4 pt-3 pb-3 grid grid-cols-3 gap-x-6 gap-y-2">
+                <InfoRow label="Machine" value={workOrder.equipment_info} />
+                <InfoRow label="Allocated To" value={workOrder.allocated_to || workOrder.artisan_name} />
+                <InfoRow label="Date Raised" value={workOrder.date_raised} />
+                {workOrder.job_request_details && (
+                  <div className="col-span-3 mt-1">
+                    <div className={`text-[10px] uppercase tracking-wide mb-0.5 ${t.textFaint}`}>Job</div>
+                    <div className={`text-xs leading-relaxed ${t.textMuted}`}>{workOrder.job_request_details}</div>
+                  </div>
+                )}
+              </div>
+              <div className={`px-4 pb-4 pt-2 border-t ${t.border} grid grid-cols-2 gap-x-8 gap-y-3 mt-1`}>
+                <InfoRow label="Department" value={workOrder.to_department} />
+                <InfoRow label="Estimated Hours" value={workOrder.estimated_hours ? `${workOrder.estimated_hours} h` : ''} />
+                <InfoRow label="Requested By" value={workOrder.requested_by} />
+                <InfoRow label="Authorising Foreman" value={workOrder.authorising_foreman} />
+                {workOrder.job_instructions && <div className="col-span-2"><InfoRow label="Special Instructions" value={workOrder.job_instructions} /></div>}
+              </div>
             </div>
-          )}
-          <button type="button" onClick={() => setS1Open(o => !o)} className={`w-full flex items-center justify-center gap-1.5 px-4 py-2 border-t ${t.border} ${t.hoverBgSoft} transition-colors text-brand-400/70 hover:text-brand-400 text-xs`}>
-            {s1Open ? <><ChevronUp className="h-3.5 w-3.5" /> Show less</> : <><ChevronDown className="h-3.5 w-3.5" /> View full details</>}
-          </button>
-        </div>
+          </TabsContent>
 
-        {/* SECTION 2: Artisan Report */}
-        <div className={`${t.chipBg} rounded-xl overflow-hidden`}>
-          <button type="button" className={`w-full flex items-center gap-2 px-4 py-3 border-b ${t.border} ${t.hoverBgSoft} transition-colors`} onClick={() => setS2Open(o => !o)}>
-            <HardHat className="h-4 w-4 text-cyan-400" />
-            <span className={`font-semibold text-sm ${t.textPrimary}`}>Artisan Report</span>
-            <span className={`ml-auto text-xs mr-2 ${t.textFaint}`}>Fill in after completing work</span>
-            {s2Open ? <ChevronUp className={`h-4 w-4 ${t.textFaint}`} /> : <ChevronDown className={`h-4 w-4 ${t.textFaint}`} />}
-          </button>
-
-          {s2Open && (
-            <div className="px-4 py-4 space-y-4">
+          {/* TAB: Artisan Report */}
+          <TabsContent value="artisan">
+            <div className="space-y-4">
               <div className={`border ${t.border} rounded-lg p-3 space-y-3`}>
                 <div className={`flex items-center gap-1.5 text-xs ${t.textFaint}`}><Layers className="h-3.5 w-3.5" /> Work Order Classification</div>
                 <div className="flex flex-wrap gap-1.5">
@@ -971,19 +971,11 @@ function WorkOrderDetailModal({ workOrder, onClose, onRefresh, onDelete }: Detai
 
               <Button onClick={saveArtisan} disabled={savingA} className="w-full bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-400"><Save className="h-3.5 w-3.5 mr-2" />{savingA ? 'Saving…' : 'Save Artisan Report'}</Button>
             </div>
-          )}
-        </div>
+          </TabsContent>
 
-        {/* SECTION 3: Foreman Sign-off */}
-        <div className={`${t.chipBg} rounded-xl overflow-hidden`}>
-          <button type="button" className={`w-full flex items-center gap-2 px-4 py-3 border-b ${t.border} ${t.hoverBgSoft} transition-colors`} onClick={() => setS3Open(o => !o)}>
-            <ShieldCheck className="h-4 w-4 text-violet-400" />
-            <span className={`font-semibold text-sm ${t.textPrimary}`}>Foreman Sign-off</span>
-            <span className={`ml-auto text-xs mr-2 ${t.textFaint}`}>Foreman review &amp; approval</span>
-            {s3Open ? <ChevronUp className={`h-4 w-4 ${t.textFaint}`} /> : <ChevronDown className={`h-4 w-4 ${t.textFaint}`} />}
-          </button>
-          {s3Open && (
-            <div className="px-4 py-4 space-y-4">
+          {/* TAB: Foreman Sign-off */}
+          <TabsContent value="foreman">
+            <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <FormField label="Final Status">
                   <Select value={foreman.status} onValueChange={v => setF('status', v)}>
@@ -1006,10 +998,10 @@ function WorkOrderDetailModal({ workOrder, onClose, onRefresh, onDelete }: Detai
               </div>
               <Button onClick={saveForeman} disabled={savingF} className="w-full bg-violet-500/15 hover:bg-violet-500/25 text-violet-400"><Save className="h-3.5 w-3.5 mr-2" />{savingF ? 'Saving…' : 'Save Foreman Sign-off'}</Button>
             </div>
-          )}
-        </div>
+          </TabsContent>
+        </Tabs>
 
-        <div className="flex justify-end pt-1">
+        <div className="flex justify-end pt-4">
           <button type="button" onClick={async () => { if (await confirm({ title: 'Delete this work order?', message: 'This cannot be undone.', destructive: true })) { onDelete(workOrder.id); onClose(); } }} className="flex items-center gap-1.5 text-rose-500/70 hover:text-rose-500 text-xs transition-colors">
             <Trash2 className="h-3 w-3" /> Delete work order
           </button>
