@@ -708,6 +708,19 @@ interface DetailModalProps { workOrder: WorkOrder; onClose: () => void; onRefres
 function WorkOrderDetailModal({ workOrder, onClose, onRefresh, onDelete }: DetailModalProps) {
   const t = useTheme();
   const confirm = useConfirm();
+  // Light-mode crisping. The modal is white (t.glass), but the accents/labels below
+  // were tuned for dark glass: -400 shades and textFaint (gray-500) wash out on white.
+  // Bump accents to -600 and give the primary buttons a solid fill in light mode.
+  const light = t.light;
+  const ic = {
+    brand: light ? 'text-brand-600' : 'text-brand-400',
+    cyan: light ? 'text-cyan-600' : 'text-cyan-400',
+    violet: light ? 'text-violet-600' : 'text-violet-400',
+    amber: light ? 'text-amber-600' : 'text-amber-400',
+  };
+  const subLabel = light ? 'text-gray-600' : t.textFaint;   // section sub-headers / field-group labels
+  const btnCyan = light ? 'bg-cyan-600 hover:bg-cyan-700 text-white shadow-sm' : 'bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-400';
+  const btnViolet = light ? 'bg-violet-600 hover:bg-violet-700 text-white shadow-sm' : 'bg-violet-500/15 hover:bg-violet-500/25 text-violet-400';
   const [activeTab, setActiveTab] = useState<'request' | 'artisan' | 'foreman'>('artisan');
   const [savingA, setSavingA] = useState(false);
   const [savingF, setSavingF] = useState(false);
@@ -806,13 +819,13 @@ function WorkOrderDetailModal({ workOrder, onClose, onRefresh, onDelete }: Detai
       <div className="px-5 pb-5">
         <Tabs value={activeTab} onValueChange={v => setActiveTab(v as typeof activeTab)}>
           <TabsList className={`w-full ${t.chipBg} p-1 h-auto rounded-xl mb-4`}>
-            <TabsTrigger value="request" className={`flex-1 gap-1.5 data-[state=active]:bg-brand-500/15 data-[state=active]:text-brand-400 data-[state=active]:shadow-none ${t.textFaint}`}>
+            <TabsTrigger value="request" className={`flex-1 gap-1.5 font-medium data-[state=active]:bg-brand-500/15 ${light ? 'data-[state=active]:text-brand-700' : 'data-[state=active]:text-brand-400'} data-[state=active]:shadow-sm ${subLabel}`}>
               <FileText className="h-3.5 w-3.5" /> Work Request
             </TabsTrigger>
-            <TabsTrigger value="artisan" className={`flex-1 gap-1.5 data-[state=active]:bg-cyan-500/15 data-[state=active]:text-cyan-400 data-[state=active]:shadow-none ${t.textFaint}`}>
+            <TabsTrigger value="artisan" className={`flex-1 gap-1.5 font-medium data-[state=active]:bg-cyan-500/15 ${light ? 'data-[state=active]:text-cyan-700' : 'data-[state=active]:text-cyan-400'} data-[state=active]:shadow-sm ${subLabel}`}>
               <HardHat className="h-3.5 w-3.5" /> Artisan Report
             </TabsTrigger>
-            <TabsTrigger value="foreman" className={`flex-1 gap-1.5 data-[state=active]:bg-violet-500/15 data-[state=active]:text-violet-400 data-[state=active]:shadow-none ${t.textFaint}`}>
+            <TabsTrigger value="foreman" className={`flex-1 gap-1.5 font-medium data-[state=active]:bg-violet-500/15 ${light ? 'data-[state=active]:text-violet-700' : 'data-[state=active]:text-violet-400'} data-[state=active]:shadow-sm ${subLabel}`}>
               <ShieldCheck className="h-3.5 w-3.5" /> Foreman Sign-off
             </TabsTrigger>
           </TabsList>
@@ -821,7 +834,7 @@ function WorkOrderDetailModal({ workOrder, onClose, onRefresh, onDelete }: Detai
           <TabsContent value="request">
             <div className={`${t.glassSoft} ${t.shadow} rounded-xl overflow-hidden`}>
               <div className={`flex items-center gap-2 px-4 py-3 border-b ${t.border}`}>
-                <FileText className="h-4 w-4 text-brand-400" />
+                <FileText className={`h-4 w-4 ${ic.brand}`} />
                 <span className={`font-semibold text-sm ${t.textPrimary}`}>Work Request</span>
                 <span className={`ml-auto text-xs ${t.textFaint}`}>supervisor-issued · read-only</span>
               </div>
@@ -850,11 +863,11 @@ function WorkOrderDetailModal({ workOrder, onClose, onRefresh, onDelete }: Detai
           <TabsContent value="artisan">
             <div className="space-y-4">
               <div className={`border ${t.border} rounded-lg p-3 space-y-3`}>
-                <div className={`flex items-center gap-1.5 text-xs ${t.textFaint}`}><Layers className="h-3.5 w-3.5" /> Work Order Classification</div>
+                <div className={`flex items-center gap-1.5 text-xs font-medium ${subLabel}`}><Layers className={`h-3.5 w-3.5 ${ic.brand}`} /> Work Order Classification</div>
                 <div className="flex flex-wrap gap-1.5">
                   {([{ v: 'planned_maintenance', label: 'Planned Maintenance' }, { v: 'project', label: 'Project' }, { v: 'breakdown', label: 'Breakdown' }, { v: 'custom', label: 'Other / Custom' }] as { v: WOClassification; label: string }[]).map(opt => (
                     <button key={opt.v} type="button" onClick={() => setA('classification', opt.v)}
-                      className={`px-2.5 py-1 rounded text-xs transition-colors ${artisan.classification === opt.v ? 'bg-brand-500/20 text-brand-400 font-medium' : `${t.hoverBg} ${t.textFaint}`}`}>
+                      className={`px-2.5 py-1 rounded text-xs transition-colors ${artisan.classification === opt.v ? (light ? 'bg-brand-500/15 text-brand-700 font-semibold' : 'bg-brand-500/20 text-brand-400 font-medium') : `${t.hoverBg} ${subLabel}`}`}>
                       {opt.label}
                     </button>
                   ))}
@@ -873,7 +886,7 @@ function WorkOrderDetailModal({ workOrder, onClose, onRefresh, onDelete }: Detai
                     <div className="flex gap-1.5">
                       {(['Mechanical', 'Electrical'] as Discipline[]).map(d => (
                         <button key={d} type="button" onClick={() => { setA('discipline', d); if (d === 'Electrical') setA('trade', ''); }}
-                          className={`flex-1 flex items-center justify-center gap-1 py-1 rounded text-xs transition-colors ${artisan.discipline === d ? 'bg-brand-500/20 text-brand-400 font-medium' : `${t.hoverBg} ${t.textFaint}`}`}>
+                          className={`flex-1 flex items-center justify-center gap-1 py-1 rounded text-xs transition-colors ${artisan.discipline === d ? (light ? 'bg-brand-500/15 text-brand-700 font-semibold' : 'bg-brand-500/20 text-brand-400 font-medium') : `${t.hoverBg} ${subLabel}`}`}>
                           {d === 'Mechanical' ? <Settings2 className="h-3 w-3" /> : <Zap className="h-3 w-3" />}{d}
                         </button>
                       ))}
@@ -908,14 +921,14 @@ function WorkOrderDetailModal({ workOrder, onClose, onRefresh, onDelete }: Detai
               </div>
 
               <div className={`border ${t.border} rounded-lg p-3 space-y-3`}>
-                <div className={`flex items-center gap-1.5 text-xs ${t.textFaint}`}><Timer className="h-3.5 w-3.5" /> Time Tracking</div>
+                <div className={`flex items-center gap-1.5 text-xs font-medium ${subLabel}`}><Timer className={`h-3.5 w-3.5 ${ic.cyan}`} /> Time Tracking</div>
                 <div className="grid grid-cols-3 gap-3">
                   <ThemedInput id="a-t-start" label="Time Started" type="time" value={artisan.time_work_started} onChange={v => setA('time_work_started', v)} />
                   <ThemedInput id="a-t-finish" label="Time Finished" type="time" value={artisan.time_work_finished} onChange={v => setA('time_work_finished', v)} />
                   <ThemedInput id="a-t-total" label="Total Time (auto)" value={artisan.total_time_worked} onChange={v => setA('total_time_worked', v)} placeholder="auto" readOnly={!!(artisan.time_work_started && artisan.time_work_finished)} />
                 </div>
                 <div className={`border-t ${t.border} pt-3 space-y-2`}>
-                  <div className="flex items-center gap-2"><span className={`text-xs font-medium ${t.textFaint}`}>Overtime</span><NAToggle checked={otNA} onChange={setOtNA} label={otNA ? '↩ Undo N/A' : 'Mark as N/A'} /></div>
+                  <div className="flex items-center gap-2"><span className={`text-xs font-medium ${subLabel}`}>Overtime</span><NAToggle checked={otNA} onChange={setOtNA} label={otNA ? '↩ Undo N/A' : 'Mark as N/A'} /></div>
                   {otNA ? <p className="text-orange-400/60 text-xs italic px-0.5">No overtime for this job.</p> : (
                     <div className="grid grid-cols-3 gap-3">
                       <ThemedInput id="a-ot-start" label="OT Start" type="time" value={artisan.overtime_start_time} onChange={v => setA('overtime_start_time', v)} />
@@ -925,7 +938,7 @@ function WorkOrderDetailModal({ workOrder, onClose, onRefresh, onDelete }: Detai
                   )}
                 </div>
                 <div className={`border-t ${t.border} pt-3 space-y-2`}>
-                  <div className="flex items-center gap-2"><span className={`text-xs font-medium ${t.textFaint}`}>Delays</span><NAToggle checked={delayNA} onChange={setDelayNA} label={delayNA ? '↩ Undo N/A' : 'Mark as N/A'} /></div>
+                  <div className="flex items-center gap-2"><span className={`text-xs font-medium ${subLabel}`}>Delays</span><NAToggle checked={delayNA} onChange={setDelayNA} label={delayNA ? '↩ Undo N/A' : 'Mark as N/A'} /></div>
                   {delayNA ? <p className="text-orange-400/60 text-xs italic px-0.5">No delays for this job.</p> : (
                     <div className="grid grid-cols-3 gap-3">
                       <ThemedInput id="a-d-from" label="Delay From" type="time" value={artisan.delay_from_time} onChange={v => setA('delay_from_time', v)} />
@@ -937,31 +950,31 @@ function WorkOrderDetailModal({ workOrder, onClose, onRefresh, onDelete }: Detai
               </div>
 
               <div className={`border ${t.border} rounded-lg p-3 space-y-3`}>
-                <div className={`flex items-center gap-1.5 text-xs ${t.textFaint}`}><Package className="h-3.5 w-3.5 text-amber-400/80" /> Spares Used</div>
+                <div className={`flex items-center gap-1.5 text-xs font-medium ${subLabel}`}><Package className={`h-3.5 w-3.5 ${ic.amber}`} /> Spares Used</div>
                 <div className="grid grid-cols-[1fr_70px_80px_auto] gap-2 items-end">
                   <FormField label="Spare / Part"><SpareAutocomplete value={newSpare.name} onChange={v => setNewSpare(s => ({ ...s, name: v }))} onSelect={item => setNewSpare(s => ({ ...s, name: item.description ?? '', unit_cost: String(item.unit_price ?? 0) }))} placeholder="Search spares register or type…" /></FormField>
                   <FormField label="Qty"><input type="number" min="0.01" step="0.01" value={newSpare.quantity} onChange={e => setNewSpare(s => ({ ...s, quantity: e.target.value }))} className={`w-full rounded px-2 py-1.5 text-xs outline-none transition-colors ${t.inputBg}`} /></FormField>
                   <FormField label="Unit Cost (R)"><input type="number" min="0" step="0.01" value={newSpare.unit_cost} onChange={e => setNewSpare(s => ({ ...s, unit_cost: e.target.value }))} className={`w-full rounded px-2 py-1.5 text-xs outline-none transition-colors ${t.inputBg}`} /></FormField>
-                  <button type="button" onClick={addArtisanSpare} className="h-[30px] px-2.5 bg-amber-500/15 hover:bg-amber-500/25 rounded text-amber-400 text-xs font-medium transition-colors">Add</button>
+                  <button type="button" onClick={addArtisanSpare} className={`h-[30px] px-3 rounded text-xs font-semibold transition-colors ${light ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-sm' : 'bg-amber-500/15 hover:bg-amber-500/25 text-amber-400'}`}>Add</button>
                 </div>
                 {artisanSpares.length > 0 && (
                   <div className="space-y-1.5">
                     {artisanSpares.map(s => (
                       <div key={s.id} className={`flex items-center gap-2 ${t.hoverBgSoft} rounded px-2.5 py-1.5`}>
-                        <Package className="h-3 w-3 text-amber-400/60 flex-shrink-0" />
-                        <span className={`flex-1 text-xs truncate ${t.textMuted}`}>{s.name}</span>
-                        <span className={`text-xs ${t.textFaint}`}>×{s.quantity}</span>
-                        <span className="text-amber-400/80 text-xs font-mono">R {(s.quantity * s.unit_cost).toFixed(2)}</span>
+                        <Package className={`h-3 w-3 ${ic.amber} flex-shrink-0`} />
+                        <span className={`flex-1 text-xs truncate ${t.textPrimary}`}>{s.name}</span>
+                        <span className={`text-xs ${subLabel}`}>×{s.quantity}</span>
+                        <span className={`text-xs font-mono font-semibold ${light ? 'text-amber-700' : 'text-amber-400/80'}`}>R {(s.quantity * s.unit_cost).toFixed(2)}</span>
                         <button type="button" onClick={() => setArtisanSpares(p => p.filter(x => x.id !== s.id))} className={`${t.textFaint} hover:text-rose-500 transition-colors ml-0.5`}><X className="h-3 w-3" /></button>
                       </div>
                     ))}
-                    <div className="flex justify-end"><span className="text-amber-400/90 text-xs font-mono font-semibold">Total: ${artisanSpares.reduce((a, s) => a + s.quantity * s.unit_cost, 0).toFixed(2)}</span></div>
+                    <div className="flex justify-end"><span className={`text-xs font-mono font-semibold ${light ? 'text-amber-700' : 'text-amber-400/90'}`}>Total: ${artisanSpares.reduce((a, s) => a + s.quantity * s.unit_cost, 0).toFixed(2)}</span></div>
                   </div>
                 )}
               </div>
 
               <div className={`border ${t.border} rounded-lg p-3 space-y-3`}>
-                <div className={`flex items-center gap-1.5 text-xs ${t.textFaint}`}><Signature className="h-3.5 w-3.5" /> Artisan Sign-off</div>
+                <div className={`flex items-center gap-1.5 text-xs font-medium ${subLabel}`}><Signature className={`h-3.5 w-3.5 ${ic.cyan}`} /> Artisan Sign-off</div>
                 <div className="grid grid-cols-3 gap-3">
                   <PersonAutocomplete label="Artisan Name" value={artisan.artisan_name} onChange={v => setA('artisan_name', v)} placeholder="Type to search employees…" />
                   <ThemedInput id="a-sign" label="Signature (type name)" value={artisan.artisan_sign} onChange={v => setA('artisan_sign', v)} placeholder="Type name" autoComplete="name" />
@@ -969,7 +982,7 @@ function WorkOrderDetailModal({ workOrder, onClose, onRefresh, onDelete }: Detai
                 </div>
               </div>
 
-              <Button onClick={saveArtisan} disabled={savingA} className="w-full bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-400"><Save className="h-3.5 w-3.5 mr-2" />{savingA ? 'Saving…' : 'Save Artisan Report'}</Button>
+              <Button onClick={saveArtisan} disabled={savingA} className={`w-full ${btnCyan}`}><Save className="h-3.5 w-3.5 mr-2" />{savingA ? 'Saving…' : 'Save Artisan Report'}</Button>
             </div>
           </TabsContent>
 
@@ -989,14 +1002,14 @@ function WorkOrderDetailModal({ workOrder, onClose, onRefresh, onDelete }: Detai
               </div>
               <PredictiveArea id="f-notes" label="Foreman Comments" value={foreman.notes} onChange={v => setF('notes', v)} placeholder="Comments on work done, observations, follow-up required…" rows={3} autoComplete="on" />
               <div className={`border ${t.border} rounded-lg p-3 space-y-3`}>
-                <div className={`flex items-center gap-1.5 text-xs ${t.textFaint}`}><Signature className="h-3.5 w-3.5" /> Foreman Sign-off</div>
+                <div className={`flex items-center gap-1.5 text-xs font-medium ${subLabel}`}><Signature className={`h-3.5 w-3.5 ${ic.violet}`} /> Foreman Sign-off</div>
                 <div className="grid grid-cols-3 gap-3">
                   <PersonAutocomplete label="Foreman Name" value={foreman.foreman_name} onChange={v => setF('foreman_name', v)} placeholder="Type to search employees…" />
                   <ThemedInput id="f-sign" label="Signature (type name)" value={foreman.foreman_sign} onChange={v => setF('foreman_sign', v)} placeholder="Type name" autoComplete="name" />
                   <ThemedInput id="f-date" label="Date" type="date" value={foreman.foreman_date} onChange={v => setF('foreman_date', v)} />
                 </div>
               </div>
-              <Button onClick={saveForeman} disabled={savingF} className="w-full bg-violet-500/15 hover:bg-violet-500/25 text-violet-400"><Save className="h-3.5 w-3.5 mr-2" />{savingF ? 'Saving…' : 'Save Foreman Sign-off'}</Button>
+              <Button onClick={saveForeman} disabled={savingF} className={`w-full ${btnViolet}`}><Save className="h-3.5 w-3.5 mr-2" />{savingF ? 'Saving…' : 'Save Foreman Sign-off'}</Button>
             </div>
           </TabsContent>
         </Tabs>

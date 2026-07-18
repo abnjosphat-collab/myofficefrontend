@@ -210,7 +210,9 @@ export function FormField({ label, required, children }: { label: string; requir
   const t = useTheme();
   return (
     <div>
-      <label className={`text-xs font-medium ${t.textFaint} mb-1 block`}>
+      {/* textSecondary (gray-600), not textFaint (gray-500) — field labels read as
+          washed-out grey on light backgrounds otherwise. */}
+      <label className={`text-xs font-medium ${t.textSecondary} mb-1 block`}>
         {label}{required && <span className="text-rose-500 ml-0.5">*</span>}
       </label>
       {children}
