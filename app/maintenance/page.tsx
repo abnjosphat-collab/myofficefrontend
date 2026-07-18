@@ -283,15 +283,28 @@ function calcStats(orders: WorkOrder[]) {
   const breakdowns = orders.filter(o => o.classification === 'breakdown');
   const byDiscipline = (d: Discipline) => orders.filter(o => o.discipline === d).length;
 
-  const artisanCostMap: Record<string, { hours: number; sparesCost: number; count: number }> = {};
+  const artisanCostMap: Record<string, { hours: number; estimated: number; sparesCost: number; count: number }> = {};
   breakdowns.forEach(w => {
     const name = w.artisan_name || w.allocated_to || 'Unknown';
-    if (!artisanCostMap[name]) artisanCostMap[name] = { hours: 0, sparesCost: 0, count: 0 };
-    artisanCostMap[name].hours += parseFloat(w.estimated_hours || '0') || 0;
+    if (!artisanCostMap[name]) artisanCostMap[name] = { hours: 0, estimated: 0, sparesCost: 0, count: 0 };
+    // Actual time the artisan recorded ("7h 30m"); fall back to the supervisor's
+    // estimate only when no actual was captured. This chart used to sum estimates
+    // exclusively, so it reported planned workload as if it were real hours.
+    const actual = parseDurationHours(w.total_time_worked);
+    if (actual > 0) artisanCostMap[name].hours += actual;
+    else {
+      const est = parseFloat(w.estimated_hours || '0') || 0;
+      artisanCostMap[name].hours += est;
+      artisanCostMap[name].estimated += est;
+    }
     artisanCostMap[name].count += 1;
     (w.spares_used || []).forEach(s => { artisanCostMap[name].sparesCost += s.quantity * s.unit_cost; });
   });
-  const artisanCost = Object.entries(artisanCostMap).map(([name, d]) => ({ name, hours: d.hours, sparesCost: d.sparesCost, count: d.count, total: d.hours * 50 + d.sparesCost })).sort((a, b) => b.total - a.total);
+  // Sorted by hours (what the bars show). The old sort key was hours*50+spares —
+  // a labour cost at an invented R50/hr rate that was never displayed anywhere.
+  const artisanCost = Object.entries(artisanCostMap)
+    .map(([name, d]) => ({ name, hours: d.hours, estimated: d.estimated, sparesCost: d.sparesCost, count: d.count }))
+    .sort((a, b) => b.hours - a.hours || b.sparesCost - a.sparesCost);
 
   const failureModeMap: Record<string, number> = {};
   breakdowns.forEach(w => { if (w.failure_mode) failureModeMap[w.failure_mode] = (failureModeMap[w.failure_mode] || 0) + 1; });
@@ -344,6 +357,15 @@ function calcTotal(start: string, end: string): string {
   let mins = (eh * 60 + em) - (sh * 60 + sm);
   if (mins < 0) mins += 1440;
   return `${Math.floor(mins / 60)}h ${String(mins % 60).padStart(2, '0')}m`;
+}
+
+/** Parse a calcTotal()-style duration ("7h 30m") — or a bare number — to hours. */
+function parseDurationHours(s: string | undefined): number {
+  if (!s) return 0;
+  const hm = s.match(/(\d+)\s*h(?:\s*(\d+)\s*m)?/i);
+  if (hm) return parseInt(hm[1], 10) + (hm[2] ? parseInt(hm[2], 10) / 60 : 0);
+  const n = parseFloat(s);
+  return isNaN(n) ? 0 : n;
 }
 
 // ==================== THEMED FIELD HELPERS ====================
@@ -994,7 +1016,7 @@ function WorkOrderDetailModal({ workOrder, onClose, onRefresh, onDelete }: Detai
                         <button type="button" onClick={() => setArtisanSpares(p => p.filter(x => x.id !== s.id))} className={`${t.textFaint} hover:text-rose-500 transition-colors ml-0.5`}><X className="h-3 w-3" /></button>
                       </div>
                     ))}
-                    <div className="flex justify-end"><span className={`text-xs font-mono font-semibold ${light ? 'text-amber-700' : 'text-amber-400/90'}`}>Total: ${artisanSpares.reduce((a, s) => a + s.quantity * s.unit_cost, 0).toFixed(2)}</span></div>
+                    <div className="flex justify-end"><span className={`text-xs font-mono font-semibold ${light ? 'text-amber-700' : 'text-amber-400/90'}`}>Total: R {artisanSpares.reduce((a, s) => a + s.quantity * s.unit_cost, 0).toFixed(2)}</span></div>
                   </div>
                 )}
               </div>
@@ -1229,8 +1251,10 @@ function ArtisanCostChart({ artisanCost }: { artisanCost: ReturnType<typeof calc
           <div className="flex items-center justify-between">
             <span className={`text-xs truncate max-w-[120px] ${t.textMuted}`}>{a.name}</span>
             <div className="flex items-center gap-3 text-[10px] text-right">
-              <span className="text-brand-400/80">{a.hours.toFixed(1)}h</span>
-              {a.sparesCost > 0 && <span className="text-amber-400/80">${a.sparesCost.toLocaleString('en-US', { maximumFractionDigits: 0 })}</span>}
+              {/* "~" flags totals that still contain supervisor estimates because the
+                  artisan hasn't recorded actual time on some of the work orders. */}
+              <span className="text-brand-400/80" title={a.estimated > 0 ? `includes ${a.estimated.toFixed(1)}h estimated (no actual time recorded)` : 'actual recorded time'}>{a.estimated > 0 ? '~' : ''}{a.hours.toFixed(1)}h</span>
+              {a.sparesCost > 0 && <span className="text-amber-400/80">R{a.sparesCost.toLocaleString('en-ZA', { maximumFractionDigits: 0 })}</span>}
               <span className={t.textFaint}>({a.count} WO)</span>
             </div>
           </div>
@@ -1279,7 +1303,7 @@ function AnalyticsPanel({ stats, standalone, rawOrders = [] }: { stats: ReturnTy
           { label: 'Breakdowns', value: activeStats.breakdowns, color: 'text-red-400', sub: activeStats.total > 0 ? `${Math.round(activeStats.breakdowns / activeStats.total * 100)}%` : '—' },
           { label: 'Planned Maint.', value: activeStats.plannedMaintenance, color: 'text-green-400', sub: undefined },
           { label: 'Breakdown Hrs', value: `${activeStats.artisanCost.reduce((a, x) => a + x.hours, 0).toFixed(1)}h`, color: 'text-brand-400', sub: undefined },
-          { label: 'Spares Cost', value: `$${activeStats.sparesTotalCost.toLocaleString('en-US', { maximumFractionDigits: 0 })}`, color: 'text-amber-400', sub: undefined },
+          { label: 'Spares Cost', value: `R${activeStats.sparesTotalCost.toLocaleString('en-ZA', { maximumFractionDigits: 0 })}`, color: 'text-amber-400', sub: undefined },
           { label: 'Completion', value: `${activeStats.efficiency}%`, color: activeStats.efficiency >= 70 ? 'text-green-400' : activeStats.efficiency >= 40 ? 'text-yellow-400' : 'text-red-400', sub: `${activeStats.completed}/${activeStats.total}` },
         ].map(k => (
           <div key={k.label} className={`${t.chipBg} rounded-xl p-3 text-center`}>
@@ -1421,7 +1445,7 @@ function WorkOrderRow({ workOrder, onClick, isExpanded, onToggle, onEdit }: { wo
                 <div className={`text-[10px] uppercase tracking-wide mb-1 ${t.textFaint}`}>Spares Used</div>
                 <div className="flex flex-wrap gap-1.5">
                   {workOrder.spares_used.map(s => <span key={s.id} className="bg-amber-500/10 text-amber-400/80 text-[10px] px-2 py-0.5 rounded-full">{s.name} ×{s.quantity} · ${(s.quantity * s.unit_cost).toFixed(0)}</span>)}
-                  <span className={`${t.chipBg} ${t.textFaint} text-[10px] px-2 py-0.5 rounded-full font-mono`}>Total: ${workOrder.spares_used.reduce((a, s) => a + s.quantity * s.unit_cost, 0).toFixed(2)}</span>
+                  <span className={`${t.chipBg} ${t.textFaint} text-[10px] px-2 py-0.5 rounded-full font-mono`}>Total: R {workOrder.spares_used.reduce((a, s) => a + s.quantity * s.unit_cost, 0).toFixed(2)}</span>
                 </div>
               </div>
             )}
@@ -1646,6 +1670,17 @@ function MaintenancePageContent() {
   const [sortBy, setSortBy] = useState<SortBy>('date-desc');
   const [priorityFilter, setPriorityFilter] = useState<WorkOrderPriority[]>([]);
   const [showFilterMenu, setShowFilterMenu] = useState(false);
+  // Close the priority-filter dropdown on any click outside it — it used to stay
+  // open over the content until its own button was clicked again.
+  const filterMenuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!showFilterMenu) return;
+    const onDown = (e: MouseEvent) => {
+      if (filterMenuRef.current && !filterMenuRef.current.contains(e.target as Node)) setShowFilterMenu(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [showFilterMenu]);
   const selectedOrder = useMemo(() => selectedOrderId ? workOrders.find(w => String(w.id) === String(selectedOrderId)) ?? null : null, [workOrders, selectedOrderId]);
 
   const load = async () => {
@@ -1897,7 +1932,7 @@ function MaintenancePageContent() {
                     ]} />
                 </div>
 
-                <div className="relative">
+                <div className="relative" ref={filterMenuRef}>
                   <button type="button" onClick={() => setShowFilterMenu(o => !o)} className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg transition-colors ${priorityFilter.length > 0 ? 'bg-brand-500/15 text-brand-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}>
                     <SlidersHorizontal className="h-3.5 w-3.5" />{priorityFilter.length > 0 ? `Priority (${priorityFilter.length})` : 'Filter'}
                   </button>
