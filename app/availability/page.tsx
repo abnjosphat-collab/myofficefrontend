@@ -9,6 +9,7 @@ import {
   Clock, Activity, Percent, Calculator,
 } from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
+import { api } from '@/lib/apiClient';
 import { formatDate } from '@/lib/format';
 import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, ProgressBar, useCollapseSection, ACCENT_HEX, SelectField,
@@ -69,6 +70,30 @@ const MOCK_STATS: AvailabilityStats = {
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 
+const VALID_STATUS: Equipment['status'][] = ['operational', 'maintenance', 'breakdown', 'idle'];
+
+// The backend (/api/availabilities) returns snake_case equipment rows; this page's
+// Equipment type is camelCase. Map the fields and default anything missing/unknown.
+function mapEquipment(e: Record<string, unknown>): Equipment {
+  const status = String(e.status ?? '');
+  return {
+    id: String(e.id ?? ''),
+    name: String(e.name ?? ''),
+    category: String(e.category ?? 'Uncategorised'),
+    department: String(e.department ?? '—'),
+    operationalHours: Number(e.operational_hours ?? 0),
+    breakdownHours: Number(e.breakdown_hours ?? 0),
+    availability: Number(e.availability ?? 0),
+    status: (VALID_STATUS as string[]).includes(status) ? (status as Equipment['status']) : 'idle',
+    lastMaintenance: (e.last_maintenance as string) ?? null,
+    nextMaintenance: (e.next_maintenance as string) ?? null,
+    uptime: Number(e.uptime ?? 0),
+    downtime: Number(e.downtime ?? 0),
+    mtbf: Number(e.mtbf ?? 0),
+    mttr: Number(e.mttr ?? 0),
+  };
+}
+
 const fmtDate = (d: string | null) => (d ? formatDate(d) : 'Not scheduled');
 
 function statusCfg(status: Equipment['status']) {
@@ -110,12 +135,15 @@ function AvailabilityContent() {
     if (!quiet) setLoading(true);
     setRefreshing(true);
     try {
-      const [eqRes, stRes] = await Promise.all([
-        fetch('/api/availabilities').catch(() => null),
-        fetch('/api/availabilities/stats').catch(() => null),
+      // api.get hits the backend origin with auth. These were bare relative fetches
+      // ('/api/availabilities') that resolved against the Next app (404) and silently
+      // fell back to mock data forever. .catch(() => null) keeps the graceful fallback.
+      const [rawEq, rawStats] = await Promise.all([
+        api.get<Record<string, unknown>[]>('/api/availabilities').catch(() => null),
+        api.get<AvailabilityStats>('/api/availabilities/stats').catch(() => null),
       ]);
-      setEquipment(eqRes?.ok ? await eqRes.json() : MOCK_EQUIPMENT);
-      setStats(stRes?.ok ? await stRes.json() : MOCK_STATS);
+      setEquipment(rawEq && rawEq.length ? rawEq.map(mapEquipment) : MOCK_EQUIPMENT);
+      setStats(rawStats ?? MOCK_STATS);
     } catch {
       setEquipment(MOCK_EQUIPMENT);
       setStats(MOCK_STATS);

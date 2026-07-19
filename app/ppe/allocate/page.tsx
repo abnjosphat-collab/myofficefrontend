@@ -6,6 +6,7 @@ import { ArrowLeft, Shield, Save } from '@/components/shared/theme';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AppShell } from '@/components/app-shell';
+import { api } from '@/lib/apiClient';
 import { useTheme, PageHero, FormField, FormActions, SelectField } from '@/components/shared/theme';
 
 interface Employee { id: string; name: string; }
@@ -31,7 +32,9 @@ function CreateAllocationContent() {
   });
 
   useEffect(() => {
-    fetch('/api/employees').then(r => r.ok ? r.json() : []).then((data: Employee[]) => setEmployees(data)).catch(() => {});
+    // api.get (not a relative fetch) so this hits the backend origin with auth — a bare
+    // fetch('/api/employees') resolves against the Next app, which has no such route (404).
+    api.get<Employee[]>('/api/employees').then(setEmployees).catch(() => {});
     const stored = localStorage.getItem('ppe-items');
     if (stored) setPpeItems(JSON.parse(stored));
   }, []);
