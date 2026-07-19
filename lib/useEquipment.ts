@@ -1,6 +1,7 @@
 // lib/useEquipment.ts — shared hook: fetches equipment list from the API
 import { useState, useEffect, useCallback } from 'react';
 import { API_BASE } from '@/lib/config';
+import { authFetch } from '@/lib/api';
 
 export interface EquipmentItem {
   id: number | string;
@@ -38,7 +39,8 @@ export function useEquipment() {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch(`${API_BASE}/api/equipment`);
+      // authFetch so the read carries the Supabase token (lets /api/equipment be guarded).
+      const res = await authFetch(`${API_BASE}/api/equipment`);
       if (!res.ok) throw new Error('Failed to load equipment');
       const data: EquipmentItem[] = await res.json();
       setEquipment(data);

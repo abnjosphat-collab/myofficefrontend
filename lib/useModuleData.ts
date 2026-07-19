@@ -16,7 +16,9 @@ export function useModuleData<T>(endpoint: string) {
     setError('');
     try {
       const q = params ? '?' + new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString() : '';
-      const r = await fetch(`${url}${q}`);
+      // authFetch (not raw fetch) so the read carries the Supabase token — keeps GET
+      // consistent with this hook's create/update/remove and lets read endpoints be guarded.
+      const r = await authFetch(`${url}${q}`);
       if (!r.ok) throw new Error(`${r.status}: ${await r.text()}`);
       setData(await r.json());
     } catch (e) {
