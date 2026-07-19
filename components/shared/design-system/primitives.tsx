@@ -301,20 +301,20 @@ export function CenterModal({
               />
               <button
                 onClick={onClose}
-                className={`absolute top-3.5 right-3.5 h-8 w-8 flex items-center justify-center rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-colors`}
+                className={`absolute top-3 right-3 h-9 w-9 flex items-center justify-center rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-colors`}
                 type="button"
                 aria-label="Close"
                 title="Close"
               >
-                <X className="h-4 w-4 pointer-events-none" />
+                <X className="h-[18px] w-[18px] pointer-events-none" />
               </button>
-              <h2 className={`relative font-semibold ${t.textPrimary} text-[13px] tracking-tight pr-10`}>{title}</h2>
+              <h2 className={`relative font-semibold ${t.textPrimary} text-[13px] tracking-tight pr-12`}>{title}</h2>
               {subtitle && (
                 <AnimatedText
                   as="p"
                   trigger="mount"
                   text={subtitle}
-                  className={`relative ${t.textSecondary} text-[11px] mt-0.5 pr-10`}
+                  className={`relative ${t.textSecondary} text-[11px] mt-0.5 pr-12`}
                 />
               )}
             </div>
