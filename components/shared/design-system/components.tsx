@@ -95,7 +95,7 @@ export function CardIconButton({
       whileHover={{ y: -1.5 }}
       whileTap={{ scale: 0.88 }}
       transition={{ type: 'spring', stiffness: 420, damping: 26 }}
-      className={`h-7 w-7 flex items-center justify-center rounded-lg border backdrop-blur-md transition-colors duration-200 ${
+      className={`h-8 w-8 flex items-center justify-center rounded-lg border backdrop-blur-md transition-colors duration-200 ${
         active ? '' : `${t.glassSoft} ${t.border} ${t.textFaint} ${t.hoverText}`
       }`}
       style={active ? { color: hex, background: `${hex}1f`, borderColor: `${hex}55` } : undefined}
@@ -103,7 +103,7 @@ export function CardIconButton({
       {/* Phosphor icons are solid-path glyphs (unlike lucide's stroke paths) — forcing
          fill="none" makes them render invisible. Use `weight="fill"` instead to get a
          filled look, and leave the rest to the global solid/outline icon-style toggle. */}
-      <Icon className="h-[15px] w-[15px]" weight={filled ? 'fill' : undefined} />
+      <Icon className="h-[17px] w-[17px]" weight={filled ? 'fill' : undefined} />
     </motion.button>
   );
 }

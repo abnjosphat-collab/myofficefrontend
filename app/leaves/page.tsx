@@ -47,9 +47,12 @@ const LEAVE_TYPES: Record<string, LeaveType> = {
   annual: { name: 'Annual Leave', shortName: 'Annual', color: '#2563eb', icon: CalendarDays, description: 'Paid vacation time for rest and relaxation' },
   sick: { name: 'Sick Leave', shortName: 'Sick', color: '#dc2626', icon: Stethoscope, description: 'Medical and health-related absences' },
   emergency: { name: 'Emergency Leave', shortName: 'Emergency', color: '#d97706', icon: Shield, description: 'Urgent personal or family matters' },
-  compassionate: { name: 'Compassionate Leave', shortName: 'Compassionate', color: '#7c3aed', icon: Heart, description: 'Bereavement and family emergencies' },
+  // Key stays 'compassionate' on purpose: existing leave records store that value, and
+  // renaming the key would make them fall back to "Annual". Only the display label changed.
+  compassionate: { name: 'Special Leave', shortName: 'Special', color: '#7c3aed', icon: Heart, description: 'Bereavement and family emergencies' },
   maternity: { name: 'Maternity Leave', shortName: 'Maternity', color: '#db2777', icon: Users, description: 'Parental leave for childbirth' },
   study: { name: 'Study Leave', shortName: 'Study', color: '#059669', icon: GraduationCap, description: 'Professional development and education' },
+  lieu: { name: 'Leave in Lieu of Overtime', shortName: 'In Lieu', color: '#0891b2', icon: Clock, description: 'Time off earned from worked overtime' },
 };
 
 // ---------- Types ----------
