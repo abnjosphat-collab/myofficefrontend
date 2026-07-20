@@ -15,9 +15,9 @@ import { useDashboardData } from './useDashboardData';
 import { saveFeedback } from '@/lib/usage';
 
 export function BottomBar({
-  sidebarCollapsed, onOpenCustomize, onToggleSidebarCollapsed, onResetCustomizations,
+  sidebarCollapsed, onOpenCustomize, onOpenPreferences, onToggleSidebarCollapsed, onResetCustomizations,
 }: {
-  sidebarCollapsed: boolean; onOpenCustomize: () => void;
+  sidebarCollapsed: boolean; onOpenCustomize: () => void; onOpenPreferences: () => void;
   onToggleSidebarCollapsed: () => void; onResetCustomizations: () => void;
 }) {
   const t = useTheme();
@@ -187,7 +187,14 @@ export function BottomBar({
                   transition={{ duration: 0.2 }}
                   className={`absolute bottom-full right-0 mb-2 w-72 ${t.glass} rounded-xl ${t.shadow} overflow-hidden z-20`}
                 >
-                  <div className={`px-3 py-2 text-[11px] font-semibold uppercase tracking-wide ${t.textFaint}`}>Appearance</div>
+                  <button
+                    onClick={() => { onOpenPreferences(); setOpenMenu(null); }}
+                    type="button"
+                    className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-[12.5px] font-medium ${t.textPrimary} ${t.hoverBg} transition-colors`}
+                  >
+                    <Settings className="h-3.5 w-3.5 text-brand-400" /> Preferences…
+                  </button>
+                  <div className={`px-3 py-2 text-[11px] font-semibold uppercase tracking-wide border-t ${t.border} ${t.textFaint}`}>Appearance</div>
                   <button
                     onClick={() => { t.toggle(); setOpenMenu(null); }}
                     type="button"
@@ -215,7 +222,7 @@ export function BottomBar({
                         type="button"
                         style={{ fontFamily: opt.sample }}
                         className={`flex items-center justify-between gap-1.5 px-2.5 py-2 rounded-lg text-[12.5px] transition-colors ${
-                          font === opt.id ? `${ACCENT.blue.chip} ${ACCENT.blue.text}` : `${t.chipBg} ${t.textMuted} ${t.hoverText} ${t.hoverBg}`
+                          font === opt.id ? `${ACCENT.violet.chip} ${ACCENT.violet.text}` : `${t.chipBg} ${t.textMuted} ${t.hoverText} ${t.hoverBg}`
                         }`}
                       >
                         {opt.label}

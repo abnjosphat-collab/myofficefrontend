@@ -87,6 +87,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <BottomBar
         sidebarCollapsed={s.sidebarCollapsed}
         onOpenCustomize={() => s.setCustomizeOpen(true)}
+        onOpenPreferences={() => { setPrefsWelcome(false); setPrefsOpen(true); }}
         onToggleSidebarCollapsed={() => s.setSidebarCollapsed(!s.sidebarCollapsed)}
         onResetCustomizations={s.resetCustomizations}
       />
