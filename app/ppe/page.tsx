@@ -19,7 +19,7 @@ import {
   useTheme, Collapse, AnimatedText, PulsingIcon, CenterModal, GlowCard,
   staggerContainer, fadeUp, ACCENT, ACCENT_HEX, type Accent,
   StatusBadge, RecordCard, StatTile, ProgressBar, FormField, FormActions,
-  useCollapseSection, SelectField,
+  useCollapseSection, SelectField, AutofillInput,
 } from '@/components/shared/theme';
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
@@ -520,7 +520,7 @@ function PPEIssueForm({ isOpen, onClose, onSubmit, initialData, employee, allEmp
                   className={inputCls} placeholder="Auto-filled from ID lookup" />
               </FormField>
               <FormField label="Position" required>
-                <input type="text" value={form.position} onChange={e => set('position', e.target.value)}
+                <AutofillInput field="position" value={form.position} onChange={v => set('position', v)}
                   className={inputCls} placeholder="Job title" />
               </FormField>
             </div>
@@ -535,13 +535,13 @@ function PPEIssueForm({ isOpen, onClose, onSubmit, initialData, employee, allEmp
                   options={Object.entries(PPE_TYPES).map(([k, pt]) => ({ value: k, label: pt.name }))} />
               </FormField>
               <FormField label="Item Name / Brand" required>
-                <input type="text" value={form.item_name} onChange={e => set('item_name', e.target.value)}
+                <AutofillInput field="ppe_item_name" value={form.item_name} onChange={v => set('item_name', v)}
                   className={inputCls} placeholder="e.g. MSA V-Gard Helmet" />
               </FormField>
             </div>
             <div className="grid grid-cols-3 gap-3">
               <FormField label="Size">
-                <input type="text" value={form.size} onChange={e => set('size', e.target.value)}
+                <AutofillInput field="ppe_size" value={form.size} onChange={v => set('size', v)}
                   className={inputCls} placeholder="L, XL, 42…" />
               </FormField>
               <FormField label="Condition">
@@ -723,9 +723,6 @@ export default function PPEManagement() {
   const [searchTerm,    setSearchTerm]    = useState('');
   // All employee cards start collapsed (empty object = all false)
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-  // Hovering the Expand All/Collapse All button previews the effect on every card
-  // before you commit to it with a click.
-  const [hoverAllPreview, setHoverAllPreview] = useState<'expand' | 'collapse' | null>(null);
 
   // ── Data loading ───────────────────────────────────────────────────────────
 
@@ -1185,10 +1182,8 @@ export default function PPEManagement() {
             {/* Collapse All / Expand All — only visible when the panel is open and cards are shown */}
             {sections.expanded.records && (filterType === 'all' || filterType === 'active') && filteredEmployees.length > 0 && (
               <motion.button type="button" onClick={anyExpanded ? collapseAll : expandAll}
-                onMouseEnter={() => setHoverAllPreview(anyExpanded ? 'collapse' : 'expand')}
-                onMouseLeave={() => setHoverAllPreview(null)}
                 whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-                className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-semibold transition-all shrink-0 ${anyExpanded ? `${t.glassSoft} ${t.textMuted} ${t.hoverText}` : `text-white bg-gradient-to-br ${ACCENT.blue.gradient} ${ACCENT.blue.solidGlow}`}`}>
+                className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-semibold transition-all shrink-0 ${anyExpanded ? `${t.glassSoft} ${t.textMuted} ${t.hoverText}` : `text-white bg-gradient-to-br ${ACCENT.violet.gradient} ${ACCENT.violet.solidGlow}`}`}>
                 {anyExpanded ? <ChevronsUp className="h-3.5 w-3.5" /> : <ChevronsDown className="h-3.5 w-3.5" />}
                 {anyExpanded ? 'Collapse All' : 'Expand All'}
               </motion.button>
@@ -1217,7 +1212,7 @@ export default function PPEManagement() {
                   </p>
                   {records.length === 0 && (
                     <motion.button type="button" onClick={() => openIssueForm()} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-                      className={`mt-4 inline-flex items-center gap-1.5 text-xs px-4 py-2 rounded-lg font-semibold text-white transition-all bg-gradient-to-br ${ACCENT.blue.gradient} ${ACCENT.blue.solidGlow}`}>
+                      className={`mt-4 inline-flex items-center gap-1.5 text-xs px-4 py-2 rounded-lg font-semibold text-white transition-all bg-gradient-to-br ${ACCENT.violet.gradient} ${ACCENT.violet.solidGlow}`}>
                       <Plus className="h-3.5 w-3.5" /> Issue First PPE
                     </motion.button>
                   )}
@@ -1226,11 +1221,7 @@ export default function PPEManagement() {
                 <div className="space-y-2.5">
                   {filteredEmployees.map(emp => (
                     <EmployeePPECard key={emp.employee_id} employee={emp}
-                      isExpanded={
-                        hoverAllPreview === 'expand' ? true :
-                        hoverAllPreview === 'collapse' ? false :
-                        !!expanded[emp.employee_id]
-                      }
+                      isExpanded={!!expanded[emp.employee_id]}
                       onToggle={() => toggle(emp.employee_id)}
                       onIssueNew={openIssueForm}
                       onEditItem={r => { setEditData(r); setShowForm(true); }}

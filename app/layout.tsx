@@ -57,7 +57,7 @@ export default function RootLayout({
             with THEME_KEY / the .dark class in design-system/tokens.tsx. */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var d=localStorage.getItem('myoffice_theme')==='dark';document.documentElement.classList.toggle('dark',d);document.documentElement.dataset.theme=d?'dark':'light';}catch(e){}})();`,
+            __html: `(function(){try{var d=localStorage.getItem('myoffice_theme')==='dark';document.documentElement.classList.toggle('dark',d);document.documentElement.dataset.theme=d?'dark':'light';var s={small:0.925,'default':1,large:1.075,xlarge:1.15}[localStorage.getItem('oz_fontScale')];if(s){document.documentElement.style.zoom=String(s);}}catch(e){}})();`,
           }}
         />
       </head>

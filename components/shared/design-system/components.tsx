@@ -16,6 +16,7 @@ import { motion } from 'framer-motion';
 import { ChevronRight, ChevronDown, Loader2, Check, SearchIcon, Pencil, Trash2, ArrowUpRight, ArrowDownRight } from './icons';
 import { useTheme, ACCENT, ACCENT_HEX, SPACING, RADIUS, TILE_SURFACE, TILE_ASPECT, type Accent } from './tokens';
 import { getInputSuggestions, recordInput } from '@/lib/inputHistory';
+import { getDefaultExpanded } from '@/lib/prefs';
 import { GlowCard, PulsingIcon, AnimatedText, Collapse, CountUp, useScrollEdgeFlash, ScrollEdgeGlow } from './primitives';
 import { tileIconItem, tileTextContainer, tileTextItem, staggerContainer, fadeUp } from './motion';
 
@@ -23,7 +24,16 @@ import { tileIconItem, tileTextContainer, tileTextItem, staggerContainer, fadeUp
 // Same shape (`sections.expanded.key`, `sections.toggle('key')`) so call sites
 // migrating off the old shared hook don't need to change how they read/toggle state.
 export function useCollapseSection(initial: Record<string, boolean>) {
+  // Respect the user's "default sections expanded" preference: when set, every section
+  // starts open regardless of the per-page defaults. Read once on mount (SSR-safe → the
+  // initial render matches the server, then the effect applies the saved preference).
   const [expanded, setExpanded] = useState<Record<string, boolean>>(initial);
+  useEffect(() => {
+    if (getDefaultExpanded()) {
+      setExpanded(prev => Object.fromEntries(Object.keys(prev).map(k => [k, true])));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const toggle = (key: string) => setExpanded(prev => ({ ...prev, [key]: !prev[key] }));
   const allOpen = Object.values(expanded).every(Boolean);
   const toggleAll = () => setExpanded(Object.fromEntries(Object.keys(expanded).map(k => [k, !allOpen])));
@@ -487,7 +497,9 @@ export function RecordCard({
   const expandable = !!children;
   return (
     <GlowCard color={accentHex} surface={`${t.glass} rounded-2xl`} className="overflow-hidden">
-      <div className="p-4">
+      {/* Whole header toggles (not just the chevron) — click anywhere on the card head to
+          expand/collapse. Nested action buttons stopPropagation so they don't also toggle. */}
+      <div className={`p-4 ${expandable ? 'cursor-pointer' : ''}`} onClick={expandable ? toggle : undefined}>
         <div className="flex items-start gap-3">
           <motion.div variants={tileIconItem} className="shrink-0 mt-0.5">
             <Icon className="h-5 w-5" style={{ color: accentHex }} />
@@ -499,11 +511,13 @@ export function RecordCard({
           </div>
           {(headerActions || expandable) && (
             <div className="flex items-center gap-1.5 shrink-0">
-              {headerActions}
+              {/* display:contents keeps layout identical while catching clicks on any
+                  action button so they don't bubble up and toggle the card. */}
+              {headerActions && <span style={{ display: 'contents' }} onClick={e => e.stopPropagation()}>{headerActions}</span>}
               {expandable && (
-                <button type="button" onClick={toggle} title={open ? 'Show less' : 'Expand details'}
-                  className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all`}>
-                  <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />
+                <button type="button" onClick={e => { e.stopPropagation(); toggle(); }} title={open ? 'Show less' : 'Expand details'}
+                  className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all`}>
+                  <ChevronDown className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} />
                 </button>
               )}
             </div>

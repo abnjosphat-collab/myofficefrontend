@@ -804,7 +804,7 @@ function DocumentsPageContent() {
           <div className={`fixed left-0 top-0 h-full w-64 ${t.glass} z-50 ${t.shadow} p-4`}>
             <div className="flex justify-between items-center mb-4">
               <h2 className={`font-semibold ${t.textPrimary}`}>Categories</h2>
-              <button type="button" onClick={() => setMobileMenuOpen(false)} title="Close" className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint}`}><X className="h-4 w-4" /></button>
+              <button type="button" onClick={() => setMobileMenuOpen(false)} title="Close" aria-label="Close" className={`h-9 w-9 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint}`}><X className="h-5 w-5" /></button>
             </div>
             <div className="space-y-1">
               {BASE_CATEGORIES.map(cat => {

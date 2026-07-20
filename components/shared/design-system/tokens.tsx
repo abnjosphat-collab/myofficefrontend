@@ -142,6 +142,52 @@ export function FontStyleProvider({ children }: { children: ReactNode }) {
   return <FontStyleContext.Provider value={value}>{children}</FontStyleContext.Provider>;
 }
 
+// ─── Font scale (user-adjustable UI size) ──────────────────────────────────────
+// Applied via CSS `zoom` on <html>, NOT root font-size: most of the app uses literal
+// px text sizes (text-[12.5px], …) that a font-size change would not touch, whereas
+// zoom scales the whole UI — text, spacing and icons — proportionally. Mirrors the
+// FontStyleProvider pattern (localStorage-persisted, applied in an effect); the layout's
+// pre-paint script applies the saved value before first paint to avoid a zoom flash.
+
+export type FontScale = 'small' | 'default' | 'large' | 'xlarge';
+export const FONT_SCALE_KEY = 'oz_fontScale';
+
+export const FONT_SCALE_OPTIONS: { id: FontScale; label: string; value: number }[] = [
+  { id: 'small',   label: 'Small',       value: 0.925 },
+  { id: 'default', label: 'Default',     value: 1 },
+  { id: 'large',   label: 'Large',       value: 1.075 },
+  { id: 'xlarge',  label: 'Extra large', value: 1.15 },
+];
+
+type FontScaleContextValue = { scale: FontScale; setScale: (s: FontScale) => void };
+const FontScaleContext = createContext<FontScaleContextValue>({ scale: 'default', setScale: () => {} });
+export const useFontScale = () => useContext(FontScaleContext);
+
+export function applyFontScale(scale: FontScale) {
+  const opt = FONT_SCALE_OPTIONS.find(o => o.id === scale);
+  // `zoom` isn't in the typed CSSStyleDeclaration but is widely supported (Chromium/WebKit,
+  // Firefox 126+). Setting it on <html> scales the whole document including fixed elements.
+  (document.documentElement.style as unknown as { zoom: string }).zoom = String(opt?.value ?? 1);
+  document.documentElement.dataset.fontScale = scale;
+}
+
+export function FontScaleProvider({ children }: { children: ReactNode }) {
+  const [scale, setScaleState] = useState<FontScale>('default');
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(FONT_SCALE_KEY) as FontScale | null;
+      if (saved && FONT_SCALE_OPTIONS.some(o => o.id === saved)) setScaleState(saved);
+    } catch { /* storage unavailable — keep default */ }
+  }, []);
+  useEffect(() => { applyFontScale(scale); }, [scale]);
+  const setScale = (s: FontScale) => {
+    setScaleState(s);
+    try { localStorage.setItem(FONT_SCALE_KEY, s); } catch { /* non-fatal */ }
+  };
+  const value = useMemo<FontScaleContextValue>(() => ({ scale, setScale }), [scale]);
+  return <FontScaleContext.Provider value={value}>{children}</FontScaleContext.Provider>;
+}
+
 // ─── Accent colour palette (shared across pages for consistent theming) ────
 
 export type Accent = 'blue' | 'amber' | 'indigo' | 'emerald' | 'cyan' | 'violet';

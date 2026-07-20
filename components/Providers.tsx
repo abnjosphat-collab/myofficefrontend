@@ -3,7 +3,7 @@
 
 import { AuthProvider } from '@/lib/auth-context';
 import { GlobalMfaGate } from '@/components/app-shell/mfa-ui';
-import { ThemeProvider, IconStyleProvider, FontStyleProvider, ConfirmProvider } from '@/components/shared/theme';
+import { ThemeProvider, IconStyleProvider, FontStyleProvider, FontScaleProvider, ConfirmProvider } from '@/components/shared/theme';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
@@ -14,7 +14,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <ThemeProvider>
         <IconStyleProvider>
           <FontStyleProvider>
-            <ConfirmProvider>{children}</ConfirmProvider>
+            <FontScaleProvider>
+              <ConfirmProvider>{children}</ConfirmProvider>
+            </FontScaleProvider>
           </FontStyleProvider>
         </IconStyleProvider>
       </ThemeProvider>

@@ -4,7 +4,7 @@
 // pages not yet migrated). No wallpaper here, per the homepage's design.
 'use client';
 
-import { useMemo, useEffect } from 'react';
+import { useMemo, useEffect, useState } from 'react';
 import { Bookmark, X } from '@/components/shared/theme';
 import {
   useTheme, CenterModal, DEFAULT_BG_ACCENT, bgLayersFromHex,
@@ -15,12 +15,22 @@ import { BottomBar } from './BottomBar';
 import { UsageTracker } from './UsageTracker';
 import { useAppShellState } from './useAppShellState';
 import { AppShellContext } from './context';
+import { PreferencesPanel } from './PreferencesPanel';
+import { hasSeenPrefs } from '@/lib/prefs';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const t = useTheme();
   const s = useAppShellState();
   const bgAccent = DEFAULT_BG_ACCENT;
   const bgLayers = useMemo(() => bgLayersFromHex(bgAccent), []);
+
+  // Preferences panel + first-run setup: open it once (in welcome mode) for accounts that
+  // haven't seen it. Closing/saving marks it seen (see PreferencesPanel.close()).
+  const [prefsOpen, setPrefsOpen] = useState(false);
+  const [prefsWelcome, setPrefsWelcome] = useState(false);
+  useEffect(() => {
+    if (!hasSeenPrefs()) { setPrefsWelcome(true); setPrefsOpen(true); }
+  }, []);
 
   // App-wide: clicking anywhere in a date/time input opens the native picker (not just
   // the tiny calendar glyph). Delegated so it covers every page's date fields without
@@ -54,6 +64,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         mobileSearchOpen={s.mobileSearchOpen}
         setMobileSearchOpen={s.setMobileSearchOpen}
         onCustomize={() => s.setCustomizeOpen(true)}
+        onPreferences={() => { setPrefsWelcome(false); setPrefsOpen(true); }}
         accentHex={bgAccent}
       />
 
@@ -113,6 +124,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           )}
         </>
       </CenterModal>
+
+      <PreferencesPanel open={prefsOpen} onClose={() => setPrefsOpen(false)} welcome={prefsWelcome} />
     </div>
     </AppShellContext.Provider>
   );

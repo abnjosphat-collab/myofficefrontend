@@ -343,9 +343,9 @@ export function SafetyModal({
             )}
             <span className="text-sm font-semibold text-white">{title}</span>
           </div>
-          <button type="button" onClick={onClose} title="Close"
-            className="h-7 w-7 flex items-center justify-center rounded-lg hover:bg-white/[0.08] text-white/40 hover:text-white transition-all">
-            <X className="h-4 w-4" />
+          <button type="button" onClick={onClose} title="Close" aria-label="Close"
+            className="h-9 w-9 flex items-center justify-center rounded-lg hover:bg-white/[0.08] text-white/40 hover:text-white transition-all">
+            <X className="h-5 w-5" />
           </button>
         </div>
         {children}

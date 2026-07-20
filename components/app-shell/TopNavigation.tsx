@@ -16,7 +16,7 @@ import { useNotifications } from './useNotifications';
 import { trackSearch, getSearchHistory, clearSearchHistory } from '@/lib/usage';
 
 export function TopNavigation({
-  onMenuToggle, searchQuery, onSearchChange, mobileSearchOpen, setMobileSearchOpen, onCustomize, accentHex,
+  onMenuToggle, searchQuery, onSearchChange, mobileSearchOpen, setMobileSearchOpen, onCustomize, onPreferences, accentHex,
 }: {
   onMenuToggle: () => void;
   searchQuery: string;
@@ -24,6 +24,7 @@ export function TopNavigation({
   mobileSearchOpen: boolean;
   setMobileSearchOpen: (v: boolean) => void;
   onCustomize: () => void;
+  onPreferences: () => void;
   accentHex: string;
 }) {
   const t = useTheme();
@@ -200,6 +201,14 @@ export function TopNavigation({
           >
             {/* half-filled circle reads as a fill-style control; itself flips solid/outline with the setting */}
             <IconStyleGlyph className="h-[18px] w-[18px]" />
+          </button>
+          <button
+            onClick={onPreferences}
+            className={`h-11 w-11 flex items-center justify-center ${t.hoverBg} ${t.textMuted}`}
+            type="button"
+            title="Preferences"
+          >
+            <Settings className="h-[18px] w-[18px]" />
           </button>
           <button
             onClick={() => setMobileSearchOpen(!mobileSearchOpen)}

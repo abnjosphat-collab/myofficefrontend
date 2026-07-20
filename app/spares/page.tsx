@@ -970,7 +970,7 @@ function SparesPageContent() {
                 <button onClick={() => { setReqLines([]); setReqHeader(defaultReqHeader); }} className={`h-6 px-2 text-[11px] rounded-lg ${t.chipBg} hover:bg-rose-500/15 ${t.textFaint} hover:text-rose-500`}>Clear</button>
               </>)}
               <button onClick={() => addReqLine()} className="inline-flex items-center gap-1 h-6 px-2 text-[11px] rounded-lg text-white font-medium bg-brand-500/80 hover:bg-brand-500"><Plus className="h-2.5 w-2.5" /> Add Line</button>
-              <button title="Close" onClick={() => setShowRequisition(false)} className={`h-6 w-6 flex items-center justify-center rounded-md ${t.chipBg} ${t.hoverBg} ${t.textFaint}`}><X className="h-3 w-3" /></button>
+              <button title="Close" aria-label="Close" onClick={() => setShowRequisition(false)} className={`h-9 w-9 flex items-center justify-center rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textFaint}`}><X className="h-4 w-4" /></button>
             </div>
           </div>
 
