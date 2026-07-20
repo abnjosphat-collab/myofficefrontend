@@ -91,11 +91,12 @@ const PPE_TYPES: Record<string, PPETypeInfo> = {
 // issue date. These are the company defaults; the backend /api/ppe/matrix overrides them
 // (and persists edits) once the ppe_matrix table exists. Users change an interval and hit
 // Recalculate to reset every item of that type. See supabase_migration_ppe_matrix.sql.
+// interval 0 = no expiry (item doesn't expire / isn't replaced on a schedule).
 const PPE_MATRIX_DEFAULTS: Record<string, number> = {
   worksuit: 6, gumboots: 6, safety_shoes: 6,
   helmet: 24, Cap_lamp_belt: 24, pneumo_jacket: 24, harness: 24,
-  vest: 12, glasses: 12, respirator: 12, rainsuit: 12,
-  gloves: 6, overall: 6,
+  vest: 3, glasses: 3, respirator: 1, rainsuit: 6,
+  gloves: 0, overall: 6,
 };
 
 /** issue date (YYYY-MM-DD) + N months → expiry date (YYYY-MM-DD). Clamps day overflow. */
@@ -613,7 +614,7 @@ function PPEIssueForm({ isOpen, onClose, onSubmit, initialData, employee, allEmp
                 <input type="date" value={form.issue_date} onChange={e => set('issue_date', e.target.value)}
                   title="Issue date" className={inputCls} style={{ colorScheme: t.light ? 'light' : 'dark' }} />
               </FormField>
-              <FormField label={expiryTouched ? 'Expiry Date' : `Expiry Date · auto (${matrix[form.ppe_type] || '—'}mo)`}>
+              <FormField label={expiryTouched ? 'Expiry Date' : matrix[form.ppe_type] === 0 ? 'Expiry Date · no expiry' : `Expiry Date · auto (${matrix[form.ppe_type] || '—'}mo)`}>
                 <input type="date" value={form.expiry_date}
                   onChange={e => { setExpiryTouched(true); set('expiry_date', e.target.value); }}
                   title="Expiry date — auto-calculated from the matrix; edit to override" className={inputCls} style={{ colorScheme: t.light ? 'light' : 'dark' }} />
@@ -789,11 +790,11 @@ function PPEMatrixModal({ isOpen, onClose, matrix, records, onSetInterval, onRec
                 <div className={`text-[11px] ${t.textFaint}`}>{activeCount} active item{activeCount === 1 ? '' : 's'}</div>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
-                <input type="number" min={1} max={120} value={months || ''}
-                  onChange={e => onSetInterval(key, Math.max(1, Math.min(120, parseInt(e.target.value) || 0)))}
-                  title={`${info.name} — months until expiry`}
+                <input type="number" min={0} max={120} value={months}
+                  onChange={e => onSetInterval(key, Math.max(0, Math.min(120, parseInt(e.target.value) || 0)))}
+                  title={`${info.name} — months until expiry (0 = no expiry)`}
                   className={`w-16 h-8 px-2 rounded-lg text-sm text-center ${t.inputBg} focus:outline-none`} />
-                <span className={`text-[11px] ${t.textFaint} w-8`}>mo</span>
+                <span className={`text-[11px] ${t.textFaint} w-16`}>{months === 0 ? 'no expiry' : 'mo'}</span>
                 <button type="button" onClick={() => onRecalculate(key)} disabled={activeCount === 0}
                   className={`h-8 px-2.5 rounded-lg text-[12px] font-medium transition-colors ${activeCount === 0 ? `${t.chipBg} ${t.textFaint} opacity-50` : `${t.chipBg} ${t.hoverBg} ${t.textMuted} ${t.hoverText}`}`}>
                   Recalculate
@@ -1001,7 +1002,11 @@ export default function PPEManagement() {
   const handleRecalculate = async (ppeType: string) => {
     const label = PPE_TYPES[ppeType]?.name || ppeType;
     const count = records.filter(r => r.ppe_type === ppeType && r.status === 'active').length;
-    if (!confirm(`Reset expiry for ${count} active ${label} item(s) to issue date + ${matrix[ppeType]} months?\nThis overwrites their current expiry dates.`)) return;
+    const months = matrix[ppeType];
+    const what = months === 0
+      ? `Clear the expiry date on ${count} active ${label} item(s)? (no expiry)`
+      : `Reset expiry for ${count} active ${label} item(s) to issue date + ${months} months?`;
+    if (!confirm(`${what}\nThis overwrites their current expiry dates.`)) return;
     try {
       const res = await api.post<{ updated: number }>(`/api/ppe/matrix/${ppeType}/apply`, {});
       toast.success(`Recalculated ${res?.updated ?? count} ${label} item(s)`);
