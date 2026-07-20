@@ -1144,7 +1144,7 @@ export default function PPEManagement() {
             <button type="button" onClick={() => sections.toggle('typeBreakdown')}
               className={`w-full flex items-center justify-between px-5 py-3 ${t.hoverBgSoft} transition-all`}>
               <div className="flex items-center gap-2">
-                <HardHat className={`h-3.5 w-3.5 ${ACCENT.blue.icon}`} />
+                <HardHat className="h-3.5 w-3.5 text-brand-500" />
                 <span className={`text-xs font-semibold ${t.textSecondary} uppercase tracking-wider`}>PPE Type Breakdown</span>
                 <span className={`text-[11px] ${t.textFaint} font-normal normal-case tracking-normal`}>
                   {typeCounts.length} types active
@@ -1163,7 +1163,7 @@ export default function PPEManagement() {
                   const expiredC = records.filter(r => r.ppe_type === key && r.status === 'active' && isExpired(r.expiry_date)).length;
                   const soonC    = records.filter(r => r.ppe_type === key && r.status === 'active' && isExpiringSoon(r.expiry_date)).length;
                   return (
-                    <GlowCard key={key} color={ACCENT_HEX.blue} className="p-4 mt-3">
+                    <GlowCard key={key} color={ACCENT_HEX.violet} className="p-4 mt-3">
                       <div className="flex items-center gap-2 mb-3">
                         <div className={`p-1.5 rounded-lg ${t.chipBg}`}><Icon className="h-3.5 w-3.5" style={{ color: type.color }} /></div>
                         <span className={`text-sm font-semibold ${t.textPrimary}`}>{type.shortName}</span>
