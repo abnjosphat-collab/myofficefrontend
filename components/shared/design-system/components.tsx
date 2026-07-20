@@ -195,8 +195,25 @@ export function AutofillInput({
   const [suggestions, setSuggestions] = useState<string[]>([]);
   // Refresh suggestions as the user types (prefix/substring filtered).
   useEffect(() => { setSuggestions(getInputSuggestions(field, value)); }, [field, value]);
+
+  // Inline ghost text: the remainder of the best value that starts with what's typed.
+  // Press Tab to accept it (in addition to the native datalist dropdown for clicking).
+  const ghostMatch = value ? suggestions.find(s => s.toLowerCase().startsWith(value.toLowerCase()) && s.length > value.length) : undefined;
+  const ghost = ghostMatch ? ghostMatch.slice(value.length) : '';
+  const cls = className ?? `w-full h-9 px-3 rounded-lg text-sm ${t.inputBg} focus:outline-none`;
+
+  const acceptGhost = () => { if (ghost) { const full = value + ghost; onChange(full); recordInput(field, full); } };
+
   return (
-    <>
+    <div className="relative">
+      {ghost && (
+        // Sits behind the (transparent) input, providing the background + the greyed ghost.
+        <div aria-hidden className={`absolute inset-0 flex items-center overflow-hidden pointer-events-none ${cls}`}>
+          <span className="invisible whitespace-pre">{value}</span>
+          <span className={`whitespace-pre ${t.textFaint}`}>{ghost}</span>
+          <span className={`ml-1.5 text-[9px] leading-none px-1 py-0.5 rounded border ${t.border} ${t.textFaint}`}>Tab</span>
+        </div>
+      )}
       <input
         list={listId}
         type={type}
@@ -204,14 +221,15 @@ export function AutofillInput({
         required={required}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => { if (e.key === 'Tab' && ghost) { e.preventDefault(); acceptGhost(); } }}
         onBlur={() => { recordInput(field, value); onBlur?.(); }}
         autoComplete="off"
-        className={className ?? `w-full h-9 px-3 rounded-lg text-sm ${t.inputBg} focus:outline-none`}
+        className={`${cls} relative bg-transparent`}
       />
       <datalist id={listId}>
         {suggestions.map((s) => <option key={s} value={s} />)}
       </datalist>
-    </>
+    </div>
   );
 }
 

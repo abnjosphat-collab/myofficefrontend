@@ -84,7 +84,30 @@ const PPE_TYPES: Record<string, PPETypeInfo> = {
   worksuit:      { name: 'Protective Work Suit', shortName: 'Work Suit',  color: '#fb923c', icon: Shirt,      bgColor: 'bg-orange-500/15',  textColor: 'text-orange-300',  borderColor: 'border-orange-500/25',  description: 'Full body protection for various work environments' },
   rainsuit:      { name: 'Rain Suit',            shortName: 'Rain Suit',  color: '#22d3ee', icon: CloudRain,  bgColor: 'bg-cyan-500/15',    textColor: 'text-cyan-300',    borderColor: 'border-cyan-500/25',    description: 'Waterproof protection for wet conditions' },
   overall:       { name: 'Protective Overall',   shortName: 'Overall',    color: '#c084fc', icon: Layers,     bgColor: 'bg-purple-500/15',  textColor: 'text-purple-300',  borderColor: 'border-purple-500/25',  description: 'Full body protective clothing' },
+  pneumo_jacket: { name: 'Pneumo Jacket',        shortName: 'Pneumo Jkt', color: '#818cf8', icon: Shirt,      bgColor: 'bg-indigo-500/15',  textColor: 'text-indigo-300',  borderColor: 'border-indigo-500/25',  description: 'Pneumatic / insulated jacket' },
 };
+
+// PPE replacement matrix — default months-until-expiry per item type, calculated from the
+// issue date. These are the company defaults; the backend /api/ppe/matrix overrides them
+// (and persists edits) once the ppe_matrix table exists. Users change an interval and hit
+// Recalculate to reset every item of that type. See supabase_migration_ppe_matrix.sql.
+const PPE_MATRIX_DEFAULTS: Record<string, number> = {
+  worksuit: 6, gumboots: 6, safety_shoes: 6,
+  helmet: 24, Cap_lamp_belt: 24, pneumo_jacket: 24, harness: 24,
+  vest: 12, glasses: 12, respirator: 12, rainsuit: 12,
+  gloves: 6, overall: 6,
+};
+
+/** issue date (YYYY-MM-DD) + N months → expiry date (YYYY-MM-DD). Clamps day overflow. */
+function addMonths(dateStr: string, months: number): string {
+  if (!dateStr || !months) return '';
+  const d = new Date(dateStr + 'T00:00:00');
+  if (isNaN(d.getTime())) return '';
+  const day = d.getDate();
+  d.setMonth(d.getMonth() + months);
+  if (d.getDate() < day) d.setDate(0); // rolled into the next month → clamp to last day
+  return d.toISOString().slice(0, 10);
+}
 
 const MINE_LOCATIONS = ['Deep Shaft A', 'Deep Shaft B', 'Open Pit', 'Processing Plant', 'Workshop', 'Surface', 'All Areas'];
 
@@ -443,6 +466,7 @@ interface IssueFormProps {
   initialData: PPERecord | null;
   employee: EmployeeWithPPE | null;
   allEmployees: EmployeeRow[];
+  matrix: Record<string, number>;
 }
 
 const blankForm = (): FormState => ({
@@ -456,13 +480,17 @@ const blankForm = (): FormState => ({
 // `FormField`/`FormActions` now come from the shared design-system (promoted from
 // this page's own local versions — see the design-system migration plan).
 
-function PPEIssueForm({ isOpen, onClose, onSubmit, initialData, employee, allEmployees }: IssueFormProps) {
+function PPEIssueForm({ isOpen, onClose, onSubmit, initialData, employee, allEmployees, matrix }: IssueFormProps) {
   const t = useTheme();
   const [form, setForm] = useState<FormState>(blankForm());
   const [saving, setSaving] = useState(false);
+  // Auto-calc expiry from issue date + the matrix interval, unless the user has typed an
+  // expiry themselves (or we're editing a record that already has one).
+  const [expiryTouched, setExpiryTouched] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
+      setExpiryTouched(!!initialData?.expiry_date);
       setForm({
         ...blankForm(),
         employee_name: employee?.employee_name || initialData?.employee_name || '',
@@ -484,6 +512,15 @@ function PPEIssueForm({ isOpen, onClose, onSubmit, initialData, employee, allEmp
   }, [isOpen, initialData, employee]);
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setForm(p => ({ ...p, [k]: v }));
+
+  // Recompute expiry when type/issue-date change (matrix-driven), unless the user set it.
+  useEffect(() => {
+    if (expiryTouched || !form.issue_date) return;
+    const months = matrix[form.ppe_type];
+    const calc = months ? addMonths(form.issue_date, months) : '';
+    if (calc && calc !== form.expiry_date) setForm(p => ({ ...p, expiry_date: calc }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.ppe_type, form.issue_date, expiryTouched, matrix]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -576,9 +613,10 @@ function PPEIssueForm({ isOpen, onClose, onSubmit, initialData, employee, allEmp
                 <input type="date" value={form.issue_date} onChange={e => set('issue_date', e.target.value)}
                   title="Issue date" className={inputCls} style={{ colorScheme: t.light ? 'light' : 'dark' }} />
               </FormField>
-              <FormField label="Expiry Date">
-                <input type="date" value={form.expiry_date} onChange={e => set('expiry_date', e.target.value)}
-                  title="Expiry date" className={inputCls} style={{ colorScheme: t.light ? 'light' : 'dark' }} />
+              <FormField label={expiryTouched ? 'Expiry Date' : `Expiry Date · auto (${matrix[form.ppe_type] || '—'}mo)`}>
+                <input type="date" value={form.expiry_date}
+                  onChange={e => { setExpiryTouched(true); set('expiry_date', e.target.value); }}
+                  title="Expiry date — auto-calculated from the matrix; edit to override" className={inputCls} style={{ colorScheme: t.light ? 'light' : 'dark' }} />
               </FormField>
               <FormField label="Location">
                 <SelectField title="Location" {...sel('location')}
@@ -721,6 +759,54 @@ function DueItemsList({ employees, filterType, onEditItem, onDeleteItem, onViewI
   );
 }
 
+// ─── PPE MATRIX MODAL ─────────────────────────────────────────────────────────
+// The company replacement matrix: months-until-expiry per item type. Editing an interval
+// saves it (shared); "Recalculate" resets every active item of that type to
+// issue_date + interval, so you never edit cards one by one.
+
+function PPEMatrixModal({ isOpen, onClose, matrix, records, onSetInterval, onRecalculate }: {
+  isOpen: boolean;
+  onClose: () => void;
+  matrix: Record<string, number>;
+  records: PPERecord[];
+  onSetInterval: (ppeType: string, months: number) => void;
+  onRecalculate: (ppeType: string) => void;
+}) {
+  const t = useTheme();
+  return (
+    <CenterModal open={isOpen} onClose={onClose} title="PPE Replacement Matrix"
+      subtitle="Set how long each item lasts — Recalculate resets every card of that type from its issue date" accent="violet" width="max-w-2xl">
+      <div className="px-5 py-3 space-y-1.5 max-h-[65vh] overflow-y-auto">
+        {Object.entries(PPE_TYPES).map(([key, info]) => {
+          const Icon = info.icon;
+          const activeCount = records.filter(r => r.ppe_type === key && r.status === 'active').length;
+          const months = matrix[key] ?? 0;
+          return (
+            <div key={key} className={`flex items-center gap-3 px-3 py-2 rounded-lg ${t.hoverBgSoft}`}>
+              <div className={`p-1.5 rounded-lg ${t.chipBg} shrink-0`}><Icon className="h-4 w-4" style={{ color: info.color }} /></div>
+              <div className="min-w-0 flex-1">
+                <div className={`text-[13px] font-medium ${t.textPrimary} truncate`}>{info.name}</div>
+                <div className={`text-[11px] ${t.textFaint}`}>{activeCount} active item{activeCount === 1 ? '' : 's'}</div>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <input type="number" min={1} max={120} value={months || ''}
+                  onChange={e => onSetInterval(key, Math.max(1, Math.min(120, parseInt(e.target.value) || 0)))}
+                  title={`${info.name} — months until expiry`}
+                  className={`w-16 h-8 px-2 rounded-lg text-sm text-center ${t.inputBg} focus:outline-none`} />
+                <span className={`text-[11px] ${t.textFaint} w-8`}>mo</span>
+                <button type="button" onClick={() => onRecalculate(key)} disabled={activeCount === 0}
+                  className={`h-8 px-2.5 rounded-lg text-[12px] font-medium transition-colors ${activeCount === 0 ? `${t.chipBg} ${t.textFaint} opacity-50` : `${t.chipBg} ${t.hoverBg} ${t.textMuted} ${t.hoverText}`}`}>
+                  Recalculate
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </CenterModal>
+  );
+}
+
 // ─── MAIN PAGE ────────────────────────────────────────────────────────────────
 
 export default function PPEManagement() {
@@ -730,9 +816,13 @@ export default function PPEManagement() {
   const [stats,        setStats]        = useState<PPEStats | null>(null);
   const [loading,      setLoading]      = useState(true);
   const [refreshing,   setRefreshing]   = useState(false);
+  // Effective PPE replacement matrix (company defaults, overridden by the backend once
+  // the ppe_matrix table exists). Drives expiry auto-calc + the Recalculate control.
+  const [matrix, setMatrix] = useState<Record<string, number>>(PPE_MATRIX_DEFAULTS);
 
   // UI state
   const [showForm,      setShowForm]      = useState(false);
+  const [showMatrix,    setShowMatrix]    = useState(false);
   const [editData,      setEditData]      = useState<PPERecord | null>(null);
   const [selEmployee,   setSelEmployee]   = useState<EmployeeWithPPE | null>(null);
   const [detailItem,    setDetailItem]    = useState<PPERecord | null>(null);
@@ -759,6 +849,14 @@ export default function PPEManagement() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  // Load the shared PPE matrix (defaults merged with backend overrides). Falls back to
+  // the code defaults already in state if the endpoint/table isn't available.
+  useEffect(() => {
+    api.get<Record<string, number>>('/api/ppe/matrix')
+      .then(m => { if (m && typeof m === 'object') setMatrix({ ...PPE_MATRIX_DEFAULTS, ...m }); })
+      .catch(() => { /* keep defaults */ });
+  }, []);
 
   // ── Derived data ───────────────────────────────────────────────────────────
 
@@ -892,6 +990,23 @@ export default function PPEManagement() {
       toast.success(next === 'not_required' ? 'Marked as not required' : 'Marked as active');
       load(true);
     } catch (err: any) { toast.error(`Update failed: ${err.message}`); }
+  };
+
+  // Matrix: save an interval (shared), and recalculate a whole type's expiries from issue date.
+  const handleSetInterval = async (ppeType: string, months: number) => {
+    setMatrix(m => ({ ...m, [ppeType]: months }));   // optimistic
+    try { await api.put('/api/ppe/matrix', { ppe_type: ppeType, interval_months: months }); }
+    catch { toast.error('Interval not saved — the ppe_matrix table may not exist yet (see migration).'); }
+  };
+  const handleRecalculate = async (ppeType: string) => {
+    const label = PPE_TYPES[ppeType]?.name || ppeType;
+    const count = records.filter(r => r.ppe_type === ppeType && r.status === 'active').length;
+    if (!confirm(`Reset expiry for ${count} active ${label} item(s) to issue date + ${matrix[ppeType]} months?\nThis overwrites their current expiry dates.`)) return;
+    try {
+      const res = await api.post<{ updated: number }>(`/api/ppe/matrix/${ppeType}/apply`, {});
+      toast.success(`Recalculated ${res?.updated ?? count} ${label} item(s)`);
+      load(true);
+    } catch { toast.error('Recalculate failed — needs manager access (and the ppe_matrix table).'); }
   };
 
   const compColor = complianceRate == null ? ACCENT_HEX.blue : complianceRate >= 80 ? '#10b981' : complianceRate >= 60 ? ACCENT_HEX.blue : '#f43f5e';
@@ -1060,6 +1175,10 @@ export default function PPEManagement() {
               <button type="button" title={sections.expanded.heroStats ? 'Hide stats' : 'Show stats'} onClick={() => sections.toggle('heroStats')}
                 className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.glassSoft} ${t.hoverBg} ${t.textMuted} transition-all`}>
                 {sections.expanded.heroStats ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+              </button>
+              <button type="button" title="PPE replacement matrix — set expiry intervals & recalculate" onClick={() => setShowMatrix(true)}
+                className={`h-8 px-3 flex items-center gap-1.5 text-xs rounded-xl font-semibold ${t.textMuted} ${t.hoverText} transition-all hover:-translate-y-0.5 ${t.glassSoft} ${t.hoverBg}`}>
+                <HardHat className="h-3.5 w-3.5" /> Matrix
               </button>
               <button type="button" title="Refresh" onClick={() => load(true)} disabled={refreshing}
                 className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.glassSoft} ${t.hoverBg} ${t.textMuted} transition-all disabled:opacity-40`}>
@@ -1355,7 +1474,11 @@ export default function PPEManagement() {
       <PPEIssueForm isOpen={showForm}
         onClose={() => { setShowForm(false); setEditData(null); setSelEmployee(null); }}
         onSubmit={handleSubmit} initialData={editData} employee={selEmployee}
-        allEmployees={allEmployeesForForm} />
+        allEmployees={allEmployeesForForm} matrix={matrix} />
+
+      <PPEMatrixModal isOpen={showMatrix} onClose={() => setShowMatrix(false)}
+        matrix={matrix} records={records}
+        onSetInterval={handleSetInterval} onRecalculate={handleRecalculate} />
 
       <PPEDetailModal item={detailItem} isOpen={showDetail}
         onClose={() => setShowDetail(false)}
