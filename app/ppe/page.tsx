@@ -166,37 +166,65 @@ interface EmployeeAutocompleteProps {
   options: EmployeeRow[];
   placeholder?: string;
   onSelect: (opt: EmployeeRow) => void;
+  /** What the field shows/searches primarily — the ID field vs the Name field. */
+  display?: 'id' | 'name';
 }
 
-function EmployeeAutocomplete({ value, onChange, options, placeholder, onSelect }: EmployeeAutocompleteProps) {
+function EmployeeAutocomplete({ value, onChange, options, placeholder, onSelect, display = 'id' }: EmployeeAutocompleteProps) {
   const t = useTheme();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState(value || '');
+  const [highlight, setHighlight] = useState(0);
+
+  // Keep the local text in sync when the field is filled from elsewhere (e.g. selecting
+  // an employee in the ID field fills the name, and vice versa).
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { setQ(value || ''); }, [value]);
 
   const filtered = useMemo(() => options.filter(o =>
     o.employee_id?.toLowerCase().includes(q.toLowerCase()) ||
     o.employee_name?.toLowerCase().includes(q.toLowerCase())
   ).slice(0, 10), [options, q]);
 
+  const pick = (opt: EmployeeRow) => {
+    setQ(display === 'name' ? opt.employee_name : opt.employee_id);
+    onSelect(opt);
+    setOpen(false);
+  };
+
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (!open || filtered.length === 0) return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); setHighlight(h => Math.min(h + 1, filtered.length - 1)); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setHighlight(h => Math.max(h - 1, 0)); }
+    else if (e.key === 'Enter' || e.key === 'Tab') {
+      // Tab (or Enter) accepts the highlighted match — quick keyboard entry.
+      const opt = filtered[Math.min(highlight, filtered.length - 1)];
+      if (opt) { e.preventDefault(); pick(opt); }
+    } else if (e.key === 'Escape') { setOpen(false); }
+  };
+
   return (
     <div className="relative">
       <input type="text" value={q} placeholder={placeholder}
         className={`${t.inputBg} rounded-lg text-sm px-3 py-2 w-full transition-all focus:outline-none`}
-        onChange={e => { setQ(e.target.value); onChange(e.target.value); setOpen(true); }}
+        onChange={e => { setQ(e.target.value); onChange(e.target.value); setOpen(true); setHighlight(0); }}
         onFocus={() => setOpen(true)}
+        onKeyDown={onKeyDown}
         onBlur={() => setTimeout(() => setOpen(false), 160)} />
       {open && filtered.length > 0 && (
         <ul className={`absolute top-full left-0 right-0 z-50 mt-1 rounded-xl shadow-2xl max-h-56 overflow-y-auto list-none p-0 ${t.glass}`}>
           {filtered.map((opt, i) => (
             <li key={i}>
               <button type="button"
-                onMouseDown={e => { e.preventDefault(); setQ(opt.employee_id); onSelect(opt); setOpen(false); }}
-                className={`w-full text-left px-3 py-2.5 text-xs ${t.hoverBg} border-b ${t.border} last:border-0 transition-all`}>
-                <div className={`font-semibold ${t.textPrimary}`}>{opt.employee_id}</div>
-                <div className={`text-[11px] ${t.textFaint} mt-0.5`}>{opt.employee_name} · {opt.position}</div>
+                onMouseDown={e => { e.preventDefault(); pick(opt); }}
+                onMouseEnter={() => setHighlight(i)}
+                className={`w-full text-left px-3 py-2.5 text-xs border-b ${t.border} last:border-0 transition-all ${i === highlight ? 'bg-brand-500/15' : t.hoverBg}`}>
+                <div className={`font-semibold ${t.textPrimary}`}>{display === 'name' ? opt.employee_name : opt.employee_id}</div>
+                <div className={`text-[11px] ${t.textFaint} mt-0.5`}>{display === 'name' ? `${opt.employee_id} · ${opt.position}` : `${opt.employee_name} · ${opt.position}`}</div>
               </button>
             </li>
           ))}
+          <li className={`px-3 py-1.5 text-[10px] ${t.textFaint} border-t ${t.border}`}>↑↓ to move · Tab to select</li>
         </ul>
       )}
     </div>
@@ -567,8 +595,15 @@ function PPEIssueForm({ isOpen, onClose, onSubmit, initialData, employee, allEmp
             </FormField>
             <div className="grid grid-cols-2 gap-3">
               <FormField label="Full Name" required>
-                <input type="text" value={form.employee_name} onChange={e => set('employee_name', e.target.value)}
-                  className={inputCls} placeholder="Auto-filled from ID lookup" />
+                <EmployeeAutocomplete value={form.employee_name} options={allEmployees} display="name"
+                  placeholder="Type a name to search…"
+                  onChange={v => set('employee_name', v)}
+                  onSelect={opt => {
+                    set('employee_id', opt.employee_id);
+                    set('employee_name', opt.employee_name);
+                    set('position', opt.position);
+                    if (opt.department) set('mine_section', opt.section || '');
+                  }} />
               </FormField>
               <FormField label="Position" required>
                 <AutofillInput field="position" value={form.position} onChange={v => set('position', v)}

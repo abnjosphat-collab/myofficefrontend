@@ -8,7 +8,7 @@ import { useMemo, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Bell, Loader2, Menu, Search, Settings, SlidersHorizontal, Sun, Moon, X, Clock, ArrowUpRight, Building, IconStyleGlyph } from '@/components/shared/theme';
+import { Bell, Loader2, Menu, Search, Settings, SlidersHorizontal, Sun, Moon, X, Clock, ArrowUpRight, Building, IconStyleGlyph, Palette } from '@/components/shared/theme';
 import { useTheme, useIconStyle, rgbaFromHexSafe, ACCENT_HEX } from '@/components/shared/theme';
 import { CATEGORIES } from './modules';
 import { AuthMenu } from './AuthMenu';
@@ -206,9 +206,9 @@ export function TopNavigation({
             onClick={onPreferences}
             className={`h-11 w-11 flex items-center justify-center ${t.hoverBg} ${t.textMuted}`}
             type="button"
-            title="Preferences"
+            title="Preferences — theme, font & layout"
           >
-            <Settings className="h-[18px] w-[18px]" />
+            <Palette className="h-[18px] w-[18px]" />
           </button>
           <button
             onClick={() => setMobileSearchOpen(!mobileSearchOpen)}

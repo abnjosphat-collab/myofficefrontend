@@ -736,7 +736,11 @@ export function SelectField({
               top: pos.above ? undefined : pos.top + 4,
               bottom: pos.above ? window.innerHeight - pos.top + 4 : undefined,
               left: pos.left,
-              width: pos.width,
+              // Grow to fit the longest option (so labels like "All Types" aren't clipped),
+              // but never narrower than the trigger, nor wider than the viewport.
+              minWidth: pos.width,
+              width: 'max-content',
+              maxWidth: 'min(92vw, 360px)',
               zIndex: 9999,
             }}
             className={`rounded-lg overflow-hidden ${t.glass} ${t.shadow} max-h-60 overflow-y-auto py-1`}

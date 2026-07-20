@@ -8,7 +8,7 @@ import { usePathname } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Bell, Check, PanelLeftClose, PanelLeftOpen, Loader2, MessageCircle, Moon,
-  RotateCcw, Send, Settings, SlidersHorizontal, Star, Sun, TextAa,
+  Palette, RotateCcw, Send, Settings, SlidersHorizontal, Star, Sun, TextAa,
 } from '@/components/shared/theme';
 import { useTheme, ACCENT, useFontStyle, FONT_OPTIONS } from '@/components/shared/theme';
 import { useDashboardData } from './useDashboardData';
@@ -192,7 +192,7 @@ export function BottomBar({
                     type="button"
                     className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-[12.5px] font-medium ${t.textPrimary} ${t.hoverBg} transition-colors`}
                   >
-                    <Settings className="h-3.5 w-3.5 text-brand-400" /> Preferences…
+                    <Palette className="h-3.5 w-3.5 text-brand-400" /> Preferences…
                   </button>
                   <div className={`px-3 py-2 text-[11px] font-semibold uppercase tracking-wide border-t ${t.border} ${t.textFaint}`}>Appearance</div>
                   <button
