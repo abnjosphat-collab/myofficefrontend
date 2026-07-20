@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, Fragment } from 'react';
 import { api } from '@/lib/apiClient';
 import { motion } from 'framer-motion';
 import {
@@ -36,7 +36,7 @@ interface PPERecord {
   ppe_type: string; item_name: string; size: string;
   issue_date: string; expiry_date: string | null;
   condition: 'excellent' | 'good' | 'fair' | 'poor' | 'damaged';
-  status: 'active' | 'expired' | 'returned' | 'lost' | 'damaged';
+  status: 'active' | 'expired' | 'returned' | 'lost' | 'damaged' | 'not_required';
   notes: string; issued_by: string; location: string; mine_section: string;
 }
 
@@ -90,8 +90,8 @@ const MINE_LOCATIONS = ['Deep Shaft A', 'Deep Shaft B', 'Open Pit', 'Processing 
 
 const CONDITION_COLORS: Record<string, string> = { excellent: '#34d399', good: '#86BBD8', fair: '#f59e0b', poor: '#f97316', damaged: '#f43f5e' };
 const CONDITION_LABELS: Record<string, string> = { excellent: 'Excellent', good: 'Good', fair: 'Fair', poor: 'Poor', damaged: 'Damaged' };
-const STATUS_COLORS_PPE: Record<string, string> = { active: '#34d399', expired: '#f43f5e', returned: '#94a3b8', lost: '#a78bfa', damaged: '#f97316' };
-const STATUS_LABELS: Record<string, string> = { active: 'Active', expired: 'Due', returned: 'Returned', lost: 'Lost', damaged: 'Damaged' };
+const STATUS_COLORS_PPE: Record<string, string> = { active: '#34d399', expired: '#f43f5e', returned: '#94a3b8', lost: '#a78bfa', damaged: '#f97316', not_required: '#94a3b8' };
+const STATUS_LABELS: Record<string, string> = { active: 'Active', expired: 'Due', returned: 'Returned', lost: 'Lost', damaged: 'Damaged', not_required: 'Not required' };
 
 // ─── UTILITIES ────────────────────────────────────────────────────────────────
 
@@ -240,14 +240,16 @@ interface PPEItemCardProps {
   onEdit: (r: PPERecord) => void;
   onDelete: (id: string) => void;
   onView: (r: PPERecord) => void;
+  onToggleNotRequired: (r: PPERecord) => void;
 }
 
-function PPEItemCard({ record, onEdit, onDelete, onView }: PPEItemCardProps) {
+function PPEItemCard({ record, onEdit, onDelete, onView, onToggleNotRequired }: PPEItemCardProps) {
   const t = useTheme();
   const ppeType = PPE_TYPES[record.ppe_type] || PPE_TYPES.helmet;
-  const expiring = isExpiringSoon(record.expiry_date);
-  const expired  = isExpired(record.expiry_date);
-  const glowColor = expired ? '#f43f5e' : expiring ? '#f59e0b' : ACCENT_HEX.blue;
+  const notRequired = record.status === 'not_required';
+  const expiring = !notRequired && isExpiringSoon(record.expiry_date);
+  const expired  = !notRequired && isExpired(record.expiry_date);
+  const glowColor = notRequired ? '#94a3b8' : expired ? '#f43f5e' : expiring ? '#f59e0b' : ACCENT_HEX.blue;
 
   return (
     <RecordCard
@@ -280,8 +282,18 @@ function PPEItemCard({ record, onEdit, onDelete, onView }: PPEItemCardProps) {
         </button>
       </>}
     >
-      <div className={`text-xs ${glowColor === '#f43f5e' ? 'text-rose-500' : glowColor === '#f59e0b' ? 'text-amber-500' : t.textFaint}`}>
-        {expired ? 'Overdue for replacement' : expiring ? 'Expiring soon' : 'In date'}
+      <div className="flex items-center justify-between gap-2">
+        <div className={`text-xs ${expired ? 'text-rose-500' : expiring ? 'text-amber-500' : t.textFaint}`}>
+          {notRequired ? 'Marked not required' : expired ? 'Overdue for replacement' : expiring ? 'Expiring soon' : 'In date'}
+        </div>
+        {/* Mark an overdue item as intentionally not-needed (drops it from Overdue counts),
+            or restore a not-required item to active. */}
+        {(expired || notRequired) && (
+          <button type="button" onClick={() => onToggleNotRequired(record)}
+            className={`text-[11px] font-medium px-2 py-1 rounded-md ${t.chipBg} ${t.hoverBg} ${t.textMuted} ${t.hoverText} transition-colors shrink-0`}>
+            {notRequired ? 'Mark as active' : 'Not required'}
+          </button>
+        )}
       </div>
     </RecordCard>
   );
@@ -297,9 +309,10 @@ interface EmployeePPECardProps {
   onEditItem: (r: PPERecord) => void;
   onDeleteItem: (id: string) => void;
   onViewItem: (r: PPERecord) => void;
+  onToggleNotRequired: (r: PPERecord) => void;
 }
 
-function EmployeePPECard({ employee, isExpanded, onToggle, onIssueNew, onEditItem, onDeleteItem, onViewItem }: EmployeePPECardProps) {
+function EmployeePPECard({ employee, isExpanded, onToggle, onIssueNew, onEditItem, onDeleteItem, onViewItem, onToggleNotRequired }: EmployeePPECardProps) {
   const t = useTheme();
 
   const active   = employee.records.filter(r => r.status === 'active');
@@ -334,7 +347,7 @@ function EmployeePPECard({ employee, isExpanded, onToggle, onIssueNew, onEditIte
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {employee.records.map(record => (
             <PPEItemCard key={record.id} record={record}
-              onEdit={onEditItem} onDelete={onDeleteItem} onView={onViewItem} />
+              onEdit={onEditItem} onDelete={onDeleteItem} onView={onViewItem} onToggleNotRequired={onToggleNotRequired} />
           ))}
         </div>
       ) : (
@@ -603,9 +616,10 @@ interface DueItemsProps {
   onEditItem: (r: PPERecord) => void;
   onDeleteItem: (id: string) => void;
   onViewItem: (r: PPERecord) => void;
+  onToggleNotRequired: (r: PPERecord) => void;
 }
 
-function DueItemsList({ employees, filterType, onEditItem, onDeleteItem, onViewItem }: DueItemsProps) {
+function DueItemsList({ employees, filterType, onEditItem, onDeleteItem, onViewItem, onToggleNotRequired }: DueItemsProps) {
   const t = useTheme();
   const [typeFilter, setTypeFilter] = useState('all');
   const [search, setSearch] = useState('');
@@ -682,6 +696,12 @@ function DueItemsList({ employees, filterType, onEditItem, onDeleteItem, onViewI
                   </div>
 
                   <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
+                    {filterType === 'due' && (
+                      <button type="button" title="Mark as not required" onClick={() => onToggleNotRequired(item)}
+                        className={`h-7 px-2 flex items-center justify-center rounded-lg text-[11px] font-medium ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all`}>
+                        Not required
+                      </button>
+                    )}
                     <button type="button" title="Edit" onClick={() => onEditItem(item)}
                       className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} hover:text-brand-500 transition-all`}>
                       <Pencil className="h-3.5 w-3.5" />
@@ -718,7 +738,7 @@ export default function PPEManagement() {
   const [detailItem,    setDetailItem]    = useState<PPERecord | null>(null);
   const [showDetail,    setShowDetail]    = useState(false);
   // Master collapse — all page sections. Read sections.expanded[key] / sections.toggle(key).
-  const sections = useCollapseSection({ heroStats: false, typeBreakdown: false, records: false });
+  const sections = useCollapseSection({ heroStats: false, typeBreakdown: false, sizeBreakdown: false, records: false });
   const [filterType,    setFilterType]    = useState<'all' | 'active' | 'soon-to-due' | 'due'>('all');
   const [searchTerm,    setSearchTerm]    = useState('');
   // All employee cards start collapsed (empty object = all false)
@@ -759,14 +779,25 @@ export default function PPEManagement() {
   }, [apiEmployees, ppeEmployees]);
 
   const employeesWithPPE = useMemo<EmployeeWithPPE[]>(() => {
+    // Prefer the live personnel register (apiEmployees) for name/position so editing
+    // someone in Personnel is reflected on their PPE card; fall back to the value stored
+    // on the PPE record when the employee isn't (yet) in the register.
+    const live = new Map(apiEmployees.map(e => [e.employee_id, e]));
     const map = new Map<string, EmployeeWithPPE>();
     records.forEach(r => {
-      if (!map.has(r.employee_id))
-        map.set(r.employee_id, { employee_id: r.employee_id, employee_name: r.employee_name, position: r.position, records: [] });
+      if (!map.has(r.employee_id)) {
+        const emp = live.get(r.employee_id);
+        map.set(r.employee_id, {
+          employee_id: r.employee_id,
+          employee_name: emp?.employee_name || r.employee_name,
+          position: emp?.position || r.position,
+          records: [],
+        });
+      }
       map.get(r.employee_id)!.records.push(r);
     });
     return Array.from(map.values());
-  }, [records]);
+  }, [records, apiEmployees]);
 
   const filteredEmployees = useMemo(() => {
     let list = employeesWithPPE;
@@ -805,6 +836,24 @@ export default function PPEManagement() {
     return Object.entries(counts).sort((a, b) => b[1] - a[1]);
   }, [records]);
 
+  // Order breakdown: active items grouped by PPE type → size, with a count in use and a
+  // "to reorder" count (past expiry, i.e. needs replacing). Lets a purchaser see e.g.
+  // "Helmet · L × 12 (3 to reorder)" at a glance. Returns [type, [size, {inUse, reorder}][]][].
+  const sizeBreakdown = useMemo(() => {
+    const byType: Record<string, Record<string, { inUse: number; reorder: number }>> = {};
+    records.forEach(r => {
+      if (r.status !== 'active') return;
+      const size = (r.size || '').trim() || 'Unspecified';
+      (byType[r.ppe_type] ||= {});
+      (byType[r.ppe_type][size] ||= { inUse: 0, reorder: 0 });
+      byType[r.ppe_type][size].inUse++;
+      if (isExpired(r.expiry_date)) byType[r.ppe_type][size].reorder++;
+    });
+    return Object.entries(byType)
+      .map(([type, sizes]) => [type, Object.entries(sizes).sort((a, b) => b[1].inUse - a[1].inUse)] as const)
+      .sort((a, b) => b[1].reduce((s, [, v]) => s + v.inUse, 0) - a[1].reduce((s, [, v]) => s + v.inUse, 0));
+  }, [records]);
+
   // ── Expand / collapse ─────────────────────────────────────────────────────
 
   const toggle    = (id: string) => setExpanded(p => ({ ...p, [id]: !p[id] }));
@@ -831,6 +880,18 @@ export default function PPEManagement() {
     if (!confirm('Delete this PPE record? This cannot be undone.')) return;
     try { await deletePPERecord(id); setRecords(p => p.filter(r => r.id !== id)); toast.success('Record deleted'); }
     catch (err: any) { toast.error(`Delete failed: ${err.message}`); }
+  };
+
+  // Mark an item "not required" (or back to active). Sends status only — the backend
+  // PATCH is exclude_unset so no other field is touched. Not-required items drop out of
+  // the Overdue/Expiring counts (which only tally status === 'active'). Reversible.
+  const handleToggleNotRequired = async (r: PPERecord) => {
+    const next = r.status === 'not_required' ? 'active' : 'not_required';
+    try {
+      await api.patch(`/api/ppe/${r.id}`, { status: next });
+      toast.success(next === 'not_required' ? 'Marked as not required' : 'Marked as active');
+      load(true);
+    } catch (err: any) { toast.error(`Update failed: ${err.message}`); }
   };
 
   const compColor = complianceRate == null ? ACCENT_HEX.blue : complianceRate >= 80 ? '#10b981' : complianceRate >= 60 ? ACCENT_HEX.blue : '#f43f5e';
@@ -1124,6 +1185,57 @@ export default function PPEManagement() {
           </div>
         )}
 
+        {/* ── ORDER BREAKDOWN BY SIZE (collapsed by default) ── */}
+        {sizeBreakdown.length > 0 && (
+          <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
+            <button type="button" onClick={() => sections.toggle('sizeBreakdown')}
+              className={`w-full flex items-center justify-between px-5 py-3 ${t.hoverBgSoft} transition-all`}>
+              <div className="flex items-center gap-2">
+                <HardHat className="h-3.5 w-3.5 text-brand-500" />
+                <span className={`text-xs font-semibold ${t.textSecondary} uppercase tracking-wider`}>Order Breakdown — by size</span>
+                <span className={`text-[11px] ${t.textFaint} font-normal normal-case tracking-normal`}>
+                  what to reorder, per size
+                </span>
+              </div>
+              {sections.expanded.sizeBreakdown
+                ? <ChevronUp className={`h-3.5 w-3.5 ${t.textFaint}`} />
+                : <ChevronDown className={`h-3.5 w-3.5 ${t.textFaint}`} />}
+            </button>
+            <Collapse open={!!sections.expanded.sizeBreakdown}>
+              <div className={`px-4 pb-4 pt-3 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 border-t ${t.border}`}>
+                {sizeBreakdown.map(([type, sizes]) => {
+                  const info = PPE_TYPES[type] || PPE_TYPES.helmet;
+                  const Icon = info.icon;
+                  const reorderTotal = sizes.reduce((s, [, v]) => s + v.reorder, 0);
+                  return (
+                    <div key={type} className={`rounded-xl ${t.glassSoft} p-3`}>
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className={`p-1.5 rounded-lg ${t.chipBg}`}><Icon className="h-3.5 w-3.5" style={{ color: info.color }} /></div>
+                          <span className={`text-sm font-semibold ${t.textPrimary} truncate`}>{info.shortName}</span>
+                        </div>
+                        {reorderTotal > 0 && <StatusBadge color="#f43f5e" label={`${reorderTotal} to reorder`} />}
+                      </div>
+                      <div className={`grid grid-cols-[1fr_auto_auto] gap-x-3 gap-y-1 text-xs ${t.textMuted}`}>
+                        <span className={`text-[10px] uppercase tracking-wide ${t.textFaint}`}>Size</span>
+                        <span className={`text-[10px] uppercase tracking-wide ${t.textFaint} text-right`}>In use</span>
+                        <span className={`text-[10px] uppercase tracking-wide ${t.textFaint} text-right`}>Reorder</span>
+                        {sizes.map(([size, v]) => (
+                          <Fragment key={size}>
+                            <span className={`font-medium ${t.textPrimary} truncate`}>{size}</span>
+                            <span className="text-right tabular-nums">{v.inUse}</span>
+                            <span className={`text-right tabular-nums font-semibold ${v.reorder > 0 ? 'text-rose-500' : t.textFaint}`}>{v.reorder || '—'}</span>
+                          </Fragment>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </Collapse>
+          </div>
+        )}
+
         {/* ── FILTER + EXPAND/COLLAPSE BAR ── */}
         <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
           <div className="px-5 py-3 flex flex-wrap items-center gap-2 justify-between">
@@ -1200,7 +1312,8 @@ export default function PPEManagement() {
                 <DueItemsList employees={employeesWithPPE} filterType={filterType}
                   onEditItem={r => { setEditData(r); setShowForm(true); }}
                   onDeleteItem={handleDelete}
-                  onViewItem={item => { setDetailItem(item); setShowDetail(true); }} />
+                  onViewItem={item => { setDetailItem(item); setShowDetail(true); }}
+                  onToggleNotRequired={handleToggleNotRequired} />
               ) : filteredEmployees.length === 0 ? (
                 <div className={`text-center py-16 rounded-xl ${t.glassSoft}`}>
                   <HardHat className={`h-12 w-12 mx-auto mb-4 ${t.textTertiary}`} />
@@ -1226,7 +1339,8 @@ export default function PPEManagement() {
                       onIssueNew={openIssueForm}
                       onEditItem={r => { setEditData(r); setShowForm(true); }}
                       onDeleteItem={handleDelete}
-                      onViewItem={item => { setDetailItem(item); setShowDetail(true); }} />
+                      onViewItem={item => { setDetailItem(item); setShowDetail(true); }}
+                      onToggleNotRequired={handleToggleNotRequired} />
                   ))}
                   <p className={`text-center text-[11px] ${t.textFaint} pt-1`}>
                     {filteredEmployees.length} employee{filteredEmployees.length !== 1 ? 's' : ''} · {records.length} PPE records total
