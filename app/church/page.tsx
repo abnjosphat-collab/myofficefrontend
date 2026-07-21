@@ -724,7 +724,9 @@ function DonationItem({ donation }: { donation: RecentDonation }) {
         </div>
       </div>
       <div className="text-right">
-        <p className="font-medium text-gray-800">${donation.amount.toLocaleString()}</p>
+        {/* Fixed locale — a bare toLocaleString() uses the runtime's default, which differs
+            between the server (SSR) and the browser, causing a hydration mismatch. */}
+        <p className="font-medium text-gray-800">${donation.amount.toLocaleString('en-US')}</p>
         <Badge className={`text-xs ${donation.status === 'completed' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}`}>
           {donation.status}
         </Badge>
