@@ -2,6 +2,7 @@
 'use client';
 import { useState, useEffect, useMemo, ElementType, useRef } from "react";
 import { api } from '@/lib/apiClient';
+import { todayLocal } from '@/lib/dates';
 import { AppShell } from "@/components/app-shell";
 import {
   useEmployees, useEquipment, useSpares,
@@ -271,7 +272,7 @@ const DONE_STATUSES: WorkOrderStatus[] = ['completed', 'cancelled'];
  * new Date()` is true from one second past midnight on the 18th, which marks a
  * job due *today* as already late. Cancelled work can't be overdue either.
  */
-function isOverdue(w: Pick<WorkOrder, 'due_date' | 'status'>, today = new Date().toISOString().split('T')[0]): boolean {
+function isOverdue(w: Pick<WorkOrder, 'due_date' | 'status'>, today = todayLocal()): boolean {
   if (!w.due_date || DONE_STATUSES.includes(w.status)) return false;
   return w.due_date < today;
 }

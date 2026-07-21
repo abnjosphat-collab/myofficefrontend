@@ -25,3 +25,16 @@ export function todayLocal(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
+
+/** Whole days from today to `dateStr` (YYYY-MM-DD). Negative = in the past, 0 = today.
+ *  Compares local midnight to local midnight, so it doesn't drift with the time of day or
+ *  the UTC offset — unlike `(new Date(dateStr) - Date.now()) / 86400000`, which flips an
+ *  item due *today* to "overdue" after midday. Drives expiry/overdue thresholds. */
+export function daysUntil(dateStr: string): number {
+  if (!dateStr) return 0;
+  const [y, m, day] = dateStr.split('-').map(Number);
+  if (!y || !m || !day) return 0;
+  const target = new Date(y, m - 1, day).getTime();     // local midnight of the target date
+  const today = new Date(); today.setHours(0, 0, 0, 0); // local midnight today
+  return Math.round((target - today.getTime()) / 86400000);
+}

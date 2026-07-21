@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { AppShell } from '@/components/app-shell';
 import { ShieldCheck, Plus, X, RefreshCw } from '@/components/shared/theme';
 import { useModuleData } from '@/lib/useModuleData';
+import { daysUntil } from '@/lib/dates';
 import { useTheme, PageHero, StatTile, StatusBadge, FormField, PrimaryButton, ACCENT_HEX } from '@/components/shared/theme';
 
 type Status = 'current' | 'due_soon' | 'overdue';
@@ -17,7 +18,6 @@ interface ComplianceItem {
 const statusHex: Record<Status, string> = { current: '#34d399', due_soon: '#fbbf24', overdue: '#fb7185' };
 const statusLabel: Record<Status, string> = { current: 'Current', due_soon: 'Due Soon', overdue: 'Overdue' };
 
-const daysUntil = (d: string) => Math.round((new Date(d).getTime() - Date.now()) / 86400000);
 
 function ComplianceRegisterContent() {
   const t = useTheme();

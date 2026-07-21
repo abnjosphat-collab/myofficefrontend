@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest';
-import { addMonths, todayLocal } from './dates';
+import { addMonths, todayLocal, daysUntil } from './dates';
 
 // Exercise it in a UTC+ timezone — exactly where the old `new Date(...).toISOString()`
 // implementation produced a day-early result (Africa/Johannesburg is UTC+2). addMonths is
@@ -33,5 +33,25 @@ describe('addMonths — timezone-safe expiry math', () => {
 describe('todayLocal', () => {
   it('returns a YYYY-MM-DD string', () => {
     expect(todayLocal()).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+});
+
+describe('daysUntil', () => {
+  const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+  it('is 0 for today regardless of the time of day (the overdue-flip bug)', () => {
+    expect(daysUntil(todayLocal())).toBe(0);
+    expect(daysUntil(iso(new Date()))).toBe(0);
+  });
+
+  it('counts whole days forward and backward', () => {
+    const plus = new Date(); plus.setDate(plus.getDate() + 5);
+    const minus = new Date(); minus.setDate(minus.getDate() - 3);
+    expect(daysUntil(iso(plus))).toBe(5);
+    expect(daysUntil(iso(minus))).toBe(-3);
+  });
+
+  it('returns 0 for empty input', () => {
+    expect(daysUntil('')).toBe(0);
   });
 });
