@@ -14,6 +14,7 @@ import {
 } from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
 import { formatDate } from '@/lib/format';
+import { addMonths, todayLocal } from '@/lib/dates';
 import { toast } from 'sonner';
 import {
   useTheme, Collapse, AnimatedText, PulsingIcon, CenterModal, GlowCard,
@@ -99,16 +100,6 @@ const PPE_MATRIX_DEFAULTS: Record<string, number> = {
   gloves: 0, overall: 6,
 };
 
-/** issue date (YYYY-MM-DD) + N months → expiry date (YYYY-MM-DD). Clamps day overflow. */
-function addMonths(dateStr: string, months: number): string {
-  if (!dateStr || !months) return '';
-  const d = new Date(dateStr + 'T00:00:00');
-  if (isNaN(d.getTime())) return '';
-  const day = d.getDate();
-  d.setMonth(d.getMonth() + months);
-  if (d.getDate() < day) d.setDate(0); // rolled into the next month → clamp to last day
-  return d.toISOString().slice(0, 10);
-}
 
 const MINE_LOCATIONS = ['Deep Shaft A', 'Deep Shaft B', 'Open Pit', 'Processing Plant', 'Workshop', 'Surface', 'All Areas'];
 
@@ -501,7 +492,7 @@ interface IssueFormProps {
 const blankForm = (): FormState => ({
   employee_name: '', employee_id: '', position: '',
   ppe_type: 'helmet', item_name: '', size: '',
-  issue_date: new Date().toISOString().slice(0, 10),
+  issue_date: todayLocal(),
   expiry_date: '', condition: 'good', status: 'active',
   notes: '', issued_by: '', location: 'Workshop', mine_section: '',
 });
@@ -528,7 +519,7 @@ function PPEIssueForm({ isOpen, onClose, onSubmit, initialData, employee, allEmp
         ppe_type:      initialData?.ppe_type      || 'helmet',
         item_name:     initialData?.item_name     || '',
         size:          initialData?.size          || '',
-        issue_date:    initialData?.issue_date    || new Date().toISOString().slice(0, 10),
+        issue_date:    initialData?.issue_date    || todayLocal(),
         expiry_date:   initialData?.expiry_date   || '',
         condition:     initialData?.condition     || 'good',
         status:        initialData?.status        || 'active',
