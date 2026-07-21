@@ -221,8 +221,9 @@ function LeaveApplicationForm({ onClose, onSuccess, editData }: { onClose: () =>
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [employees, setEmployees] = useState<EmployeeSearchResult[]>([]);
   const [loadingEmployees, setLoadingEmployees] = useState(false);
-  const [employeeSearch, setEmployeeSearch] = useState('');
+  const [employeeSearch, setEmployeeSearch] = useState(editData?.employee_name || '');
   const [employeeSelectOpen, setEmployeeSelectOpen] = useState(false);
+  const [employeeHighlight, setEmployeeHighlight] = useState(0);
 
   useEffect(() => {
     const fetchEmployees = async () => {
@@ -291,11 +292,36 @@ function LeaveApplicationForm({ onClose, onSuccess, editData }: { onClose: () =>
   };
 
   const handleEmployeeSelect = (employee: EmployeeSearchResult) => {
+    const name = employee.name || `Employee ${employee.id}`;
     setFormData({
-      ...formData, employee_id: employee.employee_id || employee.id.toString(), employee_name: employee.name || `Employee ${employee.id}`,
+      ...formData, employee_id: employee.employee_id || employee.id.toString(), employee_name: name,
       position: employee.designation || '', contact_number: employee.phone || '', manager_name: employee.supervisor || '', department: employee.department || '',
     });
+    setEmployeeSearch(name);
     setEmployeeSelectOpen(false);
+  };
+
+  // Inline ghost-text match: the employee whose name starts with what's typed. Tab (or
+  // Enter) accepts it — same pattern as the reason-suggestion field above and the PPE
+  // issue form — and pulls in position/contact/manager/department via handleEmployeeSelect.
+  const employeeNameMatches = useMemo(() => {
+    const q = employeeSearch.trim().toLowerCase();
+    return q ? employees.filter(e => e.name.toLowerCase().startsWith(q)) : [];
+  }, [employees, employeeSearch]);
+  const employeeGhost = employeeNameMatches[0] && employeeNameMatches[0].name.length > employeeSearch.length
+    ? employeeNameMatches[0].name.slice(employeeSearch.length) : '';
+
+  const handleEmployeeKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!employeeSelectOpen) return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); setEmployeeHighlight(h => Math.min(h + 1, filteredEmployees.length - 1)); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setEmployeeHighlight(h => Math.max(h - 1, 0)); }
+    else if (e.key === 'Tab' || e.key === 'Enter') {
+      if (!employeeSearch.trim()) return; // nothing typed yet — let Tab move focus normally
+      const target = employeeNameMatches[0] ?? filteredEmployees[employeeHighlight];
+      if (!target) return;
+      e.preventDefault();
+      handleEmployeeSelect(target);
+    } else if (e.key === 'Escape') setEmployeeSelectOpen(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -332,33 +358,45 @@ function LeaveApplicationForm({ onClose, onSuccess, editData }: { onClose: () =>
 
         <div className="relative">
           <FormField label="Employee" required>
-            <button type="button" disabled={!!editData} onClick={() => setEmployeeSelectOpen(v => !v)}
-              className={`w-full h-9 flex items-center justify-between gap-2 px-3 rounded-lg text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed ${t.inputBg}`}>
-              {formData.employee_name ? (
-                <div className="flex items-center gap-2 truncate">
-                  <User className="h-4 w-4 text-brand-400 shrink-0" />
-                  <span className={`font-medium truncate ${t.textPrimary}`}>{formData.employee_name}</span>
-                  <span className={`text-xs shrink-0 ${t.textFaint}`}>• {formData.employee_id}</span>
+            <div className="relative">
+              <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-brand-400 pointer-events-none z-10" />
+              {employeeGhost && (
+                // Ghost-text overlay: ArrowDown/Up move the highlight, Tab (or Enter)
+                // accepts it — same pattern as the reason-suggestion field above.
+                <div aria-hidden className={`absolute inset-0 flex items-center pl-9 pr-3 overflow-hidden pointer-events-none rounded-lg text-sm ${t.inputBg}`}>
+                  <span className="invisible whitespace-pre">{employeeSearch}</span>
+                  <span className={`whitespace-pre ${t.textFaint}`}>{employeeGhost}</span>
+                  <span className={`ml-1.5 text-[9px] leading-none px-1 py-0.5 rounded border ${t.border} ${t.textFaint}`}>Tab</span>
                 </div>
-              ) : <span className={t.textFaint}>Select employee...</span>}
-              <ChevronDown className={`h-3.5 w-3.5 shrink-0 ${t.textFaint}`} />
-            </button>
+              )}
+              <input
+                type="text"
+                disabled={!!editData}
+                value={employeeSearch}
+                placeholder="Type a name or employee ID…"
+                onChange={e => { setEmployeeSearch(e.target.value); setEmployeeSelectOpen(true); setEmployeeHighlight(0); }}
+                onFocus={() => setEmployeeSelectOpen(true)}
+                onKeyDown={handleEmployeeKeyDown}
+                onBlur={() => setTimeout(() => { setEmployeeSelectOpen(false); setEmployeeSearch(formData.employee_name || ''); }, 160)}
+                className={`relative w-full h-9 pl-9 pr-3 rounded-lg text-sm outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-transparent ${t.inputBg}`}
+              />
+            </div>
           </FormField>
-          {employeeSelectOpen && (
+          {employeeSelectOpen && !editData && (
             <>
               <div className="fixed inset-0 z-10" onClick={() => setEmployeeSelectOpen(false)} />
               <div className={`absolute left-0 right-0 top-full mt-1 z-20 rounded-xl overflow-hidden ${t.glass} ${t.shadow}`}>
-                <div className={`border-b ${t.border}`}>
-                  <input type="text" placeholder="Search by name or ID..." value={employeeSearch} onChange={e => setEmployeeSearch(e.target.value)}
-                    className={`w-full h-9 px-3 text-sm bg-transparent outline-none ${t.textPrimary}`} autoFocus />
-                </div>
                 <div className="max-h-56 overflow-y-auto p-1.5">
                   {loadingEmployees ? (
                     <div className="flex justify-center py-4"><Loader2 className={`h-4 w-4 animate-spin ${t.textFaint}`} /></div>
                   ) : filteredEmployees.length === 0 ? (
                     <div className={`text-sm py-6 text-center ${t.textFaint}`}>No employee found.</div>
-                  ) : filteredEmployees.map(emp => (
-                    <button key={emp.id} type="button" onClick={() => handleEmployeeSelect(emp)} className={`w-full flex items-center gap-2.5 rounded-lg px-2 py-2 ${t.textMuted} ${t.hoverBgSoft} transition-colors`}>
+                  ) : filteredEmployees.map((emp, i) => (
+                    <button key={emp.id} type="button"
+                      onMouseDown={e => e.preventDefault()}
+                      onClick={() => handleEmployeeSelect(emp)}
+                      onMouseEnter={() => setEmployeeHighlight(i)}
+                      className={`w-full flex items-center gap-2.5 rounded-lg px-2 py-2 ${t.textMuted} transition-colors ${i === employeeHighlight ? 'bg-brand-500/15' : t.hoverBgSoft}`}>
                       <User className="h-5 w-5 text-brand-400 shrink-0" />
                       <div className="flex-1 min-w-0 text-left">
                         <p className={`text-sm font-medium truncate ${t.textPrimary}`}>{emp.name}</p>
@@ -366,6 +404,9 @@ function LeaveApplicationForm({ onClose, onSuccess, editData }: { onClose: () =>
                       </div>
                     </button>
                   ))}
+                  {filteredEmployees.length > 0 && (
+                    <div className={`px-2.5 py-1.5 text-[10px] ${t.textFaint} border-t ${t.border} mt-1`}>↑↓ to move · Tab to select</div>
+                  )}
                 </div>
               </div>
             </>
