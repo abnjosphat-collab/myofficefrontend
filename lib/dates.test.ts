@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest';
-import { addMonths, todayLocal, daysUntil } from './dates';
+import { addMonths, todayLocal, daysUntil, toLocalISODate } from './dates';
 
 // Exercise it in a UTC+ timezone — exactly where the old `new Date(...).toISOString()`
 // implementation produced a day-early result (Africa/Johannesburg is UTC+2). addMonths is
@@ -27,6 +27,19 @@ describe('addMonths — timezone-safe expiry math', () => {
   it('returns empty for empty or zero-month input', () => {
     expect(addMonths('', 6)).toBe('');
     expect(addMonths('2024-01-15', 0)).toBe('');
+  });
+});
+
+describe('toLocalISODate — the timesheets grid-date bug', () => {
+  it('does not roll a local-midnight date back a day (unlike .toISOString())', () => {
+    // The exact case that was wrong: new Date(2024, 0, 15) [local Jan 15 midnight]
+    // .toISOString().split('T')[0] gives '2024-01-14' under TZ=Africa/Johannesburg (UTC+2).
+    expect(toLocalISODate(new Date(2024, 0, 15))).toBe('2024-01-15');
+    expect(toLocalISODate(new Date(2024, 0, 15)).endsWith('-14')).toBe(false);
+  });
+
+  it('pads month and day to two digits', () => {
+    expect(toLocalISODate(new Date(2024, 2, 5))).toBe('2024-03-05');
   });
 });
 

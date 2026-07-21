@@ -20,10 +20,18 @@ export function addMonths(dateStr: string, months: number): string {
   return `${ny}-${String(nm + 1).padStart(2, '0')}-${String(nd).padStart(2, '0')}`;
 }
 
+/** Any Date → YYYY-MM-DD in its LOCAL calendar date — never `.toISOString().split('T')[0]`,
+ *  which reads the UTC date and rolls a local-midnight Date back a day in any UTC+
+ *  timezone. Use this for calendar/grid date keys (e.g. a timesheet period's day columns)
+ *  so they match dates entered via <input type="date"> (which are already local, unshifted
+ *  strings) instead of silently landing on the wrong day for UTC+ users. */
+export function toLocalISODate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 /** Today's date as YYYY-MM-DD in the LOCAL timezone (not UTC, so it's never a day off). */
 export function todayLocal(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return toLocalISODate(new Date());
 }
 
 /** Whole days from today to `dateStr` (YYYY-MM-DD). Negative = in the past, 0 = today.

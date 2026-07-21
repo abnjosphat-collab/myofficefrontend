@@ -19,6 +19,7 @@ import {
 } from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
 import { useTheme, PageHero, ACCENT_HEX, useCollapseSection, EmptyState } from '@/components/shared/theme';
+import { toLocalISODate } from '@/lib/dates';
 
 // ─────────────────── TYPES ───────────────────
 
@@ -69,7 +70,11 @@ const STATUS_CFG: Record<StatusKey, StatusConfig> = {
 
 // ─────────────────── HELPERS ───────────────────
 
-const fmtDate = (d: Date) => d.toISOString().split('T')[0];
+// toLocalISODate, not d.toISOString().split('T')[0] — the latter reads the UTC date, which
+// rolls a local-midnight Date back a day for anyone in a UTC+ timezone (this file's biggest
+// latent bug: every entry saved here was silently dated one day early for such users, and
+// it would have broken date-matching against leaves/overtime records below). See lib/dates.ts.
+const fmtDate = (d: Date) => toLocalISODate(d);
 
 const calcHours = (start: string, end: string) => {
   if (!start || !end) return 0;
