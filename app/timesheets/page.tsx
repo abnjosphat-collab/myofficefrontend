@@ -40,19 +40,35 @@ interface TimesheetEntry {
   nightshift_hours?: number; standby_allowance?: boolean; total_hours?: number;
   status: StatusKey; notes?: string; overtime_periods?: OvertimePeriodData[];
   callout_overtime_hours?: number; callout_count?: number;
+  /** Client-side only — this cell was derived from approved leave/overtime, not saved by a
+   *  person. No `id`, so it isn't in the DB yet: clicking it opens the editor pre-filled,
+   *  and saving turns it into a real entry. Never sent to the backend. */
+  _auto?: 'leave' | 'overtime' | 'both';
+}
+
+/** Minimal shape pulled from the Leaves page's records — only what's needed to project an
+ *  approved leave onto the timesheet grid. */
+interface ApprovedLeaveRecord {
+  employee_id: string; leave_type: string; start_date: string; end_date: string; status: string;
+}
+
+/** Minimal shape pulled from the Overtime page's records — only what's needed to add
+ *  approved overtime hours onto the timesheet grid. */
+interface ApprovedOvertimeRecord {
+  employee_id: string; overtime_type: string; date: string; start_time: string; end_time: string; status: string;
 }
 
 interface Period { start: Date; end: Date; }
 interface EditCell { employee: Employee; date: Date; entry?: TimesheetEntry; }
 interface HourTotals { reg: number; ot15: number; ot20: number; night: number; standbyBonus: number; total: number; excess?: number; }
 
-type StatusKey = 'work' | 'leave' | 'sick' | 'special_leave' | 'holiday' | 'training' | 'off' | 'absent' | 'weekend';
+type StatusKey = 'work' | 'leave' | 'sick' | 'special_leave' | 'holiday' | 'training' | 'off' | 'absent' | 'weekend' | 'maternity' | 'study' | 'lieu';
 
 interface StatusConfig { label: string; hex: string; Icon: ElementType; }
 
 // ─────────────────── STATUS CONFIG ───────────────────
 
-const LEAVE_STATUSES = new Set<StatusKey>(['leave', 'sick', 'special_leave', 'training']);
+const LEAVE_STATUSES = new Set<StatusKey>(['leave', 'sick', 'special_leave', 'training', 'maternity', 'study', 'lieu']);
 const DOUBLE_TIME_STATUSES = new Set<StatusKey>(['holiday', 'weekend']);
 const ZERO_HOUR_STATUSES = new Set<StatusKey>(['off', 'absent']);
 
@@ -66,6 +82,26 @@ const STATUS_CFG: Record<StatusKey, StatusConfig> = {
   off: { label: 'Off', hex: '#94a3b8', Icon: XCircle },
   absent: { label: 'Absent', hex: '#f87171', Icon: AlertTriangle },
   weekend: { label: 'Weekend (2.0×)', hex: '#fbbf24', Icon: Sun },
+  // Added for the Leaves-module integration below — colors match that page's LEAVE_TYPES
+  // for the same type, so a leave reads the same way on both pages.
+  maternity: { label: 'Maternity', hex: '#db2777', Icon: CalendarDays },
+  study: { label: 'Study Leave', hex: '#059669', Icon: CalendarDays },
+  lieu: { label: 'In Lieu of OT', hex: '#0891b2', Icon: CalendarDays },
+};
+
+// Leaves page's leave_type -> this page's StatusKey. 'annual' reuses the existing generic
+// 'leave' status (that's what it already meant here); 'compassionate' maps onto
+// 'special_leave', which is that leave's label on the Leaves page too.
+const LEAVE_TYPE_TO_STATUS: Record<string, StatusKey> = {
+  annual: 'leave', sick: 'sick', compassionate: 'special_leave',
+  maternity: 'maternity', study: 'study', lieu: 'lieu',
+};
+
+// Overtime page's overtime_type -> which multiplier bucket it lands in here. The timesheet
+// only has two OT buckets (1.5x / 2.0x); weekend and holiday overtime count as double-time,
+// everything else (regular/emergency/project/night) as 1.5x.
+const OT_TYPE_TO_BUCKET: Record<string, 'ot15' | 'ot20'> = {
+  weekend: 'ot20', holiday: 'ot20', regular: 'ot15', emergency: 'ot15', project: 'ot15', night: 'ot15',
 };
 
 // ─────────────────── HELPERS ───────────────────
@@ -149,6 +185,15 @@ const api = {
   },
   async delete(id: number): Promise<void> {
     await apiClient.delete(`/api/timesheets/${id}`);
+  },
+  // Approved-only, company-wide (leaves/overtime don't support a date-range query — the
+  // grid-day check below filters to the active period). A person on leave or with
+  // overtime that's merely pending shouldn't move hours around until it's actually approved.
+  async approvedLeaves(): Promise<ApprovedLeaveRecord[]> {
+    return (await apiClient.get<ApprovedLeaveRecord[]>('/api/leaves?status=approved')) || [];
+  },
+  async approvedOvertime(): Promise<ApprovedOvertimeRecord[]> {
+    return (await apiClient.get<ApprovedOvertimeRecord[]>('/api/overtime?status=approved')) || [];
   },
 };
 
@@ -1148,6 +1193,11 @@ function TimesheetGrid({ employees, timesheets, days, onCellClick, onBulkAssign,
                               return displayH > 0 ? <span className={`font-bold ${isDT ? 'text-amber-400' : t.textMuted}`}>{displayH.toFixed(1)}h{isDT ? ' ×2' : ''}</span> : null;
                             })()}
                             {!DOUBLE_TIME_STATUSES.has(entry.status as StatusKey) && (entry.overtime_hours || 0) > 0 && <span className="text-brand-400 font-semibold">+{entry.overtime_hours!.toFixed(1)} OT</span>}
+                            {/* 2.0x overtime landed on an otherwise non-holiday/weekend day (e.g.
+                                approved weekend/holiday OT on top of a normal work day) — without
+                                this it was invisible here even though it's correctly counted in
+                                the period's 2.0× total below. */}
+                            {!DOUBLE_TIME_STATUSES.has(entry.status as StatusKey) && (entry.holiday_overtime_hours || 0) > 0 && <span className="text-sky-400 font-semibold">+{entry.holiday_overtime_hours!.toFixed(1)} ×2</span>}
                             {(entry.nightshift_hours || 0) > 0 && <span className="text-sky-400 text-[8px]"><Moon className="w-2 h-2 inline -mt-px" />{entry.nightshift_hours!.toFixed(1)}n</span>}
                             {entry.standby_allowance && <span className="text-amber-400 text-[8px] font-medium">SB</span>}
                           </>
@@ -1155,6 +1205,12 @@ function TimesheetGrid({ employees, timesheets, days, onCellClick, onBulkAssign,
                           <span className={`text-base font-light ${isToday ? 'text-brand-400/50' : t.textFaint}`}>+</span>
                         )}
                       </button>
+                      {entry?._auto && (
+                        // Derived from approved leave/overtime, not yet a saved entry — click
+                        // to confirm or adjust, same as any other cell.
+                        <span title="Auto-filled from approved leave/overtime — click to confirm"
+                          className="absolute top-0.5 left-0.5 h-1.5 w-1.5 rounded-full bg-white ring-2 ring-white/40 pointer-events-none" />
+                      )}
                       {entry && (
                         <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover/cell:block z-50 min-w-[130px]">
                           <div className={`${t.glass} rounded-lg px-2.5 py-2 text-left ${t.shadow}`}>
@@ -1166,11 +1222,17 @@ function TimesheetGrid({ employees, timesheets, days, onCellClick, onBulkAssign,
                                   ? <p className="text-[9px] text-amber-400 font-semibold">{((entry.holiday_overtime_hours || 0) + (entry.regular_hours || 0)).toFixed(1)}h @ 2.0×</p>
                                   : <p className="text-[9px] text-emerald-400">{(entry.regular_hours || 0).toFixed(1)}h reg</p>}
                                 {!DOUBLE_TIME_STATUSES.has(entry.status as StatusKey) && (entry.overtime_hours || 0) > 0 && <p className="text-[9px] text-brand-400">+{entry.overtime_hours!.toFixed(1)}h OT 1.5×</p>}
+                                {!DOUBLE_TIME_STATUSES.has(entry.status as StatusKey) && (entry.holiday_overtime_hours || 0) > 0 && <p className="text-[9px] text-sky-400">+{entry.holiday_overtime_hours!.toFixed(1)}h OT 2.0×</p>}
                                 {(entry.nightshift_hours || 0) > 0 && <p className="text-[9px] text-sky-400">{entry.nightshift_hours!.toFixed(1)}h night</p>}
                                 {(entry.callout_overtime_hours || 0) > 0 && <p className="text-[9px] text-orange-400">{entry.callout_overtime_hours!.toFixed(1)}h callout</p>}
                               </div>
                             )}
                             {entry.standby_allowance && <p className="text-[9px] text-amber-400 mt-0.5">Standby</p>}
+                            {entry._auto && (
+                              <p className="text-[9px] mt-1 text-brand-400">
+                                {entry._auto === 'leave' ? 'From approved leave' : entry._auto === 'overtime' ? 'Includes approved OT' : 'Approved leave + OT'} — click to confirm
+                              </p>
+                            )}
                             {entry.notes && <p className={`text-[9px] mt-1 italic truncate max-w-[120px] ${t.textFaint}`}>{entry.notes}</p>}
                           </div>
                         </div>
@@ -1251,6 +1313,8 @@ function TimesheetsContent() {
   const [salariedHidden, setSalariedHidden] = useState<string[]>(() => readLS(LS_SALARIED_HIDDEN));
   const [necHidden, setNecHidden] = useState<string[]>(() => readLS(LS_NEC_HIDDEN));
   const [timesheets, setTimesheets] = useState<TimesheetEntry[]>([]);
+  const [approvedLeaves, setApprovedLeaves] = useState<ApprovedLeaveRecord[]>([]);
+  const [approvedOvertime, setApprovedOvertime] = useState<ApprovedOvertimeRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<'name' | 'dept'>('name');
@@ -1312,23 +1376,92 @@ function TimesheetsContent() {
       .sort((a, b) => sortBy === 'dept' ? (a.department.localeCompare(b.department) || a.name.localeCompare(b.name)) : a.name.localeCompare(b.name));
   }, [allEmployees, tabIds, search, sortBy]);
 
+  // Leaves/overtime store the human-readable employee_id (e.g. "C1165"); timesheets key off
+  // the DB integer id. This is the join between them.
+  const employeeIdByHuman = useMemo(() => {
+    const m = new Map<string, string>();
+    allEmployees.forEach(e => { if (e.employeeId) m.set(e.employeeId, e.id); });
+    return m;
+  }, [allEmployees]);
+
+  // The grid's actual data source: real saved timesheets, with approved leave/overtime
+  // projected on top. A real entry always wins — the overlay only fills gaps (leave) or adds
+  // on top (overtime), it never overwrites what a person entered. See the TimesheetEntry
+  // `_auto` field for how these are told apart in the UI, and handleSaveEntry for why editing
+  // one of these cells safely creates a real entry rather than corrupting anything.
+  const effectiveTimesheets = useMemo(() => {
+    const merged = new Map<string, TimesheetEntry>();
+    timesheets.forEach(ts => merged.set(`${ts.employee_id}:${ts.date}`, ts));
+
+    const dayStrs = days.map(fmtDate);
+    const dayStrSet = new Set(dayStrs);
+    const tabIdSet = new Set(tabIds);
+
+    approvedLeaves.forEach(lv => {
+      const dbId = employeeIdByHuman.get(lv.employee_id);
+      if (!dbId || !tabIdSet.has(dbId)) return;
+      const status = LEAVE_TYPE_TO_STATUS[lv.leave_type];
+      if (!status) return;
+      dayStrs.forEach(ds => {
+        if (ds < lv.start_date || ds > lv.end_date) return;
+        const key = `${dbId}:${ds}`;
+        if (merged.has(key)) return; // a real entry already exists — it wins
+        merged.set(key, {
+          employee_id: parseInt(dbId), date: ds, status,
+          regular_hours: 8, overtime_hours: 0, holiday_overtime_hours: 0, nightshift_hours: 0,
+          total_hours: 8, standby_allowance: false,
+          notes: `Auto: ${STATUS_CFG[status].label} (approved leave)`,
+          _auto: 'leave',
+        });
+      });
+    });
+
+    approvedOvertime.forEach(ot => {
+      const dbId = employeeIdByHuman.get(ot.employee_id);
+      if (!dbId || !tabIdSet.has(dbId) || !dayStrSet.has(ot.date)) return;
+      const bucket = OT_TYPE_TO_BUCKET[ot.overtime_type];
+      if (!bucket) return;
+      const hours = calcHours(ot.start_time, ot.end_time);
+      if (hours <= 0) return;
+      const key = `${dbId}:${ot.date}`;
+      const base: TimesheetEntry = merged.get(key) ?? {
+        employee_id: parseInt(dbId), date: ot.date, status: 'work',
+        regular_hours: 0, overtime_hours: 0, holiday_overtime_hours: 0, nightshift_hours: 0,
+        total_hours: 0, standby_allowance: false,
+      };
+      const updated: TimesheetEntry = { ...base };
+      if (bucket === 'ot20') updated.holiday_overtime_hours = (base.holiday_overtime_hours || 0) + hours;
+      else updated.overtime_hours = (base.overtime_hours || 0) + hours;
+      updated.total_hours = (base.total_hours || 0) + hours;
+      updated._auto = base._auto === 'leave' ? 'both' : 'overtime';
+      merged.set(key, updated);
+    });
+
+    return [...merged.values()];
+  }, [timesheets, approvedLeaves, approvedOvertime, employeeIdByHuman, tabIds, days]);
+
   const summary = useMemo(() => {
     const tot = tabEmployees.reduce((acc, e) => {
-      const tt = calcTotals(e.id, timesheets);
+      const tt = calcTotals(e.id, effectiveTimesheets);
       return { reg: acc.reg + tt.reg, ot15: acc.ot15 + tt.ot15, ot20: acc.ot20 + tt.ot20, night: acc.night + tt.night, standbyBonus: acc.standbyBonus + tt.standbyBonus };
     }, { reg: 0, ot15: 0, ot20: 0, night: 0, standbyBonus: 0 });
-    const filled = new Set(timesheets.filter(ts => tabIds.includes(String(ts.employee_id))).map(ts => `${ts.employee_id}:${ts.date}`)).size;
+    const filled = new Set(effectiveTimesheets.filter(ts => tabIds.includes(String(ts.employee_id))).map(ts => `${ts.employee_id}:${ts.date}`)).size;
     const workingDays = days.filter(d => d.getDay() !== 0 && d.getDay() !== 6).length;
     const possible = tabEmployees.length * workingDays;
     return { ...tot, filled, possible };
-  }, [timesheets, tabEmployees, tabIds, days]);
+  }, [effectiveTimesheets, tabEmployees, tabIds, days]);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [emps, sheets] = await Promise.all([api.employees(), api.timesheets(fmtDate(activePeriod.start), fmtDate(activePeriod.end))]);
+      const [emps, sheets, leaves, ot] = await Promise.all([
+        api.employees(), api.timesheets(fmtDate(activePeriod.start), fmtDate(activePeriod.end)),
+        api.approvedLeaves(), api.approvedOvertime(),
+      ]);
       setAllEmployees(emps);
       setTimesheets(sheets);
+      setApprovedLeaves(leaves);
+      setApprovedOvertime(ot);
     } catch (e) { toast.error('Failed to load: ' + (e as Error).message); }
     finally { setLoading(false); }
   }, [activePeriod]);
@@ -1494,7 +1627,7 @@ function TimesheetsContent() {
             <div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-brand-400" /><span className={`ml-2 text-sm ${t.textFaint}`}>Loading…</span></div>
           ) : (
             <TimesheetGrid
-              employees={tabEmployees} timesheets={timesheets} days={days}
+              employees={tabEmployees} timesheets={effectiveTimesheets} days={days}
               onCellClick={(emp, day, entry) => setEditCell({ employee: emp, date: day, entry })}
               onBulkAssign={emp => setBulkEmployee(emp)}
               onRemoveEmployee={removeFromTab}
@@ -1537,9 +1670,9 @@ function TimesheetsContent() {
           onDelete={editCell.entry?.id ? () => handleDeleteEntry(editCell.entry!.id!) : undefined}
           onClose={() => setEditCell(null)} />
       )}
-      {bulkEmployee && <BulkAssignDialog initialEmployee={bulkEmployee} allEmployees={tabEmployees} period={activePeriod} timesheets={timesheets} onSave={handleBulkSave} onClose={() => setBulkEmployee(null)} />}
+      {bulkEmployee && <BulkAssignDialog initialEmployee={bulkEmployee} allEmployees={tabEmployees} period={activePeriod} timesheets={effectiveTimesheets} onSave={handleBulkSave} onClose={() => setBulkEmployee(null)} />}
       {showBulkAdd && <BulkAddEmployeesDialog allEmployees={allEmployees} currentIds={tabIds} onAdd={emps => addToTab(emps.map(e => e.id))} onClose={() => setShowBulkAdd(false)} />}
-      {showDownload && <DownloadDialog employees={tabEmployees} timesheets={timesheets} period={activePeriod} periodType={activeTab} onClose={() => setShowDownload(false)} />}
+      {showDownload && <DownloadDialog employees={tabEmployees} timesheets={effectiveTimesheets} period={activePeriod} periodType={activeTab} onClose={() => setShowDownload(false)} />}
     </main>
   );
 }
