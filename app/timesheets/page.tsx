@@ -25,6 +25,7 @@ import { useTheme, PageHero, ACCENT_HEX, useCollapseSection, EmptyState } from '
 interface Employee {
   id: string; employeeId: string; name: string; position: string;
   department: string; email: string; is_active: boolean;
+  employmentType: 'NEC' | 'SALARIED' | '';
 }
 
 interface OvertimePeriodData {
@@ -124,6 +125,7 @@ const api = {
       department: (d.department || 'General') as string,
       email: (d.email || '') as string,
       is_active: d.is_active !== false,
+      employmentType: ((d.employment_type as string) === 'NEC' || (d.employment_type as string) === 'SALARIED') ? (d.employment_type as 'NEC' | 'SALARIED') : '',
     }));
   },
   // Throws on failure — the `catch { return [] }` this replaces made a server
@@ -1055,7 +1057,7 @@ function TimesheetGrid({ employees, timesheets, days, onCellClick, onBulkAssign,
   const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
 
   if (employees.length === 0) {
-    return <EmptyState icon={Users} title="No employees in this period" message={'Click "Add Employees" to get started'} />;
+    return <EmptyState icon={Users} title="No employees on this roster" message={'Set NEC / Salaried on the Employees page, or click "Add Employees" to add someone manually'} />;
   }
 
   const stickyBg = t.light ? 'bg-white' : 'bg-[#040c18]';
@@ -1218,9 +1220,16 @@ function TimesheetGrid({ employees, timesheets, days, onCellClick, onBulkAssign,
 }
 
 // ─────────────────── localStorage ───────────────────
-
-const LS_SALARIED = 'ts_salaried_ids';
-const LS_NEC = 'ts_nec_ids';
+// The NEC/Salaried roster is now AUTOMATIC — driven by each employee's employment_type on
+// the Employees page — rather than a manually-built list. These two keys no longer hold the
+// whole roster; they're just the exceptions layered on top of the automatic one:
+//   EXTRA  — someone added by hand (e.g. their employment_type isn't set yet)
+//   HIDDEN — an auto-included person removed from this tab's view
+// See tabIds in TimesheetsContent for how they combine.
+const LS_SALARIED_EXTRA = 'ts_salaried_extra_ids';
+const LS_NEC_EXTRA = 'ts_nec_extra_ids';
+const LS_SALARIED_HIDDEN = 'ts_salaried_hidden_ids';
+const LS_NEC_HIDDEN = 'ts_nec_hidden_ids';
 const readLS = (key: string): string[] => { try { return JSON.parse(localStorage.getItem(key) || '[]') as string[]; } catch { return []; } };
 const writeLS = (key: string, val: string[]) => localStorage.setItem(key, JSON.stringify(val));
 
@@ -1232,8 +1241,10 @@ function TimesheetsContent() {
   const [activeTab, setActiveTab] = useState<'salaried' | 'nec'>('salaried');
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [allEmployees, setAllEmployees] = useState<Employee[]>([]);
-  const [salaryIds, setSalaryIds] = useState<string[]>(() => readLS(LS_SALARIED));
-  const [necIds, setNecIds] = useState<string[]>(() => readLS(LS_NEC));
+  const [salariedExtra, setSalariedExtra] = useState<string[]>(() => readLS(LS_SALARIED_EXTRA));
+  const [necExtra, setNecExtra] = useState<string[]>(() => readLS(LS_NEC_EXTRA));
+  const [salariedHidden, setSalariedHidden] = useState<string[]>(() => readLS(LS_SALARIED_HIDDEN));
+  const [necHidden, setNecHidden] = useState<string[]>(() => readLS(LS_NEC_HIDDEN));
   const [timesheets, setTimesheets] = useState<TimesheetEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -1252,11 +1263,43 @@ function TimesheetsContent() {
   const activePeriod = activeTab === 'salaried' ? salariedPeriod : necPeriod;
   const days = useMemo(() => getDays(activePeriod), [activePeriod]);
 
-  const tabIds = activeTab === 'salaried' ? salaryIds : necIds;
-  const setTabIds = useCallback((ids: string[]) => {
-    if (activeTab === 'salaried') { setSalaryIds(ids); writeLS(LS_SALARIED, ids); }
-    else { setNecIds(ids); writeLS(LS_NEC, ids); }
+  // Automatic base roster: every employee whose employment_type matches this tab.
+  const autoIds = useMemo(
+    () => allEmployees.filter(e => e.employmentType === (activeTab === 'salaried' ? 'SALARIED' : 'NEC')).map(e => e.id),
+    [allEmployees, activeTab]
+  );
+  const tabExtra = activeTab === 'salaried' ? salariedExtra : necExtra;
+  const tabHidden = activeTab === 'salaried' ? salariedHidden : necHidden;
+  const tabIds = useMemo(() => {
+    const hidden = new Set(tabHidden);
+    return [...new Set([...autoIds, ...tabExtra])].filter(id => !hidden.has(id));
+  }, [autoIds, tabExtra, tabHidden]);
+
+  /** Manually add people the automatic roster missed (e.g. employment_type not set yet). */
+  const addToTab = useCallback((ids: string[]) => {
+    const setExtra = activeTab === 'salaried' ? setSalariedExtra : setNecExtra;
+    const setHidden = activeTab === 'salaried' ? setSalariedHidden : setNecHidden;
+    const extraKey = activeTab === 'salaried' ? LS_SALARIED_EXTRA : LS_NEC_EXTRA;
+    const hiddenKey = activeTab === 'salaried' ? LS_SALARIED_HIDDEN : LS_NEC_HIDDEN;
+    setExtra(prev => { const next = [...new Set([...prev, ...ids])]; writeLS(extraKey, next); return next; });
+    // Re-adding someone previously hidden should make them visible again.
+    setHidden(prev => { const next = prev.filter(id => !ids.includes(id)); writeLS(hiddenKey, next); return next; });
   }, [activeTab]);
+
+  /** Remove from this tab's view. An auto-included person is hidden (an override — they'd
+   *  otherwise reappear every load since the roster is derived); an extra person is just
+   *  dropped from the extra list. */
+  const removeFromTab = useCallback((id: string) => {
+    if (autoIds.includes(id)) {
+      const setHidden = activeTab === 'salaried' ? setSalariedHidden : setNecHidden;
+      const hiddenKey = activeTab === 'salaried' ? LS_SALARIED_HIDDEN : LS_NEC_HIDDEN;
+      setHidden(prev => { const next = [...new Set([...prev, id])]; writeLS(hiddenKey, next); return next; });
+    } else {
+      const setExtra = activeTab === 'salaried' ? setSalariedExtra : setNecExtra;
+      const extraKey = activeTab === 'salaried' ? LS_SALARIED_EXTRA : LS_NEC_EXTRA;
+      setExtra(prev => { const next = prev.filter(x => x !== id); writeLS(extraKey, next); return next; });
+    }
+  }, [activeTab, autoIds]);
 
   const tabEmployees = useMemo(() => {
     const q = search.toLowerCase();
@@ -1449,7 +1492,7 @@ function TimesheetsContent() {
               employees={tabEmployees} timesheets={timesheets} days={days}
               onCellClick={(emp, day, entry) => setEditCell({ employee: emp, date: day, entry })}
               onBulkAssign={emp => setBulkEmployee(emp)}
-              onRemoveEmployee={id => setTabIds(tabIds.filter(x => x !== id))}
+              onRemoveEmployee={removeFromTab}
             />
           )
         )}
@@ -1490,7 +1533,7 @@ function TimesheetsContent() {
           onClose={() => setEditCell(null)} />
       )}
       {bulkEmployee && <BulkAssignDialog initialEmployee={bulkEmployee} allEmployees={tabEmployees} period={activePeriod} timesheets={timesheets} onSave={handleBulkSave} onClose={() => setBulkEmployee(null)} />}
-      {showBulkAdd && <BulkAddEmployeesDialog allEmployees={allEmployees} currentIds={tabIds} onAdd={emps => setTabIds([...new Set([...tabIds, ...emps.map(e => e.id)])])} onClose={() => setShowBulkAdd(false)} />}
+      {showBulkAdd && <BulkAddEmployeesDialog allEmployees={allEmployees} currentIds={tabIds} onAdd={emps => addToTab(emps.map(e => e.id))} onClose={() => setShowBulkAdd(false)} />}
       {showDownload && <DownloadDialog employees={tabEmployees} timesheets={timesheets} period={activePeriod} periodType={activeTab} onClose={() => setShowDownload(false)} />}
     </main>
   );
