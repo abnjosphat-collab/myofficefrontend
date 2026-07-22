@@ -14,7 +14,8 @@ import {
   FilterX, ChevronsDownUp, ChevronsUpDown, ChevronDown, ChevronUp,
   Clock, AlertCircle, Trash2, X, Pencil, Mail, Briefcase,
   GraduationCap, Sparkles, UserRound, BriefcaseBusiness,
-  List, LayoutGrid, MapPin, Filter, Award, Download, Plus, Phone,
+  List, LayoutGrid, MapPin, Filter, Award, Download, Plus, Phone, CheckSquare, Square, Check,
+  FileSpreadsheet, FileText,
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle,
   FormField, FormActions, useCollapseSection, CenterModal, ACCENT_HEX, SelectField,
   GroupSection, RecordCard, staggerContainer, fadeUp,
@@ -42,6 +43,7 @@ interface Employee {
   grade?: string;
   qualifications?: string[];
   employment_type?: 'NEC' | 'SALARIED' | '';
+  discipline?: 'mechanical' | 'electrical' | '';
   drivers_license_class?: string;
   ppe_issue_date?: string;
   offences?: string[];
@@ -62,6 +64,7 @@ interface EmployeeFormData {
   designation: string;
   employee_class: string;
   employment_type: 'NEC' | 'SALARIED' | '';
+  discipline: 'mechanical' | 'electrical' | '';
   supervisor: string;
   section: string;
   department: string;
@@ -86,6 +89,8 @@ const CLASS_COLORS: Record<string, string> = {
   Permanent: '#34d399', Contract: '#f59e0b', Internship: ACCENT_HEX.blue, 'Part-Time': '#a78bfa',
 };
 const ETYPE_COLORS: Record<string, string> = { NEC: ACCENT_HEX.indigo, SALARIED: ACCENT_HEX.cyan };
+const DISCIPLINE_COLORS: Record<string, string> = { mechanical: ACCENT_HEX.blue, electrical: ACCENT_HEX.amber };
+const DISCIPLINE_LABELS: Record<string, string> = { mechanical: 'Mechanical', electrical: 'Electrical' };
 const SECTION_COLORS: Record<string, string> = {
   Mechanical: ACCENT_HEX.blue, Electrical: ACCENT_HEX.amber, Civil: ACCENT_HEX.emerald, Instrumentation: ACCENT_HEX.violet,
 };
@@ -147,6 +152,9 @@ async function saveEmployee(data: EmployeeFormData, id?: number) {
 async function removeEmployee(id: number) {
   await api.delete(`${EMPLOYEES_API}/${id}`);
 }
+async function bulkSetDiscipline(ids: number[], discipline: 'mechanical' | 'electrical' | null) {
+  return api.post<{ updated: number; discipline: string | null }>(`${EMPLOYEES_API}/bulk-discipline`, { ids, discipline });
+}
 
 // ─── Small themed building blocks ────────────────────────────────────────────
 // InfoRow/SummaryItem now come from the shared design system (promoted from
@@ -177,6 +185,120 @@ function FilterChips({ label, options, value, onChange }: {
   );
 }
 
+// ─── Discipline Export Dialog ─────────────────────────────────────────────────
+// Groups the full roster into Mechanical / Electrical / Not Set and exports either
+// format — for planning crew composition or handing a trade-specific list to a supervisor.
+
+const BRAND: [number, number, number] = [42, 77, 105]; // matches the registry Excel export's header fill (#2A4D69)
+
+function disciplineGroups(employees: Employee[]) {
+  const mech = employees.filter(e => e.discipline === 'mechanical');
+  const elec = employees.filter(e => e.discipline === 'electrical');
+  const unset = employees.filter(e => !e.discipline);
+  return [
+    { label: 'Mechanical', rows: mech },
+    { label: 'Electrical', rows: elec },
+    { label: 'Not Set', rows: unset },
+  ];
+}
+
+function DisciplineExportDialog({ employees, onClose }: { employees: Employee[]; onClose: () => void }) {
+  const t = useTheme();
+  const [format, setFormat] = useState<'excel' | 'pdf'>('excel');
+  const [generating, setGenerating] = useState(false);
+  const groups = useMemo(() => disciplineGroups(employees), [employees]);
+
+  const generateExcel = async () => {
+    const ExcelJS = (await import('exceljs')).default;
+    const { saveAs } = await import('file-saver');
+    const wb = new ExcelJS.Workbook();
+    for (const g of groups) {
+      const ws = wb.addWorksheet(g.label);
+      ws.columns = [
+        { header: 'Employee ID', key: 'employee_id', width: 14 },
+        { header: 'First Name', key: 'first_name', width: 18 },
+        { header: 'Last Name', key: 'last_name', width: 18 },
+        { header: 'Designation', key: 'designation', width: 24 },
+        { header: 'Department', key: 'department', width: 20 },
+        { header: 'Section', key: 'section', width: 18 },
+        { header: 'Employment Type', key: 'employment_type', width: 16 },
+      ];
+      const hdr = ws.getRow(1);
+      hdr.eachCell(cell => {
+        cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2A4D69' } };
+      });
+      g.rows.forEach(e => ws.addRow(e));
+    }
+    const buf = await wb.xlsx.writeBuffer();
+    saveAs(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
+      `Personnel_By_Discipline_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
+
+  const generatePDF = async () => {
+    const { default: jsPDF } = await import('jspdf');
+    const { default: autoTable } = await import('jspdf-autotable');
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    let first = true;
+    for (const g of groups) {
+      if (!first) doc.addPage();
+      first = false;
+      doc.setFillColor(...BRAND); doc.rect(0, 0, 297, 16, 'F');
+      doc.setTextColor(255, 255, 255); doc.setFontSize(12);
+      doc.text(`${g.label} — ${g.rows.length} employee${g.rows.length === 1 ? '' : 's'}`, 10, 10);
+      autoTable(doc, {
+        startY: 20,
+        head: [['Employee ID', 'First Name', 'Last Name', 'Designation', 'Department', 'Section', 'Employment Type']],
+        body: g.rows.map(e => [e.employee_id, e.first_name, e.last_name, e.designation || '', e.department || '', e.section || '', e.employment_type || '']),
+        styles: { fontSize: 8, cellPadding: 1.5 },
+        headStyles: { fillColor: BRAND, textColor: 255, fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+      });
+    }
+    doc.save(`Personnel_By_Discipline_${new Date().toISOString().slice(0, 10)}.pdf`);
+  };
+
+  const handleGenerate = async () => {
+    setGenerating(true);
+    try {
+      if (format === 'excel') await generateExcel(); else await generatePDF();
+      toast.success(`${format === 'excel' ? 'Excel' : 'PDF'} exported — ${employees.length} employees by discipline`);
+      onClose();
+    } catch (err) { toast.error(`Export failed: ${(err as Error).message}`); }
+    finally { setGenerating(false); }
+  };
+
+  return (
+    <CenterModal open onClose={onClose} title="Download by Discipline" subtitle="Mechanical, Electrical and Not Set, as separate sections" accent="violet" width="max-w-md">
+      <form onSubmit={e => { e.preventDefault(); handleGenerate(); }}>
+        <div className="p-5 space-y-4">
+          <div className="grid grid-cols-3 gap-2">
+            {groups.map(g => (
+              <div key={g.label} className={`${t.chipBg} rounded-xl p-3 text-center`}>
+                <div className={`text-lg font-bold ${t.textPrimary}`}>{g.rows.length}</div>
+                <div className={`text-[11px] ${t.textFaint}`}>{g.label}</div>
+              </div>
+            ))}
+          </div>
+          <FormField label="Format">
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setFormat('excel')}
+                className={`flex-1 h-10 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${format === 'excel' ? 'bg-emerald-500/20 text-emerald-400' : `${t.hoverBg} ${t.textFaint}`}`}>
+                <FileSpreadsheet className="h-3.5 w-3.5" /> Excel
+              </button>
+              <button type="button" onClick={() => setFormat('pdf')}
+                className={`flex-1 h-10 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${format === 'pdf' ? 'bg-rose-500/20 text-rose-400' : `${t.hoverBg} ${t.textFaint}`}`}>
+                <FileText className="h-3.5 w-3.5" /> PDF
+              </button>
+            </div>
+          </FormField>
+        </div>
+        <FormActions onCancel={onClose} submitting={generating} submitLabel="Download" />
+      </form>
+    </CenterModal>
+  );
+}
+
 // ─── EmployeeForm ─────────────────────────────────────────────────────────────
 
 interface EmployeeFormProps {
@@ -189,7 +311,7 @@ interface EmployeeFormProps {
 const EMPTY_FORM: EmployeeFormData = {
   employee_id: '', first_name: '', last_name: '', id_number: '',
   email: '', phone: '', address: '', date_of_engagement: '', designation: '',
-  employee_class: '', employment_type: '', supervisor: '', section: '',
+  employee_class: '', employment_type: '', discipline: '', supervisor: '', section: '',
   department: '', grade: '',
   qualifications: [], drivers_license_class: '',
   offences: [], awards_recognition: [], other_positions: [], previous_employer: '',
@@ -210,6 +332,7 @@ function EmployeeForm({ initialData, onSubmit, onCancel, isSubmitting }: Employe
       designation: initialData.designation || '',
       employee_class: initialData.employee_class || '',
       employment_type: (initialData.employment_type as 'NEC' | 'SALARIED' | '') || '',
+      discipline: (initialData.discipline as 'mechanical' | 'electrical' | '') || '',
       supervisor: initialData.supervisor || '',
       section: initialData.section || '',
       department: initialData.department || '',
@@ -375,6 +498,21 @@ function EmployeeForm({ initialData, onSubmit, onCancel, isSubmitting }: Employe
                 ))}
               </div>
             </FormField>
+            <FormField label="Trade Discipline">
+              <div className="flex gap-2">
+                {(['', 'mechanical', 'electrical'] as const).map(d => (
+                  <button key={d || 'none'} type="button"
+                    onClick={() => set('discipline', d)}
+                    className={`flex-1 h-9 rounded-lg text-xs font-semibold transition-all ${
+                      form.discipline === d
+                        ? d === 'mechanical' ? 'bg-blue-500/20 text-blue-400' : d === 'electrical' ? 'bg-amber-500/20 text-amber-400' : `${t.chipBg} ${t.textMuted}`
+                        : `${t.hoverBg} ${t.textFaint}`
+                    }`}>
+                    {d ? DISCIPLINE_LABELS[d] : 'Not set'}
+                  </button>
+                ))}
+              </div>
+            </FormField>
             {[
               { f: 'department' as const,        label: 'Department' },
               { f: 'section' as const,           label: 'Section' },
@@ -415,9 +553,12 @@ function EmployeeForm({ initialData, onSubmit, onCancel, isSubmitting }: Employe
 
 // ─── EmployeeRow ──────────────────────────────────────────────────────────────
 
-interface EmployeeRowProps { employee: Employee; onEdit: (e: Employee) => void; onDelete: (e: Employee) => void; }
+interface EmployeeRowProps {
+  employee: Employee; onEdit: (e: Employee) => void; onDelete: (e: Employee) => void;
+  selectMode?: boolean; selected?: boolean; onToggleSelect?: () => void;
+}
 
-function EmployeeRow({ employee, onEdit, onDelete }: EmployeeRowProps) {
+function EmployeeRow({ employee, onEdit, onDelete, selectMode, selected, onToggleSelect }: EmployeeRowProps) {
   const t = useTheme();
   const [expanded, setExpanded] = useState(false);
   const name = `${employee.first_name} ${employee.last_name}`;
@@ -428,6 +569,12 @@ function EmployeeRow({ employee, onEdit, onDelete }: EmployeeRowProps) {
   return (
     <div className={`border-b ${t.border}`}>
       <div className={`flex items-center gap-3.5 px-4 py-3 ${t.hoverBgSoft} transition-colors group`}>
+        {selectMode && (
+          <button type="button" title={selected ? 'Deselect' : 'Select'} onClick={onToggleSelect}
+            className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${selected ? 'bg-brand-500 border-brand-400' : `border ${t.border} ${t.hoverBg}`}`}>
+            {selected && <Check className="w-3 h-3 text-white" />}
+          </button>
+        )}
         <div className="shrink-0">
           <UserRound className="h-5 w-5" style={{ color: secColor }} />
         </div>
@@ -444,6 +591,9 @@ function EmployeeRow({ employee, onEdit, onDelete }: EmployeeRowProps) {
         <div className="flex items-center gap-2 shrink-0">
           {employee.employment_type && (
             <span className="hidden sm:block"><StatusBadge color={ETYPE_COLORS[employee.employment_type] ?? '#94a3b8'} label={employee.employment_type} /></span>
+          )}
+          {employee.discipline && (
+            <span className="hidden sm:block"><StatusBadge color={DISCIPLINE_COLORS[employee.discipline] ?? '#94a3b8'} label={DISCIPLINE_LABELS[employee.discipline]} /></span>
           )}
           <span className="hidden sm:block"><StatusBadge color={CLASS_COLORS[employee.employee_class || ''] ?? '#94a3b8'} label={employee.employee_class || 'Unclassified'} /></span>
           <span className={`hidden md:flex items-center gap-1 text-[11px] ${t.textFaint}`}><Clock className="h-3 w-3" style={{ color: secColor }} />{ten}</span>
@@ -575,7 +725,10 @@ function EmployeeRow({ employee, onEdit, onDelete }: EmployeeRowProps) {
 // module-card treatment (bare accent icon + pop, Montserrat title, GlowCard lift/glow).
 // Key summary always visible; the rest expands in place. ──
 
-function EmployeeCard({ employee, onEdit, onDelete }: { employee: Employee; onEdit: (e: Employee) => void; onDelete: (e: Employee) => void }) {
+function EmployeeCard({ employee, onEdit, onDelete, selectMode, selected, onToggleSelect }: {
+  employee: Employee; onEdit: (e: Employee) => void; onDelete: (e: Employee) => void;
+  selectMode?: boolean; selected?: boolean; onToggleSelect?: () => void;
+}) {
   const t = useTheme();
   const secColor = sectionColor(employee.section);
   const ten = tenure(employee.date_of_engagement);
@@ -587,9 +740,17 @@ function EmployeeCard({ employee, onEdit, onDelete }: { employee: Employee; onEd
       accentHex={secColor}
       title={`${employee.first_name} ${employee.last_name}`}
       subtitle={employee.designation || 'No role'}
+      headerActions={selectMode && (
+        <button type="button" title={selected ? 'Deselect' : 'Select'}
+          onClick={e => { e.stopPropagation(); onToggleSelect?.(); }}
+          className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${selected ? 'bg-brand-500 border-brand-400' : `border ${t.border} ${t.hoverBg}`}`}>
+          {selected && <Check className="w-3 h-3 text-white" />}
+        </button>
+      )}
       badges={<>
         {employee.section && <StatusBadge color={secColor} label={employee.section} />}
         {employee.employment_type && <StatusBadge color={ETYPE_COLORS[employee.employment_type] ?? '#94a3b8'} label={employee.employment_type} />}
+        {employee.discipline && <StatusBadge color={DISCIPLINE_COLORS[employee.discipline] ?? '#94a3b8'} label={DISCIPLINE_LABELS[employee.discipline]} />}
       </>}
       summary={
         <div className={`grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs ${t.textMuted}`}>
@@ -643,10 +804,18 @@ function EmployeesPageContent() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [showForm, setShowForm] = useState(false);
+  // Bulk trade-discipline marking — a select-mode toggle over the existing grid/list cards,
+  // matching the checkbox-then-bulk-action pattern used elsewhere (e.g. timesheets' Add
+  // Employees dialog).
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [bulkApplying, setBulkApplying] = useState(false);
+  const [showDisciplineExport, setShowDisciplineExport] = useState(false);
 
   const [search, setSearch] = useState('');
   const [classFilter,   setClassFilter]   = useState('all');
   const [etypeFilter,   setEtypeFilter]   = useState('all');
+  const [disciplineFilter, setDisciplineFilter] = useState('all');
   const [sectionFilter, setSectionFilter] = useState('all');
   const [deptFilter,    setDeptFilter]    = useState('all');
   const [roleFilter,    setRoleFilter]    = useState('all');
@@ -690,6 +859,7 @@ function EmployeesPageContent() {
     }
     if (classFilter   !== 'all') list = list.filter(e => (e.employee_class || 'Unclassified') === classFilter);
     if (etypeFilter   !== 'all') list = list.filter(e => (e.employment_type || '') === etypeFilter);
+    if (disciplineFilter !== 'all') list = list.filter(e => disciplineFilter === 'none' ? !e.discipline : e.discipline === disciplineFilter);
     if (sectionFilter !== 'all') list = list.filter(e => (e.section || '') === sectionFilter);
     if (deptFilter    !== 'all') list = list.filter(e => e.department === deptFilter);
     if (roleFilter    !== 'all') list = list.filter(e => e.designation === roleFilter);
@@ -701,7 +871,7 @@ function EmployeesPageContent() {
       return sortDir === 'asc' ? av > bv ? 1 : -1 : av < bv ? 1 : -1;
     });
     return list;
-  }, [employees, search, classFilter, etypeFilter, sectionFilter, deptFilter, roleFilter, sortBy, sortDir]);
+  }, [employees, search, classFilter, etypeFilter, disciplineFilter, sectionFilter, deptFilter, roleFilter, sortBy, sortDir]);
 
   // Group the filtered/sorted list by section — defined sections first (in a stable
   // order), any other sections alphabetically, "Unassigned" last.
@@ -764,7 +934,7 @@ function EmployeesPageContent() {
     return next;
   });
 
-  const activeFilterCount = [search, classFilter !== 'all', etypeFilter !== 'all', sectionFilter !== 'all', deptFilter !== 'all', roleFilter !== 'all'].filter(Boolean).length;
+  const activeFilterCount = [search, classFilter !== 'all', etypeFilter !== 'all', disciplineFilter !== 'all', sectionFilter !== 'all', deptFilter !== 'all', roleFilter !== 'all'].filter(Boolean).length;
 
   const stats = useMemo(() => ({
     total:    employees.length,
@@ -790,7 +960,29 @@ function EmployeesPageContent() {
       const m = err instanceof Error ? err.message : 'Save failed'; setError(m); toast.error(m);
     } finally { setIsSubmitting(false); }
   };
-  const clearFilters = () => { setSearch(''); setClassFilter('all'); setEtypeFilter('all'); setSectionFilter('all'); setDeptFilter('all'); setRoleFilter('all'); };
+  const clearFilters = () => { setSearch(''); setClassFilter('all'); setEtypeFilter('all'); setDisciplineFilter('all'); setSectionFilter('all'); setDeptFilter('all'); setRoleFilter('all'); };
+
+  const toggleSelectMode = () => { setSelectMode(v => !v); setSelectedIds(new Set()); };
+  const toggleSelected = (id: number) => setSelectedIds(prev => {
+    const next = new Set(prev);
+    next.has(id) ? next.delete(id) : next.add(id);
+    return next;
+  });
+  const applyBulkDiscipline = async (discipline: 'mechanical' | 'electrical' | null) => {
+    if (selectedIds.size === 0) return;
+    setBulkApplying(true);
+    try {
+      const ids = [...selectedIds];
+      await bulkSetDiscipline(ids, discipline);
+      // Optimistic local update — avoids a full reload for what's otherwise an instant action.
+      setEmployees(prev => prev.map(e => ids.includes(e.id) ? { ...e, discipline: discipline ?? '' } : e));
+      toast.success(`${ids.length} employee${ids.length > 1 ? 's' : ''} marked ${discipline ? DISCIPLINE_LABELS[discipline] : 'unassigned'}`);
+      setSelectedIds(new Set());
+      setSelectMode(false);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Bulk update failed');
+    } finally { setBulkApplying(false); }
+  };
 
   const downloadExcel = async () => {
     try {
@@ -844,6 +1036,15 @@ function EmployeesPageContent() {
               className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-colors disabled:opacity-40`}>
               <Download className="h-4 w-4" />
             </button>
+            <button type="button" onClick={() => setShowDisciplineExport(true)} disabled={employees.length === 0} title="Download by discipline (Mechanical / Electrical)"
+              className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-colors disabled:opacity-40`}>
+              <Award className="h-4 w-4" />
+            </button>
+            <button type="button" onClick={toggleSelectMode} title={selectMode ? 'Cancel selection' : 'Select employees to bulk-mark discipline'}
+              className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-medium transition-colors ${selectMode ? 'bg-brand-500/15 text-brand-400' : `${t.textMuted} ${t.hoverText} ${t.glassSoft}`}`}>
+              {selectMode ? <CheckSquare className="h-3.5 w-3.5" /> : <Square className="h-3.5 w-3.5" />}
+              <span className="hidden sm:inline">{selectMode ? 'Cancel' : 'Select'}</span>
+            </button>
             <button type="button" onClick={openAdd} className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 transition-all hover:brightness-110">
               <Plus className="h-3.5 w-3.5" /> Add Employee
             </button>
@@ -891,6 +1092,8 @@ function EmployeesPageContent() {
               options={[{ value: 'all', label: 'All Types' }, { value: 'NEC', label: 'NEC' }, { value: 'SALARIED', label: 'Salaried' }]} />
             <FilterChips label="Employee Class" value={classFilter} onChange={setClassFilter}
               options={[{ value: 'all', label: 'All Classes' }, ...CLASS_OPTIONS.map(c => ({ value: c, label: c }))]} />
+            <FilterChips label="Trade Discipline" value={disciplineFilter} onChange={setDisciplineFilter}
+              options={[{ value: 'all', label: 'All Disciplines' }, { value: 'mechanical', label: 'Mechanical' }, { value: 'electrical', label: 'Electrical' }, { value: 'none', label: 'Not set' }]} />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <p className={`text-xs font-medium mb-1.5 ${t.textFaint}`}>Department</p>
@@ -906,6 +1109,30 @@ function EmployeesPageContent() {
           </div>
         )}
       </div>
+
+      {/* Bulk discipline bar — appears once at least one employee is checked in select mode */}
+      {selectMode && selectedIds.size > 0 && (
+        <div className={`${t.glass} rounded-2xl ${t.shadow} p-3 flex items-center justify-between flex-wrap gap-3 border border-brand-500/30`}>
+          <span className={`text-sm font-medium ${t.textPrimary}`}>{selectedIds.size} selected</span>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button type="button" disabled={bulkApplying} onClick={() => applyBulkDiscipline('mechanical')}
+              className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-semibold bg-blue-500/15 text-blue-400 hover:bg-blue-500/25 transition-colors disabled:opacity-50">
+              Mark Mechanical
+            </button>
+            <button type="button" disabled={bulkApplying} onClick={() => applyBulkDiscipline('electrical')}
+              className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-semibold bg-amber-500/15 text-amber-400 hover:bg-amber-500/25 transition-colors disabled:opacity-50">
+              Mark Electrical
+            </button>
+            <button type="button" disabled={bulkApplying} onClick={() => applyBulkDiscipline(null)}
+              className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-medium ${t.chipBg} ${t.textMuted} ${t.hoverBg} transition-colors disabled:opacity-50`}>
+              Clear Discipline
+            </button>
+            <button type="button" onClick={() => setSelectedIds(new Set())} className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-medium ${t.textFaint} ${t.hoverText} ${t.hoverBg} transition-colors`}>
+              Deselect all
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Records — grouped by section (homepage category-accordion vocabulary) */}
       <div className="space-y-3">
@@ -992,8 +1219,8 @@ function EmployeesPageContent() {
                       {sg.employees.map(e => (
                         <motion.div key={e.id} variants={fadeUp}>
                           {viewMode === 'grid'
-                            ? <EmployeeCard employee={e} onEdit={openEdit} onDelete={onDelete} />
-                            : <EmployeeRow employee={e} onEdit={openEdit} onDelete={onDelete} />}
+                            ? <EmployeeCard employee={e} onEdit={openEdit} onDelete={onDelete} selectMode={selectMode} selected={selectedIds.has(e.id)} onToggleSelect={() => toggleSelected(e.id)} />
+                            : <EmployeeRow employee={e} onEdit={openEdit} onDelete={onDelete} selectMode={selectMode} selected={selectedIds.has(e.id)} onToggleSelect={() => toggleSelected(e.id)} />}
                         </motion.div>
                       ))}
                     </Subsection>
@@ -1002,8 +1229,8 @@ function EmployeesPageContent() {
                   g.employees.map(e => (
                     <motion.div key={e.id} variants={fadeUp}>
                       {viewMode === 'grid'
-                        ? <EmployeeCard employee={e} onEdit={openEdit} onDelete={onDelete} />
-                        : <EmployeeRow employee={e} onEdit={openEdit} onDelete={onDelete} />}
+                        ? <EmployeeCard employee={e} onEdit={openEdit} onDelete={onDelete} selectMode={selectMode} selected={selectedIds.has(e.id)} onToggleSelect={() => toggleSelected(e.id)} />
+                        : <EmployeeRow employee={e} onEdit={openEdit} onDelete={onDelete} selectMode={selectMode} selected={selectedIds.has(e.id)} onToggleSelect={() => toggleSelected(e.id)} />}
                     </motion.div>
                   ))
                 )}
@@ -1030,6 +1257,8 @@ function EmployeesPageContent() {
           />
         </div>
       </CenterModal>
+
+      {showDisciplineExport && <DisciplineExportDialog employees={employees} onClose={() => setShowDisciplineExport(false)} />}
     </main>
   );
 }
