@@ -52,9 +52,11 @@ interface OTRecord {
   department?: string;
   overtime_type: OTType;
   date: string;
-  start_time: string;
-  end_time: string;
-  reason: string;
+  start_time?: string;
+  end_time?: string;
+  /** Set when entered via the hours-only fast path — no exact times recorded. */
+  hours?: number;
+  reason?: string;
   status: OTStatus;
   notes?: string;
   contact_number?: string;
@@ -70,6 +72,8 @@ interface OTForm {
   date: string;
   start_time: string;
   end_time: string;
+  /** Entered directly when the fast path is on; empty string means "use start/end". */
+  hours: string;
   reason: string;
   contact_number: string;
   notes: string;
@@ -88,7 +92,7 @@ function blankForm(): OTForm {
     employee_name: '', employee_id: '', position: '', department: '',
     overtime_type: 'regular',
     date: nowLocal().slice(0, 10),
-    start_time: '17:00', end_time: '20:00',
+    start_time: '17:00', end_time: '20:00', hours: '',
     reason: '', contact_number: '', notes: '',
   };
 }
@@ -99,7 +103,15 @@ async function fetchOT(): Promise<OTRecord[]> {
   const data = await api.get<OTRecord[]>('/api/overtime');
   return (Array.isArray(data) ? data : []) as OTRecord[];
 }
-async function createOT(body: Partial<OTForm>): Promise<OTRecord> {
+/** `useHours`: send `hours` and omit start/end (the fast path); otherwise send
+ *  start/end and omit hours — never both, matching the backend's either/or validator. */
+function buildOvertimePayload(form: OTForm, useHours: boolean) {
+  const { start_time, end_time, hours, ...rest } = form;
+  return useHours
+    ? { ...rest, hours: parseFloat(hours) || undefined }
+    : { ...rest, start_time, end_time };
+}
+async function createOT(body: Record<string, unknown>): Promise<OTRecord> {
   return api.post<OTRecord>('/api/overtime', { ...body, status: 'pending', applied_date: new Date().toISOString() });
 }
 async function updateOT(id: number | string, body: object): Promise<OTRecord> {
@@ -111,7 +123,7 @@ async function deleteOT(id: number | string): Promise<void> {
 
 // ─── HOURS UTIL ───────────────────────────────────────────────────────────────
 
-function calcHours(start: string, end: string): number {
+function calcHours(start?: string, end?: string): number {
   if (!start || !end) return 0;
   const [sh, sm] = start.split(':').map(Number);
   const [eh, em] = end.split(':').map(Number);
@@ -186,33 +198,43 @@ function EmployeeAutocomplete({ value, onChange, disabled }: { value: string; on
 
 function OTFormModal({ open, onClose, onSave, editing }: {
   open: boolean; onClose: () => void;
-  onSave: (data: OTForm, id?: number | string) => Promise<void>;
+  onSave: (data: Record<string, unknown>, id?: number | string) => Promise<void>;
   editing: OTRecord | null;
 }) {
   const t = useTheme();
   const [form, setForm] = useState<OTForm>(blankForm());
   const [saving, setSaving] = useState(false);
+  // The "pressed for time" fast path: hours entered directly instead of start/end times.
+  const [useHours, setUseHours] = useState(false);
 
   useEffect(() => {
     if (open) {
       setForm(editing ? {
         employee_name: editing.employee_name, employee_id: editing.employee_id, position: editing.position,
         department: editing.department || '', overtime_type: editing.overtime_type, date: editing.date,
-        start_time: editing.start_time, end_time: editing.end_time, reason: editing.reason,
-        contact_number: editing.contact_number || '', notes: editing.notes || '',
+        start_time: editing.start_time || '17:00', end_time: editing.end_time || '20:00',
+        hours: editing.hours != null ? String(editing.hours) : '',
+        reason: editing.reason || '', contact_number: editing.contact_number || '', notes: editing.notes || '',
       } : blankForm());
+      // An existing record with no recorded start/end but a stored hours value was
+      // entered via the fast path — reopen it the same way.
+      setUseHours(!!editing && !editing.start_time && editing.hours != null);
     }
   }, [open, editing]);
 
   const set = (k: keyof OTForm, v: string) => setForm(f => ({ ...f, [k]: v }));
-  const hours = calcHours(form.start_time, form.end_time);
+  const hours = useHours ? (parseFloat(form.hours) || 0) : calcHours(form.start_time, form.end_time);
   const inputCls = `w-full h-9 rounded-lg px-3 text-sm outline-none transition-colors ${t.inputBg}`;
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.employee_name || !form.date || !form.reason) { toast.error('Employee, date and reason are required'); return; }
+    if (!form.employee_name || !form.date) { toast.error('Employee and date are required'); return; }
+    if (useHours ? !(parseFloat(form.hours) > 0) : !(form.start_time && form.end_time)) {
+      toast.error(useHours ? 'Enter the number of hours' : 'Start and end time are required');
+      return;
+    }
     setSaving(true);
-    try { await onSave(form, editing?.id); onClose(); }
+    try { await onSave(buildOvertimePayload(form, useHours), editing?.id); onClose(); }
     catch (err) { toast.error((err as Error).message); }
     finally { setSaving(false); }
   };
@@ -247,14 +269,26 @@ function OTFormModal({ open, onClose, onSave, editing }: {
           <FormField label="Date" required><input type="date" className={inputCls} value={form.date} onChange={e => set('date', e.target.value)} /></FormField>
         </div>
 
-        <div className="grid grid-cols-3 gap-3">
-          <FormField label="Start Time"><input type="time" className={inputCls} value={form.start_time} onChange={e => set('start_time', e.target.value)} /></FormField>
-          <FormField label="End Time"><input type="time" className={inputCls} value={form.end_time} onChange={e => set('end_time', e.target.value)} /></FormField>
-          <FormField label="Duration"><div className={`${inputCls} flex items-center text-brand-400 font-semibold pointer-events-none`}>{hours > 0 ? `${hours.toFixed(1)}h` : '—'}</div></FormField>
-        </div>
+        <label className="flex items-center gap-2 text-xs cursor-pointer select-none" title="Skip exact times and just enter the hours worked">
+          <input type="checkbox" checked={useHours} onChange={e => setUseHours(e.target.checked)} className="accent-brand-500" />
+          <span className={t.textMuted}>Pressed for time — just enter hours</span>
+        </label>
 
-        <FormField label="Reason" required>
-          <textarea rows={3} value={form.reason} onChange={e => set('reason', e.target.value)} placeholder="Reason for overtime..."
+        {useHours ? (
+          <FormField label="Hours" required>
+            <input type="number" min={0.5} max={24} step={0.5} className={inputCls} value={form.hours}
+              onChange={e => set('hours', e.target.value)} placeholder="e.g. 3.5" />
+          </FormField>
+        ) : (
+          <div className="grid grid-cols-3 gap-3">
+            <FormField label="Start Time" required><input type="time" className={inputCls} value={form.start_time} onChange={e => set('start_time', e.target.value)} /></FormField>
+            <FormField label="End Time" required><input type="time" className={inputCls} value={form.end_time} onChange={e => set('end_time', e.target.value)} /></FormField>
+            <FormField label="Duration"><div className={`${inputCls} flex items-center text-brand-400 font-semibold pointer-events-none`}>{hours > 0 ? `${hours.toFixed(1)}h` : '—'}</div></FormField>
+          </div>
+        )}
+
+        <FormField label="Reason">
+          <textarea rows={3} value={form.reason} onChange={e => set('reason', e.target.value)} placeholder="Reason for overtime (optional)..."
             className={`text-sm rounded-lg px-3 py-2 w-full outline-none transition-colors resize-none ${t.inputBg}`} />
         </FormField>
 
@@ -275,14 +309,14 @@ function OTDetailModal({ record, onClose, onEdit, onApprove, onReject }: {
   record: OTRecord; onClose: () => void; onEdit: () => void; onApprove: () => void; onReject: () => void;
 }) {
   const t = useTheme();
-  const hours = calcHours(record.start_time, record.end_time);
+  const hours = record.hours ?? calcHours(record.start_time, record.end_time);
   const rows = [
     { l: 'Employee', v: record.employee_name },
     { l: 'Employee ID', v: record.employee_id },
     { l: 'Position', v: record.position },
     { l: 'Department', v: record.department },
     { l: 'Date', v: fmtDate(record.date) },
-    { l: 'Time', v: `${record.start_time} – ${record.end_time}` },
+    { l: 'Time', v: record.start_time && record.end_time ? `${record.start_time} – ${record.end_time}` : undefined },
     { l: 'Duration', v: hours > 0 ? `${hours.toFixed(1)} hours` : '—' },
     { l: 'Applied', v: fmtDate(record.created_at) },
     { l: 'Contact', v: record.contact_number },
@@ -394,7 +428,7 @@ function OvertimeContent() {
     if (dateTo && r.date > dateTo) return false;
     if (search) {
       const q = search.toLowerCase();
-      if (!r.employee_name.toLowerCase().includes(q) && !r.employee_id.toLowerCase().includes(q) && !r.reason.toLowerCase().includes(q) && !r.position.toLowerCase().includes(q)) return false;
+      if (!r.employee_name.toLowerCase().includes(q) && !r.employee_id.toLowerCase().includes(q) && !(r.reason || '').toLowerCase().includes(q) && !r.position.toLowerCase().includes(q)) return false;
     }
     return true;
   }), [records, status, type, dateFrom, dateTo, search]);
@@ -402,7 +436,7 @@ function OvertimeContent() {
   const stats = useMemo(() => {
     const pending = records.filter(r => r.status === 'pending').length;
     const approved = records.filter(r => r.status === 'approved').length;
-    const totalHrs = records.reduce((s, r) => s + calcHours(r.start_time, r.end_time), 0);
+    const totalHrs = records.reduce((s, r) => s + (r.hours ?? calcHours(r.start_time, r.end_time)), 0);
     return { total: records.length, pending, approved, totalHrs: Math.round(totalHrs) };
   }, [records]);
 
@@ -412,8 +446,7 @@ function OvertimeContent() {
   const axisColor = t.light ? 'rgba(15,23,42,0.4)' : 'rgba(255,255,255,0.4)';
   const gridColor = t.light ? 'rgba(15,23,42,0.06)' : 'rgba(255,255,255,0.06)';
 
-  const handleSave = async (form: OTForm, id?: number | string) => {
-    const body = { ...form };
+  const handleSave = async (body: Record<string, unknown>, id?: number | string) => {
     if (id) {
       const updated = await updateOT(id, body);
       setRecords(prev => prev.map(r => r.id === id ? updated : r));

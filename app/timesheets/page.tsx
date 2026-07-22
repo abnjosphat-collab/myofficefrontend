@@ -55,7 +55,9 @@ interface ApprovedLeaveRecord {
 /** Minimal shape pulled from the Overtime page's records — only what's needed to add
  *  approved overtime hours onto the timesheet grid. */
 interface ApprovedOvertimeRecord {
-  employee_id: string; overtime_type: string; date: string; start_time: string; end_time: string; status: string;
+  employee_id: string; overtime_type: string; date: string; start_time?: string; end_time?: string; status: string;
+  /** Set when the overtime entry was logged via the "pressed for time" hours-only fast path. */
+  hours?: number;
 }
 
 interface Period { start: Date; end: Date; }
@@ -112,7 +114,7 @@ const OT_TYPE_TO_BUCKET: Record<string, 'ot15' | 'ot20'> = {
 // it would have broken date-matching against leaves/overtime records below). See lib/dates.ts.
 const fmtDate = (d: Date) => toLocalISODate(d);
 
-const calcHours = (start: string, end: string) => {
+const calcHours = (start?: string, end?: string) => {
   if (!start || !end) return 0;
   const [sh, sm] = start.split(':').map(Number);
   const [eh, em] = end.split(':').map(Number);
@@ -1421,7 +1423,7 @@ function TimesheetsContent() {
       if (!dbId || !tabIdSet.has(dbId) || !dayStrSet.has(ot.date)) return;
       const bucket = OT_TYPE_TO_BUCKET[ot.overtime_type];
       if (!bucket) return;
-      const hours = calcHours(ot.start_time, ot.end_time);
+      const hours = ot.hours ?? calcHours(ot.start_time, ot.end_time);
       if (hours <= 0) return;
       const key = `${dbId}:${ot.date}`;
       const base: TimesheetEntry = merged.get(key) ?? {
@@ -1558,6 +1560,15 @@ function TimesheetsContent() {
             </button>
             <button type="button" title="Download timesheet" onClick={() => setShowDownload(true)} className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textMuted} transition-all`}>
               <Download className="h-3.5 w-3.5" /><span className="hidden sm:inline">Download</span>
+            </button>
+            {/* Opens the same multi-employee, multi-date dialog as a row's "Assign shifts"
+                link — this is the page-level entry point for it (previously only reachable
+                per-employee, which made bulk entry easy to miss). Seeded with the first
+                roster employee; anyone can be added or removed inside the dialog. */}
+            <button type="button" title="Bulk-enter shifts for one or many employees at once" disabled={tabEmployees.length === 0}
+              onClick={() => setBulkEmployee(tabEmployees[0])}
+              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textMuted} transition-all disabled:opacity-40`}>
+              <Layers className="h-3.5 w-3.5" /> Bulk Entry
             </button>
             <button type="button" title="Add employees to this period" onClick={() => setShowBulkAdd(true)} className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg text-white font-semibold bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all">
               <UserPlus className="h-3.5 w-3.5" /> Add Employees
