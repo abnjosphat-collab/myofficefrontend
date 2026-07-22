@@ -17,7 +17,7 @@ import {
   List, LayoutGrid, MapPin, Filter, Award, Download, Plus, Phone, CheckSquare, Square, Check,
   FileSpreadsheet, FileText,
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle,
-  FormField, FormActions, useCollapseSection, CenterModal, ACCENT_HEX, SelectField,
+  FormField, FormActions, useCollapseSection, CenterModal, ACCENT_HEX, SelectField, TYPE_SCALE, RADIUS,
   GroupSection, RecordCard, staggerContainer, fadeUp,
   Subsection, InfoRow, SummaryItem, LoadingState, AutofillInput,
 } from '@/components/shared/theme';
@@ -166,7 +166,7 @@ function FilterChips({ label, options, value, onChange }: {
   const t = useTheme();
   return (
     <div>
-      <p className={`text-xs font-medium mb-1.5 ${t.textFaint}`}>{label}</p>
+      <p className={`${TYPE_SCALE.label} font-medium mb-1.5 ${t.textFaint}`}>{label}</p>
       <div className="flex flex-wrap gap-1.5">
         {options.map(o => (
           <button
@@ -378,7 +378,7 @@ function EmployeeForm({ initialData, onSubmit, onCancel, isSubmitting }: Employe
     await onSubmit(form);
   };
 
-  const inputCls = `w-full h-9 px-3 rounded-lg text-sm ${t.inputBg} focus:outline-none`;
+  const inputCls = `w-full h-9 px-3 ${RADIUS.tile} ${TYPE_SCALE.input} ${t.inputBg} focus:outline-none`;
 
   const tabs = [
     { id: 'basic' as const, label: 'Personal', icon: UserRound },
@@ -580,7 +580,10 @@ function EmployeeRow({ employee, onEdit, onDelete, selectMode, selected, onToggl
         </div>
 
         <button type="button" onClick={() => setExpanded(o => !o)} className="flex-1 min-w-0 text-left">
-          <div className={`font-semibold text-sm ${t.textPrimary}`}>{name}</div>
+          {/* text-[14px] + tracking-tight, not text-sm — matches RecordCard's grid-view
+              title exactly (components.tsx:526), so a name reads identically whether the
+              page is in list or grid view. */}
+          <div className={`font-semibold text-[14px] tracking-tight ${t.textPrimary}`}>{name}</div>
           <div className="flex items-center gap-2 mt-0.5 flex-wrap">
             <span className={`text-xs font-mono ${t.textFaint}`}>{employee.employee_id}</span>
             {employee.designation && <span className={`text-xs ${t.textFaint}`}>· {employee.designation}</span>}
@@ -1068,7 +1071,7 @@ function EmployeesPageContent() {
       )}
 
       {/* Filters */}
-      <div className={`${t.glass} rounded-2xl ${t.shadow} p-4 space-y-4`}>
+      <div className={`${t.glass} ${RADIUS.card} ${t.shadow} p-4 space-y-4`}>
         <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
           <SearchInput value={search} onChange={setSearch} placeholder="Search name, ID, role…" className="flex-1" />
           <div className="flex gap-2 flex-wrap items-center">
@@ -1096,12 +1099,12 @@ function EmployeesPageContent() {
               options={[{ value: 'all', label: 'All Disciplines' }, { value: 'mechanical', label: 'Mechanical' }, { value: 'electrical', label: 'Electrical' }, { value: 'none', label: 'Not set' }]} />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <p className={`text-xs font-medium mb-1.5 ${t.textFaint}`}>Department</p>
+                <p className={`${TYPE_SCALE.label} font-medium mb-1.5 ${t.textFaint}`}>Department</p>
                 <SelectField size="filter" title="Filter by department" value={deptFilter} onChange={setDeptFilter}
                   options={[{ value: 'all', label: 'All Departments' }, ...uniqueDepts.map(d => ({ value: d, label: d }))]} />
               </div>
               <div>
-                <p className={`text-xs font-medium mb-1.5 ${t.textFaint}`}>Role</p>
+                <p className={`${TYPE_SCALE.label} font-medium mb-1.5 ${t.textFaint}`}>Role</p>
                 <SelectField size="filter" title="Filter by role" value={roleFilter} onChange={setRoleFilter}
                   options={[{ value: 'all', label: 'All Roles' }, ...uniqueRoles.map(r => ({ value: r, label: r }))]} />
               </div>
@@ -1112,8 +1115,8 @@ function EmployeesPageContent() {
 
       {/* Bulk discipline bar — appears once at least one employee is checked in select mode */}
       {selectMode && selectedIds.size > 0 && (
-        <div className={`${t.glass} rounded-2xl ${t.shadow} p-3 flex items-center justify-between flex-wrap gap-3 border border-brand-500/30`}>
-          <span className={`text-sm font-medium ${t.textPrimary}`}>{selectedIds.size} selected</span>
+        <div className={`${t.glass} ${RADIUS.card} ${t.shadow} p-3 flex items-center justify-between flex-wrap gap-3 border border-brand-500/30`}>
+          <span className={`${TYPE_SCALE.body} font-medium ${t.textPrimary}`}>{selectedIds.size} selected</span>
           <div className="flex items-center gap-2 flex-wrap">
             <button type="button" disabled={bulkApplying} onClick={() => applyBulkDiscipline('mechanical')}
               className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-semibold bg-blue-500/15 text-blue-400 hover:bg-blue-500/25 transition-colors disabled:opacity-50">
@@ -1137,7 +1140,7 @@ function EmployeesPageContent() {
       {/* Records — grouped by section (homepage category-accordion vocabulary) */}
       <div className="space-y-3">
         <div className="flex items-center justify-between flex-wrap gap-2">
-          <p className={`text-sm ${t.textFaint}`}>
+          <p className={`${TYPE_SCALE.body} ${t.textFaint}`}>
             Showing <span className={`font-semibold ${t.textPrimary}`}>{filtered.length}</span> of {employees.length} employees
             {grouped.length > 0 && <span> · {grouped.length} section{grouped.length === 1 ? '' : 's'}</span>}
           </p>
@@ -1166,16 +1169,16 @@ function EmployeesPageContent() {
         </div>
 
         {isLoading ? (
-          <div className={`${t.glass} rounded-2xl p-16 text-center`}>
+          <div className={`${t.glass} ${RADIUS.card} p-16 text-center`}>
             <LoadingState />
           </div>
         ) : filtered.length === 0 ? (
-          <div className={`${t.glass} rounded-2xl p-12 text-center`}>
+          <div className={`${t.glass} ${RADIUS.card} p-12 text-center`}>
             {employees.length === 0 ? (
               <>
                 <Users className={`h-12 w-12 ${t.textFaint} mx-auto mb-4`} />
                 <h3 className={`text-lg font-semibold ${t.textPrimary} mb-2`}>No employees yet</h3>
-                <p className={`text-sm mb-4 ${t.textFaint}`}>Add your first employee to get started.</p>
+                <p className={`${TYPE_SCALE.body} mb-4 ${t.textFaint}`}>Add your first employee to get started.</p>
                 <button type="button" onClick={openAdd} className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all">
                   <Plus className="h-3.5 w-3.5" /> Add Employee
                 </button>
@@ -1184,7 +1187,7 @@ function EmployeesPageContent() {
               <>
                 <FilterX className={`h-12 w-12 ${t.textFaint} mx-auto mb-4`} />
                 <h3 className={`text-lg font-semibold ${t.textPrimary} mb-2`}>No results match your filters</h3>
-                <p className={`text-sm mb-4 ${t.textFaint}`}>Try adjusting your search or filters.</p>
+                <p className={`${TYPE_SCALE.body} mb-4 ${t.textFaint}`}>Try adjusting your search or filters.</p>
                 <button type="button" onClick={clearFilters} className={`inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-[13px] font-medium ${t.textMuted} ${t.glassSoft} ${t.hoverText} transition-all`}>
                   <FilterX className="h-3.5 w-3.5" /> Clear Filters
                 </button>
