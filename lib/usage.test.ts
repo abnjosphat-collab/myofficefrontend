@@ -5,7 +5,8 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import {
   topModules, topSearches, usageByHour, dwellByPath, getFeedback, summarize,
   fmtDuration, hourWeekdayHeat, trackSearch, getSearchHistory, clearSearchHistory,
-  clearUsage, usageOverTime, usageByHourSplit, dailyActivity, type UsageEvent,
+  clearUsage, usageOverTime, usageByHourSplit, dailyActivity, topUsers, signedInVsAnonymous,
+  type UsageEvent, type EnrichedUsageEvent,
 } from '@/lib/usage';
 
 // A fixed clock so timestamp-derived buckets are deterministic.
@@ -128,6 +129,31 @@ describe('dailyActivity', () => {
     const today = days[days.length - 1];
     expect(today.count).toBe(2);
     expect(today.times.length).toBe(2);
+  });
+});
+
+describe('topUsers / signedInVsAnonymous', () => {
+  const enriched: EnrichedUsageEvent[] = [
+    { type: 'module_open', ts: T, href: '/employees', sessionId: 's-1', userEmail: 'a@b.com', anonymous: false },
+    { type: 'page_view', ts: T, path: '/employees', sessionId: 's-1', userEmail: 'a@b.com', anonymous: false },
+    { type: 'module_open', ts: T, href: '/ppe', sessionId: 's-2', userEmail: null, anonymous: true },
+    { type: 'module_open', ts: T, href: '/ppe', sessionId: 's-2', userEmail: null, anonymous: true },
+    { type: 'search', ts: T, query: 'x', results: 0, sessionId: 's-2', userEmail: null, anonymous: true }, // not counted
+  ];
+
+  it('topUsers ranks signed-in users by email and anonymous visitors by session', () => {
+    const top = topUsers(enriched);
+    expect(top).toHaveLength(2);
+    expect(top.find(u => u.anonymous)).toMatchObject({ label: 'Anonymous visitor (s-2)', count: 2 });
+    expect(top.find(u => !u.anonymous)).toMatchObject({ label: 'a@b.com', count: 2 });
+  });
+
+  it('signedInVsAnonymous splits counts and distinct identities', () => {
+    const s = signedInVsAnonymous(enriched);
+    expect(s.signedIn).toBe(2);
+    expect(s.anonymous).toBe(2);
+    expect(s.distinctUsers).toBe(1);
+    expect(s.distinctAnonymousSessions).toBe(1);
   });
 });
 

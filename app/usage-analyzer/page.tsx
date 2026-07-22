@@ -6,9 +6,10 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { AppShell } from '@/components/app-shell';
+import { useAuth } from '@/lib/auth-context';
 import {
   Activity, BarChart3, Clock, MessageSquare, Search, Star, Layers,
-  RefreshCw, Trash2, Calendar, TrendingUp,
+  RefreshCw, Trash2, Calendar, TrendingUp, Users, Globe,
 } from '@/components/shared/theme';
 import { useTheme, PageHero, StatTile, GlowCard, ACCENT_HEX } from '@/components/shared/theme';
 import {
@@ -18,7 +19,8 @@ import {
 import {
   getEvents, clearUsage, USAGE_EVENT, summarize, topModules, topSearches,
   usageOverTime, hourWeekdayHeat, usageByHourSplit, dailyActivity, dwellByPath, getFeedback, fmtDuration,
-  type UsageEvent, type Granularity,
+  fetchRemoteEvents, topUsers, signedInVsAnonymous,
+  type UsageEvent, type Granularity, type EnrichedUsageEvent,
 } from '@/lib/usage';
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -57,7 +59,41 @@ function useUsageEvents(): [UsageEvent[], () => void] {
 export default function UsageAnalyzerPage() {
   const t = useTheme();
   const cs = useChartStyle();
-  const [events, refresh] = useUsageEvents();
+  const [localEvents, refresh] = useUsageEvents();
+  const { isAtLeast } = useAuth();
+  const canViewAll = isAtLeast('manager');
+
+  // "This device" (localStorage, always available) vs "All users" (backend, manager+
+  // only — cross-user, cross-device, including anonymous visitors). The whole point
+  // of the backend build is that localStorage can never show what other people did.
+  const [dataSource, setDataSource] = useState<'local' | 'all'>('local');
+  const [remoteEvents, setRemoteEvents] = useState<EnrichedUsageEvent[]>([]);
+  const [remoteLoading, setRemoteLoading] = useState(false);
+  const [remoteError, setRemoteError] = useState<string | null>(null);
+
+  const loadRemote = () => {
+    setRemoteLoading(true);
+    setRemoteError(null);
+    fetchRemoteEvents(180)
+      .then(setRemoteEvents)
+      .catch((e: Error & { status?: number }) => {
+        setRemoteError(
+          e.status === 401 || e.status === 403
+            ? "You need manager role to view cross-user activity."
+            : 'Could not load cross-user activity right now.'
+        );
+      })
+      .finally(() => setRemoteLoading(false));
+  };
+
+  useEffect(() => {
+    if (dataSource === 'all' && canViewAll && remoteEvents.length === 0 && !remoteLoading && !remoteError) loadRemote();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dataSource]);
+
+  const events: UsageEvent[] = dataSource === 'all' ? remoteEvents : localEvents;
+  const userSplit = useMemo(() => signedInVsAnonymous(remoteEvents), [remoteEvents]);
+  const activeUsers = useMemo(() => topUsers(remoteEvents, 10), [remoteEvents]);
 
   const [granularity, setGranularity] = useState<Granularity>('day');
   const PERIODS: Record<Granularity, number> = { day: 30, week: 12, month: 12 };
@@ -93,6 +129,8 @@ export default function UsageAnalyzerPage() {
     }
   };
 
+  const doRefresh = () => (dataSource === 'all' ? loadRemote() : refresh());
+
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (!active || !payload?.length) return null;
     return (
@@ -115,20 +153,46 @@ export default function UsageAnalyzerPage() {
           accent="violet"
           crumbs={['Analytics & Insights', 'Usage Analyzer']}
           title="Usage Analyzer"
-          description="How this workspace is being used — most-opened modules, activity over time, busiest hours, dwell time and feedback. All computed on your device."
+          description="How this workspace is being used — most-opened modules, activity over time, busiest hours, dwell time and feedback."
           actions={
             <>
-              <button onClick={refresh} type="button" title="Refresh" className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12.5px] font-medium ${t.textMuted} ${t.hoverText} ${t.glassSoft} ${t.shadow} transition-shadow`}>
-                <RefreshCw className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Refresh</span>
+              <button onClick={doRefresh} type="button" title="Refresh" className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12.5px] font-medium ${t.textMuted} ${t.hoverText} ${t.glassSoft} ${t.shadow} transition-shadow`}>
+                <RefreshCw className={`h-3.5 w-3.5 ${remoteLoading ? 'animate-spin' : ''}`} /> <span className="hidden sm:inline">Refresh</span>
               </button>
-              <button onClick={clearAll} type="button" title="Clear data" className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12.5px] font-medium text-rose-500 ${t.glassSoft} ${t.shadow} hover:bg-rose-500/10 transition-colors`}>
-                <Trash2 className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Clear</span>
-              </button>
+              {dataSource === 'local' && (
+                <button onClick={clearAll} type="button" title="Clear data" className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12.5px] font-medium text-rose-500 ${t.glassSoft} ${t.shadow} hover:bg-rose-500/10 transition-colors`}>
+                  <Trash2 className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Clear</span>
+                </button>
+              )}
             </>
           }
         />
 
-        {!hasData ? (
+        {canViewAll && (
+          <div className={`flex items-center gap-0.5 p-0.5 rounded-lg w-fit ${t.chipBg}`}>
+            <button type="button" onClick={() => setDataSource('local')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] font-medium transition-colors ${dataSource === 'local' ? `${t.glass} ${t.textPrimary} ${t.shadow}` : `${t.textFaint} ${t.hoverText}`}`}>
+              <Layers className="h-3.5 w-3.5" /> This device
+            </button>
+            <button type="button" onClick={() => setDataSource('all')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] font-medium transition-colors ${dataSource === 'all' ? `${t.glass} ${t.textPrimary} ${t.shadow}` : `${t.textFaint} ${t.hoverText}`}`}>
+              <Globe className="h-3.5 w-3.5" /> All users
+            </button>
+          </div>
+        )}
+
+        {dataSource === 'all' && remoteError && (
+          <GlowCard color={ACCENT_HEX.amber} className="p-4">
+            <p className={`text-[12.5px] ${t.textMuted}`}>{remoteError}</p>
+          </GlowCard>
+        )}
+
+        {dataSource === 'all' && remoteLoading && remoteEvents.length === 0 ? (
+          <GlowCard color={ACCENT_HEX.violet} className="p-10 text-center">
+            <RefreshCw className={`h-6 w-6 mx-auto mb-2 animate-spin ${t.textFaint}`} />
+            <p className={`text-[12.5px] ${t.textFaint}`}>Loading cross-user activity…</p>
+          </GlowCard>
+        ) : !hasData ? (
           <GlowCard color={ACCENT_HEX.violet} className="p-10 text-center">
             <Activity className={`h-8 w-8 mx-auto mb-3 ${t.textFaint}`} />
             <p className={`text-[14px] font-medium ${t.textPrimary}`}>No usage recorded yet</p>
@@ -147,8 +211,49 @@ export default function UsageAnalyzerPage() {
                 <StatTile icon={Search} color={ACCENT_HEX.cyan} value={s.searches} label="searches" />
                 <StatTile icon={Clock} color={ACCENT_HEX.amber} value={busiestLabel} label="busiest hour" />
                 <StatTile icon={Star} color={ACCENT_HEX.amber} value={s.avgFeedbackRating ? `${s.avgFeedbackRating.toFixed(1)}★` : '—'} label={`from ${s.feedbackCount} feedback`} />
+                {dataSource === 'all' && (
+                  <>
+                    <StatTile icon={Users} color={ACCENT_HEX.emerald} value={userSplit.distinctUsers} label="signed-in users" />
+                    <StatTile icon={Globe} color={ACCENT_HEX.cyan} value={userSplit.distinctAnonymousSessions} label="anonymous visitors" />
+                  </>
+                )}
               </div>
             </GlowCard>
+
+            {/* ── Who's using it (signed-in vs anonymous, top users) ────────── */}
+            {dataSource === 'all' && (userSplit.signedIn + userSplit.anonymous) > 0 && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <GlowCard color={ACCENT_HEX.emerald} surface={`${t.glass} rounded-2xl`} className="p-4">
+                  <SectionTitle icon={Users} label="Signed-in vs anonymous" />
+                  <div className="flex items-center gap-4 mt-1">
+                    <div className={`h-2.5 rounded-full flex-1 overflow-hidden flex ${t.chipBg}`}>
+                      <div className="h-full" style={{ width: `${(userSplit.signedIn / (userSplit.signedIn + userSplit.anonymous)) * 100}%`, background: ACCENT_HEX.emerald }} />
+                      <div className="h-full" style={{ width: `${(userSplit.anonymous / (userSplit.signedIn + userSplit.anonymous)) * 100}%`, background: ACCENT_HEX.cyan }} />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4 mt-2 text-[11.5px]">
+                    <span className={t.textMuted}><span className="inline-block h-2 w-2 rounded-full mr-1.5" style={{ background: ACCENT_HEX.emerald }} />{userSplit.signedIn} signed-in interactions</span>
+                    <span className={t.textMuted}><span className="inline-block h-2 w-2 rounded-full mr-1.5" style={{ background: ACCENT_HEX.cyan }} />{userSplit.anonymous} anonymous interactions</span>
+                  </div>
+                </GlowCard>
+
+                <GlowCard color={ACCENT_HEX.cyan} surface={`${t.glass} rounded-2xl`} className="p-4">
+                  <SectionTitle icon={Globe} label="Most-active users" />
+                  {activeUsers.length === 0 ? <Empty t={t} /> : (
+                    <div className="space-y-1.5 mt-1">
+                      {activeUsers.map((u, i) => (
+                        <div key={u.key} className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg ${t.hoverBgSoft}`}>
+                          <span className={`text-[11px] font-bold tabular-nums w-4 ${t.textFaint}`}>{i + 1}</span>
+                          {u.anonymous ? <Globe className={`h-3.5 w-3.5 shrink-0 ${t.textFaint}`} /> : <Users className={`h-3.5 w-3.5 shrink-0 ${t.textFaint}`} />}
+                          <span className={`text-[12.5px] ${t.textMuted} truncate flex-1`}>{u.label}</span>
+                          <span className={`text-[11px] font-semibold tabular-nums ${t.textPrimary}`}>{u.count}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </GlowCard>
+              </div>
+            )}
 
             {/* ── Activity over time (2-series line, day/week/month) ────────── */}
             <GlowCard color={ACCENT_HEX.blue} surface={`${t.glass} rounded-2xl`} className="p-4">

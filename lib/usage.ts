@@ -1,13 +1,21 @@
-// lib/usage.ts — client-side usage analytics store (localStorage-backed, no backend).
+// lib/usage.ts — client-side usage analytics store (localStorage-backed), which also
+// best-effort mirrors every event to the backend (app/routers/usage.py) so the Usage
+// Analyzer can eventually show real cross-user, cross-device activity — including
+// unsigned-in visitors — instead of only what's in this one browser's localStorage.
 //
 // Records a capped, timestamped event log of how the app is used — module opens,
 // page views + dwell time, searches, and feedback — and exposes derivations the
 // Usage Analyzer page renders (most-used, usage-over-time, hour×weekday heatmap,
 // top searches, dwell-by-page, feedback log). Everything is best-effort and
-// SSR-safe; a private/again-unavailable localStorage just degrades to empty data.
+// SSR-safe; a private/again-unavailable localStorage just degrades to empty data,
+// and a failed/offline remote sync is silently dropped — this is analytics, never
+// something worth blocking or retrying at the cost of the actual feature the user
+// is using.
 //
-// Deliberately dependency-free so it can be imported anywhere (shell, pages, lib)
-// without pulling in React or the design system.
+// Deliberately dependency-free at the top level (no React/design-system import) so
+// it can be used anywhere; the remote sync below dynamic-imports its one dependency
+// (Supabase auth, for attributing signed-in users) so it never weighs down callers
+// that only need the local read/derive side.
 
 import { toLocalISODate } from './dates';
 
@@ -45,6 +53,7 @@ export function logEvent(e: UsageEvent) {
   const events = read();
   events.push(e);
   write(events);
+  queueForSync(e);
 }
 
 export function getEvents(): UsageEvent[] { return read(); }
@@ -72,6 +81,163 @@ export function trackSearch(query: string, results: number) {
 
 export function saveFeedback(page: string, rating: number, text: string) {
   logEvent({ type: 'feedback', ts: Date.now(), page, rating, text: text.trim() });
+}
+
+// ─── Remote sync (best-effort, batched) ────────────────────────────────────────
+//
+// A session id groups an anonymous (unsigned-in) visitor's events server-side.
+// Persisted so it's stable across page loads within the same browser; a signed-in
+// user still gets one too (the backend attributes them by user_id from the auth
+// token, but session_id is always required by the table schema).
+const SESSION_KEY = 'oz_usageSessionId';
+
+function getSessionId(): string {
+  if (typeof window === 'undefined') return 'ssr';
+  try {
+    let id = window.localStorage.getItem(SESSION_KEY);
+    if (!id) {
+      id = typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      window.localStorage.setItem(SESSION_KEY, id);
+    }
+    return id;
+  } catch { return 'unknown'; }
+}
+
+type RemoteEvent = {
+  type: UsageEvent['type']; ts: number; session_id: string;
+  href?: string; path?: string; title?: string;
+  query?: string; results?: number; rating?: number; text?: string; dwell_ms?: number;
+};
+
+function toRemote(e: UsageEvent, session_id: string): RemoteEvent {
+  const base = { type: e.type, ts: e.ts, session_id };
+  switch (e.type) {
+    case 'module_open': return { ...base, href: e.href, title: e.title };
+    case 'page_view': return { ...base, path: e.path, dwell_ms: e.dwellMs };
+    case 'search': return { ...base, query: e.query, results: e.results };
+    case 'feedback': return { ...base, path: e.page, rating: e.rating, text: e.text };
+  }
+}
+
+let pending: RemoteEvent[] = [];
+let flushTimer: ReturnType<typeof setTimeout> | null = null;
+
+async function flush() {
+  flushTimer = null;
+  if (pending.length === 0 || typeof window === 'undefined') return;
+  const batch = pending;
+  pending = [];
+  try {
+    const { API_BASE } = await import('./config');
+    const { authFetch } = await import('./api');
+    await authFetch(`${API_BASE}/api/usage/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ events: batch }),
+    });
+  } catch {
+    // Offline/backend-down/etc — analytics, not worth retrying at the cost of
+    // complexity; the event still lives in the local log either way.
+  }
+}
+
+let hideListenerAttached = false;
+
+function queueForSync(e: UsageEvent) {
+  if (typeof window === 'undefined') return;
+  pending.push(toRemote(e, getSessionId()));
+  if (!flushTimer) flushTimer = setTimeout(flush, 2000);
+  // Best-effort flush on tab hide/close too, so a quick visit isn't lost to the
+  // 2s debounce window. Attached once, not per-event.
+  if (!hideListenerAttached) {
+    hideListenerAttached = true;
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flush(); });
+  }
+}
+
+// ─── Remote read (cross-user — manager+ only, enforced server-side) ────────────
+
+/** A usage event read back from the backend, carrying who/where it's from — the
+ *  local-only UsageEvent has no notion of this, since one browser only ever sees
+ *  its own activity. */
+export type EnrichedUsageEvent = UsageEvent & { sessionId: string; userEmail: string | null; anonymous: boolean };
+
+interface RemoteRow {
+  type: string; ts: string; session_id: string; user_id: string | null; user_email: string | null;
+  href?: string | null; path?: string | null; title?: string | null;
+  query?: string | null; results?: number | null; rating?: number | null;
+  feedback_text?: string | null; dwell_ms?: number | null;
+}
+
+function rowToEvent(row: RemoteRow): EnrichedUsageEvent | null {
+  const ts = new Date(row.ts).getTime();
+  const sessionId = row.session_id;
+  const userEmail = row.user_email ?? null;
+  const anonymous = !row.user_id;
+  const shared = { sessionId, userEmail, anonymous };
+  switch (row.type) {
+    case 'module_open': return { type: 'module_open', ts, href: row.href || '', title: row.title || undefined, ...shared };
+    case 'page_view': return { type: 'page_view', ts, path: row.path || '', dwellMs: row.dwell_ms ?? undefined, ...shared };
+    case 'search': return { type: 'search', ts, query: row.query || '', results: row.results ?? 0, ...shared };
+    case 'feedback': return { type: 'feedback', ts, page: row.path || '', rating: row.rating ?? 0, text: row.feedback_text || '', ...shared };
+    default: return null;
+  }
+}
+
+/** Fetches every user's usage events from the last `sinceDays` days. Manager+ role
+ *  required server-side — throws (401/403) if the caller isn't, which the Usage
+ *  Analyzer page surfaces as "you need manager role to see cross-user activity"
+ *  rather than silently showing nothing. */
+export async function fetchRemoteEvents(sinceDays = 100): Promise<EnrichedUsageEvent[]> {
+  const { API_BASE } = await import('./config');
+  const { authFetch } = await import('./api');
+  const res = await authFetch(`${API_BASE}/api/usage/events?since_days=${sinceDays}`);
+  if (!res.ok) {
+    const err = new Error(`Failed to fetch usage events (HTTP ${res.status})`) as Error & { status?: number };
+    err.status = res.status;
+    throw err;
+  }
+  const rows: RemoteRow[] = await res.json();
+  const out: EnrichedUsageEvent[] = [];
+  for (const row of Array.isArray(rows) ? rows : []) {
+    const e = rowToEvent(row);
+    if (e) out.push(e);
+  }
+  return out;
+}
+
+export interface UserCounted { key: string; label: string; count: number; anonymous: boolean }
+
+/** Most-active users by interaction count — signed-in users grouped by email,
+ *  anonymous visitors grouped per browser session (their only stable identity). */
+export function topUsers(events: EnrichedUsageEvent[], limit = 10): UserCounted[] {
+  const counts = new Map<string, { count: number; label: string; anonymous: boolean }>();
+  for (const e of events) {
+    if (e.type !== 'module_open' && e.type !== 'page_view') continue;
+    const key = e.anonymous ? `anon:${e.sessionId}` : `user:${e.userEmail || 'unknown'}`;
+    const label = e.anonymous ? `Anonymous visitor (${e.sessionId.slice(0, 8)})` : (e.userEmail || 'Unknown user');
+    const prev = counts.get(key);
+    counts.set(key, { count: (prev?.count ?? 0) + 1, label, anonymous: e.anonymous });
+  }
+  return [...counts.entries()]
+    .map(([key, v]) => ({ key, label: v.label, count: v.count, anonymous: v.anonymous }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, limit);
+}
+
+/** Signed-in vs anonymous interaction counts, plus distinct signed-in users and
+ *  distinct anonymous sessions seen. */
+export function signedInVsAnonymous(events: EnrichedUsageEvent[]) {
+  let signedIn = 0, anonymous = 0;
+  const users = new Set<string>(), sessions = new Set<string>();
+  for (const e of events) {
+    if (e.type !== 'module_open' && e.type !== 'page_view') continue;
+    if (e.anonymous) { anonymous++; sessions.add(e.sessionId); }
+    else { signedIn++; if (e.userEmail) users.add(e.userEmail); }
+  }
+  return { signedIn, anonymous, distinctUsers: users.size, distinctAnonymousSessions: sessions.size };
 }
 
 // ─── Search history ──────────────────────────────────────────────────────────
