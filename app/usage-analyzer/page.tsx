@@ -13,12 +13,12 @@ import {
 import { useTheme, PageHero, StatTile, GlowCard, ACCENT_HEX } from '@/components/shared/theme';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  LineChart, Line, Legend,
+  LineChart, Line, Legend, AreaChart, Area,
 } from 'recharts';
 import {
   getEvents, clearUsage, USAGE_EVENT, summarize, topModules, topSearches,
-  usageByDay, hourWeekdayHeat, usageByHour, dwellByPath, getFeedback, fmtDuration,
-  type UsageEvent,
+  usageOverTime, hourWeekdayHeat, usageByHourSplit, dailyActivity, dwellByPath, getFeedback, fmtDuration,
+  type UsageEvent, type Granularity,
 } from '@/lib/usage';
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -59,12 +59,27 @@ export default function UsageAnalyzerPage() {
   const cs = useChartStyle();
   const [events, refresh] = useUsageEvents();
 
+  const [granularity, setGranularity] = useState<Granularity>('day');
+  const PERIODS: Record<Granularity, number> = { day: 30, week: 12, month: 12 };
+
   const s = useMemo(() => summarize(events), [events]);
   const modules = useMemo(() => topModules(events, 10), [events]);
   const searches = useMemo(() => topSearches(events, 8), [events]);
-  const byDay = useMemo(() => usageByDay(events, 30), [events]);
+  const overTime = useMemo(() => usageOverTime(events, granularity, PERIODS[granularity]), [events, granularity]);
   const heat = useMemo(() => hourWeekdayHeat(events), [events]);
-  const byHour = useMemo(() => usageByHour(events), [events]);
+  const byHour = useMemo(() => usageByHourSplit(events), [events]);
+  const days = useMemo(() => dailyActivity(events, 98), [events]);
+  // GitHub-style calendar grid: columns are weeks, rows are Sun..Sat — pad the first
+  // column so `days[0]` lands on its correct weekday rather than always at row 0.
+  const calendarWeeks = useMemo(() => {
+    if (days.length === 0) return [];
+    const pad = new Date(`${days[0].date}T00:00:00`).getDay();
+    const cells: (typeof days[number] | null)[] = [...Array(pad).fill(null), ...days];
+    const weeks: (typeof days[number] | null)[][] = [];
+    for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7));
+    return weeks;
+  }, [days]);
+  const maxDayCount = useMemo(() => Math.max(1, ...days.map(d => d.count)), [days]);
   const dwell = useMemo(() => dwellByPath(events, 10), [events]);
   const feedback = useMemo(() => getFeedback(events), [events]);
 
@@ -135,14 +150,24 @@ export default function UsageAnalyzerPage() {
               </div>
             </GlowCard>
 
-            {/* ── Activity over time (2-series line) ──────────────────────── */}
+            {/* ── Activity over time (2-series line, day/week/month) ────────── */}
             <GlowCard color={ACCENT_HEX.blue} surface={`${t.glass} rounded-2xl`} className="p-4">
-              <SectionTitle icon={TrendingUp} label="Activity over the last 30 days" />
+              <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                <SectionTitle icon={TrendingUp} label={`Activity by ${granularity}`} noMargin />
+                <div className={`flex items-center gap-0.5 p-0.5 rounded-lg ${t.chipBg}`}>
+                  {(['day', 'week', 'month'] as Granularity[]).map(g => (
+                    <button key={g} type="button" onClick={() => setGranularity(g)}
+                      className={`px-2.5 py-1 rounded-md text-[11px] font-medium capitalize transition-colors ${granularity === g ? `${t.glass} ${t.textPrimary} ${t.shadow}` : `${t.textFaint} ${t.hoverText}`}`}>
+                      {g}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <div className="overflow-x-auto">
                 <ResponsiveContainer width="100%" height={240} minWidth={320}>
-                  <LineChart data={byDay} margin={{ top: 8, right: 12, bottom: 0, left: -18 }}>
+                  <LineChart data={overTime} margin={{ top: 8, right: 12, bottom: 0, left: -18 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={cs.grid} vertical={false} />
-                    <XAxis dataKey="label" tick={cs.tick} tickLine={false} axisLine={false} interval={4} />
+                    <XAxis dataKey="label" tick={cs.tick} tickLine={false} axisLine={false} interval={granularity === 'day' ? 4 : 0} />
                     <YAxis tick={cs.tick} tickLine={false} axisLine={false} allowDecimals={false} width={34} />
                     <Tooltip content={<CustomTooltip />} />
                     <Legend iconType="plainline" wrapperStyle={{ fontSize: 11 }} />
@@ -172,18 +197,30 @@ export default function UsageAnalyzerPage() {
                 )}
               </GlowCard>
 
-              {/* ── Usage by hour (bar) ───────────────────────────────────── */}
+              {/* ── Usage by hour (stacked area, opens vs views) ─────────────── */}
               <GlowCard color={ACCENT_HEX.amber} surface={`${t.glass} rounded-2xl`} className="p-4">
                 <SectionTitle icon={Clock} label="Activity by time of day" />
                 <div className="overflow-x-auto">
                   <ResponsiveContainer width="100%" height={220} minWidth={320}>
-                    <BarChart data={byHour} margin={{ top: 4, right: 8, bottom: 0, left: -18 }}>
+                    <AreaChart data={byHour} margin={{ top: 4, right: 8, bottom: 0, left: -18 }}>
+                      <defs>
+                        <linearGradient id="hourOpens" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor={ACCENT_HEX.violet} stopOpacity={0.55} />
+                          <stop offset="95%" stopColor={ACCENT_HEX.violet} stopOpacity={0.03} />
+                        </linearGradient>
+                        <linearGradient id="hourViews" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor={ACCENT_HEX.amber} stopOpacity={0.55} />
+                          <stop offset="95%" stopColor={ACCENT_HEX.amber} stopOpacity={0.03} />
+                        </linearGradient>
+                      </defs>
                       <CartesianGrid strokeDasharray="3 3" stroke={cs.grid} vertical={false} />
                       <XAxis dataKey="hour" tick={cs.tick} tickLine={false} axisLine={false} interval={2} tickFormatter={(h) => `${h}`} />
                       <YAxis tick={cs.tick} tickLine={false} axisLine={false} allowDecimals={false} width={34} />
-                      <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(217,119,6,0.06)' }} />
-                      <Bar dataKey="count" name="Interactions" fill={ACCENT_HEX.amber} radius={[4, 4, 0, 0]} />
-                    </BarChart>
+                      <Tooltip content={<CustomTooltip />} />
+                      <Legend iconType="plainline" wrapperStyle={{ fontSize: 11 }} />
+                      <Area type="monotone" dataKey="opens" name="Module opens" stroke={ACCENT_HEX.violet} strokeWidth={2} fill="url(#hourOpens)" stackId="1" />
+                      <Area type="monotone" dataKey="views" name="Page views" stroke={ACCENT_HEX.amber} strokeWidth={2} fill="url(#hourViews)" stackId="1" />
+                    </AreaChart>
                   </ResponsiveContainer>
                 </div>
               </GlowCard>
@@ -191,7 +228,7 @@ export default function UsageAnalyzerPage() {
 
             {/* ── Hour × weekday heatmap (single-hue sequential) ──────────── */}
             <GlowCard color={ACCENT_HEX.blue} surface={`${t.glass} rounded-2xl`} className="p-4">
-              <SectionTitle icon={Calendar} label="When the app is used — day × hour" />
+              <SectionTitle icon={Calendar} label="When in the week the app is used (aggregated across all history)" />
               <div className="overflow-x-auto">
                 <div className="min-w-[560px]">
                   <div className="flex gap-[3px] mb-1 pl-9">
@@ -221,6 +258,36 @@ export default function UsageAnalyzerPage() {
                     {[0.15, 0.4, 0.65, 0.9].map(o => <span key={o} className="h-2.5 w-2.5 rounded-[2px]" style={{ background: `rgba(37,99,235,${o})` }} />)}
                     <span>More</span>
                   </div>
+                </div>
+              </div>
+            </GlowCard>
+
+            {/* ── Calendar heatmap (real dates, GitHub-style) ──────────────── */}
+            <GlowCard color={ACCENT_HEX.emerald} surface={`${t.glass} rounded-2xl`} className="p-4">
+              <SectionTitle icon={Calendar} label="Daily activity — last 14 weeks (exact dates)" />
+              <div className="overflow-x-auto">
+                <div className="flex gap-[3px] min-w-fit">
+                  {calendarWeeks.map((week, wi) => (
+                    <div key={wi} className="flex flex-col gap-[3px]">
+                      {week.map((day, di) => {
+                        if (!day) return <div key={di} className="h-[13px] w-[13px]" />;
+                        const intensity = day.count ? day.count / maxDayCount : 0;
+                        const bg = day.count === 0 ? cs.emptyCell : `rgba(16,185,129,${(0.15 + intensity * 0.75).toFixed(3)})`;
+                        const d = new Date(`${day.date}T00:00:00`);
+                        const dateLabel = d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+                        const title = day.count === 0
+                          ? `${dateLabel} — no activity`
+                          : `${dateLabel} — ${day.count} interaction${day.count === 1 ? '' : 's'}${day.times.length ? ` at ${day.times.join(', ')}${day.count > day.times.length ? '…' : ''}` : ''}`;
+                        return <div key={di} className="h-[13px] w-[13px] rounded-[3px]" style={{ background: bg }} title={title} />;
+                      })}
+                    </div>
+                  ))}
+                </div>
+                <div className={`flex items-center justify-end gap-1.5 mt-2 text-[9.5px] ${t.textFaint}`}>
+                  <span>Less</span>
+                  {[0.15, 0.4, 0.65, 0.9].map(o => <span key={o} className="h-2.5 w-2.5 rounded-[2px]" style={{ background: `rgba(16,185,129,${o})` }} />)}
+                  <span>More</span>
+                  <span className="ml-2">Hover a day for exact date &amp; times</span>
                 </div>
               </div>
             </GlowCard>
@@ -297,10 +364,10 @@ export default function UsageAnalyzerPage() {
   );
 }
 
-function SectionTitle({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
+function SectionTitle({ icon: Icon, label, noMargin }: { icon: React.ElementType; label: string; noMargin?: boolean }) {
   const t = useTheme();
   return (
-    <div className="flex items-center gap-2 mb-3">
+    <div className={`flex items-center gap-2 ${noMargin ? '' : 'mb-3'}`}>
       <Icon className={`h-4 w-4 ${t.textMuted}`} />
       <h2 className={`text-[13px] font-semibold ${t.textPrimary}`}>{label}</h2>
     </div>

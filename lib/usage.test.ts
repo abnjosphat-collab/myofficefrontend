@@ -5,7 +5,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import {
   topModules, topSearches, usageByHour, dwellByPath, getFeedback, summarize,
   fmtDuration, hourWeekdayHeat, trackSearch, getSearchHistory, clearSearchHistory,
-  clearUsage, type UsageEvent,
+  clearUsage, usageOverTime, usageByHourSplit, dailyActivity, type UsageEvent,
 } from '@/lib/usage';
 
 // A fixed clock so timestamp-derived buckets are deterministic.
@@ -74,6 +74,60 @@ describe('usage derivations', () => {
     expect(s.searches).toBe(3);
     expect(s.feedbackCount).toBe(2);
     expect(s.avgFeedbackRating).toBe(3); // (4 + 2) / 2
+  });
+});
+
+describe('usageOverTime', () => {
+  // Relative to the real clock (not the fixed T above) so the trailing window covers them.
+  const now = Date.now();
+  const DAY = 86_400_000;
+  const recent: UsageEvent[] = [
+    { type: 'module_open', ts: now, href: '/employees', title: 'Employees' },
+    { type: 'page_view', ts: now, path: '/employees' },
+    { type: 'module_open', ts: now - DAY, href: '/equipment', title: 'Equipment' },
+    { type: 'module_open', ts: now - 40 * DAY, href: '/old', title: 'Old' }, // outside a 30-day window
+  ];
+
+  it('buckets by day within the trailing window, dropping events outside it', () => {
+    const buckets = usageOverTime(recent, 'day', 30);
+    expect(buckets).toHaveLength(30);
+    const total = buckets.reduce((s, b) => s + b.total, 0);
+    expect(total).toBe(3); // the 40-day-old event falls outside the 30-day window
+    expect(buckets[buckets.length - 1].opens + buckets[buckets.length - 1].views).toBeGreaterThanOrEqual(2);
+  });
+
+  it('buckets by week and by month without throwing, summing to a consistent total', () => {
+    const weekly = usageOverTime(recent, 'week', 8);
+    const monthly = usageOverTime(recent, 'month', 3);
+    expect(weekly).toHaveLength(8);
+    expect(monthly).toHaveLength(3);
+    expect(monthly.reduce((s, b) => s + b.total, 0)).toBe(4); // month window catches the 40-day-old one too
+  });
+});
+
+describe('usageByHourSplit', () => {
+  it('splits opens vs views into 24 hourly buckets', () => {
+    const rows = usageByHourSplit(sample);
+    expect(rows).toHaveLength(24);
+    const opens = rows.reduce((s, r) => s + r.opens, 0);
+    const views = rows.reduce((s, r) => s + r.views, 0);
+    expect(opens).toBe(3);
+    expect(views).toBe(2);
+  });
+});
+
+describe('dailyActivity', () => {
+  it('returns a per-day count with up to 6 HH:mm timestamps', () => {
+    const now = Date.now();
+    const events: UsageEvent[] = [
+      { type: 'module_open', ts: now, href: '/a' },
+      { type: 'page_view', ts: now, path: '/a' },
+    ];
+    const days = dailyActivity(events, 7);
+    expect(days).toHaveLength(7);
+    const today = days[days.length - 1];
+    expect(today.count).toBe(2);
+    expect(today.times.length).toBe(2);
   });
 });
 

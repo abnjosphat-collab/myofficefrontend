@@ -9,6 +9,8 @@
 // Deliberately dependency-free so it can be imported anywhere (shell, pages, lib)
 // without pulling in React or the design system.
 
+import { toLocalISODate } from './dates';
+
 export type UsageEvent =
   | { type: 'module_open'; ts: number; href: string; title?: string }
   | { type: 'page_view'; ts: number; path: string; dwellMs?: number }
@@ -126,26 +128,61 @@ export function topSearches(events: UsageEvent[], limit = 10): Counted[] {
     .slice(0, limit);
 }
 
-/** Total interactions (module opens + page views) per calendar day over the window. */
-export function usageByDay(events: UsageEvent[], days = 30): { date: string; label: string; opens: number; views: number; total: number }[] {
+export type Granularity = 'day' | 'week' | 'month';
+export interface PeriodBucket { date: string; label: string; opens: number; views: number; total: number }
+
+/** The Monday (local midnight) of the week containing `d`. */
+function mondayOf(d: Date): Date {
+  const r = new Date(d);
+  const day = r.getDay(); // 0=Sun..6=Sat
+  r.setDate(r.getDate() + (day === 0 ? -6 : 1) - day);
+  r.setHours(0, 0, 0, 0);
+  return r;
+}
+
+function bucketKey(d: Date, granularity: Granularity): string {
+  if (granularity === 'month') return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  if (granularity === 'week') return toLocalISODate(mondayOf(d));
+  return toLocalISODate(d);
+}
+
+/** Total interactions (module opens + page views), bucketed by day/week/month, over a
+ *  trailing window of `periods` buckets ending now. Local-calendar-safe (see lib/dates —
+ *  never .toISOString() a local Date, it rolls the date back a day for UTC+ users). */
+export function usageOverTime(events: UsageEvent[], granularity: Granularity = 'day', periods = 30): PeriodBucket[] {
   const now = new Date();
-  const buckets: { date: string; label: string; opens: number; views: number; total: number }[] = [];
+  const buckets: PeriodBucket[] = [];
   const index = new Map<string, number>();
-  for (let i = days - 1; i >= 0; i--) {
-    const d = new Date(now); d.setDate(now.getDate() - i); d.setHours(0, 0, 0, 0);
-    const key = d.toISOString().slice(0, 10);
+  for (let i = periods - 1; i >= 0; i--) {
+    let d: Date, label: string;
+    if (granularity === 'month') {
+      d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      label = d.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
+    } else if (granularity === 'week') {
+      const base = mondayOf(now);
+      d = new Date(base); d.setDate(base.getDate() - i * 7);
+      label = `w/o ${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`;
+    } else {
+      d = new Date(now); d.setDate(now.getDate() - i); d.setHours(0, 0, 0, 0);
+      label = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    }
+    const key = bucketKey(d, granularity);
     index.set(key, buckets.length);
-    buckets.push({ date: key, label: d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }), opens: 0, views: 0, total: 0 });
+    buckets.push({ date: key, label, opens: 0, views: 0, total: 0 });
   }
   for (const e of events) {
     if (e.type !== 'module_open' && e.type !== 'page_view') continue;
-    const key = new Date(e.ts).toISOString().slice(0, 10);
-    const i = index.get(key);
+    const i = index.get(bucketKey(new Date(e.ts), granularity));
     if (i === undefined) continue;
     if (e.type === 'module_open') buckets[i].opens++; else buckets[i].views++;
     buckets[i].total++;
   }
   return buckets;
+}
+
+/** @deprecated use usageOverTime(events, 'day', days) — kept for call-site brevity. */
+export function usageByDay(events: UsageEvent[], days = 30): PeriodBucket[] {
+  return usageOverTime(events, 'day', days);
 }
 
 /** 7×24 matrix [weekday 0=Sun..6=Sat][hour 0..23] of interaction counts. */
@@ -170,6 +207,46 @@ export function usageByHour(events: UsageEvent[]): { hour: number; label: string
     counts[new Date(e.ts).getHours()]++;
   }
   return counts.map((count, hour) => ({ hour, label: `${String(hour).padStart(2, '0')}:00`, count }));
+}
+
+export interface HourSplit { hour: number; label: string; opens: number; views: number; total: number }
+
+/** Interactions bucketed into the 24 hours of the day, split by type, for a richer
+ *  time-of-day chart (opens vs views as two lines rather than one flat bar count). */
+export function usageByHourSplit(events: UsageEvent[]): HourSplit[] {
+  const rows: HourSplit[] = Array.from({ length: 24 }, (_, h) => ({ hour: h, label: `${String(h).padStart(2, '0')}:00`, opens: 0, views: 0, total: 0 }));
+  for (const e of events) {
+    if (e.type !== 'module_open' && e.type !== 'page_view') continue;
+    const row = rows[new Date(e.ts).getHours()];
+    if (e.type === 'module_open') row.opens++; else row.views++;
+    row.total++;
+  }
+  return rows;
+}
+
+export interface DayActivity { date: string; count: number; times: string[] }
+
+/** Per-calendar-day interaction counts over a trailing window, each day carrying up to 6
+ *  actual HH:mm timestamps — the exact-dates-and-times detail a day-of-week×hour heatmap
+ *  can't show, since that one aggregates every matching weekday/hour across all history. */
+export function dailyActivity(events: UsageEvent[], days = 98): DayActivity[] {
+  const now = new Date();
+  const buckets: DayActivity[] = [];
+  const index = new Map<string, number>();
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(now); d.setDate(now.getDate() - i); d.setHours(0, 0, 0, 0);
+    index.set(toLocalISODate(d), buckets.length);
+    buckets.push({ date: toLocalISODate(d), count: 0, times: [] });
+  }
+  const relevant = events.filter(e => e.type === 'module_open' || e.type === 'page_view').sort((a, b) => a.ts - b.ts);
+  for (const e of relevant) {
+    const d = new Date(e.ts);
+    const i = index.get(toLocalISODate(d));
+    if (i === undefined) continue;
+    buckets[i].count++;
+    if (buckets[i].times.length < 6) buckets[i].times.push(d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }));
+  }
+  return buckets;
 }
 
 export interface DwellRow { path: string; visits: number; totalMs: number; avgMs: number }
