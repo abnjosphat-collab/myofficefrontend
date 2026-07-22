@@ -20,6 +20,7 @@ import {
 import { AppShell } from '@/components/app-shell';
 import { useTheme, PageHero, ACCENT_HEX, useCollapseSection, EmptyState } from '@/components/shared/theme';
 import { toLocalISODate } from '@/lib/dates';
+import { zimHolidayName } from '@/lib/zimHolidays';
 
 // ─────────────────── TYPES ───────────────────
 
@@ -314,7 +315,11 @@ function TimesheetEntryDialog({ employee, date, entry, onSave, onDelete, onClose
 }) {
   const t = useTheme();
   const isWeekendDay = date.getDay() === 0 || date.getDay() === 6;
-  const defaultStatus: StatusKey = entry?.status || (isWeekendDay ? 'weekend' : 'work');
+  const holidayName = zimHolidayName(fmtDate(date));
+  // A public holiday already carries 2.0x via DOUBLE_TIME_STATUSES ('holiday' is in it) —
+  // default the dialog straight to it so hours entered that day are billed correctly
+  // without the user having to remember to switch the dropdown themselves.
+  const defaultStatus: StatusKey = entry?.status || (holidayName ? 'holiday' : isWeekendDay ? 'weekend' : 'work');
   const [form, setForm] = useState<EntryForm>({
     start_time: entry?.start_time || '07:00', end_time: entry?.end_time || '17:00',
     regular_hours: entry?.regular_hours ?? 10, nightshift_hours: entry?.nightshift_hours ?? 0,
@@ -386,6 +391,11 @@ function TimesheetEntryDialog({ employee, date, entry, onSave, onDelete, onClose
           <DialogDescription className={t.textFaint}>{employee?.name} — {date?.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}</DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-2">
+          {holidayName && (
+            <p className="text-xs text-violet-400 bg-violet-500/10 rounded px-2 py-1 flex items-center gap-1.5">
+              <Sun className="w-3.5 h-3.5" /> Zimbabwe public holiday — {holidayName}
+            </p>
+          )}
           <div className="space-y-1.5">
             <Label className={t.textMuted}>Status</Label>
             <Select value={form.status} onValueChange={handleStatusChange}>
@@ -453,7 +463,7 @@ function TimesheetEntryDialog({ employee, date, entry, onSave, onDelete, onClose
           </div>
 
           <div className="flex items-center justify-between p-3 bg-amber-500/[0.08] rounded-lg">
-            <div><Label className="font-medium text-sm text-amber-400">Standby Allowance</Label><p className={`text-xs ${t.textFaint}`}>Adds 8h OT per consecutive standby day (max 7)</p></div>
+            <div><Label className="font-medium text-sm text-amber-400">Standby Allowance</Label><p className={`text-xs ${t.textFaint}`}>Adds a flat 8h once for this standby period (any length)</p></div>
             <Switch checked={form.standby_allowance} onCheckedChange={v => setForm(f => ({ ...f, standby_allowance: v }))} />
           </div>
 
@@ -661,7 +671,7 @@ function BulkAssignDialog({ initialEmployee, allEmployees, period, timesheets, o
 
           <div className="flex flex-wrap items-center gap-4">
             <label className={`flex items-center gap-2 text-sm cursor-pointer select-none ${t.textMuted}`}><input type="checkbox" checked={skipWeekends} onChange={e => setSkipWeekends(e.target.checked)} className="rounded" /> Skip weekends</label>
-            <label className={`flex items-center gap-2 text-sm cursor-pointer select-none ${t.textMuted}`}><input type="checkbox" checked={standby} onChange={e => setStandby(e.target.checked)} className="rounded" /> Standby (8h OT/consecutive day)</label>
+            <label className={`flex items-center gap-2 text-sm cursor-pointer select-none ${t.textMuted}`}><input type="checkbox" checked={standby} onChange={e => setStandby(e.target.checked)} className="rounded" /> Standby (flat 8h OT for the period)</label>
           </div>
 
           <div className="space-y-2">
@@ -815,12 +825,14 @@ function DownloadDialog({ employees, timesheets, period, periodType, onClose }: 
   const getEntry = (eid: string, d: Date) => timesheets.find(ts => String(ts.employee_id) === String(eid) && ts.date === fmtDate(d));
 
   const calcTotalsLocal = (eid: string): HourTotals => {
-    let reg = 0, ot15 = 0, ot20 = 0, night = 0, standbyBonus = 0, consecutive = 0;
+    let reg = 0, ot15 = 0, ot20 = 0, night = 0, standbyBonus = 0, inStandbyRun = false;
     timesheets.filter(ts => String(ts.employee_id) === String(eid)).sort((a, b) => a.date.localeCompare(b.date)).forEach(e => {
       reg += e.regular_hours || 0; night += e.nightshift_hours || 0;
       if (e.status === 'holiday') ot20 += (e.overtime_hours || 0) + (e.holiday_overtime_hours || 0);
       else { ot15 += e.overtime_hours || 0; ot20 += e.holiday_overtime_hours || 0; }
-      if (e.standby_allowance) { consecutive++; if (consecutive <= 7) standbyBonus += 8; } else consecutive = 0;
+      // 8h standby allowance is paid once per standby period, not per day — a fresh run
+      // (of any length) earns the flat 8h the moment it starts, then stays flat.
+      if (e.standby_allowance) { if (!inStandbyRun) { standbyBonus += 8; inStandbyRun = true; } } else inStandbyRun = false;
     });
     const a = apply208(reg, ot15);
     ot15 = a.ot15 + standbyBonus;
@@ -1084,14 +1096,16 @@ function DownloadDialog({ employees, timesheets, period, periodType, onClose }: 
 // ─────────────────── TIMESHEET GRID ───────────────────
 
 function calcTotals(empId: string, timesheets: TimesheetEntry[]): HourTotals {
-  let reg = 0, ot15 = 0, ot20 = 0, night = 0, standbyBonus = 0, consecutive = 0;
+  let reg = 0, ot15 = 0, ot20 = 0, night = 0, standbyBonus = 0, inStandbyRun = false;
   timesheets.filter(t => String(t.employee_id) === String(empId)).sort((a, b) => a.date.localeCompare(b.date)).forEach(e => {
     reg += e.regular_hours || 0; night += e.nightshift_hours || 0;
     if (DOUBLE_TIME_STATUSES.has(e.status as StatusKey)) {
       ot20 += (e.regular_hours || 0) + (e.overtime_hours || 0) + (e.holiday_overtime_hours || 0);
       reg -= e.regular_hours || 0;
     } else { ot15 += e.overtime_hours || 0; ot20 += e.holiday_overtime_hours || 0; }
-    if (e.standby_allowance) { consecutive++; if (consecutive <= 7) standbyBonus += 8; } else consecutive = 0;
+    // 8h standby allowance is paid once per standby period, not per day — a fresh run
+    // (of any length, 4 days or 10) earns the flat 8h the moment it starts.
+    if (e.standby_allowance) { if (!inStandbyRun) { standbyBonus += 8; inStandbyRun = true; } } else inStandbyRun = false;
   });
   const a = apply208(reg, ot15);
   ot15 = a.ot15 + standbyBonus;
@@ -1122,12 +1136,14 @@ function TimesheetGrid({ employees, timesheets, days, onCellClick, onBulkAssign,
           {days.map(d => {
             const ds = fmtDate(d);
             const isWknd = d.getDay() === 0 || d.getDay() === 6;
+            const holiday = zimHolidayName(ds);
             return (
-              <TableHead key={ds} className={`text-center min-w-[70px] px-0.5 sticky top-0 z-20 ${stickyBg}`}>
+              <TableHead key={ds} title={holiday || undefined} className={`text-center min-w-[70px] px-0.5 sticky top-0 z-20 ${stickyBg} ${holiday ? 'bg-violet-500/[0.08]' : ''}`}>
                 <div className="flex flex-col items-center text-[9px] py-1">
                   <span className={t.textFaint}>{d.toLocaleDateString('default', { weekday: 'short' })}</span>
-                  <span className={`font-bold text-sm ${ds === today ? 'text-brand-400' : isWknd ? t.textFaint : t.textMuted}`}>{d.getDate()}</span>
+                  <span className={`font-bold text-sm ${holiday ? 'text-violet-400' : ds === today ? 'text-brand-400' : isWknd ? t.textFaint : t.textMuted}`}>{d.getDate()}</span>
                   <span className={t.textFaint}>{d.toLocaleDateString('default', { month: 'short' })}</span>
+                  {holiday && <Sun className="w-2.5 h-2.5 text-violet-400 mt-0.5" />}
                 </div>
               </TableHead>
             );
