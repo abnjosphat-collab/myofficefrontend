@@ -43,6 +43,7 @@ export function AuthForm({ defaultMode = 'login', onClose, redirectTo }: {
   redirectTo?: string;
 }) {
   const { signInWithGoogle, signInWithEmail, signUpWithEmail } = useAuth();
+  const t = useTheme();
   const [mode, setMode] = useState<'login' | 'signup'>(defaultMode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -83,48 +84,48 @@ export function AuthForm({ defaultMode = 'login', onClose, redirectTo }: {
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-2xl border border-[#2A4D69]/10 p-6">
+    <div className={`${t.glass} ${t.shadow} rounded-2xl p-6`}>
       <div className="text-center mb-5">
         <div className="flex justify-center mb-3">
-          <div className="h-10 w-10 rounded-full bg-[#2A4D69] flex items-center justify-center text-white font-bold font-heading text-sm">O</div>
+          <div className="h-10 w-10 rounded-full bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center text-white font-bold font-heading text-sm">O</div>
         </div>
-        <h2 className="text-lg font-bold text-[#2A4D69] font-heading">{mode === 'login' ? 'Welcome back' : 'Create your account'}</h2>
-        <p className="text-xs text-[#6B7B8E] mt-1">{mode === 'login' ? 'Sign in to access MyOffice' : 'Join your team on MyOffice'}</p>
+        <h2 className={`text-lg font-bold font-heading ${t.textPrimary}`}>{mode === 'login' ? 'Welcome back' : 'Create your account'}</h2>
+        <p className={`text-xs mt-1 ${t.textFaint}`}>{mode === 'login' ? 'Sign in to access MyOffice' : 'Join your team on MyOffice'}</p>
       </div>
 
       <button
         type="button"
         onClick={handleGoogleSignIn}
         disabled={googleLoading}
-        className="w-full flex items-center justify-center gap-2.5 h-10 px-4 rounded-lg border border-[#2A4D69]/20 hover:border-[#2A4D69]/40 hover:bg-[#2A4D69]/05 transition-all duration-200 text-sm font-medium text-[#1a1a2e] mb-4"
+        className={`w-full flex items-center justify-center gap-2.5 h-10 px-4 rounded-lg border ${t.border} ${t.hoverBgSoft} transition-all duration-200 text-sm font-medium ${t.textPrimary} mb-4`}
       >
-        {googleLoading ? <div className="h-4 w-4 border-2 border-[#2A4D69]/30 border-t-[#2A4D69] rounded-full animate-spin" /> : <GoogleIcon className="h-4 w-4" />}
+        {googleLoading ? <div className="h-4 w-4 border-2 border-brand-400/30 border-t-brand-400 rounded-full animate-spin" /> : <GoogleIcon className="h-4 w-4" />}
         {googleLoading ? 'Redirecting…' : 'Continue with Google'}
       </button>
 
       <div className="flex items-center gap-3 mb-4">
-        <div className="flex-1 h-px bg-[#2A4D69]/10" />
-        <span className="text-xs text-[#6B7B8E]">or with email</span>
-        <div className="flex-1 h-px bg-[#2A4D69]/10" />
+        <div className={`flex-1 h-px ${t.border} border-t`} />
+        <span className={`text-xs ${t.textFaint}`}>or with email</span>
+        <div className={`flex-1 h-px ${t.border} border-t`} />
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-3">
         {mode === 'signup' && (
           <div className="space-y-1">
-            <Label className="text-xs font-medium text-[#2A4D69]">Full name</Label>
-            <Input type="text" placeholder="As on official documents" value={name} onChange={e => setName(e.target.value)} className="border-[#2A4D69]/20 focus:border-[#2A4D69] text-sm" required />
+            <Label className={`text-xs font-medium ${t.textMuted}`}>Full name</Label>
+            <Input type="text" placeholder="As on official documents" value={name} onChange={e => setName(e.target.value)} className={`text-sm ${t.inputBg}`} required />
           </div>
         )}
         <div className="space-y-1">
-          <Label className="text-xs font-medium text-[#2A4D69]">Email address</Label>
-          <Input type="email" placeholder="you@company.com" value={email} onChange={e => setEmail(e.target.value)} className="border-[#2A4D69]/20 focus:border-[#2A4D69] text-sm" required />
+          <Label className={`text-xs font-medium ${t.textMuted}`}>Email address</Label>
+          <Input type="email" placeholder="you@company.com" value={email} onChange={e => setEmail(e.target.value)} className={`text-sm ${t.inputBg}`} required />
         </div>
         <div className="space-y-1">
-          <Label className="text-xs font-medium text-[#2A4D69]">Password</Label>
-          <Input type="password" placeholder="Minimum 6 characters" value={password} onChange={e => setPassword(e.target.value)} className="border-[#2A4D69]/20 focus:border-[#2A4D69] text-sm" required minLength={6} />
+          <Label className={`text-xs font-medium ${t.textMuted}`}>Password</Label>
+          <Input type="password" placeholder="Minimum 6 characters" value={password} onChange={e => setPassword(e.target.value)} className={`text-sm ${t.inputBg}`} required minLength={6} />
         </div>
-        {error && <div className="text-red-600 text-xs bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</div>}
-        <Button type="submit" disabled={loading} className="w-full bg-[#2A4D69] hover:bg-[#1e3a52] text-white font-semibold mt-1">
+        {error && <div className="text-red-500 text-xs bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</div>}
+        <Button type="submit" disabled={loading} className="w-full bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 text-white font-semibold mt-1">
           {loading ? (
             <span className="flex items-center gap-2">
               <div className="h-3.5 w-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -132,9 +133,9 @@ export function AuthForm({ defaultMode = 'login', onClose, redirectTo }: {
             </span>
           ) : mode === 'login' ? 'Sign In' : 'Create Account'}
         </Button>
-        <p className="text-center text-xs text-[#6B7B8E] pt-1">
+        <p className={`text-center text-xs pt-1 ${t.textFaint}`}>
           {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
-          <button type="button" onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError(''); }} className="text-[#2A4D69] font-semibold hover:underline">
+          <button type="button" onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError(''); }} className={`font-semibold hover:underline ${t.linkText}`}>
             {mode === 'login' ? 'Sign up' : 'Sign in'}
           </button>
         </p>

@@ -9,6 +9,12 @@ import { createContext, useContext, useState, useMemo, useEffect, type ReactNode
 
 const GLASS = 'bg-white/[0.07] backdrop-blur-2xl border border-white/[0.12]';
 const GLASS_SOFT = 'bg-white/[0.05] backdrop-blur-xl border border-white/10';
+// A small popover/dropdown (option lists, menus) can land anywhere on the page —
+// often directly over dense text (a table row, a form) rather than open page
+// background. GLASS's 7% opacity is fine for a large surface card but leaves text
+// behind it visibly bleeding through on a small high-contrast-need panel, so these
+// get a near-opaque backing instead while keeping the same blur/border language.
+const GLASS_POPOVER = 'bg-slate-950/90 backdrop-blur-2xl border border-white/[0.12]';
 const SHADOW_AMBIENT = 'shadow-[0_1px_1px_rgba(0,0,0,0.08),0_16px_32px_-20px_rgba(0,0,0,0.55)]';
 
 // ─── Light theme ("white mode") equivalents ─────────────────────────────────
@@ -21,6 +27,9 @@ export function themeClasses(light: boolean) {
   return {
     glass: light ? LIGHT_GLASS : GLASS,
     glassSoft: light ? LIGHT_GLASS_SOFT : GLASS_SOFT,
+    // Light mode's LIGHT_GLASS is already fully opaque white, so no separate variant
+    // is needed there — only dark mode's low-opacity GLASS risks text bleed-through.
+    glassPopover: light ? LIGHT_GLASS : GLASS_POPOVER,
     shadow: light ? LIGHT_SHADOW : SHADOW_AMBIENT,
     textPrimary: light ? 'text-gray-900' : 'text-white',
     // Light-mode text/icons were washing out (gray-400/500 read as faint gray, not

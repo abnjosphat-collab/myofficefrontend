@@ -743,7 +743,7 @@ export function SelectField({
               maxWidth: 'min(92vw, 360px)',
               zIndex: 9999,
             }}
-            className={`rounded-lg overflow-hidden ${t.glass} ${t.shadow} max-h-60 overflow-y-auto py-1`}
+            className={`rounded-lg overflow-hidden ${t.glassPopover} ${t.shadow} max-h-60 overflow-y-auto py-1`}
             onScroll={onListScroll}
           >
             {scrollEdge === 'top' && <ScrollEdgeGlow edge="top" />}
@@ -874,7 +874,7 @@ export function Combobox({
             width: Math.max(pos.width, minWidth ?? 0),
             zIndex: 9999,
           }}
-          className={`rounded-xl overflow-hidden ${t.glass} ${t.shadow} max-h-60 overflow-y-auto`}
+          className={`rounded-xl overflow-hidden ${t.glassPopover} ${t.shadow} max-h-60 overflow-y-auto`}
           onMouseDown={e => e.preventDefault()}
           onScroll={onListScroll}
         >

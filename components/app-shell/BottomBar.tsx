@@ -77,7 +77,7 @@ export function BottomBar({
                 <motion.div
                   initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }}
                   transition={{ duration: 0.2 }}
-                  className={`absolute bottom-full right-0 mb-2 w-72 ${t.glass} rounded-xl ${t.shadow} overflow-hidden z-20`}
+                  className={`absolute bottom-full right-0 mb-2 w-72 ${t.glassPopover} rounded-xl ${t.shadow} overflow-hidden z-20`}
                 >
                   <div className={`px-3 py-2 border-b ${t.border} text-[11px] font-semibold uppercase tracking-wide ${t.textTertiary}`}>Notifications</div>
                   <div className="max-h-64 overflow-y-auto">
@@ -120,7 +120,7 @@ export function BottomBar({
                 <motion.div
                   initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }}
                   transition={{ duration: 0.2 }}
-                  className={`absolute bottom-full right-0 mb-2 w-72 ${t.glass} rounded-xl ${t.shadow} overflow-hidden z-20 p-3`}
+                  className={`absolute bottom-full right-0 mb-2 w-72 ${t.glassPopover} rounded-xl ${t.shadow} overflow-hidden z-20 p-3`}
                 >
                   {feedbackSent ? (
                     <div className="py-2">
@@ -188,7 +188,7 @@ export function BottomBar({
                 <motion.div
                   initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }}
                   transition={{ duration: 0.2 }}
-                  className={`absolute bottom-full right-0 mb-2 w-72 ${t.glass} rounded-xl ${t.shadow} overflow-hidden z-20`}
+                  className={`absolute bottom-full right-0 mb-2 w-72 ${t.glassPopover} rounded-xl ${t.shadow} overflow-hidden z-20`}
                 >
                   <button
                     onClick={() => { onOpenPreferences(); setOpenMenu(null); }}

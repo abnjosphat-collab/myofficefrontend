@@ -117,7 +117,7 @@ export function TopNavigation({
               />
             </div>
             {searchFocused && searchQuery && searchMatches.length > 0 && (
-              <div className={`absolute top-full left-0 right-0 mt-1.5 ${t.glass} rounded-xl ${t.shadow} overflow-hidden z-50`}>
+              <div className={`absolute top-full left-0 right-0 mt-1.5 ${t.glassPopover} rounded-xl ${t.shadow} overflow-hidden z-50`}>
                 <div className={`px-3 py-1.5 border-b ${t.border} text-[10.5px] font-semibold uppercase tracking-wide ${t.textFaint}`}>
                   Jump to module
                 </div>
@@ -146,12 +146,12 @@ export function TopNavigation({
               </div>
             )}
             {searchFocused && searchQuery && searchMatches.length === 0 && (
-              <div className={`absolute top-full left-0 right-0 mt-1.5 ${t.glass} rounded-xl ${t.shadow} overflow-hidden z-50 px-3 py-4 text-center text-[12px] ${t.textFaint}`}>
+              <div className={`absolute top-full left-0 right-0 mt-1.5 ${t.glassPopover} rounded-xl ${t.shadow} overflow-hidden z-50 px-3 py-4 text-center text-[12px] ${t.textFaint}`}>
                 No modules match “{searchQuery}”
               </div>
             )}
             {searchFocused && !searchQuery && history.length > 0 && (
-              <div className={`absolute top-full left-0 right-0 mt-1.5 ${t.glass} rounded-xl ${t.shadow} overflow-hidden z-50`}>
+              <div className={`absolute top-full left-0 right-0 mt-1.5 ${t.glassPopover} rounded-xl ${t.shadow} overflow-hidden z-50`}>
                 <div className={`flex items-center justify-between px-3 py-2 border-b ${t.border}`}>
                   <span className={`text-[11px] font-semibold uppercase tracking-wide ${t.textFaint}`}>Recent searches</span>
                   <button
@@ -238,7 +238,7 @@ export function TopNavigation({
                   <motion.div
                     initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
                     transition={{ duration: 0.2 }}
-                    className={`absolute top-full right-0 mt-2 w-72 ${t.glass} rounded-xl ${t.shadow} overflow-hidden z-20`}
+                    className={`absolute top-full right-0 mt-2 w-72 ${t.glassPopover} rounded-xl ${t.shadow} overflow-hidden z-20`}
                   >
                     <div className={`px-3 py-2 border-b ${t.border} text-[11px] font-semibold uppercase tracking-wide ${t.textFaint}`}>Notifications</div>
                     <div className="max-h-64 overflow-y-auto">
