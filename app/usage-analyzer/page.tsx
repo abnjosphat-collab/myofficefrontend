@@ -1,7 +1,8 @@
-// app/usage-analyzer/page.tsx — Usage Analyzer: rich, client-side visualisations of
-// how the app is actually used, sourced entirely from lib/usage's localStorage event
-// log (module opens, page views + dwell, searches, feedback). No backend — everything
-// here is derived on the client and live-refreshes when new events are recorded.
+// app/usage-analyzer/page.tsx — Usage Analyzer: rich visualisations of how the app is
+// actually used. Two data sources: "This device" reads lib/usage's local event log
+// (localStorage, always available, live-refreshes); "All users" (manager+) reads the
+// backend-persisted event log (app/routers/usage.py) via fetchRemoteEvents — the
+// durable, cross-device, cross-session copy, including anonymous visitors.
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';

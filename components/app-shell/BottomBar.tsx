@@ -123,8 +123,11 @@ export function BottomBar({
                   className={`absolute bottom-full right-0 mb-2 w-72 ${t.glass} rounded-xl ${t.shadow} overflow-hidden z-20 p-3`}
                 >
                   {feedbackSent ? (
-                    <div className="flex items-center gap-2 py-2 text-emerald-500 text-[12.5px] font-medium">
-                      <Check className="h-4 w-4" /> Thanks for the feedback!
+                    <div className="py-2">
+                      <div className="flex items-center gap-2 text-emerald-500 text-[12.5px] font-medium">
+                        <Check className="h-4 w-4" /> Thanks for the feedback!
+                      </div>
+                      <p className={`text-[10.5px] ${t.textFaint} mt-0.5 ml-6`}>Saved — it won't be lost if you close this tab.</p>
                     </div>
                   ) : (
                     <>

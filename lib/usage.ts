@@ -1,7 +1,7 @@
 // lib/usage.ts — client-side usage analytics store (localStorage-backed), which also
 // best-effort mirrors every event to the backend (app/routers/usage.py) so the Usage
-// Analyzer can eventually show real cross-user, cross-device activity — including
-// unsigned-in visitors — instead of only what's in this one browser's localStorage.
+// Analyzer can show real cross-user, cross-device activity — including unsigned-in
+// visitors — instead of only what's in this one browser's localStorage.
 //
 // Records a capped, timestamped event log of how the app is used — module opens,
 // page views + dwell time, searches, and feedback — and exposes derivations the
