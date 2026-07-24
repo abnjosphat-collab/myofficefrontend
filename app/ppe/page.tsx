@@ -504,13 +504,16 @@ function PPEIssueForm({ isOpen, onClose, onSubmit, initialData, employee, allEmp
   const t = useTheme();
   const [form, setForm] = useState<FormState>(blankForm());
   const [saving, setSaving] = useState(false);
-  // Auto-calc expiry from issue date + the matrix interval, unless the user has typed an
-  // expiry themselves (or we're editing a record that already has one).
+  // Auto-calc expiry from issue date + the matrix interval, unless the user has typed
+  // an expiry themselves THIS session. Editing an existing record starts untouched too
+  // (not "touched because it already has a stored expiry") — so correcting an issue
+  // date, or fixing stale data from an old matrix interval, recalculates expiry the
+  // same way a brand-new entry does, instead of freezing at whatever was last saved.
   const [expiryTouched, setExpiryTouched] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
-      setExpiryTouched(!!initialData?.expiry_date);
+      setExpiryTouched(false);
       setForm({
         ...blankForm(),
         employee_name: employee?.employee_name || initialData?.employee_name || '',
@@ -537,8 +540,10 @@ function PPEIssueForm({ isOpen, onClose, onSubmit, initialData, employee, allEmp
   useEffect(() => {
     if (expiryTouched || !form.issue_date) return;
     const months = matrix[form.ppe_type];
-    const calc = months ? addMonths(form.issue_date, months) : '';
-    if (calc && calc !== form.expiry_date) setForm(p => ({ ...p, expiry_date: calc }));
+    if (months === undefined) return; // no matrix entry for this type — leave expiry alone
+    // 0 months = no expiry (e.g. gloves) — clears any stale value from a prior interval.
+    const calc = months > 0 ? addMonths(form.issue_date, months) : '';
+    if (calc !== form.expiry_date) setForm(p => ({ ...p, expiry_date: calc }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.ppe_type, form.issue_date, expiryTouched, matrix]);
 
@@ -791,18 +796,26 @@ function DueItemsList({ employees, filterType, onEditItem, onDeleteItem, onViewI
 // saves it (shared); "Recalculate" resets every active item of that type to
 // issue_date + interval, so you never edit cards one by one.
 
-function PPEMatrixModal({ isOpen, onClose, matrix, records, onSetInterval, onRecalculate }: {
+function PPEMatrixModal({ isOpen, onClose, matrix, records, onSetInterval, onRecalculate, onRecalculateAll }: {
   isOpen: boolean;
   onClose: () => void;
   matrix: Record<string, number>;
   records: PPERecord[];
   onSetInterval: (ppeType: string, months: number) => void;
   onRecalculate: (ppeType: string) => void;
+  onRecalculateAll: () => void;
 }) {
   const t = useTheme();
   return (
     <CenterModal open={isOpen} onClose={onClose} title="PPE Replacement Matrix"
-      subtitle="Set how long each item lasts — Recalculate resets every card of that type from its issue date" accent="violet" width="max-w-2xl">
+      subtitle="Set how long each item lasts — saving an interval recalculates every existing item of that type" accent="violet" width="max-w-2xl">
+      <div className="px-5 pt-3 flex justify-end">
+        <button type="button" onClick={onRecalculateAll}
+          title="Recalculate expiry for every active record of every type against the current matrix — fixes anything left stale by a past interval change"
+          className={`h-8 px-3 rounded-lg text-[12px] font-medium ${t.chipBg} ${t.hoverBg} ${t.textMuted} ${t.hoverText} transition-colors`}>
+          Recalculate all types
+        </button>
+      </div>
       <div className="px-5 py-3 space-y-1.5 max-h-[65vh] overflow-y-auto">
         {Object.entries(PPE_TYPES).map(([key, info]) => {
           const Icon = info.icon;
@@ -1019,11 +1032,15 @@ export default function PPEManagement() {
     } catch (err: any) { toast.error(`Update failed: ${err.message}`); }
   };
 
-  // Matrix: save an interval (shared), and recalculate a whole type's expiries from issue date.
+  // Matrix: save an interval (shared) — the backend now also recalculates expiry for
+  // every existing active record of that type as part of the same save, so stored data
+  // never drifts from the matrix (no separate "apply" step required).
   const handleSetInterval = async (ppeType: string, months: number) => {
     setMatrix(m => ({ ...m, [ppeType]: months }));   // optimistic
-    try { await api.put('/api/ppe/matrix', { ppe_type: ppeType, interval_months: months }); }
-    catch { toast.error('Interval not saved — the ppe_matrix table may not exist yet (see migration).'); }
+    try {
+      const res = await api.put<{ updated: number }>('/api/ppe/matrix', { ppe_type: ppeType, interval_months: months });
+      if (res?.updated) { toast.success(`Interval saved — recalculated ${res.updated} existing item(s)`); load(true); }
+    } catch { toast.error('Interval not saved — the ppe_matrix table may not exist yet (see migration).'); }
   };
   const handleRecalculate = async (ppeType: string) => {
     const label = PPE_TYPES[ppeType]?.name || ppeType;
@@ -1038,6 +1055,15 @@ export default function PPEManagement() {
       toast.success(`Recalculated ${res?.updated ?? count} ${label} item(s)`);
       load(true);
     } catch { toast.error('Recalculate failed — needs manager access (and the ppe_matrix table).'); }
+  };
+  const handleRecalculateAll = async () => {
+    const activeCount = records.filter(r => r.status === 'active').length;
+    if (!confirm(`Recalculate expiry for all ${activeCount} active PPE item(s) across every type, using the current matrix?\nThis overwrites their current expiry dates.`)) return;
+    try {
+      const res = await api.post<{ total_updated: number }>('/api/ppe/matrix/apply-all', {});
+      toast.success(`Recalculated ${res?.total_updated ?? 0} item(s) across all types`);
+      load(true);
+    } catch { toast.error('Recalculate failed — needs manager access.'); }
   };
 
   const compColor = complianceRate == null ? ACCENT_HEX.blue : complianceRate >= 80 ? '#10b981' : complianceRate >= 60 ? ACCENT_HEX.blue : '#f43f5e';
@@ -1509,7 +1535,7 @@ export default function PPEManagement() {
 
       <PPEMatrixModal isOpen={showMatrix} onClose={() => setShowMatrix(false)}
         matrix={matrix} records={records}
-        onSetInterval={handleSetInterval} onRecalculate={handleRecalculate} />
+        onSetInterval={handleSetInterval} onRecalculate={handleRecalculate} onRecalculateAll={handleRecalculateAll} />
 
       <PPEDetailModal item={detailItem} isOpen={showDetail}
         onClose={() => setShowDetail(false)}
