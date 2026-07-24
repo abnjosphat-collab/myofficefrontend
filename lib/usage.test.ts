@@ -6,6 +6,7 @@ import {
   topModules, topSearches, usageByHour, dwellByPath, getFeedback, summarize,
   fmtDuration, hourWeekdayHeat, trackSearch, getSearchHistory, clearSearchHistory,
   clearUsage, usageOverTime, usageByHourSplit, dailyActivity, topUsers, signedInVsAnonymous,
+  byModule, moduleKeyOf,
   type UsageEvent, type EnrichedUsageEvent,
 } from '@/lib/usage';
 
@@ -154,6 +155,40 @@ describe('topUsers / signedInVsAnonymous', () => {
     expect(s.anonymous).toBe(2);
     expect(s.distinctUsers).toBe(1);
     expect(s.distinctAnonymousSessions).toBe(1);
+  });
+});
+
+describe('moduleKeyOf / byModule', () => {
+  it('keys module_open/page_view by their top-level route segment', () => {
+    expect(moduleKeyOf({ type: 'module_open', ts: T, href: '/employees' })).toBe('/employees');
+    expect(moduleKeyOf({ type: 'page_view', ts: T, path: '/leaves/123?tab=history' })).toBe('/leaves');
+    expect(moduleKeyOf({ type: 'page_view', ts: T, path: '/' })).toBe('/');
+    expect(moduleKeyOf({ type: 'search', ts: T, query: 'x', results: 0 })).toBe('/');
+  });
+
+  it('groups interactions by module with an opens/views split, sorted by total', () => {
+    const events: UsageEvent[] = [
+      { type: 'module_open', ts: T, href: '/employees', title: 'Employees' },
+      { type: 'page_view', ts: T, path: '/employees/1' },
+      { type: 'page_view', ts: T, path: '/sheq' },
+      { type: 'search', ts: T, query: 'x', results: 0 }, // not counted — no module
+    ];
+    const rows = byModule(events);
+    expect(rows[0]).toMatchObject({ module: '/employees', label: 'Employees', total: 2, opens: 1, views: 1 });
+    expect(rows[1]).toMatchObject({ module: '/sheq', total: 1 });
+  });
+
+  it('counts distinct users only for enriched (backend) events, not plain local ones', () => {
+    const enriched: EnrichedUsageEvent[] = [
+      { type: 'module_open', ts: T, href: '/ppe', sessionId: 's-1', userEmail: 'a@b.com', anonymous: false },
+      { type: 'module_open', ts: T, href: '/ppe', sessionId: 's-1', userEmail: 'a@b.com', anonymous: false },
+      { type: 'module_open', ts: T, href: '/ppe', sessionId: 's-2', userEmail: null, anonymous: true },
+    ];
+    const rows = byModule(enriched);
+    expect(rows[0]).toMatchObject({ module: '/ppe', total: 3, distinctUsers: 2 });
+
+    const local: UsageEvent[] = [{ type: 'module_open', ts: T, href: '/ppe' }];
+    expect(byModule(local)[0].distinctUsers).toBe(0);
   });
 });
 

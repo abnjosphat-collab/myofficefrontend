@@ -280,6 +280,46 @@ export function topModules(events: UsageEvent[], limit = 12): Counted[] {
     .slice(0, limit);
 }
 
+/** The top-level route segment a module_open/page_view event belongs to, e.g.
+ *  "/employees/123" and "/employees?tab=x" both key to "/employees". Exported so the
+ *  Usage Analyzer can filter its other charts down to a single module by the same key
+ *  it groups rows by. */
+export function moduleKeyOf(e: UsageEvent): string {
+  const raw = e.type === 'module_open' ? e.href : e.type === 'page_view' ? e.path : '';
+  const clean = (raw || '/').split('?')[0].split('#')[0];
+  const seg = clean.split('/').filter(Boolean)[0];
+  return seg ? `/${seg}` : '/';
+}
+
+function moduleLabel(key: string): string {
+  if (key === '/') return 'Home';
+  return key.slice(1).replace(/[-_]/g, ' ').replace(/^./, c => c.toUpperCase());
+}
+
+export interface ModuleUsage { module: string; label: string; total: number; opens: number; views: number; distinctUsers: number }
+
+/** Usage grouped by module (top-level route) — total interactions, the opens/views
+ *  split, and (when the events carry identity — i.e. EnrichedUsageEvent from the
+ *  backend "All users" view) how many distinct people used it. Local-only events have
+ *  no identity to count, so distinctUsers is 0 for them — the caller should hide that
+ *  column rather than show a misleading zero. */
+export function byModule(events: UsageEvent[]): ModuleUsage[] {
+  const map = new Map<string, { total: number; opens: number; views: number; users: Set<string> }>();
+  for (const e of events) {
+    if (e.type !== 'module_open' && e.type !== 'page_view') continue;
+    const key = moduleKeyOf(e);
+    const row = map.get(key) ?? { total: 0, opens: 0, views: 0, users: new Set<string>() };
+    row.total++;
+    if (e.type === 'module_open') row.opens++; else row.views++;
+    const enriched = e as Partial<EnrichedUsageEvent>;
+    if (enriched.sessionId) row.users.add(enriched.anonymous ? `anon:${enriched.sessionId}` : `user:${enriched.userEmail || enriched.sessionId}`);
+    map.set(key, row);
+  }
+  return [...map.entries()]
+    .map(([module, v]) => ({ module, label: moduleLabel(module), total: v.total, opens: v.opens, views: v.views, distinctUsers: v.users.size }))
+    .sort((a, b) => b.total - a.total);
+}
+
 /** Top search queries by frequency. */
 export function topSearches(events: UsageEvent[], limit = 10): Counted[] {
   const counts = new Map<string, number>();

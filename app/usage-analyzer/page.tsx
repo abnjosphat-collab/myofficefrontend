@@ -20,7 +20,7 @@ import {
 import {
   getEvents, clearUsage, USAGE_EVENT, summarize, topModules, topSearches,
   usageOverTime, hourWeekdayHeat, usageByHourSplit, dailyActivity, dwellByPath, getFeedback, fmtDuration,
-  fetchRemoteEvents, topUsers, signedInVsAnonymous,
+  fetchRemoteEvents, topUsers, signedInVsAnonymous, byModule, moduleKeyOf,
   type UsageEvent, type Granularity, type EnrichedUsageEvent,
 } from '@/lib/usage';
 
@@ -96,16 +96,26 @@ export default function UsageAnalyzerPage() {
   const userSplit = useMemo(() => signedInVsAnonymous(remoteEvents), [remoteEvents]);
   const activeUsers = useMemo(() => topUsers(remoteEvents, 10), [remoteEvents]);
 
+  // Clicking a "By module" row scopes the time-based charts (activity-over-time, hour
+  // heatmap, day-of-week heatmap, calendar) down to that module — the breakdown panels
+  // (top modules, searches, dwell, feedback) stay global since they're their own views.
+  const [moduleFilter, setModuleFilter] = useState<string | null>(null);
+  const moduleUsage = useMemo(() => byModule(events), [events]);
+  const filteredEvents = useMemo(
+    () => moduleFilter ? events.filter(e => (e.type === 'module_open' || e.type === 'page_view') && moduleKeyOf(e) === moduleFilter) : events,
+    [events, moduleFilter]
+  );
+
   const [granularity, setGranularity] = useState<Granularity>('day');
   const PERIODS: Record<Granularity, number> = { day: 30, week: 12, month: 12 };
 
-  const s = useMemo(() => summarize(events), [events]);
+  const s = useMemo(() => summarize(filteredEvents), [filteredEvents]);
   const modules = useMemo(() => topModules(events, 10), [events]);
   const searches = useMemo(() => topSearches(events, 8), [events]);
-  const overTime = useMemo(() => usageOverTime(events, granularity, PERIODS[granularity]), [events, granularity]);
-  const heat = useMemo(() => hourWeekdayHeat(events), [events]);
-  const byHour = useMemo(() => usageByHourSplit(events), [events]);
-  const days = useMemo(() => dailyActivity(events, 98), [events]);
+  const overTime = useMemo(() => usageOverTime(filteredEvents, granularity, PERIODS[granularity]), [filteredEvents, granularity]);
+  const heat = useMemo(() => hourWeekdayHeat(filteredEvents), [filteredEvents]);
+  const byHour = useMemo(() => usageByHourSplit(filteredEvents), [filteredEvents]);
+  const days = useMemo(() => dailyActivity(filteredEvents, 98), [filteredEvents]);
   // GitHub-style calendar grid: columns are weeks, rows are Sun..Sat — pad the first
   // column so `days[0]` lands on its correct weekday rather than always at row 0.
   const calendarWeeks = useMemo(() => {
@@ -221,6 +231,42 @@ export default function UsageAnalyzerPage() {
               </div>
             </GlowCard>
 
+            {/* ── By module (drill-down) ───────────────────────────────────── */}
+            <GlowCard color={ACCENT_HEX.violet} surface={`${t.glass} rounded-2xl`} className="p-4">
+              <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                <SectionTitle icon={Layers} label="By module" noMargin />
+                {moduleFilter && (
+                  <button type="button" onClick={() => setModuleFilter(null)}
+                    className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium ${t.chipBg} ${t.textMuted} ${t.hoverText} transition-colors`}>
+                    Showing {moduleUsage.find(m => m.module === moduleFilter)?.label ?? moduleFilter} only — clear
+                  </button>
+                )}
+              </div>
+              {moduleUsage.length === 0 ? <Empty t={t} /> : (
+                <div className="space-y-1.5">
+                  {moduleUsage.slice(0, 12).map(m => {
+                    const max = moduleUsage[0].total || 1;
+                    const active = moduleFilter === m.module;
+                    return (
+                      <button key={m.module} type="button" onClick={() => setModuleFilter(active ? null : m.module)}
+                        className={`w-full text-left px-2.5 py-1.5 rounded-lg transition-colors ${active ? `${t.chipBg} ring-1 ring-brand-500/40` : t.hoverBgSoft}`}>
+                        <div className="flex items-center justify-between gap-2 text-[12.5px] mb-1">
+                          <span className={`${t.textMuted} truncate`}>{m.label}</span>
+                          <span className={`flex items-center gap-2 shrink-0 ${t.textFaint}`}>
+                            {dataSource === 'all' && m.distinctUsers > 0 && <span>{m.distinctUsers} user{m.distinctUsers === 1 ? '' : 's'}</span>}
+                            <span className={`font-semibold ${t.textPrimary}`}>{m.total}</span>
+                          </span>
+                        </div>
+                        <div className={`h-1.5 rounded-full ${t.chipBg} overflow-hidden`}>
+                          <div className="h-full rounded-full" style={{ width: `${(m.total / max) * 100}%`, background: ACCENT_HEX.violet }} />
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </GlowCard>
+
             {/* ── Who's using it (signed-in vs anonymous, top users) ────────── */}
             {dataSource === 'all' && (userSplit.signedIn + userSplit.anonymous) > 0 && (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
@@ -259,7 +305,7 @@ export default function UsageAnalyzerPage() {
             {/* ── Activity over time (2-series line, day/week/month) ────────── */}
             <GlowCard color={ACCENT_HEX.blue} surface={`${t.glass} rounded-2xl`} className="p-4">
               <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-                <SectionTitle icon={TrendingUp} label={`Activity by ${granularity}`} noMargin />
+                <SectionTitle icon={TrendingUp} label={`Activity by ${granularity}${moduleFilter ? ` — ${moduleUsage.find(m => m.module === moduleFilter)?.label ?? moduleFilter}` : ''}`} noMargin />
                 <div className={`flex items-center gap-0.5 p-0.5 rounded-lg ${t.chipBg}`}>
                   {(['day', 'week', 'month'] as Granularity[]).map(g => (
                     <button key={g} type="button" onClick={() => setGranularity(g)}
