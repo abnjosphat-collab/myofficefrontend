@@ -1032,7 +1032,7 @@ export function PageHero({
             )}
           </div>
         </div>
-        {actions && <div className="flex items-center gap-2 shrink-0">{actions}</div>}
+        {actions && <div className="flex flex-wrap items-center gap-2 sm:shrink-0">{actions}</div>}
       </div>
 
       {children && (

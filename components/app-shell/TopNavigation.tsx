@@ -193,9 +193,14 @@ export function TopNavigation({
           >
             {t.light ? <Moon className="h-[18px] w-[18px]" /> : <Sun className="h-[18px] w-[18px]" />}
           </button>
+          {/* Icon-style + Preferences are cosmetic/secondary controls, and Preferences is
+              also reachable from the profile dropdown (signed in) and the bottom bar
+              settings menu — hiding these below sm is what makes the always-visible
+              button cluster (theme, search, notifications, sign-in) actually fit a
+              375px screen instead of overflowing the viewport horizontally. */}
           <button
             onClick={toggleIconStyle}
-            className={`h-11 w-11 flex items-center justify-center ${t.hoverBg} ${t.textMuted}`}
+            className={`hidden sm:flex h-11 w-11 items-center justify-center ${t.hoverBg} ${t.textMuted}`}
             type="button"
             title={iconStyle === 'solid' ? 'Icons: Solid — switch to Outline' : 'Icons: Outline — switch to Solid'}
           >
@@ -204,7 +209,7 @@ export function TopNavigation({
           </button>
           <button
             onClick={onPreferences}
-            className={`h-11 w-11 flex items-center justify-center ${t.hoverBg} ${t.textMuted}`}
+            className={`hidden sm:flex h-11 w-11 items-center justify-center ${t.hoverBg} ${t.textMuted}`}
             type="button"
             title="Preferences — theme, font & layout"
           >
