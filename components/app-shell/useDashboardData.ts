@@ -41,7 +41,7 @@ const EMPTY_STATS: DashboardStats = {
   employeeCount: null, activeWorkOrders: null, equipmentAvailablePct: null, openBreakdowns: null,
 };
 
-function timeAgo(iso?: string | null): string {
+export function timeAgo(iso?: string | null): string {
   if (!iso) return '';
   const ms = Date.now() - new Date(iso).getTime();
   if (!Number.isFinite(ms) || ms < 0) return '';
