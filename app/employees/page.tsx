@@ -124,6 +124,61 @@ function sectionColor(section?: string) {
   return GROUP_PALETTE[h % GROUP_PALETTE.length];
 }
 
+export interface SectionGroup {
+  section: string; color: string; employees: Employee[];
+  subgroups: { designation: string; employees: Employee[] }[];
+  hasMeaningfulSubgroups: boolean;
+}
+
+/** Section → profession/designation grouping — the same categorisation the on-page
+ *  accordion uses (normalizeSection, SECTION_ORDER, then alphabetical designation
+ *  subgroups so e.g. "Boilermaker" and "Boilermaker Assistant" naturally sit next to
+ *  each other). Extracted as a pure function so the Excel/PDF export can produce
+ *  exactly what's shown on screen instead of a second, divergent grouping. */
+function groupBySectionAndProfession(list: Employee[]): SectionGroup[] {
+  const map = new Map<string, Employee[]>();
+  for (const e of list) {
+    const key = normalizeSection(e.section);
+    if (!map.has(key)) map.set(key, []);
+    map.get(key)!.push(e);
+  }
+  const rank = (k: string) => {
+    if (k === 'Unassigned') return 999;
+    const i = SECTION_ORDER.indexOf(k);
+    return i === -1 ? 500 : i;
+  };
+  return [...map.keys()]
+    .sort((a, b) => rank(a) - rank(b) || a.localeCompare(b))
+    .map(section => {
+      const employeesInSection = map.get(section)!;
+      const subMap = new Map<string, Employee[]>();
+      for (const e of employeesInSection) {
+        const subKey = (e.designation || '').trim() || 'Other';
+        if (!subMap.has(subKey)) subMap.set(subKey, []);
+        subMap.get(subKey)!.push(e);
+      }
+      const subgroups = [...subMap.keys()]
+        .sort((a, b) => (a === 'Other' ? 1 : b === 'Other' ? -1 : a.localeCompare(b)))
+        .map(designation => ({ designation, employees: subMap.get(designation)! }));
+      const hasMeaningfulSubgroups = subgroups.length > 1 && subgroups.some(sg => sg.employees.length > 1);
+      return { section, color: sectionColor(section === 'Unassigned' ? undefined : section), employees: employeesInSection, subgroups, hasMeaningfulSubgroups };
+    });
+}
+
+/** Profession/designation only, ignoring section — for a flat "just professions"
+ *  breakdown (e.g. every Rigger together regardless of which section they're in). */
+function groupByProfession(list: Employee[]): { designation: string; employees: Employee[] }[] {
+  const map = new Map<string, Employee[]>();
+  for (const e of list) {
+    const key = (e.designation || '').trim() || 'Unclassified';
+    if (!map.has(key)) map.set(key, []);
+    map.get(key)!.push(e);
+  }
+  return [...map.keys()]
+    .sort((a, b) => (a === 'Unclassified' ? 1 : b === 'Unclassified' ? -1 : a.localeCompare(b)))
+    .map(designation => ({ designation, employees: map.get(designation)! }));
+}
+
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
 function tenure(eng?: string) {
@@ -185,11 +240,23 @@ function FilterChips({ label, options, value, onChange }: {
   );
 }
 
-// ─── Discipline Export Dialog ─────────────────────────────────────────────────
-// Groups the full roster into Mechanical / Electrical / Not Set and exports either
-// format — for planning crew composition or handing a trade-specific list to a supervisor.
+// ─── Roster Export Dialog ──────────────────────────────────────────────────────
+// Organizes the full roster for export — by discipline (Mechanical/Electrical/Not
+// Set), by section, by profession/designation, or section-then-profession together
+// (sections as worksheets, professions as labelled sub-groups within each — the same
+// "Boilermaker" / "Boilermaker Assistant" clustering the on-page accordion shows,
+// since alphabetical sort naturally puts a trade next to its assistants).
 
 const BRAND: [number, number, number] = [42, 77, 105]; // matches the registry Excel export's header fill (#2A4D69)
+
+type ExportGroupBy = 'discipline' | 'section' | 'profession' | 'section_profession';
+
+const EXPORT_GROUP_OPTIONS: { value: ExportGroupBy; label: string; hint: string }[] = [
+  { value: 'section_profession', label: 'Section + Profession', hint: 'Sections as sheets, professions labelled within each' },
+  { value: 'section', label: 'Section only', hint: 'One sheet per section' },
+  { value: 'profession', label: 'Profession only', hint: 'One sheet per role, regardless of section' },
+  { value: 'discipline', label: 'Discipline', hint: 'Mechanical / Electrical / Not Set' },
+];
 
 function disciplineGroups(employees: Employee[]) {
   const mech = employees.filter(e => e.discipline === 'mechanical');
@@ -202,37 +269,75 @@ function disciplineGroups(employees: Employee[]) {
   ];
 }
 
-function DisciplineExportDialog({ employees, onClose }: { employees: Employee[]; onClose: () => void }) {
+const EXPORT_COLUMNS = [
+  { header: 'Employee ID', key: 'employee_id', width: 14 },
+  { header: 'First Name', key: 'first_name', width: 18 },
+  { header: 'Last Name', key: 'last_name', width: 18 },
+  { header: 'Designation', key: 'designation', width: 24 },
+  { header: 'Department', key: 'department', width: 20 },
+  { header: 'Section', key: 'section', width: 18 },
+  { header: 'Employment Type', key: 'employment_type', width: 16 },
+];
+const EXPORT_PDF_HEAD = ['Employee ID', 'First Name', 'Last Name', 'Designation', 'Department', 'Section', 'Employment Type'];
+const exportPdfRow = (e: Employee) => [e.employee_id, e.first_name, e.last_name, e.designation || '', e.department || '', e.section || '', e.employment_type || ''];
+
+function RosterExportDialog({ employees, onClose }: { employees: Employee[]; onClose: () => void }) {
   const t = useTheme();
   const [format, setFormat] = useState<'excel' | 'pdf'>('excel');
+  const [groupBy, setGroupBy] = useState<ExportGroupBy>('section_profession');
   const [generating, setGenerating] = useState(false);
-  const groups = useMemo(() => disciplineGroups(employees), [employees]);
+
+  const flatGroups = useMemo(() => {
+    if (groupBy === 'discipline') return disciplineGroups(employees);
+    if (groupBy === 'section') return groupBySectionAndProfession(employees).map(g => ({ label: g.section, rows: g.employees }));
+    if (groupBy === 'profession') return groupByProfession(employees).map(g => ({ label: g.designation, rows: g.employees }));
+    return [];
+  }, [employees, groupBy]);
+  const sectionGroups = useMemo(() => groupBy === 'section_profession' ? groupBySectionAndProfession(employees) : [], [employees, groupBy]);
+
+  const previewCards = groupBy === 'section_profession'
+    ? sectionGroups.map(g => ({ label: g.section, count: g.employees.length }))
+    : flatGroups.map(g => ({ label: g.label, count: g.rows.length }));
+
+  const fileStub = `Personnel_By_${groupBy === 'section_profession' ? 'Section_and_Profession' : groupBy[0].toUpperCase() + groupBy.slice(1)}`;
+
+  const styleHeaderRow = (row: any) => row.eachCell((cell: any) => {
+    cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2A4D69' } };
+  });
 
   const generateExcel = async () => {
     const ExcelJS = (await import('exceljs')).default;
     const { saveAs } = await import('file-saver');
     const wb = new ExcelJS.Workbook();
-    for (const g of groups) {
-      const ws = wb.addWorksheet(g.label);
-      ws.columns = [
-        { header: 'Employee ID', key: 'employee_id', width: 14 },
-        { header: 'First Name', key: 'first_name', width: 18 },
-        { header: 'Last Name', key: 'last_name', width: 18 },
-        { header: 'Designation', key: 'designation', width: 24 },
-        { header: 'Department', key: 'department', width: 20 },
-        { header: 'Section', key: 'section', width: 18 },
-        { header: 'Employment Type', key: 'employment_type', width: 16 },
-      ];
-      const hdr = ws.getRow(1);
-      hdr.eachCell(cell => {
-        cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2A4D69' } };
-      });
-      g.rows.forEach(e => ws.addRow(e));
+
+    if (groupBy === 'section_profession') {
+      for (const g of sectionGroups) {
+        const ws = wb.addWorksheet(g.section.slice(0, 31)); // Excel sheet-name limit
+        ws.columns = EXPORT_COLUMNS;
+        styleHeaderRow(ws.getRow(1));
+        for (const sub of g.subgroups) {
+          // A bold, merged label row names the profession before its people — the
+          // "Boilermaker" / "Boilermaker Assistant" clustering, spelled out.
+          const labelRow = ws.addRow([`${sub.designation} (${sub.employees.length})`]);
+          ws.mergeCells(labelRow.number, 1, labelRow.number, EXPORT_COLUMNS.length);
+          labelRow.getCell(1).font = { bold: true, italic: true, size: 10, color: { argb: 'FF2A4D69' } };
+          labelRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8EEF3' } };
+          sub.employees.forEach(e => ws.addRow(e as any));
+        }
+      }
+    } else {
+      for (const g of flatGroups) {
+        const ws = wb.addWorksheet(g.label.slice(0, 31));
+        ws.columns = EXPORT_COLUMNS;
+        styleHeaderRow(ws.getRow(1));
+        g.rows.forEach(e => ws.addRow(e as any));
+      }
     }
+
     const buf = await wb.xlsx.writeBuffer();
     saveAs(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
-      `Personnel_By_Discipline_${new Date().toISOString().slice(0, 10)}.xlsx`);
+      `${fileStub}_${new Date().toISOString().slice(0, 10)}.xlsx`);
   };
 
   const generatePDF = async () => {
@@ -240,46 +345,86 @@ function DisciplineExportDialog({ employees, onClose }: { employees: Employee[];
     const { default: autoTable } = await import('jspdf-autotable');
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
     let first = true;
-    for (const g of groups) {
-      if (!first) doc.addPage();
-      first = false;
+
+    const pageHeader = (title: string) => {
       doc.setFillColor(...BRAND); doc.rect(0, 0, 297, 16, 'F');
       doc.setTextColor(255, 255, 255); doc.setFontSize(12);
-      doc.text(`${g.label} — ${g.rows.length} employee${g.rows.length === 1 ? '' : 's'}`, 10, 10);
-      autoTable(doc, {
-        startY: 20,
-        head: [['Employee ID', 'First Name', 'Last Name', 'Designation', 'Department', 'Section', 'Employment Type']],
-        body: g.rows.map(e => [e.employee_id, e.first_name, e.last_name, e.designation || '', e.department || '', e.section || '', e.employment_type || '']),
-        styles: { fontSize: 8, cellPadding: 1.5 },
-        headStyles: { fillColor: BRAND, textColor: 255, fontStyle: 'bold' },
-        alternateRowStyles: { fillColor: [248, 250, 252] },
-      });
+      doc.text(title, 10, 10);
+    };
+
+    if (groupBy === 'section_profession') {
+      for (const g of sectionGroups) {
+        if (!first) doc.addPage();
+        first = false;
+        pageHeader(`${g.section} — ${g.employees.length} employee${g.employees.length === 1 ? '' : 's'}`);
+        let y = 20;
+        for (const sub of g.subgroups) {
+          doc.setTextColor(...BRAND); doc.setFontSize(10);
+          doc.text(`${sub.designation} (${sub.employees.length})`, 10, y);
+          autoTable(doc, {
+            startY: y + 2,
+            head: [EXPORT_PDF_HEAD],
+            body: sub.employees.map(exportPdfRow),
+            styles: { fontSize: 8, cellPadding: 1.5 },
+            headStyles: { fillColor: BRAND, textColor: 255, fontStyle: 'bold' },
+            alternateRowStyles: { fillColor: [248, 250, 252] },
+          });
+          y = (doc as any).lastAutoTable.finalY + 8;
+        }
+      }
+    } else {
+      for (const g of flatGroups) {
+        if (!first) doc.addPage();
+        first = false;
+        pageHeader(`${g.label} — ${g.rows.length} employee${g.rows.length === 1 ? '' : 's'}`);
+        autoTable(doc, {
+          startY: 20,
+          head: [EXPORT_PDF_HEAD],
+          body: g.rows.map(exportPdfRow),
+          styles: { fontSize: 8, cellPadding: 1.5 },
+          headStyles: { fillColor: BRAND, textColor: 255, fontStyle: 'bold' },
+          alternateRowStyles: { fillColor: [248, 250, 252] },
+        });
+      }
     }
-    doc.save(`Personnel_By_Discipline_${new Date().toISOString().slice(0, 10)}.pdf`);
+    doc.save(`${fileStub}_${new Date().toISOString().slice(0, 10)}.pdf`);
   };
 
   const handleGenerate = async () => {
     setGenerating(true);
     try {
       if (format === 'excel') await generateExcel(); else await generatePDF();
-      toast.success(`${format === 'excel' ? 'Excel' : 'PDF'} exported — ${employees.length} employees by discipline`);
+      toast.success(`${format === 'excel' ? 'Excel' : 'PDF'} exported — ${employees.length} employees`);
       onClose();
     } catch (err) { toast.error(`Export failed: ${(err as Error).message}`); }
     finally { setGenerating(false); }
   };
 
   return (
-    <CenterModal open onClose={onClose} title="Download by Discipline" subtitle="Mechanical, Electrical and Not Set, as separate sections" accent="violet" width="max-w-md">
+    <CenterModal open onClose={onClose} title="Download Organized Roster" subtitle="Choose how to group the export" accent="violet" width="max-w-lg">
       <form onSubmit={e => { e.preventDefault(); handleGenerate(); }}>
         <div className="p-5 space-y-4">
-          <div className="grid grid-cols-3 gap-2">
-            {groups.map(g => (
-              <div key={g.label} className={`${t.chipBg} rounded-xl p-3 text-center`}>
-                <div className={`text-lg font-bold ${t.textPrimary}`}>{g.rows.length}</div>
-                <div className={`text-[11px] ${t.textFaint}`}>{g.label}</div>
+          <FormField label="Group by">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {EXPORT_GROUP_OPTIONS.map(o => (
+                <button key={o.value} type="button" onClick={() => setGroupBy(o.value)}
+                  className={`text-left px-3 py-2 rounded-lg transition-colors ${groupBy === o.value ? 'bg-brand-500/15 ring-1 ring-brand-500/40' : `${t.chipBg} ${t.hoverBg}`}`}>
+                  <div className={`text-[12.5px] font-semibold ${groupBy === o.value ? 'text-brand-400' : t.textPrimary}`}>{o.label}</div>
+                  <div className={`text-[10.5px] ${t.textFaint}`}>{o.hint}</div>
+                </button>
+              ))}
+            </div>
+          </FormField>
+
+          <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
+            {previewCards.map(g => (
+              <div key={g.label} className={`${t.chipBg} rounded-xl px-3 py-2 text-center min-w-[72px]`}>
+                <div className={`text-base font-bold ${t.textPrimary}`}>{g.count}</div>
+                <div className={`text-[10.5px] ${t.textFaint} truncate max-w-[100px]`}>{g.label}</div>
               </div>
             ))}
           </div>
+
           <FormField label="Format">
             <div className="flex gap-2">
               <button type="button" onClick={() => setFormat('excel')}
@@ -847,6 +992,15 @@ function EmployeesPageContent() {
 
   const uniqueDepts    = useMemo(() => [...new Set(employees.map(e => e.department).filter(Boolean) as string[])].sort(), [employees]);
   const uniqueRoles    = useMemo(() => [...new Set(employees.map(e => e.designation).filter(Boolean) as string[])].sort(), [employees]);
+  // Normalized (see normalizeSection) so "Electrical" / "electrical " collapse to one
+  // filter option instead of listing every raw-casing variant separately.
+  const uniqueSections = useMemo(() => {
+    const set = new Set(employees.map(e => normalizeSection(e.section)));
+    set.delete('Unassigned');
+    const known = SECTION_ORDER.filter(s => set.has(s));
+    const other = [...set].filter(s => !SECTION_ORDER.includes(s)).sort();
+    return [...known, ...other];
+  }, [employees]);
 
   const filtered = useMemo(() => {
     let list = [...employees];
@@ -863,7 +1017,7 @@ function EmployeesPageContent() {
     if (classFilter   !== 'all') list = list.filter(e => (e.employee_class || 'Unclassified') === classFilter);
     if (etypeFilter   !== 'all') list = list.filter(e => (e.employment_type || '') === etypeFilter);
     if (disciplineFilter !== 'all') list = list.filter(e => disciplineFilter === 'none' ? !e.discipline : e.discipline === disciplineFilter);
-    if (sectionFilter !== 'all') list = list.filter(e => (e.section || '') === sectionFilter);
+    if (sectionFilter !== 'all') list = list.filter(e => normalizeSection(e.section) === sectionFilter);
     if (deptFilter    !== 'all') list = list.filter(e => e.department === deptFilter);
     if (roleFilter    !== 'all') list = list.filter(e => e.designation === roleFilter);
     list.sort((a, b) => {
@@ -877,44 +1031,9 @@ function EmployeesPageContent() {
   }, [employees, search, classFilter, etypeFilter, disciplineFilter, sectionFilter, deptFilter, roleFilter, sortBy, sortDir]);
 
   // Group the filtered/sorted list by section — defined sections first (in a stable
-  // order), any other sections alphabetically, "Unassigned" last.
-  const grouped = useMemo(() => {
-    const map = new Map<string, Employee[]>();
-    for (const e of filtered) {
-      const key = normalizeSection(e.section);
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(e);
-    }
-    const rank = (k: string) => {
-      if (k === 'Unassigned') return 999;
-      const i = SECTION_ORDER.indexOf(k);
-      return i === -1 ? 500 : i;
-    };
-    return [...map.keys()]
-      .sort((a, b) => rank(a) - rank(b) || a.localeCompare(b))
-      .map(section => {
-        const employeesInSection = map.get(section)!;
-        // Subsections within a section — grouped by designation/trade (e.g. inside
-        // Mechanical: Fitters, Riggers, Boilermakers). There's no separate
-        // "subsection" field in the data model, so `designation` doubles as it —
-        // that's exactly the trade/role breakdown the grouping is meant to show.
-        const subMap = new Map<string, Employee[]>();
-        for (const e of employeesInSection) {
-          const subKey = (e.designation || '').trim() || 'Other';
-          if (!subMap.has(subKey)) subMap.set(subKey, []);
-          subMap.get(subKey)!.push(e);
-        }
-        const subgroups = [...subMap.keys()]
-          .sort((a, b) => (a === 'Other' ? 1 : b === 'Other' ? -1 : a.localeCompare(b)))
-          .map(designation => ({ designation, employees: subMap.get(designation)! }));
-        // Only worth showing as subsections if grouping by designation actually
-        // consolidates people (at least one real trade with 2+ members) — with
-        // job-title data this granular, a "subsection per person" would just add
-        // clutter instead of the Fitters/Riggers/Boilermakers-style breakdown.
-        const hasMeaningfulSubgroups = subgroups.length > 1 && subgroups.some(sg => sg.employees.length > 1);
-        return { section, color: sectionColor(section === 'Unassigned' ? undefined : section), employees: employeesInSection, subgroups, hasMeaningfulSubgroups };
-      });
-  }, [filtered]);
+  // order), any other sections alphabetically, "Unassigned" last — then by profession/
+  // designation within each section. Shared with the export dialog (groupBySectionAndProfession).
+  const grouped = useMemo(() => groupBySectionAndProfession(filtered), [filtered]);
 
   // A group is open unless the user collapsed it; an active search force-opens every
   // group so matches are always visible.
@@ -1039,7 +1158,7 @@ function EmployeesPageContent() {
               className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-colors disabled:opacity-40`}>
               <Download className="h-4 w-4" />
             </button>
-            <button type="button" onClick={() => setShowDisciplineExport(true)} disabled={employees.length === 0} title="Download by discipline (Mechanical / Electrical)"
+            <button type="button" onClick={() => setShowDisciplineExport(true)} disabled={employees.length === 0} title="Download organized by section, profession, or discipline"
               className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-colors disabled:opacity-40`}>
               <Award className="h-4 w-4" />
             </button>
@@ -1097,14 +1216,19 @@ function EmployeesPageContent() {
               options={[{ value: 'all', label: 'All Classes' }, ...CLASS_OPTIONS.map(c => ({ value: c, label: c }))]} />
             <FilterChips label="Trade Discipline" value={disciplineFilter} onChange={setDisciplineFilter}
               options={[{ value: 'all', label: 'All Disciplines' }, { value: 'mechanical', label: 'Mechanical' }, { value: 'electrical', label: 'Electrical' }, { value: 'none', label: 'Not set' }]} />
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <p className={`${TYPE_SCALE.label} font-medium mb-1.5 ${t.textFaint}`}>Section</p>
+                <SelectField size="filter" title="Filter by section" value={sectionFilter} onChange={setSectionFilter}
+                  options={[{ value: 'all', label: 'All Sections' }, ...uniqueSections.map(s => ({ value: s, label: s })), { value: 'Unassigned', label: 'Unassigned' }]} />
+              </div>
               <div>
                 <p className={`${TYPE_SCALE.label} font-medium mb-1.5 ${t.textFaint}`}>Department</p>
                 <SelectField size="filter" title="Filter by department" value={deptFilter} onChange={setDeptFilter}
                   options={[{ value: 'all', label: 'All Departments' }, ...uniqueDepts.map(d => ({ value: d, label: d }))]} />
               </div>
               <div>
-                <p className={`${TYPE_SCALE.label} font-medium mb-1.5 ${t.textFaint}`}>Role</p>
+                <p className={`${TYPE_SCALE.label} font-medium mb-1.5 ${t.textFaint}`}>Role / Profession</p>
                 <SelectField size="filter" title="Filter by role" value={roleFilter} onChange={setRoleFilter}
                   options={[{ value: 'all', label: 'All Roles' }, ...uniqueRoles.map(r => ({ value: r, label: r }))]} />
               </div>
@@ -1261,7 +1385,7 @@ function EmployeesPageContent() {
         </div>
       </CenterModal>
 
-      {showDisciplineExport && <DisciplineExportDialog employees={employees} onClose={() => setShowDisciplineExport(false)} />}
+      {showDisciplineExport && <RosterExportDialog employees={employees} onClose={() => setShowDisciplineExport(false)} />}
     </main>
   );
 }
