@@ -267,7 +267,7 @@ export function TopNavigation({
           <button onClick={onCustomize} className={`h-11 w-11 flex items-center justify-center ${t.hoverBg} ${t.textMuted}`} type="button" title="Settings">
             <Settings className="h-[18px] w-[18px]" />
           </button>
-          <AuthMenu />
+          <AuthMenu onPreferences={onPreferences} />
         </div>
       </div>
 

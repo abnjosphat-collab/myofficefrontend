@@ -8,10 +8,11 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { ChevronDown, LogIn, LogOut, Settings, Shield, UserPlus } from '@/components/shared/theme';
+import { ChevronDown, LogIn, LogOut, Settings, Shield, SlidersHorizontal, UserPlus } from '@/components/shared/theme';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/lib/auth-context';
@@ -143,7 +144,7 @@ export function AuthForm({ defaultMode = 'login', onClose, redirectTo }: {
 }
 
 // ─── AuthMenu — the shell's avatar/login slot ───────────────────────────────
-export function AuthMenu() {
+export function AuthMenu({ onPreferences }: { onPreferences?: () => void }) {
   const { user, profile, loading, signOut, isAtLeast } = useAuth();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [securityOpen, setSecurityOpen] = useState(false);
@@ -196,46 +197,63 @@ export function AuthMenu() {
 
   return (
     <div className="flex items-center gap-1.5">
-      {isAdmin && (
-        <Link href="/admin" className={`hidden sm:flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${ROLE_STYLES[role]} transition-opacity hover:opacity-80`}>
-          <Shield className="h-3 w-3" /> {ROLE_LABELS[role]}
-        </Link>
-      )}
-      {isAdmin && (
-        <Link href="/admin" className={`h-8 w-8 hidden sm:flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`} title="Admin panel">
-          <Settings className="h-4 w-4" />
-        </Link>
-      )}
+      {/* Controlled from a DropdownMenuItem below, not a DialogTrigger inside the menu —
+          nesting a Dialog trigger inside a menu item races the menu's own close-on-select
+          against the dialog opening. */}
       <Dialog open={securityOpen} onOpenChange={setSecurityOpen}>
-        <DialogTrigger asChild>
-          <button
-            type="button"
-            title="Security & two-factor auth"
-            className={`h-8 w-8 hidden sm:flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}
-          >
-            <Shield className="h-3.5 w-3.5" />
-          </button>
-        </DialogTrigger>
         <DialogContent className="sm:max-w-sm p-0 border-0 bg-transparent shadow-none">
           <DialogTitle className="sr-only">Security</DialogTitle>
           <SecurityPanel onDone={() => setSecurityOpen(false)} />
         </DialogContent>
       </Dialog>
-      <button
-        onClick={handleLogout}
-        type="button"
-        title="Sign out"
-        className={`h-8 w-8 hidden sm:flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}
-      >
-        <LogOut className="h-3.5 w-3.5" />
-      </button>
-      <button className={`flex items-center gap-1.5 h-11 pl-2 pr-2.5 ${t.hoverBg} transition-colors`} type="button">
-        <Avatar className="h-7 w-7 ring-1 ring-white/10">
-          {avatarUrl && <AvatarImage src={avatarUrl} alt={displayName} />}
-          <AvatarFallback className="bg-gradient-to-br from-slate-600 to-slate-800 text-white text-[11px] font-medium">{initials}</AvatarFallback>
-        </Avatar>
-        <ChevronDown className={`h-3.5 w-3.5 ${t.textFaint} hidden lg:block`} />
-      </button>
+
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          {/* The trigger itself stays visible at every breakpoint — unlike the old separate
+              admin/security/sign-out icon buttons, which were `hidden sm:flex` and simply
+              disappeared on mobile with no other way to reach them. */}
+          <button className={`flex items-center gap-1.5 h-11 pl-2 pr-2.5 rounded-lg ${t.hoverBg} transition-colors`} type="button" title={displayName}>
+            <Avatar className="h-7 w-7 ring-1 ring-white/10">
+              {avatarUrl && <AvatarImage src={avatarUrl} alt={displayName} />}
+              <AvatarFallback className="bg-gradient-to-br from-slate-600 to-slate-800 text-white text-[11px] font-medium">{initials}</AvatarFallback>
+            </Avatar>
+            <ChevronDown className={`h-3.5 w-3.5 ${t.textFaint} hidden lg:block`} />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-64">
+          <div className="flex items-center gap-3 px-2 py-2">
+            <Avatar className="h-9 w-9 ring-1 ring-white/10">
+              {avatarUrl && <AvatarImage src={avatarUrl} alt={displayName} />}
+              <AvatarFallback className="bg-gradient-to-br from-slate-600 to-slate-800 text-white text-xs font-medium">{initials}</AvatarFallback>
+            </Avatar>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold truncate">{displayName}</p>
+              <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+            </div>
+          </div>
+          <div className="px-2 pb-2">
+            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${ROLE_STYLES[role]}`}>
+              <Shield className="h-3 w-3" /> {ROLE_LABELS[role]}
+            </span>
+          </div>
+          <DropdownMenuSeparator />
+          {isAdmin && (
+            <DropdownMenuItem asChild>
+              <Link href="/admin"><Settings className="h-4 w-4" /> Admin panel</Link>
+            </DropdownMenuItem>
+          )}
+          <DropdownMenuItem onSelect={() => onPreferences?.()}>
+            <SlidersHorizontal className="h-4 w-4" /> Preferences
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => setSecurityOpen(true)}>
+            <Shield className="h-4 w-4" /> Security &amp; two-factor auth
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem variant="destructive" onSelect={handleLogout}>
+            <LogOut className="h-4 w-4" /> Sign out
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 }
