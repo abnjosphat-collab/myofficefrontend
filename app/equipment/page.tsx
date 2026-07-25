@@ -23,7 +23,7 @@ import {
 import { formatDate } from '@/lib/format';
 import type { ElementType } from "react";
 
-interface EquipmentItem {
+export interface EquipmentItem {
   id: number | string;
   equipment_id: string;
   name: string;
@@ -653,13 +653,11 @@ function EquipmentPageContent() {
         accent="violet"
         width="max-w-3xl"
       >
-        <div className="p-5">
-          <EquipmentForm
-            equipment={editingEq}
-            onSubmit={handleFormSubmit}
-            onCancel={() => { setIsFormOpen(false); setEditingEq(null); }}
-          />
-        </div>
+        <EquipmentForm
+          equipment={editingEq}
+          onSubmit={handleFormSubmit}
+          onCancel={() => { setIsFormOpen(false); setEditingEq(null); }}
+        />
       </CenterModal>
 
       {/* Delete confirmation modal */}
