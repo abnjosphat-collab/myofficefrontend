@@ -78,7 +78,7 @@ export function TopNavigation({
       }}
     >
       <div className="flex items-center h-11 px-2 lg:px-3 gap-1">
-        <button onClick={onMenuToggle} className={`h-11 w-11 flex items-center justify-center ${t.hoverBg} ${t.textMuted} lg:hidden shrink-0`} type="button" title="Toggle menu">
+        <button onClick={onMenuToggle} className={`h-11 w-11 flex items-center justify-center ${t.hoverBg} ${t.textMuted} lg:hidden shrink-0`} type="button" title="Toggle menu" aria-label="Toggle menu">
           <Menu className="h-5 w-5" />
         </button>
 
@@ -203,6 +203,7 @@ export function TopNavigation({
             className={`hidden sm:flex h-11 w-11 items-center justify-center ${t.hoverBg} ${t.textMuted}`}
             type="button"
             title={iconStyle === 'solid' ? 'Icons: Solid — switch to Outline' : 'Icons: Outline — switch to Solid'}
+            aria-label={iconStyle === 'solid' ? 'Switch icon style to outline' : 'Switch icon style to solid'}
           >
             {/* half-filled circle reads as a fill-style control; itself flips solid/outline with the setting */}
             <IconStyleGlyph className="h-[18px] w-[18px]" />
@@ -212,6 +213,7 @@ export function TopNavigation({
             className={`hidden sm:flex h-11 w-11 items-center justify-center ${t.hoverBg} ${t.textMuted}`}
             type="button"
             title="Preferences — theme, font & layout"
+            aria-label="Preferences"
           >
             <Palette className="h-[18px] w-[18px]" />
           </button>
@@ -220,6 +222,7 @@ export function TopNavigation({
             className={`h-11 w-11 flex items-center justify-center ${t.hoverBg} ${t.textMuted} md:hidden`}
             type="button"
             title="Search"
+            aria-label={mobileSearchOpen ? 'Close search' : 'Search'}
           >
             {mobileSearchOpen ? <X className="h-5 w-5" /> : <Search className="h-5 w-5" />}
           </button>
@@ -228,6 +231,8 @@ export function TopNavigation({
               onClick={() => { setNotifOpen(v => { const next = !v; if (next) markAllRead(); return next; }); }}
               className={`relative h-11 w-11 flex items-center justify-center ${t.hoverBg} ${t.textMuted}`}
               type="button" title="Notifications"
+              aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'}
+              aria-expanded={notifOpen}
             >
               <Bell className="h-[18px] w-[18px]" />
               {unreadCount > 0 && (
@@ -269,7 +274,7 @@ export function TopNavigation({
               )}
             </AnimatePresence>
           </div>
-          <button onClick={onCustomize} className={`h-11 w-11 flex items-center justify-center ${t.hoverBg} ${t.textMuted}`} type="button" title="Settings">
+          <button onClick={onCustomize} className={`h-11 w-11 flex items-center justify-center ${t.hoverBg} ${t.textMuted}`} type="button" title="Settings" aria-label="Customize appearance">
             <Settings className="h-[18px] w-[18px]" />
           </button>
           <AuthMenu onPreferences={onPreferences} />

@@ -65,6 +65,8 @@ export function BottomBar({
             onClick={() => toggleMenu('notifications')}
             type="button"
             title="Notifications"
+            aria-label="Notifications"
+            aria-expanded={openMenu === 'notifications'}
             className={`relative h-7 w-7 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-colors`}
           >
             <Bell className="h-3.5 w-3.5" />
@@ -108,6 +110,8 @@ export function BottomBar({
             onClick={() => toggleMenu('feedback')}
             type="button"
             title="Send feedback"
+            aria-label="Send feedback"
+            aria-expanded={openMenu === 'feedback'}
             className={`flex items-center gap-1.5 h-7 px-2 rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-colors`}
           >
             <MessageCircle className="h-3.5 w-3.5" />
@@ -140,6 +144,8 @@ export function BottomBar({
                             type="button"
                             onClick={() => setFeedbackRating(n === feedbackRating ? 0 : n)}
                             title={`${n} star${n > 1 ? 's' : ''}`}
+                            aria-label={`Rate ${n} star${n > 1 ? 's' : ''}`}
+                            aria-pressed={n <= feedbackRating}
                             className="p-0.5 transition-transform hover:scale-110"
                           >
                             <Star
@@ -177,6 +183,8 @@ export function BottomBar({
             onClick={() => toggleMenu('settings')}
             type="button"
             title="Settings"
+            aria-label="Settings"
+            aria-expanded={openMenu === 'settings'}
             className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-colors`}
           >
             <Settings className="h-3.5 w-3.5" />

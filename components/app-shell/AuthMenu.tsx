@@ -213,7 +213,7 @@ export function AuthMenu({ onPreferences }: { onPreferences?: () => void }) {
           {/* The trigger itself stays visible at every breakpoint — unlike the old separate
               admin/security/sign-out icon buttons, which were `hidden sm:flex` and simply
               disappeared on mobile with no other way to reach them. */}
-          <button className={`flex items-center gap-1.5 h-11 pl-2 pr-2.5 rounded-lg ${t.hoverBg} transition-colors`} type="button" title={displayName}>
+          <button className={`flex items-center gap-1.5 h-11 pl-2 pr-2.5 rounded-lg ${t.hoverBg} transition-colors`} type="button" title={displayName} aria-label={`Account menu — ${displayName}`}>
             <Avatar className="h-7 w-7 ring-1 ring-white/10">
               {avatarUrl && <AvatarImage src={avatarUrl} alt={displayName} />}
               <AvatarFallback className="bg-gradient-to-br from-slate-600 to-slate-800 text-white text-[11px] font-medium">{initials}</AvatarFallback>
