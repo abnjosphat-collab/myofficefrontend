@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect, useCallback, Fragment } from 'react';
+import React, { useState, useMemo, useEffect, Fragment } from 'react';
 import { api } from '@/lib/apiClient';
 import { motion } from 'framer-motion';
 import {
@@ -22,52 +22,14 @@ import {
   StatusBadge, RecordCard, StatTile, ProgressBar, FormField, FormActions,
   useCollapseSection, SelectField, AutofillInput,
 } from '@/components/shared/theme';
+import type { PPETypeInfo, PPERecord, EmployeeRow, EmployeeWithPPE, EnhancedStats, FormState } from './types';
+import {
+  usePPEData,
+  createPPERecord, updatePPERecord, deletePPERecord,
+} from './usePPEData';
 
-// ─── TYPES ────────────────────────────────────────────────────────────────────
-
-interface PPETypeInfo {
-  name: string; shortName: string; color: string;
-  icon: React.ElementType; bgColor: string; textColor: string;
-  borderColor: string; description: string;
-}
-
-interface PPERecord {
-  id: string; employee_id: string; employee_name: string;
-  position: string; department: string;
-  ppe_type: string; item_name: string; size: string;
-  issue_date: string; expiry_date: string | null;
-  condition: 'excellent' | 'good' | 'fair' | 'poor' | 'damaged';
-  status: 'active' | 'expired' | 'returned' | 'lost' | 'damaged' | 'not_required';
-  notes: string; issued_by: string; location: string; mine_section: string;
-}
-
-interface EmployeeRow {
-  employee_id: string; employee_name: string;
-  position: string; department: string; section: string;
-}
-
-interface EmployeeWithPPE {
-  employee_id: string; employee_name: string;
-  position: string; records: PPERecord[];
-}
-
-interface PPEStats {
-  total: number; active: number; expired: number;
-  unique_employees: number; expiring_soon: number;
-}
-
-interface EnhancedStats extends PPEStats {
-  activeRecords: number; expiringSoon: number;
-  employeesWithExpiring: number; employeesWithExpired: number;
-}
-
-interface FormState {
-  employee_name: string; employee_id: string; position: string;
-  ppe_type: string; item_name: string; size: string;
-  issue_date: string; expiry_date: string;
-  condition: string; status: string; notes: string;
-  issued_by: string; location: string; mine_section: string;
-}
+// Data-model types (PPERecord, EmployeeRow, PPEStats, etc.) now live in ./types —
+// imported above. Component prop interfaces below stay page-local.
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 
@@ -88,18 +50,8 @@ const PPE_TYPES: Record<string, PPETypeInfo> = {
   pneumo_jacket: { name: 'Pneumo Jacket',        shortName: 'Pneumo Jkt', color: '#818cf8', icon: Shirt,      bgColor: 'bg-indigo-500/15',  textColor: 'text-indigo-300',  borderColor: 'border-indigo-500/25',  description: 'Pneumatic / insulated jacket' },
 };
 
-// PPE replacement matrix — default months-until-expiry per item type, calculated from the
-// issue date. These are the company defaults; the backend /api/ppe/matrix overrides them
-// (and persists edits) once the ppe_matrix table exists. Users change an interval and hit
-// Recalculate to reset every item of that type. See supabase_migration_ppe_matrix.sql.
-// interval 0 = no expiry (item doesn't expire / isn't replaced on a schedule).
-const PPE_MATRIX_DEFAULTS: Record<string, number> = {
-  worksuit: 6, gumboots: 6, safety_shoes: 6,
-  helmet: 24, Cap_lamp_belt: 24, pneumo_jacket: 24, harness: 24,
-  vest: 3, glasses: 3, respirator: 1, rainsuit: 6,
-  gloves: 0, overall: 6,
-};
-
+// PPE_MATRIX_DEFAULTS now lives in ./usePPEData (imported above) — same data,
+// single source of truth for both the hook's initial state and this page's UI.
 
 const MINE_LOCATIONS = ['Deep Shaft A', 'Deep Shaft B', 'Open Pit', 'Processing Plant', 'Workshop', 'Surface', 'All Areas'];
 
@@ -120,30 +72,8 @@ const isExpiringSoon = (d?: string | null, days = 30) => {
 const isExpired = (d?: string | null) => !!d && new Date(d) < new Date();
 
 
-// ─── API ─────────────────────────────────────────────────────────────────────
-
-const fetchPPERecords  = async () => api.get<PPERecord[]>('/api/ppe');
-const fetchPPEStats    = async () => { try { return await api.get<PPEStats>('/api/ppe/stats/summary'); } catch { return null; } };
-const fetchAllEmployees = async (): Promise<EmployeeRow[]> => {
-  try {
-    const data = await api.get<any[]>('/api/employees/');
-    return data.map(e => ({
-      employee_id: e.employee_id,
-      employee_name: `${e.first_name || ''} ${e.last_name || ''}`.trim(),
-      position: e.designation || '',
-      department: e.department || '',
-      section: e.section || '',
-    }));
-  } catch { return []; }
-};
-const createPPERecord = async (data: Partial<FormState>) => {
-  if (!data.employee_id?.trim()) throw new Error('Employee ID is required');
-  if (!data.employee_name?.trim()) throw new Error('Employee name is required');
-  return api.post('/api/ppe', { ...data, department: 'MAINTENANCE', expiry_date: data.expiry_date || null });
-};
-const updatePPERecord = async (id: string, data: Partial<FormState>) =>
-  api.patch(`/api/ppe/${id}`, { ...data, department: 'MAINTENANCE', expiry_date: data.expiry_date || null });
-const deletePPERecord = async (id: string) => api.delete(`/api/ppe/${id}`);
+// fetchPPERecords/fetchPPEStats/fetchAllEmployees/createPPERecord/updatePPERecord/
+// deletePPERecord now live in ./usePPEData (imported above).
 
 // ─── BADGES ───────────────────────────────────────────────────────────────────
 // Rendered via the shared `StatusBadge` component now (see imports) —
@@ -851,14 +781,10 @@ function PPEMatrixModal({ isOpen, onClose, matrix, records, onSetInterval, onRec
 
 export default function PPEManagement() {
   const t = useTheme();
-  const [records,      setRecords]      = useState<PPERecord[]>([]);
-  const [apiEmployees, setApiEmployees] = useState<EmployeeRow[]>([]);
-  const [stats,        setStats]        = useState<PPEStats | null>(null);
-  const [loading,      setLoading]      = useState(true);
-  const [refreshing,   setRefreshing]   = useState(false);
-  // Effective PPE replacement matrix (company defaults, overridden by the backend once
-  // the ppe_matrix table exists). Drives expiry auto-calc + the Recalculate control.
-  const [matrix, setMatrix] = useState<Record<string, number>>(PPE_MATRIX_DEFAULTS);
+  // records/apiEmployees/stats/loading/refreshing/matrix + the load cycle now live in
+  // usePPEData (./usePPEData) — `refresh` is aliased back to `load` since every call
+  // site below already calls load()/load(true).
+  const { records, setRecords, apiEmployees, stats, loading, refreshing, matrix, setMatrix, refresh: load } = usePPEData();
 
   // UI state
   const [showForm,      setShowForm]      = useState(false);
@@ -874,29 +800,8 @@ export default function PPEManagement() {
   // All employee cards start collapsed (empty object = all false)
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
-  // ── Data loading ───────────────────────────────────────────────────────────
-
-  const load = useCallback(async (quiet = false) => {
-    if (!quiet) setLoading(true);
-    setRefreshing(true);
-    try {
-      const [rec, st, emp] = await Promise.all([fetchPPERecords(), fetchPPEStats(), fetchAllEmployees()]);
-      setRecords(rec);
-      setStats(st);
-      if (emp.length > 0) setApiEmployees(emp);
-    } catch (err: any) { toast.error(`Failed to load: ${err.message}`); }
-    finally { setLoading(false); setRefreshing(false); }
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
-
-  // Load the shared PPE matrix (defaults merged with backend overrides). Falls back to
-  // the code defaults already in state if the endpoint/table isn't available.
-  useEffect(() => {
-    api.get<Record<string, number>>('/api/ppe/matrix')
-      .then(m => { if (m && typeof m === 'object') setMatrix({ ...PPE_MATRIX_DEFAULTS, ...m }); })
-      .catch(() => { /* keep defaults */ });
-  }, []);
+  // Data loading (records/stats/employees fetch + matrix load) now happens inside
+  // usePPEData — see the destructure above.
 
   // ── Derived data ───────────────────────────────────────────────────────────
 
