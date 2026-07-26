@@ -582,7 +582,7 @@ function IssuesPageContent() {
         issue.items.forEach(item => {
           const lineTotal = (item.unit_price || 0) * item.qty;
           const row = ws2.addRow({
-            date: issue.issued_at ? new Date(issue.issued_at).toLocaleDateString('en-GB') : '',
+            date: issue.issued_at ? new Date(issue.issued_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '',
             recipient: issue.recipient_name,
             code: item.stock_code || '',
             desc: item.description,
@@ -616,7 +616,7 @@ function IssuesPageContent() {
       doc.text('Stock Issues Register', 14, 14);
       doc.setFontSize(8); doc.setTextColor(100, 100, 100);
       doc.text(
-        `Generated ${new Date().toLocaleDateString('en-GB')}  ·  ${issues.length} issues  ·  Total cost: ${formatCurrency(totalCostTracked)}`,
+        `Generated ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}  ·  ${issues.length} issues  ·  Total cost: ${formatCurrency(totalCostTracked)}`,
         14, 20
       );
       autoTable(doc, {

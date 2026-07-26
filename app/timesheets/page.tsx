@@ -994,7 +994,7 @@ function DownloadDialog({ employees, timesheets, period, periodType, onClose }: 
       doc.setFillColor(...BRAND); doc.rect(0, 0, 297, 16, 'F');
       doc.setTextColor(255, 255, 255); doc.setFontSize(11);
       doc.text(`TIMESHEET SUMMARY — ${periodType.toUpperCase()} — ${fmtPeriod(period)}`, 10, 10);
-      doc.setFontSize(8); doc.text(`${targets.length} employees · Generated ${new Date().toLocaleDateString('en-GB')}`, 10, 14);
+      doc.setFontSize(8); doc.text(`${targets.length} employees · Generated ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`, 10, 14);
 
       const dayW = Math.min(5.5, (277 - 35 - 20 - 55) / days.length);
       const colStyles: Record<number, { cellWidth: number; halign?: 'center' | 'left' }> = { 0: { cellWidth: 35, halign: 'left' }, 1: { cellWidth: 20, halign: 'left' } };

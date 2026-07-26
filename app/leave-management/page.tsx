@@ -265,7 +265,7 @@ function LeaveManagementContent() {
       doc.setFontSize(14); doc.setTextColor(42, 77, 105);
       doc.text('Leave Requests Register', 14, 14);
       doc.setFontSize(8); doc.setTextColor(100, 100, 100);
-      doc.text(`Generated ${new Date().toLocaleDateString('en-GB')}  ·  ${requests.length} requests`, 14, 20);
+      doc.text(`Generated ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}  ·  ${requests.length} requests`, 14, 20);
       autoTable(doc, {
         startY: 25,
         head: [['Employee', 'ID', 'Department', 'Leave Type', 'Start', 'End', 'Days', 'Status', 'Priority', 'Submitted', 'Approved By']],

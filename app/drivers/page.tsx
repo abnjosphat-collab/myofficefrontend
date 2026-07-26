@@ -116,7 +116,7 @@ function exportPDF(drivers: Driver[], filterLabel: string) {
   const phonePositions: { x: number; y: number; w: number; h: number; tel: string }[] = [];
   const body = drivers.map(d => [
     d.full_name, (d.phone_numbers || []).join('\n'), d.department || '—', d.license_class || '—',
-    d.license_expiry ? new Date(d.license_expiry).toLocaleDateString('en-GB') : '—', d.status.toUpperCase(), d.notes || '',
+    d.license_expiry ? new Date(d.license_expiry).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—', d.status.toUpperCase(), d.notes || '',
   ]);
 
   autoTable(doc, {

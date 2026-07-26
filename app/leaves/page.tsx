@@ -623,7 +623,7 @@ async function downloadLeavesExcel(rows: Leave[], filename: string, title: strin
     LEAVE_TYPES[r.leave_type]?.name ?? r.leave_type, r.start_date, r.end_date,
     `${r.total_days} day${r.total_days === 1 ? '' : 's'}`,
     r.status.charAt(0).toUpperCase() + r.status.slice(1), r.reason ?? '', r.contact_number ?? '',
-    r.handover_to ?? '', r.applied_date ? new Date(r.applied_date).toLocaleDateString('en-GB') : '', r.manager_name ?? '',
+    r.handover_to ?? '', r.applied_date ? new Date(r.applied_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '', r.manager_name ?? '',
   ]));
   ws.columns.forEach(c => { c.width = 18; });
   const buf = await wb.xlsx.writeBuffer();

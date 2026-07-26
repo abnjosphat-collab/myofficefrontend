@@ -387,7 +387,7 @@ function EquipmentPageContent() {
       });
       hdr.height = 18;
       equipment.forEach((e, i) => {
-        const fmt = (d?: string) => d ? new Date(d).toLocaleDateString('en-GB') : '';
+        const fmt = (d?: string) => d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
         const row = ws.addRow({
           eqid: e.equipment_id, name: e.name, cat: e.category || '', status: e.status || '',
           loc: e.location || '', dept: e.department || '', model: e.model || '',
@@ -415,8 +415,8 @@ function EquipmentPageContent() {
       doc.setFontSize(14); doc.setTextColor(42, 77, 105);
       doc.text('Equipment Register', 14, 14);
       doc.setFontSize(8); doc.setTextColor(100, 100, 100);
-      doc.text(`Generated ${new Date().toLocaleDateString('en-GB')}  ·  ${equipment.length} assets`, 14, 20);
-      const fmt = (d?: string) => d ? new Date(d).toLocaleDateString('en-GB') : '';
+      doc.text(`Generated ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}  ·  ${equipment.length} assets`, 14, 20);
+      const fmt = (d?: string) => d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
       autoTable(doc, {
         startY: 25,
         head: [['ID', 'Name', 'Category', 'Status', 'Location', 'Department', 'Model', 'Serial No.', 'Commissioned', 'Next Maint.', 'Value']],

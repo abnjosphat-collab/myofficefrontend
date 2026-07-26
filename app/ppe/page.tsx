@@ -1014,8 +1014,8 @@ export default function PPEManagement() {
           type:     PPE_TYPES[r.ppe_type]?.name || r.ppe_type,
           item:     r.item_name,
           size:     r.size || '',
-          issued:   r.issue_date  ? new Date(r.issue_date).toLocaleDateString('en-GB')  : '',
-          expiry:   r.expiry_date ? new Date(r.expiry_date).toLocaleDateString('en-GB') : '',
+          issued:   r.issue_date  ? new Date(r.issue_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })  : '',
+          expiry:   r.expiry_date ? new Date(r.expiry_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '',
           cond:     CONDITION_LABELS[r.condition]  || r.condition,
           status:   STATUS_LABELS[r.status]        || r.status,
           issuedby: r.issued_by    || '',
@@ -1054,7 +1054,7 @@ export default function PPEManagement() {
       doc.text('PPE Register', 14, 14);
       doc.setFontSize(8);
       doc.setTextColor(100, 100, 100);
-      doc.text(`Generated ${new Date().toLocaleDateString('en-GB')}  ·  ${records.length} records  ·  ${employeesWithPPE.length} employees`, 14, 20);
+      doc.text(`Generated ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}  ·  ${records.length} records  ·  ${employeesWithPPE.length} employees`, 14, 20);
       autoTable(doc, {
         startY: 25,
         head: [['Employee', 'ID', 'Position', 'PPE Type', 'Item / Brand', 'Size', 'Issued', 'Expires', 'Condition', 'Status', 'Issued By']],
@@ -1065,8 +1065,8 @@ export default function PPEManagement() {
           PPE_TYPES[r.ppe_type]?.shortName || r.ppe_type,
           r.item_name,
           r.size || '',
-          r.issue_date  ? new Date(r.issue_date).toLocaleDateString('en-GB')  : '',
-          r.expiry_date ? new Date(r.expiry_date).toLocaleDateString('en-GB') : '',
+          r.issue_date  ? new Date(r.issue_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })  : '',
+          r.expiry_date ? new Date(r.expiry_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '',
           CONDITION_LABELS[r.condition] || r.condition,
           STATUS_LABELS[r.status]       || r.status,
           r.issued_by || '',
