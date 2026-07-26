@@ -46,9 +46,9 @@ const CRITICAL = [
 ];
 
 // Deterministic API stub: empty list for everything, so pages render their empty states
-// without a backend or auth. Exception: the availability page uses RELATIVE fetches with a
-// built-in mock fallback; in reality those 404 against the Next origin, so we let them 404
-// here too, exercising the real (fallback) render path instead of feeding it a wrong shape.
+// without a backend or auth. Exception: the availability page has a built-in mock
+// fallback for genuine network failure, so we 404 its calls to exercise that
+// fallback render path instead of feeding it a wrong shape.
 function mockApi(route) {
   const url = route.request().url();
   if (url.includes('/api/availabilities')) return route.fulfill({ status: 404, body: '' });

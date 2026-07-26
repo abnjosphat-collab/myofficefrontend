@@ -10,23 +10,26 @@ import {
 } from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
 import { formatDate } from '@/lib/format';
+import { api } from '@/lib/apiClient';
 import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, ProgressBar, useCollapseSection, ACCENT_HEX, SelectField,
 } from '@/components/shared/theme';
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
+// Field names match the real backend response (snake_case) now that the
+// mock endpoints that previously shadowed it are gone.
 interface Equipment {
   id: string;
   name: string;
   category: string;
-  department: string;
-  operationalHours: number;
-  breakdownHours: number;
+  department: string | null;
+  operational_hours: number;
+  breakdown_hours: number;
   availability: number;
   status: 'operational' | 'maintenance' | 'breakdown' | 'idle';
-  lastMaintenance: string | null;
-  nextMaintenance: string | null;
+  last_maintenance: string | null;
+  next_maintenance?: string | null;
   uptime: number;
   downtime: number;
   mtbf: number;
@@ -50,14 +53,14 @@ interface AvailabilityStats {
 // ─── MOCK DATA ────────────────────────────────────────────────────────────────
 
 const MOCK_EQUIPMENT: Equipment[] = [
-  { id: '1', name: 'CNC Machine 1', category: 'Machinery', department: 'Production', operationalHours: 450.5, breakdownHours: 12.3, availability: 97.27, status: 'operational', lastMaintenance: '2024-01-15', nextMaintenance: '2024-02-15', uptime: 438.2, downtime: 12.3, mtbf: 120.5, mttr: 2.5 },
-  { id: '2', name: 'Forklift A', category: 'Vehicles', department: 'Logistics', operationalHours: 320.0, breakdownHours: 8.5, availability: 97.34, status: 'operational', lastMaintenance: '2024-01-10', nextMaintenance: '2024-02-10', uptime: 311.5, downtime: 8.5, mtbf: 85.3, mttr: 3.2 },
-  { id: '3', name: '3D Printer', category: 'Electronics', department: 'R&D', operationalHours: 280.0, breakdownHours: 24.0, availability: 91.43, status: 'maintenance', lastMaintenance: '2024-01-20', nextMaintenance: '2024-03-20', uptime: 256.0, downtime: 24.0, mtbf: 65.7, mttr: 6.5 },
-  { id: '4', name: 'Laser Cutter', category: 'Machinery', department: 'Production', operationalHours: 500.0, breakdownHours: 2.5, availability: 99.5, status: 'operational', lastMaintenance: '2024-01-05', nextMaintenance: '2024-03-05', uptime: 497.5, downtime: 2.5, mtbf: 180.2, mttr: 1.8 },
-  { id: '5', name: 'Test Equipment', category: 'Tools', department: 'Quality', operationalHours: 150.0, breakdownHours: 15.0, availability: 90.0, status: 'breakdown', lastMaintenance: '2023-12-15', nextMaintenance: '2024-02-15', uptime: 135.0, downtime: 15.0, mtbf: 50.3, mttr: 4.2 },
-  { id: '6', name: 'Conveyor Belt', category: 'Machinery', department: 'Production', operationalHours: 600.0, breakdownHours: 30.0, availability: 95.0, status: 'operational', lastMaintenance: '2024-01-25', nextMaintenance: '2024-02-25', uptime: 570.0, downtime: 30.0, mtbf: 95.7, mttr: 3.5 },
-  { id: '7', name: 'Server Rack', category: 'Electronics', department: 'IT', operationalHours: 720.0, breakdownHours: 8.0, availability: 98.89, status: 'idle', lastMaintenance: '2024-01-18', nextMaintenance: '2024-04-18', uptime: 712.0, downtime: 8.0, mtbf: 200.5, mttr: 2.0 },
-  { id: '8', name: 'Air Compressor', category: 'Machinery', department: 'Maintenance', operationalHours: 400.0, breakdownHours: 20.0, availability: 95.0, status: 'maintenance', lastMaintenance: '2024-01-30', nextMaintenance: '2024-03-30', uptime: 380.0, downtime: 20.0, mtbf: 75.3, mttr: 5.2 },
+  { id: '1', name: 'CNC Machine 1', category: 'Machinery', department: 'Production', operational_hours: 450.5, breakdown_hours: 12.3, availability: 97.27, status: 'operational', last_maintenance: '2024-01-15', next_maintenance: '2024-02-15', uptime: 438.2, downtime: 12.3, mtbf: 120.5, mttr: 2.5 },
+  { id: '2', name: 'Forklift A', category: 'Vehicles', department: 'Logistics', operational_hours: 320.0, breakdown_hours: 8.5, availability: 97.34, status: 'operational', last_maintenance: '2024-01-10', next_maintenance: '2024-02-10', uptime: 311.5, downtime: 8.5, mtbf: 85.3, mttr: 3.2 },
+  { id: '3', name: '3D Printer', category: 'Electronics', department: 'R&D', operational_hours: 280.0, breakdown_hours: 24.0, availability: 91.43, status: 'maintenance', last_maintenance: '2024-01-20', next_maintenance: '2024-03-20', uptime: 256.0, downtime: 24.0, mtbf: 65.7, mttr: 6.5 },
+  { id: '4', name: 'Laser Cutter', category: 'Machinery', department: 'Production', operational_hours: 500.0, breakdown_hours: 2.5, availability: 99.5, status: 'operational', last_maintenance: '2024-01-05', next_maintenance: '2024-03-05', uptime: 497.5, downtime: 2.5, mtbf: 180.2, mttr: 1.8 },
+  { id: '5', name: 'Test Equipment', category: 'Tools', department: 'Quality', operational_hours: 150.0, breakdown_hours: 15.0, availability: 90.0, status: 'breakdown', last_maintenance: '2023-12-15', next_maintenance: '2024-02-15', uptime: 135.0, downtime: 15.0, mtbf: 50.3, mttr: 4.2 },
+  { id: '6', name: 'Conveyor Belt', category: 'Machinery', department: 'Production', operational_hours: 600.0, breakdown_hours: 30.0, availability: 95.0, status: 'operational', last_maintenance: '2024-01-25', next_maintenance: '2024-02-25', uptime: 570.0, downtime: 30.0, mtbf: 95.7, mttr: 3.5 },
+  { id: '7', name: 'Server Rack', category: 'Electronics', department: 'IT', operational_hours: 720.0, breakdown_hours: 8.0, availability: 98.89, status: 'idle', last_maintenance: '2024-01-18', next_maintenance: '2024-04-18', uptime: 712.0, downtime: 8.0, mtbf: 200.5, mttr: 2.0 },
+  { id: '8', name: 'Air Compressor', category: 'Machinery', department: 'Maintenance', operational_hours: 400.0, breakdown_hours: 20.0, availability: 95.0, status: 'maintenance', last_maintenance: '2024-01-30', next_maintenance: '2024-03-30', uptime: 380.0, downtime: 20.0, mtbf: 75.3, mttr: 5.2 },
 ];
 
 const MOCK_STATS: AvailabilityStats = {
@@ -110,12 +113,12 @@ function AvailabilityContent() {
     if (!quiet) setLoading(true);
     setRefreshing(true);
     try {
-      const [eqRes, stRes] = await Promise.all([
-        fetch('/api/availabilities').catch(() => null),
-        fetch('/api/availabilities/stats').catch(() => null),
+      const [eq, stats] = await Promise.all([
+        api.get<Equipment[]>('/api/availabilities').catch(() => null),
+        api.get<AvailabilityStats>('/api/availabilities/stats').catch(() => null),
       ]);
-      setEquipment(eqRes?.ok ? await eqRes.json() : MOCK_EQUIPMENT);
-      setStats(stRes?.ok ? await stRes.json() : MOCK_STATS);
+      setEquipment(eq ?? MOCK_EQUIPMENT);
+      setStats(stats ?? MOCK_STATS);
     } catch {
       setEquipment(MOCK_EQUIPMENT);
       setStats(MOCK_STATS);
@@ -132,7 +135,7 @@ function AvailabilityContent() {
 
   const filtered = equipment.filter(eq => {
     const s = searchTerm.toLowerCase();
-    const matchSearch = !s || eq.name.toLowerCase().includes(s) || eq.category.toLowerCase().includes(s) || eq.department.toLowerCase().includes(s);
+    const matchSearch = !s || eq.name.toLowerCase().includes(s) || eq.category.toLowerCase().includes(s) || (eq.department ?? '').toLowerCase().includes(s);
     const matchCat = categoryFilter === 'all' || eq.category === categoryFilter;
     const matchStatus = statusFilter === 'all' || eq.status === statusFilter;
     return matchSearch && matchCat && matchStatus;
@@ -258,8 +261,8 @@ function AvailabilityContent() {
                         <td className={tdCls}>{eq.category}</td>
                         <td className={tdCls}>{eq.department}</td>
                         <td className={tdCls}><StatusBadge color={scfg.color} label={scfg.label} /></td>
-                        <td className={`${tdCls} text-right`}>{eq.operationalHours.toFixed(1)}h</td>
-                        <td className={`${tdCls} text-right text-red-400`}>{eq.breakdownHours.toFixed(1)}h</td>
+                        <td className={`${tdCls} text-right`}>{eq.operational_hours.toFixed(1)}h</td>
+                        <td className={`${tdCls} text-right text-red-400`}>{eq.breakdown_hours.toFixed(1)}h</td>
                         <td className={`${tdCls} text-right`}>
                           <div className="flex items-center gap-2 justify-end">
                             <span className={`font-bold text-sm ${avColor(eq.availability)}`}>{eq.availability.toFixed(1)}%</span>
@@ -305,9 +308,9 @@ function AvailabilityContent() {
                       <td className={tdCls}><span className={`font-medium ${t.textPrimary}`}>{eq.name}</span></td>
                       <td className={`${tdCls} text-center`}><StatusBadge color={eq.mtbf > 200 ? '#34d399' : eq.mtbf > 100 ? '#94a3b8' : '#f87171'} label={`${eq.mtbf.toFixed(1)}h`} /></td>
                       <td className={`${tdCls} text-center`}><StatusBadge color={eq.mttr < 5 ? '#34d399' : eq.mttr < 10 ? '#94a3b8' : '#f87171'} label={`${eq.mttr.toFixed(1)}h`} /></td>
-                      <td className={`${tdCls} text-xs`}>{fmtDate(eq.lastMaintenance)}</td>
-                      <td className="px-3 py-2.5 text-xs text-brand-400">{fmtDate(eq.nextMaintenance)}</td>
-                      <td className={`${tdCls} text-right`}>{eq.breakdownHours > 0 ? (eq.breakdownHours / eq.operationalHours * 100).toFixed(1) : '0.0'}%</td>
+                      <td className={`${tdCls} text-xs`}>{fmtDate(eq.last_maintenance)}</td>
+                      <td className="px-3 py-2.5 text-xs text-brand-400">{fmtDate(eq.next_maintenance ?? null)}</td>
+                      <td className={`${tdCls} text-right`}>{eq.breakdown_hours > 0 ? (eq.breakdown_hours / eq.operational_hours * 100).toFixed(1) : '0.0'}%</td>
                       <td className={`${tdCls} text-right text-red-400 font-medium`}>${(eq.downtime * 250).toLocaleString()}</td>
                     </tr>
                   ))}
