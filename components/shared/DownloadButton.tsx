@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Download, FileSpreadsheet, FileDown } from '@/components/shared/theme';
+import { EXPORT_BRAND_ARGB, EXPORT_BRAND_RGB } from '@/lib/exportUtils';
 
 export interface DLColumn {
   key: string;
@@ -20,6 +21,9 @@ interface DownloadButtonProps {
   title?: string;
   subtitle?: string;
   className?: string;
+  /** Which formats to offer. Default both. A single format renders one direct
+   *  trigger button instead of a dropdown. */
+  formats?: ('excel' | 'pdf')[];
 }
 
 function getVal(row: Record<string, unknown>, col: DLColumn): string {
@@ -31,7 +35,7 @@ function getVal(row: Record<string, unknown>, col: DLColumn): string {
 }
 
 export function DownloadButton({
-  data, columns, filename, title, subtitle, className = '',
+  data, columns, filename, title, subtitle, className = '', formats = ['excel', 'pdf'],
 }: DownloadButtonProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -61,7 +65,7 @@ export function DownloadButton({
       const titleRow = ws.addRow([title]);
       titleRow.height = 26;
       const tc = titleRow.getCell(1);
-      tc.font = { bold: true, size: 14, color: { argb: 'FF2A4D69' }, name: 'Calibri' };
+      tc.font = { bold: true, size: 14, color: { argb: EXPORT_BRAND_ARGB }, name: 'Calibri' };
       ws.mergeCells(1, 1, 1, columns.length);
       headerRowNum++;
     }
@@ -88,7 +92,7 @@ export function DownloadButton({
     const hdr = ws.getRow(headerRowNum);
     hdr.height = 24;
     hdr.eachCell(cell => {
-      cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2A4D69' } };
+      cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: EXPORT_BRAND_ARGB } };
       cell.font      = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11, name: 'Calibri' };
       cell.alignment = { horizontal: 'center', vertical: 'middle' };
       cell.border    = {
@@ -144,7 +148,7 @@ export function DownloadButton({
 
     if (title) {
       doc.setFontSize(14);
-      doc.setTextColor(42, 77, 105);
+      doc.setTextColor(...EXPORT_BRAND_RGB);
       doc.setFont('helvetica', 'bold');
       doc.text(title, 14, y);
       y += 7;
@@ -167,7 +171,7 @@ export function DownloadButton({
       body: data.map(row => columns.map(c => getVal(row, c))),
       styles: { fontSize: 8, cellPadding: { top: 2, bottom: 2, left: 3, right: 3 } },
       headStyles: {
-        fillColor: [42, 77, 105], textColor: 255,
+        fillColor: EXPORT_BRAND_RGB, textColor: 255,
         fontStyle: 'bold', fontSize: 8,
       },
       alternateRowStyles: { fillColor: [245, 248, 252] },
@@ -178,6 +182,22 @@ export function DownloadButton({
 
     doc.save(`${filename}.pdf`);
   };
+
+  // A single offered format needs no dropdown — one direct-trigger button.
+  if (formats.length === 1) {
+    const onlyFormat = formats[0];
+    const Icon = onlyFormat === 'excel' ? FileSpreadsheet : FileDown;
+    return (
+      <button
+        type="button"
+        onClick={onlyFormat === 'excel' ? downloadExcel : downloadPDF}
+        className={`inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-semibold text-white border transition-all hover:-translate-y-0.5 bg-emerald-500/20 border-emerald-500/35 hover:bg-emerald-500/30 ${className}`}
+      >
+        <Icon className="h-3.5 w-3.5" />
+        Download
+      </button>
+    );
+  }
 
   return (
     <div ref={ref} className={`relative ${className}`}>
