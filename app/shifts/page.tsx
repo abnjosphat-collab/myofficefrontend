@@ -24,6 +24,8 @@ import {
   useTheme, PageHero, StatTile, StatusBadge as ThemeStatusBadge, SearchInput, ProgressBar, FormField,
   useCollapseSection, CenterModal, ACCENT_HEX, EmptyState, PrimaryButton, GlowCard, SelectField,
 } from '@/components/shared/theme';
+import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
+import { exportFilename } from '@/lib/exportUtils';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1067,6 +1069,18 @@ function ShiftsContent() {
   const selCls = `h-8 rounded-lg px-2.5 text-xs outline-none transition-colors ${t.inputBg}`;
   const thCls = `text-left px-3 py-2 text-[10px] uppercase tracking-wide font-medium ${t.textFaint}`;
 
+  const exportColumns: DLColumn[] = [
+    { key: 'employee_name', label: 'Employee', width: 22 },
+    { key: 'employee_id', label: 'Employee ID', width: 14 },
+    { key: 'designation', label: 'Designation', width: 18 },
+    { key: 'department', label: 'Department', width: 18 },
+    { key: 'section', label: 'Section', width: 16 },
+    { key: 'phone', label: 'Phone', width: 16 },
+    { key: 'shift_type', label: 'Pattern', width: 14 },
+    { key: 'today', label: 'Today', width: 14, format: (_v, row) => todayStatus(row as unknown as ShiftAssignment) },
+    { key: 'cycle_start_date', label: 'Cycle Start', width: 14, format: v => v ? fmtDate(v as string) : '' },
+  ];
+
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-4">
       <PageHero
@@ -1078,6 +1092,14 @@ function ShiftsContent() {
         actions={
           <>
             <button type="button" onClick={fetchAll} title="Refresh" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /></button>
+            {filtered.length > 0 && (
+              <DownloadButton
+                data={filtered as unknown as Record<string, unknown>[]}
+                columns={exportColumns}
+                filename={exportFilename('Shifts')}
+                title="Shifts"
+              />
+            )}
             <PrimaryButton icon={Plus} onClick={openCreate}>Assign Shift</PrimaryButton>
           </>
         }

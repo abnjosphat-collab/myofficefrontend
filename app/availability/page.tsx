@@ -4,13 +4,15 @@
 import { useState, useEffect, ElementType } from 'react';
 import Link from 'next/link';
 import {
-  ToolCase, AlertTriangle, BarChart3, Download, Gauge,
+  ToolCase, AlertTriangle, BarChart3, Gauge,
   LineChart, Plus, RefreshCw, Search, Settings,
   Clock, Activity, Percent, Calculator,
 } from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
 import { formatDate } from '@/lib/format';
 import { api } from '@/lib/apiClient';
+import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
+import { exportFilename } from '@/lib/exportUtils';
 import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, ProgressBar, useCollapseSection, ACCENT_HEX, SelectField,
 } from '@/components/shared/theme';
@@ -141,6 +143,22 @@ function AvailabilityContent() {
     return matchSearch && matchCat && matchStatus;
   });
 
+  const exportColumns: DLColumn[] = [
+    { key: 'name', label: 'Equipment', width: 24 },
+    { key: 'category', label: 'Category', width: 18 },
+    { key: 'department', label: 'Department', width: 18, format: v => (v as string) ?? '' },
+    { key: 'status', label: 'Status', width: 14, format: v => statusCfg(v as Equipment['status']).label },
+    { key: 'operational_hours', label: 'Op. Hours', width: 12 },
+    { key: 'breakdown_hours', label: 'Breakdown Hours', width: 16 },
+    { key: 'availability', label: 'Availability %', width: 14, format: v => `${(v as number).toFixed(1)}%` },
+    { key: 'uptime', label: 'Uptime', width: 12 },
+    { key: 'downtime', label: 'Downtime', width: 12 },
+    { key: 'mtbf', label: 'MTBF (h)', width: 12 },
+    { key: 'mttr', label: 'MTTR (h)', width: 12 },
+    { key: 'last_maintenance', label: 'Last Maintenance', width: 16, format: v => fmtDate(v as string | null) },
+    { key: 'next_maintenance', label: 'Next Maintenance', width: 16, format: v => fmtDate((v as string | null) ?? null) },
+  ];
+
   const selCls = `h-9 rounded-lg px-3 text-sm outline-none transition-colors ${t.inputBg}`;
   const thCls = `text-left px-3 py-2 text-[10px] uppercase tracking-wide font-medium ${t.textFaint}`;
   const tdCls = `px-3 py-2.5 text-sm ${t.textMuted}`;
@@ -165,9 +183,16 @@ function AvailabilityContent() {
             <button type="button" onClick={() => fetchData(true)} title="Refresh" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}>
               <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
             </button>
-            <button type="button" disabled={equipment.length === 0} className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-medium ${t.chipBg} ${t.textMuted} ${t.hoverBg} disabled:opacity-40`}>
-              <Download className="h-3.5 w-3.5" /> Export
-            </button>
+            {filtered.length > 0 && (
+              <DownloadButton
+                data={filtered as unknown as Record<string, unknown>[]}
+                columns={exportColumns}
+                filename={exportFilename('Equipment_Availability')}
+                title="Equipment Availability"
+                statusColumn="status"
+                statusColor={(_v, row) => statusCfg(row.status as Equipment['status']).color.replace('#', '')}
+              />
+            )}
             <Link href="/breakdowns" className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-medium ${t.chipBg} ${t.textMuted} ${t.hoverBg}`}>
               <AlertTriangle className="h-3.5 w-3.5" /> Breakdowns
             </Link>

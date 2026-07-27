@@ -15,6 +15,9 @@ import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, FormField, FormActions,
   useCollapseSection, CenterModal, PrimaryButton, EmptyState, ACCENT_HEX, SelectField,
 } from '@/components/shared/theme';
+import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
+import { exportFilename } from '@/lib/exportUtils';
+import { formatDate } from '@/lib/format';
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
@@ -472,6 +475,21 @@ function SafetyComplaintsContent() {
     return true;
   }), [complaints, search, statusF, sectionF, priorityF, categoryF, byWhoF, locationF, dateFrom, dateTo]);
 
+  const exportColumns: DLColumn[] = [
+    { key: 'date', label: 'Date', width: 14, format: v => v ? formatDate(v as string) : '' },
+    { key: 'raisedBy', label: 'Raised By', width: 18, format: v => (v as string) || 'Anonymous' },
+    { key: 'issueRaised', label: 'Issue', width: 30 },
+    { key: 'category', label: 'Category', width: 16 },
+    { key: 'section', label: 'Section', width: 14 },
+    { key: 'location', label: 'Location', width: 18 },
+    { key: 'priority', label: 'Priority', width: 12 },
+    { key: 'supervisorName', label: 'Supervisor', width: 18 },
+    { key: 'byWho', label: 'Action By', width: 16 },
+    { key: 'byWhen', label: 'By When', width: 14, format: v => v ? formatDate(v as string) : '' },
+    { key: 'status', label: 'Status', width: 14 },
+    { key: 'dateClosed', label: 'Date Closed', width: 14, format: v => v ? formatDate(v as string) : '' },
+  ];
+
   const handleSave = async (form: Partial<Complaint>) => {
     if (editing) {
       const updated = await api.update(editing.id, form);
@@ -511,6 +529,16 @@ function SafetyComplaintsContent() {
         actions={
           <>
             <button type="button" onClick={() => load(true)} title="Refresh" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}><RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} /></button>
+            {filtered.length > 0 && (
+              <DownloadButton
+                data={filtered as unknown as Record<string, unknown>[]}
+                columns={exportColumns}
+                filename={exportFilename('Safety_Complaints')}
+                title="Safety Complaints"
+                statusColumn="status"
+                statusColor={(_v, row) => STATUS_HEX[row.status as string]?.replace('#', '')}
+              />
+            )}
             <div className={`flex rounded-lg overflow-hidden ${t.chipBg} text-xs`}>
               <button type="button" onClick={() => setTab('records')} className={`px-3 py-1.5 transition-colors ${tab === 'records' ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} ${t.hoverText}`}`}>Records</button>
               <button type="button" onClick={() => setTab('analytics')} className={`px-3 py-1.5 transition-colors flex items-center gap-1 ${tab === 'analytics' ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} ${t.hoverText}`}`}><BarChart3 className="h-3 w-3" /> Analytics</button>

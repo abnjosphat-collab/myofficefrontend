@@ -17,6 +17,8 @@ import {
 import { PhotoUpload } from '@/components/shared/PhotoUpload';
 import { AppShell } from '@/components/app-shell';
 import { useEmployees } from '@/hooks/useLookups';
+import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
+import { exportFilename } from '@/lib/exportUtils';
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
@@ -717,6 +719,23 @@ function SHEQInspectionContent() {
 
   const hasFilters = !!(search || sectionFilter !== 'all' || statusFilter !== 'all' || dateFrom || dateTo);
 
+  const exportColumns: DLColumn[] = [
+    { key: 'title', label: 'Title', width: 26 },
+    { key: 'inspectors', label: 'Inspector(s)', width: 22 },
+    { key: 'section', label: 'Section', width: 14 },
+    { key: 'place', label: 'Location', width: 18 },
+    { key: 'date', label: 'Date', width: 14, format: v => v ? formatDate(v as string) : '' },
+    { key: 'status', label: 'Status', width: 14 },
+    {
+      key: 'findings', label: 'Findings', width: 16,
+      format: (_v, row) => {
+        const findings = (row.findings as InspectionFinding[]) ?? [];
+        const closed = findings.filter(f => f.status === 'closed').length;
+        return `${closed}/${findings.length} closed`;
+      },
+    },
+  ];
+
   const toggle = (id: string) => setExpandedIds(prev => {
     const n = new Set(prev);
     n.has(id) ? n.delete(id) : n.add(id);
@@ -771,6 +790,16 @@ function SHEQInspectionContent() {
             </button>
             <ViewToggle value={viewMode} onChange={setViewMode}
               options={[{ value: 'grid', icon: LayoutGrid, label: 'Grid view' }, { value: 'table', icon: TableIcon, label: 'Table view' }]} />
+            {filtered.length > 0 && (
+              <DownloadButton
+                data={filtered as unknown as Record<string, unknown>[]}
+                columns={exportColumns}
+                filename={exportFilename('SHEQ_Inspections')}
+                title="SHEQ Inspections"
+                statusColumn="status"
+                statusColor={(_v, row) => INSPECTION_STATUS_HEX[row.status as InspectionStatus]?.replace('#', '')}
+              />
+            )}
             <PrimaryButton icon={Plus} accent="violet" onClick={() => { setEditingInspection(null); setFormOpen(true); }}>New Inspection</PrimaryButton>
           </>
         }

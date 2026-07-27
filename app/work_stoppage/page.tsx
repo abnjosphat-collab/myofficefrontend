@@ -16,6 +16,8 @@ import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, FormField, FormActions,
   useCollapseSection, CenterModal, PrimaryButton, EmptyState, ProgressBar, ACCENT_HEX, GlowCard, SelectField,
 } from '@/components/shared/theme';
+import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
+import { exportFilename } from '@/lib/exportUtils';
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
@@ -529,6 +531,26 @@ function WorkStoppageContent() {
   const hasFilters = !!(search || sectionFilter !== 'all' || statusFilter !== 'all' || dateFrom || dateTo);
   const toggle = (id: string) => setExpandedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
+  const exportColumns: DLColumn[] = [
+    { key: 'date', label: 'Date', width: 14, format: v => v ? fmtDate(v as string) : '' },
+    { key: 'department', label: 'Department', width: 18 },
+    { key: 'section', label: 'Section', width: 14 },
+    { key: 'stoppageBy', label: 'Issued By', width: 18 },
+    { key: 'stoppagePosition', label: 'Position', width: 18 },
+    { key: 'description', label: 'Description', width: 30 },
+    { key: 'investigationFindings', label: 'Investigation Findings', width: 30 },
+    { key: 'acceptedBy', label: 'Accepted By', width: 18 },
+    { key: 'sheqCheckedBy', label: 'SHEQ Checked By', width: 18 },
+    {
+      key: 'correctiveActions', label: 'Actions', width: 14,
+      format: (_v, row) => {
+        const actions = (row.correctiveActions as CorrectiveAction[]) ?? [];
+        const done = actions.filter(a => a.status === 'Completed').length;
+        return `${done}/${actions.length} done`;
+      },
+    },
+  ];
+
   const handleSave = async (data: Partial<WorkStoppageReport>) => {
     try {
       if (editingReport) {
@@ -565,6 +587,16 @@ function WorkStoppageContent() {
         actions={
           <>
             <button type="button" onClick={() => load(true)} title="Refresh" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}><RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} /></button>
+            {filtered.length > 0 && (
+              <DownloadButton
+                data={filtered as unknown as Record<string, unknown>[]}
+                columns={exportColumns}
+                filename={exportFilename('Work_Stoppage_Reports')}
+                title="Work Stoppages"
+                statusColumn="section"
+                statusColor={(_v, row) => SECTION_HEX[row.section as SectionType]?.replace('#', '')}
+              />
+            )}
             <PrimaryButton icon={Octagon} accent="amber" onClick={() => { setEditingReport(null); setFormOpen(true); }}>Issue Stoppage</PrimaryButton>
           </>
         }

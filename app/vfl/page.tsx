@@ -15,6 +15,8 @@ import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, FormField, FormActions,
   useCollapseSection, CenterModal, PrimaryButton, EmptyState, ProgressBar, ACCENT_HEX, GlowCard, SelectField,
 } from '@/components/shared/theme';
+import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
+import { exportFilename } from '@/lib/exportUtils';
 
 // =============== TYPES ===============
 type SectionType = 'Mechanical' | 'Electrical';
@@ -486,6 +488,18 @@ function VFLObservationContent() {
     return true;
   }), [reports, search, sectionFilter, statusFilter, behaviourFilter, dateFrom, dateTo]);
 
+  const exportColumns: DLColumn[] = [
+    { key: 'date', label: 'Date', width: 14, format: v => v ? fmtDate(v as string) : '' },
+    { key: 'observerName', label: 'Observer', width: 18 },
+    { key: 'designation', label: 'Designation', width: 18 },
+    { key: 'sectionChoice', label: 'Section', width: 14 },
+    { key: 'behaviourCategory', label: 'Behaviour', width: 16 },
+    { key: 'coachingTechnique', label: 'Coaching', width: 12 },
+    { key: 'status', label: 'Status', width: 12, format: v => (v as string).charAt(0).toUpperCase() + (v as string).slice(1) },
+    { key: 'departmentSection', label: 'Dept/Section', width: 18 },
+    { key: 'description', label: 'Description', width: 30 },
+  ];
+
   const total = reports.length;
   const drafts = reports.filter(r => r.status === 'draft').length;
   const submitted = reports.filter(r => r.status === 'submitted').length;
@@ -511,6 +525,16 @@ function VFLObservationContent() {
         actions={
           <>
             <button type="button" onClick={loadData} title="Refresh" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /></button>
+            {filtered.length > 0 && (
+              <DownloadButton
+                data={filtered as unknown as Record<string, unknown>[]}
+                columns={exportColumns}
+                filename={exportFilename('VFL_Observations')}
+                title="Visible Felt Leadership"
+                statusColumn="status"
+                statusColor={(_v, row) => STATUS_HEX[row.status as VFLStatus]?.replace('#', '')}
+              />
+            )}
             <button type="button" onClick={() => setViewMode('grid')} title="Grid view" className={`h-8 w-8 flex items-center justify-center rounded-lg transition-all ${viewMode === 'grid' ? 'bg-emerald-500/20 text-emerald-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}><LayoutGrid className="h-3.5 w-3.5" /></button>
             <button type="button" onClick={() => setViewMode('table')} title="Table view" className={`h-8 w-8 flex items-center justify-center rounded-lg transition-all ${viewMode === 'table' ? 'bg-emerald-500/20 text-emerald-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}><TableIcon className="h-3.5 w-3.5" /></button>
             <PrimaryButton icon={Plus} accent="emerald" onClick={() => { setEditing(null); setFormOpen(true); }}>New VFL</PrimaryButton>

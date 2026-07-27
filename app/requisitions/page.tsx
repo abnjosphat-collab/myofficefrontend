@@ -14,6 +14,8 @@ import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput,
   FormField, FormActions, useCollapseSection, CenterModal, ProgressBar, ACCENT_HEX, SelectField, LoadingState, AutofillInput,
 } from '@/components/shared/theme';
+import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
+import { exportFilename } from '@/lib/exportUtils';
 import { toast } from 'sonner';
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
@@ -453,6 +455,18 @@ function RequisitionsPageContent() {
     return true;
   }), [reqs, status, priority, section, dateFrom, dateTo, search]);
 
+  const exportColumns: DLColumn[] = [
+    { key: 'requisitionNumber', label: 'Req #', width: 14 },
+    { key: 'date', label: 'Date', width: 14, format: v => v ? formatDate(v as string) : '' },
+    { key: 'requester', label: 'Requester', width: 18 },
+    { key: 'section', label: 'Section', width: 14 },
+    { key: 'priority', label: 'Priority', width: 12 },
+    { key: 'status', label: 'Status', width: 14 },
+    { key: 'required_for', label: 'Required For', width: 22 },
+    { key: 'items', label: 'Cost', width: 14, format: (_v, row) => formatCurrency(itemTotal((row.items as RequisitionItem[]) ?? [])) },
+    { key: 'notes', label: 'Notes', width: 26 },
+  ];
+
   const stats = useMemo(() => {
     const totalCost = filtered.reduce((s, r) => s + itemTotal(r.items), 0);
     const pending = filtered.filter(r => r.status === 'Pending').length;
@@ -503,10 +517,22 @@ function RequisitionsPageContent() {
         description="Raise, track and approve purchase requests"
         statsOpen={sections.expanded.hero}
         actions={
-          <button type="button" onClick={() => { setEditing(null); setFormOpen(true); }}
-            className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all">
-            <Plus className="h-3.5 w-3.5" /> New Requisition
-          </button>
+          <>
+            {filtered.length > 0 && (
+              <DownloadButton
+                data={filtered as unknown as Record<string, unknown>[]}
+                columns={exportColumns}
+                filename={exportFilename('Purchase_Requisitions')}
+                title="Purchase Requisitions"
+                statusColumn="status"
+                statusColor={(_v, row) => STATUS_CONFIG[row.status as Requisition['status']]?.color.replace('#', '')}
+              />
+            )}
+            <button type="button" onClick={() => { setEditing(null); setFormOpen(true); }}
+              className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all">
+              <Plus className="h-3.5 w-3.5" /> New Requisition
+            </button>
+          </>
         }
       >
         <div className="flex flex-wrap gap-1">

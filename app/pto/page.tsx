@@ -14,6 +14,8 @@ import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, ProgressBar, FormField, FormActions,
   useCollapseSection, CenterModal, ACCENT_HEX, EmptyState, PrimaryButton, GlowCard, SelectField,
 } from '@/components/shared/theme';
+import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
+import { exportFilename } from '@/lib/exportUtils';
 
 // =============== TYPES ===============
 type SectionType = 'Mechanical' | 'Electrical';
@@ -619,6 +621,34 @@ function PTOPageContent() {
   const completedActions = reports.reduce((acc, r) => acc + (r.actionPlan?.filter(a => a.status === 'Completed').length || 0), 0);
   const highRisk = reports.filter(r => r.riskAssessment.made === 'No' || r.riskAssessment.identified === 'No' || r.riskAssessment.effective === 'No').length;
 
+  const exportColumns: DLColumn[] = [
+    { key: 'date', label: 'Date', width: 14, format: v => v ? formatDate(v as string) : '' },
+    { key: 'observerName', label: 'Observer', width: 18 },
+    { key: 'workerName', label: 'Worker', width: 18 },
+    { key: 'jobTaskObserved', label: 'Task', width: 26 },
+    { key: 'section', label: 'Section', width: 14 },
+    { key: 'observationType', label: 'Observation Type', width: 16 },
+    { key: 'status', label: 'Status', width: 12, format: v => (v as string).charAt(0).toUpperCase() + (v as string).slice(1) },
+    { key: 'deptSectionContractor', label: 'Dept/Section/Contractor', width: 22 },
+    { key: 'occupation', label: 'Occupation', width: 18 },
+    { key: 'sheqRefNo', label: 'SHEQ Ref No.', width: 16 },
+    {
+      key: 'riskAssessment', label: 'High Risk', width: 10,
+      format: (_v, row) => {
+        const ra = row.riskAssessment as RiskAssessment;
+        return ra.made === 'No' || ra.identified === 'No' || ra.effective === 'No' ? 'Yes' : 'No';
+      },
+    },
+    {
+      key: 'actionPlan', label: 'Actions', width: 14,
+      format: (_v, row) => {
+        const actions = (row.actionPlan as ActionPlanItem[]) ?? [];
+        const done = actions.filter(a => a.status === 'Completed').length;
+        return `${done}/${actions.length} done`;
+      },
+    },
+  ];
+
   const hasFilters = !!(search || sectionFilter !== 'all' || statusFilter !== 'all' || obsTypeFilter !== 'all' || dateFrom || dateTo);
 
   const selCls = `h-8 rounded-lg px-2.5 text-xs outline-none transition-colors ${t.inputBg}`;
@@ -637,6 +667,16 @@ function PTOPageContent() {
         actions={
           <>
             <button type="button" onClick={loadData} title="Refresh" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /></button>
+            {filtered.length > 0 && (
+              <DownloadButton
+                data={filtered as unknown as Record<string, unknown>[]}
+                columns={exportColumns}
+                filename={exportFilename('PTO_Reports')}
+                title="Planned Task Observation"
+                statusColumn="status"
+                statusColor={(_v, row) => STATUS_COLORS[row.status as ReportStatus]?.replace('#', '')}
+              />
+            )}
             <button type="button" onClick={() => setViewMode('grid')} title="Grid view" className={`h-8 w-8 flex items-center justify-center rounded-lg transition-all ${viewMode === 'grid' ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}><LayoutGrid className="h-3.5 w-3.5" /></button>
             <button type="button" onClick={() => setViewMode('table')} title="Table view" className={`h-8 w-8 flex items-center justify-center rounded-lg transition-all ${viewMode === 'table' ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}><TableIcon className="h-3.5 w-3.5" /></button>
             <PrimaryButton icon={Plus} onClick={() => { setEditing(null); setFormOpen(true); }}>New PTO</PrimaryButton>
