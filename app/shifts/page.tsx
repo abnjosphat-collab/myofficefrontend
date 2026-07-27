@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, ElementType } from 'react';
-import { api } from '@/lib/apiClient';
 import {
   Clock, Eye, Pencil, Trash2, Users, User, Calendar, Activity, Shield,
   Layers, ChevronsUpDown, Check, X, AlertCircle, TrendingUp,
@@ -26,24 +25,11 @@ import {
 } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-type ShiftType = '10-4' | '5-2' | 'standby' | 'custom';
-type DayStatus = 'on' | 'off' | 'standby' | 'on+standby';
-type ViewMode = 'grid' | 'table' | 'schedule';
-type SortKey = 'name' | 'shift_type' | 'cycle_start_date' | 'created_at';
-
-interface ShiftAssignment {
-  id: number; employee_id: string; employee_name: string;
-  designation?: string; department?: string; section?: string; phone?: string;
-  shift_type: ShiftType; on_days: number; off_days: number; cycle_start_date: string;
-  notes?: string; is_active: boolean; standby_periods?: { from: string; to: string }[];
-  shift_label?: string; shift_hours?: string; shift_timing_periods?: ShiftTimingPeriod[];
-  day_overrides?: DayOverride[]; created_at?: string;
-}
-
-interface Employee { id: string; name: string; designation?: string; department?: string; section?: string; phone?: string; }
+import type {
+  DayOverride, DayStatus, Employee, EventForm, EventType, FormState, LeaveRecord,
+  PublicHoliday, ScheduleEvent, ShiftAssignment, ShiftTimingPeriod, ShiftType, SortKey, StandbyPeriod, ViewMode,
+} from './types';
+import { createAssignment, deleteAssignment, updateAssignment, useShiftsData } from './useShiftsData';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -97,13 +83,6 @@ const SORT_OPTIONS = [
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-interface ShiftTimingPeriod { from: string; to: string; label: string; start_time: string; end_time: string; }
-type EventType = 'annual_leave' | 'sick_leave' | 'special_leave' | 'public_holiday' | 'work_off_day' | 'defer_off' | 'overtime' | 'training' | 'timing' | 'custom';
-interface ScheduleEvent { id: string; from: string; to: string; type: EventType; status?: DayStatus; label?: string; start_time?: string; end_time?: string; note?: string; }
-type DayOverride = ScheduleEvent;
-
-interface LeaveRecord { id: number; employee_id: string; employee_name: string; leave_type: string; start_date: string; end_date: string; status: string; reason?: string; }
-
 const LEAVE_TYPE_MAP: Record<string, EventType> = { 'annual leave': 'annual_leave', 'sick leave': 'sick_leave', 'special leave': 'special_leave', 'public holiday': 'public_holiday', 'annual': 'annual_leave', 'sick': 'sick_leave' };
 function leaveToEventType(leaveType: string): EventType { return LEAVE_TYPE_MAP[leaveType.toLowerCase()] ?? 'custom'; }
 
@@ -111,8 +90,6 @@ function findLeaveForDay(leaves: LeaveRecord[], employeeId: string, employeeName
   const norm = (s: string) => s.toLowerCase().trim();
   return leaves.find(lv => (lv.employee_id === employeeId || norm(lv.employee_name) === norm(employeeName)) && ds >= lv.start_date && ds <= lv.end_date && lv.status !== 'rejected');
 }
-
-interface PublicHoliday { date: string; name: string; }
 
 function easterSunday(year: number): Date {
   const a = year % 19, b = Math.floor(year / 100), c = year % 100;
@@ -248,7 +225,6 @@ function InfoField({ label, value }: { label: string; value?: string | number | 
 
 // ─── ScheduleEventModal ───────────────────────────────────────────────────────
 
-interface EventForm { id: string; from: string; to: string; type: EventType; status: DayStatus | ''; label: string; start_time: string; end_time: string; note: string; }
 function emptyForm(prefill: string, et: EventType): EventForm { return { id: newEventId(), from: prefill, to: prefill, type: et, status: '', label: '', start_time: '', end_time: '', note: '' }; }
 
 function ScheduleEventModal({ assignment, prefillDate, onSave, onClose, saving }: {
@@ -755,13 +731,6 @@ function ShiftDetailModal({ assignment, open, onClose, onEdit, onDelete }: { ass
 
 // ─── ShiftAssignForm ──────────────────────────────────────────────────────────
 
-interface StandbyPeriod { from: string; to: string; }
-interface FormState {
-  employee_id: string; employee_name: string; designation: string; department: string; section: string; phone: string;
-  shift_type: ShiftType; on_days: string; off_days: string; cycle_start_date: string; notes: string; is_active: boolean;
-  standby_periods: StandbyPeriod[]; shift_label: string; shift_hours: string; shift_timing_periods: ShiftTimingPeriod[];
-}
-
 const EMPTY_FORM: FormState = {
   employee_id: '', employee_name: '', designation: '', department: '', section: '', phone: '',
   shift_type: '10-4', on_days: '10', off_days: '4', cycle_start_date: new Date().toISOString().slice(0, 10),
@@ -807,8 +776,8 @@ function ShiftAssignForm({ open, onClose, editing, employees, onSaved }: { open:
         notes: form.notes || null, is_active: form.is_active, standby_periods: form.standby_periods,
         shift_label: form.shift_label || null, shift_hours: form.shift_hours || null, shift_timing_periods: form.shift_timing_periods,
       };
-      if (editing) await api.put(`/api/standby/${editing.id}`, payload);
-      else await api.post('/api/standby', payload);
+      if (editing) await updateAssignment(editing.id, payload);
+      else await createAssignment(payload);
       toast.success(editing ? 'Assignment updated' : 'Assignment created');
       onSaved();
       onClose();
@@ -973,10 +942,7 @@ function ShiftAssignForm({ open, onClose, editing, employees, onSaved }: { open:
 function ShiftsContent() {
   const t = useTheme();
   const sections = useCollapseSection({ hero: true, shiftPatterns: true, roster: true, filters: true });
-  const [assignments, setAssignments] = useState<ShiftAssignment[]>([]);
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [leaves, setLeaves] = useState<LeaveRecord[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { assignments, setAssignments, employees, leaves, loading, refresh: fetchAll } = useShiftsData();
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [search, setSearch] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('created_at');
@@ -987,29 +953,6 @@ function ShiftsContent() {
   const [editing, setEditing] = useState<ShiftAssignment | null>(null);
   const [viewTarget, setViewTarget] = useState<ShiftAssignment | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ShiftAssignment | null>(null);
-
-  const fetchAll = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [aRes, eRes, lRes] = await Promise.all([
-        api.get<any[]>('/api/standby').catch(() => null),
-        api.get<Record<string, unknown>[]>('/api/employees').catch(() => null),
-        api.get<any[]>('/api/leaves').catch(() => null),
-      ]);
-      if (aRes) setAssignments(aRes);
-      if (eRes) {
-        setEmployees(eRes.map(e => ({
-          id: String(e.id), name: (`${e.first_name || ''} ${e.last_name || ''}`).trim() || String(e.employee_id || 'Employee'),
-          designation: (e.designation || e.position || '') as string, department: (e.department || '') as string,
-          section: (e.section || '') as string, phone: (e.phone || '') as string,
-        })));
-      }
-      if (lRes) setLeaves(lRes);
-    } catch { toast.error('Failed to load shifts data'); }
-    finally { setLoading(false); }
-  }, []);
-
-  useEffect(() => { fetchAll(); }, [fetchAll]);
 
   const heroStats = useMemo(() => {
     const todayStr = d2s(new Date());
@@ -1055,9 +998,9 @@ function ShiftsContent() {
   }, [assignments, filterType, filterStatus, search, sortKey]);
 
   const handleUpdateOverrides = useCallback(async (id: number, overrides: DayOverride[]) => {
-    await api.put(`/api/standby/${id}`, { day_overrides: overrides });
+    await updateAssignment(id, { day_overrides: overrides });
     setAssignments(prev => prev.map(a => a.id === id ? { ...a, day_overrides: overrides } : a));
-  }, []);
+  }, [setAssignments]);
 
   function openCreate() { setEditing(null); setFormOpen(true); }
   function openEdit(a: ShiftAssignment) { setEditing(a); setFormOpen(true); }
@@ -1245,7 +1188,7 @@ function ShiftsContent() {
             <button type="button" onClick={() => setDeleteTarget(null)} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border} transition-all`}>Cancel</button>
             <button type="button" onClick={async () => {
               try {
-                await api.delete(`/api/standby/${deleteTarget!.id}`);
+                await deleteAssignment(deleteTarget!.id);
                 toast.success('Assignment removed');
                 setDeleteTarget(null);
                 fetchAll();
