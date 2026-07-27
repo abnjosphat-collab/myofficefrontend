@@ -2,7 +2,6 @@
 'use client';
 
 import { AppShell } from '@/components/app-shell';
-import { api } from '@/lib/apiClient';
 import React, { useState, useMemo, useEffect, ElementType } from "react";
 import {
   Calendar, Plus, Search, RefreshCw, ChevronDown, ChevronUp,
@@ -21,17 +20,10 @@ import {
   useTheme, PageHero, StatusBadge, ACCENT_HEX, CenterModal, FormField,
   useCollapseSection, EmptyState, PrimaryButton, GlowCard, SelectField,
 } from '@/components/shared/theme';
-
-// ============= Employee search result type =============
-interface EmployeeSearchResult {
-  id: number;
-  employee_id: string;
-  name: string;
-  designation: string;
-  phone: string;
-  supervisor: string;
-  department: string;
-}
+import type { EmployeeSearchResult, Leave, Stats } from './types';
+import {
+  calcDays, createLeave, deleteLeave, fetchEmployeeSearchResults, updateLeave, updateLeaveStatus, useLeavesData,
+} from './useLeavesData';
 
 const COMMON_REASONS = [
   "Annual leave", "Sick leave", "Family emergency", "Medical appointment",
@@ -56,76 +48,12 @@ const LEAVE_TYPES: Record<string, LeaveType> = {
   lieu: { name: 'Leave in Lieu of Overtime', shortName: 'In Lieu', color: '#0891b2', icon: Clock, description: 'Time off earned from worked overtime' },
 };
 
-// ---------- Types ----------
-interface Leave {
-  id: string;
-  employee_id: string;
-  employee_name: string;
-  position: string;
-  leave_type: keyof typeof LEAVE_TYPES;
-  start_date: string;
-  end_date: string;
-  reason: string;
-  contact_number: string;
-  emergency_contact?: string;
-  handover_to?: string;
-  status: 'pending' | 'approved' | 'rejected';
-  total_days: number;
-  applied_date: string;
-  updated_at?: string;
-  department?: string;
-  manager_name?: string;
-  supporting_docs?: string[];
-}
-
-interface Stats {
-  total: number; pending: number; approved: number; rejected: number;
-  on_leave_now: number; approvalRate: number; total_days_requested: number; average_days: number;
-}
-
-// API Configuration
-
-
 // ---------- Utility Functions ----------
 const formatDays = (days: number): string => days === 1 ? '1 day' : `${days} days`;
 
 // Standardized on the shared formatters (canonical "16 Jul 2026" / "…, 14:30").
 const fmtDate = (s?: string): string => (s ? formatDate(s) : '');
 const fmtDateTime = (s?: string): string => (s ? formatDateTime(s) : '');
-function calcDays(start?: string, end?: string): number {
-  if (!start || !end) return 0;
-  const days = Math.ceil((new Date(end).getTime() - new Date(start).getTime()) / 86400000) + 1;
-  return Math.max(0, days);
-}
-
-// ---------- API Functions ----------
-const fetchLeaves = async (): Promise<Leave[]> => {
-  try {
-    const data = await api.get<Leave[]>('/api/leaves');
-    return Array.isArray(data) ? data : [];
-  } catch (error) {
-    console.error('Error fetching leaves:', error);
-    toast.error('Could not load leave requests');
-    return [];
-  }
-};
-
-const createLeave = async (leaveData: Partial<Leave>): Promise<Leave> => {
-  return api.post<Leave>('/api/leaves', { ...leaveData, applied_date: new Date().toISOString(), status: 'pending', total_days: calcDays(leaveData.start_date, leaveData.end_date) });
-};
-
-const updateLeave = async (leaveId: string, leaveData: Partial<Leave>): Promise<Leave> => {
-  const saved = await api.patch<Leave>(`/api/leaves/${leaveId}`, { ...leaveData, total_days: calcDays(leaveData.start_date, leaveData.end_date) });
-  return saved ?? ({ ...leaveData, id: leaveId, total_days: calcDays(leaveData.start_date, leaveData.end_date) } as Leave);
-};
-
-const updateLeaveStatus = async (leaveId: string, status: Leave['status'], notes?: string): Promise<Leave> => {
-  return api.patch<Leave>(`/api/leaves/${leaveId}`, { status, ...(notes ? { notes } : {}) });
-};
-
-const deleteLeave = async (leaveId: string): Promise<{ success: boolean; message: string }> => {
-  return (await api.delete<{ success: boolean; message: string }>(`/api/leaves/${leaveId}`)) ?? { success: true, message: 'Deleted' };
-};
 
 // ---------- StatusBadge helper ----------
 function leaveStatusHex(status: Leave['status']) {
@@ -229,25 +157,8 @@ function LeaveApplicationForm({ onClose, onSuccess, editData }: { onClose: () =>
   useEffect(() => {
     const fetchEmployees = async () => {
       setLoadingEmployees(true);
-      try {
-        const data = await api.get<Record<string, unknown>[]>('/api/employees');
-        const employeeList = Array.isArray(data) ? data : [];
-        const normalized = employeeList.map((emp: Record<string, unknown>) => {
-          const id = typeof emp.id === 'number' ? emp.id : parseInt(String(emp.id)) || 0;
-          const employeeId = String(emp.employee_id || '');
-          let fullName = '';
-          if (emp.first_name && emp.last_name) fullName = `${emp.first_name} ${emp.last_name}`;
-          else fullName = String(emp.name || emp.employee_name || emp.full_name || emp.Name || '');
-          return {
-            id, employee_id: employeeId, name: fullName,
-            designation: String(emp.designation || emp.position || emp.job_title || ''),
-            phone: String(emp.phone || emp.contact_number || emp.mobile || ''),
-            supervisor: String(emp.supervisor || emp.manager_name || emp.manager || ''),
-            department: String(emp.department || emp.dept || ''),
-          };
-        });
-        setEmployees(normalized);
-      } catch (error) { console.error('Error fetching employees:', error); toast.error('Could not load employee list'); }
+      try { setEmployees(await fetchEmployeeSearchResults()); }
+      catch (error) { console.error('Error fetching employees:', error); toast.error('Could not load employee list'); }
       finally { setLoadingEmployees(false); }
     };
     fetchEmployees();
@@ -624,7 +535,7 @@ const leavesExportColumns: DLColumn[] = [
 function LeaveManagementContent() {
   const t = useTheme();
   const sections = useCollapseSection({ hero: true });
-  const [leaves, setLeaves] = useState<Leave[]>([]);
+  const { leaves, stats, loading, refresh: fetchAllData } = useLeavesData();
   const [selectedLeave, setSelectedLeave] = useState<Leave | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editData, setEditData] = useState<Leave | null>(null);
@@ -634,49 +545,12 @@ function LeaveManagementContent() {
   const [dateTo, setDateTo] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('date-desc');
-  const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
-  const [stats, setStats] = useState<Stats>({ total: 0, pending: 0, approved: 0, rejected: 0, on_leave_now: 0, approvalRate: 0, total_days_requested: 0, average_days: 0 });
 
   const [showTypeSummary, setShowTypeSummary] = useState(false);
   const [showEmployeeSummary, setShowEmployeeSummary] = useState(false);
   const [filterPanelMinimized, setFilterPanelMinimized] = useState(true);
   const [recordsPanelMinimized, setRecordsPanelMinimized] = useState(false);
-
-  const fetchAllData = async () => {
-    try {
-      setLoading(true);
-      const leavesData = await fetchLeaves();
-      setLeaves(leavesData);
-      const today = new Date().toISOString().split('T')[0];
-      const approvedLeaves = leavesData.filter(l => l.status === 'approved');
-      const rejectedLeaves = leavesData.filter(l => l.status === 'rejected');
-      const decided = approvedLeaves.length + rejectedLeaves.length;
-      const approvalRate = decided > 0 ? Math.round((approvedLeaves.length / decided) * 100) : 0;
-      const totalDays = leavesData.reduce((sum, l) => sum + (l.total_days || 0), 0);
-      const avgDays = leavesData.length > 0 ? Math.round(totalDays / leavesData.length) : 0;
-      setStats({
-        total: leavesData.length, pending: leavesData.filter(l => l.status === 'pending').length,
-        approved: approvedLeaves.length, rejected: rejectedLeaves.length,
-        on_leave_now: approvedLeaves.filter(l => l.start_date <= today && l.end_date >= today).length,
-        approvalRate, total_days_requested: totalDays, average_days: avgDays,
-      });
-      setLoading(false);
-    } catch (err) { toast.error((err as Error).message || 'Failed to fetch data'); setLoading(false); }
-  };
-
-  useEffect(() => {
-    fetchAllData();
-    let interval: ReturnType<typeof setInterval> | null = null;
-    function startPolling() { interval = setInterval(() => { if (document.visibilityState === 'visible') fetchAllData(); }, 30000); }
-    function handleVisibility() {
-      if (document.visibilityState === 'visible') { fetchAllData(); if (!interval) startPolling(); }
-      else if (interval) { clearInterval(interval); interval = null; }
-    }
-    startPolling();
-    document.addEventListener('visibilitychange', handleVisibility);
-    return () => { if (interval) clearInterval(interval); document.removeEventListener('visibilitychange', handleVisibility); };
-  }, []);
 
   const handleFormSuccess = (message: string) => { toast.success(message); fetchAllData(); };
 
