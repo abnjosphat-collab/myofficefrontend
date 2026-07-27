@@ -9,7 +9,7 @@ import {
   useTheme, PageHero, StatTile, StatCard, FormField, SearchInput, PrimaryButton,
   useCollapseSection, ACCENT_HEX, Combobox, type ComboOption,
 } from '@/components/shared/theme';
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   PackageMinus, Search, Plus, Trash2, RefreshCw,
   ChevronDown, ChevronUp, Loader2, Check, X,
@@ -22,56 +22,12 @@ import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis,
   CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell,
 } from 'recharts';
+import type { DescStats, IssueItemRow, Period, PeriodPoint, Spare, Stats, StockIssue } from './types';
+import { apiCreateIssue, apiDeleteIssue, useIssuesData } from './useIssuesData';
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 
 const uid = () => Math.random().toString(36).slice(2);
-
-// ─── INTERFACES ───────────────────────────────────────────────────────────────
-
-interface Spare {
-  id: number;
-  stock_code: string;
-  description: string;
-  unit_of_measure?: string;
-  unit_price: number;
-  category?: string;
-  current_quantity: number;
-}
-
-interface IssueItemRow {
-  id: string;
-  stockCode: string;
-  description: string;
-  qty: number;
-  unit: string;
-  unit_price: number;
-}
-
-interface IssueItem {
-  stock_code?: string;
-  description: string;
-  qty: number;
-  unit?: string;
-  unit_price?: number;
-}
-
-interface StockIssue {
-  id: number;
-  issued_at: string;
-  recipient_name: string;
-  recipient_id?: string;
-  issued_by?: string;
-  items: IssueItem[];
-  notes?: string;
-}
-
-interface Stats {
-  total: number;
-  today: number;
-  this_week: number;
-  unique_recipients: number;
-}
 
 // ─── ANALYTICS HELPERS ────────────────────────────────────────────────────────
 
@@ -95,17 +51,6 @@ const startOfWeek = (d: Date) => {
 
 const isoDate = (d: Date) => d.toISOString().slice(0, 10);
 const isoMonth = (d: Date) => d.toISOString().slice(0, 7);
-
-type Period = 'day' | 'week' | 'month';
-
-interface PeriodPoint {
-  key: string;
-  label: string;
-  cost: number;
-  count: number;
-  costWithPrice: number;
-  itemCount: number;
-}
 
 function buildTimeSeries(issues: StockIssue[], period: Period): PeriodPoint[] {
   const map = new Map<string, PeriodPoint>();
@@ -161,17 +106,6 @@ function buildTimeSeries(issues: StockIssue[], period: Period): PeriodPoint[] {
   return keys.map(k => map.get(k)!);
 }
 
-interface DescStats {
-  total: number;
-  count: number;
-  mean: number;
-  median: number;
-  stdDev: number;
-  min: number;
-  max: number;
-  costed: number;
-}
-
 function calcStats(costs: number[], allIssues: StockIssue[]): DescStats {
   if (costs.length === 0) return { total: 0, count: 0, mean: 0, median: 0, stdDev: 0, min: 0, max: 0, costed: 0 };
   const sorted = [...costs].sort((a, b) => a - b);
@@ -213,26 +147,6 @@ function topBy(issues: StockIssue[], key: 'recipient_name' | 'description', n = 
     .map(([name, d]) => ({ name, ...d }))
     .sort((a, b) => b.cost - a.cost)
     .slice(0, n);
-}
-
-// ─── API ─────────────────────────────────────────────────────────────────────
-
-async function apiGetIssues(): Promise<StockIssue[]> {
-  return api.get<StockIssue[]>('/api/issues?limit=2000');
-}
-
-async function apiCreateIssue(payload: object): Promise<StockIssue> {
-  return api.post<StockIssue>('/api/issues', payload);
-}
-
-async function apiDeleteIssue(id: number): Promise<void> {
-  await api.delete(`/api/issues/${id}`);
-}
-
-async function apiGetStats(): Promise<Stats> {
-  try {
-    return await api.get<Stats>('/api/issues/stats/summary');
-  } catch { return { total: 0, today: 0, this_week: 0, unique_recipients: 0 }; }
 }
 
 // ─── COMBO FIELD ─────────────────────────────────────────────────────────────
@@ -376,11 +290,7 @@ function IssuesPageContent() {
   const t = useTheme();
   const { tooltipStyle, axisProps, gridProps } = useChartStyle();
   const sections = useCollapseSection({ stats: false, records: true });
-  const [issues, setIssues] = useState<StockIssue[]>([]);
-  const [serverStats, setServerStats] = useState<Stats>({ total: 0, today: 0, this_week: 0, unique_recipients: 0 });
-  const [spares, setSpares] = useState<Spare[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const { issues, serverStats, spares, loading, refreshing, refresh: loadData } = useIssuesData();
   const [submitting, setSubmitting] = useState(false);
 
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
@@ -404,25 +314,6 @@ function IssuesPageContent() {
   const [items, setItems] = useState<IssueItemRow[]>([
     { id: uid(), stockCode: '', description: '', qty: 1, unit: 'UN', unit_price: 0 },
   ]);
-
-  const loadData = useCallback(async (quiet = false) => {
-    if (!quiet) setLoading(true);
-    setRefreshing(true);
-    try {
-      const [issueData, statsData, spareData] = await Promise.all([
-        apiGetIssues(),
-        apiGetStats(),
-        api.get<any[]>('/api/spares?limit=5000').catch(() => []),
-      ]);
-      setIssues(Array.isArray(issueData) ? issueData : []);
-      setServerStats(statsData);
-      setSpares(Array.isArray(spareData) ? spareData : []);
-    } catch (e: any) {
-      toast.error(`Failed to load: ${e.message}`);
-    } finally { setLoading(false); setRefreshing(false); }
-  }, []);
-
-  useEffect(() => { loadData(); }, [loadData]);
 
   const addItem = () =>
     setItems(p => [...p, { id: uid(), stockCode: '', description: '', qty: 1, unit: 'UN', unit_price: 0 }]);
