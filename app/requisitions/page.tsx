@@ -1,7 +1,7 @@
 // app/requisitions/page.tsx
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { api } from '@/lib/apiClient';
 import { formatDate } from '@/lib/format';
 import {
@@ -17,31 +17,8 @@ import {
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
 import { toast } from 'sonner';
-
-// ─── TYPES ────────────────────────────────────────────────────────────────────
-
-interface RequisitionItem {
-  description: string;
-  costPerUnit: number;
-  quantity: number;
-  reason: string;
-}
-
-interface Requisition {
-  id: string;
-  date: string;
-  requester: string;
-  section: 'Electrical' | 'Mechanical';
-  required_for: string;
-  priority: 'Critical' | 'High' | 'Medium' | 'Low';
-  status: 'Draft' | 'Pending' | 'Approved' | 'Rejected' | 'Processing' | 'Completed';
-  requisitionNumber: string;
-  items: RequisitionItem[];
-  notes?: string;
-  lineNumber: number;
-  createdAt: string;
-  updatedAt: string;
-}
+import type { RequisitionItem, Requisition } from './types';
+import { useRequisitionsData, apiCreate, apiUpdate, apiDelete } from './useRequisitionsData';
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 
@@ -66,46 +43,6 @@ function formatCurrency(v: number) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(v || 0);
 }
 const fmtDate = (d?: string) => formatDate(d);
-
-// ─── API ──────────────────────────────────────────────────────────────────────
-
-
-function fromBackend(d: Record<string, unknown>): Requisition {
-  return {
-    id: String(d.id),
-    date: String(d.date ?? ''),
-    requester: String(d.requester ?? ''),
-    section: (d.section as Requisition['section']) ?? 'Mechanical',
-    required_for: String(d.required_for ?? ''),
-    priority: (d.priority as Requisition['priority']) ?? 'Medium',
-    status: (d.status as Requisition['status']) ?? 'Draft',
-    requisitionNumber: String(d.requisition_number ?? ''),
-    notes: String(d.notes ?? ''),
-    items: ((d.requisition_items ?? []) as Record<string, unknown>[]).map(i => ({
-      description: String(i.description ?? ''),
-      costPerUnit: Number(i.cost_per_unit ?? 0),
-      quantity: Number(i.quantity ?? 1),
-      reason: String(i.reason ?? ''),
-    })),
-    lineNumber: Number(d.line_number ?? 0),
-    createdAt: String(d.created_at ?? ''),
-    updatedAt: String(d.updated_at ?? ''),
-  };
-}
-
-async function apiGet(): Promise<Requisition[]> {
-  const data = await api.get<unknown[]>('/api/requisitions');
-  return (Array.isArray(data) ? data : []).map(d => fromBackend(d as Record<string, unknown>));
-}
-async function apiCreate(body: object): Promise<Requisition> {
-  return fromBackend(await api.post<Record<string, unknown>>('/api/requisitions', body));
-}
-async function apiUpdate(id: string, body: object): Promise<Requisition> {
-  return fromBackend(await api.patch<Record<string, unknown>>(`/api/requisitions/${id}`, body));
-}
-async function apiDelete(id: string): Promise<void> {
-  await api.delete(`/api/requisitions/${id}`);
-}
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 
@@ -412,9 +349,7 @@ function RequisitionsPageContent() {
   const t = useTheme();
   const sections = useCollapseSection({ hero: true });
 
-  const [reqs, setReqs] = useState<Requisition[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const { reqs, setReqs, loading, refresh: load } = useRequisitionsData();
   const [tab, setTab] = useState<'records' | 'analytics'>('records');
 
   const [search, setSearch] = useState('');
@@ -429,15 +364,6 @@ function RequisitionsPageContent() {
   const [editing, setEditing] = useState<Requisition | null>(null);
   const [viewing, setViewing] = useState<Requisition | null>(null);
   const [delTarget, setDelTarget] = useState<Requisition | null>(null);
-
-  const load = useCallback(async (quiet = false) => {
-    if (!quiet) setLoading(true); else setRefreshing(true);
-    try { setReqs(await apiGet()); }
-    catch (e) { toast.error(`Load failed: ${(e as Error).message}`); }
-    finally { setLoading(false); setRefreshing(false); }
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
 
   const filtered = useMemo(() => reqs.filter(r => {
     if (status !== 'all' && r.status !== status) return false;
