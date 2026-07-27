@@ -4,7 +4,6 @@
 import { AppShell } from '@/components/app-shell';
 import { api } from '@/lib/apiClient';
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { toast } from 'sonner';
 import EquipmentForm from "@/components/EquipmentForm";
 import { motion } from "framer-motion";
 import {
@@ -12,7 +11,7 @@ import {
   Target, Truck, AlertTriangle,
   CheckCircle, XCircle, LayoutGrid, List,
   Server, Package, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
-  Filter, FilterX, Download, FileSpreadsheet, FileDown,
+  Filter, FilterX,
   ChevronDown, ChevronUp,
 } from "@/components/shared/theme";
 import {
@@ -21,6 +20,8 @@ import {
   GroupSection, RecordCard, staggerContainer, fadeUp, InfoRow, SummaryItem, LoadingState,
 } from '@/components/shared/theme';
 import { formatDate } from '@/lib/format';
+import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
+import { exportFilename } from '@/lib/exportUtils';
 import type { ElementType } from "react";
 
 export interface EquipmentItem {
@@ -286,7 +287,6 @@ function EquipmentPageContent() {
   const [perPage, setPerPage] = useState(ITEMS_PER_PAGE);
   const [showFilters, setShowFilters] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [showDlMenu, setShowDlMenu] = useState(false);
   // Records are grouped by category (homepage category-accordion vocabulary); this
   // tracks which category groups the user has collapsed (default: all open).
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
@@ -355,87 +355,39 @@ function EquipmentPageContent() {
 
   const clearFilters = () => { setSearchTerm(''); setStatusFilter('all'); setCategoryFilter('all'); setLocationFilter('all'); setDepartmentFilter('all'); };
 
-  const downloadEquipmentExcel = async () => {
-    setShowDlMenu(false);
-    try {
-      const ExcelJS = (await import('exceljs')).default;
-      const { saveAs } = await import('file-saver');
-      const wb = new ExcelJS.Workbook();
-      wb.creator = 'Ozech MyOffice';
-      const ws = wb.addWorksheet('Equipment Register');
-      ws.columns = [
-        { header: 'Equipment ID',    key: 'eqid',    width: 16 },
-        { header: 'Name',            key: 'name',    width: 28 },
-        { header: 'Category',        key: 'cat',     width: 18 },
-        { header: 'Status',          key: 'status',  width: 16 },
-        { header: 'Location',        key: 'loc',     width: 18 },
-        { header: 'Department',      key: 'dept',    width: 18 },
-        { header: 'Model',           key: 'model',   width: 20 },
-        { header: 'Serial Number',   key: 'serial',  width: 18 },
-        { header: 'Commission Date', key: 'comm',    width: 16 },
-        { header: 'Last Maintenance',key: 'lastmnt', width: 16 },
-        { header: 'Next Maintenance',key: 'nextmnt', width: 16 },
-        { header: 'Purchase Cost',   key: 'pcost',   width: 16 },
-        { header: 'Current Value',   key: 'cval',    width: 16 },
-        { header: 'Supplier',        key: 'supplier',width: 22 },
-      ];
-      const hdr = ws.getRow(1);
-      hdr.eachCell(cell => {
-        cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2A4D69' } };
-        cell.alignment = { horizontal: 'center', vertical: 'middle' };
-      });
-      hdr.height = 18;
-      equipment.forEach((e, i) => {
-        const fmt = (d?: string) => d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
-        const row = ws.addRow({
-          eqid: e.equipment_id, name: e.name, cat: e.category || '', status: e.status || '',
-          loc: e.location || '', dept: e.department || '', model: e.model || '',
-          serial: e.serial_number || '', comm: fmt(e.commission_date),
-          lastmnt: fmt(e.last_maintenance), nextmnt: fmt(e.next_maintenance),
-          pcost: e.purchase_cost ?? '', cval: e.current_value ?? '', supplier: e.supplier || '',
-        });
-        if (i % 2 === 1) row.eachCell(cell => { cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0F4F8' } }; });
-      });
-      ws.autoFilter = { from: 'A1', to: 'N1' };
-      ws.views = [{ state: 'frozen', ySplit: 1 }];
-      const buf = await wb.xlsx.writeBuffer();
-      saveAs(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
-        `Equipment_Register_${new Date().toISOString().slice(0, 10)}.xlsx`);
-      toast.success(`Excel exported — ${equipment.length} assets`);
-    } catch (err) { toast.error(`Export failed: ${(err as Error).message}`); }
-  };
+  const fmtExportDate = (d?: string) => d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
 
-  const downloadEquipmentPDF = async () => {
-    setShowDlMenu(false);
-    try {
-      const { default: jsPDF } = await import('jspdf');
-      const { default: autoTable } = await import('jspdf-autotable');
-      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-      doc.setFontSize(14); doc.setTextColor(42, 77, 105);
-      doc.text('Equipment Register', 14, 14);
-      doc.setFontSize(8); doc.setTextColor(100, 100, 100);
-      doc.text(`Generated ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}  ·  ${equipment.length} assets`, 14, 20);
-      const fmt = (d?: string) => d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
-      autoTable(doc, {
-        startY: 25,
-        head: [['ID', 'Name', 'Category', 'Status', 'Location', 'Department', 'Model', 'Serial No.', 'Commissioned', 'Next Maint.', 'Value']],
-        body: equipment.map(e => [
-          e.equipment_id, e.name, e.category || '', e.status || '', e.location || '',
-          e.department || '', e.model || '', e.serial_number || '',
-          fmt(e.commission_date), fmt(e.next_maintenance),
-          e.current_value != null ? `$${e.current_value.toLocaleString()}` : '',
-        ]),
-        headStyles: { fillColor: [42, 77, 105], textColor: 255, fontStyle: 'bold', fontSize: 7.5 },
-        bodyStyles: { fontSize: 7.5 },
-        alternateRowStyles: { fillColor: [240, 244, 248] },
-        styles: { cellPadding: 1.5 },
-        margin: { left: 10, right: 10 },
-      });
-      doc.save(`Equipment_Register_${new Date().toISOString().slice(0, 10)}.pdf`);
-      toast.success(`PDF exported — ${equipment.length} assets`);
-    } catch (err) { toast.error(`Export failed: ${(err as Error).message}`); }
-  };
+  // Excel gets every field; the PDF's landscape table only fits a subset
+  // (matches the original hand-rolled exports' divergent column sets).
+  const exportColumns: DLColumn[] = [
+    { key: 'equipment_id', label: 'Equipment ID', width: 16 },
+    { key: 'name', label: 'Name', width: 28 },
+    { key: 'category', label: 'Category', width: 18 },
+    { key: 'status', label: 'Status', width: 16 },
+    { key: 'location', label: 'Location', width: 18 },
+    { key: 'department', label: 'Department', width: 18 },
+    { key: 'model', label: 'Model', width: 20 },
+    { key: 'serial_number', label: 'Serial Number', width: 18 },
+    { key: 'commission_date', label: 'Commission Date', width: 16, format: v => fmtExportDate(v as string) },
+    { key: 'last_maintenance', label: 'Last Maintenance', width: 16, format: v => fmtExportDate(v as string) },
+    { key: 'next_maintenance', label: 'Next Maintenance', width: 16, format: v => fmtExportDate(v as string) },
+    { key: 'purchase_cost', label: 'Purchase Cost', width: 16 },
+    { key: 'current_value', label: 'Current Value', width: 16 },
+    { key: 'supplier', label: 'Supplier', width: 22 },
+  ];
+  const exportPdfColumns: DLColumn[] = [
+    { key: 'equipment_id', label: 'ID' },
+    { key: 'name', label: 'Name' },
+    { key: 'category', label: 'Category' },
+    { key: 'status', label: 'Status' },
+    { key: 'location', label: 'Location' },
+    { key: 'department', label: 'Department' },
+    { key: 'model', label: 'Model' },
+    { key: 'serial_number', label: 'Serial No.' },
+    { key: 'commission_date', label: 'Commissioned', format: v => fmtExportDate(v as string) },
+    { key: 'next_maintenance', label: 'Next Maint.', format: v => fmtExportDate(v as string) },
+    { key: 'current_value', label: 'Value', format: v => v != null ? `$${(v as number).toLocaleString()}` : '' },
+  ];
 
   const hasActiveFilters = statusFilter !== 'all' || categoryFilter !== 'all' || locationFilter !== 'all' || departmentFilter !== 'all' || !!searchTerm;
 
@@ -500,29 +452,15 @@ function EquipmentPageContent() {
         statsOpen={sections.expanded.hero}
         actions={
           <>
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setShowDlMenu(p => !p)}
-                disabled={equipment.length === 0}
-                className={`h-8 px-3 flex items-center gap-1.5 text-[13px] rounded-lg font-medium ${t.textMuted} ${t.hoverText} ${t.glassSoft} transition-colors disabled:opacity-40`}
-              >
-                <Download className="h-3.5 w-3.5" /> Download
-              </button>
-              {showDlMenu && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setShowDlMenu(false)} />
-                  <div className={`absolute right-0 top-full mt-1 z-50 rounded-xl ${t.shadow} overflow-hidden w-48 ${t.glass}`}>
-                    <button type="button" onClick={downloadEquipmentExcel} className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-[12.5px] ${t.textMuted} ${t.hoverBgSoft} transition-colors border-b ${t.border}`}>
-                      <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-400" /> Export Excel (.xlsx)
-                    </button>
-                    <button type="button" onClick={downloadEquipmentPDF} className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-[12.5px] ${t.textMuted} ${t.hoverBgSoft} transition-colors`}>
-                      <FileDown className="h-3.5 w-3.5 text-rose-400" /> Export PDF
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
+            {equipment.length > 0 && (
+              <DownloadButton
+                data={equipment as unknown as Record<string, unknown>[]}
+                columns={exportColumns}
+                pdfColumns={exportPdfColumns}
+                filename={exportFilename('Equipment_Register')}
+                title="Equipment Register"
+              />
+            )}
             <button
               type="button"
               onClick={() => { setEditingEq(null); setIsFormOpen(true); }}

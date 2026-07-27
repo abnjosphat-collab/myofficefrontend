@@ -12,10 +12,12 @@ import {
   Clock4, PlayCircle, CheckCheck, Shield,
   Wind, FilterX, LayoutGrid, Table as TableIcon,
   MapPin, Users, Package, PieChart as PieChartIcon, Building2, Layers,
-  Search, UserCircle, Download,
+  Search, UserCircle,
 } from '@/components/shared/theme';
 import { toast } from 'sonner';
 import { format } from "date-fns";
+import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
+import { exportFilename } from '@/lib/exportUtils';
 import {
   useTheme, PageHero, StatTile, StatusBadge, ViewToggle,
   FormField, FormActions, useCollapseSection, CenterModal, ACCENT_HEX, GlowCard, SelectField, AutofillInput,
@@ -841,34 +843,20 @@ function BreakdownsPageContent() {
     await loadBreakdowns();
   };
 
-  async function downloadExcel() {
-    try {
-      const ExcelJS = (await import('exceljs')).default;
-      const { saveAs } = await import('file-saver');
-      const wb = new ExcelJS.Workbook();
-      const ws = wb.addWorksheet('Breakdowns');
-      ws.columns = [
-        { header: 'Machine', key: 'machine_name', width: 22 }, { header: 'Machine ID', key: 'machine_id', width: 14 },
-        { header: 'Description', key: 'breakdown_description', width: 32 }, { header: 'Status', key: 'status', width: 14 },
-        { header: 'Priority', key: 'priority', width: 12 }, { header: 'Type', key: 'breakdown_type', width: 14 },
-        { header: 'Location', key: 'location', width: 18 }, { header: 'Department', key: 'department', width: 16 },
-        { header: 'Artisan', key: 'artisan_name', width: 18 }, { header: 'Date', key: 'breakdown_date', width: 14 },
-        { header: 'Downtime', key: 'downtime', width: 12 }, { header: 'Cost', key: 'cost', width: 12 },
-      ];
-      const hdr = ws.getRow(1);
-      hdr.eachCell(cell => { cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 }; cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2A4D69' } }; });
-      filteredBreakdowns.forEach(bd => ws.addRow({
-        machine_name: bd.machine_name, machine_id: bd.machine_id, breakdown_description: bd.breakdown_description,
-        status: STATUS_META[bd.status]?.name ?? bd.status, priority: PRIORITY_META[bd.priority]?.name ?? bd.priority,
-        breakdown_type: TYPE_META[bd.breakdown_type]?.name ?? bd.breakdown_type, location: bd.location, department: bd.department,
-        artisan_name: bd.artisan_name, breakdown_date: formatDate(bd.breakdown_date),
-        downtime: minutesToDisplay(calcDowntime(bd.breakdown_start, bd.breakdown_end)), cost: sparesTotalCost(bd.spares_used).toFixed(2),
-      }));
-      const buf = await wb.xlsx.writeBuffer();
-      saveAs(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `breakdowns_${new Date().toISOString().split('T')[0]}.xlsx`);
-      toast.success('Excel exported');
-    } catch (err) { toast.error(`Export failed: ${(err as Error).message}`); }
-  }
+  const exportColumns: DLColumn[] = [
+    { key: 'machine_name', label: 'Machine', width: 22 },
+    { key: 'machine_id', label: 'Machine ID', width: 14 },
+    { key: 'breakdown_description', label: 'Description', width: 32 },
+    { key: 'status', label: 'Status', width: 14, format: v => STATUS_META[v as string]?.name ?? (v as string) },
+    { key: 'priority', label: 'Priority', width: 12, format: v => PRIORITY_META[v as string]?.name ?? (v as string) },
+    { key: 'breakdown_type', label: 'Type', width: 14, format: v => TYPE_META[v as string]?.name ?? (v as string) },
+    { key: 'location', label: 'Location', width: 18 },
+    { key: 'department', label: 'Department', width: 16 },
+    { key: 'artisan_name', label: 'Artisan', width: 18 },
+    { key: 'breakdown_date', label: 'Date', width: 14, format: v => formatDate(v as string) },
+    { key: 'downtime', label: 'Downtime', width: 12, format: (_v, row) => minutesToDisplay(calcDowntime(row.breakdown_start as string, row.breakdown_end as string)) },
+    { key: 'cost', label: 'Cost', width: 12, format: (_v, row) => sparesTotalCost(row.spares_used as Breakdown['spares_used']).toFixed(2) },
+  ];
 
   return (
     <main className="max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
@@ -881,7 +869,15 @@ function BreakdownsPageContent() {
         statsOpen={sections.expanded.hero}
         actions={
           <>
-            <button type="button" onClick={downloadExcel} disabled={filteredBreakdowns.length === 0} title="Download Excel" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} disabled:opacity-40`}><Download className="h-4 w-4" /></button>
+            {filteredBreakdowns.length > 0 && (
+              <DownloadButton
+                data={filteredBreakdowns as unknown as Record<string, unknown>[]}
+                columns={exportColumns}
+                filename={exportFilename('breakdowns')}
+                title="Equipment Breakdowns"
+                formats={['excel']}
+              />
+            )}
             <button type="button" onClick={handleCreate} className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all"><Plus className="h-3.5 w-3.5" /> New Breakdown</button>
           </>
         }

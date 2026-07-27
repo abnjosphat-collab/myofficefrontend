@@ -8,7 +8,7 @@ import {
   Calendar, Plus, Search, RefreshCw, ChevronDown, ChevronUp,
   CheckCircle2, XCircle, User, FileText, Eye, Loader2,
   Clock, AlertCircle, Trash2, MoreVertical,
-  Download, List, LayoutGrid, X, Edit,
+  List, LayoutGrid, X, Edit,
   Stethoscope, Shield, Heart, Users, GraduationCap,
   CalendarDays, BarChart3, Filter, ChevronRight
 } from "@/components/shared/theme";
@@ -16,6 +16,7 @@ import {
 import { toast } from "sonner";
 import { ApprovalGate, type SignatureResult } from '@/components/shared/ApprovalGate';
 import { formatDate, formatDateTime } from '@/lib/format';
+import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import {
   useTheme, PageHero, StatusBadge, ACCENT_HEX, CenterModal, FormField,
   useCollapseSection, EmptyState, PrimaryButton, GlowCard, SelectField,
@@ -602,33 +603,22 @@ function LeaveDetailsModal({ leave, onClose, onEdit, onDelete, onStatusUpdate }:
 }
 
 // ─── Export ─────────────────────────────────────────────────────────────────
-async function downloadLeavesExcel(rows: Leave[], filename: string, title: string, subtitle: string) {
-  const [ExcelJS, { saveAs }] = await Promise.all([import('exceljs'), import('file-saver')]);
-  const wb = new ExcelJS.default.Workbook();
-  const ws = wb.addWorksheet(title.slice(0, 31));
-  ws.addRow([title]); ws.addRow([subtitle]); ws.addRow([]);
-  const cols = [
-    { key: 'employee_name', label: 'Employee' }, { key: 'employee_id', label: 'Employee ID' },
-    { key: 'department', label: 'Department' }, { key: 'position', label: 'Position' },
-    { key: 'leave_type', label: 'Leave Type' }, { key: 'start_date', label: 'Start Date' },
-    { key: 'end_date', label: 'End Date' }, { key: 'total_days', label: 'Days' },
-    { key: 'status', label: 'Status' }, { key: 'reason', label: 'Reason' },
-    { key: 'contact_number', label: 'Contact No.' }, { key: 'handover_to', label: 'Handover To' },
-    { key: 'applied_date', label: 'Applied' }, { key: 'manager_name', label: 'Manager' },
-  ];
-  const headerRow = ws.addRow(cols.map(c => c.label));
-  headerRow.eachCell(cell => { cell.font = { bold: true, color: { argb: 'FFFFFFFF' } }; cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2A4D69' } }; });
-  rows.forEach(r => ws.addRow([
-    r.employee_name, r.employee_id, r.department ?? '—', r.position ?? '—',
-    LEAVE_TYPES[r.leave_type]?.name ?? r.leave_type, r.start_date, r.end_date,
-    `${r.total_days} day${r.total_days === 1 ? '' : 's'}`,
-    r.status.charAt(0).toUpperCase() + r.status.slice(1), r.reason ?? '', r.contact_number ?? '',
-    r.handover_to ?? '', r.applied_date ? new Date(r.applied_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '', r.manager_name ?? '',
-  ]));
-  ws.columns.forEach(c => { c.width = 18; });
-  const buf = await wb.xlsx.writeBuffer();
-  saveAs(new Blob([buf]), `${filename}.xlsx`);
-}
+const leavesExportColumns: DLColumn[] = [
+  { key: 'employee_name', label: 'Employee', width: 18 },
+  { key: 'employee_id', label: 'Employee ID', width: 18 },
+  { key: 'department', label: 'Department', width: 18, format: v => (v as string) ?? '—' },
+  { key: 'position', label: 'Position', width: 18, format: v => (v as string) ?? '—' },
+  { key: 'leave_type', label: 'Leave Type', width: 18, format: v => LEAVE_TYPES[v as string]?.name ?? (v as string) },
+  { key: 'start_date', label: 'Start Date', width: 18 },
+  { key: 'end_date', label: 'End Date', width: 18 },
+  { key: 'total_days', label: 'Days', width: 18, format: v => `${v} day${v === 1 ? '' : 's'}` },
+  { key: 'status', label: 'Status', width: 18, format: v => (v as string).charAt(0).toUpperCase() + (v as string).slice(1) },
+  { key: 'reason', label: 'Reason', width: 18 },
+  { key: 'contact_number', label: 'Contact No.', width: 18 },
+  { key: 'handover_to', label: 'Handover To', width: 18 },
+  { key: 'applied_date', label: 'Applied', width: 18, format: v => v ? new Date(v as string).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '' },
+  { key: 'manager_name', label: 'Manager', width: 18 },
+];
 
 // ============= Main Component =============
 function LeaveManagementContent() {
@@ -888,10 +878,16 @@ function LeaveManagementContent() {
             <input type="text" placeholder="Search employee…" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className={`pl-7 pr-3 h-7 w-full text-xs rounded-lg outline-none transition-colors ${t.inputBg}`} />
           </div>
           <div className="flex items-center gap-1.5 shrink-0 ml-auto">
-            <button type="button" onClick={() => downloadLeavesExcel(filteredLeaves, ['Leaves', searchTerm || null, filter !== 'all' ? filter : null, typeFilter !== 'all' ? typeFilter : null].filter(Boolean).join('_'), 'Leave Records', [searchTerm && `Employee: ${searchTerm}`, filter !== 'all' && `Status: ${filter}`].filter(Boolean).join(' | ') || 'All records')}
-              disabled={filteredLeaves.length === 0} className={`h-7 px-2.5 flex items-center gap-1.5 rounded-lg text-[11px] font-medium ${t.chipBg} ${t.hoverBg} ${t.textFaint} disabled:opacity-40 transition-all`}>
-              <Download className="h-3 w-3" /> Export
-            </button>
+            {filteredLeaves.length > 0 && (
+              <DownloadButton
+                data={filteredLeaves as unknown as Record<string, unknown>[]}
+                columns={leavesExportColumns}
+                filename={['Leaves', searchTerm || null, filter !== 'all' ? filter : null, typeFilter !== 'all' ? typeFilter : null].filter(Boolean).join('_')}
+                title="Leave Records"
+                subtitle={[searchTerm && `Employee: ${searchTerm}`, filter !== 'all' && `Status: ${filter}`].filter(Boolean).join(' | ') || 'All records'}
+                formats={['excel']}
+              />
+            )}
             <SelectField size="filter" value={sortBy} onChange={setSortBy} title="Sort order" className="w-[120px]"
               options={[
                 { value: 'date-desc', label: 'Newest First' },

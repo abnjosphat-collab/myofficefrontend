@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { toast } from 'sonner';
 import { Download, FileSpreadsheet, FileDown } from '@/components/shared/theme';
 import { EXPORT_BRAND_ARGB, EXPORT_BRAND_RGB } from '@/lib/exportUtils';
 
@@ -24,6 +25,23 @@ interface DownloadButtonProps {
   /** Which formats to offer. Default both. A single format renders one direct
    *  trigger button instead of a dropdown. */
   formats?: ('excel' | 'pdf')[];
+  /** PDF-specific column set, when a page's PDF intentionally shows fewer
+   *  columns than its Excel export (e.g. a landscape table can't fit every
+   *  field). Falls back to `columns` when omitted. */
+  pdfColumns?: DLColumn[];
+  /** Key of the column whose displayed value should drive its own text color
+   *  (e.g. a status/priority chip: green=approved, red=rejected). */
+  statusColumn?: string;
+  /** Maps that column's displayed value (plus the full source row, for
+   *  colors that depend on a different field, e.g. an expiry date) to a
+   *  6-digit hex color (no '#'), or undefined for no override. Applied to
+   *  both the Excel cell font and the PDF table cell text color. */
+  statusColor?: (value: string, row: Record<string, unknown>) => string | undefined;
+}
+
+function hexToRgb(hex: string): [number, number, number] {
+  const n = parseInt(hex, 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
 
 function getVal(row: Record<string, unknown>, col: DLColumn): string {
@@ -35,8 +53,10 @@ function getVal(row: Record<string, unknown>, col: DLColumn): string {
 }
 
 export function DownloadButton({
-  data, columns, filename, title, subtitle, className = '', formats = ['excel', 'pdf'],
+  data, columns, filename, title, subtitle, className = '', formats = ['excel', 'pdf'], pdfColumns,
+  statusColumn, statusColor,
 }: DownloadButtonProps) {
+  const pdfCols = pdfColumns ?? columns;
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -50,137 +70,163 @@ export function DownloadButton({
 
   const downloadExcel = async () => {
     setOpen(false);
-    const ExcelJS = (await import('exceljs')).default;
-    const { saveAs } = await import('file-saver');
+    try {
+      const ExcelJS = (await import('exceljs')).default;
+      const { saveAs } = await import('file-saver');
 
-    const wb = new ExcelJS.Workbook();
-    wb.creator = 'Ozech MyOffice';
-    wb.created = new Date();
-    const ws = wb.addWorksheet(title ?? filename);
+      const wb = new ExcelJS.Workbook();
+      wb.creator = 'Ozech MyOffice';
+      wb.created = new Date();
+      const ws = wb.addWorksheet(title ?? filename);
 
-    // ── Optional title + subtitle rows ────────────────────────────────────
-    let headerRowNum = 1;
+      // ── Optional title + subtitle rows ──────────────────────────────────
+      let headerRowNum = 1;
 
-    if (title) {
-      const titleRow = ws.addRow([title]);
-      titleRow.height = 26;
-      const tc = titleRow.getCell(1);
-      tc.font = { bold: true, size: 14, color: { argb: EXPORT_BRAND_ARGB }, name: 'Calibri' };
-      ws.mergeCells(1, 1, 1, columns.length);
-      headerRowNum++;
-    }
-    if (subtitle) {
-      const subRow = ws.addRow([subtitle]);
-      subRow.height = 16;
-      subRow.getCell(1).font = { size: 9, color: { argb: 'FF6B7B8E' }, italic: true, name: 'Calibri' };
-      ws.mergeCells(headerRowNum, 1, headerRowNum, columns.length);
-      headerRowNum++;
-    }
-    if (title || subtitle) {
-      ws.addRow([]);   // blank spacer
-      headerRowNum++;
-    }
+      if (title) {
+        const titleRow = ws.addRow([title]);
+        titleRow.height = 26;
+        const tc = titleRow.getCell(1);
+        tc.font = { bold: true, size: 14, color: { argb: EXPORT_BRAND_ARGB }, name: 'Calibri' };
+        ws.mergeCells(1, 1, 1, columns.length);
+        headerRowNum++;
+      }
+      if (subtitle) {
+        const subRow = ws.addRow([subtitle]);
+        subRow.height = 16;
+        subRow.getCell(1).font = { size: 9, color: { argb: 'FF6B7B8E' }, italic: true, name: 'Calibri' };
+        ws.mergeCells(headerRowNum, 1, headerRowNum, columns.length);
+        headerRowNum++;
+      }
+      if (title || subtitle) {
+        ws.addRow([]);   // blank spacer
+        headerRowNum++;
+      }
 
-    // ── Column definitions ─────────────────────────────────────────────────
-    ws.columns = columns.map(c => ({
-      header: c.label,
-      key:    c.key,
-      width:  c.width ?? Math.max(c.label.length + 6, 18),
-    }));
+      // ── Column definitions ───────────────────────────────────────────────
+      ws.columns = columns.map(c => ({
+        header: c.label,
+        key:    c.key,
+        width:  c.width ?? Math.max(c.label.length + 6, 18),
+      }));
 
-    // ── Header row styling ─────────────────────────────────────────────────
-    const hdr = ws.getRow(headerRowNum);
-    hdr.height = 24;
-    hdr.eachCell(cell => {
-      cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: EXPORT_BRAND_ARGB } };
-      cell.font      = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11, name: 'Calibri' };
-      cell.alignment = { horizontal: 'center', vertical: 'middle' };
-      cell.border    = {
-        top:    { style: 'thin',   color: { argb: 'FF1A3650' } },
-        bottom: { style: 'medium', color: { argb: 'FF86BBD8' } },
-      };
-    });
-
-    ws.views = [{ state: 'frozen', ySplit: headerRowNum }];
-
-    // ── Data rows — readable light-mode two-tone ───────────────────────────
-    data.forEach((row, i) => {
-      const values: Record<string, string> = {};
-      columns.forEach(c => { values[c.key] = getVal(row, c); });
-      const exRow = ws.addRow(values);
-      exRow.height = 18;
-      const bg = i % 2 === 0 ? 'FFFFFFFF' : 'FFEFF6FA';  // white / very-light-blue
-      exRow.eachCell(cell => {
-        cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: bg } };
-        cell.font      = { color: { argb: 'FF1A2F44' }, size: 10, name: 'Calibri' };  // dark navy — readable on any bg
-        cell.alignment = { vertical: 'middle' };
-        cell.border    = { bottom: { style: 'hair', color: { argb: 'FFCDDDE8' } } };
+      // ── Header row styling ───────────────────────────────────────────────
+      const hdr = ws.getRow(headerRowNum);
+      hdr.height = 24;
+      hdr.eachCell(cell => {
+        cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: EXPORT_BRAND_ARGB } };
+        cell.font      = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11, name: 'Calibri' };
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        cell.border    = {
+          top:    { style: 'thin',   color: { argb: 'FF1A3650' } },
+          bottom: { style: 'medium', color: { argb: 'FF86BBD8' } },
+        };
       });
-    });
 
-    // ── Footer metadata ────────────────────────────────────────────────────
-    ws.addRow([]);
-    const footer = ws.addRow([
-      `Generated ${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })} · ${data.length} record${data.length !== 1 ? 's' : ''} · Ozech MyOffice`,
-    ]);
-    footer.getCell(1).font = { size: 8, color: { argb: 'FF9BAAB8' }, italic: true, name: 'Calibri' };
-    ws.mergeCells(footer.number, 1, footer.number, columns.length);
+      ws.views = [{ state: 'frozen', ySplit: headerRowNum }];
 
-    ws.autoFilter = {
-      from: { row: headerRowNum, column: 1 },
-      to:   { row: headerRowNum, column: columns.length },
-    };
+      // ── Data rows — readable light-mode two-tone ─────────────────────────
+      // Numbers/booleans are written as-is (not stringified) so Excel keeps
+      // them sortable/filterable and numeric-formattable, unless a column's
+      // `format` explicitly overrides the value (that string wins then).
+      data.forEach((row, i) => {
+        const values: Record<string, unknown> = {};
+        columns.forEach(c => {
+          const raw = row[c.key];
+          values[c.key] = c.format ? c.format(raw, row) : (Array.isArray(raw) ? raw.join(', ') : raw ?? '');
+        });
+        const exRow = ws.addRow(values);
+        exRow.height = 18;
+        const bg = i % 2 === 0 ? 'FFFFFFFF' : 'FFEFF6FA';  // white / very-light-blue
+        exRow.eachCell(cell => {
+          cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: bg } };
+          cell.font      = { color: { argb: 'FF1A2F44' }, size: 10, name: 'Calibri' };  // dark navy — readable on any bg
+          cell.alignment = { vertical: 'middle' };
+          cell.border    = { bottom: { style: 'hair', color: { argb: 'FFCDDDE8' } } };
+        });
+        if (statusColumn && statusColor) {
+          const color = statusColor(String(values[statusColumn] ?? ''), row);
+          if (color) exRow.getCell(statusColumn).font = { color: { argb: `FF${color}` }, bold: true };
+        }
+      });
 
-    const buf = await wb.xlsx.writeBuffer();
-    saveAs(
-      new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
-      `${filename}.xlsx`,
-    );
+      // ── Footer metadata ──────────────────────────────────────────────────
+      ws.addRow([]);
+      const footer = ws.addRow([
+        `Generated ${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })} · ${data.length} record${data.length !== 1 ? 's' : ''} · Ozech MyOffice`,
+      ]);
+      footer.getCell(1).font = { size: 8, color: { argb: 'FF9BAAB8' }, italic: true, name: 'Calibri' };
+      ws.mergeCells(footer.number, 1, footer.number, columns.length);
+
+      ws.autoFilter = {
+        from: { row: headerRowNum, column: 1 },
+        to:   { row: headerRowNum, column: columns.length },
+      };
+
+      const buf = await wb.xlsx.writeBuffer();
+      saveAs(
+        new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
+        `${filename}.xlsx`,
+      );
+      toast.success(`Excel exported — ${data.length} record${data.length !== 1 ? 's' : ''}`);
+    } catch (err) {
+      toast.error(`Export failed: ${(err as Error).message}`);
+    }
   };
 
   const downloadPDF = async () => {
     setOpen(false);
-    const { default: jsPDF } = await import('jspdf');
-    const { default: autoTable } = await import('jspdf-autotable');
+    try {
+      const { default: jsPDF } = await import('jspdf');
+      const { default: autoTable } = await import('jspdf-autotable');
 
-    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-    let y = 12;
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+      let y = 12;
 
-    if (title) {
-      doc.setFontSize(14);
-      doc.setTextColor(...EXPORT_BRAND_RGB);
-      doc.setFont('helvetica', 'bold');
-      doc.text(title, 14, y);
-      y += 7;
+      if (title) {
+        doc.setFontSize(14);
+        doc.setTextColor(...EXPORT_BRAND_RGB);
+        doc.setFont('helvetica', 'bold');
+        doc.text(title, 14, y);
+        y += 7;
+      }
+      if (subtitle) {
+        doc.setFontSize(8);
+        doc.setTextColor(120, 130, 140);
+        doc.setFont('helvetica', 'normal');
+        doc.text(subtitle, 14, y);
+        y += 6;
+      }
+      doc.setFontSize(7);
+      doc.setTextColor(160, 170, 180);
+      doc.text(`Generated ${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} · ${data.length} records`, 14, y);
+      y += 4;
+
+      const statusColIdx = statusColumn ? pdfCols.findIndex(c => c.key === statusColumn) : -1;
+      autoTable(doc, {
+        startY: y,
+        head: [pdfCols.map(c => c.label)],
+        body: data.map(row => pdfCols.map(c => getVal(row, c))),
+        styles: { fontSize: 8, cellPadding: { top: 2, bottom: 2, left: 3, right: 3 } },
+        headStyles: {
+          fillColor: EXPORT_BRAND_RGB, textColor: 255,
+          fontStyle: 'bold', fontSize: 8,
+        },
+        alternateRowStyles: { fillColor: [245, 248, 252] },
+        didParseCell: statusColIdx < 0 ? undefined : (cellData) => {
+          if (cellData.section !== 'body' || cellData.column.index !== statusColIdx) return;
+          const color = statusColor!(String(cellData.cell.raw ?? ''), data[cellData.row.index]);
+          if (color) cellData.cell.styles.textColor = hexToRgb(color);
+        },
+        margin: { left: 14, right: 14 },
+        tableLineColor: [200, 210, 220],
+        tableLineWidth: 0.1,
+      });
+
+      doc.save(`${filename}.pdf`);
+      toast.success(`PDF exported — ${data.length} record${data.length !== 1 ? 's' : ''}`);
+    } catch (err) {
+      toast.error(`Export failed: ${(err as Error).message}`);
     }
-    if (subtitle) {
-      doc.setFontSize(8);
-      doc.setTextColor(120, 130, 140);
-      doc.setFont('helvetica', 'normal');
-      doc.text(subtitle, 14, y);
-      y += 6;
-    }
-    doc.setFontSize(7);
-    doc.setTextColor(160, 170, 180);
-    doc.text(`Generated ${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} · ${data.length} records`, 14, y);
-    y += 4;
-
-    autoTable(doc, {
-      startY: y,
-      head: [columns.map(c => c.label)],
-      body: data.map(row => columns.map(c => getVal(row, c))),
-      styles: { fontSize: 8, cellPadding: { top: 2, bottom: 2, left: 3, right: 3 } },
-      headStyles: {
-        fillColor: EXPORT_BRAND_RGB, textColor: 255,
-        fontStyle: 'bold', fontSize: 8,
-      },
-      alternateRowStyles: { fillColor: [245, 248, 252] },
-      margin: { left: 14, right: 14 },
-      tableLineColor: [200, 210, 220],
-      tableLineWidth: 0.1,
-    });
-
-    doc.save(`${filename}.pdf`);
   };
 
   // A single offered format needs no dropdown — one direct-trigger button.

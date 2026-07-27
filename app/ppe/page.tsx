@@ -10,12 +10,14 @@ import {
   Users, UserRound, Package,
   Award, Layers, ChevronRight,
   Shirt, Wind, CloudRain, Link2, ChevronsUp, ChevronsDown, X,
-  Flashlight, Download, FileSpreadsheet, FileDown, Sun, Moon,
+  Flashlight, Sun, Moon,
 } from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
 import { formatDate } from '@/lib/format';
 import { addMonths, todayLocal } from '@/lib/dates';
 import { toast } from 'sonner';
+import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
+import { exportFilename } from '@/lib/exportUtils';
 import {
   useTheme, Collapse, AnimatedText, PulsingIcon, CenterModal, GlowCard,
   staggerContainer, fadeUp, ACCENT, ACCENT_HEX, type Accent,
@@ -973,123 +975,49 @@ export default function PPEManagement() {
 
   const compColor = complianceRate == null ? ACCENT_HEX.blue : complianceRate >= 80 ? '#10b981' : complianceRate >= 60 ? ACCENT_HEX.blue : '#f43f5e';
 
-  const [showDlMenu, setShowDlMenu] = useState(false);
+  const fmtExportDate = (d?: string) => d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
 
-  const downloadExcel = async () => {
-    setShowDlMenu(false);
-    try {
-      const ExcelJS = (await import('exceljs')).default;
-      const { saveAs } = await import('file-saver');
-      const wb = new ExcelJS.Workbook();
-      wb.creator = 'Ozech MyOffice';
-      const ws = wb.addWorksheet('PPE Register');
-      ws.columns = [
-        { header: 'Employee Name', key: 'name',    width: 26 },
-        { header: 'Employee ID',   key: 'id',      width: 14 },
-        { header: 'Position',      key: 'pos',     width: 22 },
-        { header: 'PPE Type',      key: 'type',    width: 22 },
-        { header: 'Item / Brand',  key: 'item',    width: 30 },
-        { header: 'Size',          key: 'size',    width: 10 },
-        { header: 'Issue Date',    key: 'issued',  width: 14 },
-        { header: 'Expiry Date',   key: 'expiry',  width: 14 },
-        { header: 'Condition',     key: 'cond',    width: 13 },
-        { header: 'Status',        key: 'status',  width: 13 },
-        { header: 'Issued By',     key: 'issuedby',width: 22 },
-        { header: 'Location',      key: 'loc',     width: 16 },
-        { header: 'Mine Section',  key: 'section', width: 16 },
-      ];
-      const hdr = ws.getRow(1);
-      hdr.eachCell(cell => {
-        cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2A4D69' } };
-        cell.alignment = { horizontal: 'center', vertical: 'middle' };
-        cell.border = { bottom: { style: 'thin', color: { argb: 'FF86BBD8' } } };
-      });
-      hdr.height = 18;
-      records.forEach((r, i) => {
-        const row = ws.addRow({
-          name:     r.employee_name,
-          id:       r.employee_id,
-          pos:      r.position || '',
-          type:     PPE_TYPES[r.ppe_type]?.name || r.ppe_type,
-          item:     r.item_name,
-          size:     r.size || '',
-          issued:   r.issue_date  ? new Date(r.issue_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })  : '',
-          expiry:   r.expiry_date ? new Date(r.expiry_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '',
-          cond:     CONDITION_LABELS[r.condition]  || r.condition,
-          status:   STATUS_LABELS[r.status]        || r.status,
-          issuedby: r.issued_by    || '',
-          loc:      r.location     || '',
-          section:  r.mine_section || '',
-        });
-        if (i % 2 === 1) {
-          row.eachCell(cell => {
-            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0F4F8' } };
-          });
-        }
-        // Colour expiry cell red if overdue, amber if soon
-        const expCell = row.getCell('expiry');
-        if (r.expiry_date) {
-          if (isExpired(r.expiry_date))         expCell.font = { color: { argb: 'FFF43F5E' }, bold: true };
-          else if (isExpiringSoon(r.expiry_date)) expCell.font = { color: { argb: 'FFF59E0B' }, bold: true };
-        }
-      });
-      ws.autoFilter = { from: 'A1', to: 'M1' };
-      ws.views = [{ state: 'frozen', ySplit: 1 }];
-      const buf = await wb.xlsx.writeBuffer();
-      saveAs(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
-        `PPE_Register_${new Date().toISOString().slice(0, 10)}.xlsx`);
-      toast.success(`Excel exported — ${records.length} records`);
-    } catch (err: any) { toast.error(`Export failed: ${err.message}`); }
+  // Expiry cell color depends on the raw expiry_date, not the formatted
+  // display string, so it's computed from the row, not the column value.
+  const ppeExpiryColor = (_v: string, row: Record<string, unknown>) => {
+    const expiry = row.expiry_date as string | null | undefined;
+    if (!expiry) return undefined;
+    if (isExpired(expiry)) return 'F43F5E';
+    if (isExpiringSoon(expiry)) return 'F59E0B';
+    return undefined;
   };
 
-  const downloadPDF = async () => {
-    setShowDlMenu(false);
-    try {
-      const { default: jsPDF } = await import('jspdf');
-      const { default: autoTable } = await import('jspdf-autotable');
-      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-      doc.setFontSize(14);
-      doc.setTextColor(42, 77, 105);
-      doc.text('PPE Register', 14, 14);
-      doc.setFontSize(8);
-      doc.setTextColor(100, 100, 100);
-      doc.text(`Generated ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}  ·  ${records.length} records  ·  ${employeesWithPPE.length} employees`, 14, 20);
-      autoTable(doc, {
-        startY: 25,
-        head: [['Employee', 'ID', 'Position', 'PPE Type', 'Item / Brand', 'Size', 'Issued', 'Expires', 'Condition', 'Status', 'Issued By']],
-        body: records.map(r => [
-          r.employee_name,
-          r.employee_id,
-          r.position || '',
-          PPE_TYPES[r.ppe_type]?.shortName || r.ppe_type,
-          r.item_name,
-          r.size || '',
-          r.issue_date  ? new Date(r.issue_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })  : '',
-          r.expiry_date ? new Date(r.expiry_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '',
-          CONDITION_LABELS[r.condition] || r.condition,
-          STATUS_LABELS[r.status]       || r.status,
-          r.issued_by || '',
-        ]),
-        headStyles: { fillColor: [42, 77, 105], textColor: 255, fontStyle: 'bold', fontSize: 7.5 },
-        bodyStyles: { fontSize: 7.5 },
-        alternateRowStyles: { fillColor: [240, 244, 248] },
-        didParseCell: (data) => {
-          if (data.section === 'body' && data.column.index === 7) {
-            const val = data.cell.raw as string;
-            if (val) {
-                if (isExpired(records[data.row.index]?.expiry_date))         data.cell.styles.textColor = [244, 63, 94];
-              else if (isExpiringSoon(records[data.row.index]?.expiry_date)) data.cell.styles.textColor = [245, 158, 11];
-            }
-          }
-        },
-        styles: { cellPadding: 1.5, overflow: 'linebreak' },
-        margin: { left: 10, right: 10 },
-      });
-      doc.save(`PPE_Register_${new Date().toISOString().slice(0, 10)}.pdf`);
-      toast.success(`PDF exported — ${records.length} records`);
-    } catch (err: any) { toast.error(`Export failed: ${err.message}`); }
-  };
+  // Excel gets every field; the PDF's landscape table omits Location and
+  // Mine Section (matches the original hand-rolled exports' divergent
+  // column sets). PPE Type also uses a shorter label in the PDF.
+  const exportColumns: DLColumn[] = [
+    { key: 'employee_name', label: 'Employee Name', width: 26 },
+    { key: 'employee_id', label: 'Employee ID', width: 14 },
+    { key: 'position', label: 'Position', width: 22 },
+    { key: 'ppe_type', label: 'PPE Type', width: 22, format: v => PPE_TYPES[v as string]?.name || (v as string) },
+    { key: 'item_name', label: 'Item / Brand', width: 30 },
+    { key: 'size', label: 'Size', width: 10 },
+    { key: 'issue_date', label: 'Issue Date', width: 14, format: v => fmtExportDate(v as string) },
+    { key: 'expiry_date', label: 'Expiry Date', width: 14, format: v => fmtExportDate(v as string) },
+    { key: 'condition', label: 'Condition', width: 13, format: v => CONDITION_LABELS[v as string] || (v as string) },
+    { key: 'status', label: 'Status', width: 13, format: v => STATUS_LABELS[v as string] || (v as string) },
+    { key: 'issued_by', label: 'Issued By', width: 22 },
+    { key: 'location', label: 'Location', width: 16 },
+    { key: 'mine_section', label: 'Mine Section', width: 16 },
+  ];
+  const exportPdfColumns: DLColumn[] = [
+    { key: 'employee_name', label: 'Employee' },
+    { key: 'employee_id', label: 'ID' },
+    { key: 'position', label: 'Position' },
+    { key: 'ppe_type', label: 'PPE Type', format: v => PPE_TYPES[v as string]?.shortName || (v as string) },
+    { key: 'item_name', label: 'Item / Brand' },
+    { key: 'size', label: 'Size' },
+    { key: 'issue_date', label: 'Issued', format: v => fmtExportDate(v as string) },
+    { key: 'expiry_date', label: 'Expires', format: v => fmtExportDate(v as string) },
+    { key: 'condition', label: 'Condition', format: v => CONDITION_LABELS[v as string] || (v as string) },
+    { key: 'status', label: 'Status', format: v => STATUS_LABELS[v as string] || (v as string) },
+    { key: 'issued_by', label: 'Issued By' },
+  ];
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -1147,30 +1075,18 @@ export default function PPEManagement() {
                 <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
               </button>
 
-              {/* Download dropdown */}
-              <div className="relative">
-                <button type="button" onClick={() => setShowDlMenu(p => !p)} disabled={records.length === 0}
-                  className={`h-8 px-3 flex items-center gap-1.5 text-xs rounded-xl font-semibold ${t.textMuted} ${t.hoverText} transition-all hover:-translate-y-0.5 ${t.glassSoft} ${t.hoverBg} disabled:opacity-40 disabled:translate-y-0`}>
-                  <Download className="h-3.5 w-3.5" /> Download
-                </button>
-                {showDlMenu && (
-                  <>
-                    <div className="fixed inset-0 z-40" onClick={() => setShowDlMenu(false)} />
-                    <div className={`absolute right-0 top-full mt-1 z-50 rounded-xl shadow-2xl overflow-hidden w-44 ${t.glass}`}>
-                      <button type="button" onClick={downloadExcel}
-                        className={`w-full flex items-center gap-2.5 px-4 py-3 text-xs ${t.textMuted} ${t.hoverBg} transition-all border-b ${t.border}`}>
-                        <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-500" />
-                        <span>Export Excel (.xlsx)</span>
-                      </button>
-                      <button type="button" onClick={downloadPDF}
-                        className={`w-full flex items-center gap-2.5 px-4 py-3 text-xs ${t.textMuted} ${t.hoverBg} transition-all`}>
-                        <FileDown className="h-3.5 w-3.5 text-rose-500" />
-                        <span>Export PDF</span>
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
+              {records.length > 0 && (
+                <DownloadButton
+                  data={records as unknown as Record<string, unknown>[]}
+                  columns={exportColumns}
+                  pdfColumns={exportPdfColumns}
+                  filename={exportFilename('PPE_Register')}
+                  title="PPE Register"
+                  subtitle={`${employeesWithPPE.length} employees`}
+                  statusColumn="expiry_date"
+                  statusColor={ppeExpiryColor}
+                />
+              )}
 
               <motion.button type="button" onClick={() => openIssueForm()} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
                 className={`h-8 px-3 flex items-center gap-1.5 text-xs rounded-lg font-semibold text-white transition-all bg-gradient-to-br ${ACCENT.blue.gradient} ${ACCENT.blue.solidGlow} ${ACCENT.blue.glow}`}>

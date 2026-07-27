@@ -6,7 +6,7 @@ import { api } from '@/lib/apiClient';
 import { AppShell } from '@/components/app-shell';
 import {
   Clock4, Plus, Search, RefreshCw, CheckCircle2, XCircle,
-  FileText, Eye, Trash2, Edit, Download, LayoutGrid, List, AlertCircle,
+  FileText, Eye, Trash2, Edit, LayoutGrid, List, AlertCircle,
   Sun, Moon, Briefcase, Calendar, X, User,
 } from '@/components/shared/theme';
 import {
@@ -16,6 +16,8 @@ import {
 import { ApprovalGate, type SignatureResult } from '@/components/shared/ApprovalGate';
 import { useEmployees, type EmployeeLookup } from '@/hooks/useLookups';
 import { formatDate } from '@/lib/format';
+import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
+import { exportFilename } from '@/lib/exportUtils';
 import { toast } from 'sonner';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
@@ -370,22 +372,17 @@ function OTDetailModal({ record, onClose, onEdit, onApprove, onReject }: {
 
 // ─── EXPORT ───────────────────────────────────────────────────────────────────
 
-async function downloadExcel(rows: OTRecord[]) {
-  const [ExcelJS, { saveAs }] = await Promise.all([import('exceljs'), import('file-saver')]);
-  const wb = new ExcelJS.default.Workbook();
-  const ws = wb.addWorksheet('Overtime Records');
-  const cols = [
-    { key: 'employee_name', label: 'Employee' }, { key: 'employee_id', label: 'ID' }, { key: 'position', label: 'Position' },
-    { key: 'overtime_type', label: 'Type' }, { key: 'date', label: 'Date' }, { key: 'start_time', label: 'Start' },
-    { key: 'end_time', label: 'End' }, { key: 'reason', label: 'Reason' }, { key: 'status', label: 'Status' },
-  ];
-  const headerRow = ws.addRow(cols.map(c => c.label));
-  headerRow.eachCell(cell => { cell.font = { bold: true, color: { argb: 'FFFFFFFF' } }; cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2A4D69' } }; });
-  rows.forEach(r => ws.addRow([r.employee_name, r.employee_id, r.position, TYPE_LABELS[r.overtime_type], fmtDate(r.date), r.start_time, r.end_time, r.reason, r.status]));
-  ws.columns.forEach(c => { c.width = 20; });
-  const buf = await wb.xlsx.writeBuffer();
-  saveAs(new Blob([buf]), 'overtime_records.xlsx');
-}
+const overtimeExportColumns: DLColumn[] = [
+  { key: 'employee_name', label: 'Employee', width: 20 },
+  { key: 'employee_id', label: 'ID', width: 20 },
+  { key: 'position', label: 'Position', width: 20 },
+  { key: 'overtime_type', label: 'Type', width: 20, format: v => TYPE_LABELS[v as OTType] },
+  { key: 'date', label: 'Date', width: 20, format: v => fmtDate(v as string) },
+  { key: 'start_time', label: 'Start', width: 20 },
+  { key: 'end_time', label: 'End', width: 20 },
+  { key: 'reason', label: 'Reason', width: 20 },
+  { key: 'status', label: 'Status', width: 20 },
+];
 
 // ─── MAIN PAGE ────────────────────────────────────────────────────────────────
 
@@ -532,9 +529,15 @@ function OvertimeContent() {
             <button type="button" onClick={() => load(true)} title="Refresh" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}>
               <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
             </button>
-            <button type="button" onClick={() => downloadExcel(records)} disabled={records.length === 0} className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-medium ${t.chipBg} ${t.textMuted} ${t.hoverBg} disabled:opacity-40`}>
-              <Download className="h-3.5 w-3.5" /> Export
-            </button>
+            {records.length > 0 && (
+              <DownloadButton
+                data={records as unknown as Record<string, unknown>[]}
+                columns={overtimeExportColumns}
+                filename={exportFilename('overtime_records')}
+                title="Overtime Records"
+                formats={['excel']}
+              />
+            )}
             <PrimaryButton icon={Plus} onClick={() => { setEditing(null); setFormOpen(true); }}>New Request</PrimaryButton>
           </>
         }

@@ -10,13 +10,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Activity, AlertTriangle, BarChart3, Calendar, Check, Clock,
-  FileText, Gauge, LineChart, Pencil, Percent, Plus, Search, Trash2, Download, RefreshCw, X,
+  FileText, Gauge, LineChart, Pencil, Percent, Plus, Search, Trash2, RefreshCw, X,
 } from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
 import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, ProgressBar, FormField, FormActions,
   useCollapseSection, CenterModal, ACCENT_HEX, EmptyState, PrimaryButton, SelectField,
 } from '@/components/shared/theme';
+import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
@@ -100,25 +101,6 @@ function getMonthLabel(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
 }
 
-async function downloadExcel(rows: Record<string, unknown>[], columns: { key: string; label: string; format?: (v: unknown, row: Record<string, unknown>) => string }[], filename: string, title: string, subtitle: string) {
-  const [ExcelJS, { saveAs }] = await Promise.all([import('exceljs'), import('file-saver')]);
-  const wb = new ExcelJS.default.Workbook();
-  const ws = wb.addWorksheet(title.slice(0, 31));
-  ws.addRow([title]);
-  ws.addRow([subtitle]);
-  ws.addRow([]);
-  const headerRow = ws.addRow(columns.map(c => c.label));
-  headerRow.eachCell(cell => {
-    cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2A4D69' } };
-  });
-  rows.forEach(row => {
-    ws.addRow(columns.map(c => c.format ? c.format(row[c.key], row) : String(row[c.key] ?? '')));
-  });
-  ws.columns.forEach(col => { col.width = 20; });
-  const buf = await wb.xlsx.writeBuffer();
-  saveAs(new Blob([buf]), `${filename}.xlsx`);
-}
 
 const EMPTY_FORM: FormData = {
   equipment_id: '',
@@ -342,30 +324,22 @@ function AvailabilitiesContent() {
     { key: 'records', label: 'Records', icon: FileText },
   ];
 
-  const exportRecords = () => downloadExcel(
-    filtered as unknown as Record<string, unknown>[],
-    [
-      { key: 'date', label: 'Date' },
-      { key: 'equipment_name', label: 'Equipment', format: (v, row) => String(v ?? row.equipment_id) },
-      { key: 'availability_percentage', label: 'Availability %', format: v => `${Number(v).toFixed(1)}%` },
-      { key: 'operational_hours', label: 'Op Hours', format: v => `${v}h` },
-      { key: 'breakdown_hours', label: 'Downtime Hours', format: v => `${v}h` },
-      { key: 'notes', label: 'Notes', format: v => String(v ?? '') },
-    ],
-    `Availability_Records_${dateFrom}_to_${dateTo}`, 'Equipment Availability Records', `Period: ${dateFrom} to ${dateTo}`
-  );
+  const recordsExportColumns: DLColumn[] = [
+    { key: 'date', label: 'Date' },
+    { key: 'equipment_name', label: 'Equipment', format: (v, row) => String(v ?? row.equipment_id) },
+    { key: 'availability_percentage', label: 'Availability %', format: v => `${Number(v).toFixed(1)}%` },
+    { key: 'operational_hours', label: 'Op Hours', format: v => `${v}h` },
+    { key: 'breakdown_hours', label: 'Downtime Hours', format: v => `${v}h` },
+    { key: 'notes', label: 'Notes', format: v => String(v ?? '') },
+  ];
 
-  const exportPeriod = () => downloadExcel(
-    periodRows as unknown as Record<string, unknown>[],
-    [
-      { key: 'label', label: period === 'day' ? 'Date' : period === 'week' ? 'Week' : 'Month' },
-      { key: 'avgAvailability', label: 'Avg Availability %', format: v => `${Number(v).toFixed(1)}%` },
-      { key: 'totalOpHours', label: 'Total Op Hours', format: v => `${Number(v).toFixed(1)}h` },
-      { key: 'totalBdHours', label: 'Total Downtime', format: v => `${Number(v).toFixed(1)}h` },
-      { key: 'recordCount', label: 'Record Count' },
-    ],
-    `Availability_by_${period}_${dateFrom}_to_${dateTo}`, `Availability by ${period.charAt(0).toUpperCase() + period.slice(1)}`, `${dateFrom} → ${dateTo}`
-  );
+  const periodExportColumns: DLColumn[] = [
+    { key: 'label', label: period === 'day' ? 'Date' : period === 'week' ? 'Week' : 'Month' },
+    { key: 'avgAvailability', label: 'Avg Availability %', format: v => `${Number(v).toFixed(1)}%` },
+    { key: 'totalOpHours', label: 'Total Op Hours', format: v => `${Number(v).toFixed(1)}h` },
+    { key: 'totalBdHours', label: 'Total Downtime', format: v => `${Number(v).toFixed(1)}h` },
+    { key: 'recordCount', label: 'Record Count' },
+  ];
 
   return (
     <main className="max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
@@ -381,9 +355,16 @@ function AvailabilitiesContent() {
             <button type="button" onClick={() => fetchAll(true)} title="Refresh" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}>
               <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
             </button>
-            <button type="button" onClick={exportRecords} disabled={filtered.length === 0} className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-medium ${t.chipBg} ${t.textMuted} ${t.hoverBg} disabled:opacity-40`}>
-              <Download className="h-3.5 w-3.5" /> Export
-            </button>
+            {filtered.length > 0 && (
+              <DownloadButton
+                data={filtered as unknown as Record<string, unknown>[]}
+                columns={recordsExportColumns}
+                filename={`Availability_Records_${dateFrom}_to_${dateTo}`}
+                title="Equipment Availability Records"
+                subtitle={`Period: ${dateFrom} to ${dateTo}`}
+                formats={['excel']}
+              />
+            )}
             <Link href="/breakdowns" className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-medium ${t.chipBg} ${t.textMuted} ${t.hoverBg}`}>
               <AlertTriangle className="h-3.5 w-3.5" /> Breakdowns
             </Link>
@@ -443,9 +424,16 @@ function AvailabilitiesContent() {
           <FormField label="From"><input type="date" title="From date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className={`w-full ${selCls}`} /></FormField>
           <FormField label="To"><input type="date" title="To date" value={dateTo} onChange={e => setDateTo(e.target.value)} className={`w-full ${selCls}`} /></FormField>
           <div className="flex items-end gap-2 sm:col-span-2">
-            <button type="button" onClick={exportPeriod} disabled={periodRows.length === 0} className={`flex items-center gap-1.5 h-9 px-3 rounded-lg text-[13px] font-medium ${t.chipBg} ${t.textMuted} ${t.hoverBg} disabled:opacity-40`}>
-              <Download className="h-3.5 w-3.5" /> Export Period
-            </button>
+            {periodRows.length > 0 && (
+              <DownloadButton
+                data={periodRows as unknown as Record<string, unknown>[]}
+                columns={periodExportColumns}
+                filename={`Availability_by_${period}_${dateFrom}_to_${dateTo}`}
+                title={`Availability by ${period.charAt(0).toUpperCase() + period.slice(1)}`}
+                subtitle={`${dateFrom} → ${dateTo}`}
+                formats={['excel']}
+              />
+            )}
             <span className={`text-xs pb-0.5 ${t.textFaint}`}>{filtered.length} records in filter</span>
           </div>
         </div>

@@ -16,6 +16,8 @@ import {
 } from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
 import { formatDate } from '@/lib/format';
+import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
+import { exportFilename } from '@/lib/exportUtils';
 import {
   useTheme, PageHero, StatTile, StatusBadge, ViewToggle,
   FormField, useCollapseSection, CenterModal, ProgressBar, ACCENT_HEX, GlowCard, SelectField,
@@ -521,26 +523,15 @@ function CompressorReadingsSystem() {
     );
   }
 
-  async function downloadExcel() {
-    try {
-      const ExcelJS = (await import('exceljs')).default;
-      const { saveAs } = await import('file-saver');
-      const wb = new ExcelJS.Workbook();
-      const ws = wb.addWorksheet('Compressors');
-      ws.columns = [
-        { header: 'Name', key: 'name', width: 20 }, { header: 'Model', key: 'model', width: 20 },
-        { header: 'Capacity', key: 'capacity', width: 14 }, { header: 'Location', key: 'location', width: 16 },
-        { header: 'Status', key: 'status', width: 14 }, { header: 'Running Hours', key: 'running', width: 16 },
-        { header: 'Loaded Hours', key: 'loaded', width: 16 },
-      ];
-      const hdr = ws.getRow(1);
-      hdr.eachCell(cell => { cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 }; cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2A4D69' } }; });
-      compressors.forEach(c => ws.addRow({ name: c.name, model: c.model, capacity: c.capacity, location: c.location, status: STATUS_CONFIG[c.status]?.label ?? c.status, running: `${c.total_running_hours.toFixed(1)}h`, loaded: `${c.total_loaded_hours.toFixed(1)}h` }));
-      const buf = await wb.xlsx.writeBuffer();
-      saveAs(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `compressors_${new Date().toISOString().split('T')[0]}.xlsx`);
-      toast.success('Excel exported');
-    } catch (err) { toast.error(`Export failed: ${(err as Error).message}`); }
-  }
+  const exportColumns: DLColumn[] = [
+    { key: 'name', label: 'Name', width: 20 },
+    { key: 'model', label: 'Model', width: 20 },
+    { key: 'capacity', label: 'Capacity', width: 14 },
+    { key: 'location', label: 'Location', width: 16 },
+    { key: 'status', label: 'Status', width: 14, format: v => STATUS_CONFIG[v as string]?.label ?? (v as string) },
+    { key: 'total_running_hours', label: 'Running Hours', width: 16, format: v => `${(v as number).toFixed(1)}h` },
+    { key: 'total_loaded_hours', label: 'Loaded Hours', width: 16, format: v => `${(v as number).toFixed(1)}h` },
+  ];
 
   const tabs = [
     { key: 'daily', label: 'Daily View', icon: Calendar },
@@ -561,7 +552,15 @@ function CompressorReadingsSystem() {
         actions={
           <>
             <button type="button" onClick={loadAllData} title="Refresh" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}><RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} /></button>
-            <button type="button" onClick={downloadExcel} disabled={compressors.length === 0} title="Download Excel" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} disabled:opacity-40`}><Download className="h-4 w-4" /></button>
+            {compressors.length > 0 && (
+              <DownloadButton
+                data={compressors as unknown as Record<string, unknown>[]}
+                columns={exportColumns}
+                filename={exportFilename('compressors')}
+                title="Compressor Tracking"
+                formats={['excel']}
+              />
+            )}
             <button type="button" onClick={() => setShowAddCompressor(true)} className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all">
               <Plus className="h-3.5 w-3.5" /> Add Compressor
             </button>

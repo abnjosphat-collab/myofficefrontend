@@ -14,7 +14,7 @@ import {
   FilterX, ChevronsDownUp, ChevronsUpDown, ChevronDown, ChevronUp,
   Clock, AlertCircle, Trash2, X, Pencil, Mail, Briefcase,
   GraduationCap, Sparkles, UserRound, BriefcaseBusiness,
-  List, LayoutGrid, MapPin, Filter, Award, Download, Plus, Phone, CheckSquare, Square, Check,
+  List, LayoutGrid, MapPin, Filter, Award, Plus, Phone, CheckSquare, Square, Check,
   FileSpreadsheet, FileText,
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle,
   FormField, FormActions, useCollapseSection, CenterModal, ACCENT_HEX, SelectField, TYPE_SCALE, RADIUS,
@@ -22,6 +22,8 @@ import {
   Subsection, InfoRow, SummaryItem, LoadingState, AutofillInput,
 } from '@/components/shared/theme';
 import { formatDate } from '@/lib/format';
+import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
+import { exportFilename } from '@/lib/exportUtils';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -1106,39 +1108,22 @@ function EmployeesPageContent() {
     } finally { setBulkApplying(false); }
   };
 
-  const downloadExcel = async () => {
-    try {
-      const ExcelJS = (await import('exceljs')).default;
-      const { saveAs } = await import('file-saver');
-      const wb = new ExcelJS.Workbook();
-      const ws = wb.addWorksheet('Personnel Registry');
-      ws.columns = [
-        { header: 'Employee ID', key: 'employee_id', width: 14 },
-        { header: 'First Name', key: 'first_name', width: 18 },
-        { header: 'Last Name', key: 'last_name', width: 18 },
-        { header: 'Type', key: 'employment_type', width: 10 },
-        { header: 'Designation', key: 'designation', width: 24 },
-        { header: 'Department', key: 'department', width: 20 },
-        { header: 'Section', key: 'section', width: 18 },
-        { header: 'Grade', key: 'grade', width: 10 },
-        { header: 'Class', key: 'employee_class', width: 14 },
-        { header: 'Email', key: 'email', width: 28 },
-        { header: 'Phone', key: 'phone', width: 16 },
-        { header: 'Date of Engagement', key: 'date_of_engagement', width: 18 },
-        { header: 'Supervisor', key: 'supervisor', width: 20 },
-        { header: 'ID Number', key: 'id_number', width: 16 },
-      ];
-      const hdr = ws.getRow(1);
-      hdr.eachCell(cell => {
-        cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2A4D69' } };
-      });
-      employees.forEach(e => ws.addRow({ ...e, date_of_engagement: fmtDate(e.date_of_engagement) }));
-      const buf = await wb.xlsx.writeBuffer();
-      saveAs(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `Personnel_Registry_${new Date().toISOString().slice(0, 10)}.xlsx`);
-      toast.success(`Excel exported — ${employees.length} employees`);
-    } catch (err) { toast.error(`Export failed: ${(err as Error).message}`); }
-  };
+  const registryExportColumns: DLColumn[] = [
+    { key: 'employee_id', label: 'Employee ID', width: 14 },
+    { key: 'first_name', label: 'First Name', width: 18 },
+    { key: 'last_name', label: 'Last Name', width: 18 },
+    { key: 'employment_type', label: 'Type', width: 10 },
+    { key: 'designation', label: 'Designation', width: 24 },
+    { key: 'department', label: 'Department', width: 20 },
+    { key: 'section', label: 'Section', width: 18 },
+    { key: 'grade', label: 'Grade', width: 10 },
+    { key: 'employee_class', label: 'Class', width: 14 },
+    { key: 'email', label: 'Email', width: 28 },
+    { key: 'phone', label: 'Phone', width: 16 },
+    { key: 'date_of_engagement', label: 'Date of Engagement', width: 18, format: v => fmtDate(v as string) },
+    { key: 'supervisor', label: 'Supervisor', width: 20 },
+    { key: 'id_number', label: 'ID Number', width: 16 },
+  ];
 
   return (
     <main className="max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
@@ -1154,10 +1139,15 @@ function EmployeesPageContent() {
             <button type="button" onClick={reload} title="Refresh" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-colors`}>
               <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
             </button>
-            <button type="button" onClick={downloadExcel} disabled={employees.length === 0} title="Download Excel"
-              className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-colors disabled:opacity-40`}>
-              <Download className="h-4 w-4" />
-            </button>
+            {employees.length > 0 && (
+              <DownloadButton
+                data={employees as unknown as Record<string, unknown>[]}
+                columns={registryExportColumns}
+                filename={exportFilename('Personnel_Registry')}
+                title="Personnel Registry"
+                formats={['excel']}
+              />
+            )}
             <button type="button" onClick={() => setShowDisciplineExport(true)} disabled={employees.length === 0} title="Download organized by section, profession, or discipline"
               className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-colors disabled:opacity-40`}>
               <Award className="h-4 w-4" />
