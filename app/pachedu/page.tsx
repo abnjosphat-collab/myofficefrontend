@@ -4,7 +4,6 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from "react";
-import { api } from '@/lib/apiClient';
 import {
   HeartHandshake, Search, FilterX,
   AlertTriangle, CheckSquare, ShieldCheck,
@@ -26,46 +25,8 @@ import {
   PrimaryButton, EmptyState, useCollapseSection, GlowCard, SelectField,
 } from '@/components/shared/theme';
 import { toast } from "sonner";
-
-
-// =============== TYPES ===============
-type SectionType = 'Mechanical' | 'Electrical';
-type BehaviourType = 'Intentional' | 'Unintentional';
-type PacheduStatus = 'draft' | 'submitted' | 'reviewed' | 'closed';
-
-interface PacheduReport {
-  id: string;
-  location: string;
-  date: string;
-  activityObserved: string;
-  whatDidYouSee: string;
-  reasons: string;
-  behaviourType: BehaviourType;
-  impacts: string[];
-  whatDidYouDo: string;
-  observerName: string;
-  dept: string;
-  sdwt: string;
-  sectionChoice: SectionType;
-  checklist: string[];
-  status: PacheduStatus;
-  created_at: string;
-  updated_at?: string;
-  submitted_at?: string;
-}
-
-interface PacheduStats {
-  total: number;
-  bySection: Record<SectionType, number>;
-  byDept: Record<string, number>;
-  byBehaviour: Record<BehaviourType, number>;
-  totalImpacts: number;
-  totalChecklist: number;
-  draftCount: number;
-  submittedCount: number;
-  reviewedCount: number;
-  closedCount: number;
-}
+import type { SectionType, BehaviourType, PacheduStatus, PacheduReport, PacheduStats } from './types';
+import { usePacheduData, createPacheduReport, updatePacheduReport, deletePacheduReport, getPacheduStats } from './usePacheduData';
 
 // =============== CONSTANTS ===============
 const SECTIONS: SectionType[] = ['Mechanical', 'Electrical'];
@@ -99,36 +60,6 @@ const CHECKLIST_CATEGORIES = [
   { name: "WORKING CONDITIONS", items: ["General housekeeping", "Illumination", "Ventilation/Dust", "Ground support", "Pools of water", "Air/Water leaks", "Oil leaks", "Noxious atmosphere", "Confined space", "Fire hazards", "Noise"] },
   { name: "HUMAN NATURE & TASK", items: ["Stress", "Shortcuts", "Attitude/Mindset", "Complacency", "Unclear responsibilities", "High workload", "Time pressure", "Multi-tasking", "Illness/Fatigue", "Inexperienced"] },
 ];
-
-// =============== API FUNCTIONS ===============
-// Throws on failure — the `catch { return [] }` this replaces made a server
-// outage look like "no reports yet". loadData already sets an error state; it
-// just never got the chance to.
-async function getPacheduReports(): Promise<PacheduReport[]> {
-  const data = await api.get<PacheduReport[]>('/api/pachedu/');
-  return Array.isArray(data) ? data : [];
-}
-async function createPacheduReport(report: Partial<PacheduReport>): Promise<PacheduReport | null> {
-  try { return await api.post<PacheduReport>('/api/pachedu/', report); } catch { return null; }
-}
-async function updatePacheduReport(id: string, report: Partial<PacheduReport>): Promise<PacheduReport | null> {
-  try { return await api.patch<PacheduReport>(`/api/pachedu/${id}`, report); } catch { return null; }
-}
-async function deletePacheduReport(id: string): Promise<boolean> {
-  try { await api.delete(`/api/pachedu/${id}`); return true; } catch { return false; }
-}
-async function getPacheduStats(): Promise<PacheduStats> {
-  try {
-    const data = await api.get<Partial<PacheduStats>>('/api/pachedu/stats/overview');
-    return {
-      total: data?.total || 0, bySection: data?.bySection || { Mechanical: 0, Electrical: 0 }, byDept: data?.byDept || {},
-      byBehaviour: data?.byBehaviour || { Intentional: 0, Unintentional: 0 }, totalImpacts: data?.totalImpacts || 0, totalChecklist: data?.totalChecklist || 0,
-      draftCount: data?.draftCount || 0, submittedCount: data?.submittedCount || 0, reviewedCount: data?.reviewedCount || 0, closedCount: data?.closedCount || 0,
-    };
-  } catch {
-    return { total: 0, bySection: { Mechanical: 0, Electrical: 0 }, byDept: {}, byBehaviour: { Intentional: 0, Unintentional: 0 }, totalImpacts: 0, totalChecklist: 0, draftCount: 0, submittedCount: 0, reviewedCount: 0, closedCount: 0 };
-  }
-}
 
 // =============== STATUS MENU (shared dropdown) ===============
 function StatusMenu({ onChange }: { onChange: (s: PacheduStatus) => void }) {
@@ -413,10 +344,7 @@ function PacheduContent() {
   const t = useTheme();
   const sections = useCollapseSection({ stats: false, distribution: false, records: true });
 
-  const [reports, setReports] = useState<PacheduReport[]>([]);
-  const [stats, setStats] = useState<PacheduStats | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { reports, setReports, stats, setStats, loading, setLoading, error, refresh: loadData } = usePacheduData();
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
 
   const [selectedReport, setSelectedReport] = useState<PacheduReport | null>(null);
@@ -433,17 +361,6 @@ function PacheduContent() {
   const [dateTo, setDateTo] = useState('');
 
   const [formData, setFormData] = useState<Partial<PacheduReport>>(defaultForm);
-
-  const loadData = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [reportsData, statsData] = await Promise.all([getPacheduReports(), getPacheduStats()]);
-      setReports(reportsData);
-      setStats(statsData);
-    } catch { setError('Failed to load Pachedu reports. Please try again.'); }
-    finally { setLoading(false); }
-  };
 
   useEffect(() => { loadData(); }, []);
 
