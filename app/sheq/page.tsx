@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { api } from '@/lib/apiClient';
 import { formatDateTime } from '@/lib/format';
 import {
   Shield, RefreshCw, TrendingUp, TrendingDown, AlertTriangle, CheckCircle,
@@ -41,24 +40,8 @@ function usePalette() {
   }), [t.light]);
 }
 
-// ─── TYPES ────────────────────────────────────────────────────────────────────
-type QuickRange = '7d' | '30d' | '90d' | '6m' | 'all';
-interface DonutSegment { value: number; color: string; label?: string; }
-interface MonthBucket { label: string; year: number; month: number; count: number; }
-interface NMStats { total: number; open: number; closed: number; high: number; }
-interface WSStats { total: number; actDone: number; actPend: number; actProg: number; actTotal: number; }
-interface VFLStats { total: number; safe: number; unsafe: number; draft: number; submitted: number; closed: number; actDone: number; actPend: number; actProg: number; actTotal: number; }
-interface PTOStats { total: number; highRisk: number; initial: number; followup: number; actDone: number; actPend: number; actProg: number; actTotal: number; }
-interface InspStats { total: number; draft: number; submitted: number; approved: number; rejected: number; openFindings: number; closedFindings: number; criticalFindings: number; overdueFindings: number; }
-interface PachStats { total: number; intentional: number; unintentional: number; draft: number; submitted: number; reviewed: number; closed: number; }
-interface Totals { totalReports: number; totalActions: number; totalActionsDone: number; totalActionsProg: number; totalActionsPend: number; }
-interface ComputedStats {
-  nm: NMStats; ws: WSStats; vfl: VFLStats; pto: PTOStats; insp: InspStats; pach: PachStats;
-  totals: Totals; safetyScore: number; months: MonthBucket[];
-  moduleMonthly: { nm: number[]; ws: number[]; vfl: number[]; pto: number[]; insp: number[]; pach: number[] };
-}
-interface RawData { nm: any[]; ws: any[]; vfl: any[]; pto: any[]; insp: any[]; pach: any[]; }
-interface Comment { id: string; text: string; author: string; ts: string; }
+import type { Comment, ComputedStats, DonutSegment, MonthBucket, QuickRange, RawData } from './types';
+import { postSafetyAnalysis, useSheqDashboardData } from './useSheqDashboardData';
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 function getDate(r: any, module: 'nm' | 'ws' | 'vfl' | 'pto'): Date | null {
@@ -91,20 +74,6 @@ function rangeToFromTo(quick: QuickRange | 'custom', customFrom: string, customT
 
 function scoreColor(s: number) { if (s >= 80) return C.done; if (s >= 60) return C.nm; if (s >= 40) return '#f97316'; return C.high; }
 function scoreLabel(s: number) { if (s >= 80) return 'Good Standing'; if (s >= 60) return 'Needs Attention'; if (s >= 40) return 'Concern'; return 'Critical'; }
-
-// ─── DATA FETCHING ────────────────────────────────────────────────────────────
-async function fetchAllModules(): Promise<RawData> {
-  const settled = await Promise.allSettled([
-    api.get<any[]>('/api/nearmiss/'),
-    api.get<any[]>('/api/work-stoppage/'),
-    api.get<any[]>('/api/vfl/'),
-    api.get<any[]>('/api/pto/'),
-    api.get<any[]>('/api/sheq/'),
-    api.get<any[]>('/api/pachedu/'),
-  ]);
-  const [nm, ws, vfl, pto, insp, pach] = settled.map(r => (r.status === 'fulfilled' && Array.isArray(r.value) ? r.value : []));
-  return { nm, ws, vfl, pto, insp, pach };
-}
 
 // ─── STATS COMPUTATION ────────────────────────────────────────────────────────
 function buildMonthly(items: any[], module: 'nm' | 'ws' | 'vfl' | 'pto', months: MonthBucket[]): number[] {
@@ -482,9 +451,7 @@ const QUICK_OPTIONS: { key: QuickRange | 'custom'; label: string }[] = [
 function SHEQDashboardContent() {
   const P = usePalette();
   const sections = useCollapseSection({ weekly: false, score: false, modules: false, analytics: false, actions: false, notes: false, ai: false });
-  const [raw, setRaw] = useState<RawData>({ nm: [], ws: [], vfl: [], pto: [], insp: [], pach: [] });
-  const [loading, setLoading] = useState(true);
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const { raw, loading, lastUpdated, refresh: load } = useSheqDashboardData();
   const [autoRefresh, setAutoRefresh] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -509,17 +476,10 @@ function SHEQDashboardContent() {
   const [customTo, setCustomTo] = useState('');
   const [showCustom, setShowCustom] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try { setRaw(await fetchAllModules()); setLastUpdated(new Date()); }
-    catch { toast.error('Failed to load dashboard data'); }
-    finally { setLoading(false); }
-  }, []);
-
   const runAiAnalysis = useCallback(async () => {
     setAiLoading(true); setAiError('');
     try {
-      setAiResult(await api.post('/api/ai/safety-analysis', { near_miss: raw.nm, work_stoppage: raw.ws, vfl: raw.vfl, pto: raw.pto, inspections: raw.insp, pachedu: raw.pach, period_label: quickRange === 'all' ? 'all time' : quickRange }));
+      setAiResult(await postSafetyAnalysis({ near_miss: raw.nm, work_stoppage: raw.ws, vfl: raw.vfl, pto: raw.pto, inspections: raw.insp, pachedu: raw.pach, period_label: quickRange === 'all' ? 'all time' : quickRange }));
       if (!sections.expanded.ai) sections.toggle('ai');
     } catch (e) { setAiError(`Analysis failed: ${(e as Error).message}`); }
     finally { setAiLoading(false); }
@@ -546,8 +506,6 @@ function SHEQDashboardContent() {
     const fmt = (d: Date) => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
     return `${fmt(monday)} – ${fmt(sunday)} ${sunday.getFullYear()}`;
   }, []);
-
-  useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
     if (autoRefresh) intervalRef.current = setInterval(load, 5 * 60 * 1000);
