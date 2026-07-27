@@ -22,37 +22,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-
-// ─── INTERFACES ──────────────────────────────────────────────────────────────
-
-interface Spare {
-  id: number; stock_code: string; description: string; category?: string; categories?: string[];
-  machine_type?: string; current_quantity: number; min_quantity: number; max_quantity: number;
-  unit_price: number; unit_of_measure?: string; priority: 'low' | 'medium' | 'high' | 'critical';
-  storage_location?: string; supplier?: string; safety_stock: boolean; notes?: string;
-  lead_time_days?: number; last_ordered_date?: string; updated_at?: string;
-}
-interface ReqLine { id: string; spare: Spare | null; searchValue: string; qty: number; dropdownOpen: boolean; }
-interface ReqHeader { requester: string; reason: string; urgency: 'routine' | 'urgent' | 'emergency'; priority: 'low' | 'medium' | 'high' | 'critical'; required_for: string; }
-interface SavedRequisition {
-  id: string; name: string; saved_at: string; updated_at?: string; header: ReqHeader;
-  lines: Array<{ spare_id: number; stock_code: string; description: string; unit_of_measure?: string; unit_price: number; qty: number }>;
-  grand_total: number;
-}
-interface SpareFormData {
-  stock_code: string; description: string; category: string; categories: string[]; machine_type: string;
-  current_quantity: number; min_quantity: number; max_quantity: number; unit_price: number;
-  unit_of_measure: string; priority: 'low' | 'medium' | 'high' | 'critical'; storage_location: string;
-  supplier: string; safety_stock: boolean; notes: string;
-}
-interface SortConfig { field: keyof Spare | 'status'; direction: 'asc' | 'desc'; }
+import type { ReqHeader, ReqLine, SavedRequisition, SortConfig, Spare, SpareFormData, StockStatus } from './types';
+import { apiCreate, apiCreateSavedReq, apiDelete, apiDeleteSavedReq, apiFetchAll, apiGetSavedReqs, apiUpdate } from './api';
 
 // ─── CONSTANTS & UTILS ───────────────────────────────────────────────────────
 
 function formatCurrency(v: number) { return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(v || 0); }
 // formatDate was identical to the shared one — imported at the top instead.
 
-interface StockStatus { label: string; color: string; }
 const getStockStatus = (current: number, min: number): StockStatus => {
   if (current <= 0) return { label: 'Out of Stock', color: '#f43f5e' };
   if (current <= min) return { label: 'Low Stock', color: '#f59e0b' };
@@ -193,49 +170,6 @@ const EntityComboInput = React.memo(({ fetchUrl, mapOptions, value, onChange, pl
   );
 });
 EntityComboInput.displayName = 'EntityComboInput';
-
-// ─── SAVED REQS API HELPERS ───────────────────────────────────────────────────
-
-const dbRowToReq = (row: Record<string, unknown>): SavedRequisition => ({
-  id: String(row.id), name: String(row.name),
-  saved_at: String(row.saved_at || row.updated_at || new Date().toISOString()),
-  updated_at: row.updated_at ? String(row.updated_at) : undefined,
-  header: {
-    requester: String(row.requester || ''), reason: String(row.reason || ''),
-    urgency: (row.urgency as ReqHeader['urgency']) || 'routine', priority: (row.priority as ReqHeader['priority']) || 'medium',
-    required_for: String(row.required_for || ''),
-  },
-  lines: Array.isArray(row.lines) ? row.lines as SavedRequisition['lines'] : [],
-  grand_total: Number(row.grand_total) || 0,
-});
-const reqToDbPayload = (req: SavedRequisition) => ({
-  name: req.name, requester: req.header.requester || null, reason: req.header.reason || null,
-  urgency: req.header.urgency, priority: req.header.priority, required_for: req.header.required_for || null,
-  lines: req.lines, grand_total: req.grand_total,
-});
-const apiGetSavedReqs = async (): Promise<SavedRequisition[]> => {
-  try { const data = await api.get<any[]>('/api/spares/saved-requisitions'); return (Array.isArray(data) ? data : []).map(dbRowToReq); } catch { return []; }
-};
-const apiCreateSavedReq = async (req: SavedRequisition): Promise<SavedRequisition | null> => {
-  try { return dbRowToReq(await api.post('/api/spares/saved-requisitions', reqToDbPayload(req))); } catch { return null; }
-};
-const apiDeleteSavedReq = async (id: string): Promise<boolean> => { try { await api.delete(`/api/spares/saved-requisitions/${id}`); return true; } catch { return false; } };
-
-// ─── API ─────────────────────────────────────────────────────────────────────
-
-async function apiFetchAll(): Promise<Spare[]> {
-  const d = await api.get<any>('/api/spares');
-  return Array.isArray(d) ? d : d?.items ?? d?.data ?? [];
-}
-async function apiCreate(data: Partial<SpareFormData>): Promise<Spare> {
-  return api.post<Spare>('/api/spares', data);
-}
-async function apiUpdate(id: number, data: Partial<SpareFormData>): Promise<Spare> {
-  return api.put<Spare>(`/api/spares/${id}`, data);
-}
-async function apiDelete(id: number): Promise<void> {
-  await api.delete(`/api/spares/${id}`);
-}
 
 // ─── SPARE CARD ──────────────────────────────────────────────────────────────
 
