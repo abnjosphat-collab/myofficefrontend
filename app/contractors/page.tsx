@@ -10,6 +10,8 @@ import {
   useTheme, PageHero, StatTile, StatusBadge, ProgressBar, FormField, PrimaryButton, GlowCard, SelectField,
   ViewToggle, GroupSection, RecordCard, ACCENT_HEX, staggerContainer, fadeUp, InfoRow,
 } from '@/components/shared/theme';
+import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
+import { exportFilename } from '@/lib/exportUtils';
 
 
 const fromContAPI = (d: any): Contractor => ({
@@ -170,6 +172,18 @@ function ContractorsContent() {
 
   const displayed = contractors.filter(c => tradeFilter === 'all' || c.trade === tradeFilter).filter(c => statusFilter === 'all' || c.status === statusFilter);
 
+  const exportColumns: DLColumn[] = [
+    { key: 'company', label: 'Company', width: 24 },
+    { key: 'trade', label: 'Trade', width: 18 },
+    { key: 'contact', label: 'Contact', width: 20 },
+    { key: 'phone', label: 'Phone', width: 16 },
+    { key: 'status', label: 'Status', width: 12, format: v => (v as string).charAt(0).toUpperCase() + (v as string).slice(1) },
+    { key: 'rating', label: 'Rating', width: 10 },
+    { key: 'contractExpiry', label: 'Contract Expiry', width: 16 },
+    { key: 'insuranceExpiry', label: 'Insurance Expiry', width: 16 },
+    { key: 'jobs', label: 'Active Jobs', width: 12, format: v => String((v as unknown[])?.length ?? 0) },
+  ];
+
   // Group by trade — alphabetically, "Unspecified" last.
   const grouped = (() => {
     const map = new Map<string, Contractor[]>();
@@ -212,7 +226,21 @@ function ContractorsContent() {
         title="Contractor Management"
         description="Third-party contractor register and job tracking"
         statsOpen
-        actions={<PrimaryButton icon={Plus} accent="violet" onClick={() => setShowAdd(s => !s)}>Add Contractor</PrimaryButton>}
+        actions={
+          <>
+            {displayed.length > 0 && (
+              <DownloadButton
+                data={displayed as unknown as Record<string, unknown>[]}
+                columns={exportColumns}
+                filename={exportFilename('Contractors')}
+                title="Contractors"
+                statusColumn="status"
+                statusColor={(_v, row) => row.status === 'active' ? '34d399' : '94a3b8'}
+              />
+            )}
+            <PrimaryButton icon={Plus} accent="violet" onClick={() => setShowAdd(s => !s)}>Add Contractor</PrimaryButton>
+          </>
+        }
       >
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <StatTile icon={HardHat} color="#86BBD8" label="Total" value={stats.total} />

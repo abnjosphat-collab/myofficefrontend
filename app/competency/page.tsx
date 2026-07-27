@@ -6,6 +6,8 @@ import { api } from '@/lib/apiClient';
 import { AppShell } from '@/components/app-shell';
 import { GraduationCap, X, RefreshCw } from '@/components/shared/theme';
 import { useTheme, PageHero, StatTile } from '@/components/shared/theme';
+import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
+import { exportFilename } from '@/lib/exportUtils';
 
 type SkillLevel = 0 | 1 | 2 | 3 | 4;
 
@@ -50,6 +52,18 @@ function CompetencyContent() {
   const [popover, setPopover] = useState<Popover | null>(null);
 
   const displayed = employees.filter(e => tradeFilter === 'all' || e.trade === tradeFilter).filter(e => deptFilter === 'all' || e.department === deptFilter);
+
+  const exportColumns: DLColumn[] = [
+    { key: 'name', label: 'Employee', width: 22 },
+    { key: 'trade', label: 'Trade', width: 16 },
+    { key: 'department', label: 'Department', width: 16 },
+    ...SKILL_AREAS.map((skill, i): DLColumn => ({
+      key: `skill_${i}`,
+      label: skill,
+      width: 14,
+      format: (_v, row) => LEVEL_LABEL[((row.skills as Record<string, SkillLevel> | undefined)?.[skill] ?? 0)],
+    })),
+  ];
   const fullyQualified = employees.filter(e => Object.values(e.skills).every(v => v >= 3)).length;
   const needsRenewal = employees.filter(e => Object.values(e.skills).some(v => v === 1)).length;
 
@@ -102,6 +116,16 @@ function CompetencyContent() {
         title="Competency Matrix"
         description="Employee skills and equipment qualification tracking"
         statsOpen
+        actions={
+          displayed.length > 0 && (
+            <DownloadButton
+              data={displayed as unknown as Record<string, unknown>[]}
+              columns={exportColumns}
+              filename={exportFilename('Competency_Matrix')}
+              title="Competency Matrix"
+            />
+          )
+        }
       >
         <div className="grid grid-cols-3 gap-3">
           <StatTile icon={GraduationCap} color="#86BBD8" label="Total Assessed" value={employees.length} />

@@ -4,6 +4,8 @@ import { Activity, RefreshCw, Search, Check } from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
 import { useTheme, PageHero, CenterModal, FormField, PrimaryButton, EmptyState, GlowCard, SelectField } from '@/components/shared/theme';
 import { useEquipment, toBoardStatus, type BoardStatus } from '@/lib/useEquipment';
+import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
+import { exportFilename } from '@/lib/exportUtils';
 
 const STATUS_META: Record<BoardStatus, { label: string; hex: string }> = {
   running: { label: 'Running', hex: '#34d399' },
@@ -146,6 +148,17 @@ function EquipmentStatusContent() {
     setOverrides(prev => ({ ...prev, [updated.id]: { status: updated.status, defect: updated.defect, job_card: updated.job_card, downtime_hours: updated.downtime_hours } }));
   };
 
+  const exportColumns: DLColumn[] = [
+    { key: 'equipment_id', label: 'Asset ID', width: 16 },
+    { key: 'name', label: 'Equipment', width: 24 },
+    { key: 'section', label: 'Section', width: 18 },
+    { key: 'type', label: 'Type', width: 16 },
+    { key: 'status', label: 'Status', width: 14, format: v => STATUS_META[v as BoardStatus].label },
+    { key: 'defect', label: 'Defect/Note', width: 26 },
+    { key: 'job_card', label: 'Job Card', width: 16 },
+    { key: 'downtime_hours', label: 'Downtime Hrs', width: 14 },
+  ];
+
   return (
     <main className="max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
       <PageHero
@@ -164,6 +177,16 @@ function EquipmentStatusContent() {
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${t.chipBg} ${t.hoverBg} ${t.textMuted} ${t.hoverText}`}>
               <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} /> Refresh
             </button>
+            {filtered.length > 0 && (
+              <DownloadButton
+                data={filtered as unknown as Record<string, unknown>[]}
+                columns={exportColumns}
+                filename={exportFilename('Equipment_Status_Board')}
+                title="Equipment Status Board"
+                statusColumn="status"
+                statusColor={(_v, row) => STATUS_META[row.status as BoardStatus]?.hex.replace('#', '')}
+              />
+            )}
           </>
         }
       >

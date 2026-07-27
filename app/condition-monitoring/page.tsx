@@ -6,6 +6,9 @@ import { api } from '@/lib/apiClient';
 import { AppShell } from '@/components/app-shell';
 import { Radar, Plus, X, RefreshCw } from '@/components/shared/theme';
 import { useTheme, PageHero, StatTile, StatusBadge, FormField, PrimaryButton, ACCENT_HEX, SelectField } from '@/components/shared/theme';
+import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
+import { exportFilename } from '@/lib/exportUtils';
+import { formatDate } from '@/lib/format';
 
 type CMResult = 'normal' | 'caution' | 'critical';
 type CMType = 'Oil Analysis' | 'Vibration' | 'Thermography';
@@ -49,6 +52,17 @@ function ConditionMonitoringContent() {
   const displayed = tab === 'All' ? readings : readings.filter(r => r.type === tab);
   const counts = { total: readings.length, critical: readings.filter(r => r.result === 'critical').length, caution: readings.filter(r => r.result === 'caution').length, normal: readings.filter(r => r.result === 'normal').length };
 
+  const exportColumns: DLColumn[] = [
+    { key: 'equipment', label: 'Equipment', width: 24 },
+    { key: 'component', label: 'Component', width: 20 },
+    { key: 'type', label: 'Type', width: 16 },
+    { key: 'date', label: 'Date', width: 14, format: v => v ? formatDate(v as string) : '' },
+    { key: 'value', label: 'Value', width: 14, format: (_v, row) => `${row.value ?? ''}${row.unit ? ` ${row.unit}` : ''}` },
+    { key: 'result', label: 'Result', width: 12, format: v => (v as string).charAt(0).toUpperCase() + (v as string).slice(1) },
+    { key: 'technician', label: 'Technician', width: 18 },
+    { key: 'notes', label: 'Notes', width: 30 },
+  ];
+
   const submit = async () => {
     if (!form.equipment || !form.date) return;
     const body = { equipment_name: form.equipment, component: form.component, monitoring_type: form.type, sampled_date: form.date, value: parseFloat(form.value) || null, unit: form.unit, result: form.result, technician: form.technician, notes: form.notes };
@@ -72,6 +86,16 @@ function ConditionMonitoringContent() {
         actions={
           <>
             <button type="button" onClick={fetchReadings} title="Refresh" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /></button>
+            {displayed.length > 0 && (
+              <DownloadButton
+                data={displayed as unknown as Record<string, unknown>[]}
+                columns={exportColumns}
+                filename={exportFilename('Condition_Monitoring')}
+                title="Condition Monitoring"
+                statusColumn="result"
+                statusColor={(_v, row) => resultHex[row.result as CMResult]?.replace('#', '')}
+              />
+            )}
             <PrimaryButton icon={Plus} onClick={() => setShowAdd(s => !s)}>Add Reading</PrimaryButton>
           </>
         }

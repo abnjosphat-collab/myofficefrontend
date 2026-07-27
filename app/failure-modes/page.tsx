@@ -6,6 +6,8 @@ import { api } from '@/lib/apiClient';
 import { AppShell } from '@/components/app-shell';
 import { AlertOctagon, ChevronDown, ChevronUp, RefreshCw } from '@/components/shared/theme';
 import { useTheme, PageHero, StatTile, ACCENT_HEX } from '@/components/shared/theme';
+import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
+import { exportFilename } from '@/lib/exportUtils';
 
 interface FailureModeAPI {
   id: number; equipment_type?: string; component?: string; failure_mode?: string; failure_cause?: string;
@@ -62,6 +64,21 @@ function FailureModesContent() {
   const displayed = equipFilter === 'all' ? modes : modes.filter(m => m.equipType === equipFilter);
   const highRPN = modes.filter(m => m.rpn > 100).length;
 
+  const exportColumns: DLColumn[] = [
+    { key: 'equipType', label: 'Equipment Type', width: 20 },
+    { key: 'component', label: 'Component', width: 20 },
+    { key: 'failureMode', label: 'Failure Mode', width: 26 },
+    { key: 'failureCause', label: 'Failure Cause', width: 26 },
+    { key: 'severity', label: 'Severity', width: 10 },
+    { key: 'probability', label: 'Probability', width: 12 },
+    { key: 'detectability', label: 'Detectability', width: 12 },
+    { key: 'rpn', label: 'RPN', width: 10 },
+    { key: 'occurrences', label: 'Occurrences', width: 12 },
+    { key: 'lastOccurred', label: 'Last Occurred', width: 16 },
+    { key: 'corrective', label: 'Corrective Action', width: 28 },
+    { key: 'preventive', label: 'Preventive Action', width: 28 },
+  ];
+
   return (
     <main className="max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
       <PageHero
@@ -72,9 +89,21 @@ function FailureModesContent() {
         description="FMEA — Failure Mode and Effects Analysis"
         statsOpen
         actions={
-          <button type="button" onClick={fetchModes} title="Refresh" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}>
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          </button>
+          <>
+            <button type="button" onClick={fetchModes} title="Refresh" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}>
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            </button>
+            {displayed.length > 0 && (
+              <DownloadButton
+                data={displayed as unknown as Record<string, unknown>[]}
+                columns={exportColumns}
+                filename={exportFilename('Failure_Mode_Register')}
+                title="Failure Mode Register (FMEA)"
+                statusColumn="rpn"
+                statusColor={(_v, row) => rpnHex(row.rpn as number).replace('#', '')}
+              />
+            )}
+          </>
         }
       >
         <div className="grid grid-cols-3 gap-3">

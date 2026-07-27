@@ -6,6 +6,9 @@ import { AppShell } from '@/components/app-shell';
 import { ClipboardList, ChevronDown, ChevronUp, Plus, X, Moon, Sun, Clock, RefreshCw } from '@/components/shared/theme';
 import { useModuleData } from '@/lib/useModuleData';
 import { useTheme, PageHero, StatTile, StatusBadge, FormField, PrimaryButton, SelectField } from '@/components/shared/theme';
+import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
+import { exportFilename } from '@/lib/exportUtils';
+import { formatDate } from '@/lib/format';
 
 const SHIFTS = ['Day', 'Night', 'Afternoon'] as const;
 type Shift = typeof SHIFTS[number];
@@ -59,6 +62,18 @@ function HandoverContent() {
     </main>
   );
 
+  const exportColumns: DLColumn[] = [
+    { key: 'handover_date', label: 'Date', width: 14, format: v => v ? formatDate(v as string) : '' },
+    { key: 'shift', label: 'Shift', width: 12 },
+    { key: 'section', label: 'Section', width: 16 },
+    { key: 'outgoing_supervisor', label: 'Outgoing Supervisor', width: 20 },
+    { key: 'incoming_supervisor', label: 'Incoming Supervisor', width: 20 },
+    { key: 'completed_work', label: 'Completed Work', width: 30 },
+    { key: 'outstanding_work', label: 'Outstanding Work', width: 30 },
+    { key: 'safety_concerns', label: 'Safety Concerns', width: 26 },
+    { key: 'equipment_summary', label: 'Equipment Summary', width: 34, format: v => (v as EquipmentItem[] ?? []).map(e => `${e.name}: ${e.status}`).join('; ') },
+  ];
+
   return (
     <main className="max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
       <PageHero
@@ -68,7 +83,19 @@ function HandoverContent() {
         title="Shift Handover Reports"
         description="End-of-shift transfer documentation"
         statsOpen
-        actions={<PrimaryButton icon={Plus} accent="violet" onClick={() => setShowForm(s => !s)}>New Handover</PrimaryButton>}
+        actions={
+          <>
+            {records.length > 0 && (
+              <DownloadButton
+                data={records as unknown as Record<string, unknown>[]}
+                columns={exportColumns}
+                filename={exportFilename('Shift_Handover_Reports')}
+                title="Shift Handover Reports"
+              />
+            )}
+            <PrimaryButton icon={Plus} accent="violet" onClick={() => setShowForm(s => !s)}>New Handover</PrimaryButton>
+          </>
+        }
       >
         <div className="grid grid-cols-3 gap-3">
           <StatTile icon={ClipboardList} color="#86BBD8" label="Total Reports" value={records.length} />

@@ -19,6 +19,9 @@ import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle,
   FormField, FormActions, useCollapseSection, CenterModal, ProgressBar, ACCENT_HEX, GlowCard, SelectField,
 } from '@/components/shared/theme';
+import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
+import { exportFilename } from '@/lib/exportUtils';
+import { formatDate } from '@/lib/format';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -786,9 +789,27 @@ function DocumentsPageContent() {
         description="ISO 55001 compliant document management"
         statsOpen={sections.expanded.hero}
         actions={
-          <button type="button" className="lg:hidden h-8 w-8 flex items-center justify-center rounded-lg hover:bg-white/10" onClick={() => setMobileMenuOpen(!mobileMenuOpen)} title="Menu">
-            <Menu className="h-4 w-4" />
-          </button>
+          <>
+            {filteredDocuments.length > 0 && (
+              <DownloadButton
+                data={filteredDocuments as unknown as Record<string, unknown>[]}
+                columns={[
+                  { key: 'name', label: 'Name', width: 30 },
+                  { key: 'categoryName', label: 'Category', width: 20 },
+                  { key: 'type', label: 'Type', width: 12 },
+                  { key: 'file_size', label: 'Size', width: 12, format: v => formatFileSize(v as number) },
+                  { key: 'created_at', label: 'Uploaded', width: 16, format: v => v ? formatDate(v as string) : '' },
+                  { key: 'description', label: 'Description', width: 30 },
+                ] satisfies DLColumn[]}
+                filename={exportFilename('Documents')}
+                title="Document Hub"
+                formats={['excel']}
+              />
+            )}
+            <button type="button" className="lg:hidden h-8 w-8 flex items-center justify-center rounded-lg hover:bg-white/10" onClick={() => setMobileMenuOpen(!mobileMenuOpen)} title="Menu">
+              <Menu className="h-4 w-4" />
+            </button>
+          </>
         }
       >
         <div className="flex flex-wrap gap-1">

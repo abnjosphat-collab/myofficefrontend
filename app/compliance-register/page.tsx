@@ -6,7 +6,10 @@ import { AppShell } from '@/components/app-shell';
 import { ShieldCheck, Plus, X, RefreshCw } from '@/components/shared/theme';
 import { useModuleData } from '@/lib/useModuleData';
 import { daysUntil } from '@/lib/dates';
+import { formatDate } from '@/lib/format';
 import { useTheme, PageHero, StatTile, StatusBadge, FormField, PrimaryButton, ACCENT_HEX } from '@/components/shared/theme';
+import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
+import { exportFilename } from '@/lib/exportUtils';
 
 type Status = 'current' | 'due_soon' | 'overdue';
 
@@ -28,6 +31,17 @@ function ComplianceRegisterContent() {
 
   const displayed = filter === 'all' ? records : records.filter(i => i.status === filter);
   const counts = { current: records.filter(i => i.status === 'current').length, due_soon: records.filter(i => i.status === 'due_soon').length, overdue: records.filter(i => i.status === 'overdue').length };
+
+  const exportColumns: DLColumn[] = [
+    { key: 'equipment_name', label: 'Equipment', width: 24 },
+    { key: 'inspection_type', label: 'Inspection Type', width: 20 },
+    { key: 'regulatory_body', label: 'Regulatory Body', width: 20 },
+    { key: 'certificate_no', label: 'Certificate No.', width: 18 },
+    { key: 'expiry_date', label: 'Expiry', width: 14, format: v => v ? formatDate(v as string) : '' },
+    { key: 'days', label: 'Days', width: 10, format: (_v, row) => row.expiry_date ? String(daysUntil(row.expiry_date as string)) : '' },
+    { key: 'status', label: 'Status', width: 14, format: v => statusLabel[v as Status] },
+    { key: 'responsible', label: 'Responsible', width: 20 },
+  ];
 
   const submit = async () => {
     if (!form.equipment_name || !form.expiry_date) return;
@@ -64,6 +78,16 @@ function ComplianceRegisterContent() {
         actions={
           <>
             <button type="button" onClick={() => refetch()} title="Refresh" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}><RefreshCw className="h-4 w-4" /></button>
+            {displayed.length > 0 && (
+              <DownloadButton
+                data={displayed as unknown as Record<string, unknown>[]}
+                columns={exportColumns}
+                filename={exportFilename('Compliance_Register')}
+                title="Statutory Compliance Register"
+                statusColumn="status"
+                statusColor={(_v, row) => statusHex[row.status as Status]?.replace('#', '')}
+              />
+            )}
             <PrimaryButton icon={Plus} onClick={() => setShowAdd(s => !s)}>Add Item</PrimaryButton>
           </>
         }
