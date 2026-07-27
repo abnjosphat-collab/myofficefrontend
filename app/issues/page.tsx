@@ -4,6 +4,7 @@
 import { AppShell } from '@/components/app-shell';
 import { api } from '@/lib/apiClient';
 import { formatCurrency, formatCurrencyShort, nowLocal, fmtDateTime as formatDateTime } from '@/components/shared/utils';
+import { EXPORT_BRAND_ARGB, EXPORT_BRAND_RGB } from '@/lib/exportUtils';
 import {
   useTheme, PageHero, StatTile, StatCard, FormField, SearchInput, PrimaryButton,
   useCollapseSection, ACCENT_HEX, Combobox, type ComboOption,
@@ -539,7 +540,7 @@ function IssuesPageContent() {
       const hdr = ws.getRow(1);
       hdr.eachCell(cell => {
         cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2A4D69' } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: EXPORT_BRAND_ARGB } };
         cell.alignment = { horizontal: 'center', vertical: 'middle' };
       });
       hdr.height = 18;
@@ -573,7 +574,7 @@ function IssuesPageContent() {
       const hdr2 = ws2.getRow(1);
       hdr2.eachCell(cell => {
         cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2A4D69' } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: EXPORT_BRAND_ARGB } };
         cell.alignment = { horizontal: 'center', vertical: 'middle' };
       });
       hdr2.height = 18;
@@ -612,7 +613,7 @@ function IssuesPageContent() {
       const { default: jsPDF } = await import('jspdf');
       const { default: autoTable } = await import('jspdf-autotable');
       const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-      doc.setFontSize(14); doc.setTextColor(42, 77, 105);
+      doc.setFontSize(14); doc.setTextColor(...EXPORT_BRAND_RGB);
       doc.text('Stock Issues Register', 14, 14);
       doc.setFontSize(8); doc.setTextColor(100, 100, 100);
       doc.text(
@@ -631,7 +632,7 @@ function IssuesPageContent() {
           formatCurrency(issueCost(issue)),
           issue.notes || '',
         ]),
-        headStyles: { fillColor: [42, 77, 105], textColor: 255, fontStyle: 'bold', fontSize: 7.5 },
+        headStyles: { fillColor: EXPORT_BRAND_RGB, textColor: 255, fontStyle: 'bold', fontSize: 7.5 },
         bodyStyles: { fontSize: 7.5 },
         alternateRowStyles: { fillColor: [240, 244, 248] },
         styles: { cellPadding: 1.5 },

@@ -10,6 +10,7 @@ import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
+import { EXPORT_BRAND_ARGB, EXPORT_BRAND_RGB } from '@/lib/exportUtils';
 import {
   ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Search, Download, Plus,
   Clock, Users, User, Loader2, CheckCircle, XCircle, AlertTriangle,
@@ -865,13 +866,13 @@ function DownloadDialog({ employees, timesheets, period, periodType, onClose }: 
       ws.views = [{ state: 'frozen', xSplit: FIXED_COLS, ySplit: 3 }];
 
       const FONT = 'Calibri';
-      const SUM_FILLS = ['FFE8F4FD', 'FFD0E8F5', 'FFB8D9F0', 'FF9AC9EB', 'FF2A4D69'];
+      const SUM_FILLS = ['FFE8F4FD', 'FFD0E8F5', 'FFB8D9F0', 'FF9AC9EB', EXPORT_BRAND_ARGB];
       const SUM_COLORS = ['FF1E3A5F', 'FF1E3A5F', 'FF1E3A5F', 'FF1E3A5F', 'FFFFFFFF'];
 
       ws.mergeCells(1, 1, 1, totalCols);
       const titleCell = ws.getCell(1, 1);
       titleCell.value = `TIMESHEET SUMMARY — ${periodType.toUpperCase()} — ${fmtPeriod(period)}`;
-      titleCell.font = { name: FONT, bold: true, size: 14, color: { argb: 'FF2A4D69' } };
+      titleCell.font = { name: FONT, bold: true, size: 14, color: { argb: EXPORT_BRAND_ARGB } };
       titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
       ws.getRow(1).height = 24;
       ws.addRow([]);
@@ -883,7 +884,7 @@ function DownloadDialog({ employees, timesheets, period, periodType, onClose }: 
         const isSumCol = col > FIXED_COLS + days.length;
         const isFixedCol = col <= FIXED_COLS;
         c.font = { name: FONT, bold: true, size: 8, color: { argb: 'FFFFFFFF' } };
-        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isFixedCol ? 'FF1A3450' : isSumCol ? 'FF163554' : 'FF2A4D69' } };
+        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isFixedCol ? 'FF1A3450' : isSumCol ? 'FF163554' : EXPORT_BRAND_ARGB } };
         c.alignment = { horizontal: isFixedCol ? 'left' : 'center', vertical: 'middle', wrapText: !isFixedCol };
         c.border = { bottom: { style: 'medium', color: { argb: 'FF86BBD8' } } };
       });
@@ -945,7 +946,7 @@ function DownloadDialog({ employees, timesheets, period, periodType, onClose }: 
       gtRow.eachCell({ includeEmpty: true }, (c, col) => {
         const isSumCol = col > FIXED_COLS + days.length;
         c.font = { name: FONT, bold: true, size: 8, color: { argb: isSumCol ? 'FFFFFFFF' : 'FF1E3A5F' } };
-        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isSumCol ? 'FF2A4D69' : 'FFD0E8F5' } };
+        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isSumCol ? EXPORT_BRAND_ARGB : 'FFD0E8F5' } };
         c.alignment = { horizontal: col <= FIXED_COLS ? 'left' : 'center', vertical: 'middle' };
         if (isSumCol) c.numFmt = '0.00';
         c.border = { top: { style: 'medium', color: { argb: 'FF86BBD8' } } };
@@ -960,12 +961,12 @@ function DownloadDialog({ employees, timesheets, period, periodType, onClose }: 
         const ws = wb.addWorksheet(emp.name.slice(0, 31));
         const totals = calcTotalsLocal(emp.id);
         ws.mergeCells('A1:J1'); ws.getCell('A1').value = `TIMESHEET — ${periodType.toUpperCase()} PERIOD`;
-        ws.getCell('A1').font = { bold: true, size: 14, color: { argb: 'FF2A4D69' } };
+        ws.getCell('A1').font = { bold: true, size: 14, color: { argb: EXPORT_BRAND_ARGB } };
         ws.mergeCells('A2:J2'); ws.getCell('A2').value = `${emp.name} | ${fmtPeriod(period)}`;
         ws.getCell('A2').font = { bold: true, size: 11 };
         ws.addRow([]);
         const hdr = ws.addRow(['Day', 'Date', 'Status', 'Start', 'End', 'Regular', 'OT 1.5×', 'OT 2.0×', 'Night', 'Notes']);
-        hdr.eachCell(c => { c.font = { bold: true, color: { argb: 'FFFFFFFF' } }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2A4D69' } }; c.alignment = { horizontal: 'center' }; });
+        hdr.eachCell(c => { c.font = { bold: true, color: { argb: 'FFFFFFFF' } }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: EXPORT_BRAND_ARGB } }; c.alignment = { horizontal: 'center' }; });
         buildRows(emp).forEach((row, i) => {
           const r = ws.addRow([row.day, row.date, row.status, row.start, row.end, +row.reg, +row.ot15, +row.ot20, +row.night, row.notes]);
           if (i % 2 === 1) r.eachCell(c => { c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF5F7FA' } }; });
@@ -988,7 +989,7 @@ function DownloadDialog({ employees, timesheets, period, periodType, onClose }: 
     const { default: autoTable } = await import('jspdf-autotable');
     const targets = scope === 'combined' ? employees : employees.filter(e => String(e.id) === String(empId));
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-    const BRAND: [number, number, number] = [42, 77, 105];
+    const BRAND = EXPORT_BRAND_RGB;
 
     if (scope === 'combined') {
       doc.setFillColor(...BRAND); doc.rect(0, 0, 297, 16, 'F');

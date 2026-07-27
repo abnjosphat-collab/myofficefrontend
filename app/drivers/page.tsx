@@ -19,7 +19,7 @@ import {
 import { toast } from 'sonner';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import * as XLSX from 'xlsx';
+import { EXPORT_BRAND_RGB, styleExcelHeaderRow, exportFilename } from '@/lib/exportUtils';
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 
@@ -88,24 +88,38 @@ async function apiDeleteDriver(id: number): Promise<void> {
 
 // ─── EXPORT HELPERS ───────────────────────────────────────────────────────────
 
-function exportExcel(drivers: Driver[]) {
-  const rows = drivers.map(d => ({
-    'Full Name': d.full_name, 'Phone Number(s)': (d.phone_numbers || []).join(' / '),
-    'Department': d.department || '', 'License Class': d.license_class || '',
-    'License Expiry': d.license_expiry || '', 'Status': d.status, 'Notes': d.notes || '',
+async function exportExcel(drivers: Driver[]) {
+  const ExcelJS = (await import('exceljs')).default;
+  const { saveAs } = await import('file-saver');
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('Authorised Drivers');
+  ws.columns = [
+    { header: 'Full Name', key: 'name', width: 28 },
+    { header: 'Phone Number(s)', key: 'phones', width: 30 },
+    { header: 'Department', key: 'dept', width: 18 },
+    { header: 'License Class', key: 'class', width: 14 },
+    { header: 'License Expiry', key: 'expiry', width: 16 },
+    { header: 'Status', key: 'status', width: 12 },
+    { header: 'Notes', key: 'notes', width: 32 },
+  ];
+  styleExcelHeaderRow(ws.getRow(1));
+  drivers.forEach(d => ws.addRow({
+    name: d.full_name, phones: (d.phone_numbers || []).join(' / '),
+    dept: d.department || '', class: d.license_class || '',
+    expiry: d.license_expiry || '', status: d.status, notes: d.notes || '',
   }));
-  const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.json_to_sheet(rows);
-  ws['!cols'] = [{ wch: 28 }, { wch: 30 }, { wch: 18 }, { wch: 14 }, { wch: 16 }, { wch: 12 }, { wch: 32 }];
-  XLSX.utils.book_append_sheet(wb, ws, 'Authorised Drivers');
-  XLSX.writeFile(wb, `Authorised_Drivers_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  const buf = await wb.xlsx.writeBuffer();
+  saveAs(
+    new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
+    `${exportFilename('Authorised_Drivers')}.xlsx`,
+  );
   toast.success('Excel downloaded');
 }
 
 function exportPDF(drivers: Driver[], filterLabel: string) {
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   const pageW = doc.internal.pageSize.getWidth();
-  doc.setFillColor(42, 77, 105);
+  doc.setFillColor(...EXPORT_BRAND_RGB);
   doc.rect(0, 0, pageW, 22, 'F');
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(14); doc.setFont('helvetica', 'bold');
@@ -124,7 +138,7 @@ function exportPDF(drivers: Driver[], filterLabel: string) {
     head: [['Full Name', 'Phone Number(s)', 'Department', 'Licence Class', 'Expiry', 'Status', 'Notes']],
     body,
     styles: { fontSize: 8.5, cellPadding: { top: 3, right: 4, bottom: 3, left: 4 }, textColor: [30, 30, 30], lineColor: [220, 230, 240], lineWidth: 0.25 },
-    headStyles: { fillColor: [42, 77, 105], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
+    headStyles: { fillColor: EXPORT_BRAND_RGB, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
     alternateRowStyles: { fillColor: [245, 249, 253] },
     columnStyles: { 0: { fontStyle: 'bold', cellWidth: 44 }, 1: { cellWidth: 46, textColor: [30, 90, 160] }, 2: { cellWidth: 32 }, 3: { cellWidth: 24 }, 4: { cellWidth: 22 }, 5: { cellWidth: 20, halign: 'center', fontStyle: 'bold' }, 6: { cellWidth: 'auto' } },
     didDrawCell(data) {

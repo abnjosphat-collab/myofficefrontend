@@ -23,7 +23,7 @@ import {
 } from '@/components/shared/theme';
 import { formatDate } from '@/lib/format';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
-import { exportFilename } from '@/lib/exportUtils';
+import { exportFilename, EXPORT_BRAND_ARGB, EXPORT_BRAND_RGB, styleExcelHeaderRow } from '@/lib/exportUtils';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -249,7 +249,7 @@ function FilterChips({ label, options, value, onChange }: {
 // "Boilermaker" / "Boilermaker Assistant" clustering the on-page accordion shows,
 // since alphabetical sort naturally puts a trade next to its assistants).
 
-const BRAND: [number, number, number] = [42, 77, 105]; // matches the registry Excel export's header fill (#2A4D69)
+const BRAND = EXPORT_BRAND_RGB; // matches the registry Excel export's header fill
 
 type ExportGroupBy = 'discipline' | 'section' | 'profession' | 'section_profession';
 
@@ -303,11 +303,6 @@ function RosterExportDialog({ employees, onClose }: { employees: Employee[]; onC
 
   const fileStub = `Personnel_By_${groupBy === 'section_profession' ? 'Section_and_Profession' : groupBy[0].toUpperCase() + groupBy.slice(1)}`;
 
-  const styleHeaderRow = (row: any) => row.eachCell((cell: any) => {
-    cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
-    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2A4D69' } };
-  });
-
   const generateExcel = async () => {
     const ExcelJS = (await import('exceljs')).default;
     const { saveAs } = await import('file-saver');
@@ -317,13 +312,13 @@ function RosterExportDialog({ employees, onClose }: { employees: Employee[]; onC
       for (const g of sectionGroups) {
         const ws = wb.addWorksheet(g.section.slice(0, 31)); // Excel sheet-name limit
         ws.columns = EXPORT_COLUMNS;
-        styleHeaderRow(ws.getRow(1));
+        styleExcelHeaderRow(ws.getRow(1));
         for (const sub of g.subgroups) {
           // A bold, merged label row names the profession before its people — the
           // "Boilermaker" / "Boilermaker Assistant" clustering, spelled out.
           const labelRow = ws.addRow([`${sub.designation} (${sub.employees.length})`]);
           ws.mergeCells(labelRow.number, 1, labelRow.number, EXPORT_COLUMNS.length);
-          labelRow.getCell(1).font = { bold: true, italic: true, size: 10, color: { argb: 'FF2A4D69' } };
+          labelRow.getCell(1).font = { bold: true, italic: true, size: 10, color: { argb: EXPORT_BRAND_ARGB } };
           labelRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8EEF3' } };
           sub.employees.forEach(e => ws.addRow(e as any));
         }
@@ -332,7 +327,7 @@ function RosterExportDialog({ employees, onClose }: { employees: Employee[]; onC
       for (const g of flatGroups) {
         const ws = wb.addWorksheet(g.label.slice(0, 31));
         ws.columns = EXPORT_COLUMNS;
-        styleHeaderRow(ws.getRow(1));
+        styleExcelHeaderRow(ws.getRow(1));
         g.rows.forEach(e => ws.addRow(e as any));
       }
     }

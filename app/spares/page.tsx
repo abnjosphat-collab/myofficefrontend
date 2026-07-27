@@ -4,6 +4,7 @@
 import { AppShell } from '@/components/app-shell';
 import { formatDate } from '@/lib/format';
 import { api } from '@/lib/apiClient';
+import { EXPORT_BRAND_RGB } from '@/lib/exportUtils';
 import { useTheme, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle, FormField, FormActions, CenterModal, ACCENT_HEX, GlowCard, SelectField, GroupSection, staggerContainer, fadeUp } from '@/components/shared/theme';
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
@@ -811,7 +812,7 @@ function SparesPageContent() {
     const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
     const lines = reqLines.filter(l => l.spare);
 
-    doc.setFillColor(42, 77, 105); doc.rect(0, 0, 297, 26, 'F');
+    doc.setFillColor(...EXPORT_BRAND_RGB); doc.rect(0, 0, 297, 26, 'F');
     doc.setTextColor(255, 255, 255); doc.setFontSize(16); doc.setFont('helvetica', 'bold'); doc.text('Ozech MyOffice', 12, 11);
     doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.text('SPARE PARTS MANAGEMENT', 12, 17);
     doc.setFontSize(13); doc.setFont('helvetica', 'bold'); doc.text('Parts Requisition', 285, 11, { align: 'right' });
@@ -820,13 +821,13 @@ function SparesPageContent() {
     const urgencyLabel = reqHeader.urgency.charAt(0).toUpperCase() + reqHeader.urgency.slice(1);
     const priorityLabel = reqHeader.priority.charAt(0).toUpperCase() + reqHeader.priority.slice(1);
     doc.setFillColor(235, 242, 248); doc.rect(0, 26, 297, 14, 'F');
-    doc.setTextColor(42, 77, 105); doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+    doc.setTextColor(...EXPORT_BRAND_RGB); doc.setFontSize(8); doc.setFont('helvetica', 'bold');
     const metaY = 33;
     const metaItems: [string, string][] = [['Requested By', reqHeader.requester || '—'], ['Required For', reqHeader.required_for || '—'], ['Urgency', urgencyLabel], ['Priority', priorityLabel]];
     metaItems.forEach(([lbl, val], i) => {
       const x = 12 + i * 70;
       doc.text(lbl + ':', x, metaY - 3); doc.setFont('helvetica', 'normal'); doc.setTextColor(26, 37, 51);
-      doc.text(val, x, metaY + 2); doc.setFont('helvetica', 'bold'); doc.setTextColor(42, 77, 105);
+      doc.text(val, x, metaY + 2); doc.setFont('helvetica', 'bold'); doc.setTextColor(...EXPORT_BRAND_RGB);
     });
     if (reqHeader.reason) {
       doc.setFont('helvetica', 'bold'); doc.text('Reason:', 12, metaY + 8);
@@ -838,8 +839,8 @@ function SparesPageContent() {
       startY: reqHeader.reason ? 52 : 46,
       head: [['#', 'Stock Code', 'Description', 'UoM', 'Qty', 'Unit Price', 'Line Total']],
       body: tableRows, foot: [['', '', '', '', '', 'Grand Total', formatCurrency(reqGrandTotal)]],
-      headStyles: { fillColor: [42, 77, 105], textColor: 255, fontStyle: 'bold', fontSize: 9 },
-      footStyles: { fillColor: [220, 231, 240], textColor: [42, 77, 105], fontStyle: 'bold', fontSize: 10 },
+      headStyles: { fillColor: EXPORT_BRAND_RGB, textColor: 255, fontStyle: 'bold', fontSize: 9 },
+      footStyles: { fillColor: [220, 231, 240], textColor: EXPORT_BRAND_RGB, fontStyle: 'bold', fontSize: 10 },
       bodyStyles: { fontSize: 9, textColor: [26, 37, 51] },
       alternateRowStyles: { fillColor: [248, 250, 252] },
       columnStyles: { 0: { cellWidth: 10, halign: 'center' }, 1: { cellWidth: 34, fontStyle: 'bold' }, 2: { cellWidth: 'auto' }, 3: { cellWidth: 16, halign: 'center' }, 4: { cellWidth: 16, halign: 'right' }, 5: { cellWidth: 32, halign: 'right' }, 6: { cellWidth: 32, halign: 'right' } },
