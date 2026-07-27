@@ -2,7 +2,6 @@
 'use client';
 
 import { AppShell } from '@/components/app-shell';
-import { api } from '@/lib/apiClient';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Folder, FileText, Upload, Search, Trash2, X, HardDrive, Archive,
@@ -22,66 +21,8 @@ import {
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
 import { formatDate } from '@/lib/format';
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-interface Category {
-  id: string;
-  name: string;
-  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
-  color: string;
-  description: string;
-}
-
-interface PathItem {
-  name: string;
-  id: string;
-  type: 'category' | 'subfolder';
-}
-
-interface DocumentFile {
-  id: string;
-  name: string;
-  original_name: string;
-  type: string;
-  categoryId: string;
-  categoryName: string;
-  folderId: string | null;
-  folderPath: string;
-  file_size: number;
-  starred: boolean;
-  description: string;
-  created_at: string;
-  updated_at: string;
-  file_url: string;
-  storage_path: string;
-  mime_type: string;
-}
-
-interface PendingFile {
-  file: File;
-  name: string;
-  description: string;
-}
-
-interface DeleteItem {
-  name: string;
-  id?: string;
-  type?: string;
-  categoryId?: string;
-  folderId?: string | null;
-  storage_path?: string;
-}
-
-interface RenameItem {
-  name: string;
-  id?: string;
-  type?: string;
-}
-
-interface CustomSubfolders {
-  [categoryName: string]: string[];
-}
+import type { Category, CustomSubfolders, DeleteItem, DocumentFile, PathItem, PendingFile, RenameItem } from './types';
+import { deleteDocument, updateDocument, uploadDocument, useDocumentsData } from './useDocumentsData';
 
 // ─── API ──────────────────────────────────────────────────────────────────────
 
@@ -156,27 +97,6 @@ function formatDateTime(dateString: string | undefined): string {
   return d.toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
-function fromDb(row: Record<string, unknown>): DocumentFile {
-  return {
-    id:            String(row.id),
-    name:          String(row.name),
-    original_name: String(row.original_name ?? row.name),
-    type:          String(row.file_type  ?? 'file'),
-    categoryId:    String(row.category_id ?? ''),
-    categoryName:  String(row.category_name ?? ''),
-    folderId:      row.folder_id ? String(row.folder_id) : null,
-    folderPath:    String(row.folder_path ?? ''),
-    file_size:     Number(row.file_size  ?? 0),
-    starred:       Boolean(row.starred),
-    description:   String(row.description ?? ''),
-    created_at:    String(row.created_at),
-    updated_at:    String(row.updated_at ?? row.created_at),
-    file_url:      String(row.file_url   ?? ''),
-    storage_path:  String(row.storage_path ?? ''),
-    mime_type:     String(row.mime_type  ?? ''),
-  };
-}
-
 // ─── FileActionsMenu ──────────────────────────────────────────────────────────
 
 function FileActionsMenu({ doc, onPreview, onDownload, onRename, onDelete, onToggleStar }: {
@@ -228,10 +148,9 @@ function DocumentsPageContent() {
   const [viewMode,         setViewMode]         = useState<'grid' | 'table'>('grid');
   const [currentCategory,  setCurrentCategory]  = useState<Category | null>(null);
   const [currentFolder,    setCurrentFolder]    = useState<string | null>(null);
+  const { documents, setDocuments, isLoading, refresh: loadFiles } = useDocumentsData(currentCategory, currentFolder);
   const [customSubfolders, setCustomSubfolders] = useState<CustomSubfolders>({});
-  const [documents,        setDocuments]        = useState<DocumentFile[]>([]);
   const [searchQuery,      setSearchQuery]      = useState('');
-  const [isLoading,        setIsLoading]        = useState(false);
   const [path,             setPath]             = useState<PathItem[]>([]);
   const [activeTab,        setActiveTab]        = useState<'all' | 'starred' | 'recent'>('all');
   const [mobileMenuOpen,   setMobileMenuOpen]   = useState(false);
@@ -265,26 +184,6 @@ function DocumentsPageContent() {
     setCustomSubfolders(saved ? JSON.parse(saved) as CustomSubfolders : {});
   }, []);
 
-  useEffect(() => {
-    if (currentCategory) loadFiles();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentCategory, currentFolder]);
-
-  async function loadFiles() {
-    if (!currentCategory) return;
-    setIsLoading(true);
-    try {
-      const params = new URLSearchParams({ category_id: currentCategory.id });
-      if (currentFolder) params.set('folder_id', currentFolder);
-      const data = await api.get<Record<string, unknown>[]>(`/api/documents?${params}`);
-      setDocuments(data.map(fromDb));
-    } catch (e) {
-      toast.error(`Failed to load files: ${e}`);
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
   async function uploadFilesToApi() {
     if (!pendingFiles.length) { toast.error('No files selected'); return; }
     if (!currentCategory)     { toast.error('No category selected'); return; }
@@ -304,7 +203,7 @@ function DocumentsPageContent() {
         fd.append('category_name', currentCategory.name);
         fd.append('folder_id',     currentFolder ?? '');
         fd.append('folder_path',   folderPath);
-        newDocs.push(fromDb(await api.post<Record<string, unknown>>('/api/documents/upload', fd)));
+        newDocs.push(await uploadDocument(fd));
       } catch (e) {
         toast.error(`Failed to upload "${pf.file.name}": ${e}`);
       }
@@ -326,7 +225,7 @@ function DocumentsPageContent() {
   async function deleteDoc(item: DeleteItem) {
     if (!item.id) return;
     try {
-      await api.delete(`/api/documents/${item.id}`);
+      await deleteDocument(item.id);
       setDocuments(prev => prev.filter(d => d.id !== item.id));
       toast.success(`"${item.name}" deleted`);
     } catch (e) { toast.error(`Delete failed: ${e}`); }
@@ -334,7 +233,7 @@ function DocumentsPageContent() {
 
   async function updateDoc(id: string, updates: Partial<DocumentFile>) {
     try {
-      await api.put(`/api/documents/${id}`, updates);
+      await updateDocument(id, updates);
       setDocuments(prev => prev.map(d => d.id === id ? { ...d, ...updates } : d));
     } catch (e) { toast.error(`Update failed: ${e}`); }
   }
