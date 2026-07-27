@@ -1,7 +1,7 @@
 // app/breakdowns/page.tsx
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback, useRef, Fragment } from 'react';
+import React, { useState, useEffect, useMemo, useRef, Fragment } from 'react';
 import { api } from '@/lib/apiClient';
 import { type EmployeeLookup } from '@/hooks/useLookups';
 import { AppShell } from "@/components/app-shell";
@@ -27,21 +27,10 @@ import {
   PieChart as RePieChart, Pie, Cell, AreaChart as ReAreaChart, Area,
   Line, ComposedChart,
 } from 'recharts';
-
-// ─── API ──────────────────────────────────────────────────────────────────────
+import type { Breakdown, BreakdownFormData, Filters, HeatmapData, SparePart, SpareUsed } from './types';
+import { createBreakdown, deleteBreakdown, fetchBreakdownAnalytics, updateBreakdown, useBreakdownsData } from './useBreakdownsData';
 
 // ─── ANALYTICS TYPES / HELPERS ────────────────────────────────────────────────
-
-interface HeatmapData {
-  heatmap: { hour_day: number[][]; labels: { hours: string[]; days: string[] } };
-  top_problem_machines: { name: string; count: number; total_downtime: number; department: string; avg_downtime: number; avg_repair_time: number; avg_response_time: number }[];
-  top_spare_parts: { name: string; count: number; total_cost: number; part_number: string; total_quantity: number }[];
-  breakdown_type_distribution: { type: string; count: number }[];
-  department_comparison: { department: string; count: number; downtime: number }[];
-  monthly_trends: { month: string; count: number }[];
-  artisan_performance: { name: string; count: number; total_repair_time: number; avg_repair_time: number }[];
-  success: boolean;
-}
 
 const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
@@ -63,47 +52,6 @@ const PIE_COLORS = [
   '#3b82f6', '#ef4444', '#22c55e', '#f59e0b', '#8b5cf6',
   '#ec4899', '#14b8a6', '#f97316', '#6366f1', '#84cc16',
 ];
-
-// ─── TYPES ────────────────────────────────────────────────────────────────────
-
-interface SparePart { name: string; quantity: number; part_number?: string; unit_price: number; total_cost: number; }
-interface SpareUsed { part_number?: string; name?: string; quantity?: number; unit_price?: number; total_cost?: number; }
-
-interface Breakdown {
-  id: number;
-  breakdown_uid?: string;
-  machine_id: string;
-  machine_name: string;
-  machine_description?: string;
-  artisan_name: string;
-  department: string;
-  location: string;
-  breakdown_date: string;
-  breakdown_type: string;
-  work_done?: string;
-  artisan_recommendations?: string;
-  status: string;
-  priority: string;
-  breakdown_start?: string;
-  breakdown_end?: string;
-  work_start?: string;
-  work_end?: string;
-  created_at?: string;
-  updated_at?: string;
-  breakdown_description?: string;
-  spares_used?: SparePart[] | string;
-}
-
-interface BreakdownFormData {
-  machine_id: string; machine_name: string; breakdown_description: string;
-  machine_description?: string; artisan_name: string; breakdown_date: string;
-  location: string; department: string; breakdown_type: string; work_done: string;
-  artisan_recommendations: string; status: string; priority: string;
-  breakdown_start: string; breakdown_end: string; work_start: string; work_end: string;
-  spares_used: SparePart[];
-}
-
-interface Filters { status: string; breakdown_type: string; priority: string; department: string; location: string; }
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 
@@ -148,46 +96,6 @@ const calcDowntime = (start?: string, end?: string): number => {
 const sparesTotalCost = (spares: Breakdown['spares_used']): number => {
   if (!spares || !Array.isArray(spares)) return 0;
   return (spares as SpareUsed[]).reduce((t, s) => t + (parseFloat(s.total_cost?.toString() ?? '0') || 0), 0);
-};
-
-// ─── API ──────────────────────────────────────────────────────────────────────
-
-// Throws on failure — the `catch { return [] }` this replaces made a server
-// outage indistinguishable from "no breakdowns match these filters".
-const fetchBreakdowns = async (filters: Record<string, string> = {}): Promise<Breakdown[]> => {
-  const params = new URLSearchParams();
-  Object.entries(filters).forEach(([k, v]) => { if (v && v !== 'all' && v !== '') params.append(k, v); });
-  const data = await api.get<any>(`/api/breakdowns/get-breakdowns?${params}`);
-  if (Array.isArray(data)) return data;
-  return data.data ?? data.breakdowns ?? data.results ?? [];
-};
-
-function toApiBody(fd: BreakdownFormData) {
-  return {
-    machine_id: fd.machine_id || '', machine_name: fd.machine_name || '',
-    breakdown_description: fd.breakdown_description || '', machine_description: fd.breakdown_description || '',
-    artisan_name: fd.artisan_name || '', breakdown_date: fd.breakdown_date || new Date().toISOString().split('T')[0],
-    location: fd.location || '', department: fd.department || '', breakdown_type: fd.breakdown_type || 'mechanical',
-    work_done: fd.work_done || '', artisan_recommendations: fd.artisan_recommendations || '',
-    status: fd.status || 'logged', priority: fd.priority || 'medium',
-    breakdown_start: fd.breakdown_start || '', breakdown_end: fd.breakdown_end || '',
-    work_start: fd.work_start || '', work_end: fd.work_end || '',
-    spares_used: (Array.isArray(fd.spares_used) ? fd.spares_used : []).map((s: SpareUsed) => ({
-      name: s.name || '', quantity: s.quantity || 1, part_number: s.part_number || '',
-      unit_price: s.unit_price || 0, total_cost: (s.quantity || 1) * (s.unit_price || 0),
-    })),
-  };
-}
-const createBreakdown = async (fd: BreakdownFormData): Promise<unknown> => {
-  return api.post('/api/breakdowns/', toApiBody(fd));
-};
-const updateBreakdown = async (id: number, fd: BreakdownFormData): Promise<unknown> => {
-  if (!id) throw new Error('Invalid ID');
-  return api.patch(`/api/breakdowns/${id}`, toApiBody(fd));
-};
-const deleteBreakdown = async (id: number): Promise<unknown> => {
-  if (!id) throw new Error('Invalid ID');
-  return (await api.delete(`/api/breakdowns/${id}`)) ?? { success: true };
 };
 
 // ─── Themed autocomplete field (replaces legacy EmployeeNameInput) ────────────
@@ -745,9 +653,6 @@ function FormModal({ isOpen, onClose, onSubmit, initialData, mode = 'create' }: 
 
 function BreakdownsPageContent() {
   const t = useTheme();
-  const [breakdowns, setBreakdowns] = useState<Breakdown[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('table');
   const [sortField, setSortField] = useState('breakdown_date');
   const [activeView, setActiveView] = useState<'records' | 'analytics'>('records');
@@ -760,6 +665,8 @@ function BreakdownsPageContent() {
   const [startDate, setStartDate] = useState(() => { const d = new Date(); d.setDate(d.getDate() - 30); return d.toISOString().split('T')[0]; });
   const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [showDateRange, setShowDateRange] = useState(false);
+
+  const { breakdowns, loading, loadError, refresh: loadBreakdowns } = useBreakdownsData(filters, startDate, endDate, showDateRange);
 
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
@@ -799,30 +706,6 @@ function BreakdownsPageContent() {
     if (searchTerm) c++; if (showDateRange) c++;
     return c;
   }, [filters, searchTerm, showDateRange]);
-
-  const loadBreakdowns = useCallback(async () => {
-    setLoading(true);
-    try {
-      const q: Record<string, string> = {};
-      if (filters.status !== 'all') q.status = filters.status;
-      if (filters.breakdown_type !== 'all') q.breakdown_type = filters.breakdown_type;
-      if (filters.priority !== 'all') q.priority = filters.priority;
-      if (filters.department !== 'all') q.department = filters.department;
-      if (filters.location !== 'all' && filters.location !== '') q.location = filters.location;
-      if (showDateRange && startDate && endDate) { q.start_date = startDate; q.end_date = endDate; }
-      setBreakdowns(await fetchBreakdowns(q));
-      setLoadError('');
-    } catch (e) {
-      // Keep the error visible instead of blanking the list into a "no breakdowns
-      // found / log your first" state that looks like an empty database.
-      setLoadError(e instanceof Error ? e.message : 'Could not load breakdowns.');
-      toast.error('Failed to load breakdowns');
-      setBreakdowns([]);
-    }
-    finally { setLoading(false); }
-  }, [filters, startDate, endDate, showDateRange]);
-
-  useEffect(() => { loadBreakdowns(); }, [loadBreakdowns]);
 
   const clearFilters = () => { setFilters({ status: 'all', breakdown_type: 'all', priority: 'all', department: 'all', location: 'all' }); setSearchTerm(''); setShowDateRange(false); };
   const handleSort = (field: string) => { if (sortField === field) setSortDirection(p => p === 'asc' ? 'desc' : 'asc'); else { setSortField(field); setSortDirection('desc'); } };
@@ -1006,7 +889,7 @@ function AnalyticsView({ filters, startDate, endDate }: { filters: Filters; star
         if (startDate) params.append('date_from', startDate);
         if (endDate) params.append('date_to', endDate);
         if (filters.department && filters.department !== 'all') params.append('department', filters.department);
-        const json = await api.get<any>(`/api/breakdowns/analytics/heatmap?${params}`);
+        const json = await fetchBreakdownAnalytics(params);
         if (json.success) setData(json);
       } catch (e) { toast.error(e instanceof Error ? e.message : 'Failed to load analytics'); }
       finally { setLoading(false); }
