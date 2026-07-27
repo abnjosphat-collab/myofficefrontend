@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { api } from '@/lib/apiClient';
 import { formatDate } from '@/lib/format';
 import {
   ClipboardCheck, Plus, Trash2, MapPin, UserCircle,
@@ -19,47 +18,8 @@ import { AppShell } from '@/components/app-shell';
 import { useEmployees } from '@/hooks/useLookups';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
-
-// ─── TYPES ────────────────────────────────────────────────────────────────────
-
-type SectionType = 'mechanical' | 'electrical';
-type PriorityType = 'low' | 'medium' | 'high' | 'critical';
-type FindingStatus = 'open' | 'in-progress' | 'closed' | 'overdue';
-type InspectionStatus = 'draft' | 'submitted' | 'approved' | 'rejected';
-
-interface InspectionFinding {
-  id: string;
-  finding: string;
-  requiredAction: string;
-  byWho: string;
-  byWhen: string;
-  status: FindingStatus;
-  priority: PriorityType;
-  section: SectionType;
-  completedDate?: string;
-  remarks?: string;
-}
-
-interface SHEQFormData {
-  id: string;
-  inspectors: string;
-  title: string;
-  place: string;
-  date: string;
-  time: string;
-  department: string;
-  section: SectionType;
-  findings: InspectionFinding[];
-  hodName: string;
-  sheqOfficialName: string;
-  hodSignature?: string;
-  sheqSignature?: string;
-  status: InspectionStatus;
-  before_photos: string[];
-  after_photos: string[];
-  createdAt: string;
-  updatedAt: string;
-}
+import type { SectionType, PriorityType, FindingStatus, InspectionStatus, InspectionFinding, SHEQFormData } from './types';
+import { useSheqInspectionData, createInspection, updateInspection, deleteInspection } from './useSheqInspectionData';
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 
@@ -71,24 +31,6 @@ const PRIORITY_HEX: Record<PriorityType, string> = { low: '#34d399', medium: '#f
 const FINDING_STATUS_HEX: Record<FindingStatus, string> = { open: '#f59e0b', 'in-progress': '#60a5fa', closed: '#34d399', overdue: '#f43f5e' };
 const INSPECTION_STATUS_HEX: Record<InspectionStatus, string> = { draft: '#94a3b8', submitted: '#3b82f6', approved: '#34d399', rejected: '#f43f5e' };
 const ACCENT = '#86BBD8';
-
-// ─── API ──────────────────────────────────────────────────────────────────────
-
-// Throws on failure — the `catch { return [] }` this replaces made a server
-// outage indistinguishable from "no inspections yet".
-async function getInspections(): Promise<SHEQFormData[]> {
-  const data = await api.get<SHEQFormData[]>('/api/sheq/');
-  return Array.isArray(data) ? data : [];
-}
-async function createInspection(data: Partial<SHEQFormData>): Promise<SHEQFormData> {
-  return api.post<SHEQFormData>('/api/sheq/', data);
-}
-async function updateInspection(id: string, data: Partial<SHEQFormData>): Promise<SHEQFormData> {
-  return api.patch<SHEQFormData>(`/api/sheq/${id}/`, data);
-}
-async function deleteInspection(id: string): Promise<void> {
-  await api.delete(`/api/sheq/${id}/`);
-}
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 
@@ -668,9 +610,7 @@ function InspectionCard({
 function SHEQInspectionContent() {
   const t = useTheme();
   const sections = useCollapseSection({ hero: true, records: true });
-  const [loading, setLoading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [inspections, setInspections] = useState<SHEQFormData[]>([]);
+  const { inspections, setInspections, loading, refreshing, load } = useSheqInspectionData();
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [selectedInspection, setSelectedInspection] = useState<SHEQFormData | null>(null);
@@ -683,13 +623,6 @@ function SHEQInspectionContent() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-
-  const load = async (quiet = false) => {
-    if (!quiet) setLoading(true); else setRefreshing(true);
-    try { setInspections(await getInspections()); }
-    catch { toast.error('Failed to load inspections'); }
-    finally { setLoading(false); setRefreshing(false); }
-  };
 
   useEffect(() => { load(); }, []);
 
