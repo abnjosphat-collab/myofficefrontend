@@ -2,7 +2,6 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { api } from '@/lib/apiClient';
 import {
   Wrench, ClipboardList, DollarSign, Package, CheckCheck, Tag,
   Building2, Hash, Calendar, Phone,
@@ -18,45 +17,11 @@ import {
   FormField, FormActions, useCollapseSection, CenterModal, ProgressBar, ACCENT_HEX, GlowCard, SelectField,
 } from '@/components/shared/theme';
 import { Toaster, toast } from 'sonner';
-
-// ─── API ──────────────────────────────────────────────────────────────────────
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-interface StageData  { signed: boolean; signed_by: string; signed_date: string; comments: string; }
-interface StoresStage extends StageData { grv_number: string; }
-interface PaymentStage { done: boolean; paid_by: string; payment_date: string; payment_reference: string; comments: string; }
-
-interface ServiceRecord {
-  id: string;
-  created_at: string;
-  date: string;
-  description: string;
-  supplier: string;
-  contact_person: string;
-  requisition_number: string;
-  invoice_number: string;
-  order_number: string;
-  amount: string;
-  category: string;
-  planning: StageData;
-  engineering_manager: StageData;
-  finance: StageData;
-  gm: StageData;
-  stores: StoresStage;
-  payment: PaymentStage;
-  general_comments: string;
-}
-
-interface Attachment {
-  id: string;
-  service_id: string;
-  created_at: string;
-  filename: string;
-  file_url: string;
-  file_size: number;
-  mime_type: string;
-}
+import type { Attachment, PaymentStage, ServiceRecord, StageData, StoresStage } from './types';
+import {
+  createService, deleteAttachment, deleteService, fetchAttachments,
+  ocrExtract, emptyRecord, updateService, uploadAttachment, useServicesData,
+} from './useServicesData';
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
@@ -74,71 +39,6 @@ const STAGES = [
   { key: 'payment'             as const, label: 'Payment',            short: 'Payment', icon: DollarSign    },
 ];
 type StageKey = typeof STAGES[number]['key'];
-
-// ─── API ↔ frontend converters ────────────────────────────────────────────────
-
-function toApi(r: ServiceRecord): Record<string, unknown> {
-  return {
-    date: r.date || null,
-    description: r.description,          supplier: r.supplier,
-    contact_person: r.contact_person,    requisition_number: r.requisition_number,
-    invoice_number: r.invoice_number,    order_number: r.order_number,
-    amount: r.amount,                    category: r.category,
-    general_comments: r.general_comments,
-    planning_signed: r.planning.signed,        planning_signed_by: r.planning.signed_by,
-    planning_signed_date: r.planning.signed_date || null,
-    planning_comments: r.planning.comments,
-    eng_mgr_signed: r.engineering_manager.signed,
-    eng_mgr_signed_by: r.engineering_manager.signed_by,
-    eng_mgr_signed_date: r.engineering_manager.signed_date || null,
-    eng_mgr_comments: r.engineering_manager.comments,
-    finance_signed: r.finance.signed,          finance_signed_by: r.finance.signed_by,
-    finance_signed_date: r.finance.signed_date || null,
-    finance_comments: r.finance.comments,
-    gm_signed: r.gm.signed,                   gm_signed_by: r.gm.signed_by,
-    gm_signed_date: r.gm.signed_date || null,  gm_comments: r.gm.comments,
-    stores_signed: r.stores.signed,            stores_signed_by: r.stores.signed_by,
-    stores_signed_date: r.stores.signed_date || null,
-    stores_comments: r.stores.comments,        stores_grv_number: r.stores.grv_number,
-    payment_done: r.payment.done,              payment_paid_by: r.payment.paid_by,
-    payment_date: r.payment.payment_date || null,
-    payment_reference: r.payment.payment_reference,
-    payment_comments: r.payment.comments,
-  };
-}
-
-function fromApi(d: Record<string, unknown>): ServiceRecord {
-  const s = (v: unknown) => String(v ?? '');
-  const b = (v: unknown) => v === true || v === 'true';
-  return {
-    id: s(d.id), created_at: s(d.created_at),
-    date: s(d.date), description: s(d.description), supplier: s(d.supplier),
-    contact_person: s(d.contact_person), requisition_number: s(d.requisition_number),
-    invoice_number: s(d.invoice_number), order_number: s(d.order_number),
-    amount: s(d.amount), category: s(d.category), general_comments: s(d.general_comments),
-    planning:            { signed: b(d.planning_signed),  signed_by: s(d.planning_signed_by),  signed_date: s(d.planning_signed_date),  comments: s(d.planning_comments) },
-    engineering_manager: { signed: b(d.eng_mgr_signed),   signed_by: s(d.eng_mgr_signed_by),   signed_date: s(d.eng_mgr_signed_date),   comments: s(d.eng_mgr_comments) },
-    finance:             { signed: b(d.finance_signed),   signed_by: s(d.finance_signed_by),   signed_date: s(d.finance_signed_date),   comments: s(d.finance_comments) },
-    gm:                  { signed: b(d.gm_signed),        signed_by: s(d.gm_signed_by),        signed_date: s(d.gm_signed_date),        comments: s(d.gm_comments) },
-    stores:              { signed: b(d.stores_signed),    signed_by: s(d.stores_signed_by),    signed_date: s(d.stores_signed_date),    comments: s(d.stores_comments), grv_number: s(d.stores_grv_number) },
-    payment:             { done: b(d.payment_done),       paid_by: s(d.payment_paid_by),       payment_date: s(d.payment_date),         payment_reference: s(d.payment_reference), comments: s(d.payment_comments) },
-  };
-}
-
-function emptyRecord(): ServiceRecord {
-  const stage  = (): StageData   => ({ signed: false, signed_by: '', signed_date: '', comments: '' });
-  const stores = (): StoresStage => ({ ...stage(), grv_number: '' });
-  const pay    = (): PaymentStage => ({ done: false, paid_by: '', payment_date: '', payment_reference: '', comments: '' });
-  return {
-    id: crypto.randomUUID(), created_at: new Date().toISOString(),
-    date: new Date().toISOString().slice(0, 10),
-    description: '', supplier: '', contact_person: '',
-    requisition_number: '', invoice_number: '', order_number: '',
-    amount: '', category: '', general_comments: '',
-    planning: stage(), engineering_manager: stage(), finance: stage(),
-    gm: stage(), stores: stores(), payment: pay(),
-  };
-}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -256,16 +156,15 @@ function AttachmentPanel({ serviceId }: { serviceId: string }) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    api.get<Attachment[]>(`/api/services/${serviceId}/attachments`)
-      .then(data => { setAttachments(Array.isArray(data) ? data : []); setLoading(false); })
+    fetchAttachments(serviceId)
+      .then(data => { setAttachments(data); setLoading(false); })
       .catch(() => setLoading(false));
   }, [serviceId]);
 
   async function upload(file: File) {
     setUploading(true);
     try {
-      const fd = new FormData(); fd.append('file', file);
-      const att = await api.post<Attachment>(`/api/services/${serviceId}/attachments`, fd);
+      const att = await uploadAttachment(serviceId, file);
       setAttachments(prev => [att, ...prev]);
       toast.success('File attached');
     } catch (e) { toast.error(`Upload failed: ${e}`); }
@@ -274,7 +173,7 @@ function AttachmentPanel({ serviceId }: { serviceId: string }) {
   async function remove() {
     if (!deleteId) return;
     try {
-      await api.delete(`/api/services/${serviceId}/attachments/${deleteId}`);
+      await deleteAttachment(serviceId, deleteId);
       setAttachments(prev => prev.filter(a => a.id !== deleteId));
       toast.success('Attachment removed');
     } catch { toast.error('Delete failed'); }
@@ -554,8 +453,7 @@ function ExcelImportModal({ onImport, onExtracted, onClose }: {
     if (fileMode(file) === 'document') {
       setScanning(true);
       try {
-        const fd = new FormData(); fd.append('file', file);
-        const data = await api.post<any>('/api/services/ocr', fd);
+        const data = await ocrExtract(file);
         const partial: Partial<ServiceRecord> = {
           date: data.date ?? '', description: data.description ?? '', supplier: data.supplier ?? '',
           contact_person: data.contact_person ?? '', requisition_number: data.requisition_number ?? '',
@@ -650,8 +548,7 @@ function OcrUploadModal({ onExtracted, onClose }: { onExtracted: (partial: Parti
   async function handleFile(file: File) {
     setScanning(true); setError('');
     try {
-      const fd = new FormData(); fd.append('file', file);
-      const data = await api.post<any>('/api/services/ocr', fd);
+      const data = await ocrExtract(file);
       const partial: Partial<ServiceRecord> = {
         date: data.date ?? '', description: data.description ?? '', supplier: data.supplier ?? '',
         contact_person: data.contact_person ?? '', requisition_number: data.requisition_number ?? '',
@@ -706,9 +603,7 @@ function OcrUploadModal({ onExtracted, onClose }: { onExtracted: (partial: Parti
 function ServicesPageContent() {
   const t = useTheme();
   const sections = useCollapseSection({ hero: true });
-  const [records, setRecords] = useState<ServiceRecord[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [apiError, setApiError] = useState('');
+  const { records, setRecords, loading, apiError } = useServicesData();
   const [search, setSearch] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -727,12 +622,6 @@ function ServicesPageContent() {
   const [viewTab, setViewTab] = useState<'pipeline' | 'attachments'>('pipeline');
 
   const syncTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
-
-  useEffect(() => {
-    api.get<Record<string, unknown>[]>('/api/services')
-      .then(data => { setRecords(data.map(fromApi)); setLoading(false); })
-      .catch(e => { setApiError(`Could not connect to backend: ${e.message}`); setLoading(false); });
-  }, []);
 
   const total = records.length;
   const inProg = records.filter(r => { const d = stagesDone(r); return d > 0 && d < 6; }).length;
@@ -774,11 +663,11 @@ function ServicesPageContent() {
     const isNew = !records.find(x => x.id === r.id);
     try {
       if (isNew) {
-        const saved = fromApi(await api.post<Record<string, unknown>>('/api/services', toApi(r)));
+        const saved = await createService(r);
         setRecords(prev => [saved, ...prev]);
         toast.success('Service record added');
       } else {
-        const saved = fromApi(await api.put<Record<string, unknown>>(`/api/services/${r.id}`, toApi(r)));
+        const saved = await updateService(r);
         setRecords(prev => prev.map(x => x.id === saved.id ? saved : x));
         toast.success('Record updated');
       }
@@ -791,7 +680,7 @@ function ServicesPageContent() {
     if (syncTimers.current[r.id]) clearTimeout(syncTimers.current[r.id]);
     syncTimers.current[r.id] = setTimeout(async () => {
       try {
-        await api.put(`/api/services/${r.id}`, toApi(r));
+        await updateService(r);
       } catch { toast.error('Auto-save failed — your changes may not be synced'); }
     }, 1200);
   }
@@ -799,7 +688,7 @@ function ServicesPageContent() {
   async function handleDelete() {
     if (!deleteId) return;
     try {
-      await api.delete(`/api/services/${deleteId}`);
+      await deleteService(deleteId);
       setRecords(prev => prev.filter(r => r.id !== deleteId));
       toast.success('Record deleted');
     } catch { toast.error('Delete failed'); }
@@ -810,7 +699,7 @@ function ServicesPageContent() {
     let ok = 0;
     for (const row of rows) {
       try {
-        const saved = fromApi(await api.post<Record<string, unknown>>('/api/services', toApi(row)));
+        const saved = await createService(row);
         setRecords(prev => [saved, ...prev]); ok++;
       } catch { /* continue */ }
     }
