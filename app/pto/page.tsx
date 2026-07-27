@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, ElementType } from "react";
-import { api } from '@/lib/apiClient';
 import { formatDate } from '@/lib/format';
 import {
   ClipboardList, Target, Plus, Trash2, AlertTriangle,
@@ -16,40 +15,11 @@ import {
 } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
-
-// =============== TYPES ===============
-type SectionType = 'Mechanical' | 'Electrical';
-type ObservationType = 'Initial' | 'Follow up';
-type YesNoType = 'Yes' | 'No';
-type ReportStatus = 'draft' | 'submitted' | 'reviewed' | 'closed';
-type ActionStatus = 'Pending' | 'In Progress' | 'Completed';
-
-interface TimeOnJob { months: string; years: string; }
-interface Notification { toldInAdvance: YesNoType; }
-interface Reasons {
-  monthly: boolean; newEmployee: boolean; safetyAwareness: boolean;
-  incidentFollowUp: boolean; trainingFollowUp: boolean; infrequentTask: boolean;
-}
-interface Procedures { hasProcedure: YesNoType; familiarWithProcedure: YesNoType; }
-interface RiskAssessment { made: YesNoType; identified: YesNoType; effective: YesNoType; }
-interface SuggestedRemedies {
-  newProcedure: YesNoType; reviseExisting: YesNoType; differentEquipment: YesNoType;
-  engineeringControls: YesNoType; retraining: YesNoType; improvedPPE: YesNoType; placementOfWorker: YesNoType;
-}
-interface ActionPlanItem {
-  id: string; no: number; action: string; byWhom: string; byWhen: string;
-  status: ActionStatus; completedDate?: string; remarks?: string;
-}
-interface PTOReport {
-  id: string; date: string; observerName: string; section: SectionType;
-  deptSectionContractor: string; workerName: string; occupation: string;
-  jobTaskObserved: string; sheqRefNo: string; observationType: ObservationType;
-  timeOnJob: TimeOnJob; notification: Notification; reasons: Reasons;
-  procedures: Procedures; riskAssessment: RiskAssessment; suggestedRemedies: SuggestedRemedies;
-  observationScope: 'All' | 'Partial'; followUpNeeded: YesNoType;
-  actionPlan: ActionPlanItem[]; status: ReportStatus;
-  created_at: string; updated_at?: string; submitted_at?: string;
-}
+import type {
+  SectionType, ObservationType, YesNoType, ReportStatus, ActionStatus,
+  Reasons, RiskAssessment, SuggestedRemedies, ActionPlanItem, PTOReport,
+} from './types';
+import { usePTOData, createPTOReport, updatePTOReport, deletePTOReport } from './usePTOData';
 
 // =============== CONSTANTS ===============
 const SECTIONS: SectionType[] = ['Mechanical', 'Electrical'];
@@ -73,23 +43,6 @@ const REMEDY_LABELS: Record<keyof SuggestedRemedies, string> = {
   differentEquipment: 'Different Equipment', engineeringControls: 'Engineering Controls',
   retraining: 'Retraining', improvedPPE: 'Improved PPE', placementOfWorker: 'Placement of Worker'
 };
-
-// =============== API FUNCTIONS ===============
-// Throws on failure — the `catch { return [] }` this replaces made a server
-// outage indistinguishable from "no PTO reports yet".
-async function getPTOReports(): Promise<PTOReport[]> {
-  const data = await api.get<PTOReport[]>('/api/pto/');
-  return Array.isArray(data) ? data : [];
-}
-async function createPTOReport(report: Partial<PTOReport>): Promise<PTOReport> {
-  return api.post<PTOReport>('/api/pto/', report);
-}
-async function updatePTOReport(id: string, report: Partial<PTOReport>): Promise<PTOReport> {
-  return api.patch<PTOReport>(`/api/pto/${id}/`, report);
-}
-async function deletePTOReport(id: string): Promise<void> {
-  return api.delete<void>(`/api/pto/${id}/`);
-}
 
 // =============== HELPERS ===============
 const fmtDate = (s: string) => (s ? formatDate(s) : '');
@@ -529,9 +482,7 @@ function PTOFormModal({ open, editing, onClose, onSave, saving }: { open: boolea
 function PTOPageContent() {
   const t = useTheme();
   const sections = useCollapseSection({ hero: true, records: true });
-  const [reports, setReports] = useState<PTOReport[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [loadError, setLoadError] = useState('');
+  const { reports, setReports, loading, loadError, refresh: loadData } = usePTOData();
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
 
   const [selectedReport, setSelectedReport] = useState<PTOReport | null>(null);
@@ -547,16 +498,6 @@ function PTOPageContent() {
   const [obsTypeFilter, setObsTypeFilter] = useState('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-
-  const loadData = async () => {
-    setLoading(true);
-    try { setReports(await getPTOReports()); setLoadError(''); }
-    catch (e) {
-      setLoadError(e instanceof Error ? e.message : 'Could not load PTO reports.');
-      toast.error('Failed to load PTO reports');
-    }
-    finally { setLoading(false); }
-  };
 
   useEffect(() => { loadData(); }, []);
 
