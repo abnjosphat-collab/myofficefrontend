@@ -1,12 +1,10 @@
 // app/employees/page.tsx
 'use client';
 
-import React, { useState, useMemo, useEffect, useCallback } from "react";
-import { API_BASE } from '@/lib/config';
+import React, { useState, useMemo, useCallback } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { AppShell } from "@/components/app-shell";
-import { api } from "@/lib/apiClient";
 // All icons + components come from the shared design-system barrel (icons are
 // Phosphor-backed and respond to the global solid/outline toggle).
 import {
@@ -24,67 +22,11 @@ import {
 import { formatDate } from '@/lib/format';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename, EXPORT_BRAND_ARGB, EXPORT_BRAND_RGB, styleExcelHeaderRow } from '@/lib/exportUtils';
-
-// ─── Types ───────────────────────────────────────────────────────────────────
-
-interface Employee {
-  id: number;
-  employee_id: string;
-  first_name: string;
-  last_name: string;
-  id_number?: string;
-  email?: string;
-  phone?: string;
-  address?: string;
-  date_of_engagement?: string;
-  designation?: string;
-  employee_class?: string;
-  supervisor?: string;
-  section?: string;
-  department?: string;
-  grade?: string;
-  qualifications?: string[];
-  employment_type?: 'NEC' | 'SALARIED' | '';
-  discipline?: 'mechanical' | 'electrical' | '';
-  drivers_license_class?: string;
-  ppe_issue_date?: string;
-  offences?: string[];
-  awards_recognition?: string[];
-  other_positions?: string[];
-  previous_employer?: string;
-}
-
-interface EmployeeFormData {
-  employee_id: string;
-  first_name: string;
-  last_name: string;
-  id_number: string;
-  email: string;
-  phone: string;
-  address: string;
-  date_of_engagement: string;
-  designation: string;
-  employee_class: string;
-  employment_type: 'NEC' | 'SALARIED' | '';
-  discipline: 'mechanical' | 'electrical' | '';
-  supervisor: string;
-  section: string;
-  department: string;
-  grade: string;
-  qualifications: string[];
-  drivers_license_class: string;
-  offences: string[];
-  awards_recognition: string[];
-  other_positions: string[];
-  previous_employer: string;
-}
-
-type SortField = 'first_name' | 'employee_id' | 'designation' | 'department' | 'date_of_engagement';
-type SortDir = 'asc' | 'desc';
+import type { Employee, EmployeeFormData, SectionGroup, SortDir, SortField } from './types';
+import { bulkSetDiscipline, removeEmployee, saveEmployee, useEmployeesData } from './useEmployeesData';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const EMPLOYEES_API = `${API_BASE}/api/employees`;
 const CLASS_OPTIONS = ['Permanent', 'Contract', 'Internship', 'Part-Time'] as const;
 
 const CLASS_COLORS: Record<string, string> = {
@@ -124,12 +66,6 @@ function sectionColor(section?: string) {
   let h = 0;
   for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
   return GROUP_PALETTE[h % GROUP_PALETTE.length];
-}
-
-export interface SectionGroup {
-  section: string; color: string; employees: Employee[];
-  subgroups: { designation: string; employees: Employee[] }[];
-  hasMeaningfulSubgroups: boolean;
 }
 
 /** Section → profession/designation grouping — the same categorisation the on-page
@@ -198,20 +134,6 @@ function tenure(eng?: string) {
 // fmtDate was identical to the shared formatDate — alias it to the single source.
 const fmtDate = formatDate;
 
-
-// ─── API ──────────────────────────────────────────────────────────────────────
-
-async function loadEmployees() { return api.get<Employee[]>(EMPLOYEES_API); }
-async function saveEmployee(data: EmployeeFormData, id?: number) {
-  if (id) return api.put<Employee>(`${EMPLOYEES_API}/${id}`, data);
-  return api.post<Employee>(EMPLOYEES_API, data);
-}
-async function removeEmployee(id: number) {
-  await api.delete(`${EMPLOYEES_API}/${id}`);
-}
-async function bulkSetDiscipline(ids: number[], discipline: 'mechanical' | 'electrical' | null) {
-  return api.post<{ updated: number; discipline: string | null }>(`${EMPLOYEES_API}/bulk-discipline`, { ids, discipline });
-}
 
 // ─── Small themed building blocks ────────────────────────────────────────────
 // InfoRow/SummaryItem now come from the shared design system (promoted from
@@ -943,9 +865,7 @@ function EmployeeCard({ employee, onEdit, onDelete, selectMode, selected, onTogg
 
 function EmployeesPageContent() {
   const t = useTheme();
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { employees, setEmployees, isLoading, error, setError, reload } = useEmployeesData();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -977,15 +897,6 @@ function EmployeesPageContent() {
   const [showFilters, setShowFilters] = useState(true);
 
   const sections = useCollapseSection({ hero: true });
-
-  const reload = useCallback(async () => {
-    setIsLoading(true); setError(null);
-    try { setEmployees(await loadEmployees()); }
-    catch (e) { const m = e instanceof Error ? e.message : 'Failed to load'; setError(m); toast.error(m); }
-    finally { setIsLoading(false); }
-  }, []);
-
-  useEffect(() => { reload(); }, [reload]);
 
   const uniqueDepts    = useMemo(() => [...new Set(employees.map(e => e.department).filter(Boolean) as string[])].sort(), [employees]);
   const uniqueRoles    = useMemo(() => [...new Set(employees.map(e => e.designation).filter(Boolean) as string[])].sort(), [employees]);
