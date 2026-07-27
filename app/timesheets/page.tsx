@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback, ElementType } from 'react';
-import { api as apiClient } from '@/lib/apiClient';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -22,53 +21,11 @@ import { AppShell } from '@/components/app-shell';
 import { useTheme, PageHero, ACCENT_HEX, useCollapseSection, EmptyState } from '@/components/shared/theme';
 import { toLocalISODate } from '@/lib/dates';
 import { zimHolidayName } from '@/lib/zimHolidays';
-
-// ─────────────────── TYPES ───────────────────
-
-interface Employee {
-  id: string; employeeId: string; name: string; position: string;
-  department: string; email: string; is_active: boolean;
-  employmentType: 'NEC' | 'SALARIED' | '';
-}
-
-interface OvertimePeriodData {
-  start_time: string; end_time: string; overtime_type: '1.5x' | '2.0x';
-  overtime_hours?: number; nightshift_hours?: number; reason?: string;
-}
-
-interface TimesheetEntry {
-  id?: number; employee_id: number; date: string; start_time?: string; end_time?: string;
-  regular_hours: number; overtime_hours?: number; holiday_overtime_hours?: number;
-  nightshift_hours?: number; standby_allowance?: boolean; total_hours?: number;
-  status: StatusKey; notes?: string; overtime_periods?: OvertimePeriodData[];
-  callout_overtime_hours?: number; callout_count?: number;
-  /** Client-side only — this cell was derived from approved leave/overtime, not saved by a
-   *  person. No `id`, so it isn't in the DB yet: clicking it opens the editor pre-filled,
-   *  and saving turns it into a real entry. Never sent to the backend. */
-  _auto?: 'leave' | 'overtime' | 'both';
-}
-
-/** Minimal shape pulled from the Leaves page's records — only what's needed to project an
- *  approved leave onto the timesheet grid. */
-interface ApprovedLeaveRecord {
-  employee_id: string; leave_type: string; start_date: string; end_date: string; status: string;
-}
-
-/** Minimal shape pulled from the Overtime page's records — only what's needed to add
- *  approved overtime hours onto the timesheet grid. */
-interface ApprovedOvertimeRecord {
-  employee_id: string; overtime_type: string; date: string; start_time?: string; end_time?: string; status: string;
-  /** Set when the overtime entry was logged via the "pressed for time" hours-only fast path. */
-  hours?: number;
-}
-
-interface Period { start: Date; end: Date; }
-interface EditCell { employee: Employee; date: Date; entry?: TimesheetEntry; }
-interface HourTotals { reg: number; ot15: number; ot20: number; night: number; standbyBonus: number; total: number; excess?: number; }
-
-type StatusKey = 'work' | 'leave' | 'sick' | 'special_leave' | 'holiday' | 'training' | 'off' | 'absent' | 'weekend' | 'maternity' | 'study' | 'lieu';
-
-interface StatusConfig { label: string; hex: string; Icon: ElementType; }
+import type {
+  ApprovedLeaveRecord, ApprovedOvertimeRecord, EditCell, Employee, EntryForm,
+  HourTotals, OvertimePeriodData, Period, RowData, StatusConfig, StatusKey, TimesheetEntry,
+} from './types';
+import { api, useTimesheetsData } from './useTimesheetsData';
 
 // ─────────────────── STATUS CONFIG ───────────────────
 
@@ -157,50 +114,6 @@ const getNECPeriod = (month: Date): Period => {
   return { start: new Date(y, m - 1, 13), end: new Date(y, m, 12) };
 };
 
-// ─────────────────── API ───────────────────
-
-const api = {
-  async employees(): Promise<Employee[]> {
-    const data = await apiClient.get<Record<string, unknown>[]>('/api/employees');
-    return (data || []).map(d => ({
-      id: String(d.id || Math.random().toString(36).slice(2)),
-      employeeId: (() => { const v = String(d.employee_id || '').trim(); return (v === '' || v.toUpperCase() === 'TBA') ? '' : v; })(),
-      name: (`${d.first_name || ''} ${d.last_name || ''}`).trim() || 'Employee',
-      position: (d.position || d.job_title || d.designation || 'Staff') as string,
-      department: (d.department || 'General') as string,
-      email: (d.email || '') as string,
-      is_active: d.is_active !== false,
-      employmentType: ((d.employment_type as string) === 'NEC' || (d.employment_type as string) === 'SALARIED') ? (d.employment_type as 'NEC' | 'SALARIED') : '',
-    }));
-  },
-  // Throws on failure — the `catch { return [] }` this replaces made a server
-  // outage indistinguishable from "nobody logged time this period".
-  async timesheets(startDate: string, endDate: string): Promise<TimesheetEntry[]> {
-    const p = new URLSearchParams({ start_date: startDate, end_date: endDate });
-    return (await apiClient.get<TimesheetEntry[]>(`/api/timesheets?${p}`)) || [];
-  },
-  async create(data: Omit<TimesheetEntry, 'id'>): Promise<TimesheetEntry> {
-    const res = await apiClient.post<{ data?: TimesheetEntry } | TimesheetEntry>('/api/timesheets', data);
-    return (res as { data?: TimesheetEntry }).data || (res as TimesheetEntry);
-  },
-  async update(id: number, data: Partial<TimesheetEntry>): Promise<TimesheetEntry> {
-    const res = await apiClient.patch<{ data?: TimesheetEntry } | TimesheetEntry>(`/api/timesheets/${id}`, data);
-    return (res as { data?: TimesheetEntry }).data || (res as TimesheetEntry);
-  },
-  async delete(id: number): Promise<void> {
-    await apiClient.delete(`/api/timesheets/${id}`);
-  },
-  // Approved-only, company-wide (leaves/overtime don't support a date-range query — the
-  // grid-day check below filters to the active period). A person on leave or with
-  // overtime that's merely pending shouldn't move hours around until it's actually approved.
-  async approvedLeaves(): Promise<ApprovedLeaveRecord[]> {
-    return (await apiClient.get<ApprovedLeaveRecord[]>('/api/leaves?status=approved')) || [];
-  },
-  async approvedOvertime(): Promise<ApprovedOvertimeRecord[]> {
-    return (await apiClient.get<ApprovedOvertimeRecord[]>('/api/overtime?status=approved')) || [];
-  },
-};
-
 // ─────────────────── COLLAPSIBLE SECTION HEADER ───────────────────
 
 function SectionHeader({ icon: Icon, title, sub, open, onToggle, children }: {
@@ -287,13 +200,7 @@ function OvertimePeriod({ period, index, onUpdate, onRemove }: {
 
 // ─────────────────── SINGLE ENTRY DIALOG ───────────────────
 
-interface EntryForm {
-  start_time: string; end_time: string; regular_hours: number;
-  nightshift_hours: number; status: StatusKey; standby_allowance: boolean;
-  notes: string; callout_overtime_hours: number; callout_count: number;
-}
-
-const toHr = (t: string) => { const [h, m] = (t || '0:0').split(':').map(Number); return h + m / 60; };
+const toHr = (t: string) =>{ const [h, m] = (t || '0:0').split(':').map(Number); return h + m / 60; };
 const otPeriodsOverlap = (periods: OvertimePeriodData[]): boolean => {
   for (let i = 0; i < periods.length; i++) {
     for (let j = i + 1; j < periods.length; j++) {
@@ -811,8 +718,6 @@ function BulkAddEmployeesDialog({ allEmployees, currentIds, onAdd, onClose }: {
 
 // ─────────────────── DOWNLOAD DIALOG ───────────────────
 
-interface RowData { day: string; date: string; status: string; start: string; end: string; reg: string; ot15: string; ot20: string; night: string; notes: string; }
-
 function DownloadDialog({ employees, timesheets, period, periodType, onClose }: {
   employees: Employee[]; timesheets: TimesheetEntry[]; period: Period; periodType: string; onClose: () => void;
 }) {
@@ -1326,15 +1231,18 @@ function TimesheetsContent() {
   const sections = useCollapseSection({ hero: true });
   const [activeTab, setActiveTab] = useState<'salaried' | 'nec'>('salaried');
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [allEmployees, setAllEmployees] = useState<Employee[]>([]);
+
+  const salariedPeriod = useMemo(() => getSalariedPeriod(currentMonth), [currentMonth]);
+  const necPeriod = useMemo(() => getNECPeriod(currentMonth), [currentMonth]);
+  const activePeriod = activeTab === 'salaried' ? salariedPeriod : necPeriod;
+  const days = useMemo(() => getDays(activePeriod), [activePeriod]);
+
+  const { allEmployees, timesheets, setTimesheets, approvedLeaves, approvedOvertime, loading, refresh: load } = useTimesheetsData(activePeriod);
+
   const [salariedExtra, setSalariedExtra] = useState<string[]>(() => readLS(LS_SALARIED_EXTRA));
   const [necExtra, setNecExtra] = useState<string[]>(() => readLS(LS_NEC_EXTRA));
   const [salariedHidden, setSalariedHidden] = useState<string[]>(() => readLS(LS_SALARIED_HIDDEN));
   const [necHidden, setNecHidden] = useState<string[]>(() => readLS(LS_NEC_HIDDEN));
-  const [timesheets, setTimesheets] = useState<TimesheetEntry[]>([]);
-  const [approvedLeaves, setApprovedLeaves] = useState<ApprovedLeaveRecord[]>([]);
-  const [approvedOvertime, setApprovedOvertime] = useState<ApprovedOvertimeRecord[]>([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<'name' | 'dept'>('name');
 
@@ -1345,11 +1253,6 @@ function TimesheetsContent() {
   const [showBulkAdd, setShowBulkAdd] = useState(false);
   const [showDownload, setShowDownload] = useState(false);
   const [bulkEmployee, setBulkEmployee] = useState<Employee | null>(null);
-
-  const salariedPeriod = useMemo(() => getSalariedPeriod(currentMonth), [currentMonth]);
-  const necPeriod = useMemo(() => getNECPeriod(currentMonth), [currentMonth]);
-  const activePeriod = activeTab === 'salaried' ? salariedPeriod : necPeriod;
-  const days = useMemo(() => getDays(activePeriod), [activePeriod]);
 
   // Automatic base roster: every employee whose employment_type matches this tab.
   const autoIds = useMemo(
@@ -1469,23 +1372,6 @@ function TimesheetsContent() {
     const possible = tabEmployees.length * workingDays;
     return { ...tot, filled, possible };
   }, [effectiveTimesheets, tabEmployees, tabIds, days]);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [emps, sheets, leaves, ot] = await Promise.all([
-        api.employees(), api.timesheets(fmtDate(activePeriod.start), fmtDate(activePeriod.end)),
-        api.approvedLeaves(), api.approvedOvertime(),
-      ]);
-      setAllEmployees(emps);
-      setTimesheets(sheets);
-      setApprovedLeaves(leaves);
-      setApprovedOvertime(ot);
-    } catch (e) { toast.error('Failed to load: ' + (e as Error).message); }
-    finally { setLoading(false); }
-  }, [activePeriod]);
-
-  useEffect(() => { load(); }, [load]);
 
   const handleSaveEntry = async (empId: string, date: Date, data: Omit<TimesheetEntry, 'id'>) => {
     const ds = fmtDate(date);
