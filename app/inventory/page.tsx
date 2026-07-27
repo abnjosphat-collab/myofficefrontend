@@ -15,6 +15,8 @@ import {
   SearchInput, ViewToggle, useCollapseSection, ACCENT_HEX,
   GroupSection, RecordCard, staggerContainer, fadeUp, InfoRow, SummaryItem,
 } from '@/components/shared/theme';
+import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
+import { exportFilename } from '@/lib/exportUtils';
 
 interface InventoryItem {
   id: string;
@@ -230,6 +232,21 @@ function InventoryPageContent() {
     return true;
   }), [inventory, searchTerm, selectedCategories, selectedStatus, selectedSuppliers]);
 
+  const exportColumns: DLColumn[] = [
+    { key: 'name', label: 'Item', width: 24 },
+    { key: 'sku', label: 'SKU', width: 16 },
+    { key: 'category', label: 'Category', width: 16 },
+    { key: 'currentStock', label: 'Current Stock', width: 14 },
+    { key: 'minStock', label: 'Min Stock', width: 12 },
+    { key: 'maxStock', label: 'Max Stock', width: 12 },
+    { key: 'unit', label: 'Unit', width: 10 },
+    { key: 'cost', label: 'Unit Cost', width: 12 },
+    { key: 'supplier', label: 'Supplier', width: 20 },
+    { key: 'location', label: 'Location', width: 18 },
+    { key: 'status', label: 'Status', width: 14, format: (_v, row) => STATUS_LABELS[getStockStatus(row as unknown as InventoryItem)] },
+    { key: 'lastRestocked', label: 'Last Restocked', width: 16, format: v => v ? formatDate(v as string) : '' },
+  ];
+
   const hasActiveFilters = !!(searchTerm || selectedCategories.length || selectedStatus.length || selectedSuppliers.length);
 
   // Group the filtered list by category — alphabetically, "Uncategorized" last.
@@ -287,6 +304,16 @@ function InventoryPageContent() {
             >
               <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
             </button>
+            {filtered.length > 0 && (
+              <DownloadButton
+                data={filtered as unknown as Record<string, unknown>[]}
+                columns={exportColumns}
+                filename={exportFilename('Inventory')}
+                title="Inventory Management"
+                statusColumn="status"
+                statusColor={(_v, row) => STATUS_COLORS[getStockStatus(row as unknown as InventoryItem)]?.replace('#', '')}
+              />
+            )}
             <Link
               href="/inventory/create"
               className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-emerald-500 to-emerald-700 transition-all hover:brightness-110`}

@@ -8,6 +8,9 @@ import {
   useTheme, PageHero, StatusBadge, ProgressBar, FormField, SearchInput, CenterModal,
   PrimaryButton, EmptyState, SelectField,
 } from '@/components/shared/theme';
+import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
+import { exportFilename } from '@/lib/exportUtils';
+import { formatDate } from '@/lib/format';
 
 type Priority = 'critical' | 'high' | 'medium' | 'low';
 type JCStatus = 'open' | 'in_progress' | 'on_hold' | 'completed' | 'cancelled';
@@ -158,6 +161,21 @@ function JobCardsContent() {
     return ms && mq;
   });
 
+  const exportColumns: DLColumn[] = [
+    { key: 'job_no', label: 'Job #', width: 14 },
+    { key: 'title', label: 'Title', width: 26 },
+    { key: 'equipment_name', label: 'Equipment', width: 22 },
+    { key: 'type', label: 'Type', width: 14 },
+    { key: 'priority', label: 'Priority', width: 12 },
+    { key: 'status', label: 'Status', width: 14, format: v => S_LABEL[v as JCStatus] },
+    { key: 'section', label: 'Section', width: 16 },
+    { key: 'assigned_to', label: 'Assigned To', width: 18 },
+    { key: 'supervisor', label: 'Supervisor', width: 18 },
+    { key: 'scheduled_date', label: 'Scheduled Date', width: 16, format: v => v ? formatDate(v as string) : '' },
+    { key: 'labour_hours', label: 'Labour Hrs', width: 12 },
+    { key: 'notes', label: 'Notes', width: 26 },
+  ];
+
   if (loading) return (
     <main className="max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8">
       <div className={`flex flex-col items-center justify-center py-32 gap-3 ${t.textFaint}`}>
@@ -180,7 +198,21 @@ function JobCardsContent() {
         crumbs={['Operations & Maintenance', 'Job Cards']}
         title="Job Cards"
         description="Work order & job card management"
-        actions={<PrimaryButton icon={Plus} accent="amber">New Job Card</PrimaryButton>}
+        actions={
+          <>
+            {filtered.length > 0 && (
+              <DownloadButton
+                data={filtered as unknown as Record<string, unknown>[]}
+                columns={exportColumns}
+                filename={exportFilename('Job_Cards')}
+                title="Job Cards"
+                statusColumn="status"
+                statusColor={(_v, row) => S_HEX[row.status as JCStatus]?.replace('#', '')}
+              />
+            )}
+            <PrimaryButton icon={Plus} accent="amber">New Job Card</PrimaryButton>
+          </>
+        }
       >
         <div className="flex flex-wrap gap-1.5">
           {(['all', 'open', 'in_progress', 'on_hold', 'completed'] as const).map(s => (

@@ -10,6 +10,8 @@ import {
   SearchInput, ViewToggle, CenterModal, PrimaryButton, EmptyState, useCollapseSection,
   GlowCard, ACCENT_HEX, SelectField,
 } from '@/components/shared/theme';
+import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
+import { exportFilename } from '@/lib/exportUtils';
 import { toast } from 'sonner';
 import {
   Bell, Plus, Search, Trash2, Edit, FileText, AlertTriangle, RefreshCw,
@@ -437,6 +439,17 @@ function NoticeboardContent() {
   const selectCls = `h-9 px-3 rounded-lg text-xs outline-none transition-colors ${t.inputBg}`;
   const hasFilters = search || Object.values(filters).some(f => f !== 'all' && f !== null);
 
+  const exportColumns: DLColumn[] = [
+    { key: 'title', label: 'Title', width: 30 },
+    { key: 'category', label: 'Category', width: 16 },
+    { key: 'priority', label: 'Priority', width: 12 },
+    { key: 'status', label: 'Status', width: 12 },
+    { key: 'author', label: 'Author', width: 18 },
+    { key: 'department', label: 'Department', width: 18 },
+    { key: 'date', label: 'Date', width: 14, format: v => v ? formatDate(v as string) : '' },
+    { key: 'expires_at', label: 'Expires', width: 14, format: v => v ? formatDate(v as string) : '' },
+  ];
+
   return (
     <main className="max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
       <PageHero
@@ -446,7 +459,21 @@ function NoticeboardContent() {
         title="Noticeboard"
         description="Create, manage, and monitor all company notices and announcements."
         statsOpen={sections.expanded.records}
-        actions={<PrimaryButton icon={Plus} accent="violet" onClick={() => { setEditingNotice(null); setIsModalOpen(true); }}>Create Notice</PrimaryButton>}
+        actions={
+          <>
+            {data.length > 0 && (
+              <DownloadButton
+                data={data as unknown as Record<string, unknown>[]}
+                columns={exportColumns}
+                filename={exportFilename('Noticeboard')}
+                title="Noticeboard"
+                statusColumn="priority"
+                statusColor={(_v, row) => PRIORITY_HEX[row.priority as string]?.replace('#', '')}
+              />
+            )}
+            <PrimaryButton icon={Plus} accent="violet" onClick={() => { setEditingNotice(null); setIsModalOpen(true); }}>Create Notice</PrimaryButton>
+          </>
+        }
       >
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <StatTile icon={FileText} color="#60a5fa" label="Total Notices" value={data.length} />

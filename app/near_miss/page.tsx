@@ -14,6 +14,8 @@ import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, FormField, FormActions,
   useCollapseSection, CenterModal, PrimaryButton, EmptyState, ACCENT_HEX, SelectField,
 } from '@/components/shared/theme';
+import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
+import { exportFilename } from '@/lib/exportUtils';
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
@@ -377,6 +379,17 @@ function NearMissContent() {
   const selCls = `h-9 rounded-lg px-2.5 text-xs outline-none transition-colors ${t.inputBg}`;
   const thCls = `text-left px-3 py-2 text-[10px] uppercase tracking-wide font-medium ${t.textFaint}`;
 
+  const exportColumns: DLColumn[] = [
+    { key: 'date', label: 'Date', width: 14, format: v => v ? formatDate(v as string) : '' },
+    { key: 'time', label: 'Time', width: 10 },
+    { key: 'department', label: 'Department', width: 18 },
+    { key: 'section', label: 'Section', width: 14 },
+    { key: 'location', label: 'Location', width: 20 },
+    { key: 'reporterName', label: 'Reporter', width: 18, format: v => (v as string) || 'Anonymous' },
+    { key: 'description', label: 'Description', width: 34 },
+    { key: 'witnessDetails', label: 'Witness Details', width: 26 },
+  ];
+
   return (
     <main className="max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
       <PageHero
@@ -389,6 +402,16 @@ function NearMissContent() {
         actions={
           <>
             <button type="button" onClick={() => loadReports(true)} title="Refresh" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}><RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} /></button>
+            {filteredReports.length > 0 && (
+              <DownloadButton
+                data={filteredReports as unknown as Record<string, unknown>[]}
+                columns={exportColumns}
+                filename={exportFilename('Near_Miss_Reports')}
+                title="Near Miss Reports"
+                statusColumn="section"
+                statusColor={(_v, row) => SECTION_HEX[row.section as NearMissReport['section']]?.replace('#', '')}
+              />
+            )}
             <PrimaryButton icon={AlertTriangle} accent="amber" onClick={() => { setEditingReport(null); setFormOpen(true); }}>New Report</PrimaryButton>
           </>
         }

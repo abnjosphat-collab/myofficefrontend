@@ -29,6 +29,9 @@ import { CreateWorkOrderModal } from "@/components/maintenance/CreateWorkOrderMo
 import { WorkOrderDetailModal } from "@/components/maintenance/WorkOrderDetailModal";
 import { CreateScheduleModal } from "@/components/maintenance/CreateScheduleModal";
 import { AnalyticsPanel } from "@/components/maintenance/analytics";
+import { DownloadButton, type DLColumn } from "@/components/shared/DownloadButton";
+import { exportFilename } from "@/lib/exportUtils";
+import { formatDate } from "@/lib/format";
 
 // Display/sort maps used only within this file's own WorkOrderCard/Row and sort logic.
 const CLASS_COLORS: Record<string, string> = { breakdown: '#f87171', planned_maintenance: '#4ade80', project: '#60a5fa', custom: '#c084fc' };
@@ -310,6 +313,26 @@ function MaintenancePageContent() {
 
   const tabCount = (key: string) => key === 'all' ? workOrders.length : workOrders.filter(w => w.status === key).length;
 
+  const exportColumns: DLColumn[] = [
+    { key: 'work_order_number', label: 'WO #', width: 14 },
+    { key: 'equipment_info', label: 'Equipment', width: 24 },
+    { key: 'classification', label: 'Classification', width: 18 },
+    { key: 'discipline', label: 'Discipline', width: 14 },
+    { key: 'trade', label: 'Trade', width: 14 },
+    { key: 'status', label: 'Status', width: 14, format: v => statusCfg(v as WorkOrderStatus).label },
+    { key: 'priority', label: 'Priority', width: 12, format: v => priorityCfg(v as WorkOrderPriority).label },
+    { key: 'allocated_to', label: 'Allocated To', width: 18 },
+    { key: 'authorising_foreman', label: 'Foreman', width: 18 },
+    { key: 'to_department', label: 'Department', width: 18 },
+    { key: 'date_raised', label: 'Date Raised', width: 14, format: v => v ? formatDate(v as string) : '' },
+    { key: 'due_date', label: 'Due Date', width: 14, format: v => v ? formatDate(v as string) : '' },
+    { key: 'progress', label: 'Progress', width: 10, format: v => `${v ?? 0}%` },
+    { key: 'estimated_hours', label: 'Est. Hours', width: 12 },
+    { key: 'total_time_worked', label: 'Time Worked', width: 12 },
+    { key: 'work_done_details', label: 'Work Done', width: 30 },
+    { key: 'cause_of_failure', label: 'Cause of Failure', width: 26 },
+  ];
+
   const handleCreated = (savedOrder: WorkOrder) => {
     setWorkOrders(prev => { const exists = prev.some(w => String(w.id) === String(savedOrder.id)); return exists ? prev.map(w => String(w.id) === String(savedOrder.id) ? savedOrder : w) : [savedOrder, ...prev]; });
     load();
@@ -368,6 +391,16 @@ function MaintenancePageContent() {
         actions={
           <>
             <button type="button" onClick={load} title="Refresh" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /></button>
+            {mainTab === 'workorders' && filtered.length > 0 && (
+              <DownloadButton
+                data={filtered as unknown as Record<string, unknown>[]}
+                columns={exportColumns}
+                filename={exportFilename('Work_Orders')}
+                title="Work Orders"
+                statusColumn="status"
+                statusColor={(_v, row) => statusCfg(row.status as WorkOrderStatus).color.replace('#', '')}
+              />
+            )}
             {mainTab === 'workorders' && <button type="button" onClick={() => setShowCreateModal(true)} className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all"><Plus className="h-3.5 w-3.5" /> New Work Order</button>}
           </>
         }

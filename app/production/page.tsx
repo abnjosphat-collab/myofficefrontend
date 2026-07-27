@@ -7,6 +7,9 @@ import { AppShell } from '@/components/app-shell';
 import { BarChart2, Plus, X } from '@/components/shared/theme';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { useTheme, PageHero, StatCard, FormField, PrimaryButton, SelectField, type Accent } from '@/components/shared/theme';
+import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
+import { exportFilename } from '@/lib/exportUtils';
+import { formatDate } from '@/lib/format';
 
 const fromProdAPI = (d: any): ProductionRecord => ({
   id: d.id, date: d.prod_date || '', shift: d.shift || '',
@@ -68,6 +71,21 @@ function ProductionContent() {
 
   const inputCls = `w-full h-9 px-3 rounded-lg text-sm outline-none transition-colors ${t.inputBg}`;
 
+  const exportColumns: DLColumn[] = [
+    { key: 'date', label: 'Date', width: 14, format: v => v ? formatDate(v as string) : '' },
+    { key: 'shift', label: 'Shift', width: 10 },
+    { key: 'tonnesMilled', label: 'Tonnes Milled', width: 14 },
+    { key: 'feedRate', label: 'Feed Rate (tph)', width: 16 },
+    { key: 'grade', label: 'Grade (g/t)', width: 12 },
+    { key: 'recovery', label: 'Recovery %', width: 12 },
+    { key: 'goldOz', label: 'Gold Oz', width: 12 },
+    { key: 'millAvail', label: 'Availability %', width: 14 },
+    { key: 'powerKwh', label: 'Power (kWh)', width: 14 },
+    { key: 'downtimeHrs', label: 'Downtime Hrs', width: 14 },
+    { key: 'downtimeReason', label: 'Downtime Reason', width: 24 },
+    { key: 'comments', label: 'Comments', width: 26 },
+  ];
+
   return (
     <main className="max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
       <PageHero
@@ -77,7 +95,19 @@ function ProductionContent() {
         title="Production Interface"
         description="Daily milling and gold production tracking"
         statsOpen
-        actions={<PrimaryButton icon={Plus} accent="violet" onClick={() => setShowForm(s => !s)}>Log Production</PrimaryButton>}
+        actions={
+          <>
+            {records.length > 0 && (
+              <DownloadButton
+                data={records as unknown as Record<string, unknown>[]}
+                columns={exportColumns}
+                filename={exportFilename('Production_Records')}
+                title="Production Records"
+              />
+            )}
+            <PrimaryButton icon={Plus} accent="violet" onClick={() => setShowForm(s => !s)}>Log Production</PrimaryButton>
+          </>
+        }
       >
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {kpiCards.map(k => {

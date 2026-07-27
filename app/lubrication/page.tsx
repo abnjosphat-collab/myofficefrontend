@@ -6,6 +6,9 @@ import { AppShell } from '@/components/app-shell';
 import { Droplets, ChevronDown, ChevronUp, FlaskConical, RefreshCw } from '@/components/shared/theme';
 import { useModuleData } from '@/lib/useModuleData';
 import { useTheme, PageHero, StatTile, StatusBadge } from '@/components/shared/theme';
+import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
+import { exportFilename } from '@/lib/exportUtils';
+import { formatDate } from '@/lib/format';
 
 type LubeStatus = 'current' | 'due_soon' | 'overdue';
 type SampleResult = 'normal' | 'caution' | 'critical';
@@ -40,6 +43,28 @@ function LubricationContent() {
 
   const compliance = records.length ? Math.round(records.filter(l => l.status === 'current').length / records.length * 100) : 0;
   const displayed = filter === 'all' ? records : records.filter(l => l.status === filter);
+
+  const scheduleColumns: DLColumn[] = [
+    { key: 'equipment_name', label: 'Equipment', width: 22 },
+    { key: 'lube_point', label: 'Lube Point', width: 20 },
+    { key: 'lubricant_type', label: 'Lubricant Type', width: 18 },
+    { key: 'lubricant_grade', label: 'Grade', width: 14 },
+    { key: 'interval_days', label: 'Interval', width: 12, format: v => `Every ${v}d` },
+    { key: 'last_done_date', label: 'Last Done', width: 14, format: v => v ? formatDate(v as string) : '' },
+    { key: 'next_due_date', label: 'Next Due', width: 14, format: v => v ? formatDate(v as string) : '' },
+    { key: 'status', label: 'Status', width: 12, format: v => v === 'due_soon' ? 'Due Soon' : (v as string).charAt(0).toUpperCase() + (v as string).slice(1) },
+    { key: 'section', label: 'Section', width: 16 },
+  ];
+  const sampleColumns: DLColumn[] = [
+    { key: 'equipment', label: 'Equipment', width: 22 },
+    { key: 'component', label: 'Component', width: 20 },
+    { key: 'sampleDate', label: 'Sample Date', width: 14, format: v => v ? formatDate(v as string) : '' },
+    { key: 'viscosity', label: 'Viscosity (cSt)', width: 14 },
+    { key: 'particleCount', label: 'Particle Count (/mL)', width: 18 },
+    { key: 'waterPct', label: 'Water %', width: 10 },
+    { key: 'result', label: 'Result', width: 12, format: v => (v as string).charAt(0).toUpperCase() + (v as string).slice(1) },
+    { key: 'notes', label: 'Notes', width: 34 },
+  ];
 
   if (loading) return (
     <main className="max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8">
@@ -81,16 +106,38 @@ function LubricationContent() {
               </button>
             ))}
           </div>
-          {activeTab === 'schedules' && (
-            <div className="flex gap-2">
-              {(['all', 'current', 'due_soon', 'overdue'] as const).map(s => (
-                <button key={s} type="button" onClick={() => setFilter(s)}
-                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${filter === s ? 'bg-brand-500/20 text-brand-500' : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}>
-                  {s === 'all' ? 'All' : s === 'due_soon' ? 'Due Soon' : s.charAt(0).toUpperCase() + s.slice(1)}
-                </button>
-              ))}
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            {activeTab === 'schedules' && (
+              <div className="flex gap-2">
+                {(['all', 'current', 'due_soon', 'overdue'] as const).map(s => (
+                  <button key={s} type="button" onClick={() => setFilter(s)}
+                    className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${filter === s ? 'bg-brand-500/20 text-brand-500' : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}>
+                    {s === 'all' ? 'All' : s === 'due_soon' ? 'Due Soon' : s.charAt(0).toUpperCase() + s.slice(1)}
+                  </button>
+                ))}
+              </div>
+            )}
+            {activeTab === 'schedules' && displayed.length > 0 && (
+              <DownloadButton
+                data={displayed as unknown as Record<string, unknown>[]}
+                columns={scheduleColumns}
+                filename={exportFilename('Lube_Schedules')}
+                title="Lube Schedules"
+                statusColumn="status"
+                statusColor={(_v, row) => STATUS_HEX[row.status as LubeStatus]?.replace('#', '')}
+              />
+            )}
+            {activeTab === 'samples' && OIL_SAMPLES.length > 0 && (
+              <DownloadButton
+                data={OIL_SAMPLES as unknown as Record<string, unknown>[]}
+                columns={sampleColumns}
+                filename={exportFilename('Oil_Samples')}
+                title="Oil Samples"
+                statusColumn="result"
+                statusColor={(_v, row) => RESULT_HEX[row.result as SampleResult]?.replace('#', '')}
+              />
+            )}
+          </div>
         </div>
 
         {activeTab === 'schedules' && (

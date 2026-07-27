@@ -19,6 +19,8 @@ import { AppShell } from '@/components/app-shell';
 import { fmtDate as formatDate, fmtDateTime as formatDateTime } from '@/components/shared/utils';
 import { EmployeeNameInput } from '@/components/shared/EmployeeNameInput';
 import { PredictiveInput } from '@/components/shared/PredictiveInput';
+import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
+import { exportFilename } from '@/lib/exportUtils';
 import {
   useTheme, StatusBadge, ProgressBar, StatTile, FormField, CenterModal,
   PrimaryButton, EmptyState, useCollapseSection, GlowCard, SelectField,
@@ -533,6 +535,19 @@ function PacheduContent() {
   const selectCls = `h-9 px-3 rounded-lg text-xs outline-none transition-colors ${t.inputBg}`;
   const inputCls = `w-full h-9 px-3 rounded-lg text-sm outline-none transition-colors ${t.inputBg}`;
 
+  const exportColumns: DLColumn[] = [
+    { key: 'date', label: 'Date', width: 14, format: v => v ? formatDate(v as string) : '' },
+    { key: 'observerName', label: 'Observer', width: 18, format: v => (v as string) || 'Anonymous' },
+    { key: 'location', label: 'Location', width: 18 },
+    { key: 'activityObserved', label: 'Activity Observed', width: 26 },
+    { key: 'sectionChoice', label: 'Section', width: 14 },
+    { key: 'behaviourType', label: 'Behaviour', width: 14 },
+    { key: 'status', label: 'Status', width: 14, format: v => STATUS_META[v as PacheduStatus].label },
+    { key: 'dept', label: 'Department', width: 16 },
+    { key: 'whatDidYouSee', label: 'What Did You See', width: 30 },
+    { key: 'whatDidYouDo', label: 'What Did You Do', width: 30 },
+  ];
+
   return (
     <main className="max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -554,6 +569,16 @@ function PacheduContent() {
             className={`p-2 rounded-lg transition-colors ${viewMode === 'table' ? 'bg-amber-500/15 text-amber-500' : `${t.textFaint} ${t.hoverText} ${t.hoverBg}`}`}>
             <TableIcon className="h-4 w-4" />
           </button>
+          {filteredReports.length > 0 && (
+            <DownloadButton
+              data={filteredReports as unknown as Record<string, unknown>[]}
+              columns={exportColumns}
+              filename={exportFilename('Pachedu_Care_Observations')}
+              title="Pachedu — Care Observations"
+              statusColumn="sectionChoice"
+              statusColor={(_v, row) => SECTION_META[row.sectionChoice as SectionType]?.hex.replace('#', '')}
+            />
+          )}
           <PrimaryButton icon={Plus} accent="amber" onClick={openNewForm}>New Care Observation</PrimaryButton>
         </div>
       </div>
