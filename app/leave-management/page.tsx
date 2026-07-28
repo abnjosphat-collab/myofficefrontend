@@ -17,27 +17,7 @@ import {
 } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
-
-// ─── TYPES ────────────────────────────────────────────────────────────────────
-
-interface LeaveRequest {
-  id: number; employeeName: string; employeeId: string; department: string;
-  leaveType: string; startDate: string; endDate: string; totalDays: number;
-  reason: string; emergencyContact: string; handoverNotes: string;
-  status: 'pending' | 'approved' | 'rejected'; submittedDate: string;
-  approvedBy?: string; approvedDate?: string; rejectionReason?: string;
-  priority: 'low' | 'medium' | 'high';
-}
-interface TeamLeaveStat {
-  employeeId: string; name: string; annualUsed: number; annualRemaining: number;
-  sickUsed: number; personalUsed: number;
-}
-interface Filters { status: string; type: string; department: string; }
-interface NewLeaveRequest {
-  employeeName: string; employeeId: string; department: string; leaveType: string;
-  startDate: string; endDate: string; totalDays: number; reason: string;
-  emergencyContact: string; handoverNotes: string; status: 'pending';
-}
+import type { LeaveRequest, TeamLeaveStat, Filters, NewLeaveRequest } from './types';
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 
