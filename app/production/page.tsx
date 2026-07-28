@@ -1,8 +1,7 @@
 // FILE: app/production/page.tsx
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { api } from '@/lib/apiClient';
+import { useState, useMemo } from 'react';
 import { AppShell } from '@/components/app-shell';
 import { BarChart2, Plus, X } from '@/components/shared/theme';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
@@ -10,20 +9,7 @@ import { useTheme, PageHero, StatCard, FormField, PrimaryButton, SelectField, ty
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
 import { formatDate } from '@/lib/format';
-
-const fromProdAPI = (d: any): ProductionRecord => ({
-  id: d.id, date: d.prod_date || '', shift: d.shift || '',
-  tonnesMilled: d.tonnes_milled || 0, feedRate: d.feed_rate_tph || 0, grade: d.grade_gpt || 0,
-  recovery: d.recovery_pct || 0, goldOz: d.gold_produced_oz || 0, millAvail: d.mill_availability || 0,
-  powerKwh: d.power_kwh || 0, downtimeHrs: d.downtime_hours || 0,
-  downtimeReason: d.downtime_reason || '', comments: d.comments || '',
-});
-
-interface ProductionRecord {
-  id: number; date: string; shift: string; tonnesMilled: number; feedRate: number; grade: number;
-  recovery: number; goldOz: number; millAvail: number; powerKwh: number; downtimeHrs: number;
-  downtimeReason: string; comments: string;
-}
+import { useProductionData, createProductionRecord } from './useProductionData';
 
 const TARGETS = { tonnesMilled: 1900, grade: 3.0, recovery: 92.0, goldOz: 165 };
 
@@ -39,13 +25,7 @@ function useChartStyle() {
 function ProductionContent() {
   const t = useTheme();
   const { grid, tick, tooltipStyle } = useChartStyle();
-  const [records, setRecords] = useState<ProductionRecord[]>([]);
-
-  const fetchRecords = useCallback(async () => {
-    try { setRecords((await api.get<any[]>('/api/production')).map(fromProdAPI)); }
-    catch { /* network */ }
-  }, []);
-  useEffect(() => { fetchRecords(); }, [fetchRecords]);
+  const { records, fetchRecords } = useProductionData();
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ date: '', shift: 'Day', tonnesMilled: '', feedRate: '', grade: '', recovery: '', goldOz: '', millAvail: '', powerKwh: '', downtimeHrs: '', downtimeReason: '', comments: '' });
 
@@ -55,7 +35,7 @@ function ProductionContent() {
     if (!form.date || !form.tonnesMilled) return;
     try {
       const body = { prod_date: form.date, shift: form.shift, tonnes_milled: +form.tonnesMilled, feed_rate_tph: +form.feedRate, grade_gpt: +form.grade, recovery_pct: +form.recovery, gold_produced_oz: +form.goldOz, mill_availability: +form.millAvail, power_kwh: +form.powerKwh, downtime_hours: +form.downtimeHrs, downtime_reason: form.downtimeReason, comments: form.comments };
-      await api.post('/api/production', body);
+      await createProductionRecord(body);
       fetchRecords();
     } catch { /* ignore */ }
     setShowForm(false);
