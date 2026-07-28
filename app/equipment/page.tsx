@@ -2,7 +2,6 @@
 'use client';
 
 import { AppShell } from '@/components/app-shell';
-import { api } from '@/lib/apiClient';
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import EquipmentForm from "@/components/EquipmentForm";
 import { motion } from "framer-motion";
@@ -23,32 +22,8 @@ import { formatDate } from '@/lib/format';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
 import type { ElementType } from "react";
-
-export interface EquipmentItem {
-  id: number | string;
-  equipment_id: string;
-  name: string;
-  status?: string;
-  category?: string;
-  location?: string;
-  department?: string;
-  model?: string;
-  serial_number?: string;
-  commission_date?: string;
-  supplier?: string;
-  supplier_contact?: string;
-  supplier_phone?: string;
-  warranty_info?: string;
-  maintenance_interval?: number;
-  last_maintenance?: string;
-  next_maintenance?: string;
-  maintenance_notes?: string;
-  purchase_cost?: number;
-  current_value?: number;
-  depreciation_rate?: number;
-  description?: string;
-  specifications?: string;
-}
+import type { EquipmentItem } from './types';
+import { fetchEquipmentList, createEquipment, updateEquipment, deleteEquipment } from './api';
 
 const ITEMS_PER_PAGE = 12;
 
@@ -298,7 +273,7 @@ function EquipmentPageContent() {
   const fetchEquipment = useCallback(async () => {
     try {
       setRefreshing(true);
-      const data = await api.get<EquipmentItem[]>('/api/equipment');
+      const data = await fetchEquipmentList();
       setEquipment(data);
       setFiltered(data);
     } catch (err) {
@@ -333,8 +308,8 @@ function EquipmentPageContent() {
     try {
       const isEditing = !!editingEq;
       const body = isEditing ? { id: editingEq!.id, ...formData } : formData;
-      if (isEditing) await api.put(`/api/equipment/${editingEq!.id}`, body);
-      else await api.post('/api/equipment', body);
+      if (isEditing) await updateEquipment(editingEq!.id, body);
+      else await createEquipment(body);
       setIsFormOpen(false);
       setEditingEq(null);
       fetchEquipment();
@@ -345,7 +320,7 @@ function EquipmentPageContent() {
 
   const handleDelete = async (id: number | string) => {
     try {
-      await api.delete(`/api/equipment/${id}`);
+      await deleteEquipment(id);
       fetchEquipment();
       setDeleteConfirm(null);
     } catch (err) {

@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertTriangle, useTheme, FormField, FormActions, SelectField } from "@/components/shared/theme";
-import type { EquipmentItem } from "@/app/equipment/page";
+import type { EquipmentItem } from "@/app/equipment/types";
 
 const STATUS_OPTIONS = [
   { value: "operational", label: "Operational" },
