@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { API_BASE } from '@/lib/config';
-import { Search, UserCircle, ChevronDown, X, Loader2 } from '@/components/shared/theme';
+import { UserCircle, ChevronDown, X, Loader2, useTheme } from '@/components/shared/theme';
 
 const API = API_BASE;
 
@@ -128,19 +128,20 @@ export function EmployeeNameInput({
     if (e.key === 'Escape') setOpen(false);
   }
 
-  const GIN = `w-full h-9 px-3 pr-8 rounded-lg bg-white/[0.07] border ${
-    error ? 'border-red-400/50' : 'border-white/[0.12]'
-  } text-white placeholder:text-white/30 focus:border-[#86BBD8]/50 focus:bg-white/[0.10] text-sm focus:outline-none transition-all`;
+  const t = useTheme();
+  const GIN = `w-full h-9 px-3 pr-8 rounded-lg outline-none transition-all text-sm ${
+    error ? (t.light ? 'border border-red-400' : 'border border-red-400/50') : ''
+  } ${t.inputBg}`;
 
   return (
     <div ref={wrapRef} className={`relative ${className}`}>
       {label && (
-        <label className="text-white/55 text-xs font-medium block mb-1">
+        <label className={`text-xs font-medium block mb-1 ${t.textFaint}`}>
           {label}{required && <span className="text-red-400 ml-0.5">*</span>}
         </label>
       )}
       <div className="relative">
-        <UserCircle className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/30 pointer-events-none" />
+        <UserCircle className={`absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none ${t.textFaint}`} />
         <input
           ref={inputRef}
           type="text"
@@ -154,14 +155,14 @@ export function EmployeeNameInput({
           onKeyDown={handleKey}
         />
         <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
-          {loading && <Loader2 className="h-3 w-3 animate-spin text-white/30" />}
+          {loading && <Loader2 className={`h-3 w-3 animate-spin ${t.textFaint}`} />}
           {value && !disabled && (
             <button type="button" onClick={() => { onChange('', null); setOpen(false); inputRef.current?.focus(); }}
-              className="h-4 w-4 flex items-center justify-center text-white/25 hover:text-white/60 transition-colors">
+              className={`h-4 w-4 flex items-center justify-center transition-colors ${t.textFaint} ${t.hoverText}`}>
               <X className="h-3 w-3" />
             </button>
           )}
-          <ChevronDown className={`h-3 w-3 text-white/25 transition-transform ${open ? 'rotate-180' : ''}`} />
+          <ChevronDown className={`h-3 w-3 transition-transform ${open ? 'rotate-180' : ''} ${t.textFaint}`} />
         </div>
       </div>
 
@@ -169,9 +170,9 @@ export function EmployeeNameInput({
 
       {/* Dropdown */}
       {open && !disabled && (
-        <div className="absolute left-0 right-0 top-full mt-1 z-[180] rounded-xl border border-white/[0.12] bg-[#060f1c]/95 backdrop-blur-2xl shadow-2xl overflow-hidden oz-slide-up">
+        <div className={`absolute left-0 right-0 top-full mt-1 z-[180] rounded-xl overflow-hidden oz-slide-up ${t.glassPopover} ${t.shadow}`}>
           {filtered.length === 0 ? (
-            <div className="px-3 py-3 text-xs text-white/40 italic">
+            <div className={`px-3 py-3 text-xs italic ${t.textFaint}`}>
               No employees found — name will be saved as typed
             </div>
           ) : (
@@ -183,16 +184,16 @@ export function EmployeeNameInput({
                   onMouseDown={e => { e.preventDefault(); select(emp); }}
                   onMouseEnter={() => setHighlight(i)}
                   className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left transition-colors ${
-                    i === highlight ? 'bg-[#2A4D69]/50 text-white' : 'text-white/70 hover:bg-white/[0.06]'
+                    i === highlight ? `${t.chipBg} ${t.textPrimary}` : `${t.textMuted} ${t.hoverBgSoft}`
                   }`}
                 >
-                  <div className="h-7 w-7 rounded-full bg-gradient-to-br from-[#2A4D69] to-[#86BBD8] flex items-center justify-center text-[10px] font-bold text-white shrink-0">
+                  <div className="h-7 w-7 rounded-full bg-gradient-to-br from-brand-600 to-brand-400 flex items-center justify-center text-[10px] font-bold text-white shrink-0">
                     {emp.first_name[0]}{emp.last_name[0]}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{fullName(emp)}</p>
-                    <p className="text-[10px] text-white/40 truncate">
-                      <span className="font-mono text-[#86BBD8]/80">{emp.employee_id}</span>
+                    <p className={`text-[10px] truncate ${t.textFaint}`}>
+                      <span className="font-mono text-brand-400">{emp.employee_id}</span>
                       {emp.designation && ` · ${emp.designation}`}
                       {emp.department && ` · ${emp.department}`}
                     </p>
@@ -201,7 +202,7 @@ export function EmployeeNameInput({
               ))}
             </div>
           )}
-          <div className="px-3 py-1.5 border-t border-white/[0.06] text-[10px] text-white/25">
+          <div className={`px-3 py-1.5 border-t text-[10px] ${t.border} ${t.textFaint}`}>
             ↑↓ navigate · Enter select · Type freely to enter manually
           </div>
         </div>

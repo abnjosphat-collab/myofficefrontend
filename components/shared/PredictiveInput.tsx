@@ -9,6 +9,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useTheme } from '@/components/shared/theme';
 
 const MAX_HISTORY = 40;
 
@@ -156,15 +157,16 @@ export function PredictiveInput({
   }
 
   const list = suggestions();
+  const t = useTheme();
 
-  const BASE_CLS = `w-full px-3 rounded-lg bg-white/[0.07] border ${
-    error ? 'border-red-400/50' : 'border-white/[0.12]'
-  } text-white placeholder:text-white/30 focus:border-[#86BBD8]/50 focus:bg-white/[0.10] text-sm focus:outline-none transition-all resize-none ${inputClassName}`;
+  const BASE_CLS = `w-full px-3 rounded-lg outline-none transition-all resize-none text-sm ${
+    error ? (t.light ? 'border border-red-400' : 'border border-red-400/50') : ''
+  } ${t.inputBg} ${inputClassName}`;
 
   return (
     <div ref={wrapRef} className={`relative ${className}`}>
       {label && (
-        <label className="text-white/55 text-xs font-medium block mb-1">
+        <label className={`text-xs font-medium block mb-1 ${t.textFaint}`}>
           {label}{required && <span className="text-red-400 ml-0.5">*</span>}
         </label>
       )}
@@ -177,8 +179,8 @@ export function PredictiveInput({
           style={{ top: label ? 'calc(1.25rem + 4px)' : 0 }}
         >
           <span className="invisible whitespace-pre">{value}</span>
-          <span className="text-white/25 whitespace-pre">{ghost}</span>
-          <span className="ml-1 text-[9px] text-[#86BBD8]/50 border border-[#86BBD8]/30 rounded px-0.5">Tab</span>
+          <span className={`whitespace-pre ${t.textFaint}`}>{ghost}</span>
+          <span className="ml-1 text-[9px] text-brand-400 border border-brand-400/30 rounded px-0.5">Tab</span>
         </div>
       )}
 
@@ -215,7 +217,7 @@ export function PredictiveInput({
 
       {/* Dropdown */}
       {open && list.length > 0 && !disabled && (
-        <div className="absolute left-0 right-0 top-full mt-1 z-[180] rounded-xl border border-white/[0.12] bg-[#060f1c]/95 backdrop-blur-2xl shadow-2xl overflow-hidden oz-slide-up">
+        <div className={`absolute left-0 right-0 top-full mt-1 z-[180] rounded-xl overflow-hidden oz-slide-up ${t.glassPopover} ${t.shadow}`}>
           <div className="max-h-44 overflow-y-auto p-1">
             {list.map((s, i) => {
               // Highlight matching portion
@@ -230,18 +232,18 @@ export function PredictiveInput({
                   onMouseDown={e => { e.preventDefault(); onChange(s); commit(s); setOpen(false); }}
                   onMouseEnter={() => setHighlight(i)}
                   className={`w-full text-left px-2.5 py-1.5 rounded-lg text-sm transition-colors ${
-                    i === highlight ? 'bg-[#2A4D69]/50 text-white' : 'text-white/65 hover:bg-white/[0.05]'
+                    i === highlight ? `${t.chipBg} ${t.textPrimary}` : `${t.textMuted} ${t.hoverBgSoft}`
                   }`}
                 >
                   {before}
-                  <span className="font-semibold text-[#86BBD8]">{match}</span>
+                  <span className="font-semibold text-brand-400">{match}</span>
                   {after}
                 </button>
               );
             })}
           </div>
           {!multiline && ghost && (
-            <div className="px-3 py-1 border-t border-white/[0.06] text-[10px] text-white/25">
+            <div className={`px-3 py-1 border-t text-[10px] ${t.border} ${t.textFaint}`}>
               Tab to accept suggestion · ↑↓ navigate
             </div>
           )}
