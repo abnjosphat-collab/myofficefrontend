@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef, ElementType } from "react";
+import { useState, useEffect, useMemo, ElementType } from "react";
 import {
   Eye, Target, Plus, Trash2, AlertTriangle,
   LayoutGrid, Table as TableIcon, RefreshCw, HardHat, Zap,
@@ -8,12 +8,13 @@ import {
 } from "@/components/shared/theme";
 import { AppShell } from '@/components/app-shell';
 import { formatDate } from '@/lib/format';
-import { useEmployees, type EmployeeLookup } from '@/hooks/useLookups';
 import { toast } from "sonner";
 import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, FormField, FormActions,
   useCollapseSection, CenterModal, PrimaryButton, EmptyState, ProgressBar, ACCENT_HEX, GlowCard, SelectField,
 } from '@/components/shared/theme';
+import { PredictiveInput } from '@/components/shared/PredictiveInput';
+import { EmployeeNameInput } from '@/components/shared/EmployeeNameInput';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
 import type {
@@ -21,10 +22,6 @@ import type {
   ActionItem, VFLReport,
 } from './types';
 import { useVFLData, createVFLReport, updateVFLReport, deleteVFLReport } from './useVFLData';
-
-// =============== TYPES ===============
-
-type EmployeeItem = EmployeeLookup;
 
 // =============== CONSTANTS ===============
 const SECTIONS: SectionType[] = ['Mechanical', 'Electrical'];
@@ -51,74 +48,6 @@ const defaultForm = (): Partial<VFLReport> => ({
   behaviourCategory: 'Safe Behaviour', observationType: 'Safe Behaviour', description: '',
   coachingTechnique: 'SBR', actions: [], status: 'draft',
 });
-
-// =============== PREDICTIVE / EMPLOYEE FIELDS ===============
-function usePredictiveHistory(key: string) {
-  const [history, setHistory] = useState<string[]>(() => {
-    if (typeof window === 'undefined') return [];
-    try { return JSON.parse(localStorage.getItem(`vfl_hist_${key}`) || '[]'); } catch { return []; }
-  });
-  const remember = (val: string) => {
-    if (!val.trim()) return;
-    setHistory(prev => { const next = [val, ...prev.filter(v => v !== val)].slice(0, 20); localStorage.setItem(`vfl_hist_${key}`, JSON.stringify(next)); return next; });
-  };
-  return { history, remember };
-}
-
-function PredictiveField({ historyKey, value, onChange, placeholder, hints }: { historyKey: string; value: string; onChange: (v: string) => void; placeholder?: string; hints?: string[]; }) {
-  const t = useTheme();
-  const { history, remember } = usePredictiveHistory(historyKey);
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  const allOptions = useMemo(() => [...new Set([...history, ...(hints || [])])], [history, hints]);
-
-  useEffect(() => {
-    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
-    document.addEventListener('mousedown', h); return () => document.removeEventListener('mousedown', h);
-  }, []);
-
-  const q = value.toLowerCase();
-  const suggestions = q.length === 0 ? allOptions.slice(0, 6) : allOptions.filter(o => o.toLowerCase().includes(q) && o.toLowerCase() !== q).slice(0, 6);
-  const inputCls = `w-full rounded-lg px-3 py-1.5 text-sm outline-none transition-colors ${t.inputBg}`;
-
-  return (
-    <div className="relative" ref={ref}>
-      <input value={value} onChange={e => onChange(e.target.value)} onFocus={() => setOpen(true)} onBlur={() => { if (value.trim()) remember(value.trim()); }} placeholder={placeholder} className={inputCls} />
-      {open && suggestions.length > 0 && (
-        <div className={`absolute z-50 w-full mt-1 rounded-xl overflow-hidden ${t.glass} ${t.shadow}`}>
-          <div className="max-h-40 overflow-y-auto">{suggestions.map(s => <button key={s} type="button" onMouseDown={() => { onChange(s); setOpen(false); }} className={`w-full text-left px-3 py-2 text-xs ${t.textMuted} ${t.hoverBgSoft} transition-colors truncate`}>{s}</button>)}</div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-
-function EmployeeField({ value, onChange, placeholder }: { value: string; onChange: (name: string, emp?: EmployeeItem) => void; placeholder?: string }) {
-  const t = useTheme();
-  const employees = useEmployees();
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
-    document.addEventListener('mousedown', h); return () => document.removeEventListener('mousedown', h);
-  }, []);
-
-  const q = value.toLowerCase();
-  const suggestions = q.length === 0 ? employees.slice(0, 6) : employees.filter(e => `${e.first_name} ${e.last_name}`.toLowerCase().includes(q)).slice(0, 6);
-
-  return (
-    <div className="relative" ref={ref}>
-      <input value={value} onChange={e => { onChange(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)} placeholder={placeholder} className={`w-full rounded-lg px-3 py-1.5 text-sm outline-none transition-colors ${t.inputBg}`} />
-      {open && suggestions.length > 0 && (
-        <div className={`absolute z-50 w-full mt-1 rounded-xl overflow-hidden ${t.glass} ${t.shadow}`}>
-          <div className="max-h-40 overflow-y-auto">{suggestions.map(e => { const full = `${e.first_name} ${e.last_name}`; return <button key={e.id} type="button" onMouseDown={() => { onChange(full, e); setOpen(false); }} className={`w-full text-left px-3 py-2 text-xs ${t.textMuted} ${t.hoverBgSoft} transition-colors truncate`}>{full}{e.department ? ` · ${e.department}` : ''}</button>; })}</div>
-        </div>
-      )}
-    </div>
-  );
-}
 
 // =============== ACTION ITEM CARD ===============
 function ActionItemCard({ item, index, onChange, onRemove }: { item: ActionItem; index: number; onChange: (id: string, field: keyof ActionItem, value: string) => void; onRemove: (id: string) => void; }) {
@@ -314,13 +243,13 @@ function VFLFormModal({ open, editing, onClose, onSave, saving }: { open: boolea
       <form onSubmit={handleSubmit} className="p-5 space-y-4">
         {tab === 'observer' && (
           <div className="grid grid-cols-2 gap-3">
-            <div className="col-span-2"><FormField label="Observer's Name" required><EmployeeField value={form.observerName || ''} onChange={(name, emp) => { set('observerName', name); if (emp?.designation) set('designation', emp.designation); if (emp?.department) set('departmentSection', emp.department); }} placeholder="Select or type observer name…" /></FormField></div>
-            <FormField label="Designation"><PredictiveField historyKey="vfl_designation" value={form.designation || ''} onChange={v => set('designation', v)} placeholder="Job title" hints={['Safety Officer', 'Supervisor', 'Foreman', 'Engineer', 'Technician', 'SHEQ Manager', 'Shift Boss']} /></FormField>
+            <div className="col-span-2"><FormField label="Observer's Name" required><EmployeeNameInput value={form.observerName || ''} onChange={(name, emp) => { set('observerName', name); if (emp?.designation) set('designation', emp.designation); if (emp?.department) set('departmentSection', emp.department); }} placeholder="Select or type observer name…" /></FormField></div>
+            <FormField label="Designation"><PredictiveInput historyKey="vfl_designation" value={form.designation || ''} onChange={v => set('designation', v)} placeholder="Job title" hints={['Safety Officer', 'Supervisor', 'Foreman', 'Engineer', 'Technician', 'SHEQ Manager', 'Shift Boss']} /></FormField>
             <FormField label="Section" required>
               <SelectField size="form" value={form.sectionChoice || 'Mechanical'} title="Section" onChange={v => set('sectionChoice', v as SectionType)}
                 options={SECTIONS.map(s => ({ value: s, label: s }))} />
             </FormField>
-            <div className="col-span-2"><FormField label="Department/Section"><PredictiveField historyKey="vfl_department" value={form.departmentSection || ''} onChange={v => set('departmentSection', v)} placeholder="e.g. Engineering" hints={['Engineering', 'Mechanical', 'Electrical', 'Mining', 'Processing', 'Safety', 'Maintenance', 'Operations']} /></FormField></div>
+            <div className="col-span-2"><FormField label="Department/Section"><PredictiveInput historyKey="vfl_department" value={form.departmentSection || ''} onChange={v => set('departmentSection', v)} placeholder="e.g. Engineering" hints={['Engineering', 'Mechanical', 'Electrical', 'Mining', 'Processing', 'Safety', 'Maintenance', 'Operations']} /></FormField></div>
             <FormField label="Date" required><input type="date" className={inputCls} value={form.date || ''} title="Observation date" onChange={e => set('date', e.target.value)} /></FormField>
             <FormField label="Time" required><input type="time" className={inputCls} value={form.time || ''} title="Observation time" onChange={e => set('time', e.target.value)} /></FormField>
             <FormField label="Status">
