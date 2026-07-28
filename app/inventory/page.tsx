@@ -3,7 +3,7 @@
 
 import { AppShell } from '@/components/app-shell';
 import { formatDate } from '@/lib/format';
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import {
@@ -17,25 +17,8 @@ import {
 } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
-
-interface InventoryItem {
-  id: string;
-  name: string;
-  sku: string;
-  category: string;
-  description: string;
-  currentStock: number;
-  minStock: number;
-  maxStock: number;
-  unit: string;
-  cost: number;
-  supplier: string;
-  location: string;
-  status: string;
-  lastRestocked: string;
-}
-
-const INVENTORY_STORAGE_KEY = 'inventory-items';
+import type { InventoryItem } from './types';
+import { useInventoryData } from './useInventoryData';
 
 const CATEGORIES = ['Electronics', 'Mechanical', 'Consumables', 'Safety', 'Tools', 'Office Supplies'];
 const SUPPLIERS = ['TechSupply Inc', 'Industrial Parts Co', 'SafetyFirst Ltd', 'Global Tools', 'Office Depot'];
@@ -119,16 +102,6 @@ function InventoryCard({ item, onDelete }: { item: InventoryItem; onDelete: () =
   );
 }
 
-function generateSampleInventory(): InventoryItem[] {
-  return [
-    { id: 'inv-001', name: 'Industrial Circuit Boards', sku: 'CB-IND-005', category: 'Electronics', description: 'High-temperature circuit boards for manufacturing equipment', currentStock: 45, minStock: 20, maxStock: 100, unit: 'pcs', cost: 125.50, supplier: 'TechSupply Inc', location: 'Shelf A-12', status: 'in-stock', lastRestocked: new Date(Date.now() - 7 * 86400000).toISOString() },
-    { id: 'inv-002', name: 'Safety Gloves - Large', sku: 'SG-L-100', category: 'Safety', description: 'Cut-resistant safety gloves, large size', currentStock: 8, minStock: 25, maxStock: 200, unit: 'pairs', cost: 12.75, supplier: 'SafetyFirst Ltd', location: 'Bin C-08', status: 'low-stock', lastRestocked: new Date(Date.now() - 14 * 86400000).toISOString() },
-    { id: 'inv-003', name: 'Hydraulic Fluid', sku: 'HYD-40W', category: 'Consumables', description: 'Industrial grade hydraulic fluid, 40W', currentStock: 120, minStock: 50, maxStock: 300, unit: 'liters', cost: 8.20, supplier: 'Industrial Parts Co', location: 'Drum Storage', status: 'in-stock', lastRestocked: new Date(Date.now() - 3 * 86400000).toISOString() },
-    { id: 'inv-004', name: 'CNC Cutting Tools', sku: 'CNC-CT-3MM', category: 'Tools', description: '3mm carbide cutting tools for CNC machines', currentStock: 0, minStock: 15, maxStock: 80, unit: 'pcs', cost: 45.00, supplier: 'Global Tools', location: 'Tool Crib B', status: 'out-of-stock', lastRestocked: new Date(Date.now() - 30 * 86400000).toISOString() },
-    { id: 'inv-005', name: 'Laser Printer Toner', sku: 'TONER-XL500', category: 'Office Supplies', description: 'High-yield toner for XL500 series printers', currentStock: 3, minStock: 5, maxStock: 20, unit: 'cartridges', cost: 89.99, supplier: 'Office Depot', location: 'Supply Closet', status: 'low-stock', lastRestocked: new Date(Date.now() - 21 * 86400000).toISOString() },
-  ];
-}
-
 // ─── InventoryRow — compact list-view row, mirroring EmployeeRow's pattern. ──
 function InventoryRow({ item, onDelete }: { item: InventoryItem; onDelete: () => void }) {
   const t = useTheme();
@@ -172,41 +145,16 @@ function InventoryRow({ item, onDelete }: { item: InventoryItem; onDelete: () =>
 function InventoryPageContent() {
   const t = useTheme();
   const sections = useCollapseSection({ hero: true, filters: true });
-  const [inventory, setInventory] = useState<InventoryItem[]>([]);
+  const { inventory, isRefreshing, loadInventory, deleteItem } = useInventoryData();
   const [searchTerm, setSearchTerm] = useState("");
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showFilters, setShowFilters] = useState(false);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedStatus, setSelectedStatus] = useState<string[]>([]);
   const [selectedSuppliers, setSelectedSuppliers] = useState<string[]>([]);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   // Records are grouped by category (homepage category-accordion vocabulary); this
   // tracks which category groups the user has collapsed (default: all open).
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
-
-  const loadInventory = () => {
-    setIsRefreshing(true);
-    try {
-      const stored = localStorage.getItem(INVENTORY_STORAGE_KEY);
-      if (stored) {
-        setInventory(JSON.parse(stored));
-      } else {
-        const sample = generateSampleInventory();
-        setInventory(sample);
-        localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(sample));
-      }
-    } catch { /* ignore */ } finally {
-      setIsRefreshing(false);
-    }
-  };
-
-  useEffect(() => { loadInventory(); }, []);
-
-  const deleteItem = (id: string) => {
-    const items = inventory.filter(i => i.id !== id);
-    setInventory(items);
-    try { localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(items)); } catch { /* ignore */ }
-  };
 
   const stats = useMemo(() => ({
     totalItems: inventory.length,
