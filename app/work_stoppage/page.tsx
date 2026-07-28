@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef, ElementType } from 'react';
-import { api } from '@/lib/apiClient';
 import { formatDate } from '@/lib/format';
 import {
   Octagon, Plus, Trash2, Eye, Pencil,
@@ -18,22 +17,10 @@ import {
 } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
+import type { SectionType, ActionStatus, CorrectiveAction, WorkStoppageReport } from './types';
+import { useWorkStoppageData, createReport, updateReport, deleteReport } from './useWorkStoppageData';
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
-
-type SectionType = 'Mechanical' | 'Electrical' | 'General';
-type ActionStatus = 'Pending' | 'In Progress' | 'Completed';
-
-interface CorrectiveAction {
-  id: string; finding: string; action: string; byWho: string; byWhen: string;
-  status: ActionStatus; completedDate?: string; remarks?: string;
-}
-
-interface WorkStoppageReport {
-  id: string; date: string; department: string; section: SectionType;
-  description: string; investigationFindings: string; stoppageBy: string; stoppagePosition: string;
-  acceptedBy: string; sheqCheckedBy: string; correctiveActions: CorrectiveAction[]; submittedAt: string;
-}
 
 type EmployeeItem = EmployeeLookup;
 
@@ -44,15 +31,6 @@ const ACTION_STATUSES: ActionStatus[] = ['Pending', 'In Progress', 'Completed'];
 const SECTION_ICON: Record<SectionType, ElementType> = { Mechanical: Wrench, Electrical: Zap, General: Building2 };
 const SECTION_HEX: Record<SectionType, string> = { Mechanical: '#86BBD8', Electrical: '#f59e0b', General: '#a78bfa' };
 const STATUS_HEX: Record<ActionStatus, string> = { Pending: '#f59e0b', 'In Progress': '#60a5fa', Completed: '#34d399' };
-
-// ─── API ──────────────────────────────────────────────────────────────────────
-
-// Throws on failure — the `catch { return [] }` this replaces made a server
-// outage indistinguishable from "no work stoppages yet".
-async function getReports(): Promise<WorkStoppageReport[]> { const d = await api.get<WorkStoppageReport[]>('/api/work-stoppage/'); return Array.isArray(d) ? d : []; }
-async function createReport(data: Partial<WorkStoppageReport>): Promise<WorkStoppageReport> { return api.post<WorkStoppageReport>('/api/work-stoppage/', data); }
-async function updateReport(id: string, data: Partial<WorkStoppageReport>): Promise<WorkStoppageReport> { return api.patch<WorkStoppageReport>(`/api/work-stoppage/${id}`, data); }
-async function deleteReport(id: string): Promise<void> { await api.delete(`/api/work-stoppage/${id}`); }
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 
@@ -469,9 +447,7 @@ function ReportCard({ report, expanded, onToggle, onView, onEdit, onDelete }: {
 function WorkStoppageContent() {
   const t = useTheme();
   const sections = useCollapseSection({ hero: true, records: true });
-  const [loading, setLoading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [reports, setReports] = useState<WorkStoppageReport[]>([]);
+  const { reports, setReports, loading, refreshing, load } = useWorkStoppageData();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [selectedReport, setSelectedReport] = useState<WorkStoppageReport | null>(null);
@@ -484,13 +460,6 @@ function WorkStoppageContent() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-
-  const load = async (quiet = false) => {
-    if (!quiet) setLoading(true); else setRefreshing(true);
-    try { setReports(await getReports()); }
-    catch { toast.error('Failed to load reports'); }
-    finally { setLoading(false); setRefreshing(false); }
-  };
 
   useEffect(() => { load(); }, []);
 
