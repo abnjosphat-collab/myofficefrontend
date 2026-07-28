@@ -11,21 +11,7 @@ import {
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
 import { formatDate } from '@/lib/format';
-
-type Priority = 'critical' | 'high' | 'medium' | 'low';
-type JCStatus = 'open' | 'in_progress' | 'on_hold' | 'completed' | 'cancelled';
-type JCType = 'corrective' | 'preventive' | 'predictive' | 'shutdown' | 'project';
-
-interface Task { id: string; description: string; done: boolean; }
-interface PartUsed { id: string; part_no: string; description: string; qty: number; }
-
-interface JobCard {
-  id: string; job_no: string; title: string; equipment_name: string;
-  type: JCType; priority: Priority; status: JCStatus;
-  description: string; section: string; assigned_to: string; supervisor: string;
-  scheduled_date: string; tasks: Task[]; parts_used: PartUsed[];
-  labour_hours: number; notes: string;
-}
+import type { JobCard, JCStatus, Priority } from './types';
 
 const P_HEX: Record<Priority, string> = { critical: '#f43f5e', high: '#f59e0b', medium: '#86BBD8', low: '#94a3b8' };
 const S_HEX: Record<JCStatus, string> = { open: '#94a3b8', in_progress: '#86BBD8', on_hold: '#f59e0b', completed: '#34d399', cancelled: '#64748b' };
