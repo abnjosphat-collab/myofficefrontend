@@ -1,7 +1,7 @@
 // app/reports/page.tsx
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import type { ElementType } from 'react';
 import Link from 'next/link';
 import {
@@ -17,16 +17,9 @@ import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle, PrimaryButton,
   EmptyState, useCollapseSection, GlowCard, SelectField,
 } from '@/components/shared/theme';
+import type { Report } from './types';
+import { useReportsData, sortReports } from './useReportsData';
 
-// ─── TYPES ────────────────────────────────────────────────────────────────────
-
-interface ReportMetadata { totalRecords: number; columns: string[]; }
-interface Report {
-  id: string; title: string; type: string; format: string;
-  description?: string; generatedAt: string;
-  data: Record<string, unknown>[];
-  columns?: string[]; metadata?: ReportMetadata;
-}
 interface ReportCardProps {
   report: Report;
   onDownload: (r: Report) => Promise<void>;
@@ -35,8 +28,6 @@ interface ReportCardProps {
 }
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
-
-const REPORTS_STORAGE_KEY = 'generated-reports';
 
 const TYPE_META: Record<string, { icon: ElementType; hex: string }> = {
   overtime: { icon: Calculator, hex: '#a78bfa' },
@@ -72,17 +63,6 @@ const exportToExcel = (ed: ExportData, name: string) => {
 const exportToWord = (ed: ExportData, name: string) => {
   const content = [name, `Generated: ${new Date().toLocaleDateString()}`, '', JSON.stringify(ed.data, null, 2)].join('\n');
   downloadBlob(new Blob([content], { type: 'application/msword' }), `${name.replace(/[^a-z0-9]/gi, '_')}.doc`);
-};
-
-// ─── SAMPLE DATA ─────────────────────────────────────────────────────────────
-
-const generateSampleReports = (): Report[] => {
-  const samples: Report[] = [
-    { id: '1', title: 'Monthly Overtime Report', type: 'overtime', format: 'pdf', description: 'Comprehensive overtime analysis for current month', generatedAt: new Date().toISOString(), data: Array.from({ length: 15 }, (_, i) => ({ id: i + 1, employee: `Employee ${i + 1}`, department: ['Engineering', 'Operations', 'Maintenance'][i % 3], hours: Math.floor(Math.random() * 20) + 5 })), metadata: { totalRecords: 15, columns: ['id', 'employee', 'department', 'hours'] } },
-    { id: '2', title: 'Equipment Maintenance Schedule', type: 'maintenance', format: 'excel', description: 'Upcoming maintenance tasks and schedules', generatedAt: new Date(Date.now() - 86400000).toISOString(), data: Array.from({ length: 10 }, (_, i) => ({ id: i + 1, equipment: `Equipment ${i + 1}`, status: ['Pending', 'Completed', 'Overdue'][i % 3] })), metadata: { totalRecords: 10, columns: ['id', 'equipment', 'status'] } },
-  ];
-  localStorage.setItem(REPORTS_STORAGE_KEY, JSON.stringify(samples));
-  return samples;
 };
 
 // ─── REPORT CARD ──────────────────────────────────────────────────────────────
@@ -192,7 +172,6 @@ function ReportListItem({ report, onDownload, onDelete, isLoading }: ReportCardP
 function ReportsPageContent() {
   const t = useTheme();
   const sections = useCollapseSection({ hero: true, searchFilters: true });
-  const [reports, setReports] = useState<Report[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [sortBy, setSortBy] = useState('newest');
@@ -203,31 +182,11 @@ function ReportsPageContent() {
   const [dateRange, setDateRange] = useState('all');
   const [activeTab, setActiveTab] = useState('all');
 
-  const sortFn = (list: Report[], by: string) => {
-    const s = [...list];
-    if (by === 'newest') return s.sort((a, b) => new Date(b.generatedAt).getTime() - new Date(a.generatedAt).getTime());
-    if (by === 'oldest') return s.sort((a, b) => new Date(a.generatedAt).getTime() - new Date(b.generatedAt).getTime());
-    if (by === 'name') return s.sort((a, b) => a.title.localeCompare(b.title));
-    return s;
-  };
-
-  const loadReports = () => {
-    try {
-      const stored = localStorage.getItem(REPORTS_STORAGE_KEY);
-      setReports(sortFn(stored ? JSON.parse(stored) : generateSampleReports(), sortBy));
-    } catch { setReports(sortFn(generateSampleReports(), sortBy)); }
-  };
-
-  useEffect(() => { loadReports(); }, []);
-
-  const saveReports = (next: Report[]) => {
-    localStorage.setItem(REPORTS_STORAGE_KEY, JSON.stringify(next));
-    setReports(sortFn(next, sortBy));
-  };
+  const { reports, setReports, loadReports, saveReports, deleteReport: removeReport } = useReportsData(sortBy);
 
   const deleteReport = (id: string) => {
     if (!confirm('Delete this report? This cannot be undone.')) return;
-    saveReports(reports.filter(r => r.id !== id));
+    removeReport(id);
   };
 
   const downloadReport = async (report: Report) => {
@@ -288,7 +247,7 @@ function ReportsPageContent() {
               <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
             </button>
             <ViewToggle value={viewMode} onChange={setViewMode} options={[{ value: 'grid', icon: LayoutGrid, label: 'Grid view' }, { value: 'list', icon: List, label: 'List view' }]} />
-            <SelectField size="filter" value={sortBy} title="Sort by" onChange={v => { setSortBy(v); setReports(sortFn(reports, v)); }}
+            <SelectField size="filter" value={sortBy} title="Sort by" onChange={v => { setSortBy(v); setReports(sortReports(reports, v)); }}
               options={[{ value: 'newest', label: 'Newest First' }, { value: 'oldest', label: 'Oldest First' }, { value: 'name', label: 'Name A–Z' }]} />
             <Link href="/reports/generate">
               <PrimaryButton icon={Plus} accent="violet">New Report</PrimaryButton>
