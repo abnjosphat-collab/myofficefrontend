@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/apiClient';
 import { toast } from 'sonner';
-import type { Category, DocumentFile } from './types';
+import type { Category, DocumentFile, Folder } from './types';
 
 function fromDb(row: Record<string, unknown>): DocumentFile {
   return {
@@ -42,6 +42,50 @@ export async function deleteDocument(id: string): Promise<void> {
 
 export async function updateDocument(id: string, updates: Partial<DocumentFile>): Promise<void> {
   await api.put(`/api/documents/${id}`, updates);
+}
+
+// ─── Folders (backend-persisted custom subfolders) ───────────────────────────
+
+export async function fetchFolders(categoryId: string): Promise<Folder[]> {
+  const data = await api.get<Folder[]>(`/api/documents/folders?category_id=${encodeURIComponent(categoryId)}`);
+  return Array.isArray(data) ? data : [];
+}
+
+export async function createFolder(categoryId: string, categoryName: string, name: string): Promise<Folder> {
+  return api.post<Folder>('/api/documents/folders', { category_id: categoryId, category_name: categoryName, name });
+}
+
+export async function renameFolder(id: string, name: string): Promise<Folder> {
+  return api.put<Folder>(`/api/documents/folders/${id}`, { name });
+}
+
+export async function deleteFolder(id: string): Promise<void> {
+  await api.delete(`/api/documents/folders/${id}`);
+}
+
+export function useFolders(currentCategory: Category | null) {
+  const [folders, setFolders] = useState<Folder[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const refresh = useCallback(async () => {
+    if (!currentCategory) { setFolders([]); return; }
+    setIsLoading(true);
+    try { setFolders(await fetchFolders(currentCategory.id)); }
+    catch (e) { toast.error(`Failed to load folders: ${e}`); }
+    finally { setIsLoading(false); }
+  }, [currentCategory]);
+
+  useEffect(() => { refresh(); }, [refresh]);
+
+  return { folders, setFolders, isLoading, refresh };
+}
+
+// ─── Global search (across every category/folder) ────────────────────────────
+
+export async function searchDocuments(q: string): Promise<DocumentFile[]> {
+  if (!q.trim()) return [];
+  const data = await api.get<Record<string, unknown>[]>(`/api/documents/search?q=${encodeURIComponent(q)}`);
+  return (Array.isArray(data) ? data : []).map(fromDb);
 }
 
 export function useDocumentsData(currentCategory: Category | null, currentFolder: string | null) {

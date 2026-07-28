@@ -21,8 +21,11 @@ import {
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
 import { formatDate } from '@/lib/format';
-import type { Category, CustomSubfolders, DeleteItem, DocumentFile, PathItem, PendingFile, RenameItem } from './types';
-import { deleteDocument, updateDocument, uploadDocument, useDocumentsData } from './useDocumentsData';
+import type { Category, DeleteItem, DocumentFile, PathItem, PendingFile, RenameItem } from './types';
+import {
+  createFolder, deleteDocument, deleteFolder, renameFolder, searchDocuments,
+  updateDocument, uploadDocument, useDocumentsData, useFolders,
+} from './useDocumentsData';
 
 // ─── API ──────────────────────────────────────────────────────────────────────
 
@@ -149,8 +152,11 @@ function DocumentsPageContent() {
   const [currentCategory,  setCurrentCategory]  = useState<Category | null>(null);
   const [currentFolder,    setCurrentFolder]    = useState<string | null>(null);
   const { documents, setDocuments, isLoading, refresh: loadFiles } = useDocumentsData(currentCategory, currentFolder);
-  const [customSubfolders, setCustomSubfolders] = useState<CustomSubfolders>({});
+  const { folders, setFolders } = useFolders(currentCategory);
   const [searchQuery,      setSearchQuery]      = useState('');
+  const [homeSearchQuery,  setHomeSearchQuery]  = useState('');
+  const [homeSearchResults, setHomeSearchResults] = useState<DocumentFile[]>([]);
+  const [homeSearching,    setHomeSearching]    = useState(false);
   const [path,             setPath]             = useState<PathItem[]>([]);
   const [activeTab,        setActiveTab]        = useState<'all' | 'starred' | 'recent'>('all');
   const [mobileMenuOpen,   setMobileMenuOpen]   = useState(false);
@@ -180,9 +186,17 @@ function DocumentsPageContent() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const saved = localStorage.getItem('ams_custom_subfolders');
-    setCustomSubfolders(saved ? JSON.parse(saved) as CustomSubfolders : {});
-  }, []);
+    if (!homeSearchQuery.trim()) { setHomeSearchResults([]); return; }
+    const q = homeSearchQuery;
+    setHomeSearching(true);
+    const t = setTimeout(() => {
+      searchDocuments(q)
+        .then(setHomeSearchResults)
+        .catch(e => toast.error(`Search failed: ${e}`))
+        .finally(() => setHomeSearching(false));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [homeSearchQuery]);
 
   async function uploadFilesToApi() {
     if (!pendingFiles.length) { toast.error('No files selected'); return; }
@@ -238,15 +252,13 @@ function DocumentsPageContent() {
     } catch (e) { toast.error(`Update failed: ${e}`); }
   }
 
-  function saveSubfolders(val: CustomSubfolders) {
-    localStorage.setItem('ams_custom_subfolders', JSON.stringify(val));
-    setCustomSubfolders(val);
-  }
-
-  function getAllSubfolders(): string[] {
-    const def = DEFAULT_SUBFOLDERS[currentCategory?.name ?? ''] ?? [];
-    const cus = customSubfolders[currentCategory?.name ?? ''] ?? [];
-    return Array.from(new Set([...def, ...cus]));
+  // Default folders (hardcoded per category) plus custom folders (backend-
+  // persisted in the document_folders table — shared across users/devices,
+  // unlike the localStorage-only version this replaced).
+  function getAllSubfolders(): { name: string; id?: string; isDefault: boolean }[] {
+    const def = (DEFAULT_SUBFOLDERS[currentCategory?.name ?? ''] ?? []).map(name => ({ name, isDefault: true }));
+    const custom = folders.map(f => ({ name: f.name, id: f.id, isDefault: false }));
+    return [...def, ...custom];
   }
 
   function handleCategoryClick(cat: Category) {
@@ -271,40 +283,49 @@ function DocumentsPageContent() {
     }
   }
 
-  function handleCreateSubfolder() {
+  async function handleCreateSubfolder() {
     if (!newFolderName.trim() || !currentCategory) return;
-    if (getAllSubfolders().includes(newFolderName)) { toast.error('Folder already exists'); return; }
-    const existing = customSubfolders[currentCategory.name] ?? [];
-    saveSubfolders({ ...customSubfolders, [currentCategory.name]: [...existing, newFolderName] });
-    toast.success(`Folder "${newFolderName}" created`);
-    setNewFolderName('');
-    setIsCreateFolderOpen(false);
+    const name = newFolderName.trim();
+    if (getAllSubfolders().some(f => f.name === name)) { toast.error('Folder already exists'); return; }
+    try {
+      const created = await createFolder(currentCategory.id, currentCategory.name, name);
+      setFolders(prev => [...prev, created]);
+      toast.success(`Folder "${name}" created`);
+      setNewFolderName('');
+      setIsCreateFolderOpen(false);
+    } catch (e) { toast.error(`Failed to create folder: ${e}`); }
   }
 
-  function handleDeleteSubfolder() {
+  async function handleDeleteSubfolder() {
     if (!itemToDelete || !currentCategory) return;
     if (DEFAULT_SUBFOLDERS[currentCategory.name]?.includes(itemToDelete.name)) {
       toast.error('Cannot delete a default folder'); setItemToDelete(null); setIsDeleteDialogOpen(false); return;
     }
-    const existing = customSubfolders[currentCategory.name] ?? [];
-    saveSubfolders({ ...customSubfolders, [currentCategory.name]: existing.filter(s => s !== itemToDelete.name) });
-    if (currentFolder === itemToDelete.name) { setCurrentFolder(null); setPath(p => p.slice(0, 1)); }
-    toast.success(`Folder "${itemToDelete.name}" deleted`);
+    if (!itemToDelete.id) { setItemToDelete(null); setIsDeleteDialogOpen(false); return; }
+    try {
+      await deleteFolder(itemToDelete.id);
+      setFolders(prev => prev.filter(f => f.id !== itemToDelete.id));
+      if (currentFolder === itemToDelete.name) { setCurrentFolder(null); setPath(p => p.slice(0, 1)); }
+      toast.success(`Folder "${itemToDelete.name}" deleted`);
+    } catch (e) { toast.error(`Failed to delete folder: ${e}`); }
     setItemToDelete(null); setIsDeleteDialogOpen(false);
   }
 
-  function handleRenameSubfolder() {
+  async function handleRenameSubfolder() {
     if (!itemToRename || !newName.trim() || !currentCategory) return;
     if (DEFAULT_SUBFOLDERS[currentCategory.name]?.includes(itemToRename.name)) {
       toast.error('Cannot rename a default folder'); setIsRenameDialogOpen(false); setItemToRename(null); setNewName(''); return;
     }
-    const existing = customSubfolders[currentCategory.name] ?? [];
-    saveSubfolders({ ...customSubfolders, [currentCategory.name]: existing.map(s => s === itemToRename.name ? newName : s) });
-    if (currentFolder === itemToRename.name) {
-      setCurrentFolder(newName);
-      setPath(p => p.map(x => x.id === itemToRename.name ? { ...x, name: newName, id: newName } : x));
-    }
-    toast.success(`Renamed to "${newName}"`);
+    if (!itemToRename.id) { setIsRenameDialogOpen(false); setItemToRename(null); setNewName(''); return; }
+    try {
+      const updated = await renameFolder(itemToRename.id, newName.trim());
+      setFolders(prev => prev.map(f => f.id === updated.id ? updated : f));
+      if (currentFolder === itemToRename.name) {
+        setCurrentFolder(updated.name);
+        setPath(p => p.map(x => x.id === itemToRename.name ? { ...x, name: updated.name, id: updated.name } : x));
+      }
+      toast.success(`Renamed to "${updated.name}"`);
+    } catch (e) { toast.error(`Failed to rename folder: ${e}`); }
     setIsRenameDialogOpen(false); setItemToRename(null); setNewName('');
   }
 
@@ -323,7 +344,7 @@ function DocumentsPageContent() {
 
   async function handleDeleteConfirm() {
     if (!itemToDelete) return;
-    if (itemToDelete.type === 'folder') { handleDeleteSubfolder(); return; }
+    if (itemToDelete.type === 'folder') { await handleDeleteSubfolder(); return; }
     await deleteDoc(itemToDelete);
     setItemToDelete(null); setIsDeleteDialogOpen(false);
   }
@@ -332,7 +353,7 @@ function DocumentsPageContent() {
 
   async function handleRenameConfirm() {
     if (!itemToRename || !newName.trim()) return;
-    if (itemToRename.type === 'folder') { handleRenameSubfolder(); return; }
+    if (itemToRename.type === 'folder') { await handleRenameSubfolder(); return; }
     await updateDoc(itemToRename.id ?? '', { name: newName });
     toast.success(`Renamed to "${newName}"`);
     setIsRenameDialogOpen(false); setItemToRename(null); setNewName('');
@@ -398,12 +419,63 @@ function DocumentsPageContent() {
 
   // ── Render helpers ────────────────────────────────────────────────────────
 
+  function openDocumentLocation(doc: DocumentFile) {
+    const cat = BASE_CATEGORIES.find(c => c.id === doc.categoryId) ?? BASE_CATEGORIES.find(c => c.name === doc.categoryName);
+    if (!cat) { toast.error("Could not locate this document's category"); return; }
+    setHomeSearchQuery('');
+    setCurrentCategory(cat);
+    if (doc.folderId) {
+      setCurrentFolder(doc.folderId);
+      setPath([{ name: cat.name, id: cat.id, type: 'category' }, { name: doc.folderId, id: doc.folderId, type: 'subfolder' }]);
+    } else {
+      setCurrentFolder(null);
+      setPath([{ name: cat.name, id: cat.id, type: 'category' }]);
+    }
+    setFileTypeFilter('all'); setDateFilter('all'); setSizeFilter('all'); setSearchQuery(''); setActiveTab('all');
+    handlePreview(doc);
+  }
+
   const renderHomeView = () => (
     <div className="space-y-6">
       <div className="text-center mb-2">
         <h2 className={`text-2xl font-bold ${t.textPrimary} mb-1`}>Asset Management System</h2>
         <p className={`text-sm ${t.textFaint}`}>ISO 55001 Compliant Document Management</p>
       </div>
+
+      <div className="max-w-xl mx-auto w-full">
+        <SearchInput value={homeSearchQuery} onChange={setHomeSearchQuery} placeholder="Search all documents across every category…" className="w-full" />
+      </div>
+
+      {homeSearchQuery.trim() ? (
+        <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden max-w-2xl mx-auto`}>
+          <div className={`px-4 py-2.5 border-b ${t.border} text-xs ${t.textFaint}`}>
+            {homeSearching ? 'Searching…' : `${homeSearchResults.length} result${homeSearchResults.length === 1 ? '' : 's'}`}
+          </div>
+          {!homeSearching && homeSearchResults.length === 0 ? (
+            <div className="p-8 text-center">
+              <Search className={`h-8 w-8 mx-auto ${t.textFaint} mb-2`} />
+              <p className={`text-sm ${t.textFaint}`}>No documents match &ldquo;{homeSearchQuery}&rdquo;</p>
+            </div>
+          ) : (
+            <div className="max-h-[420px] overflow-y-auto">
+              {homeSearchResults.map(doc => {
+                const fi = fileIconFor(doc.type);
+                return (
+                  <button key={doc.id} type="button" onClick={() => openDocumentLocation(doc)}
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 border-b ${t.border} last:border-0 ${t.hoverBgSoft} transition-colors text-left`}>
+                    <fi.icon className="h-4 w-4 shrink-0" style={{ color: fi.color }} />
+                    <div className="min-w-0 flex-1">
+                      <p className={`text-sm font-medium truncate ${t.textPrimary}`}>{doc.name}</p>
+                      <p className={`text-[11px] truncate ${t.textFaint}`}>{doc.categoryName}{doc.folderId ? ` / ${doc.folderId}` : ''}</p>
+                    </div>
+                    <span className={`text-[11px] shrink-0 ${t.textFaint}`}>{formatFileSize(doc.file_size)}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      ) : (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {BASE_CATEGORIES.map(cat => {
           const Icon = cat.icon;
@@ -419,12 +491,12 @@ function DocumentsPageContent() {
           );
         })}
       </div>
+      )}
     </div>
   );
 
   const renderCategoryView = () => {
     const all = getAllSubfolders();
-    const defaults = DEFAULT_SUBFOLDERS[currentCategory?.name ?? ''] ?? [];
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between flex-wrap gap-4">
@@ -455,8 +527,7 @@ function DocumentsPageContent() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-            {all.map(name => {
-              const isDefault = defaults.includes(name);
+            {all.map(({ name, id, isDefault }) => {
               return (
                 <GlowCard key={name} onClick={() => handleSubfolderClick(name)} color={ACCENT_HEX.blue}
                   surface={`${t.glass} rounded-2xl`} className="p-4 group flex items-center justify-between gap-2">
@@ -469,11 +540,11 @@ function DocumentsPageContent() {
                   {!isDefault && (
                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" onClick={e => e.stopPropagation()}>
                       <button type="button" title="Rename" className={`h-6 w-6 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-colors`}
-                        onClick={() => { setItemToRename({ name, type: 'folder' }); setNewName(name); setIsRenameDialogOpen(true); }}>
+                        onClick={() => { setItemToRename({ name, id, type: 'folder' }); setNewName(name); setIsRenameDialogOpen(true); }}>
                         <Edit3 className="h-3 w-3" />
                       </button>
                       <button type="button" title="Delete" className={`h-6 w-6 flex items-center justify-center rounded ${t.hoverBg} text-rose-500 hover:text-rose-400 transition-colors`}
-                        onClick={() => { setItemToDelete({ name, type: 'folder' }); setIsDeleteDialogOpen(true); }}>
+                        onClick={() => { setItemToDelete({ name, id, type: 'folder' }); setIsDeleteDialogOpen(true); }}>
                         <TrashIcon className="h-3 w-3" />
                       </button>
                     </div>

@@ -62,3 +62,11 @@ export interface RenameItem {
 export interface CustomSubfolders {
   [categoryName: string]: string[];
 }
+
+export interface Folder {
+  id: string;
+  category_id: string;
+  category_name: string;
+  name: string;
+  created_at?: string;
+}
