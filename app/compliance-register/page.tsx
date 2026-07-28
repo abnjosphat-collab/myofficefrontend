@@ -10,13 +10,7 @@ import { formatDate } from '@/lib/format';
 import { useTheme, PageHero, StatTile, StatusBadge, FormField, PrimaryButton, ACCENT_HEX } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
-
-type Status = 'current' | 'due_soon' | 'overdue';
-
-interface ComplianceItem {
-  id: number; equipment_name: string; inspection_type: string; regulatory_body: string;
-  certificate_no: string; expiry_date: string; status: Status; responsible: string; notes: string;
-}
+import type { Status, ComplianceItem } from './types';
 
 const statusHex: Record<Status, string> = { current: '#34d399', due_soon: '#fbbf24', overdue: '#fb7185' };
 const statusLabel: Record<Status, string> = { current: 'Current', due_soon: 'Due Soon', overdue: 'Overdue' };
