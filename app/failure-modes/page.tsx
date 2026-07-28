@@ -1,34 +1,13 @@
 // FILE: app/failure-modes/page.tsx
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { api } from '@/lib/apiClient';
+import { useState } from 'react';
 import { AppShell } from '@/components/app-shell';
 import { AlertOctagon, ChevronDown, ChevronUp, RefreshCw } from '@/components/shared/theme';
 import { useTheme, PageHero, StatTile, ACCENT_HEX } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
-
-interface FailureModeAPI {
-  id: number; equipment_type?: string; component?: string; failure_mode?: string; failure_cause?: string;
-  severity?: number; probability?: number; detectability?: number; occurrence_count?: number;
-  last_occurred?: string; corrective_action?: string; preventive_action?: string;
-}
-const fromFMAPI = (d: FailureModeAPI): FailureMode => ({
-  id: d.id, equipType: d.equipment_type || '', component: d.component || '',
-  failureMode: d.failure_mode || '', failureCause: d.failure_cause || '',
-  severity: d.severity || 1, probability: d.probability || 1, detectability: d.detectability || 1,
-  rpn: (d.severity || 1) * (d.probability || 1) * (d.detectability || 1),
-  occurrences: d.occurrence_count || 0, lastOccurred: d.last_occurred || '—',
-  corrective: d.corrective_action || '', preventive: d.preventive_action || '',
-});
-
-interface FailureMode {
-  id: number; equipType: string; component: string; failureMode: string; failureCause: string;
-  severity: number; probability: number; detectability: number; rpn: number;
-  occurrences: number; lastOccurred: string;
-  corrective: string; preventive: string;
-}
+import { useFailureModesData } from './useFailureModesData';
 
 const EQ_TYPES_STATIC = ['SAG Mill', 'Ball Mill', 'Jaw Crusher', 'Air Compressor', 'Conveyor', 'Dewatering Pump', 'Thickener'];
 
@@ -49,17 +28,9 @@ function RatingDots({ value }: { value: number }) {
 
 function FailureModesContent() {
   const t = useTheme();
-  const [modes, setModes] = useState<FailureMode[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { modes, loading, fetchModes } = useFailureModesData();
   const [expanded, setExpanded] = useState<number | null>(null);
   const [equipFilter, setEquipFilter] = useState('all');
-
-  const fetchModes = useCallback(async () => {
-    setLoading(true);
-    try { setModes((await api.get<FailureModeAPI[]>('/api/failure-modes')).map(fromFMAPI)); }
-    catch { /* network */ } finally { setLoading(false); }
-  }, []);
-  useEffect(() => { fetchModes(); }, [fetchModes]);
 
   const displayed = equipFilter === 'all' ? modes : modes.filter(m => m.equipType === equipFilter);
   const highRPN = modes.filter(m => m.rpn > 100).length;
