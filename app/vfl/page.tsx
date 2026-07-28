@@ -7,7 +7,6 @@ import {
   MessageSquare, PenTool, X,
 } from "@/components/shared/theme";
 import { AppShell } from '@/components/app-shell';
-import { api } from '@/lib/apiClient';
 import { formatDate } from '@/lib/format';
 import { useEmployees, type EmployeeLookup } from '@/hooks/useLookups';
 import { toast } from "sonner";
@@ -17,26 +16,13 @@ import {
 } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
+import type {
+  SectionType, BehaviourCategory, ObservationType, CoachingTechnique, VFLStatus, ActionStatus,
+  ActionItem, VFLReport,
+} from './types';
+import { useVFLData, createVFLReport, updateVFLReport, deleteVFLReport } from './useVFLData';
 
 // =============== TYPES ===============
-type SectionType = 'Mechanical' | 'Electrical';
-type BehaviourCategory = 'Safe Behaviour' | 'Unsafe Behaviour';
-type ObservationType = 'Safe Behaviour' | 'Safe Condition' | 'At Risk Behaviour' | 'At Risk Condition';
-type CoachingTechnique = 'SBR' | 'CC';
-type VFLStatus = 'draft' | 'submitted' | 'reviewed' | 'closed';
-type ActionStatus = 'Pending' | 'In Progress' | 'Completed';
-
-interface ActionItem {
-  id: string; action: string; responsible: string; targetDate: string;
-  status: ActionStatus; completedDate?: string; remarks?: string;
-}
-
-interface VFLReport {
-  id: string; observerName: string; designation: string; sectionChoice: SectionType;
-  departmentSection: string; date: string; time: string; behaviourCategory: BehaviourCategory;
-  observationType: ObservationType; description: string; coachingTechnique: CoachingTechnique;
-  actions: ActionItem[]; status: VFLStatus; created_at: string; updated_at?: string; submitted_at?: string;
-}
 
 type EmployeeItem = EmployeeLookup;
 
@@ -53,17 +39,6 @@ const OBSERVATION_HEX: Record<ObservationType, string> = { 'Safe Behaviour': '#1
 const COACHING_DESC: Record<CoachingTechnique, string> = { SBR: 'Situation, Behaviour, Result', CC: 'Coaching Conversation' };
 const STATUS_HEX: Record<VFLStatus, string> = { draft: '#94a3b8', submitted: '#3b82f6', reviewed: '#a78bfa', closed: '#10b981' };
 const ACTION_HEX: Record<ActionStatus, string> = { Pending: '#f59e0b', 'In Progress': '#3b82f6', Completed: '#10b981' };
-
-// =============== API FUNCTIONS ===============
-// Throws on failure — the `catch { return [] }` this replaces made a server
-// outage look like "no reports yet", so loadData's own catch never fired.
-async function getVFLReports(): Promise<VFLReport[]> {
-  const data = await api.get<VFLReport[]>('/api/vfl/');
-  return Array.isArray(data) ? data : [];
-}
-async function createVFLReport(report: Partial<VFLReport>): Promise<VFLReport> { return api.post<VFLReport>('/api/vfl/', report); }
-async function updateVFLReport(id: string, report: Partial<VFLReport>): Promise<VFLReport> { return api.patch<VFLReport>(`/api/vfl/${id}/`, report); }
-async function deleteVFLReport(id: string): Promise<void> { return api.delete<void>(`/api/vfl/${id}/`); }
 
 // =============== HELPERS ===============
 const fmtDate = (s: string) => (s ? formatDate(s) : '');
@@ -410,9 +385,7 @@ function VFLFormModal({ open, editing, onClose, onSave, saving }: { open: boolea
 function VFLObservationContent() {
   const t = useTheme();
   const sections = useCollapseSection({ hero: true, records: true });
-  const [reports, setReports] = useState<VFLReport[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [loadError, setLoadError] = useState('');
+  const { reports, setReports, loading, loadError, loadData } = useVFLData();
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
 
   const [selectedReport, setSelectedReport] = useState<VFLReport | null>(null);
@@ -428,16 +401,6 @@ function VFLObservationContent() {
   const [behaviourFilter, setBehaviourFilter] = useState('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-
-  const loadData = async () => {
-    setLoading(true);
-    try { setReports(await getVFLReports()); setLoadError(''); }
-    catch (e) {
-      setLoadError(e instanceof Error ? e.message : 'Could not load VFL reports.');
-      toast.error('Failed to load VFL reports');
-    }
-    finally { setLoading(false); }
-  };
 
   useEffect(() => { loadData(); }, []);
 
