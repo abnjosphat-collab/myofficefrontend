@@ -1,33 +1,15 @@
 // FILE: app/condition-monitoring/page.tsx
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { api } from '@/lib/apiClient';
+import { useState } from 'react';
 import { AppShell } from '@/components/app-shell';
 import { Radar, Plus, X, RefreshCw } from '@/components/shared/theme';
 import { useTheme, PageHero, StatTile, StatusBadge, FormField, PrimaryButton, ACCENT_HEX, SelectField } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
 import { formatDate } from '@/lib/format';
-
-type CMResult = 'normal' | 'caution' | 'critical';
-type CMType = 'Oil Analysis' | 'Vibration' | 'Thermography';
-
-interface CMReading {
-  id: number; equipment: string; component: string; type: CMType;
-  date: string; value: string; unit: string; result: CMResult; technician: string; notes: string;
-}
-
-interface CMReadingAPI {
-  id: number; equipment_name?: string; component?: string; monitoring_type?: string;
-  sampled_date?: string; value?: number | string; unit?: string; result?: string; technician?: string; notes?: string;
-}
-const fromCMAPI = (d: CMReadingAPI): CMReading => ({
-  id: d.id, equipment: d.equipment_name || '', component: d.component || '',
-  type: (d.monitoring_type as CMType) || 'Vibration', date: d.sampled_date || '',
-  value: String(d.value ?? ''), unit: d.unit || '', result: (d.result as CMResult) || 'normal',
-  technician: d.technician || '', notes: d.notes || '',
-});
+import type { CMResult, CMType } from './types';
+import { useConditionMonitoringData, createCMReading } from './useConditionMonitoringData';
 
 const typeHex: Record<CMType, string> = { 'Oil Analysis': '#fbbf24', 'Vibration': ACCENT_HEX.blue, 'Thermography': '#fb923c' };
 const resultHex: Record<CMResult, string> = { normal: '#34d399', caution: '#fbbf24', critical: '#fb7185' };
@@ -36,18 +18,10 @@ const CM_TYPES: CMType[] = ['Oil Analysis', 'Vibration', 'Thermography'];
 
 function ConditionMonitoringContent() {
   const t = useTheme();
-  const [readings, setReadings] = useState<CMReading[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { readings, loading, fetchReadings } = useConditionMonitoringData();
   const [tab, setTab] = useState<'All' | CMType>('All');
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ equipment: '', component: '', type: 'Vibration' as CMType, date: '', value: '', unit: '', result: 'normal' as CMResult, technician: '', notes: '' });
-
-  const fetchReadings = useCallback(async () => {
-    setLoading(true);
-    try { setReadings((await api.get<CMReadingAPI[]>('/api/condition-monitoring')).map(fromCMAPI)); }
-    catch { /* network error */ } finally { setLoading(false); }
-  }, []);
-  useEffect(() => { fetchReadings(); }, [fetchReadings]);
 
   const displayed = tab === 'All' ? readings : readings.filter(r => r.type === tab);
   const counts = { total: readings.length, critical: readings.filter(r => r.result === 'critical').length, caution: readings.filter(r => r.result === 'caution').length, normal: readings.filter(r => r.result === 'normal').length };
@@ -66,7 +40,7 @@ function ConditionMonitoringContent() {
   const submit = async () => {
     if (!form.equipment || !form.date) return;
     const body = { equipment_name: form.equipment, component: form.component, monitoring_type: form.type, sampled_date: form.date, value: parseFloat(form.value) || null, unit: form.unit, result: form.result, technician: form.technician, notes: form.notes };
-    try { await api.post('/api/condition-monitoring', body); fetchReadings(); }
+    try { await createCMReading(body); fetchReadings(); }
     catch { /* ignore */ }
     setForm({ equipment: '', component: '', type: 'Vibration', date: '', value: '', unit: '', result: 'normal', technician: '', notes: '' });
     setShowAdd(false);
