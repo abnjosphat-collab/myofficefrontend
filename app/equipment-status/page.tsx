@@ -6,6 +6,7 @@ import { useTheme, PageHero, CenterModal, FormField, PrimaryButton, EmptyState, 
 import { useEquipment, toBoardStatus, type BoardStatus } from '@/lib/useEquipment';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
+import type { BoardEntry } from './types';
 
 const STATUS_META: Record<BoardStatus, { label: string; hex: string }> = {
   running: { label: 'Running', hex: '#34d399' },
@@ -14,18 +15,6 @@ const STATUS_META: Record<BoardStatus, { label: string; hex: string }> = {
   planned: { label: 'Planned Maint.', hex: '#86BBD8' },
   standby: { label: 'Standby', hex: '#94a3b8' },
 };
-
-interface BoardEntry {
-  id: string;
-  equipment_id: string;
-  name: string;
-  section: string;
-  type: string;
-  status: BoardStatus;
-  defect?: string;
-  job_card?: string;
-  downtime_hours?: number;
-}
 
 function StatusDrawer({ entry, onClose, onSave }: {
   entry: BoardEntry; onClose: () => void; onSave: (e: BoardEntry) => void;
