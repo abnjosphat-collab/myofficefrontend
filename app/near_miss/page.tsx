@@ -8,7 +8,7 @@ import {
 import { AppShell } from '@/components/app-shell';
 import { api } from '@/lib/apiClient';
 import { formatDate } from '@/lib/format';
-import { useEmployees, type EmployeeLookup } from '@/hooks/useLookups';
+import { useEmployees } from '@/hooks/useLookups';
 import { toast } from 'sonner';
 import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, FormField, FormActions,
@@ -16,46 +16,8 @@ import {
 } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
-
-// ─── TYPES ────────────────────────────────────────────────────────────────────
-
-interface NearMissReport {
-  id: string;
-  department: string;
-  section: 'Mechanical' | 'Electrical' | 'General';
-  date: string;
-  time: string;
-  location: string;
-  description: string;
-  witnessDetails: string;
-  reporterName: string;
-  submittedAt: string;
-}
-
-type EmployeeItem = EmployeeLookup;
-
-// ─── API ─────────────────────────────────────────────────────────────────────
-
-// Throws on failure — deliberately. This used to `catch { return [] }`, which made
-// a server outage indistinguishable from "no reports yet": loadReports' own
-// catch could never fire and the page rendered the friendly empty state, inviting
-// you to file the first report over data that simply hadn't loaded.
-async function getReports(): Promise<NearMissReport[]> {
-  const data = await api.get<NearMissReport[]>('/api/nearmiss/');
-  return Array.isArray(data) ? data : [];
-}
-async function createReport(report: Partial<NearMissReport>): Promise<NearMissReport | null> {
-  try { return await api.post<NearMissReport>('/api/nearmiss/', report); }
-  catch { return null; }
-}
-async function updateReport(id: string, report: Partial<NearMissReport>): Promise<NearMissReport | null> {
-  try { return await api.patch<NearMissReport>(`/api/nearmiss/${id}`, report); }
-  catch { return null; }
-}
-async function deleteReport(id: string): Promise<boolean> {
-  try { await api.delete(`/api/nearmiss/${id}`); return true; }
-  catch { return false; }
-}
+import type { NearMissReport, EmployeeItem } from './types';
+import { useNearMissData, createReport, updateReport, deleteReport } from './useNearMissData';
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 
@@ -309,10 +271,7 @@ function ReportDetailModal({ report, open, onClose, onEdit, onDelete }: {
 function NearMissContent() {
   const t = useTheme();
   const sections = useCollapseSection({ hero: true, records: true });
-  const [loading, setLoading] = useState(false);
-  const [loadError, setLoadError] = useState('');
-  const [refreshing, setRefreshing] = useState(false);
-  const [reports, setReports] = useState<NearMissReport[]>([]);
+  const { reports, setReports, loading, loadError, refreshing, loadReports } = useNearMissData();
 
   const [formOpen, setFormOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -324,19 +283,6 @@ function NearMissContent() {
   const [sectionFilter, setSectionFilter] = useState('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-
-  const loadReports = async (quiet = false) => {
-    if (!quiet) setLoading(true);
-    setRefreshing(true);
-    try { setReports(await getReports()); setLoadError(''); }
-    catch (e) {
-      setLoadError(e instanceof Error ? e.message : 'Could not load reports.');
-      toast.error('Failed to load reports');
-    }
-    finally { setLoading(false); setRefreshing(false); }
-  };
-
-  useEffect(() => { loadReports(); }, []);
 
   const stats = useMemo(() => calcStats(reports), [reports]);
 
