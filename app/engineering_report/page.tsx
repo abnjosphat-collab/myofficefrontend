@@ -1,8 +1,7 @@
 // FILE: app/engineering_report/page.tsx
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { api } from '@/lib/apiClient';
+import { useState, useMemo } from 'react';
 import { AppShell } from '@/components/app-shell';
 import { useTheme, PageHero, StatCard, type Accent } from '@/components/shared/theme';
 import {
@@ -14,6 +13,7 @@ import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer,
 } from 'recharts';
+import { useEngineeringReportData } from './useEngineeringReportData';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -70,35 +70,9 @@ function EngineeringReportContent() {
     const d = new Date();
     return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`;
   });
-  const [loading, setLoading] = useState(true);
-
-  const [breakdowns, setBreakdowns] = useState<any[]>([]);
-  const [jobCards, setJobCards] = useState<any[]>([]);
-  const [production, setProduction] = useState<any[]>([]);
-  const [compliance, setCompliance] = useState<any[]>([]);
-  const [lube, setLube] = useState<any[]>([]);
   const [openPeriod, setOpenPeriod] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [bdR, jcR, prR, coR, luR] = await Promise.allSettled([
-        api.get<any[]>('/api/breakdowns'),
-        api.get<any[]>('/api/job-cards'),
-        api.get<any[]>('/api/production'),
-        api.get<any[]>('/api/compliance'),
-        api.get<any[]>('/api/lubrication'),
-      ]);
-      if (bdR.status === 'fulfilled') setBreakdowns(bdR.value);
-      if (jcR.status === 'fulfilled') setJobCards(jcR.value);
-      if (prR.status === 'fulfilled') setProduction(prR.value);
-      if (coR.status === 'fulfilled') setCompliance(coR.value);
-      if (luR.status === 'fulfilled') setLube(luR.value);
-    } catch { /* silently use empty fallback */ }
-    setLoading(false);
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
+  const { breakdowns, jobCards, production, compliance, lube, loading, load } = useEngineeringReportData();
 
   const inPeriod = (dateStr?: string) => !!dateStr && dateStr.startsWith(period);
 
