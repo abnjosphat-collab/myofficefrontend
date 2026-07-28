@@ -2,14 +2,13 @@
 'use client';
 
 import { AppShell } from '@/components/app-shell';
-import { api } from '@/lib/apiClient';
 import {
   useTheme, PageHero, StatTile, StatusBadge, FormField, FormActions,
   SearchInput, ViewToggle, CenterModal, PrimaryButton, EmptyState, useCollapseSection, SelectField,
   GroupSection, RecordCard, ACCENT_HEX, staggerContainer, fadeUp, InfoRow, SummaryItem, LoadingState,
 } from '@/components/shared/theme';
 import { formatDate } from '@/lib/format';
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import {
   Car, Plus, Pencil, Trash2, RefreshCw, Phone,
@@ -20,6 +19,8 @@ import { toast } from 'sonner';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { EXPORT_BRAND_RGB, styleExcelHeaderRow, exportFilename } from '@/lib/exportUtils';
+import type { Driver, DriverForm } from './types';
+import { useDriversData, createDriver, updateDriver, deleteDriver } from './useDriversData';
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 
@@ -42,26 +43,6 @@ function deptColor(department?: string) {
   return GROUP_PALETTE[h % GROUP_PALETTE.length];
 }
 
-// ─── INTERFACES ───────────────────────────────────────────────────────────────
-
-interface Driver {
-  id: number;
-  full_name: string;
-  phone_numbers: string[];
-  department?: string;
-  license_class?: string;
-  license_expiry?: string;
-  status: 'active' | 'inactive' | 'suspended';
-  notes?: string;
-  created_at?: string;
-  updated_at?: string;
-}
-
-interface DriverForm {
-  full_name: string; phones: string[]; department: string; license_class: string;
-  license_expiry: string; status: 'active' | 'inactive' | 'suspended'; notes: string;
-}
-
 const emptyForm = (): DriverForm => ({ full_name: '', phones: [''], department: '', license_class: '', license_expiry: '', status: 'active', notes: '' });
 
 const isExpired = (expiry?: string) => !!expiry && new Date(expiry) < new Date();
@@ -70,21 +51,6 @@ const isExpiringSoon = (expiry?: string) => {
   const d = new Date(expiry); const soon = new Date(); soon.setDate(soon.getDate() + 30);
   return d >= new Date() && d <= soon;
 };
-
-// ─── API ─────────────────────────────────────────────────────────────────────
-
-async function apiGetDrivers(): Promise<Driver[]> {
-  return api.get<Driver[]>('/api/drivers?limit=2000');
-}
-async function apiCreateDriver(payload: object): Promise<Driver> {
-  return api.post<Driver>('/api/drivers', payload);
-}
-async function apiUpdateDriver(id: number, payload: object): Promise<Driver> {
-  return api.put<Driver>(`/api/drivers/${id}`, payload);
-}
-async function apiDeleteDriver(id: number): Promise<void> {
-  await api.delete(`/api/drivers/${id}`);
-}
 
 // ─── EXPORT HELPERS ───────────────────────────────────────────────────────────
 
@@ -425,9 +391,7 @@ function DriverRow({ driver, onEdit, onDelete }: { driver: Driver; onEdit: () =>
 function DriversContent() {
   const t = useTheme();
   const sections = useCollapseSection({ records: true });
-  const [drivers, setDrivers] = useState<Driver[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const { drivers, loading, refreshing, loadData } = useDriversData();
 
   const [search, setSearch] = useState('');
   const [deptFilter, setDeptFilter] = useState('all');
@@ -440,15 +404,7 @@ function DriversContent() {
   // tracks which department groups the user has collapsed (default: all open).
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
-  const loadData = useCallback(async (quiet = false) => {
-    if (!quiet) setLoading(true);
-    setRefreshing(true);
-    try { setDrivers(Array.isArray(await apiGetDrivers()) ? await apiGetDrivers() : []); }
-    catch (e: any) { toast.error(e.message); }
-    finally { setLoading(false); setRefreshing(false); }
-  }, []);
-
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => { loadData(); }, []);
 
   const departments = useMemo(() => [...new Set(drivers.map(d => d.department).filter(Boolean) as string[])].sort(), [drivers]);
 
@@ -498,8 +454,8 @@ function DriversContent() {
         department: form.department || null, license_class: form.license_class || null,
         license_expiry: form.license_expiry || null, status: form.status, notes: form.notes || null,
       };
-      if (editingDriver) { await apiUpdateDriver(editingDriver.id, payload); toast.success('Driver updated'); }
-      else { await apiCreateDriver(payload); toast.success('Driver added'); }
+      if (editingDriver) { await updateDriver(editingDriver.id, payload); toast.success('Driver updated'); }
+      else { await createDriver(payload); toast.success('Driver added'); }
       setModalOpen(false);
       await loadData(true);
     } catch (e: any) { toast.error(e.message); }
@@ -507,7 +463,7 @@ function DriversContent() {
 
   const handleDelete = async (id: number, name: string) => {
     if (!window.confirm(`Remove ${name} from the drivers registry? This cannot be undone.`)) return;
-    try { await apiDeleteDriver(id); toast.success('Driver removed'); await loadData(true); }
+    try { await deleteDriver(id); toast.success('Driver removed'); await loadData(true); }
     catch (e: any) { toast.error(e.message); }
   };
 
