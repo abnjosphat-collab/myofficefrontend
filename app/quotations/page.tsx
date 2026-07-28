@@ -18,10 +18,7 @@ import {
   Palette, Eye, ChevronDown, ChevronUp, ChevronsUp, ChevronsDown,
 } from '@/components/shared/theme';
 
-interface QuotationItem { id: number; description: string; quantity: number; rate: number; amount: number; category: string; }
-interface ClientData { id?: number; name: string; company: string; email: string; phone: string; address: string; city: string; country: string; website?: string | undefined; }
-interface RecentQuotation { id: number; number: string; client: string; amount: number; date: string; status: string; }
-interface QuotationTemplate { id: string; name: string; category: string; color: string; icon: string; items: { description: string; quantity: number; rate: number; amount: number }[]; notes: string; terms: string; }
+import type { QuotationItem, ClientData, RecentQuotation, QuotationTemplate } from './types';
 
 const QUOTATION_TEMPLATES = [
   {
