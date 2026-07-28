@@ -1,22 +1,23 @@
 // app/near_miss/page.tsx — Near Miss Reporting
 'use client';
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   AlertTriangle, RefreshCw, Users, X,
 } from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
 import { api } from '@/lib/apiClient';
 import { formatDate } from '@/lib/format';
-import { useEmployees } from '@/hooks/useLookups';
 import { toast } from 'sonner';
 import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, FormField, FormActions,
   useCollapseSection, CenterModal, PrimaryButton, EmptyState, ACCENT_HEX, SelectField,
 } from '@/components/shared/theme';
+import { PredictiveInput } from '@/components/shared/PredictiveInput';
+import { EmployeeNameInput } from '@/components/shared/EmployeeNameInput';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
-import type { NearMissReport, EmployeeItem } from './types';
+import type { NearMissReport } from './types';
 import { useNearMissData, createReport, updateReport, deleteReport } from './useNearMissData';
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
@@ -33,102 +34,6 @@ function calcStats(reports: NearMissReport[]) {
     if (r.reporterName?.trim()) byReporter[r.reporterName.trim()] = (byReporter[r.reporterName.trim()] || 0) + 1;
   });
   return { total: reports.length, bySection, byReporter };
-}
-
-// ─── PREDICTIVE TEXT (localStorage history) ──────────────────────────────────
-
-function usePredictiveHistory(key: string) {
-  const [history, setHistory] = useState<string[]>(() => {
-    if (typeof window === 'undefined') return [];
-    try { return JSON.parse(localStorage.getItem(`nm_hist_${key}`) || '[]'); } catch { return []; }
-  });
-  const remember = (val: string) => {
-    if (!val.trim()) return;
-    setHistory(prev => {
-      const next = [val, ...prev.filter(v => v !== val)].slice(0, 20);
-      localStorage.setItem(`nm_hist_${key}`, JSON.stringify(next));
-      return next;
-    });
-  };
-  return { history, remember };
-}
-
-function PredictiveField({ historyKey, value, onChange, placeholder, hints, multiline, rows = 3 }: {
-  historyKey: string; value: string; onChange: (v: string) => void; placeholder?: string; hints?: string[]; multiline?: boolean; rows?: number;
-}) {
-  const t = useTheme();
-  const { history, remember } = usePredictiveHistory(historyKey);
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  const allOptions = useMemo(() => [...new Set([...history, ...(hints || [])])], [history, hints]);
-
-  useEffect(() => {
-    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
-    document.addEventListener('mousedown', h); return () => document.removeEventListener('mousedown', h);
-  }, []);
-
-  const q = value.toLowerCase();
-  const suggestions = q.length === 0 ? allOptions.slice(0, 6) : allOptions.filter(o => o.toLowerCase().includes(q) && o.toLowerCase() !== q).slice(0, 6);
-  const inputCls = `w-full rounded-lg px-3 py-1.5 text-sm outline-none transition-colors ${t.inputBg}`;
-
-  const Field = multiline ? 'textarea' : 'input';
-
-  return (
-    <div className="relative" ref={ref}>
-      <Field
-        value={value}
-        rows={multiline ? rows : undefined}
-        onChange={e => onChange(e.target.value)}
-        onFocus={() => setOpen(true)}
-        onBlur={() => { if (value.trim()) remember(value.trim()); }}
-        placeholder={placeholder}
-        className={`${inputCls} ${multiline ? 'resize-none' : ''}`}
-      />
-      {open && suggestions.length > 0 && (
-        <div className={`absolute z-50 w-full mt-1 rounded-xl overflow-hidden ${t.glass} ${t.shadow}`}>
-          <div className="max-h-40 overflow-y-auto">
-            {suggestions.map(s => (
-              <button key={s} type="button" onMouseDown={() => { onChange(s); setOpen(false); }}
-                className={`w-full text-left px-3 py-2 text-xs ${t.textMuted} ${t.hoverBgSoft} transition-colors truncate`}>{s}</button>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-
-function EmployeeField({ value, onChange, placeholder }: { value: string; onChange: (name: string, emp?: EmployeeItem) => void; placeholder?: string }) {
-  const t = useTheme();
-  const employees = useEmployees();
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
-    document.addEventListener('mousedown', h); return () => document.removeEventListener('mousedown', h);
-  }, []);
-
-  const q = value.toLowerCase();
-  const suggestions = q.length === 0 ? employees.slice(0, 6) : employees.filter(e => `${e.first_name} ${e.last_name}`.toLowerCase().includes(q)).slice(0, 6);
-
-  return (
-    <div className="relative" ref={ref}>
-      <input value={value} onChange={e => { onChange(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)}
-        placeholder={placeholder} className={`w-full rounded-lg px-3 py-1.5 text-sm outline-none transition-colors ${t.inputBg}`} />
-      {open && suggestions.length > 0 && (
-        <div className={`absolute z-50 w-full mt-1 rounded-xl overflow-hidden ${t.glass} ${t.shadow}`}>
-          <div className="max-h-40 overflow-y-auto">
-            {suggestions.map(e => {
-              const full = `${e.first_name} ${e.last_name}`;
-              return <button key={e.id} type="button" onMouseDown={() => { onChange(full, e); setOpen(false); }} className={`w-full text-left px-3 py-2 text-xs ${t.textMuted} ${t.hoverBgSoft} transition-colors truncate`}>{full}{e.department ? ` · ${e.department}` : ''}</button>;
-            })}
-          </div>
-        </div>
-      )}
-    </div>
-  );
 }
 
 // ─── FORM MODAL ───────────────────────────────────────────────────────────────
@@ -175,7 +80,7 @@ function ReportFormModal({ open, onClose, onSave, report }: {
         <div className="p-5 space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <FormField label="Department" required>
-              <PredictiveField historyKey="nm_department" value={form.department || ''} onChange={v => set('department', v)}
+              <PredictiveInput historyKey="nm_department" value={form.department || ''} onChange={v => set('department', v)}
                 placeholder="e.g. Engineering" hints={['Engineering', 'Mechanical', 'Electrical', 'Mining', 'Processing', 'Safety', 'Maintenance', 'Operations', 'HR', 'Administration']} />
             </FormField>
             <FormField label="Section">
@@ -195,21 +100,21 @@ function ReportFormModal({ open, onClose, onSave, report }: {
             </FormField>
             <div className="col-span-2">
               <FormField label="Location" required>
-                <PredictiveField historyKey="nm_location" value={form.location || ''} onChange={v => set('location', v)}
+                <PredictiveInput historyKey="nm_location" value={form.location || ''} onChange={v => set('location', v)}
                   placeholder="Specific location details" hints={['Main Workshop', 'Crusher Bay', 'Processing Plant', 'Pit Area', 'Electrical Substation', 'Compressor Room', 'Conveyor Belt', 'Administration Block']} />
               </FormField>
             </div>
           </div>
           <FormField label="Description of Incident" required>
-            <PredictiveField historyKey="nm_description" value={form.description || ''} onChange={v => set('description', v)} multiline rows={4}
+            <PredictiveInput historyKey="nm_description" value={form.description || ''} onChange={v => set('description', v)} multiline rows={4}
               placeholder="Describe what happened, as it occurred…" hints={['While operating equipment', 'During routine maintenance', 'While working at height', 'Near moving machinery', 'Slipped on wet surface', 'Electrical flash observed']} />
           </FormField>
           <div className="grid grid-cols-2 gap-3">
             <FormField label="Witness Details">
-              <PredictiveField historyKey="nm_witness" value={form.witnessDetails || ''} onChange={v => set('witnessDetails', v)} placeholder="Names and contact info" />
+              <PredictiveInput historyKey="nm_witness" value={form.witnessDetails || ''} onChange={v => set('witnessDetails', v)} placeholder="Names and contact info" />
             </FormField>
             <FormField label="Reporter Name">
-              <EmployeeField value={form.reporterName || ''} onChange={(name, emp) => { set('reporterName', name); if (emp?.department && !form.department?.trim()) set('department', emp.department); }} placeholder="Select or type name (optional)" />
+              <EmployeeNameInput value={form.reporterName || ''} onChange={(name, emp) => { set('reporterName', name); if (emp?.department && !form.department?.trim()) set('department', emp.department); }} placeholder="Select or type name (optional)" />
             </FormField>
           </div>
         </div>
