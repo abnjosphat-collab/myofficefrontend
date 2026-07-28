@@ -9,17 +9,7 @@ import { useTheme, PageHero, StatTile, StatusBadge, FormField, PrimaryButton, Se
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
 import { formatDate } from '@/lib/format';
-
-const SHIFTS = ['Day', 'Night', 'Afternoon'] as const;
-type Shift = typeof SHIFTS[number];
-
-interface EquipmentItem { name: string; status: string; }
-interface Handover {
-  id: number; handover_date: string; shift: Shift; section: string;
-  outgoing_supervisor: string; incoming_supervisor: string;
-  completed_work: string; outstanding_work: string; safety_concerns: string;
-  equipment_summary: EquipmentItem[];
-}
+import { SHIFTS, type Shift, type EquipmentItem, type Handover } from './types';
 
 const SHIFT_ICON: Record<Shift, React.ElementType> = { Night: Moon, Day: Sun, Afternoon: Clock };
 const SHIFT_HEX: Record<Shift, string> = { Night: '#818cf8', Day: '#f59e0b', Afternoon: '#fb923c' };
