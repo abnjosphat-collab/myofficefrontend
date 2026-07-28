@@ -1,0 +1,47 @@
+// app/overtime/types.ts — the overtime page's data model: the request record shape and
+// its form-payload mirror. Split out of page.tsx as part of the standing "decompose on
+// touch" convention. Component *prop* interfaces stay in page.tsx — they're coupled to
+// one component, not the page's data contract. OT_TYPES/STATUSES/TYPE_LABELS/TYPE_ICONS/
+// TYPE_HEX/STATUS_HEX/STATUS_COLOR also stay in page.tsx (business vocabulary, same as
+// every other page's config constants) — OTType/OTStatus are re-derived here from the
+// same literal unions so both files agree without importing JSX-bearing page.tsx code.
+
+export const OT_TYPES = ['regular', 'weekend', 'emergency', 'project', 'holiday', 'night'] as const;
+export type OTType = typeof OT_TYPES[number];
+export const STATUSES = ['pending', 'approved', 'rejected', 'paid', 'cancelled'] as const;
+export type OTStatus = typeof STATUSES[number];
+
+export interface OTRecord {
+  id: number | string;
+  employee_name: string;
+  employee_id: string;
+  position: string;
+  department?: string;
+  overtime_type: OTType;
+  date: string;
+  start_time?: string;
+  end_time?: string;
+  /** Set when entered via the hours-only fast path — no exact times recorded. */
+  hours?: number;
+  reason?: string;
+  status: OTStatus;
+  notes?: string;
+  contact_number?: string;
+  created_at?: string;
+}
+
+export interface OTForm {
+  employee_name: string;
+  employee_id: string;
+  position: string;
+  department: string;
+  overtime_type: OTType;
+  date: string;
+  start_time: string;
+  end_time: string;
+  /** Entered directly when the fast path is on; empty string means "use start/end". */
+  hours: string;
+  reason: string;
+  contact_number: string;
+  notes: string;
+}

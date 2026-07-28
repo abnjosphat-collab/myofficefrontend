@@ -1,8 +1,7 @@
 // FILE: app/overtime/page.tsx
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback, useRef, ElementType } from 'react';
-import { api } from '@/lib/apiClient';
+import React, { useState, useEffect, useMemo, useRef, ElementType } from 'react';
 import { AppShell } from '@/components/app-shell';
 import {
   Clock4, Plus, Search, RefreshCw, CheckCircle2, XCircle,
@@ -22,14 +21,10 @@ import { toast } from 'sonner';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts';
+import { OT_TYPES, STATUSES, type OTType, type OTStatus, type OTRecord, type OTForm } from './types';
+import { useOvertimeData, buildOvertimePayload, createOT, updateOT, deleteOT } from './useOvertimeData';
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
-
-
-const OT_TYPES = ['regular', 'weekend', 'emergency', 'project', 'holiday', 'night'] as const;
-type OTType = typeof OT_TYPES[number];
-const STATUSES = ['pending', 'approved', 'rejected', 'paid', 'cancelled'] as const;
-type OTStatus = typeof STATUSES[number];
 
 const TYPE_LABELS: Record<OTType, string> = { regular: 'Regular', weekend: 'Weekend', emergency: 'Emergency', project: 'Project', holiday: 'Holiday', night: 'Night Shift' };
 const TYPE_ICONS: Record<OTType, ElementType> = { regular: Clock4, weekend: Calendar, emergency: AlertCircle, project: Briefcase, holiday: Sun, night: Moon };
@@ -45,41 +40,6 @@ const STATUS_COLOR: Record<OTStatus, string> = {
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
 type EmployeeItem = EmployeeLookup;
-
-interface OTRecord {
-  id: number | string;
-  employee_name: string;
-  employee_id: string;
-  position: string;
-  department?: string;
-  overtime_type: OTType;
-  date: string;
-  start_time?: string;
-  end_time?: string;
-  /** Set when entered via the hours-only fast path — no exact times recorded. */
-  hours?: number;
-  reason?: string;
-  status: OTStatus;
-  notes?: string;
-  contact_number?: string;
-  created_at?: string;
-}
-
-interface OTForm {
-  employee_name: string;
-  employee_id: string;
-  position: string;
-  department: string;
-  overtime_type: OTType;
-  date: string;
-  start_time: string;
-  end_time: string;
-  /** Entered directly when the fast path is on; empty string means "use start/end". */
-  hours: string;
-  reason: string;
-  contact_number: string;
-  notes: string;
-}
 
 function nowLocal(): string {
   const d = new Date();
@@ -97,30 +57,6 @@ function blankForm(): OTForm {
     start_time: '17:00', end_time: '20:00', hours: '',
     reason: '', contact_number: '', notes: '',
   };
-}
-
-// ─── API ──────────────────────────────────────────────────────────────────────
-
-async function fetchOT(): Promise<OTRecord[]> {
-  const data = await api.get<OTRecord[]>('/api/overtime');
-  return (Array.isArray(data) ? data : []) as OTRecord[];
-}
-/** `useHours`: send `hours` and omit start/end (the fast path); otherwise send
- *  start/end and omit hours — never both, matching the backend's either/or validator. */
-function buildOvertimePayload(form: OTForm, useHours: boolean) {
-  const { start_time, end_time, hours, ...rest } = form;
-  return useHours
-    ? { ...rest, hours: parseFloat(hours) || undefined }
-    : { ...rest, start_time, end_time };
-}
-async function createOT(body: Record<string, unknown>): Promise<OTRecord> {
-  return api.post<OTRecord>('/api/overtime', { ...body, status: 'pending', applied_date: new Date().toISOString() });
-}
-async function updateOT(id: number | string, body: object): Promise<OTRecord> {
-  return api.patch<OTRecord>(`/api/overtime/${id}`, body);
-}
-async function deleteOT(id: number | string): Promise<void> {
-  await api.delete(`/api/overtime/${id}`);
 }
 
 // ─── HOURS UTIL ───────────────────────────────────────────────────────────────
@@ -390,9 +326,7 @@ function OvertimeContent() {
   const t = useTheme();
   const sections = useCollapseSection({ hero: true, filters: true });
 
-  const [records, setRecords] = useState<OTRecord[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const { records, setRecords, loading, refreshing, refresh: load } = useOvertimeData();
 
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('all');
@@ -408,15 +342,6 @@ function OvertimeContent() {
   const [delTarget, setDelTarget] = useState<OTRecord | null>(null);
   const [approving, setApproving] = useState<OTRecord | null>(null);
   const [rejecting, setRejecting] = useState<OTRecord | null>(null);
-
-  const load = useCallback(async (quiet = false) => {
-    if (!quiet) setLoading(true); else setRefreshing(true);
-    try { setRecords(await fetchOT()); }
-    catch (e) { toast.error(`Load failed: ${(e as Error).message}`); }
-    finally { setLoading(false); setRefreshing(false); }
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
 
   const filtered = useMemo(() => records.filter(r => {
     if (status !== 'all' && r.status !== status) return false;
