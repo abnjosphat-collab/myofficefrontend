@@ -1,8 +1,7 @@
 // app/training/page.tsx — Training & Certification Register
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import { api } from '@/lib/apiClient';
+import { useState, useMemo } from 'react';
 import {
   AlertTriangle, Award, BarChart3, BookOpen, Calendar, CheckCircle,
   Download, FileText, Pencil, Percent, Plus, RefreshCw, Search,
@@ -15,28 +14,8 @@ import {
   useTheme, PageHero, StatTile, StatCard, StatusBadge, ProgressBar, FormField, FormActions,
   SearchInput, CenterModal, PrimaryButton, EmptyState, useCollapseSection, SelectField,
 } from '@/components/shared/theme';
-
-// ─── TYPES ────────────────────────────────────────────────────────────────────
-
-interface Certification {
-  id: string | number;
-  employee_name: string;
-  employee_id: string;
-  department: string;
-  certification_name: string;
-  expiry_date: string;
-  required_refresher: string;
-  status: 'Valid' | 'Due Soon' | 'Expired';
-  certificate_url?: string | null;
-}
-
-interface RefresherItem { refresher: string; employees_due: number; }
-interface ComplianceReport { compliance_rate: number; total_tracked: number; non_compliant: number; }
-
-interface FormState {
-  employee_name: string; employee_id: string; department: string;
-  certification_name: string; expiry_date: string; required_refresher: string; certificate_file: File | null;
-}
+import type { Certification, FormState } from './types';
+import { useTrainingData, createCertification, updateCertification, deleteCertification } from './useTrainingData';
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 
@@ -60,12 +39,7 @@ function TrainingContent() {
   const sections = useCollapseSection({ filters: true });
   const [activeTab, setActiveTab] = useState<typeof TABS[number]['id']>('register');
 
-  const [certs, setCerts] = useState<Certification[]>([]);
-  const [refreshers, setRefreshers] = useState<RefresherItem[]>([]);
-  const [compliance, setCompliance] = useState<ComplianceReport>({ compliance_rate: 0, total_tracked: 0, non_compliant: 0 });
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState('');
+  const { certs, refreshers, compliance, loading, refreshing, error, setError, fetchAll } = useTrainingData();
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -77,24 +51,6 @@ function TrainingContent() {
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Certification | null>(null);
   const [deleting, setDeleting] = useState(false);
-
-  const fetchAll = useCallback(async (quiet = false) => {
-    if (!quiet) setLoading(true);
-    setRefreshing(true);
-    try {
-      const [certsRes, rateRes, refreshRes] = await Promise.all([
-        api.get<any>('/api/training').catch(() => null),
-        api.get<any>('/api/training/reports/compliance_rate').catch(() => null),
-        api.get<any>('/api/training/reports/due_refreshers').catch(() => null),
-      ]);
-      if (certsRes) setCerts(certsRes);
-      if (rateRes) setCompliance(rateRes);
-      if (refreshRes) setRefreshers(refreshRes);
-    } catch (e) { setError(`Failed to load: ${(e as Error).message}`); }
-    finally { setLoading(false); setRefreshing(false); }
-  }, []);
-
-  useEffect(() => { fetchAll(); }, [fetchAll]);
 
   const depts = useMemo(() => [...new Set(certs.map(c => c.department).filter(Boolean))], [certs]);
 
@@ -134,8 +90,8 @@ function TrainingContent() {
       fd.append('required_refresher', form.required_refresher);
       if (form.certificate_file) fd.append('certificate_file', form.certificate_file);
 
-      if (editCert) await api.put(`/api/training/${editCert.id}`, fd);
-      else await api.post('/api/training', fd);
+      if (editCert) await updateCertification(editCert.id, fd);
+      else await createCertification(fd);
       setModalOpen(false);
       fetchAll(true);
     } catch (e) { setError(`Save failed: ${(e as Error).message}`); }
@@ -146,7 +102,7 @@ function TrainingContent() {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      await api.delete(`/api/training/${deleteTarget.id}`);
+      await deleteCertification(deleteTarget.id);
       setDeleteTarget(null);
       fetchAll(true);
     } catch (e) { setError(`Delete failed: ${(e as Error).message}`); }
