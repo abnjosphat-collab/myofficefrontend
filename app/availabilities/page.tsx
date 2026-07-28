@@ -1,8 +1,7 @@
 // app/availabilities/page.tsx — Equipment Availability Tracker
 'use client';
 
-import { useState, useEffect, useMemo, useCallback, ElementType } from 'react';
-import { api } from '@/lib/apiClient';
+import { useState, useMemo, ElementType } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
@@ -18,59 +17,8 @@ import {
   useCollapseSection, CenterModal, ACCENT_HEX, EmptyState, PrimaryButton, SelectField,
 } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
-
-// ─── TYPES ────────────────────────────────────────────────────────────────────
-
-interface Equipment {
-  id: number | string;
-  equipment_id: string;
-  name: string;
-  category?: string;
-  department?: string;
-  location?: string;
-  status?: string;
-}
-
-interface AvailRecord {
-  id: number | string;
-  equipment_id: number | string;
-  equipment_name?: string;
-  date: string;
-  operational_hours: number;
-  breakdown_hours: number;
-  availability_percentage: number;
-  notes?: string;
-  created_at?: string;
-  source?: 'breakdown' | 'manual';
-}
-
-interface EqSummaryRow {
-  id: string;
-  name: string;
-  category: string;
-  department: string;
-  pct: number;
-  opH: number;
-  bdH: number;
-  lastDate: string;
-}
-
-interface PeriodRow {
-  periodKey: string;
-  label: string;
-  avgAvailability: number;
-  totalOpHours: number;
-  totalBdHours: number;
-  recordCount: number;
-}
-
-interface FormData {
-  equipment_id: string;
-  date: string;
-  operational_hours: string;
-  breakdown_hours: string;
-  notes: string;
-}
+import type { Equipment, AvailRecord, EqSummaryRow, PeriodRow, FormData } from './types';
+import { useAvailabilitiesData, fetchBreakdownRecords, createAvailabilityRecord, updateAvailabilityRecord, deleteAvailabilityRecord } from './useAvailabilitiesData';
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 
@@ -138,10 +86,7 @@ function AvailabilitiesContent() {
   const t = useTheme();
   const sections = useCollapseSection({ hero: true, filters: true });
 
-  const [equipment, setEquipment] = useState<Equipment[]>([]);
-  const [records, setRecords] = useState<AvailRecord[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const { equipment, records, loading, refreshing, refresh: fetchAll } = useAvailabilitiesData();
   const [error, setError] = useState('');
 
   const [search, setSearch] = useState('');
@@ -160,31 +105,6 @@ function AvailabilitiesContent() {
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<AvailRecord | null>(null);
   const [mainTab, setMainTab] = useState<'overview' | 'period' | 'analytics' | 'records'>('overview');
-
-  const fetchAll = useCallback(async (quiet = false) => {
-    if (!quiet) setLoading(true);
-    setRefreshing(true);
-    try {
-      const [eqData, bdRecords, manualRecords] = await Promise.all([
-        api.get<any[]>('/api/equipment').catch(() => null),
-        api.get<AvailRecord[]>('/api/availability-records/from-breakdowns').catch(() => [] as AvailRecord[]),
-        api.get<AvailRecord[]>('/api/availability-records').catch(() => [] as AvailRecord[]),
-      ]);
-      if (eqData) setEquipment(eqData);
-
-      const manualKeys = new Set(manualRecords.map(r => `${r.equipment_id}_${r.date}`));
-      const merged = [
-        ...manualRecords,
-        ...bdRecords.filter(r => !manualKeys.has(`${r.equipment_id}_${r.date}`)),
-      ];
-      setRecords(merged);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
-
-  useEffect(() => { fetchAll(); }, [fetchAll]);
 
   const eqMap = useMemo(() => {
     const m = new Map<string, Equipment>();
@@ -256,7 +176,7 @@ function AvailabilitiesContent() {
   async function prefillFromBreakdowns(eqId: string, date: string) {
     if (!eqId || !date) return;
     try {
-      const data = await api.get<AvailRecord[]>(`/api/availability-records/from-breakdowns?equipment_id=${eqId}&date_from=${date}&date_to=${date}`);
+      const data = await fetchBreakdownRecords(`equipment_id=${eqId}&date_from=${date}&date_to=${date}`);
       if (data.length > 0) setForm(f => ({ ...f, breakdown_hours: String(data[0].breakdown_hours) }));
     } catch { /* silent — manual entry still works */ }
   }
@@ -275,8 +195,8 @@ function AvailabilitiesContent() {
       const op = parseFloat(form.operational_hours) || 0;
       const bd = Math.min(parseFloat(form.breakdown_hours) || 0, op);
       const payload = { equipment_id: parseInt(form.equipment_id), date: form.date, operational_hours: op, breakdown_hours: bd, availability_percentage: calcPct(op, bd), notes: form.notes };
-      if (editRec) await api.put(`/api/availability-records/${editRec.id}`, payload);
-      else await api.post('/api/availability-records', payload);
+      if (editRec) await updateAvailabilityRecord(editRec.id, payload);
+      else await createAvailabilityRecord(payload);
       setModalOpen(false);
       toast.success(editRec ? 'Record updated' : 'Record logged');
       fetchAll(true);
@@ -292,7 +212,7 @@ function AvailabilitiesContent() {
   async function doDelete() {
     if (!deleteTarget) return;
     try {
-      await api.delete(`/api/availability-records/${deleteTarget.id}`);
+      await deleteAvailabilityRecord(deleteTarget.id);
     } catch (e) { toast.error(`Delete failed: ${(e as Error).message}`); return; }
     setDeleteTarget(null);
     toast.success('Record deleted');
