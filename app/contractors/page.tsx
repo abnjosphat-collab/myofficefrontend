@@ -1,8 +1,7 @@
 // FILE: app/contractors/page.tsx
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { api } from '@/lib/apiClient';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { AppShell } from '@/components/app-shell';
 import { HardHat, Star, ChevronDown, ChevronUp, Plus, X, RefreshCw, LayoutGrid, List } from '@/components/shared/theme';
@@ -12,22 +11,8 @@ import {
 } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
-
-
-const fromContAPI = (d: any): Contractor => ({
-  id: d.id, company: d.company_name || '', trade: d.trade || '',
-  contact: d.contact_name || '', phone: d.phone || '',
-  status: (d.status as CStatus) || 'active', rating: d.performance_rating || 3,
-  contractExpiry: d.contract_end || '', insuranceExpiry: d.insurance_expiry || '',
-  jobs: (d.jobs || []).map((j: any) => ({ title: j.job_title, location: j.equipment_name || '', startDate: j.start_date || '', progress: j.status === 'completed' ? 100 : j.status === 'in_progress' ? 50 : 0 })),
-});
-
-type CStatus = 'active' | 'inactive';
-interface Job { title: string; location: string; startDate: string; progress: number; }
-interface Contractor {
-  id: number; company: string; trade: string; contact: string; phone: string;
-  status: CStatus; rating: number; contractExpiry: string; insuranceExpiry: string; jobs: Job[];
-}
+import type { Contractor, CStatus, Job } from './types';
+import { useContractorsData, createContractor } from './useContractorsData';
 
 const TRADES = ['Mechanical', 'Electrical', 'Civil', 'OEM Specialist', 'Instrumentation', 'Scaffolding'];
 const daysUntil = (d: string) => Math.round((new Date(d).getTime() - Date.now()) / 86400000);
@@ -152,15 +137,7 @@ function ContractorRow({ c }: { c: Contractor }) {
 
 function ContractorsContent() {
   const t = useTheme();
-  const [contractors, setContractors] = useState<Contractor[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const fetchContractors = useCallback(async () => {
-    setLoading(true);
-    try { setContractors((await api.get<any[]>('/api/contractors')).map(fromContAPI)); }
-    catch { /* network */ } finally { setLoading(false); }
-  }, []);
-  useEffect(() => { fetchContractors(); }, [fetchContractors]);
+  const { contractors, loading, fetchContractors } = useContractorsData();
   const [tradeFilter, setTradeFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState<'all' | CStatus>('all');
   const [showAdd, setShowAdd] = useState(false);
@@ -207,7 +184,7 @@ function ContractorsContent() {
     if (!form.company) return;
     try {
       const body = { company_name: form.company, trade: form.trade, contact_name: form.contact, phone: form.phone, contract_end: form.contractExpiry || null, insurance_expiry: form.insuranceExpiry || null, status: 'active', performance_rating: 3 };
-      await api.post('/api/contractors', body);
+      await createContractor(body);
       fetchContractors();
     } catch { /* ignore */ }
     setForm({ company: '', trade: 'Mechanical', contact: '', phone: '', contractExpiry: '', insuranceExpiry: '' });
