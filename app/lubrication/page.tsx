@@ -9,19 +9,7 @@ import { useTheme, PageHero, StatTile, StatusBadge } from '@/components/shared/t
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
 import { formatDate } from '@/lib/format';
-
-type LubeStatus = 'current' | 'due_soon' | 'overdue';
-type SampleResult = 'normal' | 'caution' | 'critical';
-
-interface LubeSchedule {
-  id: number; equipment_name: string; lube_point: string; lubricant_type: string; lubricant_grade: string;
-  interval_days: number; last_done_date: string; next_due_date: string; status: LubeStatus; section: string;
-}
-
-interface OilSample {
-  id: number; equipment: string; component: string; sampleDate: string;
-  viscosity: number; particleCount: number; waterPct: number; result: SampleResult; notes: string;
-}
+import type { LubeStatus, SampleResult, LubeSchedule, OilSample } from './types';
 
 const OIL_SAMPLES: OilSample[] = [
   { id: 1, equipment: 'Ball Mill 1', component: 'Gearbox', sampleDate: '2026-05-28', viscosity: 318, particleCount: 4200, waterPct: 0.03, result: 'normal', notes: 'All parameters within acceptable range.' },
