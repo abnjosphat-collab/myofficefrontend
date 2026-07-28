@@ -2,7 +2,6 @@
 'use client';
 
 import { useState, useEffect, useMemo, ElementType, Fragment } from 'react';
-import { api as apiClient } from '@/lib/apiClient';
 import {
   MessageSquareWarning, Plus, X, RefreshCw,
   ChevronDown, ChevronUp, ClipboardList,
@@ -18,29 +17,8 @@ import {
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
 import { formatDate } from '@/lib/format';
-
-// ─── TYPES ────────────────────────────────────────────────────────────────────
-
-interface Complaint {
-  id: string;
-  date: string;
-  raisedBy: string;
-  issueRaised: string;
-  category: string;
-  priority: string;
-  section: string;
-  location: string;
-  actionPlan: string;
-  byWho: string;
-  byWhen: string;
-  supervisorName: string;
-  supervisorSignature: string;
-  dateClosed: string | null;
-  status: string;
-  submittedAt: string;
-}
-
-type Tab = 'records' | 'analytics';
+import type { Complaint, Tab } from './types';
+import { useSafetyComplaintsData, api } from './useSafetyComplaintsData';
 
 const CATEGORIES = ['Safety', 'Health', 'Environment', 'Quality', 'General', 'Other'];
 const PRIORITIES = ['low', 'medium', 'high', 'critical'];
@@ -49,36 +27,6 @@ const STATUSES = ['open', 'in-progress', 'closed', 'overdue'];
 
 const PRIORITY_HEX: Record<string, string> = { critical: '#f43f5e', high: '#fb923c', medium: '#fbbf24', low: '#34d399' };
 const STATUS_HEX: Record<string, string> = { open: '#f43f5e', 'in-progress': '#fbbf24', closed: '#34d399', overdue: '#fb923c' };
-
-// ─── API ──────────────────────────────────────────────────────────────────────
-
-const BASE = '/api/safety-complaints';
-
-function toSnake(d: Partial<Complaint>): Record<string, unknown> {
-  return {
-    date: d.date || null,
-    raised_by: d.raisedBy || '',
-    issue_raised: d.issueRaised || '',
-    category: d.category || 'General',
-    priority: d.priority || 'medium',
-    section: d.section || 'General',
-    location: d.location || '',
-    action_plan: d.actionPlan || '',
-    by_who: d.byWho || '',
-    by_when: d.byWhen || null,
-    supervisor_name: d.supervisorName || '',
-    supervisor_signature: d.supervisorSignature || '',
-    date_closed: d.dateClosed || null,
-    status: d.status || 'open',
-  };
-}
-
-const api = {
-  list: () => apiClient.get<Complaint[]>(BASE + '/'),
-  create: (d: Partial<Complaint>) => apiClient.post<Complaint>(BASE + '/', toSnake(d)),
-  update: (id: string, d: Partial<Complaint>) => apiClient.patch<Complaint>(`${BASE}/${id}`, toSnake(d)),
-  remove: (id: string) => apiClient.delete<void>(`${BASE}/${id}`),
-};
 
 // ─── STATS ────────────────────────────────────────────────────────────────────
 
@@ -423,9 +371,7 @@ function SafetyComplaintsContent() {
   const t = useTheme();
   const sections = useCollapseSection({ hero: true, records: true });
   const [tab, setTab] = useState<Tab>('records');
-  const [complaints, setComplaints] = useState<Complaint[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
+  const { complaints, setComplaints, loading, refreshing, load } = useSafetyComplaintsData();
 
   const [search, setSearch] = useState('');
   const [statusF, setStatusF] = useState('all');
@@ -441,14 +387,6 @@ function SafetyComplaintsContent() {
   const [editing, setEditing] = useState<Complaint | null>(null);
   const [detail, setDetail] = useState<Complaint | null>(null);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
-
-  const load = async (quiet = false) => {
-    if (!quiet) setLoading(true);
-    setRefreshing(true);
-    try { setComplaints(await api.list()); }
-    catch { toast.error('Failed to load complaints'); }
-    finally { setLoading(false); setRefreshing(false); }
-  };
 
   useEffect(() => { load(); }, []);
 
