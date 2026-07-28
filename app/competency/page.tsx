@@ -1,29 +1,16 @@
 // FILE: app/competency/page.tsx
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { api } from '@/lib/apiClient';
+import { useState } from 'react';
 import { AppShell } from '@/components/app-shell';
 import { GraduationCap, X, RefreshCw } from '@/components/shared/theme';
 import { useTheme, PageHero, StatTile } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
-
-type SkillLevel = 0 | 1 | 2 | 3 | 4;
-
-interface Employee { id: number; name: string; trade: string; department: string; skills: Record<string, SkillLevel>; }
+import type { Employee, SkillLevel } from './types';
+import { useCompetencyData, updateSkillLevel, createSkillLevel } from './useCompetencyData';
 
 const SKILL_AREAS = ['SAG Mill Ops', 'Ball Mill Ops', 'Jaw Crusher', 'Compressor', 'Dewatering', 'Electrical MV', 'Slurry Pumps', 'Rigging & Lifting'];
-
-function pivotFromAPI(rows: any[]): Employee[] {
-  const map = new Map<string, Employee>();
-  for (const r of rows) {
-    const key = r.employee_id;
-    if (!map.has(key)) map.set(key, { id: r.id, name: r.employee_name, trade: r.trade || '', department: r.trade || '', skills: {} });
-    map.get(key)!.skills[r.skill_area || r.equipment_type] = (r.skill_level ?? 0) as SkillLevel;
-  }
-  return Array.from(map.values());
-}
 
 const TRADES_STATIC = ['Millwright', 'Electrician', 'Fitter', 'Instrumentation'];
 const DEPTS_STATIC = ['Milling', 'Crushing', 'Electrical', 'Dewatering', 'Compressors'];
@@ -35,18 +22,7 @@ interface Popover { empId: number; skill: string; x: number; y: number; }
 
 function CompetencyContent() {
   const t = useTheme();
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [rawRows, setRawRows] = useState<any[]>([]);
-
-  const fetchEmployees = useCallback(async () => {
-    setLoading(true);
-    try {
-      const rows = await api.get<any[]>('/api/competency');
-      setRawRows(rows); setEmployees(pivotFromAPI(rows));
-    } catch { /* network */ } finally { setLoading(false); }
-  }, []);
-  useEffect(() => { fetchEmployees(); }, [fetchEmployees]);
+  const { employees, setEmployees, rawRows, loading, fetchEmployees } = useCompetencyData();
   const [tradeFilter, setTradeFilter] = useState('all');
   const [deptFilter, setDeptFilter] = useState('all');
   const [popover, setPopover] = useState<Popover | null>(null);
@@ -78,9 +54,9 @@ function CompetencyContent() {
     const emp = employees.find(e => e.id === popover.empId);
     try {
       if (existing) {
-        await api.patch(`/api/competency/${existing.id}`, { skill_level: level });
+        await updateSkillLevel(existing.id, level);
       } else if (emp) {
-        await api.post('/api/competency', { employee_id: String(emp.id), employee_name: emp.name, trade: emp.trade, equipment_type: popover.skill, skill_area: popover.skill, skill_level: level });
+        await createSkillLevel(emp, popover.skill, level);
       }
       fetchEmployees();
     } catch { /* ignore */ }
