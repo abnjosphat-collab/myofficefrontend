@@ -2,7 +2,6 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { api } from '@/lib/apiClient';
 import { AppShell } from '@/components/app-shell';
 import { fmtDate as formatDate, fmtDateTime as formatDateTime } from '@/components/shared/utils';
 import {
@@ -19,76 +18,8 @@ import {
   Eye, ChevronDown, ChevronUp, X, User, Building, LayoutGrid, Table as TableIcon,
   Save, Upload, Link as LinkIcon, Clock, Share2, Copy, BarChart3, Pin, PinOff, Clock4, Users, Archive, EyeOff,
 } from '@/components/shared/theme';
-
-// ==================== TYPES ====================
-
-interface Notice {
-  id: string;
-  title: string;
-  content: string;
-  date: string;
-  category: string;
-  priority: string;
-  status: string;
-  is_pinned: boolean;
-  requires_acknowledgment: boolean;
-  author?: string | null;
-  department?: string | null;
-  expires_at?: string | null;
-  target_audience?: string | null;
-  notification_type?: string | null;
-  attachment_name?: string | null;
-  attachment_url?: string | null;
-  attachment_size?: string | null;
-  created_at?: string | null;
-  updated_at?: string | null;
-}
-
-interface NoticeFormData {
-  title: string; content: string; date: string; category: string; priority: string; status: string;
-  is_pinned: boolean; requires_acknowledgment: boolean; author: string; department: string; expires_at: string;
-  target_audience: string; notification_type: string; attachment_name: string; attachment_url: string; attachment_size: string;
-}
-
-interface NoticeFilters {
-  category: string; priority: string; status: string; department: string; is_pinned: boolean | null;
-}
-
-interface CalculatedStats {
-  total_notices: number;
-  status_breakdown: Record<string, number>;
-  priority_breakdown: Record<string, number>;
-  category_breakdown: Record<string, number>;
-  pinned_count: number;
-  expired_count: number;
-  expiring_soon_count: number;
-}
-
-// ==================== API ====================
-
-const noticeboardApi = {
-  async getAllNotices(filters: Record<string, string | boolean | undefined> = {}) {
-    const params = new URLSearchParams();
-    Object.entries(filters).forEach(([k, v]) => {
-      if (v !== undefined && v !== null && v !== 'all') params.append(k, String(v));
-    });
-    const data = await api.get<any>(`/api/notices${params.toString() ? `?${params.toString()}` : ''}`);
-    return Array.isArray(data) ? data : [];
-  },
-  async createNotice(data: NoticeFormData) {
-    return api.post('/api/notices', data);
-  },
-  async updateNotice(id: string, data: NoticeFormData) {
-    return api.put(`/api/notices/${id}`, data);
-  },
-  async deleteNotice(id: string) {
-    await api.delete(`/api/notices/${id}`);
-    return { success: true };
-  },
-  async togglePin(id: string, current: boolean) {
-    return api.patch(`/api/notices/${id}`, { is_pinned: !current });
-  },
-};
+import type { Notice, NoticeFormData, NoticeFilters, CalculatedStats } from './types';
+import { useNoticeboardData, createNotice, updateNotice, deleteNotice, togglePin } from './useNoticeboardData';
 
 // ==================== CONSTANTS ====================
 
@@ -147,7 +78,7 @@ function NoticeDetailsModal({ isOpen, onClose, notice, onDelete, onEdit, onToggl
   };
 
   const handleTogglePin = async () => {
-    try { await noticeboardApi.togglePin(notice.id, notice.is_pinned); onTogglePin(notice.id, !notice.is_pinned); }
+    try { await togglePin(notice.id, notice.is_pinned); onTogglePin(notice.id, !notice.is_pinned); }
     catch { toast.error('Failed to toggle pin'); }
   };
 
@@ -383,8 +314,6 @@ function EditNoticeModal({ isOpen, onClose, notice, onSave, isLoading }: {
 function NoticeboardContent() {
   const t = useTheme();
   const sections = useCollapseSection({ records: true });
-  const [data, setData] = useState<Notice[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [selectedNotice, setSelectedNotice] = useState<Notice | null>(null);
@@ -392,24 +321,15 @@ function NoticeboardContent() {
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
   const [filters, setFilters] = useState<NoticeFilters>({ category: 'all', priority: 'all', status: 'all', department: 'all', is_pinned: null });
+  const { data, setData, isLoading, setIsLoading, refresh: fetchNotices } = useNoticeboardData(filters, search);
 
-  const fetchNotices = async () => {
-    setIsLoading(true);
-    try {
-      const notices = await noticeboardApi.getAllNotices({ ...filters, search: search || undefined, is_pinned: filters.is_pinned ?? undefined });
-      setData(Array.isArray(notices) ? notices : []);
-    } catch { setData([]); }
-    finally { setIsLoading(false); }
-  };
-
-  useEffect(() => { fetchNotices(); }, []);
-  useEffect(() => { const timer = setTimeout(fetchNotices, 300); return () => clearTimeout(timer); }, [filters, search]);
-
+  // isLoading deliberately doubles as this modal's `submitting` flag (see the
+  // EditNoticeModal render below) — preserved from the original, not a new coupling.
   const handleSaveNotice = async (noticeData: NoticeFormData) => {
     setIsLoading(true);
     try {
-      if (editingNotice) await noticeboardApi.updateNotice(editingNotice.id, noticeData);
-      else await noticeboardApi.createNotice(noticeData);
+      if (editingNotice) await updateNotice(editingNotice.id, noticeData);
+      else await createNotice(noticeData);
       await fetchNotices();
       setIsModalOpen(false); setEditingNotice(null);
       toast.success(`Notice ${editingNotice ? 'updated' : 'created'} successfully`);
@@ -420,7 +340,7 @@ function NoticeboardContent() {
 
   const handleDeleteNotice = async (id: string) => {
     try {
-      await noticeboardApi.deleteNotice(id);
+      await deleteNotice(id);
       setData(prev => prev.filter(n => n.id !== id));
       if (selectedNotice?.id === id) { setIsDetailsModalOpen(false); setSelectedNotice(null); }
       toast.success('Notice deleted');
