@@ -17,6 +17,7 @@ import {
 } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
+import { calcDays } from '@/components/shared/utils';
 import type { LeaveRequest, TeamLeaveStat, Filters, NewLeaveRequest } from './types';
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
@@ -69,11 +70,6 @@ function statusHex(status: LeaveRequest['status']) {
 }
 function statusLabel(status: LeaveRequest['status']) {
   return status === 'approved' ? 'Approved' : status === 'rejected' ? 'Rejected' : 'Pending';
-}
-
-function calcDays(start: string, end: string): number {
-  if (!start || !end) return 0;
-  return Math.ceil(Math.abs(new Date(end).getTime() - new Date(start).getTime()) / 86400000) + 1;
 }
 
 // ─── PDF HELPERS ──────────────────────────────────────────────────────────────
