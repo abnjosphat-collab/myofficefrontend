@@ -1,10 +1,10 @@
 // app/breakdowns/page.tsx
 "use client";
 
-import React, { useState, useEffect, useMemo, useRef, Fragment } from 'react';
-import { api } from '@/lib/apiClient';
-import { type EmployeeLookup } from '@/hooks/useLookups';
+import React, { useState, useEffect, useMemo, Fragment } from 'react';
 import { AppShell } from "@/components/app-shell";
+import { PredictiveInput } from '@/components/shared/PredictiveInput';
+import { EmployeeNameInput } from '@/components/shared/EmployeeNameInput';
 import {
   AlertCircle, CheckCircle, Clock, Edit, Filter, Loader2, Plus,
   Trash2, TrendingUp, Wrench, X, Calendar,
@@ -12,7 +12,7 @@ import {
   Clock4, PlayCircle, CheckCheck, Shield,
   Wind, FilterX, LayoutGrid, Table as TableIcon,
   MapPin, Users, Package, PieChart as PieChartIcon, Building2, Layers,
-  Search, UserCircle,
+  Search,
 } from '@/components/shared/theme';
 import { toast } from 'sonner';
 import { format } from "date-fns";
@@ -97,129 +97,6 @@ const sparesTotalCost = (spares: Breakdown['spares_used']): number => {
   if (!spares || !Array.isArray(spares)) return 0;
   return (spares as SpareUsed[]).reduce((t, s) => t + (parseFloat(s.total_cost?.toString() ?? '0') || 0), 0);
 };
-
-// ─── Themed autocomplete field (replaces legacy EmployeeNameInput) ────────────
-
-// Raw employee row from /api/employees — the shared lookup shape (all fields optional).
-type EmployeeRecord = EmployeeLookup;
-function fullName(e: EmployeeRecord) { return `${e.first_name ?? ''} ${e.last_name ?? ''}`.trim(); }
-
-function ArtisanField({ value, onChange, error }: { value: string; onChange: (name: string, emp: EmployeeRecord | null) => void; error?: string; }) {
-  const t = useTheme();
-  const [employees, setEmployees] = useState<EmployeeRecord[]>([]);
-  const [open, setOpen] = useState(false);
-  const wrapRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => { api.get<EmployeeRecord[]>('/api/employees').then(setEmployees).catch(() => {}); }, []);
-  useEffect(() => {
-    const h = (e: MouseEvent) => { if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false); };
-    document.addEventListener('mousedown', h); return () => document.removeEventListener('mousedown', h);
-  }, []);
-
-  const filtered = useMemo(() => {
-    if (!value.trim()) return employees.slice(0, 8);
-    const q = value.toLowerCase();
-    return employees.filter(e => fullName(e).toLowerCase().includes(q) || (e.employee_id ?? '').toLowerCase().includes(q)).slice(0, 10);
-  }, [value, employees]);
-
-  return (
-    <div ref={wrapRef} className="relative">
-      <div className="relative">
-        <UserCircle className={`absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none ${t.textFaint}`} />
-        <input type="text" value={value} placeholder="Select or type artisan name…" autoComplete="off"
-          onChange={e => { onChange(e.target.value, null); setOpen(true); }} onFocus={() => setOpen(true)}
-          className={`w-full h-9 pl-8 pr-3 rounded-lg text-sm ${t.inputBg} focus:outline-none`} />
-      </div>
-      {error && <p className="text-xs text-rose-500 mt-1">{error}</p>}
-      {open && (
-        <div className={`absolute left-0 right-0 top-full mt-1 z-50 rounded-xl ${t.glass} ${t.shadow} overflow-hidden`}>
-          {filtered.length === 0 ? (
-            <div className={`px-3 py-3 text-xs italic ${t.textFaint}`}>No employees found — name will be saved as typed</div>
-          ) : (
-            <div className="max-h-56 overflow-y-auto p-1">
-              {filtered.map(emp => (
-                <button key={emp.id} type="button" onMouseDown={e => { e.preventDefault(); onChange(fullName(emp), emp); setOpen(false); }}
-                  className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left transition-colors ${t.hoverBgSoft}`}>
-                  <div className="h-7 w-7 rounded-full bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center text-[10px] font-bold text-white shrink-0">{emp.first_name?.[0]}{emp.last_name?.[0]}</div>
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-sm font-medium truncate ${t.textPrimary}`}>{fullName(emp)}</p>
-                    <p className={`text-[10px] truncate ${t.textFaint}`}><span className="font-mono text-brand-400">{emp.employee_id}</span>{emp.designation && ` · ${emp.designation}`}</p>
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── Themed predictive text field (replaces legacy PredictiveInput) ───────────
-
-function loadHistory(key: string): string[] {
-  if (typeof window === 'undefined') return [];
-  try { return JSON.parse(localStorage.getItem(`prd_hist_${key}`) ?? '[]') as string[]; } catch { return []; }
-}
-function saveToHistory(key: string, value: string) {
-  if (!value.trim()) return;
-  const updated = [value, ...loadHistory(key).filter(v => v !== value)].slice(0, 40);
-  localStorage.setItem(`prd_hist_${key}`, JSON.stringify(updated));
-}
-
-function PredictiveField({ historyKey, value, onChange, multiline, rows = 3, placeholder, hints = [], error }: {
-  historyKey: string; value: string; onChange: (v: string) => void; multiline?: boolean; rows?: number; placeholder?: string; hints?: string[]; error?: string;
-}) {
-  const t = useTheme();
-  const [history, setHistory] = useState<string[]>([]);
-  const [open, setOpen] = useState(false);
-  const wrapRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => setHistory(loadHistory(historyKey)), [historyKey]);
-  useEffect(() => {
-    const h = (e: MouseEvent) => { if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false); };
-    document.addEventListener('mousedown', h); return () => document.removeEventListener('mousedown', h);
-  }, []);
-
-  const suggestions = useMemo(() => {
-    const all = [...hints, ...history].filter((v, i, a) => a.indexOf(v) === i);
-    if (!value.trim()) return all.slice(0, 8);
-    const q = value.toLowerCase();
-    return all.filter(s => s.toLowerCase().includes(q) && s.toLowerCase() !== q).slice(0, 8);
-  }, [value, history, hints]);
-
-  function commit(v: string) { if (!v.trim()) return; saveToHistory(historyKey, v.trim()); setHistory(loadHistory(historyKey)); }
-  const inputCls = `w-full h-9 px-3 rounded-lg text-sm ${t.inputBg} focus:outline-none`;
-
-  return (
-    <div ref={wrapRef} className="relative">
-      {multiline ? (
-        <textarea value={value} placeholder={placeholder} rows={rows}
-          onChange={e => { onChange(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)}
-          onBlur={() => setTimeout(() => { commit(value); setOpen(false); }, 150)}
-          className={`${inputCls} h-auto py-2 resize-none`} />
-      ) : (
-        <input type="text" value={value} placeholder={placeholder} autoComplete="off"
-          onChange={e => { onChange(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)}
-          onBlur={() => setTimeout(() => { commit(value); setOpen(false); }, 150)}
-          className={inputCls} />
-      )}
-      {error && <p className="text-xs text-rose-500 mt-1">{error}</p>}
-      {open && suggestions.length > 0 && (
-        <div className={`absolute left-0 right-0 top-full mt-1 z-50 rounded-xl ${t.glass} ${t.shadow} overflow-hidden`}>
-          <div className="max-h-44 overflow-y-auto p-1">
-            {suggestions.map(s => (
-              <button key={s} type="button" onMouseDown={e => { e.preventDefault(); onChange(s); commit(s); setOpen(false); }}
-                className={`w-full text-left px-2.5 py-1.5 rounded-lg text-sm transition-colors ${t.textMuted} ${t.hoverBgSoft}`}>
-                {s}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
 
 // ─── BREAKDOWN CARD ──────────────────────────────────────────────────────────
 
@@ -568,11 +445,11 @@ function FormModal({ isOpen, onClose, onSubmit, initialData, mode = 'create' }: 
               {errors.machine_name && <p className="text-xs text-rose-500 mt-1">{errors.machine_name}</p>}
             </FormField>
             <FormField label="Machine ID"><input className={inputCls} value={fd.machine_id} onChange={e => set('machine_id', e.target.value)} placeholder="Optional" /></FormField>
-            <FormField label="Artisan Name" required><ArtisanField value={fd.artisan_name} onChange={(name, emp) => { set('artisan_name', name); if (emp?.department) set('department', emp.department); }} error={errors.artisan_name} /></FormField>
+            <FormField label="Artisan Name" required><EmployeeNameInput value={fd.artisan_name} onChange={(name, emp) => { set('artisan_name', name); if (emp?.department) set('department', emp.department); }} placeholder="Select or type artisan name…" error={errors.artisan_name} /></FormField>
             <FormField label="Breakdown Date" required><input type="date" title="Breakdown date" className={inputCls} value={fd.breakdown_date} onChange={e => set('breakdown_date', e.target.value)} /></FormField>
             <div className="sm:col-span-2">
               <FormField label="Description" required>
-                <PredictiveField historyKey="bd_description" value={fd.breakdown_description} onChange={v => set('breakdown_description', v)} multiline rows={3}
+                <PredictiveInput historyKey="bd_description" value={fd.breakdown_description} onChange={v => set('breakdown_description', v)} multiline rows={3}
                   placeholder="Describe what happened…" hints={['Machine stopped unexpectedly', 'Electrical fault detected', 'Mechanical failure on', 'Overheating reported on', 'Hydraulic leak detected', 'Belt snapped on']} error={errors.breakdown_description} />
               </FormField>
             </div>
@@ -585,7 +462,7 @@ function FormModal({ isOpen, onClose, onSubmit, initialData, mode = 'create' }: 
             <FormField label="Priority"><SelectField size="form" title="Priority" value={fd.priority} onChange={v => set('priority', v)} options={Object.entries(PRIORITY_META).map(([k, v]) => ({ value: k, label: v.name }))} /></FormField>
             <FormField label="Breakdown Type"><SelectField size="form" title="Breakdown type" value={fd.breakdown_type} onChange={v => set('breakdown_type', v)} options={Object.entries(TYPE_META).map(([k, v]) => ({ value: k, label: v.name }))} /></FormField>
             <FormField label="Location" required>
-              <PredictiveField historyKey="bd_location" value={fd.location} onChange={v => set('location', v)} placeholder="e.g., Production Line A"
+              <PredictiveInput historyKey="bd_location" value={fd.location} onChange={v => set('location', v)} placeholder="e.g., Production Line A"
                 hints={['Main Workshop', 'Crusher Bay', 'Processing Plant', 'Pit Area', 'Conveyor Belt', 'Electrical Substation', 'Compressor Room', 'Administration Block']} error={errors.location} />
             </FormField>
             <FormField label="Department" required>
@@ -594,10 +471,10 @@ function FormModal({ isOpen, onClose, onSubmit, initialData, mode = 'create' }: 
               {errors.department && <p className="text-xs text-rose-500 mt-1">{errors.department}</p>}
             </FormField>
             <div className="sm:col-span-2">
-              <FormField label="Work Done"><PredictiveField historyKey="bd_work_done" value={fd.work_done} onChange={v => set('work_done', v)} multiline rows={2} placeholder="Describe the work performed…" hints={['Replaced bearing', 'Repaired electrical fault', 'Replaced belt', 'Cleaned and serviced', 'Replaced hydraulic seal', 'Calibrated sensor']} /></FormField>
+              <FormField label="Work Done"><PredictiveInput historyKey="bd_work_done" value={fd.work_done} onChange={v => set('work_done', v)} multiline rows={2} placeholder="Describe the work performed…" hints={['Replaced bearing', 'Repaired electrical fault', 'Replaced belt', 'Cleaned and serviced', 'Replaced hydraulic seal', 'Calibrated sensor']} /></FormField>
             </div>
             <div className="sm:col-span-2">
-              <FormField label="Recommendations"><PredictiveField historyKey="bd_recommendations" value={fd.artisan_recommendations} onChange={v => set('artisan_recommendations', v)} multiline rows={2} placeholder="Enter recommendations…" hints={['Schedule preventive maintenance', 'Replace worn components', 'Monitor closely for next 48 hours', 'Train operators on correct usage', 'Order spare parts']} /></FormField>
+              <FormField label="Recommendations"><PredictiveInput historyKey="bd_recommendations" value={fd.artisan_recommendations} onChange={v => set('artisan_recommendations', v)} multiline rows={2} placeholder="Enter recommendations…" hints={['Schedule preventive maintenance', 'Replace worn components', 'Monitor closely for next 48 hours', 'Train operators on correct usage', 'Order spare parts']} /></FormField>
             </div>
           </div>
         )}
