@@ -4,6 +4,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { api } from '@/lib/apiClient';
 import { formatDate } from '@/lib/format';
+import { formatCurrency } from '@/components/shared/utils';
 import {
   ShoppingCart, Plus, Pencil, Trash2, Eye, Search, Filter,
   Zap, Wrench, Flag, DollarSign, FileText, BarChart3, X,
@@ -39,9 +40,6 @@ const PRIORITY_COLOR: Record<Requisition['priority'], string> = {
   Critical: '#f43f5e', High: '#f97316', Medium: ACCENT_HEX.blue, Low: '#94a3b8',
 };
 
-function formatCurrency(v: number) {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(v || 0);
-}
 const fmtDate = (d?: string) => formatDate(d);
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────

@@ -3,6 +3,7 @@
 
 import { AppShell } from '@/components/app-shell';
 import { formatDate } from '@/lib/format';
+import { formatCurrency } from '@/components/shared/utils';
 import { api } from '@/lib/apiClient';
 import { EXPORT_BRAND_RGB } from '@/lib/exportUtils';
 import { useTheme, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle, FormField, FormActions, CenterModal, ACCENT_HEX, GlowCard, SelectField, GroupSection, staggerContainer, fadeUp, Combobox, type ComboOption as SharedComboOption } from '@/components/shared/theme';
@@ -28,8 +29,7 @@ import { apiCreate, apiCreateSavedReq, apiDelete, apiDeleteSavedReq, apiFetchAll
 
 // ─── CONSTANTS & UTILS ───────────────────────────────────────────────────────
 
-function formatCurrency(v: number) { return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(v || 0); }
-// formatDate was identical to the shared one — imported at the top instead.
+// formatDate/formatCurrency were identical to the shared ones — imported at the top instead.
 
 const getStockStatus = (current: number, min: number): StockStatus => {
   if (current <= 0) return { label: 'Out of Stock', color: '#f43f5e' };
