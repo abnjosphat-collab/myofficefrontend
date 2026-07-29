@@ -11,6 +11,7 @@ const LINKS = [
   { label: "SHEQ",             href: "/sheq" },
   { label: "Room Rental",      href: "/roomRental" },
   { label: "Restaurant",       href: "/restaurant" },
+  { label: "RoadReady",        href: "/drivingSchool" },
   { label: "Reports",          href: "/reports" },
 ];
 

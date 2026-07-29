@@ -298,6 +298,7 @@ const NAV_GROUPS = [
       { icon: Utensils, title: 'Restaurant',  href: '/restaurant',  desc: 'F&B management' },
       { icon: Church,   title: 'Church',      href: '/church',      desc: 'Community platform' },
       { icon: Database, title: 'Stores',      href: '/stores',      desc: 'Inventory system' },
+      { icon: Car,      title: 'RoadReady',   href: '/drivingSchool', desc: 'Driving school booking' },
     ],
   },
 ];

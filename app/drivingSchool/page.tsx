@@ -28,6 +28,12 @@ export default function DrivingSchoolHome() {
             </div>
             <div className="flex items-center space-x-4">
               <Link
+                href="/drivingSchool/dashboard"
+                className="text-gray-700 hover:text-brand-600 px-3 py-2 rounded-md text-sm font-medium"
+              >
+                View Live Demo
+              </Link>
+              <Link
                 href="/login"
                 className="text-gray-700 hover:text-brand-600 px-3 py-2 rounded-md text-sm font-medium"
               >

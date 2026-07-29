@@ -16,7 +16,7 @@ import {
   Eye, FileText, Folder, Database, AlertOctagon,
   ClipboardList, ClipboardPlus, Plus, User, Gauge,
   Sun, Receipt, Settings, Award, Truck, Radar,
-  Droplet, FileCheck, LayoutDashboard, ShoppingCart,
+  Droplet, FileCheck, LayoutDashboard, ShoppingCart, Car,
 } from '@/components/shared/theme';
 import type { Accent } from '@/components/shared/theme';
 import { trackModuleOpen } from '@/lib/usage';
@@ -147,6 +147,7 @@ export const CATEGORIES: Category[] = [
       { icon: Printer,      title: 'Print Shop',  description: 'Invitations & resume design', href: '/designhome', tags: ['Design'] },
       { icon: Landmark,     title: 'BankSecure',  description: 'Digital banking platform', href: '/bank', tags: ['Finance'] },
       { icon: FileUser,     title: 'CV Builder',  description: 'Professional CV/resume builder', href: '/cv-builder', tags: ['Career'] },
+      { icon: Car,          title: 'RoadReady',   description: 'Driving school booking & scheduling', href: '/drivingSchool', tags: ['Education'] },
     ],
   },
 ];
