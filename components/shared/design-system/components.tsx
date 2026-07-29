@@ -784,7 +784,7 @@ export interface ComboOption { value: string; label: string; sub?: string }
 
 export function Combobox({
   value, onChange, onSelect, options, size = 'form', placeholder, title, disabled,
-  className = '', inputClassName = '', loading = false, emptyText, renderOption, onFocusLoad, minWidth,
+  className = '', inputClassName = '', loading = false, emptyText, renderOption, onFocusLoad, minWidth, onBlurCommit,
 }: {
   value: string;
   /** Fires on every keystroke (free-text) — caller re-filters `options` from this. */
@@ -806,6 +806,8 @@ export function Combobox({
   onFocusLoad?: () => void;
   /** Minimum panel width in px (panel defaults to the input's width). */
   minWidth?: number;
+  /** Optional hook fired on blur (e.g. to remember a free-typed value that wasn't picked from the list). */
+  onBlurCommit?: () => void;
 }) {
   const t = useTheme();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -854,7 +856,7 @@ export function Combobox({
         className={`w-full outline-none transition-all duration-300 hover:shadow-[0_8px_18px_-10px_rgba(37,99,235,0.45)] hover:-translate-y-px focus:shadow-[0_8px_18px_-10px_rgba(37,99,235,0.45)] focus:-translate-y-px disabled:hover:translate-y-0 disabled:hover:shadow-none ${sizeCls} ${t.inputBg} ${inputClassName}`}
         onChange={e => { onChange(e.target.value); setOpen(true); }}
         onFocus={() => { onFocusLoad?.(); setOpen(true); }}
-        onBlur={() => setTimeout(() => setOpen(false), 160)}
+        onBlur={() => { setTimeout(() => setOpen(false), 160); onBlurCommit?.(); }}
         onKeyDown={e => {
           if (e.key === 'Escape') { setOpen(false); return; }
           if (!showPanel || options.length === 0) return;

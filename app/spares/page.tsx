@@ -5,7 +5,8 @@ import { AppShell } from '@/components/app-shell';
 import { formatDate } from '@/lib/format';
 import { api } from '@/lib/apiClient';
 import { EXPORT_BRAND_RGB } from '@/lib/exportUtils';
-import { useTheme, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle, FormField, FormActions, CenterModal, ACCENT_HEX, GlowCard, SelectField, GroupSection, staggerContainer, fadeUp } from '@/components/shared/theme';
+import { useTheme, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle, FormField, FormActions, CenterModal, ACCENT_HEX, GlowCard, SelectField, GroupSection, staggerContainer, fadeUp, Combobox, type ComboOption as SharedComboOption } from '@/components/shared/theme';
+import { PredictiveInput } from '@/components/shared/PredictiveInput';
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { createPortal } from 'react-dom';
@@ -77,53 +78,19 @@ const getSavedReqs = (): SavedRequisition[] => { if (typeof window === 'undefine
 const persistSavedReqs = (reqs: SavedRequisition[]) => { try { localStorage.setItem(SAVED_REQS_KEY, JSON.stringify(reqs)); } catch {} };
 const defaultReqHeader: ReqHeader = { requester: '', reason: '', urgency: 'routine', priority: 'medium', required_for: '' };
 
-// ─── MEMORY INPUT (tab-to-complete) ───────────────────────────────────────────
-
-const MemoryInput = React.memo(({ memKey, value, onChange, placeholder }: { memKey: string; value: string; onChange: (v: string) => void; placeholder?: string; }) => {
-  const t = useTheme();
-  const [open, setOpen] = useState(false);
-  const suggestions = useMemo(() => {
-    if (value.length < 1) return [];
-    return getFieldMemory(memKey).filter(s => s.toLowerCase().startsWith(value.toLowerCase()) && s.toLowerCase() !== value.toLowerCase()).slice(0, 7);
-  }, [value, memKey]);
-
-  return (
-    <div className="relative">
-      <input type="text" value={value} placeholder={placeholder} className={`w-full h-9 px-3 rounded-lg text-sm ${t.inputBg} focus:outline-none`}
-        onChange={e => { onChange(e.target.value); setOpen(true); }}
-        onKeyDown={e => {
-          if (e.key === 'Tab' && suggestions.length > 0) { e.preventDefault(); onChange(suggestions[0]); rememberField(memKey, suggestions[0]); setOpen(false); }
-          else if (e.key === 'Escape') setOpen(false);
-        }}
-        onFocus={() => setOpen(true)}
-        onBlur={() => { setTimeout(() => setOpen(false), 160); if (value.trim()) rememberField(memKey, value); }} />
-      {open && suggestions.length > 0 && (
-        <div className={`absolute top-full left-0 right-0 z-50 mt-0.5 rounded-xl overflow-hidden ${t.glass} ${t.shadow}`}>
-          {suggestions.map((s, i) => (
-            <button key={s} type="button" onMouseDown={e => { e.preventDefault(); onChange(s); rememberField(memKey, s); setOpen(false); }}
-              className={`w-full text-left px-3 py-2 text-xs ${t.hoverBgSoft} transition-all border-b ${t.border} last:border-0 flex items-center justify-between`}>
-              <span className={t.textMuted}>{s}</span>
-              {i === 0 && <span className={`text-[10px] flex-shrink-0 ml-2 ${t.textFaint}`}>Tab ↵</span>}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-});
-MemoryInput.displayName = 'MemoryInput';
-
-// ─── ENTITY COMBO INPUT (pick from API list or type freely) ──────────────────
+// ─── ENTITY COMBO INPUT (pick from API list or type freely, blended with recent
+// values) — built on the shared portal-based Combobox so it inherits correct
+// positioning (no more clipping inside overflow-hidden cards) instead of the old
+// hand-rolled absolutely-positioned dropdown. Free-text "Reason for Order" uses the
+// shared PredictiveInput directly instead (see call site) — no API involved there. ──
 
 interface ComboOption { label: string; sub?: string; }
 
 const EntityComboInput = React.memo(({ fetchUrl, mapOptions, value, onChange, placeholder, memKey }: {
   fetchUrl: string; mapOptions: (data: Record<string, unknown>[]) => ComboOption[]; value: string; onChange: (v: string) => void; placeholder?: string; memKey?: string;
 }) => {
-  const t = useTheme();
   const [options, setOptions] = useState<ComboOption[]>([]);
   const [fetched, setFetched] = useState(false);
-  const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const ensureFetched = useCallback(async () => {
@@ -142,31 +109,20 @@ const EntityComboInput = React.memo(({ fetchUrl, mapOptions, value, onChange, pl
     if (!memKey) return [];
     return getFieldMemory(memKey).filter(s => s.toLowerCase().includes(value.toLowerCase()) && !apiFiltered.some(o => o.label === s)).slice(0, 3).map(s => ({ label: s, sub: 'recent' }));
   }, [memKey, value, apiFiltered]);
-  const allOptions = [...apiFiltered, ...memSuggestions];
+  const comboOptions: SharedComboOption[] = [...apiFiltered, ...memSuggestions].map(o => ({ value: o.label, label: o.label, sub: o.sub }));
 
   return (
-    <div className="relative">
-      <input type="text" value={value} placeholder={placeholder} className={`w-full h-9 px-3 rounded-lg text-sm ${t.inputBg} focus:outline-none`}
-        onChange={e => { onChange(e.target.value); setOpen(true); }}
-        onFocus={() => { ensureFetched(); setOpen(true); }}
-        onKeyDown={e => {
-          if (e.key === 'Escape') setOpen(false);
-          else if (e.key === 'Tab' && allOptions.length > 0) { e.preventDefault(); onChange(allOptions[0].label); if (memKey) rememberField(memKey, allOptions[0].label); setOpen(false); }
-        }}
-        onBlur={() => { setTimeout(() => setOpen(false), 160); if (value.trim() && memKey) rememberField(memKey, value); }} />
-      {open && (loading || allOptions.length > 0) && (
-        <div className={`absolute top-full left-0 right-0 z-50 mt-0.5 rounded-xl overflow-hidden max-h-52 overflow-y-auto ${t.glass} ${t.shadow}`}>
-          {loading && <div className={`px-3 py-2 text-xs flex items-center gap-2 ${t.textFaint}`}><Loader2 className="h-3 w-3 animate-spin" />Loading…</div>}
-          {allOptions.map((o, i) => (
-            <button key={`${o.label}-${i}`} type="button" onMouseDown={e => { e.preventDefault(); onChange(o.label); if (memKey) rememberField(memKey, o.label); setOpen(false); }}
-              className={`w-full text-left px-3 py-2 text-xs ${t.hoverBgSoft} transition-all border-b ${t.border} last:border-0 flex items-center justify-between gap-2`}>
-              <div className="min-w-0"><span className={t.textMuted}>{o.label}</span>{o.sub && <span className={`text-[10px] ml-2 ${t.textFaint}`}>{o.sub}</span>}</div>
-              {i === 0 && <span className={`text-[10px] flex-shrink-0 ${t.textFaint}`}>Tab ↵</span>}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+    <Combobox
+      value={value}
+      onChange={onChange}
+      onSelect={o => { onChange(o.value); if (memKey) rememberField(memKey, o.value); }}
+      onBlurCommit={() => { if (value.trim() && memKey) rememberField(memKey, value); }}
+      options={comboOptions}
+      loading={loading}
+      onFocusLoad={ensureFetched}
+      placeholder={placeholder}
+      size="form"
+    />
   );
 });
 EntityComboInput.displayName = 'EntityComboInput';
@@ -940,7 +896,7 @@ function SparesPageContent() {
           <div className="p-4 space-y-3">
             <div className={`p-3 rounded-xl ${t.chipBg} grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3`}>
               <FormField label="Requested By"><EntityComboInput fetchUrl="/api/employees" mapOptions={data => data.map((e) => ({ label: `${e.first_name} ${e.last_name}`, sub: e.employee_id ? `${e.employee_id}${e.designation ? ' · ' + e.designation : ''}` : undefined } as ComboOption))} value={reqHeader.requester} onChange={v => setReqH('requester', v)} placeholder="Name or employee ID…" memKey="req_requester" /></FormField>
-              <div className="lg:col-span-2"><FormField label="Reason for Order"><MemoryInput memKey="req_reason" value={reqHeader.reason} onChange={v => setReqH('reason', v)} placeholder="e.g. Scheduled maintenance, breakdown repair…" /></FormField></div>
+              <div className="lg:col-span-2"><FormField label="Reason for Order"><PredictiveInput historyKey="spares_req_reason" value={reqHeader.reason} onChange={v => setReqH('reason', v)} placeholder="e.g. Scheduled maintenance, breakdown repair…" /></FormField></div>
               <FormField label="Required For"><EntityComboInput fetchUrl="/api/equipment" mapOptions={data => data.map((e) => ({ label: String(e.name), sub: [e.equipment_id, e.location].filter(Boolean).join(' · ') || undefined } as ComboOption))} value={reqHeader.required_for} onChange={v => setReqH('required_for', v)} placeholder="Equipment, machine or department…" memKey="req_required_for" /></FormField>
               <div className="grid grid-cols-2 gap-2">
                 <FormField label="Urgency"><SelectField size="form" title="Urgency" value={reqHeader.urgency} onChange={v => setReqH('urgency', v as ReqHeader['urgency'])} options={[{ value: 'routine', label: 'Routine' }, { value: 'urgent', label: 'Urgent' }, { value: 'emergency', label: 'Emergency' }]} /></FormField>
