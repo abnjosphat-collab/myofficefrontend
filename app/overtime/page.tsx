@@ -7,6 +7,7 @@ import {
   Clock4, Plus, Search, RefreshCw, CheckCircle2, XCircle,
   FileText, Eye, Trash2, Edit, LayoutGrid, List, AlertCircle,
   Sun, Moon, Briefcase, Calendar, X, User, Download, CalendarRange,
+  Wrench, UsersRound, TrendingUp,
 } from '@/components/shared/theme';
 import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, ProgressBar, FormField, FormActions,
@@ -536,6 +537,10 @@ function OvertimeContent() {
   const sections = useCollapseSection({ hero: true, filters: true });
 
   const { records, setRecords, loading, refreshing, refresh: load } = useOvertimeData();
+  // Joined live against employee master data (not stored on the OT record) so
+  // discipline analytics always reflect the current roster, not a snapshot that
+  // might predate the employee's discipline being set.
+  const employees = useEmployees();
 
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('all');
@@ -576,6 +581,53 @@ function OvertimeContent() {
   const TYPE_BAR_COLORS = Object.values(TYPE_HEX);
   const axisColor = t.light ? 'rgba(15,23,42,0.4)' : 'rgba(255,255,255,0.4)';
   const gridColor = t.light ? 'rgba(15,23,42,0.06)' : 'rgba(255,255,255,0.06)';
+
+  // "By section" reads the employee's discipline (mechanical/electrical) off the live
+  // roster keyed by employee_id — the OT record itself has no reliable section field.
+  const empById = useMemo(() => new Map(employees.map(e => [e.employee_id, e])), [employees]);
+  const DISCIPLINE_HEX: Record<string, string> = { Mechanical: ACCENT_HEX.blue, Electrical: '#fbbf24', 'Not Set': '#94a3b8' };
+  const bySection = useMemo(() => {
+    const buckets: Record<string, { hours: number; count: number }> = { Mechanical: { hours: 0, count: 0 }, Electrical: { hours: 0, count: 0 }, 'Not Set': { hours: 0, count: 0 } };
+    records.forEach(r => {
+      const d = empById.get(r.employee_id)?.discipline;
+      const key = d === 'mechanical' ? 'Mechanical' : d === 'electrical' ? 'Electrical' : 'Not Set';
+      buckets[key].hours += r.hours ?? calcHours(r.start_time, r.end_time);
+      buckets[key].count += 1;
+    });
+    return Object.entries(buckets).map(([section, v]) => ({ section, hours: Math.round(v.hours * 10) / 10, count: v.count })).filter(x => x.count > 0);
+  }, [records, empById]);
+
+  const byArtisan = useMemo(() => {
+    const map = new Map<string, { employee_id: string; employee_name: string; position: string; hours: number; count: number }>();
+    records.forEach(r => {
+      const key = r.employee_id || r.employee_name;
+      const h = r.hours ?? calcHours(r.start_time, r.end_time);
+      const existing = map.get(key);
+      if (existing) { existing.hours += h; existing.count += 1; }
+      else map.set(key, { employee_id: r.employee_id, employee_name: r.employee_name, position: r.position, hours: h, count: 1 });
+    });
+    return [...map.values()].sort((a, b) => b.hours - a.hours).slice(0, 8).map(a => ({ ...a, hours: Math.round(a.hours * 10) / 10 }));
+  }, [records]);
+  const maxArtisanHours = Math.max(1, ...byArtisan.map(a => a.hours));
+
+  const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const byWeekday = useMemo(() => {
+    const buckets = WEEKDAY_LABELS.map(() => ({ hours: 0, count: 0 }));
+    records.forEach(r => {
+      if (!r.date) return;
+      const dow = (new Date(`${r.date}T00:00:00`).getDay() + 6) % 7; // Mon=0..Sun=6
+      buckets[dow].hours += r.hours ?? calcHours(r.start_time, r.end_time);
+      buckets[dow].count += 1;
+    });
+    return WEEKDAY_LABELS.map((day, i) => ({ day, hours: Math.round(buckets[i].hours * 10) / 10, count: buckets[i].count }));
+  }, [records]);
+
+  const richStats = useMemo(() => {
+    const uniqueEmployees = new Set(records.map(r => r.employee_id)).size;
+    const avgHours = records.length > 0 ? stats.totalHrs / records.length : 0;
+    const busiest = byWeekday.reduce((best, d) => d.hours > best.hours ? d : best, byWeekday[0] ?? { day: '—', hours: 0 });
+    return { uniqueEmployees, avgHours: Math.round(avgHours * 10) / 10, busiestDay: busiest.hours > 0 ? busiest.day : '—' };
+  }, [records, stats.totalHrs, byWeekday]);
 
   const handleSave = async (body: Record<string, unknown>, id?: number | string) => {
     if (id) {
@@ -837,6 +889,69 @@ function OvertimeContent() {
                 <div className={`text-xl font-bold ${STATUS_COLOR[s]}`}>{records.filter(r => r.status === s).length}</div>
               </div>
             ))}
+            <div className={`${t.glass} rounded-xl p-4`}>
+              <div className="flex items-center gap-1.5 mb-1"><UsersRound className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs ${t.textFaint}`}>Employees</span></div>
+              <div className={`text-xl font-bold ${t.textPrimary}`}>{richStats.uniqueEmployees}</div>
+            </div>
+            <div className={`${t.glass} rounded-xl p-4`}>
+              <div className="flex items-center gap-1.5 mb-1"><Clock4 className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs ${t.textFaint}`}>Avg Hrs/Request</span></div>
+              <div className={`text-xl font-bold ${t.textPrimary}`}>{richStats.avgHours}h</div>
+            </div>
+            <div className={`${t.glass} rounded-xl p-4`}>
+              <div className="flex items-center gap-1.5 mb-1"><TrendingUp className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs ${t.textFaint}`}>Busiest Day</span></div>
+              <div className={`text-xl font-bold ${t.textPrimary}`}>{richStats.busiestDay}</div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
+              <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><Wrench className="h-4 w-4 text-brand-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>By Section</span></div>
+              <div className="p-4">
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={bySection} barSize={28}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+                    <XAxis dataKey="section" tick={{ fill: axisColor, fontSize: 10 }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fill: axisColor, fontSize: 10 }} axisLine={false} tickLine={false} />
+                    <Tooltip contentStyle={{ backgroundColor: t.light ? '#fff' : '#0f1e2e', border: `1px solid ${t.light ? 'rgba(15,23,42,0.1)' : 'rgba(134,187,216,0.2)'}`, borderRadius: 12, color: t.light ? '#0f172a' : '#fff', fontSize: 12 }} formatter={(v: number) => [`${v}h`, 'Hours']} />
+                    <Bar dataKey="hours" name="Hours" radius={[6, 6, 0, 0]}>
+                      {bySection.map((d, i) => <Cell key={i} fill={DISCIPLINE_HEX[d.section] ?? '#94a3b8'} fillOpacity={0.8} />)}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+                {bySection.length === 0 && <p className={`text-sm text-center py-6 ${t.textFaint}`}>No data</p>}
+              </div>
+            </div>
+
+            <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
+              <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><UsersRound className="h-4 w-4 text-brand-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Top Artisans by Hours</span></div>
+              <div className="p-4 space-y-3">
+                {byArtisan.map(a => (
+                  <div key={a.employee_id || a.employee_name}>
+                    <div className="flex justify-between text-xs mb-1">
+                      <span className={`font-medium ${t.textPrimary}`}>{a.employee_name}{a.position ? <span className={t.textFaint}> · {a.position}</span> : null}</span>
+                      <span className={`font-semibold ${t.textPrimary}`}>{a.hours}h</span>
+                    </div>
+                    <ProgressBar value={(a.hours / maxArtisanHours) * 100} color={ACCENT_HEX.blue} showValue={false} />
+                  </div>
+                ))}
+                {byArtisan.length === 0 && <p className={`text-sm text-center py-6 ${t.textFaint}`}>No data</p>}
+              </div>
+            </div>
+          </div>
+
+          <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
+            <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><TrendingUp className="h-4 w-4 text-brand-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>By Day of Week</span></div>
+            <div className="p-4">
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={byWeekday} barSize={28}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+                  <XAxis dataKey="day" tick={{ fill: axisColor, fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: axisColor, fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={{ backgroundColor: t.light ? '#fff' : '#0f1e2e', border: `1px solid ${t.light ? 'rgba(15,23,42,0.1)' : 'rgba(134,187,216,0.2)'}`, borderRadius: 12, color: t.light ? '#0f172a' : '#fff', fontSize: 12 }} formatter={(v: number) => [`${v}h`, 'Hours']} />
+                  <Bar dataKey="hours" name="Hours" radius={[6, 6, 0, 0]} fill={ACCENT_HEX.indigo} fillOpacity={0.8} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </div>
       )}
