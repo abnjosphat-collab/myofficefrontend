@@ -6,17 +6,18 @@ import { AppShell } from '@/components/app-shell';
 import {
   Clock4, Plus, Search, RefreshCw, CheckCircle2, XCircle,
   FileText, Eye, Trash2, Edit, LayoutGrid, List, AlertCircle,
-  Sun, Moon, Briefcase, Calendar, X, User,
+  Sun, Moon, Briefcase, Calendar, X, User, Download, CalendarRange,
 } from '@/components/shared/theme';
 import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, ProgressBar, FormField, FormActions,
   useCollapseSection, CenterModal, ACCENT_HEX, EmptyState, PrimaryButton, GlowCard, SelectField,
 } from '@/components/shared/theme';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ApprovalGate, type SignatureResult } from '@/components/shared/ApprovalGate';
 import { useEmployees, type EmployeeLookup } from '@/hooks/useLookups';
 import { formatDate } from '@/lib/format';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
-import { exportFilename } from '@/lib/exportUtils';
+import { exportFilename, EXPORT_BRAND_ARGB } from '@/lib/exportUtils';
 import { toast } from 'sonner';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
@@ -320,6 +321,214 @@ const overtimeExportColumns: DLColumn[] = [
   { key: 'status', label: 'Status', width: 20 },
 ];
 
+// ─── WEEKLY SUMMARY (per-employee daily/weekly rollup + Excel export) ─────────
+// Replaces the fragile manual-Excel workflow: a week spanning two months used to
+// need a cross-sheet formula that was easy to get wrong. This rolls up however
+// many days of OT records the user picks (default: the current Mon–Sun week, but
+// freely adjustable to any range) into one employee × day matrix, live in the UI
+// and as a styled Excel download.
+
+function mondayOf(d: Date): Date {
+  const day = d.getDay(); // 0=Sun..6=Sat
+  const diff = day === 0 ? -6 : 1 - day; // shift back to Monday
+  const m = new Date(d);
+  m.setDate(d.getDate() + diff);
+  m.setHours(0, 0, 0, 0);
+  return m;
+}
+function toISODate(d: Date): string { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
+function addDays(d: Date, n: number): Date { const r = new Date(d); r.setDate(r.getDate() + n); return r; }
+
+interface EmployeeWeekRow { employee_id: string; employee_name: string; position: string; byDate: Map<string, number>; total: number; }
+
+function buildWeeklyRows(records: OTRecord[], from: string, to: string): { rows: EmployeeWeekRow[]; days: Date[] } {
+  const days: Date[] = [];
+  if (from <= to) {
+    let d = new Date(`${from}T00:00:00`);
+    const end = new Date(`${to}T00:00:00`);
+    while (d <= end) { days.push(d); d = addDays(d, 1); }
+  }
+
+  const map = new Map<string, EmployeeWeekRow>();
+  records.forEach(r => {
+    if (r.date < from || r.date > to) return;
+    const key = r.employee_id || r.employee_name;
+    if (!key) return;
+    if (!map.has(key)) map.set(key, { employee_id: r.employee_id, employee_name: r.employee_name, position: r.position, byDate: new Map(), total: 0 });
+    const row = map.get(key)!;
+    const h = r.hours ?? calcHours(r.start_time, r.end_time);
+    row.byDate.set(r.date, (row.byDate.get(r.date) || 0) + h);
+    row.total += h;
+  });
+
+  return { rows: Array.from(map.values()).sort((a, b) => a.employee_name.localeCompare(b.employee_name)), days };
+}
+
+function WeeklySummaryView({ records }: { records: OTRecord[] }) {
+  const t = useTheme();
+  const defaultFrom = toISODate(mondayOf(new Date()));
+  const defaultTo = toISODate(addDays(mondayOf(new Date()), 6));
+  const [from, setFrom] = useState(defaultFrom);
+  const [to, setTo] = useState(defaultTo);
+
+  const { rows, days } = useMemo(() => buildWeeklyRows(records, from, to), [records, from, to]);
+  const grandTotal = rows.reduce((s, r) => s + r.total, 0);
+  const dayTotals = days.map(d => { const ds = toISODate(d); return rows.reduce((s, r) => s + (r.byDate.get(ds) || 0), 0); });
+
+  const stickyBg = t.light ? 'bg-white' : 'bg-[#040c18]';
+  const today = toISODate(new Date());
+  const invalidRange = from > to;
+
+  const downloadExcel = async () => {
+    const { default: ExcelJS } = await import('exceljs');
+    const wb = new ExcelJS.Workbook(); wb.creator = 'Ozech MyOffice';
+    const ws = wb.addWorksheet('OT Weekly Summary');
+    const totalCols = 1 + days.length + 1;
+    ws.views = [{ state: 'frozen', xSplit: 1, ySplit: 3 }];
+    const FONT = 'Calibri';
+
+    ws.mergeCells(1, 1, 1, totalCols);
+    const title = ws.getCell(1, 1);
+    title.value = `OVERTIME WEEKLY SUMMARY — ${fmtDate(from)} to ${fmtDate(to)}`;
+    title.font = { name: FONT, bold: true, size: 14, color: { argb: EXPORT_BRAND_ARGB } };
+    title.alignment = { horizontal: 'center', vertical: 'middle' };
+    ws.getRow(1).height = 24;
+    ws.addRow([]);
+
+    const hdrRow = ws.getRow(3);
+    hdrRow.values = ['Employee', ...days.map(d => `${d.toLocaleDateString('en-GB', { weekday: 'short' })} ${d.getDate()}/${d.getMonth() + 1}`), 'Total h'];
+    hdrRow.height = 28;
+    hdrRow.eachCell({ includeEmpty: true }, (c, col) => {
+      const isFixedCol = col === 1, isTotalCol = col === totalCols;
+      c.font = { name: FONT, bold: true, size: 9, color: { argb: 'FFFFFFFF' } };
+      c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isFixedCol ? 'FF1A3450' : isTotalCol ? 'FF163554' : EXPORT_BRAND_ARGB } };
+      c.alignment = { horizontal: isFixedCol ? 'left' : 'center', vertical: 'middle', wrapText: !isFixedCol };
+      c.border = { bottom: { style: 'medium', color: { argb: 'FF86BBD8' } } };
+    });
+
+    rows.forEach((row, ei) => {
+      const rowVals: (string | number)[] = [row.employee_name, ...days.map(d => row.byDate.get(toISODate(d)) || 0), row.total];
+      const dataRow = ws.getRow(4 + ei);
+      dataRow.values = rowVals;
+      dataRow.height = 16;
+      const stripe = ei % 2 !== 0;
+      dataRow.eachCell({ includeEmpty: true }, (c, col) => {
+        const isFixedCol = col === 1, isTotalCol = col === totalCols;
+        c.font = { name: FONT, size: 9, bold: isTotalCol };
+        c.alignment = { horizontal: isFixedCol ? 'left' : 'center', vertical: 'middle' };
+        if (!isFixedCol) c.numFmt = '0.00';
+        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isTotalCol ? 'FFD0E8F5' : stripe ? 'FFF5F8FB' : 'FFFFFFFF' } };
+      });
+    });
+
+    const gtRow = ws.getRow(4 + rows.length + 1);
+    gtRow.values = ['TOTAL', ...dayTotals, grandTotal];
+    gtRow.height = 20;
+    gtRow.eachCell({ includeEmpty: true }, (c, col) => {
+      const isTotalCol = col === totalCols;
+      c.font = { name: FONT, bold: true, size: 9, color: { argb: isTotalCol ? 'FFFFFFFF' : 'FF1E3A5F' } };
+      c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isTotalCol ? EXPORT_BRAND_ARGB : 'FFD0E8F5' } };
+      c.alignment = { horizontal: col === 1 ? 'left' : 'center', vertical: 'middle' };
+      if (col > 1) c.numFmt = '0.00';
+      c.border = { top: { style: 'medium', color: { argb: 'FF86BBD8' } } };
+    });
+
+    ws.getColumn(1).width = 24;
+    for (let i = 0; i < days.length; i++) ws.getColumn(2 + i).width = 8;
+    ws.getColumn(totalCols).width = 10;
+
+    const buf = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = `${exportFilename('OT_Weekly_Summary')}.xlsx`; a.click(); URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className={`${t.glass} rounded-2xl ${t.shadow} p-4 flex flex-wrap items-center gap-3`}>
+        <div className="flex items-center gap-1.5"><CalendarRange className="h-4 w-4 text-brand-400" /><span className={`text-sm font-medium ${t.textMuted}`}>Range</span></div>
+        <input type="date" title="From date" value={from} onChange={e => setFrom(e.target.value)} className={`h-9 rounded-lg px-2.5 text-xs outline-none transition-colors ${t.inputBg}`} />
+        <span className={t.textFaint}>to</span>
+        <input type="date" title="To date" value={to} onChange={e => setTo(e.target.value)} className={`h-9 rounded-lg px-2.5 text-xs outline-none transition-colors ${t.inputBg}`} />
+        <button type="button" onClick={() => { setFrom(defaultFrom); setTo(defaultTo); }} className={`h-9 px-3 rounded-lg text-xs font-medium transition-colors ${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText}`}>This Week</button>
+        {!invalidRange && <span className={`text-xs ${t.textFaint}`}>{days.length} day{days.length !== 1 ? 's' : ''} · {rows.length} employee{rows.length !== 1 ? 's' : ''} · {grandTotal.toFixed(1)}h total</span>}
+        {!invalidRange && rows.length > 0 && (
+          <button type="button" onClick={downloadExcel} className="ml-auto flex items-center gap-1.5 h-9 px-3 rounded-lg text-xs font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all">
+            <Download className="h-3.5 w-3.5" /> Download Excel
+          </button>
+        )}
+      </div>
+
+      {invalidRange ? (
+        <div className={`${t.glass} rounded-2xl ${t.shadow}`}>
+          <EmptyState icon={CalendarRange} title="Invalid range" message="The end date is before the start date." />
+        </div>
+      ) : rows.length === 0 ? (
+        <div className={`${t.glass} rounded-2xl ${t.shadow}`}>
+          <EmptyState icon={Clock4} title="No overtime in this range" message="Try a different date range." />
+        </div>
+      ) : (
+        <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
+          <Table containerClassName="overflow-auto max-h-[calc(100vh-360px)]">
+            <TableHeader>
+              <TableRow className={`${t.border} hover:bg-transparent`}>
+                <TableHead className={`min-w-48 sticky left-0 top-0 z-30 ${stickyBg} border-r ${t.border} ${t.textMuted}`}>Employee</TableHead>
+                {days.map(d => {
+                  const ds = toISODate(d);
+                  const isWknd = d.getDay() === 0 || d.getDay() === 6;
+                  return (
+                    <TableHead key={ds} className={`text-center min-w-[64px] px-0.5 sticky top-0 z-20 ${stickyBg} ${isWknd ? t.chipBg : ''}`}>
+                      <div className="flex flex-col items-center text-[9px] py-1">
+                        <span className={t.textFaint}>{d.toLocaleDateString('default', { weekday: 'short' })}</span>
+                        <span className={`font-bold text-sm ${ds === today ? 'text-brand-400' : t.textMuted}`}>{d.getDate()}</span>
+                        <span className={t.textFaint}>{d.toLocaleDateString('default', { month: 'short' })}</span>
+                      </div>
+                    </TableHead>
+                  );
+                })}
+                <TableHead className={`text-center min-w-16 text-[10px] font-semibold sticky top-0 z-20 ${stickyBg} ${t.textMuted}`}>Total</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.map(row => (
+                <TableRow key={row.employee_id || row.employee_name} className={`${t.border} ${t.hoverBgSoft}`}>
+                  <TableCell className={`sticky left-0 z-10 ${stickyBg} border-r ${t.border} py-2`}>
+                    <div className="flex items-center gap-2.5">
+                      <Avatar />
+                      <div className="min-w-0">
+                        <p className={`text-sm font-medium truncate ${t.textPrimary}`}>{row.employee_name}</p>
+                        <p className={`text-[10px] truncate ${t.textFaint}`}>{row.employee_id}{row.position ? ` · ${row.position}` : ''}</p>
+                      </div>
+                    </div>
+                  </TableCell>
+                  {days.map(d => {
+                    const ds = toISODate(d);
+                    const h = row.byDate.get(ds) || 0;
+                    const isWknd = d.getDay() === 0 || d.getDay() === 6;
+                    return (
+                      <TableCell key={ds} className={`text-center text-xs ${isWknd ? t.chipBg : ''} ${h > 0 ? 'font-semibold text-brand-400' : t.textFaint}`}>
+                        {h > 0 ? h.toFixed(1) : '—'}
+                      </TableCell>
+                    );
+                  })}
+                  <TableCell className={`text-center text-sm font-bold ${t.textPrimary}`}>{row.total.toFixed(1)}</TableCell>
+                </TableRow>
+              ))}
+              <TableRow className={`${t.border} ${t.chipBg} hover:bg-transparent`}>
+                <TableCell className={`sticky left-0 z-10 ${t.chipBg} border-r ${t.border} text-xs font-bold ${t.textPrimary}`}>TOTAL</TableCell>
+                {dayTotals.map((dt, i) => (
+                  <TableCell key={i} className={`text-center text-xs font-semibold ${t.textMuted}`}>{dt > 0 ? dt.toFixed(1) : '—'}</TableCell>
+                ))}
+                <TableCell className="text-center text-sm font-bold text-brand-400">{grandTotal.toFixed(1)}</TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── MAIN PAGE ────────────────────────────────────────────────────────────────
 
 function OvertimeContent() {
@@ -334,7 +543,7 @@ function OvertimeContent() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [view, setView] = useState<'table' | 'grid'>('table');
-  const [mainTab, setMainTab] = useState<'records' | 'analytics'>('records');
+  const [mainTab, setMainTab] = useState<'records' | 'analytics' | 'weekly-summary'>('records');
 
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<OTRecord | null>(null);
@@ -515,14 +724,16 @@ function OvertimeContent() {
       </div>
 
       <div className={`flex items-center gap-1 ${t.glassSoft} rounded-xl p-1 w-fit`}>
-        {([{ key: 'records', label: 'Records', icon: FileText }, { key: 'analytics', label: 'Analytics', icon: Calendar }] as { key: typeof mainTab; label: string; icon: ElementType }[]).map(tb => (
+        {([{ key: 'records', label: 'Records', icon: FileText }, { key: 'analytics', label: 'Analytics', icon: Calendar }, { key: 'weekly-summary', label: 'Weekly Summary', icon: CalendarRange }] as { key: typeof mainTab; label: string; icon: ElementType }[]).map(tb => (
           <button key={tb.key} type="button" onClick={() => setMainTab(tb.key)} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${mainTab === tb.key ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} ${t.hoverText} ${t.hoverBg}`}`}>
             <tb.icon className="h-4 w-4" />{tb.label}
           </button>
         ))}
       </div>
 
-      {mainTab === 'records' ? (
+      {mainTab === 'weekly-summary' ? (
+        <WeeklySummaryView records={records} />
+      ) : mainTab === 'records' ? (
         loading ? (
           <div className="flex items-center justify-center py-16"><RefreshCw className={`h-6 w-6 animate-spin ${t.textFaint}`} /></div>
         ) : filtered.length === 0 ? (
