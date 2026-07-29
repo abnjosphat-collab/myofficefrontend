@@ -15,7 +15,8 @@ import {
 } from '@/components/shared/theme';
 import { PhotoUpload } from '@/components/shared/PhotoUpload';
 import { AppShell } from '@/components/app-shell';
-import { useEmployees } from '@/hooks/useLookups';
+import { PredictiveInput } from '@/components/shared/PredictiveInput';
+import { EmployeeNameInput } from '@/components/shared/EmployeeNameInput';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
 import type { SectionType, PriorityType, FindingStatus, InspectionStatus, InspectionFinding, SHEQFormData } from './types';
@@ -48,92 +49,6 @@ const blankForm = (): Partial<SHEQFormData> => ({
   hodName: '', sheqOfficialName: '', status: 'draft',
   before_photos: [], after_photos: [],
 });
-
-// ─── PREDICTIVE / EMPLOYEE FIELDS ──────────────────────────────────────────────
-
-function usePredictiveHistory(key: string) {
-  const storageKey = `sheq_hist_${key}`;
-  const [history, setHistory] = useState<string[]>([]);
-  useEffect(() => {
-    try { setHistory(JSON.parse(localStorage.getItem(storageKey) || '[]')); } catch { /* ignore */ }
-  }, [storageKey]);
-  const remember = (value: string) => {
-    if (!value.trim()) return;
-    setHistory(prev => {
-      const next = [value, ...prev.filter(v => v !== value)].slice(0, 8);
-      try { localStorage.setItem(storageKey, JSON.stringify(next)); } catch { /* ignore */ }
-      return next;
-    });
-  };
-  return { history, remember };
-}
-
-function PredictiveField({
-  historyKey, value, onChange, placeholder, hints = [],
-}: { historyKey: string; value: string; onChange: (v: string) => void; placeholder?: string; hints?: string[] }) {
-  const t = useTheme();
-  const { history, remember } = usePredictiveHistory(historyKey);
-  const [open, setOpen] = useState(false);
-  const suggestions = useMemo(() => {
-    const pool = [...history, ...hints.filter(h => !history.includes(h))];
-    return pool.filter(s => s.toLowerCase().includes(value.toLowerCase()) && s !== value).slice(0, 6);
-  }, [history, hints, value]);
-  return (
-    <div className="relative">
-      <input
-        value={value} placeholder={placeholder}
-        onChange={e => onChange(e.target.value)}
-        onFocus={() => setOpen(true)}
-        onBlur={() => { setTimeout(() => setOpen(false), 150); if (value) remember(value); }}
-        className={`w-full h-9 px-3 rounded-lg text-sm outline-none transition-colors ${t.inputBg}`}
-      />
-      {open && suggestions.length > 0 && (
-        <div className={`absolute z-20 mt-1 w-full rounded-lg ${t.glass} ${t.shadow} overflow-hidden`}>
-          {suggestions.map(s => (
-            <button key={s} type="button" onMouseDown={() => { onChange(s); remember(s); }}
-              className={`w-full text-left px-3 py-1.5 text-xs ${t.textMuted} ${t.hoverBg} transition-colors`}>
-              {s}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function EmployeeField({
-  value, onChange, placeholder,
-}: { value: string; onChange: (name: string, emp?: { department?: string }) => void; placeholder?: string }) {
-  const t = useTheme();
-  const employees = useEmployees();
-  const [open, setOpen] = useState(false);
-  const matches = useMemo(() => {
-    if (!value) return employees.slice(0, 6);
-    const q = value.toLowerCase();
-    return employees.filter(e => `${e.first_name} ${e.last_name}`.toLowerCase().includes(q)).slice(0, 6);
-  }, [employees, value]);
-  return (
-    <div className="relative">
-      <input
-        value={value} placeholder={placeholder}
-        onChange={e => onChange(e.target.value)}
-        onFocus={() => setOpen(true)}
-        onBlur={() => setTimeout(() => setOpen(false), 150)}
-        className={`w-full h-9 px-3 rounded-lg text-sm outline-none transition-colors ${t.inputBg}`}
-      />
-      {open && matches.length > 0 && (
-        <div className={`absolute z-20 mt-1 w-full rounded-lg ${t.glass} ${t.shadow} overflow-hidden`}>
-          {matches.map(e => (
-            <button key={e.id} type="button" onMouseDown={() => onChange(`${e.first_name} ${e.last_name}`, e)}
-              className={`w-full text-left px-3 py-1.5 text-xs ${t.textMuted} ${t.hoverBg} transition-colors`}>
-              {e.first_name} {e.last_name}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 // ─── FINDING FORM CARD ─────────────────────────────────────────────────────────
 
@@ -291,7 +206,7 @@ function InspectionFormModal({
               </div>
               <div className="md:col-span-2">
                 <FormField label="Inspector(s)" required>
-                  <EmployeeField
+                  <EmployeeNameInput
                     value={form.inspectors || ''}
                     onChange={(name, emp) => { set({ inspectors: name }); if (emp?.department) set({ department: emp.department }); }}
                     placeholder="Select or type inspector name(s)…"
@@ -300,12 +215,12 @@ function InspectionFormModal({
                 </FormField>
               </div>
               <FormField label="Location" required>
-                <PredictiveField historyKey="location" value={form.place || ''} onChange={v => set({ place: v })}
+                <PredictiveInput historyKey="sheq_location" value={form.place || ''} onChange={v => set({ place: v })}
                   placeholder="e.g. Main Warehouse"
                   hints={['Main Warehouse', 'Workshop', 'Electrical Substation', 'Crusher Bay', 'Processing Plant', 'Pit Area', 'Administration Block']} />
               </FormField>
               <FormField label="Department">
-                <PredictiveField historyKey="department" value={form.department || ''} onChange={v => set({ department: v })}
+                <PredictiveInput historyKey="sheq_department" value={form.department || ''} onChange={v => set({ department: v })}
                   placeholder="e.g. Engineering"
                   hints={['Engineering', 'Mechanical', 'Electrical', 'Mining', 'Processing', 'Safety', 'HR', 'Administration', 'Operations', 'Maintenance']} />
               </FormField>
@@ -366,10 +281,10 @@ function InspectionFormModal({
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <FormField label="Head of Department Name">
-                  <EmployeeField value={form.hodName || ''} onChange={name => set({ hodName: name })} placeholder="Select or type HOD name…" />
+                  <EmployeeNameInput value={form.hodName || ''} onChange={name => set({ hodName: name })} placeholder="Select or type HOD name…" />
                 </FormField>
                 <FormField label="SHEQ Official Name">
-                  <EmployeeField value={form.sheqOfficialName || ''} onChange={name => set({ sheqOfficialName: name })} placeholder="Select or type SHEQ official name…" />
+                  <EmployeeNameInput value={form.sheqOfficialName || ''} onChange={name => set({ sheqOfficialName: name })} placeholder="Select or type SHEQ official name…" />
                 </FormField>
               </div>
               <p className={`text-[11px] ${t.textFaint}`}>Signatures will be captured after submission / approval.</p>
