@@ -66,6 +66,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         onCustomize={() => s.setCustomizeOpen(true)}
         onPreferences={() => { setPrefsWelcome(false); setPrefsOpen(true); }}
         accentHex={bgAccent}
+        visibleCategories={s.visibleCategories}
       />
 
       <div className="flex flex-1 overflow-hidden">
@@ -77,6 +78,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           favoriteModules={s.favoriteModules}
           accentHex={bgAccent}
           onToggleFavorite={s.toggleFavorite}
+          visibleCategories={s.visibleCategories}
         />
 
         <main className={`flex-1 overflow-y-auto transition-[margin] duration-300 ${s.sidebarCollapsed ? 'lg:ml-[76px]' : 'lg:ml-64'} pb-9`}>

@@ -17,8 +17,10 @@ import {
   ClipboardList, ClipboardPlus, Plus, User, Gauge,
   Sun, Receipt, Settings, Award, Truck, Radar,
   Droplet, FileCheck, LayoutDashboard, ShoppingCart, Car,
+  Wallet, DollarSign,
 } from '@/components/shared/theme';
 import type { Accent } from '@/components/shared/theme';
+import type { UserRole } from '@/lib/supabase';
 import { trackModuleOpen } from '@/lib/usage';
 
 export interface Module {
@@ -40,6 +42,9 @@ export interface Category {
   accent: Accent;
   modules: Module[];
   growth?: string;
+  /** Minimum role required to see this category at all (grid + sidebar + search).
+   * Omitted = visible to everyone signed in, same as every existing category. */
+  minRole?: UserRole;
 }
 
 export interface QuickAction {
@@ -67,6 +72,13 @@ export const CATEGORIES: Category[] = [
       { icon: HardHat,      title: 'Contractors',  description: 'Contractor & vendor management', href: '/contractors', tags: ['Vendors'] },
       { icon: Award,        title: 'Competency',   description: 'Employee competency matrix', href: '/competency', tags: ['HR', 'Skills'] },
       { icon: Settings,     title: 'Admin Panel',  description: 'System administration', href: '/admin', tags: ['System'] },
+    ],
+  },
+  {
+    id: 'finance', title: 'Finance & Accounting', description: 'Track revenue, expenses and profitability',
+    icon: Wallet, accent: 'emerald', minRole: 'manager',
+    modules: [
+      { icon: DollarSign, title: 'Accounting', description: 'Transactions, expenses, receipts & profit/loss', href: '/accounting', tags: ['Finance', 'Accounting'], featured: true },
     ],
   },
   {

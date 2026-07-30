@@ -17,8 +17,8 @@ import {
   CardIconButton, ViewToggle, staggerContainer, fadeUp, ACCENT, ACCENT_RGBA, ACCENT_HEX, rgbaFromHexSafe, SPACING, type Accent,
 } from '@/components/shared/theme';
 import {
-  AppShell, useAppShell, CATEGORIES, QUICK_ACTIONS, trackModuleUsage, useDashboardData,
-  TOTAL_MODULES, TOTAL_CATEGORIES, type Module, type QuickAction,
+  AppShell, useAppShell, QUICK_ACTIONS, trackModuleUsage, useDashboardData,
+  type Module, type QuickAction, type Category,
 } from '@/components/app-shell';
 
 // ─── Dashboard-only data (not shell chrome) ─────────────────────────────────
@@ -282,7 +282,7 @@ function CategorySection({
   category, isExpanded, onToggle, onQuickView, favorites, onToggleFavorite, quickActions, onToggleQuickAction, accentHex,
   selectMode, selectedHrefs, onToggleSelected, viewMode,
 }: {
-  category: typeof CATEGORIES[0]; isExpanded: boolean; onToggle: () => void; onQuickView: (m: Module, accent: Accent) => void;
+  category: Category; isExpanded: boolean; onToggle: () => void; onQuickView: (m: Module, accent: Accent) => void;
   favorites: Set<string>; onToggleFavorite: (href: string) => void;
   quickActions: Set<string>; onToggleQuickAction: (href: string) => void; accentHex: string;
   selectMode: boolean; selectedHrefs: Set<string>; onToggleSelected: (href: string) => void;
@@ -503,7 +503,7 @@ function IntroSlides() {
 
 // ─── Dashboard Header ────────────────────────────────────────────────────────
 
-function DashboardHeader() {
+function DashboardHeader({ moduleCount, categoryCount }: { moduleCount: number; categoryCount: number }) {
   const [now, setNow] = useState<Date | null>(null);
   const t = useTheme();
   const { stats: liveStats } = useDashboardData();
@@ -563,8 +563,8 @@ function DashboardHeader() {
         className="flex flex-wrap items-center gap-x-8 gap-y-3 mt-7"
       >
         {[
-          { label: 'Modules', value: TOTAL_MODULES, suffix: '' },
-          { label: 'Departments', value: TOTAL_CATEGORIES, suffix: '' },
+          { label: 'Modules', value: moduleCount, suffix: '' },
+          { label: 'Departments', value: categoryCount, suffix: '' },
           { label: 'Team members', value: liveStats.employeeCount ?? 0, suffix: '' },
           { label: 'Open Breakdowns', value: liveStats.openBreakdowns ?? 0, suffix: '' },
         ].map((stat, i) => (
@@ -611,12 +611,12 @@ function DashboardContent() {
   ];
   const [quickView, setQuickView] = useState<{ module: Module; accent: Accent } | null>(null);
   const [expandedMap, setExpandedMap] = useState<Record<string, boolean>>(
-    () => Object.fromEntries(CATEGORIES.map(c => [c.id, true]))
+    () => Object.fromEntries(s.visibleCategories.map(c => [c.id, true]))
   );
 
   const toggleCategory = (id: string) => setExpandedMap(prev => ({ ...prev, [id]: !prev[id] }));
   const allExpanded = Object.values(expandedMap).every(Boolean);
-  const toggleAll = () => setExpandedMap(Object.fromEntries(CATEGORIES.map(c => [c.id, !allExpanded])));
+  const toggleAll = () => setExpandedMap(Object.fromEntries(s.visibleCategories.map(c => [c.id, !allExpanded])));
 
   // ── Multi-select-to-favorites: pick several module tiles at once, then pin them
   // all in a single action instead of tapping the bookmark icon on each one. ──
@@ -648,9 +648,9 @@ function DashboardContent() {
   };
 
   const filteredCategories = useMemo(() => {
-    if (!s.searchQuery) return CATEGORIES;
+    if (!s.searchQuery) return s.visibleCategories;
     const query = s.searchQuery.toLowerCase();
-    return CATEGORIES.map(cat => ({
+    return s.visibleCategories.map(cat => ({
       ...cat,
       modules: cat.modules.filter(m =>
         m.title.toLowerCase().includes(query) ||
@@ -658,7 +658,7 @@ function DashboardContent() {
         m.tags?.some(tag => tag.toLowerCase().includes(query))
       ),
     })).filter(cat => cat.modules.length > 0);
-  }, [s.searchQuery]);
+  }, [s.searchQuery, s.visibleCategories]);
 
   const totalResults = filteredCategories.reduce((sum, cat) => sum + cat.modules.length, 0);
 
@@ -697,7 +697,12 @@ function DashboardContent() {
         )}
       </AnimatePresence>
 
-      {!s.searchQuery && <DashboardHeader />}
+      {!s.searchQuery && (
+        <DashboardHeader
+          moduleCount={s.visibleCategories.reduce((n, c) => n + c.modules.length, 0)}
+          categoryCount={s.visibleCategories.length}
+        />
+      )}
 
       {/* KPIs */}
       <motion.div variants={staggerContainer} initial="hidden" animate="show" className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-8">

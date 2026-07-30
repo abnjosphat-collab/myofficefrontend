@@ -11,7 +11,7 @@ import {
 import {
   useTheme, Collapse, staggerContainer, fadeUp, ACCENT_RGBA, rgbaFromHexSafe, type Accent,
 } from '@/components/shared/theme';
-import { CATEGORIES, trackModuleUsage, type Category, type Module } from './modules';
+import { trackModuleUsage, type Category, type Module } from './modules';
 import { useDashboardData } from './useDashboardData';
 
 function SidebarCategoryRow({ cat, isOpen, onToggle, accentHex }: { cat: Category; isOpen: boolean; onToggle: () => void; accentHex: string }) {
@@ -51,10 +51,11 @@ function SidebarCategoryRow({ cat, isOpen, onToggle, accentHex }: { cat: Categor
 }
 
 export function SidebarNavigation({
-  isOpen, onClose, collapsed, onToggleCollapsed, favoriteModules, accentHex, onToggleFavorite,
+  isOpen, onClose, collapsed, onToggleCollapsed, favoriteModules, accentHex, onToggleFavorite, visibleCategories,
 }: {
   isOpen: boolean; onClose: () => void; collapsed: boolean; onToggleCollapsed: () => void;
   favoriteModules: { module: Module; accent: Accent }[]; accentHex: string; onToggleFavorite: (href: string) => void;
+  visibleCategories: Category[];
 }) {
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({ favorites: true, modules: false, activity: false, status: false, tips: false });
   const [expandedCats, setExpandedCats] = useState<Record<string, boolean>>({});
@@ -180,7 +181,7 @@ export function SidebarNavigation({
             </button>
             <Collapse open={!!expandedSections.modules}>
               <div className="space-y-0.5 pt-1">
-                {CATEGORIES.map(cat => (
+                {visibleCategories.map(cat => (
                   <SidebarCategoryRow key={cat.id} cat={cat} isOpen={!!expandedCats[cat.id]} onToggle={() => toggleCat(cat.id)} accentHex={accentHex} />
                 ))}
               </div>

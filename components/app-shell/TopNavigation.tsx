@@ -10,13 +10,13 @@ import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Bell, Loader2, Menu, Search, Settings, SlidersHorizontal, Sun, Moon, X, Clock, ArrowUpRight, Building, IconStyleGlyph, Palette } from '@/components/shared/theme';
 import { useTheme, useIconStyle, rgbaFromHexSafe, ACCENT_HEX } from '@/components/shared/theme';
-import { CATEGORIES } from './modules';
+import type { Category } from './modules';
 import { AuthMenu } from './AuthMenu';
 import { useNotifications } from './useNotifications';
 import { trackSearch, getSearchHistory, clearSearchHistory } from '@/lib/usage';
 
 export function TopNavigation({
-  onMenuToggle, searchQuery, onSearchChange, mobileSearchOpen, setMobileSearchOpen, onCustomize, onPreferences, accentHex,
+  onMenuToggle, searchQuery, onSearchChange, mobileSearchOpen, setMobileSearchOpen, onCustomize, onPreferences, accentHex, visibleCategories,
 }: {
   onMenuToggle: () => void;
   searchQuery: string;
@@ -26,6 +26,7 @@ export function TopNavigation({
   onCustomize: () => void;
   onPreferences: () => void;
   accentHex: string;
+  visibleCategories: Category[];
 }) {
   const t = useTheme();
   const router = useRouter();
@@ -48,11 +49,11 @@ export function TopNavigation({
   const searchMatches = useMemo(() => {
     if (!searchQuery) return [];
     const query = searchQuery.toLowerCase();
-    return CATEGORIES.flatMap(cat => cat.modules
+    return visibleCategories.flatMap(cat => cat.modules
       .filter(m => m.title.toLowerCase().includes(query) || m.description.toLowerCase().includes(query))
       .map(m => ({ module: m, accent: cat.accent }))
     ).slice(0, 8);
-  }, [searchQuery]);
+  }, [searchQuery, visibleCategories]);
 
   const refreshHistory = useCallback(() => setHistory(getSearchHistory(6)), []);
 
