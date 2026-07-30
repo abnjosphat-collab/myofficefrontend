@@ -7,6 +7,7 @@ import { jsPDF } from 'jspdf';
 import { saveAs } from 'file-saver';
 import { Document, Packer, Paragraph, TextRun, AlignmentType, Table, TableCell, TableRow, WidthType, BorderStyle } from 'docx';
 import { AppShell } from '@/components/app-shell';
+import { PredictiveInput } from '@/components/shared/PredictiveInput';
 import { formatDate } from '@/lib/format';
 import {
   useTheme, PageHero, StatTile, StatusBadge, FormField, PrimaryButton, useCollapseSection, GlowCard, ACCENT_HEX, SelectField,
@@ -541,12 +542,14 @@ const QuotationGeneratorContent = () => {
         {!previewMode && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Panel id="notes" title="Notes" icon={Lightbulb} sections={sections}>
-              <textarea value={quotation.notes} onChange={(e) => setQuotation({ ...quotation, notes: e.target.value })} placeholder="Additional notes for the client..." rows={4}
-                className={`w-full px-3 py-2 rounded-lg text-sm outline-none transition-colors resize-none ${t.inputBg}`} />
+              <PredictiveInput historyKey="quotation_notes" multiline rows={4}
+                value={quotation.notes} onChange={v => setQuotation({ ...quotation, notes: v })} placeholder="Additional notes for the client..."
+                inputClassName={t.inputBg} />
             </Panel>
             <Panel id="terms" title="Terms & Conditions" icon={Shield} sections={sections}>
-              <textarea value={quotation.terms} onChange={(e) => setQuotation({ ...quotation, terms: e.target.value })} placeholder="Payment terms and conditions..." rows={4}
-                className={`w-full px-3 py-2 rounded-lg text-sm outline-none transition-colors resize-none ${t.inputBg}`} />
+              <PredictiveInput historyKey="quotation_terms" multiline rows={4}
+                value={quotation.terms} onChange={v => setQuotation({ ...quotation, terms: v })} placeholder="Payment terms and conditions..."
+                inputClassName={t.inputBg} />
             </Panel>
           </div>
         )}

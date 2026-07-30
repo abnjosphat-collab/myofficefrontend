@@ -8,6 +8,7 @@ import {
   RefreshCw, Wrench, Zap, ShieldAlert, BookOpen, Search, X,
 } from "@/components/shared/theme";
 import { AppShell } from '@/components/app-shell';
+import { PredictiveInput } from '@/components/shared/PredictiveInput';
 import { toast } from "sonner";
 import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, ProgressBar, FormField, FormActions,
@@ -92,8 +93,8 @@ function ActionPlanCard({ item, index, onChange, onRemove }: { item: ActionPlanI
         <button type="button" onClick={() => onRemove(item.id)} title="Remove" className="text-red-400 hover:text-red-300 transition-colors"><Trash2 className="h-3.5 w-3.5" /></button>
       </div>
       <div className="grid grid-cols-2 gap-2">
-        <div className="col-span-2"><FormField label="Required Action *"><input className={inputCls} value={item.action} placeholder="Describe the required action..." onChange={e => onChange(item.id, 'action', e.target.value)} title="Action" /></FormField></div>
-        <FormField label="By Whom *"><input className={inputCls} value={item.byWhom} placeholder="Responsible person" onChange={e => onChange(item.id, 'byWhom', e.target.value)} title="Responsible person" /></FormField>
+        <div className="col-span-2"><FormField label="Required Action *"><PredictiveInput historyKey="pto_required_action" value={item.action} placeholder="Describe the required action..." onChange={v => onChange(item.id, 'action', v)} inputClassName={inputCls} /></FormField></div>
+        <FormField label="By Whom *"><PredictiveInput historyKey="handover_supervisor" value={item.byWhom} placeholder="Responsible person" onChange={v => onChange(item.id, 'byWhom', v)} inputClassName={inputCls} /></FormField>
         <FormField label="By When *"><input type="date" className={inputCls} value={item.byWhen} title="Due date" onChange={e => onChange(item.id, 'byWhen', e.target.value)} /></FormField>
         <FormField label="Status">
           <SelectField size="form" value={item.status} title="Status" onChange={v => onChange(item.id, 'status', v as ActionStatus)}

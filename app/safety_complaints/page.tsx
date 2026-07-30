@@ -10,6 +10,7 @@ import {
 } from '@/components/shared/theme';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
+import { PredictiveInput } from '@/components/shared/PredictiveInput';
 import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, FormField, FormActions,
   useCollapseSection, CenterModal, PrimaryButton, EmptyState, ACCENT_HEX, SelectField,
@@ -136,7 +137,7 @@ function ComplaintForm({ open, onClose, initial, onSave }: {
             </FormField>
           </div>
 
-          <FormField label="Location"><input type="text" value={form.location || ''} onChange={e => set('location', e.target.value)} placeholder="Where was the complaint raised?" className={inputCls} /></FormField>
+          <FormField label="Location"><PredictiveInput historyKey="safety_complaint_location" value={form.location || ''} onChange={v => set('location', v)} placeholder="Where was the complaint raised?" inputClassName={inputCls} /></FormField>
 
           <FormField label="Action Plan">
             <textarea value={form.actionPlan || ''} onChange={e => set('actionPlan', e.target.value)} placeholder="Describe the corrective action plan…" rows={2} className={`${inputCls} resize-none`} />
@@ -150,7 +151,7 @@ function ComplaintForm({ open, onClose, initial, onSave }: {
           <div className={`rounded-xl p-3 ${t.chipBg} space-y-3`}>
             <p className={`text-[10px] font-semibold uppercase tracking-wider ${t.textFaint}`}>Foreman / Supervisor</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <FormField label="Name"><input type="text" value={form.supervisorName || ''} onChange={e => set('supervisorName', e.target.value)} placeholder="Supervisor / Foreman name" className={inputCls} /></FormField>
+              <FormField label="Name"><PredictiveInput historyKey="handover_supervisor" value={form.supervisorName || ''} onChange={v => set('supervisorName', v)} placeholder="Supervisor / Foreman name" inputClassName={inputCls} /></FormField>
               <FormField label="Signature (initials)"><input type="text" value={form.supervisorSignature || ''} onChange={e => set('supervisorSignature', e.target.value)} placeholder="e.g. J.D." className={inputCls} /></FormField>
             </div>
           </div>

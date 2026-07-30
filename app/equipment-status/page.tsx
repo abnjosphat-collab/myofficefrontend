@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { Activity, RefreshCw, Search, Check } from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
+import { PredictiveInput } from '@/components/shared/PredictiveInput';
 import { useTheme, PageHero, CenterModal, FormField, PrimaryButton, EmptyState, GlowCard, SelectField } from '@/components/shared/theme';
 import { useEquipment, toBoardStatus, type BoardStatus } from '@/lib/useEquipment';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
@@ -45,9 +46,9 @@ function StatusDrawer({ entry, onClose, onSave }: {
           </div>
         </FormField>
         <FormField label="Defect / Note">
-          <textarea value={defect} onChange={e => setDefect(e.target.value)} rows={2}
-            className={`w-full px-3 py-2 rounded-lg text-sm outline-none transition-colors resize-none ${t.inputBg}`}
-            placeholder="Describe defect or note…" />
+          <PredictiveInput historyKey="equipment_status_defect" multiline rows={2}
+            value={defect} onChange={setDefect} placeholder="Describe defect or note…"
+            inputClassName={t.inputBg} />
         </FormField>
         <div className="grid grid-cols-2 gap-3">
           <FormField label="Job Card No.">

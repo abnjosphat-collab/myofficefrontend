@@ -3,6 +3,7 @@
 
 import { useState } from 'react';
 import { AppShell } from '@/components/app-shell';
+import { PredictiveInput } from '@/components/shared/PredictiveInput';
 import { Radar, Plus, X, RefreshCw } from '@/components/shared/theme';
 import { useTheme, PageHero, StatTile, StatusBadge, FormField, PrimaryButton, ACCENT_HEX, SelectField } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
@@ -89,8 +90,8 @@ function ConditionMonitoringContent() {
             <button type="button" onClick={() => setShowAdd(false)} title="Close" aria-label="Close" className={`h-9 w-9 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}><X className="w-5 h-5" /></button>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
-            <FormField label="Equipment"><input placeholder="Equipment" value={form.equipment} onChange={e => setForm(f => ({ ...f, equipment: e.target.value }))} className={inputCls} /></FormField>
-            <FormField label="Component"><input placeholder="Component" value={form.component} onChange={e => setForm(f => ({ ...f, component: e.target.value }))} className={inputCls} /></FormField>
+            <FormField label="Equipment"><PredictiveInput historyKey="cm_equipment" placeholder="Equipment" value={form.equipment} onChange={v => setForm(f => ({ ...f, equipment: v }))} inputClassName={inputCls} /></FormField>
+            <FormField label="Component"><PredictiveInput historyKey="cm_component" placeholder="Component" value={form.component} onChange={v => setForm(f => ({ ...f, component: v }))} inputClassName={inputCls} /></FormField>
             <FormField label="Type">
               <SelectField size="form" title="Type" value={form.type} onChange={v => setForm(f => ({ ...f, type: v as CMType }))}
                 options={CM_TYPES.map(ty => ({ value: ty, label: ty }))} />

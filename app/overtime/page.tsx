@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect, useMemo, useRef, ElementType } from 'react';
 import { AppShell } from '@/components/app-shell';
+import { PredictiveInput } from '@/components/shared/PredictiveInput';
 import {
   Clock4, Plus, Search, RefreshCw, CheckCircle2, XCircle,
   FileText, Eye, Trash2, Edit, LayoutGrid, List, AlertCircle,
@@ -228,8 +229,9 @@ function OTFormModal({ open, onClose, onSave, editing }: {
         )}
 
         <FormField label="Reason">
-          <textarea rows={3} value={form.reason} onChange={e => set('reason', e.target.value)} placeholder="Reason for overtime (optional)..."
-            className={`text-sm rounded-lg px-3 py-2 w-full outline-none transition-colors resize-none ${t.inputBg}`} />
+          <PredictiveInput historyKey="overtime_reason" multiline rows={3}
+            value={form.reason} onChange={v => set('reason', v)} placeholder="Reason for overtime (optional)..."
+            inputClassName={`text-sm ${t.inputBg}`} />
         </FormField>
 
         <div className="grid grid-cols-2 gap-3">

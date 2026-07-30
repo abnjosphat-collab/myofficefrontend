@@ -11,6 +11,7 @@ import {
   CheckCircle2, Clock, XCircle,
 } from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
+import { PredictiveInput } from '@/components/shared/PredictiveInput';
 import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput,
   FormField, FormActions, useCollapseSection, CenterModal, ProgressBar, ACCENT_HEX, SelectField, LoadingState, AutofillInput,
@@ -229,7 +230,7 @@ function ReqModal({ open, onClose, onSave, editing }: {
                 </div>
                 <div className="col-span-2">
                   <FormField label="Reason">
-                    <input className={inputCls} placeholder="Optional" value={it.reason} onChange={e => setItem(i, { reason: e.target.value })} />
+                    <PredictiveInput historyKey="requisition_item_reason" placeholder="Optional" value={it.reason} onChange={v => setItem(i, { reason: v })} inputClassName={t.inputBg} />
                   </FormField>
                 </div>
                 <div className="col-span-1 flex items-end pb-0.5">

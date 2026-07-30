@@ -3,6 +3,7 @@
 
 import { useState } from 'react';
 import { AppShell } from '@/components/app-shell';
+import { PredictiveInput } from '@/components/shared/PredictiveInput';
 import { ShieldCheck, Plus, X, RefreshCw } from '@/components/shared/theme';
 import { useModuleData } from '@/lib/useModuleData';
 import { daysUntil } from '@/lib/dates';
@@ -101,8 +102,8 @@ function ComplianceRegisterContent() {
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
             <FormField label="Equipment Name"><input placeholder="Equipment Name" value={form.equipment_name} onChange={e => setForm(f => ({ ...f, equipment_name: e.target.value }))} className={inputCls} /></FormField>
-            <FormField label="Inspection Type"><input placeholder="Inspection Type" value={form.inspection_type} onChange={e => setForm(f => ({ ...f, inspection_type: e.target.value }))} className={inputCls} /></FormField>
-            <FormField label="Regulatory Body"><input placeholder="Regulatory Body" value={form.regulatory_body} onChange={e => setForm(f => ({ ...f, regulatory_body: e.target.value }))} className={inputCls} /></FormField>
+            <FormField label="Inspection Type"><PredictiveInput historyKey="compliance_inspection_type" placeholder="Inspection Type" value={form.inspection_type} onChange={v => setForm(f => ({ ...f, inspection_type: v }))} inputClassName={inputCls} /></FormField>
+            <FormField label="Regulatory Body"><PredictiveInput historyKey="compliance_regulatory_body" placeholder="Regulatory Body" value={form.regulatory_body} onChange={v => setForm(f => ({ ...f, regulatory_body: v }))} inputClassName={inputCls} /></FormField>
             <FormField label="Certificate No."><input placeholder="Certificate No." value={form.certificate_no} onChange={e => setForm(f => ({ ...f, certificate_no: e.target.value }))} className={inputCls} /></FormField>
             <FormField label="Expiry Date"><input type="date" title="Expiry date" value={form.expiry_date} onChange={e => setForm(f => ({ ...f, expiry_date: e.target.value }))} className={inputCls} /></FormField>
             <FormField label="Responsible Person"><input placeholder="Responsible Person" value={form.responsible} onChange={e => setForm(f => ({ ...f, responsible: e.target.value }))} className={inputCls} /></FormField>

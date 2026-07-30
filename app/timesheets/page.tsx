@@ -18,6 +18,7 @@ import {
   LayoutGrid, Layers, Sun,
 } from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
+import { PredictiveInput } from '@/components/shared/PredictiveInput';
 import { useTheme, PageHero, ACCENT_HEX, useCollapseSection, EmptyState } from '@/components/shared/theme';
 import { toLocalISODate } from '@/lib/dates';
 import { zimHolidayName } from '@/lib/zimHolidays';
@@ -1569,8 +1570,9 @@ function TimesheetsContent() {
                     <User className="h-3.5 w-3.5 shrink-0 text-brand-400" />
                     {emp.name}
                   </label>
-                  <textarea rows={2} placeholder={`Notes for ${emp.name.split(' ')[0]}…`} value={empNotes[emp.id] || ''} onChange={e => updateEmpNote(emp.id, e.target.value)}
-                    className={`w-full ${t.inputBg} rounded-lg text-xs px-2.5 py-1.5 resize-none outline-none transition-colors`} />
+                  <PredictiveInput historyKey="timesheets_period_note" multiline rows={2}
+                    placeholder={`Notes for ${emp.name.split(' ')[0]}…`} value={empNotes[emp.id] || ''} onChange={v => updateEmpNote(emp.id, v)}
+                    inputClassName={`${t.inputBg} text-xs px-2.5 py-1.5`} />
                 </div>
               ))}
             </div>

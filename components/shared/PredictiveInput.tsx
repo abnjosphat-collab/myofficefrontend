@@ -2,7 +2,9 @@
 
 /**
  * PredictiveInput — single-line input + textarea with:
- *  • localStorage history per key (saves up to 40 recent unique values)
+ *  • localStorage history per key (up to 40 unique values, ranked by how often
+ *    each one's actually been used — a real "most frequently typed" ranking,
+ *    not just "most recent" — with recency as the tiebreaker)
  *  • Inline ghost-text suggestion (Tab to accept)
  *  • Dropdown for multiple matching suggestions
  *  • Predefined hints that can be seeded per-instance
@@ -13,17 +15,35 @@ import { useTheme } from '@/components/shared/theme';
 
 const MAX_HISTORY = 40;
 
-function loadHistory(key: string): string[] {
+interface HistoryEntry { value: string; count: number; lastUsed: number }
+
+// Older saved history was a plain string[] (recency-only, no counts) — treat
+// each as used once so a pre-existing history keeps working instead of
+// silently resetting the first time this ships.
+const byFrequencyThenRecency = (a: HistoryEntry, b: HistoryEntry) => b.count - a.count || b.lastUsed - a.lastUsed;
+
+function loadHistory(key: string): HistoryEntry[] {
   if (typeof window === 'undefined') return [];
   try {
-    return JSON.parse(localStorage.getItem(`prd_hist_${key}`) ?? '[]') as string[];
+    const raw = JSON.parse(localStorage.getItem(`prd_hist_${key}`) ?? '[]');
+    if (!Array.isArray(raw)) return [];
+    const entries: HistoryEntry[] = raw.length > 0 && typeof raw[0] === 'string'
+      ? (raw as string[]).map((value, i) => ({ value, count: 1, lastUsed: -i }))
+      : raw as HistoryEntry[];
+    return [...entries].sort(byFrequencyThenRecency);
   } catch { return []; }
 }
 
 function saveToHistory(key: string, value: string) {
   if (!value.trim()) return;
-  const existing = loadHistory(key).filter(v => v !== value);
-  const updated = [value, ...existing].slice(0, MAX_HISTORY);
+  const existing = loadHistory(key);
+  const match = existing.find(e => e.value === value);
+  const rest = existing.filter(e => e.value !== value);
+  const entry: HistoryEntry = { value, count: (match?.count ?? 0) + 1, lastUsed: Date.now() };
+  // Ranked by frequency first (most-typed floats up over time), recency
+  // breaks ties — so a value used 10 times still ranks above one used
+  // once yesterday.
+  const updated = [entry, ...rest].sort(byFrequencyThenRecency).slice(0, MAX_HISTORY);
   localStorage.setItem(`prd_hist_${key}`, JSON.stringify(updated));
 }
 
@@ -66,7 +86,7 @@ export function PredictiveInput({
   hints = [],
   inputClassName = '',
 }: PredictiveInputProps) {
-  const [history,   setHistory]   = useState<string[]>([]);
+  const [history,   setHistory]   = useState<HistoryEntry[]>([]);
   const [ghost,     setGhost]     = useState('');        // inline ghost text
   const [open,      setOpen]      = useState(false);    // dropdown open
   const [highlight, setHighlight] = useState(0);
@@ -78,12 +98,14 @@ export function PredictiveInput({
     setHistory(loadHistory(historyKey));
   }, [historyKey]);
 
-  // Derive suggestions and ghost text
+  // Derive suggestions and ghost text. `history` is already frequency-then-
+  // recency ranked; hints are seeded defaults, so they go after real history
+  // (a value the user's actually typed should always outrank a static hint).
   const suggestions = useCallback(() => {
-    if (!value.trim()) return [...hints, ...history].filter((v, i, a) => a.indexOf(v) === i).slice(0, 8);
+    const ranked = [...history.map(e => e.value), ...hints].filter((v, i, a) => a.indexOf(v) === i);
+    if (!value.trim()) return ranked.slice(0, 8);
     const q = value.toLowerCase();
-    const all = [...hints, ...history].filter((v, i, a) => a.indexOf(v) === i);
-    return all.filter(s => s.toLowerCase().includes(q) && s.toLowerCase() !== q).slice(0, 8);
+    return ranked.filter(s => s.toLowerCase().includes(q) && s.toLowerCase() !== q).slice(0, 8);
   }, [value, history, hints]);
 
   // Update ghost text

@@ -3,6 +3,7 @@
 
 import { useState } from 'react';
 import { AppShell } from '@/components/app-shell';
+import { PredictiveInput } from '@/components/shared/PredictiveInput';
 import { ClipboardList, ChevronDown, ChevronUp, Plus, X, Moon, Sun, Clock, RefreshCw } from '@/components/shared/theme';
 import { useModuleData } from '@/lib/useModuleData';
 import { useTheme, PageHero, StatTile, StatusBadge, FormField, PrimaryButton, SelectField } from '@/components/shared/theme';
@@ -106,9 +107,9 @@ function HandoverContent() {
               <SelectField size="form" title="Shift" value={form.shift} onChange={v => setForm(f => ({ ...f, shift: v as Shift }))}
                 options={SHIFTS.map(s => ({ value: s, label: s }))} />
             </FormField>
-            <FormField label="Section"><input placeholder="Section" value={form.section} onChange={e => setForm(f => ({ ...f, section: e.target.value }))} className={inputCls} /></FormField>
-            <FormField label="Outgoing Supervisor"><input placeholder="Outgoing Supervisor" value={form.outgoing_supervisor} onChange={e => setForm(f => ({ ...f, outgoing_supervisor: e.target.value }))} className={inputCls} /></FormField>
-            <FormField label="Incoming Supervisor"><input placeholder="Incoming Supervisor" value={form.incoming_supervisor} onChange={e => setForm(f => ({ ...f, incoming_supervisor: e.target.value }))} className={inputCls} /></FormField>
+            <FormField label="Section"><PredictiveInput historyKey="handover_section" placeholder="Section" value={form.section} onChange={v => setForm(f => ({ ...f, section: v }))} inputClassName={inputCls} /></FormField>
+            <FormField label="Outgoing Supervisor"><PredictiveInput historyKey="handover_supervisor" placeholder="Outgoing Supervisor" value={form.outgoing_supervisor} onChange={v => setForm(f => ({ ...f, outgoing_supervisor: v }))} inputClassName={inputCls} /></FormField>
+            <FormField label="Incoming Supervisor"><PredictiveInput historyKey="handover_supervisor" placeholder="Incoming Supervisor" value={form.incoming_supervisor} onChange={v => setForm(f => ({ ...f, incoming_supervisor: v }))} inputClassName={inputCls} /></FormField>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
             <FormField label="Completed Work"><textarea rows={3} placeholder="Completed work..." value={form.completed_work} onChange={e => setForm(f => ({ ...f, completed_work: e.target.value }))} className={`${inputCls} resize-none h-auto py-2`} /></FormField>
