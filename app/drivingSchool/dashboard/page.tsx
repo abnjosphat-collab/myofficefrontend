@@ -22,7 +22,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts';
 import {
-  LESSON_TYPES, LESSON_PRICE, WEEKDAY_NAMES, isVip,
+  LESSON_TYPES, LESSON_PRICE, WEEKDAY_NAMES, isVip, TYPE_HEX, fmtDate,
   type Booking, type BookingStatus, type Instructor, type LessonType, type PaymentStatus, type Student, type VidTest,
 } from './types';
 import { generateAllMockData, businessSlots, toISODate, addDays } from './mockData';
@@ -31,7 +31,6 @@ import CalendarTab from './CalendarTab';
 
 const STATUS_HEX: Record<BookingStatus, string> = { upcoming: ACCENT_HEX.blue, completed: '#34d399', cancelled: '#94a3b8' };
 const PAYMENT_HEX: Record<PaymentStatus, string> = { paid: '#34d399', pending: '#fbbf24', overdue: '#f87171' };
-const TYPE_HEX: Record<LessonType, string> = { Practical: ACCENT_HEX.blue, Highway: '#a78bfa', Theory: '#34d399', 'Test Prep': '#fbbf24' };
 
 // A single-hue violet scale (matching the app's own brand accent) reads as far
 // more refined than a traffic-light blue/amber/red ramp for a density map —
@@ -53,11 +52,6 @@ function mondayOf(d: Date): Date {
   r.setHours(0, 0, 0, 0);
   return r;
 }
-function fmtDate(iso: string): string {
-  const d = new Date(`${iso}T00:00:00`);
-  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
-}
-
 type Tab = 'overview' | 'bookings' | 'schedule' | 'calendar' | 'students' | 'payments' | 'analytics';
 
 export default function DrivingSchoolDashboard() {

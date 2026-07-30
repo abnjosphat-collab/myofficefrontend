@@ -5,15 +5,14 @@
 
 import React, { useMemo, useState } from 'react';
 import {
-  useTheme, StatusBadge, CenterModal, ACCENT_HEX,
+  useTheme, StatusBadge, CenterModal,
 } from '@/components/shared/theme';
 import { ChevronLeft, ChevronRight, Star, Clock4 } from '@/components/shared/theme';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatCurrency } from '@/components/shared/utils';
-import { isVip, type Booking, type LessonType, type Student } from './types';
+import { isVip, TYPE_HEX, type Booking, type Student } from './types';
 import { toISODate, addDays } from './mockData';
 
-const TYPE_HEX: Record<LessonType, string> = { Practical: ACCENT_HEX.blue, Highway: '#a78bfa', Theory: '#34d399', 'Test Prep': '#fbbf24' };
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const WEEKDAY_HEAD = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 

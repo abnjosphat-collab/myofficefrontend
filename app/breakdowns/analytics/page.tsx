@@ -1,9 +1,7 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
-import { api } from '@/lib/apiClient';
+import { useState, useMemo } from 'react';
 import { AppShell } from '@/components/app-shell';
-import { toast } from 'sonner';
 import {
   TrendingUp, AlertTriangle, Wrench, Users, Package, Calendar,
   RefreshCw, Filter, X, BarChart3,
@@ -23,92 +21,10 @@ import {
   ComposedChart
 } from 'recharts';
 import { useTheme, PageHero, StatTile } from '@/components/shared/theme';
-
-// ===== TYPES =====
-interface HeatmapData {
-  heatmap: {
-    hour_day: number[][];
-    labels: {
-      hours: string[];
-      days: string[];
-    };
-  };
-  hourly_distribution: { hour: string; count: number }[];
-  daily_distribution: { day: string; count: number }[];
-  top_problem_machines: {
-    name: string;
-    count: number;
-    total_downtime: number;
-    department: string;
-    avg_downtime: number;
-    avg_repair_time: number;
-    avg_response_time: number;
-  }[];
-  top_artisans: {
-    name: string;
-    count: number;
-    total_repair_time: number;
-    avg_repair_time: number;
-  }[];
-  top_spare_parts: {
-    name: string;
-    count: number;
-    total_cost: number;
-    part_number: string;
-    total_quantity: number;
-  }[];
-  breakdown_type_distribution: { type: string; count: number }[];
-  priority_distribution: { priority: string; count: number }[];
-  status_distribution: { status: string; count: number }[];
-  department_comparison: { department: string; count: number; downtime: number }[];
-  monthly_trends: { month: string; count: number }[];
-  weekly_trends: { week: string; count: number }[];
-  location_distribution: { location: string; count: number }[];
-  response_time_by_hour: { hour: string; avg_response_time: number; count: number }[];
-  machine_downtime_scatter: {
-    name: string;
-    breakdowns: number;
-    total_downtime: number;
-    avg_downtime: number;
-    avg_repair_time: number;
-    department: string;
-  }[];
-  artisan_performance: {
-    name: string;
-    count: number;
-    total_repair_time: number;
-    avg_repair_time: number;
-  }[];
-  summary: {
-    total_breakdowns: number;
-    unique_machines: number;
-    unique_artisans: number;
-    unique_spares: number;
-    unique_departments: number;
-    unique_types: number;
-    total_downtime_minutes: number;
-    total_repair_time_minutes: number;
-    total_spare_cost: number;
-  };
-  response_time_heatmap: number[][];
-  type_hour_heatmap: Record<string, { hour: string; count: number }[]>;
-  type_day_heatmap: Record<string, { day: string; count: number }[]>;
-  dept_hour_heatmap: Record<string, { hour: string; count: number }[]>;
-  priority_hour_heatmap: Record<string, { hour: string; count: number }[]>;
-  artisan_hour_heatmap: Record<string, { hour: string; count: number }[]>;
-  location_hour_heatmap: Record<string, { hour: string; count: number }[]>;
-  monthly_day_heatmap: Record<string, { day: number; count: number }[]>;
-  filters_applied: {
-    date_from: string | null;
-    date_to: string | null;
-    department: string | null;
-    machine_id: string | null;
-  };
-  success: boolean;
-}
-
-// ===== HELPERS =====
-const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+import {
+  DAY_NAMES, getHeatmapColor, formatTime, formatCurrency, PIE_COLORS, PRIORITY_COLORS, STATUS_COLORS,
+} from './types';
+import { useBreakdownAnalyticsData } from './useBreakdownAnalyticsData';
 
 function useChartStyle() {
   const t = useTheme();
@@ -122,48 +38,6 @@ function useChartStyle() {
     cellBorderPeak: t.light ? 'rgba(15,23,42,0.5)' : 'rgba(255,255,255,0.6)',
   }), [t.light]);
 }
-
-const getHeatmapColor = (value: number, max: number, emptyCell: string): string => {
-  if (value === 0) return emptyCell;
-  const intensity = value / max;
-  if (intensity < 0.33) {
-    return `rgba(59, 130, 246, ${0.3 + 0.4 * intensity})`;
-  } else if (intensity < 0.66) {
-    return `rgba(245, 158, 11, ${0.4 + 0.4 * intensity})`;
-  } else {
-    return `rgba(239, 68, 68, ${0.5 + 0.5 * intensity})`;
-  }
-};
-
-const formatTime = (minutes: number): string => {
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  return h > 0 ? `${h}h ${m > 0 ? `${m}m` : ''}`.trim() : `${m}m`;
-};
-
-const formatCurrency = (value: number): string => {
-  return `$${value.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
-};
-
-const PIE_COLORS = [
-  '#3b82f6', '#ef4444', '#22c55e', '#f59e0b', '#8b5cf6',
-  '#ec4899', '#14b8a6', '#f97316', '#6366f1', '#84cc16',
-  '#0ea5e9', '#a855f7', '#eab308', '#10b981', '#06b6d4',
-];
-
-const PRIORITY_COLORS: Record<string, string> = {
-  critical: '#ef4444',
-  high: '#f97316',
-  medium: '#f59e0b',
-  low: '#22c55e',
-};
-
-const STATUS_COLORS: Record<string, string> = {
-  logged: '#3b82f6',
-  in_progress: '#f59e0b',
-  resolved: '#22c55e',
-  closed: '#6b7280',
-};
 
 // ===== HEATMAP CELL COMPONENT =====
 function HeatmapCell({ value, max, hour, day, cs }: { value: number; max: number; hour: number; day: number; cs: ReturnType<typeof useChartStyle> }) {
@@ -214,62 +88,24 @@ function BreakdownAnalyticsContent() {
   const t = useTheme();
   const cs = useChartStyle();
   const CustomTooltip = useCustomTooltip();
-  const [data, setData] = useState<HeatmapData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
-
-  // Filters
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
-  const [department, setDepartment] = useState('');
-  const [machineId, setMachineId] = useState('');
   const [showFilters, setShowFilters] = useState(false);
 
-  const fetchData = async () => {
-    try {
-      setRefreshing(true);
-      const params = new URLSearchParams();
-      if (dateFrom) params.append('date_from', dateFrom);
-      if (dateTo) params.append('date_to', dateTo);
-      if (department) params.append('department', department);
-      if (machineId) params.append('machine_id', machineId);
-
-      const result = await api.get<HeatmapData>(`/api/breakdowns/analytics/heatmap?${params}`);
-      if (result.success) {
-        setData(result);
-      } else {
-        throw new Error('API returned unsuccessful response');
-      }
-    } catch (error) {
-      console.error('Error fetching heatmap data:', error);
-      toast.error('Failed to load breakdown analytics');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const {
+    data, loading, refreshing, fetchData,
+    dateFrom, setDateFrom, dateTo, setDateTo, department, setDepartment, machineId, setMachineId,
+    handleApplyFilters: applyFilters, handleClearFilters: clearFilters, activeFilterCount,
+  } = useBreakdownAnalyticsData();
 
   const handleApplyFilters = () => {
-    fetchData();
+    applyFilters();
     setShowFilters(false);
   };
 
   const handleClearFilters = () => {
-    setDateFrom('');
-    setDateTo('');
-    setDepartment('');
-    setMachineId('');
-    fetchData();
+    clearFilters();
     setShowFilters(false);
   };
-
-  const activeFilterCount = [dateFrom, dateTo, department, machineId].filter(Boolean).length;
 
   // Calculate max value for heatmap coloring
   const maxHeatmapValue = data

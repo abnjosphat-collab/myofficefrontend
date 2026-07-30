@@ -14,12 +14,11 @@ import {
 } from '@/components/shared/theme';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatCurrency } from '@/components/shared/utils';
-import { LESSON_TYPES, isVip, type Booking, type LessonType, type Student, type VidTest } from './types';
+import { LESSON_TYPES, isVip, TYPE_HEX, type Booking, type LessonType, type Student, type VidTest } from './types';
 
 const VID_STATUS_HEX: Record<VidTest['status'], string> = { scheduled: ACCENT_HEX.blue, passed: '#34d399', failed: '#f87171' };
 
 const PACKAGE_HEX: Record<Student['package'], string> = { Basic: '#94a3b8', Standard: ACCENT_HEX.blue, Premium: '#fbbf24' };
-const TYPE_HEX: Record<LessonType, string> = { Practical: ACCENT_HEX.blue, Highway: '#a78bfa', Theory: '#34d399', 'Test Prep': '#fbbf24' };
 
 // A student reads as "test ready" once they've logged 3+ completed Practical/
 // Highway lessons and haven't already passed — a simple, explainable readiness

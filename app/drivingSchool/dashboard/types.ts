@@ -2,8 +2,22 @@
 // prototype dashboard. Same convention as the other vertical-app demos (bank,
 // roomRental, etc.): frontend-only, generated data, no backend.
 
+import { ACCENT_HEX } from '@/components/shared/theme';
+
 export const LESSON_TYPES = ['Practical', 'Highway', 'Theory', 'Test Prep'] as const;
 export type LessonType = typeof LESSON_TYPES[number];
+
+// Shared across every tab that shows a lesson-type badge/chart (page.tsx,
+// StudentsTab, CalendarTab) — was copy-pasted identically into all three.
+export const TYPE_HEX: Record<LessonType, string> = {
+  Practical: ACCENT_HEX.blue, Highway: '#a78bfa', Theory: '#34d399', 'Test Prep': '#fbbf24',
+};
+
+/** Shared "12 Aug" style date format, used across every tab. */
+export function fmtDate(iso: string): string {
+  const d = new Date(`${iso}T00:00:00`);
+  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+}
 
 export const LESSON_PRICE: Record<LessonType, number> = {
   Practical: 35, Highway: 45, Theory: 20, 'Test Prep': 55,

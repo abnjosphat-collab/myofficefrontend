@@ -1,36 +1,63 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# MyOffice — Frontend
 
-## Getting Started
+Next.js (App Router) frontend for the MyOffice ERP. Talks to the sibling
+[`backend/`](../backend) FastAPI service for real modules (personnel,
+maintenance, timesheets, SHEQ, etc.) and Supabase directly for auth. A
+handful of routes (`bank`, `roomRental`, `restaurant`, `cv-builder`, and
+similar) are self-contained frontend-only demo/vertical prototypes with no
+backend calls at all — that's intentional, not a gap.
 
-First, run the development server:
+See the root [`README.md`](../README.md) for how the two repos run together.
+
+## Quick start
 
 ```bash
+npm install
+cp .env.local.example .env.local   # fill in the backend URL + Supabase keys
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `http://localhost:3000`. If port 3000 is already taken, Next.js silently
+falls back to the next free port (3001, ...) — check the dev server's own
+startup log to see which port it actually bound to.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Environment variables
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+See `.env.local.example` for the full list. All three
+(`NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SUPABASE_URL`,
+`NEXT_PUBLIC_SUPABASE_ANON_KEY`) are required — pages that hit the backend or
+Supabase will fail without them.
 
-## Learn More
+## Architecture
 
-To learn more about Next.js, take a look at the following resources:
+- **`app/`** — one folder per route (App Router). Most real modules follow a
+  `page.tsx` + `types.ts` + `useXData.ts` hook split (data model / data-fetching
+  layer / rendering) — see any recently-touched page for the pattern before
+  adding a new one.
+- **`components/shared/design-system/`** — the shared component library
+  (`PageHero`, `StatTile`, `RecordCard`, icons, theming). **Read its own
+  [`README.md`](components/shared/design-system/README.md) before building a
+  new page** — it documents real anti-patterns other pages have shipped and
+  since fixed, not just a component list.
+- **`components/app-shell/`** — the sidebar/module-grid shell (`AppShell`) that
+  wraps every real ERP page (not the demo verticals).
+- **`lib/apiClient.ts`** — the one place that attaches the Supabase auth token
+  to backend requests. Don't hand-roll `fetch` calls to the backend elsewhere.
+- **`lib/auth-context.tsx`** — the real `AuthProvider`/`useAuth`. (There is no
+  longer a second one — an orphaned duplicate under `contexts/` was removed
+  2026-07-30 after it was found to have identical export names but be missing
+  MFA gating, a real trap for an accidental import.)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Testing
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+See [`../TESTING.md`](../TESTING.md) for the full picture (both repos). Short
+version:
 
-## Deploy on Vercel
+```bash
+npm test              # Vitest unit tests (lib/*.test.ts)
+npm run test:smoke     # Playwright smoke suite — needs `npm run dev` running first
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+The smoke suite (`e2e/smoke.mjs`) navigates every route and a few targeted
+interaction flows, mocking all `/api/**` calls — it catches "page doesn't
+render/crashes on load," not real-data correctness.
