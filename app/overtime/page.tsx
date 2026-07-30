@@ -68,7 +68,10 @@ function calcHours(start?: string, end?: string): number {
   if (!start || !end) return 0;
   const [sh, sm] = start.split(':').map(Number);
   const [eh, em] = end.split(':').map(Number);
-  const diff = (eh * 60 + em) - (sh * 60 + sm);
+  let diff = (eh * 60 + em) - (sh * 60 + sm);
+  // Overnight job — end time is on the next day (e.g. 23:00 -> 00:00 is a
+  // continuous 1-hour shift, not "start after end").
+  if (diff < 0) diff += 24 * 60;
   return Math.max(0, diff / 60);
 }
 
