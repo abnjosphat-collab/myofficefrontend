@@ -4,6 +4,7 @@
 import React, { useState, useEffect, useMemo, useRef, ElementType } from 'react';
 import { AppShell } from '@/components/app-shell';
 import { PredictiveInput } from '@/components/shared/PredictiveInput';
+import { PillTabs } from '@/components/shared/PillTabs';
 import {
   Clock4, Plus, Search, RefreshCw, CheckCircle2, XCircle,
   FileText, Eye, Trash2, Edit, LayoutGrid, List, AlertCircle, AlertTriangle,
@@ -821,13 +822,11 @@ function OvertimeContent() {
         </div>
       </div>
 
-      <div className={`flex items-center gap-1 ${t.glassSoft} rounded-xl p-1 w-fit`}>
-        {([{ key: 'records', label: 'Records', icon: FileText }, { key: 'analytics', label: 'Analytics', icon: Calendar }, { key: 'weekly-summary', label: 'Weekly Summary', icon: CalendarRange }] as { key: typeof mainTab; label: string; icon: ElementType }[]).map(tb => (
-          <button key={tb.key} type="button" onClick={() => setMainTab(tb.key)} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${mainTab === tb.key ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} ${t.hoverText} ${t.hoverBg}`}`}>
-            <tb.icon className="h-4 w-4" />{tb.label}
-          </button>
-        ))}
-      </div>
+      <PillTabs
+        tabs={[{ key: 'records', label: 'Records', icon: FileText }, { key: 'analytics', label: 'Analytics', icon: Calendar }, { key: 'weekly-summary', label: 'Weekly Summary', icon: CalendarRange }]}
+        value={mainTab}
+        onChange={setMainTab}
+      />
 
       {mainTab === 'weekly-summary' ? (
         <WeeklySummaryView records={records} />

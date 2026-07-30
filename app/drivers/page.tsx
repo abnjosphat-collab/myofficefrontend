@@ -14,6 +14,7 @@ import {
   Car, Plus, Pencil, Trash2, RefreshCw, Phone,
   ChevronDown, ChevronUp, X, Building2,
   FileSpreadsheet, FileText, CheckCircle2, AlertCircle, LayoutGrid, List,
+  useConfirm,
 } from '@/components/shared/theme';
 import { toast } from 'sonner';
 import jsPDF from 'jspdf';
@@ -390,6 +391,7 @@ function DriverRow({ driver, onEdit, onDelete }: { driver: Driver; onEdit: () =>
 
 function DriversContent() {
   const t = useTheme();
+  const confirm = useConfirm();
   const sections = useCollapseSection({ records: true });
   const { drivers, loading, refreshing, loadData } = useDriversData();
 
@@ -462,7 +464,7 @@ function DriversContent() {
   };
 
   const handleDelete = async (id: number, name: string) => {
-    if (!window.confirm(`Remove ${name} from the drivers registry? This cannot be undone.`)) return;
+    if (!await confirm({ title: `Remove ${name}?`, message: 'This cannot be undone.', destructive: true })) return;
     try { await deleteDriver(id); toast.success('Driver removed'); await loadData(true); }
     catch (e: any) { toast.error(e.message); }
   };

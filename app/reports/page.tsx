@@ -15,7 +15,7 @@ import { AppShell } from '@/components/app-shell';
 import { formatDate, formatTime } from '@/lib/format';
 import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle, PrimaryButton,
-  EmptyState, useCollapseSection, GlowCard, SelectField,
+  EmptyState, useCollapseSection, GlowCard, SelectField, useConfirm,
 } from '@/components/shared/theme';
 import type { Report } from './types';
 import { useReportsData, sortReports } from './useReportsData';
@@ -171,6 +171,7 @@ function ReportListItem({ report, onDownload, onDelete, isLoading }: ReportCardP
 
 function ReportsPageContent() {
   const t = useTheme();
+  const confirm = useConfirm();
   const sections = useCollapseSection({ hero: true, searchFilters: true });
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -184,8 +185,8 @@ function ReportsPageContent() {
 
   const { reports, setReports, loadReports, saveReports, deleteReport: removeReport } = useReportsData(sortBy);
 
-  const deleteReport = (id: string) => {
-    if (!confirm('Delete this report? This cannot be undone.')) return;
+  const deleteReport = async (id: string) => {
+    if (!await confirm({ title: 'Delete this report?', message: 'This cannot be undone.', destructive: true })) return;
     removeReport(id);
   };
 

@@ -4,7 +4,7 @@
 // AppShell (standalone route, not part of the real MyOffice module set).
 'use client';
 
-import React, { useMemo, useState, ElementType } from 'react';
+import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import {
@@ -18,6 +18,7 @@ import {
 } from '@/components/shared/theme';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatCurrency } from '@/components/shared/utils';
+import { PillTabs } from '@/components/shared/PillTabs';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts';
@@ -84,8 +85,8 @@ export default function DrivingSchoolDashboard() {
           }
         />
 
-        <div className={`flex items-center gap-1 ${t.glassSoft} rounded-xl p-1 w-fit overflow-x-auto`}>
-          {([
+        <PillTabs
+          tabs={[
             { key: 'overview', label: 'Overview', icon: TrendingUp },
             { key: 'bookings', label: 'Bookings', icon: CalendarDays },
             { key: 'schedule', label: 'Schedule', icon: Clock4 },
@@ -93,12 +94,11 @@ export default function DrivingSchoolDashboard() {
             { key: 'students', label: 'Students', icon: UserRound },
             { key: 'payments', label: 'Payments', icon: CreditCard },
             { key: 'analytics', label: 'Analytics', icon: Activity },
-          ] as { key: Tab; label: string; icon: ElementType }[]).map(tb => (
-            <button key={tb.key} type="button" onClick={() => setTab(tb.key)} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${tab === tb.key ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} hover:${t.textPrimary} ${t.hoverBg}`}`}>
-              <tb.icon className="h-4 w-4" />{tb.label}
-            </button>
-          ))}
-        </div>
+          ]}
+          value={tab}
+          onChange={setTab}
+          wrap="scroll"
+        />
 
         {tab === 'overview' && <OverviewTab bookings={bookings} instructors={instructors} students={students} vidTests={vidTests} />}
         {tab === 'bookings' && <BookingsTab bookings={bookings} students={students} onNewBooking={() => setBookingModal({})} />}

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo, ElementType } from "react";
 import { formatDate } from '@/lib/format';
+import { summarizeActions } from '@/lib/actionPlan';
 import {
   ClipboardList, Target, Plus, Trash2, AlertTriangle,
   Eye, Pencil, LayoutGrid, Table as TableIcon,
@@ -9,6 +10,7 @@ import {
 } from "@/components/shared/theme";
 import { AppShell } from '@/components/app-shell';
 import { PredictiveInput } from '@/components/shared/PredictiveInput';
+import { UnderlineTabs } from '@/components/shared/UnderlineTabs';
 import { toast } from "sonner";
 import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, ProgressBar, FormField, FormActions,
@@ -119,10 +121,7 @@ function PTOCard({ report, index, onView, onEdit, onDelete }: PTOCardProps) {
   const t = useTheme();
   const SectionIcon = SECTION_ICONS[report.section];
   const sColor = SECTION_COLORS[report.section];
-  const total = report.actionPlan?.length || 0;
-  const done = report.actionPlan?.filter(a => a.status === 'Completed').length || 0;
-  const inProg = report.actionPlan?.filter(a => a.status === 'In Progress').length || 0;
-  const pct = total ? Math.round((done / total) * 100) : 0;
+  const progress = summarizeActions(report.actionPlan);
   const hasRisk = report.riskAssessment.made === 'No' || report.riskAssessment.identified === 'No' || report.riskAssessment.effective === 'No';
 
   return (
@@ -155,14 +154,14 @@ function PTOCard({ report, index, onView, onEdit, onDelete }: PTOCardProps) {
           </div>
         )}
 
-        {total > 0 && (
+        {progress.total > 0 && (
           <div className="mb-2.5">
-            <div className={`flex justify-between text-[10px] mb-1 ${t.textFaint}`}><span>Action Progress</span><span>{pct}%</span></div>
-            <ProgressBar value={pct} color={pct === 100 ? '#10b981' : '#60a5fa'} showValue={false} />
+            <div className={`flex justify-between text-[10px] mb-1 ${t.textFaint}`}><span>Action Progress</span><span>{progress.pct}%</span></div>
+            <ProgressBar value={progress.pct} color={progress.pct === 100 ? '#10b981' : '#60a5fa'} showValue={false} />
             <div className="flex gap-1.5 mt-1.5">
-              <StatusBadge color="#f59e0b" label={`${total - done - inProg} Pending`} />
-              <StatusBadge color="#3b82f6" label={`${inProg} Active`} />
-              <StatusBadge color="#10b981" label={`${done} Done`} />
+              <StatusBadge color="#f59e0b" label={`${progress.pending} Pending`} />
+              <StatusBadge color="#3b82f6" label={`${progress.inProgress} Active`} />
+              <StatusBadge color="#10b981" label={`${progress.completed} Done`} />
             </div>
           </div>
         )}
@@ -186,10 +185,7 @@ function PTODetailModal({ report, open, onClose, onEdit, onDelete, onStatusChang
   if (!report) return null;
   const SectionIcon = SECTION_ICONS[report.section];
   const sColor = SECTION_COLORS[report.section];
-  const total = report.actionPlan?.length || 0;
-  const done = report.actionPlan?.filter(a => a.status === 'Completed').length || 0;
-  const inProg = report.actionPlan?.filter(a => a.status === 'In Progress').length || 0;
-  const pct = total ? Math.round((done / total) * 100) : 0;
+  const progress = summarizeActions(report.actionPlan);
   const hasRisk = report.riskAssessment.made === 'No' || report.riskAssessment.identified === 'No' || report.riskAssessment.effective === 'No';
 
   const reasonsList = (Object.keys(report.reasons) as (keyof Reasons)[]).filter(k => report.reasons[k]).map(k => REASON_LABELS[k]);
@@ -213,14 +209,14 @@ function PTODetailModal({ report, open, onClose, onEdit, onDelete, onStatusChang
           </div>
         </div>
 
-        {total > 0 && (
+        {progress.total > 0 && (
           <div className={`${t.chipBg} rounded-xl px-3.5 py-3`}>
-            <div className="flex justify-between text-xs mb-1.5"><span className={t.textFaint}>Action Plan Progress</span><span className={`font-semibold ${t.textPrimary}`}>{done}/{total} completed</span></div>
-            <ProgressBar value={pct} color={pct === 100 ? '#10b981' : '#60a5fa'} showValue={false} />
+            <div className="flex justify-between text-xs mb-1.5"><span className={t.textFaint}>Action Plan Progress</span><span className={`font-semibold ${t.textPrimary}`}>{progress.completed}/{progress.total} completed</span></div>
+            <ProgressBar value={progress.pct} color={progress.pct === 100 ? '#10b981' : '#60a5fa'} showValue={false} />
             <div className="flex gap-2 mt-2">
-              <StatusBadge color="#f59e0b" label={`${total - done - inProg} Pending`} />
-              <StatusBadge color="#3b82f6" label={`${inProg} In Progress`} />
-              <StatusBadge color="#10b981" label={`${done} Completed`} />
+              <StatusBadge color="#f59e0b" label={`${progress.pending} Pending`} />
+              <StatusBadge color="#3b82f6" label={`${progress.inProgress} In Progress`} />
+              <StatusBadge color="#10b981" label={`${progress.completed} Completed`} />
             </div>
           </div>
         )}
@@ -350,14 +346,7 @@ function PTOFormModal({ open, editing, onClose, onSave, saving }: { open: boolea
 
   return (
     <CenterModal open={open} onClose={onClose} title={editing ? 'Edit PTO Report' : 'New Planned Task Observation'} accent="violet" width="max-w-2xl">
-      <div className={`flex gap-1 px-5 pt-4 border-b ${t.border} overflow-x-auto`}>
-        {tabs.map(tb => (
-          <button key={tb.id} type="button" onClick={() => setTab(tb.id)}
-            className={`px-3 py-2 text-xs font-medium rounded-t-lg whitespace-nowrap transition-colors ${tab === tb.id ? 'bg-brand-500/15 text-brand-400' : `${t.textFaint} ${t.hoverText}`}`}>
-            {tb.label}
-          </button>
-        ))}
-      </div>
+      <UnderlineTabs tabs={tabs} value={tab} onChange={setTab} accent="brand" />
 
       <form onSubmit={handleSubmit} className="p-5 space-y-4">
         {tab === 'basic' && (

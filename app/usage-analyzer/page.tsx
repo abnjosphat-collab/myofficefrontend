@@ -12,7 +12,7 @@ import {
   Activity, BarChart3, Clock, MessageSquare, Search, Star, Layers,
   RefreshCw, Trash2, Calendar, TrendingUp, Users, Globe,
 } from '@/components/shared/theme';
-import { useTheme, PageHero, StatTile, GlowCard, ACCENT_HEX } from '@/components/shared/theme';
+import { useTheme, PageHero, StatTile, GlowCard, ACCENT_HEX, useConfirm } from '@/components/shared/theme';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   LineChart, Line, Legend, AreaChart, Area,
@@ -59,6 +59,7 @@ function useUsageEvents(): [UsageEvent[], () => void] {
 
 export default function UsageAnalyzerPage() {
   const t = useTheme();
+  const confirm = useConfirm();
   const cs = useChartStyle();
   const [localEvents, refresh] = useUsageEvents();
   const { isAtLeast } = useAuth();
@@ -133,8 +134,8 @@ export default function UsageAnalyzerPage() {
   const hasData = events.length > 0;
   const busiestLabel = s.busiestHour ? `${String(s.busiestHour.hour).padStart(2, '0')}:00` : '—';
 
-  const clearAll = () => {
-    if (typeof window !== 'undefined' && window.confirm('Clear all locally-stored usage analytics? This cannot be undone.')) {
+  const clearAll = async () => {
+    if (await confirm({ title: 'Clear all locally-stored usage analytics?', message: 'This cannot be undone.', destructive: true })) {
       clearUsage();
       refresh();
     }

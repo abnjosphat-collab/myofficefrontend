@@ -17,6 +17,7 @@ import {
   Calendar, Tag, Paperclip, Download, AlertCircle, CheckCircle,
   Eye, ChevronDown, ChevronUp, X, User, Building, LayoutGrid, Table as TableIcon,
   Save, Upload, Link as LinkIcon, Clock, Share2, Copy, BarChart3, Pin, PinOff, Clock4, Users, Archive, EyeOff,
+  useConfirm,
 } from '@/components/shared/theme';
 import type { Notice, NoticeFormData, NoticeFilters, CalculatedStats } from './types';
 import { useNoticeboardData, createNotice, updateNotice, deleteNotice, togglePin } from './useNoticeboardData';
@@ -67,6 +68,7 @@ function NoticeDetailsModal({ isOpen, onClose, notice, onDelete, onEdit, onToggl
   onDelete: (id: string) => void; onEdit: (n: Notice) => void; onTogglePin: (id: string, s: boolean) => void;
 }) {
   const t = useTheme();
+  const confirm = useConfirm();
   if (!isOpen || !notice) return null;
   const now = Date.now();
   const isExpired = notice.expires_at ? new Date(notice.expires_at).getTime() < now : false;
@@ -136,7 +138,7 @@ function NoticeDetailsModal({ isOpen, onClose, notice, onDelete, onEdit, onToggl
           <button type="button" onClick={handleTogglePin} className={`px-3 py-1.5 rounded-lg text-xs ${t.chipBg} ${t.hoverBg} ${t.textMuted} inline-flex items-center gap-1.5`}>
             {notice.is_pinned ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />} {notice.is_pinned ? 'Unpin' : 'Pin'}
           </button>
-          <button type="button" onClick={() => { if (confirm('Delete this notice?')) { onDelete(notice.id); onClose(); } }}
+          <button type="button" onClick={async () => { if (await confirm({ title: 'Delete this notice?', destructive: true })) { onDelete(notice.id); onClose(); } }}
             className="px-3 py-1.5 rounded-lg text-xs bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 inline-flex items-center gap-1.5 ml-auto"><Trash2 className="h-3.5 w-3.5" /> Delete</button>
         </div>
       </div>
@@ -154,6 +156,7 @@ function NoticeCard({ notice, onView, onEdit, onDelete }: {
   notice: Notice; onView: (n: Notice) => void; onEdit: (n: Notice) => void; onDelete: (id: string) => void;
 }) {
   const t = useTheme();
+  const confirm = useConfirm();
   const now = Date.now();
   const isExpired = notice.expires_at ? new Date(notice.expires_at).getTime() < now : false;
   const expiresSoon = notice.expires_at ? (new Date(notice.expires_at).getTime() > now && new Date(notice.expires_at).getTime() <= now + 7 * 86400000) : false;
@@ -188,7 +191,7 @@ function NoticeCard({ notice, onView, onEdit, onDelete }: {
         </div>
         <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
           <button type="button" title="Edit" onClick={() => onEdit(notice)} className={`h-7 w-7 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-brand-500`}><Edit className="h-3.5 w-3.5" /></button>
-          <button type="button" title="Delete" onClick={() => { if (confirm('Delete this notice?')) onDelete(notice.id); }} className={`h-7 w-7 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-rose-500`}><Trash2 className="h-3.5 w-3.5" /></button>
+          <button type="button" title="Delete" onClick={async () => { if (await confirm({ title: 'Delete this notice?', destructive: true })) onDelete(notice.id); }} className={`h-7 w-7 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-rose-500`}><Trash2 className="h-3.5 w-3.5" /></button>
         </div>
       </div>
     </GlowCard>
@@ -313,6 +316,7 @@ function EditNoticeModal({ isOpen, onClose, notice, onSave, isLoading }: {
 
 function NoticeboardContent() {
   const t = useTheme();
+  const confirm = useConfirm();
   const sections = useCollapseSection({ records: true });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
@@ -481,7 +485,7 @@ function NoticeboardContent() {
                   <td className="px-3 py-2.5" onClick={e => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-1">
                       <button type="button" title="Edit" onClick={() => { setEditingNotice(notice); setIsModalOpen(true); }} className={`h-7 w-7 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-brand-500`}><Edit className="h-3.5 w-3.5" /></button>
-                      <button type="button" title="Delete" onClick={() => { if (confirm('Delete this notice?')) handleDeleteNotice(notice.id); }} className={`h-7 w-7 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-rose-500`}><Trash2 className="h-3.5 w-3.5" /></button>
+                      <button type="button" title="Delete" onClick={async () => { if (await confirm({ title: 'Delete this notice?', destructive: true })) handleDeleteNotice(notice.id); }} className={`h-7 w-7 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-rose-500`}><Trash2 className="h-3.5 w-3.5" /></button>
                     </div>
                   </td>
                 </tr>

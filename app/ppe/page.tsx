@@ -22,7 +22,7 @@ import {
   useTheme, Collapse, AnimatedText, PulsingIcon, CenterModal, GlowCard,
   staggerContainer, fadeUp, ACCENT, ACCENT_HEX, type Accent,
   StatusBadge, RecordCard, StatTile, ProgressBar, FormField, FormActions,
-  useCollapseSection, SelectField, AutofillInput,
+  useCollapseSection, SelectField, AutofillInput, useConfirm,
 } from '@/components/shared/theme';
 import type { PPETypeInfo, PPERecord, EmployeeRow, EmployeeWithPPE, EnhancedStats, FormState } from './types';
 import {
@@ -783,6 +783,7 @@ function PPEMatrixModal({ isOpen, onClose, matrix, records, onSetInterval, onRec
 
 export default function PPEManagement() {
   const t = useTheme();
+  const confirm = useConfirm();
   // records/apiEmployees/stats/loading/refreshing/matrix + the load cycle now live in
   // usePPEData (./usePPEData) — `refresh` is aliased back to `load` since every call
   // site below already calls load()/load(true).
@@ -922,7 +923,7 @@ export default function PPEManagement() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Delete this PPE record? This cannot be undone.')) return;
+    if (!await confirm({ title: 'Delete this PPE record?', message: 'This cannot be undone.', destructive: true })) return;
     try { await deletePPERecord(id); setRecords(p => p.filter(r => r.id !== id)); toast.success('Record deleted'); }
     catch (err: any) { toast.error(`Delete failed: ${err.message}`); }
   };
@@ -956,7 +957,7 @@ export default function PPEManagement() {
     const what = months === 0
       ? `Clear the expiry date on ${count} active ${label} item(s)? (no expiry)`
       : `Reset expiry for ${count} active ${label} item(s) to issue date + ${months} months?`;
-    if (!confirm(`${what}\nThis overwrites their current expiry dates.`)) return;
+    if (!await confirm({ title: what, message: 'This overwrites their current expiry dates.', destructive: true })) return;
     try {
       const res = await api.post<{ updated: number }>(`/api/ppe/matrix/${ppeType}/apply`, {});
       toast.success(`Recalculated ${res?.updated ?? count} ${label} item(s)`);
@@ -965,7 +966,7 @@ export default function PPEManagement() {
   };
   const handleRecalculateAll = async () => {
     const activeCount = records.filter(r => r.status === 'active').length;
-    if (!confirm(`Recalculate expiry for all ${activeCount} active PPE item(s) across every type, using the current matrix?\nThis overwrites their current expiry dates.`)) return;
+    if (!await confirm({ title: `Recalculate expiry for all ${activeCount} active PPE item(s)?`, message: 'Uses the current matrix across every type — this overwrites their current expiry dates.', destructive: true })) return;
     try {
       const res = await api.post<{ total_updated: number }>('/api/ppe/matrix/apply-all', {});
       toast.success(`Recalculated ${res?.total_updated ?? 0} item(s) across all types`);

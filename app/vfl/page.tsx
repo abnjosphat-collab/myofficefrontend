@@ -8,6 +8,8 @@ import {
 } from "@/components/shared/theme";
 import { AppShell } from '@/components/app-shell';
 import { formatDate } from '@/lib/format';
+import { summarizeActions } from '@/lib/actionPlan';
+import { UnderlineTabs } from '@/components/shared/UnderlineTabs';
 import { toast } from "sonner";
 import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, FormField, FormActions,
@@ -80,10 +82,7 @@ function VFLCard({ report, index, onView, onEdit, onDelete }: { report: VFLRepor
   const SectionIcon = SECTION_ICONS[report.sectionChoice];
   const bColor = BEHAVIOUR_HEX[report.behaviourCategory];
   const sColor = SECTION_HEX[report.sectionChoice];
-  const total = report.actions?.length || 0;
-  const done = report.actions?.filter(a => a.status === 'Completed').length || 0;
-  const inProg = report.actions?.filter(a => a.status === 'In Progress').length || 0;
-  const pct = total ? Math.round((done / total) * 100) : 0;
+  const progress = summarizeActions(report.actions);
 
   return (
     <GlowCard onClick={() => onView(report)} color={sColor} surface={`${t.glass} rounded-2xl`} className="overflow-hidden">
@@ -104,11 +103,11 @@ function VFLCard({ report, index, onView, onEdit, onDelete }: { report: VFLRepor
 
         <div className={`text-xs mb-2.5 leading-relaxed line-clamp-2 ${t.textMuted}`}>{report.description || 'No description recorded.'}</div>
 
-        {total > 0 && (
+        {progress.total > 0 && (
           <div className="mb-2.5">
-            <div className={`flex justify-between text-[10px] mb-1 ${t.textFaint}`}><span>Action Progress</span><span>{pct}%</span></div>
-            <ProgressBar value={pct} color={pct === 100 ? '#10b981' : '#3b82f6'} showValue={false} />
-            <div className="flex gap-1.5 mt-1.5"><StatusBadge color="#f59e0b" label={`${total - done - inProg} Pending`} /><StatusBadge color="#3b82f6" label={`${inProg} In Progress`} /><StatusBadge color="#10b981" label={`${done} Done`} /></div>
+            <div className={`flex justify-between text-[10px] mb-1 ${t.textFaint}`}><span>Action Progress</span><span>{progress.pct}%</span></div>
+            <ProgressBar value={progress.pct} color={progress.pct === 100 ? '#10b981' : '#3b82f6'} showValue={false} />
+            <div className="flex gap-1.5 mt-1.5"><StatusBadge color="#f59e0b" label={`${progress.pending} Pending`} /><StatusBadge color="#3b82f6" label={`${progress.inProgress} In Progress`} /><StatusBadge color="#10b981" label={`${progress.completed} Done`} /></div>
           </div>
         )}
 
@@ -137,10 +136,7 @@ function VFLDetailModal({ report, open, onClose, onEdit, onDelete, onStatusChang
   const bColor = BEHAVIOUR_HEX[report.behaviourCategory];
   const sColor = SECTION_HEX[report.sectionChoice];
   const oColor = OBSERVATION_HEX[report.observationType];
-  const total = report.actions?.length || 0;
-  const done = report.actions?.filter(a => a.status === 'Completed').length || 0;
-  const inProg = report.actions?.filter(a => a.status === 'In Progress').length || 0;
-  const pct = total ? Math.round((done / total) * 100) : 0;
+  const progress = summarizeActions(report.actions);
   const infoBox = `${t.chipBg} rounded-lg px-3 py-2`;
 
   return (
@@ -158,11 +154,11 @@ function VFLDetailModal({ report, open, onClose, onEdit, onDelete, onStatusChang
           </div>
         </div>
 
-        {total > 0 && (
+        {progress.total > 0 && (
           <div className={`${t.chipBg} rounded-xl px-3.5 py-3`}>
-            <div className="flex justify-between text-xs mb-1.5"><span className={t.textFaint}>Action Progress</span><span className={`font-semibold ${t.textPrimary}`}>{done}/{total} completed</span></div>
-            <ProgressBar value={pct} color={pct === 100 ? '#10b981' : '#3b82f6'} showValue={false} />
-            <div className="flex gap-2 mt-2"><StatusBadge color="#f59e0b" label={`${total - done - inProg} Pending`} /><StatusBadge color="#3b82f6" label={`${inProg} In Progress`} /><StatusBadge color="#10b981" label={`${done} Completed`} /></div>
+            <div className="flex justify-between text-xs mb-1.5"><span className={t.textFaint}>Action Progress</span><span className={`font-semibold ${t.textPrimary}`}>{progress.completed}/{progress.total} completed</span></div>
+            <ProgressBar value={progress.pct} color={progress.pct === 100 ? '#10b981' : '#3b82f6'} showValue={false} />
+            <div className="flex gap-2 mt-2"><StatusBadge color="#f59e0b" label={`${progress.pending} Pending`} /><StatusBadge color="#3b82f6" label={`${progress.inProgress} In Progress`} /><StatusBadge color="#10b981" label={`${progress.completed} Completed`} /></div>
           </div>
         )}
 
@@ -236,9 +232,7 @@ function VFLFormModal({ open, editing, onClose, onSave, saving }: { open: boolea
 
   return (
     <CenterModal open={open} onClose={onClose} title={editing ? 'Edit VFL Observation' : 'New VFL Observation'} accent="emerald" width="max-w-2xl">
-      <div className={`flex gap-1 px-5 pt-4 border-b ${t.border} overflow-x-auto`}>
-        {tabs.map(tb => <button key={tb.id} type="button" onClick={() => setTab(tb.id)} className={`px-3 py-2 text-xs font-medium rounded-t-lg whitespace-nowrap transition-colors ${tab === tb.id ? 'bg-emerald-500/15 text-emerald-400' : `${t.textFaint} ${t.hoverText}`}`}>{tb.label}</button>)}
-      </div>
+      <UnderlineTabs tabs={tabs} value={tab} onChange={setTab} accent="emerald" />
 
       <form onSubmit={handleSubmit} className="p-5 space-y-4">
         {tab === 'observer' && (

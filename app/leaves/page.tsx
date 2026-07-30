@@ -18,7 +18,7 @@ import { formatDate, formatDateTime } from '@/lib/format';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import {
   useTheme, PageHero, StatusBadge, ACCENT_HEX, CenterModal, FormField,
-  useCollapseSection, EmptyState, PrimaryButton, GlowCard, SelectField,
+  useCollapseSection, EmptyState, PrimaryButton, GlowCard, SelectField, useConfirm,
 } from '@/components/shared/theme';
 import type { EmployeeSearchResult, Leave, Stats } from './types';
 import {
@@ -67,13 +67,14 @@ function LeaveStatusBadge({ status }: { status: Leave['status'] }) {
 // Leave Card Component
 function LeaveCard({ leave, onView, onEdit, onDelete }: { leave: Leave; onView: (leave: Leave) => void; onEdit: (leave: Leave) => void; onDelete: (leaveId: string) => Promise<void>; }) {
   const t = useTheme();
+  const confirm = useConfirm();
   const leaveType = LEAVE_TYPES[leave.leave_type] || LEAVE_TYPES.annual;
   const Icon = leaveType.icon;
   const [deleting, setDeleting] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
   const handleDelete = async () => {
-    if (!confirm('Delete this leave request?')) return;
+    if (!await confirm({ title: 'Delete this leave request?', destructive: true })) return;
     setDeleting(true);
     try { await onDelete(leave.id); } catch (error) { console.error(error); } finally { setDeleting(false); }
   };
@@ -407,6 +408,7 @@ function LeaveApplicationForm({ onClose, onSuccess, editData }: { onClose: () =>
 // Leave Details Modal
 function LeaveDetailsModal({ leave, onClose, onEdit, onDelete, onStatusUpdate }: { leave: Leave; onClose: () => void; onEdit: (leave: Leave) => void; onDelete: (leaveId: string) => Promise<void>; onStatusUpdate: (leaveId: string, status: Leave['status']) => Promise<void>; }) {
   const t = useTheme();
+  const confirm = useConfirm();
   const selectedLeaveType = LEAVE_TYPES[leave.leave_type] || LEAVE_TYPES.annual;
   const [updating, setUpdating] = useState(false);
   const [showStatusActions, setShowStatusActions] = useState(false);
@@ -425,7 +427,7 @@ function LeaveDetailsModal({ leave, onClose, onEdit, onDelete, onStatusUpdate }:
   };
 
   const handleDelete = async () => {
-    if (!confirm('Delete this leave request?')) return;
+    if (!await confirm({ title: 'Delete this leave request?', destructive: true })) return;
     setUpdating(true);
     try { await onDelete(leave.id); onClose(); } catch (error) { console.error(error); } finally { setUpdating(false); }
   };

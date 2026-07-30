@@ -15,7 +15,7 @@ import {
   ChevronDown, ChevronUp, Loader2, Check, X,
   ClipboardList, Package, BarChart3, TrendingUp, TrendingDown,
   Activity, Users, DollarSign, Download, FileSpreadsheet, FileDown,
-  Hash, Target, Layers, Gauge,
+  Hash, Target, Layers, Gauge, useConfirm,
 } from '@/components/shared/theme';
 import { toast } from 'sonner';
 import {
@@ -288,6 +288,7 @@ function useChartStyle() {
 
 function IssuesPageContent() {
   const t = useTheme();
+  const confirm = useConfirm();
   const { tooltipStyle, axisProps, gridProps } = useChartStyle();
   const sections = useCollapseSection({ stats: false, records: true });
   const { issues, serverStats, spares, loading, refreshing, refresh: loadData } = useIssuesData();
@@ -370,7 +371,7 @@ function IssuesPageContent() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm('Delete this issue record? This cannot be undone.')) return;
+    if (!await confirm({ title: 'Delete this issue record?', message: 'This cannot be undone.', destructive: true })) return;
     try { await apiDeleteIssue(id); toast.success('Deleted'); await loadData(true); }
     catch (e: any) { toast.error(e.message); }
   };

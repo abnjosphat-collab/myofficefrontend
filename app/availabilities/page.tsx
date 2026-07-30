@@ -17,6 +17,7 @@ import {
   useCollapseSection, CenterModal, ACCENT_HEX, EmptyState, PrimaryButton, SelectField,
 } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
+import { PillTabs } from '@/components/shared/PillTabs';
 import type { Equipment, AvailRecord, EqSummaryRow, PeriodRow, FormData } from './types';
 import { useAvailabilitiesData, fetchBreakdownRecords, createAvailabilityRecord, updateAvailabilityRecord, deleteAvailabilityRecord } from './useAvailabilitiesData';
 
@@ -359,14 +360,7 @@ function AvailabilitiesContent() {
         </div>
       </div>
 
-      <div className={`flex items-center gap-1 ${t.glassSoft} rounded-xl p-1 w-fit`}>
-        {TABS.map(tb => (
-          <button key={tb.key} type="button" onClick={() => setMainTab(tb.key)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${mainTab === tb.key ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} ${t.hoverText} ${t.hoverBg}`}`}>
-            <tb.icon className="h-4 w-4" />{tb.label}
-          </button>
-        ))}
-      </div>
+      <PillTabs tabs={TABS} value={mainTab} onChange={setMainTab} />
 
       {loading ? (
         <div className="flex items-center justify-center py-16"><RefreshCw className={`h-6 w-6 animate-spin ${t.textFaint}`} /></div>

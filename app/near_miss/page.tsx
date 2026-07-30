@@ -11,7 +11,7 @@ import { formatDate } from '@/lib/format';
 import { toast } from 'sonner';
 import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, FormField, FormActions,
-  useCollapseSection, CenterModal, PrimaryButton, EmptyState, ACCENT_HEX, SelectField,
+  useCollapseSection, CenterModal, PrimaryButton, EmptyState, ACCENT_HEX, SelectField, useConfirm,
 } from '@/components/shared/theme';
 import { PredictiveInput } from '@/components/shared/PredictiveInput';
 import { EmployeeNameInput } from '@/components/shared/EmployeeNameInput';
@@ -175,6 +175,7 @@ function ReportDetailModal({ report, open, onClose, onEdit, onDelete }: {
 
 function NearMissContent() {
   const t = useTheme();
+  const confirm = useConfirm();
   const sections = useCollapseSection({ hero: true, records: true });
   const { reports, setReports, loading, loadError, refreshing, loadReports } = useNearMissData();
 
@@ -217,7 +218,7 @@ function NearMissContent() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Delete this report? This cannot be undone.')) return;
+    if (!await confirm({ title: 'Delete this report?', message: 'This cannot be undone.', destructive: true })) return;
     const ok = await deleteReport(id);
     if (ok) { setReports(p => p.filter(r => r.id !== id)); toast.success('Deleted'); }
     else toast.error('Failed to delete');

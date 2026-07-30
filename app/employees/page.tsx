@@ -17,7 +17,7 @@ import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle,
   FormField, FormActions, useCollapseSection, CenterModal, ACCENT_HEX, SelectField, TYPE_SCALE, RADIUS,
   GroupSection, RecordCard, staggerContainer, fadeUp,
-  Subsection, InfoRow, SummaryItem, LoadingState, AutofillInput,
+  Subsection, InfoRow, SummaryItem, LoadingState, AutofillInput, useConfirm,
 } from '@/components/shared/theme';
 import { formatDate } from '@/lib/format';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
@@ -815,6 +815,7 @@ function EmployeeCard({ employee, onEdit, onDelete }: {
 
 function EmployeesPageContent() {
   const t = useTheme();
+  const confirm = useConfirm();
   const { employees, isLoading, error, setError, reload } = useEmployeesData();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
@@ -918,7 +919,7 @@ function EmployeesPageContent() {
   const openAdd  = () => { setSelectedEmployee(null); setShowForm(true); };
   const openEdit = (e: Employee) => { setSelectedEmployee(e); setShowForm(true); };
   const onDelete = async (e: Employee) => {
-    if (!confirm(`Delete ${e.first_name} ${e.last_name}? This cannot be undone.`)) return;
+    if (!await confirm({ title: `Delete ${e.first_name} ${e.last_name}?`, message: 'This cannot be undone.', destructive: true })) return;
     try { await removeEmployee(e.id); await reload(); toast.success(`${e.first_name} ${e.last_name} deleted`); }
     catch (err) { toast.error(err instanceof Error ? err.message : 'Delete failed'); }
   };

@@ -11,7 +11,7 @@ import {
 import { toast } from 'sonner';
 import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, FormField, FormActions,
-  useCollapseSection, CenterModal, PrimaryButton, EmptyState, ACCENT_HEX, ViewToggle, GlowCard, SelectField,
+  useCollapseSection, CenterModal, PrimaryButton, EmptyState, ACCENT_HEX, ViewToggle, GlowCard, SelectField, useConfirm,
 } from '@/components/shared/theme';
 import { PhotoUpload } from '@/components/shared/PhotoUpload';
 import { AppShell } from '@/components/app-shell';
@@ -524,6 +524,7 @@ function InspectionCard({
 
 function SHEQInspectionContent() {
   const t = useTheme();
+  const confirm = useConfirm();
   const sections = useCollapseSection({ hero: true, records: true });
   const { inspections, setInspections, loading, refreshing, load } = useSheqInspectionData();
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
@@ -610,7 +611,7 @@ function SHEQInspectionContent() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Delete this inspection?')) return;
+    if (!await confirm({ title: 'Delete this inspection?', destructive: true })) return;
     try {
       await deleteInspection(id);
       setInspections(prev => prev.filter(i => i.id !== id));

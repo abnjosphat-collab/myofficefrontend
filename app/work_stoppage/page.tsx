@@ -12,12 +12,14 @@ import { AppShell } from '@/components/app-shell';
 import { toast } from 'sonner';
 import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, FormField, FormActions,
-  useCollapseSection, CenterModal, PrimaryButton, EmptyState, ProgressBar, ACCENT_HEX, GlowCard, SelectField,
+  useCollapseSection, CenterModal, PrimaryButton, EmptyState, ProgressBar, ACCENT_HEX, GlowCard, SelectField, useConfirm,
 } from '@/components/shared/theme';
 import { PredictiveInput } from '@/components/shared/PredictiveInput';
 import { EmployeeNameInput } from '@/components/shared/EmployeeNameInput';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
+import { summarizeActions } from '@/lib/actionPlan';
+import { UnderlineTabs } from '@/components/shared/UnderlineTabs';
 import type { SectionType, ActionStatus, CorrectiveAction, WorkStoppageReport } from './types';
 import { useWorkStoppageData, createReport, updateReport, deleteReport } from './useWorkStoppageData';
 
@@ -114,10 +116,7 @@ function ReportFormModal({ open, onClose, onSave, report }: {
   };
 
   const actions = form.correctiveActions || [];
-  const pendingCount = actions.filter(a => a.status === 'Pending').length;
-  const inProgressCount = actions.filter(a => a.status === 'In Progress').length;
-  const completedCount = actions.filter(a => a.status === 'Completed').length;
-  const progressPct = actions.length ? Math.round((completedCount / actions.length) * 100) : 0;
+  const progress = summarizeActions(actions);
   const inputCls = `w-full rounded-lg px-3 py-1.5 text-sm outline-none transition-colors ${t.inputBg}`;
 
   const TABS = [{ id: 'details', label: 'Incident Details' }, { id: 'actions', label: `Action Plan (${actions.length})` }, { id: 'summary', label: 'Summary' }];
@@ -125,11 +124,7 @@ function ReportFormModal({ open, onClose, onSave, report }: {
   return (
     <CenterModal open={open} onClose={onClose} title={report ? 'Edit Work Stoppage' : 'New Work Stoppage'} accent="amber" width="max-w-3xl">
       <form onSubmit={handleSubmit}>
-        <div className={`flex gap-1 px-5 pt-3 border-b ${t.border} overflow-x-auto`}>
-          {TABS.map(tb => (
-            <button key={tb.id} type="button" onClick={() => setTab(tb.id)} className={`px-3 py-2 text-xs font-medium rounded-t-lg whitespace-nowrap transition-colors ${tab === tb.id ? 'bg-rose-500/15 text-rose-400' : `${t.textFaint} ${t.hoverText}`}`}>{tb.label}</button>
-          ))}
-        </div>
+        <UnderlineTabs tabs={TABS} value={tab} onChange={setTab} accent="rose" />
 
         <div className="px-5 py-4 space-y-4">
           {tab === 'details' && (
@@ -193,7 +188,7 @@ function ReportFormModal({ open, onClose, onSave, report }: {
           {tab === 'summary' && (
             <div className="space-y-4">
               <div className="grid grid-cols-3 gap-3">
-                {[{ label: 'Pending', value: pendingCount, color: '#f59e0b' }, { label: 'In Progress', value: inProgressCount, color: '#60a5fa' }, { label: 'Completed', value: completedCount, color: '#34d399' }].map(s => (
+                {[{ label: 'Pending', value: progress.pending, color: '#f59e0b' }, { label: 'In Progress', value: progress.inProgress, color: '#60a5fa' }, { label: 'Completed', value: progress.completed, color: '#34d399' }].map(s => (
                   <div key={s.label} className={`text-center rounded-xl p-3 ${t.chipBg}`}>
                     <div className="text-2xl font-bold" style={{ color: s.color }}>{s.value}</div>
                     <div className={`text-[11px] mt-0.5 ${t.textFaint}`}>{s.label}</div>
@@ -201,8 +196,8 @@ function ReportFormModal({ open, onClose, onSave, report }: {
                 ))}
               </div>
               <div>
-                <div className={`flex justify-between text-xs mb-1.5 ${t.textFaint}`}><span>Overall Progress</span><span>{progressPct}%</span></div>
-                <ProgressBar value={progressPct} color="#34d399" showValue={false} />
+                <div className={`flex justify-between text-xs mb-1.5 ${t.textFaint}`}><span>Overall Progress</span><span>{progress.pct}%</span></div>
+                <ProgressBar value={progress.pct} color="#34d399" showValue={false} />
               </div>
               {actions.length > 0 && (
                 <div className="space-y-2">
@@ -236,8 +231,7 @@ function ReportDetailModal({ report, open, onClose, onEdit }: {
   const t = useTheme();
   if (!report) return null;
   const actions = report.correctiveActions || [];
-  const completedCount = actions.filter(a => a.status === 'Completed').length;
-  const pct = actions.length ? Math.round((completedCount / actions.length) * 100) : 0;
+  const progress = summarizeActions(actions);
 
   return (
     <CenterModal open={open} onClose={onClose} title="Work Stoppage Report" accent="amber" width="max-w-2xl">
@@ -250,8 +244,8 @@ function ReportDetailModal({ report, open, onClose, onEdit }: {
 
         {actions.length > 0 && (
           <div>
-            <div className={`flex justify-between text-xs mb-1 ${t.textFaint}`}><span>Corrective Action Progress</span><span>{completedCount}/{actions.length} completed ({pct}%)</span></div>
-            <ProgressBar value={pct} color="#34d399" showValue={false} />
+            <div className={`flex justify-between text-xs mb-1 ${t.textFaint}`}><span>Corrective Action Progress</span><span>{progress.completed}/{progress.total} completed ({progress.pct}%)</span></div>
+            <ProgressBar value={progress.pct} color="#34d399" showValue={false} />
           </div>
         )}
 
@@ -303,8 +297,7 @@ function ReportCard({ report, expanded, onToggle, onView, onEdit, onDelete }: {
   const SIcon = SECTION_ICON[report.section];
   const sColor = SECTION_HEX[report.section];
   const actions = report.correctiveActions || [];
-  const pendingCount = actions.filter(a => a.status === 'Pending').length;
-  const completedCount = actions.filter(a => a.status === 'Completed').length;
+  const progress = summarizeActions(actions);
   const today = new Date().toISOString().split('T')[0];
   const overdueCount = actions.filter(a => a.status !== 'Completed' && a.byWhen && a.byWhen < today).length;
 
@@ -321,7 +314,7 @@ function ReportCard({ report, expanded, onToggle, onView, onEdit, onDelete }: {
       </div>
 
       <div className={`px-4 py-2 grid grid-cols-4 gap-1 border-b ${t.border}`}>
-        {[{ label: 'Actions', value: actions.length, color: ACCENT_HEX.blue }, { label: 'Pending', value: pendingCount, color: '#f59e0b' }, { label: 'Closed', value: completedCount, color: '#34d399' }, { label: 'Overdue', value: overdueCount, color: '#f43f5e' }].map(s => (
+        {[{ label: 'Actions', value: progress.total, color: ACCENT_HEX.blue }, { label: 'Pending', value: progress.pending, color: '#f59e0b' }, { label: 'Closed', value: progress.completed, color: '#34d399' }, { label: 'Overdue', value: overdueCount, color: '#f43f5e' }].map(s => (
           <div key={s.label} className="text-center"><div className="text-base font-bold leading-none" style={{ color: s.color }}>{s.value}</div><div className={`text-[9px] mt-0.5 ${t.textFaint}`}>{s.label}</div></div>
         ))}
       </div>
@@ -366,6 +359,7 @@ function ReportCard({ report, expanded, onToggle, onView, onEdit, onDelete }: {
 
 function WorkStoppageContent() {
   const t = useTheme();
+  const confirm = useConfirm();
   const sections = useCollapseSection({ hero: true, records: true });
   const { reports, setReports, loading, refreshing, load } = useWorkStoppageData();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -456,7 +450,7 @@ function WorkStoppageContent() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Delete this work stoppage report?')) return;
+    if (!await confirm({ title: 'Delete this work stoppage report?', destructive: true })) return;
     try { await deleteReport(id); setReports(prev => prev.filter(r => r.id !== id)); toast.success('Report deleted'); }
     catch { toast.error('Failed to delete report'); }
   };

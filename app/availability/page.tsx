@@ -12,6 +12,7 @@ import { AppShell } from '@/components/app-shell';
 import { formatDate } from '@/lib/format';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
+import { PillTabs } from '@/components/shared/PillTabs';
 import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, ProgressBar, useCollapseSection, ACCENT_HEX, SelectField,
 } from '@/components/shared/theme';
@@ -171,14 +172,7 @@ function AvailabilityContent() {
         <div className={`px-5 pb-3 text-xs ${t.textFaint}`}>{filtered.length} of {equipment.length} equipment</div>
       </div>
 
-      <div className={`flex items-center gap-1 ${t.glassSoft} rounded-xl p-1 w-fit`}>
-        {TABS.map(tb => (
-          <button key={tb.key} type="button" onClick={() => setTab(tb.key)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${tab === tb.key ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} ${t.hoverText} ${t.hoverBg}`}`}>
-            <tb.icon className="h-4 w-4" />{tb.label}
-          </button>
-        ))}
-      </div>
+      <PillTabs tabs={TABS} value={tab} onChange={setTab} />
 
       {loading ? (
         <div className="flex items-center justify-center py-16"><RefreshCw className={`h-6 w-6 animate-spin ${t.textFaint}`} /></div>

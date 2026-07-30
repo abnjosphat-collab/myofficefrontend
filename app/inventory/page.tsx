@@ -13,7 +13,7 @@ import {
 import {
   useTheme, PageHero, StatTile, StatusBadge, ProgressBar,
   SearchInput, ViewToggle, useCollapseSection, ACCENT_HEX,
-  GroupSection, RecordCard, staggerContainer, fadeUp, InfoRow, SummaryItem,
+  GroupSection, RecordCard, staggerContainer, fadeUp, InfoRow, SummaryItem, useConfirm,
 } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
@@ -144,6 +144,7 @@ function InventoryRow({ item, onDelete }: { item: InventoryItem; onDelete: () =>
 
 function InventoryPageContent() {
   const t = useTheme();
+  const confirm = useConfirm();
   const sections = useCollapseSection({ hero: true, filters: true });
   const { inventory, isRefreshing, loadInventory, deleteItem } = useInventoryData();
   const [searchTerm, setSearchTerm] = useState("");
@@ -209,6 +210,11 @@ function InventoryPageContent() {
       .sort((a, b) => (a === 'Uncategorized' ? 1 : b === 'Uncategorized' ? -1 : a.localeCompare(b)))
       .map(category => ({ category, color: categoryColor(category === 'Uncategorized' ? undefined : category), items: map.get(category)! }));
   }, [filtered]);
+
+  const handleDelete = async (id: string) => {
+    if (!await confirm({ title: 'Delete this item?', destructive: true })) return;
+    deleteItem(id);
+  };
 
   const isGroupOpen = (category: string) => !!searchTerm || !collapsedGroups.has(category);
   const toggleGroup = (category: string) => setCollapsedGroups(prev => {
@@ -392,8 +398,8 @@ function InventoryPageContent() {
               {g.items.map(item => (
                 <motion.div key={item.id} variants={fadeUp}>
                   {viewMode === 'grid'
-                    ? <InventoryCard item={item} onDelete={() => { if (confirm('Delete this item?')) deleteItem(item.id); }} />
-                    : <InventoryRow item={item} onDelete={() => { if (confirm('Delete this item?')) deleteItem(item.id); }} />}
+                    ? <InventoryCard item={item} onDelete={() => handleDelete(item.id)} />
+                    : <InventoryRow item={item} onDelete={() => handleDelete(item.id)} />}
                 </motion.div>
               ))}
             </GroupSection>

@@ -13,6 +13,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { format, addDays } from 'date-fns';
+import { useConfirm } from '@/components/shared/theme';
 import type {
   EquipmentItem, MaintenanceLog, Reservation, DowntimeRecord, AppSettings,
   MaintenanceLogFormData, ReservationFormData,
@@ -58,6 +59,7 @@ const INITIAL_EQUIPMENT: EquipmentItem[] = [
 ];
 
 export function useEquipmentAvailabilityData() {
+  const confirm = useConfirm();
   const [isClient, setIsClient] = useState(false);
   const [equipment, setEquipment] = useState<EquipmentItem[]>([]);
   const [maintenanceLogs, setMaintenanceLogs] = useState<MaintenanceLog[]>([]);
@@ -167,10 +169,10 @@ export function useEquipmentAvailabilityData() {
     toast.success('Equipment reserved successfully');
   }, [reservations, saveReservations, updateEquipmentStatus]);
 
-  const removeEquipment = useCallback((item: EquipmentItem) => {
-    if (!confirm(`Are you sure you want to remove ${item.name}?`)) return;
+  const removeEquipment = useCallback(async (item: EquipmentItem) => {
+    if (!await confirm({ title: `Remove ${item.name}?`, destructive: true })) return;
     saveEquipment(equipment.filter(e => e.id !== item.id));
-  }, [equipment, saveEquipment]);
+  }, [equipment, saveEquipment, confirm]);
 
   return {
     isClient, isLoading,
