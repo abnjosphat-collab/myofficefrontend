@@ -23,7 +23,6 @@ export interface Employee {
   grade?: string;
   qualifications?: string[];
   employment_type?: 'NEC' | 'SALARIED' | '';
-  discipline?: 'mechanical' | 'electrical' | '';
   drivers_license_class?: string;
   ppe_issue_date?: string;
   offences?: string[];
@@ -44,7 +43,6 @@ export interface EmployeeFormData {
   designation: string;
   employee_class: string;
   employment_type: 'NEC' | 'SALARIED' | '';
-  discipline: 'mechanical' | 'electrical' | '';
   supervisor: string;
   section: string;
   department: string;

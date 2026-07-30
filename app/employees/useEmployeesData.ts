@@ -20,9 +20,6 @@ export async function saveEmployee(data: EmployeeFormData, id?: number) {
 export async function removeEmployee(id: number) {
   await api.delete(`${EMPLOYEES_API}/${id}`);
 }
-export async function bulkSetDiscipline(ids: number[], discipline: 'mechanical' | 'electrical' | null) {
-  return api.post<{ updated: number; discipline: string | null }>(`${EMPLOYEES_API}/bulk-discipline`, { ids, discipline });
-}
 
 export function useEmployeesData() {
   const [employees, setEmployees] = useState<Employee[]>([]);

@@ -538,8 +538,8 @@ function OvertimeContent() {
 
   const { records, setRecords, loading, refreshing, refresh: load } = useOvertimeData();
   // Joined live against employee master data (not stored on the OT record) so
-  // discipline analytics always reflect the current roster, not a snapshot that
-  // might predate the employee's discipline being set.
+  // section analytics always reflect the current roster, not a snapshot that
+  // might predate the employee's section being set.
   const employees = useEmployees();
 
   const [search, setSearch] = useState('');
@@ -582,15 +582,24 @@ function OvertimeContent() {
   const axisColor = t.light ? 'rgba(15,23,42,0.4)' : 'rgba(255,255,255,0.4)';
   const gridColor = t.light ? 'rgba(15,23,42,0.06)' : 'rgba(255,255,255,0.06)';
 
-  // "By section" reads the employee's discipline (mechanical/electrical) off the live
-  // roster keyed by employee_id — the OT record itself has no reliable section field.
+  // "By section" reads the employee's section off the live roster keyed by
+  // employee_id — the OT record itself has no reliable section field. Casing is
+  // normalized (source data has "Electrical" vs "electrical " etc.) so the same
+  // real-world section always buckets together, matching app/employees/page.tsx's
+  // normalizeSection convention.
   const empById = useMemo(() => new Map(employees.map(e => [e.employee_id, e])), [employees]);
-  const DISCIPLINE_HEX: Record<string, string> = { Mechanical: ACCENT_HEX.blue, Electrical: '#fbbf24', 'Not Set': '#94a3b8' };
+  const KNOWN_SECTIONS = ['Mechanical', 'Electrical', 'Civil', 'Instrumentation'];
+  const SECTION_HEX: Record<string, string> = { Mechanical: ACCENT_HEX.blue, Electrical: '#fbbf24', Civil: '#34d399', Instrumentation: '#a78bfa', Unassigned: '#94a3b8' };
+  const normalizeOtSection = (section?: string): string => {
+    const s = (section || '').trim();
+    if (!s) return 'Unassigned';
+    return KNOWN_SECTIONS.find(c => c.toLowerCase() === s.toLowerCase()) ?? s;
+  };
   const bySection = useMemo(() => {
-    const buckets: Record<string, { hours: number; count: number }> = { Mechanical: { hours: 0, count: 0 }, Electrical: { hours: 0, count: 0 }, 'Not Set': { hours: 0, count: 0 } };
+    const buckets: Record<string, { hours: number; count: number }> = {};
     records.forEach(r => {
-      const d = empById.get(r.employee_id)?.discipline;
-      const key = d === 'mechanical' ? 'Mechanical' : d === 'electrical' ? 'Electrical' : 'Not Set';
+      const key = normalizeOtSection(empById.get(r.employee_id)?.section);
+      if (!buckets[key]) buckets[key] = { hours: 0, count: 0 };
       buckets[key].hours += r.hours ?? calcHours(r.start_time, r.end_time);
       buckets[key].count += 1;
     });
@@ -914,7 +923,7 @@ function OvertimeContent() {
                     <YAxis tick={{ fill: axisColor, fontSize: 10 }} axisLine={false} tickLine={false} />
                     <Tooltip contentStyle={{ backgroundColor: t.light ? '#fff' : '#0f1e2e', border: `1px solid ${t.light ? 'rgba(15,23,42,0.1)' : 'rgba(134,187,216,0.2)'}`, borderRadius: 12, color: t.light ? '#0f172a' : '#fff', fontSize: 12 }} formatter={(v: number) => [`${v}h`, 'Hours']} />
                     <Bar dataKey="hours" name="Hours" radius={[6, 6, 0, 0]}>
-                      {bySection.map((d, i) => <Cell key={i} fill={DISCIPLINE_HEX[d.section] ?? '#94a3b8'} fillOpacity={0.8} />)}
+                      {bySection.map((d, i) => <Cell key={i} fill={SECTION_HEX[d.section] ?? '#94a3b8'} fillOpacity={0.8} />)}
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
