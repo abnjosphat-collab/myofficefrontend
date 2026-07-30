@@ -6,7 +6,7 @@ import { AppShell } from '@/components/app-shell';
 import { PredictiveInput } from '@/components/shared/PredictiveInput';
 import {
   Clock4, Plus, Search, RefreshCw, CheckCircle2, XCircle,
-  FileText, Eye, Trash2, Edit, LayoutGrid, List, AlertCircle,
+  FileText, Eye, Trash2, Edit, LayoutGrid, List, AlertCircle, AlertTriangle,
   Sun, Moon, Briefcase, Calendar, X, User, Download, CalendarRange,
   Wrench, UsersRound, TrendingUp,
 } from '@/components/shared/theme';
@@ -140,16 +140,31 @@ function EmployeeAutocomplete({ value, onChange, disabled }: { value: string; on
 
 // ─── FORM MODAL ───────────────────────────────────────────────────────────────
 
-function OTFormModal({ open, onClose, onSave, editing }: {
+function OTFormModal({ open, onClose, onSave, editing, records }: {
   open: boolean; onClose: () => void;
   onSave: (data: Record<string, unknown>, id?: number | string) => Promise<void>;
   editing: OTRecord | null;
+  records: OTRecord[];
 }) {
   const t = useTheme();
   const [form, setForm] = useState<OTForm>(blankForm());
   const [saving, setSaving] = useState(false);
   // The "pressed for time" fast path: hours entered directly instead of start/end times.
   const [useHours, setUseHours] = useState(false);
+
+  // Same person, same date, same time slot already has an active request —
+  // flag it, don't block: stacked entries (e.g. a standby callout after the
+  // normal shift) are a real, legitimate scenario, just not this exact one.
+  const duplicate = useMemo(() => {
+    if (useHours || !form.employee_id || !form.date || !form.start_time) return undefined;
+    return records.find(r =>
+      r.id !== editing?.id &&
+      r.employee_id === form.employee_id &&
+      r.date === form.date &&
+      r.start_time === form.start_time &&
+      r.status !== 'rejected' && r.status !== 'cancelled'
+    );
+  }, [records, editing, useHours, form.employee_id, form.date, form.start_time]);
 
   useEffect(() => {
     if (open) {
@@ -228,6 +243,23 @@ function OTFormModal({ open, onClose, onSave, editing }: {
             <FormField label="Start Time" required><input type="time" className={inputCls} value={form.start_time} onChange={e => set('start_time', e.target.value)} /></FormField>
             <FormField label="End Time" required><input type="time" className={inputCls} value={form.end_time} onChange={e => set('end_time', e.target.value)} /></FormField>
             <FormField label="Duration"><div className={`${inputCls} flex items-center text-brand-400 font-semibold pointer-events-none`}>{hours > 0 ? `${hours.toFixed(1)}h` : '—'}</div></FormField>
+          </div>
+        )}
+
+        {duplicate && (
+          <div className="flex items-start gap-2.5 rounded-xl px-3.5 py-3 bg-amber-500/10 border border-amber-500/30">
+            <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold text-amber-500">Already has a request for this exact slot</p>
+              <p className={`text-xs mt-0.5 ${t.textMuted}`}>
+                {duplicate.employee_name} · {formatDate(duplicate.date)} · {duplicate.start_time}–{duplicate.end_time}
+                {duplicate.hours != null && ` (${duplicate.hours}h)`}
+              </p>
+              <div className="flex items-center gap-1.5 mt-1.5">
+                <StatusBadge color={STATUS_HEX[duplicate.status]} label={duplicate.status} />
+                {duplicate.reason && <span className={`text-[11px] truncate ${t.textFaint}`}>{duplicate.reason}</span>}
+              </div>
+            </div>
           </div>
         )}
 
@@ -970,7 +1002,7 @@ function OvertimeContent() {
         </div>
       )}
 
-      <OTFormModal open={formOpen} onClose={() => { setFormOpen(false); setEditing(null); }} onSave={handleSave} editing={editing} />
+      <OTFormModal open={formOpen} onClose={() => { setFormOpen(false); setEditing(null); }} onSave={handleSave} editing={editing} records={records} />
 
       {viewing && (
         <OTDetailModal
