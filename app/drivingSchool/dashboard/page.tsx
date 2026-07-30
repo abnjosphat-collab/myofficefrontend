@@ -12,9 +12,9 @@ import {
   CenterModal, ACCENT_HEX, EmptyState, PrimaryButton, SelectField, SearchInput,
 } from '@/components/shared/theme';
 import {
-  Car, GraduationCap, CalendarDays, CreditCard, Users, TrendingUp, Clock4,
+  Car, GraduationCap, CalendarDays, Calendar, CreditCard, Users, TrendingUp, Clock4,
   CheckCircle2, XCircle, Plus, ArrowLeft, ChevronLeft, ChevronRight, Wrench,
-  UsersRound, Activity, Star, X,
+  UsersRound, Activity, Star, X, Gauge, UserRound, ClipboardCheck,
 } from '@/components/shared/theme';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatCurrency } from '@/components/shared/utils';
@@ -22,21 +22,26 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts';
 import {
-  LESSON_TYPES, LESSON_PRICE, WEEKDAY_NAMES,
-  type Booking, type BookingStatus, type Instructor, type LessonType, type PaymentStatus, type Student,
+  LESSON_TYPES, LESSON_PRICE, WEEKDAY_NAMES, isVip,
+  type Booking, type BookingStatus, type Instructor, type LessonType, type PaymentStatus, type Student, type VidTest,
 } from './types';
 import { generateAllMockData, businessSlots, toISODate, addDays } from './mockData';
+import StudentsTab from './StudentsTab';
+import CalendarTab from './CalendarTab';
 
 const STATUS_HEX: Record<BookingStatus, string> = { upcoming: ACCENT_HEX.blue, completed: '#34d399', cancelled: '#94a3b8' };
 const PAYMENT_HEX: Record<PaymentStatus, string> = { paid: '#34d399', pending: '#fbbf24', overdue: '#f87171' };
 const TYPE_HEX: Record<LessonType, string> = { Practical: ACCENT_HEX.blue, Highway: '#a78bfa', Theory: '#34d399', 'Test Prep': '#fbbf24' };
 
-const getHeatColor = (value: number, max: number): string => {
-  if (value === 0) return 'rgba(148,163,184,0.08)';
-  const intensity = value / Math.max(max, 1);
-  if (intensity < 0.33) return `rgba(59, 130, 246, ${0.3 + 0.4 * intensity})`;
-  if (intensity < 0.66) return `rgba(245, 158, 11, ${0.4 + 0.4 * intensity})`;
-  return `rgba(239, 68, 68, ${0.5 + 0.5 * intensity})`;
+// A single-hue violet scale (matching the app's own brand accent) reads as far
+// more refined than a traffic-light blue/amber/red ramp for a density map —
+// darker/more saturated simply means busier, no colour-meaning to decode.
+const getHeatColor = (value: number, max: number, light: boolean): string => {
+  if (value === 0) return light ? 'rgba(124,58,237,0.04)' : 'rgba(167,139,250,0.05)';
+  const intensity = Math.min(1, value / Math.max(max, 1));
+  return light
+    ? `rgba(124, 58, 237, ${0.1 + 0.55 * intensity})`
+    : `rgba(167, 139, 250, ${0.14 + 0.6 * intensity})`;
 };
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -53,12 +58,12 @@ function fmtDate(iso: string): string {
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
 }
 
-type Tab = 'overview' | 'bookings' | 'schedule' | 'payments' | 'analytics';
+type Tab = 'overview' | 'bookings' | 'schedule' | 'calendar' | 'students' | 'payments' | 'analytics';
 
 export default function DrivingSchoolDashboard() {
   const t = useTheme();
   const [seed] = useState(() => generateAllMockData());
-  const { instructors, students } = seed;
+  const { instructors, students, vidTests } = seed;
   const [bookings, setBookings] = useState<Booking[]>(seed.bookings);
 
   const [tab, setTab] = useState<Tab>('overview');
@@ -90,6 +95,8 @@ export default function DrivingSchoolDashboard() {
             { key: 'overview', label: 'Overview', icon: TrendingUp },
             { key: 'bookings', label: 'Bookings', icon: CalendarDays },
             { key: 'schedule', label: 'Schedule', icon: Clock4 },
+            { key: 'calendar', label: 'Calendar', icon: CalendarDays },
+            { key: 'students', label: 'Students', icon: UserRound },
             { key: 'payments', label: 'Payments', icon: CreditCard },
             { key: 'analytics', label: 'Analytics', icon: Activity },
           ] as { key: Tab; label: string; icon: ElementType }[]).map(tb => (
@@ -99,15 +106,18 @@ export default function DrivingSchoolDashboard() {
           ))}
         </div>
 
-        {tab === 'overview' && <OverviewTab bookings={bookings} instructors={instructors} students={students} />}
-        {tab === 'bookings' && <BookingsTab bookings={bookings} onNewBooking={() => setBookingModal({})} />}
+        {tab === 'overview' && <OverviewTab bookings={bookings} instructors={instructors} students={students} vidTests={vidTests} />}
+        {tab === 'bookings' && <BookingsTab bookings={bookings} students={students} onNewBooking={() => setBookingModal({})} />}
         {tab === 'schedule' && (
           <ScheduleTab
             bookings={bookings}
             instructors={instructors}
+            students={students}
             onSlotClick={(instructorId, date, slot) => setBookingModal({ instructorId, date, slot })}
           />
         )}
+        {tab === 'calendar' && <CalendarTab bookings={bookings} students={students} />}
+        {tab === 'students' && <StudentsTab students={students} bookings={bookings} vidTests={vidTests} />}
         {tab === 'payments' && (
           <PaymentsTab
             bookings={bookings}
@@ -117,7 +127,7 @@ export default function DrivingSchoolDashboard() {
             }}
           />
         )}
-        {tab === 'analytics' && <AnalyticsTab bookings={bookings} instructors={instructors} />}
+        {tab === 'analytics' && <AnalyticsTab bookings={bookings} instructors={instructors} students={students} />}
 
         {bookingModal && (
           <NewBookingModal
@@ -140,9 +150,14 @@ export default function DrivingSchoolDashboard() {
 
 // ─── OVERVIEW ───────────────────────────────────────────────────────────────
 
-function OverviewTab({ bookings, instructors, students }: { bookings: Booking[]; instructors: Instructor[]; students: Student[] }) {
+function OverviewTab({ bookings, instructors, students, vidTests }: { bookings: Booking[]; instructors: Instructor[]; students: Student[]; vidTests: VidTest[] }) {
   const t = useTheme();
   const today = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }, []);
+
+  const upcomingVidTests = useMemo(() => vidTests
+    .filter(v => v.status === 'scheduled')
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .slice(0, 6), [vidTests]);
 
   const stats = useMemo(() => {
     const paid = bookings.filter(b => b.payment_status === 'paid');
@@ -153,8 +168,9 @@ function OverviewTab({ bookings, instructors, students }: { bookings: Booking[];
     const activeStudents = new Set(bookings.filter(b => b.status !== 'cancelled').map(b => b.student_id)).size;
     const completedCount = bookings.filter(b => b.status === 'completed').length;
     const avgPrice = completedCount > 0 ? bookings.filter(b => b.status === 'completed').reduce((s, b) => s + b.price, 0) / completedCount : 0;
-    return { totalIncome, thisMonthIncome, upcoming, activeStudents, avgPrice: Math.round(avgPrice * 100) / 100 };
-  }, [bookings]);
+    const vipCount = students.filter(isVip).length;
+    return { totalIncome, thisMonthIncome, upcoming, activeStudents, avgPrice: Math.round(avgPrice * 100) / 100, vipCount };
+  }, [bookings, students]);
 
   const monthlyIncome = useMemo(() => {
     const now = new Date();
@@ -209,11 +225,12 @@ function OverviewTab({ bookings, instructors, students }: { bookings: Booking[];
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <StatTile icon={CreditCard} color={ACCENT_HEX.emerald} label="Total Income" value={formatCurrency(stats.totalIncome)} />
         <StatTile icon={TrendingUp} color={ACCENT_HEX.blue} label="This Month" value={formatCurrency(stats.thisMonthIncome)} />
         <StatTile icon={CalendarDays} color={ACCENT_HEX.indigo} label="Upcoming Lessons" value={stats.upcoming} />
         <StatTile icon={UsersRound} color={ACCENT_HEX.violet} label="Active Students" value={stats.activeStudents} />
+        <StatTile icon={Star} color="#fbbf24" label="VIP Students" value={stats.vipCount} />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -265,25 +282,48 @@ function OverviewTab({ bookings, instructors, students }: { bookings: Booking[];
           {nextFreeSlots.length === 0 && <p className={`text-sm ${t.textFaint}`}>No free slots in the next few days — fully booked!</p>}
         </div>
       </div>
+
+      <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
+        <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><ClipboardCheck className="h-4 w-4 text-brand-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Upcoming VID Test Appointments</span></div>
+        <div className="p-4">
+          {upcomingVidTests.length === 0 ? (
+            <p className={`text-sm ${t.textFaint}`}>No VID tests scheduled right now.</p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {upcomingVidTests.map(v => (
+                <div key={v.id} className={`flex items-center gap-2 text-xs px-3 py-2 rounded-xl border ${t.border} ${t.chipBg}`}>
+                  <span className={`font-semibold ${t.textPrimary}`}>{v.student_name}</span>
+                  <StatusBadge color={v.type === 'Provisional' ? ACCENT_HEX.blue : '#a78bfa'} label={v.type} />
+                  <span className={t.textFaint}>{fmtDate(v.date)} · {v.venue}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
 
 // ─── BOOKINGS ───────────────────────────────────────────────────────────────
 
-function BookingsTab({ bookings, onNewBooking }: { bookings: Booking[]; onNewBooking: () => void }) {
+function BookingsTab({ bookings, students, onNewBooking }: { bookings: Booking[]; students: Student[]; onNewBooking: () => void }) {
   const t = useTheme();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('all');
+  const [vipOnly, setVipOnly] = useState(false);
+
+  const vipStudentIds = useMemo(() => new Set(students.filter(isVip).map(s => s.id)), [students]);
 
   const filtered = useMemo(() => bookings.filter(b => {
     if (status !== 'all' && b.status !== status) return false;
+    if (vipOnly && !vipStudentIds.has(b.student_id)) return false;
     if (search) {
       const q = search.toLowerCase();
       if (!b.student_name.toLowerCase().includes(q) && !b.instructor_name.toLowerCase().includes(q)) return false;
     }
     return true;
-  }).sort((a, b) => (b.date + b.start_time).localeCompare(a.date + a.start_time)), [bookings, search, status]);
+  }).sort((a, b) => (b.date + b.start_time).localeCompare(a.date + a.start_time)), [bookings, search, status, vipOnly, vipStudentIds]);
   // Cap the rendered rows — a busy school's full history can run into the
   // thousands; the table shows the most recent slice rather than paginating.
   const visible = filtered.slice(0, 150);
@@ -296,6 +336,10 @@ function BookingsTab({ bookings, onNewBooking }: { bookings: Booking[]; onNewBoo
             <SearchInput value={search} onChange={setSearch} placeholder="Search student, instructor…" />
             <SelectField size="filter" title="Status" value={status} onChange={setStatus}
               options={[{ value: 'all', label: 'All Statuses' }, { value: 'upcoming', label: 'Upcoming' }, { value: 'completed', label: 'Completed' }, { value: 'cancelled', label: 'Cancelled' }]} />
+            <button type="button" onClick={() => setVipOnly(v => !v)}
+              className={`flex items-center gap-1.5 h-9 px-3 rounded-lg text-[13px] font-semibold transition-colors ${vipOnly ? 'bg-amber-500/20 text-amber-400' : `${t.chipBg} ${t.textMuted} ${t.hoverBg}`}`}>
+              <Star className="h-3.5 w-3.5" fill={vipOnly ? 'currentColor' : 'none'} /> VIP Only
+            </button>
           </div>
           <PrimaryButton onClick={onNewBooking}><Plus className="h-4 w-4" /> New Booking</PrimaryButton>
         </div>
@@ -326,7 +370,9 @@ function BookingsTab({ bookings, onNewBooking }: { bookings: Booking[]; onNewBoo
               <TableBody>
                 {visible.map(b => (
                   <TableRow key={b.id}>
-                    <TableCell className={`font-medium ${t.textPrimary}`}>{b.student_name}</TableCell>
+                    <TableCell className={`font-medium ${t.textPrimary}`}>
+                      <span className="flex items-center gap-1">{b.student_name}{vipStudentIds.has(b.student_id) && <Star className="h-3 w-3 text-amber-400" fill="currentColor" />}</span>
+                    </TableCell>
                     <TableCell className={t.textFaint}>{b.instructor_name}</TableCell>
                     <TableCell className={t.textFaint}>{fmtDate(b.date)} · {b.start_time}</TableCell>
                     <TableCell><StatusBadge color={TYPE_HEX[b.lesson_type]} label={b.lesson_type} /></TableCell>
@@ -346,11 +392,12 @@ function BookingsTab({ bookings, onNewBooking }: { bookings: Booking[]; onNewBoo
 
 // ─── SCHEDULE ───────────────────────────────────────────────────────────────
 
-function ScheduleTab({ bookings, instructors, onSlotClick }: {
-  bookings: Booking[]; instructors: Instructor[];
+function ScheduleTab({ bookings, instructors, students, onSlotClick }: {
+  bookings: Booking[]; instructors: Instructor[]; students: Student[];
   onSlotClick: (instructorId: string, date: string, slot: string) => void;
 }) {
   const t = useTheme();
+  const vipStudentIds = useMemo(() => new Set(students.filter(isVip).map(s => s.id)), [students]);
   const [instructorId, setInstructorId] = useState(instructors[0]?.id ?? '');
   const [weekStart, setWeekStart] = useState(() => mondayOf(new Date()));
   const slots = businessSlots();
@@ -392,11 +439,13 @@ function ScheduleTab({ bookings, instructors, onSlotClick }: {
                     const iso = toISODate(d);
                     const booking = bookings.find(b => b.date === iso && b.instructor_id === instructorId && b.start_time === slot && b.status !== 'cancelled');
                     if (booking) {
+                      const vip = vipStudentIds.has(booking.student_id);
                       return (
-                        <div key={iso} title={`${booking.student_name} · ${booking.lesson_type}`}
-                          className="rounded-lg px-1.5 py-1.5 text-[10px] leading-tight truncate"
-                          style={{ backgroundColor: `${TYPE_HEX[booking.lesson_type]}26`, color: TYPE_HEX[booking.lesson_type], border: `1px solid ${TYPE_HEX[booking.lesson_type]}55` }}>
-                          <div className="font-semibold truncate">{booking.student_name}</div>
+                        <div key={iso} title={`${booking.student_name} · ${booking.lesson_type}${vip ? ' · VIP' : ''}`}
+                          className="rounded-lg px-1.5 py-1.5 text-[10px] leading-tight truncate relative"
+                          style={{ backgroundColor: `${TYPE_HEX[booking.lesson_type]}26`, color: TYPE_HEX[booking.lesson_type], border: `1px solid ${vip ? '#fbbf24' : `${TYPE_HEX[booking.lesson_type]}55`}` }}>
+                          {vip && <Star className="h-2.5 w-2.5 text-amber-400 absolute top-1 right-1" fill="currentColor" />}
+                          <div className="font-semibold truncate pr-3">{booking.student_name}</div>
                           <div className="opacity-80 truncate">{booking.lesson_type}</div>
                         </div>
                       );
@@ -501,10 +550,35 @@ function PaymentsTab({ bookings, onRecordPayment }: { bookings: Booking[]; onRec
 
 // ─── ANALYTICS ──────────────────────────────────────────────────────────────
 
-function AnalyticsTab({ bookings, instructors }: { bookings: Booking[]; instructors: Instructor[] }) {
+function AnalyticsTab({ bookings, instructors, students }: { bookings: Booking[]; instructors: Instructor[]; students: Student[] }) {
   const t = useTheme();
   const slots = businessSlots();
   const active = useMemo(() => bookings.filter(b => b.status !== 'cancelled'), [bookings]);
+
+  const passRate = useMemo(() => {
+    const outcomes = active.filter(b => b.test_outcome);
+    return outcomes.length > 0 ? Math.round((outcomes.filter(b => b.test_outcome === 'passed').length / outcomes.length) * 100) : 0;
+  }, [active]);
+
+  const vipRevenue = useMemo(() => {
+    const vipIds = new Set(students.filter(isVip).map(s => s.id));
+    const paid = active.filter(b => b.payment_status === 'paid');
+    const vip = paid.filter(b => vipIds.has(b.student_id)).reduce((s, b) => s + b.price, 0);
+    const total = paid.reduce((s, b) => s + b.price, 0);
+    return { vip, pct: total > 0 ? Math.round((vip / total) * 100) : 0 };
+  }, [active, students]);
+
+  const instructorUtilization = useMemo(() => {
+    const now = new Date(); now.setHours(0, 0, 0, 0);
+    const from = addDays(now, -30);
+    let businessDays = 0;
+    for (let i = 0; i < 30; i++) if (addDays(from, i).getDay() !== 0) businessDays++;
+    const totalSlots = slots.length * businessDays;
+    return instructors.map(i => {
+      const count = active.filter(b => b.instructor_id === i.id && b.date >= toISODate(from) && b.date <= toISODate(now)).length;
+      return { instructor: i, pct: totalSlots > 0 ? Math.min(100, Math.round((count / totalSlots) * 100)) : 0 };
+    }).sort((a, b) => b.pct - a.pct);
+  }, [active, instructors, slots]);
 
   const heatmap = useMemo(() => {
     const grid = WEEKDAY_NAMES.map(() => slots.map(() => 0));
@@ -535,22 +609,29 @@ function AnalyticsTab({ bookings, instructors }: { bookings: Booking[]; instruct
 
   return (
     <div className="space-y-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <StatTile icon={GraduationCap} color={ACCENT_HEX.emerald} label="Test Pass Rate" value={`${passRate}%`} />
+        <StatTile icon={Star} color="#fbbf24" label="VIP Revenue" value={formatCurrency(vipRevenue.vip)} />
+        <StatTile icon={UsersRound} color={ACCENT_HEX.violet} label="VIP Share of Revenue" value={`${vipRevenue.pct}%`} />
+        <StatTile icon={Gauge} color={ACCENT_HEX.blue} label="Avg. Instructor Utilization" value={`${instructorUtilization.length > 0 ? Math.round(instructorUtilization.reduce((s, r) => s + r.pct, 0) / instructorUtilization.length) : 0}%`} />
+      </div>
+
       <div className={`${t.glass} rounded-2xl ${t.shadow} p-4`}>
         <h3 className={`flex items-center gap-2 text-sm font-semibold mb-1 ${t.textPrimary}`}><Activity className="h-4 w-4 text-violet-400" /> Booking Demand Heatmap</h3>
         <p className={`text-xs mb-3 ${t.textFaint}`}>Darker = more lessons booked at that time. Helps spot when to add instructor capacity.</p>
         <div className="overflow-x-auto">
-          <div className="min-w-[560px]">
-            <div className="grid grid-cols-[50px_repeat(6,1fr)] gap-1 mb-1">
+          <div className="min-w-[380px] max-w-md">
+            <div className="grid grid-cols-[38px_repeat(6,1fr)] gap-0.5 mb-0.5">
               <div />
-              {WEEKDAY_NAMES.slice(0, 6).map(d => <div key={d} className={`text-[10px] text-center font-medium ${t.textFaint}`}>{d}</div>)}
+              {WEEKDAY_NAMES.slice(0, 6).map(d => <div key={d} className={`text-[9px] text-center font-medium ${t.textFaint}`}>{d}</div>)}
             </div>
             {slots.map((slot, hourIdx) => (
-              <div key={slot} className="grid grid-cols-[50px_repeat(6,1fr)] gap-1 items-center mb-1">
-                <div className={`text-right text-[10px] pr-2 ${t.textFaint}`}>{slot}</div>
+              <div key={slot} className="grid grid-cols-[38px_repeat(6,1fr)] gap-0.5 items-center mb-0.5">
+                <div className={`text-right text-[9px] pr-1.5 ${t.textFaint}`}>{slot}</div>
                 {WEEKDAY_NAMES.slice(0, 6).map((d, dayIdx) => {
                   const value = heatmap[dayIdx][hourIdx];
                   return (
-                    <div key={d} title={`${d} ${slot}: ${value} lesson${value !== 1 ? 's' : ''}`} className="aspect-[2/1] rounded-sm transition-transform duration-200 hover:scale-105" style={{ backgroundColor: getHeatColor(value, maxHeat) }} />
+                    <div key={d} title={`${d} ${slot}: ${value} lesson${value !== 1 ? 's' : ''}`} className="h-3 rounded-[3px] transition-transform duration-150 hover:scale-110" style={{ backgroundColor: getHeatColor(value, maxHeat, t.light) }} />
                   );
                 })}
               </div>
@@ -590,6 +671,24 @@ function AnalyticsTab({ bookings, instructors }: { bookings: Booking[]; instruct
               </div>
             ))}
           </div>
+        </div>
+      </div>
+
+      <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
+        <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}>
+          <Gauge className="h-4 w-4 text-brand-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Instructor Utilization — Last 30 Days</span>
+        </div>
+        <p className={`text-xs px-5 pt-3 ${t.textFaint}`}>Booked slots as a share of available slots — low numbers flag spare capacity, high numbers flag when to hire.</p>
+        <div className="p-4 pt-3 space-y-3">
+          {instructorUtilization.map(r => (
+            <div key={r.instructor.id}>
+              <div className="flex justify-between text-xs mb-1">
+                <span className={`font-medium ${t.textPrimary}`}>{r.instructor.name}</span>
+                <span className={`font-semibold ${t.textPrimary}`}>{r.pct}%</span>
+              </div>
+              <ProgressBar value={r.pct} color={r.pct >= 70 ? '#f87171' : r.pct >= 40 ? ACCENT_HEX.emerald : ACCENT_HEX.violet} showValue={false} />
+            </div>
+          ))}
         </div>
       </div>
     </div>
@@ -647,7 +746,7 @@ function NewBookingModal({ instructors, students, bookings, initial, onClose, on
     <CenterModal open onClose={onClose} title="New Booking" accent="violet" width="max-w-lg">
       <div className="p-5 space-y-4">
         <FormField label="Student">
-          <SelectField value={studentId} onChange={setStudentId} options={students.map(s => ({ value: s.id, label: s.name }))} />
+          <SelectField value={studentId} onChange={setStudentId} options={students.map(s => ({ value: s.id, label: isVip(s) ? `★ ${s.name}` : s.name }))} />
         </FormField>
         <div className="grid grid-cols-2 gap-3">
           <FormField label="Instructor">

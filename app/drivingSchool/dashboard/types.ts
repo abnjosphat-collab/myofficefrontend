@@ -28,6 +28,34 @@ export interface Student {
   phone: string;
   package: 'Basic' | 'Standard' | 'Premium';
   lessonsRemaining: number;
+  joined_date: string; // ISO yyyy-mm-dd
+  // Manual VIP override for a non-Premium student (e.g. a loyal Basic/Standard
+  // regular). Effective VIP status is package === 'Premium' || vip — see isVip().
+  vip: boolean;
+}
+
+/** Effective VIP status: every Premium-package student, plus anyone manually flagged. */
+export function isVip(student: Pick<Student, 'package' | 'vip'>): boolean {
+  return student.package === 'Premium' || student.vip;
+}
+
+export type TestOutcome = 'passed' | 'failed';
+
+// A VID (Vehicle Inspectorate Department) test is a real government appointment —
+// separate from a driving lesson — booked at a VID office (e.g. Kadoma VID).
+// Provisional comes first (theory-based, licenses you to learn); Full License
+// comes after enough practical lessons.
+export type VidTestType = 'Provisional' | 'Full License';
+export type VidTestStatus = 'scheduled' | 'passed' | 'failed';
+
+export interface VidTest {
+  id: string;
+  student_id: string;
+  student_name: string;
+  type: VidTestType;
+  date: string; // ISO date
+  venue: string;
+  status: VidTestStatus;
 }
 
 export interface Booking {
@@ -43,6 +71,8 @@ export interface Booking {
   price: number;
   status: BookingStatus;
   payment_status: PaymentStatus;
+  // Only set on completed Test Prep bookings — the road-test result.
+  test_outcome?: TestOutcome;
 }
 
 // Business hours: 07:00–17:00, Monday–Saturday (Sunday closed).

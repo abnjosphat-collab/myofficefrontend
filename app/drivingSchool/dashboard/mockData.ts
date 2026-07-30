@@ -5,8 +5,10 @@
 
 import {
   BUSINESS_START_HOUR, BUSINESS_END_HOUR, LESSON_TYPES, LESSON_PRICE,
-  type Booking, type Instructor, type LessonType, type Student,
+  type Booking, type Instructor, type LessonType, type Student, type VidTest,
 } from './types';
+
+const VID_VENUES = ['Kadoma VID', 'Harare VID (Fife Avenue)'];
 
 // mulberry32 — tiny seeded PRNG, good enough for believable-looking demo data.
 function mulberry32(seed: number) {
@@ -39,15 +41,21 @@ function generateInstructors(): Instructor[] {
   }));
 }
 
-function generateStudents(rng: () => number): Student[] {
+function generateStudents(rng: () => number, today: Date): Student[] {
   return STUDENT_FIRST.map((first, i) => {
     const last = STUDENT_LAST[i % STUDENT_LAST.length];
+    const pkg = PACKAGES[Math.floor(rng() * PACKAGES.length)];
+    // A few non-Premium regulars get a manual VIP flag too (loyalty, referrals) —
+    // Premium students are VIP by definition, see isVip() in types.ts.
+    const vip = pkg !== 'Premium' && rng() < 0.12;
     return {
       id: `S${i + 1}`,
       name: `${first} ${last}`,
       phone: `+263 7${Math.floor(rng() * 9)} ${String(Math.floor(rng() * 900) + 100)} ${String(Math.floor(rng() * 9000) + 1000)}`,
-      package: PACKAGES[Math.floor(rng() * PACKAGES.length)],
+      package: pkg,
       lessonsRemaining: Math.floor(rng() * 8),
+      joined_date: toISODate(addDays(today, -Math.floor(rng() * 240) - 14)),
+      vip,
     };
   });
 }
@@ -129,6 +137,11 @@ function generateBookings(instructors: Instructor[], students: Student[], rng: (
           paymentStatus = rng() < 0.35 ? 'paid' : 'pending';
         }
 
+        // Road-test result — only meaningful for a completed Test Prep lesson.
+        const testOutcome: Booking['test_outcome'] = (lessonType === 'Test Prep' && status === 'completed')
+          ? (rng() < 0.82 ? 'passed' : 'failed')
+          : undefined;
+
         bookings.push({
           id: `B${seq++}`,
           student_id: student.id,
@@ -142,6 +155,7 @@ function generateBookings(instructors: Instructor[], students: Student[], rng: (
           price,
           status,
           payment_status: paymentStatus,
+          test_outcome: testOutcome,
         });
       }
     }
@@ -149,10 +163,63 @@ function generateBookings(instructors: Instructor[], students: Student[], rng: (
   return bookings.sort((a, b) => (a.date + a.start_time).localeCompare(b.date + b.start_time));
 }
 
-export function generateAllMockData(): { instructors: Instructor[]; students: Student[]; bookings: Booking[] } {
+// VID (Vehicle Inspectorate Department) test appointments — real government
+// bookings, not driving lessons, so derived from each student's lesson history
+// rather than the slot grid: a Provisional test follows their first Theory
+// lesson; a Full License test follows enough Practical/Highway lessons.
+function generateVidTests(students: Student[], bookings: Booking[], rng: () => number, today: Date): VidTest[] {
+  const byStudent = new Map<string, Booking[]>();
+  bookings.forEach(b => { if (!byStudent.has(b.student_id)) byStudent.set(b.student_id, []); byStudent.get(b.student_id)!.push(b); });
+
+  const tests: VidTest[] = [];
+  let seq = 1;
+  for (const student of students) {
+    const own = (byStudent.get(student.id) ?? []).filter(b => b.status !== 'cancelled');
+    const firstTheory = own.filter(b => b.lesson_type === 'Theory').sort((a, b) => a.date.localeCompare(b.date))[0];
+    const roadLessons = own.filter(b => (b.lesson_type === 'Practical' || b.lesson_type === 'Highway') && b.status === 'completed').length;
+    const venue = VID_VENUES[Math.floor(rng() * VID_VENUES.length)];
+
+    if (firstTheory && rng() < 0.7) {
+      const testDate = addDays(new Date(`${firstTheory.date}T00:00:00`), 7 + Math.floor(rng() * 10));
+      const isFuture = testDate > today;
+      const status: VidTest['status'] = isFuture ? 'scheduled' : (rng() < 0.88 ? 'passed' : 'failed');
+      tests.push({ id: `V${seq++}`, student_id: student.id, student_name: student.name, type: 'Provisional', date: toISODate(testDate), venue, status });
+
+      // A Full License test only makes sense once they've passed Provisional
+      // and logged real road time.
+      if (status === 'passed' && roadLessons >= 3 && rng() < 0.55) {
+        const fullDate = addDays(testDate, 30 + Math.floor(rng() * 60));
+        const fullIsFuture = fullDate > today;
+        const fullStatus: VidTest['status'] = fullIsFuture ? 'scheduled' : (rng() < 0.8 ? 'passed' : 'failed');
+        tests.push({ id: `V${seq++}`, student_id: student.id, student_name: student.name, type: 'Full License', date: toISODate(fullDate), venue, status: fullStatus });
+      }
+    }
+  }
+
+  // A student's earliest Theory lesson (the anchor above) is, for any
+  // long-enrolled student, deep in the past — so the derived date is almost
+  // always historical too. Real schools always have a few tests genuinely on
+  // the calendar, so explicitly schedule a handful for students who are still
+  // mid-course (lessons remaining, no passed Provisional yet) rather than
+  // leaving "upcoming tests" permanently empty.
+  const stillLearning = students.filter(s => s.lessonsRemaining > 0 && !tests.some(v => v.student_id === s.id && v.status !== 'failed'));
+  for (let i = 0; i < Math.min(4, stillLearning.length); i++) {
+    const student = stillLearning[Math.floor(rng() * stillLearning.length)];
+    if (tests.some(v => v.student_id === student.id && v.status === 'scheduled')) continue;
+    const testDate = addDays(today, 2 + Math.floor(rng() * 18));
+    const venue = VID_VENUES[Math.floor(rng() * VID_VENUES.length)];
+    tests.push({ id: `V${seq++}`, student_id: student.id, student_name: student.name, type: 'Provisional', date: toISODate(testDate), venue, status: 'scheduled' });
+  }
+
+  return tests.sort((a, b) => a.date.localeCompare(b.date));
+}
+
+export function generateAllMockData(): { instructors: Instructor[]; students: Student[]; bookings: Booking[]; vidTests: VidTest[] } {
   const rng = mulberry32(20260729);
+  const today = new Date(); today.setHours(0, 0, 0, 0);
   const instructors = generateInstructors();
-  const students = generateStudents(rng);
+  const students = generateStudents(rng, today);
   const bookings = generateBookings(instructors, students, rng);
-  return { instructors, students, bookings };
+  const vidTests = generateVidTests(students, bookings, rng, today);
+  return { instructors, students, bookings, vidTests };
 }
