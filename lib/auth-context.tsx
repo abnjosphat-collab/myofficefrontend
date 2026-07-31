@@ -3,7 +3,7 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import type { User, Session } from '@supabase/supabase-js';
-import { supabase, UserProfile, UserRole, ROLE_ORDER, roleAtLeast, upsertProfile, getProfile } from './supabase';
+import { supabase, UserProfile, UserRole, roleAtLeast, upsertProfile, getProfile } from './supabase';
 import { needsChallenge } from './mfa';
 
 // ─── Context type ─────────────────────────────────────────────────────────────
@@ -139,7 +139,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const isAtLeast = (role: UserRole): boolean => {
     if (!profile) return false;
-    return ROLE_ORDER.indexOf(profile.role) >= ROLE_ORDER.indexOf(role);
+    return roleAtLeast(profile.role, role);
   };
 
   return (

@@ -1,15 +1,20 @@
-// lib/roles.ts — single source for role metadata (labels, badge styles, ordering,
+// lib/roles.ts — single source for role metadata (labels, badge styles,
 // per-role icon/description). This was duplicated across app/admin/page.tsx,
 // components/app-shell/AuthMenu.tsx, components/Header.tsx and
 // components/shared/ApprovalGate.tsx. Import from here instead.
+//
+// ROLE_ORDER/roleAtLeast themselves are NOT redefined here — they live in
+// lib/supabase.ts (the more foundational file, alongside the UserRole type
+// itself) and are re-exported below. This file previously had its own
+// second copy of both, which is exactly the kind of drift risk role-order
+// duplication creates — two lists that happen to agree today but have no
+// mechanism keeping them that way.
 import type { UserRole } from '@/lib/supabase';
+export { ROLE_ORDER, roleAtLeast } from '@/lib/supabase';
 import { Crown, Star, Briefcase, UserCheck, Eye } from '@/components/shared/theme';
 import type { ElementType } from 'react';
 
 export type { UserRole };
-
-/** Lowest → highest privilege. */
-export const ROLE_ORDER: UserRole[] = ['viewer', 'user', 'manager', 'admin', 'super_admin'];
 
 export const ROLE_LABELS: Record<UserRole, string> = {
   super_admin: 'Super Admin',
@@ -37,8 +42,3 @@ export const ROLE_META: Record<UserRole, { icon: ElementType; hex: string; desc:
   user: { icon: UserCheck, hex: '#94a3b8', desc: 'Standard user — view + limited edit via permissions' },
   viewer: { icon: Eye, hex: '#64748b', desc: 'Read-only access across the platform' },
 };
-
-/** True if `role` is at or above `min` in ROLE_ORDER. */
-export function roleAtLeast(role: UserRole, min: UserRole): boolean {
-  return ROLE_ORDER.indexOf(role) >= ROLE_ORDER.indexOf(min);
-}
