@@ -792,7 +792,7 @@ function CompressorReadingsSystem() {
       </div>
 
       <p className={`text-center text-xs ${t.textFaint}`}>
-        Connected to {API_BASE} · {compressors.length} compressors{mounted ? ` · Last updated ${new Date().toLocaleTimeString()}` : ''}
+        Connected to {API_BASE} · {compressors.length} compressors{mounted ? ` · Last updated ${new Date().toLocaleTimeString('en-GB')}` : ''}
       </p>
 
       <AddCompressorForm />

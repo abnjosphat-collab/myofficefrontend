@@ -104,7 +104,7 @@ const getDays = ({ start, end }: Period) => {
 };
 
 const fmtPeriod = ({ start, end }: Period) =>
-  `${start.getDate()} ${start.toLocaleString('default', { month: 'short' })} ${start.getFullYear()} — ${end.getDate()} ${end.toLocaleString('default', { month: 'short' })} ${end.getFullYear()}`;
+  `${start.getDate()} ${start.toLocaleString('en-GB', { month: 'short' })} ${start.getFullYear()} — ${end.getDate()} ${end.toLocaleString('en-GB', { month: 'short' })} ${end.getFullYear()}`;
 
 const getSalariedPeriod = (month: Date): Period => {
   const y = month.getFullYear(), m = month.getMonth();
@@ -1047,9 +1047,9 @@ function TimesheetGrid({ employees, timesheets, days, onCellClick, onBulkAssign,
             return (
               <TableHead key={ds} title={holiday || undefined} className={`text-center min-w-[70px] px-0.5 sticky top-0 z-20 ${stickyBg} ${holiday ? 'bg-violet-500/[0.08]' : ''}`}>
                 <div className="flex flex-col items-center text-[9px] py-1">
-                  <span className={t.textFaint}>{d.toLocaleDateString('default', { weekday: 'short' })}</span>
+                  <span className={t.textFaint}>{d.toLocaleDateString('en-GB', { weekday: 'short' })}</span>
                   <span className={`font-bold text-sm ${holiday ? 'text-violet-400' : ds === today ? 'text-brand-400' : isWknd ? t.textFaint : t.textMuted}`}>{d.getDate()}</span>
-                  <span className={t.textFaint}>{d.toLocaleDateString('default', { month: 'short' })}</span>
+                  <span className={t.textFaint}>{d.toLocaleDateString('en-GB', { month: 'short' })}</span>
                   {holiday && <Sun className="w-2.5 h-2.5 text-violet-400 mt-0.5" />}
                 </div>
               </TableHead>

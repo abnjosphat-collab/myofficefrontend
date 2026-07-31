@@ -514,8 +514,8 @@ function DashboardHeader({ moduleCount, categoryCount }: { moduleCount: number; 
     return () => clearInterval(intervalId);
   }, []);
 
-  const dateLabel = now?.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
-  const timeLabel = now?.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  const dateLabel = now?.toLocaleDateString('en-GB', { weekday: 'long', month: 'long', day: 'numeric' });
+  const timeLabel = now?.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit' });
 
   return (
     <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="mb-9">

@@ -5,11 +5,10 @@ export function fmtDate(s?: string | null, style: 'short' | 'long' = 'short'): s
   try {
     const d = new Date(s);
     if (isNaN(d.getTime())) return '—';
-    return d.toLocaleDateString(
-      style === 'short' ? 'en-GB' : 'en-US',
+    return d.toLocaleDateString('en-GB',
       style === 'short'
         ? { day: '2-digit', month: 'short', year: 'numeric' }
-        : { year: 'numeric', month: 'long', day: 'numeric' }
+        : { day: 'numeric', month: 'long', year: 'numeric' }
     );
   } catch { return '—'; }
 }

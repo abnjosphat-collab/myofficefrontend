@@ -719,6 +719,24 @@ input[type="week"] {
   color-scheme: dark;
 }
 
+/* These fields are pick-from-calendar, not type-a-date — AppShell.tsx's global
+   click handler already opens the native picker on any click inside the field
+   (not just the tiny glyph), but visually the field still looked like a normal
+   text input (blinking caret, text cursor on hover, selectable text), which
+   reads as "type here" and contradicts what actually happens on click. This
+   removes that mismatch app-wide in one place instead of touching the ~35
+   separately-declared per-page inputCls strings. */
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"],
+input[type="month"],
+input[type="week"] {
+  cursor: pointer;
+  caret-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 /* ============================================
    MODAL ANIMATIONS
    ============================================ */

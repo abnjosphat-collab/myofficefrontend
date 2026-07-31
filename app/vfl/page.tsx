@@ -41,7 +41,7 @@ const ACTION_HEX: Record<ActionStatus, string> = { Pending: '#f59e0b', 'In Progr
 
 // =============== HELPERS ===============
 const fmtDate = (s: string) => (s ? formatDate(s) : '');
-const fmtTime = (s: string) => { if (!s) return ''; try { return new Date(`2000-01-01T${s}`).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }); } catch { return s; } };
+const fmtTime = (s: string) => { if (!s) return ''; try { return new Date(`2000-01-01T${s}`).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }); } catch { return s; } };
 const newId = () => Math.random().toString(36).slice(2, 11);
 
 const defaultForm = (): Partial<VFLReport> => ({

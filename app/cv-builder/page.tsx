@@ -1531,7 +1531,7 @@ export default function CVFactory() {
     ` : ''}
     
     <div style="margin-top: 50px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 12px; color: #666; text-align: center;">
-      <p>Generated with CV Factory • ${new Date().toLocaleDateString()}</p>
+      <p>Generated with CV Factory • ${new Date().toLocaleDateString('en-GB')}</p>
     </div>
   </div>
 </body>

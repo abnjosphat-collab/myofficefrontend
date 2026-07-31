@@ -699,7 +699,7 @@ function SparesPageContent() {
     const { default: jsPDF } = await import('jspdf');
     const { default: autoTable } = await import('jspdf-autotable');
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-    const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    const today = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
     const lines = reqLines.filter(l => l.spare);
 
     doc.setFillColor(...EXPORT_BRAND_RGB); doc.rect(0, 0, 297, 26, 'F');

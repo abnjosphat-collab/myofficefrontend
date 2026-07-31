@@ -167,7 +167,7 @@ function computeStats(raw: RawData, from: Date | null, to: Date | null): Compute
   const now = new Date();
   const months: MonthBucket[] = Array.from({ length: 6 }, (_, i) => {
     const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
-    return { label: d.toLocaleDateString('en-US', { month: 'short' }), year: d.getFullYear(), month: d.getMonth(), count: 0 };
+    return { label: d.toLocaleDateString('en-GB', { month: 'short' }), year: d.getFullYear(), month: d.getMonth(), count: 0 };
   });
   [...nm, ...ws, ...vfl, ...pto, ...insp, ...pach].forEach(r => {
     const ds = r.submittedAt || r.created_at || r.date || r.createdAt;
@@ -548,7 +548,7 @@ function SHEQDashboardContent() {
             <p style={{ fontSize: 13, color: P.textMuted }}>Live overview across Near Miss, Work Stoppage, VFL &amp; PTO modules</p>
             {lastUpdated && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: P.textFaintest, marginTop: 6 }}>
-                <Clock size={10} /> Refreshed {lastUpdated.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                <Clock size={10} /> Refreshed {lastUpdated.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
               </div>
             )}
           </div>
@@ -1025,7 +1025,7 @@ function SHEQDashboardContent() {
                     )}
                   </div>
 
-                  <div style={{ fontSize: 10, color: P.textFaintest, textAlign: 'right' }}>Analysis generated {aiResult.generated_at ? new Date(aiResult.generated_at).toLocaleString() : ''} · Review recommendations with your safety team before acting</div>
+                  <div style={{ fontSize: 10, color: P.textFaintest, textAlign: 'right' }}>Analysis generated {aiResult.generated_at ? new Date(aiResult.generated_at).toLocaleString('en-GB') : ''} · Review recommendations with your safety team before acting</div>
                 </div>
               );
             })()}

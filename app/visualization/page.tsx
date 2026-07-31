@@ -737,7 +737,7 @@ function VisualizationContent() {
                         </CardTitle>
                         <CardDescription>
                           {pageData.data_summary.total_records.toLocaleString()} records loaded • 
-                          Generated {new Date(pageData.generated_at).toLocaleTimeString()}
+                          Generated {new Date(pageData.generated_at).toLocaleTimeString('en-GB')}
                         </CardDescription>
                       </CardHeader>
                       <CardContent>

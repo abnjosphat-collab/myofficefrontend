@@ -554,9 +554,9 @@ function WeeklySummaryView({ records }: { records: OTRecord[] }) {
                   return (
                     <TableHead key={ds} className={`text-center min-w-[64px] px-0.5 sticky top-0 z-20 ${stickyBg} ${isWknd ? t.chipBg : ''}`}>
                       <div className="flex flex-col items-center text-[9px] py-1">
-                        <span className={t.textFaint}>{d.toLocaleDateString('default', { weekday: 'short' })}</span>
+                        <span className={t.textFaint}>{d.toLocaleDateString('en-GB', { weekday: 'short' })}</span>
                         <span className={`font-bold text-sm ${ds === today ? 'text-brand-400' : t.textMuted}`}>{d.getDate()}</span>
-                        <span className={t.textFaint}>{d.toLocaleDateString('default', { month: 'short' })}</span>
+                        <span className={t.textFaint}>{d.toLocaleDateString('en-GB', { month: 'short' })}</span>
                       </div>
                     </TableHead>
                   );
