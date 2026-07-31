@@ -15,6 +15,7 @@
 
 import { useEffect, useState } from 'react';
 import { API_BASE } from '@/lib/config';
+import { authFetch } from '@/lib/api';
 import {
   ClipboardPlus, AlertTriangle, type LucideIcon,
 } from '@/components/shared/theme';
@@ -54,9 +55,14 @@ export function timeAgo(iso?: string | null): string {
   return `${days} day${days === 1 ? '' : 's'}`;
 }
 
+// Some of these endpoints (employees, individual work orders, breakdowns) are
+// auth-gated server-side; others (aggregate stats, equipment) are open. Using
+// authFetch for all of them is harmless either way — it just attaches a
+// Bearer token when a session exists — and avoids silently 401ing on the
+// gated ones.
 async function safeJson(url: string): Promise<any> {
   try {
-    const r = await fetch(url);
+    const r = await authFetch(url);
     if (!r.ok) return null;
     return await r.json();
   } catch {
