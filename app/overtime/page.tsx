@@ -25,7 +25,7 @@ import { toast } from 'sonner';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts';
-import { OT_TYPES, STATUSES, type OTType, type OTStatus, type OTRecord, type OTForm } from './types';
+import { OT_TYPES, SELECTABLE_OT_TYPES, STATUSES, type OTType, type OTStatus, type OTRecord, type OTForm } from './types';
 import { useOvertimeData, buildOvertimePayload, createOT, updateOT, deleteOT } from './useOvertimeData';
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
@@ -37,6 +37,12 @@ const TYPE_HEX: Record<OTType, string> = { regular: ACCENT_HEX.blue, weekend: '#
 const STATUS_HEX: Record<OTStatus, string> = {
   pending: '#fbbf24', approved: '#34d399', rejected: '#f87171', paid: ACCENT_HEX.blue, cancelled: '#94a3b8',
 };
+
+// Pay-rate multiplier by overtime type — weekend/holiday work is paid double time,
+// everything else (incl. legacy emergency/project/night records) is time-and-a-half.
+function rateFor(type: OTType): 1.5 | 2.0 {
+  return type === 'weekend' || type === 'holiday' ? 2.0 : 1.5;
+}
 const STATUS_COLOR: Record<OTStatus, string> = {
   pending: 'text-amber-400', approved: 'text-emerald-400', rejected: 'text-rose-400', paid: 'text-brand-400', cancelled: 'text-white/40',
 };
@@ -224,7 +230,7 @@ function OTFormModal({ open, onClose, onSave, editing, records }: {
         <div className="grid grid-cols-2 gap-3">
           <FormField label="Overtime Type" required>
             <SelectField size="form" value={form.overtime_type} title="Overtime type" onChange={v => set('overtime_type', v as OTType)}
-              options={OT_TYPES.map(ty => ({ value: ty, label: TYPE_LABELS[ty] }))} />
+              options={SELECTABLE_OT_TYPES.map(ty => ({ value: ty, label: TYPE_LABELS[ty] }))} />
           </FormField>
           <FormField label="Date" required><input type="date" className={inputCls} value={form.date} onChange={e => set('date', e.target.value)} /></FormField>
         </div>
@@ -414,6 +420,19 @@ function WeeklySummaryView({ records }: { records: OTRecord[] }) {
   const grandTotal = rows.reduce((s, r) => s + r.total, 0);
   const dayTotals = days.map(d => { const ds = toISODate(d); return rows.reduce((s, r) => s + (r.byDate.get(ds) || 0), 0); });
 
+  // Same day-by-day/grand totals, split by pay rate — records in range only, scoped
+  // independently of the per-employee matrix above (which stays rate-agnostic).
+  const inRangeRecords = useMemo(() => records.filter(r => r.date >= from && r.date <= to), [records, from, to]);
+  const dayTotalsByRate = (rate: 1.5 | 2.0) => days.map(d => {
+    const ds = toISODate(d);
+    return inRangeRecords.filter(r => r.date === ds && rateFor(r.overtime_type) === rate)
+      .reduce((s, r) => s + (r.hours ?? calcHours(r.start_time, r.end_time)), 0);
+  });
+  const dayTotals15 = dayTotalsByRate(1.5);
+  const dayTotals20 = dayTotalsByRate(2.0);
+  const grandTotal15 = dayTotals15.reduce((s, v) => s + v, 0);
+  const grandTotal20 = dayTotals20.reduce((s, v) => s + v, 0);
+
   const stickyBg = t.light ? 'bg-white' : 'bg-[#040c18]';
   const today = toISODate(new Date());
   const invalidRange = from > to;
@@ -445,6 +464,13 @@ function WeeklySummaryView({ records }: { records: OTRecord[] }) {
       c.border = { bottom: { style: 'medium', color: { argb: 'FF86BBD8' } } };
     });
 
+    // [$-409] forces English-US number rendering (period decimal separator) regardless
+    // of the opening machine's own Windows/Excel regional settings — a plain '0.00'
+    // format code is locale-independent in the file itself, but Excel still re-renders
+    // its decimal separator using the viewer's OS locale, which shows as "0,00" on a
+    // comma-decimal system. The locale prefix pins the display, not just the code.
+    const NUMFMT = '[$-409]0.00';
+
     rows.forEach((row, ei) => {
       const rowVals: (string | number)[] = [row.employee_name, ...days.map(d => row.byDate.get(toISODate(d)) || 0), row.total];
       const dataRow = ws.getRow(4 + ei);
@@ -455,22 +481,32 @@ function WeeklySummaryView({ records }: { records: OTRecord[] }) {
         const isFixedCol = col === 1, isTotalCol = col === totalCols;
         c.font = { name: FONT, size: 9, bold: isTotalCol };
         c.alignment = { horizontal: isFixedCol ? 'left' : 'center', vertical: 'middle' };
-        if (!isFixedCol) c.numFmt = '0.00';
+        if (!isFixedCol) c.numFmt = NUMFMT;
         c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isTotalCol ? 'FFD0E8F5' : stripe ? 'FFF5F8FB' : 'FFFFFFFF' } };
       });
     });
 
-    const gtRow = ws.getRow(4 + rows.length + 1);
-    gtRow.values = ['TOTAL', ...dayTotals, grandTotal];
-    gtRow.height = 20;
-    gtRow.eachCell({ includeEmpty: true }, (c, col) => {
-      const isTotalCol = col === totalCols;
-      c.font = { name: FONT, bold: true, size: 9, color: { argb: isTotalCol ? 'FFFFFFFF' : 'FF1E3A5F' } };
-      c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isTotalCol ? EXPORT_BRAND_ARGB : 'FFD0E8F5' } };
-      c.alignment = { horizontal: col === 1 ? 'left' : 'center', vertical: 'middle' };
-      if (col > 1) c.numFmt = '0.00';
-      c.border = { top: { style: 'medium', color: { argb: 'FF86BBD8' } } };
-    });
+    // Totals section: 1.5x and 2.0x subtotals shown separately, then the grand total
+    // (their sum) — every record is exactly one or the other, so grandTotal15 +
+    // grandTotal20 always equals grandTotal.
+    const writeTotalRow = (rowIndex: number, label: string, dayValues: number[], total: number, isGrand: boolean) => {
+      const row = ws.getRow(rowIndex);
+      row.values = [label, ...dayValues, total];
+      row.height = isGrand ? 20 : 18;
+      row.eachCell({ includeEmpty: true }, (c, col) => {
+        const isTotalCol = col === totalCols;
+        c.font = { name: FONT, bold: true, size: 9, color: { argb: isGrand && isTotalCol ? 'FFFFFFFF' : 'FF1E3A5F' } };
+        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isGrand ? (isTotalCol ? EXPORT_BRAND_ARGB : 'FFD0E8F5') : 'FFEDF3F8' } };
+        c.alignment = { horizontal: col === 1 ? 'left' : 'center', vertical: 'middle' };
+        if (col > 1) c.numFmt = NUMFMT;
+        if (isGrand) c.border = { top: { style: 'medium', color: { argb: 'FF86BBD8' } } };
+      });
+    };
+
+    const totalsStartRow = 4 + rows.length + 1;
+    writeTotalRow(totalsStartRow, 'TOTAL @ 1.5x', dayTotals15, grandTotal15, false);
+    writeTotalRow(totalsStartRow + 1, 'TOTAL @ 2.0x', dayTotals20, grandTotal20, false);
+    writeTotalRow(totalsStartRow + 2, 'GRAND TOTAL', dayTotals, grandTotal, true);
 
     ws.getColumn(1).width = 24;
     for (let i = 0; i < days.length; i++) ws.getColumn(2 + i).width = 8;

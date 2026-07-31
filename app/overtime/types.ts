@@ -6,8 +6,13 @@
 // every other page's config constants) — OTType/OTStatus are re-derived here from the
 // same literal unions so both files agree without importing JSX-bearing page.tsx code.
 
+// OT_TYPES stays the full historical set — existing records still hold 'emergency'/
+// 'project'/'night' and must keep rendering correctly (badges, filters, analytics).
+// SELECTABLE_OT_TYPES is the narrower set actually offered going forward (the create/
+// edit form only) — removed per business decision, not a data migration.
 export const OT_TYPES = ['regular', 'weekend', 'emergency', 'project', 'holiday', 'night'] as const;
 export type OTType = typeof OT_TYPES[number];
+export const SELECTABLE_OT_TYPES: OTType[] = ['regular', 'weekend', 'holiday'];
 export const STATUSES = ['pending', 'approved', 'rejected', 'paid', 'cancelled'] as const;
 export type OTStatus = typeof STATUSES[number];
 
