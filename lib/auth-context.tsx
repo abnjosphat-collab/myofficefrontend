@@ -127,7 +127,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { full_name: name } },
+      options: {
+        data: { full_name: name },
+        // Explicit, matching signInWithGoogle below — without this the confirmation
+        // email uses whatever default redirect is configured in the Supabase
+        // dashboard, which may not be /auth/callback. That page is now the one place
+        // that explicitly handles the hash-based tokens this kind of email link
+        // carries (detectSessionInUrl is off — see lib/supabase.ts), so confirmation
+        // needs to land there too, not wherever the dashboard default happens to be.
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
     });
     return { error: error?.message ?? null };
   };

@@ -23,7 +23,17 @@ export const supabase = createClient(url || 'https://placeholder.supabase.co', k
   auth: {
     autoRefreshToken:   true,
     persistSession:     true,
-    detectSessionInUrl: true,
+    // OFF on purpose. Supabase's invite/recovery emails use the implicit flow
+    // (tokens + `type` in the URL hash, not `?code=`), and this option makes the SDK
+    // auto-process that hash in the background the instant the page mounts — which
+    // fires onAuthStateChange and silently signs the user in before app/auth/callback
+    // ever gets to look at `type` and decide whether to route to set-password first.
+    // Confirmed live: an invite landed on the homepage, already signed in, having
+    // skipped set-password entirely. Same race class as the MFA-gate bug (see the
+    // comment on applySession() in auth-context.tsx) — the fix there was "handle it
+    // explicitly instead of trusting a background listener to win the race," and it's
+    // the same fix here. app/auth/callback/page.tsx now does the hash parsing itself.
+    detectSessionInUrl: false,
   },
 });
 
@@ -52,6 +62,7 @@ export interface UserProfile {
   full_name:   string | null;
   avatar_url:  string | null;
   role:        UserRole;
+  is_active:   boolean;
   created_at:  string;
 }
 

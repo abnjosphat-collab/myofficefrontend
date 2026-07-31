@@ -4,11 +4,15 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   Shield, Users, Search, ChevronDown, ChevronUp,
-  Save, RefreshCw, AlertCircle, Check,
+  Save, RefreshCw, AlertCircle, Check, UserPlus, Power, Key,
 } from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
-import { useTheme, PageHero, StatTile, StatusBadge, SearchInput, EmptyState } from '@/components/shared/theme';
+import {
+  useTheme, PageHero, StatTile, StatusBadge, SearchInput, EmptyState,
+  CenterModal, FormField, PrimaryButton, useConfirm,
+} from '@/components/shared/theme';
 import { useAuth } from '@/lib/auth-context';
+import { toast } from 'sonner';
 import type { UserProfile, UserRole } from '@/lib/supabase';
 // Role labels/order/meta come from the single source (lib/roles.ts).
 import { ROLE_LABELS, ROLE_ORDER, ROLE_META } from '@/lib/roles';
@@ -32,14 +36,19 @@ function avatarColour(email: string) {
 interface UserRowProps {
   profile: UserProfile; currentUserId: string; currentRole: UserRole;
   onSave: (id: string, role: UserRole) => Promise<void>;
+  onSetActive: (id: string, active: boolean) => Promise<void>;
+  onResetPassword: (id: string) => Promise<void>;
 }
 
-function UserRow({ profile, currentUserId, currentRole, onSave }: UserRowProps) {
+function UserRow({ profile, currentUserId, currentRole, onSave, onSetActive, onResetPassword }: UserRowProps) {
   const t = useTheme();
+  const confirm = useConfirm();
   const [expanded, setExpanded] = useState(false);
   const [editRole, setEditRole] = useState<UserRole>(profile.role);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [togglingActive, setTogglingActive] = useState(false);
+  const [resettingPw, setResettingPw] = useState(false);
 
   const canEdit = currentRole === 'super_admin' || (currentRole === 'admin' && profile.role !== 'super_admin' && profile.id !== currentUserId);
   const isDirty = editRole !== profile.role;
@@ -50,6 +59,32 @@ function UserRow({ profile, currentUserId, currentRole, onSave }: UserRowProps) 
     setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
+  };
+
+  const handleToggleActive = async () => {
+    const nextActive = !profile.is_active;
+    if (!nextActive) {
+      const ok = await confirm({
+        title: 'Deactivate this user?',
+        message: `${profile.full_name || profile.email} will be signed out and unable to sign back in until reactivated. This doesn't delete their account or history.`,
+        destructive: true,
+      });
+      if (!ok) return;
+    }
+    setTogglingActive(true);
+    await onSetActive(profile.id, nextActive);
+    setTogglingActive(false);
+  };
+
+  const handleResetPassword = async () => {
+    const ok = await confirm({
+      title: 'Send password reset email?',
+      message: `${profile.email} will receive a link to set a new password.`,
+    });
+    if (!ok) return;
+    setResettingPw(true);
+    await onResetPassword(profile.id);
+    setResettingPw(false);
   };
 
   const Meta = ROLE_META[profile.role];
@@ -68,7 +103,10 @@ function UserRow({ profile, currentUserId, currentRole, onSave }: UserRowProps) 
           </div>
           <div className={`text-xs truncate ${t.textFaint}`}>{profile.email}</div>
         </div>
-        <div className="hidden sm:block shrink-0"><StatusBadge color={Meta.hex} label={ROLE_LABELS[profile.role]} /></div>
+        <div className="hidden sm:flex items-center gap-1.5 shrink-0">
+          {!profile.is_active && <StatusBadge color="#f43f5e" label="Deactivated" />}
+          <StatusBadge color={Meta.hex} label={ROLE_LABELS[profile.role]} />
+        </div>
         {canEdit && (
           <button type="button" onClick={() => setExpanded(!expanded)} aria-label={expanded ? 'Collapse' : 'Edit role'}
             className={`h-7 w-7 rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textMuted} ${t.hoverText} flex items-center justify-center transition-all shrink-0`}>
@@ -98,7 +136,19 @@ function UserRow({ profile, currentUserId, currentRole, onSave }: UserRowProps) 
             <p className={`text-xs mt-1.5 ${t.textFaint}`}>{ROLE_META[editRole].desc}</p>
           </div>
 
-          <div className="flex justify-end">
+          <div className="flex justify-between items-center flex-wrap gap-2">
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={handleToggleActive} disabled={togglingActive}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${profile.is_active ? `${t.chipBg} ${t.textMuted} border-transparent ${t.hoverBg}` : 'bg-emerald-500/15 text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/25'}`}>
+                {togglingActive ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Power className="h-3.5 w-3.5" />}
+                {profile.is_active ? 'Deactivate' : 'Reactivate'}
+              </button>
+              <button type="button" onClick={handleResetPassword} disabled={resettingPw}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border border-transparent transition-all ${t.chipBg} ${t.textMuted} ${t.hoverBg}`}>
+                {resettingPw ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Key className="h-3.5 w-3.5" />}
+                Reset password
+              </button>
+            </div>
             <button type="button" onClick={handleSave} disabled={!isDirty || saving}
               className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${saved ? 'bg-emerald-500/15 text-emerald-500' : isDirty ? 'bg-brand-500/20 hover:bg-brand-500/30 text-brand-500' : `${t.chipBg} ${t.textFaint} cursor-not-allowed`}`}>
               {saving ? <><RefreshCw className="h-3.5 w-3.5 animate-spin" />Saving…</> : saved ? <><Check className="h-3.5 w-3.5" />Saved</> : <><Save className="h-3.5 w-3.5" />Save changes</>}
@@ -145,6 +195,47 @@ function AdminContent() {
     } catch { /* surfaced via row state elsewhere */ }
   };
 
+  const handleSetActive = async (id: string, active: boolean) => {
+    try {
+      await api.patch(`/api/admin/users/${id}/active`, { active });
+      setUsers(prev => prev.map(u => u.id === id ? { ...u, is_active: active } : u));
+      toast.success(active ? 'User reactivated' : 'User deactivated');
+    } catch (e) {
+      toast.error(`Failed: ${(e as Error).message}`);
+    }
+  };
+
+  const handleResetPassword = async (id: string) => {
+    try {
+      await api.post(`/api/admin/users/${id}/reset-password`);
+      toast.success('Password reset email sent');
+    } catch (e) {
+      toast.error(`Failed: ${(e as Error).message}`);
+    }
+  };
+
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState<UserRole>('user');
+  const [inviting, setInviting] = useState(false);
+
+  const handleInvite = async () => {
+    if (!inviteEmail.trim()) { toast.error('Email is required'); return; }
+    setInviting(true);
+    try {
+      await api.post('/api/admin/users/invite', { email: inviteEmail.trim(), role: inviteRole });
+      toast.success(`Invite sent to ${inviteEmail.trim()}`);
+      setInviteOpen(false);
+      setInviteEmail('');
+      setInviteRole('user');
+      fetchUsers();
+    } catch (e) {
+      toast.error(`Failed: ${(e as Error).message}`);
+    } finally {
+      setInviting(false);
+    }
+  };
+
   const filtered = users.filter(u => {
     const matchSearch = !search || (u.full_name ?? '').toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase());
     const matchRole = roleFilter === 'all' || u.role === roleFilter;
@@ -173,10 +264,18 @@ function AdminContent() {
         description="User roles — permissions are determined entirely by role"
         statsOpen
         actions={
-          <button type="button" onClick={fetchUsers}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${t.chipBg} ${t.hoverBg} ${t.textMuted} ${t.hoverText}`}>
-            <RefreshCw className={`h-3.5 w-3.5 ${fetching ? 'animate-spin' : ''}`} /> Refresh
-          </button>
+          <div className="flex items-center gap-2">
+            {isAtLeast('admin') && (
+              <button type="button" onClick={() => setInviteOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all">
+                <UserPlus className="h-3.5 w-3.5" /> Invite user
+              </button>
+            )}
+            <button type="button" onClick={fetchUsers}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${t.chipBg} ${t.hoverBg} ${t.textMuted} ${t.hoverText}`}>
+              <RefreshCw className={`h-3.5 w-3.5 ${fetching ? 'animate-spin' : ''}`} /> Refresh
+            </button>
+          </div>
         }
       >
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
@@ -225,7 +324,10 @@ function AdminContent() {
         ) : filtered.length === 0 ? (
           <EmptyState icon={Users} title="No users found" />
         ) : (
-          <div>{filtered.map(u => <UserRow key={u.id} profile={u} currentUserId={profile.id} currentRole={profile.role} onSave={handleSave} />)}</div>
+          <div>{filtered.map(u => (
+            <UserRow key={u.id} profile={u} currentUserId={profile.id} currentRole={profile.role}
+              onSave={handleSave} onSetActive={handleSetActive} onResetPassword={handleResetPassword} />
+          ))}</div>
         )}
       </div>
 
@@ -247,6 +349,44 @@ function AdminContent() {
           })}
         </div>
       </div>
+
+      <CenterModal open={inviteOpen} onClose={() => setInviteOpen(false)} title="Invite user" accent="violet">
+        <div className="px-5 py-4 space-y-4">
+          <FormField label="Email" required>
+            <input type="email" autoFocus value={inviteEmail} onChange={e => setInviteEmail(e.target.value)}
+              placeholder="name@example.com"
+              className={`w-full h-9 rounded-lg px-3 text-sm outline-none transition-colors ${t.inputBg}`} />
+          </FormField>
+          <FormField label="Role">
+            <div className="flex flex-wrap gap-2">
+              {(ROLE_ORDER as UserRole[]).filter(r => r !== 'super_admin' || profile.role === 'super_admin').map(r => {
+                const M = ROLE_META[r];
+                const RI = M.icon;
+                const active = inviteRole === r;
+                return (
+                  <button key={r} type="button" onClick={() => setInviteRole(r)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all"
+                    style={active ? { background: `${M.hex}22`, color: M.hex, borderColor: `${M.hex}55` } : { background: t.light ? 'rgba(15,23,42,0.04)' : 'rgba(255,255,255,0.05)', borderColor: t.light ? 'rgba(15,23,42,0.1)' : 'rgba(255,255,255,0.1)' }}>
+                    <RI className="h-3 w-3" />{ROLE_LABELS[r]}
+                  </button>
+                );
+              })}
+            </div>
+            {(inviteRole === 'admin' || inviteRole === 'super_admin') && profile.role !== 'super_admin' && (
+              <p className="text-xs mt-1.5 text-amber-500">Only a super_admin can invite at this role.</p>
+            )}
+          </FormField>
+        </div>
+        <div className={`flex gap-2 px-5 py-4 border-t ${t.border}`}>
+          <button type="button" onClick={() => setInviteOpen(false)}
+            className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border} transition-all`}>
+            Cancel
+          </button>
+          <PrimaryButton onClick={handleInvite} size="md" fullWidth accent="violet" submitting={inviting} icon={UserPlus}>
+            Send invite
+          </PrimaryButton>
+        </div>
+      </CenterModal>
     </main>
   );
 }
