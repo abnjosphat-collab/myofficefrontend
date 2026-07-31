@@ -5,7 +5,7 @@
 // directly from lucide/tabler/phosphor on the design-system surface. See
 // components/shared/design-system/icons.tsx.
 import {
-  Users, ToolCase, Package, CalendarDays, Fan, BarChart3,
+  Users, ToolCase, Package, CalendarDays, Fan,
   HardHat, Wrench, LineChart, Clock4, Megaphone,
   Building, Utensils, Church, ShieldAlert, FileWarning, PackageOpen,
   Target, MessageSquareWarning, Upload, Boxes, PackageMinus,
@@ -13,7 +13,7 @@ import {
   CalendarClock, HeartHandshake, GraduationCap, FileBarChart,
   ShoppingBag, Wheat, Printer, Landmark, FileUser,
   Shield, Clock, Calculator, ClipboardCheck, AlertTriangle,
-  Eye, FileText, Folder, Database, AlertOctagon,
+  Eye, Folder, Database, AlertOctagon,
   ClipboardList, ClipboardPlus, Plus, User, Gauge,
   Sun, Receipt, Settings, Award, Truck, Radar,
   Droplet, FileCheck, LayoutDashboard, ShoppingCart, Car,
@@ -138,7 +138,6 @@ export const CATEGORIES: Category[] = [
     icon: LineChart, accent: 'cyan', growth: '+22%',
     modules: [
       { icon: Eye,       title: 'Visualization', description: 'Interactive dashboards', href: '/visualization', tags: ['Charts'], badge: '15', featured: true },
-      { icon: BarChart3, title: 'Reports',       description: 'Generate operational reports', href: '/reports',       tags: ['Export'], badge: '8' },
       { icon: Megaphone, title: 'Notice Board',  description: 'Company announcements', href: '/noticeboard',   tags: ['Comms'], badge: '3' },
       { icon: LayoutDashboard, title: 'Engineering Dashboard', description: 'Live engineering KPIs', href: '/engineering-dashboard', tags: ['Dashboard'] },
       { icon: FileBarChart,    title: 'Engineering Report',    description: 'Monthly engineering report', href: '/engineering_report', tags: ['Reports'] },
@@ -168,7 +167,6 @@ export const QUICK_ACTIONS: QuickAction[] = [
   { id: 'new-wo',  icon: Plus,     label: 'New Work Order',   href: '/maintenance', accent: 'amber' },
   { id: 'upload',  icon: Upload,   label: 'Upload Document',  href: '/documents',   accent: 'blue' },
   { id: 'add-emp', icon: User,     label: 'Add Employee',     href: '/employees',   accent: 'emerald' },
-  { id: 'report',  icon: FileText, label: 'Generate Report',  href: '/reports',     accent: 'violet' },
 ];
 
 export const TOTAL_MODULES = CATEGORIES.reduce((sum, c) => sum + c.modules.length, 0);
