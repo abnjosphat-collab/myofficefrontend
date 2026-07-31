@@ -3,7 +3,7 @@
 
 import { AppShell } from '@/components/app-shell';
 import { formatDate } from '@/lib/format';
-import { formatCurrency } from '@/components/shared/utils';
+import { formatCurrency, lineTotal as calcLineTotal } from '@/components/shared/utils';
 import { api } from '@/lib/apiClient';
 import { EXPORT_BRAND_RGB } from '@/lib/exportUtils';
 import { useTheme, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle, FormField, FormActions, CenterModal, ACCENT_HEX, GlowCard, SelectField, GroupSection, staggerContainer, fadeUp, Combobox, type ComboOption as SharedComboOption } from '@/components/shared/theme';
@@ -136,7 +136,7 @@ const SpareCard = React.memo(({ spare, isFavorite, isExpanded, onEdit, onDelete,
   const t = useTheme();
   const status = getStockStatus(spare.current_quantity, spare.min_quantity);
   const pct = spare.max_quantity > 0 ? Math.min(100, (spare.current_quantity / spare.max_quantity) * 100) : 0;
-  const invValue = spare.current_quantity * spare.unit_price;
+  const invValue = calcLineTotal(spare.current_quantity, spare.unit_price);
   const pc = PRIORITY_COLOR[spare.priority] || ACCENT_HEX.blue;
 
   return (
@@ -253,7 +253,7 @@ function RequisitionLineRow({ line, allSpares, onUpdate, onRemove }: {
     const q = v.toLowerCase();
     return allSpares.filter(s => s.stock_code.toLowerCase().includes(q) || s.description.toLowerCase().includes(q)).slice(0, 12);
   }, [line.searchValue, allSpares]);
-  const lineTotal = (line.spare?.unit_price ?? 0) * line.qty;
+  const lineTotal = calcLineTotal(line.qty, line.spare?.unit_price ?? 0);
   const pick = (spare: Spare) => onUpdate(line.id, { spare, searchValue: spare.stock_code, dropdownOpen: false });
 
   return (
@@ -556,7 +556,7 @@ function SparesPageContent() {
   const stats = useMemo(() => {
     const outOfStock = spares.filter(s => s.current_quantity <= 0).length;
     const lowStock = spares.filter(s => s.current_quantity > 0 && s.current_quantity <= s.min_quantity).length;
-    const totalValue = spares.reduce((sum, s) => sum + s.current_quantity * s.unit_price, 0);
+    const totalValue = spares.reduce((sum, s) => sum + calcLineTotal(s.current_quantity, s.unit_price), 0);
     const safetyCount = spares.filter(s => s.safety_stock).length;
     return { total: spares.length, outOfStock, lowStock, totalValue, categories: categories.length, safetyCount };
   }, [spares, categories]);
@@ -569,7 +569,7 @@ function SparesPageContent() {
       const isOut = st.label === 'Out of Stock'; const isLow = st.label === 'Low Stock';
       cats.forEach(cat => {
         if (!map[cat]) map[cat] = { count: 0, value: 0, out: 0, low: 0 };
-        map[cat].count++; map[cat].value += s.current_quantity * s.unit_price;
+        map[cat].count++; map[cat].value += calcLineTotal(s.current_quantity, s.unit_price);
         if (isOut) map[cat].out++; else if (isLow) map[cat].low++;
       });
     });
@@ -664,7 +664,7 @@ function SparesPageContent() {
   const addReqLine = (spare?: Spare) => setReqLines(p => [...p, { id: uid(), spare: spare ?? null, searchValue: spare?.stock_code ?? '', qty: 1, dropdownOpen: false }]);
   const updateReqLine = (id: string, patch: Partial<ReqLine>) => setReqLines(p => p.map(l => l.id === id ? { ...l, ...patch } : l));
   const removeReqLine = (id: string) => setReqLines(p => p.filter(l => l.id !== id));
-  const reqGrandTotal = reqLines.reduce((sum, l) => sum + (l.spare?.unit_price ?? 0) * l.qty, 0);
+  const reqGrandTotal = reqLines.reduce((sum, l) => sum + calcLineTotal(l.qty, l.spare?.unit_price ?? 0), 0);
   const addToReq = (spare: Spare) => { setShowRequisition(true); addReqLine(spare); toast.success(`${spare.stock_code} added to requisition`); };
 
   const saveCurrentRequisition = async () => {
@@ -724,7 +724,7 @@ function SparesPageContent() {
       doc.setFont('helvetica', 'normal'); doc.setTextColor(26, 37, 51); doc.text(reqHeader.reason.slice(0, 120), 38, metaY + 8);
     }
 
-    const tableRows = lines.map((l, i) => [i + 1, l.spare!.stock_code, l.spare!.description, l.spare!.unit_of_measure || 'UN', l.qty, formatCurrency(l.spare!.unit_price), formatCurrency(l.spare!.unit_price * l.qty)]);
+    const tableRows = lines.map((l, i) => [i + 1, l.spare!.stock_code, l.spare!.description, l.spare!.unit_of_measure || 'UN', l.qty, formatCurrency(l.spare!.unit_price), formatCurrency(calcLineTotal(l.qty, l.spare!.unit_price))]);
     autoTable(doc, {
       startY: reqHeader.reason ? 52 : 46,
       head: [['#', 'Stock Code', 'Description', 'UoM', 'Qty', 'Unit Price', 'Line Total']],
@@ -748,7 +748,7 @@ function SparesPageContent() {
   };
 
   const copyRequisition = () => {
-    const rows = reqLines.filter(l => l.spare).map(l => `${l.spare!.stock_code}\t${l.spare!.description}\t${l.spare!.unit_of_measure || 'UN'}\t${l.qty}\t${formatCurrency(l.spare!.unit_price)}\t${formatCurrency(l.spare!.unit_price * l.qty)}`).join('\n');
+    const rows = reqLines.filter(l => l.spare).map(l => `${l.spare!.stock_code}\t${l.spare!.description}\t${l.spare!.unit_of_measure || 'UN'}\t${l.qty}\t${formatCurrency(l.spare!.unit_price)}\t${formatCurrency(calcLineTotal(l.qty, l.spare!.unit_price))}`).join('\n');
     navigator.clipboard.writeText(`Stock Code\tDescription\tUoM\tQty\tUnit Price\tTotal\n${rows}\n\nGRAND TOTAL: ${formatCurrency(reqGrandTotal)}`);
     toast.success('Requisition copied to clipboard');
   };
@@ -1022,7 +1022,7 @@ function SparesPageContent() {
                       const st = getStockStatus(spare.current_quantity, spare.min_quantity);
                       const pc2 = PRIORITY_COLOR[spare.priority] || ACCENT_HEX.blue;
                       const rowExpanded = expandedTableRows.has(spare.id);
-                      const invVal = spare.current_quantity * spare.unit_price;
+                      const invVal = calcLineTotal(spare.current_quantity, spare.unit_price);
                       const toggleTableRow = () => setExpandedTableRows(prev => { const n = new Set(prev); n.has(spare.id) ? n.delete(spare.id) : n.add(spare.id); return n; });
                       return (
                         <React.Fragment key={spare.id}>

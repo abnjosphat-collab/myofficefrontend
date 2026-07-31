@@ -31,6 +31,7 @@ import { CreateScheduleModal } from "@/components/maintenance/CreateScheduleModa
 import { AnalyticsPanel } from "@/components/maintenance/analytics";
 import { DownloadButton, type DLColumn } from "@/components/shared/DownloadButton";
 import { exportFilename } from "@/lib/exportUtils";
+import { lineTotal } from "@/components/shared/utils";
 import { formatDate } from "@/lib/format";
 
 // Display/sort maps used only within this file's own WorkOrderCard/Row and sort logic.
@@ -128,8 +129,8 @@ function WorkOrderRow({ workOrder, onClick, isExpanded, onToggle, onEdit }: { wo
               <div className="col-span-2 sm:col-span-4">
                 <div className={`text-[10px] uppercase tracking-wide mb-1 ${t.textFaint}`}>Spares Used</div>
                 <div className="flex flex-wrap gap-1.5">
-                  {workOrder.spares_used.map(s => <span key={s.id} className="bg-amber-500/10 text-amber-400/80 text-[10px] px-2 py-0.5 rounded-full">{s.name} ×{s.quantity} · ${(s.quantity * s.unit_cost).toFixed(0)}</span>)}
-                  <span className={`${t.chipBg} ${t.textFaint} text-[10px] px-2 py-0.5 rounded-full font-mono`}>Total: R {workOrder.spares_used.reduce((a, s) => a + s.quantity * s.unit_cost, 0).toFixed(2)}</span>
+                  {workOrder.spares_used.map(s => <span key={s.id} className="bg-amber-500/10 text-amber-400/80 text-[10px] px-2 py-0.5 rounded-full">{s.name} ×{s.quantity} · ${lineTotal(s.quantity, s.unit_cost).toFixed(0)}</span>)}
+                  <span className={`${t.chipBg} ${t.textFaint} text-[10px] px-2 py-0.5 rounded-full font-mono`}>Total: R {workOrder.spares_used.reduce((a, s) => a + lineTotal(s.quantity, s.unit_cost), 0).toFixed(2)}</span>
                 </div>
               </div>
             )}

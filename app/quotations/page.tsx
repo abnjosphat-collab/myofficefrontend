@@ -9,6 +9,7 @@ import { Document, Packer, Paragraph, TextRun, AlignmentType, Table, TableCell, 
 import { AppShell } from '@/components/app-shell';
 import { PredictiveInput } from '@/components/shared/PredictiveInput';
 import { formatDate } from '@/lib/format';
+import { lineTotal } from '@/components/shared/utils';
 import {
   useTheme, PageHero, StatTile, StatusBadge, FormField, PrimaryButton, useCollapseSection, GlowCard, ACCENT_HEX, SelectField,
 } from '@/components/shared/theme';
@@ -159,7 +160,7 @@ const QuotationGeneratorContent = () => {
     setItems(items.map(item => {
       if (item.id !== id) return item;
       const updated = { ...item, [field]: value } as QuotationItem;
-      if (field === 'quantity' || field === 'rate') updated.amount = updated.quantity * updated.rate;
+      if (field === 'quantity' || field === 'rate') updated.amount = lineTotal(updated.quantity, updated.rate);
       return updated;
     }));
   };

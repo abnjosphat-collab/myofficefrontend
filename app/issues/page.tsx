@@ -3,7 +3,7 @@
 
 import { AppShell } from '@/components/app-shell';
 import { api } from '@/lib/apiClient';
-import { formatCurrency, formatCurrencyShort, nowLocal, fmtDateTime as formatDateTime } from '@/components/shared/utils';
+import { formatCurrency, formatCurrencyShort, nowLocal, fmtDateTime as formatDateTime, lineTotal as calcLineTotal } from '@/components/shared/utils';
 import { EXPORT_BRAND_ARGB, EXPORT_BRAND_RGB } from '@/lib/exportUtils';
 import {
   useTheme, PageHero, StatTile, StatCard, FormField, SearchInput, PrimaryButton,
@@ -32,7 +32,7 @@ const uid = () => Math.random().toString(36).slice(2);
 // ─── ANALYTICS HELPERS ────────────────────────────────────────────────────────
 
 const issueCost = (issue: StockIssue): number =>
-  issue.items.reduce((sum, item) => sum + (item.unit_price || 0) * item.qty, 0);
+  issue.items.reduce((sum, item) => sum + calcLineTotal(item.qty, item.unit_price || 0), 0);
 
 const addDays = (date: Date, days: number) => {
   const d = new Date(date);
@@ -135,7 +135,7 @@ function topBy(issues: StockIssue[], key: 'recipient_name' | 'description', n = 
     } else {
       for (const item of issue.items) {
         const desc = item.stock_code ? `${item.stock_code} · ${item.description.slice(0, 28)}` : item.description.slice(0, 35);
-        const cost = (item.unit_price || 0) * item.qty;
+        const cost = calcLineTotal(item.qty, item.unit_price || 0);
         const e = map.get(desc) || { cost: 0, count: 0 };
         e.cost += cost;
         e.count += item.qty;
@@ -473,7 +473,7 @@ function IssuesPageContent() {
       let rowIdx = 0;
       issues.forEach(issue => {
         issue.items.forEach(item => {
-          const lineTotal = (item.unit_price || 0) * item.qty;
+          const lineTotal = calcLineTotal(item.qty, item.unit_price || 0);
           const row = ws2.addRow({
             date: issue.issued_at ? new Date(issue.issued_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '',
             recipient: issue.recipient_name,
@@ -678,7 +678,7 @@ function IssuesPageContent() {
                 <div className="flex justify-end mt-2 pr-8">
                   <div className={`text-xs ${t.textFaint}`}>
                     Issue total: <span className={`${t.textPrimary} font-semibold ml-1`}>
-                      {formatCurrency(items.reduce((s, i) => s + i.unit_price * i.qty, 0))}
+                      {formatCurrency(items.reduce((s, i) => s + calcLineTotal(i.qty, i.unit_price), 0))}
                     </span>
                   </div>
                 </div>
@@ -829,7 +829,7 @@ function IssuesPageContent() {
                                         <span className={`${t.textPrimary} font-semibold flex-shrink-0`}>{item.qty}</span>
                                         <span className={`${t.textFaint} flex-shrink-0 w-8 text-right`}>{item.unit || 'UN'}</span>
                                         {(item.unit_price || 0) > 0
-                                          ? <span className="text-[#86BBD8] flex-shrink-0 w-20 text-right font-medium">{formatCurrency((item.unit_price || 0) * item.qty)}</span>
+                                          ? <span className="text-[#86BBD8] flex-shrink-0 w-20 text-right font-medium">{formatCurrency(calcLineTotal(item.qty, item.unit_price || 0))}</span>
                                           : <span className={`${t.textFaint} flex-shrink-0 w-20 text-right text-[10px]`}>no price</span>
                                         }
                                       </div>

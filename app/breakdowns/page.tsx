@@ -18,6 +18,7 @@ import { toast } from 'sonner';
 import { format } from "date-fns";
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
+import { lineTotal } from '@/components/shared/utils';
 import {
   useTheme, PageHero, StatTile, StatusBadge, ViewToggle,
   FormField, FormActions, useCollapseSection, CenterModal, ACCENT_HEX, GlowCard, SelectField, AutofillInput,
@@ -418,7 +419,7 @@ function FormModal({ isOpen, onClose, onSubmit, initialData, mode = 'create' }: 
 
   const addSpare = () => {
     if (!spareForm.name.trim()) { setErrors(p => ({ ...p, spare: 'Spare part name is required' })); return; }
-    setFd(p => ({ ...p, spares_used: [...p.spares_used, { ...spareForm, total_cost: spareForm.quantity * spareForm.unit_price }] }));
+    setFd(p => ({ ...p, spares_used: [...p.spares_used, { ...spareForm, total_cost: lineTotal(spareForm.quantity, spareForm.unit_price) }] }));
     setSpareForm({ name: '', part_number: '', quantity: 1, unit_price: 0 });
     setErrors(p => ({ ...p, spare: '' }));
   };
@@ -498,7 +499,7 @@ function FormModal({ isOpen, onClose, onSubmit, initialData, mode = 'create' }: 
                   <div key={i} className={`flex justify-between items-center ${t.chipBg} rounded-xl px-3 py-2 text-sm`}>
                     <div><span className={`font-medium ${t.textMuted}`}>{s.name}</span>{s.part_number && <span className={`ml-2 text-xs ${t.textFaint}`}>({s.part_number})</span>}<span className={`ml-2 text-xs ${t.textFaint}`}>{s.quantity} × ${s.unit_price}</span></div>
                     <div className="flex items-center gap-2">
-                      <span className="text-emerald-400 font-semibold">${(s.quantity * s.unit_price).toFixed(2)}</span>
+                      <span className="text-emerald-400 font-semibold">${lineTotal(s.quantity, s.unit_price).toFixed(2)}</span>
                       <button type="button" title="Remove spare part" onClick={() => removeSpare(i)} className="h-6 w-6 flex items-center justify-center rounded text-rose-500/60 hover:text-rose-500"><Trash2 className="h-3 w-3" /></button>
                     </div>
                   </div>

@@ -15,6 +15,7 @@ import type { WorkOrder, SpareItem, WOClassification, Discipline, Trade } from "
 import { updateWorkOrder } from "../../app/maintenance/api";
 import { statusCfg, priorityCfg, isOverdue } from "../../app/maintenance/helpers";
 import { ThemedInput, NAToggle, PredictiveArea, PersonAutocomplete, SpareAutocomplete } from "./formFields";
+import { lineTotal } from "@/components/shared/utils";
 
 const FAILURE_MODES = [
   'Bearing failure', 'Seal / gasket failure', 'Motor failure', 'Belt / chain failure',
@@ -299,11 +300,11 @@ export function WorkOrderDetailModal({ workOrder, onClose, onRefresh, onDelete }
                         <Package className={`h-3 w-3 ${ic.amber} flex-shrink-0`} />
                         <span className={`flex-1 text-xs truncate ${t.textPrimary}`}>{s.name}</span>
                         <span className={`text-xs ${subLabel}`}>×{s.quantity}</span>
-                        <span className={`text-xs font-mono font-semibold ${light ? 'text-amber-700' : 'text-amber-400/80'}`}>R {(s.quantity * s.unit_cost).toFixed(2)}</span>
+                        <span className={`text-xs font-mono font-semibold ${light ? 'text-amber-700' : 'text-amber-400/80'}`}>R {lineTotal(s.quantity, s.unit_cost).toFixed(2)}</span>
                         <button type="button" onClick={() => setArtisanSpares(p => p.filter(x => x.id !== s.id))} className={`${t.textFaint} hover:text-rose-500 transition-colors ml-0.5`}><X className="h-3 w-3" /></button>
                       </div>
                     ))}
-                    <div className="flex justify-end"><span className={`text-xs font-mono font-semibold ${light ? 'text-amber-700' : 'text-amber-400/90'}`}>Total: R {artisanSpares.reduce((a, s) => a + s.quantity * s.unit_cost, 0).toFixed(2)}</span></div>
+                    <div className="flex justify-end"><span className={`text-xs font-mono font-semibold ${light ? 'text-amber-700' : 'text-amber-400/90'}`}>Total: R {artisanSpares.reduce((a, s) => a + lineTotal(s.quantity, s.unit_cost), 0).toFixed(2)}</span></div>
                   </div>
                 )}
               </div>

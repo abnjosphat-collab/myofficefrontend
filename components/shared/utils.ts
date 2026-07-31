@@ -57,6 +57,16 @@ export function formatCurrencyShort(n: number): string {
   return `$${n.toFixed(0)}`;
 }
 
+// The qty × unit-price line-item total, repeated ~18 times across
+// WorkOrderDetailModal/maintenance/breakdowns/spares/issues/quotations under 3
+// different field-naming conventions (unit_cost, unit_price, rate). The math
+// itself is trivial — this exists so there's one place to add tax/rounding
+// logic later, and so every call site reads the same intent instead of a bare
+// `*`.
+export function lineTotal(qty: number, unitPrice: number): number {
+  return (qty || 0) * (unitPrice || 0);
+}
+
 export function nowLocal(): string {
   const d = new Date();
   d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
