@@ -6,25 +6,6 @@ import type { User, Session } from '@supabase/supabase-js';
 import { supabase, UserProfile, UserRole, ROLE_ORDER, roleAtLeast, upsertProfile, getProfile } from './supabase';
 import { needsChallenge } from './mfa';
 
-// ─── Module permission catalogue ─────────────────────────────────────────────
-
-export const MODULE_ACTIONS: Record<string, string[]> = {
-  employees:      ['view', 'edit', 'delete'],
-  equipment:      ['view', 'edit', 'delete'],
-  inventory:      ['view', 'edit', 'delete'],
-  documents:      ['view', 'edit', 'delete'],
-  maintenance:    ['view', 'edit', 'approve'],
-  breakdowns:     ['view', 'edit'],
-  spares:         ['view', 'edit'],
-  timesheets:     ['view', 'edit', 'approve'],
-  overtime:       ['view', 'approve'],
-  leaves:         ['view', 'approve'],
-  ppe:            ['view', 'edit', 'approve'],
-  sheq:           ['view', 'edit'],
-  reports:        ['view', 'export'],
-  noticeboard:    ['view', 'post'],
-};
-
 // ─── Context type ─────────────────────────────────────────────────────────────
 
 interface AuthContextType {
@@ -42,7 +23,6 @@ interface AuthContextType {
   signUpWithEmail:   (email: string, password: string, name: string) => Promise<{ error: string | null }>;
   signOut:           () => Promise<void>;
   refreshProfile:    () => Promise<void>;
-  hasPermission:     (module: string, action: string) => boolean;
   isAtLeast:         (role: UserRole) => boolean;
 }
 
@@ -157,14 +137,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(null);
   };
 
-  // Returns true if user has explicit permission OR is admin/super_admin
-  const hasPermission = (module: string, action: string): boolean => {
-    if (!profile) return false;
-    if (profile.role === 'super_admin' || profile.role === 'admin') return true;
-    const perms = profile.permissions?.[module] ?? [];
-    return perms.includes(action) || perms.includes('*');
-  };
-
   const isAtLeast = (role: UserRole): boolean => {
     if (!profile) return false;
     return ROLE_ORDER.indexOf(profile.role) >= ROLE_ORDER.indexOf(role);
@@ -174,7 +146,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider value={{
       user, profile, session, loading, mfaPending, completeMfaChallenge,
       signInWithGoogle, signInWithEmail, signUpWithEmail, signOut,
-      refreshProfile, hasPermission, isAtLeast,
+      refreshProfile, isAtLeast,
     }}>
       {children}
     </AuthContext.Provider>

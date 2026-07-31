@@ -8,7 +8,6 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { jsPDF } from 'jspdf';
 import { toast } from 'sonner';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -22,9 +21,10 @@ import {
 } from '@/components/shared/theme';
 import {
   Wallet, Receipt, CreditCard, Scale, TrendingUp, TrendingDown,
-  Plus, Download, Trash2, LineChart as LineChartGlyph,
+  Plus, Download, Trash2, Edit, Check, X, LineChart as LineChartGlyph,
 } from '@/components/shared/theme';
 import { PillTabs, type PillTab } from '@/components/shared/PillTabs';
+import { UnderlineTabs, type UnderlineTab } from '@/components/shared/UnderlineTabs';
 import { PredictiveInput } from '@/components/shared/PredictiveInput';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { formatCurrency, fmtDate } from '@/components/shared/utils';
@@ -38,25 +38,79 @@ const LIABILITY_CATEGORY_SEEDS = ['Loan', 'Credit Card', 'Accounts Payable', 'Ta
 const PAYMENT_METHODS = ['Cash', 'Bank Transfer', 'Card', 'Mobile Money'];
 const PIE_COLORS = [ACCENT_HEX.violet, ACCENT_HEX.blue, ACCENT_HEX.emerald, ACCENT_HEX.amber, ACCENT_HEX.cyan, '#f43f5e'];
 
-function generateReceiptPdf(tx: Transaction) {
-  const doc = new jsPDF();
+// A proper single-item invoice/receipt layout instead of a flat label:value
+// list — letterhead band, a bordered details panel, a real line-item table
+// (jspdf-autotable, same brand styling DownloadButton's PDF export already
+// uses), a right-aligned total in a shaded box, and a muted footer.
+async function generateReceiptPdf(tx: Transaction) {
+  const { default: jsPDF } = await import('jspdf');
+  const { default: autoTable } = await import('jspdf-autotable');
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const pageWidth = 210;
+  const marginX = 18;
+
+  // ── Letterhead ──────────────────────────────────────────────────────────
   doc.setFillColor(...EXPORT_BRAND_RGB);
-  doc.rect(0, 0, 210, 40, 'F');
+  doc.rect(0, 0, pageWidth, 34, 'F');
   doc.setTextColor(255, 255, 255);
-  doc.setFontSize(16); doc.setFont('helvetica', 'bold');
-  doc.text('PAYMENT RECEIPT', 105, 22, { align: 'center' });
-  doc.setFontSize(10); doc.setFont('helvetica', 'normal');
-  doc.text(tx.receiptNumber, 105, 32, { align: 'center' });
-  doc.setTextColor(0, 0, 0); doc.setFontSize(12);
-  let y = 60;
-  ([
-    ['Receipt #', tx.receiptNumber], ['Date', fmtDate(tx.transactionDate)],
-    ['Service', tx.serviceType], ['Client', tx.clientName || '—'],
-    ['Description', tx.description || '—'], ['Amount', formatCurrency(tx.amount)],
-  ] as const).forEach(([k, v]) => {
-    doc.setFont('helvetica', 'bold'); doc.text(`${k}:`, 20, y);
-    doc.setFont('helvetica', 'normal'); doc.text(String(v), 80, y); y += 10;
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(20);
+  doc.text('OZECH', marginX, 17);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5);
+  doc.setTextColor(255, 255, 255);
+  doc.text('MyOffice — Business Services', marginX, 24);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(15);
+  doc.text('RECEIPT', pageWidth - marginX, 17, { align: 'right' });
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
+  doc.text(tx.receiptNumber, pageWidth - marginX, 24, { align: 'right' });
+
+  // ── Details panel (billed-to / date) ────────────────────────────────────
+  let y = 48;
+  doc.setTextColor(140, 148, 158); doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+  doc.text('BILLED TO', marginX, y);
+  doc.text('DATE', pageWidth - marginX, y, { align: 'right' });
+  y += 6;
+  doc.setTextColor(30, 41, 59); doc.setFontSize(12); doc.setFont('helvetica', 'normal');
+  doc.text(tx.clientName || 'Walk-in client', marginX, y);
+  doc.text(fmtDate(tx.transactionDate), pageWidth - marginX, y, { align: 'right' });
+  y += 12;
+
+  doc.setDrawColor(220, 226, 234); doc.setLineWidth(0.3);
+  doc.line(marginX, y, pageWidth - marginX, y);
+  y += 8;
+
+  // ── Line item ────────────────────────────────────────────────────────────
+  autoTable(doc, {
+    startY: y,
+    head: [['Description', 'Amount']],
+    body: [[
+      tx.description ? `${tx.serviceType}\n${tx.description}` : tx.serviceType,
+      formatCurrency(tx.amount),
+    ]],
+    styles: { font: 'helvetica', fontSize: 10, cellPadding: { top: 5, bottom: 5, left: 4, right: 4 }, valign: 'top' },
+    headStyles: { fillColor: EXPORT_BRAND_RGB, textColor: 255, fontStyle: 'bold', fontSize: 9 },
+    columnStyles: { 1: { halign: 'right', cellWidth: 40 } },
+    margin: { left: marginX, right: marginX },
+    tableLineColor: [220, 226, 234], tableLineWidth: 0.1,
   });
+
+  // ── Total box ────────────────────────────────────────────────────────────
+  const afterTable = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6;
+  const boxW = 70, boxX = pageWidth - marginX - boxW;
+  doc.setFillColor(237, 243, 248);
+  doc.roundedRect(boxX, afterTable, boxW, 16, 2, 2, 'F');
+  doc.setTextColor(...EXPORT_BRAND_RGB); doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
+  doc.text('TOTAL PAID', boxX + 5, afterTable + 6.5);
+  doc.setFontSize(13);
+  doc.text(formatCurrency(tx.amount), boxX + boxW - 5, afterTable + 12, { align: 'right' });
+
+  // ── Footer ───────────────────────────────────────────────────────────────
+  const footerY = 275;
+  doc.setDrawColor(230, 235, 240); doc.line(marginX, footerY - 8, pageWidth - marginX, footerY - 8);
+  doc.setFont('helvetica', 'italic'); doc.setFontSize(9); doc.setTextColor(100, 110, 122);
+  doc.text('Thank you for your business.', marginX, footerY);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(160, 168, 178);
+  doc.text(`Generated ${fmtDate(new Date().toISOString())} · Ozech MyOffice`, pageWidth - marginX, footerY, { align: 'right' });
+
   doc.save(`receipt-${tx.receiptNumber}.pdf`);
   toast.success('Receipt downloaded');
 }
@@ -64,7 +118,8 @@ function generateReceiptPdf(tx: Transaction) {
 const inputCls = (t: ReturnType<typeof useTheme>) =>
   `w-full h-9 rounded-lg px-3 text-sm outline-none transition-colors ${t.inputBg}`;
 
-type AccountingTab = 'overview' | 'transactions' | 'expenses' | 'assets';
+type AccountingTab = 'overview' | 'transactions' | 'assets';
+type TransactionSubTab = 'income' | 'expenses';
 
 function AccountingContent() {
   const t = useTheme();
@@ -92,8 +147,7 @@ function AccountingContent() {
 
   const TABS: PillTab<AccountingTab>[] = [
     { key: 'overview', label: 'Overview', icon: LineChartGlyph },
-    { key: 'transactions', label: 'Transactions', icon: Receipt, count: data.transactions.length },
-    { key: 'expenses', label: 'Expenses', icon: CreditCard, count: data.expenses.length },
+    { key: 'transactions', label: 'Transactions', icon: Receipt, count: data.transactions.length + data.expenses.length },
     { key: 'assets', label: 'Assets & Liabilities', icon: Scale },
   ];
 
@@ -126,9 +180,7 @@ function AccountingContent() {
       ) : tab === 'overview' ? (
         <OverviewTab data={data} profitPositive={profitPositive} netWorthPositive={netWorthPositive} />
       ) : tab === 'transactions' ? (
-        <TransactionsTab data={data} />
-      ) : tab === 'expenses' ? (
-        <ExpensesTab data={data} />
+        <TransactionsParentTab data={data} />
       ) : (
         <AssetsLiabilitiesTab data={data} />
       )}
@@ -156,10 +208,15 @@ function OverviewTab({ data, profitPositive, netWorthPositive }: {
         </GlowCard>
         <GlowCard color={profitPositive ? ACCENT_HEX.emerald : '#f43f5e'} className="p-4">
           <p className={`text-[11px] ${t.textFaint} mb-1 flex items-center gap-1`}>
-            {profitPositive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />} Profit / Loss
+            {profitPositive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />} {profitPositive ? 'Profit' : 'Loss'}
           </p>
           <p className="text-xl font-bold" style={{ color: profitPositive ? '#34d399' : '#f87171' }}>
-            {formatCurrency(s?.profit_or_loss ?? 0)}
+            {formatCurrency(Math.abs(s?.profit_or_loss ?? 0))}
+          </p>
+          <p className={`text-[10px] mt-0.5 ${t.textFaint}`}>
+            {(s?.revenue ?? 0) === 0 && (s?.expenses ?? 0) === 0
+              ? 'No activity yet'
+              : profitPositive ? 'You made a profit this period' : 'You made a loss this period'}
           </p>
         </GlowCard>
         <GlowCard color={netWorthPositive ? ACCENT_HEX.blue : '#f43f5e'} className="p-4">
@@ -224,36 +281,74 @@ function OverviewTab({ data, profitPositive, netWorthPositive }: {
   );
 }
 
-// ─── Transactions ───────────────────────────────────────────────────────────
+// ─── Transactions (Income / Expenses sub-tabs) ─────────────────────────────
+
+function TransactionsParentTab({ data }: { data: ReturnType<typeof useAccountingData> }) {
+  const t = useTheme();
+  const [sub, setSub] = useState<TransactionSubTab>('income');
+  const SUB_TABS: UnderlineTab<TransactionSubTab>[] = [
+    { id: 'income', label: `Income (${data.transactions.length})` },
+    { id: 'expenses', label: `Expenses (${data.expenses.length})` },
+  ];
+  return (
+    <div className={`${t.glass} rounded-2xl overflow-hidden`}>
+      <UnderlineTabs tabs={SUB_TABS} value={sub} onChange={setSub} accent="emerald" />
+      <div className="p-4">
+        {sub === 'income' ? <TransactionsTab data={data} /> : <ExpensesTab data={data} />}
+      </div>
+    </div>
+  );
+}
+
+const emptyTxForm = () => ({ transactionDate: new Date().toISOString().slice(0, 10), serviceType: '', clientName: '', description: '', amount: '' });
 
 function TransactionsTab({ data }: { data: ReturnType<typeof useAccountingData> }) {
   const t = useTheme();
   const cls = inputCls(t);
-  const [form, setForm] = useState({ transactionDate: new Date().toISOString().slice(0, 10), serviceType: '', clientName: '', description: '', amount: '' });
+  const [form, setForm] = useState(emptyTxForm());
   const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const runningTotal = data.transactions.reduce((sum, tx) => sum + tx.amount, 0);
+
+  const startEdit = (tx: Transaction) => {
+    setEditingId(tx.id);
+    setForm({ transactionDate: tx.transactionDate, serviceType: tx.serviceType, clientName: tx.clientName, description: tx.description, amount: String(tx.amount) });
+  };
+  const cancelEdit = () => { setEditingId(null); setForm(emptyTxForm()); };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.serviceType.trim() || !form.amount) { toast.error('Service and amount are required'); return; }
     setSaving(true);
     try {
-      const created = await txApi.create({
+      const payload = {
         transaction_date: form.transactionDate, service_type: form.serviceType,
         client_name: form.clientName || undefined, description: form.description || undefined,
         amount: parseFloat(form.amount),
-      });
-      data.setTransactions(prev => [created, ...prev]);
-      setForm({ transactionDate: new Date().toISOString().slice(0, 10), serviceType: '', clientName: '', description: '', amount: '' });
-      toast.success(`Recorded — receipt ${created.receiptNumber}`);
+      };
+      if (editingId) {
+        const updated = await txApi.update(editingId, payload);
+        data.setTransactions(prev => prev.map(x => x.id === editingId ? updated : x));
+        toast.success('Transaction updated');
+        cancelEdit();
+      } else {
+        const created = await txApi.create(payload);
+        data.setTransactions(prev => [created, ...prev]);
+        setForm(emptyTxForm());
+        toast.success(`Recorded — receipt ${created.receiptNumber}`);
+      }
     } catch (err) { toast.error(`Failed: ${(err as Error).message}`); }
     finally { setSaving(false); }
   };
 
   const handleDelete = async (id: string) => {
-    try { await txApi.delete(id); data.setTransactions(prev => prev.filter(x => x.id !== id)); toast.success('Transaction removed'); }
-    catch (err) { toast.error(`Failed: ${(err as Error).message}`); }
+    try {
+      await txApi.delete(id);
+      data.setTransactions(prev => prev.filter(x => x.id !== id));
+      if (editingId === id) cancelEdit();
+      toast.success('Transaction removed');
+    } catch (err) { toast.error(`Failed: ${(err as Error).message}`); }
   };
 
   const columns: DLColumn[] = [
@@ -274,7 +369,12 @@ function TransactionsTab({ data }: { data: ReturnType<typeof useAccountingData> 
           </FormField>
           <FormField label="Client"><PredictiveInput historyKey="acc_client_name" value={form.clientName} onChange={v => setForm({ ...form, clientName: v })} placeholder="Optional" /></FormField>
           <FormField label="Amount" required><input type="number" step="0.01" min="0" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} className={cls} placeholder="0.00" /></FormField>
-          <PrimaryButton type="submit" icon={Plus} accent="emerald" submitting={saving}>Add</PrimaryButton>
+          <div className="flex gap-2">
+            <PrimaryButton type="submit" icon={editingId ? Check : Plus} accent="emerald" submitting={saving} fullWidth>{editingId ? 'Save' : 'Add'}</PrimaryButton>
+            {editingId && (
+              <button type="button" onClick={cancelEdit} title="Cancel edit" className={`h-8 w-8 shrink-0 flex items-center justify-center rounded-lg ${t.chipBg} ${t.textFaint} ${t.hoverText} ${t.hoverBg}`}><X className="h-4 w-4" /></button>
+            )}
+          </div>
           <div className="sm:col-span-2 lg:col-span-5">
             <PredictiveInput historyKey="acc_tx_description" value={form.description} onChange={v => setForm({ ...form, description: v })} placeholder="Description (optional)" />
           </div>
@@ -289,13 +389,14 @@ function TransactionsTab({ data }: { data: ReturnType<typeof useAccountingData> 
       {data.transactions.length === 0 ? <EmptyState icon={Receipt} title="No transactions recorded yet" /> : (
         <div className="space-y-1.5">
           {data.transactions.map(tx => (
-            <div key={tx.id} className={`flex items-center gap-3 px-4 py-2.5 rounded-xl ${t.glassSoft}`}>
+            <div key={tx.id} className={`flex items-center gap-3 px-4 py-2.5 rounded-xl transition-colors ${editingId === tx.id ? 'ring-1 ring-emerald-500/40 bg-emerald-500/5' : t.glassSoft}`}>
               <div className="min-w-0 flex-1">
                 <p className={`text-sm font-medium truncate ${t.textPrimary}`}>{tx.serviceType}{tx.clientName ? ` — ${tx.clientName}` : ''}</p>
                 <p className={`text-[11px] ${t.textFaint}`}>{fmtDate(tx.transactionDate)} · {tx.receiptNumber}</p>
               </div>
               <span className={`text-sm font-semibold ${t.textPrimary}`}>{formatCurrency(tx.amount)}</span>
               <button type="button" onClick={() => generateReceiptPdf(tx)} title="Download Receipt" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.textFaint} ${t.hoverText} ${t.hoverBg}`}><Download className="h-4 w-4" /></button>
+              <button type="button" onClick={() => startEdit(tx)} title="Edit" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.textFaint} ${t.hoverText} ${t.hoverBg}`}><Edit className="h-4 w-4" /></button>
               <button type="button" onClick={() => handleDelete(tx.id)} title="Delete" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.textFaint} hover:text-rose-400 ${t.hoverBg}`}><Trash2 className="h-4 w-4" /></button>
             </div>
           ))}
@@ -307,33 +408,54 @@ function TransactionsTab({ data }: { data: ReturnType<typeof useAccountingData> 
 
 // ─── Expenses ───────────────────────────────────────────────────────────────
 
+const emptyExpenseForm = () => ({ expenseDate: new Date().toISOString().slice(0, 10), category: '', vendor: '', description: '', amount: '', paymentMethod: '' });
+
 function ExpensesTab({ data }: { data: ReturnType<typeof useAccountingData> }) {
   const t = useTheme();
   const cls = inputCls(t);
-  const [form, setForm] = useState({ expenseDate: new Date().toISOString().slice(0, 10), category: '', vendor: '', description: '', amount: '', paymentMethod: '' });
+  const [form, setForm] = useState(emptyExpenseForm());
   const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const runningTotal = data.expenses.reduce((sum, e) => sum + e.amount, 0);
+
+  const startEdit = (exp: Expense) => {
+    setEditingId(exp.id);
+    setForm({ expenseDate: exp.expenseDate, category: exp.category, vendor: exp.vendor, description: exp.description, amount: String(exp.amount), paymentMethod: exp.paymentMethod });
+  };
+  const cancelEdit = () => { setEditingId(null); setForm(emptyExpenseForm()); };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.category.trim() || !form.amount) { toast.error('Category and amount are required'); return; }
     setSaving(true);
     try {
-      const created = await expenseApi.create({
+      const payload = {
         expense_date: form.expenseDate, category: form.category, vendor: form.vendor || undefined,
         description: form.description || undefined, amount: parseFloat(form.amount), payment_method: form.paymentMethod || undefined,
-      });
-      data.setExpenses(prev => [created, ...prev]);
-      setForm({ expenseDate: new Date().toISOString().slice(0, 10), category: '', vendor: '', description: '', amount: '', paymentMethod: '' });
-      toast.success('Expense recorded');
+      };
+      if (editingId) {
+        const updated = await expenseApi.update(editingId, payload);
+        data.setExpenses(prev => prev.map(x => x.id === editingId ? updated : x));
+        toast.success('Expense updated');
+        cancelEdit();
+      } else {
+        const created = await expenseApi.create(payload);
+        data.setExpenses(prev => [created, ...prev]);
+        setForm(emptyExpenseForm());
+        toast.success('Expense recorded');
+      }
     } catch (err) { toast.error(`Failed: ${(err as Error).message}`); }
     finally { setSaving(false); }
   };
 
   const handleDelete = async (id: string) => {
-    try { await expenseApi.delete(id); data.setExpenses(prev => prev.filter(x => x.id !== id)); toast.success('Expense removed'); }
-    catch (err) { toast.error(`Failed: ${(err as Error).message}`); }
+    try {
+      await expenseApi.delete(id);
+      data.setExpenses(prev => prev.filter(x => x.id !== id));
+      if (editingId === id) cancelEdit();
+      toast.success('Expense removed');
+    } catch (err) { toast.error(`Failed: ${(err as Error).message}`); }
   };
 
   const columns: DLColumn[] = [
@@ -355,7 +477,12 @@ function ExpensesTab({ data }: { data: ReturnType<typeof useAccountingData> }) {
           <div className="sm:col-span-2 lg:col-span-4">
             <PredictiveInput historyKey="acc_expense_description" value={form.description} onChange={v => setForm({ ...form, description: v })} placeholder="Description (optional)" />
           </div>
-          <PrimaryButton type="submit" icon={Plus} accent="amber" submitting={saving}>Add</PrimaryButton>
+          <div className="flex gap-2">
+            <PrimaryButton type="submit" icon={editingId ? Check : Plus} accent="amber" submitting={saving} fullWidth>{editingId ? 'Save' : 'Add'}</PrimaryButton>
+            {editingId && (
+              <button type="button" onClick={cancelEdit} title="Cancel edit" className={`h-8 w-8 shrink-0 flex items-center justify-center rounded-lg ${t.chipBg} ${t.textFaint} ${t.hoverText} ${t.hoverBg}`}><X className="h-4 w-4" /></button>
+            )}
+          </div>
         </form>
       </GlowCard>
 
@@ -367,12 +494,13 @@ function ExpensesTab({ data }: { data: ReturnType<typeof useAccountingData> }) {
       {data.expenses.length === 0 ? <EmptyState icon={CreditCard} title="No expenses recorded yet" /> : (
         <div className="space-y-1.5">
           {data.expenses.map(exp => (
-            <div key={exp.id} className={`flex items-center gap-3 px-4 py-2.5 rounded-xl ${t.glassSoft}`}>
+            <div key={exp.id} className={`flex items-center gap-3 px-4 py-2.5 rounded-xl transition-colors ${editingId === exp.id ? 'ring-1 ring-amber-500/40 bg-amber-500/5' : t.glassSoft}`}>
               <div className="min-w-0 flex-1">
                 <p className={`text-sm font-medium truncate ${t.textPrimary}`}>{exp.category}{exp.vendor ? ` — ${exp.vendor}` : ''}</p>
                 <p className={`text-[11px] ${t.textFaint}`}>{fmtDate(exp.expenseDate)}{exp.paymentMethod ? ` · ${exp.paymentMethod}` : ''}</p>
               </div>
               <span className={`text-sm font-semibold ${t.textPrimary}`}>{formatCurrency(exp.amount)}</span>
+              <button type="button" onClick={() => startEdit(exp)} title="Edit" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.textFaint} ${t.hoverText} ${t.hoverBg}`}><Edit className="h-4 w-4" /></button>
               <button type="button" onClick={() => handleDelete(exp.id)} title="Delete" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.textFaint} hover:text-rose-400 ${t.hoverBg}`}><Trash2 className="h-4 w-4" /></button>
             </div>
           ))}

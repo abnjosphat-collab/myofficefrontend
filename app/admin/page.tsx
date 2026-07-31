@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   Shield, Users, Search, ChevronDown, ChevronUp,
-  Save, RefreshCw, AlertCircle, Check, X,
+  Save, RefreshCw, AlertCircle, Check,
 } from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
 import { useTheme, PageHero, StatTile, StatusBadge, SearchInput, EmptyState } from '@/components/shared/theme';
@@ -12,15 +12,8 @@ import { useAuth } from '@/lib/auth-context';
 import type { UserProfile, UserRole } from '@/lib/supabase';
 // Role labels/order/meta come from the single source (lib/roles.ts).
 import { ROLE_LABELS, ROLE_ORDER, ROLE_META } from '@/lib/roles';
-import { MODULE_ACTIONS } from '@/lib/auth-context';
 import { api } from '@/lib/apiClient';
 import { useRouter } from 'next/navigation';
-
-const MODULE_LABELS: Record<string, string> = {
-  employees: 'Personnel', equipment: 'Assets', inventory: 'Inventory', documents: 'Documents',
-  maintenance: 'Maintenance', breakdowns: 'Breakdowns', spares: 'Spares', timesheets: 'Timesheets',
-  overtime: 'Overtime', leaves: 'Leaves', ppe: 'PPE', sheq: 'SHEQ', reports: 'Reports', noticeboard: 'Notice Board',
-};
 
 function getInitials(name: string | null, email: string): string {
   if (name) return name.split(' ').map(p => p[0]).join('').toUpperCase().slice(0, 2);
@@ -38,34 +31,25 @@ function avatarColour(email: string) {
 
 interface UserRowProps {
   profile: UserProfile; currentUserId: string; currentRole: UserRole;
-  onSave: (id: string, role: UserRole, permissions: Record<string, string[]>) => Promise<void>;
+  onSave: (id: string, role: UserRole) => Promise<void>;
 }
 
 function UserRow({ profile, currentUserId, currentRole, onSave }: UserRowProps) {
   const t = useTheme();
   const [expanded, setExpanded] = useState(false);
   const [editRole, setEditRole] = useState<UserRole>(profile.role);
-  const [editPerms, setEditPerms] = useState<Record<string, string[]>>(profile.permissions ?? {});
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
   const canEdit = currentRole === 'super_admin' || (currentRole === 'admin' && profile.role !== 'super_admin' && profile.id !== currentUserId);
-  const isDirty = editRole !== profile.role || JSON.stringify(editPerms) !== JSON.stringify(profile.permissions ?? {});
+  const isDirty = editRole !== profile.role;
 
   const handleSave = async () => {
     setSaving(true);
-    await onSave(profile.id, editRole, editPerms);
+    await onSave(profile.id, editRole);
     setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
-  };
-
-  const togglePerm = (module: string, action: string) => {
-    setEditPerms(prev => {
-      const existing = prev[module] ?? [];
-      const has = existing.includes(action);
-      return { ...prev, [module]: has ? existing.filter(a => a !== action) : [...existing, action] };
-    });
   };
 
   const Meta = ROLE_META[profile.role];
@@ -86,7 +70,7 @@ function UserRow({ profile, currentUserId, currentRole, onSave }: UserRowProps) 
         </div>
         <div className="hidden sm:block shrink-0"><StatusBadge color={Meta.hex} label={ROLE_LABELS[profile.role]} /></div>
         {canEdit && (
-          <button type="button" onClick={() => setExpanded(!expanded)} aria-label={expanded ? 'Collapse' : 'Edit permissions'}
+          <button type="button" onClick={() => setExpanded(!expanded)} aria-label={expanded ? 'Collapse' : 'Edit role'}
             className={`h-7 w-7 rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textMuted} ${t.hoverText} flex items-center justify-center transition-all shrink-0`}>
             {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
           </button>
@@ -113,35 +97,6 @@ function UserRow({ profile, currentUserId, currentRole, onSave }: UserRowProps) 
             </div>
             <p className={`text-xs mt-1.5 ${t.textFaint}`}>{ROLE_META[editRole].desc}</p>
           </div>
-
-          {(editRole === 'user' || editRole === 'viewer' || editRole === 'manager') && (
-            <div className="mb-4">
-              <p className={`text-xs font-semibold uppercase tracking-wider mb-2 ${t.textFaint}`}>
-                Module permissions <span className={`ml-2 normal-case font-normal ${t.textFaint}`}>(admins get full access automatically)</span>
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {Object.entries(MODULE_ACTIONS).map(([mod, actions]) => {
-                  const modPerms = editPerms[mod] ?? [];
-                  return (
-                    <div key={mod} className={`${t.chipBg} rounded-xl p-3 border ${t.border}`}>
-                      <p className={`text-xs font-semibold mb-2 ${t.textMuted}`}>{MODULE_LABELS[mod] ?? mod}</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {actions.map(action => {
-                          const active = modPerms.includes(action);
-                          return (
-                            <button key={action} type="button" onClick={() => togglePerm(mod, action)}
-                              className={`flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-medium border transition-all ${active ? 'bg-brand-500/15 border-brand-500/40 text-brand-500' : `${t.chipBg} ${t.border} ${t.textFaint} ${t.hoverText}`}`}>
-                              {active ? <Check className="h-2.5 w-2.5" /> : <X className="h-2.5 w-2.5" />}{action}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
 
           <div className="flex justify-end">
             <button type="button" onClick={handleSave} disabled={!isDirty || saving}
@@ -183,10 +138,10 @@ function AdminContent() {
 
   useEffect(() => { if (!loading && profile && isAtLeast('admin')) fetchUsers(); }, [loading, profile, isAtLeast, fetchUsers]);
 
-  const handleSave = async (id: string, role: UserRole, permissions: Record<string, string[]>) => {
+  const handleSave = async (id: string, role: UserRole) => {
     try {
-      await api.patch(`/api/admin/users/${id}`, { role, permissions });
-      setUsers(prev => prev.map(u => u.id === id ? { ...u, role, permissions } : u));
+      await api.patch(`/api/admin/users/${id}`, { role });
+      setUsers(prev => prev.map(u => u.id === id ? { ...u, role } : u));
     } catch { /* surfaced via row state elsewhere */ }
   };
 
@@ -215,7 +170,7 @@ function AdminContent() {
         accent="violet"
         crumbs={['Core Management', 'Admin Panel']}
         title="Admin Panel"
-        description="User roles & module permissions"
+        description="User roles — permissions are determined entirely by role"
         statsOpen
         actions={
           <button type="button" onClick={fetchUsers}

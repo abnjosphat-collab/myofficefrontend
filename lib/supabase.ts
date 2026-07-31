@@ -52,7 +52,6 @@ export interface UserProfile {
   full_name:   string | null;
   avatar_url:  string | null;
   role:        UserRole;
-  permissions: Record<string, string[]>;
   created_at:  string;
 }
 
