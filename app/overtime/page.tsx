@@ -437,7 +437,9 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
     const { default: ExcelJS } = await import('exceljs');
     const wb = new ExcelJS.Workbook(); wb.creator = 'Ozech MyOffice';
     const ws = wb.addWorksheet('OT Weekly Summary');
-    const totalCols = 1 + days.length + 3; // employee + days + [1.5x h, 2.0x h, Total h]
+    // No per-day breakdown — each employee gets one row: their week's 1.5x total,
+    // 2.0x total, and overall total. [Employee, 1.5x h, 2.0x h, Total h].
+    const totalCols = 4;
     ws.views = [{ state: 'frozen', xSplit: 1, ySplit: 3 }];
     const FONT = 'Calibri';
 
@@ -450,7 +452,7 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
     ws.addRow([]);
 
     const hdrRow = ws.getRow(3);
-    hdrRow.values = ['Employee', ...days.map(d => `${d.toLocaleDateString('en-GB', { weekday: 'short' })} ${d.getDate()}/${d.getMonth() + 1}`), '1.5x h', '2.0x h', 'Total h'];
+    hdrRow.values = ['Employee', '1.5x h', '2.0x h', 'Total h'];
     hdrRow.height = 28;
     hdrRow.eachCell({ includeEmpty: true }, (c, col) => {
       const isFixedCol = col === 1, isTotalCol = col === totalCols;
@@ -471,10 +473,7 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
     const fmtHours = (n: number) => n.toFixed(2);
 
     rows.forEach((row, ei) => {
-      const rowVals: (string | number)[] = [
-        row.employee_name, ...days.map(d => fmtHours(row.byDate.get(toISODate(d)) || 0)),
-        fmtHours(row.total15), fmtHours(row.total20), fmtHours(row.total),
-      ];
+      const rowVals: (string | number)[] = [row.employee_name, fmtHours(row.total15), fmtHours(row.total20), fmtHours(row.total)];
       const dataRow = ws.getRow(4 + ei);
       dataRow.values = rowVals;
       dataRow.height = 16;
@@ -487,12 +486,8 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
       });
     });
 
-    // One grand-total row, day-by-day plus the 1.5x/2.0x/overall column sums — the
-    // 1.5x and 2.0x split lives on each employee's own row above (their personal
-    // totals), not as a separate day-based breakdown, so there's nothing left to
-    // show per-day for the rate split here.
     const totalRow = ws.getRow(4 + rows.length + 1);
-    totalRow.values = ['GRAND TOTAL', ...dayTotals.map(fmtHours), fmtHours(grandTotal15), fmtHours(grandTotal20), fmtHours(grandTotal)];
+    totalRow.values = ['GRAND TOTAL', fmtHours(grandTotal15), fmtHours(grandTotal20), fmtHours(grandTotal)];
     totalRow.height = 20;
     totalRow.eachCell({ includeEmpty: true }, (c, col) => {
       const isTotalCol = col === totalCols;
@@ -502,11 +497,10 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
       c.border = { top: { style: 'medium', color: { argb: 'FF86BBD8' } } };
     });
 
-    ws.getColumn(1).width = 24;
-    for (let i = 0; i < days.length; i++) ws.getColumn(2 + i).width = 8;
-    ws.getColumn(totalCols - 2).width = 9;
-    ws.getColumn(totalCols - 1).width = 9;
-    ws.getColumn(totalCols).width = 10;
+    ws.getColumn(1).width = 26;
+    ws.getColumn(2).width = 10;
+    ws.getColumn(3).width = 10;
+    ws.getColumn(4).width = 12;
 
     const buf = await wb.xlsx.writeBuffer();
     const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
