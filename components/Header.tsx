@@ -258,7 +258,7 @@ const NAV_GROUPS = [
       { icon: Clock,          title: 'Shifts',        href: '/shifts',         desc: 'Shift cycles & standby' },
       { icon: CalendarDays,   title: 'Schedules',     href: '/schedules',      desc: 'Task scheduling' },
       { icon: ClipboardPlus,  title: 'Requisitions',  href: '/requisitions',   desc: 'Purchase requests' },
-      { icon: Wrench,         title: 'Services',        href: '/services',     desc: 'Service tracker & invoices' },
+      { icon: Wrench,         title: 'Third Party Services', href: '/services', desc: 'Contractor jobs & approval circuit' },
     ],
   },
   {

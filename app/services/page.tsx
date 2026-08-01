@@ -421,16 +421,42 @@ function ServiceForm({ initial, onSave, onClose }: { initial: ServiceRecord; onS
 
 const EXCEL_MAP: Record<string, keyof ServiceRecord> = {
   date: 'date', 'service date': 'date',
-  description: 'description', service: 'description', 'service description': 'description',
-  supplier: 'supplier', contractor: 'supplier', vendor: 'supplier',
+  description: 'description', service: 'description', 'service description': 'description', 'task description': 'description',
+  supplier: 'supplier', contractor: 'supplier', vendor: 'supplier', 'contractor name': 'supplier',
   contact: 'contact_person', 'contact person': 'contact_person',
-  req: 'requisition_number', requisition: 'requisition_number', 'req #': 'requisition_number', 'req no': 'requisition_number',
-  inv: 'invoice_number', invoice: 'invoice_number', 'inv #': 'invoice_number', 'invoice no': 'invoice_number',
-  po: 'order_number', order: 'order_number', 'purchase order': 'order_number', 'po #': 'order_number',
+  req: 'requisition_number', requisition: 'requisition_number', 'req #': 'requisition_number', 'req no': 'requisition_number', 'pr#': 'requisition_number', 'pr #': 'requisition_number',
+  inv: 'invoice_number', invoice: 'invoice_number', 'inv #': 'invoice_number', 'invoice no': 'invoice_number', 'invoice #': 'invoice_number',
+  po: 'order_number', order: 'order_number', 'purchase order': 'order_number', 'po #': 'order_number', 'po#': 'order_number',
   amount: 'amount', cost: 'amount', price: 'amount', value: 'amount', total: 'amount',
   category: 'category', type: 'category',
   comments: 'general_comments', comment: 'general_comments', notes: 'general_comments', note: 'general_comments', remarks: 'general_comments',
 };
+// The approval-stage columns (Planning/Engineering Manager/Finance Manager/General
+// Manager/Stores) can't go through EXCEL_MAP above — they land on a nested stage
+// object (rec.planning.signed), not a flat ServiceRecord field.
+const STAGE_BOOL_MAP: Record<string, 'planning' | 'engineering_manager' | 'finance' | 'gm' | 'stores'> = {
+  planning: 'planning',
+  'engineering manager': 'engineering_manager', 'eng mgr': 'engineering_manager',
+  finance: 'finance', 'finance manager': 'finance',
+  gm: 'gm', 'general manager': 'gm',
+  stores: 'stores',
+};
+const GRV_HEADERS = new Set(['grv#', 'grv #', 'grv number', 'grv']);
+const toBool = (v: unknown) => v === true || String(v ?? '').trim().toUpperCase() === 'TRUE';
+// SheetJS (with cellDates: true) hands back a JS Date built from Date.UTC for a real
+// Excel date cell — read its UTC fields, not local ones, or the day can shift by one
+// depending on the machine's timezone. Text cells (this file mixes both for the same
+// column) are left to the plain DD/MM/YYYY-or-passthrough branch below.
+function parseExcelDate(v: unknown): string {
+  if (v instanceof Date) {
+    const y = v.getUTCFullYear(), m = String(v.getUTCMonth() + 1).padStart(2, '0'), d = String(v.getUTCDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  const s = String(v ?? '').trim();
+  const m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
+  if (m) { const [, dd, mm, yy] = m; return `${yy.length === 2 ? '20' + yy : yy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`; }
+  return s;
+}
 const SPREADSHEET_EXTS = new Set(['.xlsx', '.xls', '.csv']);
 function fileMode(file: File): 'spreadsheet' | 'document' {
   const ext = '.' + (file.name.split('.').pop() ?? '').toLowerCase();
@@ -470,18 +496,27 @@ function ExcelImportModal({ onImport, onExtracted, onClose }: {
     }
     const XLSX = await import('xlsx');
     const buf = await file.arrayBuffer();
-    const wb = XLSX.read(buf, { type: 'array' });
+    // cellDates: true — without it, a genuine Excel date-type cell comes back as a raw
+    // serial number (e.g. 46020) instead of a Date, which then got blindly String()-ed
+    // into the date field as garbage. Text-formatted dates in the same column (some
+    // source files mix both) still arrive as plain strings and go through the
+    // DD/MM/YYYY branch in parseExcelDate below.
+    const wb = XLSX.read(buf, { type: 'array', cellDates: true });
     const ws = wb.Sheets[wb.SheetNames[0]];
     const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: '' });
     if (!raw.length) { toast.error('No data found in the file'); return; }
     const hdrs = Object.keys(raw[0]);
     setHeaders(hdrs);
-    setPreview(raw.slice(0, 5).map(r => hdrs.map(h => String(r[h] ?? ''))));
+    setPreview(raw.slice(0, 5).map(r => hdrs.map(h => { const v = r[h]; return v instanceof Date ? parseExcelDate(v) : String(v ?? ''); })));
     setRows(raw.map(row => {
       const rec = emptyRecord();
       Object.entries(row).forEach(([col, val]) => {
-        const field = EXCEL_MAP[col.toLowerCase().trim()];
-        if (field) (rec as unknown as Record<string, unknown>)[field] = String(val ?? '').trim();
+        const key = col.toLowerCase().trim();
+        const field = EXCEL_MAP[key];
+        if (field) { (rec as unknown as Record<string, unknown>)[field] = field === 'date' ? parseExcelDate(val) : String(val ?? '').trim(); return; }
+        const stage = STAGE_BOOL_MAP[key];
+        if (stage) { rec[stage].signed = toBool(val); return; }
+        if (GRV_HEADERS.has(key)) rec.stores.grv_number = String(val ?? '').trim();
       });
       return rec;
     }));
@@ -494,7 +529,7 @@ function ExcelImportModal({ onImport, onExtracted, onClose }: {
       <div className="grid grid-cols-2 gap-3">
         <div className={`p-3 rounded-xl ${t.chipBg}`}>
           <p className={`text-xs font-semibold mb-1 flex items-center gap-1.5 ${t.textMuted}`}><FileSpreadsheet className="h-3.5 w-3.5" /> Spreadsheet</p>
-          <p className={`text-[11px] leading-relaxed ${t.textFaint}`}>Excel (.xlsx, .xls) or CSV with headers: Date, Description, Supplier, Contact, REQ #, INV #, PO #, Amount, Category, Comments.</p>
+          <p className={`text-[11px] leading-relaxed ${t.textFaint}`}>Excel (.xlsx, .xls) or CSV with headers: Date, Description, Supplier/Contractor, Contact, PR #/REQ #, INV #, PO #, Amount, Category, Comments — plus Planning, Engineering Manager, Finance Manager, General Manager, Stores (TRUE/FALSE) and GRV # to bring in the approval circuit too.</p>
         </div>
         <div className={`p-3 rounded-xl ${t.chipBg}`}>
           <p className={`text-xs font-semibold mb-1 flex items-center gap-1.5 ${t.textMuted}`}><Eye className="h-3.5 w-3.5" /> Document / Scan</p>
@@ -723,9 +758,9 @@ function ServicesPageContent() {
       <PageHero
         icon={Wrench}
         accent="violet"
-        crumbs={['Operations & Maintenance', 'Services']}
-        title="Services Tracker"
-        description="Track service completion, approval pipeline, suppliers and invoices"
+        crumbs={['Operations & Maintenance', 'Third Party Services']}
+        title="Third Party Services Tracker"
+        description="Contractor jobs through the PR/PO/GRV approval circuit"
         statsOpen={sections.expanded.hero}
         actions={
           <>

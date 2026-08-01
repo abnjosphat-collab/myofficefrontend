@@ -99,7 +99,7 @@ export const CATEGORIES: Category[] = [
       { icon: Clock,          title: 'Standby',      description: 'On-call schedules',          href: '/standby',     tags: ['Scheduling'], badge: '8', metrics: [{ label: 'On Call', value: '6' }, { label: 'Coverage', value: '92%' }] },
       { icon: CalendarDays,   title: 'Schedules',    description: 'Recurring maintenance tasks', href: '/schedules',    tags: ['Planning'], badge: '15' },
       { icon: ClipboardPlus,  title: 'Requisitions', description: 'Purchase & supply requests', href: '/requisitions', tags: ['Procurement'], badge: '7' },
-      { icon: Wrench,         title: 'Services',     description: 'Track completed services',   href: '/services',     tags: ['Services', 'Invoices'], badge: '34' },
+      { icon: Wrench,         title: 'Third Party Services', description: 'Contractor jobs through the PR/PO/GRV approval circuit', href: '/services', tags: ['Services', 'Invoices', 'Contractors'], badge: '34' },
       { icon: Activity,       title: 'Equipment Status',  description: 'Live equipment status board', href: '/equipment-status', tags: ['Status'] },
       { icon: Gauge,          title: 'Equipment Availability', description: 'Utilisation & downtime tracking', href: '/av', tags: ['Uptime'] },
       { icon: Radar,          title: 'Condition Monitoring', description: 'Oil, vibration & thermography', href: '/condition-monitoring', tags: ['Predictive'] },
