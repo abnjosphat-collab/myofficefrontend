@@ -345,7 +345,13 @@ function mondayOf(d: Date): Date {
 function toISODate(d: Date): string { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
 function addDays(d: Date, n: number): Date { const r = new Date(d); r.setDate(r.getDate() + n); return r; }
 
-interface EmployeeWeekRow { employee_id: string; employee_name: string; position: string; byDate: Map<string, number>; total: number; }
+interface EmployeeWeekRow {
+  employee_id: string; employee_name: string; position: string; byDate: Map<string, number>; total: number;
+  // Per-individual rate split — the 1.5x/2.0x breakdown belongs to the person whose
+  // hours they are, not to the day they fall on (a day can mix both rates across
+  // different employees, or even within one employee's own records).
+  total15: number; total20: number;
+}
 
 function buildWeeklyRows(records: OTRecord[], from: string, to: string): { rows: EmployeeWeekRow[]; days: Date[] } {
   const days: Date[] = [];
@@ -360,11 +366,12 @@ function buildWeeklyRows(records: OTRecord[], from: string, to: string): { rows:
     if (r.date < from || r.date > to) return;
     const key = r.employee_id || r.employee_name;
     if (!key) return;
-    if (!map.has(key)) map.set(key, { employee_id: r.employee_id, employee_name: r.employee_name, position: r.position, byDate: new Map(), total: 0 });
+    if (!map.has(key)) map.set(key, { employee_id: r.employee_id, employee_name: r.employee_name, position: r.position, byDate: new Map(), total: 0, total15: 0, total20: 0 });
     const row = map.get(key)!;
     const h = r.hours ?? calcHours(r.start_time, r.end_time);
     row.byDate.set(r.date, (row.byDate.get(r.date) || 0) + h);
     row.total += h;
+    if (rateFor(r.overtime_type) === 1.5) row.total15 += h; else row.total20 += h;
   });
 
   return { rows: Array.from(map.values()).sort((a, b) => a.employee_name.localeCompare(b.employee_name)), days };
@@ -381,18 +388,11 @@ function WeeklySummaryView({ records }: { records: OTRecord[] }) {
   const grandTotal = rows.reduce((s, r) => s + r.total, 0);
   const dayTotals = days.map(d => { const ds = toISODate(d); return rows.reduce((s, r) => s + (r.byDate.get(ds) || 0), 0); });
 
-  // Same day-by-day/grand totals, split by pay rate — records in range only, scoped
-  // independently of the per-employee matrix above (which stays rate-agnostic).
-  const inRangeRecords = useMemo(() => records.filter(r => r.date >= from && r.date <= to), [records, from, to]);
-  const dayTotalsByRate = (rate: 1.5 | 2.0) => days.map(d => {
-    const ds = toISODate(d);
-    return inRangeRecords.filter(r => r.date === ds && rateFor(r.overtime_type) === rate)
-      .reduce((s, r) => s + (r.hours ?? calcHours(r.start_time, r.end_time)), 0);
-  });
-  const dayTotals15 = dayTotalsByRate(1.5);
-  const dayTotals20 = dayTotalsByRate(2.0);
-  const grandTotal15 = dayTotals15.reduce((s, v) => s + v, 0);
-  const grandTotal20 = dayTotals20.reduce((s, v) => s + v, 0);
+  // 1.5x/2.0x totals belong to individuals (each employee's own split, shown as two
+  // extra columns on their row in the export) — summed here only for the grand-total
+  // row, not broken out by day.
+  const grandTotal15 = rows.reduce((s, r) => s + r.total15, 0);
+  const grandTotal20 = rows.reduce((s, r) => s + r.total20, 0);
 
   const stickyBg = t.light ? 'bg-white' : 'bg-[#040c18]';
   const today = toISODate(new Date());
@@ -402,7 +402,7 @@ function WeeklySummaryView({ records }: { records: OTRecord[] }) {
     const { default: ExcelJS } = await import('exceljs');
     const wb = new ExcelJS.Workbook(); wb.creator = 'Ozech MyOffice';
     const ws = wb.addWorksheet('OT Weekly Summary');
-    const totalCols = 1 + days.length + 1;
+    const totalCols = 1 + days.length + 3; // employee + days + [1.5x h, 2.0x h, Total h]
     ws.views = [{ state: 'frozen', xSplit: 1, ySplit: 3 }];
     const FONT = 'Calibri';
 
@@ -415,7 +415,7 @@ function WeeklySummaryView({ records }: { records: OTRecord[] }) {
     ws.addRow([]);
 
     const hdrRow = ws.getRow(3);
-    hdrRow.values = ['Employee', ...days.map(d => `${d.toLocaleDateString('en-GB', { weekday: 'short' })} ${d.getDate()}/${d.getMonth() + 1}`), 'Total h'];
+    hdrRow.values = ['Employee', ...days.map(d => `${d.toLocaleDateString('en-GB', { weekday: 'short' })} ${d.getDate()}/${d.getMonth() + 1}`), '1.5x h', '2.0x h', 'Total h'];
     hdrRow.height = 28;
     hdrRow.eachCell({ includeEmpty: true }, (c, col) => {
       const isFixedCol = col === 1, isTotalCol = col === totalCols;
@@ -433,7 +433,7 @@ function WeeklySummaryView({ records }: { records: OTRecord[] }) {
     const NUMFMT = '[$-409]0.00';
 
     rows.forEach((row, ei) => {
-      const rowVals: (string | number)[] = [row.employee_name, ...days.map(d => row.byDate.get(toISODate(d)) || 0), row.total];
+      const rowVals: (string | number)[] = [row.employee_name, ...days.map(d => row.byDate.get(toISODate(d)) || 0), row.total15, row.total20, row.total];
       const dataRow = ws.getRow(4 + ei);
       dataRow.values = rowVals;
       dataRow.height = 16;
@@ -447,30 +447,26 @@ function WeeklySummaryView({ records }: { records: OTRecord[] }) {
       });
     });
 
-    // Totals section: 1.5x and 2.0x subtotals shown separately, then the grand total
-    // (their sum) — every record is exactly one or the other, so grandTotal15 +
-    // grandTotal20 always equals grandTotal.
-    const writeTotalRow = (rowIndex: number, label: string, dayValues: number[], total: number, isGrand: boolean) => {
-      const row = ws.getRow(rowIndex);
-      row.values = [label, ...dayValues, total];
-      row.height = isGrand ? 20 : 18;
-      row.eachCell({ includeEmpty: true }, (c, col) => {
-        const isTotalCol = col === totalCols;
-        c.font = { name: FONT, bold: true, size: 9, color: { argb: isGrand && isTotalCol ? 'FFFFFFFF' : 'FF1E3A5F' } };
-        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isGrand ? (isTotalCol ? EXPORT_BRAND_ARGB : 'FFD0E8F5') : 'FFEDF3F8' } };
-        c.alignment = { horizontal: col === 1 ? 'left' : 'center', vertical: 'middle' };
-        if (col > 1) c.numFmt = NUMFMT;
-        if (isGrand) c.border = { top: { style: 'medium', color: { argb: 'FF86BBD8' } } };
-      });
-    };
-
-    const totalsStartRow = 4 + rows.length + 1;
-    writeTotalRow(totalsStartRow, 'TOTAL @ 1.5x', dayTotals15, grandTotal15, false);
-    writeTotalRow(totalsStartRow + 1, 'TOTAL @ 2.0x', dayTotals20, grandTotal20, false);
-    writeTotalRow(totalsStartRow + 2, 'GRAND TOTAL', dayTotals, grandTotal, true);
+    // One grand-total row, day-by-day plus the 1.5x/2.0x/overall column sums — the
+    // 1.5x and 2.0x split lives on each employee's own row above (their personal
+    // totals), not as a separate day-based breakdown, so there's nothing left to
+    // show per-day for the rate split here.
+    const totalRow = ws.getRow(4 + rows.length + 1);
+    totalRow.values = ['GRAND TOTAL', ...dayTotals, grandTotal15, grandTotal20, grandTotal];
+    totalRow.height = 20;
+    totalRow.eachCell({ includeEmpty: true }, (c, col) => {
+      const isTotalCol = col === totalCols;
+      c.font = { name: FONT, bold: true, size: 9, color: { argb: isTotalCol ? 'FFFFFFFF' : 'FF1E3A5F' } };
+      c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isTotalCol ? EXPORT_BRAND_ARGB : 'FFD0E8F5' } };
+      c.alignment = { horizontal: col === 1 ? 'left' : 'center', vertical: 'middle' };
+      if (col > 1) c.numFmt = NUMFMT;
+      c.border = { top: { style: 'medium', color: { argb: 'FF86BBD8' } } };
+    });
 
     ws.getColumn(1).width = 24;
     for (let i = 0; i < days.length; i++) ws.getColumn(2 + i).width = 8;
+    ws.getColumn(totalCols - 2).width = 9;
+    ws.getColumn(totalCols - 1).width = 9;
     ws.getColumn(totalCols).width = 10;
 
     const buf = await wb.xlsx.writeBuffer();
