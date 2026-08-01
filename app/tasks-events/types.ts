@@ -6,6 +6,8 @@ export interface TaskEvent {
   description?: string | null;
   task_type: string;
   event_date?: string | null;
+  due_date?: string | null;
+  responsible_person?: string | null;
   status: 'pending' | 'completed';
   priority: string;
   created_by?: string | null;
@@ -20,7 +22,17 @@ export interface TaskEventFormData {
   description: string;
   task_type: string;
   event_date: string;
+  due_date: string;
+  responsible_person: string;
   priority: string;
+}
+
+export interface TaskComment {
+  id: number;
+  task_id: number;
+  author?: string | null;
+  text: string;
+  created_at: string;
 }
 
 export const TASK_TYPES = ['Event', 'Task', 'Meeting', 'Deadline'] as const;

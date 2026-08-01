@@ -5,7 +5,7 @@
 
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/apiClient';
-import type { TaskEvent, TaskEventFormData } from './types';
+import type { TaskEvent, TaskEventFormData, TaskComment } from './types';
 
 export async function createTaskEvent(data: TaskEventFormData) {
   return api.post<TaskEvent>('/api/tasks-events', data);
@@ -25,6 +25,14 @@ export async function reopenTaskEvent(id: number) {
   return api.patch<TaskEvent>(`/api/tasks-events/${id}`, {
     status: 'pending', completed_by: null, completed_at: null,
   });
+}
+
+export async function listComments(taskId: number) {
+  const data = await api.get<unknown>(`/api/tasks-events/${taskId}/comments`);
+  return Array.isArray(data) ? data as TaskComment[] : [];
+}
+export async function addComment(taskId: number, text: string, author?: string) {
+  return api.post<TaskComment>(`/api/tasks-events/${taskId}/comments`, { text, author });
 }
 
 export function useTasksEventsData() {
