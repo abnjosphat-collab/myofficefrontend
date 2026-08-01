@@ -5,7 +5,7 @@
 
 import React, { useMemo, useState } from 'react';
 import {
-  useTheme, StatusBadge, CenterModal,
+  useTheme, accentText, StatusBadge, CenterModal,
 } from '@/components/shared/theme';
 import { ChevronLeft, ChevronRight, Star, Clock4 } from '@/components/shared/theme';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -113,7 +113,7 @@ export default function CalendarTab({ bookings, students }: {
                 style={{ backgroundColor: isSunday ? 'transparent' : getHeatColor(income, maxDayIncome, t.light) }}>
                 <div className="flex items-center justify-between">
                   <span className={`text-[11px] font-semibold ${isToday ? 'text-brand-400' : t.textPrimary}`}>{d.getDate()}</span>
-                  {hasVip && <Star className="h-2.5 w-2.5 text-amber-400" fill="currentColor" />}
+                  {hasVip && <Star className={`h-2.5 w-2.5 ${accentText('amber', t.light)}`} fill="currentColor" />}
                 </div>
                 {!isSunday && list.length > 0 && (
                   <div className="mt-auto space-y-0.5">
@@ -145,7 +145,7 @@ export default function CalendarTab({ bookings, students }: {
                         <TableRow key={b.id}>
                           <TableCell className={`${t.textFaint} flex items-center gap-1`}><Clock4 className="h-3 w-3" />{b.start_time}</TableCell>
                           <TableCell className={`font-medium ${t.textPrimary}`}>
-                            <span className="flex items-center gap-1">{b.student_name}{st && isVip(st) && <Star className="h-3 w-3 text-amber-400" fill="currentColor" />}</span>
+                            <span className="flex items-center gap-1">{b.student_name}{st && isVip(st) && <Star className={`h-3 w-3 ${accentText('amber', t.light)}`} fill="currentColor" />}</span>
                           </TableCell>
                           <TableCell className={t.textFaint}>{b.instructor_name}</TableCell>
                           <TableCell><StatusBadge color={TYPE_HEX[b.lesson_type]} label={b.lesson_type} /></TableCell>

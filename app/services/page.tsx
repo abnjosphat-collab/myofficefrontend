@@ -13,7 +13,7 @@ import {
 import { AppShell } from '@/components/app-shell';
 import { formatDate } from '@/lib/format';
 import {
-  useTheme, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle,
+  useTheme, accentText, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle,
   FormField, FormActions, useCollapseSection, CenterModal, ProgressBar, ACCENT_HEX, GlowCard, SelectField,
 } from '@/components/shared/theme';
 import { Toaster, toast } from 'sonner';
@@ -519,7 +519,7 @@ function ExcelImportModal({ onImport, onExtracted, onClose }: {
         )}
       </div>
 
-      {scanError && <div className="flex items-start gap-2 p-3 rounded-xl bg-rose-500/10 text-rose-400 text-xs"><AlertCircle className="h-4 w-4 shrink-0 mt-0.5" /> {scanError}</div>}
+      {scanError && <div className={`flex items-start gap-2 p-3 rounded-xl bg-rose-500/10 ${accentText('rose', t.light)} text-xs`}><AlertCircle className="h-4 w-4 shrink-0 mt-0.5" /> {scanError}</div>}
 
       {preview.length > 0 && (
         <div>
@@ -590,7 +590,7 @@ function OcrUploadModal({ onExtracted, onClose }: { onExtracted: (partial: Parti
           </>
         )}
       </div>
-      {error && <div className="flex items-start gap-2 p-3 rounded-xl bg-rose-500/10 text-rose-400 text-xs"><AlertCircle className="h-4 w-4 shrink-0 mt-0.5" /> {error}</div>}
+      {error && <div className={`flex items-start gap-2 p-3 rounded-xl bg-rose-500/10 ${accentText('rose', t.light)} text-xs`}><AlertCircle className="h-4 w-4 shrink-0 mt-0.5" /> {error}</div>}
       <div className="flex justify-end">
         <button type="button" onClick={onClose} className={`h-9 px-4 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border}`}>Cancel</button>
       </div>
@@ -754,7 +754,7 @@ function ServicesPageContent() {
       </PageHero>
 
       {apiError && (
-        <div className="flex items-start gap-3 p-4 rounded-2xl bg-rose-500/10 text-rose-400 text-sm">
+        <div className={`flex items-start gap-3 p-4 rounded-2xl bg-rose-500/10 ${accentText('rose', t.light)} text-sm`}>
           <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
           <div><p className="font-semibold">Backend not reachable</p><p className="text-xs opacity-80 mt-0.5">{apiError} — Make sure the backend is running.</p></div>
         </div>

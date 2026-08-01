@@ -6,7 +6,7 @@
 
 import React, { useMemo, useState } from 'react';
 import {
-  useTheme, StatusBadge, SearchInput, SelectField, EmptyState, CenterModal,
+  useTheme, accentText, StatusBadge, SearchInput, SelectField, EmptyState, CenterModal,
   ACCENT_HEX,
 } from '@/components/shared/theme';
 import {
@@ -107,7 +107,7 @@ export default function StudentsTab({ students, bookings, vidTests }: { students
               options={[{ value: 'spend', label: 'Highest Spend' }, { value: 'lessons', label: 'Most Lessons' }, { value: 'name', label: 'Name (A–Z)' }]} />
           </div>
           <button type="button" onClick={() => setVipOnly(v => !v)}
-            className={`flex items-center gap-1.5 h-9 px-3 rounded-lg text-[13px] font-semibold transition-colors ${vipOnly ? 'bg-amber-500/20 text-amber-400' : `${t.chipBg} ${t.textMuted} ${t.hoverBg}`}`}>
+            className={`flex items-center gap-1.5 h-9 px-3 rounded-lg text-[13px] font-semibold transition-colors ${vipOnly ? `bg-amber-500/20 ${accentText('amber', t.light)}` : `${t.chipBg} ${t.textMuted} ${t.hoverBg}`}`}>
             <Star className="h-3.5 w-3.5" fill={vipOnly ? 'currentColor' : 'none'} /> VIP Only
           </button>
         </div>
@@ -132,7 +132,7 @@ export default function StudentsTab({ students, bookings, vidTests }: { students
                     <div className={`text-xs ${t.textFaint} flex items-center gap-1`}><Phone className="h-3 w-3" />{s.student.phone}</div>
                   </div>
                 </div>
-                {isVip(s.student) && <span title="VIP"><Star className="h-4 w-4 text-amber-400 shrink-0" fill="currentColor" /></span>}
+                {isVip(s.student) && <span title="VIP"><Star className={`h-4 w-4 ${accentText('amber', t.light)} shrink-0`} fill="currentColor" /></span>}
               </div>
 
               <div className="flex flex-wrap gap-1.5 mb-3">
@@ -234,7 +234,7 @@ export default function StudentsTab({ students, bookings, vidTests }: { students
                         <TableCell><StatusBadge color={TYPE_HEX[b.lesson_type]} label={b.lesson_type} /></TableCell>
                         <TableCell className={t.textFaint}>{b.instructor_name}</TableCell>
                         <TableCell className={t.textFaint}>
-                          {b.status}{b.test_outcome && (b.test_outcome === 'passed' ? <CheckCircle2 className="h-3 w-3 inline ml-1 text-emerald-400" /> : <X className="h-3 w-3 inline ml-1 text-rose-400" />)}
+                          {b.status}{b.test_outcome && (b.test_outcome === 'passed' ? <CheckCircle2 className={`h-3 w-3 inline ml-1 ${accentText('emerald', t.light)}`} /> : <X className={`h-3 w-3 inline ml-1 ${accentText('rose', t.light)}`} />)}
                         </TableCell>
                         <TableCell className={t.textFaint}>{b.payment_status}</TableCell>
                       </TableRow>

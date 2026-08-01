@@ -14,7 +14,7 @@ import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButto
 import { exportFilename } from '@/lib/exportUtils';
 import { PillTabs } from '@/components/shared/PillTabs';
 import {
-  useTheme, PageHero, StatTile, StatusBadge, SearchInput, ProgressBar, useCollapseSection, ACCENT_HEX, SelectField,
+  useTheme, PageHero, StatTile, StatusBadge, SearchInput, ProgressBar, useCollapseSection, ACCENT_HEX, SelectField, accentText,
 } from '@/components/shared/theme';
 import type { Equipment } from './types';
 import { useAvailabilityData } from './useAvailabilityData';
@@ -138,16 +138,16 @@ function AvailabilityContent() {
           <div className="mt-2"><ProgressBar value={stats.overallAvailability} color={avHex(stats.overallAvailability)} showValue={false} /></div>
         </div>
         <div className={`${t.glass} rounded-xl p-4`}>
-          <div className="flex items-center gap-1.5 mb-1"><Clock className="h-3.5 w-3.5 text-emerald-400" /><span className={`text-xs ${t.textFaint}`}>Avg Uptime</span></div>
-          <div className="text-xl font-bold text-emerald-400">{stats.avgUptime.toFixed(1)}h</div>
+          <div className="flex items-center gap-1.5 mb-1"><Clock className={`h-3.5 w-3.5 ${accentText('emerald', t.light)}`} /><span className={`text-xs ${t.textFaint}`}>Avg Uptime</span></div>
+          <div className={`text-xl font-bold ${accentText('emerald', t.light)}`}>{stats.avgUptime.toFixed(1)}h</div>
         </div>
         <div className={`${t.glass} rounded-xl p-4`}>
           <div className="flex items-center gap-1.5 mb-1"><Activity className="h-3.5 w-3.5 text-red-400" /><span className={`text-xs ${t.textFaint}`}>Avg Downtime</span></div>
           <div className="text-xl font-bold text-red-400">{stats.avgDowntime.toFixed(1)}h</div>
         </div>
         <div className={`${t.glass} rounded-xl p-4`}>
-          <div className="flex items-center gap-1.5 mb-1"><AlertTriangle className="h-3.5 w-3.5 text-amber-400" /><span className={`text-xs ${t.textFaint}`}>Total Downtime</span></div>
-          <div className="text-xl font-bold text-amber-400">{stats.totalBreakdownHours.toFixed(0)}h</div>
+          <div className="flex items-center gap-1.5 mb-1"><AlertTriangle className={`h-3.5 w-3.5 ${accentText('amber', t.light)}`} /><span className={`text-xs ${t.textFaint}`}>Total Downtime</span></div>
+          <div className={`text-xl font-bold ${accentText('amber', t.light)}`}>{stats.totalBreakdownHours.toFixed(0)}h</div>
         </div>
       </div>
 
@@ -210,7 +210,7 @@ function AvailabilityContent() {
                             <div className="w-20"><ProgressBar value={eq.availability} color={avHex(eq.availability)} showValue={false} /></div>
                           </div>
                         </td>
-                        <td className={`${tdCls} text-right text-emerald-400`}>{eq.uptime.toFixed(1)}h</td>
+                        <td className={`${tdCls} text-right ${accentText('emerald', t.light)}`}>{eq.uptime.toFixed(1)}h</td>
                         <td className={`${tdCls} text-right text-red-400`}>{eq.downtime.toFixed(1)}h</td>
                         <td className={tdCls}>
                           <div className="flex gap-1.5 justify-end">

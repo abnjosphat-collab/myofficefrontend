@@ -4,7 +4,7 @@
 import { useState } from 'react';
 import { AppShell } from '@/components/app-shell';
 import { AlertOctagon, ChevronDown, ChevronUp, RefreshCw } from '@/components/shared/theme';
-import { useTheme, PageHero, StatTile, ACCENT_HEX } from '@/components/shared/theme';
+import { useTheme, accentText, PageHero, StatTile, ACCENT_HEX } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
 import { useFailureModesData } from './useFailureModesData';
@@ -134,7 +134,7 @@ function FailureModesContent() {
                     <p className={`text-sm leading-relaxed ${t.textMuted}`}>{m.corrective}</p>
                   </div>
                   <div>
-                    <div className="text-emerald-400 text-xs font-semibold uppercase tracking-wider mb-1">Preventive Actions</div>
+                    <div className={`${accentText('emerald', t.light)} text-xs font-semibold uppercase tracking-wider mb-1`}>Preventive Actions</div>
                     <p className={`text-sm leading-relaxed ${t.textMuted}`}>{m.preventive}</p>
                   </div>
                 </div>

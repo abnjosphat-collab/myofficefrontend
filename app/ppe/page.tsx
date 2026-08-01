@@ -646,7 +646,7 @@ function DueItemsList({ employees, filterType, onEditItem, onDeleteItem, onViewI
   if (items.length === 0 && !search && typeFilter === 'all') {
     return (
       <div className={`text-center py-12 ${t.glassSoft} rounded-xl`}>
-        <CheckCircle2 className="h-12 w-12 mx-auto mb-3 text-emerald-400/60" />
+        <CheckCircle2 className={`h-12 w-12 mx-auto mb-3 ${t.light ? 'text-emerald-600/60' : 'text-emerald-400/60'}`} />
         <p className={`font-semibold ${t.textPrimary}`}>No {filterType === 'due' ? 'overdue' : 'expiring soon'} items</p>
         <p className={`text-sm ${t.textFaint} mt-1`}>All PPE is up to date</p>
       </div>

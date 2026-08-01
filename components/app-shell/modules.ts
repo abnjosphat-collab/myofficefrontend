@@ -17,7 +17,7 @@ import {
   ClipboardList, ClipboardPlus, Plus, User, Gauge,
   Sun, Receipt, Settings, Award, Truck, Radar,
   Droplet, FileCheck, LayoutDashboard, ShoppingCart, Car,
-  Wallet, DollarSign,
+  Wallet, DollarSign, ListTodo,
 } from '@/components/shared/theme';
 import type { Accent } from '@/components/shared/theme';
 import type { UserRole } from '@/lib/supabase';
@@ -79,6 +79,13 @@ export const CATEGORIES: Category[] = [
     icon: Wallet, accent: 'emerald', minRole: 'manager',
     modules: [
       { icon: DollarSign, title: 'Accounting', description: 'Transactions, expenses, receipts & profit/loss', href: '/accounting', tags: ['Finance', 'Accounting'], featured: true },
+    ],
+  },
+  {
+    id: 'manager-tools', title: 'Manager Tools', description: 'Planning and progress tracking for managers',
+    icon: ListTodo, accent: 'violet', minRole: 'manager',
+    modules: [
+      { icon: ListTodo, title: 'Events & Tasks', description: 'Post events and to-dos, track completion by type', href: '/tasks-events', tags: ['Planning'], featured: true },
     ],
   },
   {

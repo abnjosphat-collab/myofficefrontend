@@ -17,7 +17,7 @@ import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle,
   FormField, FormActions, useCollapseSection, CenterModal, ACCENT_HEX, SelectField, TYPE_SCALE, RADIUS,
   GroupSection, RecordCard, staggerContainer, fadeUp,
-  Subsection, InfoRow, SummaryItem, LoadingState, AutofillInput, useConfirm,
+  Subsection, InfoRow, SummaryItem, LoadingState, AutofillInput, useConfirm, accentText,
 } from '@/components/shared/theme';
 import { formatDate } from '@/lib/format';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
@@ -332,11 +332,11 @@ function RosterExportDialog({ employees, onClose }: { employees: Employee[]; onC
           <FormField label="Format">
             <div className="flex gap-2">
               <button type="button" onClick={() => setFormat('excel')}
-                className={`flex-1 h-10 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${format === 'excel' ? 'bg-emerald-500/20 text-emerald-400' : `${t.hoverBg} ${t.textFaint}`}`}>
+                className={`flex-1 h-10 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${format === 'excel' ? `bg-emerald-500/20 ${accentText('emerald', t.light)}` : `${t.hoverBg} ${t.textFaint}`}`}>
                 <FileSpreadsheet className="h-3.5 w-3.5" /> Excel
               </button>
               <button type="button" onClick={() => setFormat('pdf')}
-                className={`flex-1 h-10 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${format === 'pdf' ? 'bg-rose-500/20 text-rose-400' : `${t.hoverBg} ${t.textFaint}`}`}>
+                className={`flex-1 h-10 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${format === 'pdf' ? `bg-rose-500/20 ${accentText('rose', t.light)}` : `${t.hoverBg} ${t.textFaint}`}`}>
                 <FileText className="h-3.5 w-3.5" /> PDF
               </button>
             </div>
@@ -538,7 +538,7 @@ function EmployeeForm({ initialData, onSubmit, onCancel, isSubmitting }: Employe
                     onClick={() => set('employment_type', et)}
                     className={`flex-1 h-9 rounded-lg text-xs font-semibold transition-all ${
                       form.employment_type === et
-                        ? et === 'NEC' ? 'bg-indigo-500/20 text-indigo-400' : et === 'SALARIED' ? 'bg-teal-500/20 text-teal-400' : `${t.chipBg} ${t.textMuted}`
+                        ? et === 'NEC' ? `bg-indigo-500/20 ${accentText('indigo', t.light)}` : et === 'SALARIED' ? 'bg-teal-500/20 text-teal-400' : `${t.chipBg} ${t.textMuted}`
                         : `${t.hoverBg} ${t.textFaint}`
                     }`}>
                     {et || 'Not set'}
@@ -709,7 +709,7 @@ function EmployeeRow({ employee, onEdit, onDelete }: EmployeeRowProps) {
               {(employee.awards_recognition?.length ?? 0) > 0 && (
                 <div className={`${t.chipBg} rounded-xl overflow-hidden`}>
                   <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}>
-                    <Award className="h-3.5 w-3.5 text-amber-400" />
+                    <Award className={`h-3.5 w-3.5 ${accentText('amber', t.light)}`} />
                     <span className={`text-xs font-semibold uppercase tracking-wider ${t.textSecondary}`}>Awards</span>
                   </div>
                   <div className="px-3.5 py-3 flex flex-wrap gap-1.5">
@@ -720,7 +720,7 @@ function EmployeeRow({ employee, onEdit, onDelete }: EmployeeRowProps) {
               {(employee.other_positions?.length ?? 0) > 0 && (
                 <div className={`${t.chipBg} rounded-xl overflow-hidden`}>
                   <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}>
-                    <Briefcase className="h-3.5 w-3.5 text-violet-400" />
+                    <Briefcase className={`h-3.5 w-3.5 ${accentText('violet', t.light)}`} />
                     <span className={`text-xs font-semibold uppercase tracking-wider ${t.textSecondary}`}>Other Positions</span>
                   </div>
                   <div className="px-3.5 py-3 flex flex-wrap gap-1.5">
@@ -995,8 +995,8 @@ function EmployeesPageContent() {
 
       {error && (
         <div className={`${t.glass} rounded-2xl p-4 flex items-center gap-3 border border-rose-500/30`}>
-          <AlertCircle className="h-5 w-5 text-rose-400 shrink-0" />
-          <p className="text-sm text-rose-400 flex-1">{error}</p>
+          <AlertCircle className={`h-5 w-5 ${accentText('rose', t.light)} shrink-0`} />
+          <p className={`text-sm ${accentText('rose', t.light)} flex-1`}>{error}</p>
           <button type="button" onClick={() => setError(null)} className={`${t.textFaint} ${t.hoverText}`}><X className="h-4 w-4" /></button>
         </div>
       )}

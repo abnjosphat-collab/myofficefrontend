@@ -14,7 +14,7 @@ import {
 import { AppShell } from '@/components/app-shell';
 import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, ProgressBar, FormField, FormActions,
-  useCollapseSection, CenterModal, ACCENT_HEX, EmptyState, PrimaryButton, SelectField,
+  useCollapseSection, CenterModal, ACCENT_HEX, EmptyState, PrimaryButton, SelectField, accentText,
 } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { PillTabs } from '@/components/shared/PillTabs';
@@ -321,8 +321,8 @@ function AvailabilitiesContent() {
           <div className="text-xl font-bold text-red-400">{fleet.totalBd.toFixed(0)}h</div>
         </div>
         <div className={`${t.glass} rounded-xl p-4`}>
-          <div className="flex items-center gap-1.5 mb-1"><AlertTriangle className="h-3.5 w-3.5 text-amber-400" /><span className={`text-xs ${t.textFaint}`}>Below 90%</span></div>
-          <div className={`text-xl font-bold ${fleet.below90 > 0 ? 'text-red-400' : 'text-emerald-400'}`}>{fleet.below90}</div>
+          <div className="flex items-center gap-1.5 mb-1"><AlertTriangle className={`h-3.5 w-3.5 ${accentText('amber', t.light)}`} /><span className={`text-xs ${t.textFaint}`}>Below 90%</span></div>
+          <div className={`text-xl font-bold ${fleet.below90 > 0 ? 'text-red-400' : accentText('emerald', t.light)}`}>{fleet.below90}</div>
         </div>
         <div className={`${t.glass} rounded-xl p-4`}>
           <div className="flex items-center gap-1.5 mb-1"><Activity className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs ${t.textFaint}`}>Records (period)</span></div>
@@ -455,10 +455,10 @@ function AvailabilitiesContent() {
           </div>
 
           <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-            <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><AlertTriangle className="h-4 w-4 text-amber-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Attention Required</span></div>
+            <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><AlertTriangle className={`h-4 w-4 ${accentText('amber', t.light)}`} /><span className={`font-semibold text-sm ${t.textPrimary}`}>Attention Required</span></div>
             <div className="p-5 space-y-3">
               {eqSummary.filter(e => e.pct < 95).length === 0 ? (
-                <div className="text-center py-8"><Check className="h-8 w-8 text-emerald-400 mx-auto mb-2" /><p className="text-sm text-emerald-400 font-semibold">All equipment above 95%</p></div>
+                <div className="text-center py-8"><Check className={`h-8 w-8 ${accentText('emerald', t.light)} mx-auto mb-2`} /><p className={`text-sm ${accentText('emerald', t.light)} font-semibold`}>All equipment above 95%</p></div>
               ) : eqSummary.filter(e => e.pct < 95).slice(0, 6).map(e => (
                 <div key={e.id} className="flex items-center gap-3">
                   <div className="flex-1 min-w-0">
@@ -487,7 +487,7 @@ function AvailabilitiesContent() {
                     <div className={`flex justify-between ${t.textMuted}`}><span>Best {period}</span><span className={`font-bold ${avColor(best)}`}>{best.toFixed(1)}%<span className={`font-normal ml-1 text-xs ${t.textFaint}`}>({bestLabel})</span></span></div>
                     <div className={`flex justify-between ${t.textMuted}`}><span>Worst {period}</span><span className={`font-bold ${avColor(worst)}`}>{worst.toFixed(1)}%<span className={`font-normal ml-1 text-xs ${t.textFaint}`}>({worstLabel})</span></span></div>
                     <div className={`flex justify-between ${t.textMuted}`}><span>Total downtime (period)</span><span className="font-bold text-red-400">{totalBd.toFixed(1)}h</span></div>
-                    <div className={`flex justify-between ${t.textMuted}`}><span>Total operational</span><span className="font-bold text-emerald-400">{totalOp.toFixed(1)}h</span></div>
+                    <div className={`flex justify-between ${t.textMuted}`}><span>Total operational</span><span className={`font-bold ${accentText('emerald', t.light)}`}>{totalOp.toFixed(1)}h</span></div>
                   </>
                 );
               })() : <p className={`text-center py-8 ${t.textFaint}`}>No data in selected period</p>}
@@ -501,7 +501,7 @@ function AvailabilitiesContent() {
               <div className={`w-full space-y-2 text-xs ${t.textMuted}`}>
                 <div className="flex justify-between"><span>Equipment tracked</span><span className={`font-semibold ${t.textPrimary}`}>{eqSummary.length} / {equipment.length}</span></div>
                 <div className="flex justify-between"><span>Records in period</span><span className={`font-semibold ${t.textPrimary}`}>{filtered.length}</span></div>
-                <div className="flex justify-between"><span>Below 90%</span><span className={`font-semibold ${fleet.below90 > 0 ? 'text-red-400' : 'text-emerald-400'}`}>{fleet.below90} machines</span></div>
+                <div className="flex justify-between"><span>Below 90%</span><span className={`font-semibold ${fleet.below90 > 0 ? 'text-red-400' : accentText('emerald', t.light)}`}>{fleet.below90} machines</span></div>
               </div>
             </div>
           </div>

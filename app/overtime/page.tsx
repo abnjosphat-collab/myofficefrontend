@@ -13,11 +13,12 @@ import {
 } from '@/components/shared/theme';
 import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, ProgressBar, FormField, FormActions,
-  useCollapseSection, CenterModal, ACCENT_HEX, EmptyState, PrimaryButton, GlowCard, SelectField,
+  useCollapseSection, CenterModal, ACCENT_HEX, EmptyState, PrimaryButton, GlowCard, SelectField, accentText,
 } from '@/components/shared/theme';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ApprovalGate, type SignatureResult } from '@/components/shared/ApprovalGate';
-import { useEmployees, type EmployeeLookup } from '@/hooks/useLookups';
+import { useEmployees } from '@/hooks/useLookups';
+import { EmployeeAutocomplete } from '@/components/shared/EmployeeAutocomplete';
 import { formatDate } from '@/lib/format';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename, EXPORT_BRAND_ARGB } from '@/lib/exportUtils';
@@ -43,13 +44,11 @@ const STATUS_HEX: Record<OTStatus, string> = {
 function rateFor(type: OTType): 1.5 | 2.0 {
   return type === 'weekend' || type === 'holiday' ? 2.0 : 1.5;
 }
-const STATUS_COLOR: Record<OTStatus, string> = {
-  pending: 'text-amber-400', approved: 'text-emerald-400', rejected: 'text-rose-400', paid: 'text-brand-400', cancelled: 'text-white/40',
-};
+const STATUS_COLOR = (light: boolean): Record<OTStatus, string> => ({
+  pending: accentText('amber', light), approved: accentText('emerald', light), rejected: accentText('rose', light), paid: 'text-brand-400', cancelled: 'text-white/40',
+});
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
-
-type EmployeeItem = EmployeeLookup;
 
 function nowLocal(): string {
   const d = new Date();
@@ -101,49 +100,10 @@ function Avatar({ size = 'sm' }: { name?: string; size?: 'sm' | 'lg' }) {
   return <User className={`${dims} text-brand-400 shrink-0`} />;
 }
 
-// ─── EMPLOYEE AUTOCOMPLETE ────────────────────────────────────────────────────
-
-
-function EmployeeAutocomplete({ value, onChange, disabled }: { value: string; onChange: (name: string, emp?: EmployeeItem) => void; disabled?: boolean }) {
-  const t = useTheme();
-  const employees = useEmployees();
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
-    document.addEventListener('mousedown', h); return () => document.removeEventListener('mousedown', h);
-  }, []);
-
-  const q = value.toLowerCase();
-  const suggestions = q.length === 0 ? employees.slice(0, 8) : employees.filter(e => `${e.first_name} ${e.last_name}`.toLowerCase().includes(q)).slice(0, 8);
-
-  return (
-    <div className="relative" ref={ref}>
-      <input disabled={disabled} value={value} onChange={e => { onChange(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)}
-        placeholder="Type to search employees…" className={`w-full h-9 rounded-lg px-3 text-sm outline-none transition-colors ${t.inputBg} ${disabled ? 'opacity-60' : ''}`} />
-      {open && suggestions.length > 0 && (
-        <div className={`absolute z-50 w-full mt-1 rounded-xl overflow-hidden ${t.glass} ${t.shadow}`}>
-          <div className="max-h-52 overflow-y-auto">
-            {suggestions.map(e => {
-              const full = `${e.first_name} ${e.last_name}`;
-              return (
-                <button key={e.id} type="button" onMouseDown={() => { onChange(full, e); setOpen(false); }}
-                  className={`w-full flex items-center gap-2.5 px-3 py-2 text-left border-b ${t.border} last:border-0 ${t.hoverBgSoft} transition-colors`}>
-                  <Avatar name={full} />
-                  <div className="flex-1 min-w-0">
-                    <div className={`text-xs font-medium truncate ${t.textPrimary}`}>{full}</div>
-                    <div className={`text-[10px] truncate ${t.textFaint}`}>{e.designation}{e.department ? ` · ${e.department}` : ''}</div>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
+// Employee autocomplete now lives in components/shared/EmployeeAutocomplete.tsx
+// (imported above) — used to be a local, mouse-only implementation here with no
+// keyboard support at all; the shared component (built on the design system's
+// Combobox) gets Tab/Enter/Arrow selection for free, matching every other module.
 
 // ─── FORM MODAL ───────────────────────────────────────────────────────────────
 
@@ -212,12 +172,13 @@ function OTFormModal({ open, onClose, onSave, editing, records }: {
           <EmployeeAutocomplete
             value={form.employee_name}
             disabled={!!editing}
-            onChange={(name, emp) => setForm(f => ({
-              ...f, employee_name: name,
-              employee_id: emp?.employee_id || f.employee_id,
-              position: emp?.designation || f.position,
-              department: emp?.department || f.department,
-              contact_number: emp?.phone || f.contact_number,
+            onChange={name => setForm(f => ({ ...f, employee_name: name }))}
+            onSelect={emp => setForm(f => ({
+              ...f,
+              employee_id: emp.employee_id || f.employee_id,
+              position: emp.designation || f.position,
+              department: emp.department || f.department,
+              contact_number: emp.phone || f.contact_number,
             }))}
           />
         </FormField>
@@ -255,7 +216,7 @@ function OTFormModal({ open, onClose, onSave, editing, records }: {
 
         {duplicate && (
           <div className="flex items-start gap-2.5 rounded-xl px-3.5 py-3 bg-amber-500/10 border border-amber-500/30">
-            <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+            <AlertTriangle className={`h-4 w-4 ${accentText('amber', t.light)} shrink-0 mt-0.5`} />
             <div className="min-w-0 flex-1">
               <p className="text-xs font-semibold text-amber-500">Already has a request for this exact slot</p>
               <p className={`text-xs mt-0.5 ${t.textMuted}`}>
@@ -339,8 +300,8 @@ function OTDetailModal({ record, onClose, onEdit, onApprove, onReject }: {
         <div className="flex gap-2 pt-2">
           {record.status === 'pending' && (
             <>
-              <button type="button" onClick={onReject} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-rose-500/15 hover:bg-rose-500/25 text-rose-400 transition-colors"><XCircle className="h-3.5 w-3.5" /> Reject</button>
-              <button type="button" onClick={onApprove} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 transition-colors"><CheckCircle2 className="h-3.5 w-3.5" /> Approve</button>
+              <button type="button" onClick={onReject} className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-rose-500/15 hover:bg-rose-500/25 ${accentText('rose', t.light)} transition-colors`}><XCircle className="h-3.5 w-3.5" /> Reject</button>
+              <button type="button" onClick={onApprove} className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-emerald-500/15 hover:bg-emerald-500/25 ${accentText('emerald', t.light)} transition-colors`}><CheckCircle2 className="h-3.5 w-3.5" /> Approve</button>
             </>
           )}
           <button type="button" onClick={onEdit} className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium ${t.chipBg} ${t.textMuted} ${t.hoverBg} transition-colors`}><Edit className="h-3.5 w-3.5" /> Edit</button>
@@ -773,12 +734,12 @@ function OvertimeContent() {
         <div className="flex gap-1 mt-3">
           {r.status === 'pending' && (
             <>
-              <button type="button" onClick={e => { e.stopPropagation(); setApproving(r); }} className="flex-1 py-1 text-[10px] font-semibold rounded-lg bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 transition-all">Approve</button>
-              <button type="button" onClick={e => { e.stopPropagation(); setRejecting(r); }} className="flex-1 py-1 text-[10px] font-semibold rounded-lg bg-rose-500/15 text-rose-400 hover:bg-rose-500/25 transition-all">Reject</button>
+              <button type="button" onClick={e => { e.stopPropagation(); setApproving(r); }} className={`flex-1 py-1 text-[10px] font-semibold rounded-lg bg-emerald-500/15 ${accentText('emerald', t.light)} hover:bg-emerald-500/25 transition-all`}>Approve</button>
+              <button type="button" onClick={e => { e.stopPropagation(); setRejecting(r); }} className={`flex-1 py-1 text-[10px] font-semibold rounded-lg bg-rose-500/15 ${accentText('rose', t.light)} hover:bg-rose-500/25 transition-all`}>Reject</button>
             </>
           )}
           <button type="button" title="Edit" onClick={e => { e.stopPropagation(); setEditing(r); setFormOpen(true); }} className={`h-6 w-6 flex items-center justify-center rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-all`}><Edit className="h-3 w-3" /></button>
-          <button type="button" title="Delete" onClick={e => { e.stopPropagation(); setDelTarget(r); }} className={`h-6 w-6 flex items-center justify-center rounded-lg ${t.chipBg} hover:bg-rose-500/20 ${t.textFaint} hover:text-rose-400 transition-all`}><Trash2 className="h-3 w-3" /></button>
+          <button type="button" title="Delete" onClick={e => { e.stopPropagation(); setDelTarget(r); }} className={`h-6 w-6 flex items-center justify-center rounded-lg ${t.chipBg} hover:bg-rose-500/20 ${t.textFaint} hover:${t.light ? 'text-rose-600' : 'text-rose-400'} transition-all`}><Trash2 className="h-3 w-3" /></button>
         </div>
       </GlowCard>
     );
@@ -821,8 +782,8 @@ function OvertimeContent() {
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className={`${t.glass} rounded-xl p-4`}><div className="flex items-center gap-1.5 mb-1"><Clock4 className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs ${t.textFaint}`}>Total</span></div><div className={`text-xl font-bold ${t.textPrimary}`}>{stats.total}</div></div>
-        <div className={`${t.glass} rounded-xl p-4`}><div className="flex items-center gap-1.5 mb-1"><Clock4 className="h-3.5 w-3.5 text-amber-400" /><span className={`text-xs ${t.textFaint}`}>Pending</span></div><div className="text-xl font-bold text-amber-400">{stats.pending}</div></div>
-        <div className={`${t.glass} rounded-xl p-4`}><div className="flex items-center gap-1.5 mb-1"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" /><span className={`text-xs ${t.textFaint}`}>Approved</span></div><div className="text-xl font-bold text-emerald-400">{stats.approved}</div></div>
+        <div className={`${t.glass} rounded-xl p-4`}><div className="flex items-center gap-1.5 mb-1"><Clock4 className={`h-3.5 w-3.5 ${accentText('amber', t.light)}`} /><span className={`text-xs ${t.textFaint}`}>Pending</span></div><div className={`text-xl font-bold ${accentText('amber', t.light)}`}>{stats.pending}</div></div>
+        <div className={`${t.glass} rounded-xl p-4`}><div className="flex items-center gap-1.5 mb-1"><CheckCircle2 className={`h-3.5 w-3.5 ${accentText('emerald', t.light)}`} /><span className={`text-xs ${t.textFaint}`}>Approved</span></div><div className={`text-xl font-bold ${accentText('emerald', t.light)}`}>{stats.approved}</div></div>
         <div className={`${t.glass} rounded-xl p-4`}><div className="flex items-center gap-1.5 mb-1"><Calendar className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs ${t.textFaint}`}>OT Hours</span></div><div className="text-xl font-bold text-brand-400">{stats.totalHrs}h</div></div>
       </div>
 
@@ -907,11 +868,11 @@ function OvertimeContent() {
                             <button type="button" title="Edit" onClick={() => { setEditing(r); setFormOpen(true); }} className={`h-6 w-6 flex items-center justify-center rounded-md ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-all`}><Edit className="h-3 w-3" /></button>
                             {r.status === 'pending' && (
                               <>
-                                <button type="button" title="Approve" onClick={() => setApproving(r)} className="h-6 w-6 flex items-center justify-center rounded-md bg-emerald-500/15 hover:bg-emerald-500/30 text-emerald-400 transition-all"><CheckCircle2 className="h-3 w-3" /></button>
-                                <button type="button" title="Reject" onClick={() => setRejecting(r)} className="h-6 w-6 flex items-center justify-center rounded-md bg-rose-500/15 hover:bg-rose-500/30 text-rose-400 transition-all"><XCircle className="h-3 w-3" /></button>
+                                <button type="button" title="Approve" onClick={() => setApproving(r)} className={`h-6 w-6 flex items-center justify-center rounded-md bg-emerald-500/15 hover:bg-emerald-500/30 ${accentText('emerald', t.light)} transition-all`}><CheckCircle2 className="h-3 w-3" /></button>
+                                <button type="button" title="Reject" onClick={() => setRejecting(r)} className={`h-6 w-6 flex items-center justify-center rounded-md bg-rose-500/15 hover:bg-rose-500/30 ${accentText('rose', t.light)} transition-all`}><XCircle className="h-3 w-3" /></button>
                               </>
                             )}
-                            <button type="button" title="Delete" onClick={() => setDelTarget(r)} className={`h-6 w-6 flex items-center justify-center rounded-md ${t.chipBg} hover:bg-rose-500/20 ${t.textFaint} hover:text-rose-400 transition-all`}><Trash2 className="h-3 w-3" /></button>
+                            <button type="button" title="Delete" onClick={() => setDelTarget(r)} className={`h-6 w-6 flex items-center justify-center rounded-md ${t.chipBg} hover:bg-rose-500/20 ${t.textFaint} hover:${t.light ? 'text-rose-600' : 'text-rose-400'} transition-all`}><Trash2 className="h-3 w-3" /></button>
                           </div>
                         </td>
                       </tr>
@@ -964,10 +925,10 @@ function OvertimeContent() {
             {STATUSES.map(s => (
               <div key={s} className={`${t.glass} rounded-xl p-4`}>
                 <div className="flex items-center gap-1.5 mb-1">
-                  {s === 'approved' ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" /> : s === 'rejected' ? <XCircle className="h-3.5 w-3.5 text-rose-400" /> : <Clock4 className="h-3.5 w-3.5 text-brand-400" />}
+                  {s === 'approved' ? <CheckCircle2 className={`h-3.5 w-3.5 ${accentText('emerald', t.light)}`} /> : s === 'rejected' ? <XCircle className={`h-3.5 w-3.5 ${accentText('rose', t.light)}`} /> : <Clock4 className="h-3.5 w-3.5 text-brand-400" />}
                   <span className={`text-xs ${t.textFaint}`}>{s.charAt(0).toUpperCase() + s.slice(1)}</span>
                 </div>
-                <div className={`text-xl font-bold ${STATUS_COLOR[s]}`}>{records.filter(r => r.status === s).length}</div>
+                <div className={`text-xl font-bold ${STATUS_COLOR(t.light)[s]}`}>{records.filter(r => r.status === s).length}</div>
               </div>
             ))}
             <div className={`${t.glass} rounded-xl p-4`}>

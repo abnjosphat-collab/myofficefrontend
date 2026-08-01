@@ -10,7 +10,7 @@ import {
 } from '@/components/shared/theme';
 import { toast } from 'sonner';
 import {
-  useTheme, PageHero, StatTile, StatusBadge, SearchInput, FormField, FormActions,
+  useTheme, accentText, PageHero, StatTile, StatusBadge, SearchInput, FormField, FormActions,
   useCollapseSection, CenterModal, PrimaryButton, EmptyState, ACCENT_HEX, ViewToggle, GlowCard, SelectField, useConfirm,
 } from '@/components/shared/theme';
 import { PhotoUpload } from '@/components/shared/PhotoUpload';
@@ -757,7 +757,7 @@ function SHEQInspectionContent() {
                             <button type="button" title="Edit" onClick={() => { setEditingInspection(inspection); setFormOpen(true); }}
                               className={`h-7 w-7 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-brand-400`}><Pencil className="h-3.5 w-3.5" /></button>
                             <button type="button" title="Delete" onClick={() => handleDelete(inspection.id)}
-                              className={`h-7 w-7 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-rose-400`}><Trash2 className="h-3.5 w-3.5" /></button>
+                              className={`h-7 w-7 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:${t.light ? 'text-rose-600' : 'text-rose-400'}`}><Trash2 className="h-3.5 w-3.5" /></button>
                           </div>
                         </td>
                       </tr>

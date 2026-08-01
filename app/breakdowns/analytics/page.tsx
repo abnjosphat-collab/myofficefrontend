@@ -20,7 +20,7 @@ import {
   LineChart as ReLineChart, Line, ScatterChart as ReScatterChart, Scatter,
   ComposedChart
 } from 'recharts';
-import { useTheme, PageHero, StatTile } from '@/components/shared/theme';
+import { useTheme, PageHero, StatTile, accentText } from '@/components/shared/theme';
 import {
   DAY_NAMES, getHeatmapColor, formatTime, formatCurrency, PIE_COLORS, PRIORITY_COLORS, STATUS_COLORS,
 } from './types';
@@ -280,7 +280,7 @@ function BreakdownAnalyticsContent() {
               <CardContent className="p-3">
                 <div className="flex items-center gap-2">
                   <div className="p-1.5 bg-amber-500/20 rounded-lg">
-                    <Users className="h-4 w-4 text-amber-400" />
+                    <Users className={`h-4 w-4 ${accentText('amber', t.light)}`} />
                   </div>
                   <div>
                     <div className={`text-lg font-bold font-mono ${t.textPrimary}`}>{data.summary.unique_artisans}</div>
@@ -293,7 +293,7 @@ function BreakdownAnalyticsContent() {
               <CardContent className="p-3">
                 <div className="flex items-center gap-2">
                   <div className="p-1.5 bg-purple-500/20 rounded-lg">
-                    <Package className="h-4 w-4 text-purple-400" />
+                    <Package className={`h-4 w-4 ${accentText('purple', t.light)}`} />
                   </div>
                   <div>
                     <div className={`text-lg font-bold font-mono ${t.textPrimary}`}>{data.summary.unique_spares}</div>
@@ -319,7 +319,7 @@ function BreakdownAnalyticsContent() {
               <CardContent className="p-3">
                 <div className="flex items-center gap-2">
                   <div className="p-1.5 bg-cyan-500/20 rounded-lg">
-                    <Hash className="h-4 w-4 text-cyan-400" />
+                    <Hash className={`h-4 w-4 ${accentText('cyan', t.light)}`} />
                   </div>
                   <div>
                     <div className={`text-lg font-bold font-mono ${t.textPrimary}`}>{data.summary.unique_types}</div>
@@ -388,7 +388,7 @@ function BreakdownAnalyticsContent() {
               <Card className={cardCls}>
                 <CardHeader>
                   <CardTitle className={`flex items-center gap-2 text-sm ${t.textPrimary}`}>
-                    <TrendingUp className="h-4 w-4 text-emerald-400" />
+                    <TrendingUp className={`h-4 w-4 ${accentText('emerald', t.light)}`} />
                     Monthly Breakdown Trends
                   </CardTitle>
                   <CardDescription className={faintCls}>
@@ -454,7 +454,7 @@ function BreakdownAnalyticsContent() {
                 <Card className={cardCls}>
                   <CardHeader>
                     <CardTitle className={`flex items-center gap-2 text-sm ${t.textPrimary}`}>
-                      <PieChart className="h-4 w-4 text-violet-400" />
+                      <PieChart className={`h-4 w-4 ${accentText('violet', t.light)}`} />
                       Breakdown Type Distribution
                     </CardTitle>
                     <CardDescription className={faintCls}>
@@ -499,7 +499,7 @@ function BreakdownAnalyticsContent() {
                 <Card className={cardCls}>
                   <CardHeader className="pb-2">
                     <CardTitle className={`flex items-center gap-2 text-xs ${t.textPrimary}`}>
-                      <Zap className="h-3.5 w-3.5 text-amber-400" />
+                      <Zap className={`h-3.5 w-3.5 ${accentText('amber', t.light)}`} />
                       Priority Distribution
                     </CardTitle>
                   </CardHeader>
@@ -535,7 +535,7 @@ function BreakdownAnalyticsContent() {
                 <Card className={cardCls}>
                   <CardHeader className="pb-2">
                     <CardTitle className={`flex items-center gap-2 text-xs ${t.textPrimary}`}>
-                      <List className="h-3.5 w-3.5 text-cyan-400" />
+                      <List className={`h-3.5 w-3.5 ${accentText('cyan', t.light)}`} />
                       Status Distribution
                     </CardTitle>
                   </CardHeader>
@@ -571,7 +571,7 @@ function BreakdownAnalyticsContent() {
                 <Card className={`${cardCls} lg:col-span-2`}>
                   <CardHeader className="pb-2">
                     <CardTitle className={`flex items-center gap-2 text-xs ${t.textPrimary}`}>
-                      <MapPin className="h-3.5 w-3.5 text-rose-400" />
+                      <MapPin className={`h-3.5 w-3.5 ${accentText('rose', t.light)}`} />
                       Location Distribution
                     </CardTitle>
                   </CardHeader>
@@ -601,7 +601,7 @@ function BreakdownAnalyticsContent() {
               <Card className={cardCls}>
                 <CardHeader>
                   <CardTitle className={`flex items-center gap-2 text-sm ${t.textPrimary}`}>
-                    <Clock className="h-4 w-4 text-indigo-400" />
+                    <Clock className={`h-4 w-4 ${accentText('indigo', t.light)}`} />
                     Average Response Time by Hour of Day
                   </CardTitle>
                   <CardDescription className={faintCls}>
@@ -634,7 +634,7 @@ function BreakdownAnalyticsContent() {
                   <div className="flex items-center justify-between">
                     <div>
                       <CardTitle className={`flex items-center gap-2 ${t.textPrimary}`}>
-                        <Activity className="h-5 w-5 text-violet-400" />
+                        <Activity className={`h-5 w-5 ${accentText('violet', t.light)}`} />
                         Breakdown Occurrence Heatmap
                       </CardTitle>
                       <CardDescription className={faintCls}>
@@ -803,7 +803,7 @@ function BreakdownAnalyticsContent() {
                 <Card className={cardCls}>
                   <CardHeader>
                     <CardTitle className={`flex items-center gap-2 text-sm ${t.textPrimary}`}>
-                      <Clock className="h-4 w-4 text-indigo-400" />
+                      <Clock className={`h-4 w-4 ${accentText('indigo', t.light)}`} />
                       Response Time Heatmap (minutes)
                     </CardTitle>
                     <CardDescription className={faintCls}>
@@ -852,7 +852,7 @@ function BreakdownAnalyticsContent() {
                 <Card className={cardCls}>
                   <CardHeader>
                     <CardTitle className={`flex items-center gap-2 text-sm ${t.textPrimary}`}>
-                      <Activity className="h-4 w-4 text-violet-400" />
+                      <Activity className={`h-4 w-4 ${accentText('violet', t.light)}`} />
                       Breakdown Type × Hour Distribution
                     </CardTitle>
                     <CardDescription className={faintCls}>
@@ -926,7 +926,7 @@ function BreakdownAnalyticsContent() {
                 <Card className={cardCls}>
                   <CardHeader>
                     <CardTitle className={`flex items-center gap-2 text-sm ${t.textPrimary}`}>
-                      <Zap className="h-4 w-4 text-amber-400" />
+                      <Zap className={`h-4 w-4 ${accentText('amber', t.light)}`} />
                       Priority × Hour Distribution
                     </CardTitle>
                     <CardDescription className={faintCls}>
@@ -964,7 +964,7 @@ function BreakdownAnalyticsContent() {
                 <Card className={cardCls}>
                   <CardHeader>
                     <CardTitle className={`flex items-center gap-2 text-sm ${t.textPrimary}`}>
-                      <Users className="h-4 w-4 text-amber-400" />
+                      <Users className={`h-4 w-4 ${accentText('amber', t.light)}`} />
                       Top Artisans × Hour Activity
                     </CardTitle>
                     <CardDescription className={faintCls}>
@@ -1001,7 +1001,7 @@ function BreakdownAnalyticsContent() {
                 <Card className={cardCls}>
                   <CardHeader>
                     <CardTitle className={`flex items-center gap-2 text-sm ${t.textPrimary}`}>
-                      <MapPin className="h-4 w-4 text-rose-400" />
+                      <MapPin className={`h-4 w-4 ${accentText('rose', t.light)}`} />
                       Top Locations × Hour Activity
                     </CardTitle>
                     <CardDescription className={faintCls}>
@@ -1038,7 +1038,7 @@ function BreakdownAnalyticsContent() {
                 <Card className={cardCls}>
                   <CardHeader>
                     <CardTitle className={`flex items-center gap-2 text-sm ${t.textPrimary}`}>
-                      <Calendar className="h-4 w-4 text-cyan-400" />
+                      <Calendar className={`h-4 w-4 ${accentText('cyan', t.light)}`} />
                       Day-of-Month Breakdown Heatmap
                     </CardTitle>
                     <CardDescription className={faintCls}>
@@ -1086,7 +1086,7 @@ function BreakdownAnalyticsContent() {
               <Card className={cardCls}>
                 <CardHeader>
                   <CardTitle className={`flex items-center gap-2 text-sm ${t.textPrimary}`}>
-                    <TrendingUp className="h-4 w-4 text-emerald-400" />
+                    <TrendingUp className={`h-4 w-4 ${accentText('emerald', t.light)}`} />
                     Monthly Breakdown Trends
                   </CardTitle>
                   <CardDescription className={faintCls}>
@@ -1120,7 +1120,7 @@ function BreakdownAnalyticsContent() {
               <Card className={cardCls}>
                 <CardHeader>
                   <CardTitle className={`flex items-center gap-2 text-sm ${t.textPrimary}`}>
-                    <Calendar className="h-4 w-4 text-cyan-400" />
+                    <Calendar className={`h-4 w-4 ${accentText('cyan', t.light)}`} />
                     Weekly Breakdown Trends
                   </CardTitle>
                   <CardDescription className={faintCls}>
@@ -1148,7 +1148,7 @@ function BreakdownAnalyticsContent() {
               <Card className={cardCls}>
                 <CardHeader>
                   <CardTitle className={`flex items-center gap-2 text-sm ${t.textPrimary}`}>
-                    <Gauge className="h-4 w-4 text-indigo-400" />
+                    <Gauge className={`h-4 w-4 ${accentText('indigo', t.light)}`} />
                     Response Time Analysis by Hour
                   </CardTitle>
                   <CardDescription className={faintCls}>
@@ -1297,7 +1297,7 @@ function BreakdownAnalyticsContent() {
               <Card className={cardCls}>
                 <CardHeader>
                   <CardTitle className={`flex items-center gap-2 text-sm ${t.textPrimary}`}>
-                    <Users className="h-4 w-4 text-amber-400" />
+                    <Users className={`h-4 w-4 ${accentText('amber', t.light)}`} />
                     Top Artisans by Breakdowns Attended
                   </CardTitle>
                   <CardDescription className={faintCls}>
@@ -1342,7 +1342,7 @@ function BreakdownAnalyticsContent() {
               <Card className={cardCls}>
                 <CardHeader>
                   <CardTitle className={`flex items-center gap-2 text-sm ${t.textPrimary}`}>
-                    <GitCompare className="h-4 w-4 text-amber-400" />
+                    <GitCompare className={`h-4 w-4 ${accentText('amber', t.light)}`} />
                     Artisan Performance: Breakdowns vs Avg Repair Time
                   </CardTitle>
                   <CardDescription className={faintCls}>
@@ -1378,7 +1378,7 @@ function BreakdownAnalyticsContent() {
               <Card className={cardCls}>
                 <CardHeader>
                   <CardTitle className={`flex items-center gap-2 text-sm ${t.textPrimary}`}>
-                    <Package className="h-4 w-4 text-purple-400" />
+                    <Package className={`h-4 w-4 ${accentText('purple', t.light)}`} />
                     Most Used Spare Parts
                   </CardTitle>
                   <CardDescription className={faintCls}>
@@ -1430,7 +1430,7 @@ function BreakdownAnalyticsContent() {
               <Card className={cardCls}>
                 <CardHeader>
                   <CardTitle className={`flex items-center gap-2 text-sm ${t.textPrimary}`}>
-                    <BarChart3 className="h-4 w-4 text-purple-400" />
+                    <BarChart3 className={`h-4 w-4 ${accentText('purple', t.light)}`} />
                     Spare Parts Cost Analysis
                   </CardTitle>
                   <CardDescription className={faintCls}>
@@ -1467,7 +1467,7 @@ function BreakdownAnalyticsContent() {
                 <Card className={cardCls}>
                   <CardHeader>
                     <CardTitle className={`flex items-center gap-2 text-sm ${t.textPrimary}`}>
-                      <PieChart className="h-4 w-4 text-violet-400" />
+                      <PieChart className={`h-4 w-4 ${accentText('violet', t.light)}`} />
                       Breakdown Types
                     </CardTitle>
                   </CardHeader>
@@ -1507,7 +1507,7 @@ function BreakdownAnalyticsContent() {
                 <Card className={cardCls}>
                   <CardHeader>
                     <CardTitle className={`flex items-center gap-2 text-sm ${t.textPrimary}`}>
-                      <Zap className="h-4 w-4 text-amber-400" />
+                      <Zap className={`h-4 w-4 ${accentText('amber', t.light)}`} />
                       Priority Levels
                     </CardTitle>
                   </CardHeader>
@@ -1549,7 +1549,7 @@ function BreakdownAnalyticsContent() {
                 <Card className={cardCls}>
                   <CardHeader>
                     <CardTitle className={`flex items-center gap-2 text-sm ${t.textPrimary}`}>
-                      <List className="h-4 w-4 text-cyan-400" />
+                      <List className={`h-4 w-4 ${accentText('cyan', t.light)}`} />
                       Status Distribution
                     </CardTitle>
                   </CardHeader>
@@ -1589,7 +1589,7 @@ function BreakdownAnalyticsContent() {
                 <Card className={cardCls}>
                   <CardHeader>
                     <CardTitle className={`flex items-center gap-2 text-sm ${t.textPrimary}`}>
-                      <MapPin className="h-4 w-4 text-rose-400" />
+                      <MapPin className={`h-4 w-4 ${accentText('rose', t.light)}`} />
                       Location Distribution
                     </CardTitle>
                   </CardHeader>

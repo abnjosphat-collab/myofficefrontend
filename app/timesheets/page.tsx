@@ -19,7 +19,7 @@ import {
 } from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
 import { PredictiveInput } from '@/components/shared/PredictiveInput';
-import { useTheme, PageHero, ACCENT_HEX, useCollapseSection, EmptyState } from '@/components/shared/theme';
+import { useTheme, PageHero, ACCENT_HEX, useCollapseSection, EmptyState, accentText } from '@/components/shared/theme';
 import { toLocalISODate } from '@/lib/dates';
 import { zimHolidayName } from '@/lib/zimHolidays';
 import type {
@@ -193,7 +193,7 @@ function OvertimePeriod({ period, index, onUpdate, onRemove }: {
       </div>
       <div className={`flex gap-4 text-xs ${t.textFaint}`}>
         <span>OT: <b className={t.textMuted}>{calcHours(start, end).toFixed(2)}h</b></span>
-        <span><Moon className="w-3 h-3 inline text-indigo-400" /> Night: <b className={t.textMuted}>{calcNightHours(start, end).toFixed(2)}h</b></span>
+        <span><Moon className={`w-3 h-3 inline ${accentText('indigo', t.light)}`} /> Night: <b className={t.textMuted}>{calcNightHours(start, end).toFixed(2)}h</b></span>
       </div>
     </div>
   );
@@ -301,7 +301,7 @@ function TimesheetEntryDialog({ employee, date, entry, onSave, onDelete, onClose
         </DialogHeader>
         <div className="space-y-4 py-2">
           {holidayName && (
-            <p className="text-xs text-violet-400 bg-violet-500/10 rounded px-2 py-1 flex items-center gap-1.5">
+            <p className={`text-xs ${accentText('violet', t.light)} bg-violet-500/10 rounded px-2 py-1 flex items-center gap-1.5`}>
               <Sun className="w-3.5 h-3.5" /> Zimbabwe public holiday — {holidayName}
             </p>
           )}
@@ -314,7 +314,7 @@ function TimesheetEntryDialog({ employee, date, entry, onSave, onDelete, onClose
               ))}</SelectContent>
             </Select>
             {LEAVE_STATUSES.has(form.status) && <p className="text-xs text-brand-400 bg-brand-500/10 rounded px-2 py-1">8 hours auto-assigned for {STATUS_CFG[form.status]?.label}</p>}
-            {DOUBLE_TIME_STATUSES.has(form.status) && <p className="text-xs text-violet-400 bg-violet-500/10 rounded px-2 py-1 font-medium">All hours worked count as <strong>2.0× (double time)</strong> — enter the actual shift times below</p>}
+            {DOUBLE_TIME_STATUSES.has(form.status) && <p className={`text-xs ${accentText('violet', t.light)} bg-violet-500/10 rounded px-2 py-1 font-medium`}>All hours worked count as <strong>2.0× (double time)</strong> — enter the actual shift times below</p>}
             {ZERO_HOUR_STATUSES.has(form.status) && <p className={`text-xs ${t.chipBg} rounded px-2 py-1 ${t.textFaint}`}>0 hours recorded — {STATUS_CFG[form.status]?.label} days are not credited</p>}
           </div>
 
@@ -327,9 +327,9 @@ function TimesheetEntryDialog({ employee, date, entry, onSave, onDelete, onClose
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div className={`rounded p-2 text-center ${DOUBLE_TIME_STATUSES.has(form.status) ? 'bg-violet-500/10' : 'bg-emerald-500/10'}`}>
                 <div className={`text-xs ${t.textFaint}`}>{DOUBLE_TIME_STATUSES.has(form.status) ? '2.0× h' : 'Regular'}</div>
-                <div className={`font-bold ${DOUBLE_TIME_STATUSES.has(form.status) ? 'text-violet-400' : 'text-emerald-400'}`}>{form.regular_hours.toFixed(2)}h</div>
+                <div className={`font-bold ${DOUBLE_TIME_STATUSES.has(form.status) ? accentText('violet', t.light) : accentText('emerald', t.light)}`}>{form.regular_hours.toFixed(2)}h</div>
               </div>
-              <div className="bg-indigo-500/10 rounded p-2 text-center"><div className={`text-xs ${t.textFaint}`}><Moon className="w-3 h-3 inline" /> Night</div><div className="font-bold text-indigo-400">{form.nightshift_hours.toFixed(2)}h</div></div>
+              <div className="bg-indigo-500/10 rounded p-2 text-center"><div className={`text-xs ${t.textFaint}`}><Moon className="w-3 h-3 inline" /> Night</div><div className={`font-bold ${accentText('indigo', t.light)}`}>{form.nightshift_hours.toFixed(2)}h</div></div>
             </div>
           </div>
 
@@ -351,8 +351,8 @@ function TimesheetEntryDialog({ employee, date, entry, onSave, onDelete, onClose
             {otPeriods.length > 0 && (
               <div className={`grid grid-cols-3 gap-2 p-2 rounded text-center text-xs ${t.chipBg}`}>
                 <div><div className={t.textFaint}>1.5×</div><div className="font-bold text-orange-400">{otTotals.t15.toFixed(2)}h</div></div>
-                <div><div className={t.textFaint}>2.0×</div><div className="font-bold text-violet-400">{otTotals.t20.toFixed(2)}h</div></div>
-                <div><div className={t.textFaint}>Night OT</div><div className="font-bold text-indigo-400">{otTotals.night.toFixed(2)}h</div></div>
+                <div><div className={t.textFaint}>2.0×</div><div className={`font-bold ${accentText('violet', t.light)}`}>{otTotals.t20.toFixed(2)}h</div></div>
+                <div><div className={t.textFaint}>Night OT</div><div className={`font-bold ${accentText('indigo', t.light)}`}>{otTotals.night.toFixed(2)}h</div></div>
               </div>
             )}
           </div>
@@ -372,7 +372,7 @@ function TimesheetEntryDialog({ employee, date, entry, onSave, onDelete, onClose
           </div>
 
           <div className="flex items-center justify-between p-3 bg-amber-500/[0.08] rounded-lg">
-            <div><Label className="font-medium text-sm text-amber-400">Standby Allowance</Label><p className={`text-xs ${t.textFaint}`}>Adds a flat 8h once for this standby period (any length)</p></div>
+            <div><Label className={`font-medium text-sm ${accentText('amber', t.light)}`}>Standby Allowance</Label><p className={`text-xs ${t.textFaint}`}>Adds a flat 8h once for this standby period (any length)</p></div>
             <Switch checked={form.standby_allowance} onCheckedChange={v => setForm(f => ({ ...f, standby_allowance: v }))} />
           </div>
 
@@ -518,7 +518,7 @@ function BulkAssignDialog({ initialEmployee, allEmployees, period, timesheets, o
 
         <div className="flex-1 overflow-y-auto space-y-4 py-2 pr-1">
           {lastApplied && (
-            <div className="flex items-center gap-2 px-3 py-2 bg-emerald-500/10 rounded-lg text-sm text-emerald-400">
+            <div className={`flex items-center gap-2 px-3 py-2 bg-emerald-500/10 rounded-lg text-sm ${accentText('emerald', t.light)}`}>
               <CheckCircle className="w-4 h-4 shrink-0" />
               Applied {lastApplied.days} day{lastApplied.days !== 1 ? 's' : ''} × {lastApplied.emps} employee{lastApplied.emps !== 1 ? 's' : ''} — select more days to continue
             </div>
@@ -572,8 +572,8 @@ function BulkAssignDialog({ initialEmployee, allEmployees, period, timesheets, o
               <div><Label className={`text-xs ${t.textFaint}`}>End</Label><Input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className={`${fieldCls} mt-1`} /></div>
               <div className="flex flex-col justify-center">
                 <span className={`text-xs ${t.textFaint}`}>Per day/person</span>
-                <span className="text-xl font-bold text-emerald-400">{regHours.toFixed(1)}h</span>
-                {nightHours > 0 && <span className="text-xs text-indigo-400">{nightHours.toFixed(1)}h night</span>}
+                <span className={`text-xl font-bold ${accentText('emerald', t.light)}`}>{regHours.toFixed(1)}h</span>
+                {nightHours > 0 && <span className={`text-xs ${accentText('indigo', t.light)}`}>{nightHours.toFixed(1)}h night</span>}
               </div>
             </div>
           )}
@@ -604,7 +604,7 @@ function BulkAssignDialog({ initialEmployee, allEmployees, period, timesheets, o
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Label className={`text-sm font-semibold ${t.textMuted}`}>Calendar</Label>
-                {anchor ? <span className="text-xs bg-amber-500/15 text-amber-400 rounded-full px-2 py-0.5">Click a 2nd day to fill range</span> : <span className={`text-xs ${t.textFaint}`}>1st click = anchor · 2nd click = fill range</span>}
+                {anchor ? <span className={`text-xs bg-amber-500/15 ${accentText('amber', t.light)} rounded-full px-2 py-0.5`}>Click a 2nd day to fill range</span> : <span className={`text-xs ${t.textFaint}`}>1st click = anchor · 2nd click = fill range</span>}
               </div>
               {anchor && <button type="button" onClick={() => { setAnchor(null); setHoverDate(null); }} className={`text-xs ${t.textFaint} hover:text-red-400 transition-colors`}>Cancel range</button>}
             </div>
@@ -1048,17 +1048,17 @@ function TimesheetGrid({ employees, timesheets, days, onCellClick, onBulkAssign,
               <TableHead key={ds} title={holiday || undefined} className={`text-center min-w-[70px] px-0.5 sticky top-0 z-20 ${stickyBg} ${holiday ? 'bg-violet-500/[0.08]' : ''}`}>
                 <div className="flex flex-col items-center text-[9px] py-1">
                   <span className={t.textFaint}>{d.toLocaleDateString('en-GB', { weekday: 'short' })}</span>
-                  <span className={`font-bold text-sm ${holiday ? 'text-violet-400' : ds === today ? 'text-brand-400' : isWknd ? t.textFaint : t.textMuted}`}>{d.getDate()}</span>
+                  <span className={`font-bold text-sm ${holiday ? accentText('violet', t.light) : ds === today ? 'text-brand-400' : isWknd ? t.textFaint : t.textMuted}`}>{d.getDate()}</span>
                   <span className={t.textFaint}>{d.toLocaleDateString('en-GB', { month: 'short' })}</span>
-                  {holiday && <Sun className="w-2.5 h-2.5 text-violet-400 mt-0.5" />}
+                  {holiday && <Sun className={`w-2.5 h-2.5 ${accentText('violet', t.light)} mt-0.5`} />}
                 </div>
               </TableHead>
             );
           })}
-          <TableHead className={`text-center min-w-14 text-emerald-400 text-[10px] font-semibold sticky top-0 z-20 ${stickyBg}`}>Reg</TableHead>
+          <TableHead className={`text-center min-w-14 ${accentText('emerald', t.light)} text-[10px] font-semibold sticky top-0 z-20 ${stickyBg}`}>Reg</TableHead>
           <TableHead className={`text-center min-w-14 text-brand-400 text-[10px] font-semibold sticky top-0 z-20 ${stickyBg}`}>1.5×</TableHead>
           <TableHead className={`text-center min-w-14 text-sky-400 text-[10px] font-semibold sticky top-0 z-20 ${stickyBg}`}>2.0×</TableHead>
-          <TableHead className={`text-center min-w-14 text-indigo-400 text-[10px] font-semibold sticky top-0 z-20 ${stickyBg}`}>Night</TableHead>
+          <TableHead className={`text-center min-w-14 ${accentText('indigo', t.light)} text-[10px] font-semibold sticky top-0 z-20 ${stickyBg}`}>Night</TableHead>
           <TableHead className={`text-center min-w-16 text-[10px] font-semibold sticky top-0 z-20 ${stickyBg} ${t.textMuted}`}>Total</TableHead>
         </TableRow>
       </TableHeader>
@@ -1115,7 +1115,7 @@ function TimesheetGrid({ employees, timesheets, days, onCellClick, onBulkAssign,
                             {!ZERO_HOUR_STATUSES.has(entry.status) && (() => {
                               const isDT = DOUBLE_TIME_STATUSES.has(entry.status as StatusKey);
                               const displayH = isDT ? (entry.holiday_overtime_hours || 0) : (entry.regular_hours || 0);
-                              return displayH > 0 ? <span className={`font-bold ${isDT ? 'text-amber-400' : t.textMuted}`}>{displayH.toFixed(1)}h{isDT ? ' ×2' : ''}</span> : null;
+                              return displayH > 0 ? <span className={`font-bold ${isDT ? accentText('amber', t.light) : t.textMuted}`}>{displayH.toFixed(1)}h{isDT ? ' ×2' : ''}</span> : null;
                             })()}
                             {!DOUBLE_TIME_STATUSES.has(entry.status as StatusKey) && (entry.overtime_hours || 0) > 0 && <span className="text-brand-400 font-semibold">+{entry.overtime_hours!.toFixed(1)} OT</span>}
                             {/* 2.0x overtime landed on an otherwise non-holiday/weekend day (e.g.
@@ -1124,7 +1124,7 @@ function TimesheetGrid({ employees, timesheets, days, onCellClick, onBulkAssign,
                                 the period's 2.0× total below. */}
                             {!DOUBLE_TIME_STATUSES.has(entry.status as StatusKey) && (entry.holiday_overtime_hours || 0) > 0 && <span className="text-sky-400 font-semibold">+{entry.holiday_overtime_hours!.toFixed(1)} ×2</span>}
                             {(entry.nightshift_hours || 0) > 0 && <span className="text-sky-400 text-[8px]"><Moon className="w-2 h-2 inline -mt-px" />{entry.nightshift_hours!.toFixed(1)}n</span>}
-                            {entry.standby_allowance && <span className="text-amber-400 text-[8px] font-medium">SB</span>}
+                            {entry.standby_allowance && <span className={`${accentText('amber', t.light)} text-[8px] font-medium`}>SB</span>}
                           </>
                         ) : (
                           <span className={`text-base font-light ${isToday ? 'text-brand-400/50' : t.textFaint}`}>+</span>
@@ -1144,15 +1144,15 @@ function TimesheetGrid({ employees, timesheets, days, onCellClick, onBulkAssign,
                             {!ZERO_HOUR_STATUSES.has(entry.status) && (
                               <div className="mt-1 space-y-0.5">
                                 {DOUBLE_TIME_STATUSES.has(entry.status as StatusKey)
-                                  ? <p className="text-[9px] text-amber-400 font-semibold">{((entry.holiday_overtime_hours || 0) + (entry.regular_hours || 0)).toFixed(1)}h @ 2.0×</p>
-                                  : <p className="text-[9px] text-emerald-400">{(entry.regular_hours || 0).toFixed(1)}h reg</p>}
+                                  ? <p className={`text-[9px] ${accentText('amber', t.light)} font-semibold`}>{((entry.holiday_overtime_hours || 0) + (entry.regular_hours || 0)).toFixed(1)}h @ 2.0×</p>
+                                  : <p className={`text-[9px] ${accentText('emerald', t.light)}`}>{(entry.regular_hours || 0).toFixed(1)}h reg</p>}
                                 {!DOUBLE_TIME_STATUSES.has(entry.status as StatusKey) && (entry.overtime_hours || 0) > 0 && <p className="text-[9px] text-brand-400">+{entry.overtime_hours!.toFixed(1)}h OT 1.5×</p>}
                                 {!DOUBLE_TIME_STATUSES.has(entry.status as StatusKey) && (entry.holiday_overtime_hours || 0) > 0 && <p className="text-[9px] text-sky-400">+{entry.holiday_overtime_hours!.toFixed(1)}h OT 2.0×</p>}
                                 {(entry.nightshift_hours || 0) > 0 && <p className="text-[9px] text-sky-400">{entry.nightshift_hours!.toFixed(1)}h night</p>}
                                 {(entry.callout_overtime_hours || 0) > 0 && <p className="text-[9px] text-orange-400">{entry.callout_overtime_hours!.toFixed(1)}h callout</p>}
                               </div>
                             )}
-                            {entry.standby_allowance && <p className="text-[9px] text-amber-400 mt-0.5">Standby</p>}
+                            {entry.standby_allowance && <p className={`text-[9px] ${accentText('amber', t.light)} mt-0.5`}>Standby</p>}
                             {entry._auto && (
                               <p className="text-[9px] mt-1 text-brand-400">
                                 {entry._auto === 'leave' ? 'From approved leave' : entry._auto === 'overtime' ? 'Includes approved OT' : 'Approved leave + OT'} — click to confirm
@@ -1167,15 +1167,15 @@ function TimesheetGrid({ employees, timesheets, days, onCellClick, onBulkAssign,
                 );
               })}
               <TableCell className="text-center py-2">
-                <div className="text-sm font-bold text-emerald-400">{totals.reg.toFixed(1)}</div>
+                <div className={`text-sm font-bold ${accentText('emerald', t.light)}`}>{totals.reg.toFixed(1)}</div>
                 {(totals.excess || 0) > 0 && <div className="text-[9px] text-brand-400">+{totals.excess!.toFixed(1)}→OT</div>}
               </TableCell>
               <TableCell className="text-center py-2">
                 <div className="text-sm font-bold text-brand-400">{totals.ot15.toFixed(1)}</div>
-                {totals.standbyBonus > 0 && <div className="text-[9px] text-amber-400">+{totals.standbyBonus}SB</div>}
+                {totals.standbyBonus > 0 && <div className={`text-[9px] ${accentText('amber', t.light)}`}>+{totals.standbyBonus}SB</div>}
               </TableCell>
               <TableCell className="text-center py-2 text-sm font-bold text-sky-400">{totals.ot20.toFixed(1)}</TableCell>
-              <TableCell className="text-center py-2 text-sm font-bold text-indigo-400">{totals.night.toFixed(1)}</TableCell>
+              <TableCell className={`text-center py-2 text-sm font-bold ${accentText('indigo', t.light)}`}>{totals.night.toFixed(1)}</TableCell>
               <TableCell className="text-center py-2"><span className={`text-base font-bold ${t.textPrimary}`}>{totals.total.toFixed(1)}</span></TableCell>
             </TableRow>
           );
@@ -1198,10 +1198,10 @@ function TimesheetGrid({ employees, timesheets, days, onCellClick, onBulkAssign,
                 const isWknd = day.getDay() === 0 || day.getDay() === 6;
                 return <TableCell key={fmtDate(day)} className={`text-center p-0.5 ${isWknd ? t.chipBg : ''}`}>{daySum > 0 && <span className={`text-[9px] font-medium ${t.textFaint}`}>{daySum.toFixed(0)}</span>}</TableCell>;
               })}
-              <TableCell className="text-center py-3"><span className="text-sm font-bold text-emerald-400">{grand.reg.toFixed(1)}</span></TableCell>
+              <TableCell className="text-center py-3"><span className={`text-sm font-bold ${accentText('emerald', t.light)}`}>{grand.reg.toFixed(1)}</span></TableCell>
               <TableCell className="text-center py-3"><span className="text-sm font-bold text-brand-400">{grand.ot15.toFixed(1)}</span></TableCell>
               <TableCell className="text-center py-3"><span className="text-sm font-bold text-sky-400">{grand.ot20.toFixed(1)}</span></TableCell>
-              <TableCell className="text-center py-3"><span className="text-sm font-bold text-indigo-400">{grand.night.toFixed(1)}</span></TableCell>
+              <TableCell className="text-center py-3"><span className={`text-sm font-bold ${accentText('indigo', t.light)}`}>{grand.night.toFixed(1)}</span></TableCell>
               <TableCell className="text-center py-3"><span className={`text-base font-extrabold ${t.textPrimary}`}>{grand.total.toFixed(1)}</span></TableCell>
             </TableRow>
           );
@@ -1483,12 +1483,12 @@ function TimesheetsContent() {
         <div className="flex flex-wrap items-center gap-x-1 gap-y-2">
           {[
             { icon: Users, val: `${tabEmployees.length}`, label: 'employees', color: 'text-brand-400' },
-            { icon: Clock, val: `${summary.reg.toFixed(0)}h`, label: 'regular', color: 'text-emerald-400' },
+            { icon: Clock, val: `${summary.reg.toFixed(0)}h`, label: 'regular', color: accentText('emerald', t.light) },
             { icon: Zap, val: `${summary.ot15.toFixed(0)}h`, label: 'OT 1.5×', color: 'text-orange-400' },
-            { icon: Zap, val: `${summary.ot20.toFixed(0)}h`, label: 'OT 2.0×', color: 'text-purple-400' },
-            { icon: Moon, val: `${summary.night.toFixed(0)}h`, label: 'nightshift', color: 'text-indigo-400' },
-            summary.standbyBonus > 0 ? { icon: LayoutGrid, val: `${summary.standbyBonus}h`, label: 'standby OT', color: 'text-amber-400' } : null,
-            { icon: CalendarDays, val: `${completion}%`, label: `filled (${summary.filled}/${summary.possible})`, color: completion === 100 ? 'text-emerald-400' : t.textMuted },
+            { icon: Zap, val: `${summary.ot20.toFixed(0)}h`, label: 'OT 2.0×', color: accentText('purple', t.light) },
+            { icon: Moon, val: `${summary.night.toFixed(0)}h`, label: 'nightshift', color: accentText('indigo', t.light) },
+            summary.standbyBonus > 0 ? { icon: LayoutGrid, val: `${summary.standbyBonus}h`, label: 'standby OT', color: accentText('amber', t.light) } : null,
+            { icon: CalendarDays, val: `${completion}%`, label: `filled (${summary.filled}/${summary.possible})`, color: completion === 100 ? accentText('emerald', t.light) : t.textMuted },
           ].filter(Boolean).map((item, i, arr) => {
             const it = item as { icon: ElementType; val: string; label: string; color: string };
             return (

@@ -7,8 +7,9 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   useTheme, FormField, Combobox, type ComboOption, StatusBadge,
 } from "@/components/shared/theme";
-import { useEmployees, useEquipment, useSpares } from "@/hooks/useLookups";
+import { useEquipment, useSpares } from "@/hooks/useLookups";
 import type { EquipmentItem, SpareRegisterItem } from "../../app/maintenance/types";
+export { PersonAutocomplete } from "@/components/shared/EmployeeAutocomplete";
 
 export function ThemedInput({ id, label, value, onChange, placeholder, type = 'text', readOnly, autoComplete }: {
   id: string; label: string; value: string; onChange?: (v: string) => void;
@@ -87,58 +88,10 @@ export function PredictiveArea({ id, label, value, onChange, placeholder, rows =
   );
 }
 
-// Autocomplete data sources come from the shared hooks (hooks/useLookups).
-
-// The three pickers below all sit on the design system's Combobox, which owns
-// the dropdown, keyboard handling and outside-click dismissal. Each used to
-// hand-roll that machinery — three copies of the same effect and markup — and
-// only differed in how it filters and what a row looks like, which is all that
-// remains here.
-
-export function PersonAutocomplete({ label, value, onChange, placeholder }: { label?: string; value: string; onChange: (v: string) => void; placeholder?: string; }) {
-  const t = useTheme();
-  const employees = useEmployees();
-
-  const q = value.toLowerCase();
-  const matches = q.length === 0 ? employees.slice(0, 8) : employees.filter(e => {
-    const full = `${e.first_name} ${e.last_name}`.toLowerCase();
-    return full.includes(q) || (e.employee_id || '').toLowerCase().includes(q) || (e.designation || '').toLowerCase().includes(q);
-  }).slice(0, 8);
-
-  const byValue = new Map(matches.map(e => [String(e.id), e]));
-  const options: ComboOption[] = matches.map(e => ({
-    value: String(e.id),
-    label: `${e.first_name} ${e.last_name}`,
-    sub: [e.designation, e.department, e.section].filter(Boolean).join(' · '),
-  }));
-
-  return (
-    <FormField label={label || ''}>
-      <Combobox
-        value={value}
-        onChange={onChange}
-        onSelect={opt => onChange(opt.label)}
-        options={options}
-        placeholder={placeholder || 'Type to search employees, or enter name…'}
-        renderOption={opt => {
-          const e = byValue.get(opt.value);
-          return (
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-7 h-7 rounded-full bg-brand-500/15 flex items-center justify-center flex-shrink-0 text-[10px] text-brand-400 font-bold uppercase">
-                {e?.first_name?.[0]}{e?.last_name?.[0]}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className={`text-xs font-medium truncate ${t.textPrimary}`}>{opt.label}</div>
-                <div className={`text-[10px] truncate ${t.textFaint}`}>{opt.sub}</div>
-              </div>
-              {e?.employee_id && <span className={`text-[10px] flex-shrink-0 ${t.textFaint}`}>{e.employee_id}</span>}
-            </div>
-          );
-        }}
-      />
-    </FormField>
-  );
-}
+// PersonAutocomplete now lives in components/shared/EmployeeAutocomplete.tsx —
+// re-exported above so existing imports from "./formFields" keep working.
+// EquipmentAutocomplete and SpareAutocomplete (below) still sit on the same
+// shared Combobox primitive, just filtering different data sources.
 
 export function EquipmentAutocomplete({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const t = useTheme();

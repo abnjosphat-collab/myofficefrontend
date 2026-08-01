@@ -6,11 +6,11 @@ import { Activity, RefreshCw } from '@/components/shared/theme';
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts';
-import { useTheme, PageHero, StatTile, ACCENT_HEX } from '@/components/shared/theme';
+import { useTheme, accentText, PageHero, StatTile, ACCENT_HEX } from '@/components/shared/theme';
 import { useReliabilityData, MTBF_TREND } from './useReliabilityData';
 
-const rpnColor = (n: number) => n > 100 ? 'text-rose-400' : n >= 50 ? 'text-amber-400' : 'text-emerald-400';
-const availColor = (n: number) => n >= 95 ? 'text-emerald-400' : n >= 90 ? 'text-amber-400' : 'text-rose-400';
+const rpnColor = (n: number, light: boolean) => n > 100 ? accentText('rose', light) : n >= 50 ? accentText('amber', light) : accentText('emerald', light);
+const availColor = (n: number, light: boolean) => n >= 95 ? accentText('emerald', light) : n >= 90 ? accentText('amber', light) : accentText('rose', light);
 
 function ReliabilityContent() {
   const t = useTheme();
@@ -98,10 +98,10 @@ function ReliabilityContent() {
                   <td className={`px-4 py-3 font-medium ${t.textPrimary}`}>{eq.equipment}</td>
                   <td className={`px-4 py-3 ${t.textMuted}`}>{eq.section}</td>
                   <td className="px-4 py-3 text-brand-400 font-semibold">{eq.mtbf}</td>
-                  <td className="px-4 py-3 text-amber-400 font-semibold">{eq.mttr}</td>
+                  <td className={`px-4 py-3 ${accentText('amber', t.light)} font-semibold`}>{eq.mttr}</td>
                   <td className={`px-4 py-3 ${t.textMuted}`}>{eq.failures}</td>
-                  <td className="px-4 py-3"><span className={`font-semibold ${availColor(eq.availability)}`}>{eq.availability}%</span></td>
-                  <td className="px-4 py-3"><span className={`font-bold text-base ${rpnColor(eq.rpn)}`}>{eq.rpn}</span></td>
+                  <td className="px-4 py-3"><span className={`font-semibold ${availColor(eq.availability, t.light)}`}>{eq.availability}%</span></td>
+                  <td className="px-4 py-3"><span className={`font-bold text-base ${rpnColor(eq.rpn, t.light)}`}>{eq.rpn}</span></td>
                 </tr>
               ))}
             </tbody>

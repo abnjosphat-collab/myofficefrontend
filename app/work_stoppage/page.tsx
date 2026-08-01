@@ -11,7 +11,7 @@ import {
 import { AppShell } from '@/components/app-shell';
 import { toast } from 'sonner';
 import {
-  useTheme, PageHero, StatTile, StatusBadge, SearchInput, FormField, FormActions,
+  useTheme, accentText, PageHero, StatTile, StatusBadge, SearchInput, FormField, FormActions,
   useCollapseSection, CenterModal, PrimaryButton, EmptyState, ProgressBar, ACCENT_HEX, GlowCard, SelectField, useConfirm,
 } from '@/components/shared/theme';
 import { PredictiveInput } from '@/components/shared/PredictiveInput';
@@ -60,7 +60,7 @@ function CorrectiveActionCard({ action, index, onChange, onRemove }: {
             <SelectField size="filter" value={action.status} title="Action status"
               onChange={v => onChange(action.id, { status: v as ActionStatus, ...(v === 'Completed' && !action.completedDate ? { completedDate: new Date().toISOString().split('T')[0] } : {}) })}
               options={ACTION_STATUSES.map(s => ({ value: s, label: s }))} />
-            <button type="button" title="Remove action" onClick={() => onRemove(action.id)} className={`h-5 w-5 flex items-center justify-center rounded hover:bg-rose-500/20 ${t.textFaint} hover:text-rose-400 transition-all`}><Trash2 className="h-3 w-3" /></button>
+            <button type="button" title="Remove action" onClick={() => onRemove(action.id)} className={`h-5 w-5 flex items-center justify-center rounded hover:bg-rose-500/20 ${t.textFaint} hover:${t.light ? 'text-rose-600' : 'text-rose-400'} transition-all`}><Trash2 className="h-3 w-3" /></button>
           </div>
         </div>
         <FormField label="Finding / Issue" required><textarea value={action.finding} rows={2} placeholder="Describe the finding or unsafe condition…" onChange={e => onChange(action.id, { finding: e.target.value })} className={`${inputCls} resize-none`} /></FormField>
@@ -321,7 +321,7 @@ function ReportCard({ report, expanded, onToggle, onView, onEdit, onDelete }: {
 
       <div className="px-4 py-3 space-y-1.5">
         <div className={`flex items-center gap-1.5 text-xs ${t.textFaint}`}><UserCircle className="h-3.5 w-3.5 flex-shrink-0" /><span className="truncate">{report.stoppageBy}{report.stoppagePosition ? ` — ${report.stoppagePosition}` : ''}</span></div>
-        <div className={`flex items-start gap-1.5 text-xs ${t.textFaint}`}><AlertTriangle className="h-3.5 w-3.5 flex-shrink-0 mt-0.5 text-amber-400/60" /><span className="line-clamp-2">{report.description}</span></div>
+        <div className={`flex items-start gap-1.5 text-xs ${t.textFaint}`}><AlertTriangle className={`h-3.5 w-3.5 flex-shrink-0 mt-0.5 ${t.light ? 'text-amber-600/60' : 'text-amber-400/60'}`} /><span className="line-clamp-2">{report.description}</span></div>
       </div>
 
       {expanded && (
@@ -347,7 +347,7 @@ function ReportCard({ report, expanded, onToggle, onView, onEdit, onDelete }: {
           <div className="flex gap-1.5 pt-1">
             <button type="button" title="View" onClick={onView} className="flex-1 py-1.5 rounded-lg text-[11px] font-medium bg-brand-500/10 text-brand-400 transition-all hover:-translate-y-0.5 inline-flex items-center justify-center gap-1"><Eye className="h-3 w-3" /> View</button>
             <button type="button" title="Edit" onClick={onEdit} className="flex-1 py-1.5 rounded-lg text-[11px] font-medium bg-brand-500/10 text-brand-400 transition-all hover:-translate-y-0.5 inline-flex items-center justify-center gap-1"><Pencil className="h-3 w-3" /> Edit</button>
-            <button type="button" title="Delete" onClick={onDelete} className="flex-1 py-1.5 rounded-lg text-[11px] font-medium bg-rose-500/10 text-rose-400 transition-all hover:-translate-y-0.5 inline-flex items-center justify-center gap-1"><Trash2 className="h-3 w-3" /> Delete</button>
+            <button type="button" title="Delete" onClick={onDelete} className={`flex-1 py-1.5 rounded-lg text-[11px] font-medium bg-rose-500/10 ${accentText('rose', t.light)} transition-all hover:-translate-y-0.5 inline-flex items-center justify-center gap-1`}><Trash2 className="h-3 w-3" /> Delete</button>
           </div>
         </div>
       )}
@@ -508,8 +508,8 @@ function WorkStoppageContent() {
             <div className="ml-auto flex items-center gap-1.5">
               <button type="button" title="Expand all" onClick={() => setExpandedIds(new Set(reports.map(r => r.id)))} className={`h-8 px-2.5 flex items-center gap-1 text-[11px] rounded-lg ${t.chipBg} ${t.textFaint} ${t.hoverText} transition-all`}><Maximize2 className="h-3 w-3" /> Expand all</button>
               <button type="button" title="Collapse all" onClick={() => setExpandedIds(new Set())} className={`h-8 px-2.5 flex items-center gap-1 text-[11px] rounded-lg ${t.chipBg} ${t.textFaint} ${t.hoverText} transition-all`}><Minimize2 className="h-3 w-3" /></button>
-              <button type="button" title="Grid view" onClick={() => setViewMode('grid')} className={`h-8 w-8 flex items-center justify-center rounded-lg transition-all ${viewMode === 'grid' ? 'bg-rose-500/20 text-rose-400' : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}><LayoutGrid className="h-3.5 w-3.5" /></button>
-              <button type="button" title="List view" onClick={() => setViewMode('list')} className={`h-8 w-8 flex items-center justify-center rounded-lg transition-all ${viewMode === 'list' ? 'bg-rose-500/20 text-rose-400' : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}><TableIcon className="h-3.5 w-3.5" /></button>
+              <button type="button" title="Grid view" onClick={() => setViewMode('grid')} className={`h-8 w-8 flex items-center justify-center rounded-lg transition-all ${viewMode === 'grid' ? `bg-rose-500/20 ${accentText('rose', t.light)}` : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}><LayoutGrid className="h-3.5 w-3.5" /></button>
+              <button type="button" title="List view" onClick={() => setViewMode('list')} className={`h-8 w-8 flex items-center justify-center rounded-lg transition-all ${viewMode === 'list' ? `bg-rose-500/20 ${accentText('rose', t.light)}` : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}><TableIcon className="h-3.5 w-3.5" /></button>
             </div>
           </div>
         </div>
@@ -550,7 +550,7 @@ function WorkStoppageContent() {
                           <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
                             <div className="flex gap-1 justify-end">
                               <button type="button" title="Edit" onClick={() => { setEditingReport(report); setFormOpen(true); }} className={`p-1.5 rounded ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-colors`}><Pencil className="h-3 w-3" /></button>
-                              <button type="button" title="Delete" onClick={() => handleDelete(report.id)} className={`p-1.5 rounded ${t.chipBg} hover:bg-rose-500/15 ${t.textFaint} hover:text-rose-400 transition-colors`}><Trash2 className="h-3 w-3" /></button>
+                              <button type="button" title="Delete" onClick={() => handleDelete(report.id)} className={`p-1.5 rounded ${t.chipBg} hover:bg-rose-500/15 ${t.textFaint} hover:${t.light ? 'text-rose-600' : 'text-rose-400'} transition-colors`}><Trash2 className="h-3 w-3" /></button>
                             </div>
                           </td>
                         </tr>

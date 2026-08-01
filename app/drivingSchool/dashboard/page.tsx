@@ -8,7 +8,7 @@ import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import {
-  useTheme, PageHero, StatTile, StatusBadge, ProgressBar, FormField,
+  useTheme, accentText, PageHero, StatTile, StatusBadge, ProgressBar, FormField,
   CenterModal, ACCENT_HEX, EmptyState, PrimaryButton, SelectField, SearchInput,
 } from '@/components/shared/theme';
 import {
@@ -331,7 +331,7 @@ function BookingsTab({ bookings, students, onNewBooking }: { bookings: Booking[]
             <SelectField size="filter" title="Status" value={status} onChange={setStatus}
               options={[{ value: 'all', label: 'All Statuses' }, { value: 'upcoming', label: 'Upcoming' }, { value: 'completed', label: 'Completed' }, { value: 'cancelled', label: 'Cancelled' }]} />
             <button type="button" onClick={() => setVipOnly(v => !v)}
-              className={`flex items-center gap-1.5 h-9 px-3 rounded-lg text-[13px] font-semibold transition-colors ${vipOnly ? 'bg-amber-500/20 text-amber-400' : `${t.chipBg} ${t.textMuted} ${t.hoverBg}`}`}>
+              className={`flex items-center gap-1.5 h-9 px-3 rounded-lg text-[13px] font-semibold transition-colors ${vipOnly ? `bg-amber-500/20 ${accentText('amber', t.light)}` : `${t.chipBg} ${t.textMuted} ${t.hoverBg}`}`}>
               <Star className="h-3.5 w-3.5" fill={vipOnly ? 'currentColor' : 'none'} /> VIP Only
             </button>
           </div>
@@ -365,7 +365,7 @@ function BookingsTab({ bookings, students, onNewBooking }: { bookings: Booking[]
                 {visible.map(b => (
                   <TableRow key={b.id}>
                     <TableCell className={`font-medium ${t.textPrimary}`}>
-                      <span className="flex items-center gap-1">{b.student_name}{vipStudentIds.has(b.student_id) && <Star className="h-3 w-3 text-amber-400" fill="currentColor" />}</span>
+                      <span className="flex items-center gap-1">{b.student_name}{vipStudentIds.has(b.student_id) && <Star className={`h-3 w-3 ${accentText('amber', t.light)}`} fill="currentColor" />}</span>
                     </TableCell>
                     <TableCell className={t.textFaint}>{b.instructor_name}</TableCell>
                     <TableCell className={t.textFaint}>{fmtDate(b.date)} · {b.start_time}</TableCell>
@@ -416,7 +416,7 @@ function ScheduleTab({ bookings, instructors, students, onSlotClick }: {
         <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
           <div className={`flex items-center justify-between px-5 py-3 border-b ${t.border}`}>
             <span className={`font-semibold text-sm ${t.textPrimary}`}>{instructor.name}'s Schedule</span>
-            <span className={`text-xs ${t.textFaint}`}>{instructor.vehicle} · <Star className="h-3 w-3 inline text-amber-400" /> {instructor.rating}</span>
+            <span className={`text-xs ${t.textFaint}`}>{instructor.vehicle} · <Star className={`h-3 w-3 inline ${accentText('amber', t.light)}`} /> {instructor.rating}</span>
           </div>
           <div className="overflow-x-auto p-3">
             <div className="min-w-[760px]">
@@ -438,7 +438,7 @@ function ScheduleTab({ bookings, instructors, students, onSlotClick }: {
                         <div key={iso} title={`${booking.student_name} · ${booking.lesson_type}${vip ? ' · VIP' : ''}`}
                           className="rounded-lg px-1.5 py-1.5 text-[10px] leading-tight truncate relative"
                           style={{ backgroundColor: `${TYPE_HEX[booking.lesson_type]}26`, color: TYPE_HEX[booking.lesson_type], border: `1px solid ${vip ? '#fbbf24' : `${TYPE_HEX[booking.lesson_type]}55`}` }}>
-                          {vip && <Star className="h-2.5 w-2.5 text-amber-400 absolute top-1 right-1" fill="currentColor" />}
+                          {vip && <Star className={`h-2.5 w-2.5 ${accentText('amber', t.light)} absolute top-1 right-1`} fill="currentColor" />}
                           <div className="font-semibold truncate pr-3">{booking.student_name}</div>
                           <div className="opacity-80 truncate">{booking.lesson_type}</div>
                         </div>
@@ -528,7 +528,7 @@ function PaymentsTab({ bookings, onRecordPayment }: { bookings: Booking[]; onRec
                     <TableCell><StatusBadge color={PAYMENT_HEX[b.payment_status]} label={b.payment_status} /></TableCell>
                     <TableCell>
                       {b.payment_status !== 'paid' && (
-                        <button type="button" onClick={() => onRecordPayment(b.id)} className="text-xs px-2.5 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/30 text-emerald-400 transition-all">Record Payment</button>
+                        <button type="button" onClick={() => onRecordPayment(b.id)} className={`text-xs px-2.5 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/30 ${accentText('emerald', t.light)} transition-all`}>Record Payment</button>
                       )}
                     </TableCell>
                   </TableRow>
@@ -611,7 +611,7 @@ function AnalyticsTab({ bookings, instructors, students }: { bookings: Booking[]
       </div>
 
       <div className={`${t.glass} rounded-2xl ${t.shadow} p-4`}>
-        <h3 className={`flex items-center gap-2 text-sm font-semibold mb-1 ${t.textPrimary}`}><Activity className="h-4 w-4 text-violet-400" /> Booking Demand Heatmap</h3>
+        <h3 className={`flex items-center gap-2 text-sm font-semibold mb-1 ${t.textPrimary}`}><Activity className={`h-4 w-4 ${accentText('violet', t.light)}`} /> Booking Demand Heatmap</h3>
         <p className={`text-xs mb-3 ${t.textFaint}`}>Darker = more lessons booked at that time. Helps spot when to add instructor capacity.</p>
         <div className="overflow-x-auto">
           <div className="min-w-[380px] max-w-md">

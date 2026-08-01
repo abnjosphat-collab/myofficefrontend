@@ -44,8 +44,7 @@ export function useOperationalAlerts() {
       const [leaves, overtime, sheq, workOrders] = await Promise.all([
         safeJson(`${API_BASE}/api/leaves?status=pending`, true),
         safeJson(`${API_BASE}/api/overtime?status=pending`, true),
-        // sheq_inspections.py mounts this router at /sheq, not /api/sheq.
-        safeJson(`${API_BASE}/sheq?status=open`, true),
+        safeJson(`${API_BASE}/api/sheq?status=open`, true),
         safeJson(`${API_BASE}/api/maintenance/work-orders?status=pending&limit=50`, true),
       ]);
       if (cancelled) return;

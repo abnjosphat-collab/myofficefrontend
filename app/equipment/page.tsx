@@ -14,7 +14,7 @@ import {
   ChevronDown, ChevronUp,
 } from "@/components/shared/theme";
 import {
-  useTheme, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle,
+  useTheme, accentText, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle,
   useCollapseSection, CenterModal, ACCENT_HEX, SelectField,
   GroupSection, RecordCard, staggerContainer, fadeUp, InfoRow, SummaryItem, LoadingState,
 } from '@/components/shared/theme';
@@ -453,8 +453,8 @@ function EquipmentPageContent() {
 
       {error && (
         <div className={`${t.glass} rounded-2xl p-4 flex items-center gap-3 border border-rose-500/30`}>
-          <AlertTriangle className="h-5 w-5 text-rose-400 shrink-0" />
-          <p className="text-sm text-rose-400">{error}</p>
+          <AlertTriangle className={`h-5 w-5 ${accentText('rose', t.light)} shrink-0`} />
+          <p className={`text-sm ${accentText('rose', t.light)}`}>{error}</p>
           <button type="button" onClick={() => setError('')} className={`ml-auto ${t.textFaint} ${t.hoverText} text-lg leading-none`}>×</button>
         </div>
       )}

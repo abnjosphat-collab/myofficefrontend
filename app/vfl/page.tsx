@@ -13,7 +13,7 @@ import { UnderlineTabs } from '@/components/shared/UnderlineTabs';
 import { toast } from "sonner";
 import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, FormField, FormActions,
-  useCollapseSection, CenterModal, PrimaryButton, EmptyState, ProgressBar, ACCENT_HEX, GlowCard, SelectField,
+  useCollapseSection, CenterModal, PrimaryButton, EmptyState, ProgressBar, ACCENT_HEX, GlowCard, SelectField, accentText,
 } from '@/components/shared/theme';
 import { PredictiveInput } from '@/components/shared/PredictiveInput';
 import { EmployeeNameInput } from '@/components/shared/EmployeeNameInput';
@@ -58,7 +58,7 @@ function ActionItemCard({ item, index, onChange, onRemove }: { item: ActionItem;
   return (
     <div className={`${t.chipBg} rounded-xl p-3.5`}>
       <div className="flex justify-between items-center mb-2.5">
-        <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wide">Action #{index + 1}</span>
+        <span className={`text-[11px] font-bold ${accentText('emerald', t.light)} uppercase tracking-wide`}>Action #{index + 1}</span>
         <button type="button" onClick={() => onRemove(item.id)} title="Remove action" className="text-red-400 hover:text-red-300 transition-colors"><Trash2 className="h-3.5 w-3.5" /></button>
       </div>
       <div className="grid grid-cols-2 gap-2">
@@ -287,7 +287,7 @@ function VFLFormModal({ open, editing, onClose, onSave, saving }: { open: boolea
           <div>
             <div className="flex justify-between items-center mb-3.5">
               <div><div className={`font-bold text-sm ${t.textPrimary}`}>Actions to Rectify / Reinforce</div><div className={`text-[11px] mt-0.5 ${t.textFaint}`}>Define actions to address or reinforce behaviours.</div></div>
-              <button type="button" onClick={addAction} className="flex items-center gap-1.5 bg-emerald-500/15 hover:bg-emerald-500/25 rounded-lg px-3 py-1.5 text-emerald-400 text-sm font-semibold transition-colors"><Plus className="h-3.5 w-3.5" /> Add Action</button>
+              <button type="button" onClick={addAction} className={`flex items-center gap-1.5 bg-emerald-500/15 hover:bg-emerald-500/25 rounded-lg px-3 py-1.5 ${accentText('emerald', t.light)} text-sm font-semibold transition-colors`}><Plus className="h-3.5 w-3.5" /> Add Action</button>
             </div>
             {(form.actions || []).length === 0 ? (
               <div className={`text-center py-8 ${t.textFaint}`}><Target className="h-9 w-9 mx-auto mb-2" /><div className="text-sm">No actions added yet.</div><button type="button" onClick={addAction} className={`mt-2.5 ${t.chipBg} ${t.hoverBg} rounded-lg px-3.5 py-1.5 text-xs transition-colors ${t.textMuted}`}>+ Add First Action</button></div>
@@ -421,8 +421,8 @@ function VFLObservationContent() {
                 statusColor={(_v, row) => STATUS_HEX[row.status as VFLStatus]?.replace('#', '')}
               />
             )}
-            <button type="button" onClick={() => setViewMode('grid')} title="Grid view" className={`h-8 w-8 flex items-center justify-center rounded-lg transition-all ${viewMode === 'grid' ? 'bg-emerald-500/20 text-emerald-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}><LayoutGrid className="h-3.5 w-3.5" /></button>
-            <button type="button" onClick={() => setViewMode('table')} title="Table view" className={`h-8 w-8 flex items-center justify-center rounded-lg transition-all ${viewMode === 'table' ? 'bg-emerald-500/20 text-emerald-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}><TableIcon className="h-3.5 w-3.5" /></button>
+            <button type="button" onClick={() => setViewMode('grid')} title="Grid view" className={`h-8 w-8 flex items-center justify-center rounded-lg transition-all ${viewMode === 'grid' ? `bg-emerald-500/20 ${accentText('emerald', t.light)}` : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}><LayoutGrid className="h-3.5 w-3.5" /></button>
+            <button type="button" onClick={() => setViewMode('table')} title="Table view" className={`h-8 w-8 flex items-center justify-center rounded-lg transition-all ${viewMode === 'table' ? `bg-emerald-500/20 ${accentText('emerald', t.light)}` : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}><TableIcon className="h-3.5 w-3.5" /></button>
             <PrimaryButton icon={Plus} accent="emerald" onClick={() => { setEditing(null); setFormOpen(true); }}>New VFL</PrimaryButton>
           </>
         }
@@ -489,7 +489,7 @@ function VFLObservationContent() {
                       <td className="px-3 py-2.5" onClick={e => e.stopPropagation()}>
                         <div className="flex gap-1 justify-end">
                           <button type="button" title="Edit" onClick={() => handleEdit(r)} className={`p-1.5 rounded ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-colors`}><PenTool className="h-3 w-3" /></button>
-                          <button type="button" title="Delete" onClick={() => setDeleteTarget(r.id)} className={`p-1.5 rounded ${t.chipBg} hover:bg-rose-500/15 ${t.textFaint} hover:text-rose-400 transition-colors`}><Trash2 className="h-3 w-3" /></button>
+                          <button type="button" title="Delete" onClick={() => setDeleteTarget(r.id)} className={`p-1.5 rounded ${t.chipBg} hover:bg-rose-500/15 ${t.textFaint} hover:${t.light ? 'text-rose-600' : 'text-rose-400'} transition-colors`}><Trash2 className="h-3 w-3" /></button>
                         </div>
                       </td>
                     </tr>

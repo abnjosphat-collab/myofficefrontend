@@ -12,7 +12,7 @@ import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { PredictiveInput } from '@/components/shared/PredictiveInput';
 import {
-  useTheme, PageHero, StatTile, StatusBadge, SearchInput, FormField, FormActions,
+  useTheme, accentText, PageHero, StatTile, StatusBadge, SearchInput, FormField, FormActions,
   useCollapseSection, CenterModal, PrimaryButton, EmptyState, ACCENT_HEX, SelectField, useConfirm,
 } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
@@ -328,8 +328,8 @@ function AnalyticsTab({ stats }: { stats: Stats }) {
           <ClosureGauge rate={stats.closureRate} total={stats.total} closed={stats.closed} />
           {stats.overdue > 0 && (
             <div className="mt-3 flex items-center gap-2 rounded-lg px-3 py-2 bg-rose-500/10">
-              <AlertTriangle className="h-3.5 w-3.5 text-rose-400 shrink-0" />
-              <span className="text-xs text-rose-400">{stats.overdue} overdue item{stats.overdue !== 1 ? 's' : ''} require attention</span>
+              <AlertTriangle className={`h-3.5 w-3.5 ${accentText('rose', t.light)} shrink-0`} />
+              <span className={`text-xs ${accentText('rose', t.light)}`}>{stats.overdue} overdue item{stats.overdue !== 1 ? 's' : ''} require attention</span>
             </div>
           )}
         </div>
@@ -516,7 +516,7 @@ function SafetyComplaintsContent() {
           </div>
 
           <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-            <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><MessageSquareWarning className="h-4 w-4 text-amber-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Complaints Register</span><span className={`ml-auto text-xs ${t.textFaint}`}>{filtered.length}</span></div>
+            <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><MessageSquareWarning className={`h-4 w-4 ${accentText('amber', t.light)}`} /><span className={`font-semibold text-sm ${t.textPrimary}`}>Complaints Register</span><span className={`ml-auto text-xs ${t.textFaint}`}>{filtered.length}</span></div>
             {loading ? (
               <div className="flex items-center justify-center py-16"><RefreshCw className={`h-6 w-6 animate-spin ${t.textFaint}`} /></div>
             ) : filtered.length === 0 ? (
@@ -552,7 +552,7 @@ function SafetyComplaintsContent() {
                               <div className="flex items-center justify-end gap-0.5" onClick={e => e.stopPropagation()}>
                                 <button type="button" title="Expand" onClick={() => toggleRow(c.id)} className={`h-7 w-7 flex items-center justify-center rounded ${t.textFaint} ${t.hoverText} transition-all`}>{isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}</button>
                                 <button type="button" title="Edit" onClick={() => { setEditing(c); setFormOpen(true); }} className={`h-7 w-7 flex items-center justify-center rounded hover:bg-brand-500/15 ${t.textFaint} hover:text-brand-400 transition-all`}><Pencil className="h-3 w-3" /></button>
-                                <button type="button" title="Delete" onClick={() => handleDelete(c.id)} className={`h-7 w-7 flex items-center justify-center rounded hover:bg-rose-500/20 ${t.textFaint} hover:text-rose-400 transition-all`}><Trash2 className="h-3 w-3" /></button>
+                                <button type="button" title="Delete" onClick={() => handleDelete(c.id)} className={`h-7 w-7 flex items-center justify-center rounded hover:bg-rose-500/20 ${t.textFaint} hover:${t.light ? 'text-rose-600' : 'text-rose-400'} transition-all`}><Trash2 className="h-3 w-3" /></button>
                               </div>
                             </td>
                           </tr>

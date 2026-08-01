@@ -12,7 +12,7 @@ import {
   Activity, BarChart3, Clock, MessageSquare, Search, Star, Layers,
   RefreshCw, Trash2, Calendar, TrendingUp, Users, Globe,
 } from '@/components/shared/theme';
-import { useTheme, PageHero, StatTile, GlowCard, ACCENT_HEX, useConfirm } from '@/components/shared/theme';
+import { useTheme, accentText, PageHero, StatTile, GlowCard, ACCENT_HEX, useConfirm } from '@/components/shared/theme';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   LineChart, Line, Legend, AreaChart, Area,
@@ -499,7 +499,7 @@ export default function UsageAnalyzerPage() {
                         <span className={`text-[11px] font-medium ${t.textMuted} truncate`}>{f.page}</span>
                         <div className="flex items-center gap-0.5 shrink-0">
                           {[1, 2, 3, 4, 5].map(n => (
-                            <Star key={n} className={`h-3 w-3 ${n <= f.rating ? 'text-amber-400' : t.textFaint}`} weight={n <= f.rating ? 'fill' : 'regular'} />
+                            <Star key={n} className={`h-3 w-3 ${n <= f.rating ? accentText('amber', t.light) : t.textFaint}`} weight={n <= f.rating ? 'fill' : 'regular'} />
                           ))}
                         </div>
                       </div>

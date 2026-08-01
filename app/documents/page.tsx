@@ -15,7 +15,7 @@ import {
 } from '@/components/shared/theme';
 import { Toaster, toast } from 'sonner';
 import {
-  useTheme, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle,
+  useTheme, accentText, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle,
   FormField, FormActions, useCollapseSection, CenterModal, ProgressBar, ACCENT_HEX, GlowCard, SelectField,
 } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
@@ -129,7 +129,7 @@ function FileActionsMenu({ doc, onPreview, onDownload, onRename, onDelete, onTog
               className={`w-full flex items-center gap-2 px-3 py-2 text-xs ${t.textMuted} ${t.hoverBgSoft} transition-colors`}><Download className="h-3.5 w-3.5" />Download</button>
             <button type="button" onClick={e => { e.stopPropagation(); setOpen(false); onToggleStar(doc); }}
               className={`w-full flex items-center gap-2 px-3 py-2 text-xs ${t.textMuted} ${t.hoverBgSoft} transition-colors`}>
-              <Star className={`h-3.5 w-3.5 ${doc.starred ? 'fill-amber-400 text-amber-400' : ''}`} />{doc.starred ? 'Unstar' : 'Star'}</button>
+              <Star className={`h-3.5 w-3.5 ${doc.starred ? `fill-amber-400 ${accentText('amber', t.light)}` : ''}`} />{doc.starred ? 'Unstar' : 'Star'}</button>
             <button type="button" onClick={e => { e.stopPropagation(); setOpen(false); onRename(doc); }}
               className={`w-full flex items-center gap-2 px-3 py-2 text-xs ${t.textMuted} ${t.hoverBgSoft} transition-colors`}><Edit3 className="h-3.5 w-3.5" />Rename</button>
             <div className={`border-t ${t.border} my-1`} />
@@ -543,7 +543,7 @@ function DocumentsPageContent() {
                         onClick={() => { setItemToRename({ name, id, type: 'folder' }); setNewName(name); setIsRenameDialogOpen(true); }}>
                         <Edit3 className="h-3 w-3" />
                       </button>
-                      <button type="button" title="Delete" className={`h-6 w-6 flex items-center justify-center rounded ${t.hoverBg} text-rose-500 hover:text-rose-400 transition-colors`}
+                      <button type="button" title="Delete" className={`h-6 w-6 flex items-center justify-center rounded ${t.hoverBg} text-rose-500 hover:${t.light ? 'text-rose-600' : 'text-rose-400'} transition-colors`}
                         onClick={() => { setItemToDelete({ name, id, type: 'folder' }); setIsDeleteDialogOpen(true); }}>
                         <TrashIcon className="h-3 w-3" />
                       </button>
@@ -580,7 +580,7 @@ function DocumentsPageContent() {
               <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1" onClick={e => e.stopPropagation()}>
                 <button type="button" onClick={() => handleToggleStar(doc)} title={doc.starred ? 'Unstar' : 'Star'}
                   className={`h-6 w-6 flex items-center justify-center rounded ${t.hoverBg} transition-colors`}>
-                  <Star className={`h-3.5 w-3.5 ${doc.starred ? 'fill-amber-400 text-amber-400' : t.textFaint}`} />
+                  <Star className={`h-3.5 w-3.5 ${doc.starred ? `fill-amber-400 ${accentText('amber', t.light)}` : t.textFaint}`} />
                 </button>
                 <FileActionsMenu doc={doc} onPreview={handlePreview} onDownload={handleDownload} onRename={handleRenameClick} onDelete={handleDeleteClick} onToggleStar={handleToggleStar} />
               </div>
@@ -625,7 +625,7 @@ function DocumentsPageContent() {
                 <td className="p-3" onClick={e => e.stopPropagation()}><input type="checkbox" title={`Select ${doc.name}`} checked={selectedItems.has(doc.id)} onChange={() => toggleSelectItem(doc.id)} className="accent-brand-500" /></td>
                 <td className="p-3"><fi.icon className="h-4 w-4" style={{ color: fi.color }} /></td>
                 <td className={`p-3 font-medium ${t.textPrimary}`}>
-                  <div className="flex items-center gap-2">{doc.name}{doc.starred && <Star className="h-3 w-3 fill-amber-400 text-amber-400" />}</div>
+                  <div className="flex items-center gap-2">{doc.name}{doc.starred && <Star className={`h-3 w-3 fill-amber-400 ${accentText('amber', t.light)}`} />}</div>
                   {doc.original_name && doc.original_name !== doc.name && <p className={`text-[11px] ${t.textFaint}`}>{doc.original_name}</p>}
                 </td>
                 <td className={`p-3 text-xs max-w-[160px] ${t.textFaint}`}><p className="truncate">{doc.description || '—'}</p></td>
@@ -635,7 +635,7 @@ function DocumentsPageContent() {
                 <td className="p-3" onClick={e => e.stopPropagation()}>
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button type="button" onClick={() => handleToggleStar(doc)} title={doc.starred ? 'Unstar' : 'Star'} className={`h-6 w-6 flex items-center justify-center rounded ${t.hoverBg} transition-colors`}>
-                      <Star className={`h-3 w-3 ${doc.starred ? 'fill-amber-400 text-amber-400' : t.textFaint}`} />
+                      <Star className={`h-3 w-3 ${doc.starred ? `fill-amber-400 ${accentText('amber', t.light)}` : t.textFaint}`} />
                     </button>
                     <FileActionsMenu doc={doc} onPreview={handlePreview} onDownload={handleDownload} onRename={handleRenameClick} onDelete={handleDeleteClick} onToggleStar={handleToggleStar} />
                   </div>

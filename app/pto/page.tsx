@@ -13,7 +13,7 @@ import { PredictiveInput } from '@/components/shared/PredictiveInput';
 import { UnderlineTabs } from '@/components/shared/UnderlineTabs';
 import { toast } from "sonner";
 import {
-  useTheme, PageHero, StatTile, StatusBadge, SearchInput, ProgressBar, FormField, FormActions,
+  useTheme, accentText, PageHero, StatTile, StatusBadge, SearchInput, ProgressBar, FormField, FormActions,
   useCollapseSection, CenterModal, ACCENT_HEX, EmptyState, PrimaryButton, GlowCard, SelectField,
 } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
@@ -73,7 +73,7 @@ function YesNoRow({ label, value, onChange, name }: { label: string; value: YesN
       <span className={`text-sm ${t.textMuted}`}>{label}</span>
       <div className="flex gap-3.5">
         {(['Yes', 'No'] as YesNoType[]).map(opt => (
-          <label key={opt} className={`flex items-center gap-1.5 cursor-pointer text-sm ${opt === value ? (opt === 'Yes' ? 'text-emerald-400 font-bold' : 'text-red-400 font-bold') : t.textFaint}`}>
+          <label key={opt} className={`flex items-center gap-1.5 cursor-pointer text-sm ${opt === value ? (opt === 'Yes' ? `${accentText('emerald', t.light)} font-bold` : 'text-red-400 font-bold') : t.textFaint}`}>
             <input type="radio" name={name} value={opt} checked={value === opt} onChange={() => onChange(opt)}
               className="cursor-pointer" style={{ accentColor: opt === 'Yes' ? '#34d399' : '#f87171' }} />
             {opt}
@@ -686,7 +686,7 @@ function PTOPageContent() {
                         <td className={tdCls} onClick={e => e.stopPropagation()}>
                           <div className="flex gap-1 justify-end">
                             <button type="button" title="Edit" onClick={() => handleEdit(r)} className={`p-1.5 rounded ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-colors`}><Pencil className="h-3 w-3" /></button>
-                            <button type="button" title="Delete" onClick={() => setDeleteTarget(r.id)} className={`p-1.5 rounded ${t.chipBg} hover:bg-rose-500/15 ${t.textFaint} hover:text-rose-400 transition-colors`}><Trash2 className="h-3 w-3" /></button>
+                            <button type="button" title="Delete" onClick={() => setDeleteTarget(r.id)} className={`p-1.5 rounded ${t.chipBg} hover:bg-rose-500/15 ${t.textFaint} hover:${t.light ? 'text-rose-600' : 'text-rose-400'} transition-colors`}><Trash2 className="h-3 w-3" /></button>
                           </div>
                         </td>
                       </tr>

@@ -5,7 +5,7 @@ import { AppShell } from "@/components/app-shell";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
-  useTheme, PageHero, StatusBadge, ViewToggle,
+  useTheme, accentText, PageHero, StatusBadge, ViewToggle,
   useCollapseSection, ProgressBar, ACCENT_HEX, GlowCard, SelectField,
   useConfirm, SearchInput, EmptyState, LoadingState, InfoRow,
   TYPE_SCALE, RADIUS,
@@ -129,7 +129,7 @@ function WorkOrderRow({ workOrder, onClick, isExpanded, onToggle, onEdit }: { wo
               <div className="col-span-2 sm:col-span-4">
                 <div className={`text-[10px] uppercase tracking-wide mb-1 ${t.textFaint}`}>Spares Used</div>
                 <div className="flex flex-wrap gap-1.5">
-                  {workOrder.spares_used.map(s => <span key={s.id} className="bg-amber-500/10 text-amber-400/80 text-[10px] px-2 py-0.5 rounded-full">{s.name} ×{s.quantity} · ${lineTotal(s.quantity, s.unit_cost).toFixed(0)}</span>)}
+                  {workOrder.spares_used.map(s => <span key={s.id} className={`bg-amber-500/10 ${t.light ? 'text-amber-600/80' : 'text-amber-400/80'} text-[10px] px-2 py-0.5 rounded-full`}>{s.name} ×{s.quantity} · ${lineTotal(s.quantity, s.unit_cost).toFixed(0)}</span>)}
                   <span className={`${t.chipBg} ${t.textFaint} text-[10px] px-2 py-0.5 rounded-full font-mono`}>Total: R {workOrder.spares_used.reduce((a, s) => a + lineTotal(s.quantity, s.unit_cost), 0).toFixed(2)}</span>
                 </div>
               </div>

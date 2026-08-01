@@ -10,7 +10,7 @@ import { api } from '@/lib/apiClient';
 import { formatDate } from '@/lib/format';
 import { toast } from 'sonner';
 import {
-  useTheme, PageHero, StatTile, StatusBadge, SearchInput, FormField, FormActions,
+  useTheme, accentText, PageHero, StatTile, StatusBadge, SearchInput, FormField, FormActions,
   useCollapseSection, CenterModal, PrimaryButton, EmptyState, ACCENT_HEX, SelectField, useConfirm,
 } from '@/components/shared/theme';
 import { PredictiveInput } from '@/components/shared/PredictiveInput';
@@ -165,7 +165,7 @@ function ReportDetailModal({ report, open, onClose, onEdit, onDelete }: {
       <div className={`flex gap-2 px-5 py-4 border-t ${t.border}`}>
         <button type="button" onClick={onClose} className={`flex-1 py-2 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border} transition-all`}>Close</button>
         <button type="button" onClick={() => { onClose(); onEdit(report); }} className="flex-1 py-2 rounded-xl text-sm font-medium text-brand-400 hover:text-brand-300 border border-brand-400/25 transition-all">Edit</button>
-        <button type="button" onClick={() => { onClose(); onDelete(report.id); }} className="flex-1 py-2 rounded-xl text-sm font-medium text-rose-400 hover:bg-rose-500/20 border border-rose-500/25 transition-all">Delete</button>
+        <button type="button" onClick={() => { onClose(); onDelete(report.id); }} className={`flex-1 py-2 rounded-xl text-sm font-medium ${accentText('rose', t.light)} hover:bg-rose-500/20 border border-rose-500/25 transition-all`}>Delete</button>
       </div>
     </CenterModal>
   );
@@ -294,13 +294,13 @@ function NearMissContent() {
           <div className={`${t.glass} rounded-2xl px-5 py-3 flex flex-wrap items-center gap-2`}>
             <span className={`text-[10px] uppercase tracking-wider mr-1 flex items-center gap-1 ${t.textFaint}`}><Users className="h-3 w-3" /> By Reporter:</span>
             {Object.entries(stats.byReporter).sort((a, b) => b[1] - a[1]).map(([name, count]) => (
-              <span key={name} className={`inline-flex items-center gap-1 text-[11px] px-2.5 py-0.5 rounded-full ${t.chipBg} ${t.textMuted}`}>{name} <span className="font-bold text-amber-400">{count}</span></span>
+              <span key={name} className={`inline-flex items-center gap-1 text-[11px] px-2.5 py-0.5 rounded-full ${t.chipBg} ${t.textMuted}`}>{name} <span className={`font-bold ${accentText('amber', t.light)}`}>{count}</span></span>
             ))}
           </div>
         )}
 
         <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><AlertTriangle className="h-4 w-4 text-amber-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Near Miss Reports</span><span className={`ml-auto text-xs ${t.textFaint}`}>{filteredReports.length}</span></div>
+          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><AlertTriangle className={`h-4 w-4 ${accentText('amber', t.light)}`} /><span className={`font-semibold text-sm ${t.textPrimary}`}>Near Miss Reports</span><span className={`ml-auto text-xs ${t.textFaint}`}>{filteredReports.length}</span></div>
           {loading ? (
             <div className="flex items-center justify-center py-16"><RefreshCw className={`h-6 w-6 animate-spin ${t.textFaint}`} /></div>
           ) : loadError ? (
@@ -333,7 +333,7 @@ function NearMissContent() {
                             <div className="flex gap-1 justify-end">
                               <button type="button" title={expanded ? 'Collapse' : 'Expand'} onClick={() => toggleRow(report.id)} className={`p-1.5 rounded ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-colors`}>{expanded ? '−' : '+'}</button>
                               <button type="button" title="Edit" onClick={() => { setEditingReport(report); setFormOpen(true); }} className={`p-1.5 rounded ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-colors`}>✎</button>
-                              <button type="button" title="Delete" onClick={() => handleDelete(report.id)} className={`p-1.5 rounded ${t.chipBg} hover:bg-rose-500/15 ${t.textFaint} hover:text-rose-400 transition-colors`}>×</button>
+                              <button type="button" title="Delete" onClick={() => handleDelete(report.id)} className={`p-1.5 rounded ${t.chipBg} hover:bg-rose-500/15 ${t.textFaint} hover:${t.light ? 'text-rose-600' : 'text-rose-400'} transition-colors`}>×</button>
                             </div>
                           </td>
                         </tr>

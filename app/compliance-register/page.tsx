@@ -8,7 +8,7 @@ import { ShieldCheck, Plus, X, RefreshCw } from '@/components/shared/theme';
 import { useModuleData } from '@/lib/useModuleData';
 import { daysUntil } from '@/lib/dates';
 import { formatDate } from '@/lib/format';
-import { useTheme, PageHero, StatTile, StatusBadge, FormField, PrimaryButton, ACCENT_HEX } from '@/components/shared/theme';
+import { useTheme, accentText, PageHero, StatTile, StatusBadge, FormField, PrimaryButton, ACCENT_HEX } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
 import type { Status, ComplianceItem } from './types';
@@ -57,7 +57,7 @@ function ComplianceRegisterContent() {
 
   if (error) return (
     <main className="max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8">
-      <div className="rounded-xl bg-rose-500/15 text-rose-400 px-5 py-4 text-sm">{error}</div>
+      <div className={`rounded-xl bg-rose-500/15 ${accentText('rose', t.light)} px-5 py-4 text-sm`}>{error}</div>
     </main>
   );
 
@@ -143,7 +143,7 @@ function ComplianceRegisterContent() {
                     <td className={`px-4 py-3 font-mono text-xs ${t.textFaint}`}>{item.certificate_no}</td>
                     <td className={`px-4 py-3 ${t.textMuted}`}>{item.expiry_date}</td>
                     <td className="px-4 py-3">
-                      <span className={`font-semibold text-xs ${days < 0 ? 'text-rose-400' : days <= 30 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                      <span className={`font-semibold text-xs ${days < 0 ? accentText('rose', t.light) : days <= 30 ? accentText('amber', t.light) : accentText('emerald', t.light)}`}>
                         {days < 0 ? `${Math.abs(days)}d ago` : `${days}d`}
                       </span>
                     </td>

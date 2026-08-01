@@ -231,6 +231,24 @@ export const ACCENT_HEX: Record<Accent, string> = {
   emerald: '#059669', cyan: '#0891b2', violet: '#9333ea',
 };
 
+// ─── Light-aware accent text ────────────────────────────────────────────────
+// Pages hardcode `text-{color}-400` for small inline accents (status icons,
+// indicators) — those shades are tuned for dark glass and read pale/blunt on
+// white. `accentText(color, t.light)` swaps to a darker shade in light mode
+// instead of each page hand-rolling its own `light ? '-600' : '-400'` ternary.
+export const ACCENT_TEXT: Record<Accent | 'rose' | 'purple', { light: string; dark: string }> = {
+  blue:    { light: 'text-blue-600',    dark: 'text-blue-400' },
+  amber:   { light: 'text-amber-600',   dark: 'text-amber-400' },
+  indigo:  { light: 'text-indigo-600',  dark: 'text-indigo-400' },
+  emerald: { light: 'text-emerald-600', dark: 'text-emerald-400' },
+  cyan:    { light: 'text-cyan-600',    dark: 'text-cyan-400' },
+  violet:  { light: 'text-violet-600',  dark: 'text-violet-400' },
+  rose:    { light: 'text-rose-600',    dark: 'text-rose-400' },
+  purple:  { light: 'text-purple-600',  dark: 'text-purple-400' },
+};
+export const accentText = (c: keyof typeof ACCENT_TEXT, light: boolean) =>
+  ACCENT_TEXT[c][light ? 'light' : 'dark'];
+
 // ─── Type scale ──────────────────────────────────────────────────────────────
 // Named steps mapped to the exact pixel values already in use on the homepage
 // (see MyOffice-Design-System.docx Section 2). Use these instead of guessing a

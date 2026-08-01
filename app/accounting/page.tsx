@@ -16,7 +16,7 @@ import {
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
 import {
-  useTheme, PageHero, StatTile, GlowCard, ACCENT_HEX, PrimaryButton, FormField,
+  useTheme, accentText, PageHero, StatTile, GlowCard, ACCENT_HEX, PrimaryButton, FormField,
   SelectField, EmptyState,
 } from '@/components/shared/theme';
 import {
@@ -397,7 +397,7 @@ function TransactionsTab({ data }: { data: ReturnType<typeof useAccountingData> 
               <span className={`text-sm font-semibold ${t.textPrimary}`}>{formatCurrency(tx.amount)}</span>
               <button type="button" onClick={() => generateReceiptPdf(tx)} title="Download Receipt" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.textFaint} ${t.hoverText} ${t.hoverBg}`}><Download className="h-4 w-4" /></button>
               <button type="button" onClick={() => startEdit(tx)} title="Edit" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.textFaint} ${t.hoverText} ${t.hoverBg}`}><Edit className="h-4 w-4" /></button>
-              <button type="button" onClick={() => handleDelete(tx.id)} title="Delete" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.textFaint} hover:text-rose-400 ${t.hoverBg}`}><Trash2 className="h-4 w-4" /></button>
+              <button type="button" onClick={() => handleDelete(tx.id)} title="Delete" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.textFaint} hover:${t.light ? 'text-rose-600' : 'text-rose-400'} ${t.hoverBg}`}><Trash2 className="h-4 w-4" /></button>
             </div>
           ))}
         </div>
@@ -501,7 +501,7 @@ function ExpensesTab({ data }: { data: ReturnType<typeof useAccountingData> }) {
               </div>
               <span className={`text-sm font-semibold ${t.textPrimary}`}>{formatCurrency(exp.amount)}</span>
               <button type="button" onClick={() => startEdit(exp)} title="Edit" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.textFaint} ${t.hoverText} ${t.hoverBg}`}><Edit className="h-4 w-4" /></button>
-              <button type="button" onClick={() => handleDelete(exp.id)} title="Delete" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.textFaint} hover:text-rose-400 ${t.hoverBg}`}><Trash2 className="h-4 w-4" /></button>
+              <button type="button" onClick={() => handleDelete(exp.id)} title="Delete" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.textFaint} hover:${t.light ? 'text-rose-600' : 'text-rose-400'} ${t.hoverBg}`}><Trash2 className="h-4 w-4" /></button>
             </div>
           ))}
         </div>
@@ -589,7 +589,7 @@ function AssetsLiabilitiesTab({ data }: { data: ReturnType<typeof useAccountingD
                     <p className={`text-[10px] ${t.textFaint}`}>{a.category}</p>
                   </div>
                   <span className={`text-sm font-medium ${t.textPrimary}`}>{formatCurrency(a.value)}</span>
-                  <button type="button" onClick={() => removeAsset(a.id)} className={`h-7 w-7 flex items-center justify-center rounded ${t.textFaint} hover:text-rose-400`}><Trash2 className="h-3.5 w-3.5" /></button>
+                  <button type="button" onClick={() => removeAsset(a.id)} className={`h-7 w-7 flex items-center justify-center rounded ${t.textFaint} hover:${t.light ? 'text-rose-600' : 'text-rose-400'}`}><Trash2 className="h-3.5 w-3.5" /></button>
                 </div>
               ))}
             </div>
@@ -616,12 +616,12 @@ function AssetsLiabilitiesTab({ data }: { data: ReturnType<typeof useAccountingD
                   <div key={l.id} className={`flex items-center gap-2 px-3 py-2 rounded-lg ${overdue ? 'bg-rose-500/10' : dueSoon ? 'bg-amber-500/10' : t.glassSoft}`}>
                     <div className="min-w-0 flex-1">
                       <p className={`text-sm truncate ${t.textPrimary}`}>{l.name}</p>
-                      <p className={`text-[10px] ${overdue ? 'text-rose-400' : dueSoon ? 'text-amber-400' : t.textFaint}`}>
+                      <p className={`text-[10px] ${overdue ? accentText('rose', t.light) : dueSoon ? accentText('amber', t.light) : t.textFaint}`}>
                         {l.category}{l.dueDate ? ` · due ${fmtDate(l.dueDate)}${overdue ? ' (overdue)' : dueSoon ? ' (soon)' : ''}` : ''}
                       </p>
                     </div>
                     <span className={`text-sm font-medium ${t.textPrimary}`}>{formatCurrency(l.amount)}</span>
-                    <button type="button" onClick={() => removeLiability(l.id)} className={`h-7 w-7 flex items-center justify-center rounded ${t.textFaint} hover:text-rose-400`}><Trash2 className="h-3.5 w-3.5" /></button>
+                    <button type="button" onClick={() => removeLiability(l.id)} className={`h-7 w-7 flex items-center justify-center rounded ${t.textFaint} hover:${t.light ? 'text-rose-600' : 'text-rose-400'}`}><Trash2 className="h-3.5 w-3.5" /></button>
                   </div>
                 );
               })}

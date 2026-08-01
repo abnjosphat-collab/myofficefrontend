@@ -6,7 +6,7 @@ import { formatDate } from '@/lib/format';
 import { formatCurrency, lineTotal as calcLineTotal } from '@/components/shared/utils';
 import { api } from '@/lib/apiClient';
 import { EXPORT_BRAND_RGB } from '@/lib/exportUtils';
-import { useTheme, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle, FormField, FormActions, CenterModal, ACCENT_HEX, GlowCard, SelectField, GroupSection, staggerContainer, fadeUp, Combobox, type ComboOption as SharedComboOption } from '@/components/shared/theme';
+import { useTheme, accentText, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle, FormField, FormActions, CenterModal, ACCENT_HEX, GlowCard, SelectField, GroupSection, staggerContainer, fadeUp, Combobox, type ComboOption as SharedComboOption } from '@/components/shared/theme';
 import { PredictiveInput } from '@/components/shared/PredictiveInput';
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
@@ -147,14 +147,14 @@ const SpareCard = React.memo(({ spare, isFavorite, isExpanded, onEdit, onDelete,
             <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
               <span className={`font-mono font-bold text-sm ${t.textPrimary}`}>{spare.stock_code}</span>
               {spare.safety_stock && <StatusBadge color={ACCENT_HEX.blue} label="Safety" />}
-              {isFavorite && <Star className="h-3 w-3 fill-amber-400 text-amber-400 flex-shrink-0" />}
+              {isFavorite && <Star className={`h-3 w-3 fill-amber-400 ${accentText('amber', t.light)} flex-shrink-0`} />}
             </div>
             <div className={`text-xs line-clamp-2 leading-snug ${t.textMuted}`}>{spare.description}</div>
             {spare.notes && <div className={`text-[11px] line-clamp-1 mt-0.5 italic ${t.textFaint}`}>{spare.notes}</div>}
           </div>
           <div className="flex items-center gap-0.5 flex-shrink-0">
-            <button title={isFavorite ? 'Unfavourite' : 'Favourite'} onClick={() => onFavorite(spare.id)} className={`h-6 w-6 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-amber-400 transition-all`}>
-              <Star className={`h-3 w-3 ${isFavorite ? 'fill-amber-400 text-amber-400' : ''}`} />
+            <button title={isFavorite ? 'Unfavourite' : 'Favourite'} onClick={() => onFavorite(spare.id)} className={`h-6 w-6 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:${t.light ? 'text-amber-600' : 'text-amber-400'} transition-all`}>
+              <Star className={`h-3 w-3 ${isFavorite ? `fill-amber-400 ${accentText('amber', t.light)}` : ''}`} />
             </button>
             <button title={isExpanded ? 'Collapse' : 'Expand'} onClick={onToggleExpand} className={`h-6 w-6 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} transition-all`}>
               {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
@@ -947,7 +947,7 @@ function SparesPageContent() {
                 <span className="font-semibold uppercase tracking-wider">Sort:</span>
                 <SortBtn field="stock_code" label="Code" /><SortBtn field="description" label="Description" /><SortBtn field="unit_price" label="Price" /><SortBtn field="current_quantity" label="Stock" /><SortBtn field="priority" label="Priority" /><SortBtn field="category" label="Category" />
               </div>
-              <button onClick={() => setShowFavOnly(v => !v)} className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs transition-all ${showFavOnly ? 'bg-amber-500/15 text-amber-500' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}><Star className={`h-3 w-3 ${showFavOnly ? 'fill-amber-400 text-amber-400' : ''}`} /> Favorites{favorites.size > 0 && ` (${favorites.size})`}</button>
+              <button onClick={() => setShowFavOnly(v => !v)} className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs transition-all ${showFavOnly ? 'bg-amber-500/15 text-amber-500' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}><Star className={`h-3 w-3 ${showFavOnly ? `fill-amber-400 ${accentText('amber', t.light)}` : ''}`} /> Favorites{favorites.size > 0 && ` (${favorites.size})`}</button>
             </div>
           </div>
         )}

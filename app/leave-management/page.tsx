@@ -13,7 +13,7 @@ import { toast } from 'sonner';
 import { jsPDF } from 'jspdf';
 import {
   useTheme, PageHero, StatusBadge, SearchInput, ProgressBar, FormField, ACCENT_HEX,
-  useCollapseSection, EmptyState, PrimaryButton, SelectField,
+  useCollapseSection, EmptyState, PrimaryButton, SelectField, accentText,
 } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
@@ -256,8 +256,8 @@ function LeaveManagementContent() {
       >
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <div className="text-center"><div className={`text-2xl font-bold ${t.textPrimary}`}>{stats.total}</div><div className={`text-xs mt-0.5 ${t.textFaint}`}>Total Requests</div></div>
-          <div className="text-center"><div className="text-2xl font-bold text-amber-400">{stats.pending}</div><div className={`text-xs mt-0.5 ${t.textFaint}`}>Pending</div></div>
-          <div className="text-center"><div className="text-2xl font-bold text-emerald-400">{stats.approved}</div><div className={`text-xs mt-0.5 ${t.textFaint}`}>Approved</div></div>
+          <div className="text-center"><div className={`text-2xl font-bold ${accentText('amber', t.light)}`}>{stats.pending}</div><div className={`text-xs mt-0.5 ${t.textFaint}`}>Pending</div></div>
+          <div className="text-center"><div className={`text-2xl font-bold ${accentText('emerald', t.light)}`}>{stats.approved}</div><div className={`text-xs mt-0.5 ${t.textFaint}`}>Approved</div></div>
           <div className="text-center"><div className="text-2xl font-bold text-red-400">{stats.rejected}</div><div className={`text-xs mt-0.5 ${t.textFaint}`}>Rejected</div></div>
         </div>
       </PageHero>
@@ -391,11 +391,11 @@ function LeaveManagementContent() {
                       <button type="button" title="Download PDF" onClick={() => generateLeavePDF(r)} className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-colors`}><Download className="h-3.5 w-3.5" /></button>
                       {r.status === 'pending' && (
                         <>
-                          <button type="button" title="Approve" onClick={() => approveRequest(r.id)} className="h-7 w-7 flex items-center justify-center rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 transition-colors"><CheckCircle className="h-3.5 w-3.5" /></button>
-                          <button type="button" title="Reject" onClick={() => rejectRequest(r.id)} className="h-7 w-7 flex items-center justify-center rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 transition-colors"><XCircle className="h-3.5 w-3.5" /></button>
+                          <button type="button" title="Approve" onClick={() => approveRequest(r.id)} className={`h-7 w-7 flex items-center justify-center rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 ${accentText('emerald', t.light)} transition-colors`}><CheckCircle className="h-3.5 w-3.5" /></button>
+                          <button type="button" title="Reject" onClick={() => rejectRequest(r.id)} className={`h-7 w-7 flex items-center justify-center rounded-lg bg-rose-500/10 hover:bg-rose-500/20 ${accentText('rose', t.light)} transition-colors`}><XCircle className="h-3.5 w-3.5" /></button>
                         </>
                       )}
-                      <button type="button" title="Delete" onClick={() => deleteRequest(r.id)} className="h-7 w-7 flex items-center justify-center rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 transition-colors"><Trash2 className="h-3.5 w-3.5" /></button>
+                      <button type="button" title="Delete" onClick={() => deleteRequest(r.id)} className={`h-7 w-7 flex items-center justify-center rounded-lg bg-rose-500/10 hover:bg-rose-500/20 ${accentText('rose', t.light)} transition-colors`}><Trash2 className="h-3.5 w-3.5" /></button>
                     </div>
                   </div>
                 );
@@ -424,11 +424,11 @@ function LeaveManagementContent() {
                       <button type="button" title="Download PDF" onClick={() => generateLeavePDF(r)} className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} transition-colors`}><Download className="h-3.5 w-3.5" /></button>
                       {r.status === 'pending' && (
                         <>
-                          <button type="button" title="Approve" onClick={() => approveRequest(r.id)} className="h-7 w-7 flex items-center justify-center rounded-lg hover:bg-emerald-500/15 text-emerald-400 transition-colors"><CheckCircle className="h-3.5 w-3.5" /></button>
-                          <button type="button" title="Reject" onClick={() => rejectRequest(r.id)} className="h-7 w-7 flex items-center justify-center rounded-lg hover:bg-rose-500/15 text-rose-400 transition-colors"><XCircle className="h-3.5 w-3.5" /></button>
+                          <button type="button" title="Approve" onClick={() => approveRequest(r.id)} className={`h-7 w-7 flex items-center justify-center rounded-lg hover:bg-emerald-500/15 ${accentText('emerald', t.light)} transition-colors`}><CheckCircle className="h-3.5 w-3.5" /></button>
+                          <button type="button" title="Reject" onClick={() => rejectRequest(r.id)} className={`h-7 w-7 flex items-center justify-center rounded-lg hover:bg-rose-500/15 ${accentText('rose', t.light)} transition-colors`}><XCircle className="h-3.5 w-3.5" /></button>
                         </>
                       )}
-                      <button type="button" title="Delete" onClick={() => deleteRequest(r.id)} className="h-7 w-7 flex items-center justify-center rounded-lg hover:bg-rose-500/15 text-rose-400 transition-colors ml-auto"><Trash2 className="h-3.5 w-3.5" /></button>
+                      <button type="button" title="Delete" onClick={() => deleteRequest(r.id)} className={`h-7 w-7 flex items-center justify-center rounded-lg hover:bg-rose-500/15 ${accentText('rose', t.light)} transition-colors ml-auto`}><Trash2 className="h-3.5 w-3.5" /></button>
                     </div>
                   </div>
                 );
@@ -452,9 +452,9 @@ function LeaveManagementContent() {
                       <div><p className={`font-semibold text-sm ${t.textPrimary}`}>{emp.name}</p><p className={`text-xs ${t.textFaint}`}>{emp.role} · {emp.department}</p></div>
                     </div>
                     <div className="flex gap-4 text-center">
-                      <div><p className="text-lg font-bold text-emerald-400">{s?.annualRemaining ?? 0}</p><p className={`text-[10px] ${t.textFaint}`}>Annual left</p></div>
+                      <div><p className={`text-lg font-bold ${accentText('emerald', t.light)}`}>{s?.annualRemaining ?? 0}</p><p className={`text-[10px] ${t.textFaint}`}>Annual left</p></div>
                       <div><p className="text-lg font-bold text-brand-400">{s?.sickUsed ?? 0}</p><p className={`text-[10px] ${t.textFaint}`}>Sick used</p></div>
-                      <div><p className="text-lg font-bold text-purple-400">{s?.personalUsed ?? 0}</p><p className={`text-[10px] ${t.textFaint}`}>Personal</p></div>
+                      <div><p className={`text-lg font-bold ${accentText('purple', t.light)}`}>{s?.personalUsed ?? 0}</p><p className={`text-[10px] ${t.textFaint}`}>Personal</p></div>
                     </div>
                   </div>
                   <div className="space-y-1">
@@ -471,9 +471,9 @@ function LeaveManagementContent() {
       {tab === 'history' && (
         <div className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className={`${t.glass} rounded-xl p-4`}><div className="flex items-center gap-1.5 mb-1"><TrendingUp className="h-3.5 w-3.5 text-emerald-400" /><span className={`text-xs ${t.textFaint}`}>Approval Rate</span></div><div className="text-xl font-bold text-emerald-400">78%</div></div>
+            <div className={`${t.glass} rounded-xl p-4`}><div className="flex items-center gap-1.5 mb-1"><TrendingUp className={`h-3.5 w-3.5 ${accentText('emerald', t.light)}`} /><span className={`text-xs ${t.textFaint}`}>Approval Rate</span></div><div className={`text-xl font-bold ${accentText('emerald', t.light)}`}>78%</div></div>
             <div className={`${t.glass} rounded-xl p-4`}><div className="flex items-center gap-1.5 mb-1"><CalendarDays className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs ${t.textFaint}`}>Avg. Days/Employee</span></div><div className={`text-xl font-bold ${t.textPrimary}`}>42</div></div>
-            <div className={`${t.glass} rounded-xl p-4`}><div className="flex items-center gap-1.5 mb-1"><BarChart3 className="h-3.5 w-3.5 text-amber-400" /><span className={`text-xs ${t.textFaint}`}>Sick Leave Usage</span></div><div className="text-xl font-bold text-amber-400">15%</div></div>
+            <div className={`${t.glass} rounded-xl p-4`}><div className="flex items-center gap-1.5 mb-1"><BarChart3 className={`h-3.5 w-3.5 ${accentText('amber', t.light)}`} /><span className={`text-xs ${t.textFaint}`}>Sick Leave Usage</span></div><div className={`text-xl font-bold ${accentText('amber', t.light)}`}>15%</div></div>
           </div>
           <Panel icon={History} title="Recent Activity" actions={
             <button type="button" onClick={() => generateTeamReportPDF(teamStats)} className={`flex items-center gap-1.5 h-7 px-2.5 rounded-lg text-xs font-medium ${t.chipBg} ${t.textMuted} ${t.hoverBg} transition-colors`}><Download className="h-3.5 w-3.5" /> Export Report</button>

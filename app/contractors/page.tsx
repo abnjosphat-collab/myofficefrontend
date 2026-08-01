@@ -6,7 +6,7 @@ import { motion } from 'framer-motion';
 import { AppShell } from '@/components/app-shell';
 import { HardHat, Star, ChevronDown, ChevronUp, Plus, X, RefreshCw, LayoutGrid, List } from '@/components/shared/theme';
 import {
-  useTheme, PageHero, StatTile, StatusBadge, ProgressBar, FormField, PrimaryButton, GlowCard, SelectField,
+  useTheme, accentText, PageHero, StatTile, StatusBadge, ProgressBar, FormField, PrimaryButton, GlowCard, SelectField,
   ViewToggle, GroupSection, RecordCard, ACCENT_HEX, staggerContainer, fadeUp, InfoRow,
 } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
@@ -18,7 +18,8 @@ const TRADES = ['Mechanical', 'Electrical', 'Civil', 'OEM Specialist', 'Instrume
 const daysUntil = (d: string) => Math.round((new Date(d).getTime() - Date.now()) / 86400000);
 
 function Stars({ n }: { n: number }) {
-  return <div className="flex gap-0.5">{[1, 2, 3, 4, 5].map(i => <Star key={i} className={`w-3.5 h-3.5 ${i <= n ? 'text-amber-400 fill-amber-400' : 'text-slate-400/40'}`} />)}</div>;
+  const t = useTheme();
+  return <div className="flex gap-0.5">{[1, 2, 3, 4, 5].map(i => <Star key={i} className={`w-3.5 h-3.5 ${i <= n ? `${accentText('amber', t.light)} fill-amber-400` : 'text-slate-400/40'}`} />)}</div>;
 }
 
 // Palette for trades — drawn from the shared ACCENT_HEX brand palette (not

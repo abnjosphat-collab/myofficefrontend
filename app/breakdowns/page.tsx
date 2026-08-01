@@ -21,7 +21,7 @@ import { exportFilename } from '@/lib/exportUtils';
 import { lineTotal } from '@/components/shared/utils';
 import {
   useTheme, PageHero, StatTile, StatusBadge, ViewToggle,
-  FormField, FormActions, useCollapseSection, CenterModal, ACCENT_HEX, GlowCard, SelectField, AutofillInput,
+  FormField, FormActions, useCollapseSection, CenterModal, ACCENT_HEX, GlowCard, SelectField, AutofillInput, accentText,
 } from '@/components/shared/theme';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -141,7 +141,7 @@ function BreakdownCard({ breakdown, onView, onEdit, onDelete, isExpanded, onTogg
 
         <div className="grid grid-cols-2 gap-2 mb-3">
           <div className={`${t.chipBg} rounded-xl p-2 text-center`}><div className="text-sm font-semibold text-brand-400">{downtime}</div><div className={`text-[10px] ${t.textFaint}`}>Downtime</div></div>
-          <div className={`${t.chipBg} rounded-xl p-2 text-center`}><div className="text-sm font-semibold text-emerald-400">${cost.toFixed(0)}</div><div className={`text-[10px] ${t.textFaint}`}>Cost</div></div>
+          <div className={`${t.chipBg} rounded-xl p-2 text-center`}><div className={`text-sm font-semibold ${accentText('emerald', t.light)}`}>${cost.toFixed(0)}</div><div className={`text-[10px] ${t.textFaint}`}>Cost</div></div>
         </div>
 
         {isExpanded && (
@@ -161,7 +161,7 @@ function BreakdownCard({ breakdown, onView, onEdit, onDelete, isExpanded, onTogg
           <div className={`flex items-center gap-1 text-xs ${t.textFaint}`}><Calendar className="h-3 w-3" />{formatDate(breakdown.breakdown_date)}</div>
           <div className="flex items-center gap-1">
             <button type="button" title="View" onClick={() => onView(breakdown)} className={`h-7 w-7 flex items-center justify-center rounded-md ${t.chipBg} ${t.textFaint} hover:text-brand-400`}><Eye className="h-3.5 w-3.5" /></button>
-            <button type="button" title="Edit" onClick={() => onEdit(breakdown)} className={`h-7 w-7 flex items-center justify-center rounded-md ${t.chipBg} ${t.textFaint} hover:text-amber-400`}><Edit className="h-3.5 w-3.5" /></button>
+            <button type="button" title="Edit" onClick={() => onEdit(breakdown)} className={`h-7 w-7 flex items-center justify-center rounded-md ${t.chipBg} ${t.textFaint} hover:${t.light ? 'text-amber-600' : 'text-amber-400'}`}><Edit className="h-3.5 w-3.5" /></button>
             <button type="button" title="Delete" onClick={() => onDelete(breakdown)} className={`h-7 w-7 flex items-center justify-center rounded-md ${t.chipBg} ${t.textFaint} hover:text-rose-500`}><Trash2 className="h-3.5 w-3.5" /></button>
           </div>
         </div>
@@ -238,11 +238,11 @@ function BreakdownTable({ breakdowns, onView, onEdit, onDelete, sortField, sortD
                   <td className="py-2.5 px-3"><StatusBadge color={tMeta.color} label={tMeta.name} /></td>
                   <td className={`py-2.5 px-3 whitespace-nowrap ${t.textMuted}`}>{bd.artisan_name || '—'}</td>
                   <td className="py-2.5 px-3"><span className="flex items-center gap-1 text-brand-400 font-medium"><Clock className="h-3 w-3" />{downtime}</span></td>
-                  <td className="py-2.5 px-3 text-emerald-400 font-medium">${cost.toFixed(0)}</td>
+                  <td className={`py-2.5 px-3 ${accentText('emerald', t.light)} font-medium`}>${cost.toFixed(0)}</td>
                   <td className="py-2.5 px-3">
                     <div className="flex items-center justify-end gap-1">
                       <button type="button" title="View" onClick={() => onView(bd)} className={`h-6 w-6 flex items-center justify-center rounded ${t.textFaint} hover:text-brand-400`}><Eye className="h-3.5 w-3.5" /></button>
-                      <button type="button" title="Edit" onClick={() => onEdit(bd)} className={`h-6 w-6 flex items-center justify-center rounded ${t.textFaint} hover:text-amber-400`}><Edit className="h-3.5 w-3.5" /></button>
+                      <button type="button" title="Edit" onClick={() => onEdit(bd)} className={`h-6 w-6 flex items-center justify-center rounded ${t.textFaint} hover:${t.light ? 'text-amber-600' : 'text-amber-400'}`}><Edit className="h-3.5 w-3.5" /></button>
                       <button type="button" title="Delete" onClick={() => onDelete(bd)} className={`h-6 w-6 flex items-center justify-center rounded ${t.textFaint} hover:text-rose-500`}><Trash2 className="h-3.5 w-3.5" /></button>
                     </div>
                   </td>
@@ -332,12 +332,12 @@ function DetailsModal({ breakdown, isOpen, onClose, onEdit, onDelete }: {
 
         {Array.isArray(breakdown.spares_used) && breakdown.spares_used.length > 0 && (
           <div>
-            <div className="flex items-center justify-between mb-2"><span className={`text-[10px] font-semibold uppercase tracking-wider ${t.textFaint}`}>Spare Parts Used</span><span className="text-xs font-semibold text-emerald-400">Total: ${cost.toFixed(2)}</span></div>
+            <div className="flex items-center justify-between mb-2"><span className={`text-[10px] font-semibold uppercase tracking-wider ${t.textFaint}`}>Spare Parts Used</span><span className={`text-xs font-semibold ${accentText('emerald', t.light)}`}>Total: ${cost.toFixed(2)}</span></div>
             <div className="space-y-1.5">
               {(breakdown.spares_used as SpareUsed[]).map((spare, i) => (
                 <div key={i} className={`flex justify-between items-center ${t.chipBg} rounded-xl px-3 py-2 text-sm`}>
                   <span className={t.textMuted}>{spare.name} ×{spare.quantity}</span>
-                  <span className="text-emerald-400 font-medium">${spare.total_cost?.toFixed(2)}</span>
+                  <span className={`${accentText('emerald', t.light)} font-medium`}>${spare.total_cost?.toFixed(2)}</span>
                 </div>
               ))}
             </div>
@@ -499,7 +499,7 @@ function FormModal({ isOpen, onClose, onSubmit, initialData, mode = 'create' }: 
                   <div key={i} className={`flex justify-between items-center ${t.chipBg} rounded-xl px-3 py-2 text-sm`}>
                     <div><span className={`font-medium ${t.textMuted}`}>{s.name}</span>{s.part_number && <span className={`ml-2 text-xs ${t.textFaint}`}>({s.part_number})</span>}<span className={`ml-2 text-xs ${t.textFaint}`}>{s.quantity} × ${s.unit_price}</span></div>
                     <div className="flex items-center gap-2">
-                      <span className="text-emerald-400 font-semibold">${lineTotal(s.quantity, s.unit_price).toFixed(2)}</span>
+                      <span className={`${accentText('emerald', t.light)} font-semibold`}>${lineTotal(s.quantity, s.unit_price).toFixed(2)}</span>
                       <button type="button" title="Remove spare part" onClick={() => removeSpare(i)} className="h-6 w-6 flex items-center justify-center rounded text-rose-500/60 hover:text-rose-500"><Trash2 className="h-3 w-3" /></button>
                     </div>
                   </div>
@@ -704,7 +704,7 @@ function BreakdownsPageContent() {
             <div className={`flex items-center justify-center py-16 gap-2 ${t.textFaint}`}><Loader2 className="h-5 w-5 animate-spin" /><span className="text-sm">Loading breakdowns…</span></div>
           ) : loadError ? (
             <div className="text-center py-16">
-              <div className={`mx-auto w-14 h-14 rounded-full ${t.chipBg} flex items-center justify-center mb-4`}><AlertTriangle className="h-6 w-6 text-rose-400/70" /></div>
+              <div className={`mx-auto w-14 h-14 rounded-full ${t.chipBg} flex items-center justify-center mb-4`}><AlertTriangle className={`h-6 w-6 ${t.light ? 'text-rose-600/70' : 'text-rose-400/70'}`} /></div>
               <p className={`text-sm font-medium ${t.textMuted}`}>Could not load breakdowns</p>
               <p className={`text-xs mt-1 mb-4 ${t.textFaint}`}>{loadError}</p>
               <button type="button" onClick={() => loadBreakdowns()} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110"><Loader2 className="h-4 w-4" />Try again</button>
@@ -809,7 +809,7 @@ function AnalyticsView({ filters, startDate, endDate }: { filters: Filters; star
       {activeTab === 'overview' && (
         <div className="space-y-4">
           <div className={`${t.glass} rounded-2xl p-4`}>
-            <h3 className={`flex items-center gap-2 text-sm font-semibold mb-3 ${t.textPrimary}`}><TrendingUp className="h-4 w-4 text-emerald-400" /> Monthly Breakdown Trends</h3>
+            <h3 className={`flex items-center gap-2 text-sm font-semibold mb-3 ${t.textPrimary}`}><TrendingUp className={`h-4 w-4 ${accentText('emerald', t.light)}`} /> Monthly Breakdown Trends</h3>
             {data.monthly_trends.length > 0 ? (
               <ResponsiveContainer width="100%" height={280}>
                 <ReAreaChart data={data.monthly_trends} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
@@ -841,7 +841,7 @@ function AnalyticsView({ filters, startDate, endDate }: { filters: Filters; star
               ) : <p className={`text-xs text-center py-8 ${t.textFaint}`}>No data</p>}
             </div>
             <div className={`${t.glass} rounded-2xl p-4`}>
-              <h3 className={`flex items-center gap-2 text-sm font-semibold mb-3 ${t.textPrimary}`}><PieChartIcon className="h-4 w-4 text-violet-400" /> Breakdown Types</h3>
+              <h3 className={`flex items-center gap-2 text-sm font-semibold mb-3 ${t.textPrimary}`}><PieChartIcon className={`h-4 w-4 ${accentText('violet', t.light)}`} /> Breakdown Types</h3>
               {data.breakdown_type_distribution.length > 0 ? (
                 <ResponsiveContainer width="100%" height={260}>
                   <RePieChart>
@@ -860,7 +860,7 @@ function AnalyticsView({ filters, startDate, endDate }: { filters: Filters; star
 
       {activeTab === 'heatmap' && (
         <div className={`${t.glass} rounded-2xl p-4`}>
-          <h3 className={`flex items-center gap-2 text-sm font-semibold ${t.textPrimary}`}><Activity className="h-4 w-4 text-violet-400" /> Hour × Day Heatmap</h3>
+          <h3 className={`flex items-center gap-2 text-sm font-semibold ${t.textPrimary}`}><Activity className={`h-4 w-4 ${accentText('violet', t.light)}`} /> Hour × Day Heatmap</h3>
           <p className={`text-xs mb-3 ${t.textFaint}`}>Darker = more breakdowns</p>
           <div className="overflow-x-auto">
             <div className="min-w-[600px]">

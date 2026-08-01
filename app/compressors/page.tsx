@@ -18,7 +18,7 @@ import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButto
 import { exportFilename } from '@/lib/exportUtils';
 import {
   useTheme, PageHero, StatTile, StatusBadge, ViewToggle,
-  FormField, useCollapseSection, CenterModal, ProgressBar, ACCENT_HEX, GlowCard, SelectField,
+  FormField, useCollapseSection, CenterModal, ProgressBar, ACCENT_HEX, GlowCard, SelectField, accentText,
 } from '@/components/shared/theme';
 import type {
   AddCompressorFormData, Compressor, CompressorInput, Filters,
@@ -167,7 +167,7 @@ function CompressorReadingsSystem() {
             <div>
               <div className={`font-semibold text-sm flex items-center gap-1.5 ${t.textPrimary}`}>
                 {compressor.name}
-                {si?.isUrgent && <span title={`Service due in ${si.daysRemaining} days`}><AlertTriangle className="h-3.5 w-3.5 text-rose-400" /></span>}
+                {si?.isUrgent && <span title={`Service due in ${si.daysRemaining} days`}><AlertTriangle className={`h-3.5 w-3.5 ${accentText('rose', t.light)}`} /></span>}
               </div>
               <div className={`text-xs ${t.textFaint}`}>{compressor.model} · {compressor.location}</div>
             </div>
@@ -222,7 +222,7 @@ function CompressorReadingsSystem() {
                   <div className={`text-[10px] ${t.textFaint}`}>({prevInfo.running.toFixed(1)} → {inp.totalRunning || 0}h)</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-xl font-bold text-emerald-400">{dailyLoaded.toFixed(1)}h</div>
+                  <div className={`text-xl font-bold ${accentText('emerald', t.light)}`}>{dailyLoaded.toFixed(1)}h</div>
                   <div className={`text-[10px] ${t.textFaint}`}>Loaded Today</div>
                   <div className={`text-[10px] ${t.textFaint}`}>({prevInfo.loaded.toFixed(1)} → {inp.totalLoaded || 0}h)</div>
                 </div>
@@ -539,7 +539,7 @@ function CompressorReadingsSystem() {
                   </GlowCard>
                 ))}
                 {upcomingServices.length === 0 && (
-                  <div className="text-center py-10"><CheckCheck className="h-10 w-10 text-emerald-400/50 mx-auto mb-3" /><p className={`text-sm font-medium ${t.textFaint}`}>All compressors up to date</p></div>
+                  <div className="text-center py-10"><CheckCheck className={`h-10 w-10 ${t.light ? 'text-emerald-600/50' : 'text-emerald-400/50'} mx-auto mb-3`} /><p className={`text-sm font-medium ${t.textFaint}`}>All compressors up to date</p></div>
                 )}
               </div>
 
@@ -560,7 +560,7 @@ function CompressorReadingsSystem() {
                   <div className="p-3 space-y-2">
                     <button type="button" onClick={generateCSVReport} className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm ${t.textMuted} ${t.chipBg} ${t.hoverBg} transition-all`}><FileText className="h-4 w-4 text-brand-400" />Export to CSV</button>
                     <label className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm ${t.textMuted} ${t.chipBg} ${t.hoverBg} transition-all cursor-pointer`}>
-                      <Upload className="h-4 w-4 text-amber-400" />Import from CSV
+                      <Upload className={`h-4 w-4 ${accentText('amber', t.light)}`} />Import from CSV
                       <input type="file" accept=".csv" aria-label="Import CSV file" className="hidden" onChange={async e => { const f = e.target.files?.[0]; if (f) { try { await importData(f); } catch { /* handled */ } } }} />
                     </label>
                   </div>
@@ -668,9 +668,9 @@ function CompressorReadingsSystem() {
                         const needsAtt = analyticsData.performanceMetrics.filter(m => m.downtime_percentage > 20 || m.avg_efficiency < 40);
                         return (
                           <>
-                            {best && <div className="flex items-center gap-2 p-3 rounded-xl bg-emerald-500/10"><TrendingUp className="h-4 w-4 text-emerald-400 shrink-0" /><div><div className="text-xs font-semibold text-emerald-400">Best Performer</div><div className={`text-xs ${t.textFaint}`}>{best.compressor_name} ({best.avg_efficiency}%)</div></div></div>}
+                            {best && <div className="flex items-center gap-2 p-3 rounded-xl bg-emerald-500/10"><TrendingUp className={`h-4 w-4 ${accentText('emerald', t.light)} shrink-0`} /><div><div className={`text-xs font-semibold ${accentText('emerald', t.light)}`}>Best Performer</div><div className={`text-xs ${t.textFaint}`}>{best.compressor_name} ({best.avg_efficiency}%)</div></div></div>}
                             {mostActive && <div className="flex items-center gap-2 p-3 rounded-xl bg-brand-500/10"><Activity className="h-4 w-4 text-brand-400 shrink-0" /><div><div className="text-xs font-semibold text-brand-400">Most Active</div><div className={`text-xs ${t.textFaint}`}>{mostActive.compressor_name} ({mostActive.total_running_hours}h)</div></div></div>}
-                            {needsAtt.length > 0 && <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-500/10"><AlertTriangle className="h-4 w-4 text-amber-400 shrink-0" /><div><div className="text-xs font-semibold text-amber-400">Needs Attention</div><div className={`text-xs ${t.textFaint}`}>{needsAtt.length} compressor{needsAtt.length > 1 ? 's' : ''}</div></div></div>}
+                            {needsAtt.length > 0 && <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-500/10"><AlertTriangle className={`h-4 w-4 ${accentText('amber', t.light)} shrink-0`} /><div><div className={`text-xs font-semibold ${accentText('amber', t.light)}`}>Needs Attention</div><div className={`text-xs ${t.textFaint}`}>{needsAtt.length} compressor{needsAtt.length > 1 ? 's' : ''}</div></div></div>}
                           </>
                         );
                       })()}
@@ -745,7 +745,7 @@ function CompressorReadingsSystem() {
                         </div>
                       ))}
                     </div>
-                  ) : <div className="text-center py-6"><CheckCircle2 className="h-8 w-8 text-emerald-400/50 mx-auto mb-2" /><p className={`text-sm ${t.textFaint}`}>No recent alerts</p></div>}
+                  ) : <div className="text-center py-6"><CheckCircle2 className={`h-8 w-8 ${t.light ? 'text-emerald-600/50' : 'text-emerald-400/50'} mx-auto mb-2`} /><p className={`text-sm ${t.textFaint}`}>No recent alerts</p></div>}
                 </div>
 
                 <div className={`${t.glass} rounded-xl overflow-hidden`}>
@@ -768,7 +768,7 @@ function CompressorReadingsSystem() {
                   <div className="p-3 space-y-2">
                     {[
                       { icon: RefreshCw, label: 'Refresh All Data', fn: loadAllData, cls: 'text-brand-400' },
-                      { icon: Download, label: 'Export System Report', fn: generateCSVReport, cls: 'text-emerald-400' },
+                      { icon: Download, label: 'Export System Report', fn: generateCSVReport, cls: accentText('emerald', t.light) },
                     ].map(({ icon: Ic, label, fn, cls }) => (
                       <button key={label} type="button" onClick={fn} className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm ${t.textMuted} ${t.chipBg} ${t.hoverBg} transition-all`}>
                         <Ic className={`h-4 w-4 ${cls}`} />{label}
@@ -781,7 +781,7 @@ function CompressorReadingsSystem() {
                       const a = document.createElement('a'); a.href = url; a.download = `system-backup-${new Date().toISOString().split('T')[0]}.json`; a.click();
                       toast.success('System backup exported');
                     }} className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm ${t.textMuted} ${t.chipBg} ${t.hoverBg} transition-all`}>
-                      <Save className="h-4 w-4 text-amber-400" />Backup System Data
+                      <Save className={`h-4 w-4 ${accentText('amber', t.light)}`} />Backup System Data
                     </button>
                   </div>
                 </div>

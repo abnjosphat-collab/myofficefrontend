@@ -17,13 +17,15 @@ import { ApprovalGate, type SignatureResult } from '@/components/shared/Approval
 import { formatDate, formatDateTime } from '@/lib/format';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import {
-  useTheme, PageHero, StatusBadge, ACCENT_HEX, CenterModal, FormField,
+  useTheme, PageHero, StatusBadge, ACCENT_HEX, CenterModal, FormField, accentText,
   useCollapseSection, EmptyState, PrimaryButton, GlowCard, SelectField, useConfirm,
 } from '@/components/shared/theme';
-import type { EmployeeSearchResult, Leave, Stats } from './types';
+import type { Leave, Stats } from './types';
 import {
-  calcDays, createLeave, deleteLeave, fetchEmployeeSearchResults, updateLeave, updateLeaveStatus, useLeavesData,
+  calcDays, createLeave, deleteLeave, updateLeave, updateLeaveStatus, useLeavesData,
 } from './useLeavesData';
+import { EmployeeAutocomplete } from '@/components/shared/EmployeeAutocomplete';
+import type { EmployeeLookup } from '@/hooks/useLookups';
 
 const COMMON_REASONS = [
   "Annual leave", "Sick leave", "Family emergency", "Medical appointment",
@@ -101,7 +103,7 @@ function LeaveCard({ leave, onView, onEdit, onDelete }: { leave: Leave; onView: 
                   <button type="button" onClick={() => { onView(leave); setMenuOpen(false); }} className={`w-full flex items-center gap-2 px-3 py-2 text-xs ${t.textMuted} ${t.hoverBgSoft} transition-colors`}><Eye className="h-3.5 w-3.5" /> View Details</button>
                   <button type="button" onClick={() => { onEdit(leave); setMenuOpen(false); }} className={`w-full flex items-center gap-2 px-3 py-2 text-xs ${t.textMuted} ${t.hoverBgSoft} transition-colors`}><Edit className="h-3.5 w-3.5" /> Edit</button>
                   <div className={`h-px ${t.border} mx-2`} />
-                  <button type="button" onClick={() => { handleDelete(); setMenuOpen(false); }} disabled={deleting} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-rose-400 hover:bg-rose-500/10 transition-colors disabled:opacity-50">
+                  <button type="button" onClick={() => { handleDelete(); setMenuOpen(false); }} disabled={deleting} className={`w-full flex items-center gap-2 px-3 py-2 text-xs ${accentText('rose', t.light)} hover:bg-rose-500/10 transition-colors disabled:opacity-50`}>
                     {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />} Delete
                   </button>
                 </div>
@@ -149,22 +151,6 @@ function LeaveApplicationForm({ onClose, onSuccess, editData }: { onClose: () =>
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
-  const [employees, setEmployees] = useState<EmployeeSearchResult[]>([]);
-  const [loadingEmployees, setLoadingEmployees] = useState(false);
-  const [employeeSearch, setEmployeeSearch] = useState(editData?.employee_name || '');
-  const [employeeSelectOpen, setEmployeeSelectOpen] = useState(false);
-  const [employeeHighlight, setEmployeeHighlight] = useState(0);
-
-  useEffect(() => {
-    const fetchEmployees = async () => {
-      setLoadingEmployees(true);
-      try { setEmployees(await fetchEmployeeSearchResults()); }
-      catch (error) { console.error('Error fetching employees:', error); toast.error('Could not load employee list'); }
-      finally { setLoadingEmployees(false); }
-    };
-    fetchEmployees();
-  }, []);
-
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
 
@@ -204,37 +190,18 @@ function LeaveApplicationForm({ onClose, onSuccess, editData }: { onClose: () =>
     if (validationErrors[field]) setValidationErrors(prev => { const rest = { ...prev }; delete rest[field]; return rest; });
   };
 
-  const handleEmployeeSelect = (employee: EmployeeSearchResult) => {
-    const name = employee.name || `Employee ${employee.id}`;
-    setFormData({
-      ...formData, employee_id: employee.employee_id || employee.id.toString(), employee_name: name,
-      position: employee.designation || '', contact_number: employee.phone || '', manager_name: employee.supervisor || '', department: employee.department || '',
-    });
-    setEmployeeSearch(name);
-    setEmployeeSelectOpen(false);
-  };
-
-  // Inline ghost-text match: the employee whose name starts with what's typed. Tab (or
-  // Enter) accepts it — same pattern as the reason-suggestion field above and the PPE
-  // issue form — and pulls in position/contact/manager/department via handleEmployeeSelect.
-  const employeeNameMatches = useMemo(() => {
-    const q = employeeSearch.trim().toLowerCase();
-    return q ? employees.filter(e => e.name.toLowerCase().startsWith(q)) : [];
-  }, [employees, employeeSearch]);
-  const employeeGhost = employeeNameMatches[0] && employeeNameMatches[0].name.length > employeeSearch.length
-    ? employeeNameMatches[0].name.slice(employeeSearch.length) : '';
-
-  const handleEmployeeKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (!employeeSelectOpen) return;
-    if (e.key === 'ArrowDown') { e.preventDefault(); setEmployeeHighlight(h => Math.min(h + 1, filteredEmployees.length - 1)); }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); setEmployeeHighlight(h => Math.max(h - 1, 0)); }
-    else if (e.key === 'Tab' || e.key === 'Enter') {
-      if (!employeeSearch.trim()) return; // nothing typed yet — let Tab move focus normally
-      const target = employeeNameMatches[0] ?? filteredEmployees[employeeHighlight];
-      if (!target) return;
-      e.preventDefault();
-      handleEmployeeSelect(target);
-    } else if (e.key === 'Escape') setEmployeeSelectOpen(false);
+  // Employee autocomplete now lives in components/shared/EmployeeAutocomplete.tsx
+  // (imported above) — used to be an inline ghost-text implementation here; the
+  // shared component (built on the design system's Combobox) keeps Tab/Enter/Arrow
+  // selection, now consistent with every other module instead of leaves' own look.
+  const handleEmployeeSelect = (employee: EmployeeLookup) => {
+    const name = employee.name || employee.full_name || `Employee ${employee.id}`;
+    setFormData(prev => ({
+      ...prev, employee_id: employee.employee_id || String(employee.id), employee_name: name,
+      position: employee.designation || '', contact_number: employee.phone || '',
+      manager_name: (employee.supervisor as string) || (employee.manager_name as string) || '',
+      department: employee.department || '',
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -252,79 +219,28 @@ function LeaveApplicationForm({ onClose, onSuccess, editData }: { onClose: () =>
   const calculatedDays = calcDays(formData.start_date, formData.end_date);
   const selectedLeaveType = LEAVE_TYPES[formData.leave_type || 'annual'];
 
-  const filteredEmployees = useMemo(() => {
-    if (!employeeSearch.trim()) return employees;
-    const term = employeeSearch.toLowerCase();
-    return employees.filter(emp => emp.name.toLowerCase().includes(term) || emp.employee_id.toLowerCase().includes(term) || emp.id.toString().includes(term) || emp.designation?.toLowerCase().includes(term) || emp.department?.toLowerCase().includes(term));
-  }, [employees, employeeSearch]);
-
   const inputCls = `w-full h-9 rounded-lg px-3 text-sm outline-none transition-colors ${t.inputBg}`;
 
   return (
     <CenterModal open onClose={onClose} title={editData ? 'Edit Leave Request' : 'New Leave Request'} accent="violet" width="max-w-2xl">
       <form onSubmit={handleSubmit} className="p-5 space-y-4">
         {error && (
-          <div className="p-3 bg-rose-500/10 border border-rose-500/25 rounded-lg flex items-center gap-2 text-rose-400">
+          <div className={`p-3 bg-rose-500/10 border border-rose-500/25 rounded-lg flex items-center gap-2 ${accentText('rose', t.light)}`}>
             <AlertCircle className="h-4 w-4 shrink-0" /><p className="text-sm">{error}</p>
           </div>
         )}
 
         <div className="relative">
-          <FormField label="Employee" required>
-            <div className="relative">
-              <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-brand-400 pointer-events-none z-10" />
-              {employeeGhost && (
-                // Ghost-text overlay: ArrowDown/Up move the highlight, Tab (or Enter)
-                // accepts it — same pattern as the reason-suggestion field above.
-                <div aria-hidden className={`absolute inset-0 flex items-center pl-9 pr-3 overflow-hidden pointer-events-none rounded-lg text-sm ${t.inputBg}`}>
-                  <span className="invisible whitespace-pre">{employeeSearch}</span>
-                  <span className={`whitespace-pre ${t.textFaint}`}>{employeeGhost}</span>
-                  <span className={`ml-1.5 text-[9px] leading-none px-1 py-0.5 rounded border ${t.border} ${t.textFaint}`}>Tab</span>
-                </div>
-              )}
-              <input
-                type="text"
-                disabled={!!editData}
-                value={employeeSearch}
-                placeholder="Type a name or employee ID…"
-                onChange={e => { setEmployeeSearch(e.target.value); setEmployeeSelectOpen(true); setEmployeeHighlight(0); }}
-                onFocus={() => setEmployeeSelectOpen(true)}
-                onKeyDown={handleEmployeeKeyDown}
-                onBlur={() => setTimeout(() => { setEmployeeSelectOpen(false); setEmployeeSearch(formData.employee_name || ''); }, 160)}
-                className={`relative w-full h-9 pl-9 pr-3 rounded-lg text-sm outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-transparent ${t.inputBg}`}
-              />
-            </div>
-          </FormField>
-          {employeeSelectOpen && !editData && (
-            <>
-              <div className="fixed inset-0 z-10" onClick={() => setEmployeeSelectOpen(false)} />
-              <div className={`absolute left-0 right-0 top-full mt-1 z-20 rounded-xl overflow-hidden ${t.glass} ${t.shadow}`}>
-                <div className="max-h-56 overflow-y-auto p-1.5">
-                  {loadingEmployees ? (
-                    <div className="flex justify-center py-4"><Loader2 className={`h-4 w-4 animate-spin ${t.textFaint}`} /></div>
-                  ) : filteredEmployees.length === 0 ? (
-                    <div className={`text-sm py-6 text-center ${t.textFaint}`}>No employee found.</div>
-                  ) : filteredEmployees.map((emp, i) => (
-                    <button key={emp.id} type="button"
-                      onMouseDown={e => e.preventDefault()}
-                      onClick={() => handleEmployeeSelect(emp)}
-                      onMouseEnter={() => setEmployeeHighlight(i)}
-                      className={`w-full flex items-center gap-2.5 rounded-lg px-2 py-2 ${t.textMuted} transition-colors ${i === employeeHighlight ? 'bg-brand-500/15' : t.hoverBgSoft}`}>
-                      <User className="h-5 w-5 text-brand-400 shrink-0" />
-                      <div className="flex-1 min-w-0 text-left">
-                        <p className={`text-sm font-medium truncate ${t.textPrimary}`}>{emp.name}</p>
-                        <p className={`text-xs truncate ${t.textFaint}`}><span className="font-mono text-brand-400">{emp.employee_id}</span>{emp.designation ? ` · ${emp.designation}` : ''}{emp.department ? ` · ${emp.department}` : ''}</p>
-                      </div>
-                    </button>
-                  ))}
-                  {filteredEmployees.length > 0 && (
-                    <div className={`px-2.5 py-1.5 text-[10px] ${t.textFaint} border-t ${t.border} mt-1`}>↑↓ to move · Tab to select</div>
-                  )}
-                </div>
-              </div>
-            </>
-          )}
-          {validationErrors.employee_name && <p className="text-rose-400 text-xs mt-1">{validationErrors.employee_name}</p>}
+          <EmployeeAutocomplete
+            label="Employee"
+            required
+            value={formData.employee_name || ''}
+            disabled={!!editData}
+            placeholder="Type a name or employee ID…"
+            onChange={v => handleChange('employee_name', v)}
+            onSelect={handleEmployeeSelect}
+          />
+          {validationErrors.employee_name && <p className={`${accentText('rose', t.light)} text-xs mt-1`}>{validationErrors.employee_name}</p>}
         </div>
 
         {formData.employee_name && (
@@ -352,11 +268,11 @@ function LeaveApplicationForm({ onClose, onSuccess, editData }: { onClose: () =>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <FormField label="Start Date" required>
             <input type="date" title="Start date" required value={formData.start_date || ''} onChange={e => handleChange('start_date', e.target.value)} className={inputCls} />
-            {validationErrors.start_date && <p className="text-rose-400 text-xs mt-1">{validationErrors.start_date}</p>}
+            {validationErrors.start_date && <p className={`${accentText('rose', t.light)} text-xs mt-1`}>{validationErrors.start_date}</p>}
           </FormField>
           <FormField label="End Date" required>
             <input type="date" title="End date" required value={formData.end_date || ''} onChange={e => handleChange('end_date', e.target.value)} min={formData.start_date} className={inputCls} />
-            {validationErrors.end_date && <p className="text-rose-400 text-xs mt-1">{validationErrors.end_date}</p>}
+            {validationErrors.end_date && <p className={`${accentText('rose', t.light)} text-xs mt-1`}>{validationErrors.end_date}</p>}
           </FormField>
         </div>
 
@@ -369,7 +285,7 @@ function LeaveApplicationForm({ onClose, onSuccess, editData }: { onClose: () =>
 
         <FormField label="Contact Number During Leave" required>
           <input type="text" value={formData.contact_number || ''} onChange={e => handleChange('contact_number', e.target.value)} placeholder="Phone number to reach you" className={inputCls} />
-          {validationErrors.contact_number && <p className="text-rose-400 text-xs mt-1">{validationErrors.contact_number}</p>}
+          {validationErrors.contact_number && <p className={`${accentText('rose', t.light)} text-xs mt-1`}>{validationErrors.contact_number}</p>}
         </FormField>
 
         <div className="relative">
@@ -377,7 +293,7 @@ function LeaveApplicationForm({ onClose, onSuccess, editData }: { onClose: () =>
             <textarea rows={3} required value={formData.reason || ''} onChange={e => handleReasonChange(e.target.value)} onKeyDown={handleReasonKeyDown}
               placeholder="Type a reason or choose from suggestions..." className={`w-full px-3 py-2 rounded-lg text-sm resize-none outline-none transition-colors ${t.inputBg}`} />
           </FormField>
-          {validationErrors.reason && <p className="text-rose-400 text-xs mt-1">{validationErrors.reason}</p>}
+          {validationErrors.reason && <p className={`${accentText('rose', t.light)} text-xs mt-1`}>{validationErrors.reason}</p>}
           {suggestions.length > 0 && (
             <div className={`absolute z-20 w-full mt-1 rounded-xl overflow-hidden ${t.glass} ${t.shadow}`}>
               {suggestions.map((s, index) => (
@@ -490,7 +406,7 @@ function LeaveDetailsModal({ leave, onClose, onEdit, onDelete, onStatusUpdate }:
               display. Rebuild from git history if the feature is ever wanted. */}
 
           <div className="flex flex-wrap gap-2 justify-between pt-1">
-            <button type="button" onClick={handleDelete} disabled={updating} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 transition-all disabled:opacity-50"><Trash2 className="h-3.5 w-3.5" /> Delete</button>
+            <button type="button" onClick={handleDelete} disabled={updating} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-rose-500/10 hover:bg-rose-500/20 ${accentText('rose', t.light)} transition-all disabled:opacity-50`}><Trash2 className="h-3.5 w-3.5" /> Delete</button>
             <div className="flex gap-2">
               <button type="button" onClick={() => { onEdit(leave); onClose(); }} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium ${t.chipBg} ${t.hoverBg} ${t.textMuted} transition-all`}><Edit className="h-3.5 w-3.5" /> Edit</button>
               <div className="relative">
@@ -499,8 +415,8 @@ function LeaveDetailsModal({ leave, onClose, onEdit, onDelete, onStatusUpdate }:
                   <>
                     <div className="fixed inset-0 z-10" onClick={() => setShowStatusActions(false)} />
                     <div className={`absolute right-0 bottom-9 z-20 w-44 rounded-xl overflow-hidden ${t.glass} ${t.shadow}`}>
-                      <button type="button" onClick={() => handleStatusChange('approved')} className={`w-full flex items-center gap-2 px-3 py-2 text-xs text-emerald-400 ${t.hoverBgSoft} transition-colors`}><CheckCircle2 className="h-3.5 w-3.5" /> Approve</button>
-                      <button type="button" onClick={() => handleStatusChange('rejected')} className={`w-full flex items-center gap-2 px-3 py-2 text-xs text-rose-400 ${t.hoverBgSoft} transition-colors`}><XCircle className="h-3.5 w-3.5" /> Reject</button>
+                      <button type="button" onClick={() => handleStatusChange('approved')} className={`w-full flex items-center gap-2 px-3 py-2 text-xs ${accentText('emerald', t.light)} ${t.hoverBgSoft} transition-colors`}><CheckCircle2 className="h-3.5 w-3.5" /> Approve</button>
+                      <button type="button" onClick={() => handleStatusChange('rejected')} className={`w-full flex items-center gap-2 px-3 py-2 text-xs ${accentText('rose', t.light)} ${t.hoverBgSoft} transition-colors`}><XCircle className="h-3.5 w-3.5" /> Reject</button>
                       <div className={`h-px ${t.border} mx-2`} />
                       <button type="button" onClick={() => handleStatusChange('pending')} className={`w-full flex items-center gap-2 px-3 py-2 text-xs ${t.textFaint} ${t.hoverBgSoft} transition-colors`}><Clock className="h-3.5 w-3.5" /> Mark Pending</button>
                     </div>
@@ -626,9 +542,9 @@ function LeaveManagementContent() {
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           {[
             { label: 'Total', value: stats.total, textClass: 'text-brand-400', onClick: () => setFilter('all') },
-            { label: 'Total Days', value: stats.total_days_requested, textClass: 'text-violet-400', onClick: undefined },
-            { label: 'Pending', value: stats.pending, textClass: 'text-amber-400', onClick: () => setFilter('pending') },
-            { label: 'Approved', value: stats.approved, textClass: 'text-emerald-400', onClick: () => setFilter('approved') },
+            { label: 'Total Days', value: stats.total_days_requested, textClass: accentText('violet', t.light), onClick: undefined },
+            { label: 'Pending', value: stats.pending, textClass: accentText('amber', t.light), onClick: () => setFilter('pending') },
+            { label: 'Approved', value: stats.approved, textClass: accentText('emerald', t.light), onClick: () => setFilter('approved') },
             { label: 'On Leave Now', value: stats.on_leave_now, textClass: 'text-brand-400', onClick: undefined },
             { label: 'Approval Rate', value: `${stats.approvalRate}%`, textClass: 'text-brand-400', onClick: undefined },
           ].map(stat => (
