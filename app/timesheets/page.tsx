@@ -101,6 +101,14 @@ const getDays = ({ start, end }: Period) => {
   return days;
 };
 
+// Each role's normal shift length — everyone defaults to 10h except lamp room and
+// compressor attendants, who work 8h. Matched case-insensitively against whatever's
+// in Employee.position, since designation text elsewhere in this app varies in
+// spelling/capitalization. Flag it if a role's actual title doesn't contain these
+// words and it's getting the wrong default.
+const normalShiftHours = (position: string): 8 | 10 => /lamp\s*room|compressor/i.test(position) ? 8 : 10;
+const normalShiftEnd = (hours: number) => timeFromHours('07:00', hours);
+
 const fmtPeriod = ({ start, end }: Period) =>
   `${start.getDate()} ${start.toLocaleString('en-GB', { month: 'short' })} ${start.getFullYear()} — ${end.getDate()} ${end.toLocaleString('en-GB', { month: 'short' })} ${end.getFullYear()}`;
 
@@ -414,10 +422,12 @@ function TimesheetEntryDialog({ employee, date, entry, onSave, onDelete, onClose
 
 interface BulkAssignDialogProps {
   initialEmployee: Employee; allEmployees: Employee[]; period: Period; timesheets: TimesheetEntry[];
-  onSave: (entries: Omit<TimesheetEntry, 'id'>[]) => Promise<void>; onClose: () => void;
+  onSave: (entries: Omit<TimesheetEntry, 'id'>[]) => Promise<void>;
+  onClear: (targets: { employee_id: number; date: string }[]) => Promise<void>;
+  onClose: () => void;
 }
 
-function BulkAssignDialog({ initialEmployee, allEmployees, period, timesheets, onSave, onClose }: BulkAssignDialogProps) {
+function BulkAssignDialog({ initialEmployee, allEmployees, period, timesheets, onSave, onClear, onClose }: BulkAssignDialogProps) {
   const t = useTheme();
   const allDays = getDays(period);
 
@@ -432,6 +442,11 @@ function BulkAssignDialog({ initialEmployee, allEmployees, period, timesheets, o
   const [status, setStatus] = useState<StatusKey>('work');
   const [startTime, setStartTime] = useState('07:00');
   const [endTime, setEndTime] = useState('17:00');
+  // "Normal shift, by role" — each selected employee gets their own role's normal
+  // length (see normalShiftHours) instead of one shared start/end applied to everyone,
+  // so a mixed selection (e.g. a lamp room attendant + a driver) still lands correctly
+  // without the user having to run this twice.
+  const [useNormalShift, setUseNormalShift] = useState(false);
   const [skipWeekends, setSkipWeekends] = useState(false);
   const [standby, setStandby] = useState(false);
   const [nightAllowance, setNightAllowance] = useState(false);
@@ -449,6 +464,19 @@ function BulkAssignDialog({ initialEmployee, allEmployees, period, timesheets, o
 
   const regHours = LEAVE_STATUSES.has(status) ? 8 : ZERO_HOUR_STATUSES.has(status) ? 0 : calcHours(startTime, endTime);
   const nightHours = (LEAVE_STATUSES.has(status) || ZERO_HOUR_STATUSES.has(status)) ? 0 : calcNightHours(startTime, endTime);
+
+  // What "normal shift" actually resolves to per selected employee, grouped for the
+  // preview (e.g. "2 people · 8h" / "3 people · 10h" when the selection is mixed).
+  const normalShiftBreakdown = useMemo(() => {
+    if (!useNormalShift) return [];
+    const groups = new Map<number, number>();
+    selectedEmpIds.forEach(eid => {
+      const emp = allEmployees.find(e => e.id === eid);
+      const h = normalShiftHours(emp?.position || '');
+      groups.set(h, (groups.get(h) || 0) + 1);
+    });
+    return [...groups.entries()].sort((a, b) => b[0] - a[0]);
+  }, [useNormalShift, selectedEmpIds, allEmployees]);
 
   const previewRange = useMemo((): Set<string> => {
     if (!anchor || !hoverDate) return new Set();
@@ -495,14 +523,24 @@ function BulkAssignDialog({ initialEmployee, allEmployees, period, timesheets, o
       const entries: Omit<TimesheetEntry, 'id'>[] = [];
       const isDT = DOUBLE_TIME_STATUSES.has(status);
       selectedEmpIds.forEach(eid => {
+        // Normal-shift mode looks up THIS employee's own role length — a mixed
+        // selection (lamp room + everyone else) still gets the right hours per person
+        // in one pass, instead of the single shared start/end used otherwise.
+        let empStart = startTime, empEnd = endTime, empReg = regHours, empNight = nightHours;
+        if (useNormalShift && !LEAVE_STATUSES.has(status) && !ZERO_HOUR_STATUSES.has(status)) {
+          const emp = allEmployees.find(e => e.id === eid);
+          const h = normalShiftHours(emp?.position || '');
+          empStart = '07:00'; empEnd = normalShiftEnd(h);
+          empReg = calcHours(empStart, empEnd); empNight = calcNightHours(empStart, empEnd);
+        }
         [...selectedDates].sort().forEach(ds => {
           entries.push({
             employee_id: parseInt(eid), date: ds,
-            start_time: LEAVE_STATUSES.has(status) ? '07:00' : ZERO_HOUR_STATUSES.has(status) ? '' : startTime,
-            end_time: LEAVE_STATUSES.has(status) ? '15:00' : ZERO_HOUR_STATUSES.has(status) ? '' : endTime,
-            regular_hours: isDT ? 0 : regHours, overtime_hours: 0, holiday_overtime_hours: isDT ? regHours : 0,
-            nightshift_hours: nightHours, standby_allowance: standby, nightshift_allowance: nightAllowance,
-            total_hours: regHours + nightHours, status, notes: '',
+            start_time: LEAVE_STATUSES.has(status) ? '07:00' : ZERO_HOUR_STATUSES.has(status) ? '' : empStart,
+            end_time: LEAVE_STATUSES.has(status) ? '15:00' : ZERO_HOUR_STATUSES.has(status) ? '' : empEnd,
+            regular_hours: isDT ? 0 : empReg, overtime_hours: 0, holiday_overtime_hours: isDT ? empReg : 0,
+            nightshift_hours: empNight, standby_allowance: standby, nightshift_allowance: nightAllowance,
+            total_hours: empReg + empNight, status, notes: '',
             overtime_periods: [], callout_overtime_hours: 0, callout_count: 0,
           });
         });
@@ -515,16 +553,34 @@ function BulkAssignDialog({ initialEmployee, allEmployees, period, timesheets, o
     finally { setSaving(false); }
   };
 
+  const [clearing, setClearing] = useState(false);
+  const handleClear = async () => {
+    if (selectedDates.size === 0) { toast.error('Select at least one date'); return; }
+    if (selectedEmpIds.size === 0) { toast.error('Select at least one employee'); return; }
+    setClearing(true);
+    try {
+      const targets: { employee_id: number; date: string }[] = [];
+      selectedEmpIds.forEach(eid => [...selectedDates].forEach(ds => targets.push({ employee_id: parseInt(eid), date: ds })));
+      await onClear(targets);
+      setSelectedDates(new Set());
+      setAnchor(null);
+    } catch (e) { toast.error('Failed: ' + (e as Error).message); }
+    finally { setClearing(false); }
+  };
+
   const today = fmtDate(new Date());
   const totalEntries = selectedDates.size * selectedEmpIds.size;
+  const estimatedTotalHours = useNormalShift
+    ? normalShiftBreakdown.reduce((s, [hours, count]) => s + hours * count * selectedDates.size, 0)
+    : regHours * totalEntries;
   const fieldCls = `h-8 ${t.inputBg}`;
 
   return (
     <Dialog open onOpenChange={onClose}>
       <DialogContent className={`sm:max-w-2xl max-h-[92vh] flex flex-col overflow-hidden ${t.glass}`}>
         <DialogHeader className="shrink-0">
-          <DialogTitle className={`flex items-center gap-2 ${t.textPrimary}`}><Layers className="w-4 h-4" /> Bulk Assign Shifts</DialogTitle>
-          <DialogDescription className={t.textFaint}>{fmtPeriod(period)}</DialogDescription>
+          <DialogTitle className={`flex items-center gap-2 ${t.textPrimary}`}><Layers className="w-4 h-4" /> Bulk Assign / Clear Shifts</DialogTitle>
+          <DialogDescription className={t.textFaint}>{fmtPeriod(period)} — select days below, then Apply to mark them or Clear to unmark</DialogDescription>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto space-y-4 py-2 pr-1">
@@ -547,7 +603,9 @@ function BulkAssignDialog({ initialEmployee, allEmployees, period, timesheets, o
                   <button key={emp.id} type="button" onClick={() => toggleEmp(emp.id)}
                     className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${sel ? 'bg-brand-500/25 text-brand-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}>
                     <User className="h-3.5 w-3.5 shrink-0" />
-                    {emp.name}{sel && <Check className="w-3 h-3 opacity-70" />}
+                    {emp.name}
+                    {useNormalShift && <span className="opacity-60">{normalShiftHours(emp.position)}h</span>}
+                    {sel && <Check className="w-3 h-3 opacity-70" />}
                   </button>
                 );
               })}
@@ -567,9 +625,14 @@ function BulkAssignDialog({ initialEmployee, allEmployees, period, timesheets, o
             <div className="space-y-1.5">
               <Label className={`text-xs ${t.textFaint}`}>Shift Preset</Label>
               <div className="flex flex-wrap gap-1">
+                <button type="button" onClick={() => setUseNormalShift(true)}
+                  title="8h for lamp room/compressor attendants, 10h for everyone else — set automatically per person"
+                  className={`text-[11px] px-2 py-1 rounded transition-colors font-medium ${useNormalShift ? `${accentText('indigo', t.light)} bg-indigo-500/20 font-semibold` : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}>
+                  <Zap className="w-2.5 h-2.5 inline -mt-0.5 mr-0.5" />Normal (by role)
+                </button>
                 {shiftPresets.map(p => (
-                  <button key={p.label} type="button" onClick={() => { setStartTime(p.from); setEndTime(p.to); }}
-                    className={`text-[11px] px-2 py-1 rounded transition-colors ${startTime === p.from && endTime === p.to ? 'bg-brand-500/25 text-brand-400 font-semibold' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}>
+                  <button key={p.label} type="button" onClick={() => { setUseNormalShift(false); setStartTime(p.from); setEndTime(p.to); }}
+                    className={`text-[11px] px-2 py-1 rounded transition-colors ${!useNormalShift && startTime === p.from && endTime === p.to ? 'bg-brand-500/25 text-brand-400 font-semibold' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}>
                     {p.label}
                   </button>
                 ))}
@@ -578,15 +641,26 @@ function BulkAssignDialog({ initialEmployee, allEmployees, period, timesheets, o
           </div>
 
           {!LEAVE_STATUSES.has(status) && !ZERO_HOUR_STATUSES.has(status) && (
-            <div className={`grid grid-cols-3 gap-3 p-3 rounded-lg ${t.chipBg}`}>
-              <div><Label className={`text-xs ${t.textFaint}`}>Start</Label><Input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className={`${fieldCls} mt-1`} /></div>
-              <div><Label className={`text-xs ${t.textFaint}`}>End</Label><Input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className={`${fieldCls} mt-1`} /></div>
-              <div className="flex flex-col justify-center">
-                <span className={`text-xs ${t.textFaint}`}>Per day/person</span>
-                <span className={`text-xl font-bold ${accentText('emerald', t.light)}`}>{regHours.toFixed(1)}h</span>
-                {nightHours > 0 && <span className={`text-xs ${accentText('indigo', t.light)}`}>{nightHours.toFixed(1)}h night</span>}
+            useNormalShift ? (
+              <div className={`flex flex-wrap items-center gap-3 p-3 rounded-lg bg-indigo-500/[0.08]`}>
+                <Zap className={`w-4 h-4 shrink-0 ${accentText('indigo', t.light)}`} />
+                {normalShiftBreakdown.length === 0 ? (
+                  <span className={`text-xs ${t.textFaint}`}>Select employees to see their normal hours</span>
+                ) : normalShiftBreakdown.map(([hours, count]) => (
+                  <span key={hours} className={`text-xs font-medium ${accentText('indigo', t.light)}`}>{count} {count !== 1 ? 'people' : 'person'} · {hours}h</span>
+                ))}
               </div>
-            </div>
+            ) : (
+              <div className={`grid grid-cols-3 gap-3 p-3 rounded-lg ${t.chipBg}`}>
+                <div><Label className={`text-xs ${t.textFaint}`}>Start</Label><Input type="time" value={startTime} onChange={e => { setUseNormalShift(false); setStartTime(e.target.value); }} className={`${fieldCls} mt-1`} /></div>
+                <div><Label className={`text-xs ${t.textFaint}`}>End</Label><Input type="time" value={endTime} onChange={e => { setUseNormalShift(false); setEndTime(e.target.value); }} className={`${fieldCls} mt-1`} /></div>
+                <div className="flex flex-col justify-center">
+                  <span className={`text-xs ${t.textFaint}`}>Per day/person</span>
+                  <span className={`text-xl font-bold ${accentText('emerald', t.light)}`}>{regHours.toFixed(1)}h</span>
+                  {nightHours > 0 && <span className={`text-xs ${accentText('indigo', t.light)}`}>{nightHours.toFixed(1)}h night</span>}
+                </div>
+              </div>
+            )
           )}
 
           <div className="flex flex-wrap items-center gap-4">
@@ -657,16 +731,22 @@ function BulkAssignDialog({ initialEmployee, allEmployees, period, timesheets, o
                 <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-brand-500/15 inline-block" /> Preview</span>
                 <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" /> Has entry</span>
               </div>
-              <span className={`font-semibold ${t.textMuted}`}>{selectedDates.size} days × {selectedEmpIds.size} emp = <span className="text-brand-400">{totalEntries} entries</span>{totalEntries > 0 && regHours > 0 && ` · ${(regHours * totalEntries).toFixed(0)}h total`}</span>
+              <span className={`font-semibold ${t.textMuted}`}>{selectedDates.size} days × {selectedEmpIds.size} emp = <span className="text-brand-400">{totalEntries} entries</span>{totalEntries > 0 && estimatedTotalHours > 0 && ` · ${estimatedTotalHours.toFixed(0)}h total`}</span>
             </div>
           </div>
         </div>
 
         <div className={`shrink-0 flex items-center justify-between gap-2 pt-3 border-t ${t.border} mt-2`}>
           <Button variant="outline" className={`${t.textMuted} bg-transparent`} onClick={onClose}>Done</Button>
-          <Button onClick={handleApply} disabled={saving || totalEntries === 0} className="bg-brand-600 hover:bg-brand-700 text-white">
-            {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}Apply {totalEntries > 0 ? `${totalEntries} entr${totalEntries !== 1 ? 'ies' : 'y'}` : '—'}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={handleClear} disabled={clearing || totalEntries === 0}
+              className="text-red-400 hover:bg-red-500/10 bg-transparent border-red-500/30">
+              {clearing && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}<Trash2 className="w-3.5 h-3.5 mr-1.5" />Clear {totalEntries > 0 ? `${totalEntries}` : ''}
+            </Button>
+            <Button onClick={handleApply} disabled={saving || totalEntries === 0} className="bg-brand-600 hover:bg-brand-700 text-white">
+              {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}Apply {totalEntries > 0 ? `${totalEntries} entr${totalEntries !== 1 ? 'ies' : 'y'}` : '—'}
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
@@ -1133,6 +1213,13 @@ function TimesheetGrid({ employees, timesheets, days, onCellClick, onBulkAssign,
   }
 
   const stickyBg = t.light ? 'bg-white' : 'bg-[#040c18]';
+  // A frozen/sticky header needs to stay fully opaque no matter what — stacking a
+  // second, translucent bg-* class on top of stickyBg (e.g. for a holiday tint) is a
+  // real bug, not just a style choice: which one actually wins is decided by Tailwind's
+  // generated stylesheet order, not by the order the classes appear in this string, so
+  // it silently went transparent on holiday columns and scrolled rows showed through
+  // the header. One resolved, always-solid color instead of two stacked ones.
+  const dayHeaderBg = (isHoliday: boolean) => isHoliday ? (t.light ? 'bg-violet-50' : 'bg-[#150e2b]') : stickyBg;
 
   return (
     <Table containerClassName="overflow-auto max-h-[calc(100vh-260px)]">
@@ -1144,7 +1231,7 @@ function TimesheetGrid({ employees, timesheets, days, onCellClick, onBulkAssign,
             const isWknd = d.getDay() === 0 || d.getDay() === 6;
             const holiday = zimHolidayName(ds);
             return (
-              <TableHead key={ds} title={holiday || undefined} className={`text-center min-w-[70px] px-0.5 sticky top-0 z-20 ${stickyBg} ${holiday ? 'bg-violet-500/[0.08]' : ''}`}>
+              <TableHead key={ds} title={holiday || undefined} className={`text-center min-w-[70px] px-0.5 sticky top-0 z-20 ${dayHeaderBg(!!holiday)}`}>
                 <div className="flex flex-col items-center text-[9px] py-1">
                   <span className={t.textFaint}>{d.toLocaleDateString('en-GB', { weekday: 'short' })}</span>
                   <span className={`font-bold text-sm ${holiday ? accentText('violet', t.light) : ds === today ? 'text-brand-400' : isWknd ? t.textFaint : t.textMuted}`}>{d.getDate()}</span>
@@ -1576,6 +1663,40 @@ function TimesheetsContent() {
     }
   };
 
+  /** Bulk-assign's counterpart for "unmark" — deletes real entries across a
+   *  (employee × date) selection. Targets with no existing entry are silently
+   *  skipped (nothing to clear). Undo re-creates whatever was actually deleted. */
+  const handleBulkClear = async (targets: { employee_id: number; date: string }[]) => {
+    const toDelete = targets
+      .map(({ employee_id, date }) => timesheets.find(ts => String(ts.employee_id) === String(employee_id) && ts.date === date))
+      .filter((ts): ts is TimesheetEntry => !!ts?.id);
+    if (toDelete.length === 0) { toast.info('Nothing to clear in the selected days'); return; }
+    const results = await Promise.allSettled(toDelete.map(ts => api.delete(ts.id!)));
+    const cleared = toDelete.filter((_, i) => results[i].status === 'fulfilled');
+    const clearedIds = new Set(cleared.map(ts => ts.id));
+    setTimesheets(prev => prev.filter(ts => !clearedIds.has(ts.id)));
+    const failed = results.length - cleared.length;
+    if (failed > 0) toast.warning(`${failed} ${failed !== 1 ? 'entries' : 'entry'} failed to clear`);
+    if (cleared.length > 0) {
+      toast.success(`Cleared ${cleared.length} day${cleared.length !== 1 ? 's' : ''}`, {
+        action: { label: 'Undo', onClick: () => undoBulkClear(cleared) },
+      });
+    }
+  };
+
+  const undoBulkClear = async (entries: TimesheetEntry[]) => {
+    try {
+      const results = await Promise.allSettled(entries.map(({ id: _id, ...rest }) => api.create(rest)));
+      const restored = results.filter(r => r.status === 'fulfilled').map(r => (r as PromiseFulfilledResult<TimesheetEntry>).value);
+      setTimesheets(prev => {
+        const map = new Map(prev.map(ts => [`${ts.employee_id}:${ts.date}`, ts]));
+        restored.forEach(r => map.set(`${r.employee_id}:${r.date}`, r));
+        return [...map.values()];
+      });
+      toast.success('Restored');
+    } catch (e) { toast.error('Undo failed: ' + (e as Error).message); }
+  };
+
   const handleCopyPreviousPeriod = async () => {
     const prevMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1);
     const prevPeriod = activeTab === 'salaried' ? getSalariedPeriod(prevMonth) : getNECPeriod(prevMonth);
@@ -1756,7 +1877,7 @@ function TimesheetsContent() {
           onDelete={editCell.entry?.id ? () => handleDeleteEntry(editCell.entry!.id!) : undefined}
           onClose={() => setEditCell(null)} />
       )}
-      {bulkEmployee && <BulkAssignDialog initialEmployee={bulkEmployee} allEmployees={tabEmployees} period={activePeriod} timesheets={effectiveTimesheets} onSave={handleBulkSave} onClose={() => setBulkEmployee(null)} />}
+      {bulkEmployee && <BulkAssignDialog initialEmployee={bulkEmployee} allEmployees={tabEmployees} period={activePeriod} timesheets={effectiveTimesheets} onSave={handleBulkSave} onClear={handleBulkClear} onClose={() => setBulkEmployee(null)} />}
 
       {quickTotalEmployee && <QuickTotalDialog employee={quickTotalEmployee} period={activePeriod} onSave={handleBulkSave} onClose={() => setQuickTotalEmployee(null)} />}
       {showBulkAdd && <BulkAddEmployeesDialog allEmployees={allEmployees} currentIds={tabIds} onAdd={emps => addToTab(emps.map(e => e.id))} onClose={() => setShowBulkAdd(false)} />}
