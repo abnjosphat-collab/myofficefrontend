@@ -1745,12 +1745,7 @@ function TimesheetsContent() {
       </PageHero>
 
       <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-        <SectionHeader icon={CalendarDays} title="Period" sub={fmtPeriod(activePeriod)} open={showPeriod} onToggle={() => setShowPeriod(v => !v)}>
-          <div className="relative">
-            <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 ${t.textFaint}`} />
-            <input placeholder="Search…" className={`${t.inputBg} rounded-lg text-xs pl-7 pr-3 py-1 h-7 w-36 outline-none`} value={search} onChange={e => setSearch(e.target.value)} />
-          </div>
-        </SectionHeader>
+        <SectionHeader icon={CalendarDays} title="Period" sub={fmtPeriod(activePeriod)} open={showPeriod} onToggle={() => setShowPeriod(v => !v)} />
         {showPeriod && (
           <div className="px-5 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3">
@@ -1771,6 +1766,10 @@ function TimesheetsContent() {
 
       <div className={`${t.glass} rounded-2xl [overflow:clip]`}>
         <SectionHeader icon={LayoutGrid} title={`${activeTab === 'salaried' ? 'Salaried' : 'NEC'} Timesheet Grid`} sub={`${tabEmployees.length} employees`} open={showGrid} onToggle={() => setShowGrid(v => !v)}>
+          <div className="relative">
+            <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 ${t.textFaint}`} />
+            <input placeholder="Search…" className={`${t.inputBg} rounded-lg text-xs pl-7 pr-3 py-1 h-7 w-36 outline-none`} value={search} onChange={e => setSearch(e.target.value)} />
+          </div>
           <button type="button" title={`Sort: ${sortBy === 'name' ? 'A–Z name' : 'Department'}`} onClick={() => setSortBy(s => s === 'name' ? 'dept' : 'name')}
             className={`flex items-center gap-1 text-[10px] px-2 py-1 rounded-md ${t.chipBg} ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all`}>
             {sortBy === 'name' ? 'A–Z' : 'Dept'}
