@@ -754,105 +754,14 @@ function BulkAssignDialog({ initialEmployee, allEmployees, period, timesheets, o
 }
 
 // ─────────────────── QUICK TOTAL-HOURS ENTRY ───────────────────
-// Type one actual-hours figure for the whole period instead of entering each day by
-// hand — the 208h cap splits it into regular vs 1.5x OT (same apply208 the rest of the
-// page uses), spread evenly across the period's plain work days (weekends/public
-// holidays are handled separately, so they're excluded here). Real start/end times are
-// synthesized to match each day's share, so the numbers stay self-consistent if someone
-// later opens one of these days in the single-entry dialog — that dialog recomputes
-// regular_hours from shift times on every save, real or generated.
-
+// Used by normalShiftEnd (near getDays) to compute a shift's end time from its start
+// and length — kept standalone since the "Normal (by role)" bulk-assign preset needs it
+// independent of any dialog.
 function timeFromHours(startHHMM: string, hours: number): string {
   const [sh, sm] = startHHMM.split(':').map(Number);
   const totalMin = (sh * 60 + sm + Math.round(hours * 60)) % (24 * 60);
   const h = Math.floor(totalMin / 60), m = totalMin % 60;
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-}
-
-function QuickTotalDialog({ employee, period, onSave, onClose }: {
-  employee: Employee; period: Period;
-  onSave: (entries: Omit<TimesheetEntry, 'id'>[]) => Promise<void>; onClose: () => void;
-}) {
-  const t = useTheme();
-  const [totalInput, setTotalInput] = useState('');
-  const [saving, setSaving] = useState(false);
-
-  const workDays = useMemo(
-    () => getDays(period).filter(d => d.getDay() !== 0 && d.getDay() !== 6 && !zimHolidayName(fmtDate(d))),
-    [period]
-  );
-
-  const total = parseFloat(totalInput) || 0;
-  const { reg, ot15 } = apply208(total, 0);
-
-  const handleApply = async () => {
-    if (total <= 0) { toast.error('Enter a total greater than 0'); return; }
-    if (workDays.length === 0) { toast.error('No plain work days in this period to spread hours across'); return; }
-    setSaving(true);
-    try {
-      // Even split, 2dp — the last day absorbs whatever rounding remainder is left so
-      // the days sum exactly to `reg`, not just approximately.
-      const perDay = Math.floor((reg / workDays.length) * 100) / 100;
-      const entries: Omit<TimesheetEntry, 'id'>[] = workDays.map((d, i) => {
-        const isLast = i === workDays.length - 1;
-        const dayReg = isLast ? +(reg - perDay * (workDays.length - 1)).toFixed(2) : perDay;
-        return {
-          employee_id: parseInt(employee.id), date: fmtDate(d), status: 'work',
-          start_time: '07:00', end_time: timeFromHours('07:00', dayReg),
-          regular_hours: dayReg, overtime_hours: isLast ? ot15 : 0, holiday_overtime_hours: 0, nightshift_hours: 0,
-          standby_allowance: false, nightshift_allowance: false,
-          total_hours: dayReg + (isLast ? ot15 : 0),
-          notes: 'Auto: period total quick-entry', overtime_periods: [],
-          callout_overtime_hours: 0, callout_count: 0,
-        };
-      });
-      await onSave(entries);
-      toast.success(`Applied ${total.toFixed(2)}h across ${workDays.length} days`);
-      onClose();
-    } catch (e) { toast.error('Failed: ' + (e as Error).message); }
-    finally { setSaving(false); }
-  };
-
-  return (
-    <Dialog open onOpenChange={onClose}>
-      <DialogContent className={`sm:max-w-md ${t.glass}`}>
-        <DialogHeader>
-          <DialogTitle className={`flex items-center gap-2 ${t.textPrimary}`}><Zap className="w-4 h-4" /> Enter Total Hours</DialogTitle>
-          <DialogDescription className={t.textFaint}>{employee.name} — {fmtPeriod(period)}</DialogDescription>
-        </DialogHeader>
-        <div className="space-y-4 py-2">
-          <div>
-            <Label className={t.textMuted}>Actual hours worked this period</Label>
-            <Input type="number" min={0} step={0.5} placeholder="e.g. 240" value={totalInput}
-              onChange={e => setTotalInput(e.target.value)} className={`h-10 text-lg mt-1 ${t.inputBg}`} />
-          </div>
-          {total > 0 && (
-            <div className="grid grid-cols-2 gap-3 text-center">
-              <div className="bg-emerald-500/10 rounded-lg p-3">
-                <div className={`text-xs ${t.textFaint}`}>Regular (≤208h)</div>
-                <div className={`text-xl font-bold ${accentText('emerald', t.light)}`}>{reg.toFixed(2)}h</div>
-              </div>
-              <div className="bg-brand-500/10 rounded-lg p-3">
-                <div className={`text-xs ${t.textFaint}`}>OT 1.5× (over 208h)</div>
-                <div className="text-xl font-bold text-brand-400">{ot15.toFixed(2)}h</div>
-              </div>
-            </div>
-          )}
-          <p className={`text-xs ${t.textFaint}`}>
-            Spread evenly across the {workDays.length} plain work day{workDays.length !== 1 ? 's' : ''} in this period
-            (weekends and public holidays are excluded — they're handled separately). Any 208h overflow is recorded
-            as overtime on the last of those days.
-          </p>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" className={`${t.textMuted} bg-transparent`} onClick={onClose}>Cancel</Button>
-          <Button onClick={handleApply} disabled={saving || total <= 0} className="bg-brand-600 hover:bg-brand-700 text-white">
-            {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}Apply
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
 }
 
 // ─────────────────── BULK ADD EMPLOYEES DIALOG ───────────────────
@@ -1198,10 +1107,11 @@ function DownloadDialog({ employees, timesheets, period, periodType, onClose }: 
 
 const calcTotals = calcEmployeeTotals;
 
-function TimesheetGrid({ employees, timesheets, days, onCellClick, onBulkAssign, onQuickTotal, onRemoveEmployee }: {
+function TimesheetGrid({ employees, timesheets, days, onCellClick, onQuickAdd, onQuickRemove, onBulkAssign, onRemoveEmployee }: {
   employees: Employee[]; timesheets: TimesheetEntry[]; days: Date[];
   onCellClick: (emp: Employee, day: Date, entry?: TimesheetEntry) => void;
-  onBulkAssign: (emp: Employee) => void; onQuickTotal: (emp: Employee) => void; onRemoveEmployee: (id: string) => void;
+  onQuickAdd: (emp: Employee, day: Date) => void; onQuickRemove: (emp: Employee, entry: TimesheetEntry) => void;
+  onBulkAssign: (emp: Employee) => void; onRemoveEmployee: (id: string) => void;
 }) {
   const t = useTheme();
   const getEntry = (eid: string, d: Date) => timesheets.find(ts => String(ts.employee_id) === String(eid) && ts.date === fmtDate(d));
@@ -1277,10 +1187,6 @@ function TimesheetGrid({ employees, timesheets, days, onCellClick, onBulkAssign,
                           className="flex items-center gap-1 text-[10px] px-2 py-[3px] rounded-full bg-brand-500/10 text-brand-400/70 hover:bg-brand-500/20 hover:text-brand-400 transition-all duration-150 group/bulk">
                           <CalendarDays className="w-2.5 h-2.5 group-hover/bulk:scale-110 transition-transform" /><span className="tracking-wide">Assign shifts</span>
                         </button>
-                        <button type="button" title="Enter total hours for the period — auto-splits at 208h" onClick={() => onQuickTotal(emp)}
-                          className={`flex items-center gap-1 text-[10px] px-2 py-[3px] rounded-full bg-indigo-500/10 ${t.light ? 'text-indigo-600/70 hover:text-indigo-700' : 'text-indigo-400/70 hover:text-indigo-300'} hover:bg-indigo-500/20 transition-all duration-150 group/qt`}>
-                          <Zap className="w-2.5 h-2.5 group-hover/qt:scale-110 transition-transform" /><span className="tracking-wide">Total h</span>
-                        </button>
                       </div>
                     </div>
                   </div>
@@ -1328,6 +1234,26 @@ function TimesheetGrid({ employees, timesheets, days, onCellClick, onBulkAssign,
                         // to confirm or adjust, same as any other cell.
                         <span title="Auto-filled from approved leave/overtime — click to confirm"
                           className="absolute top-0.5 left-0.5 h-1.5 w-1.5 rounded-full bg-white ring-2 ring-white/40 pointer-events-none" />
+                      )}
+                      {!entry && (
+                        // Instant add, no dialog — a normal shift at this employee's own role
+                        // length (see normalShiftHours), or the day's paid-holiday/weekend
+                        // default. The cell's own click still opens the full dialog for
+                        // anything this shortcut doesn't cover (leave, custom hours, etc).
+                        <button type="button" title="Quick add: normal shift"
+                          onClick={e => { e.stopPropagation(); onQuickAdd(emp, day); }}
+                          className="absolute bottom-0.5 right-0.5 h-4 w-4 flex items-center justify-center rounded-full opacity-0 group-hover/cell:opacity-100 bg-emerald-500/15 text-emerald-400/70 hover:bg-emerald-500/30 hover:text-emerald-400 transition-all duration-150">
+                          <Plus className="w-2.5 h-2.5" />
+                        </button>
+                      )}
+                      {entry?.id != null && (
+                        // Instant remove, no dialog — only for real saved rows; a virtual
+                        // (_auto) projection has nothing to delete yet.
+                        <button type="button" title="Quick remove this entry"
+                          onClick={e => { e.stopPropagation(); onQuickRemove(emp, entry); }}
+                          className="absolute bottom-0.5 right-0.5 h-4 w-4 flex items-center justify-center rounded-full opacity-0 group-hover/cell:opacity-100 bg-red-500/15 text-red-400/70 hover:bg-red-500/30 hover:text-red-400 transition-all duration-150">
+                          <X className="w-2.5 h-2.5" />
+                        </button>
                       )}
                       {entry && (
                         <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover/cell:block z-50 min-w-[130px]">
@@ -1453,7 +1379,6 @@ function TimesheetsContent() {
   const [showBulkAdd, setShowBulkAdd] = useState(false);
   const [showDownload, setShowDownload] = useState(false);
   const [bulkEmployee, setBulkEmployee] = useState<Employee | null>(null);
-  const [quickTotalEmployee, setQuickTotalEmployee] = useState<Employee | null>(null);
 
   // Automatic base roster: every employee whose employment_type matches this tab.
   const autoIds = useMemo(
@@ -1697,6 +1622,35 @@ function TimesheetsContent() {
     } catch (e) { toast.error('Undo failed: ' + (e as Error).message); }
   };
 
+  /** The grid cell's hover "+" — instant single-day add with the same role-based normal
+   *  hours as bulk-assign's "Normal (by role)" preset (see normalShiftHours), so the
+   *  common case never needs the full entry dialog. Public holidays default to the
+   *  not-worked "paid holiday" 8h credit, matching what an empty holiday cell already
+   *  shows; weekends default to a worked 2.0x day. Routes through handleBulkSave so it
+   *  gets the same undo toast as every other write. */
+  const handleQuickAdd = async (emp: Employee, day: Date) => {
+    const ds = fmtDate(day);
+    const holiday = zimHolidayName(ds);
+    const status: StatusKey = holiday ? 'holiday_paid' : (day.getDay() === 0 || day.getDay() === 6) ? 'weekend' : 'work';
+    const hours = status === 'holiday_paid' ? 8 : normalShiftHours(emp.position);
+    const entry: Omit<TimesheetEntry, 'id'> = {
+      employee_id: parseInt(emp.id), date: ds, status,
+      start_time: status === 'holiday_paid' ? '' : '07:00',
+      end_time: status === 'holiday_paid' ? '' : normalShiftEnd(hours),
+      regular_hours: hours, overtime_hours: 0, holiday_overtime_hours: 0, nightshift_hours: 0,
+      standby_allowance: false, nightshift_allowance: false, total_hours: hours,
+      notes: '', overtime_periods: [], callout_overtime_hours: 0, callout_count: 0,
+    };
+    await handleBulkSave([entry]);
+  };
+
+  /** The grid cell's hover "−" — instant single-day remove, same undo-covered path as
+   *  handleBulkClear. A virtual (`_auto`, unsaved) entry has no real row to delete, so it's
+   *  silently a no-op there — same guard handleBulkClear already has. */
+  const handleQuickRemove = async (emp: Employee, entry: TimesheetEntry) => {
+    await handleBulkClear([{ employee_id: parseInt(emp.id), date: entry.date }]);
+  };
+
   const handleCopyPreviousPeriod = async () => {
     const prevMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1);
     const prevPeriod = activeTab === 'salaried' ? getSalariedPeriod(prevMonth) : getNECPeriod(prevMonth);
@@ -1834,8 +1788,8 @@ function TimesheetsContent() {
             <TimesheetGrid
               employees={tabEmployees} timesheets={effectiveTimesheets} days={days}
               onCellClick={(emp, day, entry) => setEditCell({ employee: emp, date: day, entry })}
+              onQuickAdd={handleQuickAdd} onQuickRemove={handleQuickRemove}
               onBulkAssign={emp => setBulkEmployee(emp)}
-              onQuickTotal={emp => setQuickTotalEmployee(emp)}
               onRemoveEmployee={removeFromTab}
             />
           )
@@ -1879,7 +1833,6 @@ function TimesheetsContent() {
       )}
       {bulkEmployee && <BulkAssignDialog initialEmployee={bulkEmployee} allEmployees={tabEmployees} period={activePeriod} timesheets={effectiveTimesheets} onSave={handleBulkSave} onClear={handleBulkClear} onClose={() => setBulkEmployee(null)} />}
 
-      {quickTotalEmployee && <QuickTotalDialog employee={quickTotalEmployee} period={activePeriod} onSave={handleBulkSave} onClose={() => setQuickTotalEmployee(null)} />}
       {showBulkAdd && <BulkAddEmployeesDialog allEmployees={allEmployees} currentIds={tabIds} onAdd={emps => addToTab(emps.map(e => e.id))} onClose={() => setShowBulkAdd(false)} />}
       {showDownload && <DownloadDialog employees={tabEmployees} timesheets={effectiveTimesheets} period={activePeriod} periodType={activeTab} onClose={() => setShowDownload(false)} />}
     </main>
