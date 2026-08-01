@@ -17,7 +17,7 @@ import {
 } from '@/components/shared/theme';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ApprovalGate, type SignatureResult } from '@/components/shared/ApprovalGate';
-import { useEmployees } from '@/hooks/useLookups';
+import { useEmployees, type EmployeeLookup } from '@/hooks/useLookups';
 import { EmployeeAutocomplete } from '@/components/shared/EmployeeAutocomplete';
 import { formatDate } from '@/lib/format';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
@@ -330,15 +330,14 @@ const overtimeExportColumns: DLColumn[] = [
 // ─── WEEKLY SUMMARY (per-employee daily/weekly rollup + Excel export) ─────────
 // Replaces the fragile manual-Excel workflow: a week spanning two months used to
 // need a cross-sheet formula that was easy to get wrong. This rolls up however
-// many days of OT records the user picks (default: the current Mon–Sun week, but
+// many days of OT records the user picks (default: the current Sun–Sat cycle, but
 // freely adjustable to any range) into one employee × day matrix, live in the UI
 // and as a styled Excel download.
 
-function mondayOf(d: Date): Date {
-  const day = d.getDay(); // 0=Sun..6=Sat
-  const diff = day === 0 ? -6 : 1 - day; // shift back to Monday
+function sundayOf(d: Date): Date {
+  const day = d.getDay(); // 0=Sun..6=Sat — already the offset back to this week's Sunday
   const m = new Date(d);
-  m.setDate(d.getDate() + diff);
+  m.setDate(d.getDate() - day);
   m.setHours(0, 0, 0, 0);
   return m;
 }
@@ -353,7 +352,20 @@ interface EmployeeWeekRow {
   total15: number; total20: number;
 }
 
-function buildWeeklyRows(records: OTRecord[], from: string, to: string): { rows: EmployeeWeekRow[]; days: Date[] } {
+// Excluded from the weekly roster by name/role rather than editing the query, so
+// it stays visible and easy to adjust in one place. Matched case-insensitively
+// against designation/position (covers "Manager", "Senior Manager", "Graduate
+// Trainee", …) — "driver antonio" is one specific person, matched by name AND
+// role together so it doesn't accidentally catch an unrelated "Antonio".
+function isExcludedFromWeeklyRoster(emp: EmployeeLookup): boolean {
+  const role = `${emp.designation || emp.position || ''}`.toLowerCase();
+  if (role.includes('manager') || role.includes('trainee')) return true;
+  const name = `${emp.full_name || emp.name || `${emp.first_name || ''} ${emp.last_name || ''}`}`.toLowerCase();
+  if (name.includes('antonio') && role.includes('driver')) return true;
+  return false;
+}
+
+function buildWeeklyRows(records: OTRecord[], from: string, to: string, roster: EmployeeLookup[]): { rows: EmployeeWeekRow[]; days: Date[] } {
   const days: Date[] = [];
   if (from <= to) {
     let d = new Date(`${from}T00:00:00`);
@@ -362,6 +374,20 @@ function buildWeeklyRows(records: OTRecord[], from: string, to: string): { rows:
   }
 
   const map = new Map<string, EmployeeWeekRow>();
+
+  // Seed every roster employee first (minus exclusions) so people with zero OT
+  // hours this period still get a row of 0s instead of being left off entirely.
+  roster.forEach(emp => {
+    if (isExcludedFromWeeklyRoster(emp)) return;
+    const name = emp.full_name || emp.name || `${emp.first_name || ''} ${emp.last_name || ''}`.trim();
+    if (!name) return;
+    // Same key fallback as the records loop below (employee_id, else name) — keeping
+    // them identical is what lets a roster-seeded row and that person's actual OT
+    // records land on the same row instead of creating a duplicate.
+    const key = emp.employee_id || name;
+    map.set(key, { employee_id: emp.employee_id || '', employee_name: name, position: emp.designation || emp.position || '', byDate: new Map(), total: 0, total15: 0, total20: 0 });
+  });
+
   records.forEach(r => {
     if (r.date < from || r.date > to) return;
     const key = r.employee_id || r.employee_name;
@@ -377,14 +403,14 @@ function buildWeeklyRows(records: OTRecord[], from: string, to: string): { rows:
   return { rows: Array.from(map.values()).sort((a, b) => a.employee_name.localeCompare(b.employee_name)), days };
 }
 
-function WeeklySummaryView({ records }: { records: OTRecord[] }) {
+function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employees: EmployeeLookup[] }) {
   const t = useTheme();
-  const defaultFrom = toISODate(mondayOf(new Date()));
-  const defaultTo = toISODate(addDays(mondayOf(new Date()), 6));
+  const defaultFrom = toISODate(sundayOf(new Date()));
+  const defaultTo = toISODate(addDays(sundayOf(new Date()), 6));
   const [from, setFrom] = useState(defaultFrom);
   const [to, setTo] = useState(defaultTo);
 
-  const { rows, days } = useMemo(() => buildWeeklyRows(records, from, to), [records, from, to]);
+  const { rows, days } = useMemo(() => buildWeeklyRows(records, from, to, employees), [records, from, to, employees]);
   const grandTotal = rows.reduce((s, r) => s + r.total, 0);
   const dayTotals = days.map(d => { const ds = toISODate(d); return rows.reduce((s, r) => s + (r.byDate.get(ds) || 0), 0); });
 
@@ -425,15 +451,21 @@ function WeeklySummaryView({ records }: { records: OTRecord[] }) {
       c.border = { bottom: { style: 'medium', color: { argb: 'FF86BBD8' } } };
     });
 
-    // [$-409] forces English-US number rendering (period decimal separator) regardless
-    // of the opening machine's own Windows/Excel regional settings — a plain '0.00'
-    // format code is locale-independent in the file itself, but Excel still re-renders
-    // its decimal separator using the viewer's OS locale, which shows as "0,00" on a
-    // comma-decimal system. The locale prefix pins the display, not just the code.
-    const NUMFMT = '[$-409]0.00';
+    // Hour values are written as formatted TEXT ("0.00"), not native numbers with a
+    // numFmt — Excel's decimal separator glyph for numeric cells is always rendered
+    // using the OPENING machine's own OS/Excel regional settings, not anything
+    // encoded in the file (a `[$-409]0.00` locale-prefixed numFmt was tried here
+    // before and still showed "0,00" on comma-locale machines, since that prefix
+    // only overrides locale-specific symbols like currency/month names, not the
+    // decimal point itself). A plain string is never re-rendered — what's written
+    // is exactly what displays, everywhere.
+    const fmtHours = (n: number) => n.toFixed(2);
 
     rows.forEach((row, ei) => {
-      const rowVals: (string | number)[] = [row.employee_name, ...days.map(d => row.byDate.get(toISODate(d)) || 0), row.total15, row.total20, row.total];
+      const rowVals: (string | number)[] = [
+        row.employee_name, ...days.map(d => fmtHours(row.byDate.get(toISODate(d)) || 0)),
+        fmtHours(row.total15), fmtHours(row.total20), fmtHours(row.total),
+      ];
       const dataRow = ws.getRow(4 + ei);
       dataRow.values = rowVals;
       dataRow.height = 16;
@@ -442,7 +474,6 @@ function WeeklySummaryView({ records }: { records: OTRecord[] }) {
         const isFixedCol = col === 1, isTotalCol = col === totalCols;
         c.font = { name: FONT, size: 9, bold: isTotalCol };
         c.alignment = { horizontal: isFixedCol ? 'left' : 'center', vertical: 'middle' };
-        if (!isFixedCol) c.numFmt = NUMFMT;
         c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isTotalCol ? 'FFD0E8F5' : stripe ? 'FFF5F8FB' : 'FFFFFFFF' } };
       });
     });
@@ -452,14 +483,13 @@ function WeeklySummaryView({ records }: { records: OTRecord[] }) {
     // totals), not as a separate day-based breakdown, so there's nothing left to
     // show per-day for the rate split here.
     const totalRow = ws.getRow(4 + rows.length + 1);
-    totalRow.values = ['GRAND TOTAL', ...dayTotals, grandTotal15, grandTotal20, grandTotal];
+    totalRow.values = ['GRAND TOTAL', ...dayTotals.map(fmtHours), fmtHours(grandTotal15), fmtHours(grandTotal20), fmtHours(grandTotal)];
     totalRow.height = 20;
     totalRow.eachCell({ includeEmpty: true }, (c, col) => {
       const isTotalCol = col === totalCols;
       c.font = { name: FONT, bold: true, size: 9, color: { argb: isTotalCol ? 'FFFFFFFF' : 'FF1E3A5F' } };
       c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isTotalCol ? EXPORT_BRAND_ARGB : 'FFD0E8F5' } };
       c.alignment = { horizontal: col === 1 ? 'left' : 'center', vertical: 'middle' };
-      if (col > 1) c.numFmt = NUMFMT;
       c.border = { top: { style: 'medium', color: { argb: 'FF86BBD8' } } };
     });
 
@@ -822,7 +852,7 @@ function OvertimeContent() {
       />
 
       {mainTab === 'weekly-summary' ? (
-        <WeeklySummaryView records={records} />
+        <WeeklySummaryView records={records} employees={employees} />
       ) : mainTab === 'records' ? (
         loading ? (
           <div className="flex items-center justify-center py-16"><RefreshCw className={`h-6 w-6 animate-spin ${t.textFaint}`} /></div>

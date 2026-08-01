@@ -988,6 +988,38 @@ export default function PPEManagement() {
     return undefined;
   };
 
+  // ── PPE Summary ── a minimal, publicly-postable snapshot (name / item / size /
+  // last issue / next issue), meant to be printed and pinned on a noticeboard so
+  // people can check their own status instead of asking. Separate from the full
+  // PPE Register export above (every field, every status) — this one is active
+  // issues only (a returned/lost/damaged item has no live "next issue" date to
+  // show) and colors every row, not just the ones that need attention, so it
+  // reads at a glance: red = already due, amber = due soon, green = fine.
+  const summaryRecords = records
+    .filter(r => r.status === 'active')
+    .slice()
+    .sort((a, b) => {
+      const ea = a.expiry_date ? new Date(a.expiry_date).getTime() : Infinity;
+      const eb = b.expiry_date ? new Date(b.expiry_date).getTime() : Infinity;
+      return ea - eb;
+    });
+
+  const ppeSummaryColor = (_v: string, row: Record<string, unknown>) => {
+    const expiry = row.expiry_date as string | null | undefined;
+    if (!expiry) return '6B7280';
+    if (isExpired(expiry)) return 'F43F5E';
+    if (isExpiringSoon(expiry)) return 'F59E0B';
+    return '10B981';
+  };
+
+  const ppeSummaryColumns: DLColumn[] = [
+    { key: 'employee_name', label: 'Name', width: 26 },
+    { key: 'ppe_type', label: 'PPE Item', width: 22, format: v => PPE_TYPES[v as string]?.name || (v as string) },
+    { key: 'size', label: 'Size', width: 10 },
+    { key: 'issue_date', label: 'Last Issue Date', width: 18, format: v => fmtExportDate(v as string) },
+    { key: 'expiry_date', label: 'Next Issue Date', width: 18, format: v => fmtExportDate(v as string) },
+  ];
+
   // Excel gets every field; the PDF's landscape table omits Location and
   // Mine Section (matches the original hand-rolled exports' divergent
   // column sets). PPE Type also uses a shorter label in the PDF.
@@ -1077,16 +1109,34 @@ export default function PPEManagement() {
               </button>
 
               {records.length > 0 && (
-                <DownloadButton
-                  data={records as unknown as Record<string, unknown>[]}
-                  columns={exportColumns}
-                  pdfColumns={exportPdfColumns}
-                  filename={exportFilename('PPE_Register')}
-                  title="PPE Register"
-                  subtitle={`${employeesWithPPE.length} employees`}
-                  statusColumn="expiry_date"
-                  statusColor={ppeExpiryColor}
-                />
+                <div className="flex items-center gap-1.5">
+                  <span className={`text-[10px] font-medium ${t.textFaint} hidden sm:inline`}>Register</span>
+                  <DownloadButton
+                    data={records as unknown as Record<string, unknown>[]}
+                    columns={exportColumns}
+                    pdfColumns={exportPdfColumns}
+                    filename={exportFilename('PPE_Register')}
+                    title="PPE Register"
+                    subtitle={`${employeesWithPPE.length} employees`}
+                    statusColumn="expiry_date"
+                    statusColor={ppeExpiryColor}
+                  />
+                </div>
+              )}
+
+              {summaryRecords.length > 0 && (
+                <div className="flex items-center gap-1.5" title="Printable summary — name, item, size, last/next issue date, color-coded by due status">
+                  <span className={`text-[10px] font-medium ${t.textFaint} hidden sm:inline`}>Summary</span>
+                  <DownloadButton
+                    data={summaryRecords as unknown as Record<string, unknown>[]}
+                    columns={ppeSummaryColumns}
+                    filename={exportFilename('PPE_Summary')}
+                    title="PPE Summary"
+                    subtitle="Who has what, and when it's due"
+                    statusColumn="expiry_date"
+                    statusColor={ppeSummaryColor}
+                  />
+                </div>
               )}
 
               <motion.button type="button" onClick={() => openIssueForm()} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
