@@ -377,6 +377,54 @@ function ListView({ records, onEdit, onDelete, onView }: { records: ServiceRecor
   );
 }
 
+// ─── Sheet View ───────────────────────────────────────────────────────────────
+// One row per record, every approval-circuit column visible at once — mirrors the
+// layout of the source Excel tracker (Item/Date/Contractor/Task/PR#/PO#/Invoice#/
+// Planning/Eng Mgr/Finance/GM/Stores/GRV#) instead of the card/progress-bar views
+// above, for a fast whole-register scan rather than per-record drill-down.
+
+const SHEET_COLS = ['No.', 'Date', 'Contractor', 'Task Description', 'PR#', 'PO#', 'Invoice #', 'Planning', 'Eng. Mgr', 'Finance', 'GM', 'Stores', 'GRV#'] as const;
+
+function SheetView({ records, onView }: { records: ServiceRecord[]; onView: (r: ServiceRecord) => void }) {
+  const t = useTheme();
+  if (records.length === 0) return <p className={`py-12 text-center text-sm ${t.textFaint}`}>No service records found.</p>;
+  const Check = ({ done }: { done: boolean }) => done
+    ? <CheckCircle2 className={`h-3.5 w-3.5 mx-auto ${accentText('emerald', t.light)}`} />
+    : <Circle className={`h-3.5 w-3.5 mx-auto ${t.textFaint}`} />;
+  return (
+    <div className={`${t.glass} rounded-2xl overflow-x-auto`}>
+      <table className="w-full text-xs">
+        <thead>
+          <tr className={`border-b ${t.border}`}>
+            {SHEET_COLS.map((h, i) => (
+              <th key={h} className={`p-2.5 text-[10px] font-semibold uppercase tracking-wide whitespace-nowrap ${i >= 7 ? 'text-center' : 'text-left'} ${t.textFaint}`}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {records.map((r, i) => (
+            <tr key={r.id} className={`border-b ${t.border} ${t.hoverBgSoft} cursor-pointer`} onClick={() => onView(r)}>
+              <td className={`p-2.5 ${t.textFaint}`}>{i + 1}</td>
+              <td className={`p-2.5 whitespace-nowrap ${t.textMuted}`}>{r.date ? fmtDate(r.date) : '—'}</td>
+              <td className={`p-2.5 font-medium whitespace-nowrap ${t.textPrimary}`}>{r.supplier || '—'}</td>
+              <td className="p-2.5 min-w-[220px] max-w-[320px] truncate" title={r.description}>{r.description || '—'}</td>
+              <td className={`p-2.5 whitespace-nowrap ${t.textFaint}`}>{r.requisition_number || '—'}</td>
+              <td className={`p-2.5 whitespace-nowrap ${t.textFaint}`}>{r.order_number || '—'}</td>
+              <td className={`p-2.5 whitespace-nowrap ${t.textFaint}`}>{r.invoice_number || '—'}</td>
+              <td className="p-2.5"><Check done={r.planning.signed} /></td>
+              <td className="p-2.5"><Check done={r.engineering_manager.signed} /></td>
+              <td className="p-2.5"><Check done={r.finance.signed} /></td>
+              <td className="p-2.5"><Check done={r.gm.signed} /></td>
+              <td className="p-2.5"><Check done={r.stores.signed} /></td>
+              <td className={`p-2.5 whitespace-nowrap ${t.textFaint}`}>{r.stores.grv_number || '—'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 // ─── Service Form ──────────────────────────────────────────────────────────────
 
 function ServiceForm({ initial, onSave, onClose }: { initial: ServiceRecord; onSave: (r: ServiceRecord) => void; onClose: () => void; }) {
@@ -645,7 +693,7 @@ function ServicesPageContent() {
   const [filterCat, setFilterCat] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [sortBy, setSortBy] = useState('newest');
-  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'table' | 'sheet'>('grid');
   const [showFilters, setShowFilters] = useState(true);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [formOpen, setFormOpen] = useState(false);
@@ -805,7 +853,7 @@ function ServicesPageContent() {
               <Filter className="h-3.5 w-3.5" /> Filters
             </button>
             {anyFilter && <button type="button" onClick={clearFilters} className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-medium ${t.textFaint} ${t.hoverText} ${t.hoverBg}`}><X className="h-3.5 w-3.5" /> Clear</button>}
-            <ViewToggle value={viewMode} onChange={setViewMode} options={[{ value: 'grid', icon: LayoutGrid, label: 'Grid view' }, { value: 'table', icon: Table2, label: 'Table view' }]} />
+            <ViewToggle value={viewMode} onChange={setViewMode} options={[{ value: 'grid', icon: LayoutGrid, label: 'Grid view' }, { value: 'table', icon: Table2, label: 'Table view' }, { value: 'sheet', icon: FileSpreadsheet, label: 'Sheet view — everything at once, like the Excel tracker' }]} />
           </div>
         </div>
         {showFilters && (
@@ -866,8 +914,10 @@ function ServicesPageContent() {
               <ServiceCard key={r.id} record={r} expanded={expandedIds.has(r.id)} onToggle={() => toggleCard(r.id)} onUpdate={handleUpdate} onEdit={openEdit} onDelete={setDeleteId} />
             ))}
           </div>
-        ) : (
+        ) : viewMode === 'table' ? (
           <ListView records={processed} onEdit={openEdit} onDelete={setDeleteId} onView={r => setViewRecord(r)} />
+        ) : (
+          <SheetView records={processed} onView={r => setViewRecord(r)} />
         )}
       </div>
 
