@@ -437,10 +437,10 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
     const { default: ExcelJS } = await import('exceljs');
     const wb = new ExcelJS.Workbook(); wb.creator = 'Ozech MyOffice';
     const ws = wb.addWorksheet('OT Weekly Summary');
-    // No per-day breakdown — each employee gets one row: their week's 1.5x total,
-    // 2.0x total, and overall total. [Employee, 1.5x h, 2.0x h, Total h].
-    const totalCols = 4;
-    ws.views = [{ state: 'frozen', xSplit: 1, ySplit: 3 }];
+    // No per-day breakdown — each employee gets one numbered row: their week's
+    // 1.5x total, 2.0x total, and overall total. [No., Employee, 1.5x h, 2.0x h, Total h].
+    const totalCols = 5;
+    ws.views = [{ state: 'frozen', xSplit: 2, ySplit: 3 }];
     const FONT = 'Calibri';
 
     ws.mergeCells(1, 1, 1, totalCols);
@@ -452,10 +452,10 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
     ws.addRow([]);
 
     const hdrRow = ws.getRow(3);
-    hdrRow.values = ['Employee', '1.5x h', '2.0x h', 'Total h'];
+    hdrRow.values = ['No.', 'Employee', '1.5x h', '2.0x h', 'Total h'];
     hdrRow.height = 28;
     hdrRow.eachCell({ includeEmpty: true }, (c, col) => {
-      const isFixedCol = col === 1, isTotalCol = col === totalCols;
+      const isFixedCol = col === 2, isTotalCol = col === totalCols;
       c.font = { name: FONT, bold: true, size: 9, color: { argb: 'FFFFFFFF' } };
       c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isFixedCol ? 'FF1A3450' : isTotalCol ? 'FF163554' : EXPORT_BRAND_ARGB } };
       c.alignment = { horizontal: isFixedCol ? 'left' : 'center', vertical: 'middle', wrapText: !isFixedCol };
@@ -473,13 +473,13 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
     const fmtHours = (n: number) => n.toFixed(2);
 
     rows.forEach((row, ei) => {
-      const rowVals: (string | number)[] = [row.employee_name, fmtHours(row.total15), fmtHours(row.total20), fmtHours(row.total)];
+      const rowVals: (string | number)[] = [ei + 1, row.employee_name, fmtHours(row.total15), fmtHours(row.total20), fmtHours(row.total)];
       const dataRow = ws.getRow(4 + ei);
       dataRow.values = rowVals;
       dataRow.height = 16;
       const stripe = ei % 2 !== 0;
       dataRow.eachCell({ includeEmpty: true }, (c, col) => {
-        const isFixedCol = col === 1, isTotalCol = col === totalCols;
+        const isFixedCol = col === 2, isTotalCol = col === totalCols;
         c.font = { name: FONT, size: 9, bold: isTotalCol };
         c.alignment = { horizontal: isFixedCol ? 'left' : 'center', vertical: 'middle' };
         c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isTotalCol ? 'FFD0E8F5' : stripe ? 'FFF5F8FB' : 'FFFFFFFF' } };
@@ -487,20 +487,21 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
     });
 
     const totalRow = ws.getRow(4 + rows.length + 1);
-    totalRow.values = ['GRAND TOTAL', fmtHours(grandTotal15), fmtHours(grandTotal20), fmtHours(grandTotal)];
+    totalRow.values = ['', 'GRAND TOTAL', fmtHours(grandTotal15), fmtHours(grandTotal20), fmtHours(grandTotal)];
     totalRow.height = 20;
     totalRow.eachCell({ includeEmpty: true }, (c, col) => {
       const isTotalCol = col === totalCols;
       c.font = { name: FONT, bold: true, size: 9, color: { argb: isTotalCol ? 'FFFFFFFF' : 'FF1E3A5F' } };
       c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isTotalCol ? EXPORT_BRAND_ARGB : 'FFD0E8F5' } };
-      c.alignment = { horizontal: col === 1 ? 'left' : 'center', vertical: 'middle' };
+      c.alignment = { horizontal: col === 2 ? 'left' : 'center', vertical: 'middle' };
       c.border = { top: { style: 'medium', color: { argb: 'FF86BBD8' } } };
     });
 
-    ws.getColumn(1).width = 26;
-    ws.getColumn(2).width = 10;
+    ws.getColumn(1).width = 6;
+    ws.getColumn(2).width = 26;
     ws.getColumn(3).width = 10;
-    ws.getColumn(4).width = 12;
+    ws.getColumn(4).width = 10;
+    ws.getColumn(5).width = 12;
 
     const buf = await wb.xlsx.writeBuffer();
     const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
