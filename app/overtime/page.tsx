@@ -361,7 +361,7 @@ interface EmployeeWeekRow {
 // don't match the roster's actual spelling, flag it and they'll get added.
 const EXCLUDED_ROLE_SUBSTRINGS = ['manager', 'trainee', 'foreman', 'hoist driver'];
 const EXCLUDED_NAME_TOKENS = [
-  'mavhondo', 'toderai', 'chibvongodze', 'pedzisai', // named exclusions
+  'mavhondo', 'toderai', 'tonderai', 'tavonameso', 'chibvongodze', 'pedzisai', // named exclusions
   'chimhanda', 'chiwara', 'gasseler', 'pnashe',       // graduate trainees, by name (belt-and-braces alongside the role match above)
 ];
 
@@ -438,10 +438,26 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
     const wb = new ExcelJS.Workbook(); wb.creator = 'Ozech MyOffice';
     const ws = wb.addWorksheet('OT Weekly Summary');
     // No per-day breakdown — each employee gets one numbered row: their week's
-    // 1.5x total, 2.0x total, and overall total. [No., Employee, 1.5x h, 2.0x h, Total h].
-    const totalCols = 5;
-    ws.views = [{ state: 'frozen', xSplit: 2, ySplit: 3 }];
+    // 1.5x total, 2.0x total, and overall total.
+    // [No., Mine No., Employee, 1.5x h, 2.0x h, Total h].
+    const totalCols = 6;
+    const NAME_COL = 3, RATE15_COL = 4, RATE20_COL = 5, TOTAL_COL = 6;
+    ws.views = [{ state: 'frozen', xSplit: 3, ySplit: 3 }];
     const FONT = 'Calibri';
+
+    // A single, softer brand blue across the whole header (the previous version's
+    // near-black navy on the fixed/total columns read too dark for a document meant
+    // to be shared outward) — one clean tone, white bold text, good contrast without
+    // being harsh.
+    const HEADER_FILL = EXPORT_BRAND_ARGB;
+    const HEADER_BORDER = 'FF9FC4DE';
+    const STRIPE_FILL = 'FFF6F9FB';
+    // Overtime highlight: any hour cell that's actually > 0 gets a warm, subtle
+    // amber tint + bold text, so a reader can tell at a glance who worked overtime
+    // this week versus who's on the roster at zero — the whole reason everyone is
+    // listed now instead of only people with hours.
+    const OT_FILL = 'FFFCEFD1';
+    const OT_TEXT = 'FF8A5A00';
 
     ws.mergeCells(1, 1, 1, totalCols);
     const title = ws.getCell(1, 1);
@@ -452,14 +468,14 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
     ws.addRow([]);
 
     const hdrRow = ws.getRow(3);
-    hdrRow.values = ['No.', 'Employee', '1.5x h', '2.0x h', 'Total h'];
+    hdrRow.values = ['No.', 'Mine No.', 'Employee', '1.5x h', '2.0x h', 'Total h'];
     hdrRow.height = 28;
     hdrRow.eachCell({ includeEmpty: true }, (c, col) => {
-      const isFixedCol = col === 2, isTotalCol = col === totalCols;
-      c.font = { name: FONT, bold: true, size: 9, color: { argb: 'FFFFFFFF' } };
-      c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isFixedCol ? 'FF1A3450' : isTotalCol ? 'FF163554' : EXPORT_BRAND_ARGB } };
-      c.alignment = { horizontal: isFixedCol ? 'left' : 'center', vertical: 'middle', wrapText: !isFixedCol };
-      c.border = { bottom: { style: 'medium', color: { argb: 'FF86BBD8' } } };
+      const isNameCol = col === NAME_COL;
+      c.font = { name: FONT, bold: true, size: 10, color: { argb: 'FFFFFFFF' } };
+      c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: HEADER_FILL } };
+      c.alignment = { horizontal: isNameCol ? 'left' : 'center', vertical: 'middle', wrapText: !isNameCol };
+      c.border = { bottom: { style: 'medium', color: { argb: HEADER_BORDER } } };
     });
 
     // Hour values are written as formatted TEXT ("0.00"), not native numbers with a
@@ -473,35 +489,38 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
     const fmtHours = (n: number) => n.toFixed(2);
 
     rows.forEach((row, ei) => {
-      const rowVals: (string | number)[] = [ei + 1, row.employee_name, fmtHours(row.total15), fmtHours(row.total20), fmtHours(row.total)];
+      const rowVals: (string | number)[] = [ei + 1, row.employee_id || '—', row.employee_name, fmtHours(row.total15), fmtHours(row.total20), fmtHours(row.total)];
       const dataRow = ws.getRow(4 + ei);
       dataRow.values = rowVals;
-      dataRow.height = 16;
+      dataRow.height = 17;
       const stripe = ei % 2 !== 0;
+      const hourValueByCol: Record<number, number> = { [RATE15_COL]: row.total15, [RATE20_COL]: row.total20, [TOTAL_COL]: row.total };
       dataRow.eachCell({ includeEmpty: true }, (c, col) => {
-        const isFixedCol = col === 2, isTotalCol = col === totalCols;
-        c.font = { name: FONT, size: 9, bold: isTotalCol };
-        c.alignment = { horizontal: isFixedCol ? 'left' : 'center', vertical: 'middle' };
-        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isTotalCol ? 'FFD0E8F5' : stripe ? 'FFF5F8FB' : 'FFFFFFFF' } };
+        const isNameCol = col === NAME_COL;
+        const hasOt = hourValueByCol[col] > 0;
+        c.font = { name: FONT, size: 10, bold: hasOt, color: hasOt ? { argb: OT_TEXT } : undefined };
+        c.alignment = { horizontal: isNameCol ? 'left' : 'center', vertical: 'middle' };
+        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: hasOt ? OT_FILL : stripe ? STRIPE_FILL : 'FFFFFFFF' } };
       });
     });
 
     const totalRow = ws.getRow(4 + rows.length + 1);
-    totalRow.values = ['', 'GRAND TOTAL', fmtHours(grandTotal15), fmtHours(grandTotal20), fmtHours(grandTotal)];
-    totalRow.height = 20;
+    totalRow.values = ['', '', 'GRAND TOTAL', fmtHours(grandTotal15), fmtHours(grandTotal20), fmtHours(grandTotal)];
+    totalRow.height = 22;
     totalRow.eachCell({ includeEmpty: true }, (c, col) => {
-      const isTotalCol = col === totalCols;
-      c.font = { name: FONT, bold: true, size: 9, color: { argb: isTotalCol ? 'FFFFFFFF' : 'FF1E3A5F' } };
-      c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isTotalCol ? EXPORT_BRAND_ARGB : 'FFD0E8F5' } };
-      c.alignment = { horizontal: col === 2 ? 'left' : 'center', vertical: 'middle' };
-      c.border = { top: { style: 'medium', color: { argb: 'FF86BBD8' } } };
+      const isTotalCol = col === TOTAL_COL;
+      c.font = { name: FONT, bold: true, size: 10, color: { argb: isTotalCol ? 'FFFFFFFF' : EXPORT_BRAND_ARGB } };
+      c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isTotalCol ? EXPORT_BRAND_ARGB : 'FFE4EEF5' } };
+      c.alignment = { horizontal: col === NAME_COL ? 'left' : 'center', vertical: 'middle' };
+      c.border = { top: { style: 'medium', color: { argb: HEADER_BORDER } } };
     });
 
     ws.getColumn(1).width = 6;
-    ws.getColumn(2).width = 26;
-    ws.getColumn(3).width = 10;
+    ws.getColumn(2).width = 12;
+    ws.getColumn(3).width = 26;
     ws.getColumn(4).width = 10;
-    ws.getColumn(5).width = 12;
+    ws.getColumn(5).width = 10;
+    ws.getColumn(6).width = 12;
 
     const buf = await wb.xlsx.writeBuffer();
     const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
