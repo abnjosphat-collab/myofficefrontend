@@ -457,6 +457,8 @@ function LeaveManagementContent() {
   const [selectedLeave, setSelectedLeave] = useState<Leave | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editData, setEditData] = useState<Leave | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkAction, setBulkAction] = useState<'approved' | 'rejected' | null>(null);
   const [filter, setFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [dateFrom, setDateFrom] = useState('');
@@ -503,6 +505,27 @@ function LeaveManagementContent() {
   }, [leaves, filter, typeFilter, dateFrom, dateTo, searchTerm, sortBy]);
 
   const clearFilters = () => { setFilter('all'); setTypeFilter('all'); setDateFrom(''); setDateTo(''); setSearchTerm(''); setSortBy('date-desc'); };
+
+  // Only pending requests are selectable — approve/reject is the only bulk action, and a
+  // stale selection (e.g. someone else actioned one mid-session) is filtered out again
+  // at submit time rather than trusted.
+  const pendingInView = useMemo(() => filteredLeaves.filter(l => l.status === 'pending'), [filteredLeaves]);
+  const allPendingSelected = pendingInView.length > 0 && pendingInView.every(l => selectedIds.has(l.id));
+  const toggleSelectAll = () => setSelectedIds(allPendingSelected ? new Set() : new Set(pendingInView.map(l => l.id)));
+  const toggleSelect = (id: string) => setSelectedIds(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const selectedLeaves = useMemo(() => leaves.filter(l => l.status === 'pending' && selectedIds.has(l.id)), [leaves, selectedIds]);
+
+  const handleBulkStatusUpdate = async () => {
+    if (!bulkAction) return;
+    const targets = selectedLeaves;
+    const results = await Promise.allSettled(targets.map(l => updateLeaveStatus(l.id, bulkAction)));
+    const succeeded = results.filter(r => r.status === 'fulfilled').length;
+    const failed = results.length - succeeded;
+    if (failed > 0) toast.warning(`${failed} failed to update`);
+    if (succeeded > 0) toast.success(`${bulkAction === 'approved' ? 'Approved' : 'Rejected'} ${succeeded} request${succeeded !== 1 ? 's' : ''}`);
+    setSelectedIds(new Set());
+    fetchAllData();
+  };
 
   const typeSummary = useMemo(() => Object.entries(LEAVE_TYPES).map(([key, type]) => {
     const typeLeaves = leaves.filter(l => l.leave_type === key);
@@ -710,9 +733,20 @@ function LeaveManagementContent() {
               </div>
             ) : (
               <div className={`rounded-xl overflow-hidden border ${t.border}`}>
+                {selectedIds.size > 0 && (
+                  <div className={`flex items-center gap-2 px-4 py-2.5 border-b ${t.border} bg-brand-500/[0.06]`}>
+                    <span className={`text-xs font-semibold ${t.textPrimary}`}>{selectedIds.size} selected</span>
+                    <button type="button" onClick={() => setBulkAction('approved')} className={`flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-emerald-500/15 ${accentText('emerald', t.light)} hover:bg-emerald-500/25 transition-all`}><CheckCircle2 className="h-3 w-3" /> Approve</button>
+                    <button type="button" onClick={() => setBulkAction('rejected')} className={`flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-rose-500/15 ${accentText('rose', t.light)} hover:bg-rose-500/25 transition-all`}><XCircle className="h-3 w-3" /> Reject</button>
+                    <button type="button" onClick={() => setSelectedIds(new Set())} className={`ml-auto text-[11px] ${t.textFaint} ${t.hoverText} transition-colors`}>Clear</button>
+                  </div>
+                )}
                 <table className="w-full text-sm">
                   <thead>
                     <tr className={`border-b ${t.border}`}>
+                      <th className={`text-left px-4 py-2.5 text-xs font-semibold ${t.chipBg} ${t.textFaint} w-8`}>
+                        {pendingInView.length > 0 && <input type="checkbox" checked={allPendingSelected} onChange={toggleSelectAll} title="Select all pending" className="rounded" />}
+                      </th>
                       {['Employee', 'Type', 'Dates', 'Days', 'Status', 'Applied', 'Actions'].map((h, i) => (
                         <th key={h} className={`${i === 6 ? 'text-right' : 'text-left'} px-4 py-2.5 text-xs font-semibold ${t.chipBg} ${t.textFaint}`}>{h}</th>
                       ))}
@@ -721,6 +755,9 @@ function LeaveManagementContent() {
                   <tbody>
                     {filteredLeaves.map(leave => (
                       <tr key={leave.id} className={`cursor-pointer border-b ${t.border} ${t.hoverBgSoft} transition-colors`} onClick={() => setSelectedLeave(leave)}>
+                        <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                          {leave.status === 'pending' && <input type="checkbox" checked={selectedIds.has(leave.id)} onChange={() => toggleSelect(leave.id)} className="rounded" />}
+                        </td>
                         <td className="px-4 py-3"><div className={`font-medium ${t.textPrimary}`}>{leave.employee_name}</div><div className={`text-xs ${t.textFaint}`}>{leave.employee_id}</div></td>
                         <td className="px-4 py-3"><StatusBadge color={LEAVE_TYPES[leave.leave_type]?.color ?? ACCENT_HEX.blue} label={LEAVE_TYPES[leave.leave_type]?.shortName || leave.leave_type} /></td>
                         <td className={`px-4 py-3 whitespace-nowrap ${t.textMuted}`}>{fmtDate(leave.start_date)} – {fmtDate(leave.end_date)}</td>
@@ -743,6 +780,18 @@ function LeaveManagementContent() {
 
       {showForm && <LeaveApplicationForm onClose={() => { setShowForm(false); setEditData(null); }} onSuccess={handleFormSuccess} editData={editData} />}
       {selectedLeave && <LeaveDetailsModal leave={selectedLeave} onClose={() => setSelectedLeave(null)} onEdit={l => { setEditData(l); setShowForm(true); setSelectedLeave(null); }} onDelete={handleDelete} onStatusUpdate={handleStatusUpdate} />}
+
+      {bulkAction && (
+        <ApprovalGate
+          title={bulkAction === 'approved' ? `Approve ${selectedLeaves.length} Leave Request${selectedLeaves.length !== 1 ? 's' : ''}` : `Reject ${selectedLeaves.length} Leave Request${selectedLeaves.length !== 1 ? 's' : ''}`}
+          description={`${selectedLeaves.length} pending request${selectedLeaves.length !== 1 ? 's' : ''} selected`}
+          actionLabel={bulkAction === 'approved' ? 'Sign & Approve All' : 'Sign & Reject All'}
+          requiredRole="manager"
+          variant={bulkAction === 'approved' ? 'approve' : 'reject'}
+          onConfirm={async () => { await handleBulkStatusUpdate(); }}
+          onCancel={() => setBulkAction(null)}
+        />
+      )}
     </main>
   );
 }

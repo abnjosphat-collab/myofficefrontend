@@ -650,6 +650,8 @@ function OvertimeContent() {
   const [delTarget, setDelTarget] = useState<OTRecord | null>(null);
   const [approving, setApproving] = useState<OTRecord | null>(null);
   const [rejecting, setRejecting] = useState<OTRecord | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkAction, setBulkAction] = useState<'approve' | 'reject' | null>(null);
 
   const filtered = useMemo(() => records.filter(r => {
     if (status !== 'all' && r.status !== status) return false;
@@ -768,6 +770,37 @@ function OvertimeContent() {
     toast.success('Overtime rejected');
     setViewing(null);
     setRejecting(null);
+  };
+
+  // Only pending records are selectable — approve/reject is the only bulk action, and a
+  // stale selection (e.g. someone else approved one mid-session) is filtered out again
+  // at submit time rather than trusted.
+  const pendingInView = useMemo(() => filtered.filter(r => r.status === 'pending'), [filtered]);
+  const allPendingSelected = pendingInView.length > 0 && pendingInView.every(r => selectedIds.has(String(r.id)));
+  const toggleSelectAll = () => setSelectedIds(allPendingSelected ? new Set() : new Set(pendingInView.map(r => String(r.id))));
+  const toggleSelect = (id: string) => setSelectedIds(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const selectedRecords = useMemo(() => records.filter(r => r.status === 'pending' && selectedIds.has(String(r.id))), [records, selectedIds]);
+
+  const handleBulkApprove = async (sig: SignatureResult) => {
+    const targets = selectedRecords;
+    const results = await Promise.allSettled(targets.map(r => updateOT(r.id, { status: 'approved', approved_by: sig.signerName, approved_at: sig.signedAt, approval_signature: sig.dataUrl })));
+    const updated = results.filter((r): r is PromiseFulfilledResult<OTRecord> => r.status === 'fulfilled').map(r => r.value);
+    setRecords(prev => { const map = new Map(prev.map(r => [String(r.id), r])); updated.forEach(u => map.set(String(u.id), u)); return [...map.values()]; });
+    const failed = results.length - updated.length;
+    if (failed > 0) toast.warning(`${failed} failed to approve`);
+    if (updated.length > 0) toast.success(`Approved ${updated.length} request${updated.length !== 1 ? 's' : ''}`);
+    setSelectedIds(new Set());
+  };
+
+  const handleBulkReject = async (sig: SignatureResult) => {
+    const targets = selectedRecords;
+    const results = await Promise.allSettled(targets.map(r => updateOT(r.id, { status: 'rejected', rejected_by: sig.signerName, rejected_at: sig.signedAt })));
+    const updated = results.filter((r): r is PromiseFulfilledResult<OTRecord> => r.status === 'fulfilled').map(r => r.value);
+    setRecords(prev => { const map = new Map(prev.map(r => [String(r.id), r])); updated.forEach(u => map.set(String(u.id), u)); return [...map.values()]; });
+    const failed = results.length - updated.length;
+    if (failed > 0) toast.warning(`${failed} failed to reject`);
+    if (updated.length > 0) toast.success(`Rejected ${updated.length} request${updated.length !== 1 ? 's' : ''}`);
+    setSelectedIds(new Set());
   };
 
   const selCls = `h-9 rounded-lg px-3 text-sm outline-none transition-colors ${t.inputBg}`;
@@ -900,16 +933,31 @@ function OvertimeContent() {
           </div>
         ) : (
           <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
+            {selectedIds.size > 0 && (
+              <div className={`flex items-center gap-2 px-5 py-2.5 border-b ${t.border} bg-brand-500/[0.06]`}>
+                <span className={`text-xs font-semibold ${t.textPrimary}`}>{selectedIds.size} selected</span>
+                <button type="button" onClick={() => setBulkAction('approve')} className={`flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-emerald-500/15 ${accentText('emerald', t.light)} hover:bg-emerald-500/25 transition-all`}><CheckCircle2 className="h-3 w-3" /> Approve</button>
+                <button type="button" onClick={() => setBulkAction('reject')} className={`flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-rose-500/15 ${accentText('rose', t.light)} hover:bg-rose-500/25 transition-all`}><XCircle className="h-3 w-3" /> Reject</button>
+                <button type="button" onClick={() => setSelectedIds(new Set())} className={`ml-auto text-[11px] ${t.textFaint} ${t.hoverText} transition-colors`}>Clear</button>
+              </div>
+            )}
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className={`border-b ${t.border}`}>
-                  <tr><th className={thCls}>Employee</th><th className={thCls}>Type</th><th className={thCls}>Date</th><th className={thCls}>Hours</th><th className={thCls}>Reason</th><th className={thCls}>Status</th><th className={thCls}></th></tr>
+                  <tr>
+                    <th className={`${thCls} w-8`}>
+                      {pendingInView.length > 0 && <input type="checkbox" checked={allPendingSelected} onChange={toggleSelectAll} title="Select all pending" className="rounded" />}
+                    </th>
+                    <th className={thCls}>Employee</th><th className={thCls}>Type</th><th className={thCls}>Date</th><th className={thCls}>Hours</th><th className={thCls}>Reason</th><th className={thCls}>Status</th><th className={thCls}></th></tr>
                 </thead>
                 <tbody>
                   {filtered.map(r => {
                     const h = calcHours(r.start_time, r.end_time);
                     return (
                       <tr key={r.id} onClick={() => setViewing(r)} className={`border-b ${t.border} ${t.hoverBgSoft} transition-colors cursor-pointer`}>
+                        <td className={tdCls} onClick={e => e.stopPropagation()}>
+                          {r.status === 'pending' && <input type="checkbox" checked={selectedIds.has(String(r.id))} onChange={() => toggleSelect(String(r.id))} className="rounded" />}
+                        </td>
                         <td className={tdCls}>
                           <div className="flex items-center gap-2.5">
                             <Avatar name={r.employee_name} />
@@ -1090,6 +1138,18 @@ function OvertimeContent() {
           variant="reject"
           onConfirm={handleReject}
           onCancel={() => setRejecting(null)}
+        />
+      )}
+
+      {bulkAction && (
+        <ApprovalGate
+          title={bulkAction === 'approve' ? `Approve ${selectedRecords.length} Overtime Request${selectedRecords.length !== 1 ? 's' : ''}` : `Reject ${selectedRecords.length} Overtime Request${selectedRecords.length !== 1 ? 's' : ''}`}
+          description={`${selectedRecords.length} pending request${selectedRecords.length !== 1 ? 's' : ''} selected`}
+          actionLabel={bulkAction === 'approve' ? 'Sign & Approve All' : 'Sign & Reject All'}
+          requiredRole="manager"
+          variant={bulkAction === 'approve' ? 'approve' : 'reject'}
+          onConfirm={bulkAction === 'approve' ? handleBulkApprove : handleBulkReject}
+          onCancel={() => setBulkAction(null)}
         />
       )}
 
