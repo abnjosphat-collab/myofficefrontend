@@ -418,8 +418,16 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
   const defaultTo = toISODate(addDays(sundayOf(new Date()), 6));
   const [from, setFrom] = useState(defaultFrom);
   const [to, setTo] = useState(defaultTo);
+  const [sortByTotal, setSortByTotal] = useState(false);
 
-  const { rows, days } = useMemo(() => buildWeeklyRows(records, from, to, employees), [records, from, to, employees]);
+  const { rows: rowsByName, days } = useMemo(() => buildWeeklyRows(records, from, to, employees), [records, from, to, employees]);
+  // buildWeeklyRows already returns alphabetical order — re-sort on top of that
+  // (not inside it) so "highest overtime first" stays a view preference, not a
+  // change to the underlying data shape everything else here relies on.
+  const rows = useMemo(
+    () => sortByTotal ? [...rowsByName].sort((a, b) => b.total - a.total) : rowsByName,
+    [rowsByName, sortByTotal]
+  );
   const grandTotal = rows.reduce((s, r) => s + r.total, 0);
   const dayTotals = days.map(d => { const ds = toISODate(d); return rows.reduce((s, r) => s + (r.byDate.get(ds) || 0), 0); });
 
@@ -441,7 +449,7 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
     // 1.5x total, 2.0x total, and overall total.
     // [No., Mine No., Employee, 1.5x h, 2.0x h, Total h].
     const totalCols = 6;
-    const NAME_COL = 3, RATE15_COL = 4, RATE20_COL = 5, TOTAL_COL = 6;
+    const NAME_COL = 3, TOTAL_COL = 6;
     ws.views = [{ state: 'frozen', xSplit: 3, ySplit: 3 }];
     const FONT = 'Calibri';
 
@@ -452,12 +460,6 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
     const HEADER_FILL = EXPORT_BRAND_ARGB;
     const HEADER_BORDER = 'FF9FC4DE';
     const STRIPE_FILL = 'FFF6F9FB';
-    // Overtime highlight: any hour cell that's actually > 0 gets a warm, subtle
-    // amber tint + bold text, so a reader can tell at a glance who worked overtime
-    // this week versus who's on the roster at zero — the whole reason everyone is
-    // listed now instead of only people with hours.
-    const OT_FILL = 'FFFCEFD1';
-    const OT_TEXT = 'FF8A5A00';
 
     ws.mergeCells(1, 1, 1, totalCols);
     const title = ws.getCell(1, 1);
@@ -494,13 +496,11 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
       dataRow.values = rowVals;
       dataRow.height = 17;
       const stripe = ei % 2 !== 0;
-      const hourValueByCol: Record<number, number> = { [RATE15_COL]: row.total15, [RATE20_COL]: row.total20, [TOTAL_COL]: row.total };
       dataRow.eachCell({ includeEmpty: true }, (c, col) => {
         const isNameCol = col === NAME_COL;
-        const hasOt = hourValueByCol[col] > 0;
-        c.font = { name: FONT, size: 10, bold: hasOt, color: hasOt ? { argb: OT_TEXT } : undefined };
+        c.font = { name: FONT, size: 10 };
         c.alignment = { horizontal: isNameCol ? 'left' : 'center', vertical: 'middle' };
-        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: hasOt ? OT_FILL : stripe ? STRIPE_FILL : 'FFFFFFFF' } };
+        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: stripe ? STRIPE_FILL : 'FFFFFFFF' } };
       });
     });
 
@@ -536,6 +536,10 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
         <span className={t.textFaint}>to</span>
         <input type="date" title="To date" value={to} onChange={e => setTo(e.target.value)} className={`h-9 rounded-lg px-2.5 text-xs outline-none transition-colors ${t.inputBg}`} />
         <button type="button" onClick={() => { setFrom(defaultFrom); setTo(defaultTo); }} className={`h-9 px-3 rounded-lg text-xs font-medium transition-colors ${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText}`}>This Week</button>
+        <button type="button" onClick={() => setSortByTotal(v => !v)} title="Toggle sort order"
+          className={`h-9 flex items-center gap-1.5 px-3 rounded-lg text-xs font-medium transition-colors ${sortByTotal ? 'bg-brand-500/25 text-brand-400 font-semibold' : `${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText}`}`}>
+          <TrendingUp className="h-3.5 w-3.5" /> {sortByTotal ? 'Highest OT first' : 'Sort A–Z'}
+        </button>
         {!invalidRange && <span className={`text-xs ${t.textFaint}`}>{days.length} day{days.length !== 1 ? 's' : ''} · {rows.length} employee{rows.length !== 1 ? 's' : ''} · {grandTotal.toFixed(1)}h total</span>}
         {!invalidRange && rows.length > 0 && (
           <button type="button" onClick={downloadExcel} className="ml-auto flex items-center gap-1.5 h-9 px-3 rounded-lg text-xs font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all">
