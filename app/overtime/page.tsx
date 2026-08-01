@@ -353,15 +353,24 @@ interface EmployeeWeekRow {
 }
 
 // Excluded from the weekly roster by name/role rather than editing the query, so
-// it stays visible and easy to adjust in one place. Matched case-insensitively
-// against designation/position (covers "Manager", "Senior Manager", "Graduate
-// Trainee", …) — "driver antonio" is one specific person, matched by name AND
-// role together so it doesn't accidentally catch an unrelated "Antonio".
+// it stays visible and easy to adjust in one place. Roles matched case-
+// insensitively against designation/position (covers "Manager", "Senior
+// Manager", "Graduate Trainee", "Hoist Driver", …). Named individuals are
+// matched by single name token (first name or surname alone) since designation
+// text alone doesn't reliably identify them — spelled exactly as given; if any
+// don't match the roster's actual spelling, flag it and they'll get added.
+const EXCLUDED_ROLE_SUBSTRINGS = ['manager', 'trainee', 'foreman', 'hoist driver'];
+const EXCLUDED_NAME_TOKENS = [
+  'mavhondo', 'toderai', 'chibvongodze', 'pedzisai', // named exclusions
+  'chimhanda', 'chiwara', 'gasseler', 'pnashe',       // graduate trainees, by name (belt-and-braces alongside the role match above)
+];
+
 function isExcludedFromWeeklyRoster(emp: EmployeeLookup): boolean {
   const role = `${emp.designation || emp.position || ''}`.toLowerCase();
-  if (role.includes('manager') || role.includes('trainee')) return true;
+  if (EXCLUDED_ROLE_SUBSTRINGS.some(s => role.includes(s))) return true;
   const name = `${emp.full_name || emp.name || `${emp.first_name || ''} ${emp.last_name || ''}`}`.toLowerCase();
-  if (name.includes('antonio') && role.includes('driver')) return true;
+  if (name.includes('antonio') && role.includes('driver')) return true; // one specific driver, matched by name+role together
+  if (EXCLUDED_NAME_TOKENS.some(t => name.includes(t))) return true;
   return false;
 }
 
