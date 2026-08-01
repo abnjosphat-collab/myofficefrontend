@@ -50,8 +50,11 @@ export interface EditCell { employee: Employee; date: Date; entry?: TimesheetEnt
 export interface HourTotals {
   reg: number; ot15: number; ot20: number; night: number; standbyBonus: number;
   /** Flat +8h once per contiguous run of nightshift_allowance days — same mechanic as
-   *  standbyBonus, but kept as its own column rather than folded into ot15. */
+   *  standbyBonus, both kept as their own columns rather than folded into ot15. */
   nightAllowanceBonus: number;
+  /** reg + ot15 + ot20 + night — what was actually worked/credited, before the flat
+   *  standby/night-allowance bonuses are added on top to reach `total`. */
+  actual: number;
   total: number; excess?: number;
 }
 

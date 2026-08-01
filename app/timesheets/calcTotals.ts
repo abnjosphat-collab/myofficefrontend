@@ -40,10 +40,15 @@ export function calcEmployeeTotals(empId: string, timesheets: TimesheetEntry[]):
     });
 
   const a = apply208(reg, ot15);
-  ot15 = a.ot15 + standbyBonus;
+  // actual = hours genuinely worked/credited (regular + both overtime tiers + night), as
+  // distinct from the flat standby/night-allowance bonuses added on top — previously
+  // standbyBonus was folded silently into ot15, so "1.5×" and "Total" both overstated what
+  // was actually worked with no way to see the bonus on its own (nightAllowanceBonus never
+  // had that problem — it was always kept separate).
+  const actual = a.reg + a.ot15 + ot20 + night;
   return {
-    reg: a.reg, ot15, ot20, night, standbyBonus, nightAllowanceBonus,
-    total: a.reg + ot15 + ot20 + night + nightAllowanceBonus,
+    reg: a.reg, ot15: a.ot15, ot20, night, standbyBonus, nightAllowanceBonus, actual,
+    total: actual + standbyBonus + nightAllowanceBonus,
     excess: Math.max(0, reg - 208),
   };
 }

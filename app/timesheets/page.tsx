@@ -753,7 +753,6 @@ function BulkAssignDialog({ initialEmployee, allEmployees, period, timesheets, o
   );
 }
 
-// ─────────────────── QUICK TOTAL-HOURS ENTRY ───────────────────
 // Used by normalShiftEnd (near getDays) to compute a shift's end time from its start
 // and length — kept standalone since the "Normal (by role)" bulk-assign preset needs it
 // independent of any dialog.
@@ -862,13 +861,13 @@ function DownloadDialog({ employees, timesheets, period, periodType, onClose }: 
     if (scope === 'combined') {
       const ws = wb.addWorksheet('Timesheet Summary');
       const FIXED_COLS = 3;
-      const SUM_COLS = 6;
+      const SUM_COLS = 8;
       const totalCols = FIXED_COLS + days.length + SUM_COLS;
       ws.views = [{ state: 'frozen', xSplit: FIXED_COLS, ySplit: 3 }];
 
       const FONT = 'Calibri';
-      const SUM_FILLS = ['FFE8F4FD', 'FFD0E8F5', 'FFB8D9F0', 'FF9AC9EB', 'FFDCE6F7', EXPORT_BRAND_ARGB];
-      const SUM_COLORS = ['FF1E3A5F', 'FF1E3A5F', 'FF1E3A5F', 'FF1E3A5F', 'FF1E3A5F', 'FFFFFFFF'];
+      const SUM_FILLS = ['FFE8F4FD', 'FFD0E8F5', 'FFB8D9F0', 'FF9AC9EB', 'FFDCE6F7', 'FFFBEED4', 'FFEAEDF1', EXPORT_BRAND_ARGB];
+      const SUM_COLORS = ['FF1E3A5F', 'FF1E3A5F', 'FF1E3A5F', 'FF1E3A5F', 'FF1E3A5F', 'FF7A5A1E', 'FF1E3A5F', 'FFFFFFFF'];
 
       ws.mergeCells(1, 1, 1, totalCols);
       const titleCell = ws.getCell(1, 1);
@@ -879,7 +878,7 @@ function DownloadDialog({ employees, timesheets, period, periodType, onClose }: 
       ws.addRow([]);
 
       const hdrRow = ws.getRow(3);
-      hdrRow.values = ['Employee', 'Emp #', 'Position', ...days.map(d => `${d.getDate()}\n${d.toLocaleDateString('en-GB', { weekday: 'short' })}`), 'Reg h', 'OT 1.5×', 'OT 2.0×', 'Night h', 'Night Allow. h', 'Total h'];
+      hdrRow.values = ['Employee', 'Emp #', 'Position', ...days.map(d => `${d.getDate()}\n${d.toLocaleDateString('en-GB', { weekday: 'short' })}`), 'Reg h', 'OT 1.5×', 'OT 2.0×', 'Night h', 'Standby h', 'Night Allow. h', 'Actual h', 'Total h'];
       hdrRow.height = 32;
       hdrRow.eachCell({ includeEmpty: true }, (c, col) => {
         const isSumCol = col > FIXED_COLS + days.length;
@@ -897,7 +896,7 @@ function DownloadDialog({ employees, timesheets, period, periodType, onClose }: 
         const empIdDisplay = emp.employeeId || '';
         const rowVals: (string | number)[] = [emp.name, empIdDisplay, emp.position || ''];
         days.forEach(day => rowVals.push(dayCell(getEntry(emp.id, day), day)));
-        rowVals.push(totals.reg, totals.ot15, totals.ot20, totals.night, totals.nightAllowanceBonus, totals.total);
+        rowVals.push(totals.reg, totals.ot15, totals.ot20, totals.night, totals.standbyBonus, totals.nightAllowanceBonus, totals.actual, totals.total);
 
         const dataRow = ws.getRow(4 + ei);
         dataRow.values = rowVals;
@@ -929,10 +928,10 @@ function DownloadDialog({ employees, timesheets, period, periodType, onClose }: 
           }
         });
 
-        [0, 1, 2, 3, 4, 5].forEach(si => {
+        [0, 1, 2, 3, 4, 5, 6, 7].forEach(si => {
           const c = dataRow.getCell(FIXED_COLS + 1 + days.length + si);
           c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: SUM_FILLS[si] } };
-          c.font = { name: FONT, size: 8, bold: si === 5, color: { argb: SUM_COLORS[si] } };
+          c.font = { name: FONT, size: 8, bold: si === 7, color: { argb: SUM_COLORS[si] } };
           c.numFmt = '0.00';
           c.alignment = { horizontal: 'center', vertical: 'middle' };
         });
@@ -942,7 +941,8 @@ function DownloadDialog({ employees, timesheets, period, periodType, onClose }: 
       gtRow.values = ['TOTALS', '', `${targets.length} employees`, ...days.map(() => ''),
         targets.reduce((s, e) => s + calcTotalsLocal(e.id).reg, 0), targets.reduce((s, e) => s + calcTotalsLocal(e.id).ot15, 0),
         targets.reduce((s, e) => s + calcTotalsLocal(e.id).ot20, 0), targets.reduce((s, e) => s + calcTotalsLocal(e.id).night, 0),
-        targets.reduce((s, e) => s + calcTotalsLocal(e.id).nightAllowanceBonus, 0), targets.reduce((s, e) => s + calcTotalsLocal(e.id).total, 0)];
+        targets.reduce((s, e) => s + calcTotalsLocal(e.id).standbyBonus, 0), targets.reduce((s, e) => s + calcTotalsLocal(e.id).nightAllowanceBonus, 0),
+        targets.reduce((s, e) => s + calcTotalsLocal(e.id).actual, 0), targets.reduce((s, e) => s + calcTotalsLocal(e.id).total, 0)];
       gtRow.height = 20;
       gtRow.eachCell({ includeEmpty: true }, (c, col) => {
         const isSumCol = col > FIXED_COLS + days.length;
@@ -955,31 +955,28 @@ function DownloadDialog({ employees, timesheets, period, periodType, onClose }: 
 
       ws.getColumn(1).width = 24; ws.getColumn(2).width = 9; ws.getColumn(3).width = 16;
       for (let i = 0; i < days.length; i++) ws.getColumn(FIXED_COLS + 1 + i).width = 5.5;
-      [10, 10, 10, 10, 12, 11].forEach((w, i) => { ws.getColumn(FIXED_COLS + 1 + days.length + i).width = w; });
+      [10, 10, 10, 10, 11, 12, 10, 11].forEach((w, i) => { ws.getColumn(FIXED_COLS + 1 + days.length + i).width = w; });
 
     } else {
       targets.forEach(emp => {
         const ws = wb.addWorksheet(emp.name.slice(0, 31));
         const totals = calcTotalsLocal(emp.id);
-        ws.mergeCells('A1:J1'); ws.getCell('A1').value = `${tabLabel} Timesheet`;
+        ws.mergeCells('A1:L1'); ws.getCell('A1').value = `${tabLabel} Timesheet`;
         ws.getCell('A1').font = { bold: true, size: 14, color: { argb: EXPORT_BRAND_ARGB } };
-        ws.mergeCells('A2:J2'); ws.getCell('A2').value = `${emp.name} | ${fmtPeriod(period)}`;
+        ws.mergeCells('A2:L2'); ws.getCell('A2').value = `${emp.name} | ${fmtPeriod(period)}`;
         ws.getCell('A2').font = { bold: true, size: 11 };
         ws.addRow([]);
-        const hdr = ws.addRow(['Day', 'Date', 'Status', 'Start', 'End', 'Regular', 'OT 1.5×', 'OT 2.0×', 'Night', 'Notes']);
+        const hdr = ws.addRow(['Day', 'Date', 'Status', 'Start', 'End', 'Regular', 'OT 1.5×', 'OT 2.0×', 'Night', 'Standby', 'Actual', 'Notes']);
         hdr.eachCell(c => { c.font = { bold: true, color: { argb: 'FFFFFFFF' } }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: EXPORT_BRAND_ARGB } }; c.alignment = { horizontal: 'center' }; });
         buildRows(emp).forEach((row, i) => {
-          const r = ws.addRow([row.day, row.date, row.status, row.start, row.end, +row.reg, +row.ot15, +row.ot20, +row.night, row.notes]);
+          const r = ws.addRow([row.day, row.date, row.status, row.start, row.end, +row.reg, +row.ot15, +row.ot20, +row.night, '', '', row.notes]);
           if (i % 2 === 1) r.eachCell(c => { c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF5F7FA' } }; });
         });
         ws.addRow([]);
-        const bonusNotes = [
-          totals.standbyBonus > 0 ? `${totals.standbyBonus}h standby OT` : '',
-          totals.nightAllowanceBonus > 0 ? `${totals.nightAllowanceBonus}h night allowance` : '',
-        ].filter(Boolean).join(', ');
-        const tr = ws.addRow(['TOTALS', '', '', '', '', totals.reg.toFixed(2), totals.ot15.toFixed(2), totals.ot20.toFixed(2), totals.night.toFixed(2), `Grand: ${totals.total.toFixed(2)}h${bonusNotes ? ` (incl. ${bonusNotes})` : ''}`]);
+        const bonusNote = totals.nightAllowanceBonus > 0 ? ` (incl. ${totals.nightAllowanceBonus}h night allowance)` : '';
+        const tr = ws.addRow(['TOTALS', '', '', '', '', totals.reg.toFixed(2), totals.ot15.toFixed(2), totals.ot20.toFixed(2), totals.night.toFixed(2), totals.standbyBonus.toFixed(2), totals.actual.toFixed(2), `Grand: ${totals.total.toFixed(2)}h${bonusNote}`]);
         tr.eachCell(c => { c.font = { bold: true }; });
-        ws.columns = [{ width: 6 }, { width: 13 }, { width: 15 }, { width: 8 }, { width: 8 }, { width: 10 }, { width: 10 }, { width: 10 }, { width: 10 }, { width: 35 }];
+        ws.columns = [{ width: 6 }, { width: 13 }, { width: 15 }, { width: 8 }, { width: 8 }, { width: 10 }, { width: 10 }, { width: 10 }, { width: 10 }, { width: 10 }, { width: 10 }, { width: 35 }];
       });
     }
 
@@ -1002,20 +999,21 @@ function DownloadDialog({ employees, timesheets, period, periodType, onClose }: 
       doc.text(`${tabLabel} Timesheet — ${fmtPeriod(period)}`, 10, 10);
       doc.setFontSize(8); doc.text(`${targets.length} employees · Generated ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`, 10, 14);
 
-      const dayW = Math.min(5.5, (277 - 35 - 20 - 66) / days.length);
+      const dayW = Math.min(5.5, (277 - 35 - 20 - 88) / days.length);
       const colStyles: Record<number, { cellWidth: number; halign?: 'center' | 'left' }> = { 0: { cellWidth: 35, halign: 'left' }, 1: { cellWidth: 20, halign: 'left' } };
       days.forEach((_, i) => { colStyles[2 + i] = { cellWidth: dayW, halign: 'center' }; });
-      [0, 1, 2, 3, 4, 5].forEach(si => { colStyles[2 + days.length + si] = { cellWidth: 11, halign: 'center' }; });
+      [0, 1, 2, 3, 4, 5, 6, 7].forEach(si => { colStyles[2 + days.length + si] = { cellWidth: 11, halign: 'center' }; });
 
-      const head = [['Employee', 'Position', ...days.map(d => `${d.getDate()}`), 'Reg', 'OT\n1.5×', 'OT\n2.0×', 'Night', 'Night\nAllow.', 'Total']];
+      const head = [['Employee', 'Position', ...days.map(d => `${d.getDate()}`), 'Reg', 'OT\n1.5×', 'OT\n2.0×', 'Night', 'Standby', 'Night\nAllow.', 'Actual', 'Total']];
       const body = targets.map(emp => {
         const totals = calcTotalsLocal(emp.id);
-        return [emp.name, emp.position || '', ...days.map(day => { const v = dayCell(getEntry(emp.id, day), day); return v === 0 ? '' : String(v); }), totals.reg.toFixed(1), totals.ot15.toFixed(1), totals.ot20.toFixed(1), totals.night.toFixed(1), totals.nightAllowanceBonus.toFixed(1), totals.total.toFixed(1)];
+        return [emp.name, emp.position || '', ...days.map(day => { const v = dayCell(getEntry(emp.id, day), day); return v === 0 ? '' : String(v); }), totals.reg.toFixed(1), totals.ot15.toFixed(1), totals.ot20.toFixed(1), totals.night.toFixed(1), totals.standbyBonus.toFixed(1), totals.nightAllowanceBonus.toFixed(1), totals.actual.toFixed(1), totals.total.toFixed(1)];
       });
       body.push(['TOTALS', `${targets.length} emp`, ...days.map(() => ''),
         targets.reduce((s, e) => s + calcTotalsLocal(e.id).reg, 0).toFixed(1), targets.reduce((s, e) => s + calcTotalsLocal(e.id).ot15, 0).toFixed(1),
         targets.reduce((s, e) => s + calcTotalsLocal(e.id).ot20, 0).toFixed(1), targets.reduce((s, e) => s + calcTotalsLocal(e.id).night, 0).toFixed(1),
-        targets.reduce((s, e) => s + calcTotalsLocal(e.id).nightAllowanceBonus, 0).toFixed(1), targets.reduce((s, e) => s + calcTotalsLocal(e.id).total, 0).toFixed(1)]);
+        targets.reduce((s, e) => s + calcTotalsLocal(e.id).standbyBonus, 0).toFixed(1), targets.reduce((s, e) => s + calcTotalsLocal(e.id).nightAllowanceBonus, 0).toFixed(1),
+        targets.reduce((s, e) => s + calcTotalsLocal(e.id).actual, 0).toFixed(1), targets.reduce((s, e) => s + calcTotalsLocal(e.id).total, 0).toFixed(1)]);
 
       autoTable(doc, {
         startY: 20, head, body,
@@ -1036,22 +1034,19 @@ function DownloadDialog({ employees, timesheets, period, periodType, onClose }: 
       targets.forEach((emp, ei) => {
         if (ei > 0) doc.addPage();
         const totals = calcTotalsLocal(emp.id); const rows = buildRows(emp);
-        const bonusNotes = [
-          totals.standbyBonus > 0 ? `${totals.standbyBonus}h standby` : '',
-          totals.nightAllowanceBonus > 0 ? `${totals.nightAllowanceBonus}h night allow.` : '',
-        ].filter(Boolean).join(', ');
+        const bonusNote = totals.nightAllowanceBonus > 0 ? ` (incl. ${totals.nightAllowanceBonus}h night allow.)` : '';
         doc.setFillColor(...BRAND); doc.rect(0, 0, 297, 18, 'F');
         doc.setTextColor(255, 255, 255); doc.setFontSize(12); doc.text(`${tabLabel} Timesheet`, 10, 7);
         doc.setFontSize(9); doc.text(fmtPeriod(period), 10, 13);
         doc.setFontSize(11); doc.text(emp.name, 287, 10, { align: 'right' });
         autoTable(doc, {
           startY: 22,
-          head: [['Day', 'Date', 'Status', 'Start', 'End', 'Reg', 'OT 1.5×', 'OT 2.0×', 'Night', 'Notes']],
-          body: [...rows.map(r => [r.day, r.date, r.status, r.start, r.end, r.reg, r.ot15, r.ot20, r.night, r.notes]), ['TOTALS', '', '', '', '', totals.reg.toFixed(2), totals.ot15.toFixed(2), totals.ot20.toFixed(2), totals.night.toFixed(2), `Total: ${totals.total.toFixed(2)}h${bonusNotes ? ` (incl. ${bonusNotes})` : ''}`]],
+          head: [['Day', 'Date', 'Status', 'Start', 'End', 'Reg', 'OT 1.5×', 'OT 2.0×', 'Night', 'Standby', 'Actual', 'Notes']],
+          body: [...rows.map(r => [r.day, r.date, r.status, r.start, r.end, r.reg, r.ot15, r.ot20, r.night, '', '', r.notes]), ['TOTALS', '', '', '', '', totals.reg.toFixed(2), totals.ot15.toFixed(2), totals.ot20.toFixed(2), totals.night.toFixed(2), totals.standbyBonus.toFixed(2), totals.actual.toFixed(2), `Total: ${totals.total.toFixed(2)}h${bonusNote}`]],
           styles: { fontSize: 7.5, cellPadding: 1.5 },
           headStyles: { fillColor: BRAND, textColor: 255, fontStyle: 'bold' },
           alternateRowStyles: { fillColor: [248, 250, 252] },
-          columnStyles: { 0: { cellWidth: 10 }, 1: { cellWidth: 22 }, 2: { cellWidth: 20 }, 3: { cellWidth: 14 }, 4: { cellWidth: 14 }, 5: { cellWidth: 16 }, 6: { cellWidth: 16 }, 7: { cellWidth: 16 }, 8: { cellWidth: 16 }, 9: { cellWidth: 'auto' } },
+          columnStyles: { 0: { cellWidth: 10 }, 1: { cellWidth: 22 }, 2: { cellWidth: 20 }, 3: { cellWidth: 14 }, 4: { cellWidth: 14 }, 5: { cellWidth: 16 }, 6: { cellWidth: 16 }, 7: { cellWidth: 16 }, 8: { cellWidth: 16 }, 9: { cellWidth: 16 }, 10: { cellWidth: 16 }, 11: { cellWidth: 'auto' } },
           didParseCell: d => { if (d.row.index === rows.length) { d.cell.styles.fontStyle = 'bold'; d.cell.styles.fillColor = [230, 244, 234]; } },
         });
       });
@@ -1155,6 +1150,8 @@ function TimesheetGrid({ employees, timesheets, days, onCellClick, onQuickAdd, o
           <TableHead className={`text-center min-w-14 text-brand-400 text-[10px] font-semibold sticky top-0 z-20 ${stickyBg}`}>1.5×</TableHead>
           <TableHead className={`text-center min-w-14 text-sky-400 text-[10px] font-semibold sticky top-0 z-20 ${stickyBg}`}>2.0×</TableHead>
           <TableHead className={`text-center min-w-14 ${accentText('indigo', t.light)} text-[10px] font-semibold sticky top-0 z-20 ${stickyBg}`}>Night</TableHead>
+          <TableHead className={`text-center min-w-14 ${accentText('amber', t.light)} text-[10px] font-semibold sticky top-0 z-20 ${stickyBg}`}>Standby</TableHead>
+          <TableHead className={`text-center min-w-14 text-[10px] font-semibold sticky top-0 z-20 ${stickyBg} ${t.textMuted}`}>Actual</TableHead>
           <TableHead className={`text-center min-w-16 text-[10px] font-semibold sticky top-0 z-20 ${stickyBg} ${t.textMuted}`}>Total</TableHead>
         </TableRow>
       </TableHeader>
@@ -1290,12 +1287,11 @@ function TimesheetGrid({ employees, timesheets, days, onCellClick, onQuickAdd, o
                 <div className={`text-sm font-bold ${accentText('emerald', t.light)}`}>{totals.reg.toFixed(1)}</div>
                 {(totals.excess || 0) > 0 && <div className="text-[9px] text-brand-400">+{totals.excess!.toFixed(1)}→OT</div>}
               </TableCell>
-              <TableCell className="text-center py-2">
-                <div className="text-sm font-bold text-brand-400">{totals.ot15.toFixed(1)}</div>
-                {totals.standbyBonus > 0 && <div className={`text-[9px] ${accentText('amber', t.light)}`}>+{totals.standbyBonus}SB</div>}
-              </TableCell>
+              <TableCell className="text-center py-2 text-sm font-bold text-brand-400">{totals.ot15.toFixed(1)}</TableCell>
               <TableCell className="text-center py-2 text-sm font-bold text-sky-400">{totals.ot20.toFixed(1)}</TableCell>
               <TableCell className={`text-center py-2 text-sm font-bold ${accentText('indigo', t.light)}`}>{totals.night.toFixed(1)}</TableCell>
+              <TableCell className={`text-center py-2 text-sm font-bold ${accentText('amber', t.light)}`}>{totals.standbyBonus.toFixed(1)}</TableCell>
+              <TableCell className={`text-center py-2 text-sm font-bold ${t.textMuted}`}>{totals.actual.toFixed(1)}</TableCell>
               <TableCell className="text-center py-2"><span className={`text-base font-bold ${t.textPrimary}`}>{totals.total.toFixed(1)}</span></TableCell>
             </TableRow>
           );
@@ -1303,8 +1299,8 @@ function TimesheetGrid({ employees, timesheets, days, onCellClick, onQuickAdd, o
         {employees.length > 0 && (() => {
           const grand = employees.reduce((acc, emp) => {
             const tt = calcTotals(emp.id, timesheets);
-            return { reg: acc.reg + tt.reg, ot15: acc.ot15 + tt.ot15, ot20: acc.ot20 + tt.ot20, night: acc.night + tt.night, total: acc.total + tt.total };
-          }, { reg: 0, ot15: 0, ot20: 0, night: 0, total: 0 });
+            return { reg: acc.reg + tt.reg, ot15: acc.ot15 + tt.ot15, ot20: acc.ot20 + tt.ot20, night: acc.night + tt.night, standbyBonus: acc.standbyBonus + tt.standbyBonus, actual: acc.actual + tt.actual, total: acc.total + tt.total };
+          }, { reg: 0, ot15: 0, ot20: 0, night: 0, standbyBonus: 0, actual: 0, total: 0 });
           return (
             <TableRow className={`border-t-2 ${t.border} ${t.chipBg}`}>
               <TableCell className={`sticky left-0 z-10 ${stickyBg} border-r ${t.border} py-3`}>
@@ -1322,6 +1318,8 @@ function TimesheetGrid({ employees, timesheets, days, onCellClick, onQuickAdd, o
               <TableCell className="text-center py-3"><span className="text-sm font-bold text-brand-400">{grand.ot15.toFixed(1)}</span></TableCell>
               <TableCell className="text-center py-3"><span className="text-sm font-bold text-sky-400">{grand.ot20.toFixed(1)}</span></TableCell>
               <TableCell className="text-center py-3"><span className={`text-sm font-bold ${accentText('indigo', t.light)}`}>{grand.night.toFixed(1)}</span></TableCell>
+              <TableCell className="text-center py-3"><span className={`text-sm font-bold ${accentText('amber', t.light)}`}>{grand.standbyBonus.toFixed(1)}</span></TableCell>
+              <TableCell className="text-center py-3"><span className={`text-sm font-bold ${t.textMuted}`}>{grand.actual.toFixed(1)}</span></TableCell>
               <TableCell className="text-center py-3"><span className={`text-base font-extrabold ${t.textPrimary}`}>{grand.total.toFixed(1)}</span></TableCell>
             </TableRow>
           );
