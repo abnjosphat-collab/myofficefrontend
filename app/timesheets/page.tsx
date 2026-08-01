@@ -27,19 +27,19 @@ import type {
   HourTotals, OvertimePeriodData, Period, RowData, StatusConfig, StatusKey, TimesheetEntry,
 } from './types';
 import { api, useTimesheetsData } from './useTimesheetsData';
+import { LEAVE_STATUSES, DOUBLE_TIME_STATUSES, ZERO_HOUR_STATUSES, apply208, calcEmployeeTotals } from './calcTotals';
 
 // ─────────────────── STATUS CONFIG ───────────────────
-
-const LEAVE_STATUSES = new Set<StatusKey>(['leave', 'sick', 'special_leave', 'training', 'maternity', 'study', 'lieu']);
-const DOUBLE_TIME_STATUSES = new Set<StatusKey>(['holiday', 'weekend']);
-const ZERO_HOUR_STATUSES = new Set<StatusKey>(['off', 'absent']);
 
 const STATUS_CFG: Record<StatusKey, StatusConfig> = {
   work: { label: 'Work', hex: '#34d399', Icon: CheckCircle },
   leave: { label: 'Leave', hex: '#60a5fa', Icon: CalendarDays },
   sick: { label: 'Sick', hex: '#fb923c', Icon: AlertTriangle },
   special_leave: { label: 'Special Leave', hex: '#a78bfa', Icon: CalendarDays },
-  holiday: { label: 'Holiday', hex: '#c084fc', Icon: CalendarDays },
+  // 'holiday' = worked ON the public holiday (2.0x — "PPH", Paid Public Holiday, per how
+  // the abbreviation's used here). The not-worked case is 'holiday_paid' below.
+  holiday: { label: 'PPH (Worked Holiday)', hex: '#c084fc', Icon: CalendarDays },
+  holiday_paid: { label: 'Paid Holiday', hex: '#facc15', Icon: Sun },
   training: { label: 'Training', hex: '#22d3ee', Icon: CalendarDays },
   off: { label: 'Off', hex: '#94a3b8', Icon: XCircle },
   absent: { label: 'Absent', hex: '#f87171', Icon: AlertTriangle },
@@ -94,8 +94,6 @@ const calcNightHours = (start: string, end: string): number => {
   const ov = (a: number, b: number) => Math.max(0, Math.min(e, b) - Math.max(s, a));
   return ov(0, 6) + ov(18, 24) + ov(24, 30);
 };
-
-const apply208 = (reg: number, ot15: number) => reg <= 208 ? { reg, ot15 } : { reg: 208, ot15: ot15 + (reg - 208) };
 
 const getDays = ({ start, end }: Period) => {
   const days: Date[] = [], d = new Date(start);
@@ -225,14 +223,17 @@ function TimesheetEntryDialog({ employee, date, entry, onSave, onDelete, onClose
   const t = useTheme();
   const isWeekendDay = date.getDay() === 0 || date.getDay() === 6;
   const holidayName = zimHolidayName(fmtDate(date));
-  // A public holiday already carries 2.0x via DOUBLE_TIME_STATUSES ('holiday' is in it) —
-  // default the dialog straight to it so hours entered that day are billed correctly
-  // without the user having to remember to switch the dropdown themselves.
-  const defaultStatus: StatusKey = entry?.status || (holidayName ? 'holiday' : isWeekendDay ? 'weekend' : 'work');
+  // Default assumption on a public holiday is "didn't come in" (paid 8h regular, no
+  // action needed) — the user actively switches to 'holiday' (PPH, 2.0x) only when the
+  // person actually worked it. See effectiveTimesheets for the same day, un-opened.
+  const defaultStatus: StatusKey = entry?.status || (holidayName ? 'holiday_paid' : isWeekendDay ? 'weekend' : 'work');
   const [form, setForm] = useState<EntryForm>({
-    start_time: entry?.start_time || '07:00', end_time: entry?.end_time || '17:00',
-    regular_hours: entry?.regular_hours ?? 10, nightshift_hours: entry?.nightshift_hours ?? 0,
-    status: defaultStatus, standby_allowance: entry?.standby_allowance ?? false, notes: entry?.notes || '',
+    start_time: defaultStatus === 'holiday_paid' ? '' : entry?.start_time || '07:00',
+    end_time: defaultStatus === 'holiday_paid' ? '' : entry?.end_time || '17:00',
+    regular_hours: entry?.regular_hours ?? (defaultStatus === 'holiday_paid' ? 8 : 10),
+    nightshift_hours: entry?.nightshift_hours ?? 0,
+    status: defaultStatus, standby_allowance: entry?.standby_allowance ?? false,
+    nightshift_allowance: entry?.nightshift_allowance ?? false, notes: entry?.notes || '',
     callout_overtime_hours: entry?.callout_overtime_hours ?? 0, callout_count: entry?.callout_count ?? 0,
   });
   const [otPeriods, setOtPeriods] = useState<OvertimePeriodData[]>(Array.isArray(entry?.overtime_periods) ? entry.overtime_periods : []);
@@ -241,7 +242,7 @@ function TimesheetEntryDialog({ employee, date, entry, onSave, onDelete, onClose
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   useEffect(() => {
-    if (ZERO_HOUR_STATUSES.has(form.status)) return;
+    if (ZERO_HOUR_STATUSES.has(form.status) || form.status === 'holiday_paid') return;
     if (form.start_time && form.end_time) setForm(f => ({ ...f, regular_hours: calcHours(f.start_time, f.end_time), nightshift_hours: calcNightHours(f.start_time, f.end_time) }));
   }, [form.start_time, form.end_time, form.status]);
 
@@ -249,6 +250,8 @@ function TimesheetEntryDialog({ employee, date, entry, onSave, onDelete, onClose
     const s = val as StatusKey;
     if (LEAVE_STATUSES.has(s)) setForm(f => ({ ...f, status: s, start_time: '07:00', end_time: '15:00' }));
     else if (ZERO_HOUR_STATUSES.has(s)) setForm(f => ({ ...f, status: s, regular_hours: 0, nightshift_hours: 0, start_time: '', end_time: '' }));
+    // Paid public holiday, not worked: fixed 8h credit, no real shift times to record.
+    else if (s === 'holiday_paid') setForm(f => ({ ...f, status: s, regular_hours: 8, nightshift_hours: 0, start_time: '', end_time: '' }));
     else setForm(f => ({ ...f, status: s }));
   };
 
@@ -272,7 +275,7 @@ function TimesheetEntryDialog({ employee, date, entry, onSave, onDelete, onClose
         overtime_hours: isDT ? 0 : otTotals.t15,
         holiday_overtime_hours: isDT ? form.regular_hours + otTotals.t15 + otTotals.t20 : otTotals.t20,
         nightshift_hours: form.nightshift_hours + otTotals.night,
-        standby_allowance: form.standby_allowance, total_hours: total,
+        standby_allowance: form.standby_allowance, nightshift_allowance: form.nightshift_allowance, total_hours: total,
         status: form.status, notes: form.notes, overtime_periods: otPeriods,
         callout_overtime_hours: form.callout_overtime_hours, callout_count: form.callout_count,
       });
@@ -316,6 +319,7 @@ function TimesheetEntryDialog({ employee, date, entry, onSave, onDelete, onClose
             {LEAVE_STATUSES.has(form.status) && <p className="text-xs text-brand-400 bg-brand-500/10 rounded px-2 py-1">8 hours auto-assigned for {STATUS_CFG[form.status]?.label}</p>}
             {DOUBLE_TIME_STATUSES.has(form.status) && <p className={`text-xs ${accentText('violet', t.light)} bg-violet-500/10 rounded px-2 py-1 font-medium`}>All hours worked count as <strong>2.0× (double time)</strong> — enter the actual shift times below</p>}
             {ZERO_HOUR_STATUSES.has(form.status) && <p className={`text-xs ${t.chipBg} rounded px-2 py-1 ${t.textFaint}`}>0 hours recorded — {STATUS_CFG[form.status]?.label} days are not credited</p>}
+            {form.status === 'holiday_paid' && <p className="text-xs text-amber-400 bg-amber-500/10 rounded px-2 py-1">8 regular hours auto-credited — they didn't work this public holiday. If they did, switch to "{STATUS_CFG.holiday.label}" instead.</p>}
           </div>
 
           <div className={`p-3 rounded-lg ${t.chipBg} space-y-3`}>
@@ -376,6 +380,11 @@ function TimesheetEntryDialog({ employee, date, entry, onSave, onDelete, onClose
             <Switch checked={form.standby_allowance} onCheckedChange={v => setForm(f => ({ ...f, standby_allowance: v }))} />
           </div>
 
+          <div className={`flex items-center justify-between p-3 rounded-lg bg-indigo-500/[0.08]`}>
+            <div><Label className={`font-medium text-sm ${accentText('indigo', t.light)}`}>Night Shift Allowance</Label><p className={`text-xs ${t.textFaint}`}>Adds a flat 8h once for this night-shift run (any length)</p></div>
+            <Switch checked={form.nightshift_allowance} onCheckedChange={v => setForm(f => ({ ...f, nightshift_allowance: v }))} />
+          </div>
+
           <div><Label className={`text-xs ${t.textFaint}`}>Notes</Label><Input placeholder="Optional…" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} className={fieldCls} /></div>
         </div>
 
@@ -425,6 +434,7 @@ function BulkAssignDialog({ initialEmployee, allEmployees, period, timesheets, o
   const [endTime, setEndTime] = useState('17:00');
   const [skipWeekends, setSkipWeekends] = useState(false);
   const [standby, setStandby] = useState(false);
+  const [nightAllowance, setNightAllowance] = useState(false);
   const [rangeFrom, setRangeFrom] = useState(fmtDate(period.start));
   const [rangeTo, setRangeTo] = useState(fmtDate(period.end));
 
@@ -491,7 +501,8 @@ function BulkAssignDialog({ initialEmployee, allEmployees, period, timesheets, o
             start_time: LEAVE_STATUSES.has(status) ? '07:00' : ZERO_HOUR_STATUSES.has(status) ? '' : startTime,
             end_time: LEAVE_STATUSES.has(status) ? '15:00' : ZERO_HOUR_STATUSES.has(status) ? '' : endTime,
             regular_hours: isDT ? 0 : regHours, overtime_hours: 0, holiday_overtime_hours: isDT ? regHours : 0,
-            nightshift_hours: nightHours, standby_allowance: standby, total_hours: regHours + nightHours, status, notes: '',
+            nightshift_hours: nightHours, standby_allowance: standby, nightshift_allowance: nightAllowance,
+            total_hours: regHours + nightHours, status, notes: '',
             overtime_periods: [], callout_overtime_hours: 0, callout_count: 0,
           });
         });
@@ -581,6 +592,7 @@ function BulkAssignDialog({ initialEmployee, allEmployees, period, timesheets, o
           <div className="flex flex-wrap items-center gap-4">
             <label className={`flex items-center gap-2 text-sm cursor-pointer select-none ${t.textMuted}`}><input type="checkbox" checked={skipWeekends} onChange={e => setSkipWeekends(e.target.checked)} className="rounded" /> Skip weekends</label>
             <label className={`flex items-center gap-2 text-sm cursor-pointer select-none ${t.textMuted}`}><input type="checkbox" checked={standby} onChange={e => setStandby(e.target.checked)} className="rounded" /> Standby (flat 8h OT for the period)</label>
+            <label className={`flex items-center gap-2 text-sm cursor-pointer select-none ${t.textMuted}`}><input type="checkbox" checked={nightAllowance} onChange={e => setNightAllowance(e.target.checked)} className="rounded" /> Night Shift Allowance (flat 8h for the period)</label>
           </div>
 
           <div className="space-y-2">
@@ -661,6 +673,108 @@ function BulkAssignDialog({ initialEmployee, allEmployees, period, timesheets, o
   );
 }
 
+// ─────────────────── QUICK TOTAL-HOURS ENTRY ───────────────────
+// Type one actual-hours figure for the whole period instead of entering each day by
+// hand — the 208h cap splits it into regular vs 1.5x OT (same apply208 the rest of the
+// page uses), spread evenly across the period's plain work days (weekends/public
+// holidays are handled separately, so they're excluded here). Real start/end times are
+// synthesized to match each day's share, so the numbers stay self-consistent if someone
+// later opens one of these days in the single-entry dialog — that dialog recomputes
+// regular_hours from shift times on every save, real or generated.
+
+function timeFromHours(startHHMM: string, hours: number): string {
+  const [sh, sm] = startHHMM.split(':').map(Number);
+  const totalMin = (sh * 60 + sm + Math.round(hours * 60)) % (24 * 60);
+  const h = Math.floor(totalMin / 60), m = totalMin % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+function QuickTotalDialog({ employee, period, onSave, onClose }: {
+  employee: Employee; period: Period;
+  onSave: (entries: Omit<TimesheetEntry, 'id'>[]) => Promise<void>; onClose: () => void;
+}) {
+  const t = useTheme();
+  const [totalInput, setTotalInput] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const workDays = useMemo(
+    () => getDays(period).filter(d => d.getDay() !== 0 && d.getDay() !== 6 && !zimHolidayName(fmtDate(d))),
+    [period]
+  );
+
+  const total = parseFloat(totalInput) || 0;
+  const { reg, ot15 } = apply208(total, 0);
+
+  const handleApply = async () => {
+    if (total <= 0) { toast.error('Enter a total greater than 0'); return; }
+    if (workDays.length === 0) { toast.error('No plain work days in this period to spread hours across'); return; }
+    setSaving(true);
+    try {
+      // Even split, 2dp — the last day absorbs whatever rounding remainder is left so
+      // the days sum exactly to `reg`, not just approximately.
+      const perDay = Math.floor((reg / workDays.length) * 100) / 100;
+      const entries: Omit<TimesheetEntry, 'id'>[] = workDays.map((d, i) => {
+        const isLast = i === workDays.length - 1;
+        const dayReg = isLast ? +(reg - perDay * (workDays.length - 1)).toFixed(2) : perDay;
+        return {
+          employee_id: parseInt(employee.id), date: fmtDate(d), status: 'work',
+          start_time: '07:00', end_time: timeFromHours('07:00', dayReg),
+          regular_hours: dayReg, overtime_hours: isLast ? ot15 : 0, holiday_overtime_hours: 0, nightshift_hours: 0,
+          standby_allowance: false, nightshift_allowance: false,
+          total_hours: dayReg + (isLast ? ot15 : 0),
+          notes: 'Auto: period total quick-entry', overtime_periods: [],
+          callout_overtime_hours: 0, callout_count: 0,
+        };
+      });
+      await onSave(entries);
+      toast.success(`Applied ${total.toFixed(2)}h across ${workDays.length} days`);
+      onClose();
+    } catch (e) { toast.error('Failed: ' + (e as Error).message); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className={`sm:max-w-md ${t.glass}`}>
+        <DialogHeader>
+          <DialogTitle className={`flex items-center gap-2 ${t.textPrimary}`}><Zap className="w-4 h-4" /> Enter Total Hours</DialogTitle>
+          <DialogDescription className={t.textFaint}>{employee.name} — {fmtPeriod(period)}</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div>
+            <Label className={t.textMuted}>Actual hours worked this period</Label>
+            <Input type="number" min={0} step={0.5} placeholder="e.g. 240" value={totalInput}
+              onChange={e => setTotalInput(e.target.value)} className={`h-10 text-lg mt-1 ${t.inputBg}`} />
+          </div>
+          {total > 0 && (
+            <div className="grid grid-cols-2 gap-3 text-center">
+              <div className="bg-emerald-500/10 rounded-lg p-3">
+                <div className={`text-xs ${t.textFaint}`}>Regular (≤208h)</div>
+                <div className={`text-xl font-bold ${accentText('emerald', t.light)}`}>{reg.toFixed(2)}h</div>
+              </div>
+              <div className="bg-brand-500/10 rounded-lg p-3">
+                <div className={`text-xs ${t.textFaint}`}>OT 1.5× (over 208h)</div>
+                <div className="text-xl font-bold text-brand-400">{ot15.toFixed(2)}h</div>
+              </div>
+            </div>
+          )}
+          <p className={`text-xs ${t.textFaint}`}>
+            Spread evenly across the {workDays.length} plain work day{workDays.length !== 1 ? 's' : ''} in this period
+            (weekends and public holidays are excluded — they're handled separately). Any 208h overflow is recorded
+            as overtime on the last of those days.
+          </p>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" className={`${t.textMuted} bg-transparent`} onClick={onClose}>Cancel</Button>
+          <Button onClick={handleApply} disabled={saving || total <= 0} className="bg-brand-600 hover:bg-brand-700 text-white">
+            {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}Apply
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ─────────────────── BULK ADD EMPLOYEES DIALOG ───────────────────
 
 function BulkAddEmployeesDialog({ allEmployees, currentIds, onAdd, onClose }: {
@@ -728,34 +842,26 @@ function DownloadDialog({ employees, timesheets, period, periodType, onClose }: 
   const [empId, setEmpId] = useState('');
   const [generating, setGenerating] = useState(false);
   const days = getDays(period);
+  const tabLabel = periodType === 'nec' ? 'NEC' : 'Salaried';
 
   const getEntry = (eid: string, d: Date) => timesheets.find(ts => String(ts.employee_id) === String(eid) && ts.date === fmtDate(d));
 
-  const calcTotalsLocal = (eid: string): HourTotals => {
-    let reg = 0, ot15 = 0, ot20 = 0, night = 0, standbyBonus = 0, inStandbyRun = false;
-    timesheets.filter(ts => String(ts.employee_id) === String(eid)).sort((a, b) => a.date.localeCompare(b.date)).forEach(e => {
-      reg += e.regular_hours || 0; night += e.nightshift_hours || 0;
-      if (e.status === 'holiday') ot20 += (e.overtime_hours || 0) + (e.holiday_overtime_hours || 0);
-      else { ot15 += e.overtime_hours || 0; ot20 += e.holiday_overtime_hours || 0; }
-      // 8h standby allowance is paid once per standby period, not per day — a fresh run
-      // (of any length) earns the flat 8h the moment it starts, then stays flat.
-      if (e.standby_allowance) { if (!inStandbyRun) { standbyBonus += 8; inStandbyRun = true; } } else inStandbyRun = false;
-    });
-    const a = apply208(reg, ot15);
-    ot15 = a.ot15 + standbyBonus;
-    return { reg: a.reg, ot15, ot20, night, standbyBonus, total: a.reg + ot15 + ot20 + night };
-  };
+  const calcTotalsLocal = (eid: string): HourTotals => calcEmployeeTotals(eid, timesheets);
 
   const buildRows = (emp: Employee): RowData[] => days.map(day => {
     const e = getEntry(emp.id, day);
     return { day: day.toLocaleDateString('en-GB', { weekday: 'short' }), date: fmtDate(day), status: e ? STATUS_CFG[e.status]?.label || e.status : '—', start: e?.start_time || '—', end: e?.end_time || '—', reg: e?.regular_hours?.toFixed(2) || '0.00', ot15: e?.overtime_hours?.toFixed(2) || '0.00', ot20: e?.holiday_overtime_hours?.toFixed(2) || '0.00', night: e?.nightshift_hours?.toFixed(2) || '0.00', notes: e?.notes || '' };
   });
 
-  const statusAbbr = (s: string) => ({ work: '', leave: 'Lv', sick: 'Sick', special_leave: 'SL', holiday: 'Hol', training: 'Trn', off: 'Off', absent: 'Abs' }[s] ?? s);
+  const statusAbbr = (s: string) => ({ work: '', leave: 'Lv', sick: 'Sick', special_leave: 'SL', holiday: 'PPH', holiday_paid: 'PH', training: 'Trn', off: 'Off', absent: 'Abs' }[s] ?? s);
   const dayCell = (e: TimesheetEntry | undefined, d: Date): string | number => {
     if (!e) return d.getDay() === 0 || d.getDay() === 6 ? '·' : '';
     if (ZERO_HOUR_STATUSES.has(e.status as StatusKey)) return statusAbbr(e.status);
     if (LEAVE_STATUSES.has(e.status as StatusKey)) return statusAbbr(e.status);
+    // DOUBLE_TIME_STATUSES entries store the worked hours in holiday_overtime_hours
+    // (regular_hours is always 0 for these — see TimesheetEntryDialog.handleSave), so
+    // the day-grid cell needs to read from there or a worked holiday/weekend shows "0".
+    if (DOUBLE_TIME_STATUSES.has(e.status as StatusKey)) return e.holiday_overtime_hours || 0;
     return e.regular_hours || 0;
   };
 
@@ -767,24 +873,24 @@ function DownloadDialog({ employees, timesheets, period, periodType, onClose }: 
     if (scope === 'combined') {
       const ws = wb.addWorksheet('Timesheet Summary');
       const FIXED_COLS = 3;
-      const SUM_COLS = 5;
+      const SUM_COLS = 6;
       const totalCols = FIXED_COLS + days.length + SUM_COLS;
       ws.views = [{ state: 'frozen', xSplit: FIXED_COLS, ySplit: 3 }];
 
       const FONT = 'Calibri';
-      const SUM_FILLS = ['FFE8F4FD', 'FFD0E8F5', 'FFB8D9F0', 'FF9AC9EB', EXPORT_BRAND_ARGB];
-      const SUM_COLORS = ['FF1E3A5F', 'FF1E3A5F', 'FF1E3A5F', 'FF1E3A5F', 'FFFFFFFF'];
+      const SUM_FILLS = ['FFE8F4FD', 'FFD0E8F5', 'FFB8D9F0', 'FF9AC9EB', 'FFDCE6F7', EXPORT_BRAND_ARGB];
+      const SUM_COLORS = ['FF1E3A5F', 'FF1E3A5F', 'FF1E3A5F', 'FF1E3A5F', 'FF1E3A5F', 'FFFFFFFF'];
 
       ws.mergeCells(1, 1, 1, totalCols);
       const titleCell = ws.getCell(1, 1);
-      titleCell.value = `TIMESHEET SUMMARY — ${periodType.toUpperCase()} — ${fmtPeriod(period)}`;
+      titleCell.value = `${tabLabel} Timesheet — ${fmtPeriod(period)}`;
       titleCell.font = { name: FONT, bold: true, size: 14, color: { argb: EXPORT_BRAND_ARGB } };
       titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
       ws.getRow(1).height = 24;
       ws.addRow([]);
 
       const hdrRow = ws.getRow(3);
-      hdrRow.values = ['Employee', 'Emp #', 'Position', ...days.map(d => `${d.getDate()}\n${d.toLocaleDateString('en-GB', { weekday: 'short' })}`), 'Reg h', 'OT 1.5×', 'OT 2.0×', 'Night h', 'Total h'];
+      hdrRow.values = ['Employee', 'Emp #', 'Position', ...days.map(d => `${d.getDate()}\n${d.toLocaleDateString('en-GB', { weekday: 'short' })}`), 'Reg h', 'OT 1.5×', 'OT 2.0×', 'Night h', 'Night Allow. h', 'Total h'];
       hdrRow.height = 32;
       hdrRow.eachCell({ includeEmpty: true }, (c, col) => {
         const isSumCol = col > FIXED_COLS + days.length;
@@ -795,14 +901,14 @@ function DownloadDialog({ employees, timesheets, period, periodType, onClose }: 
         c.border = { bottom: { style: 'medium', color: { argb: 'FF86BBD8' } } };
       });
 
-      const STATUS_FILL: Record<string, string> = { work: 'FFE8F8F0', leave: 'FFE8E4F8', sick: 'FFF8E4EE', special_leave: 'FFF0E8F8', holiday: 'FFF8EEE4', training: 'FFF8F4E4', off: 'FFF2F4F6', absent: 'FFF8E8E8' };
+      const STATUS_FILL: Record<string, string> = { work: 'FFE8F8F0', leave: 'FFE8E4F8', sick: 'FFF8E4EE', special_leave: 'FFF0E8F8', holiday: 'FFF8EEE4', holiday_paid: 'FFFDF6DC', training: 'FFF8F4E4', off: 'FFF2F4F6', absent: 'FFF8E8E8' };
 
       targets.forEach((emp, ei) => {
         const totals = calcTotalsLocal(emp.id);
         const empIdDisplay = emp.employeeId || '';
         const rowVals: (string | number)[] = [emp.name, empIdDisplay, emp.position || ''];
         days.forEach(day => rowVals.push(dayCell(getEntry(emp.id, day), day)));
-        rowVals.push(totals.reg, totals.ot15, totals.ot20, totals.night, totals.total);
+        rowVals.push(totals.reg, totals.ot15, totals.ot20, totals.night, totals.nightAllowanceBonus, totals.total);
 
         const dataRow = ws.getRow(4 + ei);
         dataRow.values = rowVals;
@@ -834,10 +940,10 @@ function DownloadDialog({ employees, timesheets, period, periodType, onClose }: 
           }
         });
 
-        [0, 1, 2, 3, 4].forEach(si => {
+        [0, 1, 2, 3, 4, 5].forEach(si => {
           const c = dataRow.getCell(FIXED_COLS + 1 + days.length + si);
           c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: SUM_FILLS[si] } };
-          c.font = { name: FONT, size: 8, bold: si === 4, color: { argb: SUM_COLORS[si] } };
+          c.font = { name: FONT, size: 8, bold: si === 5, color: { argb: SUM_COLORS[si] } };
           c.numFmt = '0.00';
           c.alignment = { horizontal: 'center', vertical: 'middle' };
         });
@@ -847,7 +953,7 @@ function DownloadDialog({ employees, timesheets, period, periodType, onClose }: 
       gtRow.values = ['TOTALS', '', `${targets.length} employees`, ...days.map(() => ''),
         targets.reduce((s, e) => s + calcTotalsLocal(e.id).reg, 0), targets.reduce((s, e) => s + calcTotalsLocal(e.id).ot15, 0),
         targets.reduce((s, e) => s + calcTotalsLocal(e.id).ot20, 0), targets.reduce((s, e) => s + calcTotalsLocal(e.id).night, 0),
-        targets.reduce((s, e) => s + calcTotalsLocal(e.id).total, 0)];
+        targets.reduce((s, e) => s + calcTotalsLocal(e.id).nightAllowanceBonus, 0), targets.reduce((s, e) => s + calcTotalsLocal(e.id).total, 0)];
       gtRow.height = 20;
       gtRow.eachCell({ includeEmpty: true }, (c, col) => {
         const isSumCol = col > FIXED_COLS + days.length;
@@ -860,13 +966,13 @@ function DownloadDialog({ employees, timesheets, period, periodType, onClose }: 
 
       ws.getColumn(1).width = 24; ws.getColumn(2).width = 9; ws.getColumn(3).width = 16;
       for (let i = 0; i < days.length; i++) ws.getColumn(FIXED_COLS + 1 + i).width = 5.5;
-      [10, 10, 10, 10, 11].forEach((w, i) => { ws.getColumn(FIXED_COLS + 1 + days.length + i).width = w; });
+      [10, 10, 10, 10, 12, 11].forEach((w, i) => { ws.getColumn(FIXED_COLS + 1 + days.length + i).width = w; });
 
     } else {
       targets.forEach(emp => {
         const ws = wb.addWorksheet(emp.name.slice(0, 31));
         const totals = calcTotalsLocal(emp.id);
-        ws.mergeCells('A1:J1'); ws.getCell('A1').value = `TIMESHEET — ${periodType.toUpperCase()} PERIOD`;
+        ws.mergeCells('A1:J1'); ws.getCell('A1').value = `${tabLabel} Timesheet`;
         ws.getCell('A1').font = { bold: true, size: 14, color: { argb: EXPORT_BRAND_ARGB } };
         ws.mergeCells('A2:J2'); ws.getCell('A2').value = `${emp.name} | ${fmtPeriod(period)}`;
         ws.getCell('A2').font = { bold: true, size: 11 };
@@ -878,7 +984,11 @@ function DownloadDialog({ employees, timesheets, period, periodType, onClose }: 
           if (i % 2 === 1) r.eachCell(c => { c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF5F7FA' } }; });
         });
         ws.addRow([]);
-        const tr = ws.addRow(['TOTALS', '', '', '', '', totals.reg.toFixed(2), totals.ot15.toFixed(2), totals.ot20.toFixed(2), totals.night.toFixed(2), `Grand: ${totals.total.toFixed(2)}h${totals.standbyBonus > 0 ? ` (incl. ${totals.standbyBonus}h standby OT)` : ''}`]);
+        const bonusNotes = [
+          totals.standbyBonus > 0 ? `${totals.standbyBonus}h standby OT` : '',
+          totals.nightAllowanceBonus > 0 ? `${totals.nightAllowanceBonus}h night allowance` : '',
+        ].filter(Boolean).join(', ');
+        const tr = ws.addRow(['TOTALS', '', '', '', '', totals.reg.toFixed(2), totals.ot15.toFixed(2), totals.ot20.toFixed(2), totals.night.toFixed(2), `Grand: ${totals.total.toFixed(2)}h${bonusNotes ? ` (incl. ${bonusNotes})` : ''}`]);
         tr.eachCell(c => { c.font = { bold: true }; });
         ws.columns = [{ width: 6 }, { width: 13 }, { width: 15 }, { width: 8 }, { width: 8 }, { width: 10 }, { width: 10 }, { width: 10 }, { width: 10 }, { width: 35 }];
       });
@@ -900,23 +1010,23 @@ function DownloadDialog({ employees, timesheets, period, periodType, onClose }: 
     if (scope === 'combined') {
       doc.setFillColor(...BRAND); doc.rect(0, 0, 297, 16, 'F');
       doc.setTextColor(255, 255, 255); doc.setFontSize(11);
-      doc.text(`TIMESHEET SUMMARY — ${periodType.toUpperCase()} — ${fmtPeriod(period)}`, 10, 10);
+      doc.text(`${tabLabel} Timesheet — ${fmtPeriod(period)}`, 10, 10);
       doc.setFontSize(8); doc.text(`${targets.length} employees · Generated ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`, 10, 14);
 
-      const dayW = Math.min(5.5, (277 - 35 - 20 - 55) / days.length);
+      const dayW = Math.min(5.5, (277 - 35 - 20 - 66) / days.length);
       const colStyles: Record<number, { cellWidth: number; halign?: 'center' | 'left' }> = { 0: { cellWidth: 35, halign: 'left' }, 1: { cellWidth: 20, halign: 'left' } };
       days.forEach((_, i) => { colStyles[2 + i] = { cellWidth: dayW, halign: 'center' }; });
-      [0, 1, 2, 3, 4].forEach(si => { colStyles[2 + days.length + si] = { cellWidth: 11, halign: 'center' }; });
+      [0, 1, 2, 3, 4, 5].forEach(si => { colStyles[2 + days.length + si] = { cellWidth: 11, halign: 'center' }; });
 
-      const head = [['Employee', 'Position', ...days.map(d => `${d.getDate()}`), 'Reg', 'OT\n1.5×', 'OT\n2.0×', 'Night', 'Total']];
+      const head = [['Employee', 'Position', ...days.map(d => `${d.getDate()}`), 'Reg', 'OT\n1.5×', 'OT\n2.0×', 'Night', 'Night\nAllow.', 'Total']];
       const body = targets.map(emp => {
         const totals = calcTotalsLocal(emp.id);
-        return [emp.name, emp.position || '', ...days.map(day => { const v = dayCell(getEntry(emp.id, day), day); return v === 0 ? '' : String(v); }), totals.reg.toFixed(1), totals.ot15.toFixed(1), totals.ot20.toFixed(1), totals.night.toFixed(1), totals.total.toFixed(1)];
+        return [emp.name, emp.position || '', ...days.map(day => { const v = dayCell(getEntry(emp.id, day), day); return v === 0 ? '' : String(v); }), totals.reg.toFixed(1), totals.ot15.toFixed(1), totals.ot20.toFixed(1), totals.night.toFixed(1), totals.nightAllowanceBonus.toFixed(1), totals.total.toFixed(1)];
       });
       body.push(['TOTALS', `${targets.length} emp`, ...days.map(() => ''),
         targets.reduce((s, e) => s + calcTotalsLocal(e.id).reg, 0).toFixed(1), targets.reduce((s, e) => s + calcTotalsLocal(e.id).ot15, 0).toFixed(1),
         targets.reduce((s, e) => s + calcTotalsLocal(e.id).ot20, 0).toFixed(1), targets.reduce((s, e) => s + calcTotalsLocal(e.id).night, 0).toFixed(1),
-        targets.reduce((s, e) => s + calcTotalsLocal(e.id).total, 0).toFixed(1)]);
+        targets.reduce((s, e) => s + calcTotalsLocal(e.id).nightAllowanceBonus, 0).toFixed(1), targets.reduce((s, e) => s + calcTotalsLocal(e.id).total, 0).toFixed(1)]);
 
       autoTable(doc, {
         startY: 20, head, body,
@@ -937,14 +1047,18 @@ function DownloadDialog({ employees, timesheets, period, periodType, onClose }: 
       targets.forEach((emp, ei) => {
         if (ei > 0) doc.addPage();
         const totals = calcTotalsLocal(emp.id); const rows = buildRows(emp);
+        const bonusNotes = [
+          totals.standbyBonus > 0 ? `${totals.standbyBonus}h standby` : '',
+          totals.nightAllowanceBonus > 0 ? `${totals.nightAllowanceBonus}h night allow.` : '',
+        ].filter(Boolean).join(', ');
         doc.setFillColor(...BRAND); doc.rect(0, 0, 297, 18, 'F');
-        doc.setTextColor(255, 255, 255); doc.setFontSize(12); doc.text('TIMESHEET', 10, 7);
-        doc.setFontSize(9); doc.text(`${periodType.toUpperCase()} — ${fmtPeriod(period)}`, 10, 13);
+        doc.setTextColor(255, 255, 255); doc.setFontSize(12); doc.text(`${tabLabel} Timesheet`, 10, 7);
+        doc.setFontSize(9); doc.text(fmtPeriod(period), 10, 13);
         doc.setFontSize(11); doc.text(emp.name, 287, 10, { align: 'right' });
         autoTable(doc, {
           startY: 22,
           head: [['Day', 'Date', 'Status', 'Start', 'End', 'Reg', 'OT 1.5×', 'OT 2.0×', 'Night', 'Notes']],
-          body: [...rows.map(r => [r.day, r.date, r.status, r.start, r.end, r.reg, r.ot15, r.ot20, r.night, r.notes]), ['TOTALS', '', '', '', '', totals.reg.toFixed(2), totals.ot15.toFixed(2), totals.ot20.toFixed(2), totals.night.toFixed(2), `Total: ${totals.total.toFixed(2)}h`]],
+          body: [...rows.map(r => [r.day, r.date, r.status, r.start, r.end, r.reg, r.ot15, r.ot20, r.night, r.notes]), ['TOTALS', '', '', '', '', totals.reg.toFixed(2), totals.ot15.toFixed(2), totals.ot20.toFixed(2), totals.night.toFixed(2), `Total: ${totals.total.toFixed(2)}h${bonusNotes ? ` (incl. ${bonusNotes})` : ''}`]],
           styles: { fontSize: 7.5, cellPadding: 1.5 },
           headStyles: { fillColor: BRAND, textColor: 255, fontStyle: 'bold' },
           alternateRowStyles: { fillColor: [248, 250, 252] },
@@ -1002,27 +1116,12 @@ function DownloadDialog({ employees, timesheets, period, periodType, onClose }: 
 
 // ─────────────────── TIMESHEET GRID ───────────────────
 
-function calcTotals(empId: string, timesheets: TimesheetEntry[]): HourTotals {
-  let reg = 0, ot15 = 0, ot20 = 0, night = 0, standbyBonus = 0, inStandbyRun = false;
-  timesheets.filter(t => String(t.employee_id) === String(empId)).sort((a, b) => a.date.localeCompare(b.date)).forEach(e => {
-    reg += e.regular_hours || 0; night += e.nightshift_hours || 0;
-    if (DOUBLE_TIME_STATUSES.has(e.status as StatusKey)) {
-      ot20 += (e.regular_hours || 0) + (e.overtime_hours || 0) + (e.holiday_overtime_hours || 0);
-      reg -= e.regular_hours || 0;
-    } else { ot15 += e.overtime_hours || 0; ot20 += e.holiday_overtime_hours || 0; }
-    // 8h standby allowance is paid once per standby period, not per day — a fresh run
-    // (of any length, 4 days or 10) earns the flat 8h the moment it starts.
-    if (e.standby_allowance) { if (!inStandbyRun) { standbyBonus += 8; inStandbyRun = true; } } else inStandbyRun = false;
-  });
-  const a = apply208(reg, ot15);
-  ot15 = a.ot15 + standbyBonus;
-  return { reg: a.reg, ot15, ot20, night, standbyBonus, total: a.reg + ot15 + ot20 + night, excess: Math.max(0, reg - 208) };
-}
+const calcTotals = calcEmployeeTotals;
 
-function TimesheetGrid({ employees, timesheets, days, onCellClick, onBulkAssign, onRemoveEmployee }: {
+function TimesheetGrid({ employees, timesheets, days, onCellClick, onBulkAssign, onQuickTotal, onRemoveEmployee }: {
   employees: Employee[]; timesheets: TimesheetEntry[]; days: Date[];
   onCellClick: (emp: Employee, day: Date, entry?: TimesheetEntry) => void;
-  onBulkAssign: (emp: Employee) => void; onRemoveEmployee: (id: string) => void;
+  onBulkAssign: (emp: Employee) => void; onQuickTotal: (emp: Employee) => void; onRemoveEmployee: (id: string) => void;
 }) {
   const t = useTheme();
   const getEntry = (eid: string, d: Date) => timesheets.find(ts => String(ts.employee_id) === String(eid) && ts.date === fmtDate(d));
@@ -1086,10 +1185,16 @@ function TimesheetGrid({ employees, timesheets, days, onCellClick, onBulkAssign,
                     <div className="min-w-0 flex-1">
                       <p className={`text-sm font-medium truncate leading-tight ${t.textPrimary}`}>{emp.name}</p>
                       <p className={`text-[10px] truncate mt-0.5 ${t.textFaint}`}>{emp.position}</p>
-                      <button type="button" title="Bulk assign shifts for this employee" onClick={() => onBulkAssign(emp)}
-                        className="mt-1.5 flex items-center gap-1 text-[10px] px-2 py-[3px] rounded-full bg-brand-500/10 text-brand-400/70 hover:bg-brand-500/20 hover:text-brand-400 transition-all duration-150 group/bulk">
-                        <CalendarDays className="w-2.5 h-2.5 group-hover/bulk:scale-110 transition-transform" /><span className="tracking-wide">Assign shifts</span>
-                      </button>
+                      <div className="mt-1.5 flex items-center gap-1">
+                        <button type="button" title="Bulk assign shifts for this employee" onClick={() => onBulkAssign(emp)}
+                          className="flex items-center gap-1 text-[10px] px-2 py-[3px] rounded-full bg-brand-500/10 text-brand-400/70 hover:bg-brand-500/20 hover:text-brand-400 transition-all duration-150 group/bulk">
+                          <CalendarDays className="w-2.5 h-2.5 group-hover/bulk:scale-110 transition-transform" /><span className="tracking-wide">Assign shifts</span>
+                        </button>
+                        <button type="button" title="Enter total hours for the period — auto-splits at 208h" onClick={() => onQuickTotal(emp)}
+                          className={`flex items-center gap-1 text-[10px] px-2 py-[3px] rounded-full bg-indigo-500/10 ${t.light ? 'text-indigo-600/70 hover:text-indigo-700' : 'text-indigo-400/70 hover:text-indigo-300'} hover:bg-indigo-500/20 transition-all duration-150 group/qt`}>
+                          <Zap className="w-2.5 h-2.5 group-hover/qt:scale-110 transition-transform" /><span className="tracking-wide">Total h</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1125,6 +1230,7 @@ function TimesheetGrid({ employees, timesheets, days, onCellClick, onBulkAssign,
                             {!DOUBLE_TIME_STATUSES.has(entry.status as StatusKey) && (entry.holiday_overtime_hours || 0) > 0 && <span className="text-sky-400 font-semibold">+{entry.holiday_overtime_hours!.toFixed(1)} ×2</span>}
                             {(entry.nightshift_hours || 0) > 0 && <span className="text-sky-400 text-[8px]"><Moon className="w-2 h-2 inline -mt-px" />{entry.nightshift_hours!.toFixed(1)}n</span>}
                             {entry.standby_allowance && <span className={`${accentText('amber', t.light)} text-[8px] font-medium`}>SB</span>}
+                            {entry.nightshift_allowance && <span className={`${accentText('indigo', t.light)} text-[8px] font-medium`}>NA</span>}
                           </>
                         ) : (
                           <span className={`text-base font-light ${isToday ? 'text-brand-400/50' : t.textFaint}`}>+</span>
@@ -1153,6 +1259,7 @@ function TimesheetGrid({ employees, timesheets, days, onCellClick, onBulkAssign,
                               </div>
                             )}
                             {entry.standby_allowance && <p className={`text-[9px] ${accentText('amber', t.light)} mt-0.5`}>Standby</p>}
+                            {entry.nightshift_allowance && <p className={`text-[9px] ${accentText('indigo', t.light)} mt-0.5`}>Night Allowance</p>}
                             {entry._auto && (
                               <p className="text-[9px] mt-1 text-brand-400">
                                 {entry._auto === 'leave' ? 'From approved leave' : entry._auto === 'overtime' ? 'Includes approved OT' : 'Approved leave + OT'} — click to confirm
@@ -1225,6 +1332,11 @@ const LS_NEC_HIDDEN = 'ts_nec_hidden_ids';
 const readLS = (key: string): string[] => { try { return JSON.parse(localStorage.getItem(key) || '[]') as string[]; } catch { return []; } };
 const writeLS = (key: string, val: string[]) => localStorage.setItem(key, JSON.stringify(val));
 
+// Excluded from the automatic roster by employee ID — a code-level exclusion (applies for
+// everyone, every browser), unlike the HIDDEN localStorage override above which only
+// affects one user's own view. PP288 = Philip Antonio, Stores Driver.
+const EXCLUDED_EMPLOYEE_IDS = new Set<string>(['PP288']);
+
 // ─────────────────── MAIN PAGE ───────────────────
 
 function TimesheetsContent() {
@@ -1254,10 +1366,14 @@ function TimesheetsContent() {
   const [showBulkAdd, setShowBulkAdd] = useState(false);
   const [showDownload, setShowDownload] = useState(false);
   const [bulkEmployee, setBulkEmployee] = useState<Employee | null>(null);
+  const [quickTotalEmployee, setQuickTotalEmployee] = useState<Employee | null>(null);
 
   // Automatic base roster: every employee whose employment_type matches this tab.
   const autoIds = useMemo(
-    () => allEmployees.filter(e => e.employmentType === (activeTab === 'salaried' ? 'SALARIED' : 'NEC')).map(e => e.id),
+    () => allEmployees
+      .filter(e => e.employmentType === (activeTab === 'salaried' ? 'SALARIED' : 'NEC'))
+      .filter(e => !EXCLUDED_EMPLOYEE_IDS.has(e.employeeId))
+      .map(e => e.id),
     [allEmployees, activeTab]
   );
   const tabExtra = activeTab === 'salaried' ? salariedExtra : necExtra;
@@ -1360,6 +1476,26 @@ function TimesheetsContent() {
       merged.set(key, updated);
     });
 
+    // Zimbabwe public holidays: anyone with no entry at all on a holiday date is assumed
+    // not to have worked it and gets the standard 8h paid-holiday credit automatically —
+    // same "fills gaps, never overwrites" rule as leave/OT above, so a real entry (or one
+    // of those overlays, e.g. approved leave that happens to cover the holiday) still wins.
+    dayStrs.forEach(ds => {
+      const holidayName = zimHolidayName(ds);
+      if (!holidayName) return;
+      tabIds.forEach(id => {
+        const key = `${id}:${ds}`;
+        if (merged.has(key)) return;
+        merged.set(key, {
+          employee_id: parseInt(id), date: ds, status: 'holiday_paid',
+          regular_hours: 8, overtime_hours: 0, holiday_overtime_hours: 0, nightshift_hours: 0,
+          total_hours: 8, standby_allowance: false,
+          notes: `Auto: Paid Public Holiday (${holidayName})`,
+          _auto: 'holiday',
+        });
+      });
+    });
+
     return [...merged.values()];
   }, [timesheets, approvedLeaves, approvedOvertime, employeeIdByHuman, tabIds, days]);
 
@@ -1391,9 +1527,36 @@ function TimesheetsContent() {
     setTimesheets(prev => prev.filter(ts => ts.id !== entryId));
   };
 
+  /** Reverts one bulk write: restores each touched row to what it was before (or deletes
+   *  it, if it didn't exist before that write). A self-contained plan built at write time
+   *  — not a live lookup against current `timesheets` state — so it stays correct even
+   *  after however many renders pass before the Undo button actually gets clicked. */
+  const undoBulk = async (plan: { id: number; previous: TimesheetEntry | null }[]) => {
+    try {
+      const results = await Promise.allSettled(plan.map(({ id, previous }) => {
+        if (previous) { const { id: _pid, ...fields } = previous; return api.update(id, fields); }
+        return api.delete(id);
+      }));
+      setTimesheets(prev => {
+        const map = new Map(prev.map(ts => [ts.id, ts]));
+        results.forEach((r, i) => {
+          const { id, previous } = plan[i];
+          if (r.status !== 'fulfilled') return;
+          if (previous) map.set(id, (r.value as TimesheetEntry) ?? previous);
+          else map.delete(id);
+        });
+        return [...map.values()];
+      });
+      toast.success('Undone');
+    } catch (e) { toast.error('Undo failed: ' + (e as Error).message); }
+  };
+
   const handleBulkSave = async (entries: Omit<TimesheetEntry, 'id'>[]) => {
+    const previousByKey = new Map<string, TimesheetEntry | null>();
     const results = await Promise.allSettled(entries.map(async entry => {
+      const key = `${entry.employee_id}:${entry.date}`;
       const existing = timesheets.find(ts => String(ts.employee_id) === String(entry.employee_id) && ts.date === entry.date);
+      previousByKey.set(key, existing ?? null);
       if (existing?.id) return api.update(existing.id, entry);
       return api.create(entry);
     }));
@@ -1405,6 +1568,12 @@ function TimesheetsContent() {
     });
     const failed = results.filter(r => r.status === 'rejected').length;
     if (failed > 0) toast.warning(`${failed} entries failed to save`);
+    if (saved.length > 0) {
+      const plan = saved.filter(s => s.id != null).map(s => ({ id: s.id!, previous: previousByKey.get(`${s.employee_id}:${s.date}`) ?? null }));
+      toast.success(`Saved ${saved.length} entr${saved.length !== 1 ? 'ies' : 'y'}`, {
+        action: { label: 'Undo', onClick: () => undoBulk(plan) },
+      });
+    }
   };
 
   const handleCopyPreviousPeriod = async () => {
@@ -1545,6 +1714,7 @@ function TimesheetsContent() {
               employees={tabEmployees} timesheets={effectiveTimesheets} days={days}
               onCellClick={(emp, day, entry) => setEditCell({ employee: emp, date: day, entry })}
               onBulkAssign={emp => setBulkEmployee(emp)}
+              onQuickTotal={emp => setQuickTotalEmployee(emp)}
               onRemoveEmployee={removeFromTab}
             />
           )
@@ -1587,6 +1757,8 @@ function TimesheetsContent() {
           onClose={() => setEditCell(null)} />
       )}
       {bulkEmployee && <BulkAssignDialog initialEmployee={bulkEmployee} allEmployees={tabEmployees} period={activePeriod} timesheets={effectiveTimesheets} onSave={handleBulkSave} onClose={() => setBulkEmployee(null)} />}
+
+      {quickTotalEmployee && <QuickTotalDialog employee={quickTotalEmployee} period={activePeriod} onSave={handleBulkSave} onClose={() => setQuickTotalEmployee(null)} />}
       {showBulkAdd && <BulkAddEmployeesDialog allEmployees={allEmployees} currentIds={tabIds} onAdd={emps => addToTab(emps.map(e => e.id))} onClose={() => setShowBulkAdd(false)} />}
       {showDownload && <DownloadDialog employees={tabEmployees} timesheets={effectiveTimesheets} period={activePeriod} periodType={activeTab} onClose={() => setShowDownload(false)} />}
     </main>

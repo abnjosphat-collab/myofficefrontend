@@ -21,13 +21,14 @@ export interface OvertimePeriodData {
 export interface TimesheetEntry {
   id?: number; employee_id: number; date: string; start_time?: string; end_time?: string;
   regular_hours: number; overtime_hours?: number; holiday_overtime_hours?: number;
-  nightshift_hours?: number; standby_allowance?: boolean; total_hours?: number;
+  nightshift_hours?: number; standby_allowance?: boolean; nightshift_allowance?: boolean; total_hours?: number;
   status: StatusKey; notes?: string; overtime_periods?: OvertimePeriodData[];
   callout_overtime_hours?: number; callout_count?: number;
-  /** Client-side only — this cell was derived from approved leave/overtime, not saved by a
+  /** Client-side only — this cell was derived from approved leave/overtime (or, for
+   *  'holiday', an un-touched Zimbabwe public holiday auto-credited 8h), not saved by a
    *  person. No `id`, so it isn't in the DB yet: clicking it opens the editor pre-filled,
    *  and saving turns it into a real entry. Never sent to the backend. */
-  _auto?: 'leave' | 'overtime' | 'both';
+  _auto?: 'leave' | 'overtime' | 'both' | 'holiday';
 }
 
 /** Minimal shape pulled from the Leaves page's records — only what's needed to project an
@@ -46,16 +47,25 @@ export interface ApprovedOvertimeRecord {
 
 export interface Period { start: Date; end: Date; }
 export interface EditCell { employee: Employee; date: Date; entry?: TimesheetEntry; }
-export interface HourTotals { reg: number; ot15: number; ot20: number; night: number; standbyBonus: number; total: number; excess?: number; }
+export interface HourTotals {
+  reg: number; ot15: number; ot20: number; night: number; standbyBonus: number;
+  /** Flat +8h once per contiguous run of nightshift_allowance days — same mechanic as
+   *  standbyBonus, but kept as its own column rather than folded into ot15. */
+  nightAllowanceBonus: number;
+  total: number; excess?: number;
+}
 
-export type StatusKey = 'work' | 'leave' | 'sick' | 'special_leave' | 'holiday' | 'training' | 'off' | 'absent' | 'weekend' | 'maternity' | 'study' | 'lieu';
+/** 'holiday' = worked ON a public holiday (2.0x, "PPH"). 'holiday_paid' = the holiday
+ *  passed with no entry, auto-credited 8 regular hours (see lib/zimHolidays.ts +
+ *  effectiveTimesheets in page.tsx). */
+export type StatusKey = 'work' | 'leave' | 'sick' | 'special_leave' | 'holiday' | 'holiday_paid' | 'training' | 'off' | 'absent' | 'weekend' | 'maternity' | 'study' | 'lieu';
 
 export interface StatusConfig { label: string; hex: string; Icon: ElementType; }
 
 /** TimesheetEntryDialog's local form state — mirrors the create/update payload shape. */
 export interface EntryForm {
   start_time: string; end_time: string; regular_hours: number;
-  nightshift_hours: number; status: StatusKey; standby_allowance: boolean;
+  nightshift_hours: number; status: StatusKey; standby_allowance: boolean; nightshift_allowance: boolean;
   notes: string; callout_overtime_hours: number; callout_count: number;
 }
 
