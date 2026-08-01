@@ -418,16 +418,17 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
   const defaultTo = toISODate(addDays(sundayOf(new Date()), 6));
   const [from, setFrom] = useState(defaultFrom);
   const [to, setTo] = useState(defaultTo);
-  const [sortByTotal, setSortByTotal] = useState(false);
+  const [sortMode, setSortMode] = useState<'name' | 'total' | 'mineNumber'>('name');
 
   const { rows: rowsByName, days } = useMemo(() => buildWeeklyRows(records, from, to, employees), [records, from, to, employees]);
   // buildWeeklyRows already returns alphabetical order — re-sort on top of that
-  // (not inside it) so "highest overtime first" stays a view preference, not a
-  // change to the underlying data shape everything else here relies on.
-  const rows = useMemo(
-    () => sortByTotal ? [...rowsByName].sort((a, b) => b.total - a.total) : rowsByName,
-    [rowsByName, sortByTotal]
-  );
+  // (not inside it) so the chosen order stays a view preference, not a change to
+  // the underlying data shape everything else here relies on.
+  const rows = useMemo(() => {
+    if (sortMode === 'total') return [...rowsByName].sort((a, b) => b.total - a.total);
+    if (sortMode === 'mineNumber') return [...rowsByName].sort((a, b) => a.employee_id.localeCompare(b.employee_id, undefined, { numeric: true }));
+    return rowsByName;
+  }, [rowsByName, sortMode]);
   const grandTotal = rows.reduce((s, r) => s + r.total, 0);
   const dayTotals = days.map(d => { const ds = toISODate(d); return rows.reduce((s, r) => s + (r.byDate.get(ds) || 0), 0); });
 
@@ -463,7 +464,7 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
 
     ws.mergeCells(1, 1, 1, totalCols);
     const title = ws.getCell(1, 1);
-    title.value = `OVERTIME WEEKLY SUMMARY — ${fmtDate(from)} to ${fmtDate(to)}`;
+    title.value = `Overtime Weekly Summary — ${fmtDate(from)} to ${fmtDate(to)}`;
     title.font = { name: FONT, bold: true, size: 14, color: { argb: EXPORT_BRAND_ARGB } };
     title.alignment = { horizontal: 'center', vertical: 'middle' };
     ws.getRow(1).height = 24;
@@ -505,7 +506,7 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
     });
 
     const totalRow = ws.getRow(4 + rows.length + 1);
-    totalRow.values = ['', '', 'GRAND TOTAL', fmtHours(grandTotal15), fmtHours(grandTotal20), fmtHours(grandTotal)];
+    totalRow.values = ['', '', 'Grand Total', fmtHours(grandTotal15), fmtHours(grandTotal20), fmtHours(grandTotal)];
     totalRow.height = 22;
     totalRow.eachCell({ includeEmpty: true }, (c, col) => {
       const isTotalCol = col === TOTAL_COL;
@@ -536,10 +537,15 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
         <span className={t.textFaint}>to</span>
         <input type="date" title="To date" value={to} onChange={e => setTo(e.target.value)} className={`h-9 rounded-lg px-2.5 text-xs outline-none transition-colors ${t.inputBg}`} />
         <button type="button" onClick={() => { setFrom(defaultFrom); setTo(defaultTo); }} className={`h-9 px-3 rounded-lg text-xs font-medium transition-colors ${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText}`}>This Week</button>
-        <button type="button" onClick={() => setSortByTotal(v => !v)} title="Toggle sort order"
-          className={`h-9 flex items-center gap-1.5 px-3 rounded-lg text-xs font-medium transition-colors ${sortByTotal ? 'bg-brand-500/25 text-brand-400 font-semibold' : `${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText}`}`}>
-          <TrendingUp className="h-3.5 w-3.5" /> {sortByTotal ? 'Highest OT first' : 'Sort A–Z'}
-        </button>
+        <div className="flex items-center gap-1.5">
+          <TrendingUp className={`h-3.5 w-3.5 ${t.textFaint}`} />
+          <SelectField size="filter" title="Sort order" value={sortMode} onChange={v => setSortMode(v as typeof sortMode)}
+            options={[
+              { value: 'name', label: 'Sort: Name (A–Z)' },
+              { value: 'total', label: 'Sort: Highest OT first' },
+              { value: 'mineNumber', label: 'Sort: Mine Number' },
+            ]} />
+        </div>
         {!invalidRange && <span className={`text-xs ${t.textFaint}`}>{days.length} day{days.length !== 1 ? 's' : ''} · {rows.length} employee{rows.length !== 1 ? 's' : ''} · {grandTotal.toFixed(1)}h total</span>}
         {!invalidRange && rows.length > 0 && (
           <button type="button" onClick={downloadExcel} className="ml-auto flex items-center gap-1.5 h-9 px-3 rounded-lg text-xs font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all">
