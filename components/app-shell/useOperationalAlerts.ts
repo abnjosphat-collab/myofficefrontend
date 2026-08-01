@@ -13,7 +13,7 @@ import { useEffect, useState } from 'react';
 import { API_BASE } from '@/lib/config';
 import { authFetch } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
-import { CalendarDays, Clock, ShieldAlert, AlertTriangle, type LucideIcon } from '@/components/shared/theme';
+import { CalendarDays, Clock, ShieldAlert, AlertTriangle, ListTodo, type LucideIcon } from '@/components/shared/theme';
 import { timeAgo, type ActivityItem } from './useDashboardData';
 
 async function safeJson(url: string, needsAuth = false): Promise<any> {
@@ -41,11 +41,12 @@ export function useOperationalAlerts() {
     let cancelled = false;
 
     async function load() {
-      const [leaves, overtime, sheq, workOrders] = await Promise.all([
+      const [leaves, overtime, sheq, workOrders, tasksEvents] = await Promise.all([
         safeJson(`${API_BASE}/api/leaves?status=pending`, true),
         safeJson(`${API_BASE}/api/overtime?status=pending`, true),
         safeJson(`${API_BASE}/api/sheq?status=open`, true),
         safeJson(`${API_BASE}/api/maintenance/work-orders?status=pending&limit=50`, true),
+        safeJson(`${API_BASE}/api/tasks-events?status=pending`, true),
       ]);
       if (cancelled) return;
 
@@ -81,7 +82,17 @@ export function useOperationalAlerts() {
           ))
         : [];
 
-      const merged = [...leaveItems, ...otItems, ...sheqItems, ...overdueItems]
+      const overdueTaskItems: ActivityItem[] = Array.isArray(tasksEvents)
+        ? tasksEvents
+          .filter((te: any) => te.due_date && new Date(te.due_date).getTime() < now)
+          .slice(0, 5)
+          .map((te: any) => toItem(
+            `te-overdue-${te.id}`, `${te.task_type || 'Task'} overdue — ${te.title}`,
+            'Events & Tasks', ListTodo, te.due_date, 'critical', (te.responsible_people || [])[0],
+          ))
+        : [];
+
+      const merged = [...leaveItems, ...otItems, ...sheqItems, ...overdueItems, ...overdueTaskItems]
         .filter(i => i.timestamp > 0)
         .sort((a, b) => b.timestamp - a.timestamp);
 

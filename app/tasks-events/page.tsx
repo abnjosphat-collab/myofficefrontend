@@ -14,12 +14,14 @@ import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
 import {
   useTheme, accentText, PageHero, StatTile, GlowCard, ProgressBar, ACCENT_HEX,
-  PrimaryButton, CenterModal, FormField, SelectField, StatusBadge, EmptyState, useConfirm,
+  PrimaryButton, CenterModal, FormField, SelectField, SearchInput, StatusBadge, EmptyState, useConfirm,
 } from '@/components/shared/theme';
 import {
-  ListTodo, Plus, Trash2, CalendarClock, Check, RotateCcw, Clock, Pencil, AlertTriangle,
+  ListTodo, Plus, Trash2, CalendarClock, Check, RotateCcw, Clock, Pencil, AlertTriangle, X,
 } from '@/components/shared/theme';
 import { fmtDate, fmtDateTime } from '@/components/shared/utils';
+import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
+import { exportFilename } from '@/lib/exportUtils';
 import { EmployeeAutocomplete } from '@/components/shared/EmployeeAutocomplete';
 import {
   useTasksEventsData, createTaskEvent, updateTaskEvent, deleteTaskEvent,
@@ -35,9 +37,47 @@ const PRIORITY_COLOR: Record<string, string> = {
 };
 
 const blankForm = (): TaskEventFormData => ({
-  title: '', description: '', task_type: 'Task', event_date: '', due_date: '', responsible_person: '', priority: 'Medium',
+  title: '', description: '', task_type: 'Task', event_date: '', due_date: '', responsible_people: [], priority: 'Medium',
 });
 const isOverdue = (item: TaskEvent) => item.status === 'pending' && !!item.due_date && new Date(item.due_date) < new Date(new Date().toDateString());
+
+// ─── Multiple responsible people — an EmployeeAutocomplete that appends to a
+// list instead of setting a single value, plus removable chips. First use of
+// a "multi" pattern in this codebase — kept page-local rather than promoted
+// into the shared component until a second page actually needs it.
+function ResponsiblePeoplePicker({ value, onChange }: { value: string[]; onChange: (v: string[]) => void }) {
+  const t = useTheme();
+  const [draft, setDraft] = useState('');
+
+  const addPerson = (name: string) => {
+    const trimmed = name.trim();
+    if (trimmed && !value.includes(trimmed)) onChange([...value, trimmed]);
+    setDraft('');
+  };
+
+  return (
+    <FormField label="Responsible People">
+      <EmployeeAutocomplete
+        value={draft}
+        onChange={setDraft}
+        onSelect={emp => addPerson(emp.full_name || emp.name || `${emp.first_name || ''} ${emp.last_name || ''}`.trim())}
+      />
+      {value.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mt-2">
+          {value.map(name => (
+            <span key={name} className={`inline-flex items-center gap-1 ${t.chipBg} rounded-full pl-2.5 pr-1.5 py-1 text-xs ${t.textMuted}`}>
+              {name}
+              <button type="button" onClick={() => onChange(value.filter(n => n !== name))}
+                className={`h-4 w-4 flex items-center justify-center rounded-full ${t.hoverBg}`}>
+                <X className="h-2.5 w-2.5" />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+    </FormField>
+  );
+}
 
 // ─── Form modal (create + edit) ────────────────────────────────────────────
 
@@ -54,7 +94,7 @@ function FormModal({ open, onClose, onSaved, initialData }: {
       setForm({
         title: initialData.title, description: initialData.description || '', task_type: initialData.task_type,
         event_date: initialData.event_date || '', due_date: initialData.due_date || '',
-        responsible_person: initialData.responsible_person || '', priority: initialData.priority,
+        responsible_people: initialData.responsible_people || [], priority: initialData.priority,
       });
     } else setForm(blankForm());
   }, [initialData, open]);
@@ -106,12 +146,7 @@ function FormModal({ open, onClose, onSaved, initialData }: {
               className="w-full h-9 rounded-lg px-3 text-sm outline-none bg-white/10" />
           </FormField>
         </div>
-        <EmployeeAutocomplete
-          label="Responsible Person"
-          value={form.responsible_person}
-          onChange={v => set('responsible_person', v)}
-          onSelect={emp => set('responsible_person', emp.full_name || emp.name || `${emp.first_name || ''} ${emp.last_name || ''}`.trim())}
-        />
+        <ResponsiblePeoplePicker value={form.responsible_people} onChange={v => set('responsible_people', v)} />
         <div className="flex justify-end gap-2 pt-2">
           <PrimaryButton type="submit" submitting={saving}>{mode === 'edit' ? 'Save' : 'Add'}</PrimaryButton>
         </div>
@@ -122,8 +157,8 @@ function FormModal({ open, onClose, onSaved, initialData }: {
 
 // ─── Details modal (read-only view + comments) ─────────────────────────────
 
-function DetailsModal({ item, open, onClose, onEdit, onDelete }: {
-  item: TaskEvent | null; open: boolean; onClose: () => void; onEdit: (i: TaskEvent) => void; onDelete: (i: TaskEvent) => void;
+function DetailsModal({ item, open, onClose, onEdit, onDelete, onToggle }: {
+  item: TaskEvent | null; open: boolean; onClose: () => void; onEdit: (i: TaskEvent) => void; onDelete: (i: TaskEvent) => void; onToggle: (i: TaskEvent) => void;
 }) {
   const t = useTheme();
   const [comments, setComments] = useState<TaskComment[]>([]);
@@ -165,7 +200,7 @@ function DetailsModal({ item, open, onClose, onEdit, onDelete }: {
           {[
             { label: 'Date', val: item.event_date ? fmtDate(item.event_date) : '—' },
             { label: 'Due Date', val: item.due_date ? fmtDate(item.due_date) : '—' },
-            { label: 'Responsible', val: item.responsible_person || 'Unassigned' },
+            { label: 'Responsible', val: item.responsible_people?.length ? item.responsible_people.join(', ') : 'Unassigned' },
             { label: 'Completed By', val: item.completed_by || '—' },
           ].map(({ label, val }) => (
             <div key={label} className={`${t.chipBg} rounded-xl p-3`}>
@@ -209,6 +244,10 @@ function DetailsModal({ item, open, onClose, onEdit, onDelete }: {
 
         <div className="flex gap-2 pt-2">
           <button type="button" onClick={onClose} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border}`}>Close</button>
+          <button type="button" onClick={() => { onToggle(item); onClose(); }}
+            className={`flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-br hover:brightness-110 ${item.status === 'completed' ? 'from-slate-500 to-slate-700' : 'from-emerald-500 to-emerald-700'}`}>
+            {item.status === 'completed' ? 'Reopen' : 'Mark Complete'}
+          </button>
           <button type="button" onClick={() => { onEdit(item); onClose(); }} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-amber-500 to-amber-700 hover:brightness-110">Edit</button>
           <button type="button" onClick={() => { onDelete(item); onClose(); }} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-rose-500 to-rose-700 hover:brightness-110">Delete</button>
         </div>
@@ -234,6 +273,7 @@ function TasksEventsContent() {
   const [typeFilter, setTypeFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [overdueOnly, setOverdueOnly] = useState(false);
+  const [search, setSearch] = useState('');
 
   // Defense-in-depth #2 — the nav hides the tile and the backend router rejects
   // the API for anyone below manager, but a direct URL visit still needs this.
@@ -273,12 +313,27 @@ function TasksEventsContent() {
     { name: 'Pending', value: pending.length, color: ACCENT_HEX.amber },
   ].filter(d => d.value > 0), [completed.length, pending.length]);
 
-  const filtered = useMemo(() => items.filter(i =>
-    (statusFilter === 'all' || i.status === statusFilter) &&
-    (typeFilter === 'all' || i.task_type === typeFilter) &&
-    (priorityFilter === 'all' || i.priority === priorityFilter) &&
-    (!overdueOnly || isOverdue(i))
-  ), [items, statusFilter, typeFilter, priorityFilter, overdueOnly]);
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return items.filter(i =>
+      (statusFilter === 'all' || i.status === statusFilter) &&
+      (typeFilter === 'all' || i.task_type === typeFilter) &&
+      (priorityFilter === 'all' || i.priority === priorityFilter) &&
+      (!overdueOnly || isOverdue(i)) &&
+      (!q || i.title.toLowerCase().includes(q) || (i.description || '').toLowerCase().includes(q))
+    );
+  }, [items, statusFilter, typeFilter, priorityFilter, overdueOnly, search]);
+
+  const exportColumns: DLColumn[] = [
+    { key: 'title', label: 'Title' },
+    { key: 'task_type', label: 'Type' },
+    { key: 'status', label: 'Status' },
+    { key: 'priority', label: 'Priority' },
+    { key: 'event_date', label: 'Date', format: v => v ? fmtDate(v as string) : '' },
+    { key: 'due_date', label: 'Due Date', format: v => v ? fmtDate(v as string) : '' },
+    { key: 'responsible_people', label: 'Responsible', format: v => Array.isArray(v) ? v.join(', ') : '' },
+    { key: 'completed_by', label: 'Completed By' },
+  ];
 
   const toggle = async (item: TaskEvent) => {
     try {
@@ -301,7 +356,12 @@ function TasksEventsContent() {
         accent="violet"
         crumbs={['Manager Tools', 'Events & Tasks']}
         title="Events & Tasks"
-        actions={<PrimaryButton icon={Plus} onClick={() => { setEditing(null); setShowForm(true); }}>New</PrimaryButton>}
+        actions={
+          <>
+            <DownloadButton data={filtered as unknown as Record<string, unknown>[]} columns={exportColumns} filename={exportFilename('events_tasks')} title="Events & Tasks" />
+            <PrimaryButton icon={Plus} onClick={() => { setEditing(null); setShowForm(true); }}>New</PrimaryButton>
+          </>
+        }
       >
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <StatTile icon={ListTodo} color={ACCENT_HEX.violet} value={items.length} label="Total" />
@@ -342,6 +402,7 @@ function TasksEventsContent() {
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
+        <SearchInput value={search} onChange={setSearch} placeholder="Search title or description…" className="w-full sm:w-64" />
         <SelectField value={statusFilter} onChange={v => setStatusFilter(v as StatusFilter)} size="filter"
           options={[{ value: 'all', label: 'All Statuses' }, { value: 'pending', label: 'Pending' }, { value: 'completed', label: 'Completed' }]} />
         <SelectField value={typeFilter} onChange={setTypeFilter} size="filter"
@@ -371,7 +432,7 @@ function TasksEventsContent() {
                 </button>
                 <div className="flex-1 min-w-0">
                   <p className={`text-sm font-medium truncate ${item.status === 'completed' ? t.textFaint + ' line-through' : t.textPrimary}`}>{item.title}</p>
-                  {item.responsible_person && <p className={`text-xs truncate ${t.textFaint}`}>{item.responsible_person}</p>}
+                  {!!item.responsible_people?.length && <p className={`text-xs truncate ${t.textFaint}`}>{item.responsible_people.join(', ')}</p>}
                 </div>
                 <StatusBadge color={TYPE_COLOR[item.task_type] || ACCENT_HEX.violet} label={item.task_type} />
                 {item.due_date && (
@@ -405,6 +466,7 @@ function TasksEventsContent() {
         onClose={() => setViewing(null)}
         onEdit={i => { setEditing(i); setShowForm(true); }}
         onDelete={handleDelete}
+        onToggle={toggle}
       />
     </main>
   );

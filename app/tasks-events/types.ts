@@ -7,7 +7,7 @@ export interface TaskEvent {
   task_type: string;
   event_date?: string | null;
   due_date?: string | null;
-  responsible_person?: string | null;
+  responsible_people?: string[] | null;
   status: 'pending' | 'completed';
   priority: string;
   created_by?: string | null;
@@ -23,7 +23,7 @@ export interface TaskEventFormData {
   task_type: string;
   event_date: string;
   due_date: string;
-  responsible_person: string;
+  responsible_people: string[];
   priority: string;
 }
 
