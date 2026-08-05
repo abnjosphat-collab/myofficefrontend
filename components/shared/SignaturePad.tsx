@@ -103,6 +103,12 @@ interface SavedInfo {
 
 interface SignaturePadProps {
   signerName: string;
+  /** The signed-in user's email — paired with the password field below (as a
+   *  hidden autocomplete="username" input) purely so browser password managers
+   *  can reliably auto-fill the saved credential. Without a username field and
+   *  a real <form>, a lone <input type="password"> only gets offered on manual
+   *  click in most browsers instead of auto-filling. */
+  userEmail?: string;
   actionLabel?: string;
   onSign: (sig: SignatureResult) => Promise<void> | void;
   onCancel: () => void;
@@ -112,6 +118,7 @@ interface SignaturePadProps {
 
 export function SignaturePad({
   signerName,
+  userEmail,
   actionLabel = 'Sign & Approve',
   onSign,
   onCancel,
@@ -406,7 +413,10 @@ export function SignaturePad({
           )}
         </>
       ) : (
-        <div className="flex flex-col gap-3 rounded-xl border border-white/15 bg-white/[0.04] p-4">
+        <form
+          className="flex flex-col gap-3 rounded-xl border border-white/15 bg-white/[0.04] p-4"
+          onSubmit={e => { e.preventDefault(); if (password && !unlocking) unlockAndSign(); }}
+        >
           <div className="flex items-center gap-2 text-xs text-white/50">
             <CheckCircle2 className="h-4 w-4 text-emerald-400" />
             Signature on file{saved.source === 'scanned' ? ' (scanned)' : ''}
@@ -414,6 +424,13 @@ export function SignaturePad({
           <p className="text-xs text-white/40">
             Enter your account password to apply it. This password is what attributes the approval to you.
           </p>
+          {/* Paired with the password field below purely for the browser's password
+              manager — a lone password input with no preceding username field, or one
+              outside a <form>, is what makes autofill inconsistent (falls back to
+              "click to invoke, then select" instead of filling automatically). Hidden
+              via sr-only, not display:none/hidden — some autofill implementations
+              ignore fields hidden that way. */}
+          <input type="email" name="username" autoComplete="username" value={userEmail || signerName} readOnly className="sr-only" tabIndex={-1} aria-hidden="true" />
           <div className="relative">
             <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
             <input
@@ -421,13 +438,12 @@ export function SignaturePad({
               value={password}
               autoComplete="current-password"
               onChange={e => { setPassword(e.target.value); setUnlockErr(''); }}
-              onKeyDown={e => { if (e.key === 'Enter' && password && !unlocking) unlockAndSign(); }}
               placeholder="Account password"
               className="w-full rounded-lg border border-white/15 bg-white/[0.06] py-2.5 pl-9 pr-3 text-sm text-white placeholder:text-white/30 focus:border-[#86BBD8]/50 focus:outline-none"
             />
           </div>
           {unlockErr && <p className="text-xs text-rose-400">{unlockErr}</p>}
-        </div>
+        </form>
       )}
 
       <div className="flex gap-2">

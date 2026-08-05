@@ -125,6 +125,7 @@ export function ApprovalGate({
           {isLoggedIn && isAuthorized && !done && (
             <SignaturePad
               signerName={displayName}
+              userEmail={user?.email}
               actionLabel={saving ? 'Saving…' : actionLabel}
               onSign={handleSign}
               onCancel={onCancel}
