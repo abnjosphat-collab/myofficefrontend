@@ -195,7 +195,11 @@ function LeaveApplicationForm({ onClose, onSuccess, editData }: { onClose: () =>
   // shared component (built on the design system's Combobox) keeps Tab/Enter/Arrow
   // selection, now consistent with every other module instead of leaves' own look.
   const handleEmployeeSelect = (employee: EmployeeLookup) => {
-    const name = employee.name || employee.full_name || `Employee ${employee.id}`;
+    // Raw employee records only ever carry first_name/last_name, never a combined
+    // name/full_name — this fallback chain was missing the concatenation step, so
+    // every selection silently fell through to the generic "Employee {id}" placeholder
+    // (matches the same full chain overtime.tsx and tasks-events.tsx already use).
+    const name = employee.name || employee.full_name || `${employee.first_name || ''} ${employee.last_name || ''}`.trim() || `Employee ${employee.id}`;
     setFormData(prev => ({
       ...prev, employee_id: employee.employee_id || String(employee.id), employee_name: name,
       position: employee.designation || '', contact_number: employee.phone || '',
