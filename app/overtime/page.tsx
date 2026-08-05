@@ -672,8 +672,11 @@ function OvertimeContent() {
     return { total: records.length, pending, approved, totalHrs: Math.round(totalHrs) };
   }, [records]);
 
-  const byType = useMemo(() => OT_TYPES.map(ty => ({ type: TYPE_LABELS[ty], count: records.filter(r => r.overtime_type === ty).length })).filter(x => x.count > 0), [records]);
-  const byStatus = useMemo(() => STATUSES.map(s => ({ status: s.charAt(0).toUpperCase() + s.slice(1), count: records.filter(r => r.status === s).length })).filter(x => x.count > 0), [records]);
+  // Analytics tab charts read from `filtered` (search/status/type/date-range applied),
+  // not the raw `records` — otherwise picking a filter in the Records tab would have no
+  // visible effect on Analytics, which is exactly the bug this was fixed from.
+  const byType = useMemo(() => OT_TYPES.map(ty => ({ type: TYPE_LABELS[ty], count: filtered.filter(r => r.overtime_type === ty).length })).filter(x => x.count > 0), [filtered]);
+  const byStatus = useMemo(() => STATUSES.map(s => ({ status: s.charAt(0).toUpperCase() + s.slice(1), count: filtered.filter(r => r.status === s).length })).filter(x => x.count > 0), [filtered]);
   const TYPE_BAR_COLORS = Object.values(TYPE_HEX);
   const axisColor = t.light ? 'rgba(15,23,42,0.4)' : 'rgba(255,255,255,0.4)';
   const gridColor = t.light ? 'rgba(15,23,42,0.06)' : 'rgba(255,255,255,0.06)';
@@ -693,18 +696,18 @@ function OvertimeContent() {
   };
   const bySection = useMemo(() => {
     const buckets: Record<string, { hours: number; count: number }> = {};
-    records.forEach(r => {
+    filtered.forEach(r => {
       const key = normalizeOtSection(empById.get(r.employee_id)?.section);
       if (!buckets[key]) buckets[key] = { hours: 0, count: 0 };
       buckets[key].hours += r.hours ?? calcHours(r.start_time, r.end_time);
       buckets[key].count += 1;
     });
     return Object.entries(buckets).map(([section, v]) => ({ section, hours: Math.round(v.hours * 10) / 10, count: v.count })).filter(x => x.count > 0);
-  }, [records, empById]);
+  }, [filtered, empById]);
 
   const byArtisan = useMemo(() => {
     const map = new Map<string, { employee_id: string; employee_name: string; position: string; hours: number; count: number }>();
-    records.forEach(r => {
+    filtered.forEach(r => {
       const key = r.employee_id || r.employee_name;
       const h = r.hours ?? calcHours(r.start_time, r.end_time);
       const existing = map.get(key);
@@ -712,27 +715,28 @@ function OvertimeContent() {
       else map.set(key, { employee_id: r.employee_id, employee_name: r.employee_name, position: r.position, hours: h, count: 1 });
     });
     return [...map.values()].sort((a, b) => b.hours - a.hours).slice(0, 8).map(a => ({ ...a, hours: Math.round(a.hours * 10) / 10 }));
-  }, [records]);
+  }, [filtered]);
   const maxArtisanHours = Math.max(1, ...byArtisan.map(a => a.hours));
 
   const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   const byWeekday = useMemo(() => {
     const buckets = WEEKDAY_LABELS.map(() => ({ hours: 0, count: 0 }));
-    records.forEach(r => {
+    filtered.forEach(r => {
       if (!r.date) return;
       const dow = (new Date(`${r.date}T00:00:00`).getDay() + 6) % 7; // Mon=0..Sun=6
       buckets[dow].hours += r.hours ?? calcHours(r.start_time, r.end_time);
       buckets[dow].count += 1;
     });
     return WEEKDAY_LABELS.map((day, i) => ({ day, hours: Math.round(buckets[i].hours * 10) / 10, count: buckets[i].count }));
-  }, [records]);
+  }, [filtered]);
 
   const richStats = useMemo(() => {
-    const uniqueEmployees = new Set(records.map(r => r.employee_id)).size;
-    const avgHours = records.length > 0 ? stats.totalHrs / records.length : 0;
+    const uniqueEmployees = new Set(filtered.map(r => r.employee_id)).size;
+    const filteredHrs = filtered.reduce((s, r) => s + (r.hours ?? calcHours(r.start_time, r.end_time)), 0);
+    const avgHours = filtered.length > 0 ? filteredHrs / filtered.length : 0;
     const busiest = byWeekday.reduce((best, d) => d.hours > best.hours ? d : best, byWeekday[0] ?? { day: '—', hours: 0 });
     return { uniqueEmployees, avgHours: Math.round(avgHours * 10) / 10, busiestDay: busiest.hours > 0 ? busiest.day : '—' };
-  }, [records, stats.totalHrs, byWeekday]);
+  }, [filtered, byWeekday]);
 
   const handleSave = async (body: Record<string, unknown>, id?: number | string) => {
     if (id) {

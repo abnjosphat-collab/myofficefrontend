@@ -767,12 +767,16 @@ function AnalyticsView({ filters, startDate, endDate }: { filters: Filters; star
         if (startDate) params.append('date_from', startDate);
         if (endDate) params.append('date_to', endDate);
         if (filters.department && filters.department !== 'all') params.append('department', filters.department);
+        if (filters.status && filters.status !== 'all') params.append('status', filters.status);
+        if (filters.breakdown_type && filters.breakdown_type !== 'all') params.append('breakdown_type', filters.breakdown_type);
+        if (filters.priority && filters.priority !== 'all') params.append('priority', filters.priority);
+        if (filters.location && filters.location !== 'all') params.append('location', filters.location);
         const json = await fetchBreakdownAnalytics(params);
         if (json.success) setData(json);
       } catch (e) { toast.error(e instanceof Error ? e.message : 'Failed to load analytics'); }
       finally { setLoading(false); }
     })();
-  }, [startDate, endDate, filters.department]);
+  }, [startDate, endDate, filters.department, filters.status, filters.breakdown_type, filters.priority, filters.location]);
 
   const tabs = [
     { key: 'overview', label: 'Overview', icon: Layers },

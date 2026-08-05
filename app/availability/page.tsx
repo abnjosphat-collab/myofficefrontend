@@ -287,7 +287,7 @@ function AvailabilityContent() {
             </div>
             <div className="p-5 space-y-3">
               {departments.map(dept => {
-                const deptEq = equipment.filter(e => e.department === dept);
+                const deptEq = filtered.filter(e => e.department === dept);
                 const deptAv = deptEq.length > 0 ? deptEq.reduce((s, e) => s + e.availability, 0) / deptEq.length : 0;
                 return (
                   <div key={dept}>

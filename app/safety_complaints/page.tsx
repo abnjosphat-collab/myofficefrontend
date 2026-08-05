@@ -392,8 +392,6 @@ function SafetyComplaintsContent() {
 
   useEffect(() => { load(); }, []);
 
-  const stats = useMemo(() => calcStats(complaints), [complaints]);
-
   const byWhoOptions = useMemo(() => [...new Set(complaints.map(c => c.byWho).filter(Boolean))].sort(), [complaints]);
   const locationOptions = useMemo(() => [...new Set(complaints.map(c => c.location).filter(Boolean))].sort(), [complaints]);
 
@@ -414,6 +412,10 @@ function SafetyComplaintsContent() {
     }
     return true;
   }), [complaints, search, statusF, sectionF, priorityF, categoryF, byWhoF, locationF, dateFrom, dateTo]);
+
+  // The Analytics tab reads from `filtered`, not raw `complaints` — otherwise picking
+  // a filter in the Records tab would have no visible effect on Analytics.
+  const stats = useMemo(() => calcStats(filtered), [filtered]);
 
   const exportColumns: DLColumn[] = [
     { key: 'date', label: 'Date', width: 14, format: v => v ? formatDate(v as string) : '' },
