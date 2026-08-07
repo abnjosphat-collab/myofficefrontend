@@ -1,16 +1,18 @@
 // FILE: app/overtime/page.tsx
 'use client';
 
-import React, { useState, useEffect, useMemo, useRef, ElementType } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect, useMemo, useRef, useCallback, ElementType } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { AppShell } from '@/components/app-shell';
 import { PredictiveInput } from '@/components/shared/PredictiveInput';
 import { PillTabs } from '@/components/shared/PillTabs';
+import { UnderlineTabs, type UnderlineTab } from '@/components/shared/UnderlineTabs';
 import {
   Clock4, Plus, Search, RefreshCw, CheckCircle2, XCircle,
   FileText, Eye, Trash2, Edit, LayoutGrid, List, AlertCircle, AlertTriangle,
   Sun, Moon, Briefcase, Calendar, X, User, Download, CalendarRange,
   Wrench, UsersRound, TrendingUp, TrendingDown, Lightbulb, Sparkles,
+  Wallet, Gauge, Brain, PieChart, Layers,
 } from '@/components/shared/theme';
 import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, ProgressBar, FormField, FormActions,
@@ -24,11 +26,13 @@ import { EmployeeAutocomplete } from '@/components/shared/EmployeeAutocomplete';
 import { EmployeeMultiPicker, type PickedEmployee } from '@/components/shared/EmployeeMultiPicker';
 import { SpareAutocomplete } from '@/components/shared/SpareAutocomplete';
 import { formatDate } from '@/lib/format';
+import { formatCurrencyShort } from '@/components/shared/utils';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename, EXPORT_BRAND_ARGB } from '@/lib/exportUtils';
 import { toast } from 'sonner';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
+  BarChart, Bar, AreaChart, Area, PieChart as RePieChart, Pie, Legend,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts';
 import { OT_TYPES, SELECTABLE_OT_TYPES, STATUSES, type OTType, type OTStatus, type OTRecord, type OTForm, type SpareUsedEntry } from './types';
 import { useOvertimeData, buildOvertimePayload, createOT, updateOT, deleteOT, postOvertimeAnalysis } from './useOvertimeData';
@@ -490,18 +494,37 @@ function buildWeeklyRows(records: OTRecord[], from: string, to: string, roster: 
 interface OTProblemArea { title: string; description: string; severity: 'critical' | 'high' | 'medium' | 'low'; }
 interface OTTrend { metric: string; direction: 'worsening' | 'improving' | 'stable'; insight: string; older_hours: number; newer_hours: number; }
 interface OTRecommendation { priority: 'immediate' | 'short_term' | 'long_term'; action: string; rationale: string; target: string; }
+interface OTCategoryDetail {
+  category: string; instances: number; hours: number; avg_hours: number; pct_of_total: number;
+  top_weekday: string | null; top_employee: string | null; top_spare: string | null;
+  records: { employee_name: string; date: string; hours: number; reason: string }[];
+}
 interface OTAnalysisResult {
   summary: string;
+  // Observed facts — plain tallies for the current selection.
   total_hours: number;
+  total_instances: number;
+  employees_involved: number;
+  sections_involved: number;
+  avg_hours_per_instance: number;
+  avg_hours_per_employee: number;
   double_time_pct: number;
-  problem_areas: OTProblemArea[];
-  trends: OTTrend[];
-  recommendations: OTRecommendation[];
+  // Patterns — recurring/descriptive, still data not interpretation.
   top_reasons: { phrase: string; count: number; hours: number }[];
+  category_detail: OTCategoryDetail[];
+  top_machines: { name: string; count: number; hours: number }[];
   top_employees: { name: string; hours: number }[];
   top_sections: { section: string; hours: number }[];
+  weekly_series: { week: string; hours: number }[];
+  trend_direction: 'worsening' | 'improving' | 'stable';
+  trends: OTTrend[];
   hour_weekday_hours: number[][];
   weekday_labels: string[];
+  punch_records: Record<string, { employee_name: string; hours: number; reason: string; date: string }[]>;
+  // Possible causes — interpretive hypotheses, not facts.
+  possible_causes: OTProblemArea[];
+  // Recommendations — practical actions to investigate.
+  recommendations: OTRecommendation[];
   _records_analysed: number;
   generated_at: string;
 }
@@ -532,15 +555,22 @@ function AnalyzeStat({ icon: Icon, accent, label, value, suffix = '', decimals =
   );
 }
 
+type PunchRecord = { employee_name: string; hours: number; reason: string; date: string };
+
 /** Punch-card heatmap — hour-of-day × weekday, weighted by hours (not just a count of
  *  starts) — answers "when does overtime happen most", dynamically over whatever's
  *  currently filtered (person/date-range/etc, since it comes from the same analyze
  *  call as everything else on this tab). Sequential single-hue intensity per the app's
  *  own color rule: magnitude gets one hue light→dark, never a rainbow. Records with no
  *  recorded start_time (the hours-only fast path) can't be placed on an hour axis and
- *  are simply not counted here. */
-function OvertimeHeatmap({ grid, weekdayLabels }: { grid: number[][]; weekdayLabels: string[] }) {
+ *  are simply not counted here.
+ *
+ *  Hover OR click a cell (click matters on touch, where hover doesn't fire) to pop the
+ *  actual entries behind it into the panel below — a quick animated highlight on the
+ *  cell itself plus a staggered reveal of who/why/how-long, not just a bare number. */
+function OvertimeHeatmap({ grid, weekdayLabels, punchRecords }: { grid: number[][]; weekdayLabels: string[]; punchRecords: Record<string, PunchRecord[]> }) {
   const t = useTheme();
+  const [selected, setSelected] = useState<{ hour: number; wd: number } | null>(null);
   const hasData = grid.some(row => row.some(v => v > 0));
   if (!hasData) return null;
   const max = Math.max(...grid.flat(), 1);
@@ -551,14 +581,19 @@ function OvertimeHeatmap({ grid, weekdayLabels }: { grid: number[][]; weekdayLab
   // roster or a 9-to-5 one.
   const activeHours = Array.from({ length: 24 }, (_, h) => h).filter(h => grid[h].some(v => v > 0));
 
+  const selectedKey = selected ? `${selected.hour}-${selected.wd}` : null;
+  const selectedEntries = selectedKey ? (punchRecords[selectedKey] || []) : [];
+  const selectedLabel = selected ? `${weekdayLabels[selected.wd]} ${String(selected.hour).padStart(2, '0')}:00` : null;
+  const selectedTotal = selected ? grid[selected.hour][selected.wd] : 0;
+
   return (
     <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
       <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}>
         <Calendar className="h-4 w-4 text-brand-400" />
         <span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>When Overtime Happens</span>
-        <span className={`ml-auto ${TYPE_SCALE.caption} ${t.textFaint}`}>by hour started · weekday</span>
+        <span className={`ml-auto ${TYPE_SCALE.caption} ${t.textFaint}`}>by hour started · weekday — hover or tap a cell</span>
       </div>
-      <div className="p-4 overflow-x-auto">
+      <div className="p-4 overflow-x-auto" onMouseLeave={() => setSelected(null)}>
         <div className="inline-block">
           <div className="flex gap-[3px] pl-9">
             {activeHours.map(h => (
@@ -570,14 +605,19 @@ function OvertimeHeatmap({ grid, weekdayLabels }: { grid: number[][]; weekdayLab
               <span className={`w-8 shrink-0 ${TYPE_SCALE.caption} ${t.textFaint}`}>{day}</span>
               {activeHours.map((h, i) => {
                 const hours = grid[h][wd];
+                const isSelected = selected?.hour === h && selected?.wd === wd;
                 return (
                   <motion.div
                     key={h}
                     initial={{ opacity: 0, scale: 0.5 }}
                     animate={{ opacity: 1, scale: 1 }}
+                    whileHover={{ scale: 1.35, zIndex: 10 }}
+                    whileTap={{ scale: 1.2 }}
                     transition={{ duration: 0.2, delay: Math.min((wd * activeHours.length + i) * 0.004, 0.6) }}
+                    onMouseEnter={() => setSelected({ hour: h, wd })}
+                    onClick={() => setSelected({ hour: h, wd })}
                     title={`${day} ${String(h).padStart(2, '0')}:00 — ${hours > 0 ? `${hours.toFixed(1)}h` : 'no overtime'}`}
-                    className={`h-5 w-5 rounded-[4px] shrink-0 ${LEVEL_BG[levelOf(hours)]} hover:ring-2 hover:ring-brand-400/60 transition-shadow cursor-default`}
+                    className={`h-5 w-5 rounded-[4px] shrink-0 ${LEVEL_BG[levelOf(hours)]} ${isSelected ? 'ring-2 ring-brand-400' : ''} cursor-pointer`}
                   />
                 );
               })}
@@ -590,85 +630,600 @@ function OvertimeHeatmap({ grid, weekdayLabels }: { grid: number[][]; weekdayLab
           <span className={`${TYPE_SCALE.caption} ${t.textFaint}`}>More</span>
         </div>
       </div>
+
+      <AnimatePresence mode="wait">
+        {selected && (
+          <motion.div
+            key={selectedKey}
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.18 }}
+            className={`border-t ${t.border} p-4`}
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <span className={`${TYPE_SCALE.body} font-semibold ${t.textPrimary}`}>{selectedLabel}</span>
+              <StatusBadge color={ACCENT_HEX.violet} label={`${selectedTotal.toFixed(1)}h`} />
+              {selectedEntries.length > 0 && <span className={`${TYPE_SCALE.caption} ${t.textFaint}`}>{selectedEntries.length} entr{selectedEntries.length !== 1 ? 'ies' : 'y'}</span>}
+            </div>
+            {selectedEntries.length === 0 ? (
+              <p className={`${TYPE_SCALE.caption} ${t.textFaint}`}>No overtime started at this hour on this weekday in the current selection.</p>
+            ) : (
+              <motion.div initial="hidden" animate="show" variants={staggerContainer} className="space-y-1.5">
+                {selectedEntries.map((e, i) => (
+                  <motion.div key={i} variants={fadeUp} className={`flex items-center justify-between gap-3 ${t.chipBg} rounded-lg px-3 py-1.5`}>
+                    <div className="min-w-0 flex-1">
+                      <span className={`${TYPE_SCALE.caption} font-medium ${t.textPrimary}`}>{e.employee_name}</span>
+                      <span className={`${TYPE_SCALE.caption} ${t.textFaint} ml-2`}>{fmtDate(e.date)}</span>
+                      {e.reason && <p className={`${TYPE_SCALE.caption} ${t.textFaint} truncate`}>{e.reason}</p>}
+                    </div>
+                    <span className={`${TYPE_SCALE.caption} font-semibold shrink-0 ${accentText('violet', t.light)}`}>{e.hours}h</span>
+                  </motion.div>
+                ))}
+              </motion.div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
 
-function AnalyzeView({ records }: { records: OTRecord[] }) {
+// ─── OVERTIME INSIGHTS (Overview / Analytics / Analysis) ──────────────────────
+// Analytics sub-tab's charts are cheap client-side aggregations over `filtered`
+// (instant, no round-trip — same pattern this tab always used). The Overview KPIs
+// and Analysis report both come from one shared, debounced server-side analyze
+// call so "regenerate on every filter change" doesn't mean "fetch on every
+// keystroke": it fires ~500ms after `filtered` settles, with a non-blocking
+// "Updating…" indicator plus a manual Refresh for an explicit re-run.
+
+const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+// "By section" reads the employee's section off the live roster keyed by
+// employee_id — the OT record itself has no reliable section field. Casing is
+// normalized (source data has "Electrical" vs "electrical " etc.) so the same
+// real-world section always buckets together, matching app/employees/page.tsx's
+// normalizeSection convention.
+const KNOWN_SECTIONS = ['Mechanical', 'Electrical', 'Civil', 'Instrumentation'];
+const SECTION_HEX: Record<string, string> = { Mechanical: ACCENT_HEX.blue, Electrical: '#fbbf24', Civil: '#34d399', Instrumentation: '#a78bfa', Unassigned: '#94a3b8' };
+function normalizeOtSection(section?: string): string {
+  const s = (section || '').trim();
+  if (!s) return 'Unassigned';
+  return KNOWN_SECTIONS.find(c => c.toLowerCase() === s.toLowerCase()) ?? s;
+}
+
+type InsightsSubTab = 'overview' | 'analytics' | 'analysis';
+
+function OvertimeInsightsView({ filtered, employees }: { filtered: OTRecord[]; employees: EmployeeLookup[] }) {
   const t = useTheme();
+  const [sub, setSub] = useState<InsightsSubTab>('overview');
   const [result, setResult] = useState<OTAnalysisResult | null>(null);
   const [loading, setLoading] = useState(false);
+  const [updating, setUpdating] = useState(false);
   const [error, setError] = useState('');
-  const axisColor = t.light ? 'rgba(15,23,42,0.4)' : 'rgba(255,255,255,0.4)';
+  const loadedOnce = useRef(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const generate = async () => {
-    setLoading(true); setError('');
+  const runAnalyze = useCallback(async (recs: OTRecord[]) => {
+    if (loadedOnce.current) setUpdating(true); else setLoading(true);
+    setError('');
     try {
-      const r = await postOvertimeAnalysis({ records, period_label: 'current selection' });
+      const r = await postOvertimeAnalysis({ records: recs, period_label: 'current selection' });
       setResult(r as OTAnalysisResult);
+      loadedOnce.current = true;
     } catch (e) { setError(e instanceof Error ? e.message : 'Analysis failed'); }
-    finally { setLoading(false); }
-  };
+    finally { setLoading(false); setUpdating(false); }
+  }, []);
 
-  if (!result && !loading) {
-    return (
-      <div className={`${t.glass} rounded-2xl ${t.shadow} p-10 text-center`}>
-        <PulsingIcon className="h-12 w-12 mx-auto mb-3 flex items-center justify-center">
-          <Lightbulb className={`h-9 w-9 ${accentText('amber', t.light)}`} />
-        </PulsingIcon>
-        <h3 className={`${TYPE_SCALE.subtitle} font-semibold mb-1.5 ${t.textPrimary}`}>Analyze Overtime</h3>
-        <p className={`${TYPE_SCALE.body} mb-4 max-w-md mx-auto ${t.textFaint}`}>
-          Reads the reason text, machines/locations mentioned, and volume/trend across the {records.length} currently-filtered record{records.length !== 1 ? 's' : ''} —
-          no external AI service, just aggregation and pattern rules run locally.
-        </p>
-        {error && <p className="text-xs text-rose-400 mb-3">{error}</p>}
-        <button type="button" onClick={generate} disabled={records.length === 0}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 disabled:opacity-40 disabled:pointer-events-none transition-all">
-          <Sparkles className="h-4 w-4" /> Generate Analysis
-        </button>
-        {records.length === 0 && <p className={`text-xs mt-2 ${t.textFaint}`}>No records in the current filter selection.</p>}
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => { runAnalyze(filtered); }, 500);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtered]);
+
+  // ── Client-side tallies (instant, no round-trip) — shared by Overview & Analytics.
+  // Read `filtered`, not `employees`-scoped `records` — otherwise a filter change
+  // would visibly move the Records tab but leave these tiles/charts stuck on the
+  // unfiltered set. ─────────────────────────────────────────────────────────────
+  const empById = useMemo(() => new Map(employees.map(e => [e.employee_id, e])), [employees]);
+  const byType = useMemo(() => OT_TYPES.map(ty => ({ type: TYPE_LABELS[ty], count: filtered.filter(r => r.overtime_type === ty).length })).filter(x => x.count > 0), [filtered]);
+  const byStatus = useMemo(() => STATUSES.map(s => ({ status: s.charAt(0).toUpperCase() + s.slice(1), count: filtered.filter(r => r.status === s).length })).filter(x => x.count > 0), [filtered]);
+  const bySection = useMemo(() => {
+    const buckets: Record<string, { hours: number; count: number }> = {};
+    filtered.forEach(r => {
+      const key = normalizeOtSection(empById.get(r.employee_id)?.section);
+      if (!buckets[key]) buckets[key] = { hours: 0, count: 0 };
+      buckets[key].hours += r.hours ?? calcHours(r.start_time, r.end_time);
+      buckets[key].count += 1;
+    });
+    return Object.entries(buckets).map(([section, v]) => ({ section, hours: Math.round(v.hours * 10) / 10, count: v.count })).filter(x => x.count > 0);
+  }, [filtered, empById]);
+  const byArtisan = useMemo(() => {
+    const map = new Map<string, { employee_id: string; employee_name: string; position: string; hours: number; count: number }>();
+    filtered.forEach(r => {
+      const key = r.employee_id || r.employee_name;
+      const h = r.hours ?? calcHours(r.start_time, r.end_time);
+      const existing = map.get(key);
+      if (existing) { existing.hours += h; existing.count += 1; }
+      else map.set(key, { employee_id: r.employee_id, employee_name: r.employee_name, position: r.position, hours: h, count: 1 });
+    });
+    return [...map.values()].sort((a, b) => b.hours - a.hours).slice(0, 8).map(a => ({ ...a, hours: Math.round(a.hours * 10) / 10 }));
+  }, [filtered]);
+  const maxArtisanHours = Math.max(1, ...byArtisan.map(a => a.hours));
+  const byWeekday = useMemo(() => {
+    const buckets = WEEKDAY_LABELS.map(() => ({ hours: 0, count: 0 }));
+    filtered.forEach(r => {
+      if (!r.date) return;
+      const dow = (new Date(`${r.date}T00:00:00`).getDay() + 6) % 7;
+      buckets[dow].hours += r.hours ?? calcHours(r.start_time, r.end_time);
+      buckets[dow].count += 1;
+    });
+    return WEEKDAY_LABELS.map((day, i) => ({ day, hours: Math.round(buckets[i].hours * 10) / 10, count: buckets[i].count }));
+  }, [filtered]);
+  const richStats = useMemo(() => {
+    const uniqueEmployees = new Set(filtered.map(r => r.employee_id)).size;
+    const filteredHrs = filtered.reduce((s, r) => s + (r.hours ?? calcHours(r.start_time, r.end_time)), 0);
+    const avgHours = filtered.length > 0 ? filteredHrs / filtered.length : 0;
+    const busiest = byWeekday.reduce((best, d) => d.hours > best.hours ? d : best, byWeekday[0] ?? { day: '—', hours: 0 });
+    const spareCost = filtered.reduce((s, r) => s + (r.spares_used || []).reduce((ss, sp) => ss + (sp.total_cost ?? ((sp.unit_price ?? 0) * (sp.quantity ?? 0))), 0), 0);
+    return { uniqueEmployees, avgHours: Math.round(avgHours * 10) / 10, busiestDay: busiest.hours > 0 ? busiest.day : '—', totalHrs: Math.round(filteredHrs * 10) / 10, spareCost: Math.round(spareCost) };
+  }, [filtered, byWeekday]);
+
+  const SUB_TABS: UnderlineTab<InsightsSubTab>[] = [
+    { id: 'overview', label: 'Overview' },
+    { id: 'analytics', label: 'Analytics' },
+    { id: 'analysis', label: 'Analysis' },
+  ];
+
+  return (
+    <div className={`${t.glass} rounded-2xl overflow-hidden`}>
+      <UnderlineTabs tabs={SUB_TABS} value={sub} onChange={setSub} accent="brand" />
+      <div className="p-4">
+        {sub === 'overview' ? (
+          <OverviewSubTab filtered={filtered} richStats={richStats} byArtisan={byArtisan} maxArtisanHours={maxArtisanHours} result={result} loading={loading} updating={updating} />
+        ) : sub === 'analytics' ? (
+          <AnalyticsSubTab filtered={filtered} byType={byType} byStatus={byStatus} bySection={bySection} byArtisan={byArtisan} maxArtisanHours={maxArtisanHours} byWeekday={byWeekday} richStats={richStats} />
+        ) : (
+          <AnalysisSubTab records={filtered} result={result} loading={loading} updating={updating} error={error} onRefresh={() => runAnalyze(filtered)} />
+        )}
       </div>
-    );
-  }
+    </div>
+  );
+}
+
+function OverviewSubTab({ filtered, richStats, byArtisan, maxArtisanHours, result, loading, updating }: {
+  filtered: OTRecord[];
+  richStats: { uniqueEmployees: number; avgHours: number; busiestDay: string; totalHrs: number; spareCost: number };
+  byArtisan: { employee_id: string; employee_name: string; position: string; hours: number; count: number }[];
+  maxArtisanHours: number;
+  result: OTAnalysisResult | null; loading: boolean; updating: boolean;
+}) {
+  const t = useTheme();
+  const axisColor = t.light ? 'rgba(15,23,42,0.4)' : 'rgba(255,255,255,0.4)';
+  const gridColor = t.light ? 'rgba(15,23,42,0.06)' : 'rgba(255,255,255,0.06)';
+
+  return (
+    <motion.div initial="hidden" animate="show" variants={staggerContainer} className="space-y-4">
+      <motion.div variants={fadeUp} className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <AnalyzeStat icon={Clock4} accent="violet" label="Total Hours" value={richStats.totalHrs} suffix="h" decimals={1} />
+        <AnalyzeStat icon={FileText} accent="blue" label="Instances" value={filtered.length} />
+        <AnalyzeStat icon={UsersRound} accent="indigo" label="Employees Involved" value={richStats.uniqueEmployees} />
+        <AnalyzeStat icon={Gauge} accent="amber" label="Avg Hrs / Instance" value={richStats.avgHours} suffix="h" decimals={1} />
+        <GlowCard color={ACCENT_HEX.cyan} className="p-3.5">
+          <div className="flex items-center gap-1.5 mb-2"><TrendingUp className={`h-3.5 w-3.5 ${accentText('cyan', t.light)}`} /><span className={`${TYPE_SCALE.label} font-medium uppercase tracking-wide ${t.textSecondary}`}>Busiest Day</span></div>
+          <p className={`${TYPE_SCALE.statLarge} leading-none font-bold ${t.textPrimary}`}>{richStats.busiestDay}</p>
+        </GlowCard>
+        <GlowCard color={ACCENT_HEX.emerald} className="p-3.5">
+          <div className="flex items-center gap-1.5 mb-2"><Lightbulb className={`h-3.5 w-3.5 ${accentText('emerald', t.light)}`} /><span className={`${TYPE_SCALE.label} font-medium uppercase tracking-wide ${t.textSecondary}`}>Most Common Reason</span></div>
+          <p className={`${TYPE_SCALE.stat} leading-tight font-bold ${t.textPrimary} truncate`} title={result?.top_reasons[0]?.phrase || undefined}>
+            {loading && !result ? '…' : result?.top_reasons[0] ? `“${result.top_reasons[0].phrase}”` : '—'}
+          </p>
+        </GlowCard>
+        <AnalyzeStat icon={Wrench} accent="violet" label="Machines Involved" value={result?.top_machines.length ?? 0} />
+        <GlowCard color={ACCENT_HEX.blue} className="p-3.5">
+          <div className="flex items-center gap-1.5 mb-2"><Wallet className={`h-3.5 w-3.5 ${accentText('blue', t.light)}`} /><span className={`${TYPE_SCALE.label} font-medium uppercase tracking-wide ${t.textSecondary}`}>Spares Cost</span></div>
+          <p className={`${TYPE_SCALE.statLarge} leading-none font-bold ${t.textPrimary}`}>{formatCurrencyShort(richStats.spareCost)}</p>
+        </GlowCard>
+      </motion.div>
+
+      {updating && <motion.p variants={fadeUp} className={`${TYPE_SCALE.caption} ${t.textFaint} flex items-center gap-1.5`}><RefreshCw className="h-3 w-3 animate-spin" /> Updating for the current filters…</motion.p>}
+
+      <motion.div variants={fadeUp} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
+          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><TrendingUp className="h-4 w-4 text-brand-400" /><span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>Weekly Trend</span></div>
+          <div className="p-4">
+            {!result || result.weekly_series.length < 2 ? (
+              <p className={`text-sm text-center py-14 ${t.textFaint}`}>{loading ? 'Loading…' : 'Not enough data for a trend yet'}</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={180}>
+                <AreaChart data={result.weekly_series}>
+                  <defs>
+                    <linearGradient id="otOverviewTrendGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={ACCENT_HEX.blue} stopOpacity={0.45} />
+                      <stop offset="95%" stopColor={ACCENT_HEX.blue} stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+                  <XAxis dataKey="week" tick={{ fill: axisColor, fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: axisColor, fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={{ backgroundColor: t.light ? '#fff' : '#0f1e2e', border: `1px solid ${t.light ? 'rgba(15,23,42,0.1)' : 'rgba(134,187,216,0.2)'}`, borderRadius: 12, color: t.light ? '#0f172a' : '#fff', fontSize: 12 }} formatter={(v: number) => [`${v}h`, 'Hours']} />
+                  <Area type="monotone" dataKey="hours" stroke={ACCENT_HEX.blue} strokeWidth={2} fill="url(#otOverviewTrendGrad)" animationDuration={700} animationEasing="ease-out" />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </div>
+
+        <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
+          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><UsersRound className="h-4 w-4 text-brand-400" /><span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>Top Employees by Hours</span></div>
+          <div className="p-4 space-y-3">
+            {byArtisan.slice(0, 6).map(a => (
+              <div key={a.employee_id || a.employee_name}>
+                <div className="flex justify-between text-xs mb-1">
+                  <span className={`font-medium ${t.textPrimary}`}>{a.employee_name}{a.position ? <span className={t.textFaint}> · {a.position}</span> : null}</span>
+                  <span className={`font-semibold ${t.textPrimary}`}>{a.hours}h</span>
+                </div>
+                <ProgressBar value={(a.hours / maxArtisanHours) * 100} color={ACCENT_HEX.blue} showValue={false} />
+              </div>
+            ))}
+            {byArtisan.length === 0 && <p className={`text-sm text-center py-6 ${t.textFaint}`}>No data</p>}
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+function AnalyticsSubTab({ filtered, byType, byStatus, bySection, byArtisan, maxArtisanHours, byWeekday, richStats }: {
+  filtered: OTRecord[];
+  byType: { type: string; count: number }[];
+  byStatus: { status: string; count: number }[];
+  bySection: { section: string; hours: number; count: number }[];
+  byArtisan: { employee_id: string; employee_name: string; position: string; hours: number; count: number }[];
+  maxArtisanHours: number;
+  byWeekday: { day: string; hours: number; count: number }[];
+  richStats: { uniqueEmployees: number; avgHours: number; busiestDay: string; totalHrs: number; spareCost: number };
+}) {
+  const t = useTheme();
+  const axisColor = t.light ? 'rgba(15,23,42,0.4)' : 'rgba(255,255,255,0.4)';
+  const gridColor = t.light ? 'rgba(15,23,42,0.06)' : 'rgba(255,255,255,0.06)';
+  const TYPE_BAR_COLORS = Object.values(TYPE_HEX);
+  const STATUS_COLORS = byStatus.map(s => STATUS_HEX[s.status.toLowerCase() as OTStatus] ?? '#94a3b8');
+  const typeTotal = byType.reduce((s, x) => s + x.count, 0);
+  const statusTotal = byStatus.reduce((s, x) => s + x.count, 0);
+  const tooltipStyle = { backgroundColor: t.light ? '#fff' : '#0f1e2e', border: `1px solid ${t.light ? 'rgba(15,23,42,0.1)' : 'rgba(134,187,216,0.2)'}`, borderRadius: 12, color: t.light ? '#0f172a' : '#fff', fontSize: 12 };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
+          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><PieChart className="h-4 w-4 text-brand-400" /><span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>By Overtime Type</span><span className={`ml-auto ${TYPE_SCALE.caption} ${t.textFaint}`}>{typeTotal} total</span></div>
+          <div className="p-4">
+            {byType.length === 0 ? <p className={`text-sm text-center py-16 ${t.textFaint}`}>No data</p> : (
+              <ResponsiveContainer width="100%" height={220}>
+                <RePieChart>
+                  <Pie data={byType} dataKey="count" nameKey="type" innerRadius={50} outerRadius={80} paddingAngle={2} animationDuration={700} animationEasing="ease-out">
+                    {byType.map((_, i) => <Cell key={i} fill={TYPE_BAR_COLORS[i % TYPE_BAR_COLORS.length]} fillOpacity={0.85} />)}
+                  </Pie>
+                  <Tooltip contentStyle={tooltipStyle} formatter={(v: number, n: string) => [`${v} request${v !== 1 ? 's' : ''}`, n]} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                </RePieChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </div>
+
+        <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
+          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><CheckCircle2 className="h-4 w-4 text-brand-400" /><span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>By Status</span><span className={`ml-auto ${TYPE_SCALE.caption} ${t.textFaint}`}>{statusTotal} total</span></div>
+          <div className="p-4">
+            {byStatus.length === 0 ? <p className={`text-sm text-center py-16 ${t.textFaint}`}>No data</p> : (
+              <ResponsiveContainer width="100%" height={220}>
+                <RePieChart>
+                  <Pie data={byStatus} dataKey="count" nameKey="status" innerRadius={50} outerRadius={80} paddingAngle={2} animationDuration={700} animationEasing="ease-out">
+                    {byStatus.map((_, i) => <Cell key={i} fill={STATUS_COLORS[i]} fillOpacity={0.85} />)}
+                  </Pie>
+                  <Tooltip contentStyle={tooltipStyle} formatter={(v: number, n: string) => [`${v} request${v !== 1 ? 's' : ''}`, n]} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                </RePieChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {STATUSES.map(s => {
+          const count = filtered.filter(r => r.status === s).length;
+          const hex = STATUS_HEX[s] ?? '#94a3b8';
+          return (
+            <GlowCard key={s} color={hex} className="p-3.5">
+              <div className="flex items-center gap-1.5 mb-2">
+                {s === 'approved' ? <CheckCircle2 className={`h-3.5 w-3.5 ${accentText('emerald', t.light)}`} /> : s === 'rejected' ? <XCircle className={`h-3.5 w-3.5 ${accentText('rose', t.light)}`} /> : <Clock4 className="h-3.5 w-3.5 text-brand-400" />}
+                <span className={`${TYPE_SCALE.label} font-medium uppercase tracking-wide ${t.textSecondary}`}>{s.charAt(0).toUpperCase() + s.slice(1)}</span>
+              </div>
+              <p className={`${TYPE_SCALE.statLarge} leading-none font-bold tabular-nums`} style={{ color: hex }}><CountUp value={count} duration={0.9} /></p>
+            </GlowCard>
+          );
+        })}
+        <AnalyzeStat icon={UsersRound} accent="violet" label="Employees" value={richStats.uniqueEmployees} />
+        <AnalyzeStat icon={Clock4} accent="blue" label="Avg Hrs/Request" value={richStats.avgHours} suffix="h" decimals={1} />
+        <GlowCard color={ACCENT_HEX.indigo} className="p-3.5">
+          <div className="flex items-center gap-1.5 mb-2"><TrendingUp className={`h-3.5 w-3.5 ${accentText('indigo', t.light)}`} /><span className={`${TYPE_SCALE.label} font-medium uppercase tracking-wide ${t.textSecondary}`}>Busiest Day</span></div>
+          <p className={`${TYPE_SCALE.statLarge} leading-none font-bold ${t.textPrimary}`}>{richStats.busiestDay}</p>
+        </GlowCard>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
+          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><Wrench className="h-4 w-4 text-brand-400" /><span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>By Section</span></div>
+          <div className="p-4">
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={bySection} barSize={28}>
+                <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+                <XAxis dataKey="section" tick={{ fill: axisColor, fontSize: 10 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: axisColor, fontSize: 10 }} axisLine={false} tickLine={false} />
+                <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => [`${v}h`, 'Hours']} />
+                <Bar dataKey="hours" name="Hours" radius={[6, 6, 0, 0]} animationDuration={700} animationEasing="ease-out">
+                  {bySection.map((d, i) => <Cell key={i} fill={SECTION_HEX[d.section] ?? '#94a3b8'} fillOpacity={0.8} />)}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+            {bySection.length === 0 && <p className={`text-sm text-center py-6 ${t.textFaint}`}>No data</p>}
+          </div>
+        </div>
+
+        <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
+          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><UsersRound className="h-4 w-4 text-brand-400" /><span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>Top Artisans by Hours</span></div>
+          <div className="p-4 space-y-3">
+            {byArtisan.map(a => (
+              <div key={a.employee_id || a.employee_name}>
+                <div className="flex justify-between text-xs mb-1">
+                  <span className={`font-medium ${t.textPrimary}`}>{a.employee_name}{a.position ? <span className={t.textFaint}> · {a.position}</span> : null}</span>
+                  <span className={`font-semibold ${t.textPrimary}`}>{a.hours}h</span>
+                </div>
+                <ProgressBar value={(a.hours / maxArtisanHours) * 100} color={ACCENT_HEX.blue} showValue={false} />
+              </div>
+            ))}
+            {byArtisan.length === 0 && <p className={`text-sm text-center py-6 ${t.textFaint}`}>No data</p>}
+          </div>
+        </div>
+      </div>
+
+      <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
+        <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><TrendingUp className="h-4 w-4 text-brand-400" /><span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>By Day of Week</span></div>
+        <div className="p-4">
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart data={byWeekday} barSize={28}>
+              <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+              <XAxis dataKey="day" tick={{ fill: axisColor, fontSize: 10 }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fill: axisColor, fontSize: 10 }} axisLine={false} tickLine={false} />
+              <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => [`${v}h`, 'Hours']} />
+              <Bar dataKey="hours" name="Hours" radius={[6, 6, 0, 0]} fill={ACCENT_HEX.indigo} fillOpacity={0.8} animationDuration={700} animationEasing="ease-out" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** One row per recurring category, expandable to reveal the underlying records —
+ *  the "drill down from a high-level category into the raw records" requirement. */
+function CategoryDetailTable({ categories }: { categories: OTCategoryDetail[] }) {
+  const t = useTheme();
+  const [expanded, setExpanded] = useState<string | null>(null);
+  if (categories.length === 0) return null;
+  const thCls = `${TYPE_SCALE.caption} font-medium ${t.textFaint} px-3 py-2`;
+  const tdCls = `${TYPE_SCALE.caption} ${t.textMuted} px-3 py-2`;
+  return (
+    <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
+      <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}>
+        <Layers className="h-4 w-4 text-brand-400" />
+        <span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>Category Detail</span>
+        <span className={`ml-auto ${TYPE_SCALE.caption} ${t.textFaint}`}>click a row for the underlying records</span>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead className={`border-b ${t.border}`}>
+            <tr>
+              <th className={`text-left ${thCls} pl-4`}>Category</th>
+              <th className={`text-right ${thCls}`}>Instances</th>
+              <th className={`text-right ${thCls}`}>Hours</th>
+              <th className={`text-right ${thCls}`}>Avg h</th>
+              <th className={`text-right ${thCls}`}>% Total</th>
+              <th className={`text-left ${thCls}`}>Top Weekday</th>
+              <th className={`text-left ${thCls}`}>Top Employee</th>
+              <th className={`text-left ${thCls}`}>Top Spare</th>
+            </tr>
+          </thead>
+          <tbody>
+            {categories.map(c => {
+              const isOpen = expanded === c.category;
+              return (
+                <React.Fragment key={c.category}>
+                  <tr onClick={() => setExpanded(isOpen ? null : c.category)} className={`border-b ${t.border} ${t.hoverBgSoft} cursor-pointer transition-colors`}>
+                    <td className={`${tdCls} pl-4 font-medium ${t.textPrimary}`}>&ldquo;{c.category}&rdquo;</td>
+                    <td className={`text-right ${tdCls}`}>{c.instances}</td>
+                    <td className={`text-right ${tdCls} font-semibold text-brand-400`}>{c.hours}h</td>
+                    <td className={`text-right ${tdCls}`}>{c.avg_hours}h</td>
+                    <td className={`text-right ${tdCls}`}>{c.pct_of_total}%</td>
+                    <td className={tdCls}>{c.top_weekday ?? '—'}</td>
+                    <td className={`${tdCls} truncate max-w-[140px]`}>{c.top_employee ?? '—'}</td>
+                    <td className={`${tdCls} truncate max-w-[140px]`}>{c.top_spare ?? '—'}</td>
+                  </tr>
+                  <AnimatePresence>
+                    {isOpen && (
+                      <tr>
+                        <td colSpan={8} className="p-0">
+                          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.18 }} className="overflow-hidden">
+                            <motion.div initial="hidden" animate="show" variants={staggerContainer} className={`p-3 space-y-1.5 ${t.chipBg}`}>
+                              {c.records.map((r, i) => (
+                                <motion.div key={i} variants={fadeUp} className={`flex items-center justify-between gap-3 ${t.glassSoft} rounded-lg px-3 py-1.5`}>
+                                  <div className="min-w-0 flex-1">
+                                    <span className={`${TYPE_SCALE.caption} font-medium ${t.textPrimary}`}>{r.employee_name}</span>
+                                    <span className={`${TYPE_SCALE.caption} ${t.textFaint} ml-2`}>{fmtDate(r.date)}</span>
+                                    {r.reason && <p className={`${TYPE_SCALE.caption} ${t.textFaint} truncate`}>{r.reason}</p>}
+                                  </div>
+                                  <span className={`${TYPE_SCALE.caption} font-semibold shrink-0 ${accentText('violet', t.light)}`}>{r.hours}h</span>
+                                </motion.div>
+                              ))}
+                            </motion.div>
+                          </motion.div>
+                        </td>
+                      </tr>
+                    )}
+                  </AnimatePresence>
+                </React.Fragment>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function AnalysisSubTab({ records, result, loading, updating, error, onRefresh }: {
+  records: OTRecord[]; result: OTAnalysisResult | null; loading: boolean; updating: boolean; error: string; onRefresh: () => void;
+}) {
+  const t = useTheme();
+  const axisColor = t.light ? 'rgba(15,23,42,0.4)' : 'rgba(255,255,255,0.4)';
+  const gridColor = t.light ? 'rgba(15,23,42,0.06)' : 'rgba(255,255,255,0.06)';
 
   if (loading) {
     return <div className={`${t.glass} rounded-2xl ${t.shadow} p-16 text-center flex items-center justify-center gap-2 ${t.textFaint}`}><RefreshCw className="h-5 w-5 animate-spin" /> Analyzing…</div>;
   }
 
-  if (!result) return null;
+  if (!result) {
+    return (
+      <div className={`${t.glass} rounded-2xl ${t.shadow} p-10 text-center`}>
+        <PulsingIcon className="h-12 w-12 mx-auto mb-3 flex items-center justify-center">
+          <Brain className={`h-9 w-9 ${accentText('amber', t.light)}`} />
+        </PulsingIcon>
+        <h3 className={`${TYPE_SCALE.subtitle} font-semibold mb-1.5 ${t.textPrimary}`}>No Analysis Yet</h3>
+        <p className={`${TYPE_SCALE.body} mb-4 max-w-md mx-auto ${t.textFaint}`}>
+          {error || (records.length === 0
+            ? 'No records in the current filter selection.'
+            : 'Reads the reason text, machines mentioned, and volume/trend across the currently-filtered records — no external AI service, just aggregation and pattern rules run locally.')}
+        </p>
+        {records.length > 0 && (
+          <button type="button" onClick={onRefresh}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all">
+            <Brain className="h-4 w-4" /> Generate Analysis
+          </button>
+        )}
+      </div>
+    );
+  }
 
   return (
     <motion.div initial="hidden" animate="show" variants={staggerContainer} className="space-y-4">
-      <motion.div variants={fadeUp} className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <AnalyzeStat icon={Clock4} accent="violet" label="Total Hours" value={result.total_hours} suffix="h" decimals={1} />
-        <AnalyzeStat icon={FileText} accent="blue" label="Records" value={result._records_analysed} />
-        <AnalyzeStat icon={Lightbulb} accent="amber" label="Recurring Causes" value={result.top_reasons.length} />
-        <AnalyzeStat icon={TrendingUp} accent="indigo" label="2.0× Share" value={result.double_time_pct} suffix="%" />
+      <motion.div variants={fadeUp} className="flex items-center justify-between gap-3">
+        <p className={`${TYPE_SCALE.caption} ${t.textFaint}`}>
+          {error ? <span className="text-rose-400">{error}</span> : updating ? 'Updating for the current filters…' :
+            `${result._records_analysed} record${result._records_analysed !== 1 ? 's' : ''} analysed · generated ${new Date(result.generated_at).toLocaleString('en-GB')}`}
+        </p>
+        <button type="button" onClick={onRefresh} title="Re-run with the current filters"
+          className={`shrink-0 flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg ${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText} transition-all`}>
+          <Brain className={`h-3 w-3 ${updating ? 'animate-pulse' : ''}`} /> Refresh
+        </button>
       </motion.div>
 
-      <motion.div variants={fadeUp} className={`${t.glass} rounded-2xl ${t.shadow} p-5`}>
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-start gap-3">
-            <PulsingIcon className="h-8 w-8 shrink-0 flex items-center justify-center">
-              <Lightbulb className={`h-5 w-5 ${accentText('amber', t.light)}`} />
-            </PulsingIcon>
-            <div>
-              <p className={`${TYPE_SCALE.label} font-semibold uppercase tracking-wider mb-1 ${t.textFaint}`}>Summary</p>
-              <p className={`${TYPE_SCALE.body} ${t.textMuted}`}>{result.summary}</p>
-            </div>
+      <motion.div variants={fadeUp} className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
+        <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><FileText className="h-4 w-4 text-brand-400" /><span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>Observed Facts</span></div>
+        <div className="p-4 space-y-4">
+          <p className={`${TYPE_SCALE.body} ${t.textMuted}`}>{result.summary}</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <AnalyzeStat icon={Clock4} accent="violet" label="Total Hours" value={result.total_hours} suffix="h" decimals={1} />
+            <AnalyzeStat icon={FileText} accent="blue" label="Instances" value={result.total_instances} />
+            <AnalyzeStat icon={UsersRound} accent="indigo" label="Employees" value={result.employees_involved} />
+            <AnalyzeStat icon={TrendingUp} accent="amber" label="2.0× Share" value={result.double_time_pct} suffix="%" />
           </div>
-          <button type="button" onClick={generate} title="Re-run with the current filters"
-            className={`shrink-0 flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg ${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText} transition-all`}>
-            <RefreshCw className="h-3 w-3" /> Refresh
-          </button>
         </div>
       </motion.div>
 
-      {result.problem_areas.length > 0 && (
+      <motion.div variants={fadeUp} className="space-y-4">
+        <div className="flex items-center gap-2 px-1"><Layers className="h-4 w-4 text-brand-400" /><span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>Patterns</span></div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {result.top_reasons.length > 0 && (
+            <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
+              <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><FileText className="h-4 w-4 text-brand-400" /><span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>Recurring Reasons</span></div>
+              <div className="p-4 space-y-3">
+                {(() => {
+                  const maxHours = Math.max(...result.top_reasons.map(x => x.hours), 1);
+                  return result.top_reasons.map((p, i) => (
+                    <div key={i}>
+                      <div className="flex justify-between text-xs mb-1">
+                        <span className={`font-medium ${t.textPrimary} truncate`}>&ldquo;{p.phrase}&rdquo;</span>
+                        <span className={`shrink-0 ml-2 ${t.textFaint}`}>{p.count}× · {p.hours}h</span>
+                      </div>
+                      <ProgressBar value={(p.hours / maxHours) * 100} color={ACCENT_HEX.amber} showValue={false} />
+                    </div>
+                  ));
+                })()}
+              </div>
+            </div>
+          )}
+
+          {result.top_machines.length > 0 && (
+            <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
+              <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><Wrench className="h-4 w-4 text-brand-400" /><span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>Machines Mentioned</span></div>
+              <div className="p-4 space-y-3">
+                {(() => {
+                  const maxHours = Math.max(...result.top_machines.map(x => x.hours), 1);
+                  return result.top_machines.map((m, i) => (
+                    <div key={i}>
+                      <div className="flex justify-between text-xs mb-1">
+                        <span className={`font-medium ${t.textPrimary} truncate`}>{m.name}</span>
+                        <span className={`shrink-0 ml-2 ${t.textFaint}`}>{m.count}× · {m.hours}h</span>
+                      </div>
+                      <ProgressBar value={(m.hours / maxHours) * 100} color={ACCENT_HEX.cyan} showValue={false} />
+                    </div>
+                  ));
+                })()}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {result.weekly_series.length > 1 && (
+          <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
+            <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}>
+              <TrendingUp className="h-4 w-4 text-brand-400" /><span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>Weekly Trend</span>
+              <StatusBadge color={DIR_HEX[result.trend_direction]} label={result.trend_direction} />
+              {result.trends[0] && <span className={`ml-auto ${TYPE_SCALE.caption} ${t.textFaint} truncate max-w-[50%]`}>{result.trends[0].insight}</span>}
+            </div>
+            <div className="p-4">
+              <ResponsiveContainer width="100%" height={180}>
+                <AreaChart data={result.weekly_series}>
+                  <defs>
+                    <linearGradient id="otWeeklyGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={ACCENT_HEX.blue} stopOpacity={0.45} />
+                      <stop offset="95%" stopColor={ACCENT_HEX.blue} stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+                  <XAxis dataKey="week" tick={{ fill: axisColor, fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: axisColor, fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={{ backgroundColor: t.light ? '#fff' : '#0f1e2e', border: `1px solid ${t.light ? 'rgba(15,23,42,0.1)' : 'rgba(134,187,216,0.2)'}`, borderRadius: 12, color: t.light ? '#0f172a' : '#fff', fontSize: 12 }} formatter={(v: number) => [`${v}h`, 'Hours']} />
+                  <Area type="monotone" dataKey="hours" stroke={ACCENT_HEX.blue} strokeWidth={2} fill="url(#otWeeklyGrad)" animationDuration={700} animationEasing="ease-out" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
+
+        <CategoryDetailTable categories={result.category_detail} />
+
+        <OvertimeHeatmap grid={result.hour_weekday_hours} weekdayLabels={result.weekday_labels} punchRecords={result.punch_records} />
+      </motion.div>
+
+      {result.possible_causes.length > 0 && (
         <motion.div variants={fadeUp} className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><AlertTriangle className="h-4 w-4 text-brand-400" /><span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>Problem Areas</span></div>
+          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><AlertTriangle className="h-4 w-4 text-brand-400" /><span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>Possible Causes</span></div>
           <motion.div variants={staggerContainer} initial="hidden" animate="show" className="p-4 space-y-2.5">
-            {result.problem_areas.map((p, i) => {
+            {result.possible_causes.map((p, i) => {
               const SevIcon = p.severity === 'critical' || p.severity === 'high' ? AlertTriangle : AlertCircle;
               return (
                 <motion.div key={i} variants={fadeUp}>
@@ -690,63 +1245,9 @@ function AnalyzeView({ records }: { records: OTRecord[] }) {
         </motion.div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {result.top_reasons.length > 0 && (
-          <motion.div variants={fadeUp} className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-            <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><FileText className="h-4 w-4 text-brand-400" /><span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>Recurring Reasons</span></div>
-            <div className="p-4 space-y-3">
-              {(() => {
-                const maxHours = Math.max(...result.top_reasons.map(x => x.hours), 1);
-                return result.top_reasons.map((p, i) => (
-                  <div key={i}>
-                    <div className="flex justify-between text-xs mb-1">
-                      <span className={`font-medium ${t.textPrimary} truncate`}>&ldquo;{p.phrase}&rdquo;</span>
-                      <span className={`shrink-0 ml-2 ${t.textFaint}`}>{p.count}× · {p.hours}h</span>
-                    </div>
-                    <ProgressBar value={(p.hours / maxHours) * 100} color={ACCENT_HEX.amber} showValue={false} />
-                  </div>
-                ));
-              })()}
-            </div>
-          </motion.div>
-        )}
-
-        {result.trends.length > 0 && (
-          <motion.div variants={fadeUp} className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-            <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><TrendingUp className="h-4 w-4 text-brand-400" /><span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>Trend</span></div>
-            <div className="p-4 space-y-4">
-              {result.trends.map((tr, i) => {
-                const DirIcon = tr.direction === 'worsening' ? TrendingUp : tr.direction === 'improving' ? TrendingDown : TrendingUp;
-                const chartData = [{ label: 'First Half', hours: tr.older_hours }, { label: 'Second Half', hours: tr.newer_hours }];
-                return (
-                  <div key={i}>
-                    <div className="flex items-center gap-1.5 mb-2">
-                      <DirIcon className="h-3.5 w-3.5" style={{ color: DIR_HEX[tr.direction] }} />
-                      <span className={`${TYPE_SCALE.body} font-semibold ${t.textPrimary}`}>{tr.metric}</span>
-                      <StatusBadge color={DIR_HEX[tr.direction]} label={tr.direction} />
-                    </div>
-                    <ResponsiveContainer width="100%" height={110}>
-                      <BarChart data={chartData} barSize={44}>
-                        <XAxis dataKey="label" tick={{ fill: axisColor, fontSize: 10 }} axisLine={false} tickLine={false} />
-                        <YAxis hide />
-                        <Tooltip contentStyle={{ backgroundColor: t.light ? '#fff' : '#0f1e2e', border: `1px solid ${t.light ? 'rgba(15,23,42,0.1)' : 'rgba(134,187,216,0.2)'}`, borderRadius: 12, color: t.light ? '#0f172a' : '#fff', fontSize: 12 }} formatter={(v: number) => [`${v}h`, 'Hours']} />
-                        <Bar dataKey="hours" radius={[6, 6, 0, 0]} fill={DIR_HEX[tr.direction]} fillOpacity={0.85} animationDuration={700} animationEasing="ease-out" />
-                      </BarChart>
-                    </ResponsiveContainer>
-                    <p className={`${TYPE_SCALE.caption} ${t.textFaint} mt-1`}>{tr.insight}</p>
-                  </div>
-                );
-              })}
-            </div>
-          </motion.div>
-        )}
-      </div>
-
-      <motion.div variants={fadeUp}><OvertimeHeatmap grid={result.hour_weekday_hours} weekdayLabels={result.weekday_labels} /></motion.div>
-
       {result.recommendations.length > 0 && (
         <motion.div variants={fadeUp} className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><Sparkles className="h-4 w-4 text-brand-400" /><span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>Recommendations</span></div>
+          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><Brain className="h-4 w-4 text-brand-400" /><span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>Recommendations</span></div>
           <motion.div variants={staggerContainer} initial="hidden" animate="show" className="p-4 space-y-2.5">
             {result.recommendations.map((r, i) => (
               <motion.div key={i} variants={fadeUp}>
@@ -764,10 +1265,6 @@ function AnalyzeView({ records }: { records: OTRecord[] }) {
           </motion.div>
         </motion.div>
       )}
-
-      <p className={`${TYPE_SCALE.caption} text-right ${t.textFaint}`}>
-        {result._records_analysed} record{result._records_analysed !== 1 ? 's' : ''} analysed · generated {new Date(result.generated_at).toLocaleString('en-GB')}
-      </p>
     </motion.div>
   );
 }
@@ -1003,7 +1500,7 @@ function OvertimeContent() {
   const [dateTo, setDateTo] = useState('');
   const [employeePicks, setEmployeePicks] = useState<PickedEmployee[]>([]);
   const [view, setView] = useState<'table' | 'grid'>('table');
-  const [mainTab, setMainTab] = useState<'records' | 'analytics' | 'analyze' | 'weekly-summary'>('records');
+  const [mainTab, setMainTab] = useState<'records' | 'insights' | 'weekly-summary'>('records');
 
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<OTRecord | null>(null);
@@ -1036,71 +1533,9 @@ function OvertimeContent() {
     return { total: records.length, pending, approved, totalHrs: Math.round(totalHrs) };
   }, [records]);
 
-  // Analytics tab charts read from `filtered` (search/status/type/date-range applied),
-  // not the raw `records` — otherwise picking a filter in the Records tab would have no
-  // visible effect on Analytics, which is exactly the bug this was fixed from.
-  const byType = useMemo(() => OT_TYPES.map(ty => ({ type: TYPE_LABELS[ty], count: filtered.filter(r => r.overtime_type === ty).length })).filter(x => x.count > 0), [filtered]);
-  const byStatus = useMemo(() => STATUSES.map(s => ({ status: s.charAt(0).toUpperCase() + s.slice(1), count: filtered.filter(r => r.status === s).length })).filter(x => x.count > 0), [filtered]);
-  const TYPE_BAR_COLORS = Object.values(TYPE_HEX);
-  const axisColor = t.light ? 'rgba(15,23,42,0.4)' : 'rgba(255,255,255,0.4)';
-  const gridColor = t.light ? 'rgba(15,23,42,0.06)' : 'rgba(255,255,255,0.06)';
-
-  // "By section" reads the employee's section off the live roster keyed by
-  // employee_id — the OT record itself has no reliable section field. Casing is
-  // normalized (source data has "Electrical" vs "electrical " etc.) so the same
-  // real-world section always buckets together, matching app/employees/page.tsx's
-  // normalizeSection convention.
-  const empById = useMemo(() => new Map(employees.map(e => [e.employee_id, e])), [employees]);
-  const KNOWN_SECTIONS = ['Mechanical', 'Electrical', 'Civil', 'Instrumentation'];
-  const SECTION_HEX: Record<string, string> = { Mechanical: ACCENT_HEX.blue, Electrical: '#fbbf24', Civil: '#34d399', Instrumentation: '#a78bfa', Unassigned: '#94a3b8' };
-  const normalizeOtSection = (section?: string): string => {
-    const s = (section || '').trim();
-    if (!s) return 'Unassigned';
-    return KNOWN_SECTIONS.find(c => c.toLowerCase() === s.toLowerCase()) ?? s;
-  };
-  const bySection = useMemo(() => {
-    const buckets: Record<string, { hours: number; count: number }> = {};
-    filtered.forEach(r => {
-      const key = normalizeOtSection(empById.get(r.employee_id)?.section);
-      if (!buckets[key]) buckets[key] = { hours: 0, count: 0 };
-      buckets[key].hours += r.hours ?? calcHours(r.start_time, r.end_time);
-      buckets[key].count += 1;
-    });
-    return Object.entries(buckets).map(([section, v]) => ({ section, hours: Math.round(v.hours * 10) / 10, count: v.count })).filter(x => x.count > 0);
-  }, [filtered, empById]);
-
-  const byArtisan = useMemo(() => {
-    const map = new Map<string, { employee_id: string; employee_name: string; position: string; hours: number; count: number }>();
-    filtered.forEach(r => {
-      const key = r.employee_id || r.employee_name;
-      const h = r.hours ?? calcHours(r.start_time, r.end_time);
-      const existing = map.get(key);
-      if (existing) { existing.hours += h; existing.count += 1; }
-      else map.set(key, { employee_id: r.employee_id, employee_name: r.employee_name, position: r.position, hours: h, count: 1 });
-    });
-    return [...map.values()].sort((a, b) => b.hours - a.hours).slice(0, 8).map(a => ({ ...a, hours: Math.round(a.hours * 10) / 10 }));
-  }, [filtered]);
-  const maxArtisanHours = Math.max(1, ...byArtisan.map(a => a.hours));
-
-  const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  const byWeekday = useMemo(() => {
-    const buckets = WEEKDAY_LABELS.map(() => ({ hours: 0, count: 0 }));
-    filtered.forEach(r => {
-      if (!r.date) return;
-      const dow = (new Date(`${r.date}T00:00:00`).getDay() + 6) % 7; // Mon=0..Sun=6
-      buckets[dow].hours += r.hours ?? calcHours(r.start_time, r.end_time);
-      buckets[dow].count += 1;
-    });
-    return WEEKDAY_LABELS.map((day, i) => ({ day, hours: Math.round(buckets[i].hours * 10) / 10, count: buckets[i].count }));
-  }, [filtered]);
-
-  const richStats = useMemo(() => {
-    const uniqueEmployees = new Set(filtered.map(r => r.employee_id)).size;
-    const filteredHrs = filtered.reduce((s, r) => s + (r.hours ?? calcHours(r.start_time, r.end_time)), 0);
-    const avgHours = filtered.length > 0 ? filteredHrs / filtered.length : 0;
-    const busiest = byWeekday.reduce((best, d) => d.hours > best.hours ? d : best, byWeekday[0] ?? { day: '—', hours: 0 });
-    return { uniqueEmployees, avgHours: Math.round(avgHours * 10) / 10, busiestDay: busiest.hours > 0 ? busiest.day : '—' };
-  }, [filtered, byWeekday]);
+  // byType/byStatus/bySection/byArtisan/byWeekday/richStats moved into
+  // OvertimeInsightsView (below) — it's now the sole consumer, after Analytics and
+  // Analyze were merged into that one nested-tab component.
 
   const handleSave = async (body: Record<string, unknown>, id?: number | string) => {
     if (id) {
@@ -1289,7 +1724,7 @@ function OvertimeContent() {
       </div>
 
       <PillTabs
-        tabs={[{ key: 'records', label: 'Records', icon: FileText }, { key: 'analytics', label: 'Analytics', icon: Calendar }, { key: 'analyze', label: 'Analyze', icon: Lightbulb }, { key: 'weekly-summary', label: 'Weekly Summary', icon: CalendarRange }]}
+        tabs={[{ key: 'records', label: 'Records', icon: FileText }, { key: 'insights', label: 'Overtime Insights', icon: Lightbulb }, { key: 'weekly-summary', label: 'Weekly Summary', icon: CalendarRange }]}
         value={mainTab}
         onChange={setMainTab}
       />
@@ -1367,119 +1802,8 @@ function OvertimeContent() {
             </div>
           </div>
         )
-      ) : mainTab === 'analyze' ? (
-        <AnalyzeView records={filtered} />
       ) : (
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-              <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><Clock4 className="h-4 w-4 text-brand-400" /><span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>By Overtime Type</span></div>
-              <div className="p-4">
-                <ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={byType} barSize={28}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
-                    <XAxis dataKey="type" tick={{ fill: axisColor, fontSize: 10 }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fill: axisColor, fontSize: 10 }} axisLine={false} tickLine={false} />
-                    <Tooltip contentStyle={{ backgroundColor: t.light ? '#fff' : '#0f1e2e', border: `1px solid ${t.light ? 'rgba(15,23,42,0.1)' : 'rgba(134,187,216,0.2)'}`, borderRadius: 12, color: t.light ? '#0f172a' : '#fff', fontSize: 12 }} />
-                    <Bar dataKey="count" name="Requests" radius={[6, 6, 0, 0]} animationDuration={700} animationEasing="ease-out">
-                      {byType.map((_, i) => <Cell key={i} fill={TYPE_BAR_COLORS[i % TYPE_BAR_COLORS.length]} fillOpacity={0.8} />)}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-              <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><CheckCircle2 className="h-4 w-4 text-brand-400" /><span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>By Status</span></div>
-              <div className="p-4 space-y-3">
-                {byStatus.map(({ status: s, count }) => {
-                  const pct = records.length > 0 ? (count / records.length) * 100 : 0;
-                  const hex = STATUS_HEX[s.toLowerCase() as OTStatus] ?? '#94a3b8';
-                  return (
-                    <div key={s}>
-                      <div className="flex justify-between text-xs mb-1"><StatusBadge color={hex} label={s} /><span className={`font-semibold ${t.textPrimary}`}>{count}</span></div>
-                      <ProgressBar value={pct} color={hex} showValue={false} />
-                    </div>
-                  );
-                })}
-                {byStatus.length === 0 && <p className={`text-sm text-center py-6 ${t.textFaint}`}>No data</p>}
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {STATUSES.map(s => {
-              const count = records.filter(r => r.status === s).length;
-              const hex = STATUS_HEX[s] ?? '#94a3b8';
-              return (
-                <GlowCard key={s} color={hex} className="p-3.5">
-                  <div className="flex items-center gap-1.5 mb-2">
-                    {s === 'approved' ? <CheckCircle2 className={`h-3.5 w-3.5 ${accentText('emerald', t.light)}`} /> : s === 'rejected' ? <XCircle className={`h-3.5 w-3.5 ${accentText('rose', t.light)}`} /> : <Clock4 className="h-3.5 w-3.5 text-brand-400" />}
-                    <span className={`${TYPE_SCALE.label} font-medium uppercase tracking-wide ${t.textSecondary}`}>{s.charAt(0).toUpperCase() + s.slice(1)}</span>
-                  </div>
-                  <p className={`${TYPE_SCALE.statLarge} leading-none font-bold tabular-nums`} style={{ color: hex }}><CountUp value={count} duration={0.9} /></p>
-                </GlowCard>
-              );
-            })}
-            <AnalyzeStat icon={UsersRound} accent="violet" label="Employees" value={richStats.uniqueEmployees} />
-            <AnalyzeStat icon={Clock4} accent="blue" label="Avg Hrs/Request" value={richStats.avgHours} suffix="h" decimals={1} />
-            <GlowCard color={ACCENT_HEX.indigo} className="p-3.5">
-              <div className="flex items-center gap-1.5 mb-2"><TrendingUp className={`h-3.5 w-3.5 ${accentText('indigo', t.light)}`} /><span className={`${TYPE_SCALE.label} font-medium uppercase tracking-wide ${t.textSecondary}`}>Busiest Day</span></div>
-              <p className={`${TYPE_SCALE.statLarge} leading-none font-bold ${t.textPrimary}`}>{richStats.busiestDay}</p>
-            </GlowCard>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-              <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><Wrench className="h-4 w-4 text-brand-400" /><span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>By Section</span></div>
-              <div className="p-4">
-                <ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={bySection} barSize={28}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
-                    <XAxis dataKey="section" tick={{ fill: axisColor, fontSize: 10 }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fill: axisColor, fontSize: 10 }} axisLine={false} tickLine={false} />
-                    <Tooltip contentStyle={{ backgroundColor: t.light ? '#fff' : '#0f1e2e', border: `1px solid ${t.light ? 'rgba(15,23,42,0.1)' : 'rgba(134,187,216,0.2)'}`, borderRadius: 12, color: t.light ? '#0f172a' : '#fff', fontSize: 12 }} formatter={(v: number) => [`${v}h`, 'Hours']} />
-                    <Bar dataKey="hours" name="Hours" radius={[6, 6, 0, 0]} animationDuration={700} animationEasing="ease-out">
-                      {bySection.map((d, i) => <Cell key={i} fill={SECTION_HEX[d.section] ?? '#94a3b8'} fillOpacity={0.8} />)}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-                {bySection.length === 0 && <p className={`text-sm text-center py-6 ${t.textFaint}`}>No data</p>}
-              </div>
-            </div>
-
-            <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-              <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><UsersRound className="h-4 w-4 text-brand-400" /><span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>Top Artisans by Hours</span></div>
-              <div className="p-4 space-y-3">
-                {byArtisan.map(a => (
-                  <div key={a.employee_id || a.employee_name}>
-                    <div className="flex justify-between text-xs mb-1">
-                      <span className={`font-medium ${t.textPrimary}`}>{a.employee_name}{a.position ? <span className={t.textFaint}> · {a.position}</span> : null}</span>
-                      <span className={`font-semibold ${t.textPrimary}`}>{a.hours}h</span>
-                    </div>
-                    <ProgressBar value={(a.hours / maxArtisanHours) * 100} color={ACCENT_HEX.blue} showValue={false} />
-                  </div>
-                ))}
-                {byArtisan.length === 0 && <p className={`text-sm text-center py-6 ${t.textFaint}`}>No data</p>}
-              </div>
-            </div>
-          </div>
-
-          <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-            <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><TrendingUp className="h-4 w-4 text-brand-400" /><span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>By Day of Week</span></div>
-            <div className="p-4">
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={byWeekday} barSize={28}>
-                  <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
-                  <XAxis dataKey="day" tick={{ fill: axisColor, fontSize: 10 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fill: axisColor, fontSize: 10 }} axisLine={false} tickLine={false} />
-                  <Tooltip contentStyle={{ backgroundColor: t.light ? '#fff' : '#0f1e2e', border: `1px solid ${t.light ? 'rgba(15,23,42,0.1)' : 'rgba(134,187,216,0.2)'}`, borderRadius: 12, color: t.light ? '#0f172a' : '#fff', fontSize: 12 }} formatter={(v: number) => [`${v}h`, 'Hours']} />
-                  <Bar dataKey="hours" name="Hours" radius={[6, 6, 0, 0]} fill={ACCENT_HEX.indigo} fillOpacity={0.8} animationDuration={700} animationEasing="ease-out" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        </div>
+        <OvertimeInsightsView filtered={filtered} employees={employees} />
       )}
 
       <OTFormModal open={formOpen} onClose={() => { setFormOpen(false); setEditing(null); }} onSave={handleSave} editing={editing} records={records} />
