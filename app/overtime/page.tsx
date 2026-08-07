@@ -11,8 +11,8 @@ import {
   Clock4, Plus, Search, RefreshCw, CheckCircle2, XCircle,
   FileText, Eye, Trash2, Edit, LayoutGrid, List, AlertCircle, AlertTriangle,
   Sun, Moon, Briefcase, Calendar, X, User, Download, CalendarRange,
-  Wrench, UsersRound, TrendingUp, TrendingDown, Lightbulb, Sparkles,
-  Wallet, Gauge, Brain, PieChart, Layers,
+  Wrench, UsersRound, TrendingUp, TrendingDown, Lightbulb,
+  Wallet, Gauge, Brain, PieChart, Layers, ChevronDown, ChevronUp, ChevronRight, Info,
 } from '@/components/shared/theme';
 import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, ProgressBar, FormField, FormActions,
@@ -591,9 +591,9 @@ function OvertimeHeatmap({ grid, weekdayLabels, punchRecords }: { grid: number[]
       <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}>
         <Calendar className="h-4 w-4 text-brand-400" />
         <span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>When Overtime Happens</span>
-        <span className={`ml-auto ${TYPE_SCALE.caption} ${t.textFaint}`}>by hour started · weekday — hover or tap a cell</span>
+        <span className={`ml-auto ${TYPE_SCALE.caption} ${t.textFaint} flex items-center gap-1`}><Info className="h-3 w-3" /> click a cell to see who worked overtime then</span>
       </div>
-      <div className="p-4 overflow-x-auto" onMouseLeave={() => setSelected(null)}>
+      <div className="p-4 overflow-x-auto">
         <div className="inline-block">
           <div className="flex gap-[3px] pl-9">
             {activeHours.map(h => (
@@ -606,6 +606,7 @@ function OvertimeHeatmap({ grid, weekdayLabels, punchRecords }: { grid: number[]
               {activeHours.map((h, i) => {
                 const hours = grid[h][wd];
                 const isSelected = selected?.hour === h && selected?.wd === wd;
+                const isPeak = hours > 0 && hours === max;
                 return (
                   <motion.div
                     key={h}
@@ -614,20 +615,25 @@ function OvertimeHeatmap({ grid, weekdayLabels, punchRecords }: { grid: number[]
                     whileHover={{ scale: 1.35, zIndex: 10 }}
                     whileTap={{ scale: 1.2 }}
                     transition={{ duration: 0.2, delay: Math.min((wd * activeHours.length + i) * 0.004, 0.6) }}
-                    onMouseEnter={() => setSelected({ hour: h, wd })}
-                    onClick={() => setSelected({ hour: h, wd })}
-                    title={`${day} ${String(h).padStart(2, '0')}:00 — ${hours > 0 ? `${hours.toFixed(1)}h` : 'no overtime'}`}
-                    className={`h-5 w-5 rounded-[4px] shrink-0 ${LEVEL_BG[levelOf(hours)]} ${isSelected ? 'ring-2 ring-brand-400' : ''} cursor-pointer`}
+                    onClick={() => setSelected(isSelected ? null : { hour: h, wd })}
+                    title={`${day} ${String(h).padStart(2, '0')}:00 — ${hours > 0 ? `${hours.toFixed(1)}h` : 'no overtime'}${isPeak ? ' (peak)' : ''} — click for detail`}
+                    className={`h-5 w-5 rounded-[4px] shrink-0 ${LEVEL_BG[levelOf(hours)]} ${isSelected ? 'ring-2 ring-brand-400' : isPeak ? 'ring-1 ring-amber-400/80' : ''} cursor-pointer`}
                   />
                 );
               })}
             </div>
           ))}
         </div>
-        <div className="flex items-center gap-1.5 mt-3 pl-9">
-          <span className={`${TYPE_SCALE.caption} ${t.textFaint}`}>Less</span>
-          {LEVEL_BG.map((cls, i) => <div key={i} className={`h-3 w-3 rounded-[3px] ${cls}`} />)}
-          <span className={`${TYPE_SCALE.caption} ${t.textFaint}`}>More</span>
+        <div className="flex items-center gap-3 mt-3 pl-9">
+          <div className="flex items-center gap-1.5">
+            <span className={`${TYPE_SCALE.caption} ${t.textFaint}`}>Less</span>
+            {LEVEL_BG.map((cls, i) => <div key={i} className={`h-3 w-3 rounded-[3px] ${cls}`} />)}
+            <span className={`${TYPE_SCALE.caption} ${t.textFaint}`}>More</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="h-3 w-3 rounded-[3px] ring-1 ring-amber-400/80" />
+            <span className={`${TYPE_SCALE.caption} ${t.textFaint}`}>Peak</span>
+          </div>
         </div>
       </div>
 
@@ -691,9 +697,11 @@ function normalizeOtSection(section?: string): string {
   return KNOWN_SECTIONS.find(c => c.toLowerCase() === s.toLowerCase()) ?? s;
 }
 
-type InsightsSubTab = 'overview' | 'analytics' | 'analysis';
+type InsightsSubTab = 'overview' | 'analytics' | 'patterns' | 'causes';
 
-function OvertimeInsightsView({ filtered, employees }: { filtered: OTRecord[]; employees: EmployeeLookup[] }) {
+function OvertimeInsightsView({ filtered, employees, employeePicks, onToggleArtisan }: {
+  filtered: OTRecord[]; employees: EmployeeLookup[]; employeePicks: PickedEmployee[]; onToggleArtisan: (employee_id: string, employee_name: string) => void;
+}) {
   const t = useTheme();
   const [sub, setSub] = useState<InsightsSubTab>('overview');
   const [result, setResult] = useState<OTAnalysisResult | null>(null);
@@ -772,7 +780,8 @@ function OvertimeInsightsView({ filtered, employees }: { filtered: OTRecord[]; e
   const SUB_TABS: UnderlineTab<InsightsSubTab>[] = [
     { id: 'overview', label: 'Overview' },
     { id: 'analytics', label: 'Analytics' },
-    { id: 'analysis', label: 'Analysis' },
+    { id: 'patterns', label: 'Patterns' },
+    { id: 'causes', label: 'Causes & Actions' },
   ];
 
   return (
@@ -780,23 +789,46 @@ function OvertimeInsightsView({ filtered, employees }: { filtered: OTRecord[]; e
       <UnderlineTabs tabs={SUB_TABS} value={sub} onChange={setSub} accent="brand" />
       <div className="p-4">
         {sub === 'overview' ? (
-          <OverviewSubTab filtered={filtered} richStats={richStats} byArtisan={byArtisan} maxArtisanHours={maxArtisanHours} result={result} loading={loading} updating={updating} />
+          <OverviewSubTab filtered={filtered} richStats={richStats} byArtisan={byArtisan} maxArtisanHours={maxArtisanHours} result={result} loading={loading} updating={updating} employeePicks={employeePicks} onToggleArtisan={onToggleArtisan} />
         ) : sub === 'analytics' ? (
-          <AnalyticsSubTab filtered={filtered} byType={byType} byStatus={byStatus} bySection={bySection} byArtisan={byArtisan} maxArtisanHours={maxArtisanHours} byWeekday={byWeekday} richStats={richStats} />
+          <AnalyticsSubTab filtered={filtered} byType={byType} byStatus={byStatus} bySection={bySection} byArtisan={byArtisan} maxArtisanHours={maxArtisanHours} byWeekday={byWeekday} richStats={richStats} employeePicks={employeePicks} onToggleArtisan={onToggleArtisan} />
+        ) : sub === 'patterns' ? (
+          <PatternsSubTab records={filtered} result={result} loading={loading} updating={updating} error={error} onRefresh={() => runAnalyze(filtered)} />
         ) : (
-          <AnalysisSubTab records={filtered} result={result} loading={loading} updating={updating} error={error} onRefresh={() => runAnalyze(filtered)} />
+          <CausesSubTab records={filtered} result={result} loading={loading} updating={updating} error={error} onRefresh={() => runAnalyze(filtered)} />
         )}
       </div>
     </div>
   );
 }
 
-function OverviewSubTab({ filtered, richStats, byArtisan, maxArtisanHours, result, loading, updating }: {
+/** Shared "click a name to filter" row — the same artisan bar-row is used by Overview's
+ *  Top Employees and Analytics' Top Artisans lists, so clicking either one toggles the
+ *  exact same `employeePicks` filter (one mechanism, two places it's surfaced). */
+function ArtisanBarRow({ a, maxHours, active, onToggle }: {
+  a: { employee_id: string; employee_name: string; position: string; hours: number };
+  maxHours: number; active: boolean; onToggle: () => void;
+}) {
+  const t = useTheme();
+  return (
+    <button type="button" onClick={onToggle} title={`Click to ${active ? 'remove' : 'filter by'} ${a.employee_name}`}
+      className={`w-full text-left rounded-lg px-2 -mx-2 py-1.5 transition-colors ${active ? 'bg-brand-500/10' : t.hoverBgSoft}`}>
+      <div className="flex justify-between text-xs mb-1">
+        <span className={`font-medium ${active ? accentText('violet', t.light) : t.textPrimary}`}>{a.employee_name}{a.position ? <span className={t.textFaint}> · {a.position}</span> : null}</span>
+        <span className={`font-semibold ${t.textPrimary}`}>{a.hours}h</span>
+      </div>
+      <ProgressBar value={(a.hours / maxHours) * 100} color={active ? ACCENT_HEX.violet : ACCENT_HEX.blue} showValue={false} />
+    </button>
+  );
+}
+
+function OverviewSubTab({ filtered, richStats, byArtisan, maxArtisanHours, result, loading, updating, employeePicks, onToggleArtisan }: {
   filtered: OTRecord[];
   richStats: { uniqueEmployees: number; avgHours: number; busiestDay: string; totalHrs: number; spareCost: number };
   byArtisan: { employee_id: string; employee_name: string; position: string; hours: number; count: number }[];
   maxArtisanHours: number;
   result: OTAnalysisResult | null; loading: boolean; updating: boolean;
+  employeePicks: PickedEmployee[]; onToggleArtisan: (employee_id: string, employee_name: string) => void;
 }) {
   const t = useTheme();
   const axisColor = t.light ? 'rgba(15,23,42,0.4)' : 'rgba(255,255,255,0.4)';
@@ -855,16 +887,12 @@ function OverviewSubTab({ filtered, richStats, byArtisan, maxArtisanHours, resul
         </div>
 
         <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><UsersRound className="h-4 w-4 text-brand-400" /><span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>Top Employees by Hours</span></div>
-          <div className="p-4 space-y-3">
+          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><UsersRound className="h-4 w-4 text-brand-400" /><span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>Top Employees by Hours</span><span className={`ml-auto ${TYPE_SCALE.caption} ${t.textFaint}`}>click a name to filter</span></div>
+          <div className="p-4 space-y-1">
             {byArtisan.slice(0, 6).map(a => (
-              <div key={a.employee_id || a.employee_name}>
-                <div className="flex justify-between text-xs mb-1">
-                  <span className={`font-medium ${t.textPrimary}`}>{a.employee_name}{a.position ? <span className={t.textFaint}> · {a.position}</span> : null}</span>
-                  <span className={`font-semibold ${t.textPrimary}`}>{a.hours}h</span>
-                </div>
-                <ProgressBar value={(a.hours / maxArtisanHours) * 100} color={ACCENT_HEX.blue} showValue={false} />
-              </div>
+              <ArtisanBarRow key={a.employee_id || a.employee_name} a={a} maxHours={maxArtisanHours}
+                active={employeePicks.some(p => p.employee_id === a.employee_id)}
+                onToggle={() => onToggleArtisan(a.employee_id, a.employee_name)} />
             ))}
             {byArtisan.length === 0 && <p className={`text-sm text-center py-6 ${t.textFaint}`}>No data</p>}
           </div>
@@ -874,7 +902,7 @@ function OverviewSubTab({ filtered, richStats, byArtisan, maxArtisanHours, resul
   );
 }
 
-function AnalyticsSubTab({ filtered, byType, byStatus, bySection, byArtisan, maxArtisanHours, byWeekday, richStats }: {
+function AnalyticsSubTab({ filtered, byType, byStatus, bySection, byArtisan, maxArtisanHours, byWeekday, richStats, employeePicks, onToggleArtisan }: {
   filtered: OTRecord[];
   byType: { type: string; count: number }[];
   byStatus: { status: string; count: number }[];
@@ -883,6 +911,7 @@ function AnalyticsSubTab({ filtered, byType, byStatus, bySection, byArtisan, max
   maxArtisanHours: number;
   byWeekday: { day: string; hours: number; count: number }[];
   richStats: { uniqueEmployees: number; avgHours: number; busiestDay: string; totalHrs: number; spareCost: number };
+  employeePicks: PickedEmployee[]; onToggleArtisan: (employee_id: string, employee_name: string) => void;
 }) {
   const t = useTheme();
   const axisColor = t.light ? 'rgba(15,23,42,0.4)' : 'rgba(255,255,255,0.4)';
@@ -973,16 +1002,12 @@ function AnalyticsSubTab({ filtered, byType, byStatus, bySection, byArtisan, max
         </div>
 
         <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><UsersRound className="h-4 w-4 text-brand-400" /><span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>Top Artisans by Hours</span></div>
-          <div className="p-4 space-y-3">
+          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><UsersRound className="h-4 w-4 text-brand-400" /><span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>Top Artisans by Hours</span><span className={`ml-auto ${TYPE_SCALE.caption} ${t.textFaint}`}>click a name to filter</span></div>
+          <div className="p-4 space-y-1">
             {byArtisan.map(a => (
-              <div key={a.employee_id || a.employee_name}>
-                <div className="flex justify-between text-xs mb-1">
-                  <span className={`font-medium ${t.textPrimary}`}>{a.employee_name}{a.position ? <span className={t.textFaint}> · {a.position}</span> : null}</span>
-                  <span className={`font-semibold ${t.textPrimary}`}>{a.hours}h</span>
-                </div>
-                <ProgressBar value={(a.hours / maxArtisanHours) * 100} color={ACCENT_HEX.blue} showValue={false} />
-              </div>
+              <ArtisanBarRow key={a.employee_id || a.employee_name} a={a} maxHours={maxArtisanHours}
+                active={employeePicks.some(p => p.employee_id === a.employee_id)}
+                onToggle={() => onToggleArtisan(a.employee_id, a.employee_name)} />
             ))}
             {byArtisan.length === 0 && <p className={`text-sm text-center py-6 ${t.textFaint}`}>No data</p>}
           </div>
@@ -1009,35 +1034,79 @@ function AnalyticsSubTab({ filtered, byType, byStatus, bySection, byArtisan, max
 
 /** One row per recurring category, expandable to reveal the underlying records —
  *  the "drill down from a high-level category into the raw records" requirement. */
+const CATEGORY_COLORS = Object.values(ACCENT_HEX);
+type CategorySortKey = 'instances' | 'hours' | 'avg_hours' | 'pct_of_total';
+
+/** Clickable column header for CategoryDetailTable — click toggles sort, a second
+ *  click on the same column flips direction (standard data-table sort convention). */
+function SortHeader({ label, sortKey, active, dir, onClick, className }: {
+  label: string; sortKey: CategorySortKey; active: boolean; dir: 'asc' | 'desc'; onClick: (k: CategorySortKey) => void; className: string;
+}) {
+  return (
+    <th className={`${className} cursor-pointer select-none`} onClick={() => onClick(sortKey)}>
+      <span className={`inline-flex items-center gap-0.5 ${active ? 'text-brand-400' : ''}`}>
+        {label}
+        {active ? (dir === 'desc' ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />) : null}
+      </span>
+    </th>
+  );
+}
+
 function CategoryDetailTable({ categories }: { categories: OTCategoryDetail[] }) {
   const t = useTheme();
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [sort, setSort] = useState<{ key: CategorySortKey; dir: 'asc' | 'desc' }>({ key: 'hours', dir: 'desc' });
   if (categories.length === 0) return null;
   const thCls = `${TYPE_SCALE.caption} font-medium ${t.textFaint} px-3 py-2`;
   const tdCls = `${TYPE_SCALE.caption} ${t.textMuted} px-3 py-2`;
+
+  const sorted = [...categories].sort((a, b) => (a[sort.key] - b[sort.key]) * (sort.dir === 'asc' ? 1 : -1));
+  const setSortKey = (key: CategorySortKey) => setSort(prev => prev.key === key ? { key, dir: prev.dir === 'desc' ? 'asc' : 'desc' } : { key, dir: 'desc' });
+  const totalHours = categories.reduce((s, c) => s + c.hours, 0);
+
   return (
     <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
       <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}>
         <Layers className="h-4 w-4 text-brand-400" />
         <span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>Category Detail</span>
-        <span className={`ml-auto ${TYPE_SCALE.caption} ${t.textFaint}`}>click a row for the underlying records</span>
       </div>
-      <div className="overflow-x-auto">
+      <div className={`flex items-start gap-1.5 px-5 pt-3 ${TYPE_SCALE.caption} ${t.textFaint}`}>
+        <Info className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+        <span>Click any category row below to expand it and see the individual overtime records behind that number. Click a column heading (Instances / Hours / Avg h / % Total) to sort by it — click again to reverse the order.</span>
+      </div>
+
+      {categories.length > 1 && (
+        <div className="px-5 pt-3">
+          <ResponsiveContainer width="100%" height={220}>
+            <RePieChart>
+              <Pie data={categories.map(c => ({ category: c.category, hours: c.hours, instances: c.instances }))} dataKey="hours" nameKey="category" innerRadius={50} outerRadius={80} paddingAngle={2} animationDuration={700} animationEasing="ease-out">
+                {categories.map((_, i) => <Cell key={i} fill={CATEGORY_COLORS[i % CATEGORY_COLORS.length]} fillOpacity={0.85} />)}
+              </Pie>
+              <Tooltip contentStyle={{ backgroundColor: t.light ? '#fff' : '#0f1e2e', border: `1px solid ${t.light ? 'rgba(15,23,42,0.1)' : 'rgba(134,187,216,0.2)'}`, borderRadius: 12, color: t.light ? '#0f172a' : '#fff', fontSize: 12 }}
+                formatter={(v: number, n: string, entry) => [`${v}h (${entry.payload.instances}×, ${totalHours ? Math.round(v / totalHours * 100) : 0}%)`, n]} />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
+            </RePieChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      <div className="overflow-x-auto mt-2">
         <table className="w-full">
           <thead className={`border-b ${t.border}`}>
             <tr>
               <th className={`text-left ${thCls} pl-4`}>Category</th>
-              <th className={`text-right ${thCls}`}>Instances</th>
-              <th className={`text-right ${thCls}`}>Hours</th>
-              <th className={`text-right ${thCls}`}>Avg h</th>
-              <th className={`text-right ${thCls}`}>% Total</th>
+              <SortHeader label="Instances" sortKey="instances" active={sort.key === 'instances'} dir={sort.dir} onClick={setSortKey} className={`text-right ${thCls}`} />
+              <SortHeader label="Hours" sortKey="hours" active={sort.key === 'hours'} dir={sort.dir} onClick={setSortKey} className={`text-right ${thCls}`} />
+              <SortHeader label="Avg h" sortKey="avg_hours" active={sort.key === 'avg_hours'} dir={sort.dir} onClick={setSortKey} className={`text-right ${thCls}`} />
+              <SortHeader label="% Total" sortKey="pct_of_total" active={sort.key === 'pct_of_total'} dir={sort.dir} onClick={setSortKey} className={`text-right ${thCls}`} />
               <th className={`text-left ${thCls}`}>Top Weekday</th>
               <th className={`text-left ${thCls}`}>Top Employee</th>
               <th className={`text-left ${thCls}`}>Top Spare</th>
+              <th className={`${thCls} w-8`}></th>
             </tr>
           </thead>
           <tbody>
-            {categories.map(c => {
+            {sorted.map(c => {
               const isOpen = expanded === c.category;
               return (
                 <React.Fragment key={c.category}>
@@ -1050,11 +1119,16 @@ function CategoryDetailTable({ categories }: { categories: OTCategoryDetail[] })
                     <td className={tdCls}>{c.top_weekday ?? '—'}</td>
                     <td className={`${tdCls} truncate max-w-[140px]`}>{c.top_employee ?? '—'}</td>
                     <td className={`${tdCls} truncate max-w-[140px]`}>{c.top_spare ?? '—'}</td>
+                    <td className={tdCls}>
+                      <motion.div animate={{ rotate: isOpen ? 90 : 0 }} transition={{ duration: 0.15 }} className="flex items-center justify-center">
+                        <ChevronRight className={`h-3.5 w-3.5 ${t.textFaint}`} />
+                      </motion.div>
+                    </td>
                   </tr>
                   <AnimatePresence>
                     {isOpen && (
                       <tr>
-                        <td colSpan={8} className="p-0">
+                        <td colSpan={9} className="p-0">
                           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.18 }} className="overflow-hidden">
                             <motion.div initial="hidden" animate="show" variants={staggerContainer} className={`p-3 space-y-1.5 ${t.chipBg}`}>
                               {c.records.map((r, i) => (
@@ -1083,165 +1157,217 @@ function CategoryDetailTable({ categories }: { categories: OTCategoryDetail[] })
   );
 }
 
-function AnalysisSubTab({ records, result, loading, updating, error, onRefresh }: {
-  records: OTRecord[]; result: OTAnalysisResult | null; loading: boolean; updating: boolean; error: string; onRefresh: () => void;
-}) {
+// ── Shared gate pieces — both Patterns and Causes sub-tabs show the same loading
+// spinner / "no analysis yet" placeholder / status-and-refresh header, since they're
+// two views onto the one debounced analyze result owned by OvertimeInsightsView. ────
+
+function AnalysisLoading() {
+  const t = useTheme();
+  return <div className={`${t.glass} rounded-2xl ${t.shadow} p-16 text-center flex items-center justify-center gap-2 ${t.textFaint}`}><RefreshCw className="h-5 w-5 animate-spin" /> Analyzing…</div>;
+}
+
+function AnalysisEmpty({ records, error, onRefresh }: { records: OTRecord[]; error: string; onRefresh: () => void }) {
+  const t = useTheme();
+  return (
+    <div className={`${t.glass} rounded-2xl ${t.shadow} p-10 text-center`}>
+      <PulsingIcon className="h-12 w-12 mx-auto mb-3 flex items-center justify-center">
+        <Brain className={`h-9 w-9 ${accentText('amber', t.light)}`} />
+      </PulsingIcon>
+      <h3 className={`${TYPE_SCALE.subtitle} font-semibold mb-1.5 ${t.textPrimary}`}>No Analysis Yet</h3>
+      <p className={`${TYPE_SCALE.body} mb-4 max-w-md mx-auto ${t.textFaint}`}>
+        {error || (records.length === 0
+          ? 'No records in the current filter selection.'
+          : 'Reads the reason text, machines mentioned, and volume/trend across the currently-filtered records — no external AI service, just aggregation and pattern rules run locally.')}
+      </p>
+      {records.length > 0 && (
+        <button type="button" onClick={onRefresh}
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all">
+          <Brain className="h-4 w-4" /> Generate Analysis
+        </button>
+      )}
+    </div>
+  );
+}
+
+function AnalysisStatusBar({ result, updating, error, onRefresh }: { result: OTAnalysisResult; updating: boolean; error: string; onRefresh: () => void }) {
+  const t = useTheme();
+  return (
+    <motion.div variants={fadeUp} className="flex items-center justify-between gap-3">
+      <p className={`${TYPE_SCALE.caption} ${t.textFaint}`}>
+        {error ? <span className="text-rose-400">{error}</span> : updating ? 'Updating for the current filters…' :
+          `${result._records_analysed} record${result._records_analysed !== 1 ? 's' : ''} analysed · generated ${new Date(result.generated_at).toLocaleString('en-GB')}`}
+      </p>
+      <button type="button" onClick={onRefresh} title="Re-run with the current filters"
+        className={`shrink-0 flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg ${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText} transition-all`}>
+        <Brain className={`h-3 w-3 ${updating ? 'animate-pulse' : ''}`} /> Refresh
+      </button>
+    </motion.div>
+  );
+}
+
+type AnalysisSubTabProps = { records: OTRecord[]; result: OTAnalysisResult | null; loading: boolean; updating: boolean; error: string; onRefresh: () => void };
+
+function PatternsSubTab({ records, result, loading, updating, error, onRefresh }: AnalysisSubTabProps) {
   const t = useTheme();
   const axisColor = t.light ? 'rgba(15,23,42,0.4)' : 'rgba(255,255,255,0.4)';
   const gridColor = t.light ? 'rgba(15,23,42,0.06)' : 'rgba(255,255,255,0.06)';
+  const tooltipStyle = { backgroundColor: t.light ? '#fff' : '#0f1e2e', border: `1px solid ${t.light ? 'rgba(15,23,42,0.1)' : 'rgba(134,187,216,0.2)'}`, borderRadius: 12, color: t.light ? '#0f172a' : '#fff', fontSize: 12 };
 
-  if (loading) {
-    return <div className={`${t.glass} rounded-2xl ${t.shadow} p-16 text-center flex items-center justify-center gap-2 ${t.textFaint}`}><RefreshCw className="h-5 w-5 animate-spin" /> Analyzing…</div>;
-  }
-
-  if (!result) {
-    return (
-      <div className={`${t.glass} rounded-2xl ${t.shadow} p-10 text-center`}>
-        <PulsingIcon className="h-12 w-12 mx-auto mb-3 flex items-center justify-center">
-          <Brain className={`h-9 w-9 ${accentText('amber', t.light)}`} />
-        </PulsingIcon>
-        <h3 className={`${TYPE_SCALE.subtitle} font-semibold mb-1.5 ${t.textPrimary}`}>No Analysis Yet</h3>
-        <p className={`${TYPE_SCALE.body} mb-4 max-w-md mx-auto ${t.textFaint}`}>
-          {error || (records.length === 0
-            ? 'No records in the current filter selection.'
-            : 'Reads the reason text, machines mentioned, and volume/trend across the currently-filtered records — no external AI service, just aggregation and pattern rules run locally.')}
-        </p>
-        {records.length > 0 && (
-          <button type="button" onClick={onRefresh}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all">
-            <Brain className="h-4 w-4" /> Generate Analysis
-          </button>
-        )}
-      </div>
-    );
-  }
+  if (loading) return <AnalysisLoading />;
+  if (!result) return <AnalysisEmpty records={records} error={error} onRefresh={onRefresh} />;
 
   return (
     <motion.div initial="hidden" animate="show" variants={staggerContainer} className="space-y-4">
-      <motion.div variants={fadeUp} className="flex items-center justify-between gap-3">
-        <p className={`${TYPE_SCALE.caption} ${t.textFaint}`}>
-          {error ? <span className="text-rose-400">{error}</span> : updating ? 'Updating for the current filters…' :
-            `${result._records_analysed} record${result._records_analysed !== 1 ? 's' : ''} analysed · generated ${new Date(result.generated_at).toLocaleString('en-GB')}`}
-        </p>
-        <button type="button" onClick={onRefresh} title="Re-run with the current filters"
-          className={`shrink-0 flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg ${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText} transition-all`}>
-          <Brain className={`h-3 w-3 ${updating ? 'animate-pulse' : ''}`} /> Refresh
-        </button>
-      </motion.div>
+      <AnalysisStatusBar result={result} updating={updating} error={error} onRefresh={onRefresh} />
 
       <motion.div variants={fadeUp} className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
         <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><FileText className="h-4 w-4 text-brand-400" /><span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>Observed Facts</span></div>
         <div className="p-4 space-y-4">
           <p className={`${TYPE_SCALE.body} ${t.textMuted}`}>{result.summary}</p>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <AnalyzeStat icon={Clock4} accent="violet" label="Total Hours" value={result.total_hours} suffix="h" decimals={1} />
-            <AnalyzeStat icon={FileText} accent="blue" label="Instances" value={result.total_instances} />
-            <AnalyzeStat icon={UsersRound} accent="indigo" label="Employees" value={result.employees_involved} />
+          {/* Total Hours / Instances / Employees already live on the Overview tab — these
+              three are the facts this backend computes that aren't shown anywhere else. */}
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             <AnalyzeStat icon={TrendingUp} accent="amber" label="2.0× Share" value={result.double_time_pct} suffix="%" />
+            <AnalyzeStat icon={Layers} accent="indigo" label="Sections Involved" value={result.sections_involved} />
+            <AnalyzeStat icon={Gauge} accent="cyan" label="Avg Hrs / Employee" value={result.avg_hours_per_employee} suffix="h" decimals={1} />
           </div>
         </div>
       </motion.div>
 
-      <motion.div variants={fadeUp} className="space-y-4">
-        <div className="flex items-center gap-2 px-1"><Layers className="h-4 w-4 text-brand-400" /><span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>Patterns</span></div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {result.top_reasons.length > 0 && (
-            <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-              <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><FileText className="h-4 w-4 text-brand-400" /><span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>Recurring Reasons</span></div>
-              <div className="p-4 space-y-3">
-                {(() => {
-                  const maxHours = Math.max(...result.top_reasons.map(x => x.hours), 1);
-                  return result.top_reasons.map((p, i) => (
-                    <div key={i}>
-                      <div className="flex justify-between text-xs mb-1">
-                        <span className={`font-medium ${t.textPrimary} truncate`}>&ldquo;{p.phrase}&rdquo;</span>
-                        <span className={`shrink-0 ml-2 ${t.textFaint}`}>{p.count}× · {p.hours}h</span>
-                      </div>
-                      <ProgressBar value={(p.hours / maxHours) * 100} color={ACCENT_HEX.amber} showValue={false} />
-                    </div>
-                  ));
-                })()}
-              </div>
-            </div>
-          )}
-
-          {result.top_machines.length > 0 && (
-            <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-              <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><Wrench className="h-4 w-4 text-brand-400" /><span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>Machines Mentioned</span></div>
-              <div className="p-4 space-y-3">
-                {(() => {
-                  const maxHours = Math.max(...result.top_machines.map(x => x.hours), 1);
-                  return result.top_machines.map((m, i) => (
-                    <div key={i}>
-                      <div className="flex justify-between text-xs mb-1">
-                        <span className={`font-medium ${t.textPrimary} truncate`}>{m.name}</span>
-                        <span className={`shrink-0 ml-2 ${t.textFaint}`}>{m.count}× · {m.hours}h</span>
-                      </div>
-                      <ProgressBar value={(m.hours / maxHours) * 100} color={ACCENT_HEX.cyan} showValue={false} />
-                    </div>
-                  ));
-                })()}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {result.weekly_series.length > 1 && (
-          <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-            <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}>
-              <TrendingUp className="h-4 w-4 text-brand-400" /><span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>Weekly Trend</span>
-              <StatusBadge color={DIR_HEX[result.trend_direction]} label={result.trend_direction} />
-              {result.trends[0] && <span className={`ml-auto ${TYPE_SCALE.caption} ${t.textFaint} truncate max-w-[50%]`}>{result.trends[0].insight}</span>}
-            </div>
-            <div className="p-4">
-              <ResponsiveContainer width="100%" height={180}>
-                <AreaChart data={result.weekly_series}>
-                  <defs>
-                    <linearGradient id="otWeeklyGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={ACCENT_HEX.blue} stopOpacity={0.45} />
-                      <stop offset="95%" stopColor={ACCENT_HEX.blue} stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
-                  <XAxis dataKey="week" tick={{ fill: axisColor, fontSize: 10 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fill: axisColor, fontSize: 10 }} axisLine={false} tickLine={false} />
-                  <Tooltip contentStyle={{ backgroundColor: t.light ? '#fff' : '#0f1e2e', border: `1px solid ${t.light ? 'rgba(15,23,42,0.1)' : 'rgba(134,187,216,0.2)'}`, borderRadius: 12, color: t.light ? '#0f172a' : '#fff', fontSize: 12 }} formatter={(v: number) => [`${v}h`, 'Hours']} />
-                  <Area type="monotone" dataKey="hours" stroke={ACCENT_HEX.blue} strokeWidth={2} fill="url(#otWeeklyGrad)" animationDuration={700} animationEasing="ease-out" />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
+      {result.top_reasons.length > 0 && (
+        <motion.div variants={fadeUp} className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
+          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><FileText className="h-4 w-4 text-brand-400" /><span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>Recurring Reasons</span></div>
+          <div className="p-4">
+            <ResponsiveContainer width="100%" height={240}>
+              <BarChart data={result.top_reasons} margin={{ bottom: 24 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
+                <XAxis dataKey="phrase" tick={{ fill: axisColor, fontSize: 9 }} axisLine={false} tickLine={false} angle={-35} textAnchor="end" interval={0} height={50}
+                  tickFormatter={(v: string) => v.length > 14 ? `${v.slice(0, 13)}…` : v} />
+                <YAxis tick={{ fill: axisColor, fontSize: 10 }} axisLine={false} tickLine={false} />
+                <Tooltip contentStyle={tooltipStyle} labelFormatter={(label: string) => `"${label}"`}
+                  formatter={(v: number, _n: string, entry) => [`${v}h · ${entry.payload.count}×`, 'Hours']} />
+                <Bar dataKey="hours" radius={[6, 6, 0, 0]} animationDuration={700} animationEasing="ease-out">
+                  {result.top_reasons.map((_, i) => <Cell key={i} fill={CATEGORY_COLORS[i % CATEGORY_COLORS.length]} fillOpacity={0.85} />)}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
           </div>
-        )}
+        </motion.div>
+      )}
 
-        <CategoryDetailTable categories={result.category_detail} />
+      {result.top_machines.length > 0 && (
+        <motion.div variants={fadeUp} className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
+          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><Wrench className="h-4 w-4 text-brand-400" /><span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>Machines Mentioned</span></div>
+          <div className="p-4 space-y-3">
+            {(() => {
+              const maxHours = Math.max(...result.top_machines.map(x => x.hours), 1);
+              return result.top_machines.map((m, i) => (
+                <div key={i}>
+                  <div className="flex justify-between text-xs mb-1">
+                    <span className={`font-medium ${t.textPrimary} truncate`}>{m.name}</span>
+                    <span className={`shrink-0 ml-2 ${t.textFaint}`}>{m.count}× · {m.hours}h</span>
+                  </div>
+                  <ProgressBar value={(m.hours / maxHours) * 100} color={ACCENT_HEX.cyan} showValue={false} />
+                </div>
+              ));
+            })()}
+          </div>
+        </motion.div>
+      )}
 
-        <OvertimeHeatmap grid={result.hour_weekday_hours} weekdayLabels={result.weekday_labels} punchRecords={result.punch_records} />
-      </motion.div>
+      {result.weekly_series.length > 1 && (
+        <motion.div variants={fadeUp} className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
+          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}>
+            <TrendingUp className="h-4 w-4 text-brand-400" /><span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>Weekly Trend</span>
+            <StatusBadge color={DIR_HEX[result.trend_direction]} label={result.trend_direction} />
+            {result.trends[0] && <span className={`ml-auto ${TYPE_SCALE.caption} ${t.textFaint} truncate max-w-[50%]`}>{result.trends[0].insight}</span>}
+          </div>
+          <div className="p-4">
+            <ResponsiveContainer width="100%" height={180}>
+              <AreaChart data={result.weekly_series}>
+                <defs>
+                  <linearGradient id="otWeeklyGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={ACCENT_HEX.blue} stopOpacity={0.45} />
+                    <stop offset="95%" stopColor={ACCENT_HEX.blue} stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+                <XAxis dataKey="week" tick={{ fill: axisColor, fontSize: 10 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: axisColor, fontSize: 10 }} axisLine={false} tickLine={false} />
+                <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => [`${v}h`, 'Hours']} />
+                <Area type="monotone" dataKey="hours" stroke={ACCENT_HEX.blue} strokeWidth={2} fill="url(#otWeeklyGrad)" animationDuration={700} animationEasing="ease-out" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </motion.div>
+      )}
+
+      <motion.div variants={fadeUp}><CategoryDetailTable categories={result.category_detail} /></motion.div>
+
+      <motion.div variants={fadeUp}><OvertimeHeatmap grid={result.hour_weekday_hours} weekdayLabels={result.weekday_labels} punchRecords={result.punch_records} /></motion.div>
+    </motion.div>
+  );
+}
+
+const SEVERITY_ORDER = ['critical', 'high', 'medium', 'low'] as const;
+
+function CausesSubTab({ records, result, loading, updating, error, onRefresh }: AnalysisSubTabProps) {
+  const t = useTheme();
+
+  if (loading) return <AnalysisLoading />;
+  if (!result) return <AnalysisEmpty records={records} error={error} onRefresh={onRefresh} />;
+
+  return (
+    <motion.div initial="hidden" animate="show" variants={staggerContainer} className="space-y-4">
+      <AnalysisStatusBar result={result} updating={updating} error={error} onRefresh={onRefresh} />
 
       {result.possible_causes.length > 0 && (
         <motion.div variants={fadeUp} className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><AlertTriangle className="h-4 w-4 text-brand-400" /><span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>Possible Causes</span></div>
-          <motion.div variants={staggerContainer} initial="hidden" animate="show" className="p-4 space-y-2.5">
-            {result.possible_causes.map((p, i) => {
-              const SevIcon = p.severity === 'critical' || p.severity === 'high' ? AlertTriangle : AlertCircle;
+          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}>
+            <AlertTriangle className="h-4 w-4 text-brand-400" /><span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>Possible Causes</span>
+            <div className="ml-auto flex items-center gap-2.5">
+              {SEVERITY_ORDER.map(sev => {
+                const n = result.possible_causes.filter(p => p.severity === sev).length;
+                if (n === 0) return null;
+                return (
+                  <span key={sev} className={`flex items-center gap-1 ${TYPE_SCALE.caption} ${t.textFaint}`}>
+                    <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: SEV_HEX[sev] }} />{n} {sev}
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+          <div className="p-4 space-y-4">
+            {SEVERITY_ORDER.map(sev => {
+              const items = result.possible_causes.filter(p => p.severity === sev);
+              if (items.length === 0) return null;
               return (
-                <motion.div key={i} variants={fadeUp}>
-                  <GlowCard color={SEV_HEX[p.severity]} forceGlow elevated surface={`${t.glassSoft} rounded-xl`}>
-                    <div className="flex items-start gap-3 p-4">
-                      <PulsingIcon className="shrink-0 mt-0.5 h-6 w-6 flex items-center justify-center">
-                        <SevIcon className="h-4 w-4" style={{ color: SEV_HEX[p.severity] }} />
-                      </PulsingIcon>
-                      <div className="min-w-0 flex-1">
-                        <p className={`${TYPE_SCALE.body} font-semibold`} style={{ color: SEV_HEX[p.severity] }}>{p.title}</p>
-                        <p className={`${TYPE_SCALE.caption} mt-0.5 ${t.textMuted}`}>{p.description}</p>
-                      </div>
-                    </div>
-                  </GlowCard>
-                </motion.div>
+                <div key={sev}>
+                  <p className={`${TYPE_SCALE.label} font-semibold uppercase tracking-wide mb-2`} style={{ color: SEV_HEX[sev] }}>{sev}</p>
+                  <motion.div variants={staggerContainer} initial="hidden" animate="show" className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                    {items.map((p, i) => {
+                      const SevIcon = p.severity === 'critical' || p.severity === 'high' ? AlertTriangle : AlertCircle;
+                      return (
+                        <motion.div key={i} variants={fadeUp}>
+                          <GlowCard color={SEV_HEX[p.severity]} forceGlow elevated surface={`${t.glassSoft} rounded-xl`}>
+                            <div className="flex items-start gap-3 p-4">
+                              <PulsingIcon className="shrink-0 mt-0.5 h-6 w-6 flex items-center justify-center">
+                                <SevIcon className="h-4 w-4" style={{ color: SEV_HEX[p.severity] }} />
+                              </PulsingIcon>
+                              <div className="min-w-0 flex-1">
+                                <p className={`${TYPE_SCALE.body} font-semibold`} style={{ color: SEV_HEX[p.severity] }}>{p.title}</p>
+                                <p className={`${TYPE_SCALE.caption} mt-0.5 ${t.textMuted}`}>{p.description}</p>
+                              </div>
+                            </div>
+                          </GlowCard>
+                        </motion.div>
+                      );
+                    })}
+                  </motion.div>
+                </div>
               );
             })}
-          </motion.div>
+          </div>
         </motion.div>
       )}
 
@@ -1526,6 +1652,34 @@ function OvertimeContent() {
     return true;
   }), [records, status, type, dateFrom, dateTo, employeeIds, search]);
 
+  // Month quick-filter — reads off `records` (not `filtered`), so the chip list itself
+  // doesn't shrink as the user filters by other criteria. Newest first, capped so a
+  // multi-year history doesn't turn this into an unusable wall of chips.
+  const monthOptions = useMemo(() => {
+    const months = new Set(records.map(r => r.date?.slice(0, 7)).filter((m): m is string => !!m));
+    return [...months].sort((a, b) => b.localeCompare(a)).slice(0, 12).map(m => {
+      const [y, mo] = m.split('-').map(Number);
+      const label = new Date(y, mo - 1, 1).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
+      const lastDay = new Date(y, mo, 0).getDate();
+      return { key: m, label, from: `${m}-01`, to: `${m}-${String(lastDay).padStart(2, '0')}` };
+    });
+  }, [records]);
+  const activeMonth = monthOptions.find(m => m.from === dateFrom && m.to === dateTo)?.key ?? null;
+  const toggleMonthFilter = (m: typeof monthOptions[number]) => {
+    if (activeMonth === m.key) { setDateFrom(''); setDateTo(''); }
+    else { setDateFrom(m.from); setDateTo(m.to); }
+  };
+
+  // Artisan quick-filter — clicking a name in the Top Employees/Artisans charts toggles
+  // them into/out of the same `employeePicks` state the EmployeeMultiPicker above writes
+  // to, so it's just another way to populate the one filter, not a parallel mechanism.
+  const toggleArtisanFilter = (employee_id: string, employee_name: string) => {
+    if (!employee_id) return;
+    setEmployeePicks(prev => prev.some(p => p.employee_id === employee_id)
+      ? prev.filter(p => p.employee_id !== employee_id)
+      : [...prev, { id: employee_id, employee_id, name: employee_name }]);
+  };
+
   const stats = useMemo(() => {
     const pending = records.filter(r => r.status === 'pending').length;
     const approved = records.filter(r => r.status === 'approved').length;
@@ -1701,6 +1855,19 @@ function OvertimeContent() {
               <input type="date" title="To date" value={dateTo} onChange={e => setDateTo(e.target.value)} className={`flex-1 min-w-0 ${selCls}`} />
             </div>
           </div>
+          {monthOptions.length > 0 && (
+            <div>
+              <p className={`text-xs mb-1.5 ${t.textFaint}`}>Quick filter by month</p>
+              <div className="flex gap-1.5 overflow-x-auto pb-0.5">
+                {monthOptions.map(m => (
+                  <button key={m.key} type="button" onClick={() => toggleMonthFilter(m)}
+                    className={`shrink-0 px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${activeMonth === m.key ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText}`}`}>
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="max-w-sm">
             <EmployeeMultiPicker
               label="Employee(s)"
@@ -1803,7 +1970,7 @@ function OvertimeContent() {
           </div>
         )
       ) : (
-        <OvertimeInsightsView filtered={filtered} employees={employees} />
+        <OvertimeInsightsView filtered={filtered} employees={employees} employeePicks={employeePicks} onToggleArtisan={toggleArtisanFilter} />
       )}
 
       <OTFormModal open={formOpen} onClose={() => { setFormOpen(false); setEditing(null); }} onSave={handleSave} editing={editing} records={records} />
