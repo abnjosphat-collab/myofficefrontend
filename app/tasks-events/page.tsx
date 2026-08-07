@@ -17,12 +17,12 @@ import {
   PrimaryButton, CenterModal, FormField, SelectField, SearchInput, StatusBadge, EmptyState, useConfirm,
 } from '@/components/shared/theme';
 import {
-  ListTodo, Plus, Trash2, CalendarClock, Check, RotateCcw, Clock, Pencil, AlertTriangle, X,
+  ListTodo, Plus, Trash2, CalendarClock, Check, RotateCcw, Clock, Pencil, AlertTriangle,
 } from '@/components/shared/theme';
 import { fmtDate, fmtDateTime } from '@/components/shared/utils';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
-import { EmployeeAutocomplete } from '@/components/shared/EmployeeAutocomplete';
+import { EmployeeMultiPicker } from '@/components/shared/EmployeeMultiPicker';
 import {
   useTasksEventsData, createTaskEvent, updateTaskEvent, deleteTaskEvent,
   completeTaskEvent, reopenTaskEvent, listComments, addComment,
@@ -40,44 +40,6 @@ const blankForm = (): TaskEventFormData => ({
   title: '', description: '', task_type: 'Task', event_date: '', due_date: '', responsible_people: [], priority: 'Medium',
 });
 const isOverdue = (item: TaskEvent) => item.status === 'pending' && !!item.due_date && new Date(item.due_date) < new Date(new Date().toDateString());
-
-// ─── Multiple responsible people — an EmployeeAutocomplete that appends to a
-// list instead of setting a single value, plus removable chips. First use of
-// a "multi" pattern in this codebase — kept page-local rather than promoted
-// into the shared component until a second page actually needs it.
-function ResponsiblePeoplePicker({ value, onChange }: { value: string[]; onChange: (v: string[]) => void }) {
-  const t = useTheme();
-  const [draft, setDraft] = useState('');
-
-  const addPerson = (name: string) => {
-    const trimmed = name.trim();
-    if (trimmed && !value.includes(trimmed)) onChange([...value, trimmed]);
-    setDraft('');
-  };
-
-  return (
-    <FormField label="Responsible People">
-      <EmployeeAutocomplete
-        value={draft}
-        onChange={setDraft}
-        onSelect={emp => addPerson(emp.full_name || emp.name || `${emp.first_name || ''} ${emp.last_name || ''}`.trim())}
-      />
-      {value.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 mt-2">
-          {value.map(name => (
-            <span key={name} className={`inline-flex items-center gap-1 ${t.chipBg} rounded-full pl-2.5 pr-1.5 py-1 text-xs ${t.textMuted}`}>
-              {name}
-              <button type="button" onClick={() => onChange(value.filter(n => n !== name))}
-                className={`h-4 w-4 flex items-center justify-center rounded-full ${t.hoverBg}`}>
-                <X className="h-2.5 w-2.5" />
-              </button>
-            </span>
-          ))}
-        </div>
-      )}
-    </FormField>
-  );
-}
 
 // ─── Form modal (create + edit) ────────────────────────────────────────────
 
@@ -146,7 +108,12 @@ function FormModal({ open, onClose, onSaved, initialData }: {
               className="w-full h-9 rounded-lg px-3 text-sm outline-none bg-white/10" />
           </FormField>
         </div>
-        <ResponsiblePeoplePicker value={form.responsible_people} onChange={v => set('responsible_people', v)} />
+        <EmployeeMultiPicker
+          label="Responsible People"
+          value={form.responsible_people.map(name => ({ id: name, employee_id: name, name }))}
+          onAdd={p => set('responsible_people', form.responsible_people.includes(p.name) ? form.responsible_people : [...form.responsible_people, p.name])}
+          onRemove={id => set('responsible_people', form.responsible_people.filter(n => n !== id))}
+        />
         <div className="flex justify-end gap-2 pt-2">
           <PrimaryButton type="submit" submitting={saving}>{mode === 'edit' ? 'Save' : 'Add'}</PrimaryButton>
         </div>

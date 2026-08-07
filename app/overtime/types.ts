@@ -16,6 +16,18 @@ export const SELECTABLE_OT_TYPES: OTType[] = ['regular', 'weekend', 'holiday'];
 export const STATUSES = ['pending', 'approved', 'rejected', 'paid', 'cancelled'] as const;
 export type OTStatus = typeof STATUSES[number];
 
+/** One line of the "Spares Used" log — a reference/cost record only, same scope as
+ *  breakdowns/work_orders' spares_used: it never touches Spares-module stock
+ *  (`current_quantity`), which stays a Stores-department function. `unit_price`
+ *  comes from the Spares register listing at the time it was picked, not live. */
+export interface SpareUsedEntry {
+  name: string;
+  part_number?: string;
+  quantity: number;
+  unit_price?: number;
+  total_cost?: number;
+}
+
 export interface OTRecord {
   id: number | string;
   employee_name: string;
@@ -32,6 +44,7 @@ export interface OTRecord {
   status: OTStatus;
   notes?: string;
   contact_number?: string;
+  spares_used?: SpareUsedEntry[];
   created_at?: string;
 }
 

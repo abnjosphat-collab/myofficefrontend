@@ -9,7 +9,7 @@ import {
   Clock4, Plus, Search, RefreshCw, CheckCircle2, XCircle,
   FileText, Eye, Trash2, Edit, LayoutGrid, List, AlertCircle, AlertTriangle,
   Sun, Moon, Briefcase, Calendar, X, User, Download, CalendarRange,
-  Wrench, UsersRound, TrendingUp,
+  Wrench, UsersRound, TrendingUp, Lightbulb, Sparkles,
 } from '@/components/shared/theme';
 import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, ProgressBar, FormField, FormActions,
@@ -19,6 +19,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { ApprovalGate, type SignatureResult } from '@/components/shared/ApprovalGate';
 import { useEmployees, type EmployeeLookup } from '@/hooks/useLookups';
 import { EmployeeAutocomplete } from '@/components/shared/EmployeeAutocomplete';
+import { EmployeeMultiPicker, type PickedEmployee } from '@/components/shared/EmployeeMultiPicker';
+import { SpareAutocomplete } from '@/components/shared/SpareAutocomplete';
 import { formatDate } from '@/lib/format';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename, EXPORT_BRAND_ARGB } from '@/lib/exportUtils';
@@ -26,8 +28,8 @@ import { toast } from 'sonner';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts';
-import { OT_TYPES, SELECTABLE_OT_TYPES, STATUSES, type OTType, type OTStatus, type OTRecord, type OTForm } from './types';
-import { useOvertimeData, buildOvertimePayload, createOT, updateOT, deleteOT } from './useOvertimeData';
+import { OT_TYPES, SELECTABLE_OT_TYPES, STATUSES, type OTType, type OTStatus, type OTRecord, type OTForm, type SpareUsedEntry } from './types';
+import { useOvertimeData, buildOvertimePayload, createOT, updateOT, deleteOT, postOvertimeAnalysis } from './useOvertimeData';
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 
@@ -118,6 +120,10 @@ function OTFormModal({ open, onClose, onSave, editing, records }: {
   const [saving, setSaving] = useState(false);
   // The "pressed for time" fast path: hours entered directly instead of start/end times.
   const [useHours, setUseHours] = useState(false);
+  // Spares Used — a reference/cost log only (see SpareUsedEntry doc comment), managed
+  // outside `form` since OTForm is otherwise all flat strings and this is a list.
+  const [spares, setSpares] = useState<SpareUsedEntry[]>([]);
+  const [spareDraft, setSpareDraft] = useState({ name: '', part_number: '', quantity: '1', unit_price: '0' });
 
   // Same person, same date, same time slot already has an active request —
   // flag it, don't block: stacked entries (e.g. a standby callout after the
@@ -145,8 +151,20 @@ function OTFormModal({ open, onClose, onSave, editing, records }: {
       // An existing record with no recorded start/end but a stored hours value was
       // entered via the fast path — reopen it the same way.
       setUseHours(!!editing && !editing.start_time && editing.hours != null);
+      setSpares(editing?.spares_used || []);
+      setSpareDraft({ name: '', part_number: '', quantity: '1', unit_price: '0' });
     }
   }, [open, editing]);
+
+  const addSpare = () => {
+    const name = spareDraft.name.trim();
+    if (!name) return;
+    const quantity = parseFloat(spareDraft.quantity) || 1;
+    const unit_price = parseFloat(spareDraft.unit_price) || 0;
+    setSpares(prev => [...prev, { name, part_number: spareDraft.part_number.trim() || undefined, quantity, unit_price, total_cost: quantity * unit_price }]);
+    setSpareDraft({ name: '', part_number: '', quantity: '1', unit_price: '0' });
+  };
+  const removeSpare = (idx: number) => setSpares(prev => prev.filter((_, i) => i !== idx));
 
   const set = (k: keyof OTForm, v: string) => setForm(f => ({ ...f, [k]: v }));
   const hours = useHours ? (parseFloat(form.hours) || 0) : calcHours(form.start_time, form.end_time);
@@ -160,7 +178,7 @@ function OTFormModal({ open, onClose, onSave, editing, records }: {
       return;
     }
     setSaving(true);
-    try { await onSave(buildOvertimePayload(form, useHours), editing?.id); onClose(); }
+    try { await onSave({ ...buildOvertimePayload(form, useHours), spares_used: spares }, editing?.id); onClose(); }
     catch (err) { toast.error((err as Error).message); }
     finally { setSaving(false); }
   };
@@ -242,6 +260,46 @@ function OTFormModal({ open, onClose, onSave, editing, records }: {
           <FormField label="Notes"><input className={inputCls} value={form.notes} onChange={e => set('notes', e.target.value)} placeholder="Optional notes..." /></FormField>
         </div>
 
+        <FormField label="Spares Used (optional)">
+          <div className={`${t.chipBg} rounded-xl p-3 space-y-2`}>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div className="sm:col-span-2">
+                <SpareAutocomplete
+                  value={spareDraft.name}
+                  onChange={v => setSpareDraft(s => ({ ...s, name: v }))}
+                  onSelect={item => setSpareDraft(s => ({
+                    ...s, name: item.description || s.name, part_number: item.stock_code || s.part_number,
+                    unit_price: item.unit_price != null ? String(item.unit_price) : s.unit_price,
+                  }))}
+                  placeholder="Search spares register or type manually…"
+                />
+              </div>
+              <input type="number" min={1} step={1} className={inputCls} placeholder="Quantity" value={spareDraft.quantity} onChange={e => setSpareDraft(s => ({ ...s, quantity: e.target.value }))} />
+              <input type="number" min={0} step={0.01} className={inputCls} placeholder="Unit Price" value={spareDraft.unit_price} onChange={e => setSpareDraft(s => ({ ...s, unit_price: e.target.value }))} />
+            </div>
+            <button type="button" onClick={addSpare} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-brand-500/15 text-brand-400 hover:bg-brand-500/25 transition-all">
+              <Plus className="h-3.5 w-3.5" /> Add Spare
+            </button>
+            {spares.length > 0 && (
+              <div className="space-y-1.5 pt-1">
+                {spares.map((s, i) => (
+                  <div key={i} className={`flex justify-between items-center ${t.inputBg} rounded-lg px-3 py-2 text-sm`}>
+                    <div>
+                      <span className={`font-medium ${t.textMuted}`}>{s.name}</span>
+                      {s.part_number && <span className={`ml-2 text-xs ${t.textFaint}`}>({s.part_number})</span>}
+                      <span className={`ml-2 text-xs ${t.textFaint}`}>{s.quantity} × R{(s.unit_price || 0).toFixed(2)}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`${accentText('emerald', t.light)} font-semibold`}>R{(s.total_cost || 0).toFixed(2)}</span>
+                      <button type="button" title="Remove spare" onClick={() => removeSpare(i)} className="h-6 w-6 flex items-center justify-center rounded text-rose-500/60 hover:text-rose-500"><Trash2 className="h-3 w-3" /></button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </FormField>
+
         <FormActions onCancel={onClose} submitting={saving} submitLabel={editing ? 'Update' : 'Submit'} accent="violet" />
       </form>
     </CenterModal>
@@ -287,6 +345,20 @@ function OTDetailModal({ record, onClose, onEdit, onApprove, onReject }: {
           <p className={`text-xs mb-1 ${t.textFaint}`}>Reason for overtime</p>
           <p className={`text-sm ${t.textMuted}`}>{record.reason}</p>
         </div>
+
+        {!!record.spares_used?.length && (
+          <div className={`${t.chipBg} rounded-xl px-4 py-3`}>
+            <p className={`text-xs mb-1.5 ${t.textFaint}`}>Spares used</p>
+            <div className="space-y-1">
+              {record.spares_used.map((s, i) => (
+                <div key={i} className="flex justify-between items-center text-xs">
+                  <span className={t.textMuted}>{s.name}{s.part_number && ` (${s.part_number})`} · {s.quantity} × R{(s.unit_price || 0).toFixed(2)}</span>
+                  <span className={`font-semibold ${accentText('emerald', t.light)}`}>R{(s.total_cost || 0).toFixed(2)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-2">
           {rows.map(({ l, v }) => (
@@ -410,6 +482,160 @@ function buildWeeklyRows(records: OTRecord[], from: string, to: string, roster: 
   });
 
   return { rows: Array.from(map.values()).sort((a, b) => a.employee_name.localeCompare(b.employee_name)), days };
+}
+
+// ─── ANALYZE (reads reason text + volume/trend, no external AI API) ───────────
+// Manually triggered (not auto-fired on every filter tweak, matching how the SHEQ
+// dashboard's own AI analysis works) — sends whatever is currently filtered, so
+// re-running after changing a filter is just clicking the button again.
+
+interface OTProblemArea { title: string; description: string; severity: 'critical' | 'high' | 'medium' | 'low'; }
+interface OTTrend { metric: string; direction: 'worsening' | 'improving' | 'stable'; insight: string; }
+interface OTRecommendation { priority: 'immediate' | 'short_term' | 'long_term'; action: string; rationale: string; target: string; }
+interface OTAnalysisResult {
+  summary: string;
+  problem_areas: OTProblemArea[];
+  trends: OTTrend[];
+  recommendations: OTRecommendation[];
+  top_reasons: { phrase: string; count: number; hours: number }[];
+  top_employees: { name: string; hours: number }[];
+  top_sections: { section: string; hours: number }[];
+  _records_analysed: number;
+  generated_at: string;
+}
+
+const SEV_HEX: Record<string, string> = { critical: '#f43f5e', high: '#f97316', medium: '#f59e0b', low: '#94a3b8' };
+const PRIORITY_LABEL: Record<string, string> = { immediate: 'Immediate', short_term: 'Short Term', long_term: 'Long Term' };
+
+function AnalyzeView({ records }: { records: OTRecord[] }) {
+  const t = useTheme();
+  const [result, setResult] = useState<OTAnalysisResult | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const generate = async () => {
+    setLoading(true); setError('');
+    try {
+      const r = await postOvertimeAnalysis({ records, period_label: 'current selection' });
+      setResult(r as OTAnalysisResult);
+    } catch (e) { setError(e instanceof Error ? e.message : 'Analysis failed'); }
+    finally { setLoading(false); }
+  };
+
+  if (!result && !loading) {
+    return (
+      <div className={`${t.glass} rounded-2xl ${t.shadow} p-10 text-center`}>
+        <Lightbulb className={`h-10 w-10 mx-auto mb-3 ${accentText('amber', t.light)}`} />
+        <h3 className={`text-base font-semibold mb-1.5 ${t.textPrimary}`}>Analyze Overtime</h3>
+        <p className={`text-sm mb-4 max-w-md mx-auto ${t.textFaint}`}>
+          Reads the reason text, machines/locations mentioned, and volume/trend across the {records.length} currently-filtered record{records.length !== 1 ? 's' : ''} —
+          no external AI service, just aggregation and pattern rules run locally.
+        </p>
+        {error && <p className="text-xs text-rose-400 mb-3">{error}</p>}
+        <button type="button" onClick={generate} disabled={records.length === 0}
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 disabled:opacity-40 disabled:pointer-events-none transition-all">
+          <Sparkles className="h-4 w-4" /> Generate Analysis
+        </button>
+        {records.length === 0 && <p className={`text-xs mt-2 ${t.textFaint}`}>No records in the current filter selection.</p>}
+      </div>
+    );
+  }
+
+  if (loading) {
+    return <div className={`${t.glass} rounded-2xl ${t.shadow} p-16 text-center flex items-center justify-center gap-2 ${t.textFaint}`}><RefreshCw className="h-5 w-5 animate-spin" /> Analyzing…</div>;
+  }
+
+  if (!result) return null;
+
+  return (
+    <div className="space-y-4">
+      <div className={`${t.glass} rounded-2xl ${t.shadow} p-5`}>
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <Lightbulb className={`h-5 w-5 shrink-0 mt-0.5 ${accentText('amber', t.light)}`} />
+            <div>
+              <p className={`text-xs font-semibold uppercase tracking-wider mb-1 ${t.textFaint}`}>Summary</p>
+              <p className={`text-sm ${t.textMuted}`}>{result.summary}</p>
+            </div>
+          </div>
+          <button type="button" onClick={generate} title="Re-run with the current filters"
+            className={`shrink-0 flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg ${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText} transition-all`}>
+            <RefreshCw className="h-3 w-3" /> Refresh
+          </button>
+        </div>
+      </div>
+
+      {result.problem_areas.length > 0 && (
+        <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
+          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><AlertTriangle className="h-4 w-4 text-brand-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Problem Areas</span></div>
+          <div className="p-4 space-y-2.5">
+            {result.problem_areas.map((p, i) => (
+              <div key={i} className="flex items-start gap-3 rounded-xl px-3.5 py-3" style={{ backgroundColor: `${SEV_HEX[p.severity]}12`, borderLeft: `3px solid ${SEV_HEX[p.severity]}` }}>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold" style={{ color: SEV_HEX[p.severity] }}>{p.title}</p>
+                  <p className={`text-xs mt-0.5 ${t.textMuted}`}>{p.description}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {result.top_reasons.length > 0 && (
+          <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
+            <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><FileText className="h-4 w-4 text-brand-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Recurring Reasons</span></div>
+            <div className="p-4 space-y-2">
+              {result.top_reasons.map((p, i) => (
+                <div key={i} className="flex items-center justify-between text-xs">
+                  <span className={`${t.textMuted} truncate`}>"{p.phrase}"</span>
+                  <span className={`shrink-0 ml-2 ${t.textFaint}`}>{p.count}× · {p.hours}h</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {result.trends.length > 0 && (
+          <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
+            <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><TrendingUp className="h-4 w-4 text-brand-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Trend</span></div>
+            <div className="p-4 space-y-3">
+              {result.trends.map((tr, i) => (
+                <div key={i}>
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <span className={`text-xs font-semibold ${t.textPrimary}`}>{tr.metric}</span>
+                    <StatusBadge color={tr.direction === 'worsening' ? '#f97316' : tr.direction === 'improving' ? '#34d399' : '#94a3b8'} label={tr.direction} />
+                  </div>
+                  <p className={`text-xs ${t.textFaint}`}>{tr.insight}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {result.recommendations.length > 0 && (
+        <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
+          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><Sparkles className="h-4 w-4 text-brand-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Recommendations</span></div>
+          <div className="p-4 space-y-2.5">
+            {result.recommendations.map((r, i) => (
+              <div key={i} className={`${t.chipBg} rounded-xl px-3.5 py-3`}>
+                <div className="flex items-center gap-2 mb-1">
+                  <StatusBadge color={r.priority === 'immediate' ? '#f43f5e' : r.priority === 'short_term' ? '#f59e0b' : '#60a5fa'} label={PRIORITY_LABEL[r.priority]} />
+                  <p className={`text-sm font-medium ${t.textPrimary}`}>{r.action}</p>
+                </div>
+                <p className={`text-xs ${t.textFaint}`}>{r.rationale} · {r.target}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <p className={`text-[11px] text-right ${t.textFaint}`}>
+        {result._records_analysed} record{result._records_analysed !== 1 ? 's' : ''} analysed · generated {new Date(result.generated_at).toLocaleString('en-GB')}
+      </p>
+    </div>
+  );
 }
 
 function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employees: EmployeeLookup[] }) {
@@ -641,8 +867,9 @@ function OvertimeContent() {
   const [type, setType] = useState('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [employeePicks, setEmployeePicks] = useState<PickedEmployee[]>([]);
   const [view, setView] = useState<'table' | 'grid'>('table');
-  const [mainTab, setMainTab] = useState<'records' | 'analytics' | 'weekly-summary'>('records');
+  const [mainTab, setMainTab] = useState<'records' | 'analytics' | 'analyze' | 'weekly-summary'>('records');
 
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<OTRecord | null>(null);
@@ -653,17 +880,20 @@ function OvertimeContent() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkAction, setBulkAction] = useState<'approve' | 'reject' | null>(null);
 
+  const employeeIds = useMemo(() => new Set(employeePicks.map(p => p.employee_id)), [employeePicks]);
+
   const filtered = useMemo(() => records.filter(r => {
     if (status !== 'all' && r.status !== status) return false;
     if (type !== 'all' && r.overtime_type !== type) return false;
     if (dateFrom && r.date < dateFrom) return false;
     if (dateTo && r.date > dateTo) return false;
+    if (employeeIds.size > 0 && !employeeIds.has(r.employee_id)) return false;
     if (search) {
       const q = search.toLowerCase();
       if (!r.employee_name.toLowerCase().includes(q) && !r.employee_id.toLowerCase().includes(q) && !(r.reason || '').toLowerCase().includes(q) && !r.position.toLowerCase().includes(q)) return false;
     }
     return true;
-  }), [records, status, type, dateFrom, dateTo, search]);
+  }), [records, status, type, dateFrom, dateTo, employeeIds, search]);
 
   const stats = useMemo(() => {
     const pending = records.filter(r => r.status === 'pending').length;
@@ -902,8 +1132,17 @@ function OvertimeContent() {
               <input type="date" title="To date" value={dateTo} onChange={e => setDateTo(e.target.value)} className={`flex-1 min-w-0 ${selCls}`} />
             </div>
           </div>
+          <div className="max-w-sm">
+            <EmployeeMultiPicker
+              label="Employee(s)"
+              placeholder="Scope to specific employee(s)…"
+              value={employeePicks}
+              onAdd={p => setEmployeePicks(prev => [...prev, p])}
+              onRemove={id => setEmployeePicks(prev => prev.filter(p => p.id !== id))}
+            />
+          </div>
           <div className="flex items-center gap-2">
-            <button type="button" onClick={() => { setSearch(''); setStatus('all'); setType('all'); setDateFrom(''); setDateTo(''); }} className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg transition-colors ${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText}`}>
+            <button type="button" onClick={() => { setSearch(''); setStatus('all'); setType('all'); setDateFrom(''); setDateTo(''); setEmployeePicks([]); }} className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg transition-colors ${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText}`}>
               <X className="h-3.5 w-3.5" /> Clear
             </button>
             <div className="ml-auto flex gap-1">
@@ -916,7 +1155,7 @@ function OvertimeContent() {
       </div>
 
       <PillTabs
-        tabs={[{ key: 'records', label: 'Records', icon: FileText }, { key: 'analytics', label: 'Analytics', icon: Calendar }, { key: 'weekly-summary', label: 'Weekly Summary', icon: CalendarRange }]}
+        tabs={[{ key: 'records', label: 'Records', icon: FileText }, { key: 'analytics', label: 'Analytics', icon: Calendar }, { key: 'analyze', label: 'Analyze', icon: Lightbulb }, { key: 'weekly-summary', label: 'Weekly Summary', icon: CalendarRange }]}
         value={mainTab}
         onChange={setMainTab}
       />
@@ -994,6 +1233,8 @@ function OvertimeContent() {
             </div>
           </div>
         )
+      ) : mainTab === 'analyze' ? (
+        <AnalyzeView records={filtered} />
       ) : (
         <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

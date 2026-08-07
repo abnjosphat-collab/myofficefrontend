@@ -33,6 +33,15 @@ export async function deleteOT(id: number | string): Promise<void> {
   await api.delete(`/api/overtime/${id}`);
 }
 
+/** On-demand — the frontend sends whatever it currently has filtered, so analysis is
+ *  automatically scoped to whatever dates/status/type/employee(s) are selected. Mirrors
+ *  app/sheq/useSheqDashboardData.ts's postSafetyAnalysis: a separate export, not part of
+ *  the load cycle, since it's a manually-triggered action with its own result/loading
+ *  state in the component. */
+export async function postOvertimeAnalysis(payload: Record<string, unknown>): Promise<Record<string, any>> {
+  return api.post('/api/overtime/analyze', payload);
+}
+
 export function useOvertimeData() {
   const [records, setRecords] = useState<OTRecord[]>([]);
   const [loading, setLoading] = useState(true);
