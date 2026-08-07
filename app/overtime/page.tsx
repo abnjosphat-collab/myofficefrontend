@@ -12,12 +12,12 @@ import {
   FileText, Eye, Trash2, Edit, LayoutGrid, List, AlertCircle, AlertTriangle,
   Sun, Moon, Briefcase, Calendar, X, User, Download, CalendarRange,
   Wrench, UsersRound, TrendingUp, TrendingDown, Lightbulb,
-  Wallet, Gauge, Brain, PieChart, Layers, ChevronDown, ChevronUp, ChevronRight, Info,
+  Wallet, Gauge, Brain, PieChart, Layers, ChevronDown, ChevronUp, ChevronRight,
 } from '@/components/shared/theme';
 import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, ProgressBar, FormField, FormActions,
   useCollapseSection, CenterModal, ACCENT_HEX, ACCENT, type Accent, EmptyState, PrimaryButton, GlowCard, SelectField, accentText,
-  CountUp, PulsingIcon, TYPE_SCALE, staggerContainer, fadeUp,
+  CountUp, PulsingIcon, TYPE_SCALE, staggerContainer, fadeUp, HintText,
 } from '@/components/shared/theme';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ApprovalGate, type SignatureResult } from '@/components/shared/ApprovalGate';
@@ -591,10 +591,11 @@ function OvertimeHeatmap({ grid, weekdayLabels, punchRecords }: { grid: number[]
       <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}>
         <Calendar className="h-4 w-4 text-brand-400" />
         <span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>When Overtime Happens</span>
-        <span className={`ml-auto ${TYPE_SCALE.caption} ${t.textFaint} flex items-center gap-1`}><Info className="h-3 w-3" /> click a cell to see who worked overtime then</span>
+        <HintText className="ml-auto">click a cell to see who worked overtime then</HintText>
       </div>
       <div className="p-4 overflow-x-auto">
         <div className="inline-block">
+          <p className={`pl-9 ${TYPE_SCALE.caption} ${t.textFaint} mb-1`}>Hour of day</p>
           <div className="flex gap-[3px] pl-9">
             {activeHours.map(h => (
               <span key={h} className={`w-5 shrink-0 text-center ${TYPE_SCALE.caption} ${t.textFaint}`}>{h}</span>
@@ -935,7 +936,7 @@ function AnalyticsSubTab({ filtered, byType, byStatus, bySection, byArtisan, max
                     {byType.map((_, i) => <Cell key={i} fill={TYPE_BAR_COLORS[i % TYPE_BAR_COLORS.length]} fillOpacity={0.85} />)}
                   </Pie>
                   <Tooltip contentStyle={tooltipStyle} formatter={(v: number, n: string) => [`${v} request${v !== 1 ? 's' : ''}`, n]} />
-                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <Legend content={<DonutLegend />} />
                 </RePieChart>
               </ResponsiveContainer>
             )}
@@ -952,7 +953,7 @@ function AnalyticsSubTab({ filtered, byType, byStatus, bySection, byArtisan, max
                     {byStatus.map((_, i) => <Cell key={i} fill={STATUS_COLORS[i]} fillOpacity={0.85} />)}
                   </Pie>
                   <Tooltip contentStyle={tooltipStyle} formatter={(v: number, n: string) => [`${v} request${v !== 1 ? 's' : ''}`, n]} />
-                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <Legend content={<DonutLegend />} />
                 </RePieChart>
               </ResponsiveContainer>
             )}
@@ -1034,8 +1035,30 @@ function AnalyticsSubTab({ filtered, byType, byStatus, bySection, byArtisan, max
 
 /** One row per recurring category, expandable to reveal the underlying records —
  *  the "drill down from a high-level category into the raw records" requirement. */
-const CATEGORY_COLORS = Object.values(ACCENT_HEX);
+// 8-hue validated categorical palette (dataviz skill's default set — gate-checked for
+// CVD-safe adjacent contrast in both themes) rather than ACCENT_HEX's 6, since these
+// charts can carry up to 8 series (the backend caps top_reasons/category_detail at 8)
+// and 6 colors would silently repeat on slots 7-8.
+const CATEGORY_COLORS = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#4a3aa7', '#e34948'];
 type CategorySortKey = 'instances' | 'hours' | 'avg_hours' | 'pct_of_total';
+
+/** Custom Recharts legend — the default `<Legend>` packs long category/phrase names
+ *  together with no visible separation ("Daily ChecksDeclutchingShaft Exam…"). Wraps
+ *  properly with real gaps, truncates long labels, keeps the full name in a tooltip. */
+function DonutLegend({ payload }: { payload?: { value: string; color: string }[] }) {
+  const t = useTheme();
+  if (!payload || payload.length === 0) return null;
+  return (
+    <div className="flex flex-wrap justify-center gap-x-3 gap-y-1.5 pt-2">
+      {payload.map((entry, i) => (
+        <span key={i} title={entry.value} className={`inline-flex items-center gap-1.5 ${TYPE_SCALE.caption} ${t.textFaint} max-w-[140px]`}>
+          <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: entry.color }} />
+          <span className="truncate">{entry.value}</span>
+        </span>
+      ))}
+    </div>
+  );
+}
 
 /** Clickable column header for CategoryDetailTable — click toggles sort, a second
  *  click on the same column flips direction (standard data-table sort convention). */
@@ -1062,7 +1085,6 @@ function CategoryDetailTable({ categories }: { categories: OTCategoryDetail[] })
 
   const sorted = [...categories].sort((a, b) => (a[sort.key] - b[sort.key]) * (sort.dir === 'asc' ? 1 : -1));
   const setSortKey = (key: CategorySortKey) => setSort(prev => prev.key === key ? { key, dir: prev.dir === 'desc' ? 'asc' : 'desc' } : { key, dir: 'desc' });
-  const totalHours = categories.reduce((s, c) => s + c.hours, 0);
 
   return (
     <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
@@ -1070,21 +1092,24 @@ function CategoryDetailTable({ categories }: { categories: OTCategoryDetail[] })
         <Layers className="h-4 w-4 text-brand-400" />
         <span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>Category Detail</span>
       </div>
-      <div className={`flex items-start gap-1.5 px-5 pt-3 ${TYPE_SCALE.caption} ${t.textFaint}`}>
-        <Info className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-        <span>Click any category row below to expand it and see the individual overtime records behind that number. Click a column heading (Instances / Hours / Avg h / % Total) to sort by it — click again to reverse the order.</span>
-      </div>
+      <HintText className="px-5 pt-3">
+        Click any category row below to expand it and see the individual overtime records behind that number. Click a column heading (Instances / Hours / Avg h / % Total) to sort by it — click again to reverse the order.
+      </HintText>
 
       {categories.length > 1 && (
         <div className="px-5 pt-3">
           <ResponsiveContainer width="100%" height={220}>
             <RePieChart>
-              <Pie data={categories.map(c => ({ category: c.category, hours: c.hours, instances: c.instances }))} dataKey="hours" nameKey="category" innerRadius={50} outerRadius={80} paddingAngle={2} animationDuration={700} animationEasing="ease-out">
+              {/* Percentage comes straight off `pct_of_total` (same field the table
+                  renders) rather than being recomputed against sum(categories' hours) —
+                  that denominator excludes every uncategorized record, which silently
+                  inflated the pie's percentage above what the table showed. */}
+              <Pie data={categories.map(c => ({ category: c.category, hours: c.hours, instances: c.instances, pct: c.pct_of_total }))} dataKey="hours" nameKey="category" innerRadius={50} outerRadius={80} paddingAngle={2} animationDuration={700} animationEasing="ease-out">
                 {categories.map((_, i) => <Cell key={i} fill={CATEGORY_COLORS[i % CATEGORY_COLORS.length]} fillOpacity={0.85} />)}
               </Pie>
               <Tooltip contentStyle={{ backgroundColor: t.light ? '#fff' : '#0f1e2e', border: `1px solid ${t.light ? 'rgba(15,23,42,0.1)' : 'rgba(134,187,216,0.2)'}`, borderRadius: 12, color: t.light ? '#0f172a' : '#fff', fontSize: 12 }}
-                formatter={(v: number, n: string, entry) => [`${v}h (${entry.payload.instances}×, ${totalHours ? Math.round(v / totalHours * 100) : 0}%)`, n]} />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
+                formatter={(v: number, n: string, entry) => [`${v}h (${entry.payload.instances}×, ${entry.payload.pct}%)`, n]} />
+              <Legend content={<DonutLegend />} />
             </RePieChart>
           </ResponsiveContainer>
         </div>
@@ -1239,7 +1264,7 @@ function PatternsSubTab({ records, result, loading, updating, error, onRefresh }
           <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><FileText className="h-4 w-4 text-brand-400" /><span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>Recurring Reasons</span></div>
           <div className="p-4">
             <ResponsiveContainer width="100%" height={240}>
-              <BarChart data={result.top_reasons} margin={{ bottom: 24 }}>
+              <BarChart data={result.top_reasons} barSize={28} margin={{ bottom: 24 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
                 <XAxis dataKey="phrase" tick={{ fill: axisColor, fontSize: 9 }} axisLine={false} tickLine={false} angle={-35} textAnchor="end" interval={0} height={50}
                   tickFormatter={(v: string) => v.length > 14 ? `${v.slice(0, 13)}…` : v} />

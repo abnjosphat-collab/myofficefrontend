@@ -21,7 +21,7 @@ import { exportFilename } from '@/lib/exportUtils';
 import { lineTotal } from '@/components/shared/utils';
 import {
   useTheme, PageHero, StatTile, StatusBadge, ViewToggle,
-  FormField, FormActions, useCollapseSection, CenterModal, ACCENT_HEX, GlowCard, SelectField, AutofillInput, accentText,
+  FormField, FormActions, useCollapseSection, CenterModal, ACCENT_HEX, GlowCard, SelectField, AutofillInput, accentText, HintText,
 } from '@/components/shared/theme';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -700,6 +700,9 @@ function BreakdownsPageContent() {
             <h3 className={`text-sm font-semibold ${t.textPrimary}`}>Breakdown Records ({filteredBreakdowns.length} of {breakdowns.length})</h3>
             <ViewToggle value={viewMode} onChange={setViewMode} options={[{ value: 'table', icon: TableIcon, label: 'Table view' }, { value: 'grid', icon: LayoutGrid, label: 'Grid view' }]} />
           </div>
+          {!loading && !loadError && filteredBreakdowns.length > 0 && viewMode === 'table' && (
+            <HintText className="px-4 pt-3">Click a column heading to sort by it — click again to reverse. Click the chevron on a row to expand it and see more detail.</HintText>
+          )}
           {loading ? (
             <div className={`flex items-center justify-center py-16 gap-2 ${t.textFaint}`}><Loader2 className="h-5 w-5 animate-spin" /><span className="text-sm">Loading breakdowns…</span></div>
           ) : loadError ? (

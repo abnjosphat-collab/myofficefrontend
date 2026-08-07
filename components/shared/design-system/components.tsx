@@ -13,8 +13,8 @@ import { motion } from 'framer-motion';
 // Icons come from the shared icon module (Phosphor-backed, solid/outline toggle-aware) —
 // not directly from lucide — so shared components render in the same icon family/style
 // as the rest of the app.
-import { ChevronRight, ChevronDown, Loader2, Check, SearchIcon, Pencil, Trash2, ArrowUpRight, ArrowDownRight } from './icons';
-import { useTheme, ACCENT, ACCENT_HEX, SPACING, RADIUS, TILE_SURFACE, TILE_ASPECT, type Accent } from './tokens';
+import { ChevronRight, ChevronDown, Loader2, Check, SearchIcon, Pencil, Trash2, ArrowUpRight, ArrowDownRight, Info } from './icons';
+import { useTheme, ACCENT, ACCENT_HEX, SPACING, RADIUS, TILE_SURFACE, TILE_ASPECT, TYPE_SCALE, type Accent } from './tokens';
 import { getInputSuggestions, recordInput } from '@/lib/inputHistory';
 import { getDefaultExpanded } from '@/lib/prefs';
 import { GlowCard, PulsingIcon, AnimatedText, Collapse, CountUp, useScrollEdgeFlash, ScrollEdgeGlow } from './primitives';
@@ -75,6 +75,21 @@ export function StatusBadge({ color, label, dot = false }: { color: string; labe
       {dot && <span className="h-1.5 w-1.5 rounded-full" style={{ background: color }} />}
       {label}
     </span>
+  );
+}
+
+// ─── HintText — a short instructional caption for non-obvious interactions ──────
+// Use sparingly: only where a user genuinely can't tell an element is interactive
+// (e.g. a table row that expands on click AND a column header that sorts on click —
+// two different behaviors on one element, neither visually obvious). Not a general
+// "add a tip everywhere" component — most UI should be self-explanatory without one.
+export function HintText({ icon: Icon = Info, children, className = '' }: { icon?: ElementType; children: ReactNode; className?: string }) {
+  const t = useTheme();
+  return (
+    <p className={`flex items-start gap-1.5 ${TYPE_SCALE.caption} ${t.textFaint} ${className}`}>
+      <Icon className="h-3 w-3 shrink-0 mt-0.5" />
+      <span>{children}</span>
+    </p>
   );
 }
 
