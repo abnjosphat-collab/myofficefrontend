@@ -500,7 +500,8 @@ interface OTAnalysisResult {
   top_reasons: { phrase: string; count: number; hours: number }[];
   top_employees: { name: string; hours: number }[];
   top_sections: { section: string; hours: number }[];
-  daily_hours: Record<string, number>;
+  hour_weekday_hours: number[][];
+  weekday_labels: string[];
   _records_analysed: number;
   generated_at: string;
 }
@@ -531,39 +532,59 @@ function AnalyzeStat({ icon: Icon, accent, label, value, suffix = '', decimals =
   );
 }
 
-/** GitHub-contributions-style day strip — one cell per day that has overtime in the
- *  current selection, sequential single-hue intensity (per the app's own color rule:
- *  magnitude gets one hue light→dark, never a rainbow). Chronological left→right rather
- *  than calendar-week-aligned, so it stays correct for any arbitrary filtered date range. */
-function OvertimeHeatmap({ dailyHours }: { dailyHours: Record<string, number> }) {
+/** Punch-card heatmap — hour-of-day × weekday, weighted by hours (not just a count of
+ *  starts) — answers "when does overtime happen most", dynamically over whatever's
+ *  currently filtered (person/date-range/etc, since it comes from the same analyze
+ *  call as everything else on this tab). Sequential single-hue intensity per the app's
+ *  own color rule: magnitude gets one hue light→dark, never a rainbow. Records with no
+ *  recorded start_time (the hours-only fast path) can't be placed on an hour axis and
+ *  are simply not counted here. */
+function OvertimeHeatmap({ grid, weekdayLabels }: { grid: number[][]; weekdayLabels: string[] }) {
   const t = useTheme();
-  const entries = useMemo(() => Object.entries(dailyHours).sort(([a], [b]) => a.localeCompare(b)), [dailyHours]);
-  if (entries.length === 0) return null;
-  const max = Math.max(...entries.map(([, h]) => h), 1);
+  const hasData = grid.some(row => row.some(v => v > 0));
+  if (!hasData) return null;
+  const max = Math.max(...grid.flat(), 1);
   const levelOf = (h: number) => h <= 0 ? 0 : h / max <= 0.25 ? 1 : h / max <= 0.5 ? 2 : h / max <= 0.75 ? 3 : 4;
   const LEVEL_BG = [t.chipBg, 'bg-brand-500/20', 'bg-brand-500/40', 'bg-brand-500/65', 'bg-brand-500/90'];
+  // Hours with zero overtime across every weekday in this selection are dead columns —
+  // drop them so the grid stays compact instead of mostly-empty for a night-shift-only
+  // roster or a 9-to-5 one.
+  const activeHours = Array.from({ length: 24 }, (_, h) => h).filter(h => grid[h].some(v => v > 0));
 
   return (
     <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
       <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}>
         <Calendar className="h-4 w-4 text-brand-400" />
-        <span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>Overtime Activity</span>
-        <span className={`ml-auto ${TYPE_SCALE.caption} ${t.textFaint}`}>{entries.length} day{entries.length !== 1 ? 's' : ''} with overtime</span>
+        <span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>When Overtime Happens</span>
+        <span className={`ml-auto ${TYPE_SCALE.caption} ${t.textFaint}`}>by hour started · weekday</span>
       </div>
       <div className="p-4 overflow-x-auto">
-        <div className="flex gap-1 pb-1">
-          {entries.map(([date, hours], i) => (
-            <motion.div
-              key={date}
-              initial={{ opacity: 0, scale: 0.5 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.22, delay: Math.min(i * 0.006, 0.6) }}
-              title={`${fmtDate(date)} — ${hours.toFixed(1)}h`}
-              className={`h-5 w-5 rounded-[4px] shrink-0 ${LEVEL_BG[levelOf(hours)]} hover:ring-2 hover:ring-brand-400/60 transition-shadow cursor-default`}
-            />
+        <div className="inline-block">
+          <div className="flex gap-[3px] pl-9">
+            {activeHours.map(h => (
+              <span key={h} className={`w-5 shrink-0 text-center ${TYPE_SCALE.caption} ${t.textFaint}`}>{h}</span>
+            ))}
+          </div>
+          {weekdayLabels.map((day, wd) => (
+            <div key={day} className="flex items-center gap-[3px] mt-[3px]">
+              <span className={`w-8 shrink-0 ${TYPE_SCALE.caption} ${t.textFaint}`}>{day}</span>
+              {activeHours.map((h, i) => {
+                const hours = grid[h][wd];
+                return (
+                  <motion.div
+                    key={h}
+                    initial={{ opacity: 0, scale: 0.5 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.2, delay: Math.min((wd * activeHours.length + i) * 0.004, 0.6) }}
+                    title={`${day} ${String(h).padStart(2, '0')}:00 — ${hours > 0 ? `${hours.toFixed(1)}h` : 'no overtime'}`}
+                    className={`h-5 w-5 rounded-[4px] shrink-0 ${LEVEL_BG[levelOf(hours)]} hover:ring-2 hover:ring-brand-400/60 transition-shadow cursor-default`}
+                  />
+                );
+              })}
+            </div>
           ))}
         </div>
-        <div className="flex items-center gap-1.5 mt-3">
+        <div className="flex items-center gap-1.5 mt-3 pl-9">
           <span className={`${TYPE_SCALE.caption} ${t.textFaint}`}>Less</span>
           {LEVEL_BG.map((cls, i) => <div key={i} className={`h-3 w-3 rounded-[3px] ${cls}`} />)}
           <span className={`${TYPE_SCALE.caption} ${t.textFaint}`}>More</span>
@@ -652,7 +673,7 @@ function AnalyzeView({ records }: { records: OTRecord[] }) {
               return (
                 <motion.div key={i} variants={fadeUp}>
                   <GlowCard color={SEV_HEX[p.severity]} forceGlow elevated surface={`${t.glassSoft} rounded-xl`}>
-                    <div className="flex items-start gap-3 p-4" style={{ borderLeft: `2px solid ${SEV_HEX[p.severity]}80` }}>
+                    <div className="flex items-start gap-3 p-4">
                       <PulsingIcon className="shrink-0 mt-0.5 h-6 w-6 flex items-center justify-center">
                         <SevIcon className="h-4 w-4" style={{ color: SEV_HEX[p.severity] }} />
                       </PulsingIcon>
@@ -721,9 +742,7 @@ function AnalyzeView({ records }: { records: OTRecord[] }) {
         )}
       </div>
 
-      {Object.keys(result.daily_hours).length > 0 && (
-        <motion.div variants={fadeUp}><OvertimeHeatmap dailyHours={result.daily_hours} /></motion.div>
-      )}
+      <motion.div variants={fadeUp}><OvertimeHeatmap grid={result.hour_weekday_hours} weekdayLabels={result.weekday_labels} /></motion.div>
 
       {result.recommendations.length > 0 && (
         <motion.div variants={fadeUp} className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
@@ -732,7 +751,7 @@ function AnalyzeView({ records }: { records: OTRecord[] }) {
             {result.recommendations.map((r, i) => (
               <motion.div key={i} variants={fadeUp}>
                 <GlowCard color={PRIORITY_HEX[r.priority]} surface={`${t.glassSoft} rounded-xl`}>
-                  <div className="p-4" style={{ borderLeft: `2px solid ${PRIORITY_HEX[r.priority]}80` }}>
+                  <div className="p-4">
                     <div className="flex items-center gap-2 mb-1">
                       <StatusBadge color={PRIORITY_HEX[r.priority]} label={PRIORITY_LABEL[r.priority]} />
                       <p className={`${TYPE_SCALE.body} font-medium ${t.textPrimary}`}>{r.action}</p>
