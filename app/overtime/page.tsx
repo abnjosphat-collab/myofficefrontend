@@ -2,6 +2,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef, ElementType } from 'react';
+import { motion } from 'framer-motion';
 import { AppShell } from '@/components/app-shell';
 import { PredictiveInput } from '@/components/shared/PredictiveInput';
 import { PillTabs } from '@/components/shared/PillTabs';
@@ -9,11 +10,12 @@ import {
   Clock4, Plus, Search, RefreshCw, CheckCircle2, XCircle,
   FileText, Eye, Trash2, Edit, LayoutGrid, List, AlertCircle, AlertTriangle,
   Sun, Moon, Briefcase, Calendar, X, User, Download, CalendarRange,
-  Wrench, UsersRound, TrendingUp, Lightbulb, Sparkles,
+  Wrench, UsersRound, TrendingUp, TrendingDown, Lightbulb, Sparkles,
 } from '@/components/shared/theme';
 import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, ProgressBar, FormField, FormActions,
-  useCollapseSection, CenterModal, ACCENT_HEX, EmptyState, PrimaryButton, GlowCard, SelectField, accentText,
+  useCollapseSection, CenterModal, ACCENT_HEX, ACCENT, type Accent, EmptyState, PrimaryButton, GlowCard, SelectField, accentText,
+  CountUp, PulsingIcon, TYPE_SCALE, staggerContainer, fadeUp,
 } from '@/components/shared/theme';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ApprovalGate, type SignatureResult } from '@/components/shared/ApprovalGate';
@@ -46,10 +48,6 @@ const STATUS_HEX: Record<OTStatus, string> = {
 function rateFor(type: OTType): 1.5 | 2.0 {
   return type === 'weekend' || type === 'holiday' ? 2.0 : 1.5;
 }
-const STATUS_COLOR = (light: boolean): Record<OTStatus, string> => ({
-  pending: accentText('amber', light), approved: accentText('emerald', light), rejected: accentText('rose', light), paid: 'text-brand-400', cancelled: 'text-white/40',
-});
-
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
 function nowLocal(): string {
@@ -490,28 +488,97 @@ function buildWeeklyRows(records: OTRecord[], from: string, to: string, roster: 
 // re-running after changing a filter is just clicking the button again.
 
 interface OTProblemArea { title: string; description: string; severity: 'critical' | 'high' | 'medium' | 'low'; }
-interface OTTrend { metric: string; direction: 'worsening' | 'improving' | 'stable'; insight: string; }
+interface OTTrend { metric: string; direction: 'worsening' | 'improving' | 'stable'; insight: string; older_hours: number; newer_hours: number; }
 interface OTRecommendation { priority: 'immediate' | 'short_term' | 'long_term'; action: string; rationale: string; target: string; }
 interface OTAnalysisResult {
   summary: string;
+  total_hours: number;
+  double_time_pct: number;
   problem_areas: OTProblemArea[];
   trends: OTTrend[];
   recommendations: OTRecommendation[];
   top_reasons: { phrase: string; count: number; hours: number }[];
   top_employees: { name: string; hours: number }[];
   top_sections: { section: string; hours: number }[];
+  daily_hours: Record<string, number>;
   _records_analysed: number;
   generated_at: string;
 }
 
 const SEV_HEX: Record<string, string> = { critical: '#f43f5e', high: '#f97316', medium: '#f59e0b', low: '#94a3b8' };
+const PRIORITY_HEX: Record<string, string> = { immediate: '#f43f5e', short_term: '#f59e0b', long_term: '#60a5fa' };
 const PRIORITY_LABEL: Record<string, string> = { immediate: 'Immediate', short_term: 'Short Term', long_term: 'Long Term' };
+const DIR_HEX: Record<string, string> = { worsening: '#f97316', improving: '#34d399', stable: '#94a3b8' };
+
+/** Same visual recipe as the shared StatCard (GlowCard + icon/label/value), but with
+ *  CountUp for the value — StatCard's `value` prop is typed string|number, so it can't
+ *  host CountUp's JSX directly. */
+function AnalyzeStat({ icon: Icon, accent, label, value, suffix = '', decimals = 0 }: {
+  icon: ElementType; accent: Accent; label: string; value: number; suffix?: string; decimals?: number;
+}) {
+  const t = useTheme();
+  const a = ACCENT[accent];
+  return (
+    <GlowCard color={ACCENT_HEX[accent]} className="p-3.5">
+      <div className="flex items-center gap-1.5 mb-3">
+        <Icon className={`h-3.5 w-3.5 shrink-0 ${a.icon}`} />
+        <p className={`${t.textSecondary} ${TYPE_SCALE.label} font-medium uppercase tracking-wide truncate`}>{label}</p>
+      </div>
+      <p className={`${TYPE_SCALE.statLarge} leading-none font-bold ${t.textPrimary} tracking-tight tabular-nums`}>
+        <CountUp value={value} suffix={suffix} duration={decimals ? 1.2 : 0.9} />
+      </p>
+    </GlowCard>
+  );
+}
+
+/** GitHub-contributions-style day strip — one cell per day that has overtime in the
+ *  current selection, sequential single-hue intensity (per the app's own color rule:
+ *  magnitude gets one hue light→dark, never a rainbow). Chronological left→right rather
+ *  than calendar-week-aligned, so it stays correct for any arbitrary filtered date range. */
+function OvertimeHeatmap({ dailyHours }: { dailyHours: Record<string, number> }) {
+  const t = useTheme();
+  const entries = useMemo(() => Object.entries(dailyHours).sort(([a], [b]) => a.localeCompare(b)), [dailyHours]);
+  if (entries.length === 0) return null;
+  const max = Math.max(...entries.map(([, h]) => h), 1);
+  const levelOf = (h: number) => h <= 0 ? 0 : h / max <= 0.25 ? 1 : h / max <= 0.5 ? 2 : h / max <= 0.75 ? 3 : 4;
+  const LEVEL_BG = [t.chipBg, 'bg-brand-500/20', 'bg-brand-500/40', 'bg-brand-500/65', 'bg-brand-500/90'];
+
+  return (
+    <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
+      <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}>
+        <Calendar className="h-4 w-4 text-brand-400" />
+        <span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>Overtime Activity</span>
+        <span className={`ml-auto ${TYPE_SCALE.caption} ${t.textFaint}`}>{entries.length} day{entries.length !== 1 ? 's' : ''} with overtime</span>
+      </div>
+      <div className="p-4 overflow-x-auto">
+        <div className="flex gap-1 pb-1">
+          {entries.map(([date, hours], i) => (
+            <motion.div
+              key={date}
+              initial={{ opacity: 0, scale: 0.5 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.22, delay: Math.min(i * 0.006, 0.6) }}
+              title={`${fmtDate(date)} — ${hours.toFixed(1)}h`}
+              className={`h-5 w-5 rounded-[4px] shrink-0 ${LEVEL_BG[levelOf(hours)]} hover:ring-2 hover:ring-brand-400/60 transition-shadow cursor-default`}
+            />
+          ))}
+        </div>
+        <div className="flex items-center gap-1.5 mt-3">
+          <span className={`${TYPE_SCALE.caption} ${t.textFaint}`}>Less</span>
+          {LEVEL_BG.map((cls, i) => <div key={i} className={`h-3 w-3 rounded-[3px] ${cls}`} />)}
+          <span className={`${TYPE_SCALE.caption} ${t.textFaint}`}>More</span>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function AnalyzeView({ records }: { records: OTRecord[] }) {
   const t = useTheme();
   const [result, setResult] = useState<OTAnalysisResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const axisColor = t.light ? 'rgba(15,23,42,0.4)' : 'rgba(255,255,255,0.4)';
 
   const generate = async () => {
     setLoading(true); setError('');
@@ -525,9 +592,11 @@ function AnalyzeView({ records }: { records: OTRecord[] }) {
   if (!result && !loading) {
     return (
       <div className={`${t.glass} rounded-2xl ${t.shadow} p-10 text-center`}>
-        <Lightbulb className={`h-10 w-10 mx-auto mb-3 ${accentText('amber', t.light)}`} />
-        <h3 className={`text-base font-semibold mb-1.5 ${t.textPrimary}`}>Analyze Overtime</h3>
-        <p className={`text-sm mb-4 max-w-md mx-auto ${t.textFaint}`}>
+        <PulsingIcon className="h-12 w-12 mx-auto mb-3 flex items-center justify-center">
+          <Lightbulb className={`h-9 w-9 ${accentText('amber', t.light)}`} />
+        </PulsingIcon>
+        <h3 className={`${TYPE_SCALE.subtitle} font-semibold mb-1.5 ${t.textPrimary}`}>Analyze Overtime</h3>
+        <p className={`${TYPE_SCALE.body} mb-4 max-w-md mx-auto ${t.textFaint}`}>
           Reads the reason text, machines/locations mentioned, and volume/trend across the {records.length} currently-filtered record{records.length !== 1 ? 's' : ''} —
           no external AI service, just aggregation and pattern rules run locally.
         </p>
@@ -548,14 +617,23 @@ function AnalyzeView({ records }: { records: OTRecord[] }) {
   if (!result) return null;
 
   return (
-    <div className="space-y-4">
-      <div className={`${t.glass} rounded-2xl ${t.shadow} p-5`}>
+    <motion.div initial="hidden" animate="show" variants={staggerContainer} className="space-y-4">
+      <motion.div variants={fadeUp} className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <AnalyzeStat icon={Clock4} accent="violet" label="Total Hours" value={result.total_hours} suffix="h" decimals={1} />
+        <AnalyzeStat icon={FileText} accent="blue" label="Records" value={result._records_analysed} />
+        <AnalyzeStat icon={Lightbulb} accent="amber" label="Recurring Causes" value={result.top_reasons.length} />
+        <AnalyzeStat icon={TrendingUp} accent="indigo" label="2.0× Share" value={result.double_time_pct} suffix="%" />
+      </motion.div>
+
+      <motion.div variants={fadeUp} className={`${t.glass} rounded-2xl ${t.shadow} p-5`}>
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-start gap-3">
-            <Lightbulb className={`h-5 w-5 shrink-0 mt-0.5 ${accentText('amber', t.light)}`} />
+            <PulsingIcon className="h-8 w-8 shrink-0 flex items-center justify-center">
+              <Lightbulb className={`h-5 w-5 ${accentText('amber', t.light)}`} />
+            </PulsingIcon>
             <div>
-              <p className={`text-xs font-semibold uppercase tracking-wider mb-1 ${t.textFaint}`}>Summary</p>
-              <p className={`text-sm ${t.textMuted}`}>{result.summary}</p>
+              <p className={`${TYPE_SCALE.label} font-semibold uppercase tracking-wider mb-1 ${t.textFaint}`}>Summary</p>
+              <p className={`${TYPE_SCALE.body} ${t.textMuted}`}>{result.summary}</p>
             </div>
           </div>
           <button type="button" onClick={generate} title="Re-run with the current filters"
@@ -563,78 +641,115 @@ function AnalyzeView({ records }: { records: OTRecord[] }) {
             <RefreshCw className="h-3 w-3" /> Refresh
           </button>
         </div>
-      </div>
+      </motion.div>
 
       {result.problem_areas.length > 0 && (
-        <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><AlertTriangle className="h-4 w-4 text-brand-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Problem Areas</span></div>
-          <div className="p-4 space-y-2.5">
-            {result.problem_areas.map((p, i) => (
-              <div key={i} className="flex items-start gap-3 rounded-xl px-3.5 py-3" style={{ backgroundColor: `${SEV_HEX[p.severity]}12`, borderLeft: `3px solid ${SEV_HEX[p.severity]}` }}>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold" style={{ color: SEV_HEX[p.severity] }}>{p.title}</p>
-                  <p className={`text-xs mt-0.5 ${t.textMuted}`}>{p.description}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        <motion.div variants={fadeUp} className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
+          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><AlertTriangle className="h-4 w-4 text-brand-400" /><span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>Problem Areas</span></div>
+          <motion.div variants={staggerContainer} initial="hidden" animate="show" className="p-4 space-y-2.5">
+            {result.problem_areas.map((p, i) => {
+              const SevIcon = p.severity === 'critical' || p.severity === 'high' ? AlertTriangle : AlertCircle;
+              return (
+                <motion.div key={i} variants={fadeUp}>
+                  <GlowCard color={SEV_HEX[p.severity]} forceGlow elevated surface={`${t.glassSoft} rounded-xl`}>
+                    <div className="flex items-start gap-3 p-4" style={{ borderLeft: `2px solid ${SEV_HEX[p.severity]}80` }}>
+                      <PulsingIcon className="shrink-0 mt-0.5 h-6 w-6 flex items-center justify-center">
+                        <SevIcon className="h-4 w-4" style={{ color: SEV_HEX[p.severity] }} />
+                      </PulsingIcon>
+                      <div className="min-w-0 flex-1">
+                        <p className={`${TYPE_SCALE.body} font-semibold`} style={{ color: SEV_HEX[p.severity] }}>{p.title}</p>
+                        <p className={`${TYPE_SCALE.caption} mt-0.5 ${t.textMuted}`}>{p.description}</p>
+                      </div>
+                    </div>
+                  </GlowCard>
+                </motion.div>
+              );
+            })}
+          </motion.div>
+        </motion.div>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {result.top_reasons.length > 0 && (
-          <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-            <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><FileText className="h-4 w-4 text-brand-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Recurring Reasons</span></div>
-            <div className="p-4 space-y-2">
-              {result.top_reasons.map((p, i) => (
-                <div key={i} className="flex items-center justify-between text-xs">
-                  <span className={`${t.textMuted} truncate`}>"{p.phrase}"</span>
-                  <span className={`shrink-0 ml-2 ${t.textFaint}`}>{p.count}× · {p.hours}h</span>
-                </div>
-              ))}
+          <motion.div variants={fadeUp} className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
+            <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><FileText className="h-4 w-4 text-brand-400" /><span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>Recurring Reasons</span></div>
+            <div className="p-4 space-y-3">
+              {(() => {
+                const maxHours = Math.max(...result.top_reasons.map(x => x.hours), 1);
+                return result.top_reasons.map((p, i) => (
+                  <div key={i}>
+                    <div className="flex justify-between text-xs mb-1">
+                      <span className={`font-medium ${t.textPrimary} truncate`}>&ldquo;{p.phrase}&rdquo;</span>
+                      <span className={`shrink-0 ml-2 ${t.textFaint}`}>{p.count}× · {p.hours}h</span>
+                    </div>
+                    <ProgressBar value={(p.hours / maxHours) * 100} color={ACCENT_HEX.amber} showValue={false} />
+                  </div>
+                ));
+              })()}
             </div>
-          </div>
+          </motion.div>
         )}
 
         {result.trends.length > 0 && (
-          <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-            <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><TrendingUp className="h-4 w-4 text-brand-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Trend</span></div>
-            <div className="p-4 space-y-3">
-              {result.trends.map((tr, i) => (
-                <div key={i}>
-                  <div className="flex items-center gap-1.5 mb-0.5">
-                    <span className={`text-xs font-semibold ${t.textPrimary}`}>{tr.metric}</span>
-                    <StatusBadge color={tr.direction === 'worsening' ? '#f97316' : tr.direction === 'improving' ? '#34d399' : '#94a3b8'} label={tr.direction} />
+          <motion.div variants={fadeUp} className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
+            <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><TrendingUp className="h-4 w-4 text-brand-400" /><span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>Trend</span></div>
+            <div className="p-4 space-y-4">
+              {result.trends.map((tr, i) => {
+                const DirIcon = tr.direction === 'worsening' ? TrendingUp : tr.direction === 'improving' ? TrendingDown : TrendingUp;
+                const chartData = [{ label: 'First Half', hours: tr.older_hours }, { label: 'Second Half', hours: tr.newer_hours }];
+                return (
+                  <div key={i}>
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <DirIcon className="h-3.5 w-3.5" style={{ color: DIR_HEX[tr.direction] }} />
+                      <span className={`${TYPE_SCALE.body} font-semibold ${t.textPrimary}`}>{tr.metric}</span>
+                      <StatusBadge color={DIR_HEX[tr.direction]} label={tr.direction} />
+                    </div>
+                    <ResponsiveContainer width="100%" height={110}>
+                      <BarChart data={chartData} barSize={44}>
+                        <XAxis dataKey="label" tick={{ fill: axisColor, fontSize: 10 }} axisLine={false} tickLine={false} />
+                        <YAxis hide />
+                        <Tooltip contentStyle={{ backgroundColor: t.light ? '#fff' : '#0f1e2e', border: `1px solid ${t.light ? 'rgba(15,23,42,0.1)' : 'rgba(134,187,216,0.2)'}`, borderRadius: 12, color: t.light ? '#0f172a' : '#fff', fontSize: 12 }} formatter={(v: number) => [`${v}h`, 'Hours']} />
+                        <Bar dataKey="hours" radius={[6, 6, 0, 0]} fill={DIR_HEX[tr.direction]} fillOpacity={0.85} animationDuration={700} animationEasing="ease-out" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                    <p className={`${TYPE_SCALE.caption} ${t.textFaint} mt-1`}>{tr.insight}</p>
                   </div>
-                  <p className={`text-xs ${t.textFaint}`}>{tr.insight}</p>
-                </div>
-              ))}
+                );
+              })}
             </div>
-          </div>
+          </motion.div>
         )}
       </div>
 
-      {result.recommendations.length > 0 && (
-        <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><Sparkles className="h-4 w-4 text-brand-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Recommendations</span></div>
-          <div className="p-4 space-y-2.5">
-            {result.recommendations.map((r, i) => (
-              <div key={i} className={`${t.chipBg} rounded-xl px-3.5 py-3`}>
-                <div className="flex items-center gap-2 mb-1">
-                  <StatusBadge color={r.priority === 'immediate' ? '#f43f5e' : r.priority === 'short_term' ? '#f59e0b' : '#60a5fa'} label={PRIORITY_LABEL[r.priority]} />
-                  <p className={`text-sm font-medium ${t.textPrimary}`}>{r.action}</p>
-                </div>
-                <p className={`text-xs ${t.textFaint}`}>{r.rationale} · {r.target}</p>
-              </div>
-            ))}
-          </div>
-        </div>
+      {Object.keys(result.daily_hours).length > 0 && (
+        <motion.div variants={fadeUp}><OvertimeHeatmap dailyHours={result.daily_hours} /></motion.div>
       )}
 
-      <p className={`text-[11px] text-right ${t.textFaint}`}>
+      {result.recommendations.length > 0 && (
+        <motion.div variants={fadeUp} className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
+          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><Sparkles className="h-4 w-4 text-brand-400" /><span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>Recommendations</span></div>
+          <motion.div variants={staggerContainer} initial="hidden" animate="show" className="p-4 space-y-2.5">
+            {result.recommendations.map((r, i) => (
+              <motion.div key={i} variants={fadeUp}>
+                <GlowCard color={PRIORITY_HEX[r.priority]} surface={`${t.glassSoft} rounded-xl`}>
+                  <div className="p-4" style={{ borderLeft: `2px solid ${PRIORITY_HEX[r.priority]}80` }}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <StatusBadge color={PRIORITY_HEX[r.priority]} label={PRIORITY_LABEL[r.priority]} />
+                      <p className={`${TYPE_SCALE.body} font-medium ${t.textPrimary}`}>{r.action}</p>
+                    </div>
+                    <p className={`${TYPE_SCALE.caption} ${t.textFaint}`}>{r.rationale} · {r.target}</p>
+                  </div>
+                </GlowCard>
+              </motion.div>
+            ))}
+          </motion.div>
+        </motion.div>
+      )}
+
+      <p className={`${TYPE_SCALE.caption} text-right ${t.textFaint}`}>
         {result._records_analysed} record{result._records_analysed !== 1 ? 's' : ''} analysed · generated {new Date(result.generated_at).toLocaleString('en-GB')}
       </p>
-    </div>
+    </motion.div>
   );
 }
 
@@ -1239,7 +1354,7 @@ function OvertimeContent() {
         <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-              <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><Clock4 className="h-4 w-4 text-brand-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>By Overtime Type</span></div>
+              <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><Clock4 className="h-4 w-4 text-brand-400" /><span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>By Overtime Type</span></div>
               <div className="p-4">
                 <ResponsiveContainer width="100%" height={200}>
                   <BarChart data={byType} barSize={28}>
@@ -1247,7 +1362,7 @@ function OvertimeContent() {
                     <XAxis dataKey="type" tick={{ fill: axisColor, fontSize: 10 }} axisLine={false} tickLine={false} />
                     <YAxis tick={{ fill: axisColor, fontSize: 10 }} axisLine={false} tickLine={false} />
                     <Tooltip contentStyle={{ backgroundColor: t.light ? '#fff' : '#0f1e2e', border: `1px solid ${t.light ? 'rgba(15,23,42,0.1)' : 'rgba(134,187,216,0.2)'}`, borderRadius: 12, color: t.light ? '#0f172a' : '#fff', fontSize: 12 }} />
-                    <Bar dataKey="count" name="Requests" radius={[6, 6, 0, 0]}>
+                    <Bar dataKey="count" name="Requests" radius={[6, 6, 0, 0]} animationDuration={700} animationEasing="ease-out">
                       {byType.map((_, i) => <Cell key={i} fill={TYPE_BAR_COLORS[i % TYPE_BAR_COLORS.length]} fillOpacity={0.8} />)}
                     </Bar>
                   </BarChart>
@@ -1256,7 +1371,7 @@ function OvertimeContent() {
             </div>
 
             <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-              <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><CheckCircle2 className="h-4 w-4 text-brand-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>By Status</span></div>
+              <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><CheckCircle2 className="h-4 w-4 text-brand-400" /><span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>By Status</span></div>
               <div className="p-4 space-y-3">
                 {byStatus.map(({ status: s, count }) => {
                   const pct = records.length > 0 ? (count / records.length) * 100 : 0;
@@ -1274,32 +1389,30 @@ function OvertimeContent() {
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {STATUSES.map(s => (
-              <div key={s} className={`${t.glass} rounded-xl p-4`}>
-                <div className="flex items-center gap-1.5 mb-1">
-                  {s === 'approved' ? <CheckCircle2 className={`h-3.5 w-3.5 ${accentText('emerald', t.light)}`} /> : s === 'rejected' ? <XCircle className={`h-3.5 w-3.5 ${accentText('rose', t.light)}`} /> : <Clock4 className="h-3.5 w-3.5 text-brand-400" />}
-                  <span className={`text-xs ${t.textFaint}`}>{s.charAt(0).toUpperCase() + s.slice(1)}</span>
-                </div>
-                <div className={`text-xl font-bold ${STATUS_COLOR(t.light)[s]}`}>{records.filter(r => r.status === s).length}</div>
-              </div>
-            ))}
-            <div className={`${t.glass} rounded-xl p-4`}>
-              <div className="flex items-center gap-1.5 mb-1"><UsersRound className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs ${t.textFaint}`}>Employees</span></div>
-              <div className={`text-xl font-bold ${t.textPrimary}`}>{richStats.uniqueEmployees}</div>
-            </div>
-            <div className={`${t.glass} rounded-xl p-4`}>
-              <div className="flex items-center gap-1.5 mb-1"><Clock4 className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs ${t.textFaint}`}>Avg Hrs/Request</span></div>
-              <div className={`text-xl font-bold ${t.textPrimary}`}>{richStats.avgHours}h</div>
-            </div>
-            <div className={`${t.glass} rounded-xl p-4`}>
-              <div className="flex items-center gap-1.5 mb-1"><TrendingUp className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs ${t.textFaint}`}>Busiest Day</span></div>
-              <div className={`text-xl font-bold ${t.textPrimary}`}>{richStats.busiestDay}</div>
-            </div>
+            {STATUSES.map(s => {
+              const count = records.filter(r => r.status === s).length;
+              const hex = STATUS_HEX[s] ?? '#94a3b8';
+              return (
+                <GlowCard key={s} color={hex} className="p-3.5">
+                  <div className="flex items-center gap-1.5 mb-2">
+                    {s === 'approved' ? <CheckCircle2 className={`h-3.5 w-3.5 ${accentText('emerald', t.light)}`} /> : s === 'rejected' ? <XCircle className={`h-3.5 w-3.5 ${accentText('rose', t.light)}`} /> : <Clock4 className="h-3.5 w-3.5 text-brand-400" />}
+                    <span className={`${TYPE_SCALE.label} font-medium uppercase tracking-wide ${t.textSecondary}`}>{s.charAt(0).toUpperCase() + s.slice(1)}</span>
+                  </div>
+                  <p className={`${TYPE_SCALE.statLarge} leading-none font-bold tabular-nums`} style={{ color: hex }}><CountUp value={count} duration={0.9} /></p>
+                </GlowCard>
+              );
+            })}
+            <AnalyzeStat icon={UsersRound} accent="violet" label="Employees" value={richStats.uniqueEmployees} />
+            <AnalyzeStat icon={Clock4} accent="blue" label="Avg Hrs/Request" value={richStats.avgHours} suffix="h" decimals={1} />
+            <GlowCard color={ACCENT_HEX.indigo} className="p-3.5">
+              <div className="flex items-center gap-1.5 mb-2"><TrendingUp className={`h-3.5 w-3.5 ${accentText('indigo', t.light)}`} /><span className={`${TYPE_SCALE.label} font-medium uppercase tracking-wide ${t.textSecondary}`}>Busiest Day</span></div>
+              <p className={`${TYPE_SCALE.statLarge} leading-none font-bold ${t.textPrimary}`}>{richStats.busiestDay}</p>
+            </GlowCard>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-              <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><Wrench className="h-4 w-4 text-brand-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>By Section</span></div>
+              <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><Wrench className="h-4 w-4 text-brand-400" /><span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>By Section</span></div>
               <div className="p-4">
                 <ResponsiveContainer width="100%" height={200}>
                   <BarChart data={bySection} barSize={28}>
@@ -1307,7 +1420,7 @@ function OvertimeContent() {
                     <XAxis dataKey="section" tick={{ fill: axisColor, fontSize: 10 }} axisLine={false} tickLine={false} />
                     <YAxis tick={{ fill: axisColor, fontSize: 10 }} axisLine={false} tickLine={false} />
                     <Tooltip contentStyle={{ backgroundColor: t.light ? '#fff' : '#0f1e2e', border: `1px solid ${t.light ? 'rgba(15,23,42,0.1)' : 'rgba(134,187,216,0.2)'}`, borderRadius: 12, color: t.light ? '#0f172a' : '#fff', fontSize: 12 }} formatter={(v: number) => [`${v}h`, 'Hours']} />
-                    <Bar dataKey="hours" name="Hours" radius={[6, 6, 0, 0]}>
+                    <Bar dataKey="hours" name="Hours" radius={[6, 6, 0, 0]} animationDuration={700} animationEasing="ease-out">
                       {bySection.map((d, i) => <Cell key={i} fill={SECTION_HEX[d.section] ?? '#94a3b8'} fillOpacity={0.8} />)}
                     </Bar>
                   </BarChart>
@@ -1317,7 +1430,7 @@ function OvertimeContent() {
             </div>
 
             <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-              <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><UsersRound className="h-4 w-4 text-brand-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Top Artisans by Hours</span></div>
+              <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><UsersRound className="h-4 w-4 text-brand-400" /><span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>Top Artisans by Hours</span></div>
               <div className="p-4 space-y-3">
                 {byArtisan.map(a => (
                   <div key={a.employee_id || a.employee_name}>
@@ -1334,7 +1447,7 @@ function OvertimeContent() {
           </div>
 
           <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-            <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><TrendingUp className="h-4 w-4 text-brand-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>By Day of Week</span></div>
+            <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><TrendingUp className="h-4 w-4 text-brand-400" /><span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>By Day of Week</span></div>
             <div className="p-4">
               <ResponsiveContainer width="100%" height={200}>
                 <BarChart data={byWeekday} barSize={28}>
@@ -1342,7 +1455,7 @@ function OvertimeContent() {
                   <XAxis dataKey="day" tick={{ fill: axisColor, fontSize: 10 }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fill: axisColor, fontSize: 10 }} axisLine={false} tickLine={false} />
                   <Tooltip contentStyle={{ backgroundColor: t.light ? '#fff' : '#0f1e2e', border: `1px solid ${t.light ? 'rgba(15,23,42,0.1)' : 'rgba(134,187,216,0.2)'}`, borderRadius: 12, color: t.light ? '#0f172a' : '#fff', fontSize: 12 }} formatter={(v: number) => [`${v}h`, 'Hours']} />
-                  <Bar dataKey="hours" name="Hours" radius={[6, 6, 0, 0]} fill={ACCENT_HEX.indigo} fillOpacity={0.8} />
+                  <Bar dataKey="hours" name="Hours" radius={[6, 6, 0, 0]} fill={ACCENT_HEX.indigo} fillOpacity={0.8} animationDuration={700} animationEasing="ease-out" />
                 </BarChart>
               </ResponsiveContainer>
             </div>
