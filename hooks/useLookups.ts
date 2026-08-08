@@ -115,3 +115,20 @@ export function useSpares(): SpareLookup[] {
     'spares',
   );
 }
+
+// Generic "pick from a growing list, or type a new value" backing hook — one cache
+// per list name (backend/app/routers/lookup_lists.py, table lookup_lists), so any
+// number of distinct lists (breakdown_location, breakdown_nature, and whatever
+// comes next) share this one mechanism instead of each getting bespoke plumbing.
+const _lookupLists = new Map<string, string[]>();
+
+export function useLookupList(listName: string): string[] {
+  return useLookup<string>(
+    () => _lookupLists.get(listName) ?? null, (v) => { _lookupLists.set(listName, v); },
+    async () => {
+      const d = await api.get<unknown>(`/api/lookup-lists/${encodeURIComponent(listName)}`);
+      return Array.isArray(d) ? (d as { value: string }[]).map(x => x.value) : [];
+    },
+    `lookup:${listName}`,
+  );
+}

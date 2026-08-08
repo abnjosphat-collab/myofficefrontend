@@ -18,6 +18,9 @@ export interface Breakdown {
   location: string;
   breakdown_date: string;
   breakdown_type: string;
+  /** Short, pick-or-type tag (e.g. "Bearing Failure") — backed by the shared
+   *  lookup_lists register, distinct from the free-form breakdown_description. */
+  breakdown_nature?: string;
   work_done?: string;
   artisan_recommendations?: string;
   status: string;
@@ -35,7 +38,7 @@ export interface Breakdown {
 export interface BreakdownFormData {
   machine_id: string; machine_name: string; breakdown_description: string;
   machine_description?: string; artisan_name: string; breakdown_date: string;
-  location: string; department: string; breakdown_type: string; work_done: string;
+  location: string; department: string; breakdown_type: string; breakdown_nature: string; work_done: string;
   artisan_recommendations: string; status: string; priority: string;
   breakdown_start: string; breakdown_end: string; work_start: string; work_end: string;
   spares_used: SparePart[];

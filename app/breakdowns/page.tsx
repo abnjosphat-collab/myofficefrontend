@@ -6,6 +6,8 @@ import { AppShell } from "@/components/app-shell";
 import { PredictiveInput } from '@/components/shared/PredictiveInput';
 import { EmployeeAutocomplete } from '@/components/shared/EmployeeAutocomplete';
 import { EquipmentAutocomplete } from '@/components/shared/EquipmentAutocomplete';
+import { SpareAutocomplete } from '@/components/shared/SpareAutocomplete';
+import { ListAutocomplete } from '@/components/shared/ListAutocomplete';
 import {
   AlertCircle, CheckCircle, Clock, Edit, Filter, Loader2, Plus,
   Trash2, TrendingUp, Wrench, X, Calendar,
@@ -136,6 +138,7 @@ function BreakdownCard({ breakdown, onView, onEdit, onDelete, isExpanded, onTogg
         <div className={`flex flex-wrap gap-3 text-xs mb-3 ${t.textFaint}`}>
           {breakdown.location && <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{breakdown.location}</span>}
           {breakdown.artisan_name && <span className="flex items-center gap-1"><User className="h-3 w-3" />{breakdown.artisan_name}</span>}
+          {breakdown.breakdown_nature && <span className="flex items-center gap-1"><Wrench className="h-3 w-3" />{breakdown.breakdown_nature}</span>}
         </div>
 
         <div className="grid grid-cols-2 gap-2 mb-3">
@@ -151,6 +154,7 @@ function BreakdownCard({ breakdown, onView, onEdit, onDelete, isExpanded, onTogg
               <div><span className={t.textFaint}>Work Start:</span> <span className={`ml-1 ${t.textMuted}`}>{formatTime(breakdown.work_start)}</span></div>
               <div><span className={t.textFaint}>Work End:</span> <span className={`ml-1 ${t.textMuted}`}>{formatTime(breakdown.work_end)}</span></div>
               <div className="col-span-2"><span className={t.textFaint}>Department:</span> <span className={`ml-1 ${t.textMuted}`}>{breakdown.department}</span></div>
+              {breakdown.breakdown_nature && <div className="col-span-2"><span className={t.textFaint}>Nature:</span> <span className={`ml-1 ${t.textMuted}`}>{breakdown.breakdown_nature}</span></div>}
               {breakdown.work_done && <div className="col-span-2"><span className={t.textFaint}>Work Done:</span> <span className={`ml-1 line-clamp-2 ${t.textMuted}`}>{breakdown.work_done}</span></div>}
             </div>
           </div>
@@ -255,6 +259,7 @@ function BreakdownTable({ breakdowns, onView, onEdit, onDelete, sortField, sortD
                           <p className={t.textMuted}><span className={t.textFaint}>Description:</span> {bd.breakdown_description || '—'}</p>
                           <p className={t.textMuted}><span className={t.textFaint}>Location:</span> {bd.location}</p>
                           <p className={t.textMuted}><span className={t.textFaint}>Department:</span> {bd.department}</p>
+                          {bd.breakdown_nature && <p className={t.textMuted}><span className={t.textFaint}>Nature:</span> {bd.breakdown_nature}</p>}
                         </div>
                         <div className="space-y-1">
                           <p className={`font-semibold uppercase tracking-wider text-[10px] mb-1.5 ${t.textFaint}`}>Timing</p>
@@ -306,6 +311,7 @@ function DetailsModal({ breakdown, isOpen, onClose, onEdit, onDelete }: {
           {[
             { label: 'Machine ID', val: breakdown.machine_id || '—' }, { label: 'Artisan', val: breakdown.artisan_name || 'Unassigned' },
             { label: 'Location', val: breakdown.location || '—' }, { label: 'Department', val: breakdown.department || '—' },
+            { label: 'Nature of Breakdown', val: breakdown.breakdown_nature || '—' },
             { label: 'Breakdown Date', val: formatDate(breakdown.breakdown_date) }, { label: 'Total Downtime', val: downtime },
           ].map(({ label, val }) => (
             <div key={label} className={`${t.chipBg} rounded-xl p-3`}><span className={`text-[10px] font-semibold uppercase tracking-wider block mb-0.5 ${t.textFaint}`}>{label}</span><span className={`text-sm ${t.textMuted}`}>{val}</span></div>
@@ -366,7 +372,7 @@ type FormTab = (typeof FORM_TABS)[number]['key'];
 const EMPTY_FORM: BreakdownFormData = {
   machine_id: '', machine_name: '', breakdown_description: '', artisan_name: '',
   breakdown_date: new Date().toISOString().split('T')[0],
-  location: '', department: 'Engineering', breakdown_type: 'mechanical', work_done: '',
+  location: '', department: 'Engineering', breakdown_type: 'mechanical', breakdown_nature: '', work_done: '',
   artisan_recommendations: '', status: 'logged', priority: 'medium',
   breakdown_start: '', breakdown_end: '', work_start: '', work_end: '', spares_used: [],
 };
@@ -389,6 +395,7 @@ function FormModal({ isOpen, onClose, onSubmit, initialData, mode = 'create' }: 
         breakdown_description: initialData.breakdown_description || '', artisan_name: initialData.artisan_name || '',
         breakdown_date: initialData.breakdown_date ? new Date(initialData.breakdown_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
         location: initialData.location || '', department: initialData.department || 'Engineering', breakdown_type: initialData.breakdown_type || 'mechanical',
+        breakdown_nature: initialData.breakdown_nature || '',
         work_done: initialData.work_done || '', artisan_recommendations: initialData.artisan_recommendations || '',
         status: initialData.status || 'logged', priority: initialData.priority || 'medium',
         breakdown_start: initialData.breakdown_start ?? '', breakdown_end: initialData.breakdown_end ?? '',
@@ -458,6 +465,9 @@ function FormModal({ isOpen, onClose, onSubmit, initialData, mode = 'create' }: 
               {errors.artisan_name && <p className="text-xs text-rose-500 mt-1">{errors.artisan_name}</p>}
             </FormField>
             <FormField label="Breakdown Date" required><input type="date" title="Breakdown date" className={inputCls} value={fd.breakdown_date} onChange={e => set('breakdown_date', e.target.value)} /></FormField>
+            <FormField label="Nature of Breakdown">
+              <ListAutocomplete listName="breakdown_nature" value={fd.breakdown_nature} onChange={v => set('breakdown_nature', v)} placeholder="e.g., Bearing Failure" />
+            </FormField>
             <div className="sm:col-span-2">
               <FormField label="Description" required>
                 <PredictiveInput historyKey="bd_description" value={fd.breakdown_description} onChange={v => set('breakdown_description', v)} multiline rows={3}
@@ -473,8 +483,8 @@ function FormModal({ isOpen, onClose, onSubmit, initialData, mode = 'create' }: 
             <FormField label="Priority"><SelectField size="form" title="Priority" value={fd.priority} onChange={v => set('priority', v)} options={Object.entries(PRIORITY_META).map(([k, v]) => ({ value: k, label: v.name }))} /></FormField>
             <FormField label="Breakdown Type"><SelectField size="form" title="Breakdown type" value={fd.breakdown_type} onChange={v => set('breakdown_type', v)} options={Object.entries(TYPE_META).map(([k, v]) => ({ value: k, label: v.name }))} /></FormField>
             <FormField label="Location" required>
-              <PredictiveInput historyKey="bd_location" value={fd.location} onChange={v => set('location', v)} placeholder="e.g., Production Line A"
-                hints={['Main Workshop', 'Crusher Bay', 'Processing Plant', 'Pit Area', 'Conveyor Belt', 'Electrical Substation', 'Compressor Room', 'Administration Block']} error={errors.location} />
+              <ListAutocomplete listName="breakdown_location" value={fd.location} onChange={v => set('location', v)} placeholder="e.g., Production Line A" />
+              {errors.location && <p className="text-xs text-rose-500 mt-1">{errors.location}</p>}
             </FormField>
             <div className="sm:col-span-2">
               <FormField label="Work Done"><PredictiveInput historyKey="bd_work_done" value={fd.work_done} onChange={v => set('work_done', v)} multiline rows={2} placeholder="Describe the work performed…" hints={['Replaced bearing', 'Repaired electrical fault', 'Replaced belt', 'Cleaned and serviced', 'Replaced hydraulic seal', 'Calibrated sensor']} /></FormField>
@@ -489,7 +499,9 @@ function FormModal({ isOpen, onClose, onSubmit, initialData, mode = 'create' }: 
           <div className="space-y-3">
             <div className={`${t.chipBg} rounded-xl p-3`}>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">
-                <input className={inputCls} placeholder="Part Name" value={spareForm.name} onChange={e => setSpareForm(p => ({ ...p, name: e.target.value }))} />
+                <SpareAutocomplete value={spareForm.name} onChange={v => setSpareForm(p => ({ ...p, name: v }))}
+                  onSelect={s => setSpareForm(p => ({ ...p, name: s.description || p.name, part_number: s.stock_code || p.part_number, unit_price: s.unit_price ?? p.unit_price }))}
+                  placeholder="Part Name" />
                 <input className={inputCls} placeholder="Part Number" value={spareForm.part_number} onChange={e => setSpareForm(p => ({ ...p, part_number: e.target.value }))} />
                 <input type="number" className={inputCls} placeholder="Quantity" value={String(spareForm.quantity)} onChange={e => setSpareForm(p => ({ ...p, quantity: parseInt(e.target.value) || 1 }))} />
                 <input type="number" className={inputCls} placeholder="Unit Price" value={String(spareForm.unit_price)} onChange={e => setSpareForm(p => ({ ...p, unit_price: parseFloat(e.target.value) || 0 }))} />
@@ -616,6 +628,7 @@ function BreakdownsPageContent() {
     { key: 'status', label: 'Status', width: 14, format: v => STATUS_META[v as string]?.name ?? (v as string) },
     { key: 'priority', label: 'Priority', width: 12, format: v => PRIORITY_META[v as string]?.name ?? (v as string) },
     { key: 'breakdown_type', label: 'Type', width: 14, format: v => TYPE_META[v as string]?.name ?? (v as string) },
+    { key: 'breakdown_nature', label: 'Nature', width: 18 },
     { key: 'location', label: 'Location', width: 18 },
     { key: 'department', label: 'Department', width: 16 },
     { key: 'artisan_name', label: 'Artisan', width: 18 },
