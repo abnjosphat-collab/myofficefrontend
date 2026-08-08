@@ -7,7 +7,7 @@ import EquipmentForm from "@/components/EquipmentForm";
 import { motion } from "framer-motion";
 import {
   Plus, Trash2, Pencil, Briefcase, Wrench, MapPin,
-  Target, Truck, AlertTriangle,
+  Truck, AlertTriangle,
   CheckCircle, XCircle, LayoutGrid, List,
   Server, Package, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
   Filter, FilterX,
@@ -18,7 +18,6 @@ import {
   useCollapseSection, CenterModal, ACCENT_HEX, SelectField,
   GroupSection, RecordCard, staggerContainer, fadeUp, InfoRow, SummaryItem, LoadingState,
 } from '@/components/shared/theme';
-import { formatDate } from '@/lib/format';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
 import type { ElementType } from "react";
@@ -38,10 +37,6 @@ const STATUS_LABELS: Record<string, string> = {
   operational: 'Operational', maintenance: 'Maintenance', out_of_service: 'Out of Service',
   reserved: 'Reserved', retired: 'Retired',
 };
-const MAINT_COLORS: Record<string, string> = {
-  Overdue: '#f43f5e', 'Due Soon': '#f59e0b', Upcoming: ACCENT_HEX.blue, 'On Track': '#34d399',
-};
-
 // Palette for categories — drawn from the shared ACCENT_HEX brand palette (not
 // arbitrary hexes), hashed so each distinct category name gets a stable color.
 const GROUP_PALETTE = [ACCENT_HEX.blue, ACCENT_HEX.amber, ACCENT_HEX.emerald, ACCENT_HEX.violet, ACCENT_HEX.cyan, ACCENT_HEX.indigo];
@@ -72,17 +67,6 @@ function calcAge(date?: string): string {
   if (m < 0) { y--; m += 12; }
   if (y === 0 && m === 0) return '<1 mo';
   return [y > 0 ? `${y}yr` : '', m > 0 ? `${m}mo` : ''].filter(Boolean).join(' ');
-}
-
-function calcMaintenanceStatus(last?: string, interval?: number): string {
-  if (!last || !interval) return 'Unknown';
-  const next = new Date(last);
-  next.setMonth(next.getMonth() + interval);
-  const days = Math.ceil((next.getTime() - Date.now()) / 86400000);
-  if (days < 0) return 'Overdue';
-  if (days <= 7) return 'Due Soon';
-  if (days <= 30) return 'Upcoming';
-  return 'On Track';
 }
 
 // --- Simple pagination (themed) ---
@@ -133,7 +117,6 @@ function Pagination({ current, total, onPage, perPage, totalItems, onPerPage }: 
 function EquipmentCard({ eq, onEdit, onDelete }: { eq: EquipmentItem; onEdit: () => void; onDelete: () => void }) {
   const t = useTheme();
   const status = eq.status?.toLowerCase() || 'unknown';
-  const mStatus = calcMaintenanceStatus(eq.last_maintenance, eq.maintenance_interval);
   const statusColor = STATUS_COLORS[status] || '#94a3b8';
 
   return (
@@ -142,10 +125,7 @@ function EquipmentCard({ eq, onEdit, onDelete }: { eq: EquipmentItem; onEdit: ()
       accentHex={statusColor}
       title={eq.name}
       subtitle={eq.equipment_id}
-      badges={<>
-        <StatusBadge color={statusColor} label={STATUS_LABELS[status] || eq.status || 'Unknown'} dot />
-        <StatusBadge color={MAINT_COLORS[mStatus] || '#94a3b8'} label={mStatus} />
-      </>}
+      badges={<StatusBadge color={statusColor} label={STATUS_LABELS[status] || eq.status || 'Unknown'} dot />}
       summary={
         <div className={`grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs ${t.textMuted}`}>
           <SummaryItem icon={MapPin} label="Location" value={eq.location} color={statusColor} />
@@ -165,11 +145,12 @@ function EquipmentCard({ eq, onEdit, onDelete }: { eq: EquipmentItem; onEdit: ()
         <InfoRow label="Category" value={eq.category} />
         <InfoRow label="Department" value={eq.department} />
         <InfoRow label="Model" value={eq.model} />
+        <InfoRow label="Manufacturer" value={eq.manufacturer} />
         <InfoRow label="Serial Number" value={eq.serial_number} />
+        <InfoRow label="Power Rating" value={eq.power_rating} />
         <InfoRow label="Age" value={calcAge(eq.commission_date)} />
+        <InfoRow label="Criticality" value={eq.criticality} />
         <InfoRow label="Supplier" value={eq.supplier} />
-        <InfoRow label="Next Maintenance" value={eq.next_maintenance ? formatDate(eq.next_maintenance) : undefined} />
-        <InfoRow label="Current Value" value={eq.current_value != null ? `$${eq.current_value.toLocaleString()}` : undefined} />
       </div>
       {eq.maintenance_notes && (
         <div>
@@ -186,7 +167,6 @@ function EquipmentRow({ eq, onEdit, onDelete }: { eq: EquipmentItem; onEdit: () 
   const t = useTheme();
   const [expanded, setExpanded] = useState(false);
   const status = eq.status?.toLowerCase() || 'unknown';
-  const mStatus = calcMaintenanceStatus(eq.last_maintenance, eq.maintenance_interval);
   const statusColor = STATUS_COLORS[status] || '#94a3b8';
   const Icon = statusIcon(eq.status);
 
@@ -205,7 +185,6 @@ function EquipmentRow({ eq, onEdit, onDelete }: { eq: EquipmentItem; onEdit: () 
         </button>
 
         <div className="flex items-center gap-2 shrink-0">
-          <span className="hidden sm:block"><StatusBadge color={MAINT_COLORS[mStatus] || '#94a3b8'} label={mStatus} /></span>
           {eq.location && <span className={`hidden md:flex items-center gap-1 text-[11px] ${t.textFaint}`}><MapPin className="h-3 w-3" style={{ color: statusColor }} />{eq.location}</span>}
         </div>
 
@@ -230,11 +209,12 @@ function EquipmentRow({ eq, onEdit, onDelete }: { eq: EquipmentItem; onEdit: () 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-2.5">
             <InfoRow label="Department" value={eq.department} />
             <InfoRow label="Model" value={eq.model} />
+            <InfoRow label="Manufacturer" value={eq.manufacturer} />
             <InfoRow label="Serial Number" value={eq.serial_number} />
+            <InfoRow label="Power Rating" value={eq.power_rating} />
             <InfoRow label="Age" value={calcAge(eq.commission_date)} />
+            <InfoRow label="Criticality" value={eq.criticality} />
             <InfoRow label="Supplier" value={eq.supplier} />
-            <InfoRow label="Next Maintenance" value={eq.next_maintenance ? formatDate(eq.next_maintenance) : undefined} />
-            <InfoRow label="Current Value" value={eq.current_value != null ? `$${eq.current_value.toLocaleString()}` : undefined} />
           </div>
         </div>
       )}
@@ -344,10 +324,7 @@ function EquipmentPageContent() {
     { key: 'model', label: 'Model', width: 20 },
     { key: 'serial_number', label: 'Serial Number', width: 18 },
     { key: 'commission_date', label: 'Commission Date', width: 16, format: v => fmtExportDate(v as string) },
-    { key: 'last_maintenance', label: 'Last Maintenance', width: 16, format: v => fmtExportDate(v as string) },
-    { key: 'next_maintenance', label: 'Next Maintenance', width: 16, format: v => fmtExportDate(v as string) },
     { key: 'purchase_cost', label: 'Purchase Cost', width: 16 },
-    { key: 'current_value', label: 'Current Value', width: 16 },
     { key: 'supplier', label: 'Supplier', width: 22 },
   ];
   const exportPdfColumns: DLColumn[] = [
@@ -360,8 +337,6 @@ function EquipmentPageContent() {
     { key: 'model', label: 'Model' },
     { key: 'serial_number', label: 'Serial No.' },
     { key: 'commission_date', label: 'Commissioned', format: v => fmtExportDate(v as string) },
-    { key: 'next_maintenance', label: 'Next Maint.', format: v => fmtExportDate(v as string) },
-    { key: 'current_value', label: 'Value', format: v => v != null ? `$${(v as number).toLocaleString()}` : '' },
   ];
 
   const hasActiveFilters = statusFilter !== 'all' || categoryFilter !== 'all' || locationFilter !== 'all' || departmentFilter !== 'all' || !!searchTerm;
@@ -371,8 +346,7 @@ function EquipmentPageContent() {
     const maintenance = equipment.filter(i => i.status?.toLowerCase() === 'maintenance').length;
     const outOfService = equipment.filter(i => i.status?.toLowerCase() === 'out_of_service').length;
     const reserved = equipment.filter(i => i.status?.toLowerCase() === 'reserved').length;
-    const totalValue = equipment.reduce((s, i) => s + (i.current_value || 0), 0);
-    return { total: equipment.length, operational, maintenance, outOfService, reserved, totalValue };
+    return { total: equipment.length, operational, maintenance, outOfService, reserved };
   }, [equipment]);
 
   const totalPages = Math.ceil(filtered.length / perPage);
@@ -405,7 +379,6 @@ function EquipmentPageContent() {
     { icon: Wrench, color: STATUS_COLORS.maintenance, value: metrics.maintenance, label: 'Maintenance', onClick: () => setStatusFilter('maintenance') },
     { icon: XCircle, color: STATUS_COLORS.out_of_service, value: metrics.outOfService, label: 'Out of Service', onClick: () => setStatusFilter('out_of_service') },
     { icon: Package, color: STATUS_COLORS.reserved, value: metrics.reserved, label: 'Reserved', onClick: () => setStatusFilter('reserved') },
-    { icon: Target, color: ACCENT_HEX.emerald, value: `$${metrics.totalValue.toLocaleString()}`, label: 'Value' },
   ];
 
   if (loading) {
@@ -421,7 +394,7 @@ function EquipmentPageContent() {
       <PageHero
         icon={Server}
         accent="violet"
-        crumbs={['Core Management', 'Assets']}
+        crumbs={['Core Management', 'Equipment']}
         title="Equipment Management"
         description="Track all equipment assets — status, location, maintenance history, and performance."
         statsOpen={sections.expanded.hero}

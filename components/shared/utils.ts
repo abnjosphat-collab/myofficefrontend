@@ -1,5 +1,7 @@
 // Shared utility functions — import these instead of re-defining in every page
 
+import type { EquipmentBase } from '@/app/equipment/types';
+
 export function fmtDate(s?: string | null, style: 'short' | 'long' = 'short'): string {
   if (!s) return '—';
   try {
@@ -70,6 +72,23 @@ export function nowLocal(): string {
   const d = new Date();
   d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
   return d.toISOString().slice(0, 16);
+}
+
+// One consistent "how do I show this equipment as one string" — every picker/
+// dropdown/breadcrumb should call this instead of re-deriving its own format.
+// Mirrors the backend's Equipment.display_name computed field (backend/app/
+// routers/equipment.py) — same rule, per-language idiom (a plain function here
+// since EquipmentBase is an interface, not a class with methods).
+export function equipmentDisplayName(eq: EquipmentBase): string {
+  return eq.equipment_id ? `${eq.equipment_id} — ${eq.name}` : eq.name;
+}
+
+// The one search-match rule, so every equipment search/filter (EquipmentAutocomplete,
+// a future compressor picker, etc.) agrees on what "matches" means instead of each
+// reimplementing it slightly differently. Mirrors the backend's Equipment.matches().
+export function equipmentMatches(eq: EquipmentBase, query: string): boolean {
+  const q = query.toLowerCase();
+  return [eq.name, eq.equipment_id, eq.model, eq.manufacturer].some(v => (v || '').toLowerCase().includes(q));
 }
 
 export function clsx(...classes: (string | undefined | null | false)[]): string {

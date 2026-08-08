@@ -8,6 +8,7 @@
 
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/apiClient';
+import type { EquipmentBase } from '@/app/equipment/types';
 
 // Field sets are the union of what the consuming pages (maintenance, near_miss,
 // overtime, sheq_inspection, vfl, work_stoppage) actually read off these records —
@@ -27,16 +28,11 @@ export interface EmployeeLookup {
   phone?: string;
   [k: string]: unknown;
 }
-export interface EquipmentLookup {
-  id: string | number;
-  name?: string;
-  equipment_id?: string;
-  category?: string;
-  department?: string;
-  location?: string;
-  status?: string;
-  [k: string]: unknown;
-}
+// Equipment's shape lives in app/equipment/types.ts (mirrors the backend's
+// EquipmentBase/EquipmentItem split) — re-exported here under the lookup-hook
+// naming convention the other pickers use, rather than a second, looser
+// definition drifting out of sync with it.
+export type EquipmentLookup = EquipmentBase;
 export interface SpareLookup {
   id: string | number;
   name?: string;

@@ -241,7 +241,7 @@ const NAV_GROUPS = [
     items: [
       { icon: Users,        title: 'Personnel',  href: '/employees',  desc: 'Employee profiles & team' },
       { icon: Car,          title: 'Drivers',    href: '/drivers',    desc: 'Authorised drivers registry' },
-      { icon: ToolCase,     title: 'Assets',     href: '/equipment',  desc: 'Equipment tracking' },
+      { icon: ToolCase,     title: 'Equipment',  href: '/equipment',  desc: 'Equipment tracking' },
       { icon: Package,      title: 'Inventory',  href: '/inventory',  desc: 'Stock management' },
       { icon: Folder,       title: 'Documents',  href: '/documents',  desc: 'Centralized storage' },
     ],

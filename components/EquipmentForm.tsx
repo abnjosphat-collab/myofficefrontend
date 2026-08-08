@@ -15,28 +15,34 @@ const STATUS_OPTIONS = [
   { value: "retired", label: "Retired" },
 ];
 
+const CRITICALITY_OPTIONS = [
+  { value: "", label: "Not set" },
+  { value: "High", label: "High" },
+  { value: "Medium", label: "Medium" },
+  { value: "Low", label: "Low" },
+];
+
 interface FormState {
   equipment_id: string;
   name: string;
   model: string;
+  manufacturer: string;
   serial_number: string;
   category: string;
+  criticality: string;
   description: string;
   status: string;
   location: string;
   department: string;
   commission_date: string;
   purchase_cost: string;
-  current_value: string;
-  depreciation_rate: string;
+  power_rating: string;
   supplier: string;
   supplier_contact: string;
   supplier_phone: string;
   warranty_info: string;
   specifications: string;
   maintenance_interval: string;
-  last_maintenance: string;
-  next_maintenance: string;
   maintenance_notes: string;
 }
 
@@ -44,24 +50,23 @@ const BLANK_FORM: FormState = {
   equipment_id: "",
   name: "",
   model: "",
+  manufacturer: "",
   serial_number: "",
   category: "",
+  criticality: "",
   description: "",
   status: "operational",
   location: "",
   department: "",
   commission_date: "",
   purchase_cost: "",
-  current_value: "",
-  depreciation_rate: "",
+  power_rating: "",
   supplier: "",
   supplier_contact: "",
   supplier_phone: "",
   warranty_info: "",
   specifications: "",
   maintenance_interval: "",
-  last_maintenance: "",
-  next_maintenance: "",
   maintenance_notes: "",
 };
 
@@ -74,20 +79,18 @@ const formatDateForInput = (dateString?: string | null): string => {
   return dateString.slice(0, 10);
 };
 
-type SubmissionData = Omit<FormState, "purchase_cost" | "current_value" | "depreciation_rate" | "maintenance_interval"> & {
+type SubmissionData = Omit<FormState, "purchase_cost" | "maintenance_interval"> & {
   purchase_cost: number | null;
-  current_value: number | null;
-  depreciation_rate: number | null;
   maintenance_interval: number | null;
 };
 
 const processFormData = (data: FormState): SubmissionData => {
   const optionalFields = [
-    "model", "serial_number", "category", "description", "location",
-    "department", "supplier", "supplier_contact", "supplier_phone",
+    "model", "manufacturer", "serial_number", "category", "criticality", "description", "location",
+    "department", "power_rating", "supplier", "supplier_contact", "supplier_phone",
     "warranty_info", "specifications", "maintenance_notes",
   ] as const;
-  const dateFields = ["commission_date", "last_maintenance", "next_maintenance"] as const;
+  const dateFields = ["commission_date"] as const;
 
   const cleaned: Record<string, string | null> = { ...data };
   optionalFields.forEach((field) => {
@@ -106,8 +109,6 @@ const processFormData = (data: FormState): SubmissionData => {
   return {
     ...(cleaned as unknown as SubmissionData),
     purchase_cost: toNumberOrNull(data.purchase_cost),
-    current_value: toNumberOrNull(data.current_value),
-    depreciation_rate: toNumberOrNull(data.depreciation_rate),
     maintenance_interval: toNumberOrNull(data.maintenance_interval),
   };
 };
@@ -130,24 +131,23 @@ const EquipmentForm = ({ equipment, onSubmit, onCancel }: EquipmentFormProps) =>
         equipment_id: equipment.equipment_id || "",
         name: equipment.name || "",
         model: equipment.model || "",
+        manufacturer: equipment.manufacturer || "",
         serial_number: equipment.serial_number || "",
         category: equipment.category || "",
+        criticality: equipment.criticality || "",
         description: equipment.description || "",
         status: equipment.status || "operational",
         location: equipment.location || "",
         department: equipment.department || "",
         commission_date: formatDateForInput(equipment.commission_date),
         purchase_cost: equipment.purchase_cost?.toString() || "",
-        current_value: equipment.current_value?.toString() || "",
-        depreciation_rate: equipment.depreciation_rate?.toString() || "",
+        power_rating: equipment.power_rating || "",
         supplier: equipment.supplier || "",
         supplier_contact: equipment.supplier_contact || "",
         supplier_phone: equipment.supplier_phone || "",
         warranty_info: equipment.warranty_info || "",
         specifications: equipment.specifications || "",
         maintenance_interval: equipment.maintenance_interval?.toString() || "",
-        last_maintenance: formatDateForInput(equipment.last_maintenance),
-        next_maintenance: formatDateForInput(equipment.next_maintenance),
         maintenance_notes: equipment.maintenance_notes || "",
       });
     } else {
@@ -214,6 +214,11 @@ const EquipmentForm = ({ equipment, onSubmit, onCancel }: EquipmentFormProps) =>
                   onChange={(e) => set("model", e.target.value)}
                   disabled={loading} placeholder="DP-5000" className={inputCls} />
               </FormField>
+              <FormField label="Manufacturer">
+                <input name="manufacturer" value={formData.manufacturer}
+                  onChange={(e) => set("manufacturer", e.target.value)}
+                  disabled={loading} placeholder="Atlas Copco" className={inputCls} />
+              </FormField>
               <FormField label="Serial Number">
                 <input name="serial_number" value={formData.serial_number}
                   onChange={(e) => set("serial_number", e.target.value)}
@@ -227,6 +232,10 @@ const EquipmentForm = ({ equipment, onSubmit, onCancel }: EquipmentFormProps) =>
               <FormField label="Status">
                 <SelectField title="Status" value={formData.status}
                   onChange={(v) => set("status", v)} options={STATUS_OPTIONS} disabled={loading} />
+              </FormField>
+              <FormField label="Criticality">
+                <SelectField title="Criticality" value={formData.criticality}
+                  onChange={(v) => set("criticality", v)} options={CRITICALITY_OPTIONS} disabled={loading} />
               </FormField>
               <FormField label="Location">
                 <input name="location" value={formData.location}
@@ -258,15 +267,10 @@ const EquipmentForm = ({ equipment, onSubmit, onCancel }: EquipmentFormProps) =>
                   onChange={(e) => set("purchase_cost", e.target.value)}
                   disabled={loading} placeholder="12500.00" className={inputCls} />
               </FormField>
-              <FormField label="Current Value ($)">
-                <input type="number" step="0.01" min="0" name="current_value" value={formData.current_value}
-                  onChange={(e) => set("current_value", e.target.value)}
-                  disabled={loading} placeholder="9800.00" className={inputCls} />
-              </FormField>
-              <FormField label="Depreciation Rate (%)">
-                <input type="number" step="0.1" min="0" max="100" name="depreciation_rate" value={formData.depreciation_rate}
-                  onChange={(e) => set("depreciation_rate", e.target.value)}
-                  disabled={loading} placeholder="15.5" className={inputCls} />
+              <FormField label="Power Rating">
+                <input name="power_rating" value={formData.power_rating}
+                  onChange={(e) => set("power_rating", e.target.value)}
+                  disabled={loading} placeholder="45kW" className={inputCls} />
               </FormField>
             </div>
             <FormField label="Technical Specifications">
@@ -277,23 +281,11 @@ const EquipmentForm = ({ equipment, onSubmit, onCancel }: EquipmentFormProps) =>
           </TabsContent>
 
           <TabsContent value="maintenance" className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <FormField label="Maintenance Interval (months)">
-                <input type="number" min="0" name="maintenance_interval" value={formData.maintenance_interval}
-                  onChange={(e) => set("maintenance_interval", e.target.value)}
-                  disabled={loading} placeholder="6" className={inputCls} />
-              </FormField>
-              <FormField label="Last Maintenance Date">
-                <input type="date" name="last_maintenance" value={formData.last_maintenance}
-                  onChange={(e) => set("last_maintenance", e.target.value)}
-                  disabled={loading} className={inputCls} style={{ colorScheme: t.light ? "light" : "dark" }} />
-              </FormField>
-              <FormField label="Next Maintenance Date">
-                <input type="date" name="next_maintenance" value={formData.next_maintenance}
-                  onChange={(e) => set("next_maintenance", e.target.value)}
-                  disabled={loading} className={inputCls} style={{ colorScheme: t.light ? "light" : "dark" }} />
-              </FormField>
-            </div>
+            <FormField label="Maintenance Interval (months)">
+              <input type="number" min="0" name="maintenance_interval" value={formData.maintenance_interval}
+                onChange={(e) => set("maintenance_interval", e.target.value)}
+                disabled={loading} placeholder="6" className={`${inputCls} max-w-xs`} />
+            </FormField>
             <FormField label="Maintenance Notes">
               <Textarea name="maintenance_notes" value={formData.maintenance_notes}
                 onChange={(e) => set("maintenance_notes", e.target.value)}
