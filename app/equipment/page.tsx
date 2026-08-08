@@ -235,7 +235,6 @@ function EquipmentPageContent() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [locationFilter, setLocationFilter] = useState('all');
-  const [departmentFilter, setDepartmentFilter] = useState('all');
   const [deleteConfirm, setDeleteConfirm] = useState<number | string | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [currentPage, setCurrentPage] = useState(1);
@@ -247,7 +246,6 @@ function EquipmentPageContent() {
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
   const uniqueLocations = useMemo(() => [...new Set(equipment.map(i => i.location).filter(Boolean) as string[])], [equipment]);
-  const uniqueDepartments = useMemo(() => [...new Set(equipment.map(i => i.department).filter(Boolean) as string[])], [equipment]);
   const uniqueCategories = useMemo(() => [...new Set(equipment.map(i => i.category).filter(Boolean) as string[])], [equipment]);
 
   const fetchEquipment = useCallback(async () => {
@@ -279,10 +277,9 @@ function EquipmentPageContent() {
     if (statusFilter !== 'all') result = result.filter(i => i.status === statusFilter);
     if (categoryFilter !== 'all') result = result.filter(i => i.category === categoryFilter);
     if (locationFilter !== 'all') result = result.filter(i => i.location === locationFilter);
-    if (departmentFilter !== 'all') result = result.filter(i => i.department === departmentFilter);
     setFiltered(result);
     setCurrentPage(1);
-  }, [equipment, searchTerm, statusFilter, categoryFilter, locationFilter, departmentFilter]);
+  }, [equipment, searchTerm, statusFilter, categoryFilter, locationFilter]);
 
   const handleFormSubmit = async (formData: Record<string, unknown>) => {
     try {
@@ -308,7 +305,7 @@ function EquipmentPageContent() {
     }
   };
 
-  const clearFilters = () => { setSearchTerm(''); setStatusFilter('all'); setCategoryFilter('all'); setLocationFilter('all'); setDepartmentFilter('all'); };
+  const clearFilters = () => { setSearchTerm(''); setStatusFilter('all'); setCategoryFilter('all'); setLocationFilter('all'); };
 
   const fmtExportDate = (d?: string) => d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
 
@@ -339,7 +336,7 @@ function EquipmentPageContent() {
     { key: 'commission_date', label: 'Commissioned', format: v => fmtExportDate(v as string) },
   ];
 
-  const hasActiveFilters = statusFilter !== 'all' || categoryFilter !== 'all' || locationFilter !== 'all' || departmentFilter !== 'all' || !!searchTerm;
+  const hasActiveFilters = statusFilter !== 'all' || categoryFilter !== 'all' || locationFilter !== 'all' || !!searchTerm;
 
   const metrics = useMemo(() => {
     const operational = equipment.filter(i => i.status?.toLowerCase() === 'operational').length;
@@ -455,12 +452,11 @@ function EquipmentPageContent() {
         </div>
 
         {showFilters && (
-          <div className={`pt-4 border-t ${t.border} grid grid-cols-2 sm:grid-cols-4 gap-3`}>
+          <div className={`pt-4 border-t ${t.border} grid grid-cols-2 sm:grid-cols-3 gap-3`}>
             {[
               { label: 'Status', value: statusFilter, onChange: setStatusFilter, options: [{ value: 'all', label: 'All Status' }, ...Object.entries(STATUS_LABELS).map(([value, label]) => ({ value, label }))] },
               { label: 'Category', value: categoryFilter, onChange: setCategoryFilter, options: [{ value: 'all', label: 'All Categories' }, ...uniqueCategories.map(c => ({ value: c, label: c }))] },
               { label: 'Location', value: locationFilter, onChange: setLocationFilter, options: [{ value: 'all', label: 'All Locations' }, ...uniqueLocations.map(l => ({ value: l, label: l }))] },
-              { label: 'Department', value: departmentFilter, onChange: setDepartmentFilter, options: [{ value: 'all', label: 'All Departments' }, ...uniqueDepartments.map(d => ({ value: d, label: d }))] },
             ].map(f => (
               <div key={f.label}>
                 <label className={`text-xs font-medium ${t.textFaint} mb-1 block`}>{f.label}</label>

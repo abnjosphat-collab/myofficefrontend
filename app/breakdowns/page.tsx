@@ -4,7 +4,8 @@
 import React, { useState, useEffect, useMemo, Fragment } from 'react';
 import { AppShell } from "@/components/app-shell";
 import { PredictiveInput } from '@/components/shared/PredictiveInput';
-import { EmployeeNameInput } from '@/components/shared/EmployeeNameInput';
+import { EmployeeAutocomplete } from '@/components/shared/EmployeeAutocomplete';
+import { EquipmentAutocomplete } from '@/components/shared/EquipmentAutocomplete';
 import {
   AlertCircle, CheckCircle, Clock, Edit, Filter, Loader2, Plus,
   Trash2, TrendingUp, Wrench, X, Calendar,
@@ -21,7 +22,7 @@ import { exportFilename } from '@/lib/exportUtils';
 import { lineTotal } from '@/components/shared/utils';
 import {
   useTheme, PageHero, StatTile, StatusBadge, ViewToggle,
-  FormField, FormActions, useCollapseSection, CenterModal, ACCENT_HEX, GlowCard, SelectField, AutofillInput, accentText, HintText,
+  FormField, FormActions, useCollapseSection, CenterModal, ACCENT_HEX, GlowCard, SelectField, accentText, HintText,
 } from '@/components/shared/theme';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -77,8 +78,6 @@ const TYPE_META: Record<string, { name: string; icon: React.ElementType; color: 
   electronic: { name: 'Electronic', icon: Shield,   color: ACCENT_HEX.violet },
   other:      { name: 'Other',      icon: Wrench,   color: '#94a3b8' },
 };
-const DEPARTMENTS = ['Maintenance', 'Production', 'Engineering', 'Quality', 'Safety', 'Operations'];
-
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 
 const timeToMinutes = (t: string): number => { if (!t) return 0; try { const [h, m] = t.split(':').map(Number); return h * 60 + m; } catch { return 0; } };
@@ -359,10 +358,15 @@ function DetailsModal({ breakdown, isOpen, onClose, onEdit, onDelete }: {
 const FORM_TABS = [{ key: 'basic', label: 'Basic' }, { key: 'details', label: 'Details' }, { key: 'spares', label: 'Spares' }, { key: 'timing', label: 'Timing' }] as const;
 type FormTab = (typeof FORM_TABS)[number]['key'];
 
+// This ERP currently covers a single department (Engineering) — `department` is
+// still a real, required field (backend/app/routers/breakdowns.py's
+// `Field(..., min_length=1)`, and still shown/filterable/exported), it's just no
+// longer a manual choice: it defaults here and gets kept in sync from whichever
+// artisan is selected (see EmployeeAutocomplete's onSelect below), same as before.
 const EMPTY_FORM: BreakdownFormData = {
   machine_id: '', machine_name: '', breakdown_description: '', artisan_name: '',
   breakdown_date: new Date().toISOString().split('T')[0],
-  location: '', department: '', breakdown_type: 'mechanical', work_done: '',
+  location: '', department: 'Engineering', breakdown_type: 'mechanical', work_done: '',
   artisan_recommendations: '', status: 'logged', priority: 'medium',
   breakdown_start: '', breakdown_end: '', work_start: '', work_end: '', spares_used: [],
 };
@@ -384,7 +388,7 @@ function FormModal({ isOpen, onClose, onSubmit, initialData, mode = 'create' }: 
         machine_id: initialData.machine_id || '', machine_name: initialData.machine_name || '',
         breakdown_description: initialData.breakdown_description || '', artisan_name: initialData.artisan_name || '',
         breakdown_date: initialData.breakdown_date ? new Date(initialData.breakdown_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-        location: initialData.location || '', department: initialData.department || '', breakdown_type: initialData.breakdown_type || 'mechanical',
+        location: initialData.location || '', department: initialData.department || 'Engineering', breakdown_type: initialData.breakdown_type || 'mechanical',
         work_done: initialData.work_done || '', artisan_recommendations: initialData.artisan_recommendations || '',
         status: initialData.status || 'logged', priority: initialData.priority || 'medium',
         breakdown_start: initialData.breakdown_start ?? '', breakdown_end: initialData.breakdown_end ?? '',
@@ -403,7 +407,6 @@ function FormModal({ isOpen, onClose, onSubmit, initialData, mode = 'create' }: 
     if (!fd.breakdown_description.trim()) e.breakdown_description = 'Description is required';
     if (!fd.artisan_name.trim()) e.artisan_name = 'Artisan name is required';
     if (!fd.location.trim()) e.location = 'Location is required';
-    if (!fd.department) e.department = 'Department is required';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -442,11 +445,18 @@ function FormModal({ isOpen, onClose, onSubmit, initialData, mode = 'create' }: 
         {tab === 'basic' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <FormField label="Machine Name" required>
-              <AutofillInput field="machine_name" className={inputCls} value={fd.machine_name} onChange={v => set('machine_name', v)} placeholder="e.g., CNC Machine" />
+              <EquipmentAutocomplete value={fd.machine_name} onChange={v => set('machine_name', v)}
+                onSelect={eq => { set('machine_id', eq.equipment_id || ''); if (eq.location) set('location', eq.location); }}
+                placeholder="Select or type machine name…" />
               {errors.machine_name && <p className="text-xs text-rose-500 mt-1">{errors.machine_name}</p>}
             </FormField>
             <FormField label="Machine ID"><input className={inputCls} value={fd.machine_id} onChange={e => set('machine_id', e.target.value)} placeholder="Optional" /></FormField>
-            <FormField label="Artisan Name" required><EmployeeNameInput value={fd.artisan_name} onChange={(name, emp) => { set('artisan_name', name); if (emp?.department) set('department', emp.department); }} placeholder="Select or type artisan name…" error={errors.artisan_name} /></FormField>
+            <FormField label="Artisan Name" required>
+              <EmployeeAutocomplete value={fd.artisan_name} onChange={v => set('artisan_name', v)}
+                onSelect={emp => { if (emp.department) set('department', emp.department); }}
+                placeholder="Select or type artisan name…" />
+              {errors.artisan_name && <p className="text-xs text-rose-500 mt-1">{errors.artisan_name}</p>}
+            </FormField>
             <FormField label="Breakdown Date" required><input type="date" title="Breakdown date" className={inputCls} value={fd.breakdown_date} onChange={e => set('breakdown_date', e.target.value)} /></FormField>
             <div className="sm:col-span-2">
               <FormField label="Description" required>
@@ -465,11 +475,6 @@ function FormModal({ isOpen, onClose, onSubmit, initialData, mode = 'create' }: 
             <FormField label="Location" required>
               <PredictiveInput historyKey="bd_location" value={fd.location} onChange={v => set('location', v)} placeholder="e.g., Production Line A"
                 hints={['Main Workshop', 'Crusher Bay', 'Processing Plant', 'Pit Area', 'Conveyor Belt', 'Electrical Substation', 'Compressor Room', 'Administration Block']} error={errors.location} />
-            </FormField>
-            <FormField label="Department" required>
-              <SelectField size="form" title="Department" value={fd.department} onChange={v => set('department', v)}
-                placeholder="Select department" options={DEPARTMENTS.map(d => ({ value: d, label: d }))} />
-              {errors.department && <p className="text-xs text-rose-500 mt-1">{errors.department}</p>}
             </FormField>
             <div className="sm:col-span-2">
               <FormField label="Work Done"><PredictiveInput historyKey="bd_work_done" value={fd.work_done} onChange={v => set('work_done', v)} multiline rows={2} placeholder="Describe the work performed…" hints={['Replaced bearing', 'Repaired electrical fault', 'Replaced belt', 'Cleaned and serviced', 'Replaced hydraulic seal', 'Calibrated sensor']} /></FormField>
@@ -678,11 +683,10 @@ function BreakdownsPageContent() {
         )}
 
         {showFilters && (
-          <div className={`pt-4 border-t ${t.border} grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3`}>
+          <div className={`pt-4 border-t ${t.border} grid grid-cols-2 sm:grid-cols-4 gap-3`}>
             <FormField label="Status"><SelectField size="filter" title="Status" value={filters.status} onChange={v => setFilters(p => ({ ...p, status: v }))} options={[{ value: 'all', label: 'All Status' }, ...Object.entries(STATUS_META).map(([k, v]) => ({ value: k, label: v.name }))]} /></FormField>
             <FormField label="Type"><SelectField size="filter" title="Type" value={filters.breakdown_type} onChange={v => setFilters(p => ({ ...p, breakdown_type: v }))} options={[{ value: 'all', label: 'All Types' }, ...Object.entries(TYPE_META).map(([k, v]) => ({ value: k, label: v.name }))]} /></FormField>
             <FormField label="Priority"><SelectField size="filter" title="Priority" value={filters.priority} onChange={v => setFilters(p => ({ ...p, priority: v }))} options={[{ value: 'all', label: 'All Priorities' }, ...Object.entries(PRIORITY_META).map(([k, v]) => ({ value: k, label: v.name }))]} /></FormField>
-            <FormField label="Department"><SelectField size="filter" title="Department" value={filters.department} onChange={v => setFilters(p => ({ ...p, department: v }))} options={[{ value: 'all', label: 'All Depts' }, ...DEPARTMENTS.map(d => ({ value: d, label: d }))]} /></FormField>
             <FormField label="Location"><input type="text" aria-label="Filter by location" placeholder="Location…" value={filters.location !== 'all' ? filters.location : ''} onChange={e => setFilters(p => ({ ...p, location: e.target.value || 'all' }))} className={`w-full h-8 px-2 rounded text-[13px] ${t.inputBg} focus:outline-none`} /></FormField>
           </div>
         )}
