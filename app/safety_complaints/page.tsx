@@ -11,6 +11,7 @@ import {
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { PredictiveInput } from '@/components/shared/PredictiveInput';
+import { ListAutocomplete } from '@/components/shared/ListAutocomplete';
 import {
   useTheme, accentText, PageHero, StatTile, StatusBadge, SearchInput, FormField, FormActions,
   useCollapseSection, CenterModal, PrimaryButton, EmptyState, ACCENT_HEX, SelectField, useConfirm,
@@ -137,7 +138,7 @@ function ComplaintForm({ open, onClose, initial, onSave }: {
             </FormField>
           </div>
 
-          <FormField label="Location"><PredictiveInput historyKey="safety_complaint_location" value={form.location || ''} onChange={v => set('location', v)} placeholder="Where was the complaint raised?" inputClassName={inputCls} /></FormField>
+          <FormField label="Location"><ListAutocomplete listName="location" value={form.location || ''} onChange={v => set('location', v)} placeholder="Where was the complaint raised?" /></FormField>
 
           <FormField label="Action Plan">
             <textarea value={form.actionPlan || ''} onChange={e => set('actionPlan', e.target.value)} placeholder="Describe the corrective action plan…" rows={2} className={`${inputCls} resize-none`} />

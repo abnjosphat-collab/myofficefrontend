@@ -483,7 +483,7 @@ function FormModal({ isOpen, onClose, onSubmit, initialData, mode = 'create' }: 
             <FormField label="Priority"><SelectField size="form" title="Priority" value={fd.priority} onChange={v => set('priority', v)} options={Object.entries(PRIORITY_META).map(([k, v]) => ({ value: k, label: v.name }))} /></FormField>
             <FormField label="Breakdown Type"><SelectField size="form" title="Breakdown type" value={fd.breakdown_type} onChange={v => set('breakdown_type', v)} options={Object.entries(TYPE_META).map(([k, v]) => ({ value: k, label: v.name }))} /></FormField>
             <FormField label="Location" required>
-              <ListAutocomplete listName="breakdown_location" value={fd.location} onChange={v => set('location', v)} placeholder="e.g., Production Line A" />
+              <ListAutocomplete listName="location" value={fd.location} onChange={v => set('location', v)} placeholder="e.g., 6 Level, Southwell…" />
               {errors.location && <p className="text-xs text-rose-500 mt-1">{errors.location}</p>}
             </FormField>
             <div className="sm:col-span-2">

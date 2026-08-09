@@ -13,6 +13,7 @@ import {
   Flashlight, Sun, Moon,
 } from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
+import { ListAutocomplete } from '@/components/shared/ListAutocomplete';
 import { formatDate } from '@/lib/format';
 import { addMonths, todayLocal } from '@/lib/dates';
 import { toast } from 'sonner';
@@ -54,8 +55,6 @@ const PPE_TYPES: Record<string, PPETypeInfo> = {
 
 // PPE_MATRIX_DEFAULTS now lives in ./usePPEData (imported above) — same data,
 // single source of truth for both the hook's initial state and this page's UI.
-
-const MINE_LOCATIONS = ['Deep Shaft A', 'Deep Shaft B', 'Open Pit', 'Processing Plant', 'Workshop', 'Surface', 'All Areas'];
 
 const CONDITION_COLORS: Record<string, string> = { excellent: '#34d399', good: '#86BBD8', fair: '#f59e0b', poor: '#f97316', damaged: '#f43f5e' };
 const CONDITION_LABELS: Record<string, string> = { excellent: 'Excellent', good: 'Good', fair: 'Fair', poor: 'Poor', damaged: 'Damaged' };
@@ -583,8 +582,7 @@ function PPEIssueForm({ isOpen, onClose, onSubmit, initialData, employee, allEmp
                   title="Expiry date — auto-calculated from the matrix; edit to override" className={inputCls} style={{ colorScheme: t.light ? 'light' : 'dark' }} />
               </FormField>
               <FormField label="Location">
-                <SelectField title="Location" {...sel('location')}
-                  options={MINE_LOCATIONS.map(loc => ({ value: loc, label: loc }))} />
+                <ListAutocomplete listName="location" value={form.location} onChange={v => set('location', v as any)} />
               </FormField>
             </div>
             <div className="grid grid-cols-2 gap-3">

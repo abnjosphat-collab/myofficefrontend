@@ -2,9 +2,10 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import {
   Shield, Users, Search, ChevronDown, ChevronUp,
-  Save, RefreshCw, AlertCircle, Check, UserPlus, Power, Key,
+  Save, RefreshCw, AlertCircle, Check, UserPlus, Power, Key, MapPin,
 } from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
 import {
@@ -275,6 +276,10 @@ function AdminContent() {
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${t.chipBg} ${t.hoverBg} ${t.textMuted} ${t.hoverText}`}>
               <RefreshCw className={`h-3.5 w-3.5 ${fetching ? 'animate-spin' : ''}`} /> Refresh
             </button>
+            <Link href="/admin/lists"
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${t.chipBg} ${t.hoverBg} ${t.textMuted} ${t.hoverText}`}>
+              <MapPin className="h-3.5 w-3.5" /> Manage Shared Lists
+            </Link>
           </div>
         }
       >

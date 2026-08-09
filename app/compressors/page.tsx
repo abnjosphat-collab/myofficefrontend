@@ -13,6 +13,8 @@ import {
   XCircle,
 } from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
+import { ListAutocomplete } from '@/components/shared/ListAutocomplete';
+import { useLookupList } from '@/hooks/useLookups';
 import { formatDate } from '@/lib/format';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
@@ -34,8 +36,6 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.
   maintenance: { label: 'Maintenance', color: '#f59e0b', icon: AlertTriangle },
   offline:     { label: 'Offline',     color: '#f43f5e', icon: XCircle },
 };
-
-const LOCATIONS = ['Main Plant', 'Production', 'Auxiliary', 'Workshop', 'Storage', 'Packaging', 'Shipping', 'Receiving'];
 
 const URGENCY_COLOR: Record<string, string> = { critical: '#f43f5e', high: '#f97316', medium: '#f59e0b', low: '#34d399' };
 const RATING_COLOR: Record<string, string> = { Excellent: '#34d399', Good: ACCENT_HEX.blue, Fair: '#f59e0b', Poor: '#f43f5e' };
@@ -68,6 +68,9 @@ function CompressorReadingsSystem() {
   const [showAddCompressor, setShowAddCompressor] = useState<boolean>(false);
   const [compressorInputs, setCompressorInputs] = useState<Record<number, CompressorInput>>({});
   const [statusUpdateDialog, setStatusUpdateDialog] = useState<StatusDialogState>({ open: false, compressorId: null, currentStatus: '' });
+  // Real, shared location list (backend/app/routers/lookup_lists.py) — replaces
+  // the stale hardcoded LOCATIONS array the filter used to draw from.
+  const locationOptions = useLookupList('location');
 
   const sections = useCollapseSection({ hero: true });
 
@@ -283,8 +286,7 @@ function CompressorReadingsSystem() {
             <FormField label="Model" required><input className={inputCls} value={fd.model} onChange={e => setFd(p => ({ ...p, model: e.target.value }))} placeholder="Atlas Copco GA37" /></FormField>
             <FormField label="Capacity" required><input className={inputCls} value={fd.capacity} onChange={e => setFd(p => ({ ...p, capacity: e.target.value }))} placeholder="37 kW" /></FormField>
             <FormField label="Location">
-              <SelectField size="form" title="Location" value={fd.location} onChange={v => setFd(p => ({ ...p, location: v }))}
-                options={LOCATIONS.map(l => ({ value: l, label: l }))} />
+              <ListAutocomplete listName="location" value={fd.location} onChange={v => setFd(p => ({ ...p, location: v }))} />
             </FormField>
             <FormField label="Total Running Hours"><input type="number" className={inputCls} value={String(fd.total_running_hours)} onChange={e => setFd(p => ({ ...p, total_running_hours: parseFloat(e.target.value) || 0 }))} /></FormField>
             <FormField label="Total Loaded Hours"><input type="number" className={inputCls} value={String(fd.total_loaded_hours)} onChange={e => setFd(p => ({ ...p, total_loaded_hours: parseFloat(e.target.value) || 0 }))} /></FormField>
@@ -418,7 +420,7 @@ function CompressorReadingsSystem() {
                   <input type="text" aria-label="Search compressors" placeholder="Search…" value={filters.search} onChange={e => setFilters(p => ({ ...p, search: e.target.value }))} className={`w-40 h-8 pl-8 pr-3 rounded-lg text-sm ${t.inputBg} focus:outline-none`} />
                 </div>
                 <SelectField size="filter" title="Location" value={filters.location} onChange={v => setFilters(p => ({ ...p, location: v }))} className="w-36"
-                  options={[{ value: 'all', label: 'All Locations' }, ...LOCATIONS.map(l => ({ value: l, label: l }))]} />
+                  options={[{ value: 'all', label: 'All Locations' }, ...locationOptions.map(l => ({ value: l, label: l }))]} />
                 <SelectField size="filter" title="Status" value={filters.status} onChange={v => setFilters(p => ({ ...p, status: v }))} className="w-32"
                   options={[{ value: 'all', label: 'All Status' }, ...Object.entries(STATUS_CONFIG).map(([k, v]) => ({ value: k, label: v.label }))]} />
                 <ViewToggle value={viewMode} onChange={setViewMode} options={[{ value: 'card', icon: Grid, label: 'Card view' }, { value: 'list', icon: List, label: 'List view' }]} />

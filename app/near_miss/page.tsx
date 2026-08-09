@@ -15,6 +15,7 @@ import {
 } from '@/components/shared/theme';
 import { PredictiveInput } from '@/components/shared/PredictiveInput';
 import { EmployeeNameInput } from '@/components/shared/EmployeeNameInput';
+import { ListAutocomplete } from '@/components/shared/ListAutocomplete';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
 import type { NearMissReport } from './types';
@@ -100,8 +101,7 @@ function ReportFormModal({ open, onClose, onSave, report }: {
             </FormField>
             <div className="col-span-2">
               <FormField label="Location" required>
-                <PredictiveInput historyKey="nm_location" value={form.location || ''} onChange={v => set('location', v)}
-                  placeholder="Specific location details" hints={['Main Workshop', 'Crusher Bay', 'Processing Plant', 'Pit Area', 'Electrical Substation', 'Compressor Room', 'Conveyor Belt', 'Administration Block']} />
+                <ListAutocomplete listName="location" value={form.location || ''} onChange={v => set('location', v)} placeholder="Specific location details" />
               </FormField>
             </div>
           </div>

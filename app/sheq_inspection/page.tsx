@@ -17,6 +17,7 @@ import { PhotoUpload } from '@/components/shared/PhotoUpload';
 import { AppShell } from '@/components/app-shell';
 import { PredictiveInput } from '@/components/shared/PredictiveInput';
 import { EmployeeNameInput } from '@/components/shared/EmployeeNameInput';
+import { ListAutocomplete } from '@/components/shared/ListAutocomplete';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
 import type { SectionType, PriorityType, FindingStatus, InspectionStatus, InspectionFinding, SHEQFormData } from './types';
@@ -215,9 +216,7 @@ function InspectionFormModal({
                 </FormField>
               </div>
               <FormField label="Location" required>
-                <PredictiveInput historyKey="sheq_location" value={form.place || ''} onChange={v => set({ place: v })}
-                  placeholder="e.g. Main Warehouse"
-                  hints={['Main Warehouse', 'Workshop', 'Electrical Substation', 'Crusher Bay', 'Processing Plant', 'Pit Area', 'Administration Block']} />
+                <ListAutocomplete listName="location" value={form.place || ''} onChange={v => set({ place: v })} placeholder="e.g. 6 Level, Workshop…" />
               </FormField>
               <FormField label="Department">
                 <PredictiveInput historyKey="sheq_department" value={form.department || ''} onChange={v => set({ department: v })}

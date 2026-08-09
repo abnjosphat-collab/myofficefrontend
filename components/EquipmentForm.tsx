@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertTriangle, useTheme, FormField, FormActions, SelectField } from "@/components/shared/theme";
+import { ListAutocomplete } from "@/components/shared/ListAutocomplete";
 import type { EquipmentItem } from "@/app/equipment/types";
 
 const STATUS_OPTIONS = [
@@ -238,9 +239,7 @@ const EquipmentForm = ({ equipment, onSubmit, onCancel }: EquipmentFormProps) =>
                   onChange={(v) => set("criticality", v)} options={CRITICALITY_OPTIONS} disabled={loading} />
               </FormField>
               <FormField label="Location">
-                <input name="location" value={formData.location}
-                  onChange={(e) => set("location", e.target.value)}
-                  disabled={loading} placeholder="Workshop A" className={inputCls} />
+                <ListAutocomplete listName="location" value={formData.location} onChange={(v) => set("location", v)} disabled={loading} placeholder="Workshop A" />
               </FormField>
               <FormField label="Department">
                 <input name="department" value={formData.department}
