@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from "next/link";
+import { RequireAuth } from '@/components/shared/RequireAuth';
 import Image from "next/image";
 import { 
   Utensils,
@@ -509,7 +510,7 @@ function TimeSlot({ time, available, onClick }: { time: string; available: boole
 }
 
 // =============== MAIN PAGE ===============
-export default function RestaurantPage() {
+function RestaurantPageContent() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
@@ -1245,4 +1246,8 @@ export default function RestaurantPage() {
 
     </AppShell>
   );
+}
+
+export default function RestaurantPage() {
+  return <RequireAuth><RestaurantPageContent /></RequireAuth>;
 }

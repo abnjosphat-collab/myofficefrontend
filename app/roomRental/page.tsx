@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from "next/link";
+import { RequireAuth } from '@/components/shared/RequireAuth';
 import { 
   Home,
   MapPin,
@@ -767,7 +768,7 @@ function DropdownMenu({ title, items }: { title: string; items: { name: string; 
 }
 
 // =============== MAIN PAGE ===============
-export default function RentalPage() {
+function RentalPageContent() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [properties, setProperties] = useState<RentalProperty[]>([]);
   const [filteredProperties, setFilteredProperties] = useState<RentalProperty[]>([]);
@@ -1439,4 +1440,8 @@ export default function RentalPage() {
         </div>
     </AppShell>
   );
+}
+
+export default function RentalPage() {
+  return <RequireAuth><RentalPageContent /></RequireAuth>;
 }

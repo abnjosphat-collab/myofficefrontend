@@ -6,6 +6,7 @@
 
 import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
+import { RequireAuth } from '@/components/shared/RequireAuth';
 import { toast } from 'sonner';
 import {
   useTheme, accentText, PageHero, StatTile, StatusBadge, ProgressBar, FormField,
@@ -55,7 +56,7 @@ function mondayOf(d: Date): Date {
 }
 type Tab = 'overview' | 'bookings' | 'schedule' | 'calendar' | 'students' | 'payments' | 'analytics';
 
-export default function DrivingSchoolDashboard() {
+function DrivingSchoolDashboardContent() {
   const t = useTheme();
   const [seed] = useState(() => generateAllMockData());
   const { instructors, students, vidTests } = seed;
@@ -140,6 +141,10 @@ export default function DrivingSchoolDashboard() {
       </main>
     </div>
   );
+}
+
+export default function DrivingSchoolDashboard() {
+  return <RequireAuth><DrivingSchoolDashboardContent /></RequireAuth>;
 }
 
 // ─── OVERVIEW ───────────────────────────────────────────────────────────────

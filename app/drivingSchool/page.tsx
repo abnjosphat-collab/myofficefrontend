@@ -2,6 +2,7 @@
 'use client';
 
 import Link from 'next/link';
+import { RequireAuth } from '@/components/shared/RequireAuth';
 import { useState } from 'react';
 import {
   ArrowRight,
@@ -44,7 +45,7 @@ const FAQS = [
   { q: 'How long does the whole process usually take?', a: 'From your first theory lesson to a full license, most learners finish in 2–4 months, depending on how often you can take lessons and VID appointment availability.' },
 ];
 
-export default function DrivingSchoolHome() {
+function DrivingSchoolHomeContent() {
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const [contactOpen, setContactOpen] = useState(false);
   return (
@@ -395,4 +396,8 @@ export default function DrivingSchoolHome() {
       </div>
     </div>
   );
+}
+
+export default function DrivingSchoolHome() {
+  return <RequireAuth><DrivingSchoolHomeContent /></RequireAuth>;
 }

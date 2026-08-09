@@ -3,6 +3,7 @@
 
 import { useState, useEffect, ReactNode, ComponentType } from 'react';
 import Link from "next/link";
+import { RequireAuth } from '@/components/shared/RequireAuth';
 import { 
   DollarSign,
   TrendingUp,
@@ -557,7 +558,7 @@ function FinancialMetric({ metric }: { metric: FinancialMetric }) {
 }
 
 // =============== MAIN PAGE ===============
-export default function FarmPage() {
+function FarmPageContent() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -1294,4 +1295,8 @@ export default function FarmPage() {
       </div>
     </>
   );
+}
+
+export default function FarmPage() {
+  return <RequireAuth><FarmPageContent /></RequireAuth>;
 }

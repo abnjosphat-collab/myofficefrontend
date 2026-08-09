@@ -4,6 +4,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import Link from "next/link";
+import { RequireAuth } from '@/components/shared/RequireAuth';
 import { 
   ShoppingBag,
   Heart,
@@ -704,7 +705,7 @@ function FilterSidebar() {
   );
 }
 
-export default function BoutiquePage() {
+function BoutiquePageContent() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [sortBy, setSortBy] = useState('featured');
@@ -1243,4 +1244,8 @@ export default function BoutiquePage() {
       </div>
     </>
   );
+}
+
+export default function BoutiquePage() {
+  return <RequireAuth><BoutiquePageContent /></RequireAuth>;
 }

@@ -15,6 +15,7 @@ import {
   Flag, AlertCircle, ChevronRight, ChevronDown, ChevronUp,
 } from "@/components/shared/theme";
 import { AppShell } from '@/components/app-shell';
+import { RequireAuth } from '@/components/shared/RequireAuth';
 import { fmtDate as formatDate, fmtDateTime as formatDateTime } from '@/components/shared/utils';
 import { EmployeeNameInput } from '@/components/shared/EmployeeNameInput';
 import { PredictiveInput } from '@/components/shared/PredictiveInput';
@@ -782,5 +783,5 @@ function PacheduContent() {
 }
 
 export default function PacheduFormPage() {
-  return <AppShell><PacheduContent /></AppShell>;
+  return <RequireAuth><AppShell><PacheduContent /></AppShell></RequireAuth>;
 }

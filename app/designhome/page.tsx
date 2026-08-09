@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import { RequireAuth } from '@/components/shared/RequireAuth';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Sparkles, 
@@ -319,7 +320,7 @@ const stats = [
   { value: "50+", label: "Industry Awards", icon: <Award className="h-6 w-6" /> },
 ];
 
-export default function DesignStudio() {
+function DesignStudioContent() {
   const [activeFilter, setActiveFilter] = useState('all');
   const [hoveredCard, setHoveredCard] = useState<number | null>(null);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -1084,4 +1085,8 @@ export default function DesignStudio() {
       </AnimatePresence>
     </div>
   );
+}
+
+export default function DesignStudio() {
+  return <RequireAuth><DesignStudioContent /></RequireAuth>;
 }

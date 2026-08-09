@@ -3,6 +3,7 @@
 
 import { useState, useEffect, ReactNode } from 'react';
 import Link from "next/link";
+import { RequireAuth } from '@/components/shared/RequireAuth';
 import { 
   DollarSign,
   TrendingUp,
@@ -736,7 +737,7 @@ function DonationItem({ donation }: { donation: RecentDonation }) {
 }
 
 // =============== MAIN PAGE ===============
-export default function ChurchPage() {
+function ChurchPageContent() {
   const [isLoggedIn] = useState(true);
   const [user] = useState<UserData | null>(null);
   const [churchName] = useState('Grace Community Church');
@@ -1323,4 +1324,8 @@ export default function ChurchPage() {
         </main>
     </AppShell>
   );
+}
+
+export default function ChurchPage() {
+  return <RequireAuth><ChurchPageContent /></RequireAuth>;
 }

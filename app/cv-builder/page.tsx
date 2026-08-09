@@ -2,6 +2,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import { RequireAuth } from '@/components/shared/RequireAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -1003,7 +1004,7 @@ const parseProjects = (content: string): Project[] => {
 };
 
 // ========== MAIN COMPONENT ==========
-export default function CVFactory() {
+function CVFactoryContent() {
   const [activeTab, setActiveTab] = useState('upload');
   const [activeTemplate, setActiveTemplate] = useState('executive_velvet');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -2335,4 +2336,8 @@ JavaScript, React, Node.js, Python, AWS, Docker, PostgreSQL`}
       </div>
     </div>
   );
+}
+
+export default function CVFactory() {
+  return <RequireAuth><CVFactoryContent /></RequireAuth>;
 }

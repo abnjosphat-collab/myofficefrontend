@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from "next/link";
+import { RequireAuth } from '@/components/shared/RequireAuth';
 import Image from "next/image";
 import { 
   ShoppingBag,
@@ -420,7 +421,7 @@ function DropdownMenu({ title, items }: { title: string; items: { name: string; 
 }
 
 // =============== MAIN PAGE ===============
-export default function EcommercePage() {
+function EcommercePageContent() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
@@ -1345,4 +1346,8 @@ export default function EcommercePage() {
       </div>
     </>
   );
+}
+
+export default function EcommercePage() {
+  return <RequireAuth><EcommercePageContent /></RequireAuth>;
 }
