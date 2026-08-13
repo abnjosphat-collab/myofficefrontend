@@ -52,8 +52,10 @@ export interface HourTotals {
   /** Flat +8h once per contiguous run of nightshift_allowance days — same mechanic as
    *  standbyBonus, both kept as their own columns rather than folded into ot15. */
   nightAllowanceBonus: number;
-  /** reg + ot15 + ot20 + night — what was actually worked/credited, before the flat
-   *  standby/night-allowance bonuses are added on top to reach `total`. */
+  /** reg + ot15 + night + (ot20 excluding whole holiday/weekend days) — what was actually
+   *  worked/credited, before the flat standby/night-allowance bonuses are added on top to
+   *  reach `total`. Holiday/weekend days are left out here since they're already fully
+   *  represented in the 2.0x column; `total` still includes everything. */
   actual: number;
   total: number; excess?: number;
 }

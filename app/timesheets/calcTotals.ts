@@ -17,6 +17,11 @@ export const apply208 = (reg: number, ot15: number) =>
 
 export function calcEmployeeTotals(empId: string, timesheets: TimesheetEntry[]): HourTotals {
   let reg = 0, ot15 = 0, ot20 = 0, night = 0;
+  // Portion of ot20 that came from a whole holiday/weekend (double-time) day, as opposed to
+  // 2.0x overtime hours logged on top of an otherwise-regular day. Tracked separately so
+  // `actual` can leave holiday/weekend days out — they're already fully represented in the
+  // 2.0x column and shouldn't also inflate Actual.
+  let ot20Holiday = 0;
   let standbyBonus = 0, inStandbyRun = false;
   let nightAllowanceBonus = 0, inNightAllowanceRun = false;
 
@@ -27,7 +32,9 @@ export function calcEmployeeTotals(empId: string, timesheets: TimesheetEntry[]):
       reg += e.regular_hours || 0;
       night += e.nightshift_hours || 0;
       if (DOUBLE_TIME_STATUSES.has(e.status)) {
-        ot20 += (e.regular_hours || 0) + (e.overtime_hours || 0) + (e.holiday_overtime_hours || 0);
+        const dayOt20 = (e.regular_hours || 0) + (e.overtime_hours || 0) + (e.holiday_overtime_hours || 0);
+        ot20 += dayOt20;
+        ot20Holiday += dayOt20;
         reg -= e.regular_hours || 0;
       } else {
         ot15 += e.overtime_hours || 0;
@@ -44,11 +51,13 @@ export function calcEmployeeTotals(empId: string, timesheets: TimesheetEntry[]):
   // distinct from the flat standby/night-allowance bonuses added on top — previously
   // standbyBonus was folded silently into ot15, so "1.5×" and "Total" both overstated what
   // was actually worked with no way to see the bonus on its own (nightAllowanceBonus never
-  // had that problem — it was always kept separate).
-  const actual = a.reg + a.ot15 + ot20 + night;
+  // had that problem — it was always kept separate). Whole holiday/weekend days are excluded
+  // here (see ot20Holiday above) — those hours already live in the 2.0x column and would
+  // otherwise be double-counted into Actual.
+  const actual = a.reg + a.ot15 + (ot20 - ot20Holiday) + night;
   return {
     reg: a.reg, ot15: a.ot15, ot20, night, standbyBonus, nightAllowanceBonus, actual,
-    total: actual + standbyBonus + nightAllowanceBonus,
+    total: a.reg + a.ot15 + ot20 + night + standbyBonus + nightAllowanceBonus,
     excess: Math.max(0, reg - 208),
   };
 }
