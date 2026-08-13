@@ -1651,6 +1651,7 @@ function OvertimeContent() {
   const [dateTo, setDateTo] = useState('');
   const [employeePicks, setEmployeePicks] = useState<PickedEmployee[]>([]);
   const [view, setView] = useState<'table' | 'grid'>('table');
+  const [dateSort, setDateSort] = useState<'desc' | 'asc'>('desc');
   const [mainTab, setMainTab] = useState<'records' | 'insights' | 'weekly-summary'>('records');
 
   const [formOpen, setFormOpen] = useState(false);
@@ -1675,7 +1676,8 @@ function OvertimeContent() {
       if (!r.employee_name.toLowerCase().includes(q) && !r.employee_id.toLowerCase().includes(q) && !(r.reason || '').toLowerCase().includes(q) && !r.position.toLowerCase().includes(q)) return false;
     }
     return true;
-  }), [records, status, type, dateFrom, dateTo, employeeIds, search]);
+  }).sort((a, b) => dateSort === 'asc' ? a.date.localeCompare(b.date) : b.date.localeCompare(a.date)),
+  [records, status, type, dateFrom, dateTo, employeeIds, search, dateSort]);
 
   // Month quick-filter — reads off `records` (not `filtered`), so the chip list itself
   // doesn't shrink as the user filters by other criteria. Newest first, capped so a
@@ -1711,6 +1713,21 @@ function OvertimeContent() {
     const totalHrs = records.reduce((s, r) => s + (r.hours ?? calcHours(r.start_time, r.end_time)), 0);
     return { total: records.length, pending, approved, totalHrs: Math.round(totalHrs) };
   }, [records]);
+
+  // Whether any filter narrows `filtered` below the full record set — the quick summary
+  // below only makes sense (and doesn't just repeat the page-wide `stats` tiles above)
+  // once the view is actually scoped to something.
+  const hasActiveFilter = status !== 'all' || type !== 'all' || !!dateFrom || !!dateTo || employeePicks.length > 0 || !!search;
+  const filteredSummary = useMemo(() => {
+    const totalHrs = filtered.reduce((s, r) => s + (r.hours ?? calcHours(r.start_time, r.end_time)), 0);
+    const uniqueEmployees = new Set(filtered.map(r => r.employee_id)).size;
+    return {
+      instances: filtered.length,
+      totalHrs: Math.round(totalHrs * 10) / 10,
+      uniqueEmployees,
+      avgHours: filtered.length > 0 ? Math.round((totalHrs / filtered.length) * 10) / 10 : 0,
+    };
+  }, [filtered]);
 
   // byType/byStatus/bySection/byArtisan/byWeekday/richStats moved into
   // OvertimeInsightsView (below) — it's now the sole consumer, after Analytics and
@@ -1906,6 +1923,10 @@ function OvertimeContent() {
             <button type="button" onClick={() => { setSearch(''); setStatus('all'); setType('all'); setDateFrom(''); setDateTo(''); setEmployeePicks([]); }} className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg transition-colors ${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText}`}>
               <X className="h-3.5 w-3.5" /> Clear
             </button>
+            <button type="button" onClick={() => setDateSort(d => d === 'asc' ? 'desc' : 'asc')} title="Sort by date"
+              className={`flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg transition-colors ${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText}`}>
+              {dateSort === 'asc' ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />} Date
+            </button>
             <div className="ml-auto flex gap-1">
               <button type="button" title="Table view" onClick={() => setView('table')} className={`h-7 w-7 flex items-center justify-center rounded-lg transition-all ${view === 'table' ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}><List className="h-3.5 w-3.5" /></button>
               <button type="button" title="Grid view" onClick={() => setView('grid')} className={`h-7 w-7 flex items-center justify-center rounded-lg transition-all ${view === 'grid' ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}><LayoutGrid className="h-3.5 w-3.5" /></button>
@@ -1914,6 +1935,15 @@ function OvertimeContent() {
           </div>
         </div>
       </div>
+
+      {hasActiveFilter && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <AnalyzeStat icon={FileText} accent="blue" label="Instances (this view)" value={filteredSummary.instances} />
+          <AnalyzeStat icon={Clock4} accent="violet" label="Total OT Hours" value={filteredSummary.totalHrs} suffix="h" decimals={1} />
+          <AnalyzeStat icon={UsersRound} accent="indigo" label="Employees" value={filteredSummary.uniqueEmployees} />
+          <AnalyzeStat icon={Gauge} accent="amber" label="Avg Hrs / Instance" value={filteredSummary.avgHours} suffix="h" decimals={1} />
+        </div>
+      )}
 
       <PillTabs
         tabs={[{ key: 'records', label: 'Records', icon: FileText }, { key: 'insights', label: 'Overtime Insights', icon: Lightbulb }, { key: 'weekly-summary', label: 'Weekly Summary', icon: CalendarRange }]}
@@ -1952,7 +1982,14 @@ function OvertimeContent() {
                     <th className={`${thCls} w-8`}>
                       {pendingInView.length > 0 && <input type="checkbox" checked={allPendingSelected} onChange={toggleSelectAll} title="Select all pending" className="rounded" />}
                     </th>
-                    <th className={thCls}>Employee</th><th className={thCls}>Type</th><th className={thCls}>Date</th><th className={thCls}>Hours</th><th className={thCls}>Reason</th><th className={thCls}>Status</th><th className={thCls}></th></tr>
+                    <th className={thCls}>Employee</th><th className={thCls}>Type</th>
+                    <th className={thCls}>
+                      <button type="button" onClick={() => setDateSort(d => d === 'asc' ? 'desc' : 'asc')}
+                        className={`flex items-center gap-0.5 ${t.hoverText} transition-colors`} title="Sort by date">
+                        Date {dateSort === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                      </button>
+                    </th>
+                    <th className={thCls}>Hours</th><th className={thCls}>Reason</th><th className={thCls}>Status</th><th className={thCls}></th></tr>
                 </thead>
                 <tbody>
                   {filtered.map(r => {
