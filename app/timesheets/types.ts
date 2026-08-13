@@ -54,10 +54,10 @@ export interface HourTotals {
    *  a callout entry (no start/end time, never carries this flag). Kept as its own column
    *  rather than folded into ot15/night, same as standbyBonus. */
   nightAllowanceBonus: number;
-  /** reg + ot15 + night + (ot20 excluding whole holiday/weekend days) — what was actually
-   *  worked/credited, before the flat standby bonus and the night-allowance differential are
-   *  added on top to reach `total`. Holiday/weekend days are left out here since they're
-   *  already fully represented in the 2.0x column; `total` still includes everything. */
+  /** Normal day-shift hours only (== reg, capped at 208). Leave/sick/etc. days already
+   *  count as 8h each via regular_hours. Overtime (1.5x/2.0x), night-window hours, and the
+   *  flat standby/night-allowance bonuses are deliberately excluded — they only show up in
+   *  their own columns and in `total`, which still includes everything. */
   actual: number;
   total: number; excess?: number;
 }
