@@ -24,7 +24,7 @@ import { toLocalISODate } from '@/lib/dates';
 import { zimHolidayName } from '@/lib/zimHolidays';
 import type {
   ApprovedLeaveRecord, ApprovedOvertimeRecord, EditCell, Employee, EntryForm,
-  HourTotals, OvertimePeriodData, Period, RowData, StatusConfig, StatusKey, TimesheetEntry,
+  HourTotals, Period, RowData, StatusConfig, StatusKey, TimesheetEntry,
 } from './types';
 import { api, useTimesheetsData } from './useTimesheetsData';
 import { LEAVE_STATUSES, DOUBLE_TIME_STATUSES, ZERO_HOUR_STATUSES, apply208, calcEmployeeTotals } from './calcTotals';
@@ -157,71 +157,7 @@ function StatusPill({ status, dark = false }: { status: StatusKey; dark?: boolea
   );
 }
 
-// ─────────────────── OVERTIME PERIOD ROW ───────────────────
-
-function OvertimePeriod({ period, index, onUpdate, onRemove }: {
-  period: OvertimePeriodData; index: number;
-  onUpdate: (idx: number, val: OvertimePeriodData) => void; onRemove: (idx: number) => void;
-}) {
-  const t = useTheme();
-  const [start, setStart] = useState(period.start_time || '17:00');
-  const [end, setEnd] = useState(period.end_time || '19:00');
-  const [type, setType] = useState<'1.5x' | '2.0x'>(period.overtime_type || '1.5x');
-  const [reason, setReason] = useState(period.reason || '');
-
-  useEffect(() => {
-    if (start && end) onUpdate(index, { start_time: start, end_time: end, overtime_type: type, overtime_hours: calcHours(start, end), nightshift_hours: calcNightHours(start, end), reason });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [start, end, type, reason, index]);
-
-  const fieldCls = `h-8 text-sm ${t.inputBg}`;
-
-  return (
-    <div className={`p-3 rounded-lg ${t.chipBg} space-y-2`}>
-      <div className="flex justify-between items-center">
-        <span className={`text-sm font-medium ${t.textMuted}`}>OT Period {index + 1}</span>
-        <button type="button" title="Remove OT period" onClick={() => onRemove(index)} className="text-red-400 hover:text-red-500 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
-      </div>
-      <div className="grid grid-cols-3 gap-2">
-        <div><Label className={`text-xs ${t.textFaint}`}>Start</Label><Input type="time" value={start} onChange={e => setStart(e.target.value)} className={fieldCls} /></div>
-        <div><Label className={`text-xs ${t.textFaint}`}>End</Label><Input type="time" value={end} onChange={e => setEnd(e.target.value)} className={fieldCls} /></div>
-        <div>
-          <Label className={`text-xs ${t.textFaint}`}>Rate</Label>
-          <Select value={type} onValueChange={v => setType(v as '1.5x' | '2.0x')}>
-            <SelectTrigger className={`h-8 text-xs ${t.inputBg}`}><SelectValue /></SelectTrigger>
-            <SelectContent><SelectItem value="1.5x">1.5×</SelectItem><SelectItem value="2.0x">2.0×</SelectItem></SelectContent>
-          </Select>
-        </div>
-      </div>
-      <div>
-        <Label className={`text-xs ${t.textFaint}`}>Reason / What was this overtime for?</Label>
-        <Input placeholder="e.g. Emergency repair, After-hours maintenance…" value={reason} onChange={e => setReason(e.target.value)} className={`${fieldCls} mt-1`} />
-      </div>
-      <div className={`flex gap-4 text-xs ${t.textFaint}`}>
-        <span>OT: <b className={t.textMuted}>{calcHours(start, end).toFixed(2)}h</b></span>
-        <span><Moon className={`w-3 h-3 inline ${accentText('indigo', t.light)}`} /> Night: <b className={t.textMuted}>{calcNightHours(start, end).toFixed(2)}h</b></span>
-      </div>
-    </div>
-  );
-}
-
 // ─────────────────── SINGLE ENTRY DIALOG ───────────────────
-
-const toHr = (t: string) =>{ const [h, m] = (t || '0:0').split(':').map(Number); return h + m / 60; };
-const otPeriodsOverlap = (periods: OvertimePeriodData[]): boolean => {
-  for (let i = 0; i < periods.length; i++) {
-    for (let j = i + 1; j < periods.length; j++) {
-      const aS = toHr(periods[i].start_time);
-      let aE = toHr(periods[i].end_time);
-      const bS = toHr(periods[j].start_time);
-      let bE = toHr(periods[j].end_time);
-      if (aE <= aS) aE += 24;
-      if (bE <= bS) bE += 24;
-      if (aS < bE && bS < aE) return true;
-    }
-  }
-  return false;
-};
 
 function TimesheetEntryDialog({ employee, date, entry, onSave, onDelete, onClose }: {
   employee: Employee; date: Date; entry?: TimesheetEntry;
@@ -244,13 +180,19 @@ function TimesheetEntryDialog({ employee, date, entry, onSave, onDelete, onClose
     nightshift_allowance: entry?.nightshift_allowance ?? false, notes: entry?.notes || '',
     callout_overtime_hours: entry?.callout_overtime_hours ?? 0, callout_count: entry?.callout_count ?? 0,
   });
-  const [otPeriods, setOtPeriods] = useState<OvertimePeriodData[]>(Array.isArray(entry?.overtime_periods) ? entry.overtime_periods : []);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   useEffect(() => {
-    if (ZERO_HOUR_STATUSES.has(form.status) || form.status === 'holiday_paid') return;
+    if (ZERO_HOUR_STATUSES.has(form.status)) return;
+    // Real shift times entered while still on the "didn't come in" holiday default mean
+    // they worked it — promote straight to PPH (2.0x) instead of requiring a separate
+    // manual Status change on top of the times just entered.
+    if (form.status === 'holiday_paid') {
+      if (form.start_time && form.end_time) setForm(f => ({ ...f, status: 'holiday' }));
+      return;
+    }
     if (form.start_time && form.end_time) setForm(f => ({ ...f, regular_hours: calcHours(f.start_time, f.end_time), nightshift_hours: calcNightHours(f.start_time, f.end_time) }));
   }, [form.start_time, form.end_time, form.status]);
 
@@ -263,16 +205,9 @@ function TimesheetEntryDialog({ employee, date, entry, onSave, onDelete, onClose
     else setForm(f => ({ ...f, status: s }));
   };
 
-  const otTotals = useMemo(() => {
-    let t15 = 0, t20 = 0, night = 0;
-    otPeriods.forEach(p => { const h = calcHours(p.start_time, p.end_time), n = calcNightHours(p.start_time, p.end_time); night += n; if (p.overtime_type === '2.0x') t20 += h; else t15 += h; });
-    return { t15, t20, night };
-  }, [otPeriods]);
-
-  const total = form.regular_hours + otTotals.t15 + otTotals.t20 + form.nightshift_hours + otTotals.night + form.callout_overtime_hours;
+  const total = form.regular_hours + form.nightshift_hours + form.callout_overtime_hours;
 
   const handleSave = async () => {
-    if (otPeriods.length > 1 && otPeriodsOverlap(otPeriods)) { toast.error('Two OT periods overlap — fix the times before saving'); return; }
     setSaving(true);
     try {
       const isDT = DOUBLE_TIME_STATUSES.has(form.status);
@@ -280,11 +215,14 @@ function TimesheetEntryDialog({ employee, date, entry, onSave, onDelete, onClose
         employee_id: parseInt(employee.id), date: fmtDate(date),
         start_time: form.start_time, end_time: form.end_time,
         regular_hours: isDT ? 0 : form.regular_hours,
-        overtime_hours: isDT ? 0 : otTotals.t15,
-        holiday_overtime_hours: isDT ? form.regular_hours + otTotals.t15 + otTotals.t20 : otTotals.t20,
-        nightshift_hours: form.nightshift_hours + otTotals.night,
+        // Overtime is no longer entered here — it's picked up entirely from the Overtime
+        // module's approved records (see effectiveTimesheets), so this dialog never writes
+        // overtime_hours/holiday_overtime_hours itself beyond a double-time day's own hours.
+        overtime_hours: 0,
+        holiday_overtime_hours: isDT ? form.regular_hours : 0,
+        nightshift_hours: form.nightshift_hours,
         standby_allowance: form.standby_allowance, nightshift_allowance: form.nightshift_allowance, total_hours: total,
-        status: form.status, notes: form.notes, overtime_periods: otPeriods,
+        status: form.status, notes: form.notes, overtime_periods: [],
         callout_overtime_hours: form.callout_overtime_hours, callout_count: form.callout_count,
       });
       toast.success('Entry saved');
@@ -327,7 +265,7 @@ function TimesheetEntryDialog({ employee, date, entry, onSave, onDelete, onClose
             {LEAVE_STATUSES.has(form.status) && <p className="text-xs text-brand-400 bg-brand-500/10 rounded px-2 py-1">8 hours auto-assigned for {STATUS_CFG[form.status]?.label}</p>}
             {DOUBLE_TIME_STATUSES.has(form.status) && <p className={`text-xs ${accentText('violet', t.light)} bg-violet-500/10 rounded px-2 py-1 font-medium`}>All hours worked count as <strong>2.0× (double time)</strong> — enter the actual shift times below</p>}
             {ZERO_HOUR_STATUSES.has(form.status) && <p className={`text-xs ${t.chipBg} rounded px-2 py-1 ${t.textFaint}`}>0 hours recorded — {STATUS_CFG[form.status]?.label} days are not credited</p>}
-            {form.status === 'holiday_paid' && <p className="text-xs text-amber-400 bg-amber-500/10 rounded px-2 py-1">8 regular hours auto-credited — they didn't work this public holiday. If they did, switch to "{STATUS_CFG.holiday.label}" instead.</p>}
+            {form.status === 'holiday_paid' && <p className="text-xs text-amber-400 bg-amber-500/10 rounded px-2 py-1">8 regular hours auto-credited — they didn't work this public holiday. Enter their actual shift times below if they did; this switches to "{STATUS_CFG.holiday.label}" automatically.</p>}
           </div>
 
           <div className={`p-3 rounded-lg ${t.chipBg} space-y-3`}>
@@ -345,29 +283,7 @@ function TimesheetEntryDialog({ employee, date, entry, onSave, onDelete, onClose
             </div>
           </div>
 
-          <div className="space-y-2">
-            <div className="flex justify-between items-center">
-              <h3 className={`font-medium text-sm ${t.textMuted}`}>Overtime Periods</h3>
-              <Button type="button" variant="outline" size="sm" className={`h-7 text-xs ${t.textMuted} bg-transparent`}
-                onClick={() => setOtPeriods(p => [...p, { start_time: '17:00', end_time: '19:00', overtime_type: '1.5x' }])}>
-                <Plus className="w-3 h-3 mr-1" /> Add OT
-              </Button>
-            </div>
-            {otPeriods.length === 0 ? (
-              <p className={`text-xs text-center py-2 border border-dashed rounded ${t.border} ${t.textFaint}`}>No overtime</p>
-            ) : otPeriods.map((p, i) => (
-              <OvertimePeriod key={i} period={p} index={i}
-                onUpdate={(idx, val) => setOtPeriods(prev => prev.map((x, j) => j === idx ? { ...x, ...val } : x))}
-                onRemove={idx => setOtPeriods(prev => prev.filter((_, j) => j !== idx))} />
-            ))}
-            {otPeriods.length > 0 && (
-              <div className={`grid grid-cols-3 gap-2 p-2 rounded text-center text-xs ${t.chipBg}`}>
-                <div><div className={t.textFaint}>1.5×</div><div className="font-bold text-orange-400">{otTotals.t15.toFixed(2)}h</div></div>
-                <div><div className={t.textFaint}>2.0×</div><div className={`font-bold ${accentText('violet', t.light)}`}>{otTotals.t20.toFixed(2)}h</div></div>
-                <div><div className={t.textFaint}>Night OT</div><div className={`font-bold ${accentText('indigo', t.light)}`}>{otTotals.night.toFixed(2)}h</div></div>
-              </div>
-            )}
-          </div>
+          <p className={`text-xs ${t.textFaint} bg-sky-500/[0.08] rounded px-2 py-1.5`}>Overtime is no longer entered here — log it in the Overtime module and it'll be picked up automatically.</p>
 
           <div className="flex justify-between items-center p-3 bg-brand-500/10 rounded-lg">
             <span className={`font-semibold text-sm ${t.textMuted}`}>Total Hours</span>
@@ -1788,14 +1704,6 @@ function TimesheetsContent() {
             />
           )
         )}
-      </div>
-
-      <div className={`${t.glass} rounded-2xl px-5 py-3 flex flex-wrap items-center gap-3`}>
-        <span className={`text-[10px] font-semibold uppercase tracking-wider mr-1 ${t.textFaint}`}>Legend</span>
-        {(Object.entries(STATUS_CFG) as [StatusKey, StatusConfig][]).map(([k, c]) => (
-          <span key={k} className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ backgroundColor: `${c.hex}22`, color: c.hex }}><c.Icon className="w-2.5 h-2.5" />{c.label}</span>
-        ))}
-        <span className={`text-[10px] ml-2 ${t.textFaint}`}>SB = Standby OT bonus</span>
       </div>
 
       {tabEmployees.length > 0 && (

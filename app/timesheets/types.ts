@@ -13,6 +13,9 @@ export interface Employee {
   employmentType: 'NEC' | 'SALARIED' | '';
 }
 
+// Legacy shape — no longer created by the UI (overtime is entered exclusively in the
+// Overtime module now; see effectiveTimesheets in page.tsx). Kept only so old saved
+// records that still carry this field don't break the type.
 export interface OvertimePeriodData {
   start_time: string; end_time: string; overtime_type: '1.5x' | '2.0x';
   overtime_hours?: number; nightshift_hours?: number; reason?: string;
