@@ -23,7 +23,7 @@ export function calcEmployeeTotals(empId: string, timesheets: TimesheetEntry[]):
   // 2.0x column and shouldn't also inflate Actual.
   let ot20Holiday = 0;
   let standbyBonus = 0, inStandbyRun = false;
-  let nightAllowanceBonus = 0, inNightAllowanceRun = false;
+  let nightAllowanceBonus = 0;
 
   timesheets
     .filter(t => String(t.employee_id) === String(empId))
@@ -40,10 +40,15 @@ export function calcEmployeeTotals(empId: string, timesheets: TimesheetEntry[]):
         ot15 += e.overtime_hours || 0;
         ot20 += e.holiday_overtime_hours || 0;
       }
-      // Both bonuses are paid once per contiguous run (of any length), not per day — a
-      // fresh run earns the flat 8h the moment it starts, then stays flat until it breaks.
+      // Standby is a flat 8h once per contiguous run (of any length) — a fresh run earns
+      // it the moment it starts, then stays flat until the run breaks.
       if (e.standby_allowance) { if (!inStandbyRun) { standbyBonus += 8; inStandbyRun = true; } } else inStandbyRun = false;
-      if (e.nightshift_allowance) { if (!inNightAllowanceRun) { nightAllowanceBonus += 8; inNightAllowanceRun = true; } } else inNightAllowanceRun = false;
+      // Night Shift Allowance is NOT flat — it's the actual hours worked between 18:00 and
+      // 06:00 (nightshift_hours, already computed as exactly that overlap) on days someone
+      // is on a scheduled night shift (the nightshift_allowance flag). A callout entry has
+      // no start/end time and never carries this flag, so callout hours never contribute
+      // here — only genuine rostered night-shift hours do.
+      if (e.nightshift_allowance) nightAllowanceBonus += e.nightshift_hours || 0;
     });
 
   const a = apply208(reg, ot15);

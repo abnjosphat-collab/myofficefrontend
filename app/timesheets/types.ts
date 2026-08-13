@@ -49,13 +49,15 @@ export interface Period { start: Date; end: Date; }
 export interface EditCell { employee: Employee; date: Date; entry?: TimesheetEntry; }
 export interface HourTotals {
   reg: number; ot15: number; ot20: number; night: number; standbyBonus: number;
-  /** Flat +8h once per contiguous run of nightshift_allowance days — same mechanic as
-   *  standbyBonus, both kept as their own columns rather than folded into ot15. */
+  /** Sum of nightshift_hours (actual 18:00–06:00 overlap) on days flagged
+   *  nightshift_allowance — i.e. rostered night-shift days, not flat, and not earned by
+   *  a callout entry (no start/end time, never carries this flag). Kept as its own column
+   *  rather than folded into ot15/night, same as standbyBonus. */
   nightAllowanceBonus: number;
   /** reg + ot15 + night + (ot20 excluding whole holiday/weekend days) — what was actually
-   *  worked/credited, before the flat standby/night-allowance bonuses are added on top to
-   *  reach `total`. Holiday/weekend days are left out here since they're already fully
-   *  represented in the 2.0x column; `total` still includes everything. */
+   *  worked/credited, before the flat standby bonus and the night-allowance differential are
+   *  added on top to reach `total`. Holiday/weekend days are left out here since they're
+   *  already fully represented in the 2.0x column; `total` still includes everything. */
   actual: number;
   total: number; excess?: number;
 }

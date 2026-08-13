@@ -389,7 +389,7 @@ function TimesheetEntryDialog({ employee, date, entry, onSave, onDelete, onClose
           </div>
 
           <div className={`flex items-center justify-between p-3 rounded-lg bg-indigo-500/[0.08]`}>
-            <div><Label className={`font-medium text-sm ${accentText('indigo', t.light)}`}>Night Shift Allowance</Label><p className={`text-xs ${t.textFaint}`}>Adds a flat 8h once for this night-shift run (any length)</p></div>
+            <div><Label className={`font-medium text-sm ${accentText('indigo', t.light)}`}>Night Shift Allowance</Label><p className={`text-xs ${t.textFaint}`}>Pays the actual hours worked between 18:00–06:00 (shown above as Night) as a shift differential</p></div>
             <Switch checked={form.nightshift_allowance} onCheckedChange={v => setForm(f => ({ ...f, nightshift_allowance: v }))} />
           </div>
 
@@ -666,7 +666,7 @@ function BulkAssignDialog({ initialEmployee, allEmployees, period, timesheets, o
           <div className="flex flex-wrap items-center gap-4">
             <label className={`flex items-center gap-2 text-sm cursor-pointer select-none ${t.textMuted}`}><input type="checkbox" checked={skipWeekends} onChange={e => setSkipWeekends(e.target.checked)} className="rounded" /> Skip weekends</label>
             <label className={`flex items-center gap-2 text-sm cursor-pointer select-none ${t.textMuted}`}><input type="checkbox" checked={standby} onChange={e => setStandby(e.target.checked)} className="rounded" /> Standby (flat 8h OT for the period)</label>
-            <label className={`flex items-center gap-2 text-sm cursor-pointer select-none ${t.textMuted}`}><input type="checkbox" checked={nightAllowance} onChange={e => setNightAllowance(e.target.checked)} className="rounded" /> Night Shift Allowance (flat 8h for the period)</label>
+            <label className={`flex items-center gap-2 text-sm cursor-pointer select-none ${t.textMuted}`}><input type="checkbox" checked={nightAllowance} onChange={e => setNightAllowance(e.target.checked)} className="rounded" /> Night Shift Allowance (actual 18:00–06:00 hours, not flat)</label>
           </div>
 
           <div className="space-y-2">
