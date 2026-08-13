@@ -1125,14 +1125,17 @@ function TimesheetGrid({ employees, timesheets, days, onCellClick, onQuickAdd, o
                             {!ZERO_HOUR_STATUSES.has(entry.status) && (() => {
                               const isDT = DOUBLE_TIME_STATUSES.has(entry.status as StatusKey);
                               const displayH = isDT ? (entry.holiday_overtime_hours || 0) : (entry.regular_hours || 0);
-                              return displayH > 0 ? <span className={`font-bold ${isDT ? accentText('amber', t.light) : t.textMuted}`}>{displayH.toFixed(1)}h{isDT ? ' ×2' : ''}</span> : null;
+                              // Plain hours worked, never multiplied — the "@2.0×" tag just names
+                              // which rate bucket they fall into; HR applies the multiplier when
+                              // running payroll, this module isn't doing that math for them.
+                              return displayH > 0 ? <span className={`font-bold ${isDT ? accentText('amber', t.light) : t.textMuted}`}>{displayH.toFixed(1)}h{isDT ? ' @ 2.0×' : ''}</span> : null;
                             })()}
                             {!DOUBLE_TIME_STATUSES.has(entry.status as StatusKey) && (entry.overtime_hours || 0) > 0 && <span className="text-brand-400 font-semibold">+{entry.overtime_hours!.toFixed(1)} OT</span>}
                             {/* 2.0x overtime landed on an otherwise non-holiday/weekend day (e.g.
                                 approved weekend/holiday OT on top of a normal work day) — without
                                 this it was invisible here even though it's correctly counted in
                                 the period's 2.0× total below. */}
-                            {!DOUBLE_TIME_STATUSES.has(entry.status as StatusKey) && (entry.holiday_overtime_hours || 0) > 0 && <span className="text-sky-400 font-semibold">+{entry.holiday_overtime_hours!.toFixed(1)} ×2</span>}
+                            {!DOUBLE_TIME_STATUSES.has(entry.status as StatusKey) && (entry.holiday_overtime_hours || 0) > 0 && <span className="text-sky-400 font-semibold">+{entry.holiday_overtime_hours!.toFixed(1)}h @ 2.0×</span>}
                             {(entry.nightshift_hours || 0) > 0 && <span className="text-sky-400 text-[8px]"><Moon className="w-2 h-2 inline -mt-px" />{entry.nightshift_hours!.toFixed(1)}n</span>}
                             {entry.standby_allowance && <span className={`${accentText('amber', t.light)} text-[8px] font-medium`}>SB</span>}
                             {entry.nightshift_allowance && <span className={`${accentText('indigo', t.light)} text-[8px] font-medium`}>NA</span>}
