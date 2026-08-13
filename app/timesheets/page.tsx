@@ -1269,7 +1269,7 @@ const EXCLUDED_EMPLOYEE_IDS = new Set<string>(['PP288']);
 function TimesheetsContent() {
   const t = useTheme();
   const sections = useCollapseSection({ hero: true });
-  const [activeTab, setActiveTab] = useState<'salaried' | 'nec'>('salaried');
+  const [activeTab, setActiveTab] = useState<'salaried' | 'nec'>('nec');
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
   const salariedPeriod = useMemo(() => getSalariedPeriod(currentMonth), [currentMonth]);
