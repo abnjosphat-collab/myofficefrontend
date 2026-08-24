@@ -1422,8 +1422,15 @@ function CausesSubTab({ records, result, loading, updating, error, onRefresh }: 
 
 function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employees: EmployeeLookup[] }) {
   const t = useTheme();
-  const defaultFrom = toISODate(sundayOf(new Date()));
-  const defaultTo = toISODate(addDays(sundayOf(new Date()), 6));
+  // The weekly report opened Monday morning is for the week that just finished, not the
+  // one that just started an hour ago — so the default range is last Sunday through last
+  // Saturday (the most recently COMPLETED Sun-Sat cycle), computed by stepping back one
+  // full week from the start of the current week. This holds on any day of the week, not
+  // just Monday: opened on a Wednesday it still shows the last full week, not a half-done
+  // current one.
+  const lastCompletedSunday = addDays(sundayOf(new Date()), -7);
+  const defaultFrom = toISODate(lastCompletedSunday);
+  const defaultTo = toISODate(addDays(lastCompletedSunday, 6));
   const [from, setFrom] = useState(defaultFrom);
   const [to, setTo] = useState(defaultTo);
   const [sortMode, setSortMode] = useState<'name' | 'total' | 'mineNumber'>('name');
@@ -1450,7 +1457,10 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
   const today = toISODate(new Date());
   const invalidRange = from > to;
 
+  const [downloading, setDownloading] = useState(false);
   const downloadExcel = async () => {
+    setDownloading(true);
+    try {
     const { default: ExcelJS } = await import('exceljs');
     const wb = new ExcelJS.Workbook(); wb.creator = 'Ozech MyOffice';
     const ws = wb.addWorksheet('OT Weekly Summary');
@@ -1535,6 +1545,14 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
     const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href = url; a.download = `${exportFilename('OT_Weekly_Summary')}.xlsx`; a.click(); URL.revokeObjectURL(url);
+    } catch (e) {
+      // Previously this button did nothing visible on failure — any thrown error (a bad
+      // ExcelJS call, the dynamic import failing to load) just vanished as an unhandled
+      // promise rejection, which read as "the download button doesn't work."
+      toast.error('Download failed: ' + (e as Error).message);
+    } finally {
+      setDownloading(false);
+    }
   };
 
   return (
@@ -1544,7 +1562,7 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
         <input type="date" title="From date" value={from} onChange={e => setFrom(e.target.value)} className={`h-9 rounded-lg px-2.5 text-xs outline-none transition-colors ${t.inputBg}`} />
         <span className={t.textFaint}>to</span>
         <input type="date" title="To date" value={to} onChange={e => setTo(e.target.value)} className={`h-9 rounded-lg px-2.5 text-xs outline-none transition-colors ${t.inputBg}`} />
-        <button type="button" onClick={() => { setFrom(defaultFrom); setTo(defaultTo); }} className={`h-9 px-3 rounded-lg text-xs font-medium transition-colors ${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText}`}>This Week</button>
+        <button type="button" onClick={() => { setFrom(defaultFrom); setTo(defaultTo); }} title="Last completed Sunday-Saturday week" className={`h-9 px-3 rounded-lg text-xs font-medium transition-colors ${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText}`}>Last Week</button>
         <div className="flex items-center gap-1.5">
           <TrendingUp className={`h-3.5 w-3.5 ${t.textFaint}`} />
           <SelectField size="filter" title="Sort order" value={sortMode} onChange={v => setSortMode(v as typeof sortMode)}
@@ -1556,8 +1574,8 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
         </div>
         {!invalidRange && <span className={`text-xs ${t.textFaint}`}>{days.length} day{days.length !== 1 ? 's' : ''} · {rows.length} employee{rows.length !== 1 ? 's' : ''} · {grandTotal.toFixed(1)}h total</span>}
         {!invalidRange && rows.length > 0 && (
-          <button type="button" onClick={downloadExcel} className="ml-auto flex items-center gap-1.5 h-9 px-3 rounded-lg text-xs font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all">
-            <Download className="h-3.5 w-3.5" /> Download Excel
+          <button type="button" onClick={downloadExcel} disabled={downloading} className="ml-auto flex items-center gap-1.5 h-9 px-3 rounded-lg text-xs font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 disabled:opacity-60 transition-all">
+            {downloading ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />} Download Excel
           </button>
         )}
       </div>
