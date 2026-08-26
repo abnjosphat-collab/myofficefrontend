@@ -184,6 +184,20 @@ export {
   GridNine as Grid3x3,
   GridNine as Grid3X3,
   DotsSixVertical as GripVertical,
+  // PPE-item glyphs (app/ppe) — grouped here rather than sorted in, since hunting exact
+  // alphabetical position by export name across this generated file isn't worth it for
+  // a one-time hand addition.
+  Belt,
+  Boot,
+  BoxingGlove,
+  Dress,
+  FaceMask,
+  Goggles,
+  Hoodie,
+  Pants,
+  Seatbelt,
+  ShirtFolded,
+  Sneaker,
   HandCoins,
   HardDrive,
   HardHat,

@@ -7,10 +7,11 @@ import {
   Shield, Plus, Search, RefreshCw, ChevronDown, ChevronUp,
   CheckCircle2, XCircle, FileText, Eye,
   Trash2, Pencil, HardHat, AlertTriangle,
-  Users, UserRound, Package,
-  Award, Layers, ChevronRight,
-  Shirt, Wind, CloudRain, Link2, ChevronsUp, ChevronsDown, X,
-  Flashlight, Sun, Moon,
+  Users, UserRound,
+  Award, ChevronRight,
+  Shirt, ChevronsUp, ChevronsDown, X,
+  Sun, Moon,
+  BoxingGlove, Goggles, Boot, Seatbelt, FaceMask, Hoodie, ShirtFolded, Pants, Belt, Umbrella,
 } from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
 import { ListAutocomplete } from '@/components/shared/ListAutocomplete';
@@ -38,19 +39,19 @@ import {
 
 
 const PPE_TYPES: Record<string, PPETypeInfo> = {
-  helmet:        { name: 'Safety Helmet',        shortName: 'Helmet',     color: '#94a3b8', icon: HardHat,    bgColor: 'bg-slate-500/15',   textColor: 'text-slate-300',   borderColor: 'border-slate-400/25',   description: 'Head protection for underground and surface operations' },
-  gloves:        { name: 'Safety Gloves',        shortName: 'Gloves',     color: '#f87171', icon: Shield,     bgColor: 'bg-rose-500/15',    textColor: 'text-rose-300',    borderColor: 'border-rose-500/25',    description: 'Hand protection for handling materials and chemicals' },
-  glasses:       { name: 'Safety Glasses',       shortName: 'Glasses',    color: '#60a5fa', icon: Eye,        bgColor: 'bg-brand-500/15',    textColor: 'text-brand-300',    borderColor: 'border-brand-500/25',    description: 'Eye protection from dust and debris' },
+  helmet:        { name: 'Safety Helmet',        shortName: 'Helmet',     color: '#172554', icon: HardHat,     bgColor: 'bg-slate-500/15',   textColor: 'text-slate-300',   borderColor: 'border-slate-400/25',   description: 'Head protection for underground and surface operations' },
+  gloves:        { name: 'Safety Gloves',        shortName: 'Gloves',     color: '#f87171', icon: BoxingGlove, bgColor: 'bg-rose-500/15',    textColor: 'text-rose-300',    borderColor: 'border-rose-500/25',    description: 'Hand protection for handling materials and chemicals' },
+  glasses:       { name: 'Safety Glasses',       shortName: 'Glasses',    color: '#60a5fa', icon: Goggles,     bgColor: 'bg-brand-500/15',    textColor: 'text-brand-300',    borderColor: 'border-brand-500/25',    description: 'Eye protection from dust and debris' },
   vest:          { name: 'High-Vis Vest',         shortName: 'Vest',       color: '#fbbf24', icon: Shirt,      bgColor: 'bg-amber-500/15',   textColor: 'text-amber-300',   borderColor: 'border-amber-500/25',   description: 'High visibility clothing for surface operations' },
-  gumboots:      { name: 'Safety Gum Boots',     shortName: 'GumBoots',   color: '#a78bfa', icon: Shield,     bgColor: 'bg-violet-500/15',  textColor: 'text-violet-300',  borderColor: 'border-violet-500/25',  description: 'Steel-toe foot protection' },
-  safety_shoes:  { name: 'Safety Shoes',         shortName: 'Shoes',      color: '#38bdf8', icon: Package,    bgColor: 'bg-sky-500/15',     textColor: 'text-sky-300',     borderColor: 'border-sky-500/25',     description: 'Protective footwear for various work environments' },
-  harness:       { name: 'Safety Harness',       shortName: 'Harness',    color: '#34d399', icon: Link2,      bgColor: 'bg-emerald-500/15', textColor: 'text-emerald-300', borderColor: 'border-emerald-500/25', description: 'Fall protection for heights and shafts' },
-  respirator:    { name: 'Respirator',           shortName: 'Respirator', color: '#2dd4bf', icon: Wind,       bgColor: 'bg-teal-500/15',    textColor: 'text-teal-300',    borderColor: 'border-teal-500/25',    description: 'Respiratory protection from dust and chemicals' },
-  Cap_lamp_belt: { name: 'Cap Lamp Belt',        shortName: 'Lamp Belt',  color: '#f472b6', icon: Flashlight, bgColor: 'bg-pink-500/15',    textColor: 'text-pink-300',    borderColor: 'border-pink-500/25',    description: 'Lighting for underground operations' },
-  worksuit:      { name: 'Protective Work Suit', shortName: 'Work Suit',  color: '#fb923c', icon: Shirt,      bgColor: 'bg-orange-500/15',  textColor: 'text-orange-300',  borderColor: 'border-orange-500/25',  description: 'Full body protection for various work environments' },
-  rainsuit:      { name: 'Rain Suit',            shortName: 'Rain Suit',  color: '#22d3ee', icon: CloudRain,  bgColor: 'bg-cyan-500/15',    textColor: 'text-cyan-300',    borderColor: 'border-cyan-500/25',    description: 'Waterproof protection for wet conditions' },
-  overall:       { name: 'Protective Overall',   shortName: 'Overall',    color: '#c084fc', icon: Layers,     bgColor: 'bg-purple-500/15',  textColor: 'text-purple-300',  borderColor: 'border-purple-500/25',  description: 'Full body protective clothing' },
-  pneumo_jacket: { name: 'Pneumo Jacket',        shortName: 'Pneumo Jkt', color: '#818cf8', icon: Shirt,      bgColor: 'bg-indigo-500/15',  textColor: 'text-indigo-300',  borderColor: 'border-indigo-500/25',  description: 'Pneumatic / insulated jacket' },
+  gumboots:      { name: 'Safety Gum Boots',     shortName: 'GumBoots',   color: '#a78bfa', icon: Boot,        bgColor: 'bg-violet-500/15',  textColor: 'text-violet-300',  borderColor: 'border-violet-500/25',  description: 'Steel-toe foot protection' },
+  safety_shoes:  { name: 'Safety Shoes',         shortName: 'Shoes',      color: '#38bdf8', icon: Boot,        bgColor: 'bg-sky-500/15',     textColor: 'text-sky-300',     borderColor: 'border-sky-500/25',     description: 'Protective footwear for various work environments' },
+  harness:       { name: 'Safety Harness',       shortName: 'Harness',    color: '#34d399', icon: Seatbelt,    bgColor: 'bg-emerald-500/15', textColor: 'text-emerald-300', borderColor: 'border-emerald-500/25', description: 'Fall protection for heights and shafts' },
+  respirator:    { name: 'Respirator',           shortName: 'Respirator', color: '#2dd4bf', icon: FaceMask,    bgColor: 'bg-teal-500/15',    textColor: 'text-teal-300',    borderColor: 'border-teal-500/25',    description: 'Respiratory protection from dust and chemicals' },
+  Cap_lamp_belt: { name: 'Cap Lamp Belt',        shortName: 'Lamp Belt',  color: '#f472b6', icon: Belt,        bgColor: 'bg-pink-500/15',    textColor: 'text-pink-300',    borderColor: 'border-pink-500/25',    description: 'Lighting for underground operations' },
+  worksuit:      { name: 'Protective Work Suit', shortName: 'Work Suit',  color: '#4169E1', icon: Hoodie,      bgColor: 'bg-orange-500/15',  textColor: 'text-orange-300',  borderColor: 'border-orange-500/25',  description: 'Full body protection for various work environments' },
+  rainsuit:      { name: 'Rain Suit',            shortName: 'Rain Suit',  color: '#22d3ee', icon: Umbrella,    bgColor: 'bg-cyan-500/15',    textColor: 'text-cyan-300',    borderColor: 'border-cyan-500/25',    description: 'Waterproof protection for wet conditions' },
+  overall:       { name: 'Protective Overall',   shortName: 'Overall',    color: '#c084fc', icon: Pants,       bgColor: 'bg-purple-500/15',  textColor: 'text-purple-300',  borderColor: 'border-purple-500/25',  description: 'One-piece coverall worn going underground' },
+  pneumo_jacket: { name: 'Pneumo Jacket',        shortName: 'Pneumo Jkt', color: '#818cf8', icon: ShirtFolded, bgColor: 'bg-indigo-500/15',  textColor: 'text-indigo-300',  borderColor: 'border-indigo-500/25',  description: 'Pneumatic / insulated jacket' },
 };
 
 // PPE_MATRIX_DEFAULTS now lives in ./usePPEData (imported above) — same data,
@@ -433,6 +434,7 @@ const blankForm = (): FormState => ({
 
 function PPEIssueForm({ isOpen, onClose, onSubmit, initialData, employee, allEmployees, matrix }: IssueFormProps) {
   const t = useTheme();
+  const confirm = useConfirm();
   const [form, setForm] = useState<FormState>(blankForm());
   const [saving, setSaving] = useState(false);
   // Auto-calc expiry from issue date + the matrix interval, unless the user has typed
@@ -484,6 +486,18 @@ function PPEIssueForm({ isOpen, onClose, onSubmit, initialData, employee, allEmp
     if (!form.employee_name.trim()) { toast.error('Employee name is required'); return; }
     if (!form.position.trim()) { toast.error('Position is required'); return; }
     if (!form.item_name.trim()) { toast.error('Item name is required'); return; }
+    // Employee ID can be typed freely rather than picked from the autocomplete — that's
+    // how a mismatched/placeholder ID ends up saved even though the name shown alongside
+    // it is correct (the name field syncs its own ID independently on select). Catch it
+    // here rather than silently saving something that doesn't match the real register.
+    const idKnown = allEmployees.some(e => e.employee_id === form.employee_id.trim());
+    if (!idKnown) {
+      const proceed = await confirm({
+        title: 'Employee ID not found',
+        message: `"${form.employee_id.trim()}" doesn't match anyone currently in the Employees register. Save anyway?`,
+      });
+      if (!proceed) return;
+    }
     setSaving(true);
     try {
       await onSubmit({ ...form, employee_id: form.employee_id.trim(), employee_name: form.employee_name.trim() });
