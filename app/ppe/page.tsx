@@ -617,12 +617,18 @@ interface DueItemsProps {
   onDeleteItem: (id: string) => void;
   onViewItem: (r: PPERecord) => void;
   onToggleNotRequired: (r: PPERecord) => void;
+  onBulkMarkNotRequired: (ids: string[]) => void;
 }
 
-function DueItemsList({ employees, filterType, onEditItem, onDeleteItem, onViewItem, onToggleNotRequired }: DueItemsProps) {
+function DueItemsList({ employees, filterType, onEditItem, onDeleteItem, onViewItem, onToggleNotRequired, onBulkMarkNotRequired }: DueItemsProps) {
   const t = useTheme();
   const [typeFilter, setTypeFilter] = useState('all');
   const [search, setSearch] = useState('');
+  // Bulk triage for the Overdue tab specifically — with many items flagged by the
+  // replacement-interval matrix but not actually needing reorder, marking each one
+  // "not required" individually isn't practical. Same checkbox-multi-select pattern as
+  // the Overtime/Leaves bulk-approve toolbars elsewhere in this app.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const items = useMemo(() => {
     const out: (PPERecord & { employee_name: string; employee_id: string })[] = [];
@@ -640,6 +646,12 @@ function DueItemsList({ employees, filterType, onEditItem, onDeleteItem, onViewI
     });
     return out.sort((a, b) => new Date(a.expiry_date ?? 0).getTime() - new Date(b.expiry_date ?? 0).getTime());
   }, [employees, filterType, typeFilter, search]);
+
+  useEffect(() => { setSelectedIds(new Set()); }, [filterType]);
+  const toggleSelect = (id: string) => setSelectedIds(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const allSelected = items.length > 0 && items.every(i => selectedIds.has(String(i.id)));
+  const toggleSelectAll = () => setSelectedIds(allSelected ? new Set() : new Set(items.map(i => String(i.id))));
+  const handleBulkMarkNotRequired = () => { onBulkMarkNotRequired([...selectedIds]); setSelectedIds(new Set()); };
 
   if (items.length === 0 && !search && typeFilter === 'all') {
     return (
@@ -662,7 +674,22 @@ function DueItemsList({ employees, filterType, onEditItem, onDeleteItem, onViewI
         </div>
         <SelectField size="filter" value={typeFilter} onChange={setTypeFilter} title="PPE Type filter"
           options={[{ value: 'all', label: 'All Types' }, ...Object.entries(PPE_TYPES).map(([k, pt]) => ({ value: k, label: pt.name }))]} />
+        {filterType === 'due' && items.length > 0 && (
+          <label className={`flex items-center gap-1.5 text-xs ${t.textFaint} cursor-pointer ml-auto`}>
+            <input type="checkbox" checked={allSelected} onChange={toggleSelectAll} className="rounded" /> Select all
+          </label>
+        )}
       </div>
+      {filterType === 'due' && selectedIds.size > 0 && (
+        <div className={`flex items-center gap-2 px-3 py-2 rounded-lg ${t.chipBg}`}>
+          <span className={`text-xs font-semibold ${t.textPrimary}`}>{selectedIds.size} selected</span>
+          <button type="button" onClick={handleBulkMarkNotRequired}
+            className={`ml-auto text-[11px] font-semibold px-2.5 py-1 rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all`}>
+            Mark {selectedIds.size} as not required
+          </button>
+          <button type="button" onClick={() => setSelectedIds(new Set())} className={`text-[11px] ${t.textFaint} ${t.hoverText} transition-colors`}>Clear</button>
+        </div>
+      )}
       {items.length === 0 ? (
         <div className={`text-center py-8 ${t.textFaint} text-sm rounded-xl ${t.glassSoft}`}>No items match the current filters</div>
       ) : (
@@ -674,6 +701,10 @@ function DueItemsList({ employees, filterType, onEditItem, onDeleteItem, onViewI
             return (
               <motion.div key={item.id} variants={fadeUp}>
                 <GlowCard color={glowColor} onClick={() => onViewItem(item)} className="p-3.5 flex items-center gap-3">
+                  {filterType === 'due' && (
+                    <input type="checkbox" checked={selectedIds.has(String(item.id))} onChange={() => toggleSelect(String(item.id))}
+                      onClick={e => e.stopPropagation()} className="rounded shrink-0" />
+                  )}
                   <div className={`p-2 rounded-lg shrink-0 ${t.chipBg}`}><Icon className="h-4 w-4" style={{ color: ppeType.color }} /></div>
 
                   <div className="min-w-0 flex-1 grid grid-cols-2 sm:grid-cols-4 gap-x-3 gap-y-1 items-center">
@@ -936,6 +967,18 @@ export default function PPEManagement() {
       toast.success(next === 'not_required' ? 'Marked as not required' : 'Marked as active');
       load(true);
     } catch (err: any) { toast.error(`Update failed: ${err.message}`); }
+  };
+
+  // Same as above, applied to a whole batch from the Overdue tab's checkbox selection —
+  // for triaging the false positives (items past their matrix interval that don't
+  // actually need reordering) without clicking through them one at a time.
+  const handleBulkMarkNotRequired = async (ids: string[]) => {
+    const results = await Promise.allSettled(ids.map(id => api.patch(`/api/ppe/${id}`, { status: 'not_required' })));
+    const okCount = results.filter(r => r.status === 'fulfilled').length;
+    const failCount = results.length - okCount;
+    if (okCount > 0) toast.success(`Marked ${okCount} item${okCount !== 1 ? 's' : ''} as not required`);
+    if (failCount > 0) toast.warning(`${failCount} failed to update`);
+    load(true);
   };
 
   // Matrix: save an interval (shared) — the backend now also recalculates expiry for
@@ -1359,7 +1402,8 @@ export default function PPEManagement() {
                   onEditItem={r => { setEditData(r); setShowForm(true); }}
                   onDeleteItem={handleDelete}
                   onViewItem={item => { setDetailItem(item); setShowDetail(true); }}
-                  onToggleNotRequired={handleToggleNotRequired} />
+                  onToggleNotRequired={handleToggleNotRequired}
+                  onBulkMarkNotRequired={handleBulkMarkNotRequired} />
               ) : filteredEmployees.length === 0 ? (
                 <div className={`text-center py-16 rounded-xl ${t.glassSoft}`}>
                   <HardHat className={`h-12 w-12 mx-auto mb-4 ${t.textTertiary}`} />
