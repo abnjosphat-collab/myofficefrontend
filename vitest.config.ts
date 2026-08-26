@@ -13,5 +13,18 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     include: ['lib/**/*.test.ts', 'lib/**/*.test.tsx'],
+    // Report-only for now (no threshold) — the point right now is making coverage
+    // visible instead of guessed, not gating on it. `include` above scopes what
+    // actually gets *run*; this scopes what shows up in the coverage report, so a
+    // real % is measured against the app's source rather than just the tested files.
+    coverage: {
+      provider: 'v8',
+      // Explicit extensions, not a blanket `app/**` — this tree also holds a couple
+      // of deliberately shelved pages (*.disabled, *.paused) and non-code files
+      // (README.md, a stray .code-workspace) that aren't real source and choke the
+      // coverage parser if swept in.
+      include: ['lib/**/*.{ts,tsx}', 'app/**/*.{ts,tsx}', 'components/**/*.{ts,tsx}', 'hooks/**/*.{ts,tsx}'],
+      exclude: ['**/*.test.ts', '**/*.test.tsx', '**/types.ts'],
+    },
   },
 });
