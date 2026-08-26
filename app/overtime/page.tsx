@@ -404,14 +404,15 @@ const overtimeExportColumns: DLColumn[] = [
 // ─── WEEKLY SUMMARY (per-employee daily/weekly rollup + Excel export) ─────────
 // Replaces the fragile manual-Excel workflow: a week spanning two months used to
 // need a cross-sheet formula that was easy to get wrong. This rolls up however
-// many days of OT records the user picks (default: the current Sun–Sat cycle, but
-// freely adjustable to any range) into one employee × day matrix, live in the UI
+// many days of OT records the user picks (default: the last completed Mon–Sun cycle,
+// but freely adjustable to any range) into one employee × day matrix, live in the UI
 // and as a styled Excel download.
 
-function sundayOf(d: Date): Date {
-  const day = d.getDay(); // 0=Sun..6=Sat — already the offset back to this week's Sunday
+function mondayOf(d: Date): Date {
+  const day = d.getDay(); // 0=Sun..6=Sat
+  const diff = (day + 6) % 7; // days since the most recent Monday (Mon=0 .. Sun=6)
   const m = new Date(d);
-  m.setDate(d.getDate() - day);
+  m.setDate(d.getDate() - diff);
   m.setHours(0, 0, 0, 0);
   return m;
 }
@@ -484,6 +485,100 @@ function buildWeeklyRows(records: OTRecord[], from: string, to: string, roster: 
   });
 
   return { rows: Array.from(map.values()).sort((a, b) => a.employee_name.localeCompare(b.employee_name)), days };
+}
+
+// ─── SIMILAR-REASON GROUPING (Weekly Summary) ──────────────────────────────────
+// Free-text overtime reasons are typed independently by whoever logs the entry, so the
+// same recurring task ends up worded differently by different people — "Burnet daily
+// checks" vs "Burnett daily check", "Purchase of backshift tools" vs "purchasing tools
+// for back-shifts" — and reads as N separate one-off causes instead of one recurring
+// one. This groups by rough text similarity (fuzzy token overlap, tolerant of typos and
+// singular/plural) rather than exact string match. Pure client-side heuristic, no AI
+// call — deliberately separate from the Causes & Actions tab's LLM-driven analysis.
+
+// Some reasons were typed with no space between a word and a number that follows it
+// (e.g. "monitoring2.5 ton dc loco") — insert one wherever a 3+ letter word runs
+// straight into a digit or vice versa. The 3+ threshold is what keeps this from
+// mangling short alphanumeric codes ("C1165") or compound terms ("4x4"), whose letter
+// run next to the digit is 1-2 characters.
+function cleanReasonText(s: string): string {
+  return s.replace(/([A-Za-z]{3,})(\d)/g, '$1 $2').replace(/(\d)([A-Za-z]{3,})/g, '$1 $2');
+}
+
+const REASON_STOPWORDS = new Set(['of', 'for', 'the', 'a', 'an', 'to', 'and', 'on', 'at', 'in', 'from', 'with', 'as', 'is', 'was', 'were']);
+function significantTokens(s: string): string[] {
+  return cleanReasonText(s).toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/)
+    .filter(w => w.length > 1 && !REASON_STOPWORDS.has(w));
+}
+
+function levenshtein(a: string, b: string): number {
+  const dp: number[][] = Array.from({ length: a.length + 1 }, () => new Array(b.length + 1).fill(0));
+  for (let i = 0; i <= a.length; i++) dp[i][0] = i;
+  for (let j = 0; j <= b.length; j++) dp[0][j] = j;
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      dp[i][j] = a[i - 1] === b[j - 1] ? dp[i - 1][j - 1] : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+    }
+  }
+  return dp[a.length][b.length];
+}
+
+// Two tokens count as "the same word" if identical, share a long-enough prefix (catches
+// purchase/purchasing/purchaise-style variants), or sit within a small edit distance of
+// each other (typos, singular/plural).
+function tokensMatch(a: string, b: string): boolean {
+  if (a === b) return true;
+  if (a.length >= 4 && b.length >= 4 && a.slice(0, 4) === b.slice(0, 4)) return true;
+  return levenshtein(a, b) <= (Math.max(a.length, b.length) <= 5 ? 1 : 2);
+}
+
+// Fraction of the smaller token set that has a fuzzy match in the other — 1.0 means
+// every word in the shorter phrase matched something in the longer one.
+function reasonSimilarity(a: string[], b: string[]): number {
+  if (a.length === 0 || b.length === 0) return 0;
+  const used = new Set<number>();
+  let matched = 0;
+  for (const ta of a) {
+    for (let i = 0; i < b.length; i++) {
+      if (used.has(i)) continue;
+      if (tokensMatch(ta, b[i])) { matched++; used.add(i); break; }
+    }
+  }
+  return matched / Math.min(a.length, b.length);
+}
+
+const REASON_SIMILARITY_THRESHOLD = 0.6;
+
+function groupSimilarReasons(records: OTRecord[]): { label: string; hours: number; count: number; peopleCount: number }[] {
+  const clusters: { label: string; hours: number; count: number; employees: Set<string>; tokens: string[] }[] = [];
+  records.forEach(r => {
+    const raw = (r.reason || '').trim();
+    if (!raw) return;
+    const clean = cleanReasonText(raw);
+    const tokens = significantTokens(clean);
+    if (tokens.length === 0) return;
+    const hours = r.hours ?? calcHours(r.start_time, r.end_time);
+    const person = r.employee_id || r.employee_name;
+
+    let best: (typeof clusters)[number] | null = null;
+    let bestScore = 0;
+    for (const c of clusters) {
+      const score = reasonSimilarity(tokens, c.tokens);
+      if (score >= REASON_SIMILARITY_THRESHOLD && score > bestScore) { best = c; bestScore = score; }
+    }
+    if (best) {
+      best.hours += hours;
+      best.count += 1;
+      best.employees.add(person);
+      // Keep the longer, more descriptive phrasing as the group's representative label.
+      if (clean.length > best.label.length) best.label = clean;
+    } else {
+      clusters.push({ label: clean, hours, count: 1, employees: new Set([person]), tokens });
+    }
+  });
+  return clusters
+    .map(c => ({ label: c.label, hours: Math.round(c.hours * 10) / 10, count: c.count, peopleCount: c.employees.size }))
+    .sort((a, b) => b.hours - a.hours);
 }
 
 // ─── ANALYZE (reads reason text + volume/trend, no external AI API) ───────────
@@ -1423,17 +1518,17 @@ function CausesSubTab({ records, result, loading, updating, error, onRefresh }: 
 function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employees: EmployeeLookup[] }) {
   const t = useTheme();
   // The weekly report opened Monday morning is for the week that just finished, not the
-  // one that just started an hour ago — so the default range is last Sunday through last
-  // Saturday (the most recently COMPLETED Sun-Sat cycle), computed by stepping back one
-  // full week from the start of the current week. This holds on any day of the week, not
-  // just Monday: opened on a Wednesday it still shows the last full week, not a half-done
+  // one that just started an hour ago — so the default range is last Monday through last
+  // Sunday (the most recently COMPLETED Mon-Sun cycle), computed by stepping back one full
+  // week from the start of the current week. This holds on any day of the week, not just
+  // Monday: opened on a Wednesday it still shows the last full week, not a half-done
   // current one.
-  const lastCompletedSunday = addDays(sundayOf(new Date()), -7);
-  const defaultFrom = toISODate(lastCompletedSunday);
-  const defaultTo = toISODate(addDays(lastCompletedSunday, 6));
+  const lastCompletedMonday = addDays(mondayOf(new Date()), -7);
+  const defaultFrom = toISODate(lastCompletedMonday);
+  const defaultTo = toISODate(addDays(lastCompletedMonday, 6));
   const [from, setFrom] = useState(defaultFrom);
   const [to, setTo] = useState(defaultTo);
-  const [sortMode, setSortMode] = useState<'name' | 'total' | 'mineNumber'>('name');
+  const [sortMode, setSortMode] = useState<'name' | 'total' | 'mineNumber'>('total');
 
   const { rows: rowsByName, days } = useMemo(() => buildWeeklyRows(records, from, to, employees), [records, from, to, employees]);
   // buildWeeklyRows already returns alphabetical order — re-sort on top of that
@@ -1452,6 +1547,29 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
   // row, not broken out by day.
   const grandTotal15 = rows.reduce((s, r) => s + r.total15, 0);
   const grandTotal20 = rows.reduce((s, r) => s + r.total20, 0);
+
+  // "Where it's coming from" — a quick, always-visible answer to who's driving this
+  // week's overtime and why, distinct from the separate Causes & Actions AI tab (which
+  // requires navigating away and running an analysis). Both computed instantly from
+  // whatever week is currently selected here.
+  const weekRecords = useMemo(() => records.filter(r => r.date >= from && r.date <= to), [records, from, to]);
+  const topEmployees = useMemo(() => [...rowsByName].filter(r => r.total > 0).sort((a, b) => b.total - a.total).slice(0, 5), [rowsByName]);
+  const maxTopEmployeeHours = Math.max(1, ...topEmployees.map(r => r.total));
+  const topEmployeeShare = grandTotal > 0 && topEmployees[0] ? Math.round((topEmployees[0].total / grandTotal) * 100) : 0;
+  // For each top earner, their actual OT records this week — date, time, hours, and the
+  // reason they gave — so "who has the most overtime" reads alongside "what were they
+  // doing and when", not just a total.
+  const topEmployeeInstances = useMemo(() => topEmployees.map(emp => ({
+    ...emp,
+    // Highest hours first within each person too, not chronological — the point is to
+    // surface what's driving their total, so the biggest single instance leads.
+    instances: weekRecords
+      .filter(r => (r.employee_id || r.employee_name) === (emp.employee_id || emp.employee_name))
+      .sort((a, b) => (b.hours ?? calcHours(b.start_time, b.end_time)) - (a.hours ?? calcHours(a.start_time, a.end_time))),
+  })), [topEmployees, weekRecords]);
+
+  // groupSimilarReasons is defined above (used to feed the now-removed "Overtime by
+  // Work Description" panel) — kept for when that section comes back.
 
   const stickyBg = t.light ? 'bg-white' : 'bg-[#040c18]';
   const today = toISODate(new Date());
@@ -1534,6 +1652,60 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
       c.border = { top: { style: 'medium', color: { argb: HEADER_BORDER } } };
     });
 
+    // "Where it's coming from" — the same quick who/why breakdown shown on screen,
+    // appended below the grand total so the Monday-morning download carries it too,
+    // not just the live view.
+    let cursor = 4 + rows.length + 1 + 2;
+
+    // Top earners get their actual instances listed — date, time, hours, and the reason
+    // given — not just a total, matching the on-screen panel above.
+    if (topEmployeeInstances.length > 0) {
+      ws.mergeCells(cursor, 1, cursor, totalCols);
+      const teTitleCell = ws.getCell(cursor, 1);
+      teTitleCell.value = 'Weekly Summary';
+      teTitleCell.font = { name: FONT, bold: true, size: 11, color: { argb: 'FFFFFFFF' } };
+      teTitleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: HEADER_FILL } };
+      teTitleCell.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
+      ws.getRow(cursor).height = 20;
+      cursor++;
+
+      topEmployeeInstances.forEach(emp => {
+        ws.mergeCells(cursor, 2, cursor, totalCols);
+        const empCell = ws.getCell(cursor, 2);
+        empCell.value = `${emp.employee_name}${emp.position ? ' · ' + emp.position : ''} — ${fmtHours(emp.total)}h`;
+        empCell.font = { name: FONT, bold: true, size: 10, color: { argb: EXPORT_BRAND_ARGB } };
+        empCell.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
+        empCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE4EEF5' } };
+        cursor++;
+
+        if (emp.instances.length === 0) {
+          ws.mergeCells(cursor, 2, cursor, totalCols);
+          const noneCell = ws.getCell(cursor, 2);
+          noneCell.value = "No individual instances logged for this week's hours.";
+          noneCell.font = { name: FONT, italic: true, size: 9, color: { argb: 'FF8AA0B4' } };
+          noneCell.alignment = { horizontal: 'left', indent: 2 };
+          cursor++;
+        } else {
+          emp.instances.forEach((inst, i) => {
+            ws.mergeCells(cursor, 2, cursor, totalCols);
+            const instCell = ws.getCell(cursor, 2);
+            const timeStr = inst.start_time && inst.end_time ? `${inst.start_time}–${inst.end_time}` : 'hours only';
+            const hrs = inst.hours ?? calcHours(inst.start_time, inst.end_time);
+            instCell.value = `${fmtDate(inst.date)}   ${timeStr} · ${fmtHours(hrs)}h   ${inst.reason ? `"${cleanReasonText(inst.reason)}"` : 'No reason given'}`;
+            instCell.font = { name: FONT, size: 9 };
+            instCell.alignment = { horizontal: 'left', indent: 2 };
+            instCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: i % 2 !== 0 ? STRIPE_FILL : 'FFFFFFFF' } };
+            cursor++;
+          });
+        }
+        cursor++; // blank spacer row between employees
+      });
+      cursor++; // blank row before the next section
+    }
+
+    // "Overtime by Work Description" (fuzzy-grouped similar reasons) pulled for now —
+    // see the matching note above the on-screen JSX for this same section.
+
     ws.getColumn(1).width = 6;
     ws.getColumn(2).width = 12;
     ws.getColumn(3).width = 26;
@@ -1562,7 +1734,7 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
         <input type="date" title="From date" value={from} onChange={e => setFrom(e.target.value)} className={`h-9 rounded-lg px-2.5 text-xs outline-none transition-colors ${t.inputBg}`} />
         <span className={t.textFaint}>to</span>
         <input type="date" title="To date" value={to} onChange={e => setTo(e.target.value)} className={`h-9 rounded-lg px-2.5 text-xs outline-none transition-colors ${t.inputBg}`} />
-        <button type="button" onClick={() => { setFrom(defaultFrom); setTo(defaultTo); }} title="Last completed Sunday-Saturday week" className={`h-9 px-3 rounded-lg text-xs font-medium transition-colors ${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText}`}>Last Week</button>
+        <button type="button" onClick={() => { setFrom(defaultFrom); setTo(defaultTo); }} title="Last completed Monday-Sunday week" className={`h-9 px-3 rounded-lg text-xs font-medium transition-colors ${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText}`}>Last Week</button>
         <div className="flex items-center gap-1.5">
           <TrendingUp className={`h-3.5 w-3.5 ${t.textFaint}`} />
           <SelectField size="filter" title="Sort order" value={sortMode} onChange={v => setSortMode(v as typeof sortMode)}
@@ -1579,6 +1751,47 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
           </button>
         )}
       </div>
+
+      {!invalidRange && topEmployees.length > 0 && (
+        <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
+          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}>
+            <UsersRound className="h-4 w-4 text-brand-400" />
+            <span className={`font-semibold text-sm ${t.textPrimary}`}>Highest This Week</span>
+            <span className={`ml-auto text-xs ${t.textFaint}`}>{topEmployees[0].employee_name} is <span className={`font-semibold ${accentText('blue', t.light)}`}>{topEmployeeShare}%</span> of the total</span>
+          </div>
+          <div className={`divide-y ${t.border}`}>
+            {topEmployeeInstances.map(emp => (
+              <div key={emp.employee_id || emp.employee_name} className="p-4 space-y-2.5">
+                <div>
+                  <div className="flex justify-between items-baseline text-sm mb-1 gap-2">
+                    <span className={`font-semibold truncate ${t.textPrimary}`}>{emp.employee_name}{emp.position ? <span className={`font-normal ${t.textFaint}`}> · {emp.position}</span> : null}</span>
+                    <span className={`shrink-0 font-bold ${accentText('blue', t.light)}`}>{emp.total.toFixed(1)}h</span>
+                  </div>
+                  <ProgressBar value={(emp.total / maxTopEmployeeHours) * 100} color={ACCENT_HEX.blue} showValue={false} />
+                </div>
+                <div className={`pl-3 border-l-2 ${t.border} space-y-1`}>
+                  {emp.instances.length === 0 ? (
+                    <p className={`text-xs ${t.textFaint}`}>No individual instances logged for this week's hours.</p>
+                  ) : emp.instances.map(inst => (
+                    <div key={inst.id} className="flex flex-wrap items-baseline gap-x-2 text-xs">
+                      <span className={`shrink-0 font-medium ${t.textMuted}`}>{fmtDate(inst.date)}</span>
+                      <span className={`shrink-0 ${accentText('blue', t.light)}`}>
+                        {inst.start_time && inst.end_time ? `${inst.start_time}–${inst.end_time}` : 'hours only'} · {(inst.hours ?? calcHours(inst.start_time, inst.end_time)).toFixed(1)}h
+                      </span>
+                      <span className={`${t.textFaint} truncate`}>{inst.reason ? `"${cleanReasonText(inst.reason)}"` : 'No reason given'}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* "Overtime by Work Description" (fuzzy-grouped similar reasons) pulled for now —
+          not ready to send out, revisit and perfect later. groupSimilarReasons/
+          cleanReasonText/etc. above are kept since cleanReasonText is still used by the
+          Highest This Week instance list. */}
 
       {invalidRange ? (
         <div className={`${t.glass} rounded-2xl ${t.shadow}`}>
