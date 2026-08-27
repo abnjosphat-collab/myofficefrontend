@@ -105,6 +105,21 @@ describe('buildWeeklyRows', () => {
     const { rows } = buildWeeklyRows([rec({ employee_id: 'C9999', employee_name: 'Off-Roster Person', date: '2026-08-11' })], '2026-08-10', '2026-08-16', roster);
     expect(rows.some(r => r.employee_id === 'C9999')).toBe(true);
   });
+
+  it('splits planned/unplanned/unclassified hours, always summing to total', () => {
+    const records = [
+      rec({ date: '2026-08-11', planning_status: 'planned', start_time: '17:00', end_time: '19:00' }), // 2h
+      rec({ date: '2026-08-12', planning_status: 'unplanned', start_time: '17:00', end_time: '20:00' }), // 3h
+      rec({ date: '2026-08-13', planning_status: null, start_time: '17:00', end_time: '18:00' }), // 1h — legacy/unclassified
+      rec({ date: '2026-08-14', start_time: '17:00', end_time: '18:00' }), // planning_status omitted entirely — also unclassified
+    ];
+    const { rows } = buildWeeklyRows(records, '2026-08-10', '2026-08-16', roster);
+    const janeRow = rows.find(r => r.employee_id === 'C1000')!;
+    expect(janeRow.plannedHours).toBe(2);
+    expect(janeRow.unplannedHours).toBe(3);
+    expect(janeRow.unclassifiedHours).toBe(2);
+    expect(janeRow.plannedHours + janeRow.unplannedHours + janeRow.unclassifiedHours).toBe(janeRow.total);
+  });
 });
 
 describe('cleanReasonText', () => {

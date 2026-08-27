@@ -16,6 +16,12 @@ export const SELECTABLE_OT_TYPES: OTType[] = ['regular', 'weekend', 'holiday'];
 export const STATUSES = ['pending', 'approved', 'rejected', 'paid', 'cancelled'] as const;
 export type OTStatus = typeof STATUSES[number];
 
+// Whether the overtime was scheduled/rostered in advance ('planned') or came up
+// reactively ('unplanned'). Absent/null on a record means unclassified — legacy
+// records predating this field, deliberately not backfilled with a guess.
+export const PLANNING_STATUSES = ['planned', 'unplanned'] as const;
+export type PlanningStatus = typeof PLANNING_STATUSES[number];
+
 /** One line of the "Spares Used" log — a reference/cost record only, same scope as
  *  breakdowns/work_orders' spares_used: it never touches Spares-module stock
  *  (`current_quantity`), which stays a Stores-department function. `unit_price`
@@ -35,6 +41,7 @@ export interface OTRecord {
   position: string;
   department?: string;
   overtime_type: OTType;
+  planning_status?: PlanningStatus | null;
   date: string;
   start_time?: string;
   end_time?: string;
@@ -54,6 +61,7 @@ export interface OTForm {
   position: string;
   department: string;
   overtime_type: OTType;
+  planning_status: PlanningStatus | null;
   date: string;
   start_time: string;
   end_time: string;

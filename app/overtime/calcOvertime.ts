@@ -5,6 +5,10 @@
 import type { EmployeeLookup } from '@/hooks/useLookups';
 import type { OTRecord, OTType } from './types';
 
+function planningBucket(status: OTRecord['planning_status']): 'plannedHours' | 'unplannedHours' | 'unclassifiedHours' {
+  return status === 'planned' ? 'plannedHours' : status === 'unplanned' ? 'unplannedHours' : 'unclassifiedHours';
+}
+
 // ─── HOURS / RATE ─────────────────────────────────────────────────────────────
 
 // Pay-rate multiplier by overtime type — weekend/holiday work is paid double time,
@@ -48,6 +52,10 @@ export interface EmployeeWeekRow {
   // hours they are, not to the day they fall on (a day can mix both rates across
   // different employees, or even within one employee's own records).
   total15: number; total20: number;
+  // Planned vs. unplanned split — always sums to `total`. unclassifiedHours covers
+  // legacy records predating the field (planning_status null/undefined), kept as its
+  // own accumulated bucket rather than derived by subtraction (no float-drift risk).
+  plannedHours: number; unplannedHours: number; unclassifiedHours: number;
 }
 
 // Excluded from the weekly roster by name/role rather than editing the query, so
@@ -92,19 +100,20 @@ export function buildWeeklyRows(records: OTRecord[], from: string, to: string, r
     // them identical is what lets a roster-seeded row and that person's actual OT
     // records land on the same row instead of creating a duplicate.
     const key = emp.employee_id || name;
-    map.set(key, { employee_id: emp.employee_id || '', employee_name: name, position: emp.designation || emp.position || '', byDate: new Map(), total: 0, total15: 0, total20: 0 });
+    map.set(key, { employee_id: emp.employee_id || '', employee_name: name, position: emp.designation || emp.position || '', byDate: new Map(), total: 0, total15: 0, total20: 0, plannedHours: 0, unplannedHours: 0, unclassifiedHours: 0 });
   });
 
   records.forEach(r => {
     if (r.date < from || r.date > to) return;
     const key = r.employee_id || r.employee_name;
     if (!key) return;
-    if (!map.has(key)) map.set(key, { employee_id: r.employee_id, employee_name: r.employee_name, position: r.position, byDate: new Map(), total: 0, total15: 0, total20: 0 });
+    if (!map.has(key)) map.set(key, { employee_id: r.employee_id, employee_name: r.employee_name, position: r.position, byDate: new Map(), total: 0, total15: 0, total20: 0, plannedHours: 0, unplannedHours: 0, unclassifiedHours: 0 });
     const row = map.get(key)!;
     const h = r.hours ?? calcHours(r.start_time, r.end_time);
     row.byDate.set(r.date, (row.byDate.get(r.date) || 0) + h);
     row.total += h;
     if (rateFor(r.overtime_type) === 1.5) row.total15 += h; else row.total20 += h;
+    row[planningBucket(r.planning_status)] += h;
   });
 
   return { rows: Array.from(map.values()).sort((a, b) => a.employee_name.localeCompare(b.employee_name)), days };

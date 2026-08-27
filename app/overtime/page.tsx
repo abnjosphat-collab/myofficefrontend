@@ -5,7 +5,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback, ElementType }
 import { motion, AnimatePresence } from 'framer-motion';
 import { AppShell } from '@/components/app-shell';
 import { PredictiveInput } from '@/components/shared/PredictiveInput';
-import { PillTabs } from '@/components/shared/PillTabs';
+import { PillTabs, type PillTab } from '@/components/shared/PillTabs';
 import { UnderlineTabs, type UnderlineTab } from '@/components/shared/UnderlineTabs';
 import {
   Clock4, Plus, Search, RefreshCw, CheckCircle2, XCircle,
@@ -34,7 +34,7 @@ import {
   BarChart, Bar, AreaChart, Area, PieChart as RePieChart, Pie, Legend,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts';
-import { OT_TYPES, SELECTABLE_OT_TYPES, STATUSES, type OTType, type OTStatus, type OTRecord, type OTForm, type SpareUsedEntry } from './types';
+import { OT_TYPES, SELECTABLE_OT_TYPES, STATUSES, type OTType, type OTStatus, type OTRecord, type OTForm, type SpareUsedEntry, type PlanningStatus } from './types';
 import { useOvertimeData, buildOvertimePayload, createOT, updateOT, deleteOT, postOvertimeAnalysis } from './useOvertimeData';
 import { calcHours, mondayOf, toISODate, addDays, buildWeeklyRows, cleanReasonText } from './calcOvertime';
 
@@ -47,6 +47,13 @@ const TYPE_HEX: Record<OTType, string> = { regular: ACCENT_HEX.blue, weekend: '#
 const STATUS_HEX: Record<OTStatus, string> = {
   pending: '#fbbf24', approved: '#34d399', rejected: '#f87171', paid: ACCENT_HEX.blue, cancelled: '#94a3b8',
 };
+
+// Scheduled/rostered in advance vs. came up reactively — orthogonal to overtime_type
+// and status. Absent on a record means unclassified (legacy, pre-dates this field) —
+// deliberately not defaulted to either value; see PlanningBadge below.
+const PLANNING_LABELS: Record<PlanningStatus, string> = { planned: 'Planned', unplanned: 'Unplanned' };
+const PLANNING_ICONS: Record<PlanningStatus, ElementType> = { planned: Calendar, unplanned: AlertCircle };
+const PLANNING_HEX: Record<PlanningStatus, string> = { planned: '#34d399', unplanned: '#f59e0b' };
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
@@ -62,6 +69,9 @@ function blankForm(): OTForm {
   return {
     employee_name: '', employee_id: '', position: '', department: '',
     overtime_type: 'regular',
+    // New entries always get a real value — 'unplanned' is the confirmed default
+    // (most overtime here is logged reactively; 'planned' is a deliberate opt-in).
+    planning_status: 'unplanned',
     date: nowLocal().slice(0, 10),
     start_time: '17:00', end_time: '20:00', hours: '',
     reason: '', contact_number: '', notes: '',
@@ -75,6 +85,18 @@ function TypeBadge({ type }: { type: OTType }) {
   return (
     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ backgroundColor: `${TYPE_HEX[type]}22`, color: TYPE_HEX[type] }}>
       <Icon className="h-2.5 w-2.5" />{TYPE_LABELS[type]}
+    </span>
+  );
+}
+
+// Renders nothing for an unclassified record (null/undefined) — absence is signal
+// enough; a third "Unclassified" badge everywhere would just be visual noise.
+function PlanningBadge({ status }: { status?: PlanningStatus | null }) {
+  if (!status) return null;
+  const Icon = PLANNING_ICONS[status];
+  return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ backgroundColor: `${PLANNING_HEX[status]}22`, color: PLANNING_HEX[status] }}>
+      <Icon className="h-2.5 w-2.5" />{PLANNING_LABELS[status]}
     </span>
   );
 }
@@ -128,7 +150,12 @@ function OTFormModal({ open, onClose, onSave, editing, records }: {
     if (open) {
       setForm(editing ? {
         employee_name: editing.employee_name, employee_id: editing.employee_id, position: editing.position,
-        department: editing.department || '', overtime_type: editing.overtime_type, date: editing.date,
+        department: editing.department || '', overtime_type: editing.overtime_type,
+        // Preserve 'unclassified' (null) as a real, sticky state on an existing legacy
+        // record — must NOT default to 'unplanned' here, or saving an unrelated edit
+        // (e.g. fixing a typo in reason) would silently stamp a guessed value on it.
+        planning_status: editing.planning_status ?? null,
+        date: editing.date,
         start_time: editing.start_time || '17:00', end_time: editing.end_time || '20:00',
         hours: editing.hours != null ? String(editing.hours) : '',
         reason: editing.reason || '', contact_number: editing.contact_number || '', notes: editing.notes || '',
@@ -154,6 +181,20 @@ function OTFormModal({ open, onClose, onSave, editing, records }: {
   const set = (k: keyof OTForm, v: string) => setForm(f => ({ ...f, [k]: v }));
   const hours = useHours ? (parseFloat(form.hours) || 0) : calcHours(form.start_time, form.end_time);
   const inputCls = `w-full h-9 rounded-lg px-3 text-sm outline-none transition-colors ${t.inputBg}`;
+
+  // A new record's planning_status is never null (blankForm defaults it to
+  // 'unplanned'), so the 3rd tab only ever appears while editing a legacy record
+  // that hasn't been resolved yet — and disappears the moment the user picks one.
+  const planningTabs: PillTab<PlanningStatus | 'unclassified'>[] = form.planning_status === null
+    ? [
+        { key: 'unplanned', label: 'Unplanned', icon: AlertCircle },
+        { key: 'planned', label: 'Planned', icon: Calendar },
+        { key: 'unclassified', label: 'Unclassified', icon: X },
+      ]
+    : [
+        { key: 'unplanned', label: 'Unplanned', icon: AlertCircle },
+        { key: 'planned', label: 'Planned', icon: Calendar },
+      ];
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -198,6 +239,14 @@ function OTFormModal({ open, onClose, onSave, editing, records }: {
           </FormField>
           <FormField label="Date" required><input type="date" className={inputCls} value={form.date} onChange={e => set('date', e.target.value)} /></FormField>
         </div>
+
+        <FormField label="Planned or Unplanned?" required>
+          <PillTabs<PlanningStatus | 'unclassified'>
+            tabs={planningTabs}
+            value={form.planning_status ?? 'unclassified'}
+            onChange={v => setForm(f => ({ ...f, planning_status: v === 'unclassified' ? null : v }))}
+          />
+        </FormField>
 
         <label className="flex items-center gap-2 text-xs cursor-pointer select-none" title="Skip exact times and just enter the hours worked">
           <input type="checkbox" checked={useHours} onChange={e => setUseHours(e.target.checked)} className="accent-brand-500" />
@@ -323,6 +372,7 @@ function OTDetailModal({ record, onClose, onEdit, onApprove, onReject }: {
           <div className="ml-auto flex flex-col items-end gap-1">
             <StatusBadge color={STATUS_HEX[record.status]} label={record.status} />
             <TypeBadge type={record.overtime_type} />
+            <PlanningBadge status={record.planning_status} />
           </div>
         </div>
 
@@ -1356,6 +1406,12 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
   const grandTotal15 = rows.reduce((s, r) => s + r.total15, 0);
   const grandTotal20 = rows.reduce((s, r) => s + r.total20, 0);
 
+  // Planned vs. unplanned totals for the week — always sums to grandTotal.
+  // grandTotalUnclassified only shows up when legacy (pre-field) records fall in range.
+  const grandTotalPlanned = rows.reduce((s, r) => s + r.plannedHours, 0);
+  const grandTotalUnplanned = rows.reduce((s, r) => s + r.unplannedHours, 0);
+  const grandTotalUnclassified = rows.reduce((s, r) => s + r.unclassifiedHours, 0);
+
   // "Where it's coming from" — a quick, always-visible answer to who's driving this
   // week's overtime and why, distinct from the separate Causes & Actions AI tab (which
   // requires navigating away and running an analysis). Both computed instantly from
@@ -1391,10 +1447,13 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
     const wb = new ExcelJS.Workbook(); wb.creator = 'Ozech MyOffice';
     const ws = wb.addWorksheet('OT Weekly Summary');
     // No per-day breakdown — each employee gets one numbered row: their week's
-    // 1.5x total, 2.0x total, and overall total.
-    // [No., Mine No., Employee, 1.5x h, 2.0x h, Total h].
-    const totalCols = 6;
-    const NAME_COL = 3, TOTAL_COL = 6;
+    // planned/unplanned split, 1.5x total, 2.0x total, and overall total.
+    // [No., Mine No., Employee, Planned h, Unplanned h, Unclassified h, 1.5x h, 2.0x h, Total h].
+    // Unclassified h is included (not just Planned/Unplanned) so the columns are
+    // internally consistent — Planned + Unplanned + Unclassified always sums to
+    // Total; omitting it would make the sheet look wrong on weeks with legacy data.
+    const totalCols = 9;
+    const NAME_COL = 3, TOTAL_COL = 9;
     ws.views = [{ state: 'frozen', xSplit: 3, ySplit: 3 }];
     const FONT = 'Calibri';
 
@@ -1415,7 +1474,7 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
     ws.addRow([]);
 
     const hdrRow = ws.getRow(3);
-    hdrRow.values = ['No.', 'Mine No.', 'Employee', '1.5x h', '2.0x h', 'Total h'];
+    hdrRow.values = ['No.', 'Mine No.', 'Employee', 'Planned h', 'Unplanned h', 'Unclassified h', '1.5x h', '2.0x h', 'Total h'];
     hdrRow.height = 28;
     hdrRow.eachCell({ includeEmpty: true }, (c, col) => {
       const isNameCol = col === NAME_COL;
@@ -1436,7 +1495,7 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
     const fmtHours = (n: number) => n.toFixed(2);
 
     rows.forEach((row, ei) => {
-      const rowVals: (string | number)[] = [ei + 1, row.employee_id || '—', row.employee_name, fmtHours(row.total15), fmtHours(row.total20), fmtHours(row.total)];
+      const rowVals: (string | number)[] = [ei + 1, row.employee_id || '—', row.employee_name, fmtHours(row.plannedHours), fmtHours(row.unplannedHours), fmtHours(row.unclassifiedHours), fmtHours(row.total15), fmtHours(row.total20), fmtHours(row.total)];
       const dataRow = ws.getRow(4 + ei);
       dataRow.values = rowVals;
       dataRow.height = 17;
@@ -1450,7 +1509,7 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
     });
 
     const totalRow = ws.getRow(4 + rows.length + 1);
-    totalRow.values = ['', '', 'Grand Total', fmtHours(grandTotal15), fmtHours(grandTotal20), fmtHours(grandTotal)];
+    totalRow.values = ['', '', 'Grand Total', fmtHours(grandTotalPlanned), fmtHours(grandTotalUnplanned), fmtHours(grandTotalUnclassified), fmtHours(grandTotal15), fmtHours(grandTotal20), fmtHours(grandTotal)];
     totalRow.height = 22;
     totalRow.eachCell({ includeEmpty: true }, (c, col) => {
       const isTotalCol = col === TOTAL_COL;
@@ -1517,9 +1576,12 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
     ws.getColumn(1).width = 6;
     ws.getColumn(2).width = 12;
     ws.getColumn(3).width = 26;
-    ws.getColumn(4).width = 10;
-    ws.getColumn(5).width = 10;
-    ws.getColumn(6).width = 12;
+    ws.getColumn(4).width = 11;
+    ws.getColumn(5).width = 13;
+    ws.getColumn(6).width = 14;
+    ws.getColumn(7).width = 10;
+    ws.getColumn(8).width = 10;
+    ws.getColumn(9).width = 12;
 
     const buf = await wb.xlsx.writeBuffer();
     const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
@@ -1552,7 +1614,18 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
               { value: 'mineNumber', label: 'Sort: Mine Number' },
             ]} />
         </div>
-        {!invalidRange && <span className={`text-xs ${t.textFaint}`}>{days.length} day{days.length !== 1 ? 's' : ''} · {rows.length} employee{rows.length !== 1 ? 's' : ''} · {grandTotal.toFixed(1)}h total</span>}
+        {!invalidRange && (
+          <span className={`text-xs ${t.textFaint}`}>
+            {days.length} day{days.length !== 1 ? 's' : ''} · {rows.length} employee{rows.length !== 1 ? 's' : ''} · {grandTotal.toFixed(1)}h total
+            {grandTotal > 0 && (
+              <>
+                {' · '}<span style={{ color: PLANNING_HEX.planned }} className="font-semibold">Planned {grandTotalPlanned.toFixed(1)}h</span>
+                {' · '}<span style={{ color: PLANNING_HEX.unplanned }} className="font-semibold">Unplanned {grandTotalUnplanned.toFixed(1)}h</span>
+                {grandTotalUnclassified > 0 && <>{' · '}<span className={t.textFaint}>Unclassified {grandTotalUnclassified.toFixed(1)}h</span></>}
+              </>
+            )}
+          </span>
+        )}
         {!invalidRange && rows.length > 0 && (
           <button type="button" onClick={downloadExcel} disabled={downloading} className="ml-auto flex items-center gap-1.5 h-9 px-3 rounded-lg text-xs font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 disabled:opacity-60 transition-all">
             {downloading ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />} Download Excel
@@ -1856,7 +1929,10 @@ function OvertimeContent() {
           </div>
           <StatusBadge color={STATUS_HEX[r.status]} label={r.status} />
         </div>
-        <TypeBadge type={r.overtime_type} />
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <TypeBadge type={r.overtime_type} />
+          <PlanningBadge status={r.planning_status} />
+        </div>
         <div className={`mt-2 space-y-0.5 text-[11px] ${t.textFaint}`}>
           <p>{fmtDate(r.date)} · {r.start_time}–{r.end_time} {hours > 0 && <span className="text-brand-400 font-semibold">({hours.toFixed(1)}h)</span>}</p>
           <p className="truncate">{r.reason}</p>
@@ -2044,7 +2120,7 @@ function OvertimeContent() {
                             <div><p className={`text-sm font-medium ${t.textPrimary}`}>{r.employee_name}</p><p className={`text-[10px] ${t.textFaint}`}>{r.employee_id} · {r.position}</p></div>
                           </div>
                         </td>
-                        <td className={tdCls}><TypeBadge type={r.overtime_type} /></td>
+                        <td className={tdCls}><div className="flex items-center gap-1.5 flex-wrap"><TypeBadge type={r.overtime_type} /><PlanningBadge status={r.planning_status} /></div></td>
                         <td className={tdCls}><p className="text-xs">{fmtDate(r.date)}</p><p className={`text-[10px] ${t.textFaint}`}>{r.start_time} – {r.end_time}</p></td>
                         <td className={tdCls}><span className="text-xs font-semibold text-brand-400">{h > 0 ? `${h.toFixed(1)}h` : '—'}</span></td>
                         <td className={tdCls}><span className={`text-xs max-w-[200px] truncate block ${t.textFaint}`}>{r.reason}</span></td>
