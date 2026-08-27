@@ -1,7 +1,7 @@
 // app/requisitions/page.tsx
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { api } from '@/lib/apiClient';
 import { formatDate } from '@/lib/format';
 import { formatCurrency } from '@/components/shared/utils';
@@ -64,11 +64,13 @@ function useReqData(open: boolean) {
   const [employees, setEmployees] = useState<EmpOption[]>([]);
   const [equipment, setEquipment] = useState<EquipOption[]>([]);
 
-  useEffect(() => {
-    if (!open) return;
+  const [error, setError] = useState(false);
+
+  const load = useCallback(() => {
+    setError(false);
     Promise.all([
-      api.get<any[]>('/api/employees').catch(() => []),
-      api.get<any[]>('/api/equipment').catch(() => []),
+      api.get<any[]>('/api/employees').catch(() => { setError(true); return []; }),
+      api.get<any[]>('/api/equipment').catch(() => { setError(true); return []; }),
     ]).then(([emps, equip]) => {
       setEmployees((Array.isArray(emps) ? emps : []).map((e: Record<string, unknown>) => ({
         id: String(e.employee_id ?? e.id ?? ''),
@@ -80,10 +82,22 @@ function useReqData(open: boolean) {
         label: String(e.name ?? ''),
         section: String(e.location ?? e.department ?? e.category ?? ''),
       })));
-    }).catch(() => {});
-  }, [open]);
+    });
+  }, []);
 
-  return { employees, equipment };
+  useEffect(() => {
+    if (!open) return;
+    load();
+  }, [open, load]);
+
+  useEffect(() => {
+    // A separate effect (not inline in the catch above) so it fires once per failed
+    // load rather than once per rejected promise — Promise.all above already resolves
+    // successfully (with an empty array) on either lookup failing, it just also flags it.
+    if (error) toast.error('Failed to load employees/equipment for this form — try reopening it');
+  }, [error]);
+
+  return { employees, equipment, lookupError: error, retryLookups: load };
 }
 
 // ─── Form modal ───────────────────────────────────────────────────────────────
@@ -95,7 +109,7 @@ function ReqModal({ open, onClose, onSave, editing }: {
   const [form, setForm] = useState<Partial<Requisition>>(blankForm());
   const [saving, setSaving] = useState(false);
   const [empSearch, setEmpSearch] = useState('');
-  const { employees, equipment } = useReqData(open);
+  const { employees, equipment, lookupError, retryLookups } = useReqData(open);
 
   useEffect(() => {
     setForm(editing ? { ...editing, items: editing.items.length ? editing.items : [newItem()] } : blankForm());
@@ -165,6 +179,12 @@ function ReqModal({ open, onClose, onSave, editing }: {
                 </div>
               );
             })()}
+            {lookupError && (
+              <p className="mt-1 text-[11px] text-rose-500 flex items-center gap-1.5">
+                Couldn't load the employee/equipment lists — you can still type manually, or
+                <button type="button" onClick={retryLookups} className="underline hover:no-underline">retry</button>
+              </p>
+            )}
           </div>
 
           <FormField label="Date" required>

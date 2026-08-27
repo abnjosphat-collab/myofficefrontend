@@ -49,6 +49,11 @@ export function usePPEData() {
   const [records, setRecords] = useState<PPERecord[]>([]);
   const [apiEmployees, setApiEmployees] = useState<EmployeeRow[]>([]);
   const [stats, setStats] = useState<PPEStats | null>(null);
+  // fetchPPEStats swallows its own error and resolves to null either way — this tracks
+  // specifically "the stats fetch failed" as distinct from "stats just hasn't loaded
+  // yet," so the hero-stats section can show a real error instead of silently
+  // rendering nothing (which read exactly like the user having collapsed it).
+  const [statsError, setStatsError] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   // Effective PPE replacement matrix (company defaults, overridden by the backend once
@@ -62,6 +67,8 @@ export function usePPEData() {
       const [rec, st, emp] = await Promise.all([fetchPPERecords(), fetchPPEStats(), fetchAllEmployees()]);
       setRecords(rec);
       setStats(st);
+      setStatsError(st === null);
+      if (st === null) toast.error('Failed to load PPE stats');
       if (emp.length > 0) setApiEmployees(emp);
     } catch (err: any) { toast.error(`Failed to load: ${err.message}`); }
     finally { setLoading(false); setRefreshing(false); }
@@ -80,7 +87,7 @@ export function usePPEData() {
   return {
     records, setRecords,
     apiEmployees,
-    stats,
+    stats, statsError,
     loading, refreshing,
     matrix, setMatrix,
     refresh: load,

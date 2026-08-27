@@ -96,8 +96,17 @@ const EntityComboInput = React.memo(({ fetchUrl, mapOptions, value, onChange, pl
   const ensureFetched = useCallback(async () => {
     if (fetched) return;
     setLoading(true);
-    try { const data = await api.get<any>(fetchUrl); setOptions(mapOptions(Array.isArray(data) ? data : [])); }
-    catch {} finally { setFetched(true); setLoading(false); }
+    try {
+      const data = await api.get<any>(fetchUrl);
+      setOptions(mapOptions(Array.isArray(data) ? data : []));
+      setFetched(true);
+    } catch (e: unknown) {
+      // Deliberately NOT setting fetched here — that used to make a failed load
+      // permanent (the guard above would then skip every future attempt), so the
+      // combo just sat empty forever with no error and no way to retry. Leaving it
+      // false means the next focus (onFocusLoad below) tries again.
+      toast.error(`Couldn't load options: ${(e as Error).message}`);
+    } finally { setLoading(false); }
   }, [fetched, fetchUrl, mapOptions]);
 
   const apiFiltered = useMemo(() => {

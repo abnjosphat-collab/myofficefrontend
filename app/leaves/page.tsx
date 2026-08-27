@@ -78,7 +78,7 @@ function LeaveCard({ leave, onView, onEdit, onDelete }: { leave: Leave; onView: 
   const handleDelete = async () => {
     if (!await confirm({ title: 'Delete this leave request?', destructive: true })) return;
     setDeleting(true);
-    try { await onDelete(leave.id); } catch (error) { console.error(error); } finally { setDeleting(false); }
+    try { await onDelete(leave.id); } catch (error) { toast.error(`Delete failed: ${(error as Error).message}`); } finally { setDeleting(false); }
   };
 
   return (
@@ -342,14 +342,14 @@ function LeaveDetailsModal({ leave, onClose, onEdit, onDelete, onStatusUpdate }:
   const commitStatusChange = async (newStatus: Leave['status'], _sig?: SignatureResult) => {
     setUpdating(true);
     try { await onStatusUpdate(leave.id, newStatus); setPendingStatus(null); onClose(); }
-    catch (error) { console.error(error); }
+    catch (error) { toast.error(`Update failed: ${(error as Error).message}`); }
     finally { setUpdating(false); }
   };
 
   const handleDelete = async () => {
     if (!await confirm({ title: 'Delete this leave request?', destructive: true })) return;
     setUpdating(true);
-    try { await onDelete(leave.id); onClose(); } catch (error) { console.error(error); } finally { setUpdating(false); }
+    try { await onDelete(leave.id); onClose(); } catch (error) { toast.error(`Delete failed: ${(error as Error).message}`); } finally { setUpdating(false); }
   };
 
   const IF = ({ label, value }: { label: string; value?: string | null }) => (

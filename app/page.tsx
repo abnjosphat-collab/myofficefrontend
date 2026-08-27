@@ -565,8 +565,11 @@ function DashboardHeader({ moduleCount, categoryCount }: { moduleCount: number; 
         {[
           { label: 'Modules', value: moduleCount, suffix: '' },
           { label: 'Departments', value: categoryCount, suffix: '' },
-          { label: 'Team members', value: liveStats.employeeCount ?? 0, suffix: '' },
-          { label: 'Open Breakdowns', value: liveStats.openBreakdowns ?? 0, suffix: '' },
+          // '—' on null, not 0 — null means the load failed (see useDashboardData's
+          // safeJson), and a bare 0 here used to be indistinguishable from a genuinely
+          // healthy "zero open breakdowns."
+          { label: 'Team members', value: liveStats.employeeCount ?? '—', suffix: '' },
+          { label: 'Open Breakdowns', value: liveStats.openBreakdowns ?? '—', suffix: '' },
         ].map((stat, i) => (
           <motion.div key={stat.label} variants={fadeUp} className="flex items-baseline gap-2 relative">
             {i > 0 && (

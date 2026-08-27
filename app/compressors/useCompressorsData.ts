@@ -72,13 +72,13 @@ export function useCompressorsData(currentDate: Date) {
     setPreviousReadings(prevData);
   };
 
-  const fetchStats = async () => { try { setStats((await enhancedFetch(`${API_BASE_URL}/api/compressors/stats`)) as CompressorStats); } catch { setStats(null); } };
-  const fetchUpcomingServices = async () => { try { setUpcomingServices(((await enhancedFetch(`${API_BASE_URL}/api/compressors/service-due`)) as UpcomingService[]) || []); } catch { setUpcomingServices([]); } };
+  const fetchStats = async () => { try { setStats((await enhancedFetch(`${API_BASE_URL}/api/compressors/stats`)) as CompressorStats); } catch (e: unknown) { setStats(null); toast.error(`Stats failed to load: ${(e as Error).message}`); } };
+  const fetchUpcomingServices = async () => { try { setUpcomingServices(((await enhancedFetch(`${API_BASE_URL}/api/compressors/service-due`)) as UpcomingService[]) || []); } catch (e: unknown) { setUpcomingServices([]); toast.error(`Upcoming services failed to load: ${(e as Error).message}`); } };
   const fetchPerformanceMetrics = async (days = 30) => {
     try {
       const data = ((await enhancedFetch(`${API_BASE_URL}/api/compressors/analytics/performance-metrics?period_days=${days}`)) as PerformanceMetric[]) || [];
       setAnalyticsData(p => ({ ...p, performanceMetrics: data }));
-    } catch { setAnalyticsData(p => ({ ...p, performanceMetrics: [] })); }
+    } catch (e: unknown) { setAnalyticsData(p => ({ ...p, performanceMetrics: [] })); toast.error(`Performance metrics failed to load: ${(e as Error).message}`); }
   };
   const fetchTrendAnalysis = async (period = 'monthly') => {
     try {
@@ -96,7 +96,7 @@ export function useCompressorsData(currentDate: Date) {
     try {
       const data = (await enhancedFetch(`${API_BASE_URL}/api/compressors/management/summary`)) as ManagementSummary;
       setManagementData(p => ({ ...p, summary: data }));
-    } catch { setManagementData(p => ({ ...p, summary: null })); }
+    } catch (e: unknown) { setManagementData(p => ({ ...p, summary: null })); toast.error(`Management summary failed to load: ${(e as Error).message}`); }
   };
 
   const loadAllData = async () => {
