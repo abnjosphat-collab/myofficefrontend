@@ -12,7 +12,7 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
-    include: ['lib/**/*.test.ts', 'lib/**/*.test.tsx'],
+    include: ['lib/**/*.test.ts', 'lib/**/*.test.tsx', 'app/**/*.test.ts', 'app/**/*.test.tsx'],
     // Report-only for now (no threshold) — the point right now is making coverage
     // visible instead of guessed, not gating on it. `include` above scopes what
     // actually gets *run*; this scopes what shows up in the coverage report, so a

@@ -24,13 +24,14 @@ import {
   useTheme, Collapse, AnimatedText, PulsingIcon, CenterModal, GlowCard,
   staggerContainer, fadeUp, ACCENT, ACCENT_HEX, type Accent,
   StatusBadge, RecordCard, StatTile, ProgressBar, FormField, FormActions,
-  useCollapseSection, SelectField, AutofillInput, useConfirm,
+  useCollapseSection, SelectField, AutofillInput, useConfirm, accentText,
 } from '@/components/shared/theme';
 import type { PPETypeInfo, PPERecord, EmployeeRow, EmployeeWithPPE, EnhancedStats, FormState } from './types';
 import {
   usePPEData,
   createPPERecord, updatePPERecord, deletePPERecord,
 } from './usePPEData';
+import { isExpiringSoon, isExpired, computeComplianceRate, computeSizeBreakdown } from './calcPPE';
 
 // Data-model types (PPERecord, EmployeeRow, PPEStats, etc.) now live in ./types —
 // imported above. Component prop interfaces below stay page-local.
@@ -66,13 +67,9 @@ const STATUS_LABELS: Record<string, string> = { active: 'Active', expired: 'Due'
 
 const fmtDate = (s?: string | null) => (s ? formatDate(s) : 'Not specified');
 
-const isExpiringSoon = (d?: string | null, days = 30) => {
-  if (!d) return false;
-  const diff = Math.ceil((new Date(d).getTime() - Date.now()) / 86400000);
-  return diff <= days && diff > 0;
-};
-const isExpired = (d?: string | null) => !!d && new Date(d) < new Date();
-
+// isExpiringSoon/isExpired/computeComplianceRate/computeSizeBreakdown now live in
+// ./calcPPE (imported above) — extracted per the "extract + test business logic"
+// standard (app/timesheets/calcTotals.ts precedent), tested in calcPPE.test.ts.
 
 // fetchPPERecords/fetchPPEStats/fetchAllEmployees/createPPERecord/updatePPERecord/
 // deletePPERecord now live in ./usePPEData (imported above).
@@ -830,7 +827,7 @@ export default function PPEManagement() {
   // records/apiEmployees/stats/loading/refreshing/matrix + the load cycle now live in
   // usePPEData (./usePPEData) — `refresh` is aliased back to `load` since every call
   // site below already calls load()/load(true).
-  const { records, setRecords, apiEmployees, stats, loading, refreshing, matrix, setMatrix, refresh: load } = usePPEData();
+  const { records, setRecords, apiEmployees, stats, statsError, loading, refreshing, matrix, setMatrix, refresh: load } = usePPEData();
 
   // UI state
   const [showForm,      setShowForm]      = useState(false);
@@ -913,11 +910,7 @@ export default function PPEManagement() {
     return { ...stats, activeRecords, expiringSoon, expired: expiredCount, employeesWithExpiring, employeesWithExpired };
   }, [stats, records, employeesWithPPE]);
 
-  const complianceRate = useMemo(() => {
-    const active = records.filter(r => r.status === 'active');
-    if (!active.length) return null;
-    return Math.round((active.filter(r => !isExpired(r.expiry_date)).length / active.length) * 100);
-  }, [records]);
+  const complianceRate = useMemo(() => computeComplianceRate(records), [records]);
 
   const typeCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -928,20 +921,7 @@ export default function PPEManagement() {
   // Order breakdown: active items grouped by PPE type → size, with a count in use and a
   // "to reorder" count (past expiry, i.e. needs replacing). Lets a purchaser see e.g.
   // "Helmet · L × 12 (3 to reorder)" at a glance. Returns [type, [size, {inUse, reorder}][]][].
-  const sizeBreakdown = useMemo(() => {
-    const byType: Record<string, Record<string, { inUse: number; reorder: number }>> = {};
-    records.forEach(r => {
-      if (r.status !== 'active') return;
-      const size = (r.size || '').trim() || 'Unspecified';
-      (byType[r.ppe_type] ||= {});
-      (byType[r.ppe_type][size] ||= { inUse: 0, reorder: 0 });
-      byType[r.ppe_type][size].inUse++;
-      if (isExpired(r.expiry_date)) byType[r.ppe_type][size].reorder++;
-    });
-    return Object.entries(byType)
-      .map(([type, sizes]) => [type, Object.entries(sizes).sort((a, b) => b[1].inUse - a[1].inUse)] as const)
-      .sort((a, b) => b[1].reduce((s, [, v]) => s + v.inUse, 0) - a[1].reduce((s, [, v]) => s + v.inUse, 0));
-  }, [records]);
+  const sizeBreakdown = useMemo(() => computeSizeBreakdown(records), [records]);
 
   // ── Expand / collapse ─────────────────────────────────────────────────────
 
@@ -1023,8 +1003,11 @@ export default function PPEManagement() {
     const activeCount = records.filter(r => r.status === 'active').length;
     if (!await confirm({ title: `Recalculate expiry for all ${activeCount} active PPE item(s)?`, message: 'Uses the current matrix across every type — this overwrites their current expiry dates.', destructive: true })) return;
     try {
-      const res = await api.post<{ total_updated: number }>('/api/ppe/matrix/apply-all', {});
+      const res = await api.post<{ total_updated: number; failed?: string[] }>('/api/ppe/matrix/apply-all', {});
       toast.success(`Recalculated ${res?.total_updated ?? 0} item(s) across all types`);
+      if (res?.failed && res.failed.length > 0) {
+        toast.error(`Failed to recalculate: ${res.failed.map(t => PPE_TYPES[t]?.shortName || t).join(', ')}`);
+      }
       load(true);
     } catch { toast.error('Recalculate failed — needs manager access.'); }
   };
@@ -1237,6 +1220,16 @@ export default function PPEManagement() {
                   })}
                 </div>
               )}
+            </div>
+          )}
+          {sections.expanded.heroStats && !enhancedStats && statsError && !loading && (
+            <div className={`border-t ${t.border} px-6 py-4 flex items-center justify-between gap-3`}>
+              <span className={`flex items-center gap-2 text-sm ${accentText('rose', t.light)}`}>
+                <AlertTriangle className="h-4 w-4" /> Couldn't load stats
+              </span>
+              <button type="button" onClick={() => load(true)} className={`text-xs font-semibold ${t.textMuted} ${t.hoverText} transition-colors`}>
+                Retry
+              </button>
             </div>
           )}
         </motion.div>
