@@ -69,9 +69,9 @@ function blankForm(): OTForm {
   return {
     employee_name: '', employee_id: '', position: '', department: '',
     overtime_type: 'regular',
-    // New entries always get a real value — 'unplanned' is the confirmed default
-    // (most overtime here is logged reactively; 'planned' is a deliberate opt-in).
-    planning_status: 'unplanned',
+    // New entries always get a real value — 'planned' is the default; 'unplanned'
+    // is a deliberate switch for overtime that came up reactively.
+    planning_status: 'planned',
     date: nowLocal().slice(0, 10),
     start_time: '17:00', end_time: '20:00', hours: '',
     reason: '', contact_number: '', notes: '',
@@ -187,13 +187,13 @@ function OTFormModal({ open, onClose, onSave, editing, records }: {
   // that hasn't been resolved yet — and disappears the moment the user picks one.
   const planningTabs: PillTab<PlanningStatus | 'unclassified'>[] = form.planning_status === null
     ? [
-        { key: 'unplanned', label: 'Unplanned', icon: AlertCircle },
         { key: 'planned', label: 'Planned', icon: Calendar },
+        { key: 'unplanned', label: 'Unplanned', icon: AlertCircle },
         { key: 'unclassified', label: 'Unclassified', icon: X },
       ]
     : [
-        { key: 'unplanned', label: 'Unplanned', icon: AlertCircle },
         { key: 'planned', label: 'Planned', icon: Calendar },
+        { key: 'unplanned', label: 'Unplanned', icon: AlertCircle },
       ];
 
   const handleSave = async (e: React.FormEvent) => {
