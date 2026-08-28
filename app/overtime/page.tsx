@@ -34,7 +34,7 @@ import {
   BarChart, Bar, AreaChart, Area, PieChart as RePieChart, Pie, Legend,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts';
-import { OT_TYPES, SELECTABLE_OT_TYPES, STATUSES, type OTType, type OTStatus, type OTRecord, type OTForm, type SpareUsedEntry, type PlanningStatus } from './types';
+import { OT_TYPES, SELECTABLE_OT_TYPES, STATUSES, type OTType, type OTStatus, type OTRecord, type OTForm, type SpareUsedEntry, type PlanningStatus, type PayoutMethod } from './types';
 import { useOvertimeData, buildOvertimePayload, createOT, updateOT, deleteOT, postOvertimeAnalysis } from './useOvertimeData';
 import { calcHours, mondayOf, toISODate, addDays, buildWeeklyRows, cleanReasonText } from './calcOvertime';
 
@@ -55,6 +55,14 @@ const PLANNING_LABELS: Record<PlanningStatus, string> = { planned: 'Planned', un
 const PLANNING_ICONS: Record<PlanningStatus, ElementType> = { planned: Calendar, unplanned: AlertCircle };
 const PLANNING_HEX: Record<PlanningStatus, string> = { planned: '#34d399', unplanned: '#f59e0b' };
 
+// Whether this OT will be paid out or was compensated with time off instead — see
+// PayoutMethod's doc comment in types.ts. #0891b2 matches the Leaves module's own
+// "Leave in Lieu of Overtime" color, so the same concept reads consistently across
+// both modules.
+const PAYOUT_LABELS: Record<PayoutMethod, string> = { cash: 'To Be Paid', lieu: 'Taken as Leave (Lieu)' };
+const PAYOUT_ICONS: Record<PayoutMethod, ElementType> = { cash: Wallet, lieu: Clock4 };
+const PAYOUT_HEX: Record<PayoutMethod, string> = { cash: '#34d399', lieu: '#0891b2' };
+
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
 function nowLocal(): string {
@@ -72,6 +80,9 @@ function blankForm(): OTForm {
     // New entries always get a real value — 'planned' is the default; 'unplanned'
     // is a deliberate switch for overtime that came up reactively.
     planning_status: 'planned',
+    // 'cash' is the default — most overtime is paid; 'lieu' is a deliberate switch
+    // for overtime that will be compensated with time off instead.
+    payout_method: 'cash',
     date: nowLocal().slice(0, 10),
     start_time: '17:00', end_time: '20:00', hours: '',
     reason: '', contact_number: '', notes: '',
@@ -97,6 +108,19 @@ function PlanningBadge({ status }: { status?: PlanningStatus | null }) {
   return (
     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ backgroundColor: `${PLANNING_HEX[status]}22`, color: PLANNING_HEX[status] }}>
       <Icon className="h-2.5 w-2.5" />{PLANNING_LABELS[status]}
+    </span>
+  );
+}
+
+// Only ever renders for 'lieu' — the exception worth flagging ("this one's not
+// getting paid"). 'cash' is the unremarkable default and unclassified has nothing
+// to say, so both render nothing, same reasoning as PlanningBadge above.
+function PayoutBadge({ method }: { method?: PayoutMethod | null }) {
+  if (method !== 'lieu') return null;
+  const Icon = PAYOUT_ICONS.lieu;
+  return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ backgroundColor: `${PAYOUT_HEX.lieu}22`, color: PAYOUT_HEX.lieu }}>
+      <Icon className="h-2.5 w-2.5" />{PAYOUT_LABELS.lieu}
     </span>
   );
 }
@@ -152,9 +176,10 @@ function OTFormModal({ open, onClose, onSave, editing, records }: {
         employee_name: editing.employee_name, employee_id: editing.employee_id, position: editing.position,
         department: editing.department || '', overtime_type: editing.overtime_type,
         // Preserve 'unclassified' (null) as a real, sticky state on an existing legacy
-        // record — must NOT default to 'unplanned' here, or saving an unrelated edit
-        // (e.g. fixing a typo in reason) would silently stamp a guessed value on it.
+        // record — must NOT default to 'unplanned'/'cash' here, or saving an unrelated
+        // edit (e.g. fixing a typo in reason) would silently stamp a guessed value on it.
         planning_status: editing.planning_status ?? null,
+        payout_method: editing.payout_method ?? null,
         date: editing.date,
         start_time: editing.start_time || '17:00', end_time: editing.end_time || '20:00',
         hours: editing.hours != null ? String(editing.hours) : '',
@@ -182,9 +207,9 @@ function OTFormModal({ open, onClose, onSave, editing, records }: {
   const hours = useHours ? (parseFloat(form.hours) || 0) : calcHours(form.start_time, form.end_time);
   const inputCls = `w-full h-9 rounded-lg px-3 text-sm outline-none transition-colors ${t.inputBg}`;
 
-  // A new record's planning_status is never null (blankForm defaults it to
-  // 'unplanned'), so the 3rd tab only ever appears while editing a legacy record
-  // that hasn't been resolved yet — and disappears the moment the user picks one.
+  // A new record's planning_status/payout_method are never null (blankForm defaults
+  // both), so the 3rd tab only ever appears while editing a legacy record that
+  // hasn't been resolved yet — and disappears the moment the user picks one.
   const planningTabs: PillTab<PlanningStatus | 'unclassified'>[] = form.planning_status === null
     ? [
         { key: 'planned', label: 'Planned', icon: Calendar },
@@ -194,6 +219,17 @@ function OTFormModal({ open, onClose, onSave, editing, records }: {
     : [
         { key: 'planned', label: 'Planned', icon: Calendar },
         { key: 'unplanned', label: 'Unplanned', icon: AlertCircle },
+      ];
+
+  const payoutTabs: PillTab<PayoutMethod | 'unclassified'>[] = form.payout_method === null
+    ? [
+        { key: 'cash', label: 'To Be Paid', icon: Wallet },
+        { key: 'lieu', label: 'Taken as Leave', icon: Clock4 },
+        { key: 'unclassified', label: 'Unclassified', icon: X },
+      ]
+    : [
+        { key: 'cash', label: 'To Be Paid', icon: Wallet },
+        { key: 'lieu', label: 'Taken as Leave', icon: Clock4 },
       ];
 
   const handleSave = async (e: React.FormEvent) => {
@@ -245,6 +281,14 @@ function OTFormModal({ open, onClose, onSave, editing, records }: {
             tabs={planningTabs}
             value={form.planning_status ?? 'unclassified'}
             onChange={v => setForm(f => ({ ...f, planning_status: v === 'unclassified' ? null : v }))}
+          />
+        </FormField>
+
+        <FormField label="Payout" required>
+          <PillTabs<PayoutMethod | 'unclassified'>
+            tabs={payoutTabs}
+            value={form.payout_method ?? 'unclassified'}
+            onChange={v => setForm(f => ({ ...f, payout_method: v === 'unclassified' ? null : v }))}
           />
         </FormField>
 
@@ -373,6 +417,7 @@ function OTDetailModal({ record, onClose, onEdit, onApprove, onReject }: {
             <StatusBadge color={STATUS_HEX[record.status]} label={record.status} />
             <TypeBadge type={record.overtime_type} />
             <PlanningBadge status={record.planning_status} />
+            <PayoutBadge method={record.payout_method} />
           </div>
         </div>
 
@@ -1932,6 +1977,7 @@ function OvertimeContent() {
         <div className="flex items-center gap-1.5 flex-wrap">
           <TypeBadge type={r.overtime_type} />
           <PlanningBadge status={r.planning_status} />
+          <PayoutBadge method={r.payout_method} />
         </div>
         <div className={`mt-2 space-y-0.5 text-[11px] ${t.textFaint}`}>
           <p>{fmtDate(r.date)} · {r.start_time}–{r.end_time} {hours > 0 && <span className="text-brand-400 font-semibold">({hours.toFixed(1)}h)</span>}</p>
@@ -2120,7 +2166,7 @@ function OvertimeContent() {
                             <div><p className={`text-sm font-medium ${t.textPrimary}`}>{r.employee_name}</p><p className={`text-[10px] ${t.textFaint}`}>{r.employee_id} · {r.position}</p></div>
                           </div>
                         </td>
-                        <td className={tdCls}><div className="flex items-center gap-1.5 flex-wrap"><TypeBadge type={r.overtime_type} /><PlanningBadge status={r.planning_status} /></div></td>
+                        <td className={tdCls}><div className="flex items-center gap-1.5 flex-wrap"><TypeBadge type={r.overtime_type} /><PlanningBadge status={r.planning_status} /><PayoutBadge method={r.payout_method} /></div></td>
                         <td className={tdCls}><p className="text-xs">{fmtDate(r.date)}</p><p className={`text-[10px] ${t.textFaint}`}>{r.start_time} – {r.end_time}</p></td>
                         <td className={tdCls}><span className="text-xs font-semibold text-brand-400">{h > 0 ? `${h.toFixed(1)}h` : '—'}</span></td>
                         <td className={tdCls}><span className={`text-xs max-w-[200px] truncate block ${t.textFaint}`}>{r.reason}</span></td>
