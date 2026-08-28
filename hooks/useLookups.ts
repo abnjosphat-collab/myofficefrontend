@@ -92,6 +92,15 @@ export function useEmployees(): EmployeeLookup[] {
   );
 }
 
+// This cache has no TTL — it's fetched once per browser session and never expires on
+// its own. An edit on the Employees page (new hire, changed phone/section/etc.) would
+// otherwise stay invisible to every other page's employee picker (leaves, overtime,
+// maintenance, ...) until a full page reload. Called from useEmployeesData.ts's
+// saveEmployee/removeEmployee right after a successful write.
+export function invalidateEmployeesCache(): void {
+  _emp = null;
+}
+
 export function useEquipment(): EquipmentLookup[] {
   return useLookup<EquipmentLookup>(
     () => _eq, (v) => { _eq = v; },
