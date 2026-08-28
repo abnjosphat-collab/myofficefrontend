@@ -114,6 +114,12 @@ interface SignaturePadProps {
   onCancel: () => void;
   /** Offer "use my saved signature" and "save for next time". Default true. */
   allowSaved?: boolean;
+  /** Open straight into "Use saved signature" instead of "Draw now", for flows
+   *  where the signer almost always wants their signature on file rather than
+   *  drawing fresh each time. Only takes effect once the saved-signature check
+   *  below actually confirms one exists — never forces the unlock form open for
+   *  someone who has nothing saved. Default false (unchanged "Draw now" default). */
+  preferSaved?: boolean;
 }
 
 export function SignaturePad({
@@ -123,6 +129,7 @@ export function SignaturePad({
   onSign,
   onCancel,
   allowSaved = true,
+  preferSaved = false,
 }: SignaturePadProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawing = useRef(false);
@@ -145,10 +152,14 @@ export function SignaturePad({
     if (!allowSaved) return;
     let cancelled = false;
     api.get<SavedInfo>('/api/signatures/me')
-      .then(r => { if (!cancelled) setSaved(r); })
+      .then(r => {
+        if (cancelled) return;
+        setSaved(r);
+        if (preferSaved && r.has_signature) setMode('unlock');
+      })
       .catch(() => { /* no saved signature, or endpoint unavailable — draw mode still works */ });
     return () => { cancelled = true; };
-  }, [allowSaved]);
+  }, [allowSaved, preferSaved]);
 
   // Keep the backing store matched to the element's CSS box. Setting canvas
   // .width/.height wipes the bitmap and resets the context, so re-apply stroke

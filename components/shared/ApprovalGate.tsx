@@ -24,6 +24,9 @@ interface ApprovalGateProps {
   onCancel: () => void;
   /** Optional accent — 'approve' (emerald) | 'reject' (rose) */
   variant?: 'approve' | 'reject' | 'sign';
+  /** Open straight into "Use saved signature" instead of "Draw now" — only
+   *  takes effect if the signer actually has one on file. See SignaturePad. */
+  preferSavedSignature?: boolean;
 }
 
 const ROLE_LABELS: Record<UserRole, string> = {
@@ -36,6 +39,7 @@ export function ApprovalGate({
   requiredRole = 'manager',
   onConfirm, onCancel,
   variant = 'approve',
+  preferSavedSignature = false,
 }: ApprovalGateProps) {
   const { user, profile, isAtLeast, loading } = useAuth();
   const [saving, setSaving] = useState(false);
@@ -129,6 +133,7 @@ export function ApprovalGate({
               actionLabel={saving ? 'Saving…' : actionLabel}
               onSign={handleSign}
               onCancel={onCancel}
+              preferSaved={preferSavedSignature}
             />
           )}
 

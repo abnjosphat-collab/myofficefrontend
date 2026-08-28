@@ -2169,6 +2169,7 @@ function OvertimeContent() {
           actionLabel="Sign & Approve"
           requiredRole="manager"
           variant="approve"
+          preferSavedSignature
           onConfirm={handleApprove}
           onCancel={() => setApproving(null)}
         />
