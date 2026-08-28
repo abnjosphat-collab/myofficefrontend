@@ -365,6 +365,7 @@ function LeaveDetailsModal({ leave, onClose, onEdit, onDelete, onStatusUpdate }:
           actionLabel={pendingStatus === 'approved' ? 'Sign & Approve' : 'Sign & Reject'}
           requiredRole="manager"
           variant={pendingStatus === 'approved' ? 'approve' : 'reject'}
+          preferSavedSignature={pendingStatus === 'approved'}
           onConfirm={async sig => { await commitStatusChange(pendingStatus, sig); }}
           onCancel={() => setPendingStatus(null)}
         />
@@ -792,6 +793,7 @@ function LeaveManagementContent() {
           actionLabel={bulkAction === 'approved' ? 'Sign & Approve All' : 'Sign & Reject All'}
           requiredRole="manager"
           variant={bulkAction === 'approved' ? 'approve' : 'reject'}
+          preferSavedSignature={bulkAction === 'approved'}
           onConfirm={async () => { await handleBulkStatusUpdate(); }}
           onCancel={() => setBulkAction(null)}
         />

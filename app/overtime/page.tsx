@@ -2194,6 +2194,7 @@ function OvertimeContent() {
           actionLabel={bulkAction === 'approve' ? 'Sign & Approve All' : 'Sign & Reject All'}
           requiredRole="manager"
           variant={bulkAction === 'approve' ? 'approve' : 'reject'}
+          preferSavedSignature={bulkAction === 'approve'}
           onConfirm={bulkAction === 'approve' ? handleBulkApprove : handleBulkReject}
           onCancel={() => setBulkAction(null)}
         />
