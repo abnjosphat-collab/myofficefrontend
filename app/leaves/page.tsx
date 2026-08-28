@@ -6,7 +6,7 @@ import React, { useState, useMemo, useEffect, ElementType } from "react";
 import {
   Calendar, Plus, Search, RefreshCw, ChevronDown, ChevronUp,
   CheckCircle2, XCircle, User, FileText, Eye, Loader2,
-  Clock, AlertCircle, Trash2, MoreVertical,
+  Clock, AlertCircle, AlertTriangle, Trash2, MoreVertical,
   List, LayoutGrid, X, Edit,
   Stethoscope, Shield, Heart, Users, GraduationCap,
   CalendarDays, BarChart3, Filter, ChevronRight
@@ -134,7 +134,7 @@ function LeaveCard({ leave, onView, onEdit, onDelete }: { leave: Leave; onView: 
 }
 
 // ============= Leave Application Form =============
-function LeaveApplicationForm({ onClose, onSuccess, editData }: { onClose: () => void; onSuccess: (message: string, leave?: Leave) => void; editData?: Leave | null; }) {
+function LeaveApplicationForm({ onClose, onSuccess, editData, leaves }: { onClose: () => void; onSuccess: (message: string, leave?: Leave) => void; editData?: Leave | null; leaves: Leave[]; }) {
   const t = useTheme();
   const [formData, setFormData] = useState<Partial<Leave>>(
     editData ? {
@@ -153,6 +153,20 @@ function LeaveApplicationForm({ onClose, onSuccess, editData }: { onClose: () =>
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
+
+  // Same person already has an active (non-rejected) leave whose date range overlaps
+  // this one — flag it, don't block: a genuinely separate second request touching the
+  // same day (e.g. sick leave cutting into an already-approved annual leave) is a real
+  // scenario, not necessarily a mistake. Mirrors overtime's same-slot duplicate check.
+  const overlapping = useMemo(() => {
+    if (!formData.employee_id || !formData.start_date || !formData.end_date) return undefined;
+    return leaves.find(l =>
+      l.id !== editData?.id &&
+      l.employee_id === formData.employee_id &&
+      l.status !== 'rejected' &&
+      formData.start_date! <= l.end_date && formData.end_date! >= l.start_date
+    );
+  }, [leaves, editData, formData.employee_id, formData.start_date, formData.end_date]);
 
   const handleReasonChange = (value: string) => {
     setFormData(prev => ({ ...prev, reason: value }));
@@ -284,6 +298,22 @@ function LeaveApplicationForm({ onClose, onSuccess, editData }: { onClose: () =>
           <div className={`rounded-xl ${t.chipBg} px-4 py-3 flex items-center justify-between`}>
             <span className={`text-sm ${t.textFaint}`}>Total leave days</span>
             <span className={`text-2xl font-bold ${t.textPrimary}`}>{calculatedDays}<span className={`text-sm ml-1 ${t.textFaint}`}>days</span></span>
+          </div>
+        )}
+
+        {overlapping && (
+          <div className="flex items-start gap-2.5 rounded-xl px-3.5 py-3 bg-amber-500/10 border border-amber-500/30">
+            <AlertTriangle className={`h-4 w-4 ${accentText('amber', t.light)} shrink-0 mt-0.5`} />
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold text-amber-500">Already has an overlapping leave request</p>
+              <p className={`text-xs mt-0.5 ${t.textMuted}`}>
+                {overlapping.employee_name} · {fmtDate(overlapping.start_date)} – {fmtDate(overlapping.end_date)} · {LEAVE_TYPES[overlapping.leave_type]?.name || overlapping.leave_type}
+              </p>
+              <div className="flex items-center gap-1.5 mt-1.5">
+                <StatusBadge color={leaveStatusHex(overlapping.status)} label={overlapping.status} />
+                {overlapping.reason && <span className={`text-[11px] truncate ${t.textFaint}`}>{overlapping.reason}</span>}
+              </div>
+            </div>
           </div>
         )}
 
@@ -783,7 +813,7 @@ function LeaveManagementContent() {
         )}
       </div>
 
-      {showForm && <LeaveApplicationForm onClose={() => { setShowForm(false); setEditData(null); }} onSuccess={handleFormSuccess} editData={editData} />}
+      {showForm && <LeaveApplicationForm onClose={() => { setShowForm(false); setEditData(null); }} onSuccess={handleFormSuccess} editData={editData} leaves={leaves} />}
       {selectedLeave && <LeaveDetailsModal leave={selectedLeave} onClose={() => setSelectedLeave(null)} onEdit={l => { setEditData(l); setShowForm(true); setSelectedLeave(null); }} onDelete={handleDelete} onStatusUpdate={handleStatusUpdate} />}
 
       {bulkAction && (
