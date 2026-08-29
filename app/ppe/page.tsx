@@ -836,7 +836,7 @@ export default function PPEManagement() {
   // records/apiEmployees/stats/loading/refreshing/matrix + the load cycle now live in
   // usePPEData (./usePPEData) — `refresh` is aliased back to `load` since every call
   // site below already calls load()/load(true).
-  const { records, setRecords, apiEmployees, stats, statsError, loading, refreshing, matrix, setMatrix, refresh: load } = usePPEData();
+  const { records, setRecords, apiEmployees, stats, statsError, recordsError, loading, refreshing, matrix, setMatrix, refresh: load } = usePPEData();
 
   // UI state
   const [showForm,      setShowForm]      = useState(false);
@@ -1411,6 +1411,20 @@ export default function PPEManagement() {
               {loading ? (
                 <div className={`flex items-center justify-center py-16 gap-2 ${t.textFaint}`}>
                   <RefreshCw className="h-5 w-5 animate-spin" /> Loading PPE records…
+                </div>
+              ) : recordsError && records.length === 0 ? (
+                // Distinct from the genuinely-empty-table state below: records stays at
+                // its [] default on a failed fetch (a Render cold-start timeout, a
+                // dropped connection, anything), which used to render the identical
+                // "No PPE records yet" copy — indistinguishable from real data loss.
+                <div className={`text-center py-16 rounded-xl ${t.glassSoft}`}>
+                  <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-amber-500" />
+                  <p className={`text-sm font-semibold ${t.textMuted} mb-1`}>Couldn't load PPE records</p>
+                  <p className={`text-xs ${t.textFaint} mb-4`}>The server may still be starting up — try again in a moment.</p>
+                  <motion.button type="button" onClick={() => load()} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                    className={`inline-flex items-center gap-1.5 text-xs px-4 py-2 rounded-lg font-semibold text-white transition-all bg-gradient-to-br ${ACCENT.violet.gradient} ${ACCENT.violet.solidGlow}`}>
+                    <RefreshCw className="h-3.5 w-3.5" /> Retry
+                  </motion.button>
                 </div>
               ) : (filterType === 'soon-to-due' || filterType === 'due') ? (
                 <DueItemsList employees={employeesWithPPE} filterType={filterType}

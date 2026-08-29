@@ -54,6 +54,15 @@ export function usePPEData() {
   // yet," so the hero-stats section can show a real error instead of silently
   // rendering nothing (which read exactly like the user having collapsed it).
   const [statsError, setStatsError] = useState(false);
+  // Same gap, but worse: `records` starts at [] and fetchPPERecords doesn't swallow
+  // its own errors, so a failed load (a Render cold-start timeout, a dropped
+  // connection, anything) leaves records at its default empty array — indistinguishable
+  // from a genuinely empty table. The page rendered "No PPE records yet — Issue PPE to
+  // an employee to get started" either way, which read as real data-loss instead of a
+  // transient fetch failure (found live, 2026-08-29, reported as "database fetching
+  // failing" — root cause was a Render free-tier cold start, but the empty-state copy
+  // would have hidden ANY fetch failure the same way).
+  const [recordsError, setRecordsError] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   // Effective PPE replacement matrix (company defaults, overridden by the backend once
@@ -66,11 +75,20 @@ export function usePPEData() {
     try {
       const [rec, st, emp] = await Promise.all([fetchPPERecords(), fetchPPEStats(), fetchAllEmployees()]);
       setRecords(rec);
+      setRecordsError(false);
       setStats(st);
       setStatsError(st === null);
       if (st === null) toast.error('Failed to load PPE stats');
       if (emp.length > 0) setApiEmployees(emp);
-    } catch (err: any) { toast.error(`Failed to load: ${err.message}`); }
+    } catch (err: any) {
+      // fetchPPERecords threw, so Promise.all never reached setRecords — records
+      // stays whatever it was (the [] default on first load, or the last-good list
+      // on a failed refresh, which is the right call: a transient failure shouldn't
+      // wipe out data already on screen). This flag is what lets the page tell the
+      // difference from a genuinely empty table.
+      setRecordsError(true);
+      toast.error(`Failed to load: ${err.message}`);
+    }
     finally { setLoading(false); setRefreshing(false); }
   }, []);
 
@@ -88,6 +106,7 @@ export function usePPEData() {
     records, setRecords,
     apiEmployees,
     stats, statsError,
+    recordsError,
     loading, refreshing,
     matrix, setMatrix,
     refresh: load,
