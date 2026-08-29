@@ -37,6 +37,14 @@ const STATUS_CONFIG: Record<Requisition['status'], { color: string; icon: typeof
   Rejected:   { color: '#f43f5e', icon: XCircle },
   Draft:      { color: '#94a3b8', icon: FileText },
 };
+// STATUS_CONFIG[status] was read unguarded at several call sites below — an
+// unrecognized status value (legacy/malformed data) crashed the whole page
+// with "Cannot read properties of undefined" (found live, 2026-08-29 UI
+// audit, audit/07-ui-polish-findings.md — same bug class as overtime.tsx's
+// TypeBadge).
+function getStatusConfig(status: Requisition['status']) {
+  return STATUS_CONFIG[status] ?? STATUS_CONFIG.Draft;
+}
 
 const PRIORITY_COLOR: Record<Requisition['priority'], string> = {
   Critical: STATUS_TONE.critical, High: STATUS_TONE.warning, Medium: STATUS_TONE.info, Low: STATUS_TONE.neutral,
@@ -290,7 +298,7 @@ function ReqDetailModal({ req, onClose, onEdit }: { req: Requisition; onClose: (
   const t = useTheme();
   const total = itemTotal(req.items);
   const SIcon = req.section === 'Electrical' ? Zap : Wrench;
-  const sCfg = STATUS_CONFIG[req.status];
+  const sCfg = getStatusConfig(req.status);
 
   return (
     <CenterModal open onClose={onClose} title={`Requisition ${req.requisitionNumber}`} accent="violet" width="max-w-2xl">
@@ -576,7 +584,7 @@ function RequisitionsPageContent() {
                 </thead>
                 <tbody>
                   {filtered.map(r => {
-                    const c = STATUS_CONFIG[r.status];
+                    const c = getStatusConfig(r.status);
                     const SecIcon = r.section === 'Electrical' ? Zap : Wrench;
                     return (
                       <tr key={r.id} className={`border-b ${t.border} ${t.hoverBgSoft} cursor-pointer`} onClick={() => setViewing(r)}>
@@ -611,7 +619,7 @@ function RequisitionsPageContent() {
             <h3 className={`text-sm font-semibold mb-3 ${t.textPrimary}`}>By Status</h3>
             <div className="space-y-3">
               {byStatus.map(({ label, count, cost }) => {
-                const c = STATUS_CONFIG[label as Requisition['status']];
+                const c = getStatusConfig(label as Requisition['status']);
                 const pct = stats.total > 0 ? (count / stats.total) * 100 : 0;
                 return (
                   <div key={label}>

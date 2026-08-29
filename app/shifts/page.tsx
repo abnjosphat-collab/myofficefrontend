@@ -44,6 +44,15 @@ const SHIFT_PATTERNS: Record<ShiftType, { label: string; color: string; icon: El
   'custom': { label: 'Custom', color: '#9B87B5', icon: Layers, on: 0, off: 0 },
 };
 
+// SHIFT_PATTERNS[assignment.shift_type] was being read unguarded at 6+ call sites
+// below — an unrecognized shift_type (legacy/malformed data) crashed the whole
+// page with "Cannot read properties of undefined" (found live, 2026-08-29 UI
+// audit, audit/07-ui-polish-findings.md — same bug class as overtime.tsx's
+// TypeBadge). One shared lookup instead of patching each site separately.
+function getShiftPattern(type: ShiftType) {
+  return SHIFT_PATTERNS[type] ?? SHIFT_PATTERNS['10-4'];
+}
+
 // Harmonized onto STATUS_TONE (2026-08-29 palette consolidation) except the compound
 // 'on+standby' state, which keeps its own established secondary-brand blue (#86BBD8,
 // also used by ppe's 'good' condition and ApprovalGate's "sign" variant) since it's
@@ -148,7 +157,7 @@ function DayStatusBadge({ status }: { status: DayStatus }) {
 }
 
 function ShiftTypeBadge({ type }: { type: ShiftType }) {
-  const p = SHIFT_PATTERNS[type];
+  const p = getShiftPattern(type);
   return <ThemeStatusBadge color={p.color} label={p.label} />;
 }
 
@@ -392,8 +401,8 @@ function ScheduleView({ assignments, leaves, onView, onUpdateOverrides }: {
                   <div className="min-w-0">
                     <button type="button" onClick={() => onView(a)} className={`text-xs font-medium truncate max-w-[130px] block text-left transition-colors ${t.textMuted} ${t.hoverText}`}>{a.employee_name}</button>
                     <div className="flex items-center gap-1 mt-0.5">
-                      <span className="inline-block w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: SHIFT_PATTERNS[a.shift_type].color }} />
-                      <span className={`text-[9px] ${t.textFaint}`}>{SHIFT_PATTERNS[a.shift_type].label}</span>
+                      <span className="inline-block w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: getShiftPattern(a.shift_type).color }} />
+                      <span className={`text-[9px] ${t.textFaint}`}>{getShiftPattern(a.shift_type).label}</span>
                     </div>
                     {(() => {
                       const tm = getDayTiming(a, todayStr);
@@ -503,7 +512,7 @@ function ShiftCard({ assignment, onView, onEdit, onDelete }: { assignment: Shift
   const t = useTheme();
   const status = todayStatus(assignment);
   const progress = cycleProgress(assignment);
-  const pattern = SHIFT_PATTERNS[assignment.shift_type];
+  const pattern = getShiftPattern(assignment.shift_type);
   const nextOn = daysUntilNextOn(assignment);
 
   return (
@@ -563,7 +572,7 @@ function ShiftDetailModal({ assignment, open, onClose, onEdit, onDelete }: { ass
   if (!assignment) return null;
   const status = todayStatus(assignment);
   const progress = cycleProgress(assignment);
-  const pattern = SHIFT_PATTERNS[assignment.shift_type];
+  const pattern = getShiftPattern(assignment.shift_type);
   const nextOn = daysUntilNextOn(assignment);
 
   return (
@@ -991,7 +1000,7 @@ function ShiftsContent() {
           <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><Layers className="h-4 w-4 text-brand-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Shift Patterns</span></div>
           <div className="p-4 grid grid-cols-2 gap-3">
             {breakdown.map(({ type, count, percentage }) => {
-              const p = SHIFT_PATTERNS[type];
+              const p = getShiftPattern(type);
               const isActive = filterType === type;
               const Icon = p.icon;
               return (
@@ -1018,7 +1027,7 @@ function ShiftsContent() {
                     <Avatar name={a.employee_name} />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1"><span className={`text-sm font-medium truncate ${t.textPrimary}`}>{a.employee_name}</span><DayStatusBadge status={s} /></div>
-                      <ProgressBar value={cycleProgress(a)} color={SHIFT_PATTERNS[a.shift_type].color} showValue={false} />
+                      <ProgressBar value={cycleProgress(a)} color={getShiftPattern(a.shift_type).color} showValue={false} />
                     </div>
                     <ShiftTypeBadge type={a.shift_type} />
                   </div>

@@ -120,7 +120,13 @@ function CompressorReadingsSystem() {
   const getPreviousReadingInfo = (id: number) => {
     const prev = previousReadings[id];
     if (!prev) return { running: 0, loaded: 0, date: 'No previous reading' };
-    return { running: prev.total_running_hours, loaded: prev.total_loaded_hours, date: prev.date === 'Initial' ? 'Initial' : formatDate(prev.date) };
+    // || 0 guard — missing here even though calculateDailyFromInputs right above
+    // already uses it for the same previousReadings[id] source. A previous reading
+    // with a null/undefined total_running_hours or total_loaded_hours (an
+    // incomplete record) made every .toFixed(1) call on prevInfo.running/loaded
+    // crash the whole card (found live, 2026-08-29 UI audit,
+    // audit/07-ui-polish-findings.md).
+    return { running: prev.total_running_hours || 0, loaded: prev.total_loaded_hours || 0, date: prev.date === 'Initial' ? 'Initial' : formatDate(prev.date) };
   };
   const filteredCompressors = useMemo(() => compressors.filter(c => {
     if (filters.location !== 'all' && c.location !== filters.location) return false;
@@ -193,11 +199,11 @@ function CompressorReadingsSystem() {
             <div className="grid grid-cols-2 gap-2">
               <FormField label="Total Running (h)">
                 <input type="number" step="0.1" aria-label="Total running hours" value={inp.totalRunning || ''} disabled={saving} placeholder="Enter total" onChange={e => handleRunningHoursChange(compressor.id, e.target.value)} className={inputCls} />
-                <div className={`text-[10px] mt-0.5 flex justify-between ${t.textFaint}`}><span>Prev: {prevInfo.running.toFixed(1)}</span><span>Cur: {compressor.total_running_hours.toFixed(1)}</span></div>
+                <div className={`text-[10px] mt-0.5 flex justify-between ${t.textFaint}`}><span>Prev: {prevInfo.running.toFixed(1)}</span><span>Cur: {(compressor.total_running_hours || 0).toFixed(1)}</span></div>
               </FormField>
               <FormField label="Total Loaded (h)">
                 <input type="number" step="0.1" aria-label="Total loaded hours" value={inp.totalLoaded || ''} disabled={saving} placeholder="Enter total" onChange={e => handleLoadedHoursChange(compressor.id, e.target.value)} className={inputCls} />
-                <div className={`text-[10px] mt-0.5 flex justify-between ${t.textFaint}`}><span>Prev: {prevInfo.loaded.toFixed(1)}</span><span>Cur: {compressor.total_loaded_hours.toFixed(1)}</span></div>
+                <div className={`text-[10px] mt-0.5 flex justify-between ${t.textFaint}`}><span>Prev: {prevInfo.loaded.toFixed(1)}</span><span>Cur: {(compressor.total_loaded_hours || 0).toFixed(1)}</span></div>
               </FormField>
             </div>
           </div>

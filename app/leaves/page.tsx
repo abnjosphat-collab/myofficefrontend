@@ -62,7 +62,11 @@ function leaveStatusHex(status: Leave['status']) {
   return status === 'approved' ? '#34d399' : status === 'rejected' ? '#f87171' : '#fbbf24';
 }
 function LeaveStatusBadge({ status }: { status: Leave['status'] }) {
-  const cfg = { pending: { icon: Clock, label: 'Pending' }, approved: { icon: CheckCircle2, label: 'Approved' }, rejected: { icon: XCircle, label: 'Rejected' } }[status];
+  // ?? fallback: an unrecognized status value (legacy/malformed data) otherwise
+  // makes cfg undefined and crashes the page — same bug class found and fixed on
+  // overtime.tsx's TypeBadge (2026-08-29 UI audit, audit/07-ui-polish-findings.md).
+  const cfg = { pending: { icon: Clock, label: 'Pending' }, approved: { icon: CheckCircle2, label: 'Approved' }, rejected: { icon: XCircle, label: 'Rejected' } }[status]
+    ?? { icon: Clock, label: String(status) };
   return <StatusBadge color={leaveStatusHex(status)} label={cfg.label} />;
 }
 
