@@ -9,7 +9,7 @@ import {
   Bookmark, ChevronDown, Lightbulb, PanelLeftClose, PanelLeftOpen, Pencil, X,
 } from '@/components/shared/theme';
 import {
-  useTheme, Collapse, staggerContainer, fadeUp, ACCENT_RGBA, rgbaFromHexSafe, type Accent,
+  useTheme, Collapse, staggerContainer, fadeUp, ACCENT_RGBA, rgbaFromHexSafe, accentText, type Accent,
 } from '@/components/shared/theme';
 import { trackModuleUsage, type Category, type Module } from './modules';
 import { useDashboardData } from './useDashboardData';
@@ -158,7 +158,7 @@ export function SidebarNavigation({
                           onClick={() => onToggleFavorite(module.href)}
                           type="button"
                           title="Remove from favorites"
-                          className={`absolute right-2 p-0.5 rounded ${t.hoverBg} text-rose-500 hover:text-rose-400 transition-colors`}
+                          className={`absolute right-2 p-0.5 rounded ${t.hoverBg} text-rose-500 ${t.light ? 'hover:text-rose-600' : 'hover:text-rose-400'} transition-colors`}
                         >
                           <X className="h-3.5 w-3.5" />
                         </button>
@@ -203,7 +203,7 @@ export function SidebarNavigation({
                   <div className={`px-3 py-2 text-[12px] ${t.textFaint}`}>No recent activity</div>
                 ) : activity.slice(0, 5).map(item => (
                   <div key={item.id} className={`flex items-start gap-2 px-3 py-1.5 rounded-lg text-[12px] ${t.textMuted}`}>
-                    <item.icon className={`h-3.5 w-3.5 mt-0.5 shrink-0 ${item.status === 'critical' ? 'text-rose-400' : t.textTertiary}`} />
+                    <item.icon className={`h-3.5 w-3.5 mt-0.5 shrink-0 ${item.status === 'critical' ? accentText('rose', t.light) : t.textTertiary}`} />
                     <div className="min-w-0">
                       <p className="truncate">{item.action}</p>
                       <p className={`text-[10.5px] ${t.textFaint}`}>{item.time ? `${item.time} ago` : ''}</p>

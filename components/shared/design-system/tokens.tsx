@@ -236,7 +236,7 @@ export const ACCENT_HEX: Record<Accent, string> = {
 // indicators) — those shades are tuned for dark glass and read pale/blunt on
 // white. `accentText(color, t.light)` swaps to a darker shade in light mode
 // instead of each page hand-rolling its own `light ? '-600' : '-400'` ternary.
-export const ACCENT_TEXT: Record<Accent | 'rose' | 'purple', { light: string; dark: string }> = {
+export const ACCENT_TEXT: Record<Accent | 'rose' | 'purple' | 'brand' | 'red' | 'green' | 'yellow', { light: string; dark: string }> = {
   blue:    { light: 'text-blue-600',    dark: 'text-blue-400' },
   amber:   { light: 'text-amber-600',   dark: 'text-amber-400' },
   indigo:  { light: 'text-indigo-600',  dark: 'text-indigo-400' },
@@ -245,6 +245,15 @@ export const ACCENT_TEXT: Record<Accent | 'rose' | 'purple', { light: string; da
   violet:  { light: 'text-violet-600',  dark: 'text-violet-400' },
   rose:    { light: 'text-rose-600',    dark: 'text-rose-400' },
   purple:  { light: 'text-purple-600',  dark: 'text-purple-400' },
+  // The app's default brand/action accent — reads from --brand-* (globals.css),
+  // not a literal Tailwind hue, so re-theming stays a one-place edit. Kept
+  // separate from 'violet' above (which IS a literal Tailwind violet) on purpose.
+  brand:   { light: 'text-brand-600',   dark: 'text-brand-400' },
+  // Plain Tailwind red/green/yellow — used for status KPIs (breakdown/planned/
+  // completion counts) alongside the named accent palette above.
+  red:     { light: 'text-red-600',     dark: 'text-red-400' },
+  green:   { light: 'text-green-600',   dark: 'text-green-400' },
+  yellow:  { light: 'text-yellow-600',  dark: 'text-yellow-400' },
 };
 export const accentText = (c: keyof typeof ACCENT_TEXT, light: boolean) =>
   ACCENT_TEXT[c][light ? 'light' : 'dark'];

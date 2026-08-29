@@ -2,7 +2,7 @@
 // frontend/components/maintenance/analytics.tsx — work-order analytics charts and
 // their filter bar. Only AnalyticsPanel is consumed outside this file.
 import { useState, useMemo } from "react";
-import { useTheme, ACCENT_HEX, FormField, SelectField } from "@/components/shared/theme";
+import { useTheme, ACCENT_HEX, accentText, FormField, SelectField } from "@/components/shared/theme";
 import {
   ChevronDown, ChevronUp, SlidersHorizontal, X, Layers, Activity, Cpu, HardHat, AlertTriangle, TrendingUp,
 } from "@/components/shared/theme";
@@ -209,8 +209,8 @@ function ArtisanCostChart({ artisanCost }: { artisanCost: ReturnType<typeof calc
             <div className="flex items-center gap-3 text-[10px] text-right">
               {/* "~" flags totals that still contain supervisor estimates because the
                   artisan hasn't recorded actual time on some of the work orders. */}
-              <span className="text-brand-400/80" title={a.estimated > 0 ? `includes ${a.estimated.toFixed(1)}h estimated (no actual time recorded)` : 'actual recorded time'}>{a.estimated > 0 ? '~' : ''}{a.hours.toFixed(1)}h</span>
-              {a.sparesCost > 0 && <span className="text-amber-400/80">R{a.sparesCost.toLocaleString('en-ZA', { maximumFractionDigits: 0 })}</span>}
+              <span className={t.light ? 'text-brand-600/80' : 'text-brand-400/80'} title={a.estimated > 0 ? `includes ${a.estimated.toFixed(1)}h estimated (no actual time recorded)` : 'actual recorded time'}>{a.estimated > 0 ? '~' : ''}{a.hours.toFixed(1)}h</span>
+              {a.sparesCost > 0 && <span className={t.light ? 'text-amber-600/80' : 'text-amber-400/80'}>R{a.sparesCost.toLocaleString('en-ZA', { maximumFractionDigits: 0 })}</span>}
               <span className={t.textFaint}>({a.count} WO)</span>
             </div>
           </div>
@@ -256,11 +256,11 @@ export function AnalyticsPanel({ stats, standalone, rawOrders = [] }: { stats: R
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
         {[
           { label: 'Total WOs', value: activeStats.total, color: t.textPrimary, sub: activeFilterCount > 0 ? `of ${stats.total}` : undefined },
-          { label: 'Breakdowns', value: activeStats.breakdowns, color: 'text-red-400', sub: activeStats.total > 0 ? `${Math.round(activeStats.breakdowns / activeStats.total * 100)}%` : '—' },
-          { label: 'Planned Maint.', value: activeStats.plannedMaintenance, color: 'text-green-400', sub: undefined },
-          { label: 'Breakdown Hrs', value: `${activeStats.artisanCost.reduce((a, x) => a + x.hours, 0).toFixed(1)}h`, color: 'text-brand-400', sub: undefined },
-          { label: 'Spares Cost', value: `R${activeStats.sparesTotalCost.toLocaleString('en-ZA', { maximumFractionDigits: 0 })}`, color: 'text-amber-400', sub: undefined },
-          { label: 'Completion', value: `${activeStats.efficiency}%`, color: activeStats.efficiency >= 70 ? 'text-green-400' : activeStats.efficiency >= 40 ? 'text-yellow-400' : 'text-red-400', sub: `${activeStats.completed}/${activeStats.total}` },
+          { label: 'Breakdowns', value: activeStats.breakdowns, color: accentText('red', t.light), sub: activeStats.total > 0 ? `${Math.round(activeStats.breakdowns / activeStats.total * 100)}%` : '—' },
+          { label: 'Planned Maint.', value: activeStats.plannedMaintenance, color: accentText('green', t.light), sub: undefined },
+          { label: 'Breakdown Hrs', value: `${activeStats.artisanCost.reduce((a, x) => a + x.hours, 0).toFixed(1)}h`, color: accentText('brand', t.light), sub: undefined },
+          { label: 'Spares Cost', value: `R${activeStats.sparesTotalCost.toLocaleString('en-ZA', { maximumFractionDigits: 0 })}`, color: accentText('amber', t.light), sub: undefined },
+          { label: 'Completion', value: `${activeStats.efficiency}%`, color: accentText(activeStats.efficiency >= 70 ? 'green' : activeStats.efficiency >= 40 ? 'yellow' : 'red', t.light), sub: `${activeStats.completed}/${activeStats.total}` },
         ].map(k => (
           <div key={k.label} className={`${t.chipBg} rounded-xl p-3 text-center`}>
             <div className={`text-xl font-bold font-mono ${k.color}`}>{k.value}</div>
@@ -272,23 +272,23 @@ export function AnalyticsPanel({ stats, standalone, rawOrders = [] }: { stats: R
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
         <div className={`${t.glass} rounded-xl p-4`}>
-          <div className={`text-xs font-medium mb-3 flex items-center gap-1.5 ${t.textMuted}`}><Layers className="h-3.5 w-3.5 text-brand-400" /> WO Classification</div>
+          <div className={`text-xs font-medium mb-3 flex items-center gap-1.5 ${t.textMuted}`}><Layers className={`h-3.5 w-3.5 ${accentText('brand', t.light)}`} /> WO Classification</div>
           <div className="h-28"><DonutChart segments={classSegs} centerLabel={String(activeStats.total)} /></div>
           <ChartLegend items={classSegs.map(s => ({ ...s, total: activeStats.total }))} />
         </div>
         <div className={`${t.glass} rounded-xl p-4`}>
-          <div className={`text-xs font-medium mb-3 flex items-center gap-1.5 ${t.textMuted}`}><Activity className="h-3.5 w-3.5 text-green-400" /> Status Breakdown</div>
+          <div className={`text-xs font-medium mb-3 flex items-center gap-1.5 ${t.textMuted}`}><Activity className={`h-3.5 w-3.5 ${accentText('green', t.light)}`} /> Status Breakdown</div>
           <div className="h-28"><DonutChart segments={statusSegs} centerLabel={`${activeStats.efficiency}%`} /></div>
           <ChartLegend items={statusSegs.map(s => ({ ...s, total: activeStats.total }))} />
         </div>
         <div className={`${t.glass} rounded-xl p-4`}>
-          <div className={`text-xs font-medium mb-3 flex items-center gap-1.5 ${t.textMuted}`}><Cpu className="h-3.5 w-3.5 text-amber-400" /> Discipline</div>
+          <div className={`text-xs font-medium mb-3 flex items-center gap-1.5 ${t.textMuted}`}><Cpu className={`h-3.5 w-3.5 ${accentText('amber', t.light)}`} /> Discipline</div>
           <div className="h-28"><DonutChart segments={discSegs} centerLabel={activeStats.mechanical + activeStats.electrical > 0 ? undefined : '—'} /></div>
           <ChartLegend items={discSegs.map(s => ({ ...s, total: activeStats.mechanical + activeStats.electrical }))} />
           {activeStats.sparesTotalCost > 0 && (
             <div className={`mt-3 pt-2 border-t ${t.border} text-center`}>
               <div className={`text-[10px] ${t.textFaint}`}>Spares Cost</div>
-              <div className="text-amber-400/90 text-sm font-semibold font-mono">${activeStats.sparesTotalCost.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
+              <div className={`${t.light ? 'text-amber-600/90' : 'text-amber-400/90'} text-sm font-semibold font-mono`}>${activeStats.sparesTotalCost.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
             </div>
           )}
         </div>
@@ -296,18 +296,18 @@ export function AnalyticsPanel({ stats, standalone, rawOrders = [] }: { stats: R
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
         <div className={`${t.glass} rounded-xl p-4`}>
-          <div className={`text-xs font-medium mb-3 flex items-center gap-1.5 ${t.textMuted}`}><HardHat className="h-3.5 w-3.5 text-brand-400" /> Artisan Hours (Breakdowns)</div>
+          <div className={`text-xs font-medium mb-3 flex items-center gap-1.5 ${t.textMuted}`}><HardHat className={`h-3.5 w-3.5 ${accentText('brand', t.light)}`} /> Artisan Hours (Breakdowns)</div>
           <ArtisanCostChart artisanCost={activeStats.artisanCost} />
           {activeStats.artisanCost.length > 0 && <div className={`mt-3 text-[10px] ${t.textFaint}`}>Hours shown as a cost proxy. Spares cost in USD ($) shown where entered.</div>}
         </div>
         <div className={`${t.glass} rounded-xl p-4`}>
-          <div className={`text-xs font-medium mb-3 flex items-center gap-1.5 ${t.textMuted}`}><AlertTriangle className="h-3.5 w-3.5 text-red-400" /> Failure Modes (Top 8)</div>
+          <div className={`text-xs font-medium mb-3 flex items-center gap-1.5 ${t.textMuted}`}><AlertTriangle className={`h-3.5 w-3.5 ${accentText('red', t.light)}`} /> Failure Modes (Top 8)</div>
           {activeStats.failureModes.length > 0 ? <HBarChart data={activeStats.failureModes.map(([label, value]) => ({ label, value }))} maxColor="#ef4444" /> : <div className={`text-xs ${t.textFaint}`}>No breakdown failure modes recorded</div>}
         </div>
       </div>
 
       <div className={`${t.glass} rounded-xl p-4`}>
-        <div className={`text-xs font-medium mb-3 flex items-center gap-1.5 ${t.textMuted}`}><TrendingUp className="h-3.5 w-3.5 text-violet-400" /> Breakdown Occurrence — Time of Day</div>
+        <div className={`text-xs font-medium mb-3 flex items-center gap-1.5 ${t.textMuted}`}><TrendingUp className={`h-3.5 w-3.5 ${accentText('violet', t.light)}`} /> Breakdown Occurrence — Time of Day</div>
         {activeStats.breakdowns > 0 ? <TimeHeatmap hourBuckets={activeStats.hourBuckets} /> : <div className={`text-xs py-4 ${t.textFaint}`}>No breakdown time data recorded yet</div>}
       </div>
     </div>

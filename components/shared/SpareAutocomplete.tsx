@@ -6,7 +6,7 @@
 // there) since app/overtime/page.tsx's new "Spares Used" field needs the exact same
 // pick-or-type-manually behavior — same "define once, reuse everywhere" move already
 // made for EmployeeAutocomplete.
-import { useTheme, Combobox, type ComboOption } from '@/components/shared/theme';
+import { useTheme, Combobox, accentText, type ComboOption } from '@/components/shared/theme';
 import { useSpares } from '@/hooks/useLookups';
 import type { SpareLookup } from '@/hooks/useLookups';
 
@@ -46,7 +46,7 @@ export function SpareAutocomplete({ value, onChange, onSelect, placeholder }: {
               <div className={`text-xs font-medium truncate ${t.textPrimary}`}>{opt.label}</div>
               <div className={`text-[10px] truncate ${t.textFaint}`}>{opt.sub}</div>
             </div>
-            <span className="text-amber-400 text-xs font-mono flex-shrink-0">R {(s?.unit_price || 0).toFixed(2)}</span>
+            <span className={`${accentText('amber', t.light)} text-xs font-mono flex-shrink-0`}>R {(s?.unit_price || 0).toFixed(2)}</span>
           </div>
         );
       }}

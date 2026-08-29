@@ -9,7 +9,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Bell, Loader2, Menu, Search, Settings, SlidersHorizontal, Sun, Moon, X, Clock, ArrowUpRight, Building, IconStyleGlyph, Palette } from '@/components/shared/theme';
-import { useTheme, useIconStyle, rgbaFromHexSafe, ACCENT_HEX } from '@/components/shared/theme';
+import { useTheme, useIconStyle, rgbaFromHexSafe, ACCENT_HEX, accentText } from '@/components/shared/theme';
 import type { Category } from './modules';
 import { AuthMenu } from './AuthMenu';
 import { useNotifications } from './useNotifications';
@@ -160,7 +160,7 @@ export function TopNavigation({
                   <button
                     type="button"
                     onMouseDown={(e) => { e.preventDefault(); clearSearchHistory(); refreshHistory(); }}
-                    className={`text-[11px] ${t.textFaint} hover:text-rose-400 transition-colors`}
+                    className={`text-[11px] ${t.textFaint} ${t.light ? 'hover:text-rose-600' : 'hover:text-rose-400'} transition-colors`}
                   >Clear</button>
                 </div>
                 {history.map(q => (
@@ -263,7 +263,7 @@ export function TopNavigation({
                         <div className={`px-3 py-6 text-center text-[12px] ${t.textFaint}`}>No recent activity</div>
                       ) : notifications.map(item => (
                         <div key={item.id} className={`flex items-start gap-2 px-3 py-2 ${t.hoverBgSoft} ${item.unread ? (t.light ? 'bg-brand-50/60' : 'bg-brand-500/10') : ''}`}>
-                          <item.icon className={`h-3.5 w-3.5 mt-0.5 shrink-0 ${item.status === 'critical' ? 'text-rose-400' : t.textFaint}`} />
+                          <item.icon className={`h-3.5 w-3.5 mt-0.5 shrink-0 ${item.status === 'critical' ? accentText('rose', t.light) : t.textFaint}`} />
                           <div className="min-w-0 flex-1">
                             <p className={`text-[12px] ${t.textMuted} truncate`}>{item.action}</p>
                             <p className={`text-[10.5px] ${t.textFaint}`}>{item.time ? `${item.time} ago` : ''}{item.user ? ` · ${item.user}` : ''}</p>

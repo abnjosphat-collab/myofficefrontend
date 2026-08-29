@@ -7,7 +7,7 @@
 import { useMemo, useEffect, useState } from 'react';
 import { Bookmark, X } from '@/components/shared/theme';
 import {
-  useTheme, CenterModal, DEFAULT_BG_ACCENT, bgLayersFromHex,
+  useTheme, CenterModal, DEFAULT_BG_ACCENT, bgLayersFromHex, accentText,
 } from '@/components/shared/theme';
 import { TopNavigation } from './TopNavigation';
 import { SidebarNavigation } from './SidebarNavigation';
@@ -110,14 +110,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               {s.favoriteModules.map(({ module }) => (
                 <div key={module.href} className={`flex items-center justify-between gap-2 px-3 py-2 rounded-lg ${t.hoverBgSoft}`}>
                   <span className="flex items-center gap-2 min-w-0">
-                    <Bookmark className="h-3.5 w-3.5 shrink-0 text-brand-400" fill="currentColor" />
+                    <Bookmark className={`h-3.5 w-3.5 shrink-0 ${accentText('brand', t.light)}`} fill="currentColor" />
                     <span className={`text-[13px] ${t.textMuted} truncate`}>{module.title}</span>
                   </span>
                   <button
                     onClick={() => s.toggleFavorite(module.href)}
                     type="button"
                     title="Remove from favorites"
-                    className={`p-1 rounded ${t.hoverBg} text-rose-500 hover:text-rose-400 transition-colors shrink-0`}
+                    className={`p-1 rounded ${t.hoverBg} text-rose-500 ${t.light ? 'hover:text-rose-600' : 'hover:text-rose-400'} transition-colors shrink-0`}
                   >
                     <X className="h-3.5 w-3.5" />
                   </button>
