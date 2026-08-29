@@ -13,7 +13,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
 import {
-  useTheme, accentText, PageHero, StatTile, GlowCard, ProgressBar, ACCENT_HEX,
+  useTheme, AccentText, AccentIcon, PageHero, StatTile, GlowCard, ProgressBar, ACCENT_HEX,
   PrimaryButton, CenterModal, FormField, SelectField, SearchInput, StatusBadge, EmptyState, useConfirm,
 } from '@/components/shared/theme';
 import {
@@ -377,8 +377,8 @@ function TasksEventsContent() {
         <SelectField value={priorityFilter} onChange={setPriorityFilter} size="filter"
           options={[{ value: 'all', label: 'All Priorities' }, ...PRIORITIES.map(v => ({ value: v, label: v }))]} />
         <button type="button" onClick={() => setOverdueOnly(v => !v)}
-          className={`h-8 px-3 rounded-lg text-xs font-medium transition-all ${overdueOnly ? 'bg-rose-500/25 text-rose-400 font-semibold' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}>
-          Overdue only
+          className={`h-8 px-3 rounded-lg text-xs font-medium transition-all ${overdueOnly ? 'bg-rose-500/25 font-semibold' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}>
+          {overdueOnly ? <AccentText accent="rose">Overdue only</AccentText> : 'Overdue only'}
         </button>
       </div>
 
@@ -393,9 +393,9 @@ function TasksEventsContent() {
               <div key={item.id} onClick={() => setViewing(item)} className={`flex items-center gap-3 px-5 py-3 cursor-pointer transition-colors ${t.hoverBgSoft}`}>
                 <button type="button" onClick={e => { e.stopPropagation(); toggle(item); }} title={item.status === 'completed' ? 'Mark pending' : 'Mark complete'}
                   className={`h-6 w-6 flex items-center justify-center rounded-full border shrink-0 transition-colors ${
-                    item.status === 'completed' ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400' : `${t.chipBg} ${t.border} ${t.textFaint}`
+                    item.status === 'completed' ? 'bg-emerald-500/20 border-emerald-500/40' : `${t.chipBg} ${t.border} ${t.textFaint}`
                   }`}>
-                  {item.status === 'completed' ? <Check className="h-3.5 w-3.5" /> : <RotateCcw className="h-3 w-3 opacity-0" />}
+                  {item.status === 'completed' ? <AccentIcon icon={Check} accent="emerald" className="h-3.5 w-3.5" /> : <RotateCcw className="h-3 w-3 opacity-0" />}
                 </button>
                 <div className="flex-1 min-w-0">
                   <p className={`text-sm font-medium truncate ${item.status === 'completed' ? t.textFaint + ' line-through' : t.textPrimary}`}>{item.title}</p>
@@ -403,9 +403,13 @@ function TasksEventsContent() {
                 </div>
                 <StatusBadge color={TYPE_COLOR[item.task_type] || ACCENT_HEX.violet} label={item.task_type} />
                 {item.due_date && (
-                  <span className={`text-xs flex items-center gap-1 shrink-0 ${isOverdue(item) ? accentText('rose', t.light) : t.textFaint}`}>
-                    <CalendarClock className="h-3.5 w-3.5" /> {fmtDate(item.due_date)}
-                  </span>
+                  isOverdue(item)
+                    ? <AccentText accent="rose" className="text-xs flex items-center gap-1 shrink-0">
+                        <CalendarClock className="h-3.5 w-3.5" /> {fmtDate(item.due_date)}
+                      </AccentText>
+                    : <span className={`text-xs flex items-center gap-1 shrink-0 ${t.textFaint}`}>
+                        <CalendarClock className="h-3.5 w-3.5" /> {fmtDate(item.due_date)}
+                      </span>
                 )}
                 <button type="button" onClick={e => { e.stopPropagation(); setEditing(item); setShowForm(true); }} title="Edit"
                   className={`h-7 w-7 flex items-center justify-center rounded-lg shrink-0 ${t.textFaint} ${t.hoverText} ${t.hoverBg}`}>
