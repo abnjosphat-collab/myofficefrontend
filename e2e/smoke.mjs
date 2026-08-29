@@ -11,30 +11,9 @@
 // failure so it works in CI.
 
 import { chromium } from 'playwright';
-import { readdirSync, statSync } from 'node:fs';
-import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { discoverRoutes, mockApi, APP_DIR, SKIP } from './shared.mjs';
 
 const BASE = process.env.SMOKE_BASE || 'http://localhost:3000';
-const APP_DIR = join(fileURLToPath(new URL('.', import.meta.url)), '..', 'app');
-
-// Infra routes that render minimal/no content by design (e.g. an auth redirect handler) —
-// not user-facing pages, so exclude them from the "renders something" check.
-const SKIP = new Set(['/auth/callback']);
-
-// ─── Discover routes from app/**/page.tsx (skip route groups and dynamic segments) ──
-function discoverRoutes(dir, prefix = '') {
-  const routes = [];
-  for (const entry of readdirSync(dir)) {
-    const full = join(dir, entry);
-    if (!statSync(full).isDirectory()) continue;
-    if (entry.startsWith('(') || entry.startsWith('[') || entry.startsWith('_') || entry === 'api') continue;
-    const seg = `${prefix}/${entry}`;
-    if (readdirSync(full).some(f => f === 'page.tsx' || f === 'page.jsx')) routes.push(seg);
-    routes.push(...discoverRoutes(full, seg));
-  }
-  return routes;
-}
 
 // Console-error patterns that indicate a real defect (vs benign dev/network noise).
 const CRITICAL = [
@@ -44,16 +23,6 @@ const CRITICAL = [
   /objects are not valid as a react child/i,
   /each child in a list should have a unique/i,
 ];
-
-// Deterministic API stub: empty list for everything, so pages render their empty states
-// without a backend or auth. Exception: the availability page has a built-in mock
-// fallback for genuine network failure, so we 404 its calls to exercise that
-// fallback render path instead of feeding it a wrong shape.
-function mockApi(route) {
-  const url = route.request().url();
-  if (url.includes('/api/availabilities')) return route.fulfill({ status: 404, body: '' });
-  return route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
-}
 
 async function checkPage(context, route) {
   const page = await context.newPage();

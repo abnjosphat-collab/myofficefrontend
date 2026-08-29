@@ -18,6 +18,15 @@
 # when they're unset, "build always succeeds" per its own comment — and the smoke
 # suite exercises the anonymous/logged-out view anyway. Add them as repo secrets later
 # if a fuller signed-in check is ever wanted; not required for this to be useful today.
+#
+# The visual-regression suite (e2e/visual.spec.ts, added 2026-08-29 — see
+# audit/07-ui-polish-findings.md) runs as its own step after the smoke suite, same
+# server. Its baselines are Linux-specific (Playwright suffixes snapshot filenames by
+# platform automatically), which is exactly why this has to be the environment that
+# generates them — see playwright.config.ts's top comment. The very first run after
+# this workflow lands has NO committed baseline yet and will fail; that run's failure
+# artifact (or a manual `npx playwright test --update-snapshots` run against this same
+# ubuntu-latest image) is what gets committed to seed it, not a local dev machine.
 
 name: Frontend CI
 
@@ -70,3 +79,24 @@ jobs:
 
       - name: Smoke suite
         run: npm run test:smoke || (echo "Retrying once — see comment above on transient first-request flakiness" && npm run test:smoke)
+
+      - name: Visual regression suite
+        id: visual
+        # continue-on-error: TEMPORARY, until a first baseline is committed (see the
+        # top-of-file comment — there is no e2e/visual.spec.ts-snapshots/*-linux.png
+        # in the repo yet). Remove this line once that baseline exists, so a real
+        # visual regression actually fails the build instead of just annotating it.
+        continue-on-error: true
+        env:
+          SMOKE_BASE: http://localhost:3000
+        run: npx playwright test
+
+      - name: Upload visual diff/report on failure
+        if: steps.visual.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-visual-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
