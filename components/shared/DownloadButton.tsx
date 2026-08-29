@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { toast } from 'sonner';
 import { Download, FileSpreadsheet, FileDown } from '@/components/shared/theme';
 import { EXPORT_BRAND_ARGB, EXPORT_BRAND_RGB } from '@/lib/exportUtils';
@@ -58,15 +59,6 @@ export function DownloadButton({
 }: DownloadButtonProps) {
   const pdfCols = pdfColumns ?? columns;
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
 
   const downloadExcel = async () => {
     setOpen(false);
@@ -245,38 +237,50 @@ export function DownloadButton({
     );
   }
 
+  // Radix DropdownMenu underneath the exact same visual output (2026-08-29, UI
+  // foundation hardening plan Phase 3 — audit/07-ui-polish-findings.md flagged this
+  // as no Escape, no ARIA menu semantics, and not portaled — clippable inside an
+  // overflow-hidden ancestor). Portal fixes the clipping gap too, not just Escape/
+  // ARIA; position/offset (align="end", sideOffset={6}) reproduce the old
+  // `absolute right-0 top-full mt-1.5` exactly.
   return (
-    <div ref={ref} className={`relative ${className}`}>
-      <button
-        type="button"
-        onClick={() => setOpen(o => !o)}
-        className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-semibold text-white border transition-all hover:-translate-y-0.5 bg-emerald-500/20 border-emerald-500/35 hover:bg-emerald-500/30"
-      >
-        <Download className="h-3.5 w-3.5" />
-        Download
-      </button>
-
-      {open && (
-        <div className="absolute right-0 top-full mt-1.5 z-50 min-w-[160px] rounded-xl border border-white/[0.12] bg-[#0d1f33]/95 backdrop-blur-xl shadow-2xl overflow-hidden">
-          <button
-            type="button"
-            onClick={downloadExcel}
-            className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-white/80 hover:bg-white/[0.08] hover:text-white transition-colors text-left"
-          >
-            <FileSpreadsheet className="h-4 w-4 text-emerald-400 shrink-0" />
-            Export Excel
-          </button>
-          <div className="h-px bg-white/[0.07]" />
-          <button
-            type="button"
-            onClick={downloadPDF}
-            className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-white/80 hover:bg-white/[0.08] hover:text-white transition-colors text-left"
-          >
-            <FileDown className="h-4 w-4 text-rose-400 shrink-0" />
-            Export PDF
-          </button>
-        </div>
-      )}
-    </div>
+    <DropdownMenu.Root open={open} onOpenChange={setOpen}>
+      <DropdownMenu.Trigger asChild>
+        <button
+          type="button"
+          className={`inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-semibold text-white border transition-all hover:-translate-y-0.5 bg-emerald-500/20 border-emerald-500/35 hover:bg-emerald-500/30 ${className}`}
+        >
+          <Download className="h-3.5 w-3.5" />
+          Download
+        </button>
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content
+          align="end"
+          sideOffset={6}
+          className="z-50 min-w-[160px] rounded-xl border border-white/[0.12] bg-[#0d1f33]/95 backdrop-blur-xl shadow-2xl overflow-hidden outline-none"
+        >
+          <DropdownMenu.Item asChild onSelect={downloadExcel}>
+            <button
+              type="button"
+              className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-white/80 hover:bg-white/[0.08] hover:text-white transition-colors text-left outline-none"
+            >
+              <FileSpreadsheet className="h-4 w-4 text-emerald-400 shrink-0" />
+              Export Excel
+            </button>
+          </DropdownMenu.Item>
+          <DropdownMenu.Separator className="h-px bg-white/[0.07]" />
+          <DropdownMenu.Item asChild onSelect={downloadPDF}>
+            <button
+              type="button"
+              className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-white/80 hover:bg-white/[0.08] hover:text-white transition-colors text-left outline-none"
+            >
+              <FileDown className="h-4 w-4 text-rose-400 shrink-0" />
+              Export PDF
+            </button>
+          </DropdownMenu.Item>
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
   );
 }
