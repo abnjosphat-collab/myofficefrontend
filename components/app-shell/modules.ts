@@ -17,7 +17,7 @@ import {
   ClipboardList, ClipboardPlus, Plus, User, Gauge,
   Sun, Receipt, Settings, Award, Truck, Radar,
   Droplet, FileCheck, LayoutDashboard, Car,
-  Wallet, DollarSign, ListTodo,
+  ListTodo,
 } from '@/components/shared/theme';
 import type { Accent } from '@/components/shared/theme';
 import type { UserRole } from '@/lib/supabase';
@@ -72,13 +72,6 @@ export const CATEGORIES: Category[] = [
       { icon: HardHat,      title: 'Contractors',  description: 'Contractor & vendor management', href: '/contractors', tags: ['Vendors'] },
       { icon: Award,        title: 'Competency',   description: 'Employee competency matrix', href: '/competency', tags: ['HR', 'Skills'] },
       { icon: Settings,     title: 'Admin Panel',  description: 'System administration', href: '/admin', tags: ['System'] },
-    ],
-  },
-  {
-    id: 'finance', title: 'Finance & Accounting', description: 'Track revenue, expenses and profitability',
-    icon: Wallet, accent: 'emerald', minRole: 'manager',
-    modules: [
-      { icon: DollarSign, title: 'Accounting', description: 'Transactions, expenses, receipts & profit/loss', href: '/accounting', tags: ['Finance', 'Accounting'], featured: true },
     ],
   },
   {
