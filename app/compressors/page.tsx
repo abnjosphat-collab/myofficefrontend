@@ -27,6 +27,7 @@ import type {
   IsSaving, PreviousReading, StatusDialogState,
 } from './types';
 import { SERVICE_INTERVALS, useCompressorsData } from './useCompressorsData';
+import { calculateEfficiency, getEfficiencyStatus, autoAdjustLoadedHours, calculateDailyDelta, calculateNextService as calcNextService } from './calcCompressors';
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 
@@ -89,29 +90,10 @@ function CompressorReadingsSystem() {
   const nextDay = () => setCurrentDate(p => { const d = new Date(p); d.setDate(d.getDate() + 1); return d; });
   const goToToday = () => setCurrentDate(new Date());
 
-  const calculateEfficiency = useCallback((running: number, loaded: number) => !running ? 0 : parseFloat(((loaded / running) * 100).toFixed(1)), []);
-
-  const calculateNextService = useCallback((totalRunningHours: number) => {
-    const nextIntervals = SERVICE_INTERVALS.filter(i => i > totalRunningHours);
-    if (!nextIntervals.length) return null;
-    const next = nextIntervals[0];
-    const hoursRemaining = next - totalRunningHours;
-    const daysRemaining = Math.ceil(hoursRemaining / defaultOperatingHours);
-    let urgency = 'low';
-    if (daysRemaining <= 0) urgency = 'critical';
-    else if (daysRemaining <= 7) urgency = 'high';
-    else if (daysRemaining <= 30) urgency = 'medium';
-    return { interval: next, hoursRemaining, daysRemaining, urgency, isUrgent: daysRemaining <= maintenanceBufferDays };
-  }, [defaultOperatingHours, maintenanceBufferDays]);
-
-  const getEfficiencyStatus = (e: number) => {
-    if (e >= 80) return { label: 'Excellent', color: '#34d399' };
-    if (e >= 60) return { label: 'Good', color: ACCENT_HEX.blue };
-    if (e >= 40) return { label: 'Fair', color: '#f59e0b' };
-    return { label: 'Poor', color: '#f43f5e' };
-  };
-
-  const autoAdjustLoadedHours = (running: number, loaded: number) => Math.max(0, Math.min(loaded, running));
+  const calculateNextService = useCallback(
+    (totalRunningHours: number) => calcNextService(totalRunningHours, defaultOperatingHours, maintenanceBufferDays),
+    [defaultOperatingHours, maintenanceBufferDays],
+  );
 
   const handleRunningHoursChange = (id: number, value: string) => {
     const n = parseFloat(value) || 0;
@@ -125,7 +107,10 @@ function CompressorReadingsSystem() {
   const calculateDailyFromInputs = (id: number) => {
     const inp = compressorInputs[id]; const prev = previousReadings[id];
     if (!inp || !prev) return { dailyRunning: 0, dailyLoaded: 0 };
-    return { dailyRunning: Math.max(0, (inp.totalRunning || 0) - (prev.total_running_hours || 0)), dailyLoaded: Math.max(0, (inp.totalLoaded || 0) - (prev.total_loaded_hours || 0)) };
+    return {
+      dailyRunning: calculateDailyDelta(inp.totalRunning || 0, prev.total_running_hours || 0),
+      dailyLoaded: calculateDailyDelta(inp.totalLoaded || 0, prev.total_loaded_hours || 0),
+    };
   };
   const getPreviousReadingInfo = (id: number) => {
     const prev = previousReadings[id];
