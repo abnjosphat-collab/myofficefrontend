@@ -21,6 +21,7 @@ import { exportFilename } from '@/lib/exportUtils';
 import { toast } from 'sonner';
 import type { RequisitionItem, Requisition } from './types';
 import { useRequisitionsData, apiCreate, apiUpdate, apiDelete } from './useRequisitionsData';
+import { itemTotal } from './calcRequisitions';
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 
@@ -45,7 +46,8 @@ const fmtDate = (d?: string) => formatDate(d);
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 
-const itemTotal = (items: RequisitionItem[]) => items.reduce((s, i) => s + i.costPerUnit * i.quantity, 0);
+// itemTotal now lives in ./calcRequisitions (imported above) — extracted per the
+// "extract + test business logic" standard, tested in calcRequisitions.test.ts.
 const newItem = (): RequisitionItem => ({ description: '', costPerUnit: 0, quantity: 1, reason: '' });
 const blankForm = (): Partial<Requisition> => ({
   date: new Date().toISOString().slice(0, 10),
