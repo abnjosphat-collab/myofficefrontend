@@ -2,6 +2,68 @@ import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 
+// A single className chunk with two unmodified bg-* color utilities silently lets one
+// win with no warning — found and fixed 3 separate times in this codebase already. A
+// plain no-restricted-syntax regex selector can't reliably express the needed
+// lookaround in esquery's selector grammar (tried; esquery's regex-in-selector parser
+// rejected it), so this is a small real rule using a real JS RegExp instead.
+//
+// Deliberately checked PER literal/template chunk, not merged across a whole
+// className expression: a ternary's branches are mutually exclusive at runtime (e.g.
+// STATUS_HEX-style "pick one of these colors"), so treating "bg-a" in one branch and
+// "bg-b" in another as if they applied simultaneously would be wrong — they never
+// co-occur. The real bug shape is two bg-* utilities that DO co-occur: either
+// hardcoded together in one string, or one hardcoded outside a ternary alongside
+// another hardcoded value in the same chunk.
+const BG_COLOR_RE = /(?<!:)\bbg-([\w./%[\]#-]+)/g;
+const BG_STRUCTURAL_RE = /^(gradient-|clip-|opacity-|blend-|none\b|repeat\b|fixed\b|local\b|scroll\b|contain\b|cover\b|center\b|auto\b)/;
+
+function bgUtilitiesIn(str) {
+  const found = [];
+  BG_COLOR_RE.lastIndex = 0;
+  let m;
+  while ((m = BG_COLOR_RE.exec(str))) {
+    if (!BG_STRUCTURAL_RE.test(m[1])) found.push(m[0]);
+  }
+  return found;
+}
+
+function isClassNameAttrValue(node) {
+  let p = node.parent;
+  while (p) {
+    if (p.type === "JSXAttribute") return !!(p.name && p.name.name === "className");
+    p = p.parent;
+  }
+  return false;
+}
+
+const localRules = {
+  rules: {
+    "no-bg-class-collision": {
+      meta: { type: "suggestion", schema: [] },
+      create(context) {
+        function check(node, str) {
+          const found = bgUtilitiesIn(str);
+          if (found.length >= 2) {
+            context.report({
+              node,
+              message: `Two bg-* color utilities in one className chunk (${found.join(", ")}) — one silently wins with no warning (found 3x before). If both are meant to apply (hover:/dark:/etc.), prefix them; otherwise this is likely the class-stacking bug.`,
+            });
+          }
+        }
+        return {
+          Literal(node) {
+            if (typeof node.value === "string" && isClassNameAttrValue(node)) check(node, node.value);
+          },
+          TemplateElement(node) {
+            if (isClassNameAttrValue(node)) check(node, node.value.raw);
+          },
+        };
+      },
+    },
+  },
+};
+
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
@@ -21,6 +83,7 @@ const eslintConfig = defineConfig([
   {
     files: ["app/**/*.tsx", "components/**/*.tsx"],
     ignores: ["components/ui/**"], // shadcn primitives own their own sizing contract
+    plugins: { local: localRules },
     rules: {
       "no-restricted-syntax": [
         "warn",
@@ -31,6 +94,43 @@ const eslintConfig = defineConfig([
         {
           selector: "JSXAttribute[name.name='className'] TemplateElement[value.raw=/\\btext-(xs|sm)\\b/]",
           message: "Raw text-xs/text-sm bypasses TYPE_SCALE (components/shared/design-system/tokens.tsx) — prefer a TYPE_SCALE token so size stays consistent and theme-aware.",
+        },
+      ],
+      "local/no-bg-class-collision": "warn",
+    },
+  },
+  // The MFA sign-in bypass and the admin/callback sign-in bypass were two independent
+  // incidents sharing one root cause: reading auth state from a raw Supabase call
+  // instead of the app's single explicit funnel let a background process (the SDK's
+  // auto session-detection, or the global onAuthStateChange listener) flip "signed in"
+  // before app-specific logic (the MFA challenge check / invite-vs-recovery routing)
+  // had run. Both were fixed locally in their own file, with no shared guard against a
+  // third occurrence — this is that guard. lib/auth-context.tsx and lib/supabase.ts/
+  // app/auth/callback/page.tsx are the two sanctioned funnels; nothing else should call
+  // these directly.
+  {
+    files: ["**/*.ts", "**/*.tsx"],
+    ignores: [
+      "lib/auth-context.tsx", "lib/supabase.ts", "app/auth/callback/page.tsx",
+      // lib/api.ts's authFetch() calls getSession() too, but for a different, safe
+      // reason: grabbing the current token to attach to one outgoing request's
+      // Authorization header, not reading auth state to make a UI/routing decision.
+      // There's nothing here that can race against onAuthStateChange the way the two
+      // real incidents did — found by this very rule while wiring it up, and confirmed
+      // safe on inspection rather than silently ignored.
+      "lib/api.ts",
+      ".next/**", "node_modules/**", "coverage/**",
+    ],
+    rules: {
+      "no-restricted-syntax": [
+        "warn",
+        {
+          selector: "CallExpression[callee.property.name='getSession']",
+          message: "supabase.auth.getSession() outside the sanctioned auth funnels (lib/auth-context.tsx, lib/supabase.ts, app/auth/callback/page.tsx) risks reintroducing the auth race-condition bug class (MFA bypass, callback bypass — see frontend/docs/ENGINEERING_STANDARDS.md) — read session state from useAuth() instead.",
+        },
+        {
+          selector: "CallExpression[callee.property.name='onAuthStateChange']",
+          message: "supabase.auth.onAuthStateChange() outside lib/auth-context.tsx (the single sanctioned subscriber) risks reintroducing the auth race-condition bug class (see frontend/docs/ENGINEERING_STANDARDS.md) — subscribe via useAuth() instead.",
         },
       ],
     },

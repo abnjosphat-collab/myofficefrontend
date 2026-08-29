@@ -73,3 +73,19 @@ threshold gate. There's no component-testing library installed yet
 (`@testing-library/react` etc.) — extracting logic into a `calcX.ts` (rule 1)
 is what actually makes something here testable without adding that
 infrastructure first.
+
+## 5. Auth state comes from `useAuth()`, never a raw Supabase call
+
+`supabase.auth.getSession()` and `supabase.auth.onAuthStateChange()` are only
+ever called in two places: `lib/auth-context.tsx` (the single
+`onAuthStateChange` subscriber, gating `user`/`session` behind the MFA
+challenge check) and `lib/supabase.ts`/`app/auth/callback/page.tsx` (manual
+invite/recovery-hash handling, with `detectSessionInUrl: false` so the SDK
+can't process it in the background first). Both exist because of the same
+bug class, found twice independently: a background process resolving auth
+state *before* app-specific logic got to run first — an MFA gate that lost
+the race to `onAuthStateChange`, then the same shape again in the admin
+invite/reset flow. Read auth state through `useAuth()` (`lib/auth-context.tsx`)
+everywhere else — this is now lint-enforced (`eslint.config.mjs`'s
+`no-restricted-syntax`, `warn`) rather than tribal knowledge in two files'
+comments, unlike rules 1-4 above.
