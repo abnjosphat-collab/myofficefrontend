@@ -5,6 +5,7 @@
 
 import { useState, useRef, useEffect, useCallback, type ReactNode, type ElementType, type CSSProperties } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import * as Dialog from '@radix-ui/react-dialog';
 import { X, Plus } from './icons';
 import { useTheme, ACCENT, ACCENT_RGBA, type Accent } from './tokens';
 import { hexToRgba } from './color';
@@ -266,7 +267,14 @@ export function EmptyState({
 }
 
 // ─── Themed centered modal (replaces ad-hoc slide-overs / dark-only modals) ─
-
+// Radix's headless Dialog primitives sit underneath the exact same visual output
+// this had before (2026-08-29, UI foundation hardening plan, Phase 3 — see
+// audit/07-ui-polish-findings.md) — no call site needs to change, and there is no
+// visual diff, only new behavior: real focus trapping, Escape-to-close, portal
+// rendering, and role="dialog"/aria-modal, none of which this had previously.
+// `asChild` on Dialog.Overlay/Content/Title composes Radix's behavior directly onto
+// the existing motion.div/h2 elements rather than adding a wrapper that would
+// change the DOM shape (and therefore the CSS this file already relies on).
 export function CenterModal({
   open, onClose, title, subtitle, accent = 'violet', width = 'max-w-md', children,
 }: {
@@ -276,52 +284,66 @@ export function CenterModal({
   const a = ACCENT[accent];
   const t = useTheme();
   return (
-    <AnimatePresence>
-      {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <motion.div
-            className="absolute inset-0 bg-slate-900/50 backdrop-blur-md"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.25 }}
-            onClick={onClose}
-          />
-          <motion.div
-            className={`relative w-full ${width} max-h-[85vh] ${t.glass} rounded-xl ${t.shadow} flex flex-col overflow-hidden`}
-            style={{ boxShadow: `0 24px 60px -20px ${ACCENT_RGBA[accent]}, 0 8px 24px -10px rgba(0,0,0,0.3)` }}
-            initial={{ opacity: 0, scale: 0.92, y: 16 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.94, y: 10 }}
-            transition={{ type: 'spring', damping: 26, stiffness: 320 }}
-          >
-            <div className={`relative px-5 py-4 border-b ${t.border} shrink-0 overflow-hidden`}>
-              <div
-                className={`absolute -top-10 -left-10 h-32 w-32 rounded-full bg-gradient-to-br ${a.gradient} opacity-[0.18] blur-2xl pointer-events-none`}
+    <Dialog.Root open={open} onOpenChange={o => { if (!o) onClose(); }}>
+      <AnimatePresence>
+        {open && (
+          <Dialog.Portal forceMount>
+            <Dialog.Overlay asChild>
+              <motion.div
+                className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-md"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25 }}
               />
-              <button
-                onClick={onClose}
-                className={`absolute top-2.5 right-2.5 h-10 w-10 flex items-center justify-center rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-colors`}
-                type="button"
-                aria-label="Close"
-                title="Close"
-              >
-                <X className="h-5 w-5 pointer-events-none" />
-              </button>
-              <h2 className={`relative font-semibold ${t.textPrimary} text-[13px] tracking-tight pr-14`}>{title}</h2>
-              {subtitle && (
-                <AnimatedText
-                  as="p"
-                  trigger="mount"
-                  text={subtitle}
-                  className={`relative ${t.textSecondary} text-[11px] mt-0.5 pr-14`}
-                />
-              )}
+            </Dialog.Overlay>
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              {/* No Dialog.Description — subtitle (when present) isn't a fixed
+                  element Radix's Slot can compose onto (AnimatedText doesn't forward
+                  refs/extra props), so aria-describedby is explicitly suppressed
+                  rather than left to warn about a missing one. */}
+              <Dialog.Content asChild aria-describedby={undefined}>
+                <motion.div
+                  className={`relative w-full ${width} max-h-[85vh] ${t.glass} rounded-xl ${t.shadow} flex flex-col overflow-hidden focus:outline-none`}
+                  style={{ boxShadow: `0 24px 60px -20px ${ACCENT_RGBA[accent]}, 0 8px 24px -10px rgba(0,0,0,0.3)` }}
+                  initial={{ opacity: 0, scale: 0.92, y: 16 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.94, y: 10 }}
+                  transition={{ type: 'spring', damping: 26, stiffness: 320 }}
+                >
+                  <div className={`relative px-5 py-4 border-b ${t.border} shrink-0 overflow-hidden`}>
+                    <div
+                      className={`absolute -top-10 -left-10 h-32 w-32 rounded-full bg-gradient-to-br ${a.gradient} opacity-[0.18] blur-2xl pointer-events-none`}
+                    />
+                    <Dialog.Close asChild>
+                      <button
+                        className={`absolute top-2.5 right-2.5 h-10 w-10 flex items-center justify-center rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-colors`}
+                        type="button"
+                        aria-label="Close"
+                        title="Close"
+                      >
+                        <X className="h-5 w-5 pointer-events-none" />
+                      </button>
+                    </Dialog.Close>
+                    <Dialog.Title asChild>
+                      <h2 className={`relative font-semibold ${t.textPrimary} text-[13px] tracking-tight pr-14`}>{title}</h2>
+                    </Dialog.Title>
+                    {subtitle && (
+                      <AnimatedText
+                        as="p"
+                        trigger="mount"
+                        text={subtitle}
+                        className={`relative ${t.textSecondary} text-[11px] mt-0.5 pr-14`}
+                      />
+                    )}
+                  </div>
+                  <div className="flex-1 overflow-y-auto">{children}</div>
+                </motion.div>
+              </Dialog.Content>
             </div>
-            <div className="flex-1 overflow-y-auto">{children}</div>
-          </motion.div>
-        </div>
-      )}
-    </AnimatePresence>
+          </Dialog.Portal>
+        )}
+      </AnimatePresence>
+    </Dialog.Root>
   );
 }
