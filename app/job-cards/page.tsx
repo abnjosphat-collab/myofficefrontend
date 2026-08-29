@@ -17,9 +17,21 @@ const P_HEX: Record<Priority, string> = { critical: '#f43f5e', high: '#f59e0b', 
 const S_HEX: Record<JCStatus, string> = { open: '#94a3b8', in_progress: '#86BBD8', on_hold: '#f59e0b', completed: '#34d399', cancelled: '#64748b' };
 const S_LABEL: Record<JCStatus, string> = { open: 'Open', in_progress: 'In Progress', on_hold: 'On Hold', completed: 'Completed', cancelled: 'Cancelled' };
 
+// Unguarded map lookups on a legacy/malformed status or priority value otherwise
+// rendered a blank StatusBadge (undefined color + undefined label) instead of
+// crashing — a quieter but still real instance of the map-lookup class of bug
+// found across this audit (found live, 2026-08-29 UI audit).
+const priorityColor = (p: Priority) => P_HEX[p] ?? P_HEX.low;
+const statusColor = (s: JCStatus) => S_HEX[s] ?? S_HEX.open;
+const statusLabel = (s: JCStatus) => S_LABEL[s] ?? s;
+
 function JobCardDetail({ jc, onClose, onSave }: { jc: JobCard; onClose: () => void; onSave: (j: JobCard) => void }) {
   const t = useTheme();
-  const [data, setData] = useState<JobCard>({ ...jc, tasks: jc.tasks.map(x => ({ ...x })) });
+  // tasks ?? [] guard: a job card missing its tasks array (legacy/malformed data)
+  // otherwise crashed here immediately on mount — every downstream read of
+  // data.tasks in this component assumes it's always an array (found live,
+  // 2026-08-29 UI audit, audit/07-ui-polish-findings.md).
+  const [data, setData] = useState<JobCard>({ ...jc, tasks: (jc.tasks ?? []).map(x => ({ ...x })) });
   const [signOffOpen, setSignOffOpen] = useState(false);
   const progress = data.tasks.length ? Math.round((data.tasks.filter(x => x.done).length / data.tasks.length) * 100) : 0;
   const allDone = data.tasks.length > 0 && data.tasks.every(x => x.done);
@@ -33,8 +45,8 @@ function JobCardDetail({ jc, onClose, onSave }: { jc: JobCard; onClose: () => vo
         <div className="px-5 pt-1 pb-3">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-xs font-mono text-[#86BBD8]/80">{data.job_no}</span>
-            <StatusBadge color={P_HEX[data.priority]} label={data.priority} />
-            <StatusBadge color={S_HEX[data.status]} label={S_LABEL[data.status]} />
+            <StatusBadge color={priorityColor(data.priority)} label={data.priority} />
+            <StatusBadge color={statusColor(data.status)} label={statusLabel(data.status)} />
           </div>
         </div>
         <div className="px-5 pb-4 space-y-5 max-h-[65vh] overflow-y-auto">
@@ -153,7 +165,7 @@ function JobCardsContent() {
     { key: 'equipment_name', label: 'Equipment', width: 22 },
     { key: 'type', label: 'Type', width: 14 },
     { key: 'priority', label: 'Priority', width: 12 },
-    { key: 'status', label: 'Status', width: 14, format: v => S_LABEL[v as JCStatus] },
+    { key: 'status', label: 'Status', width: 14, format: v => statusLabel(v as JCStatus) },
     { key: 'section', label: 'Section', width: 16 },
     { key: 'assigned_to', label: 'Assigned To', width: 18 },
     { key: 'supervisor', label: 'Supervisor', width: 18 },
@@ -193,7 +205,7 @@ function JobCardsContent() {
                 filename={exportFilename('Job_Cards')}
                 title="Job Cards"
                 statusColumn="status"
-                statusColor={(_v, row) => S_HEX[row.status as JCStatus]?.replace('#', '')}
+                statusColor={(_v, row) => statusColor(row.status as JCStatus).replace('#', '')}
               />
             )}
             <PrimaryButton icon={Plus} accent="amber">New Job Card</PrimaryButton>
@@ -221,20 +233,21 @@ function JobCardsContent() {
         ) : (
           <div>
             {filtered.map(jc => {
-              const progress = jc.tasks.length ? Math.round((jc.tasks.filter(x => x.done).length / jc.tasks.length) * 100) : 0;
+              const jcTasks = jc.tasks ?? [];
+              const progress = jcTasks.length ? Math.round((jcTasks.filter(x => x.done).length / jcTasks.length) * 100) : 0;
               return (
                 <div key={jc.id} onClick={() => setSelected(jc)}
                   className={`flex items-center gap-4 px-5 py-4 border-b ${t.border} last:border-0 ${t.hoverBg} cursor-pointer transition-colors`}>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap mb-1">
                       <span className={`text-xs font-mono ${t.textFaint}`}>{jc.job_no}</span>
-                      <StatusBadge color={P_HEX[jc.priority]} label={jc.priority} />
-                      <StatusBadge color={S_HEX[jc.status]} label={S_LABEL[jc.status]} />
+                      <StatusBadge color={priorityColor(jc.priority)} label={jc.priority} />
+                      <StatusBadge color={statusColor(jc.status)} label={statusLabel(jc.status)} />
                     </div>
                     <p className={`text-sm font-semibold truncate ${t.textPrimary}`}>{jc.title}</p>
                     <p className={`text-xs mt-0.5 ${t.textFaint}`}>{jc.equipment_name} · {jc.section} · {jc.assigned_to}</p>
                   </div>
-                  {jc.tasks.length > 0 && (
+                  {jcTasks.length > 0 && (
                     <div className="hidden sm:flex flex-col items-end gap-1 shrink-0 w-24">
                       <ProgressBar value={progress} color="#34d399" showValue={false} />
                       <span className={`text-[10px] ${t.textFaint}`}>{progress}% tasks done</span>

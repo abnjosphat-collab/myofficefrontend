@@ -48,7 +48,18 @@ const ACTION_HEX: Record<ActionStatus, string> = { Pending: '#f59e0b', 'In Progr
 
 // =============== HELPERS ===============
 const fmtDate = (s: string) => (s ? formatDate(s) : '');
-const fmtTime = (s: string) => { if (!s) return ''; try { return new Date(`2000-01-01T${s}`).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }); } catch { return s; } };
+// A malformed (but non-empty) time string doesn't throw here — new Date() on a bad
+// string is a valid Date OBJECT, just an invalid one, and toLocaleTimeString()
+// returns the literal string "Invalid Date" rather than throwing (found live on
+// near_miss.tsx's identical pattern, 2026-08-29 UI audit,
+// audit/07-ui-polish-findings.md — hardened here too for the same edge case).
+const fmtTime = (s: string) => {
+  if (!s) return '';
+  try {
+    const d = new Date(`2000-01-01T${s}`);
+    return isNaN(d.getTime()) ? '' : d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  } catch { return ''; }
+};
 const newId = () => Math.random().toString(36).slice(2, 11);
 
 const defaultForm = (): Partial<VFLReport> => ({

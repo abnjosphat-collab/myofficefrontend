@@ -24,7 +24,18 @@ import { useNearMissData, createReport, updateReport, deleteReport } from './use
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 
 const fmtDate = (s: string) => (s ? formatDate(s) : '');
-const fmtTime = (s: string) => { try { return new Date(`2000-01-01T${s}`).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }); } catch { return s; } };
+// A missing/malformed time doesn't throw here — `new Date('2000-01-01Tundefined')`
+// is a valid Date OBJECT, just an invalid one, and .toLocaleTimeString() on it
+// returns the literal string "Invalid Date" rather than throwing, so the try/catch
+// never caught it. Rendered as visible "Invalid Date" text on every row (found
+// live, 2026-08-29 UI audit, audit/07-ui-polish-findings.md).
+const fmtTime = (s: string) => {
+  if (!s) return '';
+  try {
+    const d = new Date(`2000-01-01T${s}`);
+    return isNaN(d.getTime()) ? '' : d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  } catch { return ''; }
+};
 const SECTION_HEX: Record<NearMissReport['section'], string> = { Mechanical: '#86BBD8', Electrical: '#fbbf24', General: '#a78bfa' };
 
 function calcStats(reports: NearMissReport[]) {

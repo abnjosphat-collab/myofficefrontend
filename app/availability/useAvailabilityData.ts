@@ -42,7 +42,15 @@ export function useAvailabilityData() {
         api.get<AvailabilityStats>('/api/availabilities/stats').catch(() => null),
       ]);
       setEquipment(eq ?? MOCK_EQUIPMENT);
-      setStats(statsRes ?? MOCK_STATS);
+      // Merge onto MOCK_STATS defaults instead of a full replacement — `?? MOCK_STATS`
+      // only caught a null/undefined response (a failed call, already handled by the
+      // .catch above), not one that succeeds with a field missing. This file's own
+      // stated purpose is "a real backend outage still shows a populated demo
+      // dashboard rather than an empty one" — a response missing one field (a
+      // backend gap, not a full outage) broke that promise: overallAvailability.
+      // toFixed() on an undefined field crashed the whole page (found live,
+      // 2026-08-29 UI audit, audit/07-ui-polish-findings.md).
+      setStats({ ...MOCK_STATS, ...statsRes });
     } catch {
       setEquipment(MOCK_EQUIPMENT);
       setStats(MOCK_STATS);

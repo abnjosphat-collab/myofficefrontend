@@ -30,7 +30,7 @@ function statusCfg(status: Equipment['status']) {
     breakdown: { color: '#f87171', label: 'Breakdown' },
     idle: { color: '#94a3b8', label: 'Idle' },
   };
-  return map[status];
+  return map[status] ?? { color: '#94a3b8', label: status };
 }
 
 function avColor(pct: number) {
@@ -73,7 +73,7 @@ function AvailabilityContent() {
     { key: 'status', label: 'Status', width: 14, format: v => statusCfg(v as Equipment['status']).label },
     { key: 'operational_hours', label: 'Op. Hours', width: 12 },
     { key: 'breakdown_hours', label: 'Breakdown Hours', width: 16 },
-    { key: 'availability', label: 'Availability %', width: 14, format: v => `${(v as number).toFixed(1)}%` },
+    { key: 'availability', label: 'Availability %', width: 14, format: v => `${((v as number) ?? 0).toFixed(1)}%` },
     { key: 'uptime', label: 'Uptime', width: 12 },
     { key: 'downtime', label: 'Downtime', width: 12 },
     { key: 'mtbf', label: 'MTBF (h)', width: 12 },
@@ -196,22 +196,31 @@ function AvailabilityContent() {
                 <tbody>
                   {filtered.map(eq => {
                     const scfg = statusCfg(eq.status);
+                    // A real/legacy equipment record missing one of these numeric fields
+                    // otherwise crashed the whole table on .toFixed() (found live, 2026-08-29
+                    // UI audit, audit/07-ui-polish-findings.md) — same class of bug as
+                    // useAvailabilityData's stats merge, one level down at the per-row field.
+                    const opHours = eq.operational_hours ?? 0;
+                    const bdHours = eq.breakdown_hours ?? 0;
+                    const av = eq.availability ?? 0;
+                    const uptime = eq.uptime ?? 0;
+                    const downtime = eq.downtime ?? 0;
                     return (
                       <tr key={eq.id} className={`border-b ${t.border} ${t.hoverBgSoft} transition-colors`}>
                         <td className={tdCls}><span className={`font-medium ${t.textPrimary}`}>{eq.name}</span></td>
                         <td className={tdCls}>{eq.category}</td>
                         <td className={tdCls}>{eq.department}</td>
                         <td className={tdCls}><StatusBadge color={scfg.color} label={scfg.label} /></td>
-                        <td className={`${tdCls} text-right`}>{eq.operational_hours.toFixed(1)}h</td>
-                        <td className={`${tdCls} text-right text-red-400`}>{eq.breakdown_hours.toFixed(1)}h</td>
+                        <td className={`${tdCls} text-right`}>{opHours.toFixed(1)}h</td>
+                        <td className={`${tdCls} text-right text-red-400`}>{bdHours.toFixed(1)}h</td>
                         <td className={`${tdCls} text-right`}>
                           <div className="flex items-center gap-2 justify-end">
-                            <span className={`font-bold text-sm ${avColor(eq.availability)}`}>{eq.availability.toFixed(1)}%</span>
-                            <div className="w-20"><ProgressBar value={eq.availability} color={avHex(eq.availability)} showValue={false} /></div>
+                            <span className={`font-bold text-sm ${avColor(av)}`}>{av.toFixed(1)}%</span>
+                            <div className="w-20"><ProgressBar value={av} color={avHex(av)} showValue={false} /></div>
                           </div>
                         </td>
-                        <td className={`${tdCls} text-right ${accentText('emerald', t.light)}`}>{eq.uptime.toFixed(1)}h</td>
-                        <td className={`${tdCls} text-right text-red-400`}>{eq.downtime.toFixed(1)}h</td>
+                        <td className={`${tdCls} text-right ${accentText('emerald', t.light)}`}>{uptime.toFixed(1)}h</td>
+                        <td className={`${tdCls} text-right text-red-400`}>{downtime.toFixed(1)}h</td>
                         <td className={tdCls}>
                           <div className="flex gap-1.5 justify-end">
                             <Link href={`/breakdowns?equipment=${eq.id}`} className={`flex items-center gap-1 px-2 py-1 rounded text-[11px] ${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText}`}><AlertTriangle className="h-3 w-3" /> Breakdowns</Link>
@@ -244,17 +253,24 @@ function AvailabilityContent() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map(eq => (
+                  {filtered.map(eq => {
+                    const mtbf = eq.mtbf ?? 0;
+                    const mttr = eq.mttr ?? 0;
+                    const bdHours = eq.breakdown_hours ?? 0;
+                    const opHours = eq.operational_hours ?? 0;
+                    const downtime = eq.downtime ?? 0;
+                    return (
                     <tr key={eq.id} className={`border-b ${t.border} ${t.hoverBgSoft} transition-colors`}>
                       <td className={tdCls}><span className={`font-medium ${t.textPrimary}`}>{eq.name}</span></td>
-                      <td className={`${tdCls} text-center`}><StatusBadge color={eq.mtbf > 200 ? '#34d399' : eq.mtbf > 100 ? '#94a3b8' : '#f87171'} label={`${eq.mtbf.toFixed(1)}h`} /></td>
-                      <td className={`${tdCls} text-center`}><StatusBadge color={eq.mttr < 5 ? '#34d399' : eq.mttr < 10 ? '#94a3b8' : '#f87171'} label={`${eq.mttr.toFixed(1)}h`} /></td>
+                      <td className={`${tdCls} text-center`}><StatusBadge color={mtbf > 200 ? '#34d399' : mtbf > 100 ? '#94a3b8' : '#f87171'} label={`${mtbf.toFixed(1)}h`} /></td>
+                      <td className={`${tdCls} text-center`}><StatusBadge color={mttr < 5 ? '#34d399' : mttr < 10 ? '#94a3b8' : '#f87171'} label={`${mttr.toFixed(1)}h`} /></td>
                       <td className={`${tdCls} text-xs`}>{fmtDate(eq.last_maintenance)}</td>
                       <td className="px-3 py-2.5 text-xs text-brand-400">{fmtDate(eq.next_maintenance ?? null)}</td>
-                      <td className={`${tdCls} text-right`}>{eq.breakdown_hours > 0 ? (eq.breakdown_hours / eq.operational_hours * 100).toFixed(1) : '0.0'}%</td>
-                      <td className={`${tdCls} text-right text-red-400 font-medium`}>${(eq.downtime * 250).toLocaleString()}</td>
+                      <td className={`${tdCls} text-right`}>{bdHours > 0 && opHours > 0 ? (bdHours / opHours * 100).toFixed(1) : '0.0'}%</td>
+                      <td className={`${tdCls} text-right text-red-400 font-medium`}>${(downtime * 250).toLocaleString()}</td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -288,7 +304,7 @@ function AvailabilityContent() {
             <div className="p-5 space-y-3">
               {departments.map(dept => {
                 const deptEq = filtered.filter(e => e.department === dept);
-                const deptAv = deptEq.length > 0 ? deptEq.reduce((s, e) => s + e.availability, 0) / deptEq.length : 0;
+                const deptAv = deptEq.length > 0 ? deptEq.reduce((s, e) => s + (e.availability ?? 0), 0) / deptEq.length : 0;
                 return (
                   <div key={dept}>
                     <div className="flex justify-between mb-1">

@@ -27,7 +27,17 @@ import { usePTOData, createPTOReport, updatePTOReport, deletePTOReport } from '.
 // =============== CONSTANTS ===============
 const SECTIONS: SectionType[] = ['Mechanical', 'Electrical'];
 const SECTION_COLORS: Record<SectionType, string> = { Mechanical: '#3b82f6', Electrical: '#f59e0b' };
+// ?? fallback: an unrecognized section (legacy/malformed data) otherwise makes
+// this undefined at 3 call sites below (found live, 2026-08-29 UI audit,
+// audit/07-ui-polish-findings.md).
+function sectionColor(section: SectionType): string { return SECTION_COLORS[section] ?? STATUS_TONE.neutral; }
 const SECTION_ICONS: Record<SectionType, ElementType> = { Mechanical: Wrench, Electrical: Zap };
+// riskAssessment is typed as always-present, but a legacy/malformed record without
+// one crashed 6 call sites below reading .made off undefined (found live, same
+// audit). Central helper instead of guarding each site with ?. individually.
+function hasRiskFlag(ra: RiskAssessment | null | undefined): boolean {
+  return ra?.made === 'No' || ra?.identified === 'No' || ra?.effective === 'No';
+}
 const OBS_COLORS: Record<ObservationType, string> = { Initial: '#a78bfa', 'Follow up': '#f97316' };
 // Partially harmonized onto STATUS_TONE (2026-08-29 palette consolidation) — draft
 // and closed are plain not-started/done endpoints, a clean fit. submitted/reviewed
@@ -129,9 +139,9 @@ function PTOCard({ report, index, onView, onEdit, onDelete }: PTOCardProps) {
   // fixed on overtime.tsx's TypeBadge (2026-08-29 UI audit,
   // audit/07-ui-polish-findings.md).
   const SectionIcon = SECTION_ICONS[report.section] ?? Wrench;
-  const sColor = SECTION_COLORS[report.section];
+  const sColor = sectionColor(report.section);
   const progress = summarizeActions(report.actionPlan);
-  const hasRisk = report.riskAssessment.made === 'No' || report.riskAssessment.identified === 'No' || report.riskAssessment.effective === 'No';
+  const hasRisk = hasRiskFlag(report.riskAssessment);
 
   return (
     <GlowCard onClick={() => onView(report)} color={sColor} surface={`${t.glass} rounded-2xl`} className="overflow-hidden">
@@ -151,7 +161,7 @@ function PTOCard({ report, index, onView, onEdit, onDelete }: PTOCardProps) {
         </div>
 
         <div className="grid grid-cols-2 gap-1.5 mb-2.5">
-          {[`Observer: ${report.observerName}`, `Worker: ${report.workerName}`, fmtDate(report.date), report.occupation || 'No occupation'].map((label, i) => (
+          {[`Observer: ${report.observerName || 'Not specified'}`, `Worker: ${report.workerName || 'Not specified'}`, fmtDate(report.date), report.occupation || 'No occupation'].map((label, i) => (
             <div key={i} className={`text-[11px] px-2 py-1 rounded ${t.chipBg} ${t.textFaint} truncate`}>{label}</div>
           ))}
         </div>
@@ -197,9 +207,9 @@ function PTODetailModal({ report, open, onClose, onEdit, onDelete, onStatusChang
   // fixed on overtime.tsx's TypeBadge (2026-08-29 UI audit,
   // audit/07-ui-polish-findings.md).
   const SectionIcon = SECTION_ICONS[report.section] ?? Wrench;
-  const sColor = SECTION_COLORS[report.section];
+  const sColor = sectionColor(report.section);
   const progress = summarizeActions(report.actionPlan);
-  const hasRisk = report.riskAssessment.made === 'No' || report.riskAssessment.identified === 'No' || report.riskAssessment.effective === 'No';
+  const hasRisk = hasRiskFlag(report.riskAssessment);
 
   const reasonsList = (Object.keys(report.reasons) as (keyof Reasons)[]).filter(k => report.reasons[k]).map(k => REASON_LABELS[k]);
   const remediesList = (Object.keys(report.suggestedRemedies) as (keyof SuggestedRemedies)[]).filter(k => report.suggestedRemedies[k] === 'Yes').map(k => REMEDY_LABELS[k]);
@@ -235,7 +245,7 @@ function PTODetailModal({ report, open, onClose, onEdit, onDelete, onStatusChang
         )}
 
         <div className="grid grid-cols-4 gap-2">
-          {[{ label: 'Observer', val: report.observerName }, { label: 'Worker', val: report.workerName }, { label: 'Date', val: fmtDate(report.date) }, { label: 'Occupation', val: report.occupation || 'N/A' }].map(({ label, val }) => (
+          {[{ label: 'Observer', val: report.observerName || 'Not specified' }, { label: 'Worker', val: report.workerName || 'Not specified' }, { label: 'Date', val: fmtDate(report.date) }, { label: 'Occupation', val: report.occupation || 'N/A' }].map(({ label, val }) => (
             <div key={label} className={infoBox}><div className={`text-[10px] mb-0.5 ${t.textFaint}`}>{label}</div><div className={`text-sm font-semibold ${t.textPrimary}`}>{val}</div></div>
           ))}
         </div>
@@ -267,8 +277,8 @@ function PTODetailModal({ report, open, onClose, onEdit, onDelete, onStatusChang
           </div>
           <div className={`${t.chipBg} rounded-xl px-3.5 py-3`}>
             <div className={`font-bold text-xs uppercase tracking-wide mb-2 flex items-center gap-1.5 ${t.textFaint}`}><ShieldAlert className="h-3 w-3" /> Risk Assessment</div>
-            {[{ label: 'Assessment Made', val: report.riskAssessment.made }, { label: 'Hazards Identified', val: report.riskAssessment.identified }, { label: 'Controls Effective', val: report.riskAssessment.effective }].map(({ label, val }) => (
-              <div key={label} className={`flex justify-between items-center py-1.5 border-b ${t.border} last:border-0`}><span className={`text-xs ${t.textFaint}`}>{label}</span><StatusBadge color={val === 'Yes' ? '#34d399' : '#f87171'} label={val} /></div>
+            {[{ label: 'Assessment Made', val: report.riskAssessment?.made }, { label: 'Hazards Identified', val: report.riskAssessment?.identified }, { label: 'Controls Effective', val: report.riskAssessment?.effective }].map(({ label, val }) => (
+              <div key={label} className={`flex justify-between items-center py-1.5 border-b ${t.border} last:border-0`}><span className={`text-xs ${t.textFaint}`}>{label}</span><StatusBadge color={val === 'Yes' ? '#34d399' : '#f87171'} label={val ?? 'Not specified'} /></div>
             ))}
           </div>
         </div>
@@ -563,7 +573,7 @@ function PTOPageContent() {
   const closed = reports.filter(r => r.status === 'closed').length;
   const totalActions = reports.reduce((acc, r) => acc + (r.actionPlan?.length || 0), 0);
   const completedActions = reports.reduce((acc, r) => acc + (r.actionPlan?.filter(a => a.status === 'Completed').length || 0), 0);
-  const highRisk = reports.filter(r => r.riskAssessment.made === 'No' || r.riskAssessment.identified === 'No' || r.riskAssessment.effective === 'No').length;
+  const highRisk = reports.filter(r => hasRiskFlag(r.riskAssessment)).length;
 
   const exportColumns: DLColumn[] = [
     { key: 'date', label: 'Date', width: 14, format: v => v ? formatDate(v as string) : '' },
@@ -580,7 +590,7 @@ function PTOPageContent() {
       key: 'riskAssessment', label: 'High Risk', width: 10,
       format: (_v, row) => {
         const ra = row.riskAssessment as RiskAssessment;
-        return ra.made === 'No' || ra.identified === 'No' || ra.effective === 'No' ? 'Yes' : 'No';
+        return hasRiskFlag(ra) ? 'Yes' : 'No';
       },
     },
     {
@@ -685,14 +695,14 @@ function PTOPageContent() {
                 </thead>
                 <tbody>
                   {filtered.map(r => {
-                    const hasRisk = r.riskAssessment.made === 'No' || r.riskAssessment.identified === 'No' || r.riskAssessment.effective === 'No';
+                    const hasRisk = hasRiskFlag(r.riskAssessment);
                     return (
                       <tr key={r.id} onClick={() => { setSelectedReport(r); setDetailOpen(true); }} className={`border-b ${t.border} ${t.hoverBgSoft} transition-colors cursor-pointer`}>
                         <td className={tdCls}>{fmtDate(r.date)}</td>
                         <td className={tdCls}>{r.observerName}</td>
                         <td className={tdCls}>{r.workerName}</td>
                         <td className={tdCls}>{r.jobTaskObserved.slice(0, 30)}{r.jobTaskObserved.length > 30 ? '…' : ''}</td>
-                        <td className={tdCls}><StatusBadge color={SECTION_COLORS[r.section]} label={r.section} /></td>
+                        <td className={tdCls}><StatusBadge color={sectionColor(r.section)} label={r.section} /></td>
                         <td className={tdCls}><StatusBadge color={OBS_COLORS[r.observationType]} label={r.observationType} /></td>
                         <td className={tdCls}><StatusBadge color={STATUS_COLORS[r.status]} label={r.status.charAt(0).toUpperCase() + r.status.slice(1)} /></td>
                         <td className={tdCls}>{hasRisk ? <StatusBadge color="#ef4444" label="⚠ High" /> : <span className={t.textFaint}>—</span>}</td>
