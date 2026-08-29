@@ -27,9 +27,12 @@ import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButto
 import { exportFilename } from '@/lib/exportUtils';
 import type {
   DayOverride, DayStatus, Employee, EventForm, EventType, FormState, LeaveRecord,
-  PublicHoliday, ScheduleEvent, ShiftAssignment, ShiftTimingPeriod, ShiftType, SortKey, StandbyPeriod, ViewMode,
+  ScheduleEvent, ShiftAssignment, ShiftTimingPeriod, ShiftType, SortKey, StandbyPeriod, ViewMode,
 } from './types';
 import { createAssignment, deleteAssignment, updateAssignment, useShiftsData } from './useShiftsData';
+import {
+  buildHolidayMap, computeDayStatus, cycleProgress, d2s, daysUntilNextOn, findEvent, stripTime, todayStatus,
+} from './calcShifts';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -91,39 +94,12 @@ function findLeaveForDay(leaves: LeaveRecord[], employeeId: string, employeeName
   return leaves.find(lv => (lv.employee_id === employeeId || norm(lv.employee_name) === norm(employeeName)) && ds >= lv.start_date && ds <= lv.end_date && lv.status !== 'rejected');
 }
 
-function easterSunday(year: number): Date {
-  const a = year % 19, b = Math.floor(year / 100), c = year % 100;
-  const d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25);
-  const g = Math.floor((b - f + 1) / 3);
-  const h = (19 * a + b - d - g + 15) % 30;
-  const i = Math.floor(c / 4), k = c % 4;
-  const l = (32 + 2 * e + 2 * i - h - k) % 7;
-  const m = Math.floor((a + 11 * h + 22 * l) / 451);
-  const month = Math.floor((h + l - 7 * m + 114) / 31);
-  const day = ((h + l - 7 * m + 114) % 31) + 1;
-  return new Date(year, month - 1, day);
-}
-
-function zwHolidays(year: number): PublicHoliday[] {
-  const e = easterSunday(year);
-  const off = (d: Date, n: number) => { const r = new Date(d); r.setDate(r.getDate() + n); return r; };
-  const fmt = (d: Date) => d2s(d);
-  return [
-    { date: `${year}-01-01`, name: "New Year's Day" }, { date: fmt(off(e, -2)), name: 'Good Friday' },
-    { date: fmt(off(e, -1)), name: 'Easter Saturday' }, { date: fmt(off(e, 1)), name: 'Easter Monday' },
-    { date: `${year}-04-18`, name: 'Independence Day' }, { date: `${year}-05-01`, name: "Workers' Day" },
-    { date: `${year}-05-25`, name: 'Africa Day' }, { date: `${year}-08-11`, name: "Heroes' Day" },
-    { date: `${year}-08-12`, name: 'Defence Forces Day' }, { date: `${year}-12-22`, name: 'National Unity Day' },
-    { date: `${year}-12-25`, name: 'Christmas Day' }, { date: `${year}-12-26`, name: 'Boxing Day' },
-  ];
-}
-
-function buildHolidayMap(days: Date[]): Map<string, string> {
-  const map = new Map<string, string>();
-  const yrs = new Set(days.map(d => d.getFullYear()));
-  yrs.forEach(y => zwHolidays(y).forEach(h => map.set(h.date, h.name)));
-  return map;
-}
+// easterSunday/zwHolidays/buildHolidayMap, and the day-status/cycle-progress
+// calculations below, now live in ./calcShifts (imported above) — extracted per the
+// "extract + test business logic" standard, and the holiday calc now reuses the
+// already-tested lib/zimHolidays.ts instead of a second, buggier local copy (was
+// hardcoding Heroes'/Defence Forces Day as Aug 11/12 every year, wrong in most years,
+// and missing Feb 21 entirely — see calcShifts.ts's header comment).
 
 function getDayTiming(a: ShiftAssignment, ds: string) {
   const block = (a.shift_timing_periods || []).find(p => ds >= p.from && ds <= p.to);
@@ -149,55 +125,9 @@ function getDayCellInfo(a: ShiftAssignment, ds: string): { timing: typeof SHIFT_
   return { timing, hours, event: ev };
 }
 
-function stripTime(d: Date) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
-function d2s(d: Date): string { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
 const fmtDate = (s?: string): string => (s ? formatDate(s) : '');
 
 const WD = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
-
-function findEvent(a: ShiftAssignment, ds: string): ScheduleEvent | undefined {
-  return (a.day_overrides || []).find(e => {
-    const from = (e as ScheduleEvent).from || (e as unknown as { date?: string }).date || '';
-    const to = (e as ScheduleEvent).to || from;
-    return ds >= from && ds <= to;
-  }) as ScheduleEvent | undefined;
-}
-
-function computeDayStatus(a: ShiftAssignment, date: Date): DayStatus {
-  const ds = d2s(date);
-  const ev = findEvent(a, ds);
-  if (ev) {
-    if (ev.status) return ev.status;
-    const et = EVENT_TYPES[ev.type];
-    if (et?.defaultStatus) return et.defaultStatus;
-  }
-  if (a.shift_type === 'standby') return 'standby';
-  const { on_days: onD, off_days: offD } = a;
-  const cycleLen = onD + offD;
-  const diff = Math.round((stripTime(date).getTime() - stripTime(new Date(a.cycle_start_date)).getTime()) / 86400000);
-  const isOn = cycleLen <= 0 || (((diff % cycleLen) + cycleLen) % cycleLen) < onD;
-  const inStandbyPeriod = (a.standby_periods || []).some(p => ds >= p.from && ds <= p.to);
-  if (inStandbyPeriod) return isOn ? 'on+standby' : 'standby';
-  return isOn ? 'on' : 'off';
-}
-
-function todayStatus(a: ShiftAssignment): DayStatus { return computeDayStatus(a, new Date()); }
-
-function daysUntilNextOn(a: ShiftAssignment): number {
-  if (a.shift_type === 'standby') return 0;
-  const cycleLen = a.on_days + a.off_days;
-  if (cycleLen <= 0) return 100;
-  const diff = Math.round((stripTime(new Date()).getTime() - stripTime(new Date(a.cycle_start_date)).getTime()) / 86400000);
-  return Math.round(((((diff % cycleLen) + cycleLen) % cycleLen) / cycleLen) * 100);
-}
-
-function cycleProgress(a: ShiftAssignment): number {
-  if (a.shift_type === 'standby') return 0;
-  const cycleLen = a.on_days + a.off_days;
-  if (cycleLen <= 0) return 100;
-  const diff = Math.round((stripTime(new Date()).getTime() - stripTime(new Date(a.cycle_start_date)).getTime()) / 86400000);
-  return Math.round(((((diff % cycleLen) + cycleLen) % cycleLen) / cycleLen) * 100);
-}
 
 // ─── Small shared-shape components ────────────────────────────────────────────
 
