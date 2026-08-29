@@ -10,7 +10,7 @@ import {
   ClipboardPlus, Clock4, Calculator, HardHat, ClipboardList,
   FileWarning, AlertOctagon, ShieldAlert, Eye, Target, MessageSquareWarning,
   LineChart, BarChart3, Megaphone, Home,
-  Utensils, Church, Database, ToolCase, PackageMinus, Car, Wrench, Gauge,
+  Database, ToolCase, PackageMinus, Car, Wrench, Gauge,
   HeartHandshake, Settings, Activity, Droplets, Building2, FlaskConical,
   TrendingUp, Layers, Award, Zap, BookOpen, LayoutDashboard,
 } from '@/components/shared/theme';
@@ -294,9 +294,6 @@ const NAV_GROUPS = [
   {
     label: 'More',
     items: [
-      { icon: Home,     title: 'Room Rental', href: '/roomRental',  desc: 'Property management' },
-      { icon: Utensils, title: 'Restaurant',  href: '/restaurant',  desc: 'F&B management' },
-      { icon: Church,   title: 'Church',      href: '/church',      desc: 'Community platform' },
       { icon: Database, title: 'Stores',      href: '/stores',      desc: 'Inventory system' },
       { icon: Car,      title: 'RoadReady',   href: '/drivingSchool', desc: 'Driving school booking' },
     ],
