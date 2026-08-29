@@ -8,15 +8,14 @@ import {
   Users, ToolCase, Package, CalendarDays, Fan,
   HardHat, Wrench, LineChart, Clock4, Megaphone,
   Building, ShieldAlert, FileWarning, PackageOpen,
-  Target, MessageSquareWarning, Upload, Boxes, PackageMinus,
+  Target, MessageSquareWarning, Upload, PackageMinus,
   Activity, RefreshCcw, FileCheck2, Factory, TrendingUp,
   CalendarClock, HeartHandshake, GraduationCap, FileBarChart,
-  Printer, FileUser,
   Shield, Clock, Calculator, ClipboardCheck, AlertTriangle,
-  Eye, Folder, Database, AlertOctagon,
+  Eye, Folder, AlertOctagon,
   ClipboardList, ClipboardPlus, Plus, User, Gauge,
   Sun, Receipt, Settings, Award, Truck, Radar,
-  Droplet, FileCheck, LayoutDashboard, Car,
+  Droplet, FileCheck, LayoutDashboard,
   ListTodo,
 } from '@/components/shared/theme';
 import type { Accent } from '@/components/shared/theme';
@@ -142,16 +141,6 @@ export const CATEGORIES: Category[] = [
       { icon: LayoutDashboard, title: 'Engineering Dashboard', description: 'Live engineering KPIs', href: '/engineering-dashboard', tags: ['Dashboard'] },
       { icon: FileBarChart,    title: 'Engineering Report',    description: 'Monthly engineering report', href: '/engineering_report', tags: ['Reports'] },
       { icon: Activity,        title: 'Usage Analyzer',        description: 'How the app is used — clicks, dwell, feedback', href: '/usage-analyzer', tags: ['Analytics'] },
-    ],
-  },
-  {
-    id: 'products', title: 'Other Products', description: 'Specialised industry platforms',
-    icon: Boxes, accent: 'violet', growth: '+15%',
-    modules: [
-      { icon: Database,  title: 'Stores',      description: 'Store inventory system', href: '/stores',     tags: ['Retail'], badge: '31' },
-      { icon: Printer,      title: 'Print Shop',  description: 'Invitations & resume design', href: '/designhome', tags: ['Design'] },
-      { icon: FileUser,     title: 'CV Builder',  description: 'Professional CV/resume builder', href: '/cv-builder', tags: ['Career'] },
-      { icon: Car,          title: 'RoadReady',   description: 'Driving school booking & scheduling', href: '/drivingSchool', tags: ['Education'] },
     ],
   },
 ];

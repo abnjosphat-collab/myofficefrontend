@@ -10,7 +10,7 @@ import {
   ClipboardPlus, Clock4, Calculator, HardHat, ClipboardList,
   FileWarning, AlertOctagon, ShieldAlert, Eye, Target, MessageSquareWarning,
   LineChart, BarChart3, Megaphone, Home,
-  Database, ToolCase, PackageMinus, Car, Wrench, Gauge,
+  ToolCase, PackageMinus, Car, Wrench, Gauge,
   HeartHandshake, Settings, Activity, Droplets, Building2, FlaskConical,
   TrendingUp, Layers, Award, Zap, BookOpen, LayoutDashboard,
 } from '@/components/shared/theme';
@@ -289,13 +289,6 @@ const NAV_GROUPS = [
       { icon: LineChart, title: 'Visualization', href: '/visualization', desc: 'Dashboards & charts' },
       { icon: BarChart3, title: 'Reports',       href: '/reports',       desc: 'Generate reports' },
       { icon: Megaphone, title: 'Notice Board',  href: '/noticeboard',   desc: 'Announcements' },
-    ],
-  },
-  {
-    label: 'More',
-    items: [
-      { icon: Database, title: 'Stores',      href: '/stores',      desc: 'Inventory system' },
-      { icon: Car,      title: 'RoadReady',   href: '/drivingSchool', desc: 'Driving school booking' },
     ],
   },
 ];
