@@ -10,7 +10,8 @@
  *  • Predefined hints that can be seeded per-instance
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useId } from 'react';
+import { createPortal } from 'react-dom';
 import { useTheme } from '@/components/shared/theme';
 
 const MAX_HISTORY = 40;
@@ -92,6 +93,30 @@ export function PredictiveInput({
   const [highlight, setHighlight] = useState(0);
   const wrapRef  = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement & HTMLTextAreaElement>(null);
+  // Portal + real ARIA roles (2026-08-29, UI foundation hardening plan Phase 3, item
+  // 4 — audit/07-ui-polish-findings.md flagged this component as a second, hand-rolled
+  // combobox-like dropdown, not portaled (clips inside an overflow-hidden ancestor,
+  // same bug class Combobox's own portal already fixes) and with no ARIA roles. Kept
+  // as its OWN component rather than merged into Combobox: this is genuinely
+  // different UX (ghost-text/Tab-to-accept, localStorage frequency-ranked history) —
+  // not a duplicate implementation of the same feature, so a forced merge would be a
+  // much larger, riskier rewrite for no real benefit. Position is measured off the
+  // wrapper (not just the input) to reproduce the exact placement the old `absolute
+  // top-full` on the wrapper had — including sitting below the error message when
+  // both are shown, not just below the input — rather than quietly changing it.
+  const [mounted, setMounted] = useState(false);
+  const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null);
+  const listboxId = useId();
+  const optionId = (i: number) => `${listboxId}-opt-${i}`;
+
+  useEffect(() => setMounted(true), []);
+
+  const reposition = useCallback(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    setPos({ top: r.bottom + 4, left: r.left, width: r.width });
+  }, []);
 
   // Load history on mount
   useEffect(() => {
@@ -124,6 +149,15 @@ export function PredictiveInput({
     document.addEventListener('mousedown', h);
     return () => document.removeEventListener('mousedown', h);
   }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    reposition();
+    const on = () => reposition();
+    window.addEventListener('scroll', on, true);
+    window.addEventListener('resize', on);
+    return () => { window.removeEventListener('scroll', on, true); window.removeEventListener('resize', on); };
+  }, [open, reposition]);
 
   function acceptGhost() {
     if (!ghost) return false;
@@ -161,7 +195,13 @@ export function PredictiveInput({
       commit(chosen);
       setOpen(false);
     }
-    if (e.key === 'Escape') setOpen(false);
+    // Reached only when `open` is already true (the `!open` branch above returns
+    // unconditionally). stopPropagation here is for plain React-tree nesting; the
+    // CenterModal case is actually handled by CenterModal's own onEscapeKeyDown
+    // (design-system/primitives.tsx), which checks aria-expanded on the event
+    // target — Radix's Escape handling runs outside React's synthetic bubble
+    // chain, so stopPropagation alone does not stop it (confirmed empirically).
+    if (e.key === 'Escape') { e.stopPropagation(); setOpen(false); }
   }
 
   function handleChange(v: string) {
@@ -180,6 +220,7 @@ export function PredictiveInput({
 
   const list = suggestions();
   const t = useTheme();
+  const showPanel = open && list.length > 0 && !disabled;
 
   const BASE_CLS = `w-full px-3 rounded-lg outline-none transition-all resize-none text-sm ${
     error ? (t.light ? 'border border-red-400' : 'border border-red-400/50') : ''
@@ -213,6 +254,11 @@ export function PredictiveInput({
           disabled={disabled}
           placeholder={placeholder}
           rows={rows}
+          role="combobox"
+          aria-expanded={showPanel}
+          aria-controls={listboxId}
+          aria-autocomplete="list"
+          aria-activedescendant={showPanel && list[highlight] ? optionId(highlight) : undefined}
           className={BASE_CLS + ' py-2'}
           onChange={e => handleChange(e.target.value)}
           onFocus={() => setOpen(true)}
@@ -227,6 +273,11 @@ export function PredictiveInput({
           disabled={disabled}
           placeholder={placeholder}
           autoComplete="off"
+          role="combobox"
+          aria-expanded={showPanel}
+          aria-controls={listboxId}
+          aria-autocomplete="list"
+          aria-activedescendant={showPanel && list[highlight] ? optionId(highlight) : undefined}
           className={BASE_CLS + ' h-9'}
           onChange={e => handleChange(e.target.value)}
           onFocus={() => setOpen(true)}
@@ -237,9 +288,15 @@ export function PredictiveInput({
 
       {error && <p className="text-red-400 text-[11px] mt-0.5">{error}</p>}
 
-      {/* Dropdown */}
-      {open && list.length > 0 && !disabled && (
-        <div className={`absolute left-0 right-0 top-full mt-1 z-[180] rounded-xl overflow-hidden oz-slide-up ${t.glassPopover} ${t.shadow}`}>
+      {/* Dropdown — portaled (see the note above the position-tracking state) so it
+          can't be clipped by an overflow-hidden ancestor. */}
+      {mounted && showPanel && pos && createPortal(
+        <div
+          id={listboxId}
+          role="listbox"
+          style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, zIndex: 180 }}
+          className={`rounded-xl overflow-hidden oz-slide-up ${t.glassPopover} ${t.shadow}`}
+        >
           <div className="max-h-44 overflow-y-auto p-1">
             {list.map((s, i) => {
               // Highlight matching portion
@@ -250,6 +307,9 @@ export function PredictiveInput({
               return (
                 <button
                   key={s}
+                  id={optionId(i)}
+                  role="option"
+                  aria-selected={i === highlight}
                   type="button"
                   onMouseDown={e => { e.preventDefault(); onChange(s); commit(s); setOpen(false); }}
                   onMouseEnter={() => setHighlight(i)}
@@ -269,7 +329,8 @@ export function PredictiveInput({
               Tab to accept suggestion · ↑↓ navigate
             </div>
           )}
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

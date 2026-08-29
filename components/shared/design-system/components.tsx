@@ -789,7 +789,17 @@ export function SelectField({
         onClick={() => setOpen(o => !o)}
         onKeyDown={e => {
           if (disabled) return;
-          if (e.key === 'Escape') { setOpen(false); return; }
+          // stopPropagation while open, for plain React-tree nesting (a page-level
+          // keydown handler that isn't a Radix primitive). NOT sufficient on its own
+          // for the CenterModal case, though — Radix's Dialog listens for Escape via
+          // a document-level listener outside React's synthetic bubble chain, so it
+          // still closes the modal regardless of this (confirmed empirically). The
+          // actual fix for that nesting is CenterModal's own onEscapeKeyDown, which
+          // checks aria-expanded on the event target and cancels the modal's close
+          // for that one keypress when a field like this owns an open dropdown
+          // (design-system/primitives.tsx). Kept both: this component shouldn't
+          // assume every ancestor is a CenterModal.
+          if (e.key === 'Escape') { if (open) e.stopPropagation(); setOpen(false); return; }
           if (!open && (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); setOpen(true); return; }
           if (!open) return;
           if (e.key === 'ArrowDown') { e.preventDefault(); setActive(a => Math.min(a + 1, opts.length - 1)); }
@@ -892,6 +902,15 @@ export function Combobox({
   const [mounted, setMounted] = useState(false);
   const [pos, setPos] = useState<{ top: number; left: number; width: number; above: boolean } | null>(null);
   const { edge: scrollEdge, onScroll: onListScroll } = useScrollEdgeFlash();
+  // ARIA combobox pattern (2026-08-29, UI foundation hardening plan Phase 3, item 4
+  // — audit/07-ui-polish-findings.md flagged this component as having no ARIA roles
+  // at all). listboxId ties the input to its panel via aria-controls; each option
+  // gets a stable id off the same base so aria-activedescendant can reference the
+  // currently-highlighted one without moving DOM focus off the input (focus staying
+  // on the input, only the "active" descendant changing, is the standard combobox
+  // pattern — matches how this already behaves keyboard-wise, just unlabelled before).
+  const listboxId = useId();
+  const optionId = (i: number) => `${listboxId}-opt-${i}`;
 
   useEffect(() => setMounted(true), []);
 
@@ -929,12 +948,21 @@ export function Combobox({
         placeholder={placeholder}
         title={title}
         disabled={disabled}
+        role="combobox"
+        aria-expanded={showPanel}
+        aria-controls={listboxId}
+        aria-autocomplete="list"
+        aria-activedescendant={showPanel && options[active] ? optionId(active) : undefined}
         className={`w-full outline-none transition-all duration-300 hover:shadow-[0_8px_18px_-10px_rgba(37,99,235,0.45)] hover:-translate-y-px focus:shadow-[0_8px_18px_-10px_rgba(37,99,235,0.45)] focus:-translate-y-px disabled:hover:translate-y-0 disabled:hover:shadow-none ${sizeCls} ${t.inputBg} ${inputClassName}`}
         onChange={e => { onChange(e.target.value); setOpen(true); }}
         onFocus={() => { onFocusLoad?.(); setOpen(true); }}
         onBlur={() => { setTimeout(() => setOpen(false), 160); onBlurCommit?.(); }}
         onKeyDown={e => {
-          if (e.key === 'Escape') { setOpen(false); return; }
+          // Same stopPropagation-while-open reasoning as SelectField above — the
+          // CenterModal-nesting case is actually handled by CenterModal's own
+          // onEscapeKeyDown (checks aria-expanded on the event target), not by this;
+          // see the longer note on SelectField's Escape branch.
+          if (e.key === 'Escape') { if (showPanel) e.stopPropagation(); setOpen(false); return; }
           if (!showPanel || options.length === 0) return;
           if (e.key === 'ArrowDown') { e.preventDefault(); setActive(a => Math.min(a + 1, options.length - 1)); }
           else if (e.key === 'ArrowUp') { e.preventDefault(); setActive(a => Math.max(a - 1, 0)); }
@@ -944,6 +972,8 @@ export function Combobox({
       />
       {mounted && showPanel && pos && createPortal(
         <div
+          id={listboxId}
+          role="listbox"
           style={{
             position: 'fixed',
             top: pos.above ? undefined : pos.top + 4,
@@ -962,6 +992,9 @@ export function Combobox({
           {options.map((o, i) => (
             <button
               key={`${o.value}-${i}`}
+              id={optionId(i)}
+              role="option"
+              aria-selected={i === active}
               type="button"
               onMouseDown={e => { e.preventDefault(); commit(o); }}
               onMouseEnter={() => setActive(i)}

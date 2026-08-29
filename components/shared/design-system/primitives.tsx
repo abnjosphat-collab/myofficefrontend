@@ -302,7 +302,25 @@ export function CenterModal({
                   element Radix's Slot can compose onto (AnimatedText doesn't forward
                   refs/extra props), so aria-describedby is explicitly suppressed
                   rather than left to warn about a missing one. */}
-              <Dialog.Content asChild aria-describedby={undefined}>
+              <Dialog.Content
+                asChild
+                aria-describedby={undefined}
+                onEscapeKeyDown={e => {
+                  // Radix's Escape handling runs on a document-level listener
+                  // independent of React's synthetic event bubble chain — a
+                  // descendant field calling stopPropagation on its own onKeyDown
+                  // does NOT reach this (confirmed empirically: it did not stop the
+                  // modal closing before this fix). The correct interception point is
+                  // here. If Escape's target is a field that owns its own open
+                  // dropdown (SelectField/Combobox/PredictiveInput all set
+                  // aria-expanded="true" on themselves while open), let that field's
+                  // own handler close just its dropdown and cancel the modal's
+                  // default close-on-Escape for this one keypress; a second Escape
+                  // (now aria-expanded="false") closes the modal normally.
+                  const target = e.target as HTMLElement | null;
+                  if (target?.getAttribute('aria-expanded') === 'true') e.preventDefault();
+                }}
+              >
                 <motion.div
                   className={`relative w-full ${width} max-h-[85vh] ${t.glass} rounded-xl ${t.shadow} flex flex-col overflow-hidden focus:outline-none`}
                   style={{ boxShadow: `0 24px 60px -20px ${ACCENT_RGBA[accent]}, 0 8px 24px -10px rgba(0,0,0,0.3)` }}
