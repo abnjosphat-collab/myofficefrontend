@@ -93,6 +93,13 @@ describe('cycleProgress', () => {
     const a = assignment({ cycle_start_date: d2s(new Date()), on_days: 10, off_days: 4 });
     expect(cycleProgress(a)).toBe(0);
   });
+  it('never returns NaN for a legacy/malformed record missing on_days or off_days', () => {
+    // The type says these are always numbers, but real data has shown up without
+    // them (2026-08-29 UI audit, audit/07-ui-polish-findings.md) — literally
+    // rendered "NaN%" in the UI before cycleProgress guarded against it.
+    const a = assignment({ on_days: undefined as unknown as number, off_days: 4 });
+    expect(Number.isNaN(cycleProgress(a))).toBe(false);
+  });
 });
 
 describe('findEvent', () => {

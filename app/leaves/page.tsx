@@ -51,7 +51,12 @@ const LEAVE_TYPES: Record<string, LeaveType> = {
 };
 
 // ---------- Utility Functions ----------
-const formatDays = (days: number): string => days === 1 ? '1 day' : `${days} days`;
+// A null/undefined `days` (a leave record missing total_days — legacy data, or one
+// still being processed) used to interpolate straight into the string, literally
+// showing "undefined days" to the user (found live, 2026-08-29 UI audit,
+// audit/07-ui-polish-findings.md).
+const formatDays = (days: number | null | undefined): string =>
+  days == null ? '—' : days === 1 ? '1 day' : `${days} days`;
 
 // Standardized on the shared formatters (canonical "16 Jul 2026" / "…, 14:30").
 const fmtDate = (s?: string): string => (s ? formatDate(s) : '');

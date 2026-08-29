@@ -65,7 +65,11 @@ export function todayStatus(a: ShiftAssignment): DayStatus { return computeDaySt
 // matching what they're displaying, but there's only one calculation now.
 export function cycleProgress(a: ShiftAssignment): number {
   if (a.shift_type === 'standby') return 0;
-  const cycleLen = a.on_days + a.off_days;
+  const cycleLen = (a.on_days || 0) + (a.off_days || 0);
+  // A null/undefined on_days or off_days (legacy/malformed data) otherwise made
+  // cycleLen NaN — NaN <= 0 is always false, so this fell through the guard below
+  // and every arithmetic step after it stayed NaN, literally showing "NaN%" in the
+  // UI (found live, 2026-08-29 UI audit, audit/07-ui-polish-findings.md).
   if (cycleLen <= 0) return 100;
   const diff = Math.round((stripTime(new Date()).getTime() - stripTime(new Date(a.cycle_start_date)).getTime()) / 86400000);
   return Math.round(((((diff % cycleLen) + cycleLen) % cycleLen) / cycleLen) * 100);

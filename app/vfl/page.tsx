@@ -12,7 +12,7 @@ import { summarizeActions } from '@/lib/actionPlan';
 import { UnderlineTabs } from '@/components/shared/UnderlineTabs';
 import { toast } from "sonner";
 import {
-  useTheme, PageHero, StatTile, StatusBadge, SearchInput, FormField, FormActions,
+  useTheme, STATUS_TONE, PageHero, StatTile, StatusBadge, SearchInput, FormField, FormActions,
   useCollapseSection, CenterModal, PrimaryButton, EmptyState, ProgressBar, ACCENT_HEX, GlowCard, SelectField, accentText,
 } from '@/components/shared/theme';
 import { PredictiveInput } from '@/components/shared/PredictiveInput';
@@ -36,6 +36,13 @@ const SECTION_ICONS: Record<SectionType, ElementType> = { Mechanical: HardHat, E
 const BEHAVIOUR_HEX: Record<BehaviourCategory, string> = { 'Safe Behaviour': '#10b981', 'Unsafe Behaviour': '#ef4444' };
 const OBSERVATION_HEX: Record<ObservationType, string> = { 'Safe Behaviour': '#10b981', 'Safe Condition': '#34d399', 'At Risk Behaviour': '#f97316', 'At Risk Condition': '#ef4444' };
 const COACHING_DESC: Record<CoachingTechnique, string> = { SBR: 'Situation, Behaviour, Result', CC: 'Coaching Conversation' };
+// A missing/unrecognized coachingTechnique (legacy/malformed data) otherwise
+// rendered the literal text "undefined — undefined" (found live, 2026-08-29 UI
+// audit, audit/07-ui-polish-findings.md).
+function coachingLabel(technique: CoachingTechnique | null | undefined): string {
+  if (!technique) return 'Not specified';
+  return `${technique} — ${COACHING_DESC[technique] ?? 'Unknown technique'}`;
+}
 const STATUS_HEX: Record<VFLStatus, string> = { draft: '#94a3b8', submitted: '#3b82f6', reviewed: '#a78bfa', closed: '#10b981' };
 const ACTION_HEX: Record<ActionStatus, string> = { Pending: '#f59e0b', 'In Progress': '#3b82f6', Completed: '#10b981' };
 
@@ -84,8 +91,8 @@ function VFLCard({ report, index, onView, onEdit, onDelete }: { report: VFLRepor
   // found and fixed on overtime.tsx's TypeBadge (2026-08-29 UI audit,
   // audit/07-ui-polish-findings.md).
   const SectionIcon = SECTION_ICONS[report.sectionChoice] ?? HardHat;
-  const bColor = BEHAVIOUR_HEX[report.behaviourCategory];
-  const sColor = SECTION_HEX[report.sectionChoice];
+  const bColor = BEHAVIOUR_HEX[report.behaviourCategory] ?? STATUS_TONE.neutral;
+  const sColor = SECTION_HEX[report.sectionChoice] ?? STATUS_TONE.neutral;
   const progress = summarizeActions(report.actions);
 
   return (
@@ -116,8 +123,8 @@ function VFLCard({ report, index, onView, onEdit, onDelete }: { report: VFLRepor
         )}
 
         <div className={`flex justify-between items-center border-t ${t.border} pt-2.5`}>
-          <StatusBadge color="#a78bfa" label={`${report.coachingTechnique} — ${COACHING_DESC[report.coachingTechnique]}`} />
-          <StatusBadge color={STATUS_HEX[report.status]} label={report.status.charAt(0).toUpperCase() + report.status.slice(1)} />
+          <StatusBadge color="#a78bfa" label={coachingLabel(report.coachingTechnique)} />
+          <StatusBadge color={STATUS_HEX[report.status] ?? STATUS_TONE.neutral} label={report.status.charAt(0).toUpperCase() + report.status.slice(1)} />
         </div>
 
         <div onClick={e => e.stopPropagation()} className="flex justify-end gap-1.5 mt-2.5">
@@ -141,9 +148,9 @@ function VFLDetailModal({ report, open, onClose, onEdit, onDelete, onStatusChang
   // found and fixed on overtime.tsx's TypeBadge (2026-08-29 UI audit,
   // audit/07-ui-polish-findings.md).
   const SectionIcon = SECTION_ICONS[report.sectionChoice] ?? HardHat;
-  const bColor = BEHAVIOUR_HEX[report.behaviourCategory];
-  const sColor = SECTION_HEX[report.sectionChoice];
-  const oColor = OBSERVATION_HEX[report.observationType];
+  const bColor = BEHAVIOUR_HEX[report.behaviourCategory] ?? STATUS_TONE.neutral;
+  const sColor = SECTION_HEX[report.sectionChoice] ?? STATUS_TONE.neutral;
+  const oColor = OBSERVATION_HEX[report.observationType] ?? STATUS_TONE.neutral;
   const progress = summarizeActions(report.actions);
   const infoBox = `${t.chipBg} rounded-lg px-3 py-2`;
 
@@ -180,7 +187,7 @@ function VFLDetailModal({ report, open, onClose, onEdit, onDelete, onStatusChang
 
         <div className={`${t.chipBg} rounded-xl px-3.5 py-3.5`}>
           <div className={`font-bold text-xs uppercase tracking-wide mb-2.5 ${t.textFaint}`}>Observation Details</div>
-          <div className="flex gap-2 mb-2.5 flex-wrap"><StatusBadge color={oColor} label={report.observationType} /><StatusBadge color="#a78bfa" label={`${report.coachingTechnique} — ${COACHING_DESC[report.coachingTechnique]}`} /></div>
+          <div className="flex gap-2 mb-2.5 flex-wrap"><StatusBadge color={oColor} label={report.observationType} /><StatusBadge color="#a78bfa" label={coachingLabel(report.coachingTechnique)} /></div>
           <div className={`text-sm leading-relaxed whitespace-pre-wrap ${t.textMuted}`}>{report.description}</div>
         </div>
 
@@ -189,7 +196,7 @@ function VFLDetailModal({ report, open, onClose, onEdit, onDelete, onStatusChang
             <div className={`font-bold text-xs uppercase tracking-wide mb-2.5 ${t.textFaint}`}>Action Plan ({report.actions.length})</div>
             <div className="flex flex-col gap-2">
               {report.actions.map((action, idx) => {
-                const ac = ACTION_HEX[action.status];
+                const ac = ACTION_HEX[action.status] ?? STATUS_TONE.neutral;
                 return (
                   <div key={action.id} className={`${t.chipBg} rounded-lg px-3 py-2.5`} style={{ borderLeft: `3px solid ${ac}` }}>
                     <div className="flex justify-between mb-1.5"><span className={`text-[11px] ${t.textFaint}`}>Action #{idx + 1}</span><StatusBadge color={ac} label={action.status} /></div>
@@ -493,7 +500,7 @@ function VFLObservationContent() {
                       <td className={tdCls(t)}>{r.sectionChoice}</td>
                       <td className="px-3 py-2.5"><StatusBadge color={BEHAVIOUR_HEX[r.behaviourCategory] || ACCENT_HEX.blue} label={r.behaviourCategory} /></td>
                       <td className={`px-3 py-2.5 text-xs ${t.textFaint}`}>{r.coachingTechnique}</td>
-                      <td className="px-3 py-2.5"><StatusBadge color={STATUS_HEX[r.status]} label={r.status.charAt(0).toUpperCase() + r.status.slice(1)} /></td>
+                      <td className="px-3 py-2.5"><StatusBadge color={STATUS_HEX[r.status] ?? STATUS_TONE.neutral} label={r.status.charAt(0).toUpperCase() + r.status.slice(1)} /></td>
                       <td className="px-3 py-2.5" onClick={e => e.stopPropagation()}>
                         <div className="flex gap-1 justify-end">
                           <button type="button" title="Edit" onClick={() => handleEdit(r)} className={`p-1.5 rounded ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-colors`}><PenTool className="h-3 w-3" /></button>

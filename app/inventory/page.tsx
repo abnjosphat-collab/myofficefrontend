@@ -270,7 +270,7 @@ function InventoryPageContent() {
             )}
             <Link
               href="/inventory/create"
-              className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-emerald-500 to-emerald-700 transition-all hover:brightness-110`}
+              className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 transition-all hover:brightness-110`}
             >
               <Plus className="h-3.5 w-3.5" /> New Item
             </Link>
@@ -376,7 +376,7 @@ function InventoryPageContent() {
               : 'Try adjusting your search or filters.'}
           </p>
           {inventory.length === 0 && (
-            <Link href="/inventory/create" className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-emerald-500 to-emerald-700 hover:brightness-110 transition-all">
+            <Link href="/inventory/create" className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all">
               <Plus className="h-3.5 w-3.5" /> Add First Item
             </Link>
           )}

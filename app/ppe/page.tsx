@@ -10,7 +10,6 @@ import {
   Users, UserRound,
   Award, ChevronRight,
   Shirt, ChevronsUp, ChevronsDown, X,
-  Sun, Moon,
   BoxingGlove, Goggles, Boot, Seatbelt, FaceMask, Hoodie, ShirtFolded, Pants, Belt, Umbrella,
 } from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
@@ -1138,11 +1137,6 @@ export default function PPEManagement() {
                 className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.glassSoft} ${t.hoverBg} ${t.textMuted} transition-all`}>
                 {sections.allOpen ? <ChevronsUp className="h-3.5 w-3.5" /> : <ChevronsDown className="h-3.5 w-3.5" />}
               </button>
-              <button type="button" onClick={t.toggle}
-                title={t.light ? 'Switch to dark mode' : 'Switch to light mode'}
-                className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.glassSoft} ${t.hoverBg} ${t.textMuted} transition-all`}>
-                {t.light ? <Moon className="h-3.5 w-3.5" /> : <Sun className="h-3.5 w-3.5" />}
-              </button>
               <button type="button" title={sections.expanded.heroStats ? 'Hide stats' : 'Show stats'} onClick={() => sections.toggle('heroStats')}
                 className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.glassSoft} ${t.hoverBg} ${t.textMuted} transition-all`}>
                 {sections.expanded.heroStats ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
@@ -1187,8 +1181,12 @@ export default function PPEManagement() {
                 </div>
               )}
 
+              {/* Primary "create" CTA uses ACCENT.violet, matching every other page's
+                  equivalent button (New Breakdown, Add Employee, New Work Order, ...) —
+                  this one was the one outlier still on ACCENT.blue (2026-08-29 UI audit,
+                  audit/07-ui-polish-findings.md). */}
               <motion.button type="button" onClick={() => openIssueForm()} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-                className={`h-8 px-3 flex items-center gap-1.5 text-xs rounded-lg font-semibold text-white transition-all bg-gradient-to-br ${ACCENT.blue.gradient} ${ACCENT.blue.solidGlow} ${ACCENT.blue.glow}`}>
+                className={`h-8 px-3 flex items-center gap-1.5 text-xs rounded-lg font-semibold text-white transition-all bg-gradient-to-br ${ACCENT.violet.gradient} ${ACCENT.violet.solidGlow} ${ACCENT.violet.glow}`}>
                 <Plus className="h-3.5 w-3.5" /> Issue PPE
               </motion.button>
             </div>

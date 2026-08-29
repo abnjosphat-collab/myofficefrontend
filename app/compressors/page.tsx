@@ -381,7 +381,10 @@ function CompressorReadingsSystem() {
           <div className="flex flex-wrap gap-1">
             <StatTile icon={Gauge} color={ACCENT_HEX.blue} value={stats.total_compressors} label="Total Units" />
             <StatTile icon={Activity} color="#34d399" value={`${stats.total_running_hours?.toFixed(1) ?? 0}h`} label="Running Hours" />
-            <StatTile icon={TrendingUp} color={ACCENT_HEX.violet} value={`${stats.avg_efficiency}%`} label="Avg Efficiency" />
+            {/* ?? 0 guard, matching the Running Hours tile right above — without it,
+                a missing avg_efficiency literally rendered the text "undefined%"
+                (found live, 2026-08-29 UI audit, audit/07-ui-polish-findings.md). */}
+            <StatTile icon={TrendingUp} color={ACCENT_HEX.violet} value={`${stats.avg_efficiency ?? 0}%`} label="Avg Efficiency" />
             <StatTile icon={Wrench} color="#f59e0b" value={stats.upcoming_services} label="Upcoming Services" />
             <StatTile icon={AlertTriangle} color="#f43f5e" value={stats.urgent_alerts} label="Urgent Alerts" />
             <StatTile icon={CheckCircle2} color="#14b8a6" value={stats.active_compressors} label="Active" />
