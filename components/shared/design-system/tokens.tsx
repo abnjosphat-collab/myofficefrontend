@@ -70,10 +70,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   // Starts light on the server and on the first client render so hydration matches
   // the prerendered HTML; the inline script in app/layout.tsx has already set the
   // real theme on <html> before paint, so there's no flash — this effect just
-  // brings React's state into line with it.
+  // brings React's state into line with it. Same fallback as that script: an
+  // explicit stored choice always wins, otherwise defer to the OS's
+  // prefers-color-scheme rather than hardcoding light for a first-ever visit.
   const [light, setLight] = useState(true);
   useEffect(() => {
-    if (localStorage.getItem(THEME_KEY) === 'dark') setLight(false);
+    const stored = localStorage.getItem(THEME_KEY);
+    const dark = stored ? stored === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+    if (dark) setLight(false);
   }, []);
 
   const value = useMemo(() => ({

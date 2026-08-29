@@ -54,10 +54,14 @@ export default function RootLayout({
         {/* Applies the saved theme to <html> before first paint. Without this, every
             load renders light and only flips once ThemeProvider's effect runs — a
             white flash on each navigation for anyone using dark mode. Kept in sync
-            with THEME_KEY / the .dark class in design-system/tokens.tsx. */}
+            with THEME_KEY / the .dark class in design-system/tokens.tsx.
+            A first-ever visit (no stored preference yet) falls back to the OS's
+            prefers-color-scheme instead of hardcoding light — once the user picks
+            explicitly (via the in-app toggle), that stored choice always wins over
+            the OS setting from then on. */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var d=localStorage.getItem('myoffice_theme')==='dark';document.documentElement.classList.toggle('dark',d);document.documentElement.dataset.theme=d?'dark':'light';var s={small:0.925,'default':1,large:1.075,xlarge:1.15}[localStorage.getItem('oz_fontScale')];if(s){document.documentElement.style.zoom=String(s);}}catch(e){}})();`,
+            __html: `(function(){try{var v=localStorage.getItem('myoffice_theme');var d=v?v==='dark':window.matchMedia('(prefers-color-scheme: dark)').matches;document.documentElement.classList.toggle('dark',d);document.documentElement.dataset.theme=d?'dark':'light';var s={small:0.925,'default':1,large:1.075,xlarge:1.15}[localStorage.getItem('oz_fontScale')];if(s){document.documentElement.style.zoom=String(s);}}catch(e){}})();`,
           }}
         />
       </head>
