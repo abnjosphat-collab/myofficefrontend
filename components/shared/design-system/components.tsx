@@ -15,6 +15,7 @@ import { motion } from 'framer-motion';
 // as the rest of the app.
 import { ChevronRight, ChevronDown, Loader2, Check, SearchIcon, Pencil, Trash2, ArrowUpRight, ArrowDownRight, Info } from './icons';
 import { useTheme, ACCENT, ACCENT_HEX, ACCENT_TEXT, accentText, SPACING, RADIUS, TILE_SURFACE, TILE_ASPECT, TYPE_SCALE, type Accent } from './tokens';
+import { blendRgb, hexToRgbTuple, rgbString, rgbaString, isValidHex, DEFAULT_BG_ACCENT } from './color';
 import { getInputSuggestions, recordInput } from '@/lib/inputHistory';
 import { getDefaultExpanded } from '@/lib/prefs';
 import { GlowCard, PulsingIcon, AnimatedText, Collapse, CountUp, useScrollEdgeFlash, ScrollEdgeGlow } from './primitives';
@@ -66,13 +67,27 @@ export function LoadingState({ label = 'Loading…', className = '' }: { label?:
 }
 
 // ─── StatusBadge — generalizes PPE's ConditionBadge/PPEStatusBadge ──────────────
+// Used across ~46 files, each passing its own arbitrary hex (dozens of independent
+// per-page color maps — PRIORITY_COLOR, STATUS_COLORS, CLASS_COLORS, etc. — is a
+// separate, larger consolidation flagged in the 2026-08-29 UI audit, not fixed here).
+// What IS fixed here: this component used to render every badge at the same fixed
+// opacity regardless of theme — a raw saturated hex glows much harder against the
+// app's near-black dark-mode glass than the identical value does on white, which is
+// a real, confirmed contributor to dark mode reading as "color chaos" when several
+// badges (each an independently-chosen hue) sit in one card. Softens the same way
+// accentText() does for plain text/icons, just via RGB blending since this component
+// takes an arbitrary hex, not one of the app's named accent tokens.
 export function StatusBadge({ color, label, dot = false }: { color: string; label: string; dot?: boolean }) {
+  const t = useTheme();
+  const rgb = hexToRgbTuple(isValidHex(color) ? color : DEFAULT_BG_ACCENT);
+  const textRgb = t.light ? blendRgb(rgb, 'black', 0.12) : blendRgb(rgb, 'white', 0.18);
+  const textColor = rgbString(textRgb);
   return (
     <span
-      className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full"
-      style={{ color, background: `${color}22`, border: `1px solid ${color}40` }}
+      className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full"
+      style={{ color: textColor, background: rgbaString(rgb, t.light ? 0.10 : 0.14), border: `1px solid ${rgbaString(rgb, t.light ? 0.22 : 0.30)}` }}
     >
-      {dot && <span className="h-1.5 w-1.5 rounded-full" style={{ background: color }} />}
+      {dot && <span className="h-1.5 w-1.5 rounded-full" style={{ background: textColor }} />}
       {label}
     </span>
   );
