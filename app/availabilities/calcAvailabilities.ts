@@ -30,7 +30,7 @@ export function computePeriodRows(records: AvailRecord[], period: Period): Perio
       : period === 'week' ? getWeekLabel(r.date)
       : getMonthLabel(r.date);
     const ex = grouped.get(key) ?? { sum: 0, count: 0, opH: 0, bdH: 0 };
-    grouped.set(key, { sum: ex.sum + r.availability_percentage, count: ex.count + 1, opH: ex.opH + r.operational_hours, bdH: ex.bdH + r.breakdown_hours });
+    grouped.set(key, { sum: ex.sum + (r.availability_percentage ?? 0), count: ex.count + 1, opH: ex.opH + (r.operational_hours ?? 0), bdH: ex.bdH + (r.breakdown_hours ?? 0) });
   });
   return Array.from(grouped.entries())
     .map(([k, v]) => ({ periodKey: k, label: k, avgAvailability: v.sum / v.count, totalOpHours: v.opH, totalBdHours: v.bdH, recordCount: v.count }))

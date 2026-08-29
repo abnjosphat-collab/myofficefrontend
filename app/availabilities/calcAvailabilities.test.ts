@@ -56,6 +56,22 @@ describe('computePeriodRows', () => {
   it('is empty for no records', () => {
     expect(computePeriodRows([], 'day')).toEqual([]);
   });
+
+  it('treats a record missing a numeric field as 0 rather than propagating NaN', () => {
+    // A legacy/malformed record missing availability_percentage/operational_hours/
+    // breakdown_hours otherwise poisoned the whole bucket's sum with NaN, which
+    // crashed the availabilities page's .toFixed() calls downstream (found live,
+    // 2026-08-29 UI audit, audit/07-ui-polish-findings.md).
+    const rows = computePeriodRows([
+      record({ date: '2026-08-10', availability_percentage: 80, operational_hours: 24, breakdown_hours: 4 }),
+      { id: 2, equipment_id: 'EQ-2', date: '2026-08-10' } as unknown as AvailRecord,
+    ], 'day');
+    expect(rows).toHaveLength(1);
+    expect(rows[0].avgAvailability).toBe(40);
+    expect(rows[0].totalOpHours).toBe(24);
+    expect(rows[0].totalBdHours).toBe(4);
+    expect(Number.isNaN(rows[0].avgAvailability)).toBe(false);
+  });
 });
 
 describe('findBestWorstPeriod', () => {

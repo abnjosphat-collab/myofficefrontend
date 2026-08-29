@@ -137,9 +137,14 @@ function AvailabilitiesContent() {
           name: r.equipment_name ?? eq?.name ?? `Equipment #${key}`,
           category: eq?.category ?? '—',
           department: eq?.department ?? '—',
-          pct: r.availability_percentage,
-          opH: r.operational_hours,
-          bdH: r.breakdown_hours,
+          // Guarded at the source: a record missing one of these numeric
+          // fields (legacy/malformed data) otherwise propagated an
+          // undefined through every downstream .toFixed()/reduce() call
+          // that reads eqSummary — crashed on r.pct.toFixed() (found live,
+          // 2026-08-29 UI audit, audit/07-ui-polish-findings.md).
+          pct: r.availability_percentage ?? 0,
+          opH: r.operational_hours ?? 0,
+          bdH: r.breakdown_hours ?? 0,
           lastDate: r.date,
         });
       }
@@ -151,7 +156,7 @@ function AvailabilitiesContent() {
 
   const fleet = useMemo(() => ({
     avgAv: eqSummary.length > 0 ? eqSummary.reduce((s, e) => s + e.pct, 0) / eqSummary.length : 0,
-    totalBd: filtered.reduce((s, r) => s + r.breakdown_hours, 0),
+    totalBd: filtered.reduce((s, r) => s + (r.breakdown_hours ?? 0), 0),
     below90: eqSummary.filter(e => e.pct < 90).length,
     count: filtered.length,
   }), [eqSummary, filtered]);
@@ -458,8 +463,8 @@ function AvailabilitiesContent() {
             <div className="p-5 space-y-3 text-sm">
               {periodRows.length > 0 ? (() => {
                 const { best, worst, bestLabel, worstLabel } = findBestWorstPeriod(periodRows);
-                const totalBd = filtered.reduce((s, r) => s + r.breakdown_hours, 0);
-                const totalOp = filtered.reduce((s, r) => s + r.operational_hours, 0);
+                const totalBd = filtered.reduce((s, r) => s + (r.breakdown_hours ?? 0), 0);
+                const totalOp = filtered.reduce((s, r) => s + (r.operational_hours ?? 0), 0);
                 return (
                   <>
                     <div className={`flex justify-between ${t.textMuted}`}><span>Best {period}</span><span className={`font-bold ${avColor(best)}`}>{best.toFixed(1)}%<span className={`font-normal ml-1 text-xs ${t.textFaint}`}>({bestLabel})</span></span></div>
@@ -501,18 +506,21 @@ function AvailabilitiesContent() {
                 <tbody>
                   {filtered.map(r => {
                     const name = r.equipment_name ?? eqMap.get(String(r.equipment_id))?.name ?? `#${r.equipment_id}`;
+                    const avPct = r.availability_percentage ?? 0;
+                    const opHours = r.operational_hours ?? 0;
+                    const bdHours = r.breakdown_hours ?? 0;
                     return (
                       <tr key={r.id} className={`border-b ${t.border} ${t.hoverBgSoft} transition-colors`}>
                         <td className="px-3 py-2.5 text-xs font-mono text-white/80">{r.date}</td>
                         <td className={tdCls}><span className={`font-medium ${t.textPrimary}`}>{name}</span></td>
                         <td className={`${tdCls} text-right`}>
                           <div className="flex items-center gap-2 justify-end">
-                            <span className={`font-bold text-xs ${avColor(r.availability_percentage)}`}>{r.availability_percentage.toFixed(1)}%</span>
-                            <div className="w-16"><ProgressBar value={r.availability_percentage} color={avHex(r.availability_percentage)} showValue={false} /></div>
+                            <span className={`font-bold text-xs ${avColor(avPct)}`}>{avPct.toFixed(1)}%</span>
+                            <div className="w-16"><ProgressBar value={avPct} color={avHex(avPct)} showValue={false} /></div>
                           </div>
                         </td>
-                        <td className={`${tdCls} text-right`}>{r.operational_hours}h</td>
-                        <td className={`${tdCls} text-right text-red-400`}>{r.breakdown_hours}h</td>
+                        <td className={`${tdCls} text-right`}>{opHours}h</td>
+                        <td className={`${tdCls} text-right text-red-400`}>{bdHours}h</td>
                         <td className={tdCls}>{r.source === 'breakdown' ? <StatusBadge color="#94a3b8" label="Auto" /> : <span className="text-xs text-white/50">{r.notes || '—'}</span>}</td>
                         <td className={tdCls}>
                           {r.source !== 'breakdown' && (
