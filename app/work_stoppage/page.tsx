@@ -294,7 +294,11 @@ function ReportCard({ report, expanded, onToggle, onView, onEdit, onDelete }: {
   report: WorkStoppageReport; expanded: boolean; onToggle: () => void; onView: () => void; onEdit: () => void; onDelete: () => void;
 }) {
   const t = useTheme();
-  const SIcon = SECTION_ICON[report.section];
+  // ?? fallback: an unrecognized section value (legacy/malformed data) otherwise
+  // makes SIcon undefined and crashes the page — same bug class found and fixed
+  // on overtime.tsx's TypeBadge (2026-08-29 UI audit,
+  // audit/07-ui-polish-findings.md).
+  const SIcon = SECTION_ICON[report.section] ?? Wrench;
   const sColor = SECTION_HEX[report.section];
   const actions = report.correctiveActions || [];
   const progress = summarizeActions(actions);

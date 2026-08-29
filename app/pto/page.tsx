@@ -124,7 +124,11 @@ function ActionPlanCard({ item, index, onChange, onRemove }: { item: ActionPlanI
 interface PTOCardProps { report: PTOReport; index: number; onView: (r: PTOReport) => void; onEdit: (r: PTOReport) => void; onDelete: (id: string) => void; }
 function PTOCard({ report, index, onView, onEdit, onDelete }: PTOCardProps) {
   const t = useTheme();
-  const SectionIcon = SECTION_ICONS[report.section];
+  // ?? fallback: an unrecognized section value (legacy/malformed data) otherwise
+  // makes SectionIcon undefined and crashes the page — same bug class found and
+  // fixed on overtime.tsx's TypeBadge (2026-08-29 UI audit,
+  // audit/07-ui-polish-findings.md).
+  const SectionIcon = SECTION_ICONS[report.section] ?? Wrench;
   const sColor = SECTION_COLORS[report.section];
   const progress = summarizeActions(report.actionPlan);
   const hasRisk = report.riskAssessment.made === 'No' || report.riskAssessment.identified === 'No' || report.riskAssessment.effective === 'No';
@@ -188,7 +192,11 @@ function PTOCard({ report, index, onView, onEdit, onDelete }: PTOCardProps) {
 function PTODetailModal({ report, open, onClose, onEdit, onDelete, onStatusChange }: { report: PTOReport | null; open: boolean; onClose: () => void; onEdit: (r: PTOReport) => void; onDelete: (id: string) => void; onStatusChange: (id: string, s: ReportStatus) => void }) {
   const t = useTheme();
   if (!report) return null;
-  const SectionIcon = SECTION_ICONS[report.section];
+  // ?? fallback: an unrecognized section value (legacy/malformed data) otherwise
+  // makes SectionIcon undefined and crashes the page — same bug class found and
+  // fixed on overtime.tsx's TypeBadge (2026-08-29 UI audit,
+  // audit/07-ui-polish-findings.md).
+  const SectionIcon = SECTION_ICONS[report.section] ?? Wrench;
   const sColor = SECTION_COLORS[report.section];
   const progress = summarizeActions(report.actionPlan);
   const hasRisk = report.riskAssessment.made === 'No' || report.riskAssessment.identified === 'No' || report.riskAssessment.effective === 'No';

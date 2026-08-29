@@ -85,7 +85,11 @@ interface TableRowItemProps {
 const TableRowItem: React.FC<TableRowItemProps> = ({ report, onView, onEdit, onDelete, onStatusChange }) => {
   const t = useTheme();
   const [menuOpen, setMenuOpen] = useState(false);
-  const SectionIcon = SECTION_ICONS[report.sectionChoice];
+  // ?? fallback: an unrecognized sectionChoice value (legacy/malformed data)
+  // otherwise makes SectionIcon undefined and crashes the page — same bug class
+  // found and fixed on overtime.tsx's TypeBadge (2026-08-29 UI audit,
+  // audit/07-ui-polish-findings.md).
+  const SectionIcon = SECTION_ICONS[report.sectionChoice] ?? Wrench;
 
   return (
     <tr className={`border-b ${t.border} ${t.hoverBg} transition-colors`}>
@@ -131,7 +135,11 @@ interface PacheduCardProps {
 const PacheduCard: React.FC<PacheduCardProps> = ({ report, index, onView, onEdit, onDelete, onStatusChange }) => {
   const t = useTheme();
   const [menuOpen, setMenuOpen] = useState(false);
-  const SectionIcon = SECTION_ICONS[report.sectionChoice];
+  // ?? fallback: an unrecognized sectionChoice value (legacy/malformed data)
+  // otherwise makes SectionIcon undefined and crashes the page — same bug class
+  // found and fixed on overtime.tsx's TypeBadge (2026-08-29 UI audit,
+  // audit/07-ui-polish-findings.md).
+  const SectionIcon = SECTION_ICONS[report.sectionChoice] ?? Wrench;
   const behaviourMeta = BEHAVIOUR_META[report.behaviourType];
   const BehaviourIcon = behaviourMeta.icon;
   const hasRisks = report.impacts?.includes("Serious injury") || report.impacts?.includes("Fatality") || report.impacts?.includes("Environmental Impact");
@@ -228,7 +236,11 @@ const PacheduDetailModal: React.FC<PacheduDetailModalProps> = ({ report, open, o
   const [statusMenuOpen, setStatusMenuOpen] = useState(false);
   if (!report) return null;
 
-  const SectionIcon = SECTION_ICONS[report.sectionChoice];
+  // ?? fallback: an unrecognized sectionChoice value (legacy/malformed data)
+  // otherwise makes SectionIcon undefined and crashes the page — same bug class
+  // found and fixed on overtime.tsx's TypeBadge (2026-08-29 UI audit,
+  // audit/07-ui-polish-findings.md).
+  const SectionIcon = SECTION_ICONS[report.sectionChoice] ?? Wrench;
   const behaviourMeta = BEHAVIOUR_META[report.behaviourType];
   const BehaviourIcon = behaviourMeta.icon;
 

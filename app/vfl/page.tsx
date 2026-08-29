@@ -79,7 +79,11 @@ function ActionItemCard({ item, index, onChange, onRemove }: { item: ActionItem;
 // =============== VFL CARD (Grid) ===============
 function VFLCard({ report, index, onView, onEdit, onDelete }: { report: VFLReport; index: number; onView: (r: VFLReport) => void; onEdit: (r: VFLReport) => void; onDelete: (id: string) => void; }) {
   const t = useTheme();
-  const SectionIcon = SECTION_ICONS[report.sectionChoice];
+  // ?? fallback: an unrecognized sectionChoice value (legacy/malformed data)
+  // otherwise makes SectionIcon undefined and crashes the page — same bug class
+  // found and fixed on overtime.tsx's TypeBadge (2026-08-29 UI audit,
+  // audit/07-ui-polish-findings.md).
+  const SectionIcon = SECTION_ICONS[report.sectionChoice] ?? HardHat;
   const bColor = BEHAVIOUR_HEX[report.behaviourCategory];
   const sColor = SECTION_HEX[report.sectionChoice];
   const progress = summarizeActions(report.actions);
@@ -132,7 +136,11 @@ function VFLDetailModal({ report, open, onClose, onEdit, onDelete, onStatusChang
 }) {
   const t = useTheme();
   if (!report) return null;
-  const SectionIcon = SECTION_ICONS[report.sectionChoice];
+  // ?? fallback: an unrecognized sectionChoice value (legacy/malformed data)
+  // otherwise makes SectionIcon undefined and crashes the page — same bug class
+  // found and fixed on overtime.tsx's TypeBadge (2026-08-29 UI audit,
+  // audit/07-ui-polish-findings.md).
+  const SectionIcon = SECTION_ICONS[report.sectionChoice] ?? HardHat;
   const bColor = BEHAVIOUR_HEX[report.behaviourCategory];
   const sColor = SECTION_HEX[report.sectionChoice];
   const oColor = OBSERVATION_HEX[report.observationType];

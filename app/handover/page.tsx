@@ -136,7 +136,11 @@ function HandoverContent() {
         <div className={`p-4 border-b ${t.border}`}><h2 className={`font-semibold ${t.textPrimary}`}>Handover History</h2></div>
         <div className={`divide-y ${t.divide}`}>
           {records.map(h => {
-            const ShiftIcon = SHIFT_ICON[h.shift];
+            // ?? fallback: an unrecognized shift value (legacy/malformed data)
+            // otherwise makes ShiftIcon undefined and crashes the page — same bug
+            // class found and fixed on overtime.tsx's TypeBadge (2026-08-29 UI
+            // audit, audit/07-ui-polish-findings.md).
+            const ShiftIcon = SHIFT_ICON[h.shift] ?? Clock;
             return (
               <div key={h.id}>
                 <button type="button" onClick={() => toggle(h.id)} className={`w-full flex items-center justify-between px-5 py-4 ${t.hoverBg} transition-colors text-left`}>
