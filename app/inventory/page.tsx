@@ -11,7 +11,7 @@ import {
   DollarSign, FilterX, Grid, List, RefreshCw, Pencil, Trash2, Eye, Hash,
 } from "@/components/shared/theme";
 import {
-  useTheme, PageHero, StatTile, StatusBadge, ProgressBar,
+  useTheme, STATUS_TONE, PageHero, StatTile, StatusBadge, ProgressBar,
   SearchInput, ViewToggle, useCollapseSection, ACCENT_HEX,
   GroupSection, RecordCard, staggerContainer, fadeUp, InfoRow, SummaryItem, useConfirm,
 } from '@/components/shared/theme';
@@ -24,9 +24,9 @@ const CATEGORIES = ['Electronics', 'Mechanical', 'Consumables', 'Safety', 'Tools
 const SUPPLIERS = ['TechSupply Inc', 'Industrial Parts Co', 'SafetyFirst Ltd', 'Global Tools', 'Office Depot'];
 
 const STATUS_COLORS: Record<string, string> = {
-  'in-stock': '#34d399',
-  'low-stock': '#f59e0b',
-  'out-of-stock': '#f43f5e',
+  'in-stock': STATUS_TONE.good,
+  'low-stock': STATUS_TONE.warning,
+  'out-of-stock': STATUS_TONE.critical,
 };
 const STATUS_LABELS: Record<string, string> = {
   'in-stock': 'In Stock',

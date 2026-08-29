@@ -21,7 +21,7 @@ import { toast } from 'sonner';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
 import {
-  useTheme, Collapse, AnimatedText, PulsingIcon, CenterModal, GlowCard,
+  useTheme, STATUS_TONE, Collapse, AnimatedText, PulsingIcon, CenterModal, GlowCard,
   staggerContainer, fadeUp, ACCENT, ACCENT_HEX, type Accent,
   StatusBadge, RecordCard, StatTile, ProgressBar, FormField, FormActions,
   useCollapseSection, SelectField, AutofillInput, useConfirm, accentText,
@@ -58,9 +58,19 @@ const PPE_TYPES: Record<string, PPETypeInfo> = {
 // PPE_MATRIX_DEFAULTS now lives in ./usePPEData (imported above) — same data,
 // single source of truth for both the hook's initial state and this page's UI.
 
-const CONDITION_COLORS: Record<string, string> = { excellent: '#34d399', good: '#86BBD8', fair: '#f59e0b', poor: '#f97316', damaged: '#f43f5e' };
+// Partially harmonized onto STATUS_TONE (2026-08-29 palette consolidation) — the two
+// clean-fit endpoints (best/worst) are shared; 'good'/'poor' keep their own distinct
+// shades on purpose. This is a real 5-step severity scale (excellent > good > fair >
+// poor > damaged) and STATUS_TONE only has 5 tones total — collapsing 'good' into
+// STATUS_TONE.info or 'poor' into STATUS_TONE.critical would make two genuinely
+// different conditions render identically. '#86BBD8' is also the app's established
+// secondary-brand blue reused elsewhere (ApprovalGate's "sign" variant), not a
+// one-off pick worth losing.
+const CONDITION_COLORS: Record<string, string> = { excellent: STATUS_TONE.good, good: '#86BBD8', fair: STATUS_TONE.warning, poor: '#f97316', damaged: STATUS_TONE.critical };
 const CONDITION_LABELS: Record<string, string> = { excellent: 'Excellent', good: 'Good', fair: 'Fair', poor: 'Poor', damaged: 'Damaged' };
-const STATUS_COLORS_PPE: Record<string, string> = { active: '#34d399', expired: '#f43f5e', returned: '#94a3b8', lost: '#a78bfa', damaged: '#f97316', not_required: '#94a3b8' };
+// Same reasoning: 'lost' and 'damaged' are distinct alert states worth keeping
+// visually separate from plain 'expired', not collapsed onto STATUS_TONE.critical.
+const STATUS_COLORS_PPE: Record<string, string> = { active: STATUS_TONE.good, expired: STATUS_TONE.critical, returned: STATUS_TONE.neutral, lost: '#a78bfa', damaged: '#f97316', not_required: STATUS_TONE.neutral };
 const STATUS_LABELS: Record<string, string> = { active: 'Active', expired: 'Due', returned: 'Returned', lost: 'Lost', damaged: 'Damaged', not_required: 'Not required' };
 
 // ─── UTILITIES ────────────────────────────────────────────────────────────────

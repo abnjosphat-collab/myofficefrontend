@@ -13,7 +13,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
 import {
-  useTheme, AccentText, AccentIcon, PageHero, StatTile, GlowCard, ProgressBar, ACCENT_HEX,
+  useTheme, AccentText, AccentIcon, STATUS_TONE, PageHero, StatTile, GlowCard, ProgressBar, ACCENT_HEX,
   PrimaryButton, CenterModal, FormField, SelectField, SearchInput, StatusBadge, EmptyState, useConfirm,
 } from '@/components/shared/theme';
 import {
@@ -32,8 +32,11 @@ import { TASK_TYPES, PRIORITIES, type TaskEvent, type TaskEventFormData, type Ta
 const TYPE_COLOR: Record<string, string> = {
   Event: ACCENT_HEX.blue, Task: ACCENT_HEX.violet, Meeting: ACCENT_HEX.cyan, Deadline: ACCENT_HEX.amber,
 };
+// Harmonized onto STATUS_TONE (2026-08-29 palette consolidation) — was its own
+// cyan/amber/rose scale; Low now reads as neutral/muted rather than cyan, matching
+// the "low priority = neutral gray" convention every other page's priority scale uses.
 const PRIORITY_COLOR: Record<string, string> = {
-  Low: ACCENT_HEX.cyan, Medium: ACCENT_HEX.amber, High: '#f43f5e',
+  Low: STATUS_TONE.neutral, Medium: STATUS_TONE.warning, High: STATUS_TONE.critical,
 };
 
 const blankForm = (): TaskEventFormData => ({

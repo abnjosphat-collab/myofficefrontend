@@ -20,7 +20,7 @@ import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { formatDate } from '@/lib/format';
 import {
-  useTheme, PageHero, StatTile, StatusBadge as ThemeStatusBadge, SearchInput, ProgressBar, FormField,
+  useTheme, STATUS_TONE, PageHero, StatTile, StatusBadge as ThemeStatusBadge, SearchInput, ProgressBar, FormField,
   useCollapseSection, CenterModal, ACCENT_HEX, EmptyState, PrimaryButton, GlowCard, SelectField, accentText,
 } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
@@ -44,10 +44,14 @@ const SHIFT_PATTERNS: Record<ShiftType, { label: string; color: string; icon: El
   'custom': { label: 'Custom', color: '#9B87B5', icon: Layers, on: 0, off: 0 },
 };
 
+// Harmonized onto STATUS_TONE (2026-08-29 palette consolidation) except the compound
+// 'on+standby' state, which keeps its own established secondary-brand blue (#86BBD8,
+// also used by ppe's 'good' condition and ApprovalGate's "sign" variant) since it's
+// genuinely a distinct third state, not "on" or "standby" alone.
 const STATUS_COLORS: Record<DayStatus, { hex: string; label: string }> = {
-  on: { hex: '#34d399', label: 'On Duty' },
-  off: { hex: '#94a3b8', label: 'Off Duty' },
-  standby: { hex: '#fbbf24', label: 'Standby' },
+  on: { hex: STATUS_TONE.good, label: 'On Duty' },
+  off: { hex: STATUS_TONE.neutral, label: 'Off Duty' },
+  standby: { hex: STATUS_TONE.warning, label: 'Standby' },
   'on+standby': { hex: '#86BBD8', label: 'On + Standby' },
 };
 

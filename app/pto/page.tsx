@@ -13,7 +13,7 @@ import { PredictiveInput } from '@/components/shared/PredictiveInput';
 import { UnderlineTabs } from '@/components/shared/UnderlineTabs';
 import { toast } from "sonner";
 import {
-  useTheme, accentText, PageHero, StatTile, StatusBadge, SearchInput, ProgressBar, FormField, FormActions,
+  useTheme, accentText, STATUS_TONE, PageHero, StatTile, StatusBadge, SearchInput, ProgressBar, FormField, FormActions,
   useCollapseSection, CenterModal, ACCENT_HEX, EmptyState, PrimaryButton, GlowCard, SelectField,
 } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
@@ -29,11 +29,16 @@ const SECTIONS: SectionType[] = ['Mechanical', 'Electrical'];
 const SECTION_COLORS: Record<SectionType, string> = { Mechanical: '#3b82f6', Electrical: '#f59e0b' };
 const SECTION_ICONS: Record<SectionType, ElementType> = { Mechanical: Wrench, Electrical: Zap };
 const OBS_COLORS: Record<ObservationType, string> = { Initial: '#a78bfa', 'Follow up': '#f97316' };
+// Partially harmonized onto STATUS_TONE (2026-08-29 palette consolidation) — draft
+// and closed are plain not-started/done endpoints, a clean fit. submitted/reviewed
+// are workflow STEPS, not severity states (STATUS_TONE has no third distinct tone
+// between "info" and "good" without losing the visible distinction between them),
+// so they keep their own colors rather than collapsing into one shared tone.
 const STATUS_COLORS: Record<ReportStatus, string> = {
-  draft: '#94a3b8', submitted: '#3b82f6', reviewed: '#a78bfa', closed: '#10b981'
+  draft: STATUS_TONE.neutral, submitted: '#3b82f6', reviewed: '#a78bfa', closed: STATUS_TONE.good
 };
 const ACTION_COLORS: Record<ActionStatus, string> = {
-  Pending: '#f59e0b', 'In Progress': '#3b82f6', Completed: '#10b981'
+  Pending: STATUS_TONE.warning, 'In Progress': STATUS_TONE.info, Completed: STATUS_TONE.good
 };
 
 const REASON_LABELS: Record<keyof Reasons, string> = {

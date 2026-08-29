@@ -14,7 +14,7 @@ import {
   ChevronDown, ChevronUp,
 } from "@/components/shared/theme";
 import {
-  useTheme, accentText, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle,
+  useTheme, accentText, STATUS_TONE, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle,
   useCollapseSection, CenterModal, ACCENT_HEX, SelectField,
   GroupSection, RecordCard, staggerContainer, fadeUp, InfoRow, SummaryItem, LoadingState,
 } from '@/components/shared/theme';
@@ -27,11 +27,11 @@ import { fetchEquipmentList, createEquipment, updateEquipment, deleteEquipment }
 const ITEMS_PER_PAGE = 12;
 
 const STATUS_COLORS: Record<string, string> = {
-  operational: '#34d399',
-  maintenance: '#f59e0b',
-  out_of_service: '#f43f5e',
-  reserved: ACCENT_HEX.blue,
-  retired: '#94a3b8',
+  operational: STATUS_TONE.good,
+  maintenance: STATUS_TONE.warning,
+  out_of_service: STATUS_TONE.critical,
+  reserved: STATUS_TONE.info,
+  retired: STATUS_TONE.neutral,
 };
 const STATUS_LABELS: Record<string, string> = {
   operational: 'Operational', maintenance: 'Maintenance', out_of_service: 'Out of Service',
@@ -41,7 +41,7 @@ const STATUS_LABELS: Record<string, string> = {
 // arbitrary hexes), hashed so each distinct category name gets a stable color.
 const GROUP_PALETTE = [ACCENT_HEX.blue, ACCENT_HEX.amber, ACCENT_HEX.emerald, ACCENT_HEX.violet, ACCENT_HEX.cyan, ACCENT_HEX.indigo];
 function categoryColor(category?: string) {
-  if (!category) return '#94a3b8';
+  if (!category) return STATUS_TONE.neutral;
   let h = 0;
   for (let i = 0; i < category.length; i++) h = (h * 31 + category.charCodeAt(i)) >>> 0;
   return GROUP_PALETTE[h % GROUP_PALETTE.length];
@@ -117,7 +117,7 @@ function Pagination({ current, total, onPage, perPage, totalItems, onPerPage }: 
 function EquipmentCard({ eq, onEdit, onDelete }: { eq: EquipmentItem; onEdit: () => void; onDelete: () => void }) {
   const t = useTheme();
   const status = eq.status?.toLowerCase() || 'unknown';
-  const statusColor = STATUS_COLORS[status] || '#94a3b8';
+  const statusColor = STATUS_COLORS[status] || STATUS_TONE.neutral;
 
   return (
     <RecordCard
@@ -167,7 +167,7 @@ function EquipmentRow({ eq, onEdit, onDelete }: { eq: EquipmentItem; onEdit: () 
   const t = useTheme();
   const [expanded, setExpanded] = useState(false);
   const status = eq.status?.toLowerCase() || 'unknown';
-  const statusColor = STATUS_COLORS[status] || '#94a3b8';
+  const statusColor = STATUS_COLORS[status] || STATUS_TONE.neutral;
   const Icon = statusIcon(eq.status);
 
   return (

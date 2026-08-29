@@ -3,7 +3,7 @@
 
 import { AppShell } from '@/components/app-shell';
 import {
-  useTheme, PageHero, StatTile, StatusBadge, FormField, FormActions,
+  useTheme, STATUS_TONE, PageHero, StatTile, StatusBadge, FormField, FormActions,
   SearchInput, ViewToggle, CenterModal, PrimaryButton, EmptyState, useCollapseSection, SelectField,
   GroupSection, RecordCard, ACCENT_HEX, staggerContainer, fadeUp, InfoRow, SummaryItem, LoadingState,
 } from '@/components/shared/theme';
@@ -32,13 +32,13 @@ const DEPARTMENTS = [
 
 const LICENSE_CLASSES = ['Code 08', 'Code 10', 'Code 14', 'EC', 'EC1', 'PrDP', 'Other'];
 
-const STATUS_COLORS: Record<string, string> = { active: '#34d399', inactive: '#f43f5e', suspended: '#f59e0b' };
+const STATUS_COLORS: Record<string, string> = { active: STATUS_TONE.good, inactive: STATUS_TONE.critical, suspended: STATUS_TONE.warning };
 
 // Palette for departments — drawn from the shared ACCENT_HEX brand palette (not
 // arbitrary hexes), hashed so each distinct department gets a stable color.
 const GROUP_PALETTE = [ACCENT_HEX.blue, ACCENT_HEX.amber, ACCENT_HEX.emerald, ACCENT_HEX.violet, ACCENT_HEX.cyan, ACCENT_HEX.indigo];
 function deptColor(department?: string) {
-  if (!department) return '#94a3b8';
+  if (!department) return STATUS_TONE.neutral;
   let h = 0;
   for (let i = 0; i < department.length; i++) h = (h * 31 + department.charCodeAt(i)) >>> 0;
   return GROUP_PALETTE[h % GROUP_PALETTE.length];
@@ -261,7 +261,7 @@ function licenceExpiryNote(expiry?: string) {
 function DriverCard({ driver, onEdit, onDelete }: { driver: Driver; onEdit: () => void; onDelete: () => void }) {
   const t = useTheme();
   const dColor = deptColor(driver.department);
-  const statusColor = STATUS_COLORS[driver.status] || '#94a3b8';
+  const statusColor = STATUS_COLORS[driver.status] || STATUS_TONE.neutral;
   const expiryNote = licenceExpiryNote(driver.license_expiry);
   const expiryTone = isExpired(driver.license_expiry) ? 'text-rose-500 font-semibold' : isExpiringSoon(driver.license_expiry) ? 'text-amber-500' : t.textFaint;
   const primaryPhone = driver.phone_numbers?.[0];
@@ -321,7 +321,7 @@ function DriverRow({ driver, onEdit, onDelete }: { driver: Driver; onEdit: () =>
   const t = useTheme();
   const [expanded, setExpanded] = useState(false);
   const dColor = deptColor(driver.department);
-  const statusColor = STATUS_COLORS[driver.status] || '#94a3b8';
+  const statusColor = STATUS_COLORS[driver.status] || STATUS_TONE.neutral;
   const expiryNote = licenceExpiryNote(driver.license_expiry);
   const expiryTone = isExpired(driver.license_expiry) ? 'text-rose-500' : isExpiringSoon(driver.license_expiry) ? 'text-amber-500' : t.textFaint;
 

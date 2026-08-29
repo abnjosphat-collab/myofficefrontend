@@ -13,7 +13,7 @@ import {
 import { AppShell } from '@/components/app-shell';
 import { PredictiveInput } from '@/components/shared/PredictiveInput';
 import {
-  useTheme, PageHero, StatTile, StatusBadge, SearchInput,
+  useTheme, STATUS_TONE, PageHero, StatTile, StatusBadge, SearchInput,
   FormField, FormActions, useCollapseSection, CenterModal, ProgressBar, ACCENT_HEX, SelectField, LoadingState, AutofillInput,
 } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
@@ -39,7 +39,7 @@ const STATUS_CONFIG: Record<Requisition['status'], { color: string; icon: typeof
 };
 
 const PRIORITY_COLOR: Record<Requisition['priority'], string> = {
-  Critical: '#f43f5e', High: '#f97316', Medium: ACCENT_HEX.blue, Low: '#94a3b8',
+  Critical: STATUS_TONE.critical, High: STATUS_TONE.warning, Medium: STATUS_TONE.info, Low: STATUS_TONE.neutral,
 };
 
 const fmtDate = (d?: string) => formatDate(d);

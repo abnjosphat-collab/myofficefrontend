@@ -19,7 +19,7 @@ import { formatDate } from '@/lib/format';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
 import {
-  useTheme, PageHero, StatTile, StatusBadge, ViewToggle,
+  useTheme, STATUS_TONE, PageHero, StatTile, StatusBadge, ViewToggle,
   FormField, useCollapseSection, CenterModal, ProgressBar, ACCENT_HEX, GlowCard, SelectField, accentText,
 } from '@/components/shared/theme';
 import type {
@@ -38,8 +38,13 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.
   offline:     { label: 'Offline',     color: '#f43f5e', icon: XCircle },
 };
 
-const URGENCY_COLOR: Record<string, string> = { critical: '#f43f5e', high: '#f97316', medium: '#f59e0b', low: '#34d399' };
-const RATING_COLOR: Record<string, string> = { Excellent: '#34d399', Good: ACCENT_HEX.blue, Fair: '#f59e0b', Poor: '#f43f5e' };
+// Harmonized onto STATUS_TONE (2026-08-29 palette consolidation, see
+// audit/07-ui-polish-findings.md) — was its own 4-color red/orange/amber/green scale,
+// distinct from every other page's priority colors. high/low shift shade slightly
+// (orange->amber, green->gray) to match the app-wide critical/warning/info/neutral
+// convention established on spares/requisitions rather than reinventing a scale here.
+const URGENCY_COLOR: Record<string, string> = { critical: STATUS_TONE.critical, high: STATUS_TONE.warning, medium: STATUS_TONE.info, low: STATUS_TONE.neutral };
+const RATING_COLOR: Record<string, string> = { Excellent: STATUS_TONE.good, Good: STATUS_TONE.info, Fair: STATUS_TONE.warning, Poor: STATUS_TONE.critical };
 
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
 
