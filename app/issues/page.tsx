@@ -87,6 +87,12 @@ function buildTimeSeries(issues: StockIssue[], period: Period): PeriodPoint[] {
 
   for (const issue of issues) {
     const d = new Date(issue.issued_at);
+    // toISOString() throws RangeError("Invalid time value") for an Invalid
+    // Date — unlike toLocaleDateString(), which just returns the string
+    // "Invalid Date" — so an issue with a missing/malformed issued_at
+    // otherwise crashed the whole time series instead of just being
+    // excluded from it (found live, 2026-08-29 UI audit).
+    if (isNaN(d.getTime())) continue;
     let k: string;
     if (period === 'day') k = isoDate(d);
     else if (period === 'week') k = isoDate(startOfWeek(d));

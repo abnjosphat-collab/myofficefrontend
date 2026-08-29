@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
   Shield, Users, Search, ChevronDown, ChevronUp,
-  Save, RefreshCw, AlertCircle, Check, UserPlus, Power, Key, MapPin,
+  Save, RefreshCw, AlertCircle, Check, UserPlus, Power, Key, MapPin, Lock,
 } from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
 import {
@@ -245,10 +245,22 @@ function AdminContent() {
 
   const roleCounts = ROLE_ORDER.reduce<Record<string, number>>((acc, r) => { acc[r] = users.filter(u => u.role === r).length; return acc; }, {});
 
-  if (loading || !profile) {
+  // loading resolves to false whether or not a session was found — "still
+  // checking" and "checked, nobody's signed in" are genuinely different
+  // states and need different UI, otherwise a signed-out visitor sees this
+  // spinner forever (same gate-pattern bug as accounting.tsx/tasks-events.tsx,
+  // found live on this page too, 2026-08-29 UI audit).
+  if (loading) {
     return (
       <main className="flex-1 flex items-center justify-center py-32">
         <div className={`h-8 w-8 border-2 ${t.border} border-t-blue-500 rounded-full animate-spin`} />
+      </main>
+    );
+  }
+  if (!profile) {
+    return (
+      <main className="flex-1 flex items-center justify-center py-32">
+        <EmptyState icon={Lock} title="Sign in required" message="Sign in with an admin account (top right) to view the Admin Panel." />
       </main>
     );
   }

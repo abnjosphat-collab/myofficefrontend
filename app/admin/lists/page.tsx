@@ -9,7 +9,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import {
-  MapPin, Wrench, Plus, Trash2, Pencil, Check, X, Loader2, AlertCircle,
+  MapPin, Wrench, Plus, Trash2, Pencil, Check, X, Loader2, AlertCircle, Lock,
 } from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
 import { useTheme, PageHero, EmptyState, useConfirm } from '@/components/shared/theme';
@@ -140,7 +140,24 @@ function AdminListsContent() {
     }
   };
 
-  if (loading || !profile) return null;
+  // Same gate-pattern bug found and fixed on accounting.tsx/tasks-events.tsx/
+  // admin/page.tsx: `loading` resolves to false whether or not a session was
+  // found, so returning null for both left a signed-out visitor on a
+  // permanently blank page with zero feedback (2026-08-29 UI audit).
+  if (loading) {
+    return (
+      <main className="flex-1 flex items-center justify-center py-32">
+        <Loader2 className={`h-8 w-8 ${t.textFaint} animate-spin`} />
+      </main>
+    );
+  }
+  if (!profile) {
+    return (
+      <main className="flex-1 flex items-center justify-center py-32">
+        <EmptyState icon={Lock} title="Sign in required" message="Sign in with a manager account (top right) to manage lookup lists." />
+      </main>
+    );
+  }
   if (!isAtLeast('manager')) return null;
 
   return (
