@@ -20,6 +20,7 @@ import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButto
 import { PillTabs } from '@/components/shared/PillTabs';
 import type { Equipment, AvailRecord, EqSummaryRow, PeriodRow, FormData } from './types';
 import { useAvailabilitiesData, fetchBreakdownRecords, createAvailabilityRecord, updateAvailabilityRecord, deleteAvailabilityRecord } from './useAvailabilitiesData';
+import { computePeriodRows, findBestWorstPeriod } from './calcAvailabilities';
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 
@@ -39,16 +40,9 @@ function avHex(pct: number) {
   return '#ef4444';
 }
 
-function getWeekLabel(dateStr: string): string {
-  const d = new Date(dateStr);
-  const jan1 = new Date(d.getFullYear(), 0, 1);
-  const week = Math.ceil(((d.getTime() - jan1.getTime()) / 86400000 + jan1.getDay() + 1) / 7);
-  return `W${String(week).padStart(2, '0')} ${d.getFullYear()}`;
-}
-
-function getMonthLabel(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
-}
+// getWeekLabel/getMonthLabel/computePeriodRows/findBestWorstPeriod now live in
+// ./calcAvailabilities (imported above) — extracted per the "extract + test business
+// logic" standard, tested in calcAvailabilities.test.ts.
 
 
 const EMPTY_FORM: FormData = {
@@ -153,19 +147,7 @@ function AvailabilitiesContent() {
     return Array.from(map.values()).sort((a, b) => a.pct - b.pct);
   }, [filtered, eqMap]);
 
-  const periodRows = useMemo((): PeriodRow[] => {
-    const grouped = new Map<string, { sum: number; count: number; opH: number; bdH: number }>();
-    filtered.forEach(r => {
-      const key = period === 'day' ? r.date
-        : period === 'week' ? getWeekLabel(r.date)
-        : getMonthLabel(r.date);
-      const ex = grouped.get(key) ?? { sum: 0, count: 0, opH: 0, bdH: 0 };
-      grouped.set(key, { sum: ex.sum + r.availability_percentage, count: ex.count + 1, opH: ex.opH + r.operational_hours, bdH: ex.bdH + r.breakdown_hours });
-    });
-    return Array.from(grouped.entries())
-      .map(([k, v]) => ({ periodKey: k, label: k, avgAvailability: v.sum / v.count, totalOpHours: v.opH, totalBdHours: v.bdH, recordCount: v.count }))
-      .sort((a, b) => a.label.localeCompare(b.label));
-  }, [filtered, period]);
+  const periodRows = useMemo((): PeriodRow[] => computePeriodRows(filtered, period), [filtered, period]);
 
   const fleet = useMemo(() => ({
     avgAv: eqSummary.length > 0 ? eqSummary.reduce((s, e) => s + e.pct, 0) / eqSummary.length : 0,
@@ -475,11 +457,7 @@ function AvailabilitiesContent() {
             <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><LineChart className="h-4 w-4 text-brand-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Period Summary</span></div>
             <div className="p-5 space-y-3 text-sm">
               {periodRows.length > 0 ? (() => {
-                const avgs = periodRows.map(r => r.avgAvailability);
-                const best = Math.max(...avgs);
-                const worst = Math.min(...avgs);
-                const bestLabel = periodRows.find(r => r.avgAvailability === best)?.label;
-                const worstLabel = periodRows.find(r => r.avgAvailability === worst)?.label;
+                const { best, worst, bestLabel, worstLabel } = findBestWorstPeriod(periodRows);
                 const totalBd = filtered.reduce((s, r) => s + r.breakdown_hours, 0);
                 const totalOp = filtered.reduce((s, r) => s + r.operational_hours, 0);
                 return (
