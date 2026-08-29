@@ -125,11 +125,19 @@ body {
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.18 0.02 234);
 
-  /* Primary: Ozech Deep Ocean Blue #2A4D69 */
-  --primary: oklch(0.38 0.065 234);
+  /* Primary: the app's real action color everywhere else (--brand-*, violet) —
+     was the separate "Ozech Deep Ocean Blue" palette (2026-08-29, UI foundation
+     hardening plan Phase 3 item 5, audit/07-ui-polish-findings.md): a real, named,
+     documented palette, not a generic shadcn default, but one barely seen in the
+     live app today (only inside components/ui/* itself + one disconnected demo
+     page) — confirmed with the user before remapping rather than assumed. Referencing
+     --brand-* directly (not a duplicated literal) keeps this in sync with the one
+     documented re-theme point above. */
+  --primary: var(--brand-600);
   --primary-foreground: oklch(0.985 0 0);
 
-  /* Secondary: Ozech Slate Gray #6B7B8E */
+  /* Secondary: Ozech Slate Gray #6B7B8E — left as-is; only primary/accent/ring
+     (the identity-carrying tokens) were in scope for this pass. */
   --secondary: oklch(0.94 0.012 234);
   --secondary-foreground: oklch(0.38 0.065 234);
 
@@ -137,9 +145,10 @@ body {
   --muted: oklch(0.965 0.008 234);
   --muted-foreground: oklch(0.55 0.025 234);
 
-  /* Accent: Ozech Sky Blue #86BBD8 */
-  --accent: oklch(0.93 0.020 222);
-  --accent-foreground: oklch(0.32 0.065 234);
+  /* Accent: a pale brand-violet wash (was Ozech Sky Blue) — a subtle hover/
+     highlight background, same role --accent already played. */
+  --accent: var(--brand-50);
+  --accent-foreground: var(--brand-700);
 
   /* Destructive */
   --destructive: oklch(0.577 0.245 27.325);
@@ -147,7 +156,7 @@ body {
   /* Borders & Inputs */
   --border: oklch(0.905 0.015 234);
   --input: oklch(0.905 0.015 234);
-  --ring: oklch(0.38 0.065 234);
+  --ring: var(--brand-600);
 
   /* Charts — Ozech brand palette */
   --chart-1: oklch(0.38 0.065 234);   /* Ozech Blue */
@@ -174,18 +183,27 @@ body {
   --card-foreground: oklch(0.95 0.005 234);
   --popover: oklch(0.20 0.025 234);
   --popover-foreground: oklch(0.95 0.005 234);
-  --primary: oklch(0.65 0.065 220);
-  --primary-foreground: oklch(0.15 0.02 234);
+  /* Same brand-violet remap as :root above. --primary-foreground flips to
+     near-white here (it was near-black, correct for the old pale Sky-Blue
+     primary) since --brand-600 is a saturated color that needs light text on
+     top in both themes — the app's own convention everywhere else
+     (`text-white` on `from-brand-500 to-brand-700` buttons) never branches
+     this by theme either. */
+  --primary: var(--brand-600);
+  --primary-foreground: oklch(0.985 0 0);
   --secondary: oklch(0.26 0.025 234);
   --secondary-foreground: oklch(0.92 0.01 234);
   --muted: oklch(0.26 0.025 234);
   --muted-foreground: oklch(0.65 0.025 234);
-  --accent: oklch(0.30 0.040 234);
-  --accent-foreground: oklch(0.92 0.01 234);
+  --accent: var(--brand-900);
+  --accent-foreground: var(--brand-100);
   --destructive: oklch(0.704 0.191 22.216);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.65 0.065 220);
+  /* --brand-400, lighter than :root's --brand-600 — same asymmetry the app's
+     own accentText() helper (design-system/tokens.tsx) uses everywhere else:
+     a more saturated shade for light mode, a lighter one for dark. */
+  --ring: var(--brand-400);
   --chart-1: oklch(0.65 0.065 220);
   --chart-2: oklch(0.74 0.060 220);
   --chart-3: oklch(0.72 0.075 163);
