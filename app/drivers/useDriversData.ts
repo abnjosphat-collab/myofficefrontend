@@ -16,7 +16,10 @@ export async function createDriver(payload: object): Promise<Driver> {
   return api.post<Driver>('/api/drivers', payload);
 }
 export async function updateDriver(id: number, payload: object): Promise<Driver> {
-  return api.put<Driver>(`/api/drivers/${id}`, payload);
+  // PATCH, not PUT — the backend migrated to CrudRouter (app/crud_router.py), whose
+  // update endpoint is a partial update (exclude_unset semantics), matching PATCH's
+  // actual meaning better than the original hand-written router's PUT.
+  return api.patch<Driver>(`/api/drivers/${id}`, payload);
 }
 export async function deleteDriver(id: number): Promise<void> {
   await api.delete(`/api/drivers/${id}`);

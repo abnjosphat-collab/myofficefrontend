@@ -25,7 +25,10 @@ export async function createNotice(data: NoticeFormData) {
   return api.post('/api/notices', data);
 }
 export async function updateNotice(id: string, data: NoticeFormData) {
-  return api.put(`/api/notices/${id}`, data);
+  // PATCH, not PUT — the backend migrated to CrudRouter (app/crud_router.py), whose
+  // update endpoint is PATCH-only. Still sends every field from the edit form, so
+  // this call's own behavior is unaffected by NoticeUpdate becoming all-Optional.
+  return api.patch(`/api/notices/${id}`, data);
 }
 export async function deleteNotice(id: string) {
   await api.delete(`/api/notices/${id}`);
