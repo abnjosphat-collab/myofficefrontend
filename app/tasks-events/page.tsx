@@ -17,7 +17,7 @@ import {
   PrimaryButton, CenterModal, FormField, SelectField, SearchInput, StatusBadge, EmptyState, useConfirm,
 } from '@/components/shared/theme';
 import {
-  ListTodo, Plus, Trash2, CalendarClock, Check, RotateCcw, Clock, Pencil, AlertTriangle,
+  ListTodo, Plus, Trash2, CalendarClock, Check, RotateCcw, Clock, Pencil, AlertTriangle, Lock,
 } from '@/components/shared/theme';
 import { fmtDate, fmtDateTime } from '@/components/shared/utils';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
@@ -251,10 +251,22 @@ function TasksEventsContent() {
     if (!authLoading && profile && !isAtLeast('manager')) router.replace('/');
   }, [authLoading, profile, isAtLeast, router]);
 
-  if (authLoading || !profile) {
+  // authLoading resolves to false whether or not a session was found — so
+  // "still checking" and "checked, nobody's signed in" are genuinely different
+  // states and need different UI. Before this fix both rendered the same
+  // spinner forever for a signed-out visitor (2026-08-29 UI audit finding,
+  // audit/07-ui-polish-findings.md — confirmed live, not a mocking artifact).
+  if (authLoading) {
     return (
       <main className="flex-1 flex items-center justify-center py-32">
         <div className={`h-8 w-8 border-2 ${t.border} border-t-brand-500 rounded-full animate-spin`} />
+      </main>
+    );
+  }
+  if (!profile) {
+    return (
+      <main className="flex-1 flex items-center justify-center py-32">
+        <EmptyState icon={Lock} title="Sign in required" message="Sign in with a manager account (top right) to view Tasks & Events." />
       </main>
     );
   }

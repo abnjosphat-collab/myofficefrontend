@@ -21,7 +21,7 @@ import {
 } from '@/components/shared/theme';
 import {
   Wallet, Receipt, CreditCard, Scale, TrendingUp, TrendingDown,
-  Plus, Download, Trash2, Edit, Check, X, LineChart as LineChartGlyph,
+  Plus, Download, Trash2, Edit, Check, X, LineChart as LineChartGlyph, Lock,
 } from '@/components/shared/theme';
 import { PillTabs, type PillTab } from '@/components/shared/PillTabs';
 import { UnderlineTabs, type UnderlineTab } from '@/components/shared/UnderlineTabs';
@@ -137,10 +137,23 @@ function AccountingContent() {
     if (!authLoading && profile && !isAtLeast('manager')) router.replace('/');
   }, [authLoading, profile, isAtLeast, router]);
 
-  if (authLoading || !profile) {
+  // authLoading resolves to false whether or not a session was found — so
+  // "still checking" and "checked, nobody's signed in" are genuinely different
+  // states and need different UI. Before this fix both rendered the same
+  // spinner forever for a signed-out visitor (2026-08-29 UI audit finding,
+  // audit/07-ui-polish-findings.md — same bug also found and fixed on
+  // tasks-events.tsx, the only other page using this exact gate pattern).
+  if (authLoading) {
     return (
       <main className="flex-1 flex items-center justify-center py-32">
         <div className={`h-8 w-8 border-2 ${t.border} border-t-emerald-500 rounded-full animate-spin`} />
+      </main>
+    );
+  }
+  if (!profile) {
+    return (
+      <main className="flex-1 flex items-center justify-center py-32">
+        <EmptyState icon={Lock} title="Sign in required" message="Sign in with a manager account (top right) to view Accounting & Financials." />
       </main>
     );
   }

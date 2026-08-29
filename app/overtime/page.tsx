@@ -91,11 +91,18 @@ function blankForm(): OTForm {
 
 // ─── SMALL COMPONENTS ─────────────────────────────────────────────────────────
 
+// Defensive fallback for a type value outside the 6 known OTType keys (legacy/
+// malformed data) — TYPE_ICONS[type] used to be looked up with no guard, so an
+// unrecognized value made Icon undefined and crashed the whole page with "Element
+// type is invalid" (found live during the 2026-08-29 UI audit, mocked-data
+// triggered but a real, unguarded code path — audit/07-ui-polish-findings.md).
 function TypeBadge({ type }: { type: OTType }) {
-  const Icon = TYPE_ICONS[type];
+  const Icon = TYPE_ICONS[type] ?? Clock4;
+  const hex = TYPE_HEX[type] ?? '#94a3b8';
+  const label = TYPE_LABELS[type] ?? String(type);
   return (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ backgroundColor: `${TYPE_HEX[type]}22`, color: TYPE_HEX[type] }}>
-      <Icon className="h-2.5 w-2.5" />{TYPE_LABELS[type]}
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ backgroundColor: `${hex}22`, color: hex }}>
+      <Icon className="h-2.5 w-2.5" />{label}
     </span>
   );
 }
@@ -104,10 +111,14 @@ function TypeBadge({ type }: { type: OTType }) {
 // enough; a third "Unclassified" badge everywhere would just be visual noise.
 function PlanningBadge({ status }: { status?: PlanningStatus | null }) {
   if (!status) return null;
-  const Icon = PLANNING_ICONS[status];
+  // Same defensive-fallback fix as TypeBadge above — an unrecognized status value
+  // made Icon undefined and crashed the page.
+  const Icon = PLANNING_ICONS[status] ?? Calendar;
+  const hex = PLANNING_HEX[status] ?? '#94a3b8';
+  const label = PLANNING_LABELS[status] ?? String(status);
   return (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ backgroundColor: `${PLANNING_HEX[status]}22`, color: PLANNING_HEX[status] }}>
-      <Icon className="h-2.5 w-2.5" />{PLANNING_LABELS[status]}
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ backgroundColor: `${hex}22`, color: hex }}>
+      <Icon className="h-2.5 w-2.5" />{label}
     </span>
   );
 }
