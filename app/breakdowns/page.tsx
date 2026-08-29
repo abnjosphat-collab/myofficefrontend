@@ -33,6 +33,7 @@ import {
 } from 'recharts';
 import type { Breakdown, BreakdownFormData, Filters, HeatmapData, SparePart, SpareUsed } from './types';
 import { createBreakdown, deleteBreakdown, fetchBreakdownAnalytics, updateBreakdown, useBreakdownsData } from './useBreakdownsData';
+import { calcDowntime, minutesToDisplay, sparesTotalCost, timeToMinutes } from './calcBreakdowns';
 
 // ─── ANALYTICS TYPES / HELPERS ────────────────────────────────────────────────
 
@@ -82,23 +83,11 @@ const TYPE_META: Record<string, { name: string; icon: React.ElementType; color: 
 };
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 
-const timeToMinutes = (t: string): number => { if (!t) return 0; try { const [h, m] = t.split(':').map(Number); return h * 60 + m; } catch { return 0; } };
-const minutesToDisplay = (minutes: number): string => {
-  if (!minutes && minutes !== 0) return '0m';
-  const h = Math.floor(minutes / 60); const m = minutes % 60;
-  return h > 0 ? `${h}h ${m > 0 ? `${m}m` : ''}`.trim() : `${m}m`;
-};
+// timeToMinutes/minutesToDisplay/calcDowntime/sparesTotalCost now live in
+// ./calcBreakdowns (imported above) — extracted per the "extract + test business
+// logic" standard, tested in calcBreakdowns.test.ts.
 const formatDate = (s: string | null | undefined): string => { if (!s) return 'N/A'; try { return format(new Date(s), 'MMM dd, yyyy'); } catch { return 'Invalid Date'; } };
 const formatTime = (s: string | null | undefined): string => { if (!s) return '—'; if (s.includes(':')) { const p = s.split(':'); return `${p[0].padStart(2, '0')}:${p[1].padStart(2, '0')}`; } return s; };
-const calcDowntime = (start?: string, end?: string): number => {
-  if (!start || !end) return 0;
-  const s = timeToMinutes(start), e = timeToMinutes(end);
-  return Math.max(0, e >= s ? e - s : (e + 1440) - s);
-};
-const sparesTotalCost = (spares: Breakdown['spares_used']): number => {
-  if (!spares || !Array.isArray(spares)) return 0;
-  return (spares as SpareUsed[]).reduce((t, s) => t + (parseFloat(s.total_cost?.toString() ?? '0') || 0), 0);
-};
 
 // ─── BREAKDOWN CARD ──────────────────────────────────────────────────────────
 
