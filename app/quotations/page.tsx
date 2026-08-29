@@ -21,6 +21,7 @@ import {
 } from '@/components/shared/theme';
 
 import type { QuotationItem, ClientData, RecentQuotation, QuotationTemplate } from './types';
+import { calculateTotals } from './calcQuotations';
 
 const QUOTATION_TEMPLATES = [
   {
@@ -165,14 +166,7 @@ const QuotationGeneratorContent = () => {
     }));
   };
 
-  const calculateTotals = () => {
-    const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
-    const taxAmount = (subtotal * quotation.taxRate) / 100;
-    const discountAmount = (subtotal * quotation.discount) / 100;
-    const total = subtotal + taxAmount - discountAmount;
-    return { subtotal: subtotal.toFixed(2), taxAmount: taxAmount.toFixed(2), discountAmount: discountAmount.toFixed(2), total: total.toFixed(2) };
-  };
-  const totals = calculateTotals();
+  const totals = calculateTotals(items, quotation.taxRate, quotation.discount);
 
   const applyTemplate = (template: QuotationTemplate) => {
     setItems(template.items.map((item, index) => ({ id: Date.now() + index, category: 'service', ...item })));
