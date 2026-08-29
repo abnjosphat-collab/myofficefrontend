@@ -7,7 +7,7 @@
 import { useMemo, useEffect, useState } from 'react';
 import { Bookmark, X } from '@/components/shared/theme';
 import {
-  useTheme, CenterModal, DEFAULT_BG_ACCENT, bgLayersFromHex, accentText,
+  useTheme, CenterModal, DEFAULT_BG_ACCENT, bgLayersFromHex, AccentIcon,
 } from '@/components/shared/theme';
 import { TopNavigation } from './TopNavigation';
 import { SidebarNavigation } from './SidebarNavigation';
@@ -110,7 +110,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               {s.favoriteModules.map(({ module }) => (
                 <div key={module.href} className={`flex items-center justify-between gap-2 px-3 py-2 rounded-lg ${t.hoverBgSoft}`}>
                   <span className="flex items-center gap-2 min-w-0">
-                    <Bookmark className={`h-3.5 w-3.5 shrink-0 ${accentText('brand', t.light)}`} fill="currentColor" />
+                    <AccentIcon icon={Bookmark} accent="brand" className="h-3.5 w-3.5 shrink-0" weight="fill" />
                     <span className={`text-[13px] ${t.textMuted} truncate`}>{module.title}</span>
                   </span>
                   <button

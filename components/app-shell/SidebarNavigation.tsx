@@ -9,7 +9,7 @@ import {
   Bookmark, ChevronDown, Lightbulb, PanelLeftClose, PanelLeftOpen, Pencil, X,
 } from '@/components/shared/theme';
 import {
-  useTheme, Collapse, staggerContainer, fadeUp, ACCENT_RGBA, rgbaFromHexSafe, accentText, type Accent,
+  useTheme, Collapse, staggerContainer, fadeUp, ACCENT_RGBA, rgbaFromHexSafe, AccentIcon, type Accent,
 } from '@/components/shared/theme';
 import { trackModuleUsage, type Category, type Module } from './modules';
 import { useDashboardData } from './useDashboardData';
@@ -203,7 +203,9 @@ export function SidebarNavigation({
                   <div className={`px-3 py-2 text-[12px] ${t.textFaint}`}>No recent activity</div>
                 ) : activity.slice(0, 5).map(item => (
                   <div key={item.id} className={`flex items-start gap-2 px-3 py-1.5 rounded-lg text-[12px] ${t.textMuted}`}>
-                    <item.icon className={`h-3.5 w-3.5 mt-0.5 shrink-0 ${item.status === 'critical' ? accentText('rose', t.light) : t.textTertiary}`} />
+                    {item.status === 'critical'
+                      ? <AccentIcon icon={item.icon} accent="rose" className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                      : <item.icon className={`h-3.5 w-3.5 mt-0.5 shrink-0 ${t.textTertiary}`} />}
                     <div className="min-w-0">
                       <p className="truncate">{item.action}</p>
                       <p className={`text-[10.5px] ${t.textFaint}`}>{item.time ? `${item.time} ago` : ''}</p>

@@ -10,7 +10,7 @@ import {
   Bell, Check, PanelLeftClose, PanelLeftOpen, Loader2, MessageCircle, Moon,
   Palette, RotateCcw, Send, Settings, SlidersHorizontal, Star, Sun, TextAa,
 } from '@/components/shared/theme';
-import { useTheme, ACCENT, accentText, useFontStyle, FONT_OPTIONS } from '@/components/shared/theme';
+import { useTheme, ACCENT, AccentIcon, useFontStyle, FONT_OPTIONS } from '@/components/shared/theme';
 import { useDashboardData } from './useDashboardData';
 import { saveFeedback } from '@/lib/usage';
 
@@ -91,7 +91,9 @@ export function BottomBar({
                       <div className={`px-3 py-6 text-center text-[12px] ${t.textFaint}`}>No recent activity</div>
                     ) : activity.map(item => (
                       <div key={item.id} className={`flex items-start gap-2 px-3 py-2 ${t.hoverBgSoft}`}>
-                        <item.icon className={`h-3.5 w-3.5 mt-0.5 shrink-0 ${item.status === 'critical' ? accentText('rose', t.light) : t.textTertiary}`} />
+                        {item.status === 'critical'
+                          ? <AccentIcon icon={item.icon} accent="rose" className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                          : <item.icon className={`h-3.5 w-3.5 mt-0.5 shrink-0 ${t.textTertiary}`} />}
                         <div className="min-w-0">
                           <p className={`text-[12px] ${t.textMuted} truncate`}>{item.action}</p>
                           <p className={`text-[10.5px] ${t.textFaint}`}>{item.time ? `${item.time} ago` : ''}{item.user ? ` · ${item.user}` : ''}</p>
@@ -148,10 +150,9 @@ export function BottomBar({
                             aria-pressed={n <= feedbackRating}
                             className="p-0.5 transition-transform hover:scale-110"
                           >
-                            <Star
-                              className={`h-5 w-5 ${n <= feedbackRating ? accentText('amber', t.light) : t.textFaint}`}
-                              weight={n <= feedbackRating ? 'fill' : 'regular'}
-                            />
+                            {n <= feedbackRating
+                              ? <AccentIcon icon={Star} accent="amber" className="h-5 w-5" weight="fill" />
+                              : <Star className={`h-5 w-5 ${t.textFaint}`} weight="regular" />}
                           </button>
                         ))}
                       </div>

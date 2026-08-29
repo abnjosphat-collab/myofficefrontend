@@ -2,7 +2,7 @@
 // frontend/components/maintenance/analytics.tsx — work-order analytics charts and
 // their filter bar. Only AnalyticsPanel is consumed outside this file.
 import { useState, useMemo } from "react";
-import { useTheme, ACCENT_HEX, accentText, FormField, SelectField } from "@/components/shared/theme";
+import { useTheme, ACCENT_HEX, AccentIcon, AccentText, FormField, SelectField } from "@/components/shared/theme";
 import {
   ChevronDown, ChevronUp, SlidersHorizontal, X, Layers, Activity, Cpu, HardHat, AlertTriangle, TrendingUp,
 } from "@/components/shared/theme";
@@ -254,16 +254,18 @@ export function AnalyticsPanel({ stats, standalone, rawOrders = [] }: { stats: R
       {standalone && rawOrders.length > 0 && <AnalyticsFilterBar allOrders={rawOrders} filters={filters} onChange={setFilters} />}
 
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
-        {[
-          { label: 'Total WOs', value: activeStats.total, color: t.textPrimary, sub: activeFilterCount > 0 ? `of ${stats.total}` : undefined },
-          { label: 'Breakdowns', value: activeStats.breakdowns, color: accentText('red', t.light), sub: activeStats.total > 0 ? `${Math.round(activeStats.breakdowns / activeStats.total * 100)}%` : '—' },
-          { label: 'Planned Maint.', value: activeStats.plannedMaintenance, color: accentText('green', t.light), sub: undefined },
-          { label: 'Breakdown Hrs', value: `${activeStats.artisanCost.reduce((a, x) => a + x.hours, 0).toFixed(1)}h`, color: accentText('brand', t.light), sub: undefined },
-          { label: 'Spares Cost', value: `R${activeStats.sparesTotalCost.toLocaleString('en-ZA', { maximumFractionDigits: 0 })}`, color: accentText('amber', t.light), sub: undefined },
-          { label: 'Completion', value: `${activeStats.efficiency}%`, color: accentText(activeStats.efficiency >= 70 ? 'green' : activeStats.efficiency >= 40 ? 'yellow' : 'red', t.light), sub: `${activeStats.completed}/${activeStats.total}` },
-        ].map(k => (
+        {([
+          { label: 'Total WOs', value: activeStats.total, accent: null, sub: activeFilterCount > 0 ? `of ${stats.total}` : undefined },
+          { label: 'Breakdowns', value: activeStats.breakdowns, accent: 'red', sub: activeStats.total > 0 ? `${Math.round(activeStats.breakdowns / activeStats.total * 100)}%` : '—' },
+          { label: 'Planned Maint.', value: activeStats.plannedMaintenance, accent: 'green', sub: undefined },
+          { label: 'Breakdown Hrs', value: `${activeStats.artisanCost.reduce((a, x) => a + x.hours, 0).toFixed(1)}h`, accent: 'brand', sub: undefined },
+          { label: 'Spares Cost', value: `R${activeStats.sparesTotalCost.toLocaleString('en-ZA', { maximumFractionDigits: 0 })}`, accent: 'amber', sub: undefined },
+          { label: 'Completion', value: `${activeStats.efficiency}%`, accent: activeStats.efficiency >= 70 ? 'green' : activeStats.efficiency >= 40 ? 'yellow' : 'red', sub: `${activeStats.completed}/${activeStats.total}` },
+        ] as const).map(k => (
           <div key={k.label} className={`${t.chipBg} rounded-xl p-3 text-center`}>
-            <div className={`text-xl font-bold font-mono ${k.color}`}>{k.value}</div>
+            {k.accent
+              ? <AccentText accent={k.accent} as="div" className="text-xl font-bold font-mono">{k.value}</AccentText>
+              : <div className={`text-xl font-bold font-mono ${t.textPrimary}`}>{k.value}</div>}
             <div className={`text-[10px] mt-0.5 ${t.textFaint}`}>{k.label}</div>
             {k.sub && <div className={`text-[9px] ${t.textFaint}`}>{k.sub}</div>}
           </div>
@@ -272,17 +274,17 @@ export function AnalyticsPanel({ stats, standalone, rawOrders = [] }: { stats: R
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
         <div className={`${t.glass} rounded-xl p-4`}>
-          <div className={`text-xs font-medium mb-3 flex items-center gap-1.5 ${t.textMuted}`}><Layers className={`h-3.5 w-3.5 ${accentText('brand', t.light)}`} /> WO Classification</div>
+          <div className={`text-xs font-medium mb-3 flex items-center gap-1.5 ${t.textMuted}`}><AccentIcon icon={Layers} accent="brand" /> WO Classification</div>
           <div className="h-28"><DonutChart segments={classSegs} centerLabel={String(activeStats.total)} /></div>
           <ChartLegend items={classSegs.map(s => ({ ...s, total: activeStats.total }))} />
         </div>
         <div className={`${t.glass} rounded-xl p-4`}>
-          <div className={`text-xs font-medium mb-3 flex items-center gap-1.5 ${t.textMuted}`}><Activity className={`h-3.5 w-3.5 ${accentText('green', t.light)}`} /> Status Breakdown</div>
+          <div className={`text-xs font-medium mb-3 flex items-center gap-1.5 ${t.textMuted}`}><AccentIcon icon={Activity} accent="green" /> Status Breakdown</div>
           <div className="h-28"><DonutChart segments={statusSegs} centerLabel={`${activeStats.efficiency}%`} /></div>
           <ChartLegend items={statusSegs.map(s => ({ ...s, total: activeStats.total }))} />
         </div>
         <div className={`${t.glass} rounded-xl p-4`}>
-          <div className={`text-xs font-medium mb-3 flex items-center gap-1.5 ${t.textMuted}`}><Cpu className={`h-3.5 w-3.5 ${accentText('amber', t.light)}`} /> Discipline</div>
+          <div className={`text-xs font-medium mb-3 flex items-center gap-1.5 ${t.textMuted}`}><AccentIcon icon={Cpu} accent="amber" /> Discipline</div>
           <div className="h-28"><DonutChart segments={discSegs} centerLabel={activeStats.mechanical + activeStats.electrical > 0 ? undefined : '—'} /></div>
           <ChartLegend items={discSegs.map(s => ({ ...s, total: activeStats.mechanical + activeStats.electrical }))} />
           {activeStats.sparesTotalCost > 0 && (
@@ -296,18 +298,18 @@ export function AnalyticsPanel({ stats, standalone, rawOrders = [] }: { stats: R
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
         <div className={`${t.glass} rounded-xl p-4`}>
-          <div className={`text-xs font-medium mb-3 flex items-center gap-1.5 ${t.textMuted}`}><HardHat className={`h-3.5 w-3.5 ${accentText('brand', t.light)}`} /> Artisan Hours (Breakdowns)</div>
+          <div className={`text-xs font-medium mb-3 flex items-center gap-1.5 ${t.textMuted}`}><AccentIcon icon={HardHat} accent="brand" /> Artisan Hours (Breakdowns)</div>
           <ArtisanCostChart artisanCost={activeStats.artisanCost} />
           {activeStats.artisanCost.length > 0 && <div className={`mt-3 text-[10px] ${t.textFaint}`}>Hours shown as a cost proxy. Spares cost in USD ($) shown where entered.</div>}
         </div>
         <div className={`${t.glass} rounded-xl p-4`}>
-          <div className={`text-xs font-medium mb-3 flex items-center gap-1.5 ${t.textMuted}`}><AlertTriangle className={`h-3.5 w-3.5 ${accentText('red', t.light)}`} /> Failure Modes (Top 8)</div>
+          <div className={`text-xs font-medium mb-3 flex items-center gap-1.5 ${t.textMuted}`}><AccentIcon icon={AlertTriangle} accent="red" /> Failure Modes (Top 8)</div>
           {activeStats.failureModes.length > 0 ? <HBarChart data={activeStats.failureModes.map(([label, value]) => ({ label, value }))} maxColor="#ef4444" /> : <div className={`text-xs ${t.textFaint}`}>No breakdown failure modes recorded</div>}
         </div>
       </div>
 
       <div className={`${t.glass} rounded-xl p-4`}>
-        <div className={`text-xs font-medium mb-3 flex items-center gap-1.5 ${t.textMuted}`}><TrendingUp className={`h-3.5 w-3.5 ${accentText('violet', t.light)}`} /> Breakdown Occurrence — Time of Day</div>
+        <div className={`text-xs font-medium mb-3 flex items-center gap-1.5 ${t.textMuted}`}><AccentIcon icon={TrendingUp} accent="violet" /> Breakdown Occurrence — Time of Day</div>
         {activeStats.breakdowns > 0 ? <TimeHeatmap hourBuckets={activeStats.hourBuckets} /> : <div className={`text-xs py-4 ${t.textFaint}`}>No breakdown time data recorded yet</div>}
       </div>
     </div>

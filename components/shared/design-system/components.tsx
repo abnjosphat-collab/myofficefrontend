@@ -14,7 +14,7 @@ import { motion } from 'framer-motion';
 // not directly from lucide — so shared components render in the same icon family/style
 // as the rest of the app.
 import { ChevronRight, ChevronDown, Loader2, Check, SearchIcon, Pencil, Trash2, ArrowUpRight, ArrowDownRight, Info } from './icons';
-import { useTheme, ACCENT, ACCENT_HEX, SPACING, RADIUS, TILE_SURFACE, TILE_ASPECT, TYPE_SCALE, type Accent } from './tokens';
+import { useTheme, ACCENT, ACCENT_HEX, ACCENT_TEXT, accentText, SPACING, RADIUS, TILE_SURFACE, TILE_ASPECT, TYPE_SCALE, type Accent } from './tokens';
 import { getInputSuggestions, recordInput } from '@/lib/inputHistory';
 import { getDefaultExpanded } from '@/lib/prefs';
 import { GlowCard, PulsingIcon, AnimatedText, Collapse, CountUp, useScrollEdgeFlash, ScrollEdgeGlow } from './primitives';
@@ -91,6 +91,52 @@ export function HintText({ icon: Icon = Info, children, className = '' }: { icon
       <span>{children}</span>
     </p>
   );
+}
+
+// ─── AccentIcon / AccentText — light-aware accent color, no raw Tailwind at the
+// call site ───────────────────────────────────────────────────────────────────
+// A hardcoded `text-{color}-400` reads pale/blunt on a light-mode page — it's
+// tuned for dark glass. accentText(color, t.light) (tokens.ts) is the fix, but
+// calling it inline at 40+ scattered spots is exactly how a future page
+// re-introduces a hardcoded `-400` by copy-paste. These two components are the
+// reusable version: pass a semantic accent name, get the right shade for
+// whichever theme is active, without touching useTheme() or Tailwind classes
+// yourself. Prefer these over calling accentText() directly in new code.
+//
+// ONLY use these where the surrounding surface actually follows the page theme
+// (t.glass, t.textFaint, etc. already in use nearby). A surface that renders as
+// dark glass regardless of theme — oz-glass-panel, or a hardcoded near-black
+// dropdown like DownloadButton's — should keep its accent hardcoded; wrapping
+// it in AccentIcon/AccentText would fight that surface's own always-dark design
+// (see the 2026-08-29 light-mode-washout fix for the worked example).
+//
+// No `hover:`/`data-[state]:` variant support on purpose — Tailwind's static
+// scanner can't discover a variant class built by string interpolation, only a
+// complete literal token. If you need a themed hover color, that needs its own
+// explicit `t.light ? 'hover:text-x-600' : 'hover:text-x-400'` ternary at the
+// call site (both branches spelled out in full) — these components don't try
+// to paper over that gotcha.
+export function AccentIcon({ icon: Icon, accent, className = 'h-3.5 w-3.5', weight }: {
+  icon: ElementType;
+  accent: keyof typeof ACCENT_TEXT;
+  className?: string;
+  /** Rarely needed — solid/outline is normally a GLOBAL toggle (IconStyleProvider).
+   *  Only pass this for a genuinely per-instance state, e.g. a filled star rating. */
+  weight?: 'regular' | 'bold' | 'fill' | 'duotone' | 'thin' | 'light';
+}) {
+  const t = useTheme();
+  return <Icon className={`${className} ${accentText(accent, t.light)}`} weight={weight} />;
+}
+
+export function AccentText({ accent, as: As = 'span', className = '', children }: {
+  accent: keyof typeof ACCENT_TEXT;
+  /** Element to render as — 'span' for inline figures/labels, 'div'/'p' for a block. */
+  as?: 'span' | 'div' | 'p';
+  className?: string;
+  children: ReactNode;
+}) {
+  const t = useTheme();
+  return <As className={`${accentText(accent, t.light)} ${className}`}>{children}</As>;
 }
 
 // ─── CardIconButton — the small overlay action buttons that float on cards ──────
