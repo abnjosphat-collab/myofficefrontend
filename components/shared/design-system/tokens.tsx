@@ -235,6 +235,35 @@ export const ACCENT_HEX: Record<Accent, string> = {
   emerald: '#059669', cyan: '#0891b2', violet: '#9333ea',
 };
 
+// ─── Status tones — the reserved palette for a record's state ──────────────
+// Distinct from ACCENT above: ACCENT is for categorical identity (a module, a
+// department — arbitrary groups where any hue works as long as it's applied
+// consistently). STATUS_TONE is for a record's actual condition — good/warning/
+// critical/info/neutral — and should never be reused as a categorical color or
+// vice versa (the dataviz skill's rule: status colors are reserved, never treated
+// as "just another series color").
+//
+// Added 2026-08-29 after user feedback that dark mode read as "color chaos."
+// Root cause (see audit/07-ui-polish-findings.md): 23 files each independently
+// hardcoded their own status/priority hex literals instead of sharing one
+// palette — found while investigating, three of them (spares/drivers/equipment)
+// had already converged on these exact five values without coordinating, which is
+// what these constants are pinned to (not new colors — naming the de facto
+// standard so the rest can reference it instead of re-typing hex literals).
+//
+// A page's own status/priority enum (its exact words — "suspended", "low",
+// "out_of_service"...) still needs a page-local map from THAT word to one of
+// these five tones — that mapping is domain knowledge only the page author has,
+// and isn't something to automate. What this removes is every page inventing its
+// own hex value for "this is bad" instead of reaching for STATUS_TONE.critical.
+export const STATUS_TONE = {
+  good: '#34d399',      // active, operational, completed, in stock
+  warning: '#f59e0b',   // pending, maintenance due, high priority, low stock
+  critical: '#f43f5e',  // inactive, out of service, critical priority, out of stock
+  info: ACCENT_HEX.blue, // reserved, medium priority, in progress
+  neutral: '#94a3b8',   // retired, low priority, not set
+} as const;
+
 // ─── Light-aware accent text ────────────────────────────────────────────────
 // Pages hardcode `text-{color}-400` for small inline accents (status icons,
 // indicators) — those shades are tuned for dark glass and read pale/blunt on

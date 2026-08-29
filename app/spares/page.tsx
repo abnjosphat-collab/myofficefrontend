@@ -6,7 +6,7 @@ import { formatDate } from '@/lib/format';
 import { formatCurrency, lineTotal as calcLineTotal } from '@/components/shared/utils';
 import { api } from '@/lib/apiClient';
 import { EXPORT_BRAND_RGB } from '@/lib/exportUtils';
-import { useTheme, accentText, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle, FormField, FormActions, CenterModal, ACCENT_HEX, GlowCard, SelectField, GroupSection, staggerContainer, fadeUp, Combobox, type ComboOption as SharedComboOption } from '@/components/shared/theme';
+import { useTheme, accentText, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle, FormField, FormActions, CenterModal, ACCENT_HEX, STATUS_TONE, GlowCard, SelectField, GroupSection, staggerContainer, fadeUp, Combobox, type ComboOption as SharedComboOption } from '@/components/shared/theme';
 import { PredictiveInput } from '@/components/shared/PredictiveInput';
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
@@ -32,12 +32,12 @@ import { apiCreate, apiCreateSavedReq, apiDelete, apiDeleteSavedReq, apiFetchAll
 // formatDate/formatCurrency were identical to the shared ones — imported at the top instead.
 
 const getStockStatus = (current: number, min: number): StockStatus => {
-  if (current <= 0) return { label: 'Out of Stock', color: '#f43f5e' };
-  if (current <= min) return { label: 'Low Stock', color: '#f59e0b' };
-  if (current <= min * 1.5) return { label: 'Adequate', color: ACCENT_HEX.blue };
-  return { label: 'In Stock', color: '#34d399' };
+  if (current <= 0) return { label: 'Out of Stock', color: STATUS_TONE.critical };
+  if (current <= min) return { label: 'Low Stock', color: STATUS_TONE.warning };
+  if (current <= min * 1.5) return { label: 'Adequate', color: STATUS_TONE.info };
+  return { label: 'In Stock', color: STATUS_TONE.good };
 };
-const PRIORITY_COLOR: Record<string, string> = { critical: '#f43f5e', high: '#f59e0b', medium: ACCENT_HEX.blue, low: '#94a3b8' };
+const PRIORITY_COLOR: Record<string, string> = { critical: STATUS_TONE.critical, high: STATUS_TONE.warning, medium: STATUS_TONE.info, low: STATUS_TONE.neutral };
 const PRIORITY_ORDER: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
 
 // Palette for categories — drawn from the shared ACCENT_HEX brand palette (not
