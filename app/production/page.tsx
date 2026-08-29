@@ -29,7 +29,12 @@ function ProductionContent() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ date: '', shift: 'Day', tonnesMilled: '', feedRate: '', grade: '', recovery: '', goldOz: '', millAvail: '', powerKwh: '', downtimeHrs: '', downtimeReason: '', comments: '' });
 
-  const chartData = [...records].reverse().map(r => ({ date: `${r.date.slice(5)} ${r.shift[0]}`, tonnes: r.tonnesMilled, grade: r.grade }));
+  // A record missing prod_date/shift (useProductionData normalizes both to
+  // '' rather than throwing) otherwise leaked the literal text "undefined"
+  // onto the chart's x-axis: ''.slice(5) is '' (safe), but ''[0] is
+  // undefined rather than throwing, so the old template literal rendered it
+  // verbatim (found live, 2026-08-29 UI audit).
+  const chartData = [...records].reverse().map(r => ({ date: `${r.date.slice(5)} ${r.shift[0] ?? ''}`.trim(), tonnes: r.tonnesMilled, grade: r.grade }));
 
   const submit = async () => {
     if (!form.date || !form.tonnesMilled) return;

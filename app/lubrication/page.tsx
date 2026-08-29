@@ -37,7 +37,7 @@ function LubricationContent() {
     { key: 'lube_point', label: 'Lube Point', width: 20 },
     { key: 'lubricant_type', label: 'Lubricant Type', width: 18 },
     { key: 'lubricant_grade', label: 'Grade', width: 14 },
-    { key: 'interval_days', label: 'Interval', width: 12, format: v => `Every ${v}d` },
+    { key: 'interval_days', label: 'Interval', width: 12, format: v => v ? `Every ${v}d` : '' },
     { key: 'last_done_date', label: 'Last Done', width: 14, format: v => v ? formatDate(v as string) : '' },
     { key: 'next_due_date', label: 'Next Due', width: 14, format: v => v ? formatDate(v as string) : '' },
     { key: 'status', label: 'Status', width: 12, format: v => v === 'due_soon' ? 'Due Soon' : (v as string).charAt(0).toUpperCase() + (v as string).slice(1) },

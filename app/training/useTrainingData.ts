@@ -37,7 +37,12 @@ export function useTrainingData() {
         api.get<any>('/api/training/reports/due_refreshers').catch(() => null),
       ]);
       if (certsRes) setCerts(certsRes);
-      if (rateRes) setCompliance(rateRes);
+      // Merge onto the safe defaults instead of replacing outright — a response
+      // succeeding with compliance_rate missing (not a full outage, already
+      // handled by the .catch above) otherwise left compliance_rate undefined,
+      // which rendered as the literal text "undefined%" on the page (found
+      // live, 2026-08-29 UI audit).
+      if (rateRes) setCompliance(prev => ({ ...prev, ...rateRes }));
       if (refreshRes) setRefreshers(refreshRes);
     } catch (e) { setError(`Failed to load: ${(e as Error).message}`); }
     finally { setLoading(false); setRefreshing(false); }

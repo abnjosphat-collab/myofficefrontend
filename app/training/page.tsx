@@ -23,7 +23,16 @@ const STATUS_ORDER: Record<string, number> = { Expired: 3, 'Due Soon': 2, Valid:
 const STATUS_HEX: Record<string, string> = { Valid: '#34d399', 'Due Soon': '#f59e0b', Expired: '#f43f5e' };
 
 const fmtDate = (d: string) => formatDate(d); // standardized on the shared formatter
-function daysUntilExpiry(d: string): number { return Math.ceil((new Date(d).getTime() - Date.now()) / 86400000); }
+// A cert missing/with a malformed expiry_date otherwise leaked the literal
+// text "NaNd remaining" onto the register — new Date(bad).getTime() is NaN,
+// and NaN propagates silently through the arithmetic without throwing
+// (found live, 2026-08-29 UI audit).
+function daysUntilExpiry(d: string): number {
+  if (!d) return 0;
+  const t = new Date(d).getTime();
+  if (isNaN(t)) return 0;
+  return Math.ceil((t - Date.now()) / 86400000);
+}
 
 const EMPTY_FORM: FormState = { employee_name: '', employee_id: '', department: '', certification_name: '', expiry_date: '', required_refresher: '', certificate_file: null };
 const TABS = [
