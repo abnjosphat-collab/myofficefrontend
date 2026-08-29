@@ -30,6 +30,7 @@ import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButto
 import { formatCurrency, fmtDate } from '@/components/shared/utils';
 import { EXPORT_BRAND_RGB } from '@/lib/exportUtils';
 import { useAccountingData, txApi, expenseApi, assetApi, liabilityApi } from './useAccountingData';
+import { calcNetWorth } from './calcAccounting';
 import type { Transaction, Expense, FinAsset, FinLiability } from './types';
 
 const EXPENSE_CATEGORY_SEEDS = ['Subscriptions', 'Equipment', 'Utilities', 'Rent', 'Marketing', 'Other'];
@@ -523,9 +524,7 @@ function AssetsLiabilitiesTab({ data }: { data: ReturnType<typeof useAccountingD
   const [savingAsset, setSavingAsset] = useState(false);
   const [savingLiability, setSavingLiability] = useState(false);
 
-  const assetsTotal = data.assets.reduce((sum, a) => sum + a.value, 0);
-  const liabilitiesTotal = data.liabilities.reduce((sum, l) => sum + l.amount, 0);
-  const netWorth = assetsTotal - liabilitiesTotal;
+  const { assetsTotal, liabilitiesTotal, netWorth } = calcNetWorth(data.assets, data.liabilities);
 
   const addAsset = async (e: React.FormEvent) => {
     e.preventDefault();
