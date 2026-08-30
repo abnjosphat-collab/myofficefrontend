@@ -218,30 +218,23 @@ function OTFormModal({ open, onClose, onSave, editing, records }: {
   const hours = useHours ? (parseFloat(form.hours) || 0) : calcHours(form.start_time, form.end_time);
   const inputCls = `w-full h-9 rounded-lg px-3 text-sm outline-none transition-colors ${t.inputBg}`;
 
-  // A new record's planning_status/payout_method are never null (blankForm defaults
-  // both), so the 3rd tab only ever appears while editing a legacy record that
-  // hasn't been resolved yet — and disappears the moment the user picks one.
-  const planningTabs: PillTab<PlanningStatus | 'unclassified'>[] = form.planning_status === null
-    ? [
-        { key: 'planned', label: 'Planned', icon: Calendar },
-        { key: 'unplanned', label: 'Unplanned', icon: AlertCircle },
-        { key: 'unclassified', label: 'Unclassified', icon: X },
-      ]
-    : [
-        { key: 'planned', label: 'Planned', icon: Calendar },
-        { key: 'unplanned', label: 'Unplanned', icon: AlertCircle },
-      ];
+  // "Unclassified" is no longer a selectable tab (removed 2026-08-30, per request) —
+  // only Planned/Unplanned and To Be Paid/Taken as Leave are choosable now. A legacy
+  // record whose planning_status/payout_method is still null (predates these fields)
+  // shows neither tab active rather than guessing one on the user's behalf: `value`
+  // below still falls back to the 'unclassified' sentinel, which no longer matches
+  // any tab's key, so Radix's Tabs.Root just renders with nothing highlighted — the
+  // same "don't silently stamp a guessed value" safety this used to get from the
+  // now-removed third tab, still intact, just without the visible pill for it.
+  const planningTabs: PillTab<PlanningStatus | 'unclassified'>[] = [
+    { key: 'planned', label: 'Planned', icon: Calendar },
+    { key: 'unplanned', label: 'Unplanned', icon: AlertCircle },
+  ];
 
-  const payoutTabs: PillTab<PayoutMethod | 'unclassified'>[] = form.payout_method === null
-    ? [
-        { key: 'cash', label: 'To Be Paid', icon: Wallet },
-        { key: 'lieu', label: 'Taken as Leave', icon: Clock4 },
-        { key: 'unclassified', label: 'Unclassified', icon: X },
-      ]
-    : [
-        { key: 'cash', label: 'To Be Paid', icon: Wallet },
-        { key: 'lieu', label: 'Taken as Leave', icon: Clock4 },
-      ];
+  const payoutTabs: PillTab<PayoutMethod | 'unclassified'>[] = [
+    { key: 'cash', label: 'To Be Paid', icon: Wallet },
+    { key: 'lieu', label: 'Taken as Leave', icon: Clock4 },
+  ];
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1462,11 +1455,14 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
   const grandTotal15 = rows.reduce((s, r) => s + r.total15, 0);
   const grandTotal20 = rows.reduce((s, r) => s + r.total20, 0);
 
-  // Planned vs. unplanned totals for the week — always sums to grandTotal.
-  // grandTotalUnclassified only shows up when legacy (pre-field) records fall in range.
+  // Planned vs. unplanned totals for the week — always sums to grandTotal. The
+  // "Unclassified" column/badge was removed from display (2026-08-30, per request);
+  // calcOvertime.ts still tracks unclassifiedHours as its own bucket internally (no
+  // float-drift risk, and it's what calcOvertime.test.ts exercises), it's just folded
+  // into Unplanned here at the point of display — an unresolved legacy record reads
+  // closer to "we don't know it was planned" than to "we don't know it was unplanned".
   const grandTotalPlanned = rows.reduce((s, r) => s + r.plannedHours, 0);
-  const grandTotalUnplanned = rows.reduce((s, r) => s + r.unplannedHours, 0);
-  const grandTotalUnclassified = rows.reduce((s, r) => s + r.unclassifiedHours, 0);
+  const grandTotalUnplanned = rows.reduce((s, r) => s + r.unplannedHours + r.unclassifiedHours, 0);
 
   // "Where it's coming from" — a quick, always-visible answer to who's driving this
   // week's overtime and why, distinct from the separate Causes & Actions AI tab (which
@@ -1504,12 +1500,13 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
     const ws = wb.addWorksheet('OT Weekly Summary');
     // No per-day breakdown — each employee gets one numbered row: their week's
     // planned/unplanned split, 1.5x total, 2.0x total, and overall total.
-    // [No., Mine No., Employee, Planned h, Unplanned h, Unclassified h, 1.5x h, 2.0x h, Total h].
-    // Unclassified h is included (not just Planned/Unplanned) so the columns are
-    // internally consistent — Planned + Unplanned + Unclassified always sums to
-    // Total; omitting it would make the sheet look wrong on weeks with legacy data.
-    const totalCols = 9;
-    const NAME_COL = 3, TOTAL_COL = 9;
+    // [No., Mine No., Employee, Planned h, Unplanned h, 1.5x h, 2.0x h, Total h].
+    // No separate "Unclassified h" column (removed 2026-08-30, per request) — an
+    // unresolved legacy record's hours are folded into Unplanned h here so Planned +
+    // Unplanned still sums to Total; see the on-screen grandTotalUnplanned comment
+    // above for why Unplanned is the fold-in target, not Planned.
+    const totalCols = 8;
+    const NAME_COL = 3, TOTAL_COL = 8;
     ws.views = [{ state: 'frozen', xSplit: 3, ySplit: 3 }];
     const FONT = 'Calibri';
 
@@ -1530,7 +1527,7 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
     ws.addRow([]);
 
     const hdrRow = ws.getRow(3);
-    hdrRow.values = ['No.', 'Mine No.', 'Employee', 'Planned h', 'Unplanned h', 'Unclassified h', '1.5x h', '2.0x h', 'Total h'];
+    hdrRow.values = ['No.', 'Mine No.', 'Employee', 'Planned h', 'Unplanned h', '1.5x h', '2.0x h', 'Total h'];
     hdrRow.height = 28;
     hdrRow.eachCell({ includeEmpty: true }, (c, col) => {
       const isNameCol = col === NAME_COL;
@@ -1551,7 +1548,7 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
     const fmtHours = (n: number) => n.toFixed(2);
 
     rows.forEach((row, ei) => {
-      const rowVals: (string | number)[] = [ei + 1, row.employee_id || '—', row.employee_name, fmtHours(row.plannedHours), fmtHours(row.unplannedHours), fmtHours(row.unclassifiedHours), fmtHours(row.total15), fmtHours(row.total20), fmtHours(row.total)];
+      const rowVals: (string | number)[] = [ei + 1, row.employee_id || '—', row.employee_name, fmtHours(row.plannedHours), fmtHours(row.unplannedHours + row.unclassifiedHours), fmtHours(row.total15), fmtHours(row.total20), fmtHours(row.total)];
       const dataRow = ws.getRow(4 + ei);
       dataRow.values = rowVals;
       dataRow.height = 17;
@@ -1565,7 +1562,7 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
     });
 
     const totalRow = ws.getRow(4 + rows.length + 1);
-    totalRow.values = ['', '', 'Grand Total', fmtHours(grandTotalPlanned), fmtHours(grandTotalUnplanned), fmtHours(grandTotalUnclassified), fmtHours(grandTotal15), fmtHours(grandTotal20), fmtHours(grandTotal)];
+    totalRow.values = ['', '', 'Grand Total', fmtHours(grandTotalPlanned), fmtHours(grandTotalUnplanned), fmtHours(grandTotal15), fmtHours(grandTotal20), fmtHours(grandTotal)];
     totalRow.height = 22;
     totalRow.eachCell({ includeEmpty: true }, (c, col) => {
       const isTotalCol = col === TOTAL_COL;
@@ -1677,7 +1674,6 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
               <>
                 {' · '}<span style={{ color: PLANNING_HEX.planned }} className={`${TYPE_WEIGHT.semibold}`}>Planned {grandTotalPlanned.toFixed(1)}h</span>
                 {' · '}<span style={{ color: PLANNING_HEX.unplanned }} className={`${TYPE_WEIGHT.semibold}`}>Unplanned {grandTotalUnplanned.toFixed(1)}h</span>
-                {grandTotalUnclassified > 0 && <>{' · '}<span className={t.textFaint}>Unclassified {grandTotalUnclassified.toFixed(1)}h</span></>}
               </>
             )}
           </span>
