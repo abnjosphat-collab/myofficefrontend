@@ -15,7 +15,7 @@ import {
   List, LayoutGrid, MapPin, Filter, Award, Plus, Phone,
   FileSpreadsheet, FileText,
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle,
-  FormField, FormActions, useCollapseSection, CenterModal, ACCENT_HEX, SelectField, TYPE_SCALE, RADIUS,
+  FormField, FormActions, useCollapseSection, CenterModal, ACCENT_HEX, SelectField, TYPE_SCALE, TYPE_WEIGHT, RADIUS,
   GroupSection, RecordCard, staggerContainer, fadeUp,
   Subsection, InfoRow, SummaryItem, LoadingState, AutofillInput, useConfirm, accentText,
 } from '@/components/shared/theme';
@@ -143,14 +143,14 @@ function FilterChips({ label, options, value, onChange }: {
   const t = useTheme();
   return (
     <div>
-      <p className={`${TYPE_SCALE.label} font-medium mb-1.5 ${t.textFaint}`}>{label}</p>
+      <p className={`${TYPE_SCALE.label} ${TYPE_WEIGHT.medium} mb-1.5 ${t.textFaint}`}>{label}</p>
       <div className="flex flex-wrap gap-1.5">
         {options.map(o => (
           <button
             key={o.value}
             type="button"
             onClick={() => onChange(o.value)}
-            className={`h-8 px-2.5 rounded-lg text-[13px] font-semibold transition-colors ${
+            className={`h-8 px-2.5 rounded-lg text-[13px] ${TYPE_WEIGHT.semibold} transition-colors ${
               value === o.value ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textPrimary} ${t.hoverText} ${t.hoverBg}`
             }`}
           >
@@ -313,7 +313,7 @@ function RosterExportDialog({ employees, onClose }: { employees: Employee[]; onC
               {EXPORT_GROUP_OPTIONS.map(o => (
                 <button key={o.value} type="button" onClick={() => setGroupBy(o.value)}
                   className={`text-left px-3 py-2 rounded-lg transition-colors ${groupBy === o.value ? 'bg-brand-500/15 ring-1 ring-brand-500/40' : `${t.chipBg} ${t.hoverBg}`}`}>
-                  <div className={`text-[12.5px] font-semibold ${groupBy === o.value ? 'text-brand-400' : t.textPrimary}`}>{o.label}</div>
+                  <div className={`text-[12.5px] ${TYPE_WEIGHT.semibold} ${groupBy === o.value ? 'text-brand-400' : t.textPrimary}`}>{o.label}</div>
                   <div className={`text-[10.5px] ${t.textFaint}`}>{o.hint}</div>
                 </button>
               ))}
@@ -323,7 +323,7 @@ function RosterExportDialog({ employees, onClose }: { employees: Employee[]; onC
           <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
             {previewCards.map(g => (
               <div key={g.label} className={`${t.chipBg} rounded-xl px-3 py-2 text-center min-w-[72px]`}>
-                <div className={`text-base font-bold ${t.textPrimary}`}>{g.count}</div>
+                <div className={`text-base ${TYPE_WEIGHT.bold} ${t.textPrimary}`}>{g.count}</div>
                 <div className={`text-[10.5px] ${t.textFaint} truncate max-w-[100px]`}>{g.label}</div>
               </div>
             ))}
@@ -332,11 +332,11 @@ function RosterExportDialog({ employees, onClose }: { employees: Employee[]; onC
           <FormField label="Format">
             <div className="flex gap-2">
               <button type="button" onClick={() => setFormat('excel')}
-                className={`flex-1 h-10 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${format === 'excel' ? `bg-emerald-500/20 ${accentText('emerald', t.light)}` : `${t.hoverBg} ${t.textFaint}`}`}>
+                className={`flex-1 h-10 rounded-lg text-xs ${TYPE_WEIGHT.semibold} flex items-center justify-center gap-1.5 transition-all ${format === 'excel' ? `bg-emerald-500/20 ${accentText('emerald', t.light)}` : `${t.hoverBg} ${t.textFaint}`}`}>
                 <FileSpreadsheet className="h-3.5 w-3.5" /> Excel
               </button>
               <button type="button" onClick={() => setFormat('pdf')}
-                className={`flex-1 h-10 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${format === 'pdf' ? `bg-rose-500/20 ${accentText('rose', t.light)}` : `${t.hoverBg} ${t.textFaint}`}`}>
+                className={`flex-1 h-10 rounded-lg text-xs ${TYPE_WEIGHT.semibold} flex items-center justify-center gap-1.5 transition-all ${format === 'pdf' ? `bg-rose-500/20 ${accentText('rose', t.light)}` : `${t.hoverBg} ${t.textFaint}`}`}>
                 <FileText className="h-3.5 w-3.5" /> PDF
               </button>
             </div>
@@ -446,13 +446,13 @@ function EmployeeForm({ initialData, onSubmit, onCancel, isSubmitting }: Employe
           className={inputCls}
         />
         <button type="button" onClick={() => addItem(f, temps[k], k)}
-          className="px-3 h-9 rounded-lg bg-brand-500/15 hover:bg-brand-500/25 text-brand-400 text-sm font-medium transition-all whitespace-nowrap">
+          className={`px-3 h-9 rounded-lg bg-brand-500/15 hover:bg-brand-500/25 text-brand-400 text-sm ${TYPE_WEIGHT.medium} transition-all whitespace-nowrap`}>
           Add
         </button>
       </div>
       <div className="flex flex-wrap gap-1.5">
         {(form[f] as string[]).map((item, i) => (
-          <span key={i} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium" style={{ color: tint, background: `${tint}18`, border: `1px solid ${tint}30` }}>
+          <span key={i} className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs ${TYPE_WEIGHT.medium}`} style={{ color: tint, background: `${tint}18`, border: `1px solid ${tint}30` }}>
             {item}
             <button type="button" aria-label="Remove" onClick={() => rmItem(f, i)} className="hover:opacity-60 ml-0.5 transition-opacity"><X className="h-3 w-3" /></button>
           </span>
@@ -468,7 +468,7 @@ function EmployeeForm({ initialData, onSubmit, onCancel, isSubmitting }: Employe
           const Icon = tb.icon;
           return (
             <button key={tb.id} type="button" onClick={() => setTab(tb.id)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs ${TYPE_WEIGHT.medium} transition-all ${
                 tab === tb.id ? 'bg-brand-500/15 text-brand-400' : `${t.textFaint} ${t.hoverBg} ${t.hoverText}`
               }`}>
               <Icon className="h-3.5 w-3.5" />{tb.label}
@@ -536,7 +536,7 @@ function EmployeeForm({ initialData, onSubmit, onCancel, isSubmitting }: Employe
                 {(['', 'NEC', 'SALARIED'] as const).map(et => (
                   <button key={et || 'none'} type="button"
                     onClick={() => set('employment_type', et)}
-                    className={`flex-1 h-9 rounded-lg text-xs font-semibold transition-all ${
+                    className={`flex-1 h-9 rounded-lg text-xs ${TYPE_WEIGHT.semibold} transition-all ${
                       form.employment_type === et
                         ? et === 'NEC' ? `bg-indigo-500/20 ${accentText('indigo', t.light)}` : et === 'SALARIED' ? 'bg-teal-500/20 text-teal-400' : `${t.chipBg} ${t.textMuted}`
                         : `${t.hoverBg} ${t.textFaint}`
@@ -609,7 +609,7 @@ function EmployeeRow({ employee, onEdit, onDelete }: EmployeeRowProps) {
           {/* text-[14px] + tracking-tight, not text-sm — matches RecordCard's grid-view
               title exactly (components.tsx:526), so a name reads identically whether the
               page is in list or grid view. */}
-          <div className={`font-semibold text-[14px] tracking-tight ${t.textPrimary}`}>{name}</div>
+          <div className={`${TYPE_WEIGHT.semibold} text-[14px] tracking-tight ${t.textPrimary}`}>{name}</div>
           <div className="flex items-center gap-2 mt-0.5 flex-wrap">
             <span className={`text-xs font-mono ${t.textFaint}`}>{employee.employee_id}</span>
             {employee.designation && <span className={`text-xs ${t.textFaint}`}>· {employee.designation}</span>}
@@ -665,7 +665,7 @@ function EmployeeRow({ employee, onEdit, onDelete }: EmployeeRowProps) {
             <div className={`${t.chipBg} rounded-xl overflow-hidden`}>
               <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}>
                 <UserRound className="h-3.5 w-3.5 text-brand-400" />
-                <span className={`text-xs font-semibold uppercase tracking-wider ${t.textSecondary}`}>Personal</span>
+                <span className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textSecondary}`}>Personal</span>
               </div>
               <div className="px-3.5 py-3 grid grid-cols-2 gap-x-6 gap-y-2.5">
                 <InfoRow label="ID Number" value={employee.id_number} />
@@ -678,7 +678,7 @@ function EmployeeRow({ employee, onEdit, onDelete }: EmployeeRowProps) {
             <div className={`${t.chipBg} rounded-xl overflow-hidden`}>
               <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}>
                 <BriefcaseBusiness className="h-3.5 w-3.5 text-brand-400" />
-                <span className={`text-xs font-semibold uppercase tracking-wider ${t.textSecondary}`}>Employment</span>
+                <span className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textSecondary}`}>Employment</span>
               </div>
               <div className="px-3.5 py-3 grid grid-cols-2 gap-x-6 gap-y-2.5">
                 <InfoRow label="Engaged" value={fmtDate(employee.date_of_engagement)} />
@@ -695,7 +695,7 @@ function EmployeeRow({ employee, onEdit, onDelete }: EmployeeRowProps) {
             <div className={`${t.chipBg} rounded-xl overflow-hidden`}>
               <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}>
                 <GraduationCap className="h-3.5 w-3.5 text-brand-400" />
-                <span className={`text-xs font-semibold uppercase tracking-wider ${t.textSecondary}`}>Qualifications</span>
+                <span className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textSecondary}`}>Qualifications</span>
                 <span className={`text-[10px] ml-1 ${t.textFaint}`}>{quals} recorded</span>
               </div>
               <div className="px-3.5 py-3 flex flex-wrap gap-1.5">
@@ -710,7 +710,7 @@ function EmployeeRow({ employee, onEdit, onDelete }: EmployeeRowProps) {
                 <div className={`${t.chipBg} rounded-xl overflow-hidden`}>
                   <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}>
                     <Award className={`h-3.5 w-3.5 ${accentText('amber', t.light)}`} />
-                    <span className={`text-xs font-semibold uppercase tracking-wider ${t.textSecondary}`}>Awards</span>
+                    <span className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textSecondary}`}>Awards</span>
                   </div>
                   <div className="px-3.5 py-3 flex flex-wrap gap-1.5">
                     {employee.awards_recognition!.map((a, i) => <StatusBadge key={i} color="#f59e0b" label={a} />)}
@@ -721,7 +721,7 @@ function EmployeeRow({ employee, onEdit, onDelete }: EmployeeRowProps) {
                 <div className={`${t.chipBg} rounded-xl overflow-hidden`}>
                   <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}>
                     <Briefcase className={`h-3.5 w-3.5 ${accentText('violet', t.light)}`} />
-                    <span className={`text-xs font-semibold uppercase tracking-wider ${t.textSecondary}`}>Other Positions</span>
+                    <span className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textSecondary}`}>Other Positions</span>
                   </div>
                   <div className="px-3.5 py-3 flex flex-wrap gap-1.5">
                     {employee.other_positions!.map((p, i) => <StatusBadge key={i} color="#a78bfa" label={p} />)}
@@ -733,11 +733,11 @@ function EmployeeRow({ employee, onEdit, onDelete }: EmployeeRowProps) {
 
           <div className="flex items-center gap-2 pt-1">
             <button type="button" onClick={() => onEdit(employee)}
-              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-brand-500/15 hover:bg-brand-500/25 text-brand-400 transition-all font-medium">
+              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-brand-500/15 hover:bg-brand-500/25 text-brand-400 transition-all ${TYPE_WEIGHT.medium}`}>
               <Pencil className="h-3 w-3" /> Edit Employee
             </button>
             <button type="button" onClick={() => onDelete(employee)}
-              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 transition-all font-medium">
+              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 transition-all ${TYPE_WEIGHT.medium}`}>
               <Trash2 className="h-3 w-3" /> Delete
             </button>
           </div>
@@ -768,6 +768,7 @@ function EmployeeCard({ employee, onEdit, onDelete }: {
       badges={<>
         {employee.section && <StatusBadge color={secColor} label={employee.section} />}
         {employee.employment_type && <StatusBadge color={ETYPE_COLORS[employee.employment_type] ?? '#94a3b8'} label={employee.employment_type} />}
+        {employee.employee_class && <StatusBadge color={CLASS_COLORS[employee.employee_class] ?? '#94a3b8'} label={employee.employee_class} />}
       </>}
       summary={
         <div className={`grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs ${t.textMuted}`}>
@@ -777,10 +778,10 @@ function EmployeeCard({ employee, onEdit, onDelete }: {
         </div>
       }
       actions={<>
-        <button onClick={() => onEdit(employee)} type="button" className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 text-white text-[12px] font-semibold hover:brightness-110 transition-all">
+        <button onClick={() => onEdit(employee)} type="button" className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 text-white text-[12px] ${TYPE_WEIGHT.semibold} hover:brightness-110 transition-all`}>
           <Pencil className="h-3.5 w-3.5" /> Edit
         </button>
-        <button onClick={() => onDelete(employee)} type="button" className={`px-4 flex items-center justify-center gap-1.5 py-2 rounded-lg ${t.chipBg} text-rose-500 hover:bg-rose-500/10 text-[12px] font-semibold transition-all`}>
+        <button onClick={() => onDelete(employee)} type="button" className={`px-4 flex items-center justify-center gap-1.5 py-2 rounded-lg ${t.chipBg} text-rose-500 hover:bg-rose-500/10 text-[12px] ${TYPE_WEIGHT.semibold} transition-all`}>
           <Trash2 className="h-3.5 w-3.5" /> Delete
         </button>
       </>}
@@ -792,7 +793,6 @@ function EmployeeCard({ employee, onEdit, onDelete }: {
         <InfoRow label="Joined" value={fmtDate(employee.date_of_engagement)} />
         <InfoRow label="Grade" value={employee.grade} />
         <InfoRow label="Supervisor" value={employee.supervisor} />
-        <InfoRow label="Class" value={employee.employee_class || 'Unclassified'} />
       </div>
       {employee.email && (
         <a href={`mailto:${employee.email}`} className="flex items-center gap-1.5 text-xs text-brand-400 hover:underline w-fit">
@@ -801,9 +801,9 @@ function EmployeeCard({ employee, onEdit, onDelete }: {
       )}
       {quals.length > 0 && (
         <div>
-          <p className={`text-[10px] font-semibold ${t.textTertiary} uppercase tracking-wider mb-1.5`}>Qualifications</p>
+          <p className={`text-[10px] ${TYPE_WEIGHT.semibold} ${t.textTertiary} uppercase tracking-wider mb-1.5`}>Qualifications</p>
           <div className="flex flex-wrap gap-1.5">
-            {quals.map((q, i) => <span key={i} className={`text-[10.5px] font-medium ${t.textMuted} ${t.chipBg} rounded-full px-2 py-0.5`}>{q}</span>)}
+            {quals.map((q, i) => <span key={i} className={`text-[10.5px] ${TYPE_WEIGHT.medium} ${t.textMuted} ${t.chipBg} rounded-full px-2 py-0.5`}>{q}</span>)}
           </div>
         </div>
       )}
@@ -979,7 +979,7 @@ function EmployeesPageContent() {
               className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-colors disabled:opacity-40`}>
               <Award className="h-4 w-4" />
             </button>
-            <button type="button" onClick={openAdd} className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 transition-all hover:brightness-110">
+            <button type="button" onClick={openAdd} className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 transition-all hover:brightness-110`}>
               <Plus className="h-3.5 w-3.5" /> Add Employee
             </button>
           </>
@@ -1007,12 +1007,12 @@ function EmployeesPageContent() {
           <SearchInput value={search} onChange={setSearch} placeholder="Search name, ID, role…" className="flex-1" />
           <div className="flex gap-2 flex-wrap items-center">
             <button type="button" onClick={() => setShowFilters(v => !v)}
-              className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-medium transition-colors ${showFilters ? 'bg-brand-500/15 text-brand-400' : `${t.textMuted} ${t.hoverText} ${t.glassSoft}`}`}>
+              className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.medium} transition-colors ${showFilters ? 'bg-brand-500/15 text-brand-400' : `${t.textMuted} ${t.hoverText} ${t.glassSoft}`}`}>
               <Filter className="h-3.5 w-3.5" /> Filters
               {activeFilterCount > 0 && <span className={`ml-1 px-1.5 py-0.5 ${t.chipBg} rounded text-[10px]`}>{activeFilterCount}</span>}
             </button>
             {activeFilterCount > 0 && (
-              <button type="button" onClick={clearFilters} className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-medium ${t.textFaint} ${t.hoverText} ${t.hoverBg} transition-colors`}>
+              <button type="button" onClick={clearFilters} className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.medium} ${t.textFaint} ${t.hoverText} ${t.hoverBg} transition-colors`}>
                 <FilterX className="h-3.5 w-3.5" /> Clear
               </button>
             )}
@@ -1028,17 +1028,17 @@ function EmployeesPageContent() {
               options={[{ value: 'all', label: 'All Classes' }, ...CLASS_OPTIONS.map(c => ({ value: c, label: c }))]} />
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
-                <p className={`${TYPE_SCALE.label} font-medium mb-1.5 ${t.textFaint}`}>Section</p>
+                <p className={`${TYPE_SCALE.label} ${TYPE_WEIGHT.medium} mb-1.5 ${t.textFaint}`}>Section</p>
                 <SelectField size="filter" title="Filter by section" value={sectionFilter} onChange={setSectionFilter}
                   options={[{ value: 'all', label: 'All Sections' }, ...uniqueSections.map(s => ({ value: s, label: s })), { value: 'Unassigned', label: 'Unassigned' }]} />
               </div>
               <div>
-                <p className={`${TYPE_SCALE.label} font-medium mb-1.5 ${t.textFaint}`}>Department</p>
+                <p className={`${TYPE_SCALE.label} ${TYPE_WEIGHT.medium} mb-1.5 ${t.textFaint}`}>Department</p>
                 <SelectField size="filter" title="Filter by department" value={deptFilter} onChange={setDeptFilter}
                   options={[{ value: 'all', label: 'All Departments' }, ...uniqueDepts.map(d => ({ value: d, label: d }))]} />
               </div>
               <div>
-                <p className={`${TYPE_SCALE.label} font-medium mb-1.5 ${t.textFaint}`}>Role / Profession</p>
+                <p className={`${TYPE_SCALE.label} ${TYPE_WEIGHT.medium} mb-1.5 ${t.textFaint}`}>Role / Profession</p>
                 <SelectField size="filter" title="Filter by role" value={roleFilter} onChange={setRoleFilter}
                   options={[{ value: 'all', label: 'All Roles' }, ...uniqueRoles.map(r => ({ value: r, label: r }))]} />
               </div>
@@ -1051,7 +1051,7 @@ function EmployeesPageContent() {
       <div className="space-y-3">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <p className={`${TYPE_SCALE.body} ${t.textFaint}`}>
-            Showing <span className={`font-semibold ${t.textPrimary}`}>{filtered.length}</span> of {employees.length} employees
+            Showing <span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{filtered.length}</span> of {employees.length} employees
             {grouped.length > 0 && <span> · {grouped.length} section{grouped.length === 1 ? '' : 's'}</span>}
           </p>
           <div className="flex items-center gap-2">
@@ -1070,7 +1070,7 @@ function EmployeesPageContent() {
             <ViewToggle value={viewMode} onChange={setViewMode} options={[{ value: 'grid', icon: LayoutGrid, label: 'Card grid' }, { value: 'list', icon: List, label: 'Compact rows' }]} />
             {grouped.length > 1 && !search && (
               <button type="button" onClick={toggleAllGroups}
-                className={`flex items-center gap-1.5 text-[12px] font-medium ${t.textMuted} ${t.hoverText} ${t.glassSoft} rounded-lg px-2.5 py-1.5 transition-colors`}>
+                className={`flex items-center gap-1.5 text-[12px] ${TYPE_WEIGHT.medium} ${t.textMuted} ${t.hoverText} ${t.glassSoft} rounded-lg px-2.5 py-1.5 transition-colors`}>
                 {allGroupsOpen ? <ChevronsDownUp className="h-3.5 w-3.5" /> : <ChevronsUpDown className="h-3.5 w-3.5" />}
                 {allGroupsOpen ? 'Collapse all' : 'Expand all'}
               </button>
@@ -1087,18 +1087,18 @@ function EmployeesPageContent() {
             {employees.length === 0 ? (
               <>
                 <Users className={`h-12 w-12 ${t.textFaint} mx-auto mb-4`} />
-                <h3 className={`text-lg font-semibold ${t.textPrimary} mb-2`}>No employees yet</h3>
+                <h3 className={`text-lg ${TYPE_WEIGHT.semibold} ${t.textPrimary} mb-2`}>No employees yet</h3>
                 <p className={`${TYPE_SCALE.body} mb-4 ${t.textFaint}`}>Add your first employee to get started.</p>
-                <button type="button" onClick={openAdd} className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all">
+                <button type="button" onClick={openAdd} className={`inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-[13px] ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all`}>
                   <Plus className="h-3.5 w-3.5" /> Add Employee
                 </button>
               </>
             ) : (
               <>
                 <FilterX className={`h-12 w-12 ${t.textFaint} mx-auto mb-4`} />
-                <h3 className={`text-lg font-semibold ${t.textPrimary} mb-2`}>No results match your filters</h3>
+                <h3 className={`text-lg ${TYPE_WEIGHT.semibold} ${t.textPrimary} mb-2`}>No results match your filters</h3>
                 <p className={`${TYPE_SCALE.body} mb-4 ${t.textFaint}`}>Try adjusting your search or filters.</p>
-                <button type="button" onClick={clearFilters} className={`inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-[13px] font-medium ${t.textMuted} ${t.glassSoft} ${t.hoverText} transition-all`}>
+                <button type="button" onClick={clearFilters} className={`inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-[13px] ${TYPE_WEIGHT.medium} ${t.textMuted} ${t.glassSoft} ${t.hoverText} transition-all`}>
                   <FilterX className="h-3.5 w-3.5" /> Clear Filters
                 </button>
               </>

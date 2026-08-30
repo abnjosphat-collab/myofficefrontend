@@ -66,7 +66,7 @@ import {
   Home
 } from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
-import { useTheme, PageHero } from '@/components/shared/theme';
+import { useTheme, PageHero, accentText } from '@/components/shared/theme';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -81,7 +81,7 @@ import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import type { AIAnalysis, PageConfig, PageData, PageOption } from './types';
-import { generateMockAiAnalysis, generateMockPageData } from './mockData';
+import { generateMockAiAnalysis, generateMockPageData, plotlyTheme } from './mockData';
 
 // ===== TYPE SAFE PLOTLY WRAPPER =====
 // Create a type-safe wrapper for Plotly
@@ -466,8 +466,8 @@ function VisualizationContent() {
             </div>
           </div>
           <div className="flex-1 p-4">
-            <div 
-              className="w-full h-full bg-white rounded-lg"
+            <div
+              className="w-full h-full bg-card rounded-lg"
               style={{ transform: `scale(${chartScale})`, transformOrigin: 'center' }}
             >
               {Plot && pageData.visualizations[fullscreenChart] && (
@@ -475,6 +475,9 @@ function VisualizationContent() {
                   data={pageData.visualizations[fullscreenChart].data}
                   layout={{
                     ...pageData.visualizations[fullscreenChart].layout,
+                    ...plotlyTheme(t.light),
+                    xaxis: { ...pageData.visualizations[fullscreenChart].layout?.xaxis, ...plotlyTheme(t.light).xaxis },
+                    yaxis: { ...pageData.visualizations[fullscreenChart].layout?.yaxis, ...plotlyTheme(t.light).yaxis },
                     height: 800,
                     width: 1400
                   }}
@@ -560,9 +563,9 @@ function VisualizationContent() {
                     key={page.id}
                     onClick={() => handlePageSelect(page)}
                     className={`p-4 border rounded-lg text-left transition-all hover:shadow-lg ${
-                      selectedPage.id === page.id 
-                        ? 'border-brand-500 bg-brand-50 ring-2 ring-brand-200' 
-                        : 'border-gray-200 bg-white hover:border-gray-300'
+                      selectedPage.id === page.id
+                        ? 'border-brand-500 bg-accent ring-2 ring-ring'
+                        : 'bg-muted hover:bg-accent'
                     }`}
                   >
                     <div className="flex items-center justify-between mb-3">
@@ -578,7 +581,7 @@ function VisualizationContent() {
                         </div>
                       </div>
                       <ChevronRight className={`h-5 w-5 ${
-                        selectedPage.id === page.id ? 'text-brand-500' : 'text-gray-400'
+                        selectedPage.id === page.id ? 'text-brand-500' : t.textFaint
                       }`} />
                     </div>
                     <p className={`text-sm ${t.textMuted}`}>{page.description}</p>
@@ -597,9 +600,9 @@ function VisualizationContent() {
                     key={page.id}
                     onClick={() => handlePageSelect(page)}
                     className={`w-full p-3 border rounded-lg text-left transition-all flex items-center justify-between ${
-                      selectedPage.id === page.id 
-                        ? 'border-brand-500 bg-brand-50' 
-                        : 'border-gray-200 hover:border-gray-300'
+                      selectedPage.id === page.id
+                        ? 'border-brand-500 bg-accent'
+                        : 'hover:bg-accent'
                     }`}
                   >
                     <div className="flex items-center gap-3">
@@ -614,7 +617,7 @@ function VisualizationContent() {
                     <div className="flex items-center gap-2">
                       <Badge variant="outline">{page.category}</Badge>
                       <ChevronRight className={`h-4 w-4 ${
-                        selectedPage.id === page.id ? 'text-brand-500' : 'text-gray-400'
+                        selectedPage.id === page.id ? 'text-brand-500' : t.textFaint
                       }`} />
                     </div>
                   </button>
@@ -628,7 +631,7 @@ function VisualizationContent() {
         {selectedPage && (
           <div className="space-y-6">
             {/* Page Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 bg-white rounded-lg border shadow-sm">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 bg-card rounded-lg border shadow-sm">
               <div className="flex items-center gap-4">
                 <div className={`p-3 rounded-lg ${selectedPage.color} text-white`}>
                   {selectedPage.icon}
@@ -661,12 +664,12 @@ function VisualizationContent() {
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {techPackages.map((pkg) => (
-                    <div key={pkg.name} className="p-4 border rounded-lg bg-white hover:shadow-md transition-shadow">
+                    <div key={pkg.name} className="p-4 border rounded-lg bg-muted hover:shadow-md transition-shadow">
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-2">
                           <div className={`p-2 rounded-lg ${
-                            pkg.status === 'active' ? 'bg-green-100 text-green-600' :
-                            `bg-gray-100 ${t.textMuted}`
+                            pkg.status === 'active' ? `${t.light ? 'bg-green-100' : 'bg-green-500/10'} ${accentText('green', t.light)}` :
+                            `${t.chipBg} ${t.textMuted}`
                           }`}>
                             {pkg.icon}
                           </div>
@@ -722,7 +725,7 @@ function VisualizationContent() {
                 {loading ? (
                   <div className="flex items-center justify-center h-64">
                     <div className="flex flex-col items-center gap-3">
-                      <div className="h-8 w-8 animate-spin rounded-full border-3 border-gray-300 border-t-blue-600" />
+                      <div className={`h-8 w-8 animate-spin rounded-full border-3 ${t.border} border-t-blue-600`} />
                       <p className={`${t.textMuted}`}>Loading visualizations for {selectedPage.name}...</p>
                     </div>
                   </div>
@@ -742,26 +745,26 @@ function VisualizationContent() {
                       </CardHeader>
                       <CardContent>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                          <div className="p-4 bg-brand-50 rounded-lg">
-                            <div className="text-2xl font-bold text-brand-600">
+                          <div className={`p-4 rounded-lg ${t.light ? 'bg-brand-50' : 'bg-brand-500/10'}`}>
+                            <div className={`text-2xl font-bold ${accentText('brand', t.light)}`}>
                               {pageData.data_summary.total_records.toLocaleString()}
                             </div>
                             <div className={`text-sm ${t.textMuted}`}>Total Records</div>
                           </div>
-                          <div className="p-4 bg-green-50 rounded-lg">
-                            <div className="text-2xl font-bold text-green-600">
+                          <div className={`p-4 rounded-lg ${t.light ? 'bg-green-50' : 'bg-green-500/10'}`}>
+                            <div className={`text-2xl font-bold ${accentText('green', t.light)}`}>
                               {pageData.data_summary.columns.length}
                             </div>
                             <div className={`text-sm ${t.textMuted}`}>Data Columns</div>
                           </div>
-                          <div className="p-4 bg-purple-50 rounded-lg">
-                            <div className="text-2xl font-bold text-purple-600">
+                          <div className={`p-4 rounded-lg ${t.light ? 'bg-purple-50' : 'bg-purple-500/10'}`}>
+                            <div className={`text-2xl font-bold ${accentText('purple', t.light)}`}>
                               {Object.keys(pageData.visualizations).length}
                             </div>
                             <div className={`text-sm ${t.textMuted}`}>Visualizations</div>
                           </div>
-                          <div className="p-4 bg-amber-50 rounded-lg">
-                            <div className="text-2xl font-bold text-amber-600">
+                          <div className={`p-4 rounded-lg ${t.light ? 'bg-amber-50' : 'bg-amber-500/10'}`}>
+                            <div className={`text-2xl font-bold ${accentText('amber', t.light)}`}>
                               {pageData.page_info.primary_metrics.length}
                             </div>
                             <div className={`text-sm ${t.textMuted}`}>Key Metrics</div>
@@ -809,6 +812,9 @@ function VisualizationContent() {
                                   data={chart.data}
                                   layout={{
                                     ...chart.layout,
+                                    ...plotlyTheme(t.light),
+                                    xaxis: { ...chart.layout?.xaxis, ...plotlyTheme(t.light).xaxis },
+                                    yaxis: { ...chart.layout?.yaxis, ...plotlyTheme(t.light).yaxis },
                                     height: 300,
                                     showlegend: false,
                                     margin: { t: 30, b: 30, l: 40, r: 30 }
@@ -903,9 +909,9 @@ function VisualizationContent() {
                                     setFullscreenChart(key);
                                   }}
                                   className={`w-full p-3 text-left rounded-lg border transition-all ${
-                                    activeChartKey === key 
-                                      ? 'border-brand-500 bg-brand-50' 
-                                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                                    activeChartKey === key
+                                      ? 'border-brand-500 bg-accent'
+                                      : 'hover:bg-accent'
                                   }`}
                                 >
                                   <div className="font-medium text-sm">
@@ -931,12 +937,15 @@ function VisualizationContent() {
                           </CardDescription>
                         </CardHeader>
                         <CardContent>
-                          <div className="h-[500px] border rounded-lg bg-white">
+                          <div className="h-[500px] border rounded-lg bg-muted">
                             {activeChartKey && pageData.visualizations[activeChartKey] && Plot && (
                               <Plot
                                 data={pageData.visualizations[activeChartKey].data}
                                 layout={{
                                   ...pageData.visualizations[activeChartKey].layout,
+                                  ...plotlyTheme(t.light),
+                                  xaxis: { ...pageData.visualizations[activeChartKey].layout?.xaxis, ...plotlyTheme(t.light).xaxis },
+                                  yaxis: { ...pageData.visualizations[activeChartKey].layout?.yaxis, ...plotlyTheme(t.light).yaxis },
                                   height: 500
                                 }}
                                 config={{ responsive: true }}
@@ -954,7 +963,7 @@ function VisualizationContent() {
               {/* ===== AI ANALYSIS TAB ===== */}
               <TabsContent value="ai" className="space-y-6">
                 <div className="flex items-center gap-3">
-                  <Brain className="h-8 w-8 text-purple-600" />
+                  <Brain className={`h-5 w-5 ${accentText('purple', t.light)}`} />
                   <div>
                     <h2 className={`text-2xl font-bold ${t.textPrimary}`}>🤖 AI Analysis</h2>
                     <p className={`${t.textMuted}`}>
@@ -966,7 +975,7 @@ function VisualizationContent() {
                 {aiLoading ? (
                   <div className="flex items-center justify-center h-64">
                     <div className="flex flex-col items-center gap-3">
-                      <div className="h-8 w-8 animate-spin rounded-full border-3 border-gray-300 border-t-purple-600" />
+                      <div className={`h-8 w-8 animate-spin rounded-full border-3 ${t.border} border-t-purple-600`} />
                       <p className={`${t.textMuted}`}>AI is analyzing {selectedPage.name} data...</p>
                     </div>
                   </div>
@@ -999,19 +1008,19 @@ function VisualizationContent() {
                                   </Badge>
                                 </div>
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
-                                  <div className="text-center p-2 bg-gray-50 rounded">
+                                  <div className={`text-center p-2 ${t.chipBg} rounded`}>
                                     <div className="font-bold">{insight.average.toFixed(1)}</div>
                                     <div className={`text-xs ${t.textMuted}`}>Avg</div>
                                   </div>
-                                  <div className="text-center p-2 bg-gray-50 rounded">
+                                  <div className={`text-center p-2 ${t.chipBg} rounded`}>
                                     <div className="font-bold">{insight.median.toFixed(1)}</div>
                                     <div className={`text-xs ${t.textMuted}`}>Median</div>
                                   </div>
-                                  <div className="text-center p-2 bg-gray-50 rounded">
+                                  <div className={`text-center p-2 ${t.chipBg} rounded`}>
                                     <div className="font-bold">{insight.min.toFixed(1)}</div>
                                     <div className={`text-xs ${t.textMuted}`}>Min</div>
                                   </div>
-                                  <div className="text-center p-2 bg-gray-50 rounded">
+                                  <div className={`text-center p-2 ${t.chipBg} rounded`}>
                                     <div className="font-bold">{insight.max.toFixed(1)}</div>
                                     <div className={`text-xs ${t.textMuted}`}>Max</div>
                                   </div>
@@ -1037,9 +1046,9 @@ function VisualizationContent() {
                           <div className="space-y-3">
                             {aiAnalysis.recommendations.map((rec, index) => (
                               <div key={index} className={`p-3 rounded-lg border-l-4 ${
-                                rec.priority === 'high' ? 'border-l-red-500 bg-red-50' :
-                                rec.priority === 'medium' ? 'border-l-amber-500 bg-amber-50' :
-                                'border-l-green-500 bg-green-50'
+                                rec.priority === 'high' ? `border-l-red-500 ${t.light ? 'bg-red-50' : 'bg-red-500/10'}` :
+                                rec.priority === 'medium' ? `border-l-amber-500 ${t.light ? 'bg-amber-50' : 'bg-amber-500/10'}` :
+                                `border-l-green-500 ${t.light ? 'bg-green-50' : 'bg-green-500/10'}`
                               }`}>
                                 <div className="flex items-start justify-between">
                                   <div>
@@ -1087,9 +1096,9 @@ function VisualizationContent() {
                               ))
                             ) : (
                               <div className="text-center py-8">
-                                <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-3" />
+                                <CheckCircle className={`h-6 w-6 mx-auto mb-3 ${accentText('green', t.light)}`} />
                                 <p className={`${t.textMuted}`}>No anomalies detected</p>
-                                <p className="text-sm text-gray-400">Data patterns appear normal</p>
+                                <p className={`text-sm ${t.textFaint}`}>Data patterns appear normal</p>
                               </div>
                             )}
                           </div>
@@ -1143,9 +1152,9 @@ function VisualizationContent() {
                   <Card>
                     <CardContent className="py-12">
                       <div className="text-center">
-                        <Brain className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                        <Brain className={`h-6 w-6 mx-auto mb-3 ${t.textFaint}`} />
                         <p className={`${t.textMuted}`}>No AI analysis available</p>
-                        <p className="text-sm text-gray-400 mt-1">
+                        <p className={`text-sm ${t.textFaint} mt-1`}>
                           Click &quot;Run AI Analysis&quot; to generate insights
                         </p>
                       </div>
@@ -1157,7 +1166,7 @@ function VisualizationContent() {
               {/* ===== DATA PROCESSING TAB ===== */}
               <TabsContent value="polars" className="space-y-6">
                 <div className="flex items-center gap-3">
-                  <Zap className="h-8 w-8 text-amber-600" />
+                  <Zap className={`h-5 w-5 ${accentText('amber', t.light)}`} />
                   <div>
                     <h2 className={`text-2xl font-bold ${t.textPrimary}`}>⚡ Data Processing</h2>
                     <p className={`${t.textMuted}`}>
@@ -1228,7 +1237,7 @@ function VisualizationContent() {
                         { operation: 'Join Operations', time: '3.2ms', records: '20k' },
                         { operation: 'Window Functions', time: '4.5ms', records: '10k' }
                       ].map((op, index) => (
-                        <div key={index} className="mb-4 last:mb-0 p-3 border rounded-lg hover:bg-gray-50">
+                        <div key={index} className="mb-4 last:mb-0 p-3 border rounded-lg hover:bg-accent">
                           <div className="flex justify-between items-center mb-2">
                             <span className="font-medium">{op.operation}</span>
                             <Badge variant="outline">{op.time}</Badge>
@@ -1254,13 +1263,13 @@ function VisualizationContent() {
                     <CardContent>
                       <div className="space-y-4">
                         <div className="grid grid-cols-2 gap-4">
-                          <div className="p-3 bg-gray-50 rounded-lg">
+                          <div className={`p-3 ${t.chipBg} rounded-lg`}>
                             <div className={`text-xl font-bold ${t.textPrimary}`}>
                               {pageData?.data_summary.total_records.toLocaleString() || '0'}
                             </div>
                             <div className={`text-sm ${t.textMuted}`}>Total Records</div>
                           </div>
-                          <div className="p-3 bg-gray-50 rounded-lg">
+                          <div className={`p-3 ${t.chipBg} rounded-lg`}>
                             <div className={`text-xl font-bold ${t.textPrimary}`}>
                               {pageData?.data_summary.columns.length || '0'}
                             </div>
@@ -1283,7 +1292,7 @@ function VisualizationContent() {
               {/* ===== STATIC CHARTS TAB ===== */}
               <TabsContent value="static" className="space-y-6">
                 <div className="flex items-center gap-3">
-                  <TrendingUp className="h-8 w-8 text-green-600" />
+                  <TrendingUp className={`h-5 w-5 ${accentText('green', t.light)}`} />
                   <div>
                     <h2 className={`text-2xl font-bold ${t.textPrimary}`}>📊 Static Publication Charts</h2>
                     <p className={`${t.textMuted}`}>Matplotlib & Seaborn for reports and publications</p>
@@ -1332,7 +1341,7 @@ function VisualizationContent() {
                     <Card key={index}>
                       <CardHeader>
                         <CardTitle className="flex items-center gap-2">
-                          <div className="p-2 bg-gray-100 rounded">
+                          <div className={`p-2 ${t.chipBg} rounded`}>
                             {chart.icon}
                           </div>
                           {chart.title}
@@ -1341,9 +1350,9 @@ function VisualizationContent() {
                       </CardHeader>
                       <CardContent>
                         <div className="space-y-3">
-                          <div className="h-40 bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg flex items-center justify-center">
+                          <div className={`h-40 ${t.chipBg} rounded-lg flex items-center justify-center`}>
                             <div className="text-center">
-                              <div className="text-4xl font-bold text-gray-400">{index + 1}</div>
+                              <div className={`text-4xl font-bold ${t.textFaint}`}>{index + 1}</div>
                               <div className={`text-sm ${t.textMuted}`}>Chart Preview</div>
                             </div>
                           </div>
@@ -1394,7 +1403,7 @@ function VisualizationContent() {
         )}
 
         {/* Footer Stats */}
-        <div className="mt-12 pt-8 border-t border-gray-200">
+        <div className="mt-12 pt-8 border-t">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             <div className="text-center p-4">
               <div className="text-3xl font-bold text-purple-600">{pageOptions.length}</div>
@@ -1433,7 +1442,7 @@ function VisualizationFallback() {
   return (
     <div className="min-h-[60vh] flex items-center justify-center">
       <div className="flex flex-col items-center gap-3">
-        <div className="h-8 w-8 animate-spin rounded-full border-3 border-gray-300 border-t-blue-600" />
+        <div className={`h-8 w-8 animate-spin rounded-full border-3 ${t.border} border-t-blue-600`} />
         <p className={`${t.textMuted}`}>Loading visualizations...</p>
       </div>
     </div>

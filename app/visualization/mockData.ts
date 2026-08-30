@@ -12,7 +12,30 @@
 // because getPageConfig depends on pageOptions, which carries a ReactNode
 // icon per entry and so stays in page.tsx (a .tsx file) — this keeps that
 // dependency out of this plain .ts data-layer file entirely.
-import type { AIAnalysis, PageConfig, PageData, Visualization } from './types';
+import type { AIAnalysis, PageConfig, PageData, PlotLayout, Visualization } from './types';
+
+// Plotly layout fields that make a chart theme-aware. Chart generation
+// (generateMockChart, below) happens once per loadPageData() call and
+// isn't re-run on theme toggle, so this is NOT baked into the generated
+// layout here — page.tsx merges it into `layout` at each <Plot> render
+// site instead, which is what makes charts re-theme immediately when the
+// user flips light/dark without needing a data reload. Only scene/polar
+// need their own color fields explicitly; Plotly inherits `font.color`
+// into ordinary 2D axis ticks/titles/legend automatically.
+export function plotlyTheme(light: boolean): PlotLayout {
+  const gridColor = light ? 'rgba(15,23,42,0.08)' : 'rgba(255,255,255,0.08)';
+  const textColor = light ? '#475569' : '#94a3b8';
+  const axis = { gridcolor: gridColor, zerolinecolor: gridColor, tickfont: { color: textColor }, titlefont: { color: textColor } };
+  return {
+    paper_bgcolor: 'rgba(0,0,0,0)',
+    plot_bgcolor: 'rgba(0,0,0,0)',
+    font: { color: textColor },
+    xaxis: axis,
+    yaxis: axis,
+    scene: { xaxis: axis, yaxis: axis, zaxis: axis, bgcolor: 'rgba(0,0,0,0)' },
+    polar: { radialaxis: axis, angularaxis: axis, bgcolor: 'rgba(0,0,0,0)' },
+  };
+}
 
 export function generateMockChart(type: string, title: string, colorScheme: string = 'Viridis'): Visualization {
   const colors: Record<string, string> = {

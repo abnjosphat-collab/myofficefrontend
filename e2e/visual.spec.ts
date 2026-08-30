@@ -20,6 +20,12 @@ const PAGES = [
   { path: '/spares', name: 'spares' },
   { path: '/breakdowns', name: 'breakdowns' },
   { path: '/maintenance', name: 'maintenance' },
+  // Added for the 2026-08-30 UI-consistency pass — permanent regression guards for
+  // the dark-mode/icon-size fixes on Visualization and the Class-badge parity fix
+  // on Employees (see e2e/auth-gate.spec.ts's header comment for the auth-model
+  // context these two pages share with the rest of the app).
+  { path: '/visualization', name: 'visualization' },
+  { path: '/employees', name: 'employees' },
 ] as const;
 
 async function preparePage(page: Page, theme: 'light' | 'dark') {

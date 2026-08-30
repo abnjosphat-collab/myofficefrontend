@@ -307,6 +307,22 @@ export const TYPE_SCALE = {
   hero: 'text-[32px] sm:text-[42px]', // hero title
 } as const;
 
+// ─── Type weight — PILOT, app/employees/page.tsx ONLY ────────────────────────
+// TYPE_SCALE (above) covers size; there was no equivalent named scale for
+// font-weight, so every page (55 of ~90 app/**/page.tsx files, as of the
+// 2026-08-30 UI-consistency audit) hand-picks font-medium/semibold/bold ad hoc,
+// field by field. This is a pilot of a shared weight vocabulary, scoped to the
+// Employees page only — same discipline as STATUS_TONE's rollout (piloted on
+// one page first, adopted elsewhere only after explicit user sign-off). Do NOT
+// adopt this in another page, or inside a shared component in components.tsx,
+// without that same sign-off step. Only 3 weights were found in use anywhere
+// in the app — no font-normal/font-light to account for.
+export const TYPE_WEIGHT = {
+  medium: 'font-medium',     // secondary emphasis — badge labels, InfoRow values, filter labels
+  semibold: 'font-semibold', // primary emphasis — card/row titles, section headers
+  bold: 'font-bold',         // hero numbers, stat values
+} as const;
+
 // ─── Spacing / radius scale ──────────────────────────────────────────────────
 // The app's actual working increments (see MyOffice-Design-System.docx Section 11
 // "Cheat Sheet") rather than the full default Tailwind spacing scale.
