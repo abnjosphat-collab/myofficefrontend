@@ -1,6 +1,23 @@
 import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
+import jsxA11y from "eslint-plugin-jsx-a11y";
+
+// eslint-config-next/core-web-vitals only turns on 6 jsx-a11y rules (alt-text,
+// aria-props/proptypes/unsupported-elements, role-has-required-aria-props, and one
+// more) — a small curated subset, not the full recommended set (34 rules: things like
+// label-has-associated-control, click-events-have-key-events, anchor-is-valid,
+// interactive-supports-focus are NOT covered by Next's subset). This app's actual
+// interactive-component-level a11y work (CenterModal focus trap, Combobox/
+// PredictiveInput ARIA roles, DownloadButton ARIA menu, PillTabs/UnderlineTabs ARIA
+// tabs) is already shipped — this closes the remaining real gap, which was lint
+// *coverage*, not missing component behavior. All forced to 'warn' (never 'error') so
+// this is a visibility/backlog tool, not a new CI gate — the app hasn't been audited
+// against the full rule set yet, so some of these may fire broadly on day one.
+const a11yRecommended = jsxA11y.flatConfigs.recommended;
+const a11yWarnRules = Object.fromEntries(
+  Object.keys(a11yRecommended.rules).map((rule) => [rule, "warn"])
+);
 
 // A single className chunk with two unmodified bg-* color utilities silently lets one
 // win with no warning — found and fixed 3 separate times in this codebase already. A
@@ -67,6 +84,10 @@ const localRules = {
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
+  // Just the rules, not the whole flat-config object — eslint-config-next/core-web-vitals
+  // already registers its own "jsx-a11y" plugin instance; re-spreading
+  // a11yRecommended's `plugins` key here throws ("Cannot redefine plugin jsx-a11y").
+  { rules: a11yWarnRules },
   // Project-level rule overrides
   {
     rules: {
