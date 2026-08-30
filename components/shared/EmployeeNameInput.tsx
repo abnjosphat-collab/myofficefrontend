@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { API_BASE } from '@/lib/config';
 import { UserCircle, ChevronDown, X, Loader2, useTheme } from '@/components/shared/theme';
 
@@ -76,7 +76,6 @@ export function EmployeeNameInput({
   error,
 }: EmployeeNameInputProps) {
   const [employees,  setEmployees]  = useState<EmployeeRecord[]>([]);
-  const [filtered,   setFiltered]   = useState<EmployeeRecord[]>([]);
   const [open,       setOpen]       = useState(false);
   const [loading,    setLoading]    = useState(false);
   const [highlight,  setHighlight]  = useState(0);
@@ -92,19 +91,23 @@ export function EmployeeNameInput({
     });
   }, []);
 
-  // Filter on every keystroke
-  useEffect(() => {
-    if (!value.trim()) { setFiltered(employees.slice(0, 8)); return; }
+  // Filtered list is purely derived from value/employees — compute it during render
+  // instead of syncing it via an effect (was react-hooks/set-state-in-effect: the
+  // effect version added an extra render pass on every keystroke for no benefit,
+  // 2026-08-30 fix). highlight isn't purely derived (also moves via arrow keys), so
+  // it keeps its own effect resetting it whenever the filtered set changes.
+  const filtered = useMemo(() => {
+    if (!value.trim()) return employees.slice(0, 8);
     const q = value.toLowerCase();
-    const results = employees.filter(e =>
+    return employees.filter(e =>
       fullName(e).toLowerCase().includes(q) ||
       e.employee_id.toLowerCase().includes(q) ||
       (e.designation ?? '').toLowerCase().includes(q) ||
       (e.department ?? '').toLowerCase().includes(q)
     ).slice(0, 10);
-    setFiltered(results);
-    setHighlight(0);
   }, [value, employees]);
+
+  useEffect(() => { setHighlight(0); }, [value, employees]);
 
   // Close on outside click
   useEffect(() => {
