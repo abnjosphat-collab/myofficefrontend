@@ -117,8 +117,8 @@ export function useAppShellState() {
   const favoriteModules = useMemo(() => {
     const result: { module: Module; accent: Accent }[] = [];
     for (const cat of visibleCategories) {
-      for (const module of cat.modules) {
-        if (favoriteHrefs.has(module.href)) result.push({ module, accent: cat.accent });
+      for (const mod of cat.modules) {
+        if (favoriteHrefs.has(mod.href)) result.push({ module: mod, accent: cat.accent });
       }
     }
     return result;
@@ -127,9 +127,9 @@ export function useAppShellState() {
   const customQuickActions = useMemo(() => {
     const result: QuickAction[] = [];
     for (const cat of visibleCategories) {
-      for (const module of cat.modules) {
-        if (quickActionHrefs.has(module.href)) {
-          result.push({ id: module.href, icon: module.icon, label: module.title, href: module.href, accent: cat.accent, removable: true });
+      for (const mod of cat.modules) {
+        if (quickActionHrefs.has(mod.href)) {
+          result.push({ id: mod.href, icon: mod.icon, label: mod.title, href: mod.href, accent: cat.accent, removable: true });
         }
       }
     }

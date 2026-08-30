@@ -691,7 +691,7 @@ function DashboardContent() {
             className={`mb-6 px-4 py-3 ${t.glassSoft} rounded-xl flex items-center justify-between overflow-hidden`}
           >
             <p className={`text-[13px] ${t.textMuted}`}>
-              <span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{totalResults}</span> module{totalResults === 1 ? '' : 's'} matching "<span className={`${TYPE_WEIGHT.medium}`}>{s.searchQuery}</span>"
+              <span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{totalResults}</span> module{totalResults === 1 ? '' : 's'} matching &quot;<span className={`${TYPE_WEIGHT.medium}`}>{s.searchQuery}</span>&quot;
             </p>
             <button onClick={() => s.setSearchQuery('')} className={`text-[13px] ${t.linkText} ${t.linkHover} ${TYPE_WEIGHT.medium}`} type="button">
               Clear

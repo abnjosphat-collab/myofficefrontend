@@ -265,7 +265,7 @@ export function SidebarNavigation({
                 </div>
                 <div>
                   <p className={`text-[12px] font-medium ${t.textPrimary}`}>Favourites</p>
-                  <p className={`text-[11px] ${t.textFaint} mt-0.5`}>Tap a module's bookmark icon to pin it here</p>
+                  <p className={`text-[11px] ${t.textFaint} mt-0.5`}>Tap a module&apos;s bookmark icon to pin it here</p>
                 </div>
                 <div>
                   <p className={`text-[12px] font-medium ${t.textPrimary}`}>Customize dashboard</p>

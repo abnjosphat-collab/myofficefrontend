@@ -382,6 +382,12 @@ function DocumentsPageContent() {
   function clearAllFilters() { setSearchQuery(''); setFileTypeFilter('all'); setDateFilter('all'); setSizeFilter('all'); setActiveTab('all'); }
   const hasActiveFilters = searchQuery !== '' || fileTypeFilter !== 'all' || dateFilter !== 'all' || sizeFilter !== 'all' || activeTab !== 'all';
 
+  // React Compiler isn't enabled in this project (no experimental.reactCompiler,
+  // no babel-plugin-react-compiler installed), so this diagnostic — "the compiler
+  // couldn't reproduce this memoization" — has no live effect; the useMemo below
+  // runs exactly as written. Not worth restructuring a correct, working filter for
+  // a compiler that isn't running (2026-08-30).
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const filteredDocuments = useMemo(() => {
     let result = [...documents];
     if (searchQuery) {

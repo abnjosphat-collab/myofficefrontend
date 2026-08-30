@@ -66,28 +66,28 @@ function HeatmapCell({ value, max, hour, day, cs }: { value: number; max: number
 }
 
 // ===== CUSTOM TOOLTIP =====
-function useCustomTooltip() {
-  const cs = useChartStyle();
-  return ({ active, payload, label }: any) => {
-    if (!active || !payload?.length) return null;
-    return (
-      <div className="rounded-lg px-3 py-2 text-xs shadow-xl" style={{ backgroundColor: cs.tooltipBg, border: `1px solid ${cs.tooltipBorder}` }}>
-        <p className="opacity-60 mb-1">{label}</p>
-        {payload.map((entry: any, idx: number) => (
-          <p key={idx} className={`${TYPE_WEIGHT.medium}`}>
-            {entry.name}: {entry.value.toLocaleString()}
-          </p>
-        ))}
-      </div>
-    );
-  };
+// Module-level component, not a hook returning a fresh closure each render —
+// the previous `useCustomTooltip()` handed back a brand-new component identity
+// on every render of BreakdownAnalyticsContent, which the 19 `<CustomTooltip />`
+// call sites below all inherited (react-hooks/static-components, 2026-08-30 fix).
+function CustomTooltip({ active, payload, label, cs }: { active?: boolean; payload?: any[]; label?: string; cs: ReturnType<typeof useChartStyle> }) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="rounded-lg px-3 py-2 text-xs shadow-xl" style={{ backgroundColor: cs.tooltipBg, border: `1px solid ${cs.tooltipBorder}` }}>
+      <p className="opacity-60 mb-1">{label}</p>
+      {payload.map((entry: any, idx: number) => (
+        <p key={idx} className={`${TYPE_WEIGHT.medium}`}>
+          {entry.name}: {entry.value.toLocaleString()}
+        </p>
+      ))}
+    </div>
+  );
 }
 
 // ===== MAIN COMPONENT =====
 function BreakdownAnalyticsContent() {
   const t = useTheme();
   const cs = useChartStyle();
-  const CustomTooltip = useCustomTooltip();
   const [activeTab, setActiveTab] = useState('overview');
   const [showFilters, setShowFilters] = useState(false);
 
@@ -408,7 +408,7 @@ function BreakdownAnalyticsContent() {
                         <CartesianGrid strokeDasharray="3 3" stroke={cs.grid} />
                         <XAxis dataKey="month" tick={cs.tick} />
                         <YAxis tick={cs.tick} />
-                        <Tooltip content={<CustomTooltip />} />
+                        <Tooltip content={<CustomTooltip cs={cs} />} />
                         <Area type="monotone" dataKey="count" name="Breakdowns" stroke="#10b981" fill="url(#monthlyGradient)" strokeWidth={2} />
                       </ReAreaChart>
                     </ResponsiveContainer>
@@ -439,7 +439,7 @@ function BreakdownAnalyticsContent() {
                           <XAxis dataKey="department" tick={cs.tick} />
                           <YAxis yAxisId="left" tick={cs.tick} />
                           <YAxis yAxisId="right" orientation="right" tick={cs.tick} />
-                          <Tooltip content={<CustomTooltip />} />
+                          <Tooltip content={<CustomTooltip cs={cs} />} />
                           <Bar yAxisId="left" dataKey="count" name="Breakdowns" fill="#3b82f6" radius={[4, 4, 0, 0]} />
                           <Line yAxisId="right" type="monotone" dataKey="downtime" name="Downtime (min)" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} />
                         </ComposedChart>
@@ -482,7 +482,7 @@ function BreakdownAnalyticsContent() {
                                 <Cell key={idx} fill={PIE_COLORS[idx % PIE_COLORS.length]} />
                               ))}
                             </Pie>
-                            <Tooltip content={<CustomTooltip />} />
+                            <Tooltip content={<CustomTooltip cs={cs} />} />
                           </RePieChart>
                         </ResponsiveContainer>
                       </div>
@@ -522,7 +522,7 @@ function BreakdownAnalyticsContent() {
                               <Cell key={entry.priority} fill={PRIORITY_COLORS[entry.priority] || '#6b7280'} />
                             ))}
                           </Pie>
-                          <Tooltip content={<CustomTooltip />} />
+                          <Tooltip content={<CustomTooltip cs={cs} />} />
                         </RePieChart>
                       </ResponsiveContainer>
                     ) : (
@@ -558,7 +558,7 @@ function BreakdownAnalyticsContent() {
                               <Cell key={entry.status} fill={STATUS_COLORS[entry.status] || '#6b7280'} />
                             ))}
                           </Pie>
-                          <Tooltip content={<CustomTooltip />} />
+                          <Tooltip content={<CustomTooltip cs={cs} />} />
                         </RePieChart>
                       </ResponsiveContainer>
                     ) : (
@@ -586,7 +586,7 @@ function BreakdownAnalyticsContent() {
                           <CartesianGrid strokeDasharray="3 3" stroke={cs.grid} />
                           <XAxis type="number" tick={cs.tick} />
                           <YAxis type="category" dataKey="location" tick={cs.tick} width={80} />
-                          <Tooltip content={<CustomTooltip />} />
+                          <Tooltip content={<CustomTooltip cs={cs} />} />
                           <Bar dataKey="count" name="Breakdowns" fill="#f43f5e" radius={[0, 4, 4, 0]} />
                         </BarChart>
                       </ResponsiveContainer>
@@ -615,7 +615,7 @@ function BreakdownAnalyticsContent() {
                         <CartesianGrid strokeDasharray="3 3" stroke={cs.grid} />
                         <XAxis dataKey="hour" tick={cs.tick} interval={2} />
                         <YAxis tick={cs.tick} />
-                        <Tooltip content={<CustomTooltip />} />
+                        <Tooltip content={<CustomTooltip cs={cs} />} />
                         <Line type="monotone" dataKey="avg_response_time" name="Avg Response (min)" stroke="#6366f1" strokeWidth={2} dot={{ r: 2 }} activeDot={{ r: 5 }} />
                       </ReLineChart>
                     </ResponsiveContainer>
@@ -746,7 +746,7 @@ function BreakdownAnalyticsContent() {
                           <CartesianGrid strokeDasharray="3 3" stroke={cs.grid} />
                           <XAxis dataKey="hour" tick={{ ...cs.tick, fontSize: 9 }} interval={2} />
                           <YAxis tick={cs.tick} />
-                          <Tooltip content={<CustomTooltip />} />
+                          <Tooltip content={<CustomTooltip cs={cs} />} />
                           <Bar dataKey="count" name="Breakdowns" fill="#3b82f6" radius={[2, 2, 0, 0]}>
                             {data.hourly_distribution.map((entry, idx) => {
                               const maxC = Math.max(...data.hourly_distribution.map(d => d.count));
@@ -780,7 +780,7 @@ function BreakdownAnalyticsContent() {
                           <CartesianGrid strokeDasharray="3 3" stroke={cs.grid} />
                           <XAxis dataKey="day" tick={cs.tick} />
                           <YAxis tick={cs.tick} />
-                          <Tooltip content={<CustomTooltip />} />
+                          <Tooltip content={<CustomTooltip cs={cs} />} />
                           <Bar dataKey="count" name="Breakdowns" fill="#22c55e" radius={[2, 2, 0, 0]}>
                             {data.daily_distribution.map((entry, idx) => {
                               const maxC = Math.max(...data.daily_distribution.map(d => d.count));
@@ -1106,7 +1106,7 @@ function BreakdownAnalyticsContent() {
                         <CartesianGrid strokeDasharray="3 3" stroke={cs.grid} />
                         <XAxis dataKey="month" tick={cs.tick} />
                         <YAxis tick={cs.tick} />
-                        <Tooltip content={<CustomTooltip />} />
+                        <Tooltip content={<CustomTooltip cs={cs} />} />
                         <Area type="monotone" dataKey="count" name="Breakdowns" stroke="#10b981" fill="url(#trendGradient)" strokeWidth={2} />
                       </ReAreaChart>
                     </ResponsiveContainer>
@@ -1134,7 +1134,7 @@ function BreakdownAnalyticsContent() {
                         <CartesianGrid strokeDasharray="3 3" stroke={cs.grid} />
                         <XAxis dataKey="week" tick={{ ...cs.tick, fontSize: 9 }} interval={Math.max(1, Math.floor(data.weekly_trends.length / 15))} />
                         <YAxis tick={cs.tick} />
-                        <Tooltip content={<CustomTooltip />} />
+                        <Tooltip content={<CustomTooltip cs={cs} />} />
                         <Bar dataKey="count" name="Breakdowns" fill="#06b6d4" radius={[2, 2, 0, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
@@ -1163,7 +1163,7 @@ function BreakdownAnalyticsContent() {
                         <XAxis dataKey="hour" tick={cs.tick} interval={2} />
                         <YAxis yAxisId="left" tick={cs.tick} />
                         <YAxis yAxisId="right" orientation="right" tick={cs.tick} />
-                        <Tooltip content={<CustomTooltip />} />
+                        <Tooltip content={<CustomTooltip cs={cs} />} />
                         <Bar yAxisId="right" dataKey="count" name="Breakdowns" fill="rgba(99,102,241,0.3)" radius={[2, 2, 0, 0]} />
                         <Line yAxisId="left" type="monotone" dataKey="avg_response_time" name="Avg Response (min)" stroke="#6366f1" strokeWidth={2} dot={{ r: 3 }} />
                       </ComposedChart>
@@ -1360,7 +1360,7 @@ function BreakdownAnalyticsContent() {
                         <XAxis dataKey="name" tick={cs.tick} />
                         <YAxis yAxisId="left" tick={cs.tick} />
                         <YAxis yAxisId="right" orientation="right" tick={cs.tick} />
-                        <Tooltip content={<CustomTooltip />} />
+                        <Tooltip content={<CustomTooltip cs={cs} />} />
                         <Bar yAxisId="left" dataKey="count" name="Breakdowns" fill="#f59e0b" radius={[4, 4, 0, 0]} />
                         <Line yAxisId="right" type="monotone" dataKey="avg_repair_time" name="Avg Repair (min)" stroke="#ef4444" strokeWidth={2} dot={{ r: 4 }} />
                       </ComposedChart>
@@ -1448,7 +1448,7 @@ function BreakdownAnalyticsContent() {
                         <XAxis dataKey="name" tick={{ ...cs.tick, fontSize: 9 }} />
                         <YAxis yAxisId="left" tick={cs.tick} />
                         <YAxis yAxisId="right" orientation="right" tick={cs.tick} />
-                        <Tooltip content={<CustomTooltip />} />
+                        <Tooltip content={<CustomTooltip cs={cs} />} />
                         <Bar yAxisId="left" dataKey="total_quantity" name="Qty Used" fill="#a855f7" radius={[4, 4, 0, 0]} />
                         <Line yAxisId="right" type="monotone" dataKey="total_cost" name="Total Cost ($)" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} />
                       </ComposedChart>
@@ -1491,7 +1491,7 @@ function BreakdownAnalyticsContent() {
                               <Cell key={idx} fill={PIE_COLORS[idx % PIE_COLORS.length]} />
                             ))}
                           </Pie>
-                          <Tooltip content={<CustomTooltip />} />
+                          <Tooltip content={<CustomTooltip cs={cs} />} />
                           <Legend
                             formatter={(value) => <span className={`text-xs ${mutedCls}`}>{value}</span>}
                           />
@@ -1531,7 +1531,7 @@ function BreakdownAnalyticsContent() {
                               <Cell key={entry.priority} fill={PRIORITY_COLORS[entry.priority] || '#6b7280'} />
                             ))}
                           </Pie>
-                          <Tooltip content={<CustomTooltip />} />
+                          <Tooltip content={<CustomTooltip cs={cs} />} />
                           <Legend
                             formatter={(value) => <span className={`text-xs ${mutedCls}`}>{value}</span>}
                           />
@@ -1573,7 +1573,7 @@ function BreakdownAnalyticsContent() {
                               <Cell key={entry.status} fill={STATUS_COLORS[entry.status] || '#6b7280'} />
                             ))}
                           </Pie>
-                          <Tooltip content={<CustomTooltip />} />
+                          <Tooltip content={<CustomTooltip cs={cs} />} />
                           <Legend
                             formatter={(value) => <span className={`text-xs ${mutedCls}`}>{value}</span>}
                           />
@@ -1604,7 +1604,7 @@ function BreakdownAnalyticsContent() {
                           <CartesianGrid strokeDasharray="3 3" stroke={cs.grid} />
                           <XAxis type="number" tick={cs.tick} />
                           <YAxis type="category" dataKey="location" tick={cs.tick} width={80} />
-                          <Tooltip content={<CustomTooltip />} />
+                          <Tooltip content={<CustomTooltip cs={cs} />} />
                           <Bar dataKey="count" name="Breakdowns" fill="#f43f5e" radius={[0, 4, 4, 0]} />
                         </BarChart>
                       </ResponsiveContainer>
@@ -1634,7 +1634,7 @@ function BreakdownAnalyticsContent() {
                         <XAxis dataKey="department" tick={cs.tick} />
                         <YAxis yAxisId="left" tick={cs.tick} />
                         <YAxis yAxisId="right" orientation="right" tick={cs.tick} />
-                        <Tooltip content={<CustomTooltip />} />
+                        <Tooltip content={<CustomTooltip cs={cs} />} />
                         <Bar yAxisId="left" dataKey="count" name="Breakdowns" fill="#3b82f6" radius={[4, 4, 0, 0]} />
                         <Line yAxisId="right" type="monotone" dataKey="downtime" name="Downtime (min)" stroke="#f59e0b" strokeWidth={2} dot={{ r: 4 }} />
                       </ComposedChart>

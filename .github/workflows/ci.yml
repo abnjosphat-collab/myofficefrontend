@@ -53,6 +53,15 @@ jobs:
       - name: Type-check
         run: npx tsc --noEmit
 
+      - name: Lint
+        # continue-on-error: TEMPORARY, until the remaining 34 react-hooks/set-state-in-effect
+        # errors are worked through deliberately (each needs a per-site read, not a blind
+        # fix — see the 2026-08-30 remediation plan). Everything else eslint flags as an
+        # error is already clean as of that pass. Remove this line once that's done, so a
+        # real regression actually fails the build instead of just annotating it.
+        continue-on-error: true
+        run: npx eslint . --ext .ts,.tsx
+
       - name: Unit tests
         run: npx vitest run
 

@@ -1233,7 +1233,7 @@ export default function PPEManagement() {
           {sections.expanded.heroStats && !enhancedStats && statsError && !loading && (
             <div className={`border-t ${t.border} px-6 py-4 flex items-center justify-between gap-3`}>
               <span className={`flex items-center gap-2 text-sm ${accentText('rose', t.light)}`}>
-                <AlertTriangle className="h-4 w-4" /> Couldn't load stats
+                <AlertTriangle className="h-4 w-4" /> Couldn&apos;t load stats
               </span>
               <button type="button" onClick={() => load(true)} className={`text-xs ${TYPE_WEIGHT.semibold} ${t.textMuted} ${t.hoverText} transition-colors`}>
                 Retry
@@ -1419,7 +1419,7 @@ export default function PPEManagement() {
                 // "No PPE records yet" copy — indistinguishable from real data loss.
                 <div className={`text-center py-16 rounded-xl ${t.glassSoft}`}>
                   <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-amber-500" />
-                  <p className={`text-sm ${TYPE_WEIGHT.semibold} ${t.textMuted} mb-1`}>Couldn't load PPE records</p>
+                  <p className={`text-sm ${TYPE_WEIGHT.semibold} ${t.textMuted} mb-1`}>Couldn&apos;t load PPE records</p>
                   <p className={`text-xs ${t.textFaint} mb-4`}>The server may still be starting up — try again in a moment.</p>
                   <motion.button type="button" onClick={() => load()} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
                     className={`inline-flex items-center gap-1.5 text-xs px-4 py-2 rounded-lg ${TYPE_WEIGHT.semibold} text-white transition-all bg-gradient-to-br ${ACCENT.violet.gradient} ${ACCENT.violet.solidGlow}`}>

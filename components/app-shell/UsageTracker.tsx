@@ -9,13 +9,20 @@ import { trackPageView } from '@/lib/usage';
 
 export function UsageTracker() {
   const pathname = usePathname();
-  const enterRef = useRef<number>(Date.now());
+  // Lazy-init guarded to only ever run once (not on every render, unlike a
+  // plain useRef(Date.now()) argument). The react-hooks/purity rule still
+  // flags this — it can't prove the guard limits it to one call — but this
+  // is the React-documented pattern for a one-time impure ref seed, and
+  // React Compiler isn't enabled in this project, so it's lint-only noise.
+  const enterRef = useRef<number | null>(null);
+  // eslint-disable-next-line react-hooks/purity
+  if (enterRef.current === null) enterRef.current = Date.now();
   const pathRef = useRef<string>(pathname);
 
   // On path change: flush the previous page's dwell, then start the clock for the new one.
   useEffect(() => {
     const prev = pathRef.current;
-    const dwell = Date.now() - enterRef.current;
+    const dwell = Date.now() - enterRef.current!;
     if (prev) trackPageView(prev, dwell);
     pathRef.current = pathname;
     enterRef.current = Date.now();
@@ -25,7 +32,7 @@ export function UsageTracker() {
   // on the last page before leaving isn't lost). Reset the clock on re-show.
   useEffect(() => {
     const flush = () => {
-      const dwell = Date.now() - enterRef.current;
+      const dwell = Date.now() - enterRef.current!;
       if (dwell > 500) trackPageView(pathRef.current, dwell);
       enterRef.current = Date.now();
     };

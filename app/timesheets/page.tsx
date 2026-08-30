@@ -265,7 +265,7 @@ function TimesheetEntryDialog({ employee, date, entry, onSave, onDelete, onClose
             {LEAVE_STATUSES.has(form.status) && <p className="text-xs text-brand-400 bg-brand-500/10 rounded px-2 py-1">8 hours auto-assigned for {STATUS_CFG[form.status]?.label}</p>}
             {DOUBLE_TIME_STATUSES.has(form.status) && <p className={`text-xs ${accentText('violet', t.light)} bg-violet-500/10 rounded px-2 py-1 ${TYPE_WEIGHT.medium}`}>All hours worked count as <strong>2.0× (double time)</strong> — enter the actual shift times below</p>}
             {ZERO_HOUR_STATUSES.has(form.status) && <p className={`text-xs ${t.chipBg} rounded px-2 py-1 ${t.textFaint}`}>0 hours recorded — {STATUS_CFG[form.status]?.label} days are not credited</p>}
-            {form.status === 'holiday_paid' && <p className="text-xs text-amber-400 bg-amber-500/10 rounded px-2 py-1">8 regular hours auto-credited — they didn't work this public holiday. Enter their actual shift times below if they did; this switches to "{STATUS_CFG.holiday.label}" automatically.</p>}
+            {form.status === 'holiday_paid' && <p className="text-xs text-amber-400 bg-amber-500/10 rounded px-2 py-1">8 regular hours auto-credited — they didn&apos;t work this public holiday. Enter their actual shift times below if they did; this switches to &quot;{STATUS_CFG.holiday.label}&quot; automatically.</p>}
           </div>
 
           <div className={`p-3 rounded-lg ${t.chipBg} space-y-3`}>
@@ -283,7 +283,7 @@ function TimesheetEntryDialog({ employee, date, entry, onSave, onDelete, onClose
             </div>
           </div>
 
-          <p className={`text-xs ${t.textFaint} bg-sky-500/[0.08] rounded px-2 py-1.5`}>Overtime is no longer entered here — log it in the Overtime module and it'll be picked up automatically.</p>
+          <p className={`text-xs ${t.textFaint} bg-sky-500/[0.08] rounded px-2 py-1.5`}>Overtime is no longer entered here — log it in the Overtime module and it&apos;ll be picked up automatically.</p>
 
           <div className="flex justify-between items-center p-3 bg-brand-500/10 rounded-lg">
             <span className={`${TYPE_WEIGHT.semibold} text-sm ${t.textMuted}`}>Total Hours</span>

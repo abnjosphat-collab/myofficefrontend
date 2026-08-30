@@ -1604,7 +1604,7 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
         if (emp.instances.length === 0) {
           ws.mergeCells(cursor, 2, cursor, totalCols);
           const noneCell = ws.getCell(cursor, 2);
-          noneCell.value = "No individual instances logged for this week's hours.";
+          noneCell.value = "No individual instances logged for this week&apos;s hours.";
           noneCell.font = { name: FONT, italic: true, size: 9, color: { argb: 'FF8AA0B4' } };
           noneCell.alignment = { horizontal: 'left', indent: 2 };
           cursor++;
@@ -1708,7 +1708,7 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
                 </div>
                 <div className={`pl-3 border-l-2 ${t.border} space-y-1`}>
                   {emp.instances.length === 0 ? (
-                    <p className={`text-xs ${t.textFaint}`}>No individual instances logged for this week's hours.</p>
+                    <p className={`text-xs ${t.textFaint}`}>No individual instances logged for this week&apos;s hours.</p>
                   ) : emp.instances.map(inst => (
                     <div key={inst.id} className="flex flex-wrap items-baseline gap-x-2 text-xs">
                       <span className={`shrink-0 ${TYPE_WEIGHT.medium} ${t.textMuted}`}>{fmtDate(inst.date)}</span>

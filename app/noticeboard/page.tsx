@@ -69,8 +69,8 @@ function NoticeDetailsModal({ isOpen, onClose, notice, onDelete, onEdit, onToggl
 }) {
   const t = useTheme();
   const confirm = useConfirm();
+  const [now] = useState(() => Date.now());
   if (!isOpen || !notice) return null;
-  const now = Date.now();
   const isExpired = notice.expires_at ? new Date(notice.expires_at).getTime() < now : false;
   const expiresSoon = notice.expires_at ? (new Date(notice.expires_at).getTime() > now && new Date(notice.expires_at).getTime() <= now + 7 * 86400000) : false;
 
@@ -157,7 +157,7 @@ function NoticeCard({ notice, onView, onEdit, onDelete }: {
 }) {
   const t = useTheme();
   const confirm = useConfirm();
-  const now = Date.now();
+  const [now] = useState(() => Date.now());
   const isExpired = notice.expires_at ? new Date(notice.expires_at).getTime() < now : false;
   const expiresSoon = notice.expires_at ? (new Date(notice.expires_at).getTime() > now && new Date(notice.expires_at).getTime() <= now + 7 * 86400000) : false;
 

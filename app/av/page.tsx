@@ -269,8 +269,9 @@ function EquipmentCard({
 }: { item: EquipmentItem; onLogMaintenance: () => void; onReserve: () => void; onRemove: () => void }) {
   const t = useTheme();
   const status = STATUS_CONFIG[item.status];
+  const [now] = useState(() => Date.now());
   const daysUntilMaintenance = item.nextMaintenance
-    ? Math.ceil((new Date(item.nextMaintenance).getTime() - Date.now()) / 86400000) : null;
+    ? Math.ceil((new Date(item.nextMaintenance).getTime() - now) / 86400000) : null;
 
   return (
     <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>

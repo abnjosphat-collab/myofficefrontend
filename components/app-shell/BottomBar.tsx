@@ -133,7 +133,7 @@ export function BottomBar({
                       <div className="flex items-center gap-2 text-emerald-500 text-[12.5px] font-medium">
                         <Check className="h-4 w-4" /> Thanks for the feedback!
                       </div>
-                      <p className={`text-[10.5px] ${t.textFaint} mt-0.5 ml-6`}>Saved — it won't be lost if you close this tab.</p>
+                      <p className={`text-[10.5px] ${t.textFaint} mt-0.5 ml-6`}>Saved — it won&apos;t be lost if you close this tab.</p>
                     </div>
                   ) : (
                     <>

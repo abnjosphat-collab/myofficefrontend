@@ -173,6 +173,10 @@ function EquipmentRow({ eq, onEdit, onDelete }: { eq: EquipmentItem; onEdit: () 
   return (
     <div className={`border-b ${t.border}`}>
       <div className={`flex items-center gap-3.5 px-4 py-3 ${t.hoverBgSoft} transition-colors group`}>
+        {/* eslint-disable-next-line react-hooks/static-components -- statusIcon() only ever
+            selects among a fixed set of stable, module-level icon imports; it never
+            defines a new component. React Compiler isn't enabled in this project, so
+            this is a lint-only false positive, not a live remount risk. */}
         <div className="shrink-0"><Icon className="h-5 w-5" style={{ color: statusColor }} /></div>
 
         <button type="button" onClick={() => setExpanded(o => !o)} className="flex-1 min-w-0 text-left">

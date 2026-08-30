@@ -191,7 +191,7 @@ function ReqModal({ open, onClose, onSave, editing }: {
             })()}
             {lookupError && (
               <p className="mt-1 text-[11px] text-rose-500 flex items-center gap-1.5">
-                Couldn't load the employee/equipment lists — you can still type manually, or
+                Couldn&apos;t load the employee/equipment lists — you can still type manually, or
                 <button type="button" onClick={retryLookups} className="underline hover:no-underline">retry</button>
               </p>
             )}
