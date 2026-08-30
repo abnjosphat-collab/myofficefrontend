@@ -251,27 +251,12 @@ function TasksEventsContent() {
     if (!authLoading && profile && !isAtLeast('manager')) router.replace('/');
   }, [authLoading, profile, isAtLeast, router]);
 
-  // authLoading resolves to false whether or not a session was found — so
-  // "still checking" and "checked, nobody's signed in" are genuinely different
-  // states and need different UI. Before this fix both rendered the same
-  // spinner forever for a signed-out visitor (2026-08-29 UI audit finding,
-  // audit/07-ui-polish-findings.md — confirmed live, not a mocking artifact).
-  if (authLoading) {
-    return (
-      <main className="flex-1 flex items-center justify-center py-32">
-        <div className={`h-8 w-8 border-2 ${t.border} border-t-brand-500 rounded-full animate-spin`} />
-      </main>
-    );
-  }
-  if (!profile) {
-    return (
-      <main className="flex-1 flex items-center justify-center py-32">
-        <EmptyState icon={Lock} title="Sign in required" message="Sign in with a manager account (top right) to view Tasks & Events." />
-      </main>
-    );
-  }
-  if (!isAtLeast('manager')) return null;
-
+  // Hooks must run on every render regardless of auth state — these were
+  // previously declared after the early returns below, so a signed-out or
+  // still-loading visit called fewer hooks than a signed-in one ("Rendered
+  // more hooks than during the previous render" on the loading→loaded
+  // transition). None of these actually depend on profile/authLoading, so
+  // hoisting them above the returns is behavior-preserving (2026-08-30 fix).
   const pending = items.filter(i => i.status === 'pending');
   const completed = items.filter(i => i.status === 'completed');
   const overdueCount = items.filter(isOverdue).length;
@@ -305,6 +290,27 @@ function TasksEventsContent() {
       (!q || i.title.toLowerCase().includes(q) || (i.description || '').toLowerCase().includes(q))
     );
   }, [items, statusFilter, typeFilter, priorityFilter, overdueOnly, search]);
+
+  // authLoading resolves to false whether or not a session was found — so
+  // "still checking" and "checked, nobody's signed in" are genuinely different
+  // states and need different UI. Before this fix both rendered the same
+  // spinner forever for a signed-out visitor (2026-08-29 UI audit finding,
+  // audit/07-ui-polish-findings.md — confirmed live, not a mocking artifact).
+  if (authLoading) {
+    return (
+      <main className="flex-1 flex items-center justify-center py-32">
+        <div className={`h-8 w-8 border-2 ${t.border} border-t-brand-500 rounded-full animate-spin`} />
+      </main>
+    );
+  }
+  if (!profile) {
+    return (
+      <main className="flex-1 flex items-center justify-center py-32">
+        <EmptyState icon={Lock} title="Sign in required" message="Sign in with a manager account (top right) to view Tasks & Events." />
+      </main>
+    );
+  }
+  if (!isAtLeast('manager')) return null;
 
   const exportColumns: DLColumn[] = [
     { key: 'title', label: 'Title' },
