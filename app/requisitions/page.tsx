@@ -14,7 +14,7 @@ import { AppShell } from '@/components/app-shell';
 import { PredictiveInput } from '@/components/shared/PredictiveInput';
 import {
   useTheme, STATUS_TONE, PageHero, StatTile, StatusBadge, SearchInput,
-  FormField, FormActions, useCollapseSection, CenterModal, ProgressBar, ACCENT_HEX, SelectField, LoadingState, AutofillInput,
+  FormField, FormActions, useCollapseSection, CenterModal, ProgressBar, ACCENT_HEX, SelectField, LoadingState, AutofillInput, TYPE_WEIGHT,
 } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
@@ -182,7 +182,7 @@ function ReqModal({ open, onClose, onSave, editing }: {
                     <button key={e.id} type="button"
                       onMouseDown={() => { set({ requester: e.label, section: (SECTIONS.includes(e.section as Requisition['section']) ? e.section : form.section) as Requisition['section'] }); setEmpSearch(''); }}
                       className={`w-full flex items-center justify-between px-3 py-2 text-xs ${t.hoverBgSoft} transition-colors text-left`}>
-                      <span className={`font-medium ${t.textPrimary}`}>{e.label}</span>
+                      <span className={`${TYPE_WEIGHT.medium} ${t.textPrimary}`}>{e.label}</span>
                       <span className={`ml-3 truncate ${t.textFaint}`}>{e.id}{e.section ? ` · ${e.section}` : ''}</span>
                     </button>
                   ))}
@@ -235,8 +235,8 @@ function ReqModal({ open, onClose, onSave, editing }: {
 
         <div>
           <div className="flex items-center justify-between mb-2">
-            <span className={`text-xs font-semibold uppercase tracking-wider ${t.textFaint}`}>Line Items</span>
-            <button type="button" onClick={addItem} className="flex items-center gap-1 h-7 px-2.5 rounded-lg text-xs font-medium bg-brand-500/15 text-brand-400 hover:bg-brand-500/25 transition-colors">
+            <span className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textFaint}`}>Line Items</span>
+            <button type="button" onClick={addItem} className={`flex items-center gap-1 h-7 px-2.5 rounded-lg text-xs ${TYPE_WEIGHT.medium} bg-brand-500/15 text-brand-400 hover:bg-brand-500/25 transition-colors`}>
               <Plus className="h-3 w-3" /> Add Item
             </button>
           </div>
@@ -274,7 +274,7 @@ function ReqModal({ open, onClose, onSave, editing }: {
           </div>
           <div className="flex justify-end mt-2">
             <span className={`text-xs ${t.textFaint}`}>
-              {(form.items ?? []).length} item{(form.items ?? []).length !== 1 ? 's' : ''} · <span className={`font-semibold ${t.textPrimary}`}>{formatCurrency(total)}</span>
+              {(form.items ?? []).length} item{(form.items ?? []).length !== 1 ? 's' : ''} · <span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{formatCurrency(total)}</span>
             </span>
           </div>
         </div>
@@ -284,7 +284,7 @@ function ReqModal({ open, onClose, onSave, editing }: {
         </FormField>
 
         <div className={`flex items-center justify-between pt-2 border-t ${t.border}`}>
-          <span className={`text-sm ${t.textFaint}`}>Total: <span className={`font-bold ${t.textPrimary}`}>{formatCurrency(total)}</span></span>
+          <span className={`text-sm ${t.textFaint}`}>Total: <span className={`${TYPE_WEIGHT.bold} ${t.textPrimary}`}>{formatCurrency(total)}</span></span>
         </div>
         <FormActions onCancel={onClose} submitting={saving} submitLabel={editing ? 'Update' : 'Create'} accent="violet" />
       </form>
@@ -312,7 +312,7 @@ function ReqDetailModal({ req, onClose, onEdit }: { req: Requisition; onClose: (
           ].map(({ label, value }) => (
             <div key={label} className={`${t.chipBg} rounded-xl p-3`}>
               <p className={`text-[10px] uppercase tracking-wide mb-0.5 ${t.textFaint}`}>{label}</p>
-              <p className={`text-sm font-medium ${t.textMuted}`}>{value}</p>
+              <p className={`text-sm ${TYPE_WEIGHT.medium} ${t.textMuted}`}>{value}</p>
             </div>
           ))}
         </div>
@@ -329,25 +329,25 @@ function ReqDetailModal({ req, onClose, onEdit }: { req: Requisition; onClose: (
             <thead>
               <tr className={`border-b ${t.border}`}>
                 {['Description', 'Reason', 'Unit Cost', 'Qty', 'Total'].map(h => (
-                  <th key={h} className={`px-3 py-2 text-left font-semibold uppercase tracking-wider text-[10px] ${t.textFaint}`}>{h}</th>
+                  <th key={h} className={`px-3 py-2 text-left ${TYPE_WEIGHT.semibold} uppercase tracking-wider text-[10px] ${t.textFaint}`}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {req.items.map((it, i) => (
                 <tr key={i} className={`border-b ${t.border} ${t.hoverBgSoft}`}>
-                  <td className={`px-3 py-2 font-medium ${t.textMuted}`}>{it.description}</td>
+                  <td className={`px-3 py-2 ${TYPE_WEIGHT.medium} ${t.textMuted}`}>{it.description}</td>
                   <td className={`px-3 py-2 ${t.textFaint}`}>{it.reason || '—'}</td>
                   <td className={`px-3 py-2 ${t.textMuted}`}>{formatCurrency(it.costPerUnit)}</td>
                   <td className={`px-3 py-2 ${t.textMuted}`}>{it.quantity}</td>
-                  <td className={`px-3 py-2 font-semibold ${t.textPrimary}`}>{formatCurrency(it.costPerUnit * it.quantity)}</td>
+                  <td className={`px-3 py-2 ${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{formatCurrency(it.costPerUnit * it.quantity)}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
               <tr className={`border-t ${t.border}`}>
-                <td colSpan={4} className={`px-3 py-2 text-right text-xs font-semibold ${t.textFaint}`}>TOTAL</td>
-                <td className={`px-3 py-2 font-bold ${t.textPrimary}`}>{formatCurrency(total)}</td>
+                <td colSpan={4} className={`px-3 py-2 text-right text-xs ${TYPE_WEIGHT.semibold} ${t.textFaint}`}>TOTAL</td>
+                <td className={`px-3 py-2 ${TYPE_WEIGHT.bold} ${t.textPrimary}`}>{formatCurrency(total)}</td>
               </tr>
             </tfoot>
           </table>
@@ -363,7 +363,7 @@ function ReqDetailModal({ req, onClose, onEdit }: { req: Requisition; onClose: (
         <div className="flex gap-2">
           <button type="button" onClick={onClose} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border} transition-all`}>Close</button>
           <button type="button" onClick={() => { onClose(); onEdit(); }}
-            className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all inline-flex items-center justify-center gap-2">
+            className={`flex-1 py-2.5 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all inline-flex items-center justify-center gap-2`}>
             <Pencil className="h-4 w-4" /> Edit
           </button>
         </div>
@@ -484,7 +484,7 @@ function RequisitionsPageContent() {
               />
             )}
             <button type="button" onClick={() => { setEditing(null); setFormOpen(true); }}
-              className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all">
+              className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all`}>
               <Plus className="h-3.5 w-3.5" /> New Requisition
             </button>
           </>
@@ -505,11 +505,11 @@ function RequisitionsPageContent() {
           <SearchInput value={search} onChange={setSearch} placeholder="Search requisitions…" className="flex-1" />
           <div className="flex gap-2 flex-wrap items-center">
             <button type="button" onClick={() => setShowFilters(v => !v)}
-              className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-medium transition-colors ${showFilters ? 'bg-brand-500/15 text-brand-400' : `${t.textMuted} ${t.glassSoft} ${t.hoverText}`}`}>
+              className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.medium} transition-colors ${showFilters ? 'bg-brand-500/15 text-brand-400' : `${t.textMuted} ${t.glassSoft} ${t.hoverText}`}`}>
               <Filter className="h-3.5 w-3.5" /> Filters
             </button>
             {hasFilters && (
-              <button type="button" onClick={clearFilters} className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-medium ${t.textFaint} ${t.hoverText} ${t.hoverBg} transition-colors`}>
+              <button type="button" onClick={clearFilters} className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.medium} ${t.textFaint} ${t.hoverText} ${t.hoverBg} transition-colors`}>
                 <X className="h-3.5 w-3.5" /> Clear
               </button>
             )}
@@ -543,7 +543,7 @@ function RequisitionsPageContent() {
       <div className={`flex gap-1 ${t.glassSoft} rounded-lg p-1 w-fit`}>
         {([{ id: 'records', label: 'Records', icon: FileText }, { id: 'analytics', label: 'Analytics', icon: BarChart3 }] as const).map(tb => (
           <button key={tb.id} type="button" onClick={() => setTab(tb.id)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${tab === tb.id ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} ${t.hoverText}`}`}>
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs ${TYPE_WEIGHT.medium} transition-colors ${tab === tb.id ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} ${t.hoverText}`}`}>
             <tb.icon className="h-3.5 w-3.5" /> {tb.label}
           </button>
         ))}
@@ -556,19 +556,19 @@ function RequisitionsPageContent() {
       ) : tab === 'records' ? (
         <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
           <div className={`flex items-center justify-between px-4 py-3 border-b ${t.border}`}>
-            <h3 className={`text-sm font-semibold ${t.textPrimary}`}>Requisitions ({filtered.length})</h3>
+            <h3 className={`text-sm ${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>Requisitions ({filtered.length})</h3>
             <button type="button" onClick={() => { setEditing(null); setFormOpen(true); }}
-              className="flex items-center gap-1.5 h-7 px-2.5 rounded-lg text-xs font-medium bg-brand-500/15 text-brand-400 hover:bg-brand-500/25 transition-colors">
+              className={`flex items-center gap-1.5 h-7 px-2.5 rounded-lg text-xs ${TYPE_WEIGHT.medium} bg-brand-500/15 text-brand-400 hover:bg-brand-500/25 transition-colors`}>
               <Plus className="h-3 w-3" /> New Req
             </button>
           </div>
           {filtered.length === 0 ? (
             <div className="p-12 text-center">
               <ShoppingCart className={`h-12 w-12 ${t.textFaint} mx-auto mb-4`} />
-              <h3 className={`text-lg font-semibold ${t.textPrimary} mb-2`}>No requisitions</h3>
+              <h3 className={`text-lg ${TYPE_WEIGHT.semibold} ${t.textPrimary} mb-2`}>No requisitions</h3>
               <p className={`text-sm mb-4 ${t.textFaint}`}>Adjust filters or create your first requisition.</p>
               <button type="button" onClick={() => { setEditing(null); setFormOpen(true); }}
-                className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all">
+                className={`inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-[13px] ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all`}>
                 <Plus className="h-3.5 w-3.5" /> New Req
               </button>
             </div>
@@ -578,7 +578,7 @@ function RequisitionsPageContent() {
                 <thead>
                   <tr className={`border-b ${t.border}`}>
                     {['Req #', 'Date', 'Requester', 'Section', 'Priority', 'Status', 'Cost', ''].map(h => (
-                      <th key={h} className={`text-left p-3 text-xs font-semibold uppercase tracking-wide ${t.textFaint}`}>{h}</th>
+                      <th key={h} className={`text-left p-3 text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wide ${t.textFaint}`}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -589,15 +589,15 @@ function RequisitionsPageContent() {
                     return (
                       <tr key={r.id} className={`border-b ${t.border} ${t.hoverBgSoft} cursor-pointer`} onClick={() => setViewing(r)}>
                         <td className="p-3">
-                          <p className="font-mono text-xs font-semibold text-brand-400">{r.requisitionNumber}</p>
+                          <p className={`font-mono text-xs ${TYPE_WEIGHT.semibold} text-brand-400`}>{r.requisitionNumber}</p>
                           <p className={`text-[10px] ${t.textFaint}`}>#{r.lineNumber}</p>
                         </td>
                         <td className={`p-3 text-xs ${t.textMuted}`}>{fmtDate(r.date)}</td>
-                        <td className={`p-3 font-medium ${t.textMuted}`}>{r.requester}</td>
+                        <td className={`p-3 ${TYPE_WEIGHT.medium} ${t.textMuted}`}>{r.requester}</td>
                         <td className="p-3"><span className={`inline-flex items-center gap-1 text-xs ${t.textFaint}`}><SecIcon className="h-3 w-3" />{r.section}</span></td>
                         <td className="p-3"><StatusBadge color={PRIORITY_COLOR[r.priority]} label={r.priority} /></td>
                         <td className="p-3"><StatusBadge color={c.color} label={r.status} dot /></td>
-                        <td className={`p-3 font-semibold text-sm ${t.textPrimary}`}>{formatCurrency(itemTotal(r.items))}</td>
+                        <td className={`p-3 ${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>{formatCurrency(itemTotal(r.items))}</td>
                         <td className="p-3" onClick={e => e.stopPropagation()}>
                           <div className="flex gap-1 justify-end">
                             <button type="button" title="View" onClick={() => setViewing(r)} className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}><Eye className="h-3.5 w-3.5" /></button>
@@ -616,7 +616,7 @@ function RequisitionsPageContent() {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div className={`${t.glass} rounded-2xl ${t.shadow} p-5`}>
-            <h3 className={`text-sm font-semibold mb-3 ${t.textPrimary}`}>By Status</h3>
+            <h3 className={`text-sm ${TYPE_WEIGHT.semibold} mb-3 ${t.textPrimary}`}>By Status</h3>
             <div className="space-y-3">
               {byStatus.map(({ label, count, cost }) => {
                 const c = getStatusConfig(label as Requisition['status']);
@@ -626,7 +626,7 @@ function RequisitionsPageContent() {
                     <div className="flex justify-between text-xs mb-1">
                       <StatusBadge color={c.color} label={label} />
                       <div className="text-right">
-                        <span className={`font-semibold ${t.textPrimary}`}>{count}</span>
+                        <span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{count}</span>
                         <span className={`ml-2 ${t.textFaint}`}>{formatCurrency(cost)}</span>
                       </div>
                     </div>
@@ -639,15 +639,15 @@ function RequisitionsPageContent() {
           </div>
 
           <div className={`${t.glass} rounded-2xl ${t.shadow} p-5`}>
-            <h3 className={`text-sm font-semibold mb-3 ${t.textPrimary}`}>By Priority</h3>
+            <h3 className={`text-sm ${TYPE_WEIGHT.semibold} mb-3 ${t.textPrimary}`}>By Priority</h3>
             <div className="space-y-3">
               {byPriority.map(({ label, count }) => {
                 const maxP = Math.max(1, ...byPriority.map(p => p.count));
                 return (
                   <div key={label}>
                     <div className="flex justify-between mb-1 text-xs">
-                      <span className="font-semibold" style={{ color: PRIORITY_COLOR[label as Requisition['priority']] }}>{label}</span>
-                      <span className={`font-bold ${t.textPrimary}`}>{count}</span>
+                      <span className={`${TYPE_WEIGHT.semibold}`} style={{ color: PRIORITY_COLOR[label as Requisition['priority']] }}>{label}</span>
+                      <span className={`${TYPE_WEIGHT.bold} ${t.textPrimary}`}>{count}</span>
                     </div>
                     <ProgressBar value={(count / maxP) * 100} color={PRIORITY_COLOR[label as Requisition['priority']]} showValue={false} />
                   </div>
@@ -658,7 +658,7 @@ function RequisitionsPageContent() {
           </div>
 
           <div className={`${t.glass} rounded-2xl ${t.shadow} p-5`}>
-            <h3 className={`text-sm font-semibold mb-3 ${t.textPrimary}`}>Section Split</h3>
+            <h3 className={`text-sm ${TYPE_WEIGHT.semibold} mb-3 ${t.textPrimary}`}>Section Split</h3>
             <div className="space-y-4">
               {SECTIONS.map(s => {
                 const cnt = filtered.filter(r => r.section === s).length;
@@ -669,7 +669,7 @@ function RequisitionsPageContent() {
                   <div key={s}>
                     <div className="flex items-center justify-between mb-1 text-xs">
                       <span className={`flex items-center gap-1.5 ${t.textMuted}`}><Icon className="h-3 w-3" />{s}</span>
-                      <span className={`font-semibold ${t.textPrimary}`}>{cnt} <span className={t.textFaint}>({formatCurrency(cost)})</span></span>
+                      <span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{cnt} <span className={t.textFaint}>({formatCurrency(cost)})</span></span>
                     </div>
                     <ProgressBar value={pct} color={ACCENT_HEX.blue} showValue={false} />
                   </div>
@@ -679,7 +679,7 @@ function RequisitionsPageContent() {
           </div>
 
           <div className={`${t.glass} rounded-2xl ${t.shadow} p-5`}>
-            <h3 className={`text-sm font-semibold mb-3 ${t.textPrimary}`}>Value Summary</h3>
+            <h3 className={`text-sm ${TYPE_WEIGHT.semibold} mb-3 ${t.textPrimary}`}>Value Summary</h3>
             <div className="space-y-2 text-sm">
               {[
                 { label: 'Total filtered value', val: formatCurrency(stats.totalCost), c: ACCENT_HEX.violet },
@@ -689,7 +689,7 @@ function RequisitionsPageContent() {
               ].map(({ label, val, c }) => (
                 <div key={label} className={`flex justify-between ${t.textMuted}`}>
                   <span>{label}</span>
-                  <span className="font-bold" style={c ? { color: c } : undefined}>{val}</span>
+                  <span className={`${TYPE_WEIGHT.bold}`} style={c ? { color: c } : undefined}>{val}</span>
                 </div>
               ))}
             </div>
@@ -708,7 +708,7 @@ function RequisitionsPageContent() {
           <p className={`text-sm ${t.textMuted}`}>Delete requisition {delTarget?.requisitionNumber}? This cannot be undone.</p>
           <div className="flex gap-2">
             <button type="button" onClick={() => setDelTarget(null)} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border} transition-all`}>Cancel</button>
-            <button type="button" onClick={handleDelete} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-rose-500 to-rose-700 hover:brightness-110 transition-all inline-flex items-center justify-center gap-2">
+            <button type="button" onClick={handleDelete} className={`flex-1 py-2.5 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-rose-500 to-rose-700 hover:brightness-110 transition-all inline-flex items-center justify-center gap-2`}>
               <Trash2 className="h-4 w-4" /> Delete
             </button>
           </div>

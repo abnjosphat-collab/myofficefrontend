@@ -13,7 +13,7 @@ import { toast } from 'sonner';
 import { jsPDF } from 'jspdf';
 import {
   useTheme, PageHero, StatusBadge, SearchInput, ProgressBar, FormField, ACCENT_HEX,
-  useCollapseSection, EmptyState, PrimaryButton, SelectField, accentText,
+  useCollapseSection, EmptyState, PrimaryButton, SelectField, accentText, TYPE_WEIGHT,
 } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
@@ -125,7 +125,7 @@ function Panel({ icon: Icon, title, children, actions }: { icon: ElementType; ti
     <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
       <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border} flex-wrap`}>
         <Icon className="h-4 w-4 text-brand-400" />
-        <span className={`font-semibold text-sm ${t.textPrimary}`}>{title}</span>
+        <span className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>{title}</span>
         {actions && <div className="ml-auto flex items-center gap-2 flex-wrap">{actions}</div>}
       </div>
       {children}
@@ -255,10 +255,10 @@ function LeaveManagementContent() {
         }
       >
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div className="text-center"><div className={`text-2xl font-bold ${t.textPrimary}`}>{stats.total}</div><div className={`text-xs mt-0.5 ${t.textFaint}`}>Total Requests</div></div>
-          <div className="text-center"><div className={`text-2xl font-bold ${accentText('amber', t.light)}`}>{stats.pending}</div><div className={`text-xs mt-0.5 ${t.textFaint}`}>Pending</div></div>
-          <div className="text-center"><div className={`text-2xl font-bold ${accentText('emerald', t.light)}`}>{stats.approved}</div><div className={`text-xs mt-0.5 ${t.textFaint}`}>Approved</div></div>
-          <div className="text-center"><div className="text-2xl font-bold text-red-400">{stats.rejected}</div><div className={`text-xs mt-0.5 ${t.textFaint}`}>Rejected</div></div>
+          <div className="text-center"><div className={`text-2xl ${TYPE_WEIGHT.bold} ${t.textPrimary}`}>{stats.total}</div><div className={`text-xs mt-0.5 ${t.textFaint}`}>Total Requests</div></div>
+          <div className="text-center"><div className={`text-2xl ${TYPE_WEIGHT.bold} ${accentText('amber', t.light)}`}>{stats.pending}</div><div className={`text-xs mt-0.5 ${t.textFaint}`}>Pending</div></div>
+          <div className="text-center"><div className={`text-2xl ${TYPE_WEIGHT.bold} ${accentText('emerald', t.light)}`}>{stats.approved}</div><div className={`text-xs mt-0.5 ${t.textFaint}`}>Approved</div></div>
+          <div className="text-center"><div className={`text-2xl ${TYPE_WEIGHT.bold} text-red-400`}>{stats.rejected}</div><div className={`text-xs mt-0.5 ${t.textFaint}`}>Rejected</div></div>
         </div>
       </PageHero>
 
@@ -275,7 +275,7 @@ function LeaveManagementContent() {
                   { icon: Printer, label: 'Print Summary', action: () => toast.success('Printing…') },
                   { icon: Mail, label: 'Send Reminder', action: () => toast.success('Reminder sent!') },
                 ].map(a => (
-                  <button key={a.label} type="button" onClick={a.action} className={`flex flex-col items-center justify-center gap-1 h-14 rounded-lg text-[11px] font-medium ${t.chipBg} ${t.textMuted} ${t.hoverBg} transition-colors`}>
+                  <button key={a.label} type="button" onClick={a.action} className={`flex flex-col items-center justify-center gap-1 h-14 rounded-lg text-[11px] ${TYPE_WEIGHT.medium} ${t.chipBg} ${t.textMuted} ${t.hoverBg} transition-colors`}>
                     <a.icon className="h-4 w-4" />{a.label}
                   </button>
                 ))}
@@ -288,7 +288,7 @@ function LeaveManagementContent() {
                   <div key={lt.id} className="flex items-center justify-between py-1.5">
                     <div className="flex items-center gap-2">
                       <span>{lt.icon}</span>
-                      <div><p className={`text-xs font-medium ${t.textMuted}`}>{lt.name}</p><p className={`text-[10px] ${t.textFaint}`}>Max {lt.maxDays} days</p></div>
+                      <div><p className={`text-xs ${TYPE_WEIGHT.medium} ${t.textMuted}`}>{lt.name}</p><p className={`text-[10px] ${t.textFaint}`}>Max {lt.maxDays} days</p></div>
                     </div>
                     <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: lt.hex }} />
                   </div>
@@ -300,7 +300,7 @@ function LeaveManagementContent() {
               <div className="px-4 pb-4 pt-3 space-y-2">
                 {requests.filter(r => r.status === 'approved').slice(0, 3).map(r => (
                   <div key={r.id} className="flex items-center justify-between py-1.5">
-                    <div><p className={`text-xs font-medium ${t.textMuted}`}>{r.employeeName}</p><p className={`text-[10px] ${t.textFaint}`}>{r.startDate} → {r.endDate}</p></div>
+                    <div><p className={`text-xs ${TYPE_WEIGHT.medium} ${t.textMuted}`}>{r.employeeName}</p><p className={`text-[10px] ${t.textFaint}`}>{r.startDate} → {r.endDate}</p></div>
                     <StatusBadge color={ACCENT_HEX.blue} label={getLeaveTypeInfo(r.leaveType).name.split(' ')[0]} />
                   </div>
                 ))}
@@ -377,7 +377,7 @@ function LeaveManagementContent() {
                     <Avatar name={r.employeeName} />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap mb-1">
-                        <span className={`font-semibold text-sm ${t.textPrimary}`}>{r.employeeName}</span>
+                        <span className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>{r.employeeName}</span>
                         <StatusBadge color="#94a3b8" label={r.department} />
                         <StatusBadge color={statusHex(r.status)} label={statusLabel(r.status)} />
                       </div>
@@ -410,7 +410,7 @@ function LeaveManagementContent() {
                     <div className={`p-4 flex items-center justify-between border-b ${t.border}`}>
                       <div className="flex items-center gap-2">
                         <Avatar name={r.employeeName} />
-                        <div><p className={`font-semibold text-sm ${t.textPrimary}`}>{r.employeeName}</p><p className={`text-[11px] ${t.textFaint}`}>{r.department}</p></div>
+                        <div><p className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>{r.employeeName}</p><p className={`text-[11px] ${t.textFaint}`}>{r.department}</p></div>
                       </div>
                       <StatusBadge color={statusHex(r.status)} label={statusLabel(r.status)} />
                     </div>
@@ -449,12 +449,12 @@ function LeaveManagementContent() {
                   <div className="flex items-center justify-between gap-4 mb-3 flex-wrap">
                     <div className="flex items-center gap-3">
                       <Avatar name={emp.name} />
-                      <div><p className={`font-semibold text-sm ${t.textPrimary}`}>{emp.name}</p><p className={`text-xs ${t.textFaint}`}>{emp.role} · {emp.department}</p></div>
+                      <div><p className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>{emp.name}</p><p className={`text-xs ${t.textFaint}`}>{emp.role} · {emp.department}</p></div>
                     </div>
                     <div className="flex gap-4 text-center">
-                      <div><p className={`text-lg font-bold ${accentText('emerald', t.light)}`}>{s?.annualRemaining ?? 0}</p><p className={`text-[10px] ${t.textFaint}`}>Annual left</p></div>
-                      <div><p className="text-lg font-bold text-brand-400">{s?.sickUsed ?? 0}</p><p className={`text-[10px] ${t.textFaint}`}>Sick used</p></div>
-                      <div><p className={`text-lg font-bold ${accentText('purple', t.light)}`}>{s?.personalUsed ?? 0}</p><p className={`text-[10px] ${t.textFaint}`}>Personal</p></div>
+                      <div><p className={`text-lg ${TYPE_WEIGHT.bold} ${accentText('emerald', t.light)}`}>{s?.annualRemaining ?? 0}</p><p className={`text-[10px] ${t.textFaint}`}>Annual left</p></div>
+                      <div><p className={`text-lg ${TYPE_WEIGHT.bold} text-brand-400`}>{s?.sickUsed ?? 0}</p><p className={`text-[10px] ${t.textFaint}`}>Sick used</p></div>
+                      <div><p className={`text-lg ${TYPE_WEIGHT.bold} ${accentText('purple', t.light)}`}>{s?.personalUsed ?? 0}</p><p className={`text-[10px] ${t.textFaint}`}>Personal</p></div>
                     </div>
                   </div>
                   <div className="space-y-1">
@@ -471,23 +471,23 @@ function LeaveManagementContent() {
       {tab === 'history' && (
         <div className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className={`${t.glass} rounded-xl p-4`}><div className="flex items-center gap-1.5 mb-1"><TrendingUp className={`h-3.5 w-3.5 ${accentText('emerald', t.light)}`} /><span className={`text-xs ${t.textFaint}`}>Approval Rate</span></div><div className={`text-xl font-bold ${accentText('emerald', t.light)}`}>78%</div></div>
-            <div className={`${t.glass} rounded-xl p-4`}><div className="flex items-center gap-1.5 mb-1"><CalendarDays className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs ${t.textFaint}`}>Avg. Days/Employee</span></div><div className={`text-xl font-bold ${t.textPrimary}`}>42</div></div>
-            <div className={`${t.glass} rounded-xl p-4`}><div className="flex items-center gap-1.5 mb-1"><BarChart3 className={`h-3.5 w-3.5 ${accentText('amber', t.light)}`} /><span className={`text-xs ${t.textFaint}`}>Sick Leave Usage</span></div><div className={`text-xl font-bold ${accentText('amber', t.light)}`}>15%</div></div>
+            <div className={`${t.glass} rounded-xl p-4`}><div className="flex items-center gap-1.5 mb-1"><TrendingUp className={`h-3.5 w-3.5 ${accentText('emerald', t.light)}`} /><span className={`text-xs ${t.textFaint}`}>Approval Rate</span></div><div className={`text-xl ${TYPE_WEIGHT.bold} ${accentText('emerald', t.light)}`}>78%</div></div>
+            <div className={`${t.glass} rounded-xl p-4`}><div className="flex items-center gap-1.5 mb-1"><CalendarDays className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs ${t.textFaint}`}>Avg. Days/Employee</span></div><div className={`text-xl ${TYPE_WEIGHT.bold} ${t.textPrimary}`}>42</div></div>
+            <div className={`${t.glass} rounded-xl p-4`}><div className="flex items-center gap-1.5 mb-1"><BarChart3 className={`h-3.5 w-3.5 ${accentText('amber', t.light)}`} /><span className={`text-xs ${t.textFaint}`}>Sick Leave Usage</span></div><div className={`text-xl ${TYPE_WEIGHT.bold} ${accentText('amber', t.light)}`}>15%</div></div>
           </div>
           <Panel icon={History} title="Recent Activity" actions={
-            <button type="button" onClick={() => generateTeamReportPDF(teamStats)} className={`flex items-center gap-1.5 h-7 px-2.5 rounded-lg text-xs font-medium ${t.chipBg} ${t.textMuted} ${t.hoverBg} transition-colors`}><Download className="h-3.5 w-3.5" /> Export Report</button>
+            <button type="button" onClick={() => generateTeamReportPDF(teamStats)} className={`flex items-center gap-1.5 h-7 px-2.5 rounded-lg text-xs ${TYPE_WEIGHT.medium} ${t.chipBg} ${t.textMuted} ${t.hoverBg} transition-colors`}><Download className="h-3.5 w-3.5" /> Export Report</button>
           }>
             <div>
               {[...requests].sort((a, b) => new Date(b.submittedDate).getTime() - new Date(a.submittedDate).getTime()).slice(0, 5).map(r => (
                 <div key={r.id} className={`flex items-center gap-3 px-5 py-3 border-b ${t.border} last:border-0 ${t.hoverBgSoft}`}>
                   <div className={`h-2 w-2 rounded-full shrink-0 ${r.status === 'approved' ? 'bg-emerald-400' : r.status === 'rejected' ? 'bg-red-400' : 'bg-amber-400'}`} />
                   <div className="flex-1 min-w-0">
-                    <p className={`text-sm font-medium ${t.textMuted}`}>{r.employeeName}</p>
+                    <p className={`text-sm ${TYPE_WEIGHT.medium} ${t.textMuted}`}>{r.employeeName}</p>
                     <p className={`text-xs ${t.textFaint}`}>{getLeaveTypeInfo(r.leaveType).name} · {r.startDate} → {r.endDate}</p>
                   </div>
                   <div className="text-right shrink-0">
-                    <p className={`text-xs font-medium capitalize ${t.textMuted}`}>{r.status}</p>
+                    <p className={`text-xs ${TYPE_WEIGHT.medium} capitalize ${t.textMuted}`}>{r.status}</p>
                     <p className={`text-[10px] ${t.textFaint}`}>{r.submittedDate}</p>
                   </div>
                 </div>

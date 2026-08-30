@@ -23,7 +23,7 @@ import {
   useTheme, STATUS_TONE, Collapse, AnimatedText, PulsingIcon, CenterModal, GlowCard,
   staggerContainer, fadeUp, ACCENT, ACCENT_HEX, type Accent,
   StatusBadge, RecordCard, StatTile, ProgressBar, FormField, FormActions,
-  useCollapseSection, SelectField, AutofillInput, useConfirm, accentText,
+  useCollapseSection, SelectField, AutofillInput, useConfirm, accentText, TYPE_WEIGHT,
 } from '@/components/shared/theme';
 import type { PPETypeInfo, PPERecord, EmployeeRow, EmployeeWithPPE, EnhancedStats, FormState } from './types';
 import {
@@ -148,7 +148,7 @@ function EmployeeAutocomplete({ value, onChange, options, placeholder, onSelect,
                 onMouseDown={e => { e.preventDefault(); pick(opt); }}
                 onMouseEnter={() => setHighlight(i)}
                 className={`w-full text-left px-3 py-2.5 text-xs border-b ${t.border} last:border-0 transition-all ${i === highlight ? 'bg-brand-500/15' : t.hoverBg}`}>
-                <div className={`font-semibold ${t.textPrimary}`}>{display === 'name' ? opt.employee_name : opt.employee_id}</div>
+                <div className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{display === 'name' ? opt.employee_name : opt.employee_id}</div>
                 <div className={`text-[11px] ${t.textFaint} mt-0.5`}>{display === 'name' ? `${opt.employee_id} · ${opt.position}` : `${opt.employee_name} · ${opt.position}`}</div>
               </button>
             </li>
@@ -203,7 +203,7 @@ function IssuedByInput({ value, onChange, employees }: IssuedByInputProps) {
               <button type="button"
                 onMouseDown={e => { e.preventDefault(); setQ(emp.employee_name); onChange(emp.employee_name); setOpen(false); }}
                 className={`w-full text-left px-3 py-2.5 text-xs ${t.hoverBg} border-b ${t.border} last:border-0 transition-all`}>
-                <div className={`font-semibold ${t.textPrimary}`}>{emp.employee_name}</div>
+                <div className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{emp.employee_name}</div>
                 <div className={`text-[11px] ${t.textFaint} mt-0.5`}>{emp.position} · {emp.employee_id}</div>
               </button>
             </li>
@@ -246,19 +246,19 @@ function PPEItemCard({ record, onEdit, onDelete, onView, onToggleNotRequired }: 
         <div className={`grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs ${t.textMuted}`}>
           <span>Issued: {fmtDate(record.issue_date)}</span>
           {record.expiry_date && (
-            <span className={`font-semibold ${expired ? 'text-rose-500' : expiring ? 'text-amber-500' : t.textMuted}`}>Expires: {fmtDate(record.expiry_date)}</span>
+            <span className={`${TYPE_WEIGHT.semibold} ${expired ? 'text-rose-500' : expiring ? 'text-amber-500' : t.textMuted}`}>Expires: {fmtDate(record.expiry_date)}</span>
           )}
           {record.size && <span>Size: {record.size}</span>}
         </div>
       }
       actions={<>
-        <button onClick={() => onView(record)} type="button" className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg ${t.chipBg} ${t.textMuted} ${t.hoverText} text-[12px] font-semibold transition-all`}>
+        <button onClick={() => onView(record)} type="button" className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg ${t.chipBg} ${t.textMuted} ${t.hoverText} text-[12px] ${TYPE_WEIGHT.semibold} transition-all`}>
           <Eye className="h-3.5 w-3.5" /> View
         </button>
-        <button onClick={() => onEdit(record)} type="button" className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 text-white text-[12px] font-semibold hover:brightness-110 transition-all">
+        <button onClick={() => onEdit(record)} type="button" className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 text-white text-[12px] ${TYPE_WEIGHT.semibold} hover:brightness-110 transition-all`}>
           <Pencil className="h-3.5 w-3.5" /> Edit
         </button>
-        <button onClick={() => onDelete(record.id)} type="button" className={`px-4 flex items-center justify-center gap-1.5 py-2 rounded-lg ${t.chipBg} text-rose-500 hover:bg-rose-500/10 text-[12px] font-semibold transition-all`}>
+        <button onClick={() => onDelete(record.id)} type="button" className={`px-4 flex items-center justify-center gap-1.5 py-2 rounded-lg ${t.chipBg} text-rose-500 hover:bg-rose-500/10 text-[12px] ${TYPE_WEIGHT.semibold} transition-all`}>
           <Trash2 className="h-3.5 w-3.5" /> Delete
         </button>
       </>}
@@ -271,7 +271,7 @@ function PPEItemCard({ record, onEdit, onDelete, onView, onToggleNotRequired }: 
             or restore a not-required item to active. */}
         {(expired || notRequired) && (
           <button type="button" onClick={() => onToggleNotRequired(record)}
-            className={`text-[11px] font-medium px-2 py-1 rounded-md ${t.chipBg} ${t.hoverBg} ${t.textMuted} ${t.hoverText} transition-colors shrink-0`}>
+            className={`text-[11px] ${TYPE_WEIGHT.medium} px-2 py-1 rounded-md ${t.chipBg} ${t.hoverBg} ${t.textMuted} ${t.hoverText} transition-colors shrink-0`}>
             {notRequired ? 'Mark as active' : 'Not required'}
           </button>
         )}
@@ -319,7 +319,7 @@ function EmployeePPECard({ employee, isExpanded, onToggle, onIssueNew, onEditIte
       </>}
       headerActions={
         <button type="button" onClick={e => { e.stopPropagation(); onIssueNew(employee); }} title="Issue new PPE"
-          className="flex items-center gap-1.5 text-[12px] h-7 px-2.5 rounded-lg font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all">
+          className={`flex items-center gap-1.5 text-[12px] h-7 px-2.5 rounded-lg ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all`}>
           <Plus className="h-3 w-3" /> Issue
         </button>
       }
@@ -334,7 +334,7 @@ function EmployeePPECard({ employee, isExpanded, onToggle, onIssueNew, onEditIte
       ) : (
         <div className={`text-center py-8 rounded-xl ${t.glassSoft}`}>
           <Shield className={`h-9 w-9 mx-auto mb-2 ${t.textTertiary}`} />
-          <p className={`text-sm font-medium ${t.textMuted}`}>No PPE items issued yet</p>
+          <p className={`text-sm ${TYPE_WEIGHT.medium} ${t.textMuted}`}>No PPE items issued yet</p>
           <p className={`text-xs ${t.textFaint} mt-1`}>Click &quot;Issue&quot; to add equipment for this employee</p>
         </div>
       )}
@@ -380,7 +380,7 @@ function PPEDetailModal({ item, isOpen, onClose, onEdit }: DetailModalProps) {
             <Icon className="h-5 w-5" style={{ color: ppeType.color }} />
           </PulsingIcon>
           <div>
-            <h3 className={`font-semibold ${t.textPrimary} text-base tracking-tight`}>{item.item_name}</h3>
+            <h3 className={`${TYPE_WEIGHT.semibold} ${t.textPrimary} text-base tracking-tight`}>{item.item_name}</h3>
             <AnimatedText as="p" trigger="mount" text={ppeType.description} className={`text-[12.5px] ${t.textSecondary} mt-0.5`} />
           </div>
         </motion.div>
@@ -388,15 +388,15 @@ function PPEDetailModal({ item, isOpen, onClose, onEdit }: DetailModalProps) {
         <motion.div variants={staggerContainer} className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {fields.map(f => (
             <motion.div key={f.label} variants={fadeUp} whileHover={{ y: -2 }} className={`rounded-xl p-3 ${t.glassSoft} ${t.shadow} transition-shadow duration-300`}>
-              <div className={`text-xs font-medium ${t.textFaint}`}>{f.label}</div>
-              <div className={`text-sm font-medium break-words mt-1 ${t.textMuted}`}>{f.value}</div>
+              <div className={`text-xs ${TYPE_WEIGHT.medium} ${t.textFaint}`}>{f.label}</div>
+              <div className={`text-sm ${TYPE_WEIGHT.medium} break-words mt-1 ${t.textMuted}`}>{f.value}</div>
             </motion.div>
           ))}
         </motion.div>
 
         {item.notes && (
           <motion.div variants={fadeUp} className={`rounded-xl p-3 ${t.glassSoft}`}>
-            <div className={`text-xs font-medium ${t.textFaint} mb-1`}>Notes</div>
+            <div className={`text-xs ${TYPE_WEIGHT.medium} ${t.textFaint} mb-1`}>Notes</div>
             <AnimatedText as="p" trigger="mount" text={item.notes} className={`text-sm ${t.textMuted}`} />
           </motion.div>
         )}
@@ -407,7 +407,7 @@ function PPEDetailModal({ item, isOpen, onClose, onEdit }: DetailModalProps) {
           Close
         </button>
         <motion.button type="button" onClick={() => { onEdit(item); onClose(); }} whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}
-          className={`flex-1 py-2 rounded-xl text-sm font-semibold text-white transition-all bg-gradient-to-br ${ACCENT.blue.gradient} ${ACCENT.blue.solidGlow} ${ACCENT.blue.glow}`}>
+          className={`flex-1 py-2 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white transition-all bg-gradient-to-br ${ACCENT.blue.gradient} ${ACCENT.blue.solidGlow} ${ACCENT.blue.glow}`}>
           <Pencil className="h-4 w-4 inline mr-2" />Edit Record
         </motion.button>
       </div>
@@ -528,7 +528,7 @@ function PPEIssueForm({ isOpen, onClose, onSubmit, initialData, employee, allEmp
 
           {/* Employee lookup */}
           <div className={`rounded-xl ${t.glassSoft} p-4 space-y-3`}>
-            <p className={`text-[11px] font-semibold ${t.textFaint} uppercase tracking-wider`}>Employee</p>
+            <p className={`text-[11px] ${TYPE_WEIGHT.semibold} ${t.textFaint} uppercase tracking-wider`}>Employee</p>
             <FormField label="Employee ID" required>
               <EmployeeAutocomplete value={form.employee_id} options={allEmployees}
                 placeholder="Type employee ID or name to search…"
@@ -561,7 +561,7 @@ function PPEIssueForm({ isOpen, onClose, onSubmit, initialData, employee, allEmp
 
           {/* PPE details */}
           <div className={`rounded-xl ${t.glassSoft} p-4 space-y-3`}>
-            <p className={`text-[11px] font-semibold ${t.textFaint} uppercase tracking-wider`}>PPE Details</p>
+            <p className={`text-[11px] ${TYPE_WEIGHT.semibold} ${t.textFaint} uppercase tracking-wider`}>PPE Details</p>
             <div className="grid grid-cols-2 gap-3">
               <FormField label="PPE Type" required>
                 <SelectField title="PPE Type" {...sel('ppe_type')}
@@ -590,7 +590,7 @@ function PPEIssueForm({ isOpen, onClose, onSubmit, initialData, employee, allEmp
 
           {/* Dates & location */}
           <div className={`rounded-xl ${t.glassSoft} p-4 space-y-3`}>
-            <p className={`text-[11px] font-semibold ${t.textFaint} uppercase tracking-wider`}>Dates & Location</p>
+            <p className={`text-[11px] ${TYPE_WEIGHT.semibold} ${t.textFaint} uppercase tracking-wider`}>Dates & Location</p>
             <div className="grid grid-cols-3 gap-3">
               <FormField label="Issue Date" required>
                 <input type="date" value={form.issue_date} onChange={e => set('issue_date', e.target.value)}
@@ -677,7 +677,7 @@ function DueItemsList({ employees, filterType, onEditItem, onDeleteItem, onViewI
     return (
       <div className={`text-center py-12 ${t.glassSoft} rounded-xl`}>
         <CheckCircle2 className={`h-12 w-12 mx-auto mb-3 ${t.light ? 'text-emerald-600/60' : 'text-emerald-400/60'}`} />
-        <p className={`font-semibold ${t.textPrimary}`}>No {filterType === 'due' ? 'overdue' : 'expiring soon'} items</p>
+        <p className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>No {filterType === 'due' ? 'overdue' : 'expiring soon'} items</p>
         <p className={`text-sm ${t.textFaint} mt-1`}>All PPE is up to date</p>
       </div>
     );
@@ -702,9 +702,9 @@ function DueItemsList({ employees, filterType, onEditItem, onDeleteItem, onViewI
       </div>
       {filterType === 'due' && selectedIds.size > 0 && (
         <div className={`flex items-center gap-2 px-3 py-2 rounded-lg ${t.chipBg}`}>
-          <span className={`text-xs font-semibold ${t.textPrimary}`}>{selectedIds.size} selected</span>
+          <span className={`text-xs ${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{selectedIds.size} selected</span>
           <button type="button" onClick={handleBulkMarkNotRequired}
-            className={`ml-auto text-[11px] font-semibold px-2.5 py-1 rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all`}>
+            className={`ml-auto text-[11px] ${TYPE_WEIGHT.semibold} px-2.5 py-1 rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all`}>
             Mark {selectedIds.size} as not required
           </button>
           <button type="button" onClick={() => setSelectedIds(new Set())} className={`text-[11px] ${t.textFaint} ${t.hoverText} transition-colors`}>Clear</button>
@@ -729,16 +729,16 @@ function DueItemsList({ employees, filterType, onEditItem, onDeleteItem, onViewI
 
                   <div className="min-w-0 flex-1 grid grid-cols-2 sm:grid-cols-4 gap-x-3 gap-y-1 items-center">
                     <div className="min-w-0">
-                      <p className={`text-sm font-semibold ${t.textPrimary} truncate`}>{item.employee_name}</p>
+                      <p className={`text-sm ${TYPE_WEIGHT.semibold} ${t.textPrimary} truncate`}>{item.employee_name}</p>
                       <p className={`text-[11px] ${t.textFaint} truncate`}>{item.employee_id}</p>
                     </div>
                     <div className="min-w-0">
-                      <p className={`text-sm ${t.textSecondary} font-medium truncate`}>{item.item_name}</p>
+                      <p className={`text-sm ${t.textSecondary} ${TYPE_WEIGHT.medium} truncate`}>{item.item_name}</p>
                       <p className={`text-[11px] ${t.textFaint} truncate`}>{ppeType.name}{item.size ? ` · ${item.size}` : ''}</p>
                     </div>
                     <div>
                       <p className={`text-[11px] ${t.textFaint} uppercase tracking-wide`}>Expires</p>
-                      <p className="text-sm font-semibold" style={{ color: glowColor }}>{fmtDate(item.expiry_date)}</p>
+                      <p className={`text-sm ${TYPE_WEIGHT.semibold}`} style={{ color: glowColor }}>{fmtDate(item.expiry_date)}</p>
                     </div>
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <StatusBadge color={CONDITION_COLORS[item.condition] || '#86BBD8'} label={CONDITION_LABELS[item.condition] || item.condition} />
@@ -749,7 +749,7 @@ function DueItemsList({ employees, filterType, onEditItem, onDeleteItem, onViewI
                   <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
                     {filterType === 'due' && (
                       <button type="button" title="Mark as not required" onClick={() => onToggleNotRequired(item)}
-                        className={`h-7 px-2 flex items-center justify-center rounded-lg text-[11px] font-medium ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all`}>
+                        className={`h-7 px-2 flex items-center justify-center rounded-lg text-[11px] ${TYPE_WEIGHT.medium} ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all`}>
                         Not required
                       </button>
                     )}
@@ -793,7 +793,7 @@ function PPEMatrixModal({ isOpen, onClose, matrix, records, onSetInterval, onRec
       <div className="px-5 pt-3 flex justify-end">
         <button type="button" onClick={onRecalculateAll}
           title="Recalculate expiry for every active record of every type against the current matrix — fixes anything left stale by a past interval change"
-          className={`h-8 px-3 rounded-lg text-[12px] font-medium ${t.chipBg} ${t.hoverBg} ${t.textMuted} ${t.hoverText} transition-colors`}>
+          className={`h-8 px-3 rounded-lg text-[12px] ${TYPE_WEIGHT.medium} ${t.chipBg} ${t.hoverBg} ${t.textMuted} ${t.hoverText} transition-colors`}>
           Recalculate all types
         </button>
       </div>
@@ -806,7 +806,7 @@ function PPEMatrixModal({ isOpen, onClose, matrix, records, onSetInterval, onRec
             <div key={key} className={`flex items-center gap-3 px-3 py-2 rounded-lg ${t.hoverBgSoft}`}>
               <div className={`p-1.5 rounded-lg ${t.chipBg} shrink-0`}><Icon className="h-4 w-4" style={{ color: info.color }} /></div>
               <div className="min-w-0 flex-1">
-                <div className={`text-[13px] font-medium ${t.textPrimary} truncate`}>{info.name}</div>
+                <div className={`text-[13px] ${TYPE_WEIGHT.medium} ${t.textPrimary} truncate`}>{info.name}</div>
                 <div className={`text-[11px] ${t.textFaint}`}>{activeCount} active item{activeCount === 1 ? '' : 's'}</div>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
@@ -816,7 +816,7 @@ function PPEMatrixModal({ isOpen, onClose, matrix, records, onSetInterval, onRec
                   className={`w-16 h-8 px-2 rounded-lg text-sm text-center ${t.inputBg} focus:outline-none`} />
                 <span className={`text-[11px] ${t.textFaint} w-16`}>{months === 0 ? 'no expiry' : 'mo'}</span>
                 <button type="button" onClick={() => onRecalculate(key)} disabled={activeCount === 0}
-                  className={`h-8 px-2.5 rounded-lg text-[12px] font-medium transition-colors ${activeCount === 0 ? `${t.chipBg} ${t.textFaint} opacity-50` : `${t.chipBg} ${t.hoverBg} ${t.textMuted} ${t.hoverText}`}`}>
+                  className={`h-8 px-2.5 rounded-lg text-[12px] ${TYPE_WEIGHT.medium} transition-colors ${activeCount === 0 ? `${t.chipBg} ${t.textFaint} opacity-50` : `${t.chipBg} ${t.hoverBg} ${t.textMuted} ${t.hoverText}`}`}>
                   Recalculate
                 </button>
               </div>
@@ -1121,9 +1121,9 @@ export default function PPEManagement() {
               <div className="min-w-0">
                 <nav className={`flex items-center gap-1.5 text-xs ${t.textFaint} mb-0.5`}>
                   <span>Home</span><ChevronRight className="h-3 w-3" />
-                  <span className={`${t.textMuted} font-medium`}>PPE Management</span>
+                  <span className={`${t.textMuted} ${TYPE_WEIGHT.medium}`}>PPE Management</span>
                 </nav>
-                <h1 className={`text-xl font-bold ${t.textPrimary} font-heading tracking-tight`}>PPE Management</h1>
+                <h1 className={`text-xl ${TYPE_WEIGHT.bold} ${t.textPrimary} font-heading tracking-tight`}>PPE Management</h1>
                 <AnimatedText
                   as="p"
                   trigger="mount"
@@ -1142,7 +1142,7 @@ export default function PPEManagement() {
                 {sections.expanded.heroStats ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
               </button>
               <button type="button" title="PPE replacement matrix — set expiry intervals & recalculate" onClick={() => setShowMatrix(true)}
-                className={`h-8 px-3 flex items-center gap-1.5 text-xs rounded-xl font-semibold ${t.textMuted} ${t.hoverText} transition-all hover:-translate-y-0.5 ${t.glassSoft} ${t.hoverBg}`}>
+                className={`h-8 px-3 flex items-center gap-1.5 text-xs rounded-xl ${TYPE_WEIGHT.semibold} ${t.textMuted} ${t.hoverText} transition-all hover:-translate-y-0.5 ${t.glassSoft} ${t.hoverBg}`}>
                 <HardHat className="h-3.5 w-3.5" /> Matrix
               </button>
               <button type="button" title="Refresh" onClick={() => load(true)} disabled={refreshing}
@@ -1152,7 +1152,7 @@ export default function PPEManagement() {
 
               {records.length > 0 && (
                 <div className="flex items-center gap-1.5">
-                  <span className={`text-[10px] font-medium ${t.textFaint} hidden sm:inline`}>Register</span>
+                  <span className={`text-[10px] ${TYPE_WEIGHT.medium} ${t.textFaint} hidden sm:inline`}>Register</span>
                   <DownloadButton
                     data={records as unknown as Record<string, unknown>[]}
                     columns={exportColumns}
@@ -1168,7 +1168,7 @@ export default function PPEManagement() {
 
               {summaryRecords.length > 0 && (
                 <div className="flex items-center gap-1.5" title="Printable summary — name, item, size, last/next issue date, color-coded by due status">
-                  <span className={`text-[10px] font-medium ${t.textFaint} hidden sm:inline`}>Summary</span>
+                  <span className={`text-[10px] ${TYPE_WEIGHT.medium} ${t.textFaint} hidden sm:inline`}>Summary</span>
                   <DownloadButton
                     data={summaryRecords as unknown as Record<string, unknown>[]}
                     columns={ppeSummaryColumns}
@@ -1186,7 +1186,7 @@ export default function PPEManagement() {
                   this one was the one outlier still on ACCENT.blue (2026-08-29 UI audit,
                   audit/07-ui-polish-findings.md). */}
               <motion.button type="button" onClick={() => openIssueForm()} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-                className={`h-8 px-3 flex items-center gap-1.5 text-xs rounded-lg font-semibold text-white transition-all bg-gradient-to-br ${ACCENT.violet.gradient} ${ACCENT.violet.solidGlow} ${ACCENT.violet.glow}`}>
+                className={`h-8 px-3 flex items-center gap-1.5 text-xs rounded-lg ${TYPE_WEIGHT.semibold} text-white transition-all bg-gradient-to-br ${ACCENT.violet.gradient} ${ACCENT.violet.solidGlow} ${ACCENT.violet.glow}`}>
                 <Plus className="h-3.5 w-3.5" /> Issue PPE
               </motion.button>
             </div>
@@ -1221,7 +1221,7 @@ export default function PPEManagement() {
                     const info = PPE_TYPES[type] || PPE_TYPES.helmet;
                     const Icon = info.icon;
                     return (
-                      <span key={type} className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold ${t.chipBg} ${t.textMuted}`}>
+                      <span key={type} className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] ${TYPE_WEIGHT.semibold} ${t.chipBg} ${t.textMuted}`}>
                         <Icon className="h-3 w-3" style={{ color: info.color }} />{info.shortName} <span className={t.textPrimary}>{count}</span>
                       </span>
                     );
@@ -1235,7 +1235,7 @@ export default function PPEManagement() {
               <span className={`flex items-center gap-2 text-sm ${accentText('rose', t.light)}`}>
                 <AlertTriangle className="h-4 w-4" /> Couldn't load stats
               </span>
-              <button type="button" onClick={() => load(true)} className={`text-xs font-semibold ${t.textMuted} ${t.hoverText} transition-colors`}>
+              <button type="button" onClick={() => load(true)} className={`text-xs ${TYPE_WEIGHT.semibold} ${t.textMuted} ${t.hoverText} transition-colors`}>
                 Retry
               </button>
             </div>
@@ -1249,7 +1249,7 @@ export default function PPEManagement() {
               className={`w-full flex items-center justify-between px-5 py-3 ${t.hoverBgSoft} transition-all`}>
               <div className="flex items-center gap-2">
                 <HardHat className="h-3.5 w-3.5 text-brand-500" />
-                <span className={`text-xs font-semibold ${t.textSecondary} uppercase tracking-wider`}>PPE Type Breakdown</span>
+                <span className={`text-xs ${TYPE_WEIGHT.semibold} ${t.textSecondary} uppercase tracking-wider`}>PPE Type Breakdown</span>
                 <span className={`text-[11px] ${t.textFaint} font-normal normal-case tracking-normal`}>
                   {typeCounts.length} types active
                 </span>
@@ -1270,12 +1270,12 @@ export default function PPEManagement() {
                     <GlowCard key={key} color={ACCENT_HEX.violet} className="p-4 mt-3">
                       <div className="flex items-center gap-2 mb-3">
                         <div className={`p-1.5 rounded-lg ${t.chipBg}`}><Icon className="h-3.5 w-3.5" style={{ color: type.color }} /></div>
-                        <span className={`text-sm font-semibold ${t.textPrimary}`}>{type.shortName}</span>
+                        <span className={`text-sm ${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{type.shortName}</span>
                       </div>
                       <div className="space-y-1.5">
-                        <div className="flex justify-between text-xs"><span className={t.textFaint}>Active</span><span className="font-bold text-emerald-500">{active}</span></div>
-                        {soonC    > 0 && <div className="flex justify-between text-xs"><span className={t.textFaint}>Expiring</span><span className="font-bold text-amber-500">{soonC}</span></div>}
-                        {expiredC > 0 && <div className="flex justify-between text-xs"><span className={t.textFaint}>Overdue</span><span className="font-bold text-rose-500">{expiredC}</span></div>}
+                        <div className="flex justify-between text-xs"><span className={t.textFaint}>Active</span><span className={`${TYPE_WEIGHT.bold} text-emerald-500`}>{active}</span></div>
+                        {soonC    > 0 && <div className="flex justify-between text-xs"><span className={t.textFaint}>Expiring</span><span className={`${TYPE_WEIGHT.bold} text-amber-500`}>{soonC}</span></div>}
+                        {expiredC > 0 && <div className="flex justify-between text-xs"><span className={t.textFaint}>Overdue</span><span className={`${TYPE_WEIGHT.bold} text-rose-500`}>{expiredC}</span></div>}
                         <div className={`h-1 rounded-full ${t.chipBg} overflow-hidden mt-2`}>
                           <div className="h-full bg-emerald-400/70 rounded-full"
                             style={{ width: `${active > 0 ? Math.max(8, Math.round(((active - expiredC) / active) * 100)) : 0}%` }} />
@@ -1296,7 +1296,7 @@ export default function PPEManagement() {
               className={`w-full flex items-center justify-between px-5 py-3 ${t.hoverBgSoft} transition-all`}>
               <div className="flex items-center gap-2">
                 <HardHat className="h-3.5 w-3.5 text-brand-500" />
-                <span className={`text-xs font-semibold ${t.textSecondary} uppercase tracking-wider`}>Order Breakdown — by size</span>
+                <span className={`text-xs ${TYPE_WEIGHT.semibold} ${t.textSecondary} uppercase tracking-wider`}>Order Breakdown — by size</span>
                 <span className={`text-[11px] ${t.textFaint} font-normal normal-case tracking-normal`}>
                   what to reorder, per size
                 </span>
@@ -1316,7 +1316,7 @@ export default function PPEManagement() {
                       <div className="flex items-center justify-between gap-2 mb-2">
                         <div className="flex items-center gap-2 min-w-0">
                           <div className={`p-1.5 rounded-lg ${t.chipBg}`}><Icon className="h-3.5 w-3.5" style={{ color: info.color }} /></div>
-                          <span className={`text-sm font-semibold ${t.textPrimary} truncate`}>{info.shortName}</span>
+                          <span className={`text-sm ${TYPE_WEIGHT.semibold} ${t.textPrimary} truncate`}>{info.shortName}</span>
                         </div>
                         {reorderTotal > 0 && <StatusBadge color="#f43f5e" label={`${reorderTotal} to reorder`} />}
                       </div>
@@ -1326,9 +1326,9 @@ export default function PPEManagement() {
                         <span className={`text-[10px] uppercase tracking-wide ${t.textFaint} text-right`}>Reorder</span>
                         {sizes.map(([size, v]) => (
                           <Fragment key={size}>
-                            <span className={`font-medium ${t.textPrimary} truncate`}>{size}</span>
+                            <span className={`${TYPE_WEIGHT.medium} ${t.textPrimary} truncate`}>{size}</span>
                             <span className="text-right tabular-nums">{v.inUse}</span>
-                            <span className={`text-right tabular-nums font-semibold ${v.reorder > 0 ? 'text-rose-500' : t.textFaint}`}>{v.reorder || '—'}</span>
+                            <span className={`text-right tabular-nums ${TYPE_WEIGHT.semibold} ${v.reorder > 0 ? 'text-rose-500' : t.textFaint}`}>{v.reorder || '—'}</span>
                           </Fragment>
                         ))}
                       </div>
@@ -1352,13 +1352,13 @@ export default function PPEManagement() {
                 { value: 'due',         label: 'Overdue',       count: enhancedStats?.employeesWithExpired  ?? 0 },
               ] as const).map(({ value, label, count }) => (
                 <button key={value} type="button" onClick={() => setFilterType(value)}
-                  className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border font-medium transition-all ${
+                  className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border ${TYPE_WEIGHT.medium} transition-all ${
                     filterType === value
                       ? `${ACCENT.blue.chip} ${ACCENT.blue.text}`
                       : `${t.glassSoft} ${t.textMuted} ${t.hoverBg} ${t.hoverText}`
                   }`}>
                   {label}
-                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${filterType === value ? 'bg-white/20' : t.chipBg} ${filterType === value ? '' : t.textFaint}`}>{count}</span>
+                  <span className={`px-1.5 py-0.5 rounded text-[10px] ${TYPE_WEIGHT.bold} ${filterType === value ? 'bg-white/20' : t.chipBg} ${filterType === value ? '' : t.textFaint}`}>{count}</span>
                 </button>
               ))}
             </div>
@@ -1387,7 +1387,7 @@ export default function PPEManagement() {
             <button type="button" onClick={() => sections.toggle('records')}
               className="flex items-center gap-2.5 min-w-0 flex-1 text-left hover:opacity-90 transition-opacity">
               <FileText className={`h-3.5 w-3.5 ${ACCENT.blue.icon} shrink-0`} />
-              <span className={`text-xs font-semibold ${t.textSecondary} uppercase tracking-wider`}>Records</span>
+              <span className={`text-xs ${TYPE_WEIGHT.semibold} ${t.textSecondary} uppercase tracking-wider`}>Records</span>
               <span className={`text-xs ${t.textFaint} font-normal normal-case tracking-normal`}>
                 {filteredEmployees.length} employee{filteredEmployees.length !== 1 ? 's' : ''} · {records.length} items
               </span>
@@ -1399,7 +1399,7 @@ export default function PPEManagement() {
             {sections.expanded.records && (filterType === 'all' || filterType === 'active') && filteredEmployees.length > 0 && (
               <motion.button type="button" onClick={anyExpanded ? collapseAll : expandAll}
                 whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-                className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-semibold transition-all shrink-0 ${anyExpanded ? `${t.glassSoft} ${t.textMuted} ${t.hoverText}` : `text-white bg-gradient-to-br ${ACCENT.violet.gradient} ${ACCENT.violet.solidGlow}`}`}>
+                className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg ${TYPE_WEIGHT.semibold} transition-all shrink-0 ${anyExpanded ? `${t.glassSoft} ${t.textMuted} ${t.hoverText}` : `text-white bg-gradient-to-br ${ACCENT.violet.gradient} ${ACCENT.violet.solidGlow}`}`}>
                 {anyExpanded ? <ChevronsUp className="h-3.5 w-3.5" /> : <ChevronsDown className="h-3.5 w-3.5" />}
                 {anyExpanded ? 'Collapse All' : 'Expand All'}
               </motion.button>
@@ -1419,10 +1419,10 @@ export default function PPEManagement() {
                 // "No PPE records yet" copy — indistinguishable from real data loss.
                 <div className={`text-center py-16 rounded-xl ${t.glassSoft}`}>
                   <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-amber-500" />
-                  <p className={`text-sm font-semibold ${t.textMuted} mb-1`}>Couldn't load PPE records</p>
+                  <p className={`text-sm ${TYPE_WEIGHT.semibold} ${t.textMuted} mb-1`}>Couldn't load PPE records</p>
                   <p className={`text-xs ${t.textFaint} mb-4`}>The server may still be starting up — try again in a moment.</p>
                   <motion.button type="button" onClick={() => load()} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-                    className={`inline-flex items-center gap-1.5 text-xs px-4 py-2 rounded-lg font-semibold text-white transition-all bg-gradient-to-br ${ACCENT.violet.gradient} ${ACCENT.violet.solidGlow}`}>
+                    className={`inline-flex items-center gap-1.5 text-xs px-4 py-2 rounded-lg ${TYPE_WEIGHT.semibold} text-white transition-all bg-gradient-to-br ${ACCENT.violet.gradient} ${ACCENT.violet.solidGlow}`}>
                     <RefreshCw className="h-3.5 w-3.5" /> Retry
                   </motion.button>
                 </div>
@@ -1436,7 +1436,7 @@ export default function PPEManagement() {
               ) : filteredEmployees.length === 0 ? (
                 <div className={`text-center py-16 rounded-xl ${t.glassSoft}`}>
                   <HardHat className={`h-12 w-12 mx-auto mb-4 ${t.textTertiary}`} />
-                  <p className={`text-sm font-semibold ${t.textMuted} mb-1`}>
+                  <p className={`text-sm ${TYPE_WEIGHT.semibold} ${t.textMuted} mb-1`}>
                     {records.length === 0 ? 'No PPE records yet' : 'No employees match your search'}
                   </p>
                   <p className={`text-xs ${t.textFaint}`}>
@@ -1444,7 +1444,7 @@ export default function PPEManagement() {
                   </p>
                   {records.length === 0 && (
                     <motion.button type="button" onClick={() => openIssueForm()} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-                      className={`mt-4 inline-flex items-center gap-1.5 text-xs px-4 py-2 rounded-lg font-semibold text-white transition-all bg-gradient-to-br ${ACCENT.violet.gradient} ${ACCENT.violet.solidGlow}`}>
+                      className={`mt-4 inline-flex items-center gap-1.5 text-xs px-4 py-2 rounded-lg ${TYPE_WEIGHT.semibold} text-white transition-all bg-gradient-to-br ${ACCENT.violet.gradient} ${ACCENT.violet.solidGlow}`}>
                       <Plus className="h-3.5 w-3.5" /> Issue First PPE
                     </motion.button>
                   )}

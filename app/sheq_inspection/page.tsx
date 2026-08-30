@@ -11,7 +11,7 @@ import {
 import { toast } from 'sonner';
 import {
   useTheme, accentText, PageHero, StatTile, StatusBadge, SearchInput, FormField, FormActions,
-  useCollapseSection, CenterModal, PrimaryButton, EmptyState, ACCENT_HEX, ViewToggle, GlowCard, SelectField, useConfirm,
+  useCollapseSection, CenterModal, PrimaryButton, EmptyState, ACCENT_HEX, ViewToggle, GlowCard, SelectField, useConfirm, TYPE_WEIGHT,
 } from '@/components/shared/theme';
 import { PhotoUpload } from '@/components/shared/PhotoUpload';
 import { AppShell } from '@/components/app-shell';
@@ -65,7 +65,7 @@ function FindingFormCard({
   return (
     <div className={`rounded-xl p-4 ${t.chipBg} border ${t.border} space-y-3`}>
       <div className="flex items-center justify-between">
-        <span className={`text-[10px] font-semibold uppercase tracking-wider ${t.textFaint}`}>Finding #{index + 1}</span>
+        <span className={`text-[10px] ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textFaint}`}>Finding #{index + 1}</span>
         <button type="button" title="Remove finding" onClick={() => onRemove(finding.id)}
           className={`h-5 w-5 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-rose-500 transition-all`}>
           <Trash2 className="h-3 w-3" />
@@ -186,7 +186,7 @@ function InspectionFormModal({
         <div className={`px-5 pt-1 pb-3 border-b ${t.border} flex gap-1.5 flex-wrap`}>
           {TABS.map(tb => (
             <button key={tb.id} type="button" onClick={() => setTab(tb.id)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              className={`px-3 py-1.5 rounded-lg text-xs ${TYPE_WEIGHT.medium} transition-all ${
                 tab === tb.id ? `${ACCENT_HEX.blue ? 'bg-brand-500/20 text-brand-400' : ''}` : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`
               }`}>
               {tb.label}{tb.id === 'findings' && findingCount > 0 && ` (${findingCount})`}
@@ -335,7 +335,7 @@ function InspectionDetailModal({
         <div className={`border-t ${t.border}`} />
 
         <div>
-          <h3 className={`text-xs font-semibold uppercase tracking-wider mb-3 flex items-center gap-2 ${t.textMuted}`}>
+          <h3 className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider mb-3 flex items-center gap-2 ${t.textMuted}`}>
             <FileText className="h-3.5 w-3.5" /> Findings & Actions ({inspection.findings?.length || 0})
           </h3>
           {inspection.findings?.length ? (
@@ -343,7 +343,7 @@ function InspectionDetailModal({
               {inspection.findings.map((f, idx) => (
                 <div key={f.id} className={`rounded-xl p-3 ${t.chipBg} border ${t.border}`}>
                   <div className="flex items-start justify-between gap-2 mb-2">
-                    <p className={`text-sm font-medium ${t.textMuted}`}>#{idx + 1} {f.finding}</p>
+                    <p className={`text-sm ${TYPE_WEIGHT.medium} ${t.textMuted}`}>#{idx + 1} {f.finding}</p>
                     <div className="flex gap-1.5 flex-shrink-0">
                       <StatusBadge color={PRIORITY_HEX[f.priority]} label={f.priority} />
                       <StatusBadge color={FINDING_STATUS_HEX[f.status]} label={f.status} />
@@ -368,7 +368,7 @@ function InspectionDetailModal({
           <>
             <div className={`border-t ${t.border}`} />
             <div className="space-y-4">
-              <h3 className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Photos</h3>
+              <h3 className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textMuted}`}>Photos</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {inspection.before_photos?.length > 0 && (
                   <PhotoUpload label="Before Inspection" photos={inspection.before_photos} onChange={() => {}} disabled accentColor={ACCENT} />
@@ -434,7 +434,7 @@ function InspectionCard({
           <SectionIcon className="h-5 w-5 shrink-0" style={{ color: sectionColor }} />
           <div className="min-w-0">
             <p className={`text-[10px] ${t.textFaint}`}>#{index + 1}</p>
-            <p className={`text-sm font-semibold truncate ${t.textPrimary}`}>{inspection.title}</p>
+            <p className={`text-sm ${TYPE_WEIGHT.semibold} truncate ${t.textPrimary}`}>{inspection.title}</p>
           </div>
         </div>
         <div className="flex items-center gap-1.5 flex-shrink-0" onClick={e => e.stopPropagation()}>
@@ -455,7 +455,7 @@ function InspectionCard({
           { label: 'Photos', value: photoCount, color: '#a78bfa' },
         ].map(s => (
           <div key={s.label} className="text-center">
-            <div className="text-base font-bold leading-none" style={{ color: s.color }}>{s.value}</div>
+            <div className={`text-base ${TYPE_WEIGHT.bold} leading-none`} style={{ color: s.color }}>{s.value}</div>
             <div className={`text-[9px] mt-0.5 ${t.textFaint}`}>{s.label}</div>
           </div>
         ))}
@@ -480,7 +480,7 @@ function InspectionCard({
               {inspection.findings.map((f, idx) => (
                 <div key={f.id} className={`rounded-lg p-2.5 ${t.chipBg} border ${t.border}`}>
                   <div className="flex items-start justify-between gap-2 mb-1">
-                    <p className={`text-xs font-medium ${t.textMuted}`}>{idx + 1}. {f.finding}</p>
+                    <p className={`text-xs ${TYPE_WEIGHT.medium} ${t.textMuted}`}>{idx + 1}. {f.finding}</p>
                     <StatusBadge color={PRIORITY_HEX[f.priority]} label={f.priority} />
                   </div>
                   <div className={`flex gap-3 text-[10px] items-center ${t.textFaint}`}>
@@ -507,7 +507,7 @@ function InspectionCard({
               { label: 'Delete', icon: Trash2, fn: onDelete, color: '#f43f5e' },
             ].map(({ label, icon: Icon, fn, color }) => (
               <button key={label} type="button" onClick={fn}
-                className="flex-1 py-1.5 rounded-lg text-[11px] font-medium border transition-all hover:-translate-y-0.5 inline-flex items-center justify-center gap-1"
+                className={`flex-1 py-1.5 rounded-lg text-[11px] ${TYPE_WEIGHT.medium} border transition-all hover:-translate-y-0.5 inline-flex items-center justify-center gap-1`}
                 style={{ color, borderColor: `${color}25`, background: `${color}10` }}>
                 <Icon className="h-3 w-3" /> {label}
               </button>
@@ -619,7 +619,7 @@ function SHEQInspectionContent() {
   };
 
   const selCls = `h-9 rounded-lg px-2.5 text-xs outline-none transition-colors ${t.inputBg}`;
-  const thCls = `text-left px-3 py-2 text-[10px] uppercase tracking-wide font-medium ${t.textFaint}`;
+  const thCls = `text-left px-3 py-2 text-[10px] uppercase tracking-wide ${TYPE_WEIGHT.medium} ${t.textFaint}`;
 
   return (
     <main className="max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
@@ -741,13 +741,13 @@ function SHEQInspectionContent() {
                             {expandedIds.has(inspection.id) ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
                           </button>
                         </td>
-                        <td className={`px-3 py-3 text-sm font-medium max-w-[180px] truncate ${t.textPrimary}`}>{inspection.title}</td>
+                        <td className={`px-3 py-3 text-sm ${TYPE_WEIGHT.medium} max-w-[180px] truncate ${t.textPrimary}`}>{inspection.title}</td>
                         <td className={`px-3 py-3 text-xs max-w-[140px] truncate ${t.textMuted}`}>{inspection.inspectors}</td>
                         <td className="px-3 py-3"><StatusBadge color={inspection.section === 'electrical' ? '#f59e0b' : ACCENT} label={SECTION_LABELS[inspection.section]} /></td>
                         <td className={`px-3 py-3 text-xs max-w-[120px] truncate ${t.textMuted}`}>{inspection.place}</td>
                         <td className={`px-3 py-3 text-xs whitespace-nowrap ${t.textMuted}`}>{fmtDate(inspection.date)}</td>
                         <td className="px-3 py-3 text-xs">
-                          <span className={`font-semibold ${t.textMuted}`}>{inspection.findings?.length || 0}</span>
+                          <span className={`${TYPE_WEIGHT.semibold} ${t.textMuted}`}>{inspection.findings?.length || 0}</span>
                           <span className={`ml-1 ${t.textFaint}`}>({inspection.findings?.filter(f => f.status === 'closed').length || 0} closed)</span>
                         </td>
                         <td className="px-3 py-3"><StatusBadge color={INSPECTION_STATUS_HEX[inspection.status]} label={inspection.status} /></td>
@@ -767,7 +767,7 @@ function SHEQInspectionContent() {
                               <div className="space-y-2">
                                 {inspection.findings.map((f, idx) => (
                                   <div key={f.id} className="pl-3 border-l-2 space-y-0.5" style={{ borderColor: `${ACCENT}40` }}>
-                                    <p className={`text-xs font-medium ${t.textMuted}`}>#{idx + 1}: {f.finding}</p>
+                                    <p className={`text-xs ${TYPE_WEIGHT.medium} ${t.textMuted}`}>#{idx + 1}: {f.finding}</p>
                                     <p className={`text-[11px] ${t.textFaint}`}>{f.requiredAction}</p>
                                     <div className="flex gap-3 items-center mt-0.5">
                                       <span className={`text-[10px] ${t.textFaint}`}>By: {f.byWho}</span>

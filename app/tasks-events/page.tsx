@@ -14,7 +14,7 @@ import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
 import {
   useTheme, AccentText, AccentIcon, STATUS_TONE, PageHero, StatTile, GlowCard, ProgressBar, ACCENT_HEX,
-  PrimaryButton, CenterModal, FormField, SelectField, SearchInput, StatusBadge, EmptyState, useConfirm,
+  PrimaryButton, CenterModal, FormField, SelectField, SearchInput, StatusBadge, EmptyState, useConfirm, TYPE_WEIGHT,
 } from '@/components/shared/theme';
 import {
   ListTodo, Plus, Trash2, CalendarClock, Check, RotateCcw, Clock, Pencil, AlertTriangle, Lock,
@@ -174,7 +174,7 @@ function DetailsModal({ item, open, onClose, onEdit, onDelete, onToggle }: {
             { label: 'Completed By', val: item.completed_by || '—' },
           ].map(({ label, val }) => (
             <div key={label} className={`${t.chipBg} rounded-xl p-3`}>
-              <span className={`text-[10px] font-semibold uppercase tracking-wider block mb-0.5 ${t.textFaint}`}>{label}</span>
+              <span className={`text-[10px] ${TYPE_WEIGHT.semibold} uppercase tracking-wider block mb-0.5 ${t.textFaint}`}>{label}</span>
               <span className={`text-sm ${t.textMuted}`}>{val}</span>
             </div>
           ))}
@@ -182,13 +182,13 @@ function DetailsModal({ item, open, onClose, onEdit, onDelete, onToggle }: {
 
         {item.description && (
           <div>
-            <span className={`text-[10px] font-semibold uppercase tracking-wider block mb-0.5 ${t.textFaint}`}>Description</span>
+            <span className={`text-[10px] ${TYPE_WEIGHT.semibold} uppercase tracking-wider block mb-0.5 ${t.textFaint}`}>Description</span>
             <div className={`${t.chipBg} rounded-xl p-3 text-sm whitespace-pre-wrap break-words ${t.textMuted}`}>{item.description}</div>
           </div>
         )}
 
         <div>
-          <span className={`text-[10px] font-semibold uppercase tracking-wider block mb-2 ${t.textFaint}`}>Progress Comments</span>
+          <span className={`text-[10px] ${TYPE_WEIGHT.semibold} uppercase tracking-wider block mb-2 ${t.textFaint}`}>Progress Comments</span>
           <div className="space-y-2 max-h-48 overflow-y-auto mb-2">
             {loadingComments ? (
               <p className={`text-xs ${t.textFaint}`}>Loading…</p>
@@ -197,7 +197,7 @@ function DetailsModal({ item, open, onClose, onEdit, onDelete, onToggle }: {
             ) : comments.map(c => (
               <div key={c.id} className={`${t.chipBg} rounded-xl p-2.5`}>
                 <div className="flex items-center justify-between mb-0.5">
-                  <span className={`text-xs font-semibold ${t.textPrimary}`}>{c.author || 'Someone'}</span>
+                  <span className={`text-xs ${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{c.author || 'Someone'}</span>
                   <span className={`text-[10px] ${t.textFaint}`}>{fmtDateTime(c.created_at)}</span>
                 </div>
                 <p className={`text-sm ${t.textMuted}`}>{c.text}</p>
@@ -215,11 +215,11 @@ function DetailsModal({ item, open, onClose, onEdit, onDelete, onToggle }: {
         <div className="flex gap-2 pt-2">
           <button type="button" onClick={onClose} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border}`}>Close</button>
           <button type="button" onClick={() => { onToggle(item); onClose(); }}
-            className={`flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-br hover:brightness-110 ${item.status === 'completed' ? 'from-slate-500 to-slate-700' : 'from-emerald-500 to-emerald-700'}`}>
+            className={`flex-1 py-2.5 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br hover:brightness-110 ${item.status === 'completed' ? 'from-slate-500 to-slate-700' : 'from-emerald-500 to-emerald-700'}`}>
             {item.status === 'completed' ? 'Reopen' : 'Mark Complete'}
           </button>
-          <button type="button" onClick={() => { onEdit(item); onClose(); }} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-amber-500 to-amber-700 hover:brightness-110">Edit</button>
-          <button type="button" onClick={() => { onDelete(item); onClose(); }} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-rose-500 to-rose-700 hover:brightness-110">Delete</button>
+          <button type="button" onClick={() => { onEdit(item); onClose(); }} className={`flex-1 py-2.5 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-amber-500 to-amber-700 hover:brightness-110`}>Edit</button>
+          <button type="button" onClick={() => { onDelete(item); onClose(); }} className={`flex-1 py-2.5 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-rose-500 to-rose-700 hover:brightness-110`}>Delete</button>
         </div>
       </div>
     </CenterModal>
@@ -356,7 +356,7 @@ function TasksEventsContent() {
       <div className="grid sm:grid-cols-[1fr_auto] gap-4">
         {byType.length > 0 && (
           <GlowCard color={ACCENT_HEX.violet} surface={`${t.glass} rounded-2xl`} className="p-5 space-y-4">
-            <p className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Progress by type</p>
+            <p className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textMuted}`}>Progress by type</p>
             <div className="grid sm:grid-cols-2 gap-x-6 gap-y-4">
               {byType.map(g => (
                 <ProgressBar key={g.type} value={g.pct} color={TYPE_COLOR[g.type] || ACCENT_HEX.violet}
@@ -368,7 +368,7 @@ function TasksEventsContent() {
 
         {pieData.length > 0 && (
           <GlowCard color={ACCENT_HEX.emerald} surface={`${t.glass} rounded-2xl`} className="p-5">
-            <p className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted} mb-2`}>Completion split</p>
+            <p className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textMuted} mb-2`}>Completion split</p>
             <div className="w-full sm:w-40 h-40">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -392,7 +392,7 @@ function TasksEventsContent() {
         <SelectField value={priorityFilter} onChange={setPriorityFilter} size="filter"
           options={[{ value: 'all', label: 'All Priorities' }, ...PRIORITIES.map(v => ({ value: v, label: v }))]} />
         <button type="button" onClick={() => setOverdueOnly(v => !v)}
-          className={`h-8 px-3 rounded-lg text-xs font-medium transition-all ${overdueOnly ? 'bg-rose-500/25 font-semibold' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}>
+          className={`h-8 px-3 rounded-lg text-xs ${TYPE_WEIGHT.medium} transition-all ${overdueOnly ? `bg-rose-500/25 ${TYPE_WEIGHT.semibold}` : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}>
           {overdueOnly ? <AccentText accent="rose">Overdue only</AccentText> : 'Overdue only'}
         </button>
       </div>
@@ -413,7 +413,7 @@ function TasksEventsContent() {
                   {item.status === 'completed' ? <AccentIcon icon={Check} accent="emerald" className="h-3.5 w-3.5" /> : <RotateCcw className="h-3 w-3 opacity-0" />}
                 </button>
                 <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-medium truncate ${item.status === 'completed' ? t.textFaint + ' line-through' : t.textPrimary}`}>{item.title}</p>
+                  <p className={`text-sm ${TYPE_WEIGHT.medium} truncate ${item.status === 'completed' ? t.textFaint + ' line-through' : t.textPrimary}`}>{item.title}</p>
                   {!!item.responsible_people?.length && <p className={`text-xs truncate ${t.textFaint}`}>{item.responsible_people.join(', ')}</p>}
                 </div>
                 <StatusBadge color={TYPE_COLOR[item.task_type] || ACCENT_HEX.violet} label={item.task_type} />

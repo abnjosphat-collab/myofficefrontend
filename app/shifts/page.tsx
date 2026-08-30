@@ -21,7 +21,7 @@ import { AppShell } from '@/components/app-shell';
 import { formatDate } from '@/lib/format';
 import {
   useTheme, STATUS_TONE, PageHero, StatTile, StatusBadge as ThemeStatusBadge, SearchInput, ProgressBar, FormField,
-  useCollapseSection, CenterModal, ACCENT_HEX, EmptyState, PrimaryButton, GlowCard, SelectField, accentText,
+  useCollapseSection, CenterModal, ACCENT_HEX, EmptyState, PrimaryButton, GlowCard, SelectField, accentText, TYPE_WEIGHT,
 } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
@@ -213,7 +213,7 @@ function ScheduleEventModal({ assignment, prefillDate, onSave, onClose, saving }
     <CenterModal open onClose={onClose} title="Schedule Event" subtitle={`${assignment.employee_name} · Cycle: ${STATUS_COLORS[cycleStatus].label}${cycleHours ? ` · ${cycleHours}` : ''}`} accent="violet" width="max-w-lg">
       <div className="px-5 py-4 space-y-4">
         <div>
-          <div className={`text-xs font-medium mb-1.5 ${t.textFaint}`}>Event Type</div>
+          <div className={`text-xs ${TYPE_WEIGHT.medium} mb-1.5 ${t.textFaint}`}>Event Type</div>
           <div className="grid grid-cols-2 gap-1.5">
             {(Object.entries(EVENT_TYPES) as [EventType, typeof EVENT_TYPES[EventType]][]).map(([key, ty]) => {
               const TileIcon = ty.icon;
@@ -226,7 +226,7 @@ function ScheduleEventModal({ assignment, prefillDate, onSave, onClose, saving }
                     <TileIcon className="h-3.5 w-3.5" style={{ color: active ? ty.color : undefined }} />
                   </div>
                   <div className="min-w-0">
-                    <div className="text-[10px] font-bold tracking-wide" style={{ color: active ? ty.color : undefined }}>{ty.abbr}</div>
+                    <div className={`text-[10px] ${TYPE_WEIGHT.bold} tracking-wide`} style={{ color: active ? ty.color : undefined }}>{ty.abbr}</div>
                     <div className={`text-[11px] leading-tight truncate ${t.textFaint}`}>{ty.label}</div>
                   </div>
                   {active && <Check className="h-3.5 w-3.5 ml-auto shrink-0" style={{ color: ty.color }} />}
@@ -246,7 +246,7 @@ function ScheduleEventModal({ assignment, prefillDate, onSave, onClose, saving }
 
         {showTiming && (
           <div className="rounded-xl p-3 space-y-2" style={{ backgroundColor: `${et.color}10`, border: `1px solid ${et.color}30` }}>
-            <div className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: et.color }}>Timing</div>
+            <div className={`text-[10px] ${TYPE_WEIGHT.semibold} uppercase tracking-wider`} style={{ color: et.color }}>Timing</div>
             <div className="flex gap-1.5 flex-wrap">
               <button type="button" onClick={() => setForm(p => ({ ...p, label: '', start_time: '', end_time: '' }))} className={`text-xs px-2.5 py-1 rounded-md transition-all ${!form.label ? `${t.chipBg} ${t.textPrimary}` : `${t.textFaint} ${t.hoverBg}`}`}>Default</button>
               {(['day', 'morning', 'afternoon', 'night'] as const).map(key => {
@@ -264,7 +264,7 @@ function ScheduleEventModal({ assignment, prefillDate, onSave, onClose, saving }
 
         {isCustom && (
           <div>
-            <div className={`text-xs font-medium mb-1.5 ${t.textFaint}`}>Status Override</div>
+            <div className={`text-xs ${TYPE_WEIGHT.medium} mb-1.5 ${t.textFaint}`}>Status Override</div>
             <div className="grid grid-cols-2 gap-1.5">
               <button type="button" onClick={() => sf('status')('')} className={`text-xs px-2 py-2 rounded-lg transition-all ${form.status === '' ? `${t.chipBg} ${t.textPrimary}` : `${t.textFaint} ${t.hoverBg}`}`}>Use cycle default</button>
               {(['on', 'off', 'standby', 'on+standby'] as const).map(s => (
@@ -281,7 +281,7 @@ function ScheduleEventModal({ assignment, prefillDate, onSave, onClose, saving }
         {allEvents.length > 0 && (
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <div className={`text-xs font-medium ${t.textFaint}`}>All events for {assignment.employee_name.split(' ')[0]} ({allEvents.length})</div>
+              <div className={`text-xs ${TYPE_WEIGHT.medium} ${t.textFaint}`}>All events for {assignment.employee_name.split(' ')[0]} ({allEvents.length})</div>
               <button type="button" onClick={() => setForm(emptyForm(prefillDate, 'annual_leave'))} className="text-xs text-brand-400/70 hover:text-brand-400 transition-colors">+ New</button>
             </div>
             <div className="space-y-1 max-h-36 overflow-y-auto pr-1">
@@ -293,7 +293,7 @@ function ScheduleEventModal({ assignment, prefillDate, onSave, onClose, saving }
                   <div key={ev.id} className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs transition-all ${active ? '' : `${t.chipBg} ${t.hoverBg}`}`} style={active ? { backgroundColor: `${ty.color}18`, border: `1px solid ${ty.color}40` } : undefined}>
                     <EvIcon className="h-3.5 w-3.5 shrink-0" style={{ color: active ? ty.color : undefined }} />
                     <div className="flex-1 min-w-0">
-                      <div className="font-semibold leading-tight" style={{ color: active ? ty.color : undefined }}>{ty.label}</div>
+                      <div className={`${TYPE_WEIGHT.semibold} leading-tight`} style={{ color: active ? ty.color : undefined }}>{ty.label}</div>
                       <div className={`text-[10px] ${t.textFaint}`}>{fmtDate(ev.from)}{ev.to && ev.to !== ev.from ? ` → ${fmtDate(ev.to)}` : ''}{ev.note ? ` · ${ev.note}` : ''}</div>
                     </div>
                     <button type="button" aria-label="Edit event" onClick={() => loadEvent(ev)} className="shrink-0 text-brand-400/40 hover:text-brand-400 transition-colors"><Pencil className="h-3 w-3" /></button>
@@ -358,7 +358,7 @@ function ScheduleView({ assignments, leaves, onView, onUpdateOverrides }: {
       <div className={`flex items-center justify-between px-4 py-2.5 border-b ${t.border}`}>
         <div className="flex items-center gap-2">
           <button type="button" aria-label="Previous 4 weeks" onClick={() => setOffset(o => o - 1)} className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-all`}><ChevronLeft className="w-4 h-4" /></button>
-          <span className={`text-sm font-medium min-w-[220px] text-center ${t.textMuted}`}>{rangeLabel}</span>
+          <span className={`text-sm ${TYPE_WEIGHT.medium} min-w-[220px] text-center ${t.textMuted}`}>{rangeLabel}</span>
           <button type="button" aria-label="Next 4 weeks" onClick={() => setOffset(o => o + 1)} className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-all`}><ChevronRight className="w-4 h-4" /></button>
         </div>
         {offset !== 0 && <button type="button" onClick={() => setOffset(0)} className={`text-xs px-2.5 py-1 rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-all`}>Today</button>}
@@ -368,11 +368,11 @@ function ScheduleView({ assignments, leaves, onView, onUpdateOverrides }: {
         <div style={{ minWidth: `${NAME + days.length * COL}px` }}>
           <div className={`flex border-b ${t.border}`}>
             <div style={{ width: NAME }} className="shrink-0" />
-            {monthSpans.map((m, i) => <div key={i} style={{ width: m.count * COL }} className={`text-center text-[10px] py-1 font-medium uppercase tracking-wider ${t.textFaint}`}>{m.label}</div>)}
+            {monthSpans.map((m, i) => <div key={i} style={{ width: m.count * COL }} className={`text-center text-[10px] py-1 ${TYPE_WEIGHT.medium} uppercase tracking-wider ${t.textFaint}`}>{m.label}</div>)}
           </div>
 
           <div className={`flex border-b ${t.border}`}>
-            <div style={{ width: NAME }} className={`shrink-0 px-3 py-1.5 text-[10px] uppercase tracking-wider font-semibold ${t.textFaint}`}>Employee</div>
+            <div style={{ width: NAME }} className={`shrink-0 px-3 py-1.5 text-[10px] uppercase tracking-wider ${TYPE_WEIGHT.semibold} ${t.textFaint}`}>Employee</div>
             {days.map(d => {
               const ds = d2s(d);
               const isToday = ds === todayStr;
@@ -382,9 +382,9 @@ function ScheduleView({ assignments, leaves, onView, onUpdateOverrides }: {
                 <div key={ds} title={holiday ?? undefined}
                   className={`flex flex-col items-center py-1 border-b-2 ${isWknd && !holiday ? 'opacity-40' : ''} ${isToday ? 'bg-brand-500/[0.08]' : holiday ? 'bg-pink-500/[0.10]' : ''}`}
                   style={{ width: COL, borderBottomColor: holiday ? 'rgba(244,114,182,0.4)' : 'transparent' }}>
-                  {holiday && <span className="text-[7px] text-pink-400 font-bold leading-none uppercase tracking-tight truncate w-full text-center px-0.5">{holiday.replace(/[''']/g, '').slice(0, 6)}</span>}
+                  {holiday && <span className={`text-[7px] text-pink-400 ${TYPE_WEIGHT.bold} leading-none uppercase tracking-tight truncate w-full text-center px-0.5`}>{holiday.replace(/[''']/g, '').slice(0, 6)}</span>}
                   <span className={`text-[9px] ${holiday ? 'text-pink-400/70' : t.textFaint}`}>{WD[d.getDay()]}</span>
-                  <span className={`text-xs font-bold ${isToday ? 'text-brand-400' : holiday ? 'text-pink-400' : t.textFaint}`}>{d.getDate()}</span>
+                  <span className={`text-xs ${TYPE_WEIGHT.bold} ${isToday ? 'text-brand-400' : holiday ? 'text-pink-400' : t.textFaint}`}>{d.getDate()}</span>
                   {holiday && <Flag className="h-2.5 w-2.5 text-pink-400/80" />}
                 </div>
               );
@@ -399,7 +399,7 @@ function ScheduleView({ assignments, leaves, onView, onUpdateOverrides }: {
                 <div className="flex items-center gap-2">
                   <Avatar name={a.employee_name} size="xs" />
                   <div className="min-w-0">
-                    <button type="button" onClick={() => onView(a)} className={`text-xs font-medium truncate max-w-[130px] block text-left transition-colors ${t.textMuted} ${t.hoverText}`}>{a.employee_name}</button>
+                    <button type="button" onClick={() => onView(a)} className={`text-xs ${TYPE_WEIGHT.medium} truncate max-w-[130px] block text-left transition-colors ${t.textMuted} ${t.hoverText}`}>{a.employee_name}</button>
                     <div className="flex items-center gap-1 mt-0.5">
                       <span className="inline-block w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: getShiftPattern(a.shift_type).color }} />
                       <span className={`text-[9px] ${t.textFaint}`}>{getShiftPattern(a.shift_type).label}</span>
@@ -407,7 +407,7 @@ function ScheduleView({ assignments, leaves, onView, onUpdateOverrides }: {
                     {(() => {
                       const tm = getDayTiming(a, todayStr);
                       const hrs = tm?.hours || a.shift_hours;
-                      return hrs ? <div className="text-[9px] mt-0.5 font-medium opacity-75" style={{ color: tm?.color }}>{hrs}</div> : null;
+                      return hrs ? <div className={`text-[9px] mt-0.5 ${TYPE_WEIGHT.medium} opacity-75`} style={{ color: tm?.color }}>{hrs}</div> : null;
                     })()}
                   </div>
                 </div>
@@ -444,15 +444,15 @@ function ScheduleView({ assignments, leaves, onView, onUpdateOverrides }: {
                         return (
                           <>
                             <CellIcon className="h-4 w-4" style={{ color: et.color }} />
-                            <span className="text-[10px] font-bold leading-none tracking-wide" style={{ color: et.color }}>{et.abbr}</span>
-                            {leave && <span className={`absolute top-0.5 left-0.5 text-[7px] font-bold opacity-60 leading-none ${t.textFaint}`}>L</span>}
+                            <span className={`text-[10px] ${TYPE_WEIGHT.bold} leading-none tracking-wide`} style={{ color: et.color }}>{et.abbr}</span>
+                            {leave && <span className={`absolute top-0.5 left-0.5 text-[7px] ${TYPE_WEIGHT.bold} opacity-60 leading-none ${t.textFaint}`}>L</span>}
                             {(event?.start_time && event?.end_time) && <span className="text-[7px] opacity-60 leading-none font-mono whitespace-nowrap">{event.start_time}–{event.end_time}</span>}
                           </>
                         );
                       })() : isHoliday ? (
                         <>
                           <Landmark className="h-4 w-4 text-pink-400" />
-                          <span className="text-[10px] font-bold leading-none tracking-wide text-pink-400">PH</span>
+                          <span className={`text-[10px] ${TYPE_WEIGHT.bold} leading-none tracking-wide text-pink-400`}>PH</span>
                           <span className="text-[7px] leading-none text-center text-pink-400/70 px-0.5 truncate w-full">{holiday!.replace(/[''']/g, '').split(' ').slice(0, 2).join(' ')}</span>
                         </>
                       ) : isOn ? (() => {
@@ -460,14 +460,14 @@ function ScheduleView({ assignments, leaves, onView, onUpdateOverrides }: {
                         return (
                           <>
                             {TimingIcon ? <TimingIcon className="h-4 w-4" style={{ color: timing!.color }} /> : isSby ? <Shield className="h-4 w-4 text-teal-400" /> : <div className="h-2.5 w-2.5 rounded-full bg-emerald-400/80 ring-2 ring-emerald-400/20" />}
-                            <span className="text-[10px] font-bold leading-none tracking-wide" style={{ color: timing?.color ?? (isSby ? '#2dd4bf' : '#34d399') }}>{timing?.abbr ?? (isSby ? 'SBY' : 'ON')}</span>
+                            <span className={`text-[10px] ${TYPE_WEIGHT.bold} leading-none tracking-wide`} style={{ color: timing?.color ?? (isSby ? '#2dd4bf' : '#34d399') }}>{timing?.abbr ?? (isSby ? 'SBY' : 'ON')}</span>
                             {hours && <span className="text-[7px] opacity-60 leading-none font-mono whitespace-nowrap">{hours}</span>}
                           </>
                         );
                       })() : isSby ? (
                         <>
                           <Shield className={`h-4 w-4 ${accentText('amber', t.light)}`} />
-                          <span className={`text-[10px] font-bold leading-none tracking-wide ${accentText('amber', t.light)}`}>SBY</span>
+                          <span className={`text-[10px] ${TYPE_WEIGHT.bold} leading-none tracking-wide ${accentText('amber', t.light)}`}>SBY</span>
                           {hours && <span className="text-[7px] opacity-55 font-mono leading-none">{hours}</span>}
                         </>
                       ) : <span className="text-[10px] opacity-20 leading-none font-light">—</span>}
@@ -488,7 +488,7 @@ function ScheduleView({ assignments, leaves, onView, onUpdateOverrides }: {
         <span className={`w-px h-5 ${t.chipBg}`} />
         {Object.entries(SHIFT_TIMING_PRESETS).filter(([k]) => k !== 'custom').map(([key, ty]) => {
           const TIcon = ty.icon;
-          return <span key={key} className="flex items-center gap-1.5"><span className="w-9 h-7 rounded-lg inline-flex flex-col items-center justify-center gap-0.5" style={{ backgroundColor: `${ty.color}18` }}><TIcon className="h-3 w-3" style={{ color: ty.color }} /><span className="text-[7px] font-bold leading-none font-mono" style={{ color: ty.color }}>{ty.abbr}</span></span>{ty.label.replace(' Shift', '')}</span>;
+          return <span key={key} className="flex items-center gap-1.5"><span className="w-9 h-7 rounded-lg inline-flex flex-col items-center justify-center gap-0.5" style={{ backgroundColor: `${ty.color}18` }}><TIcon className="h-3 w-3" style={{ color: ty.color }} /><span className={`text-[7px] ${TYPE_WEIGHT.bold} leading-none font-mono`} style={{ color: ty.color }}>{ty.abbr}</span></span>{ty.label.replace(' Shift', '')}</span>;
         })}
         <span className={`w-px h-5 ${t.chipBg}`} />
         {(Object.entries(EVENT_TYPES) as [EventType, typeof EVENT_TYPES[EventType]][]).map(([key, ty]) => {
@@ -522,7 +522,7 @@ function ShiftCard({ assignment, onView, onEdit, onDelete }: { assignment: Shift
           <div className="flex items-center gap-2.5 min-w-0">
             <Avatar name={assignment.employee_name} size="md" />
             <div className="min-w-0">
-              <div className={`text-sm font-semibold truncate ${t.textPrimary}`}>{assignment.employee_name}</div>
+              <div className={`text-sm ${TYPE_WEIGHT.semibold} truncate ${t.textPrimary}`}>{assignment.employee_name}</div>
               <div className={`text-xs truncate ${t.textFaint}`}>{assignment.designation || assignment.department || assignment.employee_id}</div>
             </div>
           </div>
@@ -582,7 +582,7 @@ function ShiftDetailModal({ assignment, open, onClose, onEdit, onDelete }: { ass
       </div>
       <div className="px-6 pb-6 space-y-4">
         <div className={`${t.chipBg} rounded-xl overflow-hidden`}>
-          <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}><Users className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Employee</span></div>
+          <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}><Users className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textMuted}`}>Employee</span></div>
           <div className="px-3.5 py-3 grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-2.5">
             <InfoField label="Employee ID" value={assignment.employee_id} /><InfoField label="Designation" value={assignment.designation} />
             <InfoField label="Department" value={assignment.department} /><InfoField label="Section" value={assignment.section} /><InfoField label="Phone" value={assignment.phone} />
@@ -590,7 +590,7 @@ function ShiftDetailModal({ assignment, open, onClose, onEdit, onDelete }: { ass
         </div>
 
         <div className={`${t.chipBg} rounded-xl overflow-hidden`}>
-          <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}><Clock className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Shift Pattern</span></div>
+          <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}><Clock className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textMuted}`}>Shift Pattern</span></div>
           <div className="px-3.5 py-3 grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-2.5">
             <InfoField label="Shift Type" value={pattern.label} />
             {assignment.shift_type !== 'standby' && <><InfoField label="On Days" value={assignment.on_days} /><InfoField label="Off Days" value={assignment.off_days} /></>}
@@ -602,9 +602,9 @@ function ShiftDetailModal({ assignment, open, onClose, onEdit, onDelete }: { ass
 
         {assignment.shift_type !== 'standby' && (
           <div className={`${t.chipBg} rounded-xl overflow-hidden`}>
-            <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}><Activity className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Cycle Position</span></div>
+            <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}><Activity className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textMuted}`}>Cycle Position</span></div>
             <div className="px-3.5 py-3">
-              <div className={`flex justify-between text-xs mb-2 ${t.textFaint}`}><span>Progress through current cycle</span><span className={`font-semibold ${t.textMuted}`}>{progress}%</span></div>
+              <div className={`flex justify-between text-xs mb-2 ${t.textFaint}`}><span>Progress through current cycle</span><span className={`${TYPE_WEIGHT.semibold} ${t.textMuted}`}>{progress}%</span></div>
               <ProgressBar value={progress} color={pattern.color} showValue={false} />
               <div className={`flex justify-between text-[10px] mt-1.5 ${t.textFaint}`}><span>Day 1</span><span>Day {assignment.on_days + assignment.off_days}</span></div>
             </div>
@@ -613,12 +613,12 @@ function ShiftDetailModal({ assignment, open, onClose, onEdit, onDelete }: { ass
 
         {(assignment.shift_timing_periods || []).length > 0 && (
           <div className={`${t.chipBg} rounded-xl overflow-hidden`}>
-            <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}><Clock className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Timing Blocks</span><span className={`ml-auto text-xs ${t.textFaint}`}>{(assignment.shift_timing_periods || []).length} block{(assignment.shift_timing_periods || []).length > 1 ? 's' : ''}</span></div>
+            <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}><Clock className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textMuted}`}>Timing Blocks</span><span className={`ml-auto text-xs ${t.textFaint}`}>{(assignment.shift_timing_periods || []).length} block{(assignment.shift_timing_periods || []).length > 1 ? 's' : ''}</span></div>
             <div className="px-3.5 py-3 space-y-1.5">
               {(assignment.shift_timing_periods || []).map((blk, i) => {
                 const tm = blk.label ? SHIFT_TIMING_PRESETS[blk.label] : null;
                 const hrs = (blk.start_time && blk.end_time) ? `${blk.start_time}–${blk.end_time}` : (tm?.hours || '');
-                return <div key={i} className="flex items-center gap-2 text-sm">{tm && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md" style={{ backgroundColor: `${tm.color}22`, color: tm.color }}>{tm.abbr}</span>}<span className={t.textFaint}>{fmtDate(blk.from)} → {fmtDate(blk.to)}</span>{hrs && <span className={`ml-auto text-xs font-mono ${t.textFaint}`}>{hrs}</span>}</div>;
+                return <div key={i} className="flex items-center gap-2 text-sm">{tm && <span className={`text-[10px] ${TYPE_WEIGHT.bold} px-1.5 py-0.5 rounded-md`} style={{ backgroundColor: `${tm.color}22`, color: tm.color }}>{tm.abbr}</span>}<span className={t.textFaint}>{fmtDate(blk.from)} → {fmtDate(blk.to)}</span>{hrs && <span className={`ml-auto text-xs font-mono ${t.textFaint}`}>{hrs}</span>}</div>;
               })}
             </div>
           </div>
@@ -626,7 +626,7 @@ function ShiftDetailModal({ assignment, open, onClose, onEdit, onDelete }: { ass
 
         {assignment.shift_type !== 'standby' && (assignment.standby_periods || []).length > 0 && (
           <div className="bg-amber-500/[0.05] rounded-xl overflow-hidden">
-            <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-amber-500/15"><Shield className={`h-3.5 w-3.5 ${accentText('amber', t.light)}`} /><span className={`text-xs font-semibold ${accentText('amber', t.light)} uppercase tracking-wider`}>Standby Periods</span><span className={`ml-auto text-xs ${t.light ? 'text-amber-600/70' : 'text-amber-400/70'}`}>{(assignment.standby_periods || []).length} period{(assignment.standby_periods || []).length > 1 ? 's' : ''}</span></div>
+            <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-amber-500/15"><Shield className={`h-3.5 w-3.5 ${accentText('amber', t.light)}`} /><span className={`text-xs ${TYPE_WEIGHT.semibold} ${accentText('amber', t.light)} uppercase tracking-wider`}>Standby Periods</span><span className={`ml-auto text-xs ${t.light ? 'text-amber-600/70' : 'text-amber-400/70'}`}>{(assignment.standby_periods || []).length} period{(assignment.standby_periods || []).length > 1 ? 's' : ''}</span></div>
             <div className="px-3.5 py-3 space-y-1.5">
               {(assignment.standby_periods || []).map((p, i) => <div key={i} className={`flex items-center gap-2 text-sm ${t.light ? 'text-amber-600/80' : 'text-amber-400/80'}`}><span className="text-amber-500/50">·</span><span>{fmtDate(p.from)}</span><span className={t.textFaint}>→</span><span>{fmtDate(p.to)}</span></div>)}
             </div>
@@ -635,7 +635,7 @@ function ShiftDetailModal({ assignment, open, onClose, onEdit, onDelete }: { ass
 
         {(assignment.day_overrides || []).length > 0 && (
           <div className={`${t.chipBg} rounded-xl overflow-hidden`}>
-            <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}><Calendar className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Schedule Events</span><span className={`ml-auto text-xs ${t.textFaint}`}>{(assignment.day_overrides || []).length} event{(assignment.day_overrides || []).length > 1 ? 's' : ''}</span></div>
+            <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}><Calendar className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textMuted}`}>Schedule Events</span><span className={`ml-auto text-xs ${t.textFaint}`}>{(assignment.day_overrides || []).length} event{(assignment.day_overrides || []).length > 1 ? 's' : ''}</span></div>
             <div className="px-3.5 py-3 space-y-1.5 max-h-48 overflow-y-auto">
               {(assignment.day_overrides as ScheduleEvent[]).map((ev, i) => {
                 const ty = EVENT_TYPES[ev.type as EventType] ?? EVENT_TYPES.custom;
@@ -645,10 +645,10 @@ function ShiftDetailModal({ assignment, open, onClose, onEdit, onDelete }: { ass
                   <div key={ev.id || i} className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg" style={{ backgroundColor: `${ty.color}12`, border: `1px solid ${ty.color}30` }}>
                     <div className="p-1.5 rounded-lg shrink-0" style={{ backgroundColor: `${ty.color}18` }}><EvIcon className="h-3.5 w-3.5" style={{ color: ty.color }} /></div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-xs font-semibold" style={{ color: ty.color }}>{ty.label}</div>
+                      <div className={`text-xs ${TYPE_WEIGHT.semibold}`} style={{ color: ty.color }}>{ty.label}</div>
                       <div className={`text-[11px] ${t.textFaint}`}>{fmtDate(ev.from)}{ev.to && ev.to !== ev.from ? ` → ${fmtDate(ev.to)}` : ''}{hrs ? ` · ${hrs}` : ''}{ev.note ? ` · ${ev.note}` : ''}</div>
                     </div>
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md shrink-0" style={{ backgroundColor: `${ty.color}22`, color: ty.color }}>{ty.abbr}</span>
+                    <span className={`text-[10px] ${TYPE_WEIGHT.bold} px-1.5 py-0.5 rounded-md shrink-0`} style={{ backgroundColor: `${ty.color}22`, color: ty.color }}>{ty.abbr}</span>
                   </div>
                 );
               })}
@@ -658,14 +658,14 @@ function ShiftDetailModal({ assignment, open, onClose, onEdit, onDelete }: { ass
 
         {assignment.notes && (
           <div className={`${t.chipBg} rounded-xl overflow-hidden`}>
-            <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}><AlertCircle className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Notes</span></div>
+            <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}><AlertCircle className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textMuted}`}>Notes</span></div>
             <p className={`px-3.5 py-3 text-sm leading-relaxed ${t.textFaint}`}>{assignment.notes}</p>
           </div>
         )}
 
         <div className="flex gap-2 pt-1">
           <PrimaryButton size="md" fullWidth icon={Pencil} onClick={() => { onEdit(assignment); onClose(); }}>Edit Assignment</PrimaryButton>
-          <button type="button" aria-label="Delete assignment" onClick={() => { onDelete(assignment); onClose(); }} className="px-4 py-2.5 rounded-xl text-sm font-semibold text-red-400 bg-red-500/10 hover:bg-red-500/20 transition-all"><Trash2 className="h-4 w-4" /></button>
+          <button type="button" aria-label="Delete assignment" onClick={() => { onDelete(assignment); onClose(); }} className={`px-4 py-2.5 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-red-400 bg-red-500/10 hover:bg-red-500/20 transition-all`}><Trash2 className="h-4 w-4" /></button>
         </div>
       </div>
     </CenterModal>
@@ -736,7 +736,7 @@ function ShiftAssignForm({ open, onClose, editing, employees, onSaved }: { open:
     <CenterModal open={open} onClose={onClose} title={editing ? 'Edit Assignment' : 'Assign Shift'} subtitle={editing ? 'Update shift assignment details' : 'Set up a new shift cycle for an employee'} accent="violet" width="max-w-xl">
       <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
         <div className={`${t.chipBg} rounded-xl overflow-hidden`}>
-          <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}><Users className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Employee</span></div>
+          <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}><Users className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textMuted}`}>Employee</span></div>
           <div className="px-3.5 py-3 space-y-3">
             <FormField label="Employee">
               <Popover open={empOpen} onOpenChange={setEmpOpen}>
@@ -755,7 +755,7 @@ function ShiftAssignForm({ open, onClose, editing, employees, onSaved }: { open:
                         {employees.map(emp => (
                           <CommandItem key={emp.id} value={emp.name} onSelect={() => selectEmployee(emp)} className="cursor-pointer">
                             <Check className={`h-3.5 w-3.5 mr-2 ${form.employee_id === emp.id ? 'opacity-100' : 'opacity-0'}`} />
-                            <div><div className="text-sm font-medium">{emp.name}</div><div className={`text-xs ${t.textFaint}`}>{emp.designation} · {emp.department}</div></div>
+                            <div><div className={`text-sm ${TYPE_WEIGHT.medium}`}>{emp.name}</div><div className={`text-xs ${t.textFaint}`}>{emp.designation} · {emp.department}</div></div>
                           </CommandItem>
                         ))}
                       </CommandGroup>
@@ -774,7 +774,7 @@ function ShiftAssignForm({ open, onClose, editing, employees, onSaved }: { open:
         </div>
 
         <div className={`${t.chipBg} rounded-xl overflow-hidden`}>
-          <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}><Clock className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Shift Pattern</span></div>
+          <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}><Clock className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textMuted}`}>Shift Pattern</span></div>
           <div className="px-3.5 py-3 space-y-3">
             <FormField label="Shift Type">
               <SelectField size="form" title="Shift type" value={form.shift_type} onChange={v => onShiftTypeChange(v as ShiftType)}
@@ -792,12 +792,12 @@ function ShiftAssignForm({ open, onClose, editing, employees, onSaved }: { open:
 
         <div className={`${t.chipBg} rounded-xl overflow-hidden`}>
           <div className={`flex items-center justify-between px-3.5 py-2.5 border-b ${t.border}`}>
-            <div className="flex items-center gap-2"><Clock className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Shift Timing</span></div>
+            <div className="flex items-center gap-2"><Clock className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textMuted}`}>Shift Timing</span></div>
             <button type="button" onClick={() => setForm(p => ({ ...p, shift_timing_periods: [...p.shift_timing_periods, { from: p.cycle_start_date, to: p.cycle_start_date, label: p.shift_label || '', start_time: '', end_time: '' }] }))} className="text-xs px-2 py-1 rounded-lg bg-brand-500/10 text-brand-400/80 hover:bg-brand-500/20 transition-all">+ Add Block</button>
           </div>
           <div className="px-3.5 py-3 space-y-4">
             <div>
-              <div className={`text-xs font-medium mb-2 ${t.textFaint}`}>Default timing (days without a specific block)</div>
+              <div className={`text-xs ${TYPE_WEIGHT.medium} mb-2 ${t.textFaint}`}>Default timing (days without a specific block)</div>
               <div className="grid grid-cols-4 gap-1.5">
                 {(['day', 'morning', 'afternoon', 'night'] as const).map(key => {
                   const tp = SHIFT_TIMING_PRESETS[key];
@@ -805,7 +805,7 @@ function ShiftAssignForm({ open, onClose, editing, employees, onSaved }: { open:
                   return (
                     <button key={key} type="button" onClick={() => setForm(p => ({ ...p, shift_label: active ? '' : key, shift_hours: active ? '' : tp.hours }))}
                       className={`text-center px-2 py-2 rounded-lg transition-all ${active ? '' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`} style={active ? { backgroundColor: `${tp.color}18`, color: tp.color } : undefined}>
-                      <div className="text-[11px] font-bold">{tp.abbr}</div>
+                      <div className={`text-[11px] ${TYPE_WEIGHT.bold}`}>{tp.abbr}</div>
                       <div className="text-[9px] mt-0.5 opacity-70 leading-tight">{tp.label.replace(' Shift', '')}</div>
                       <div className="text-[9px] mt-0.5 opacity-50">{tp.hours}</div>
                     </button>
@@ -820,7 +820,7 @@ function ShiftAssignForm({ open, onClose, editing, employees, onSaved }: { open:
 
             {form.shift_timing_periods.length > 0 && (
               <div className="space-y-2">
-                <div className={`text-xs font-medium ${t.textFaint}`}>Timing blocks (override by date range)</div>
+                <div className={`text-xs ${TYPE_WEIGHT.medium} ${t.textFaint}`}>Timing blocks (override by date range)</div>
                 {form.shift_timing_periods.map((blk, idx) => (
                   <div key={idx} className={`rounded-lg ${t.chipBg} p-2.5 space-y-2`}>
                     <div className="flex items-center gap-1.5 flex-wrap">
@@ -850,7 +850,7 @@ function ShiftAssignForm({ open, onClose, editing, employees, onSaved }: { open:
         {form.shift_type !== 'standby' && (
           <div className="rounded-xl bg-amber-500/[0.05] overflow-hidden">
             <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-amber-500/15">
-              <div className="flex items-center gap-2"><Shield className={`h-3.5 w-3.5 ${accentText('amber', t.light)}`} /><span className={`text-xs font-semibold ${accentText('amber', t.light)} uppercase tracking-wider`}>Standby Periods</span></div>
+              <div className="flex items-center gap-2"><Shield className={`h-3.5 w-3.5 ${accentText('amber', t.light)}`} /><span className={`text-xs ${TYPE_WEIGHT.semibold} ${accentText('amber', t.light)} uppercase tracking-wider`}>Standby Periods</span></div>
               <button type="button" onClick={() => setForm(p => ({ ...p, standby_periods: [...p.standby_periods, { from: p.cycle_start_date, to: p.cycle_start_date }] }))} className={`text-xs px-2 py-1 rounded-lg bg-amber-500/15 ${accentText('amber', t.light)} hover:bg-amber-500/25 transition-all flex items-center gap-1`}>+ Add Period</button>
             </div>
             <div className="px-3.5 py-3 space-y-2">
@@ -859,8 +859,8 @@ function ShiftAssignForm({ open, onClose, editing, employees, onSaved }: { open:
               ) : form.standby_periods.map((period, idx) => (
                 <div key={idx} className="flex items-center gap-2">
                   <div className="flex-1 grid grid-cols-2 gap-2">
-                    <div>{idx === 0 && <div className={`text-xs font-medium mb-1 ${t.textFaint}`}>From</div>}<input type="date" aria-label={`Standby period ${idx + 1} from`} className={inputCls} value={period.from} onChange={e => setForm(p => { const updated = [...p.standby_periods]; updated[idx] = { ...updated[idx], from: e.target.value }; return { ...p, standby_periods: updated }; })} /></div>
-                    <div>{idx === 0 && <div className={`text-xs font-medium mb-1 ${t.textFaint}`}>To</div>}<input type="date" aria-label={`Standby period ${idx + 1} to`} className={inputCls} value={period.to} onChange={e => setForm(p => { const updated = [...p.standby_periods]; updated[idx] = { ...updated[idx], to: e.target.value }; return { ...p, standby_periods: updated }; })} /></div>
+                    <div>{idx === 0 && <div className={`text-xs ${TYPE_WEIGHT.medium} mb-1 ${t.textFaint}`}>From</div>}<input type="date" aria-label={`Standby period ${idx + 1} from`} className={inputCls} value={period.from} onChange={e => setForm(p => { const updated = [...p.standby_periods]; updated[idx] = { ...updated[idx], from: e.target.value }; return { ...p, standby_periods: updated }; })} /></div>
+                    <div>{idx === 0 && <div className={`text-xs ${TYPE_WEIGHT.medium} mb-1 ${t.textFaint}`}>To</div>}<input type="date" aria-label={`Standby period ${idx + 1} to`} className={inputCls} value={period.to} onChange={e => setForm(p => { const updated = [...p.standby_periods]; updated[idx] = { ...updated[idx], to: e.target.value }; return { ...p, standby_periods: updated }; })} /></div>
                   </div>
                   <button type="button" aria-label="Remove standby period" onClick={() => setForm(p => ({ ...p, standby_periods: p.standby_periods.filter((_, i) => i !== idx) }))} className={`${idx === 0 ? 'mt-5' : ''} h-7 w-7 shrink-0 flex items-center justify-center rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all`}><X className="h-3.5 w-3.5" /></button>
                 </div>
@@ -872,7 +872,7 @@ function ShiftAssignForm({ open, onClose, editing, employees, onSaved }: { open:
         <FormField label="Notes"><textarea rows={2} className={inputCls} value={form.notes} onChange={setField('notes')} placeholder="Optional notes…" /></FormField>
 
         <div className="flex gap-2 pt-1">
-          <button type="button" onClick={onClose} className={`flex-1 px-4 py-2.5 rounded-xl text-sm font-medium ${t.textMuted} border ${t.border} ${t.hoverBg} transition-all`}>Cancel</button>
+          <button type="button" onClick={onClose} className={`flex-1 px-4 py-2.5 rounded-xl text-sm ${TYPE_WEIGHT.medium} ${t.textMuted} border ${t.border} ${t.hoverBg} transition-all`}>Cancel</button>
           <PrimaryButton type="submit" size="md" fullWidth icon={Clock} submitting={saving}>{editing ? 'Update' : 'Assign Shift'}</PrimaryButton>
         </div>
       </form>
@@ -953,7 +953,7 @@ function ShiftsContent() {
   function clearFilters() { setFilterType('all'); setFilterStatus('all'); setSearch(''); }
 
   const selCls = `h-8 rounded-lg px-2.5 text-xs outline-none transition-colors ${t.inputBg}`;
-  const thCls = `text-left px-3 py-2 text-[10px] uppercase tracking-wide font-medium ${t.textFaint}`;
+  const thCls = `text-left px-3 py-2 text-[10px] uppercase tracking-wide ${TYPE_WEIGHT.medium} ${t.textFaint}`;
 
   const exportColumns: DLColumn[] = [
     { key: 'employee_name', label: 'Employee', width: 22 },
@@ -997,7 +997,7 @@ function ShiftsContent() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><Layers className="h-4 w-4 text-brand-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Shift Patterns</span></div>
+          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><Layers className="h-4 w-4 text-brand-400" /><span className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>Shift Patterns</span></div>
           <div className="p-4 grid grid-cols-2 gap-3">
             {breakdown.map(({ type, count, percentage }) => {
               const p = getShiftPattern(type);
@@ -1007,8 +1007,8 @@ function ShiftsContent() {
                 <GlowCard key={type} onClick={() => setFilterType(isActive ? 'all' : type)} color={p.color}
                   surface="rounded-xl p-4"
                   className={`group text-left cursor-pointer ${isActive ? `${t.chipBg} ring-1 ring-brand-400/40` : `${t.chipBg} ${t.hoverBg}`}`}>
-                  <div className="flex items-center justify-between mb-2"><Icon className="h-4 w-4" style={{ color: p.color }} /><span className={`text-xs font-bold ${t.textPrimary}`}>{count}</span></div>
-                  <div className={`text-xs font-semibold mb-0.5 ${t.textMuted}`}>{p.label}</div>
+                  <div className="flex items-center justify-between mb-2"><Icon className="h-4 w-4" style={{ color: p.color }} /><span className={`text-xs ${TYPE_WEIGHT.bold} ${t.textPrimary}`}>{count}</span></div>
+                  <div className={`text-xs ${TYPE_WEIGHT.semibold} mb-0.5 ${t.textMuted}`}>{p.label}</div>
                   <div className={`mt-2 h-1 rounded-full ${t.chipBg} overflow-hidden`}><ProgressBar value={percentage} color={p.color} showValue={false} /></div>
                 </GlowCard>
               );
@@ -1017,7 +1017,7 @@ function ShiftsContent() {
         </div>
 
         <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><Users className="h-4 w-4 text-brand-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Roster</span><span className={`ml-auto text-xs ${t.textFaint}`}>{assignments.length} assigned</span></div>
+          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><Users className="h-4 w-4 text-brand-400" /><span className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>Roster</span><span className={`ml-auto text-xs ${t.textFaint}`}>{assignments.length} assigned</span></div>
           <ScrollArea className="h-[220px]">
             <div className="space-y-1 p-4">
               {assignments.length === 0 ? <p className={`py-8 text-center text-sm ${t.textFaint}`}>No assignments yet</p> : assignments.slice(0, 20).map(a => {
@@ -1026,7 +1026,7 @@ function ShiftsContent() {
                   <div key={a.id} className={`flex items-center gap-3 p-3 rounded-lg ${t.hoverBgSoft} cursor-pointer transition-all`} onClick={() => openView(a)}>
                     <Avatar name={a.employee_name} />
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1"><span className={`text-sm font-medium truncate ${t.textPrimary}`}>{a.employee_name}</span><DayStatusBadge status={s} /></div>
+                      <div className="flex items-center gap-2 mb-1"><span className={`text-sm ${TYPE_WEIGHT.medium} truncate ${t.textPrimary}`}>{a.employee_name}</span><DayStatusBadge status={s} /></div>
                       <ProgressBar value={cycleProgress(a)} color={getShiftPattern(a.shift_type).color} showValue={false} />
                     </div>
                     <ShiftTypeBadge type={a.shift_type} />
@@ -1040,22 +1040,22 @@ function ShiftsContent() {
 
       <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
         <div className={`flex items-center justify-between px-5 py-3 border-b ${t.border}`}>
-          <div className="flex items-center gap-2"><Layers className="h-4 w-4 text-brand-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Filters</span>{hasFilters() && <ThemeStatusBadge color={ACCENT_HEX.blue} label="Active" />}</div>
+          <div className="flex items-center gap-2"><Layers className="h-4 w-4 text-brand-400" /><span className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>Filters</span>{hasFilters() && <ThemeStatusBadge color={ACCENT_HEX.blue} label="Active" />}</div>
           {hasFilters() && <button type="button" onClick={clearFilters} className={`text-xs ${t.textFaint} ${t.hoverText} flex items-center gap-1 transition-colors`}><X className="h-3 w-3" /> Clear</button>}
         </div>
         <div className="px-5 py-4 space-y-3">
           <div>
-            <div className={`text-xs font-medium mb-1.5 ${t.textFaint}`}>Pattern</div>
+            <div className={`text-xs ${TYPE_WEIGHT.medium} mb-1.5 ${t.textFaint}`}>Pattern</div>
             <div className="flex flex-wrap gap-1.5">
-              <button type="button" onClick={() => setFilterType('all')} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${filterType === 'all' ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}>All Patterns</button>
-              {Object.entries(SHIFT_PATTERNS).map(([k, v]) => <button key={k} type="button" onClick={() => setFilterType(filterType === k ? 'all' : k as ShiftType)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${filterType === k ? '' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`} style={filterType === k ? { backgroundColor: `${v.color}22`, color: v.color } : undefined}>{v.label}</button>)}
+              <button type="button" onClick={() => setFilterType('all')} className={`px-3 py-1.5 rounded-lg text-xs ${TYPE_WEIGHT.medium} transition-all ${filterType === 'all' ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}>All Patterns</button>
+              {Object.entries(SHIFT_PATTERNS).map(([k, v]) => <button key={k} type="button" onClick={() => setFilterType(filterType === k ? 'all' : k as ShiftType)} className={`px-3 py-1.5 rounded-lg text-xs ${TYPE_WEIGHT.medium} transition-all ${filterType === k ? '' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`} style={filterType === k ? { backgroundColor: `${v.color}22`, color: v.color } : undefined}>{v.label}</button>)}
             </div>
           </div>
           <div>
-            <div className={`text-xs font-medium mb-1.5 ${t.textFaint}`}>Today&apos;s Status</div>
+            <div className={`text-xs ${TYPE_WEIGHT.medium} mb-1.5 ${t.textFaint}`}>Today&apos;s Status</div>
             <div className="flex flex-wrap gap-1.5">
-              <button type="button" onClick={() => setFilterStatus('all')} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${filterStatus === 'all' ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}>All Statuses</button>
-              {(['on', 'on+standby', 'off', 'standby'] as DayStatus[]).map(s => <button key={s} type="button" onClick={() => setFilterStatus(filterStatus === s ? 'all' : s)} className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all" style={filterStatus === s ? { backgroundColor: `${STATUS_COLORS[s].hex}22`, color: STATUS_COLORS[s].hex } : undefined}>{STATUS_COLORS[s].label}</button>)}
+              <button type="button" onClick={() => setFilterStatus('all')} className={`px-3 py-1.5 rounded-lg text-xs ${TYPE_WEIGHT.medium} transition-all ${filterStatus === 'all' ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}>All Statuses</button>
+              {(['on', 'on+standby', 'off', 'standby'] as DayStatus[]).map(s => <button key={s} type="button" onClick={() => setFilterStatus(filterStatus === s ? 'all' : s)} className={`px-3 py-1.5 rounded-lg text-xs ${TYPE_WEIGHT.medium} transition-all`} style={filterStatus === s ? { backgroundColor: `${STATUS_COLORS[s].hex}22`, color: STATUS_COLORS[s].hex } : undefined}>{STATUS_COLORS[s].label}</button>)}
             </div>
           </div>
         </div>
@@ -1063,13 +1063,13 @@ function ShiftsContent() {
 
       <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
         <div className={`flex flex-wrap items-center gap-3 px-5 py-3 border-b ${t.border}`}>
-          <span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Records</span>
+          <span className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textMuted}`}>Records</span>
           <span className={`text-[11px] ${t.textFaint}`}>{filtered.length} of {assignments.length}</span>
           <SearchInput value={search} onChange={setSearch} placeholder="Search employees…" className="w-52" />
           <SelectField size="filter" value={sortKey} onChange={v => setSortKey(v as SortKey)} title="Sort by"
             options={SORT_OPTIONS.map(o => ({ value: o.value, label: o.label }))} />
           <button type="button" title="Schedule view — see everyone's shifts for the next 4 weeks" onClick={() => setViewMode(v => v === 'schedule' ? 'grid' : 'schedule')}
-            className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg transition-all ${viewMode === 'schedule' ? 'bg-brand-500/20 text-brand-400 font-semibold' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}>
+            className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg transition-all ${viewMode === 'schedule' ? `bg-brand-500/20 text-brand-400 ${TYPE_WEIGHT.semibold}` : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}>
             <Calendar className="w-3 h-3" /> Schedule
           </button>
           <div className="ml-auto flex items-center gap-1.5">
@@ -1096,7 +1096,7 @@ function ShiftsContent() {
                 <tbody>
                   {filtered.map(a => (
                     <tr key={a.id} className={`cursor-pointer border-b ${t.border} ${t.hoverBgSoft} transition-colors`} onClick={() => openView(a)}>
-                      <td className="px-3 py-2.5"><div className="flex items-center gap-2.5"><Avatar name={a.employee_name} size="xs" /><div><div className={`text-sm font-medium ${t.textPrimary}`}>{a.employee_name}</div><div className={`text-xs ${t.textFaint}`}>{a.employee_id}</div></div></div></td>
+                      <td className="px-3 py-2.5"><div className="flex items-center gap-2.5"><Avatar name={a.employee_name} size="xs" /><div><div className={`text-sm ${TYPE_WEIGHT.medium} ${t.textPrimary}`}>{a.employee_name}</div><div className={`text-xs ${t.textFaint}`}>{a.employee_id}</div></div></div></td>
                       <td className="px-3 py-2.5"><ShiftTypeBadge type={a.shift_type} /></td>
                       <td className="px-3 py-2.5"><DayStatusBadge status={todayStatus(a)} /></td>
                       <td className={`px-3 py-2.5 text-sm ${t.textFaint}`}>{fmtDate(a.cycle_start_date)}</td>
@@ -1136,7 +1136,7 @@ function ShiftsContent() {
                 setDeleteTarget(null);
                 fetchAll();
               } catch (err) { toast.error(String(err)); }
-            }} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-rose-500 to-rose-700 hover:brightness-110 transition-all">Remove</button>
+            }} className={`flex-1 py-2.5 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-rose-500 to-rose-700 hover:brightness-110 transition-all`}>Remove</button>
           </div>
         </div>
       </CenterModal>

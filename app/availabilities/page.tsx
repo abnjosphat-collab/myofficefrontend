@@ -14,7 +14,7 @@ import {
 import { AppShell } from '@/components/app-shell';
 import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, ProgressBar, FormField, FormActions,
-  useCollapseSection, CenterModal, ACCENT_HEX, EmptyState, PrimaryButton, SelectField, accentText,
+  useCollapseSection, CenterModal, ACCENT_HEX, EmptyState, PrimaryButton, SelectField, accentText, TYPE_WEIGHT,
 } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { PillTabs } from '@/components/shared/PillTabs';
@@ -222,7 +222,7 @@ function AvailabilitiesContent() {
   const formPct = calcPct(parseFloat(form.operational_hours) || 0, parseFloat(form.breakdown_hours) || 0);
 
   const selCls = `h-9 rounded-lg px-3 text-sm outline-none transition-colors ${t.inputBg}`;
-  const thCls = `text-left px-3 py-2 text-[10px] uppercase tracking-wide font-medium ${t.textFaint}`;
+  const thCls = `text-left px-3 py-2 text-[10px] uppercase tracking-wide ${TYPE_WEIGHT.medium} ${t.textFaint}`;
   const tdCls = `px-3 py-2.5 text-sm ${t.textMuted}`;
 
   const TABS: { key: typeof mainTab; label: string; icon: ElementType }[] = [
@@ -273,7 +273,7 @@ function AvailabilitiesContent() {
                 formats={['excel']}
               />
             )}
-            <Link href="/breakdowns" className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-medium ${t.chipBg} ${t.textMuted} ${t.hoverBg}`}>
+            <Link href="/breakdowns" className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.medium} ${t.chipBg} ${t.textMuted} ${t.hoverBg}`}>
               <AlertTriangle className="h-3.5 w-3.5" /> Breakdowns
             </Link>
             <PrimaryButton icon={Plus} onClick={openNew}>Log Record</PrimaryButton>
@@ -300,26 +300,26 @@ function AvailabilitiesContent() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className={`${t.glass} rounded-xl p-4`}>
           <div className="flex items-center gap-1.5 mb-1"><Percent className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs ${t.textFaint}`}>Fleet Availability</span></div>
-          <div className={`text-xl font-bold ${avColor(fleet.avgAv)}`}>{fleet.avgAv.toFixed(1)}%</div>
+          <div className={`text-xl ${TYPE_WEIGHT.bold} ${avColor(fleet.avgAv)}`}>{fleet.avgAv.toFixed(1)}%</div>
           <div className="mt-2"><ProgressBar value={fleet.avgAv} color={avHex(fleet.avgAv)} showValue={false} /></div>
         </div>
         <div className={`${t.glass} rounded-xl p-4`}>
           <div className="flex items-center gap-1.5 mb-1"><Clock className="h-3.5 w-3.5 text-red-400" /><span className={`text-xs ${t.textFaint}`}>Total Downtime</span></div>
-          <div className="text-xl font-bold text-red-400">{fleet.totalBd.toFixed(0)}h</div>
+          <div className={`text-xl ${TYPE_WEIGHT.bold} text-red-400`}>{fleet.totalBd.toFixed(0)}h</div>
         </div>
         <div className={`${t.glass} rounded-xl p-4`}>
           <div className="flex items-center gap-1.5 mb-1"><AlertTriangle className={`h-3.5 w-3.5 ${accentText('amber', t.light)}`} /><span className={`text-xs ${t.textFaint}`}>Below 90%</span></div>
-          <div className={`text-xl font-bold ${fleet.below90 > 0 ? 'text-red-400' : accentText('emerald', t.light)}`}>{fleet.below90}</div>
+          <div className={`text-xl ${TYPE_WEIGHT.bold} ${fleet.below90 > 0 ? 'text-red-400' : accentText('emerald', t.light)}`}>{fleet.below90}</div>
         </div>
         <div className={`${t.glass} rounded-xl p-4`}>
           <div className="flex items-center gap-1.5 mb-1"><Activity className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs ${t.textFaint}`}>Records (period)</span></div>
-          <div className={`text-xl font-bold ${t.textPrimary}`}>{fleet.count}</div>
+          <div className={`text-xl ${TYPE_WEIGHT.bold} ${t.textPrimary}`}>{fleet.count}</div>
         </div>
       </div>
 
       <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
         <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}>
-          <Search className="h-4 w-4 text-brand-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Filters</span>
+          <Search className="h-4 w-4 text-brand-400" /><span className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>Filters</span>
         </div>
         <div className="px-5 pb-4 pt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <SearchInput value={search} onChange={setSearch} placeholder="Search equipment…" />
@@ -354,7 +354,7 @@ function AvailabilitiesContent() {
       ) : mainTab === 'overview' ? (
         <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
           <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}>
-            <Gauge className="h-4 w-4 text-brand-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Equipment Availability — Latest Entry</span>
+            <Gauge className="h-4 w-4 text-brand-400" /><span className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>Equipment Availability — Latest Entry</span>
           </div>
           {eqSummary.length === 0 ? (
             <EmptyState icon={Gauge} title="No Records Yet" message="Log your first availability record using the button above." action={{ label: 'Log Record', onClick: openNew }} />
@@ -367,12 +367,12 @@ function AvailabilitiesContent() {
                 <tbody>
                   {eqSummary.map(r => (
                     <tr key={r.id} className={`border-b ${t.border} ${t.hoverBgSoft} transition-colors`}>
-                      <td className={tdCls}><span className={`font-medium ${t.textPrimary}`}>{r.name}</span></td>
+                      <td className={tdCls}><span className={`${TYPE_WEIGHT.medium} ${t.textPrimary}`}>{r.name}</span></td>
                       <td className={tdCls}>{r.category}</td>
                       <td className={tdCls}>{r.department}</td>
                       <td className={`${tdCls} text-right`}>
                         <div className="flex items-center gap-2 justify-end">
-                          <span className={`font-bold text-sm ${avColor(r.pct)}`}>{r.pct.toFixed(1)}%</span>
+                          <span className={`${TYPE_WEIGHT.bold} text-sm ${avColor(r.pct)}`}>{r.pct.toFixed(1)}%</span>
                           <div className="w-20"><ProgressBar value={r.pct} color={avHex(r.pct)} showValue={false} /></div>
                         </div>
                       </td>
@@ -389,11 +389,11 @@ function AvailabilitiesContent() {
       ) : mainTab === 'period' ? (
         <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
           <div className={`flex items-center justify-between px-5 py-3 border-b ${t.border}`}>
-            <div className="flex items-center gap-2"><Calendar className="h-4 w-4 text-brand-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>By {period.charAt(0).toUpperCase() + period.slice(1)}</span></div>
+            <div className="flex items-center gap-2"><Calendar className="h-4 w-4 text-brand-400" /><span className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>By {period.charAt(0).toUpperCase() + period.slice(1)}</span></div>
             <div className="flex gap-1">
               {(['day', 'week', 'month'] as const).map(p => (
                 <button key={p} type="button" onClick={() => setPeriod(p)}
-                  className={`px-2.5 py-1 text-[11px] rounded-lg font-semibold transition-all ${period === p ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} ${t.hoverText} ${t.hoverBg}`}`}>
+                  className={`px-2.5 py-1 text-[11px] rounded-lg ${TYPE_WEIGHT.semibold} transition-all ${period === p ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} ${t.hoverText} ${t.hoverBg}`}`}>
                   {p.charAt(0).toUpperCase() + p.slice(1)}
                 </button>
               ))}
@@ -410,10 +410,10 @@ function AvailabilitiesContent() {
                 <tbody>
                   {periodRows.map(r => (
                     <tr key={r.periodKey} className={`border-b ${t.border} ${t.hoverBgSoft} transition-colors`}>
-                      <td className={tdCls}><span className={`font-medium ${t.textPrimary}`}>{r.label}</span></td>
+                      <td className={tdCls}><span className={`${TYPE_WEIGHT.medium} ${t.textPrimary}`}>{r.label}</span></td>
                       <td className={`${tdCls} text-right`}>
                         <div className="flex items-center gap-2 justify-end">
-                          <span className={`font-bold text-sm ${avColor(r.avgAvailability)}`}>{r.avgAvailability.toFixed(1)}%</span>
+                          <span className={`${TYPE_WEIGHT.bold} text-sm ${avColor(r.avgAvailability)}`}>{r.avgAvailability.toFixed(1)}%</span>
                           <div className="w-20"><ProgressBar value={r.avgAvailability} color={avHex(r.avgAvailability)} showValue={false} /></div>
                         </div>
                       </td>
@@ -430,11 +430,11 @@ function AvailabilitiesContent() {
       ) : mainTab === 'analytics' ? (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-            <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><BarChart3 className="h-4 w-4 text-brand-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>By Department</span></div>
+            <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><BarChart3 className="h-4 w-4 text-brand-400" /><span className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>By Department</span></div>
             <div className="p-5 space-y-3">
               {deptStats.length === 0 ? <p className={`text-sm text-center py-8 ${t.textFaint}`}>No data — log records first</p> : deptStats.map(({ dept, avg }) => (
                 <div key={dept}>
-                  <div className="flex justify-between mb-1"><span className={`text-xs ${t.textMuted}`}>{dept}</span><span className={`text-xs font-bold ${avColor(avg)}`}>{avg.toFixed(1)}%</span></div>
+                  <div className="flex justify-between mb-1"><span className={`text-xs ${t.textMuted}`}>{dept}</span><span className={`text-xs ${TYPE_WEIGHT.bold} ${avColor(avg)}`}>{avg.toFixed(1)}%</span></div>
                   <ProgressBar value={avg} color={avHex(avg)} showValue={false} />
                 </div>
               ))}
@@ -442,14 +442,14 @@ function AvailabilitiesContent() {
           </div>
 
           <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-            <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><AlertTriangle className={`h-4 w-4 ${accentText('amber', t.light)}`} /><span className={`font-semibold text-sm ${t.textPrimary}`}>Attention Required</span></div>
+            <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><AlertTriangle className={`h-4 w-4 ${accentText('amber', t.light)}`} /><span className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>Attention Required</span></div>
             <div className="p-5 space-y-3">
               {eqSummary.filter(e => e.pct < 95).length === 0 ? (
-                <div className="text-center py-8"><Check className={`h-8 w-8 ${accentText('emerald', t.light)} mx-auto mb-2`} /><p className={`text-sm ${accentText('emerald', t.light)} font-semibold`}>All equipment above 95%</p></div>
+                <div className="text-center py-8"><Check className={`h-8 w-8 ${accentText('emerald', t.light)} mx-auto mb-2`} /><p className={`text-sm ${accentText('emerald', t.light)} ${TYPE_WEIGHT.semibold}`}>All equipment above 95%</p></div>
               ) : eqSummary.filter(e => e.pct < 95).slice(0, 6).map(e => (
                 <div key={e.id} className="flex items-center gap-3">
                   <div className="flex-1 min-w-0">
-                    <div className="flex justify-between mb-0.5"><span className={`text-xs truncate ${t.textPrimary}`}>{e.name}</span><span className={`text-xs font-bold ml-2 ${avColor(e.pct)}`}>{e.pct.toFixed(1)}%</span></div>
+                    <div className="flex justify-between mb-0.5"><span className={`text-xs truncate ${t.textPrimary}`}>{e.name}</span><span className={`text-xs ${TYPE_WEIGHT.bold} ml-2 ${avColor(e.pct)}`}>{e.pct.toFixed(1)}%</span></div>
                     <ProgressBar value={e.pct} color={avHex(e.pct)} showValue={false} />
                   </div>
                   <span className="text-xs text-red-400 shrink-0">{e.bdH.toFixed(1)}h↓</span>
@@ -459,7 +459,7 @@ function AvailabilitiesContent() {
           </div>
 
           <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-            <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><LineChart className="h-4 w-4 text-brand-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Period Summary</span></div>
+            <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><LineChart className="h-4 w-4 text-brand-400" /><span className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>Period Summary</span></div>
             <div className="p-5 space-y-3 text-sm">
               {periodRows.length > 0 ? (() => {
                 const { best, worst, bestLabel, worstLabel } = findBestWorstPeriod(periodRows);
@@ -467,10 +467,10 @@ function AvailabilitiesContent() {
                 const totalOp = filtered.reduce((s, r) => s + (r.operational_hours ?? 0), 0);
                 return (
                   <>
-                    <div className={`flex justify-between ${t.textMuted}`}><span>Best {period}</span><span className={`font-bold ${avColor(best)}`}>{best.toFixed(1)}%<span className={`font-normal ml-1 text-xs ${t.textFaint}`}>({bestLabel})</span></span></div>
-                    <div className={`flex justify-between ${t.textMuted}`}><span>Worst {period}</span><span className={`font-bold ${avColor(worst)}`}>{worst.toFixed(1)}%<span className={`font-normal ml-1 text-xs ${t.textFaint}`}>({worstLabel})</span></span></div>
-                    <div className={`flex justify-between ${t.textMuted}`}><span>Total downtime (period)</span><span className="font-bold text-red-400">{totalBd.toFixed(1)}h</span></div>
-                    <div className={`flex justify-between ${t.textMuted}`}><span>Total operational</span><span className={`font-bold ${accentText('emerald', t.light)}`}>{totalOp.toFixed(1)}h</span></div>
+                    <div className={`flex justify-between ${t.textMuted}`}><span>Best {period}</span><span className={`${TYPE_WEIGHT.bold} ${avColor(best)}`}>{best.toFixed(1)}%<span className={`font-normal ml-1 text-xs ${t.textFaint}`}>({bestLabel})</span></span></div>
+                    <div className={`flex justify-between ${t.textMuted}`}><span>Worst {period}</span><span className={`${TYPE_WEIGHT.bold} ${avColor(worst)}`}>{worst.toFixed(1)}%<span className={`font-normal ml-1 text-xs ${t.textFaint}`}>({worstLabel})</span></span></div>
+                    <div className={`flex justify-between ${t.textMuted}`}><span>Total downtime (period)</span><span className={`${TYPE_WEIGHT.bold} text-red-400`}>{totalBd.toFixed(1)}h</span></div>
+                    <div className={`flex justify-between ${t.textMuted}`}><span>Total operational</span><span className={`${TYPE_WEIGHT.bold} ${accentText('emerald', t.light)}`}>{totalOp.toFixed(1)}h</span></div>
                   </>
                 );
               })() : <p className={`text-center py-8 ${t.textFaint}`}>No data in selected period</p>}
@@ -478,13 +478,13 @@ function AvailabilitiesContent() {
           </div>
 
           <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-            <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><Activity className="h-4 w-4 text-brand-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Fleet Health</span></div>
+            <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><Activity className="h-4 w-4 text-brand-400" /><span className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>Fleet Health</span></div>
             <div className="p-5 flex flex-col items-center gap-4">
               <GaugeRing pct={fleet.avgAv} />
               <div className={`w-full space-y-2 text-xs ${t.textMuted}`}>
-                <div className="flex justify-between"><span>Equipment tracked</span><span className={`font-semibold ${t.textPrimary}`}>{eqSummary.length} / {equipment.length}</span></div>
-                <div className="flex justify-between"><span>Records in period</span><span className={`font-semibold ${t.textPrimary}`}>{filtered.length}</span></div>
-                <div className="flex justify-between"><span>Below 90%</span><span className={`font-semibold ${fleet.below90 > 0 ? 'text-red-400' : accentText('emerald', t.light)}`}>{fleet.below90} machines</span></div>
+                <div className="flex justify-between"><span>Equipment tracked</span><span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{eqSummary.length} / {equipment.length}</span></div>
+                <div className="flex justify-between"><span>Records in period</span><span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{filtered.length}</span></div>
+                <div className="flex justify-between"><span>Below 90%</span><span className={`${TYPE_WEIGHT.semibold} ${fleet.below90 > 0 ? 'text-red-400' : accentText('emerald', t.light)}`}>{fleet.below90} machines</span></div>
               </div>
             </div>
           </div>
@@ -492,8 +492,8 @@ function AvailabilitiesContent() {
       ) : (
         <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
           <div className={`flex items-center justify-between px-5 py-3 border-b ${t.border}`}>
-            <div className="flex items-center gap-2"><FileText className="h-4 w-4 text-brand-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>All Records ({filtered.length})</span></div>
-            <button type="button" onClick={openNew} className={`flex items-center gap-1.5 h-7 px-2.5 rounded-lg text-xs font-medium bg-brand-500/15 hover:bg-brand-500/25 text-brand-400 transition-colors`}><Plus className="h-3.5 w-3.5" /> Log Record</button>
+            <div className="flex items-center gap-2"><FileText className="h-4 w-4 text-brand-400" /><span className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>All Records ({filtered.length})</span></div>
+            <button type="button" onClick={openNew} className={`flex items-center gap-1.5 h-7 px-2.5 rounded-lg text-xs ${TYPE_WEIGHT.medium} bg-brand-500/15 hover:bg-brand-500/25 text-brand-400 transition-colors`}><Plus className="h-3.5 w-3.5" /> Log Record</button>
           </div>
           {filtered.length === 0 ? (
             <EmptyState icon={FileText} title="No Records" message="No availability records match the current filters." action={{ label: 'Log Record', onClick: openNew }} />
@@ -512,10 +512,10 @@ function AvailabilitiesContent() {
                     return (
                       <tr key={r.id} className={`border-b ${t.border} ${t.hoverBgSoft} transition-colors`}>
                         <td className="px-3 py-2.5 text-xs font-mono text-white/80">{r.date}</td>
-                        <td className={tdCls}><span className={`font-medium ${t.textPrimary}`}>{name}</span></td>
+                        <td className={tdCls}><span className={`${TYPE_WEIGHT.medium} ${t.textPrimary}`}>{name}</span></td>
                         <td className={`${tdCls} text-right`}>
                           <div className="flex items-center gap-2 justify-end">
-                            <span className={`font-bold text-xs ${avColor(avPct)}`}>{avPct.toFixed(1)}%</span>
+                            <span className={`${TYPE_WEIGHT.bold} text-xs ${avColor(avPct)}`}>{avPct.toFixed(1)}%</span>
                             <div className="w-16"><ProgressBar value={avPct} color={avHex(avPct)} showValue={false} /></div>
                           </div>
                         </td>
@@ -577,7 +577,7 @@ function AvailabilitiesContent() {
           <p className={`text-sm ${t.textMuted}`}>Delete the availability record for &ldquo;{deleteTarget?.equipment_name ?? `equipment #${deleteTarget?.equipment_id}`}&rdquo; on {deleteTarget?.date}? This cannot be undone.</p>
           <div className="flex gap-2">
             <button type="button" onClick={() => setDeleteTarget(null)} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border} transition-all`}>Cancel</button>
-            <button type="button" onClick={doDelete} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-rose-500 to-rose-700 hover:brightness-110 transition-all">Delete</button>
+            <button type="button" onClick={doDelete} className={`flex-1 py-2.5 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-rose-500 to-rose-700 hover:brightness-110 transition-all`}>Delete</button>
           </div>
         </div>
       </CenterModal>

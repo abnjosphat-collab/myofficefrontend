@@ -12,7 +12,7 @@ import { AppShell } from '@/components/app-shell';
 import { toast } from 'sonner';
 import {
   useTheme, accentText, PageHero, StatTile, StatusBadge, SearchInput, FormField, FormActions,
-  useCollapseSection, CenterModal, PrimaryButton, EmptyState, ProgressBar, ACCENT_HEX, GlowCard, SelectField, useConfirm,
+  useCollapseSection, CenterModal, PrimaryButton, EmptyState, ProgressBar, ACCENT_HEX, GlowCard, SelectField, useConfirm, TYPE_WEIGHT,
 } from '@/components/shared/theme';
 import { PredictiveInput } from '@/components/shared/PredictiveInput';
 import { EmployeeNameInput } from '@/components/shared/EmployeeNameInput';
@@ -55,7 +55,7 @@ function CorrectiveActionCard({ action, index, onChange, onRemove }: {
       <div className="h-0.5 w-full" style={{ background: color }} />
       <div className="p-4 space-y-3">
         <div className="flex items-center justify-between">
-          <span className={`text-[10px] font-semibold uppercase tracking-wider ${t.textFaint}`}>Action #{index + 1}</span>
+          <span className={`text-[10px] ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textFaint}`}>Action #{index + 1}</span>
           <div className="flex items-center gap-2">
             <SelectField size="filter" value={action.status} title="Action status"
               onChange={v => onChange(action.id, { status: v as ActionStatus, ...(v === 'Completed' && !action.completedDate ? { completedDate: new Date().toISOString().split('T')[0] } : {}) })}
@@ -153,7 +153,7 @@ function ReportFormModal({ open, onClose, onSave, report }: {
               </div>
 
               <div className={`border-t ${t.border} pt-3`}>
-                <p className={`text-[10px] uppercase tracking-wider mb-3 font-semibold ${t.textFaint}`}>Personnel</p>
+                <p className={`text-[10px] uppercase tracking-wider mb-3 ${TYPE_WEIGHT.semibold} ${t.textFaint}`}>Personnel</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <FormField label="Stoppage Issued By" required>
                     <EmployeeNameInput value={form.stoppageBy || ''} onChange={(name, emp) => { set({ stoppageBy: name }); if (emp?.designation) set({ stoppagePosition: emp.designation }); if (emp?.department && !form.department?.trim()) set({ department: emp.department }); }} placeholder="Select or type name…" />
@@ -174,7 +174,7 @@ function ReportFormModal({ open, onClose, onSave, report }: {
                 <div className={`text-center py-10 ${t.textFaint}`}>
                   <Target className="h-10 w-10 mx-auto mb-3 opacity-40" />
                   <p className="text-sm">No corrective actions added yet</p>
-                  <button type="button" onClick={addAction} className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all"><Plus className="h-3.5 w-3.5" /> Add First Action</button>
+                  <button type="button" onClick={addAction} className={`mt-3 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all`}><Plus className="h-3.5 w-3.5" /> Add First Action</button>
                 </div>
               ) : (
                 <>
@@ -190,7 +190,7 @@ function ReportFormModal({ open, onClose, onSave, report }: {
               <div className="grid grid-cols-3 gap-3">
                 {[{ label: 'Pending', value: progress.pending, color: '#f59e0b' }, { label: 'In Progress', value: progress.inProgress, color: '#60a5fa' }, { label: 'Completed', value: progress.completed, color: '#34d399' }].map(s => (
                   <div key={s.label} className={`text-center rounded-xl p-3 ${t.chipBg}`}>
-                    <div className="text-2xl font-bold" style={{ color: s.color }}>{s.value}</div>
+                    <div className={`text-2xl ${TYPE_WEIGHT.bold}`} style={{ color: s.color }}>{s.value}</div>
                     <div className={`text-[11px] mt-0.5 ${t.textFaint}`}>{s.label}</div>
                   </div>
                 ))}
@@ -201,7 +201,7 @@ function ReportFormModal({ open, onClose, onSave, report }: {
               </div>
               {actions.length > 0 && (
                 <div className="space-y-2">
-                  <p className={`text-xs font-semibold uppercase tracking-wider ${t.textFaint}`}>Action Items</p>
+                  <p className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textFaint}`}>Action Items</p>
                   <div className="space-y-1.5 max-h-40 overflow-y-auto">
                     {actions.map((a, idx) => (
                       <div key={a.id} className={`flex items-center gap-3 py-1.5 border-b ${t.border} last:border-0`}>
@@ -270,7 +270,7 @@ function ReportDetailModal({ report, open, onClose, onEdit }: {
             <div className="space-y-2">
               {actions.map((a, idx) => (
                 <div key={a.id} className={`rounded-xl p-3 ${t.chipBg}`}>
-                  <div className="flex items-start justify-between gap-2 mb-1.5"><p className={`text-xs font-medium ${t.textMuted}`}>#{idx + 1} {a.finding}</p><StatusBadge color={STATUS_HEX[a.status]} label={a.status} /></div>
+                  <div className="flex items-start justify-between gap-2 mb-1.5"><p className={`text-xs ${TYPE_WEIGHT.medium} ${t.textMuted}`}>#{idx + 1} {a.finding}</p><StatusBadge color={STATUS_HEX[a.status]} label={a.status} /></div>
                   <p className={`text-xs mb-2 ${t.textFaint}`}>{a.action}</p>
                   <div className={`grid grid-cols-2 gap-2 text-[10px] ${t.textFaint}`}><span>By: {a.byWho}</span><span>Due: {fmtDate(a.byWhen)}</span>{a.completedDate && <span className="col-span-2">Completed: {fmtDate(a.completedDate)}</span>}</div>
                   {a.remarks && <p className={`text-[11px] italic mt-1 ${t.textFaint}`}>&ldquo;{a.remarks}&rdquo;</p>}
@@ -282,7 +282,7 @@ function ReportDetailModal({ report, open, onClose, onEdit }: {
       </div>
       <div className={`px-5 py-4 border-t ${t.border} flex justify-end gap-2`}>
         <button type="button" onClick={onClose} className={`px-4 py-2 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border} transition-all`}>Close</button>
-        <button type="button" onClick={() => { onClose(); onEdit(report); }} className="px-4 py-2 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 inline-flex items-center gap-2 transition-all"><Pencil className="h-3.5 w-3.5" /> Edit</button>
+        <button type="button" onClick={() => { onClose(); onEdit(report); }} className={`px-4 py-2 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 inline-flex items-center gap-2 transition-all`}><Pencil className="h-3.5 w-3.5" /> Edit</button>
       </div>
     </CenterModal>
   );
@@ -310,7 +310,7 @@ function ReportCard({ report, expanded, onToggle, onView, onEdit, onDelete }: {
       <div className={`px-4 py-3 border-b ${t.border} flex items-center justify-between gap-2`}>
         <div className="flex items-center gap-2.5 min-w-0">
           <SIcon className="h-5 w-5 shrink-0" style={{ color: sColor }} />
-          <div className="min-w-0"><p className={`text-[10px] ${t.textFaint}`}>{report.section} • {fmtDate(report.date)}</p><p className={`text-sm font-semibold truncate ${t.textPrimary}`}>{report.department}</p></div>
+          <div className="min-w-0"><p className={`text-[10px] ${t.textFaint}`}>{report.section} • {fmtDate(report.date)}</p><p className={`text-sm ${TYPE_WEIGHT.semibold} truncate ${t.textPrimary}`}>{report.department}</p></div>
         </div>
         <div className="flex items-center gap-1.5 flex-shrink-0" onClick={e => e.stopPropagation()}>
           <button type="button" title={expanded ? 'Collapse' : 'Expand'} onClick={onToggle} className={`h-6 w-6 flex items-center justify-center rounded ${t.textFaint} ${t.hoverText} transition-all`}>{expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}</button>
@@ -319,7 +319,7 @@ function ReportCard({ report, expanded, onToggle, onView, onEdit, onDelete }: {
 
       <div className={`px-4 py-2 grid grid-cols-4 gap-1 border-b ${t.border}`}>
         {[{ label: 'Actions', value: progress.total, color: ACCENT_HEX.blue }, { label: 'Pending', value: progress.pending, color: '#f59e0b' }, { label: 'Closed', value: progress.completed, color: '#34d399' }, { label: 'Overdue', value: overdueCount, color: '#f43f5e' }].map(s => (
-          <div key={s.label} className="text-center"><div className="text-base font-bold leading-none" style={{ color: s.color }}>{s.value}</div><div className={`text-[9px] mt-0.5 ${t.textFaint}`}>{s.label}</div></div>
+          <div key={s.label} className="text-center"><div className={`text-base ${TYPE_WEIGHT.bold} leading-none`} style={{ color: s.color }}>{s.value}</div><div className={`text-[9px] mt-0.5 ${t.textFaint}`}>{s.label}</div></div>
         ))}
       </div>
 
@@ -349,9 +349,9 @@ function ReportCard({ report, expanded, onToggle, onView, onEdit, onDelete }: {
             <div><p className={`text-[10px] ${t.textFaint}`}>SHEQ Checked</p><p className={t.textFaint}>{report.sheqCheckedBy || 'Not specified'}</p></div>
           </div>
           <div className="flex gap-1.5 pt-1">
-            <button type="button" title="View" onClick={onView} className="flex-1 py-1.5 rounded-lg text-[11px] font-medium bg-brand-500/10 text-brand-400 transition-all hover:-translate-y-0.5 inline-flex items-center justify-center gap-1"><Eye className="h-3 w-3" /> View</button>
-            <button type="button" title="Edit" onClick={onEdit} className="flex-1 py-1.5 rounded-lg text-[11px] font-medium bg-brand-500/10 text-brand-400 transition-all hover:-translate-y-0.5 inline-flex items-center justify-center gap-1"><Pencil className="h-3 w-3" /> Edit</button>
-            <button type="button" title="Delete" onClick={onDelete} className={`flex-1 py-1.5 rounded-lg text-[11px] font-medium bg-rose-500/10 ${accentText('rose', t.light)} transition-all hover:-translate-y-0.5 inline-flex items-center justify-center gap-1`}><Trash2 className="h-3 w-3" /> Delete</button>
+            <button type="button" title="View" onClick={onView} className={`flex-1 py-1.5 rounded-lg text-[11px] ${TYPE_WEIGHT.medium} bg-brand-500/10 text-brand-400 transition-all hover:-translate-y-0.5 inline-flex items-center justify-center gap-1`}><Eye className="h-3 w-3" /> View</button>
+            <button type="button" title="Edit" onClick={onEdit} className={`flex-1 py-1.5 rounded-lg text-[11px] ${TYPE_WEIGHT.medium} bg-brand-500/10 text-brand-400 transition-all hover:-translate-y-0.5 inline-flex items-center justify-center gap-1`}><Pencil className="h-3 w-3" /> Edit</button>
+            <button type="button" title="Delete" onClick={onDelete} className={`flex-1 py-1.5 rounded-lg text-[11px] ${TYPE_WEIGHT.medium} bg-rose-500/10 ${accentText('rose', t.light)} transition-all hover:-translate-y-0.5 inline-flex items-center justify-center gap-1`}><Trash2 className="h-3 w-3" /> Delete</button>
           </div>
         </div>
       )}
@@ -460,7 +460,7 @@ function WorkStoppageContent() {
   };
 
   const selCls = `h-9 rounded-lg px-2.5 text-xs outline-none transition-colors ${t.inputBg}`;
-  const thCls = `text-left px-3 py-2 text-[10px] uppercase tracking-wide font-medium ${t.textFaint}`;
+  const thCls = `text-left px-3 py-2 text-[10px] uppercase tracking-wide ${TYPE_WEIGHT.medium} ${t.textFaint}`;
 
   return (
     <main className="max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
@@ -546,11 +546,11 @@ function WorkStoppageContent() {
                       <React.Fragment key={report.id}>
                         <tr className={`border-b ${t.border} ${t.hoverBgSoft} cursor-pointer transition-colors`} onClick={() => { setSelectedReport(report); setDetailOpen(true); }}>
                           <td className="pl-3 pr-1 py-3 w-6"><button type="button" title="Toggle" onClick={e => { e.stopPropagation(); toggle(report.id); }} className={`h-5 w-5 flex items-center justify-center ${t.textFaint} ${t.hoverText} transition-all`}>{expandedIds.has(report.id) ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}</button></td>
-                          <td className={`px-3 py-3 text-sm font-medium max-w-[160px] truncate ${t.textPrimary}`}>{report.department}</td>
+                          <td className={`px-3 py-3 text-sm ${TYPE_WEIGHT.medium} max-w-[160px] truncate ${t.textPrimary}`}>{report.department}</td>
                           <td className="px-3 py-3"><StatusBadge color={SECTION_HEX[report.section]} label={report.section} /></td>
                           <td className={`px-3 py-3 text-xs max-w-[140px] truncate ${t.textMuted}`}>{report.stoppageBy}</td>
                           <td className={`px-3 py-3 text-xs whitespace-nowrap ${t.textFaint}`}>{fmtDate(report.date)}</td>
-                          <td className="px-3 py-3 text-xs"><span className={`font-semibold ${t.textMuted}`}>{actions.length}</span><span className={`ml-1 ${t.textFaint}`}>({completedCount} done)</span></td>
+                          <td className="px-3 py-3 text-xs"><span className={`${TYPE_WEIGHT.semibold} ${t.textMuted}`}>{actions.length}</span><span className={`ml-1 ${t.textFaint}`}>({completedCount} done)</span></td>
                           <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
                             <div className="flex gap-1 justify-end">
                               <button type="button" title="Edit" onClick={() => { setEditingReport(report); setFormOpen(true); }} className={`p-1.5 rounded ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-colors`}><Pencil className="h-3 w-3" /></button>

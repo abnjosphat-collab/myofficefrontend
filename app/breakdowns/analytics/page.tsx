@@ -20,7 +20,7 @@ import {
   LineChart as ReLineChart, Line, ScatterChart as ReScatterChart, Scatter,
   ComposedChart
 } from 'recharts';
-import { useTheme, PageHero, StatTile, accentText } from '@/components/shared/theme';
+import { useTheme, PageHero, StatTile, accentText, TYPE_WEIGHT } from '@/components/shared/theme';
 import {
   DAY_NAMES, getHeatmapColor, formatTime, formatCurrency, PIE_COLORS, PRIORITY_COLORS, STATUS_COLORS,
 } from './types';
@@ -74,7 +74,7 @@ function useCustomTooltip() {
       <div className="rounded-lg px-3 py-2 text-xs shadow-xl" style={{ backgroundColor: cs.tooltipBg, border: `1px solid ${cs.tooltipBorder}` }}>
         <p className="opacity-60 mb-1">{label}</p>
         {payload.map((entry: any, idx: number) => (
-          <p key={idx} className="font-medium">
+          <p key={idx} className={`${TYPE_WEIGHT.medium}`}>
             {entry.name}: {entry.value.toLocaleString()}
           </p>
         ))}
@@ -135,7 +135,7 @@ function BreakdownAnalyticsContent() {
               <Filter className="h-4 w-4" />
               Filters
               {activeFilterCount > 0 && (
-                <span className="bg-[#86BBD8] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                <span className={`bg-[#86BBD8] text-white text-[10px] ${TYPE_WEIGHT.bold} px-1.5 py-0.5 rounded-full`}>
                   {activeFilterCount}
                 </span>
               )}
@@ -257,7 +257,7 @@ function BreakdownAnalyticsContent() {
                     <AlertTriangle className="h-4 w-4 text-red-400" />
                   </div>
                   <div>
-                    <div className={`text-lg font-bold font-mono ${t.textPrimary}`}>{data.summary.total_breakdowns}</div>
+                    <div className={`text-lg ${TYPE_WEIGHT.bold} font-mono ${t.textPrimary}`}>{data.summary.total_breakdowns}</div>
                     <div className={`text-[10px] ${faintCls}`}>Total</div>
                   </div>
                 </div>
@@ -270,7 +270,7 @@ function BreakdownAnalyticsContent() {
                     <Wrench className="h-4 w-4 text-brand-400" />
                   </div>
                   <div>
-                    <div className={`text-lg font-bold font-mono ${t.textPrimary}`}>{data.summary.unique_machines}</div>
+                    <div className={`text-lg ${TYPE_WEIGHT.bold} font-mono ${t.textPrimary}`}>{data.summary.unique_machines}</div>
                     <div className={`text-[10px] ${faintCls}`}>Machines</div>
                   </div>
                 </div>
@@ -283,7 +283,7 @@ function BreakdownAnalyticsContent() {
                     <Users className={`h-4 w-4 ${accentText('amber', t.light)}`} />
                   </div>
                   <div>
-                    <div className={`text-lg font-bold font-mono ${t.textPrimary}`}>{data.summary.unique_artisans}</div>
+                    <div className={`text-lg ${TYPE_WEIGHT.bold} font-mono ${t.textPrimary}`}>{data.summary.unique_artisans}</div>
                     <div className={`text-[10px] ${faintCls}`}>Artisans</div>
                   </div>
                 </div>
@@ -296,7 +296,7 @@ function BreakdownAnalyticsContent() {
                     <Package className={`h-4 w-4 ${accentText('purple', t.light)}`} />
                   </div>
                   <div>
-                    <div className={`text-lg font-bold font-mono ${t.textPrimary}`}>{data.summary.unique_spares}</div>
+                    <div className={`text-lg ${TYPE_WEIGHT.bold} font-mono ${t.textPrimary}`}>{data.summary.unique_spares}</div>
                     <div className={`text-[10px] ${faintCls}`}>Spares</div>
                   </div>
                 </div>
@@ -309,7 +309,7 @@ function BreakdownAnalyticsContent() {
                     <Building2 className="h-4 w-4 text-green-400" />
                   </div>
                   <div>
-                    <div className={`text-lg font-bold font-mono ${t.textPrimary}`}>{data.summary.unique_departments}</div>
+                    <div className={`text-lg ${TYPE_WEIGHT.bold} font-mono ${t.textPrimary}`}>{data.summary.unique_departments}</div>
                     <div className={`text-[10px] ${faintCls}`}>Depts</div>
                   </div>
                 </div>
@@ -322,7 +322,7 @@ function BreakdownAnalyticsContent() {
                     <Hash className={`h-4 w-4 ${accentText('cyan', t.light)}`} />
                   </div>
                   <div>
-                    <div className={`text-lg font-bold font-mono ${t.textPrimary}`}>{data.summary.unique_types}</div>
+                    <div className={`text-lg ${TYPE_WEIGHT.bold} font-mono ${t.textPrimary}`}>{data.summary.unique_types}</div>
                     <div className={`text-[10px] ${faintCls}`}>Types</div>
                   </div>
                 </div>
@@ -335,7 +335,7 @@ function BreakdownAnalyticsContent() {
                     <Timer className="h-4 w-4 text-orange-400" />
                   </div>
                   <div>
-                    <div className={`text-lg font-bold font-mono ${t.textPrimary}`}>{formatTime(data.summary.total_downtime_minutes)}</div>
+                    <div className={`text-lg ${TYPE_WEIGHT.bold} font-mono ${t.textPrimary}`}>{formatTime(data.summary.total_downtime_minutes)}</div>
                     <div className={`text-[10px] ${faintCls}`}>Downtime</div>
                   </div>
                 </div>
@@ -348,7 +348,7 @@ function BreakdownAnalyticsContent() {
                     <BarChart3 className="h-4 w-4 text-pink-400" />
                   </div>
                   <div>
-                    <div className={`text-lg font-bold font-mono ${t.textPrimary}`}>{formatCurrency(data.summary.total_spare_cost)}</div>
+                    <div className={`text-lg ${TYPE_WEIGHT.bold} font-mono ${t.textPrimary}`}>{formatCurrency(data.summary.total_spare_cost)}</div>
                     <div className={`text-[10px] ${faintCls}`}>Spare Cost</div>
                   </div>
                 </div>
@@ -865,7 +865,7 @@ function BreakdownAnalyticsContent() {
                         const maxCount = Math.max(...hours.map(h => h.count), 1);
                         return (
                           <div key={type} className={`rounded-xl p-3 ${t.chipBg} border ${t.border}`}>
-                            <h4 className={`text-xs font-semibold mb-2 ${t.textPrimary}`}>{type}</h4>
+                            <h4 className={`text-xs ${TYPE_WEIGHT.semibold} mb-2 ${t.textPrimary}`}>{type}</h4>
                             <ResponsiveContainer width="100%" height={80}>
                               <BarChart data={hours} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
                                 <Bar dataKey="count" fill="#8b5cf6" radius={[1, 1, 0, 0]} maxBarSize={4} />
@@ -902,7 +902,7 @@ function BreakdownAnalyticsContent() {
                         const maxCount = Math.max(...hours.map(h => h.count), 1);
                         return (
                           <div key={dept} className={`rounded-xl p-3 ${t.chipBg} border ${t.border}`}>
-                            <h4 className={`text-xs font-semibold mb-2 ${t.textPrimary}`}>{dept}</h4>
+                            <h4 className={`text-xs ${TYPE_WEIGHT.semibold} mb-2 ${t.textPrimary}`}>{dept}</h4>
                             <ResponsiveContainer width="100%" height={80}>
                               <BarChart data={hours} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
                                 <Bar dataKey="count" fill="#3b82f6" radius={[1, 1, 0, 0]} maxBarSize={4} />
@@ -940,7 +940,7 @@ function BreakdownAnalyticsContent() {
                         const color = PRIORITY_COLORS[pri] || '#6b7280';
                         return (
                           <div key={pri} className={`rounded-xl p-3 ${t.chipBg} border ${t.border}`}>
-                            <h4 className={`text-xs font-semibold mb-2 capitalize ${t.textPrimary}`}>{pri}</h4>
+                            <h4 className={`text-xs ${TYPE_WEIGHT.semibold} mb-2 capitalize ${t.textPrimary}`}>{pri}</h4>
                             <ResponsiveContainer width="100%" height={100}>
                               <BarChart data={hours} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
                                 <Bar dataKey="count" fill={color} radius={[1, 1, 0, 0]} maxBarSize={4} />
@@ -977,7 +977,7 @@ function BreakdownAnalyticsContent() {
                         const maxCount = Math.max(...hours.map(h => h.count), 1);
                         return (
                           <div key={name} className={`rounded-xl p-3 ${t.chipBg} border ${t.border}`}>
-                            <h4 className={`text-xs font-semibold mb-2 truncate ${t.textPrimary}`}>{name}</h4>
+                            <h4 className={`text-xs ${TYPE_WEIGHT.semibold} mb-2 truncate ${t.textPrimary}`}>{name}</h4>
                             <ResponsiveContainer width="100%" height={80}>
                               <BarChart data={hours} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
                                 <Bar dataKey="count" fill="#f59e0b" radius={[1, 1, 0, 0]} maxBarSize={4} />
@@ -1014,7 +1014,7 @@ function BreakdownAnalyticsContent() {
                         const maxCount = Math.max(...hours.map(h => h.count), 1);
                         return (
                           <div key={loc} className={`rounded-xl p-3 ${t.chipBg} border ${t.border}`}>
-                            <h4 className={`text-xs font-semibold mb-2 truncate ${t.textPrimary}`}>{loc}</h4>
+                            <h4 className={`text-xs ${TYPE_WEIGHT.semibold} mb-2 truncate ${t.textPrimary}`}>{loc}</h4>
                             <ResponsiveContainer width="100%" height={80}>
                               <BarChart data={hours} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
                                 <Bar dataKey="count" fill="#f43f5e" radius={[1, 1, 0, 0]} maxBarSize={4} />
@@ -1051,7 +1051,7 @@ function BreakdownAnalyticsContent() {
                         const maxCount = Math.max(...days.map(d => d.count), 1);
                         return (
                           <div key={month} className={`rounded-xl p-3 ${t.chipBg} border ${t.border}`}>
-                            <h4 className={`text-xs font-semibold mb-2 ${t.textPrimary}`}>{month}</h4>
+                            <h4 className={`text-xs ${TYPE_WEIGHT.semibold} mb-2 ${t.textPrimary}`}>{month}</h4>
                             <div className="grid grid-cols-31 gap-0.5">
                               {days.map((d, idx) => {
                                 const intensity = maxCount > 0 ? d.count / maxCount : 0;
@@ -1198,7 +1198,7 @@ function BreakdownAnalyticsContent() {
                           <div key={idx} className="space-y-1.5">
                             <div className="flex items-start justify-between">
                               <div className="flex-1 min-w-0">
-                                <div className={`text-sm font-medium truncate flex items-center gap-2 ${t.textPrimary}`}>
+                                <div className={`text-sm ${TYPE_WEIGHT.medium} truncate flex items-center gap-2 ${t.textPrimary}`}>
                                   <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-mono ${t.chipBg} ${faintCls}`}>{idx + 1}</span>
                                   {machine.name}
                                 </div>
@@ -1207,7 +1207,7 @@ function BreakdownAnalyticsContent() {
                                 </div>
                               </div>
                               <div className="text-right ml-3">
-                                <div className={`text-sm font-semibold ${t.textPrimary}`}>{machine.count}</div>
+                                <div className={`text-sm ${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{machine.count}</div>
                                 <div className={`text-[10px] ${faintCls}`}>breakdowns</div>
                               </div>
                             </div>
@@ -1263,7 +1263,7 @@ function BreakdownAnalyticsContent() {
                             const d = payload[0].payload;
                             return (
                               <div className="rounded-lg px-3 py-2 text-xs shadow-xl" style={{ backgroundColor: cs.tooltipBg, border: `1px solid ${cs.tooltipBorder}` }}>
-                                <p className={`font-semibold mb-1 ${t.textPrimary}`}>{d.name}</p>
+                                <p className={`${TYPE_WEIGHT.semibold} mb-1 ${t.textPrimary}`}>{d.name}</p>
                                 <p className={mutedCls}>Breakdowns: <span className={t.textPrimary}>{d.breakdowns}</span></p>
                                 <p className={mutedCls}>Avg Downtime: <span className={t.textPrimary}>{formatTime(d.avg_downtime)}</span></p>
                                 <p className={mutedCls}>Avg Repair: <span className={t.textPrimary}>{formatTime(d.avg_repair_time)}</span></p>
@@ -1318,7 +1318,7 @@ function BreakdownAnalyticsContent() {
                                 <span className={`text-sm truncate ${t.textPrimary}`}>{artisan.name}</span>
                               </div>
                               <div className="text-right">
-                                <div className={`text-sm font-semibold ${t.textPrimary}`}>{artisan.count}</div>
+                                <div className={`text-sm ${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{artisan.count}</div>
                                 <div className={`text-[10px] ${faintCls}`}>avg {formatTime(artisan.avg_repair_time)}</div>
                               </div>
                             </div>
@@ -1406,7 +1406,7 @@ function BreakdownAnalyticsContent() {
                                 </div>
                               </div>
                               <div className="text-right ml-2">
-                                <div className={`text-sm font-semibold ${t.textPrimary}`}>{spare.total_quantity}×</div>
+                                <div className={`text-sm ${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{spare.total_quantity}×</div>
                                 <div className="text-amber-500 text-[10px]">{formatCurrency(spare.total_cost)}</div>
                               </div>
                             </div>
@@ -1653,7 +1653,7 @@ function BreakdownAnalyticsContent() {
               <div className="flex items-start gap-3">
                 <BarChart3 className="h-5 w-5 text-brand-400 flex-shrink-0 mt-0.5" />
                 <div className={`text-xs ${mutedCls}`}>
-                  <p className={`font-semibold mb-1 ${t.textPrimary}`}>Comprehensive Analytics Dashboard</p>
+                  <p className={`${TYPE_WEIGHT.semibold} mb-1 ${t.textPrimary}`}>Comprehensive Analytics Dashboard</p>
                   <p>
                     Explore breakdown patterns across 7 tabs: Overview (summary + trends), Heatmap (time-based patterns),
                     Trends (monthly/weekly/response time), Machines (problem machines + scatter analysis),

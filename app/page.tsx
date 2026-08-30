@@ -14,7 +14,7 @@ import {
 } from '@/components/shared/theme';
 import {
   useTheme, Collapse, AnimatedText, PulsingIcon, CenterModal, GlowCard, InfoCard, EmptyState, StatCard, StatStrip,
-  CardIconButton, ViewToggle, staggerContainer, fadeUp, ACCENT, ACCENT_RGBA, ACCENT_HEX, rgbaFromHexSafe, SPACING, type Accent,
+  CardIconButton, ViewToggle, staggerContainer, fadeUp, ACCENT, ACCENT_RGBA, ACCENT_HEX, rgbaFromHexSafe, SPACING, type Accent, TYPE_WEIGHT,
 } from '@/components/shared/theme';
 import {
   AppShell, useAppShell, QUICK_ACTIONS, trackModuleUsage, useDashboardData,
@@ -79,8 +79,8 @@ function QuickActionCard({ action, onRemove }: { action: QuickAction; onRemove?:
             <Icon className={`h-5 w-5 ${a.icon}`} />
           </div>
           <div className="min-w-0 flex-1">
-            <span className={`text-[13px] font-medium ${t.textMuted} ${t.groupHoverText} transition-colors truncate block`}>{action.label}</span>
-            {action.auto && <span className={`text-[9.5px] font-medium ${t.textFaint} uppercase tracking-wide`}>Frequently used</span>}
+            <span className={`text-[13px] ${TYPE_WEIGHT.medium} ${t.textMuted} ${t.groupHoverText} transition-colors truncate block`}>{action.label}</span>
+            {action.auto && <span className={`text-[9.5px] ${TYPE_WEIGHT.medium} ${t.textFaint} uppercase tracking-wide`}>Frequently used</span>}
           </div>
         </Link>
       </GlowCard>
@@ -133,7 +133,7 @@ function ModuleCard({
         className={selectMode && isSelected ? 'ring-2 ring-brand-400/60' : ''}
         style={{ cursor: selectMode ? 'pointer' : undefined }}
         badge={module.badge && (
-          <span className={`text-[9px] font-medium ${t.textFaint} ${t.chipBg} rounded-full px-1.5 py-0.5 tabular-nums`}>
+          <span className={`text-[9px] ${TYPE_WEIGHT.medium} ${t.textFaint} ${t.chipBg} rounded-full px-1.5 py-0.5 tabular-nums`}>
             {module.badge}
           </span>
         )}
@@ -213,9 +213,9 @@ function ModuleRow({
       <module.icon className="h-4 w-4 shrink-0" style={{ color: accentHex }} />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <span className={`text-[13px] font-medium ${t.textPrimary} truncate`}>{module.title}</span>
+          <span className={`text-[13px] ${TYPE_WEIGHT.medium} ${t.textPrimary} truncate`}>{module.title}</span>
           {module.badge && (
-            <span className={`text-[9px] font-medium ${t.textFaint} ${t.chipBg} rounded-full px-1.5 py-0.5 tabular-nums shrink-0`}>{module.badge}</span>
+            <span className={`text-[9px] ${TYPE_WEIGHT.medium} ${t.textFaint} ${t.chipBg} rounded-full px-1.5 py-0.5 tabular-nums shrink-0`}>{module.badge}</span>
           )}
         </div>
         {module.description && (
@@ -224,8 +224,8 @@ function ModuleRow({
       </div>
       {primaryMetric && (
         <div className="hidden sm:flex items-baseline gap-1 shrink-0 mr-1">
-          <span className={`text-[13px] font-bold ${t.textPrimary} tabular-nums`}>{primaryMetric.value}</span>
-          <span className={`text-[9px] font-medium ${t.textTertiary} uppercase tracking-wide`}>{primaryMetric.label}</span>
+          <span className={`text-[13px] ${TYPE_WEIGHT.bold} ${t.textPrimary} tabular-nums`}>{primaryMetric.value}</span>
+          <span className={`text-[9px] ${TYPE_WEIGHT.medium} ${t.textTertiary} uppercase tracking-wide`}>{primaryMetric.label}</span>
         </div>
       )}
     </>
@@ -307,10 +307,10 @@ function CategorySection({
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2.5 flex-wrap">
-            <h3 className={`font-semibold ${t.textPrimary} text-[14px] tracking-tight`}>{category.title}</h3>
-            <span className={`text-[11px] font-medium ${t.textTertiary} tabular-nums`}>{category.modules.length} modules</span>
+            <h3 className={`${TYPE_WEIGHT.semibold} ${t.textPrimary} text-[14px] tracking-tight`}>{category.title}</h3>
+            <span className={`text-[11px] ${TYPE_WEIGHT.medium} ${t.textTertiary} tabular-nums`}>{category.modules.length} modules</span>
             {category.growth && (
-              <span className={`text-[11px] font-medium ${t.trendUp} bg-emerald-400/15 rounded-full px-1.5 py-0.5`}>{category.growth}</span>
+              <span className={`text-[11px] ${TYPE_WEIGHT.medium} ${t.trendUp} bg-emerald-400/15 rounded-full px-1.5 py-0.5`}>{category.growth}</span>
             )}
           </div>
           <p className={`text-[12px] ${t.textSecondary} mt-0.5`}>{category.description}</p>
@@ -387,7 +387,7 @@ function ModuleQuickView({ module, accent }: { module: Module; accent: Accent })
         <motion.div variants={staggerContainer} className="grid grid-cols-2 gap-2">
           {module.metrics.map((m, i) => (
             <motion.div key={i} variants={fadeUp} whileHover={{ y: -2 }} className={`rounded-lg ${t.chipBg} ${t.shadow} ${a.glow} transition-shadow duration-300 p-2 text-center`}>
-              <p className={`text-base font-bold ${t.textPrimary} tabular-nums leading-none`}>{m.value}</p>
+              <p className={`text-base ${TYPE_WEIGHT.bold} ${t.textPrimary} tabular-nums leading-none`}>{m.value}</p>
               <p className={`text-[9px] ${t.textTertiary} uppercase tracking-wide mt-1`}>{m.label}</p>
             </motion.div>
           ))}
@@ -396,10 +396,10 @@ function ModuleQuickView({ module, accent }: { module: Module; accent: Accent })
 
       {module.tags && (
         <motion.div variants={fadeUp}>
-          <p className={`text-[10px] font-semibold ${t.textTertiary} uppercase tracking-wider mb-1.5`}>Tags</p>
+          <p className={`text-[10px] ${TYPE_WEIGHT.semibold} ${t.textTertiary} uppercase tracking-wider mb-1.5`}>Tags</p>
           <div className="flex flex-wrap gap-1.5">
             {module.tags.map(tag => (
-              <span key={tag} className={`text-[10.5px] font-medium ${t.textMuted} ${t.chipBg} rounded-full px-2 py-0.5`}>{tag}</span>
+              <span key={tag} className={`text-[10.5px] ${TYPE_WEIGHT.medium} ${t.textMuted} ${t.chipBg} rounded-full px-2 py-0.5`}>{tag}</span>
             ))}
           </div>
         </motion.div>
@@ -409,7 +409,7 @@ function ModuleQuickView({ module, accent }: { module: Module; accent: Accent })
         <Link
           href={module.href}
           onClick={() => trackModuleUsage(module.href)}
-          className={`flex items-center justify-center gap-1.5 w-full py-2 rounded-lg bg-gradient-to-br ${a.gradient} text-white text-[11.5px] font-semibold ${a.solidGlow} ${a.glow} hover:brightness-110 transition-all duration-300 ease-out`}
+          className={`flex items-center justify-center gap-1.5 w-full py-2 rounded-lg bg-gradient-to-br ${a.gradient} text-white text-[11.5px] ${TYPE_WEIGHT.semibold} ${a.solidGlow} ${a.glow} hover:brightness-110 transition-all duration-300 ease-out`}
         >
           Open module <ArrowRight className="h-3 w-3" />
         </Link>
@@ -440,7 +440,7 @@ function IntroSlides() {
       <button
         onClick={() => setHidden(false)}
         type="button"
-        className={`flex items-center gap-1.5 text-[12px] font-medium ${t.textFaint} ${t.hoverText} ${t.glassSoft} rounded-lg px-2.5 py-1.5 mt-10 mb-2 transition-colors`}
+        className={`flex items-center gap-1.5 text-[12px] ${TYPE_WEIGHT.medium} ${t.textFaint} ${t.hoverText} ${t.glassSoft} rounded-lg px-2.5 py-1.5 mt-10 mb-2 transition-colors`}
       >
         <Eye className="h-3.5 w-3.5" /> Show intro slides
       </button>
@@ -469,7 +469,7 @@ function IntroSlides() {
             <slide.icon className={`h-6 w-6 ${a.icon}`} />
           </PulsingIcon>
           <div className="min-w-0">
-            <p className={`text-[14px] font-semibold ${t.textPrimary}`}>{slide.title}</p>
+            <p className={`text-[14px] ${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{slide.title}</p>
             <AnimatedText as="p" trigger="mount" text={slide.description} className={`text-[12.5px] ${t.textSecondary} mt-0.5 max-w-lg leading-relaxed`} />
           </div>
         </motion.div>
@@ -519,7 +519,7 @@ function DashboardHeader({ moduleCount, categoryCount }: { moduleCount: number; 
 
   return (
     <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="mb-9">
-      <div className={`flex flex-wrap items-center gap-x-2 gap-y-1 mb-4 text-[12px] font-medium ${t.textFaint}`}>
+      <div className={`flex flex-wrap items-center gap-x-2 gap-y-1 mb-4 text-[12px] ${TYPE_WEIGHT.medium} ${t.textFaint}`}>
         <span className={t.trendUp}>
           <span className="inline-flex items-center gap-1.5">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
@@ -540,7 +540,7 @@ function DashboardHeader({ moduleCount, categoryCount }: { moduleCount: number; 
         initial={{ opacity: 0, y: 22 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-        className={`font-heading text-[32px] sm:text-[42px] leading-[1.08] font-semibold tracking-tight ${t.textPrimary} ${t.light ? '' : '[text-shadow:0_2px_24px_rgba(0,0,0,0.35)]'}`}
+        className={`font-heading text-[32px] sm:text-[42px] leading-[1.08] ${TYPE_WEIGHT.semibold} tracking-tight ${t.textPrimary} ${t.light ? '' : '[text-shadow:0_2px_24px_rgba(0,0,0,0.35)]'}`}
       >
         Your business, unified.
       </motion.h2>
@@ -579,7 +579,7 @@ function DashboardHeader({ moduleCount, categoryCount }: { moduleCount: number; 
                 style={{ background: t.light ? '#e5e7eb' : 'rgba(255,255,255,0.1)' }}
               />
             )}
-            <span className={`text-[20px] font-semibold ${t.textPrimary} tracking-tight tabular-nums`}>
+            <span className={`text-[20px] ${TYPE_WEIGHT.semibold} ${t.textPrimary} tracking-tight tabular-nums`}>
               {/* Dissolve / emerge: the final figure fades in out of a soft blur rather
                  than ticking up — re-keyed on the value so live-loaded stats re-emerge. */}
               <motion.span
@@ -691,9 +691,9 @@ function DashboardContent() {
             className={`mb-6 px-4 py-3 ${t.glassSoft} rounded-xl flex items-center justify-between overflow-hidden`}
           >
             <p className={`text-[13px] ${t.textMuted}`}>
-              <span className={`font-semibold ${t.textPrimary}`}>{totalResults}</span> module{totalResults === 1 ? '' : 's'} matching "<span className="font-medium">{s.searchQuery}</span>"
+              <span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{totalResults}</span> module{totalResults === 1 ? '' : 's'} matching "<span className={`${TYPE_WEIGHT.medium}`}>{s.searchQuery}</span>"
             </p>
-            <button onClick={() => s.setSearchQuery('')} className={`text-[13px] ${t.linkText} ${t.linkHover} font-medium`} type="button">
+            <button onClick={() => s.setSearchQuery('')} className={`text-[13px] ${t.linkText} ${t.linkHover} ${TYPE_WEIGHT.medium}`} type="button">
               Clear
             </button>
           </motion.div>
@@ -716,7 +716,7 @@ function DashboardContent() {
       {!s.searchQuery && visibleActions.length > 0 && (
         <div className="mb-8">
           <div className="flex items-center gap-2 mb-3">
-            <h3 className={`text-[13px] font-semibold ${t.textSecondary} uppercase tracking-wider`}>Quick Actions</h3>
+            <h3 className={`text-[13px] ${TYPE_WEIGHT.semibold} ${t.textSecondary} uppercase tracking-wider`}>Quick Actions</h3>
           </div>
           <motion.div variants={staggerContainer} initial="hidden" animate="show" className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             {visibleActions.map(action => (
@@ -739,7 +739,7 @@ function DashboardContent() {
       <div className="space-y-3" id="modules">
         <div className="flex items-center justify-between mb-3">
           <div>
-            <h3 className={`text-[15px] font-semibold ${t.textPrimary} tracking-tight`}>ERP Modules</h3>
+            <h3 className={`text-[15px] ${TYPE_WEIGHT.semibold} ${t.textPrimary} tracking-tight`}>ERP Modules</h3>
             <p className={`text-[13px] ${t.textSecondary} mt-0.5`}>Organise and access your business operations</p>
           </div>
           {!s.searchQuery && (
@@ -754,7 +754,7 @@ function DashboardContent() {
               />
               <button
                 onClick={toggleSelectMode}
-                className={`flex items-center gap-1.5 text-[12px] font-medium rounded-lg px-2.5 py-1.5 transition-colors ${
+                className={`flex items-center gap-1.5 text-[12px] ${TYPE_WEIGHT.medium} rounded-lg px-2.5 py-1.5 transition-colors ${
                   selectMode ? `${ACCENT.blue.chip} ${ACCENT.blue.text}` : `${t.textMuted} ${t.hoverText} ${t.glassSoft}`
                 }`}
                 type="button"
@@ -764,7 +764,7 @@ function DashboardContent() {
               </button>
               <button
                 onClick={toggleAll}
-                className={`flex items-center gap-1.5 text-[12px] font-medium ${t.textMuted} ${t.hoverText} ${t.glassSoft} rounded-lg px-2.5 py-1.5 transition-colors`}
+                className={`flex items-center gap-1.5 text-[12px] ${TYPE_WEIGHT.medium} ${t.textMuted} ${t.hoverText} ${t.glassSoft} rounded-lg px-2.5 py-1.5 transition-colors`}
                 type="button"
               >
                 <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-300 ${allExpanded ? 'rotate-180' : ''}`} />
@@ -810,12 +810,12 @@ function DashboardContent() {
             transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
             className={`fixed bottom-12 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 ${t.glass} ${t.shadow} rounded-2xl px-4 py-2.5`}
           >
-            <span className={`text-[13px] font-medium ${t.textPrimary}`}>
+            <span className={`text-[13px] ${TYPE_WEIGHT.medium} ${t.textPrimary}`}>
               {selectedHrefs.size === 0 ? 'Tap modules to select them' : `${selectedHrefs.size} module${selectedHrefs.size === 1 ? '' : 's'} selected`}
             </span>
             <button
               onClick={toggleSelectMode}
-              className={`text-[12.5px] font-medium ${t.textMuted} ${t.hoverText} transition-colors`}
+              className={`text-[12.5px] ${TYPE_WEIGHT.medium} ${t.textMuted} ${t.hoverText} transition-colors`}
               type="button"
             >
               Cancel
@@ -823,7 +823,7 @@ function DashboardContent() {
             <button
               onClick={confirmAddSelectedToFavorites}
               disabled={selectedHrefs.size === 0}
-              className={`flex items-center gap-1.5 text-[12.5px] font-semibold text-white rounded-lg px-3 py-1.5 bg-gradient-to-br ${ACCENT.blue.gradient} ${ACCENT.blue.solidGlow} hover:brightness-110 transition-all disabled:opacity-40`}
+              className={`flex items-center gap-1.5 text-[12.5px] ${TYPE_WEIGHT.semibold} text-white rounded-lg px-3 py-1.5 bg-gradient-to-br ${ACCENT.blue.gradient} ${ACCENT.blue.solidGlow} hover:brightness-110 transition-all disabled:opacity-40`}
               type="button"
             >
               <Bookmark className="h-3.5 w-3.5" /> Add to Favorites

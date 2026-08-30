@@ -4,7 +4,7 @@
 import { useState } from 'react';
 import { AppShell } from '@/components/app-shell';
 import { GraduationCap, X, RefreshCw } from '@/components/shared/theme';
-import { useTheme, PageHero, StatTile } from '@/components/shared/theme';
+import { useTheme, PageHero, StatTile, TYPE_WEIGHT } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
 import type { Employee, SkillLevel } from './types';
@@ -70,7 +70,7 @@ function CompetencyContent() {
         <div className="fixed inset-0 z-50" onClick={() => setPopover(null)}>
           <div className={`absolute rounded-xl p-2 ${t.glassPopover} ${t.shadow}`} style={{ left: Math.min(popover.x - 80, window.innerWidth - 200), top: popover.y }} onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-2 px-1">
-              <span className={`text-xs font-medium ${t.textMuted}`}>{popover.skill}</span>
+              <span className={`text-xs ${TYPE_WEIGHT.medium} ${t.textMuted}`}>{popover.skill}</span>
               <button type="button" onClick={() => setPopover(null)} className={`${t.textFaint} ${t.hoverText}`}><X className="w-3.5 h-3.5" /></button>
             </div>
             <div className="space-y-1">
@@ -116,7 +116,7 @@ function CompetencyContent() {
             <span className={`text-xs mr-2 ${t.textFaint}`}>Trade:</span>
             {['all', ...TRADES_STATIC].map(tr => (
               <button key={tr} type="button" onClick={() => setTradeFilter(tr)}
-                className={`mr-1 px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${tradeFilter === tr ? 'bg-brand-500/20 text-brand-500' : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}>
+                className={`mr-1 px-3 py-1 rounded-lg text-xs ${TYPE_WEIGHT.semibold} transition-colors ${tradeFilter === tr ? 'bg-brand-500/20 text-brand-500' : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}>
                 {tr === 'all' ? 'All' : tr}
               </button>
             ))}
@@ -125,7 +125,7 @@ function CompetencyContent() {
             <span className={`text-xs mr-2 ${t.textFaint}`}>Dept:</span>
             {['all', ...DEPTS_STATIC].map(d => (
               <button key={d} type="button" onClick={() => setDeptFilter(d)}
-                className={`mr-1 px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${deptFilter === d ? 'bg-brand-500/20 text-brand-500' : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}>
+                className={`mr-1 px-3 py-1 rounded-lg text-xs ${TYPE_WEIGHT.semibold} transition-colors ${deptFilter === d ? 'bg-brand-500/20 text-brand-500' : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}>
                 {d === 'all' ? 'All' : d}
               </button>
             ))}
@@ -137,8 +137,8 @@ function CompetencyContent() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead><tr className={`border-b ${t.border}`}>
-              <th className={`px-4 py-3 text-left text-xs font-medium sticky left-0 ${t.textFaint}`}>Employee</th>
-              {SKILL_AREAS.map(s => <th key={s} className={`px-3 py-3 text-center text-xs font-medium whitespace-nowrap ${t.textFaint}`}>{s}</th>)}
+              <th className={`px-4 py-3 text-left text-xs ${TYPE_WEIGHT.medium} sticky left-0 ${t.textFaint}`}>Employee</th>
+              {SKILL_AREAS.map(s => <th key={s} className={`px-3 py-3 text-center text-xs ${TYPE_WEIGHT.medium} whitespace-nowrap ${t.textFaint}`}>{s}</th>)}
             </tr></thead>
             <tbody className={`divide-y ${t.divide}`}>
               {loading ? (
@@ -146,7 +146,7 @@ function CompetencyContent() {
               ) : displayed.map(emp => (
                 <tr key={emp.id} className={`${t.hoverBg} transition-colors`}>
                   <td className="px-4 py-3 sticky left-0">
-                    <div className={`font-medium text-sm ${t.textPrimary}`}>{emp.name}</div>
+                    <div className={`${TYPE_WEIGHT.medium} text-sm ${t.textPrimary}`}>{emp.name}</div>
                     <div className={`text-xs ${t.textFaint}`}>{emp.trade} · {emp.department}</div>
                   </td>
                   {SKILL_AREAS.map(skill => {
@@ -156,7 +156,7 @@ function CompetencyContent() {
                       <td key={skill} className="px-3 py-3 text-center">
                         <button type="button" title={`${emp.name} — ${skill}: ${LEVEL_LABEL[level]}. Click to edit.`} onClick={e => handleCellClick(emp.id, skill, e)}
                           className="w-8 h-8 rounded-lg hover:ring-2 hover:ring-brand-400/40 transition-all mx-auto flex items-center justify-center" style={{ background: `${hex}${level === 0 ? '20' : 'cc'}` }}>
-                          {level > 0 && <span className="text-[10px] font-bold text-white">{level}</span>}
+                          {level > 0 && <span className={`text-[10px] ${TYPE_WEIGHT.bold} text-white`}>{level}</span>}
                         </button>
                       </td>
                     );
@@ -169,12 +169,12 @@ function CompetencyContent() {
       </div>
 
       <div className={`${t.glass} rounded-2xl ${t.shadow} p-4`}>
-        <div className={`text-xs font-semibold uppercase tracking-wider mb-3 ${t.textFaint}`}>Skill Level Legend</div>
+        <div className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider mb-3 ${t.textFaint}`}>Skill Level Legend</div>
         <div className="flex flex-wrap gap-4">
           {([0, 1, 2, 3, 4] as SkillLevel[]).map(l => (
             <div key={l} className="flex items-center gap-2">
               <span className="w-6 h-6 rounded flex items-center justify-center" style={{ background: `${LEVEL_HEX[l]}${l === 0 ? '20' : 'cc'}` }}>
-                {l > 0 && <span className="text-[10px] font-bold text-white">{l}</span>}
+                {l > 0 && <span className={`text-[10px] ${TYPE_WEIGHT.bold} text-white`}>{l}</span>}
               </span>
               <span className={`text-xs ${t.textMuted}`}>{l} — {LEVEL_LABEL[l]}</span>
             </div>

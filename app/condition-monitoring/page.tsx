@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { AppShell } from '@/components/app-shell';
 import { PredictiveInput } from '@/components/shared/PredictiveInput';
 import { Radar, Plus, X, RefreshCw } from '@/components/shared/theme';
-import { useTheme, PageHero, StatTile, StatusBadge, FormField, PrimaryButton, ACCENT_HEX, SelectField } from '@/components/shared/theme';
+import { useTheme, PageHero, StatTile, StatusBadge, FormField, PrimaryButton, ACCENT_HEX, SelectField, TYPE_WEIGHT } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
 import { formatDate } from '@/lib/format';
@@ -86,7 +86,7 @@ function ConditionMonitoringContent() {
       {showAdd && (
         <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden p-6`}>
           <div className="flex items-center justify-between mb-4">
-            <h2 className={`font-semibold ${t.textPrimary}`}>New Reading</h2>
+            <h2 className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>New Reading</h2>
             <button type="button" onClick={() => setShowAdd(false)} title="Close" aria-label="Close" className={`h-9 w-9 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}><X className="w-5 h-5" /></button>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
@@ -112,10 +112,10 @@ function ConditionMonitoringContent() {
 
       <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
         <div className={`p-4 border-b ${t.border} flex items-center justify-between flex-wrap gap-3`}>
-          <h2 className={`font-semibold ${t.textPrimary}`}>Monitoring Records</h2>
+          <h2 className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>Monitoring Records</h2>
           <div className="flex gap-1">
             {(['All', ...CM_TYPES] as const).map(ty => (
-              <button key={ty} type="button" onClick={() => setTab(ty)} className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${tab === ty ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} ${t.hoverText}`}`}>{ty}</button>
+              <button key={ty} type="button" onClick={() => setTab(ty)} className={`px-3 py-1 rounded-lg text-xs ${TYPE_WEIGHT.medium} transition-colors ${tab === ty ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} ${t.hoverText}`}`}>{ty}</button>
             ))}
           </div>
         </div>
@@ -124,7 +124,7 @@ function ConditionMonitoringContent() {
             <thead>
               <tr className={`border-b ${t.border}`}>
                 {['Equipment', 'Component', 'Type', 'Date', 'Value', 'Result', 'Technician', 'Notes'].map(h => (
-                  <th key={h} className={`px-4 py-3 text-left text-xs font-medium ${t.textFaint}`}>{h}</th>
+                  <th key={h} className={`px-4 py-3 text-left text-xs ${TYPE_WEIGHT.medium} ${t.textFaint}`}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -133,7 +133,7 @@ function ConditionMonitoringContent() {
                 <tr><td colSpan={8} className="text-center py-10"><RefreshCw className={`h-5 w-5 animate-spin mx-auto ${t.textFaint}`} /></td></tr>
               ) : displayed.map(r => (
                 <tr key={r.id} className={`border-b ${t.border} last:border-0 ${t.hoverBgSoft} transition-colors`}>
-                  <td className={`px-4 py-3 font-medium ${t.textPrimary}`}>{r.equipment}</td>
+                  <td className={`px-4 py-3 ${TYPE_WEIGHT.medium} ${t.textPrimary}`}>{r.equipment}</td>
                   <td className={`px-4 py-3 ${t.textMuted}`}>{r.component}</td>
                   <td className="px-4 py-3"><StatusBadge color={typeHex[r.type]} label={r.type} /></td>
                   <td className={`px-4 py-3 ${t.textMuted}`}>{r.date}</td>

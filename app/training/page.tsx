@@ -12,7 +12,7 @@ import { formatDate } from '@/lib/format';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import {
   useTheme, PageHero, StatTile, StatCard, StatusBadge, ProgressBar, FormField, FormActions,
-  SearchInput, CenterModal, PrimaryButton, EmptyState, useCollapseSection, SelectField,
+  SearchInput, CenterModal, PrimaryButton, EmptyState, useCollapseSection, SelectField, TYPE_WEIGHT,
 } from '@/components/shared/theme';
 import type { Certification, FormState } from './types';
 import { useTrainingData, createCertification, updateCertification, deleteCertification } from './useTrainingData';
@@ -187,7 +187,7 @@ function TrainingContent() {
       <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
         <div className={`px-5 py-3 border-b ${t.border} flex items-center gap-2`}>
           <Search className="h-3.5 w-3.5 text-emerald-500" />
-          <span className={`font-semibold text-sm ${t.textPrimary}`}>Filters</span>
+          <span className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>Filters</span>
         </div>
         <div className="p-5 grid grid-cols-1 sm:grid-cols-3 gap-3">
           <SearchInput value={search} onChange={setSearch} placeholder="Search employee, certification, ID…" />
@@ -202,7 +202,7 @@ function TrainingContent() {
       <div className={`${t.glassSoft} rounded-xl p-1 flex gap-1 flex-wrap`}>
         {TABS.map(tab => (
           <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id)}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${activeTab === tab.id ? 'bg-emerald-500/15 text-emerald-500' : `${t.textFaint} ${t.hoverBg} ${t.hoverText}`}`}>
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs ${TYPE_WEIGHT.medium} transition-all ${activeTab === tab.id ? 'bg-emerald-500/15 text-emerald-500' : `${t.textFaint} ${t.hoverBg} ${t.hoverText}`}`}>
             <tab.icon className="h-3.5 w-3.5" /> {tab.label}
           </button>
         ))}
@@ -213,7 +213,7 @@ function TrainingContent() {
       ) : activeTab === 'register' ? (
         <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
           <div className={`px-5 py-3 border-b ${t.border} flex items-center justify-between`}>
-            <span className={`font-semibold text-sm ${t.textPrimary}`}>Certifications ({filtered.length})</span>
+            <span className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>Certifications ({filtered.length})</span>
             <DownloadButton data={filtered as unknown as Record<string, unknown>[]} columns={dlCols} filename={`Training_Register_${new Date().toISOString().slice(0, 10)}`} title="Training & Certification Register" />
           </div>
           {filtered.length === 0 ? (
@@ -223,7 +223,7 @@ function TrainingContent() {
               <table className="w-full">
                 <thead><tr className={`border-b ${t.border} sticky top-0 ${t.glass}`}>
                   {['Employee', 'Certification', 'Expiry', 'Status', 'Certificate', ''].map((h, i) => (
-                    <th key={h} className={`px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider ${i > 2 ? 'text-center' : 'text-left'} ${t.textFaint}`}>{h}</th>
+                    <th key={h} className={`px-4 py-2.5 text-[10px] ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${i > 2 ? 'text-center' : 'text-left'} ${t.textFaint}`}>{h}</th>
                   ))}
                 </tr></thead>
                 <tbody>
@@ -231,7 +231,7 @@ function TrainingContent() {
                     const days = daysUntilExpiry(c.expiry_date);
                     return (
                       <tr key={c.id} className={`border-b ${t.border} ${t.hoverBg} transition-colors`}>
-                        <td className="px-4 py-3"><p className={`font-medium text-sm ${t.textPrimary}`}>{c.employee_name}</p><p className={`text-xs ${t.textFaint}`}>{c.department} · {c.employee_id}</p></td>
+                        <td className="px-4 py-3"><p className={`${TYPE_WEIGHT.medium} text-sm ${t.textPrimary}`}>{c.employee_name}</p><p className={`text-xs ${t.textFaint}`}>{c.department} · {c.employee_id}</p></td>
                         <td className="px-4 py-3"><p className={`text-sm ${t.textMuted}`}>{c.certification_name}</p><p className={`text-xs ${t.textFaint}`}>Refresher: {c.required_refresher}</p></td>
                         <td className="px-4 py-3"><p className={`text-sm ${t.textMuted}`}>{fmtDate(c.expiry_date)}</p><p className={`text-xs ${days < 0 ? 'text-rose-500' : days <= 90 ? 'text-amber-500' : t.textFaint}`}>{days < 0 ? `${Math.abs(days)}d overdue` : `${days}d remaining`}</p></td>
                         <td className="px-4 py-3 text-center"><StatusBadge color={STATUS_HEX[c.status] ?? '#94a3b8'} label={c.status} /></td>
@@ -257,10 +257,10 @@ function TrainingContent() {
       ) : activeTab === 'refreshers' ? (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-            <div className={`px-5 py-3 border-b ${t.border} flex items-center gap-2`}><RefreshCw className="h-3.5 w-3.5 text-emerald-500" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Refresher Courses Required</span></div>
+            <div className={`px-5 py-3 border-b ${t.border} flex items-center gap-2`}><RefreshCw className="h-3.5 w-3.5 text-emerald-500" /><span className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>Refresher Courses Required</span></div>
             <div className="p-5 space-y-3">
               {refreshers.length === 0 ? (
-                <div className="text-center py-8"><CheckCircle className="h-8 w-8 text-emerald-500 mx-auto mb-2" /><p className="text-sm text-emerald-500 font-semibold">No refreshers overdue</p></div>
+                <div className="text-center py-8"><CheckCircle className="h-8 w-8 text-emerald-500 mx-auto mb-2" /><p className={`text-sm text-emerald-500 ${TYPE_WEIGHT.semibold}`}>No refreshers overdue</p></div>
               ) : refreshers.map(({ refresher, employees_due }) => (
                 <div key={refresher}>
                   <div className="flex justify-between mb-1">
@@ -274,12 +274,12 @@ function TrainingContent() {
           </div>
 
           <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-            <div className={`px-5 py-3 border-b ${t.border} flex items-center gap-2`}><Calendar className="h-3.5 w-3.5 text-emerald-500" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Expiring in 90 Days</span></div>
+            <div className={`px-5 py-3 border-b ${t.border} flex items-center gap-2`}><Calendar className="h-3.5 w-3.5 text-emerald-500" /><span className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>Expiring in 90 Days</span></div>
             <div className={`divide-y ${t.divide}`}>
               {certs.filter(c => { const d = daysUntilExpiry(c.expiry_date); return d >= 0 && d <= 90; }).sort((a, b) => daysUntilExpiry(a.expiry_date) - daysUntilExpiry(b.expiry_date)).slice(0, 8).map(c => (
                 <div key={String(c.id)} className="flex items-center gap-3 px-5 py-3">
-                  <div className="w-10 h-10 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0"><span className="text-xs font-bold text-amber-500">{daysUntilExpiry(c.expiry_date)}d</span></div>
-                  <div className="flex-1 min-w-0"><p className={`text-sm font-medium truncate ${t.textPrimary}`}>{c.employee_name}</p><p className={`text-xs truncate ${t.textFaint}`}>{c.certification_name}</p></div>
+                  <div className="w-10 h-10 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0"><span className={`text-xs ${TYPE_WEIGHT.bold} text-amber-500`}>{daysUntilExpiry(c.expiry_date)}d</span></div>
+                  <div className="flex-1 min-w-0"><p className={`text-sm ${TYPE_WEIGHT.medium} truncate ${t.textPrimary}`}>{c.employee_name}</p><p className={`text-xs truncate ${t.textFaint}`}>{c.certification_name}</p></div>
                   <span className={`text-xs shrink-0 ${t.textFaint}`}>{fmtDate(c.expiry_date)}</span>
                 </div>
               ))}
@@ -292,13 +292,13 @@ function TrainingContent() {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-            <div className={`px-5 py-3 border-b ${t.border} flex items-center gap-2`}><BarChart3 className="h-3.5 w-3.5 text-emerald-500" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Compliance by Department</span></div>
+            <div className={`px-5 py-3 border-b ${t.border} flex items-center gap-2`}><BarChart3 className="h-3.5 w-3.5 text-emerald-500" /><span className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>Compliance by Department</span></div>
             <div className="p-5 space-y-3">
               {deptCompliance.length === 0 ? <p className={`text-sm text-center py-8 ${t.textFaint}`}>No data — add certifications first</p> : deptCompliance.map(({ dept, pct, total, expired }) => (
                 <div key={dept}>
                   <div className="flex justify-between mb-1">
                     <span className={`text-xs ${t.textMuted}`}>{dept}</span>
-                    <span className={`text-xs ${t.textFaint}`}>{expired > 0 ? <span className="text-rose-500">{expired} expired / </span> : null}{total} total — <span className={`font-bold ${pct >= 90 ? 'text-emerald-500' : pct >= 70 ? 'text-amber-500' : 'text-rose-500'}`}>{pct}%</span></span>
+                    <span className={`text-xs ${t.textFaint}`}>{expired > 0 ? <span className="text-rose-500">{expired} expired / </span> : null}{total} total — <span className={`${TYPE_WEIGHT.bold} ${pct >= 90 ? 'text-emerald-500' : pct >= 70 ? 'text-amber-500' : 'text-rose-500'}`}>{pct}%</span></span>
                   </div>
                   <ProgressBar value={pct} color={pct >= 90 ? '#34d399' : pct >= 70 ? '#f59e0b' : '#f43f5e'} showValue={false} />
                 </div>
@@ -307,7 +307,7 @@ function TrainingContent() {
           </div>
 
           <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-            <div className={`px-5 py-3 border-b ${t.border} flex items-center gap-2`}><Shield className="h-3.5 w-3.5 text-emerald-500" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Status Distribution</span></div>
+            <div className={`px-5 py-3 border-b ${t.border} flex items-center gap-2`}><Shield className="h-3.5 w-3.5 text-emerald-500" /><span className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>Status Distribution</span></div>
             <div className="p-5 space-y-4">
               {[
                 { label: 'Valid', count: counts.valid, hex: '#10b981' },
@@ -315,7 +315,7 @@ function TrainingContent() {
                 { label: 'Expired', count: counts.expired, hex: '#ef4444' },
               ].map(({ label, count, hex }) => (
                 <div key={label} className="rounded-xl p-4 flex items-center justify-between" style={{ background: `${hex}12`, border: `1px solid ${hex}30` }}>
-                  <span className="text-sm font-medium" style={{ color: hex }}>{label}</span>
+                  <span className={`text-sm ${TYPE_WEIGHT.medium}`} style={{ color: hex }}>{label}</span>
                   <div className="flex items-center gap-3">
                     <span className="text-2xl font-black" style={{ color: hex }}>{count}</span>
                     <span className={`text-xs ${t.textFaint}`}>{counts.total > 0 ? `${Math.round((count / counts.total) * 100)}%` : '—'}</span>
@@ -331,7 +331,7 @@ function TrainingContent() {
                   <div className="absolute text-center"><p className="text-lg font-black leading-none" style={{ color: compliance.compliance_rate >= 90 ? '#10b981' : compliance.compliance_rate >= 70 ? '#f59e0b' : '#ef4444' }}>{compliance.compliance_rate}%</p></div>
                 </div>
                 <div>
-                  <p className={`text-sm font-bold ${t.textPrimary}`}>Overall Compliance</p>
+                  <p className={`text-sm ${TYPE_WEIGHT.bold} ${t.textPrimary}`}>Overall Compliance</p>
                   <p className={`text-xs mt-0.5 ${t.textFaint}`}>{compliance.total_tracked} certifications tracked</p>
                   <p className="text-xs text-rose-500 mt-0.5">{compliance.non_compliant} expired</p>
                 </div>
@@ -389,7 +389,7 @@ function TrainingContent() {
         </div>
         <div className={`flex justify-end gap-2 px-5 py-4 border-t ${t.border}`}>
           <button type="button" onClick={() => setDeleteTarget(null)} className={`px-4 py-2 rounded-xl ${t.chipBg} ${t.textFaint} text-sm ${t.hoverText} transition-colors`}>Cancel</button>
-          <button type="button" disabled={deleting} onClick={doDelete} className="px-4 py-2 rounded-xl bg-rose-500/20 text-rose-500 text-sm font-semibold hover:bg-rose-500/30 transition-colors disabled:opacity-50">{deleting ? 'Deleting…' : 'Delete'}</button>
+          <button type="button" disabled={deleting} onClick={doDelete} className={`px-4 py-2 rounded-xl bg-rose-500/20 text-rose-500 text-sm ${TYPE_WEIGHT.semibold} hover:bg-rose-500/30 transition-colors disabled:opacity-50`}>{deleting ? 'Deleting…' : 'Delete'}</button>
         </div>
       </CenterModal>
     </main>

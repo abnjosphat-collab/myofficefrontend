@@ -12,7 +12,7 @@ import {
   Activity, BarChart3, Clock, MessageSquare, Search, Star, Layers,
   RefreshCw, Trash2, Calendar, TrendingUp, Users, Globe,
 } from '@/components/shared/theme';
-import { useTheme, accentText, PageHero, StatTile, GlowCard, ACCENT_HEX, useConfirm } from '@/components/shared/theme';
+import { useTheme, accentText, PageHero, StatTile, GlowCard, ACCENT_HEX, useConfirm, TYPE_WEIGHT } from '@/components/shared/theme';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   LineChart, Line, Legend, AreaChart, Area,
@@ -147,10 +147,10 @@ export default function UsageAnalyzerPage() {
     if (!active || !payload?.length) return null;
     return (
       <div className="rounded-lg px-3 py-2 text-[11px]" style={{ background: cs.tooltipBg, border: `1px solid ${cs.tooltipBorder}`, boxShadow: '0 8px 24px -8px rgba(0,0,0,0.3)' }}>
-        <p className={`font-semibold mb-1 ${t.textPrimary}`}>{label}</p>
+        <p className={`${TYPE_WEIGHT.semibold} mb-1 ${t.textPrimary}`}>{label}</p>
         {payload.map((p: any) => (
           <p key={p.dataKey} className={t.textMuted} style={{ color: p.color }}>
-            {p.name}: <span className="font-semibold">{p.value}</span>
+            {p.name}: <span className={`${TYPE_WEIGHT.semibold}`}>{p.value}</span>
           </p>
         ))}
       </div>
@@ -168,11 +168,11 @@ export default function UsageAnalyzerPage() {
           description="How this workspace is being used — most-opened modules, activity over time, busiest hours, dwell time and feedback."
           actions={
             <>
-              <button onClick={doRefresh} type="button" title="Refresh" className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12.5px] font-medium ${t.textMuted} ${t.hoverText} ${t.glassSoft} ${t.shadow} transition-shadow`}>
+              <button onClick={doRefresh} type="button" title="Refresh" className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12.5px] ${TYPE_WEIGHT.medium} ${t.textMuted} ${t.hoverText} ${t.glassSoft} ${t.shadow} transition-shadow`}>
                 <RefreshCw className={`h-3.5 w-3.5 ${remoteLoading ? 'animate-spin' : ''}`} /> <span className="hidden sm:inline">Refresh</span>
               </button>
               {dataSource === 'local' && (
-                <button onClick={clearAll} type="button" title="Clear data" className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12.5px] font-medium text-rose-500 ${t.glassSoft} ${t.shadow} hover:bg-rose-500/10 transition-colors`}>
+                <button onClick={clearAll} type="button" title="Clear data" className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12.5px] ${TYPE_WEIGHT.medium} text-rose-500 ${t.glassSoft} ${t.shadow} hover:bg-rose-500/10 transition-colors`}>
                   <Trash2 className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Clear</span>
                 </button>
               )}
@@ -183,11 +183,11 @@ export default function UsageAnalyzerPage() {
         {canViewAll && (
           <div className={`flex items-center gap-0.5 p-0.5 rounded-lg w-fit ${t.chipBg}`}>
             <button type="button" onClick={() => setDataSource('local')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] font-medium transition-colors ${dataSource === 'local' ? `${t.glass} ${t.textPrimary} ${t.shadow}` : `${t.textFaint} ${t.hoverText}`}`}>
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] ${TYPE_WEIGHT.medium} transition-colors ${dataSource === 'local' ? `${t.glass} ${t.textPrimary} ${t.shadow}` : `${t.textFaint} ${t.hoverText}`}`}>
               <Layers className="h-3.5 w-3.5" /> This device
             </button>
             <button type="button" onClick={() => setDataSource('all')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] font-medium transition-colors ${dataSource === 'all' ? `${t.glass} ${t.textPrimary} ${t.shadow}` : `${t.textFaint} ${t.hoverText}`}`}>
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] ${TYPE_WEIGHT.medium} transition-colors ${dataSource === 'all' ? `${t.glass} ${t.textPrimary} ${t.shadow}` : `${t.textFaint} ${t.hoverText}`}`}>
               <Globe className="h-3.5 w-3.5" /> All users
             </button>
           </div>
@@ -207,7 +207,7 @@ export default function UsageAnalyzerPage() {
         ) : !hasData ? (
           <GlowCard color={ACCENT_HEX.violet} className="p-10 text-center">
             <Activity className={`h-8 w-8 mx-auto mb-3 ${t.textFaint}`} />
-            <p className={`text-[14px] font-medium ${t.textPrimary}`}>No usage recorded yet</p>
+            <p className={`text-[14px] ${TYPE_WEIGHT.medium} ${t.textPrimary}`}>No usage recorded yet</p>
             <p className={`text-[12.5px] ${t.textFaint} mt-1 max-w-md mx-auto`}>
               As you open modules, browse pages, search and leave feedback, this page fills with charts — most-used modules, activity trends, a time-of-day heatmap, dwell time and more.
             </p>
@@ -238,7 +238,7 @@ export default function UsageAnalyzerPage() {
                 <SectionTitle icon={Layers} label="By module" noMargin />
                 {moduleFilter && (
                   <button type="button" onClick={() => setModuleFilter(null)}
-                    className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium ${t.chipBg} ${t.textMuted} ${t.hoverText} transition-colors`}>
+                    className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] ${TYPE_WEIGHT.medium} ${t.chipBg} ${t.textMuted} ${t.hoverText} transition-colors`}>
                     Showing {moduleUsage.find(m => m.module === moduleFilter)?.label ?? moduleFilter} only — clear
                   </button>
                 )}
@@ -255,7 +255,7 @@ export default function UsageAnalyzerPage() {
                           <span className={`${t.textMuted} truncate`}>{m.label}</span>
                           <span className={`flex items-center gap-2 shrink-0 ${t.textFaint}`}>
                             {dataSource === 'all' && m.distinctUsers > 0 && <span>{m.distinctUsers} user{m.distinctUsers === 1 ? '' : 's'}</span>}
-                            <span className={`font-semibold ${t.textPrimary}`}>{m.total}</span>
+                            <span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{m.total}</span>
                           </span>
                         </div>
                         <div className={`h-1.5 rounded-full ${t.chipBg} overflow-hidden`}>
@@ -291,10 +291,10 @@ export default function UsageAnalyzerPage() {
                     <div className="space-y-1.5 mt-1">
                       {activeUsers.map((u, i) => (
                         <div key={u.key} className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg ${t.hoverBgSoft}`}>
-                          <span className={`text-[11px] font-bold tabular-nums w-4 ${t.textFaint}`}>{i + 1}</span>
+                          <span className={`text-[11px] ${TYPE_WEIGHT.bold} tabular-nums w-4 ${t.textFaint}`}>{i + 1}</span>
                           {u.anonymous ? <Globe className={`h-3.5 w-3.5 shrink-0 ${t.textFaint}`} /> : <Users className={`h-3.5 w-3.5 shrink-0 ${t.textFaint}`} />}
                           <span className={`text-[12.5px] ${t.textMuted} truncate flex-1`}>{u.label}</span>
-                          <span className={`text-[11px] font-semibold tabular-nums ${t.textPrimary}`}>{u.count}</span>
+                          <span className={`text-[11px] ${TYPE_WEIGHT.semibold} tabular-nums ${t.textPrimary}`}>{u.count}</span>
                         </div>
                       ))}
                     </div>
@@ -310,7 +310,7 @@ export default function UsageAnalyzerPage() {
                 <div className={`flex items-center gap-0.5 p-0.5 rounded-lg ${t.chipBg}`}>
                   {(['day', 'week', 'month'] as Granularity[]).map(g => (
                     <button key={g} type="button" onClick={() => setGranularity(g)}
-                      className={`px-2.5 py-1 rounded-md text-[11px] font-medium capitalize transition-colors ${granularity === g ? `${t.glass} ${t.textPrimary} ${t.shadow}` : `${t.textFaint} ${t.hoverText}`}`}>
+                      className={`px-2.5 py-1 rounded-md text-[11px] ${TYPE_WEIGHT.medium} capitalize transition-colors ${granularity === g ? `${t.glass} ${t.textPrimary} ${t.shadow}` : `${t.textFaint} ${t.hoverText}`}`}>
                       {g}
                     </button>
                   ))}
@@ -457,7 +457,7 @@ export default function UsageAnalyzerPage() {
                         <div key={d.path}>
                           <div className="flex items-center justify-between text-[12px] mb-0.5">
                             <span className={`${t.textMuted} truncate mr-2`}>{d.path}</span>
-                            <span className={`${t.textPrimary} font-semibold tabular-nums shrink-0`}>{fmtDuration(d.totalMs)}</span>
+                            <span className={`${t.textPrimary} ${TYPE_WEIGHT.semibold} tabular-nums shrink-0`}>{fmtDuration(d.totalMs)}</span>
                           </div>
                           <div className={`h-1.5 rounded-full ${t.chipBg} overflow-hidden`}>
                             <div className="h-full rounded-full" style={{ width: `${(d.totalMs / max) * 100}%`, background: ACCENT_HEX.emerald }} />
@@ -477,10 +477,10 @@ export default function UsageAnalyzerPage() {
                   <div className="space-y-1.5 mt-1">
                     {searches.map((q, i) => (
                       <div key={q.key} className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg ${t.hoverBgSoft}`}>
-                        <span className={`text-[11px] font-bold tabular-nums w-4 ${t.textFaint}`}>{i + 1}</span>
+                        <span className={`text-[11px] ${TYPE_WEIGHT.bold} tabular-nums w-4 ${t.textFaint}`}>{i + 1}</span>
                         <Search className={`h-3.5 w-3.5 shrink-0 ${t.textFaint}`} />
                         <span className={`text-[12.5px] ${t.textMuted} truncate flex-1`}>{q.label}</span>
-                        <span className={`text-[11px] font-semibold tabular-nums ${t.textPrimary}`}>{q.count}×</span>
+                        <span className={`text-[11px] ${TYPE_WEIGHT.semibold} tabular-nums ${t.textPrimary}`}>{q.count}×</span>
                       </div>
                     ))}
                   </div>
@@ -496,7 +496,7 @@ export default function UsageAnalyzerPage() {
                   {feedback.map((f, i) => (
                     <div key={i} className={`rounded-lg px-3 py-2 ${t.glassSoft}`}>
                       <div className="flex items-center justify-between gap-2 mb-0.5">
-                        <span className={`text-[11px] font-medium ${t.textMuted} truncate`}>{f.page}</span>
+                        <span className={`text-[11px] ${TYPE_WEIGHT.medium} ${t.textMuted} truncate`}>{f.page}</span>
                         <div className="flex items-center gap-0.5 shrink-0">
                           {[1, 2, 3, 4, 5].map(n => (
                             <Star key={n} className={`h-3 w-3 ${n <= f.rating ? accentText('amber', t.light) : t.textFaint}`} weight={n <= f.rating ? 'fill' : 'regular'} />
@@ -522,7 +522,7 @@ function SectionTitle({ icon: Icon, label, noMargin }: { icon: React.ElementType
   return (
     <div className={`flex items-center gap-2 ${noMargin ? '' : 'mb-3'}`}>
       <Icon className={`h-4 w-4 ${t.textMuted}`} />
-      <h2 className={`text-[13px] font-semibold ${t.textPrimary}`}>{label}</h2>
+      <h2 className={`text-[13px] ${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{label}</h2>
     </div>
   );
 }

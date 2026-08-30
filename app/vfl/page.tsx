@@ -13,7 +13,7 @@ import { UnderlineTabs } from '@/components/shared/UnderlineTabs';
 import { toast } from "sonner";
 import {
   useTheme, STATUS_TONE, PageHero, StatTile, StatusBadge, SearchInput, FormField, FormActions,
-  useCollapseSection, CenterModal, PrimaryButton, EmptyState, ProgressBar, ACCENT_HEX, GlowCard, SelectField, accentText,
+  useCollapseSection, CenterModal, PrimaryButton, EmptyState, ProgressBar, ACCENT_HEX, GlowCard, SelectField, accentText, TYPE_WEIGHT,
 } from '@/components/shared/theme';
 import { PredictiveInput } from '@/components/shared/PredictiveInput';
 import { EmployeeNameInput } from '@/components/shared/EmployeeNameInput';
@@ -76,7 +76,7 @@ function ActionItemCard({ item, index, onChange, onRemove }: { item: ActionItem;
   return (
     <div className={`${t.chipBg} rounded-xl p-3.5`}>
       <div className="flex justify-between items-center mb-2.5">
-        <span className={`text-[11px] font-bold ${accentText('emerald', t.light)} uppercase tracking-wide`}>Action #{index + 1}</span>
+        <span className={`text-[11px] ${TYPE_WEIGHT.bold} ${accentText('emerald', t.light)} uppercase tracking-wide`}>Action #{index + 1}</span>
         <button type="button" onClick={() => onRemove(item.id)} title="Remove action" className="text-red-400 hover:text-red-300 transition-colors"><Trash2 className="h-3.5 w-3.5" /></button>
       </div>
       <div className="grid grid-cols-2 gap-2">
@@ -112,7 +112,7 @@ function VFLCard({ report, index, onView, onEdit, onDelete }: { report: VFLRepor
         <div className="flex justify-between items-start mb-2.5">
           <div className="flex items-center gap-2.5">
             <SectionIcon className="h-5 w-5 shrink-0" style={{ color: sColor }} />
-            <div><div className={`text-[11px] mb-0.5 ${t.textFaint}`}>VFL #{index + 1}</div><div className={`font-bold text-[15px] ${t.textPrimary}`}>{report.observerName}</div></div>
+            <div><div className={`text-[11px] mb-0.5 ${t.textFaint}`}>VFL #{index + 1}</div><div className={`${TYPE_WEIGHT.bold} text-[15px] ${t.textPrimary}`}>{report.observerName}</div></div>
           </div>
           <div className="flex flex-col gap-1 items-end"><StatusBadge color={sColor} label={report.sectionChoice} /><StatusBadge color={bColor} label={report.behaviourCategory} /></div>
         </div>
@@ -171,7 +171,7 @@ function VFLDetailModal({ report, open, onClose, onEdit, onDelete, onStatusChang
         <div className={`flex justify-between items-center ${t.chipBg} rounded-xl px-3.5 py-2.5`}>
           <div className="flex items-center gap-2">
             <div className="p-1.5 rounded-lg" style={{ background: `${sColor}22` }}><SectionIcon className="h-4 w-4" style={{ color: sColor }} /></div>
-            <span className={`font-semibold ${t.textPrimary}`}>{report.sectionChoice}</span>
+            <span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{report.sectionChoice}</span>
           </div>
           <div className="flex gap-2 items-center">
             <StatusBadge color={bColor} label={report.behaviourCategory} />
@@ -182,7 +182,7 @@ function VFLDetailModal({ report, open, onClose, onEdit, onDelete, onStatusChang
 
         {progress.total > 0 && (
           <div className={`${t.chipBg} rounded-xl px-3.5 py-3`}>
-            <div className="flex justify-between text-xs mb-1.5"><span className={t.textFaint}>Action Progress</span><span className={`font-semibold ${t.textPrimary}`}>{progress.completed}/{progress.total} completed</span></div>
+            <div className="flex justify-between text-xs mb-1.5"><span className={t.textFaint}>Action Progress</span><span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{progress.completed}/{progress.total} completed</span></div>
             <ProgressBar value={progress.pct} color={progress.pct === 100 ? '#10b981' : '#3b82f6'} showValue={false} />
             <div className="flex gap-2 mt-2"><StatusBadge color="#f59e0b" label={`${progress.pending} Pending`} /><StatusBadge color="#3b82f6" label={`${progress.inProgress} In Progress`} /><StatusBadge color="#10b981" label={`${progress.completed} Completed`} /></div>
           </div>
@@ -190,21 +190,21 @@ function VFLDetailModal({ report, open, onClose, onEdit, onDelete, onStatusChang
 
         <div className="grid grid-cols-4 gap-2">
           {[{ label: 'Observer', val: report.observerName }, { label: 'Designation', val: report.designation || 'N/A' }, { label: 'Date', val: fmtDate(report.date) }, { label: 'Time', val: fmtTime(report.time) }].map(({ label, val }) => (
-            <div key={label} className={infoBox}><div className={`text-[10px] mb-0.5 ${t.textFaint}`}>{label}</div><div className={`text-sm font-semibold ${t.textPrimary}`}>{val}</div></div>
+            <div key={label} className={infoBox}><div className={`text-[10px] mb-0.5 ${t.textFaint}`}>{label}</div><div className={`text-sm ${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{val}</div></div>
           ))}
         </div>
 
         {report.departmentSection && <div className={infoBox}><div className={`text-[10px] mb-0.5 ${t.textFaint}`}>Department/Section</div><div className={`text-sm ${t.textMuted}`}>{report.departmentSection}</div></div>}
 
         <div className={`${t.chipBg} rounded-xl px-3.5 py-3.5`}>
-          <div className={`font-bold text-xs uppercase tracking-wide mb-2.5 ${t.textFaint}`}>Observation Details</div>
+          <div className={`${TYPE_WEIGHT.bold} text-xs uppercase tracking-wide mb-2.5 ${t.textFaint}`}>Observation Details</div>
           <div className="flex gap-2 mb-2.5 flex-wrap"><StatusBadge color={oColor} label={report.observationType} /><StatusBadge color="#a78bfa" label={coachingLabel(report.coachingTechnique)} /></div>
           <div className={`text-sm leading-relaxed whitespace-pre-wrap ${t.textMuted}`}>{report.description}</div>
         </div>
 
         {report.actions && report.actions.length > 0 && (
           <div>
-            <div className={`font-bold text-xs uppercase tracking-wide mb-2.5 ${t.textFaint}`}>Action Plan ({report.actions.length})</div>
+            <div className={`${TYPE_WEIGHT.bold} text-xs uppercase tracking-wide mb-2.5 ${t.textFaint}`}>Action Plan ({report.actions.length})</div>
             <div className="flex flex-col gap-2">
               {report.actions.map((action, idx) => {
                 const ac = ACTION_HEX[action.status] ?? STATUS_TONE.neutral;
@@ -222,9 +222,9 @@ function VFLDetailModal({ report, open, onClose, onEdit, onDelete, onStatusChang
         )}
       </div>
       <div className={`flex gap-2 px-5 py-4 border-t ${t.border}`}>
-        <button type="button" onClick={() => { onClose(); onDelete(report.id); }} className="bg-red-500/15 hover:bg-red-500/25 rounded-xl px-4 py-2.5 text-red-400 text-sm font-semibold transition-colors">Delete</button>
+        <button type="button" onClick={() => { onClose(); onDelete(report.id); }} className={`bg-red-500/15 hover:bg-red-500/25 rounded-xl px-4 py-2.5 text-red-400 text-sm ${TYPE_WEIGHT.semibold} transition-colors`}>Delete</button>
         <button type="button" onClick={onClose} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border} transition-all`}>Close</button>
-        <button type="button" onClick={() => { onClose(); onEdit(report); }} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all">Edit</button>
+        <button type="button" onClick={() => { onClose(); onEdit(report); }} className={`flex-1 py-2.5 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all`}>Edit</button>
       </div>
     </CenterModal>
   );
@@ -282,15 +282,15 @@ function VFLFormModal({ open, editing, onClose, onSave, saving }: { open: boolea
         {tab === 'observation' && (
           <div className="flex flex-col gap-5">
             <div>
-              <div className={`text-xs font-medium mb-2 ${t.textFaint}`}>Behaviour Category *</div>
+              <div className={`text-xs ${TYPE_WEIGHT.medium} mb-2 ${t.textFaint}`}>Behaviour Category *</div>
               <div className="flex gap-4 flex-wrap">
                 {BEHAVIOUR_CATEGORIES.map(cat => (
-                  <label key={cat} className={radioLabelCls}><input type="radio" style={{ accentColor: '#10b981' }} name="behaviourCat" value={cat} checked={form.behaviourCategory === cat} onChange={() => set('behaviourCategory', cat)} /><span className="font-semibold" style={{ color: BEHAVIOUR_HEX[cat] }}>{cat}</span></label>
+                  <label key={cat} className={radioLabelCls}><input type="radio" style={{ accentColor: '#10b981' }} name="behaviourCat" value={cat} checked={form.behaviourCategory === cat} onChange={() => set('behaviourCategory', cat)} /><span className={`${TYPE_WEIGHT.semibold}`} style={{ color: BEHAVIOUR_HEX[cat] }}>{cat}</span></label>
                 ))}
               </div>
             </div>
             <div>
-              <div className={`text-xs font-medium mb-2 ${t.textFaint}`}>Observation Type *</div>
+              <div className={`text-xs ${TYPE_WEIGHT.medium} mb-2 ${t.textFaint}`}>Observation Type *</div>
               <div className="flex flex-col gap-2">
                 {OBSERVATION_TYPES.map(type => (
                   <label key={type} className={radioLabelCls}><input type="radio" style={{ accentColor: '#10b981' }} name="obsType" value={type} checked={form.observationType === type} onChange={() => set('observationType', type)} /><span style={{ color: OBSERVATION_HEX[type] }}>{type}</span></label>
@@ -299,10 +299,10 @@ function VFLFormModal({ open, editing, onClose, onSave, saving }: { open: boolea
             </div>
             <FormField label="Description" required><textarea className={`${inputCls} resize-none`} style={{ minHeight: 100 }} value={form.description || ''} placeholder="Relate details of the observation..." onChange={e => set('description', e.target.value)} /></FormField>
             <div className={`${t.chipBg} rounded-xl p-3.5`}>
-              <div className={`flex items-center gap-1.5 text-xs font-medium mb-2.5 ${t.textFaint}`}><MessageSquare className="h-3.5 w-3.5" /> Coaching Technique Used *</div>
+              <div className={`flex items-center gap-1.5 text-xs ${TYPE_WEIGHT.medium} mb-2.5 ${t.textFaint}`}><MessageSquare className="h-3.5 w-3.5" /> Coaching Technique Used *</div>
               <div className="flex gap-4 flex-wrap">
                 {COACHING_TECHNIQUES.map(tech => (
-                  <label key={tech} className={radioLabelCls}><input type="radio" style={{ accentColor: '#10b981' }} name="coaching" value={tech} checked={form.coachingTechnique === tech} onChange={() => set('coachingTechnique', tech)} /><span className={`font-bold ${t.textPrimary}`}>{tech}</span><span className={`text-[11px] ${t.textFaint}`}>({COACHING_DESC[tech]})</span></label>
+                  <label key={tech} className={radioLabelCls}><input type="radio" style={{ accentColor: '#10b981' }} name="coaching" value={tech} checked={form.coachingTechnique === tech} onChange={() => set('coachingTechnique', tech)} /><span className={`${TYPE_WEIGHT.bold} ${t.textPrimary}`}>{tech}</span><span className={`text-[11px] ${t.textFaint}`}>({COACHING_DESC[tech]})</span></label>
                 ))}
               </div>
             </div>
@@ -312,8 +312,8 @@ function VFLFormModal({ open, editing, onClose, onSave, saving }: { open: boolea
         {tab === 'actions' && (
           <div>
             <div className="flex justify-between items-center mb-3.5">
-              <div><div className={`font-bold text-sm ${t.textPrimary}`}>Actions to Rectify / Reinforce</div><div className={`text-[11px] mt-0.5 ${t.textFaint}`}>Define actions to address or reinforce behaviours.</div></div>
-              <button type="button" onClick={addAction} className={`flex items-center gap-1.5 bg-emerald-500/15 hover:bg-emerald-500/25 rounded-lg px-3 py-1.5 ${accentText('emerald', t.light)} text-sm font-semibold transition-colors`}><Plus className="h-3.5 w-3.5" /> Add Action</button>
+              <div><div className={`${TYPE_WEIGHT.bold} text-sm ${t.textPrimary}`}>Actions to Rectify / Reinforce</div><div className={`text-[11px] mt-0.5 ${t.textFaint}`}>Define actions to address or reinforce behaviours.</div></div>
+              <button type="button" onClick={addAction} className={`flex items-center gap-1.5 bg-emerald-500/15 hover:bg-emerald-500/25 rounded-lg px-3 py-1.5 ${accentText('emerald', t.light)} text-sm ${TYPE_WEIGHT.semibold} transition-colors`}><Plus className="h-3.5 w-3.5" /> Add Action</button>
             </div>
             {(form.actions || []).length === 0 ? (
               <div className={`text-center py-8 ${t.textFaint}`}><Target className="h-9 w-9 mx-auto mb-2" /><div className="text-sm">No actions added yet.</div><button type="button" onClick={addAction} className={`mt-2.5 ${t.chipBg} ${t.hoverBg} rounded-lg px-3.5 py-1.5 text-xs transition-colors ${t.textMuted}`}>+ Add First Action</button></div>
@@ -423,7 +423,7 @@ function VFLObservationContent() {
 
   const hasFilters = !!(search || sectionFilter !== 'all' || statusFilter !== 'all' || behaviourFilter !== 'all' || dateFrom || dateTo);
   const selCls = `h-9 rounded-lg px-2.5 text-xs outline-none transition-colors ${t.inputBg}`;
-  const thCls = `text-left px-3 py-2 text-[10px] uppercase tracking-wide font-medium ${t.textFaint}`;
+  const thCls = `text-left px-3 py-2 text-[10px] uppercase tracking-wide ${TYPE_WEIGHT.medium} ${t.textFaint}`;
 
   return (
     <main className="max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
@@ -537,7 +537,7 @@ function VFLObservationContent() {
           <div className={`flex items-center gap-3 text-sm ${t.textMuted}`}><AlertTriangle className="h-5 w-5 text-red-400 flex-shrink-0" /> Are you sure you want to delete this VFL observation?</div>
           <div className="flex gap-2">
             <button type="button" onClick={() => setDeleteTarget(null)} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border} transition-all`}>Cancel</button>
-            <button type="button" onClick={() => deleteTarget && handleDelete(deleteTarget)} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-rose-500 to-rose-700 hover:brightness-110 transition-all">Delete</button>
+            <button type="button" onClick={() => deleteTarget && handleDelete(deleteTarget)} className={`flex-1 py-2.5 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-rose-500 to-rose-700 hover:brightness-110 transition-all`}>Delete</button>
           </div>
         </div>
       </CenterModal>

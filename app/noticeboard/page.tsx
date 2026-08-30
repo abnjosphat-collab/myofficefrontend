@@ -7,7 +7,7 @@ import { fmtDate as formatDate, fmtDateTime as formatDateTime } from '@/componen
 import {
   useTheme, PageHero, StatTile, StatusBadge, ProgressBar, FormField, FormActions,
   SearchInput, ViewToggle, CenterModal, PrimaryButton, EmptyState, useCollapseSection,
-  GlowCard, ACCENT_HEX, SelectField,
+  GlowCard, ACCENT_HEX, SelectField, TYPE_WEIGHT,
 } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
@@ -101,17 +101,17 @@ function NoticeDetailsModal({ isOpen, onClose, notice, onDelete, onEdit, onToggl
         <div className={`rounded-lg p-4 text-sm whitespace-pre-wrap leading-relaxed ${t.chipBg} ${t.textMuted}`}>{notice.content}</div>
 
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-xs">
-          <div><p className={t.textFaint}>Target Audience</p><p className={`font-medium mt-0.5 ${t.textMuted}`}>{notice.target_audience || 'All Employees'}</p></div>
-          <div><p className={t.textFaint}>Notification Type</p><p className={`font-medium mt-0.5 ${t.textMuted}`}>{notice.notification_type || 'General'}</p></div>
-          <div><p className={t.textFaint}>Acknowledgment</p><p className={`font-medium mt-0.5 ${t.textMuted}`}>{notice.requires_acknowledgment ? 'Required' : 'Not Required'}</p></div>
+          <div><p className={t.textFaint}>Target Audience</p><p className={`${TYPE_WEIGHT.medium} mt-0.5 ${t.textMuted}`}>{notice.target_audience || 'All Employees'}</p></div>
+          <div><p className={t.textFaint}>Notification Type</p><p className={`${TYPE_WEIGHT.medium} mt-0.5 ${t.textMuted}`}>{notice.notification_type || 'General'}</p></div>
+          <div><p className={t.textFaint}>Acknowledgment</p><p className={`${TYPE_WEIGHT.medium} mt-0.5 ${t.textMuted}`}>{notice.requires_acknowledgment ? 'Required' : 'Not Required'}</p></div>
           <div>
             <p className={t.textFaint}>Expires</p>
-            <p className={`font-medium mt-0.5 ${isExpired ? 'text-rose-500' : expiresSoon ? 'text-amber-500' : t.textMuted}`}>
+            <p className={`${TYPE_WEIGHT.medium} mt-0.5 ${isExpired ? 'text-rose-500' : expiresSoon ? 'text-amber-500' : t.textMuted}`}>
               {notice.expires_at ? formatDate(notice.expires_at) : 'Never'}{isExpired && ' (Expired)'}{expiresSoon && !isExpired && ' (Soon)'}
             </p>
           </div>
-          {notice.created_at && <div><p className={t.textFaint}>Created</p><p className={`font-medium mt-0.5 ${t.textMuted}`}>{formatDateTime(notice.created_at)}</p></div>}
-          {notice.updated_at && <div><p className={t.textFaint}>Last Updated</p><p className={`font-medium mt-0.5 ${t.textMuted}`}>{formatDateTime(notice.updated_at)}</p></div>}
+          {notice.created_at && <div><p className={t.textFaint}>Created</p><p className={`${TYPE_WEIGHT.medium} mt-0.5 ${t.textMuted}`}>{formatDateTime(notice.created_at)}</p></div>}
+          {notice.updated_at && <div><p className={t.textFaint}>Last Updated</p><p className={`${TYPE_WEIGHT.medium} mt-0.5 ${t.textMuted}`}>{formatDateTime(notice.updated_at)}</p></div>}
         </div>
 
         {(notice.attachment_name || notice.attachment_url) && (
@@ -119,7 +119,7 @@ function NoticeDetailsModal({ isOpen, onClose, notice, onDelete, onEdit, onToggl
             <div className="flex items-center gap-2 min-w-0">
               <Paperclip className="h-4 w-4 text-brand-500 shrink-0" />
               <div className="min-w-0">
-                <p className={`text-sm font-medium truncate ${t.textPrimary}`}>{notice.attachment_name || 'Unnamed file'}</p>
+                <p className={`text-sm ${TYPE_WEIGHT.medium} truncate ${t.textPrimary}`}>{notice.attachment_name || 'Unnamed file'}</p>
                 {notice.attachment_size && <p className={`text-[11px] ${t.textFaint}`}>{notice.attachment_size}</p>}
               </div>
             </div>
@@ -167,7 +167,7 @@ function NoticeCard({ notice, onView, onEdit, onDelete }: {
       className="overflow-hidden">
       <div className={`px-4 pt-3.5 pb-2 border-b ${t.border}`}>
         <div className="flex items-start justify-between gap-2">
-          <p className={`text-sm font-semibold line-clamp-1 ${t.textPrimary}`}>{notice.title}</p>
+          <p className={`text-sm ${TYPE_WEIGHT.semibold} line-clamp-1 ${t.textPrimary}`}>{notice.title}</p>
           {notice.is_pinned && <StatusBadge color="#f59e0b" label="Pinned" />}
         </div>
         <div className={`flex items-center gap-3 flex-wrap text-[11px] mt-1 ${t.textFaint}`}>
@@ -409,7 +409,7 @@ function NoticeboardContent() {
 
       {calculatedStats.total_notices > 0 && (
         <div className={`${t.glass} rounded-2xl ${t.shadow} p-5`}>
-          <h3 className={`text-sm font-semibold mb-3 flex items-center gap-2 ${t.textPrimary}`}><BarChart3 className="h-4 w-4" /> Priority Breakdown</h3>
+          <h3 className={`text-sm ${TYPE_WEIGHT.semibold} mb-3 flex items-center gap-2 ${t.textPrimary}`}><BarChart3 className="h-4 w-4" /> Priority Breakdown</h3>
           <div className="space-y-2.5">
             {PRIORITIES.map(priority => {
               const count = calculatedStats.priority_breakdown[priority] || 0;
@@ -418,7 +418,7 @@ function NoticeboardContent() {
                 <div key={priority} className="flex items-center gap-3">
                   <span className={`text-xs w-16 shrink-0 ${t.textMuted}`}>{priority}</span>
                   <div className="flex-1"><ProgressBar value={Math.round(pct)} color={PRIORITY_HEX[priority]} showValue={false} /></div>
-                  <span className={`text-xs font-medium w-6 text-right ${t.textPrimary}`}>{count}</span>
+                  <span className={`text-xs ${TYPE_WEIGHT.medium} w-6 text-right ${t.textPrimary}`}>{count}</span>
                 </div>
               );
             })}
@@ -465,7 +465,7 @@ function NoticeboardContent() {
           <table className="w-full">
             <thead><tr className={`border-b ${t.border}`}>
               {['Title', 'Category', 'Priority', 'Status', 'Author', 'Date', ''].map(h => (
-                <th key={h} className={`px-3 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-left ${t.textFaint}`}>{h}</th>
+                <th key={h} className={`px-3 py-2.5 text-[10px] ${TYPE_WEIGHT.semibold} uppercase tracking-wider text-left ${t.textFaint}`}>{h}</th>
               ))}
             </tr></thead>
             <tbody>
@@ -474,7 +474,7 @@ function NoticeboardContent() {
                   <td className="px-3 py-2.5">
                     <div className="flex items-center gap-2">
                       {notice.is_pinned && <Pin className="h-3.5 w-3.5 text-amber-500 shrink-0" />}
-                      <div className="min-w-0"><p className={`text-sm font-medium truncate ${t.textPrimary}`}>{notice.title}</p><p className={`text-xs truncate ${t.textFaint}`}>{truncateText(notice.content, 60)}</p></div>
+                      <div className="min-w-0"><p className={`text-sm ${TYPE_WEIGHT.medium} truncate ${t.textPrimary}`}>{notice.title}</p><p className={`text-xs truncate ${t.textFaint}`}>{truncateText(notice.content, 60)}</p></div>
                     </div>
                   </td>
                   <td className="px-3 py-2.5"><StatusBadge color="#64748b" label={notice.category} /></td>
@@ -497,14 +497,14 @@ function NoticeboardContent() {
         <div className="space-y-6">
           {pinnedNotices.length > 0 && (
             <div>
-              <h3 className={`text-sm font-semibold mb-3 flex items-center gap-2 ${t.textPrimary}`}><Bell className="h-4 w-4 text-amber-500" /> Pinned Notices <StatusBadge color="#f59e0b" label={String(pinnedNotices.length)} /></h3>
+              <h3 className={`text-sm ${TYPE_WEIGHT.semibold} mb-3 flex items-center gap-2 ${t.textPrimary}`}><Bell className="h-4 w-4 text-amber-500" /> Pinned Notices <StatusBadge color="#f59e0b" label={String(pinnedNotices.length)} /></h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {pinnedNotices.map(n => <NoticeCard key={n.id} notice={n} onView={n2 => { setSelectedNotice(n2); setIsDetailsModalOpen(true); }} onEdit={n2 => { setEditingNotice(n2); setIsModalOpen(true); }} onDelete={handleDeleteNotice} />)}
               </div>
             </div>
           )}
           <div>
-            <h3 className={`text-sm font-semibold mb-3 ${t.textPrimary}`}>All Notices ({regularNotices.length})</h3>
+            <h3 className={`text-sm ${TYPE_WEIGHT.semibold} mb-3 ${t.textPrimary}`}>All Notices ({regularNotices.length})</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {regularNotices.map(n => <NoticeCard key={n.id} notice={n} onView={n2 => { setSelectedNotice(n2); setIsDetailsModalOpen(true); }} onEdit={n2 => { setEditingNotice(n2); setIsModalOpen(true); }} onDelete={handleDeleteNotice} />)}
             </div>
@@ -513,7 +513,7 @@ function NoticeboardContent() {
       )}
 
       <div className={`${t.glass} rounded-2xl ${t.shadow} p-5`}>
-        <h3 className={`text-sm font-semibold mb-3 ${t.textPrimary}`}>Quick Actions</h3>
+        <h3 className={`text-sm ${TYPE_WEIGHT.semibold} mb-3 ${t.textPrimary}`}>Quick Actions</h3>
         <div className="flex flex-wrap gap-2">
           <button type="button" className={`px-3 py-1.5 rounded-lg text-xs ${t.chipBg} ${t.hoverBg} ${t.textMuted} inline-flex items-center gap-1.5`}><Archive className="h-3.5 w-3.5" /> Archive All Expired</button>
           <button type="button" className={`px-3 py-1.5 rounded-lg text-xs ${t.chipBg} ${t.hoverBg} ${t.textMuted} inline-flex items-center gap-1.5`}><EyeOff className="h-3.5 w-3.5" /> Hide Expired Notices</button>

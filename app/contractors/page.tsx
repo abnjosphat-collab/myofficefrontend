@@ -7,7 +7,7 @@ import { AppShell } from '@/components/app-shell';
 import { HardHat, Star, ChevronDown, ChevronUp, Plus, X, RefreshCw, LayoutGrid, List } from '@/components/shared/theme';
 import {
   useTheme, accentText, PageHero, StatTile, StatusBadge, ProgressBar, FormField, PrimaryButton, GlowCard, SelectField,
-  ViewToggle, GroupSection, RecordCard, ACCENT_HEX, staggerContainer, fadeUp, InfoRow,
+  ViewToggle, GroupSection, RecordCard, ACCENT_HEX, staggerContainer, fadeUp, InfoRow, TYPE_WEIGHT,
 } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
@@ -40,12 +40,12 @@ function JobsList({ jobs }: { jobs: Job[] }) {
   if (jobs.length === 0) return <p className={`text-xs ${t.textFaint}`}>No active jobs.</p>;
   return (
     <div className="space-y-2">
-      <p className={`text-[10px] font-semibold ${t.textTertiary} uppercase tracking-wider`}>Active Jobs</p>
+      <p className={`text-[10px] ${TYPE_WEIGHT.semibold} ${t.textTertiary} uppercase tracking-wider`}>Active Jobs</p>
       {jobs.map((j, i) => (
         <div key={i} className={`p-2.5 rounded-lg ${t.chipBg}`}>
           <div className="flex items-center justify-between mb-1.5">
-            <div><div className={`text-xs font-medium ${t.textPrimary}`}>{j.title}</div><div className={`text-[11px] ${t.textFaint}`}>{j.location} · Started {j.startDate}</div></div>
-            <span className={`text-xs font-semibold ${t.textMuted}`}>{j.progress}%</span>
+            <div><div className={`text-xs ${TYPE_WEIGHT.medium} ${t.textPrimary}`}>{j.title}</div><div className={`text-[11px] ${t.textFaint}`}>{j.location} · Started {j.startDate}</div></div>
+            <span className={`text-xs ${TYPE_WEIGHT.semibold} ${t.textMuted}`}>{j.progress}%</span>
           </div>
           <ProgressBar value={j.progress} color={ACCENT_HEX.blue} showValue={false} />
         </div>
@@ -105,7 +105,7 @@ function ContractorRow({ c }: { c: Contractor }) {
         <div className="shrink-0"><HardHat className="h-5 w-5" style={{ color }} /></div>
 
         <button type="button" onClick={() => setExpanded(o => !o)} className="flex-1 min-w-0 text-left">
-          <div className={`font-semibold text-sm ${t.textPrimary}`}>{c.company}</div>
+          <div className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>{c.company}</div>
           <div className="flex items-center gap-2 mt-0.5 flex-wrap">
             <span className={`text-xs ${t.textFaint}`}>{c.contact} · {c.phone}</span>
             <StatusBadge color={c.status === 'active' ? '#34d399' : '#94a3b8'} label={c.status} />
@@ -231,7 +231,7 @@ function ContractorsContent() {
       {showAdd && (
         <div className={`${t.glass} rounded-2xl ${t.shadow} p-6`}>
           <div className="flex items-center justify-between mb-4">
-            <h2 className={`font-semibold ${t.textPrimary}`}>New Contractor</h2>
+            <h2 className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>New Contractor</h2>
             <button type="button" aria-label="Close" title="Close" onClick={() => setShowAdd(false)} className={`h-9 w-9 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-colors`}><X className="w-5 h-5" /></button>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
@@ -251,13 +251,13 @@ function ContractorsContent() {
 
       <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
         <div className={`p-4 border-b ${t.border} flex items-center justify-between flex-wrap gap-3`}>
-          <h2 className={`font-semibold ${t.textPrimary}`}>Contractor Register</h2>
+          <h2 className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>Contractor Register</h2>
           <div className="flex gap-2 flex-wrap">
             <SelectField size="filter" title="Filter by trade" value={tradeFilter} onChange={setTradeFilter}
               options={[{ value: 'all', label: 'All Trades' }, ...TRADES.map(tr => ({ value: tr, label: tr }))]} />
             {(['all', 'active', 'inactive'] as const).map(s => (
               <button type="button" key={s} onClick={() => setStatusFilter(s)}
-                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${statusFilter === s ? 'bg-brand-500/20 text-brand-500' : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}>
+                className={`px-3 py-1 rounded-lg text-xs ${TYPE_WEIGHT.semibold} transition-colors ${statusFilter === s ? 'bg-brand-500/20 text-brand-500' : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}>
                 {s.charAt(0).toUpperCase() + s.slice(1)}
               </button>
             ))}

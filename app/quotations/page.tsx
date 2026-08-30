@@ -11,7 +11,7 @@ import { PredictiveInput } from '@/components/shared/PredictiveInput';
 import { formatDate } from '@/lib/format';
 import { lineTotal } from '@/components/shared/utils';
 import {
-  useTheme, PageHero, StatTile, StatusBadge, FormField, PrimaryButton, useCollapseSection, GlowCard, ACCENT_HEX, SelectField,
+  useTheme, PageHero, StatTile, StatusBadge, FormField, PrimaryButton, useCollapseSection, GlowCard, ACCENT_HEX, SelectField, TYPE_WEIGHT,
 } from '@/components/shared/theme';
 import {
   Download, FileText, FileDown, Plus, Trash2, Calculator,
@@ -93,7 +93,7 @@ function Panel({ id, title, icon: Icon, badge, actions, sections, children }: {
       <div className={`flex items-center justify-between gap-2 px-4 py-3 border-b ${t.border} flex-wrap`}>
         <button type="button" onClick={() => sections.toggle(id)} className="flex items-center gap-2 min-w-0 flex-1 text-left">
           <Icon className="h-3.5 w-3.5 text-brand-400 shrink-0" />
-          <span className={`text-sm font-semibold ${t.textPrimary}`}>{title}</span>
+          <span className={`text-sm ${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{title}</span>
           {badge && <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${t.chipBg} ${t.textFaint}`}>{badge}</span>}
         </button>
         <div className="flex items-center gap-1.5">
@@ -338,7 +338,7 @@ const QuotationGeneratorContent = () => {
                   className={`p-2.5 rounded-xl border-2 transition-all text-left ${quotation.theme === theme.id ? 'border-brand-500/60 bg-brand-500/10' : `${t.border} hover:border-brand-400/40`}`}>
                   <div className="flex items-center gap-2">
                     <div className={`w-3.5 h-3.5 rounded-full shrink-0 ${theme.dotClass}`} />
-                    <span className={`text-xs font-medium ${t.textMuted}`}>{theme.name}</span>
+                    <span className={`text-xs ${TYPE_WEIGHT.medium} ${t.textMuted}`}>{theme.name}</span>
                   </div>
                 </button>
               ))}
@@ -406,7 +406,7 @@ const QuotationGeneratorContent = () => {
       <div className={`${previewMode ? 'xl:col-span-3' : 'xl:col-span-2'} space-y-4`}>
         <div className="flex justify-end">
           <button type="button" onClick={() => setPreviewMode(!previewMode)}
-            className={`h-8 px-3 rounded-lg text-xs font-medium inline-flex items-center gap-1.5 transition-all ${previewMode ? 'bg-brand-500/15 text-brand-500' : `${t.chipBg} ${t.hoverBg} ${t.textMuted}`}`}>
+            className={`h-8 px-3 rounded-lg text-xs ${TYPE_WEIGHT.medium} inline-flex items-center gap-1.5 transition-all ${previewMode ? 'bg-brand-500/15 text-brand-500' : `${t.chipBg} ${t.hoverBg} ${t.textMuted}`}`}>
             <Eye className="h-3.5 w-3.5" /> {previewMode ? 'Edit Mode' : 'Preview Mode'}
           </button>
         </div>
@@ -418,15 +418,15 @@ const QuotationGeneratorContent = () => {
               <div className="flex justify-between items-start mb-8 pb-6 border-b border-slate-200">
                 <div>
                   {company.logo && <img src={company.logo} alt="Logo" className="h-16 mb-4" />}
-                  <h1 className="text-2xl font-bold text-slate-900">{company.name}</h1>
+                  <h1 className={`text-2xl ${TYPE_WEIGHT.bold} text-slate-900`}>{company.name}</h1>
                   <p className="text-slate-600">{company.tagline}</p>
                   <p className="text-slate-600 text-sm mt-2">{company.address}, {company.city}</p>
                   <p className="text-slate-600 text-sm">{company.phone} • {company.email}</p>
                 </div>
                 <div className="text-right">
-                  <h2 className="text-3xl font-bold bg-gradient-to-r from-brand-600 to-purple-600 bg-clip-text text-transparent">QUOTATION</h2>
+                  <h2 className={`text-3xl ${TYPE_WEIGHT.bold} bg-gradient-to-r from-brand-600 to-purple-600 bg-clip-text text-transparent`}>QUOTATION</h2>
                   <div className="mt-3 space-y-1 text-sm">
-                    <p className="text-slate-600 font-semibold">#{quotation.quotationNumber}</p>
+                    <p className={`text-slate-600 ${TYPE_WEIGHT.semibold}`}>#{quotation.quotationNumber}</p>
                     <p className="text-slate-600">Date: {quotation.date}</p>
                     <p className="text-slate-600">Valid Until: {quotation.validUntil}</p>
                     <span className="inline-block mt-2 px-2 py-0.5 bg-green-100 text-green-800 text-xs rounded">Valid</span>
@@ -435,16 +435,16 @@ const QuotationGeneratorContent = () => {
               </div>
               <div className="grid grid-cols-2 gap-8 mb-8">
                 <div>
-                  <h3 className="font-semibold text-slate-900 mb-3">Bill To:</h3>
+                  <h3 className={`${TYPE_WEIGHT.semibold} text-slate-900 mb-3`}>Bill To:</h3>
                   <div className="bg-slate-50 p-4 rounded-lg">
-                    <p className="text-slate-800 font-medium">{client.name}</p>
+                    <p className={`text-slate-800 ${TYPE_WEIGHT.medium}`}>{client.name}</p>
                     {client.company && <p className="text-slate-700">{client.company}</p>}
                     {client.email && <p className="text-slate-700">{client.email}</p>}
                     {client.phone && <p className="text-slate-700">{client.phone}</p>}
                   </div>
                 </div>
                 <div>
-                  <h3 className="font-semibold text-slate-900 mb-3">Payment Terms:</h3>
+                  <h3 className={`${TYPE_WEIGHT.semibold} text-slate-900 mb-3`}>Payment Terms:</h3>
                   <div className="bg-slate-50 p-4 rounded-lg">
                     <p className="text-slate-800">{quotation.paymentTerms}</p>
                     <p className="text-slate-700 text-sm mt-1">Delivery: {quotation.deliveryTime}</p>
@@ -453,15 +453,15 @@ const QuotationGeneratorContent = () => {
               </div>
               <div className="mb-8">
                 <div className="bg-gradient-to-r from-slate-900 to-brand-900 text-white px-4 py-3 rounded-t-lg">
-                  <h3 className="font-semibold">Quotation Items</h3>
+                  <h3 className={`${TYPE_WEIGHT.semibold}`}>Quotation Items</h3>
                 </div>
                 <table className="w-full border border-slate-200 rounded-b-lg overflow-hidden">
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-200">
-                      <th className="text-left p-4 font-semibold text-slate-900">Description</th>
-                      <th className="text-right p-4 font-semibold text-slate-900">Qty</th>
-                      <th className="text-right p-4 font-semibold text-slate-900">Unit Price</th>
-                      <th className="text-right p-4 font-semibold text-slate-900">Amount</th>
+                      <th className={`text-left p-4 ${TYPE_WEIGHT.semibold} text-slate-900`}>Description</th>
+                      <th className={`text-right p-4 ${TYPE_WEIGHT.semibold} text-slate-900`}>Qty</th>
+                      <th className={`text-right p-4 ${TYPE_WEIGHT.semibold} text-slate-900`}>Unit Price</th>
+                      <th className={`text-right p-4 ${TYPE_WEIGHT.semibold} text-slate-900`}>Amount</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -470,7 +470,7 @@ const QuotationGeneratorContent = () => {
                         <td className="p-4 text-slate-700">{item.description}</td>
                         <td className="p-4 text-right text-slate-700">{item.quantity}</td>
                         <td className="p-4 text-right text-slate-700">{currencySymbol}{item.rate.toFixed(2)}</td>
-                        <td className="p-4 text-right font-medium text-slate-700">{currencySymbol}{item.amount.toFixed(2)}</td>
+                        <td className={`p-4 text-right ${TYPE_WEIGHT.medium} text-slate-700`}>{currencySymbol}{item.amount.toFixed(2)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -481,12 +481,12 @@ const QuotationGeneratorContent = () => {
                   <div className="flex justify-between text-slate-300 text-sm"><span>Subtotal:</span><span>{currencySymbol} {totals.subtotal}</span></div>
                   <div className="flex justify-between text-slate-300 text-sm"><span>Tax ({quotation.taxRate}%):</span><span>{currencySymbol} {totals.taxAmount}</span></div>
                   <div className="flex justify-between text-slate-300 text-sm"><span>Discount ({quotation.discount}%):</span><span className="text-red-300">-{currencySymbol} {totals.discountAmount}</span></div>
-                  <div className="border-t border-slate-700 pt-3 flex justify-between text-lg font-bold"><span>Total:</span><span className="text-green-400">{currencySymbol} {totals.total}</span></div>
+                  <div className={`border-t border-slate-700 pt-3 flex justify-between text-lg ${TYPE_WEIGHT.bold}`}><span>Total:</span><span className="text-green-400">{currencySymbol} {totals.total}</span></div>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-8 text-sm">
-                <div><h4 className="font-semibold text-slate-900 mb-3">Notes</h4><div className="bg-brand-50 p-4 rounded-lg"><p className="text-slate-700 whitespace-pre-line">{quotation.notes}</p></div></div>
-                <div><h4 className="font-semibold text-slate-900 mb-3">Terms & Conditions</h4><div className="bg-slate-50 p-4 rounded-lg"><p className="text-slate-700 whitespace-pre-line">{quotation.terms}</p></div></div>
+                <div><h4 className={`${TYPE_WEIGHT.semibold} text-slate-900 mb-3`}>Notes</h4><div className="bg-brand-50 p-4 rounded-lg"><p className="text-slate-700 whitespace-pre-line">{quotation.notes}</p></div></div>
+                <div><h4 className={`${TYPE_WEIGHT.semibold} text-slate-900 mb-3`}>Terms & Conditions</h4><div className="bg-slate-50 p-4 rounded-lg"><p className="text-slate-700 whitespace-pre-line">{quotation.terms}</p></div></div>
               </div>
               <div className="mt-8 pt-6 border-t border-slate-200 text-center text-slate-500 text-sm">
                 <p>Generated by {company.name} • {company.website} • {company.email}</p>
@@ -498,14 +498,14 @@ const QuotationGeneratorContent = () => {
               {items.map((item, index) => (
                 <div key={item.id} className={`grid grid-cols-12 gap-2 items-end p-3 ${t.chipBg} rounded-xl border ${t.border}`}>
                   <div className="col-span-1 flex items-end justify-center pb-1">
-                    <div className="w-7 h-7 bg-brand-500/20 rounded-lg flex items-center justify-center text-brand-500 font-semibold text-xs">{index + 1}</div>
+                    <div className={`w-7 h-7 bg-brand-500/20 rounded-lg flex items-center justify-center text-brand-500 ${TYPE_WEIGHT.semibold} text-xs`}>{index + 1}</div>
                   </div>
                   <div className="col-span-5"><FormField label="Description"><input value={item.description} onChange={(e) => updateItem(item.id, 'description', e.target.value)} placeholder="Item description" className={inputCls} /></FormField></div>
                   <div className="col-span-2"><FormField label="Quantity"><input type="number" value={item.quantity} onChange={(e) => updateItem(item.id, 'quantity', parseInt(e.target.value) || 0)} className={inputCls} /></FormField></div>
                   <div className="col-span-2"><FormField label="Rate"><input type="number" value={item.rate} onChange={(e) => updateItem(item.id, 'rate', parseFloat(e.target.value) || 0)} className={inputCls} /></FormField></div>
                   <div className="col-span-1">
-                    <label className={`block text-xs font-medium ${t.textFaint} mb-1`}>Amount</label>
-                    <div className={`h-9 flex items-center px-3 text-sm font-semibold text-[#86BBD8] ${t.inputBg} rounded-lg`}>{currencySymbol}{item.amount.toFixed(2)}</div>
+                    <label className={`block text-xs ${TYPE_WEIGHT.medium} ${t.textFaint} mb-1`}>Amount</label>
+                    <div className={`h-9 flex items-center px-3 text-sm ${TYPE_WEIGHT.semibold} text-[#86BBD8] ${t.inputBg} rounded-lg`}>{currencySymbol}{item.amount.toFixed(2)}</div>
                   </div>
                   <div className="col-span-1 flex items-end pb-0.5 justify-center">
                     <button type="button" onClick={() => removeItem(item.id)} title="Remove item"
@@ -525,7 +525,7 @@ const QuotationGeneratorContent = () => {
                   </div>
                   <div className={`flex flex-col justify-center border-l ${t.border} pl-6`}>
                     <div className={`text-xs uppercase tracking-wider mb-1 ${t.textFaint}`}>Total Amount</div>
-                    <div className="text-2xl font-bold text-[#86BBD8]">{currencySymbol} {totals.total}</div>
+                    <div className={`text-2xl ${TYPE_WEIGHT.bold} text-[#86BBD8]`}>{currencySymbol} {totals.total}</div>
                     <div className={`text-xs mt-1 ${t.textFaint}`}>Valid until: {quotation.validUntil ? formatDate(quotation.validUntil) : 'Not set'}</div>
                   </div>
                 </div>
@@ -564,7 +564,7 @@ const QuotationGeneratorContent = () => {
                 <StatusBadge color="#94a3b8" label={template.category} />
                 <span className="text-2xl">{template.icon}</span>
               </div>
-              <h3 className={`font-semibold mt-2 mb-3 ${t.textPrimary}`}>{template.name}</h3>
+              <h3 className={`${TYPE_WEIGHT.semibold} mt-2 mb-3 ${t.textPrimary}`}>{template.name}</h3>
               <div className="space-y-1.5 mb-4">
                 <div className={`text-xs ${t.textFaint}`}>{template.items.length} pre-configured items</div>
                 {template.items.slice(0, 2).map((item, index) => (
@@ -591,14 +591,14 @@ const QuotationGeneratorContent = () => {
             <div className="flex items-center gap-3">
               <User className="h-6 w-6 text-emerald-500 shrink-0" />
               <div>
-                <div className={`font-semibold text-sm ${t.textPrimary}`}>{c.name}</div>
+                <div className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>{c.name}</div>
                 <div className={`text-xs ${t.textFaint}`}>{c.company}</div>
                 <div className={`text-xs ${t.textFaint}`}>{c.email}</div>
               </div>
             </div>
             <div className="flex items-center gap-2">
               <button type="button" onClick={() => loadClient(c)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium ${t.hoverBg} ${t.textFaint} opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center gap-1.5`}>
+                className={`px-3 py-1.5 rounded-lg text-xs ${TYPE_WEIGHT.medium} ${t.hoverBg} ${t.textFaint} opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center gap-1.5`}>
                 <User className="h-3.5 w-3.5" /> Load
               </button>
               <StatusBadge color="#34d399" label="Active" />
@@ -618,13 +618,13 @@ const QuotationGeneratorContent = () => {
             <div className="flex items-center gap-3">
               <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${quote.status === 'accepted' ? 'bg-emerald-400' : quote.status === 'pending' ? 'bg-amber-400' : 'bg-slate-400'}`} />
               <div>
-                <div className={`font-semibold text-sm ${t.textPrimary}`}>{quote.number}</div>
+                <div className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>{quote.number}</div>
                 <div className={`text-xs ${t.textFaint}`}>{quote.client}</div>
                 <div className={`text-xs ${t.textFaint}`}>{quote.date}</div>
               </div>
             </div>
             <div className="text-right">
-              <div className={`font-semibold text-sm ${t.textPrimary}`}>${quote.amount}</div>
+              <div className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>${quote.amount}</div>
               <div className="mt-1"><StatusBadge color={quote.status === 'accepted' ? '#34d399' : quote.status === 'pending' ? '#f59e0b' : '#94a3b8'} label={quote.status} /></div>
             </div>
           </div>
@@ -649,9 +649,9 @@ const QuotationGeneratorContent = () => {
               {sections.allOpen ? <ChevronsUp className="h-3.5 w-3.5" /> : <ChevronsDown className="h-3.5 w-3.5" />}
             </button>
             <PrimaryButton icon={Download} accent="violet" submitting={isGenerating} onClick={generatePDF}>{isGenerating ? 'Generating...' : 'PDF'}</PrimaryButton>
-            <button type="button" onClick={generateWord} className={`h-8 px-3 rounded-lg text-xs font-medium ${t.chipBg} ${t.hoverBg} ${t.textMuted} inline-flex items-center gap-1.5`}><FileDown className="h-3.5 w-3.5" /> Word</button>
-            <button type="button" onClick={printQuotation} className={`h-8 px-3 rounded-lg text-xs font-medium ${t.chipBg} ${t.hoverBg} ${t.textMuted} inline-flex items-center gap-1.5`}><Printer className="h-3.5 w-3.5" /> Print</button>
-            <button type="button" onClick={sendQuotation} className={`h-8 px-3 rounded-lg text-xs font-medium ${t.chipBg} ${t.hoverBg} ${t.textMuted} inline-flex items-center gap-1.5`}><Send className="h-3.5 w-3.5" /> Send</button>
+            <button type="button" onClick={generateWord} className={`h-8 px-3 rounded-lg text-xs ${TYPE_WEIGHT.medium} ${t.chipBg} ${t.hoverBg} ${t.textMuted} inline-flex items-center gap-1.5`}><FileDown className="h-3.5 w-3.5" /> Word</button>
+            <button type="button" onClick={printQuotation} className={`h-8 px-3 rounded-lg text-xs ${TYPE_WEIGHT.medium} ${t.chipBg} ${t.hoverBg} ${t.textMuted} inline-flex items-center gap-1.5`}><Printer className="h-3.5 w-3.5" /> Print</button>
+            <button type="button" onClick={sendQuotation} className={`h-8 px-3 rounded-lg text-xs ${TYPE_WEIGHT.medium} ${t.chipBg} ${t.hoverBg} ${t.textMuted} inline-flex items-center gap-1.5`}><Send className="h-3.5 w-3.5" /> Send</button>
           </>
         }
       >
@@ -666,7 +666,7 @@ const QuotationGeneratorContent = () => {
       <div className={`${t.glassSoft} rounded-xl p-1 flex gap-1 flex-wrap`}>
         {TABS.map(tab => (
           <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id)}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${activeTab === tab.id ? 'bg-brand-500/15 text-brand-500' : `${t.textFaint} ${t.hoverBg} ${t.hoverText}`}`}>
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs ${TYPE_WEIGHT.medium} transition-all ${activeTab === tab.id ? 'bg-brand-500/15 text-brand-500' : `${t.textFaint} ${t.hoverBg} ${t.hoverText}`}`}>
             <tab.icon className="h-3.5 w-3.5" /> {tab.label}
           </button>
         ))}

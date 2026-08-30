@@ -6,7 +6,7 @@ import { Activity, RefreshCw } from '@/components/shared/theme';
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts';
-import { useTheme, accentText, PageHero, StatTile, ACCENT_HEX } from '@/components/shared/theme';
+import { useTheme, accentText, PageHero, StatTile, ACCENT_HEX, TYPE_WEIGHT } from '@/components/shared/theme';
 import { useReliabilityData, MTBF_TREND } from './useReliabilityData';
 
 const rpnColor = (n: number, light: boolean) => n > 100 ? accentText('rose', light) : n >= 50 ? accentText('amber', light) : accentText('emerald', light);
@@ -48,7 +48,7 @@ function ReliabilityContent() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden p-5`}>
-          <h2 className={`font-semibold mb-4 ${t.textPrimary}`}>MTBF Trend (days) — Last 6 Months</h2>
+          <h2 className={`${TYPE_WEIGHT.semibold} mb-4 ${t.textPrimary}`}>MTBF Trend (days) — Last 6 Months</h2>
           <ResponsiveContainer width="100%" height={220}>
             <LineChart data={MTBF_TREND}>
               <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
@@ -64,7 +64,7 @@ function ReliabilityContent() {
           </ResponsiveContainer>
         </div>
         <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden p-5`}>
-          <h2 className={`font-semibold mb-4 ${t.textPrimary}`}>MTTR by Section (hours)</h2>
+          <h2 className={`${TYPE_WEIGHT.semibold} mb-4 ${t.textPrimary}`}>MTTR by Section (hours)</h2>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={mttrSect} barSize={32}>
               <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
@@ -79,14 +79,14 @@ function ReliabilityContent() {
 
       <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
         <div className={`p-4 border-b ${t.border}`}>
-          <h2 className={`font-semibold ${t.textPrimary}`}>Equipment Reliability Metrics</h2>
+          <h2 className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>Equipment Reliability Metrics</h2>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className={`border-b ${t.border}`}>
                 {['Equipment', 'Section', 'MTBF (days)', 'MTTR (hrs)', 'Failures', 'Availability %', 'RPN Score'].map(h => (
-                  <th key={h} className={`px-4 py-3 text-left text-xs font-medium ${t.textFaint}`}>{h}</th>
+                  <th key={h} className={`px-4 py-3 text-left text-xs ${TYPE_WEIGHT.medium} ${t.textFaint}`}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -95,13 +95,13 @@ function ReliabilityContent() {
                 <tr><td colSpan={7} className="text-center py-8"><RefreshCw className={`h-5 w-5 animate-spin mx-auto ${t.textFaint}`} /></td></tr>
               ) : table.sort((a, b) => b.rpn - a.rpn).map(eq => (
                 <tr key={eq.equipment} className={`border-b ${t.border} last:border-0 ${t.hoverBgSoft} transition-colors`}>
-                  <td className={`px-4 py-3 font-medium ${t.textPrimary}`}>{eq.equipment}</td>
+                  <td className={`px-4 py-3 ${TYPE_WEIGHT.medium} ${t.textPrimary}`}>{eq.equipment}</td>
                   <td className={`px-4 py-3 ${t.textMuted}`}>{eq.section}</td>
-                  <td className="px-4 py-3 text-brand-400 font-semibold">{eq.mtbf}</td>
-                  <td className={`px-4 py-3 ${accentText('amber', t.light)} font-semibold`}>{eq.mttr}</td>
+                  <td className={`px-4 py-3 text-brand-400 ${TYPE_WEIGHT.semibold}`}>{eq.mtbf}</td>
+                  <td className={`px-4 py-3 ${accentText('amber', t.light)} ${TYPE_WEIGHT.semibold}`}>{eq.mttr}</td>
                   <td className={`px-4 py-3 ${t.textMuted}`}>{eq.failures}</td>
-                  <td className="px-4 py-3"><span className={`font-semibold ${availColor(eq.availability, t.light)}`}>{eq.availability}%</span></td>
-                  <td className="px-4 py-3"><span className={`font-bold text-base ${rpnColor(eq.rpn, t.light)}`}>{eq.rpn}</span></td>
+                  <td className="px-4 py-3"><span className={`${TYPE_WEIGHT.semibold} ${availColor(eq.availability, t.light)}`}>{eq.availability}%</span></td>
+                  <td className="px-4 py-3"><span className={`${TYPE_WEIGHT.bold} text-base ${rpnColor(eq.rpn, t.light)}`}>{eq.rpn}</span></td>
                 </tr>
               ))}
             </tbody>

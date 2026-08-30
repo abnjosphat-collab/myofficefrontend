@@ -10,7 +10,7 @@ import {
 import { AppShell } from '@/components/app-shell';
 import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, EmptyState,
-  CenterModal, FormField, PrimaryButton, useConfirm,
+  CenterModal, FormField, PrimaryButton, useConfirm, TYPE_WEIGHT,
 } from '@/components/shared/theme';
 import { useAuth } from '@/lib/auth-context';
 import { toast } from 'sonner';
@@ -94,12 +94,12 @@ function UserRow({ profile, currentUserId, currentRole, onSave, onSetActive, onR
   return (
     <div className={`border-b ${t.border} last:border-0 transition-colors ${expanded ? t.chipBg : ''}`}>
       <div className="flex items-center gap-3 px-5 py-3.5">
-        <div className={`h-9 w-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${avatarColour(profile.email)}`}>
+        <div className={`h-9 w-9 rounded-full flex items-center justify-center text-sm ${TYPE_WEIGHT.bold} shrink-0 ${avatarColour(profile.email)}`}>
           {profile.avatar_url ? <img src={profile.avatar_url} alt="" className="h-9 w-9 rounded-full object-cover" /> : getInitials(profile.full_name, profile.email)}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className={`text-sm font-semibold truncate ${t.textPrimary}`}>{profile.full_name || profile.email.split('@')[0]}</span>
+            <span className={`text-sm ${TYPE_WEIGHT.semibold} truncate ${t.textPrimary}`}>{profile.full_name || profile.email.split('@')[0]}</span>
             {profile.id === currentUserId && <span className={`text-[10px] ${t.chipBg} ${t.textFaint} px-1.5 py-0.5 rounded-full`}>you</span>}
           </div>
           <div className={`text-xs truncate ${t.textFaint}`}>{profile.email}</div>
@@ -119,7 +119,7 @@ function UserRow({ profile, currentUserId, currentRole, onSave, onSetActive, onR
       {expanded && canEdit && (
         <div className="px-5 pb-5 pt-1">
           <div className="mb-4">
-            <p className={`text-xs font-semibold uppercase tracking-wider mb-2 ${t.textFaint}`}>Role</p>
+            <p className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider mb-2 ${t.textFaint}`}>Role</p>
             <div className="flex flex-wrap gap-2">
               {(ROLE_ORDER as UserRole[]).filter(r => r !== 'super_admin' || currentRole === 'super_admin').map(r => {
                 const M = ROLE_META[r];
@@ -127,7 +127,7 @@ function UserRow({ profile, currentUserId, currentRole, onSave, onSetActive, onR
                 const active = editRole === r;
                 return (
                   <button key={r} type="button" onClick={() => setEditRole(r)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all"
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs ${TYPE_WEIGHT.semibold} border transition-all`}
                     style={active ? { background: `${M.hex}22`, color: M.hex, borderColor: `${M.hex}55` } : { background: t.light ? 'rgba(15,23,42,0.04)' : 'rgba(255,255,255,0.05)', borderColor: t.light ? 'rgba(15,23,42,0.1)' : 'rgba(255,255,255,0.1)' }}>
                     <RI className="h-3 w-3" />{ROLE_LABELS[r]}
                   </button>
@@ -140,18 +140,18 @@ function UserRow({ profile, currentUserId, currentRole, onSave, onSetActive, onR
           <div className="flex justify-between items-center flex-wrap gap-2">
             <div className="flex items-center gap-2">
               <button type="button" onClick={handleToggleActive} disabled={togglingActive}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${profile.is_active ? `${t.chipBg} ${t.textMuted} border-transparent ${t.hoverBg}` : 'bg-emerald-500/15 text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/25'}`}>
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs ${TYPE_WEIGHT.semibold} border transition-all ${profile.is_active ? `${t.chipBg} ${t.textMuted} border-transparent ${t.hoverBg}` : 'bg-emerald-500/15 text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/25'}`}>
                 {togglingActive ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Power className="h-3.5 w-3.5" />}
                 {profile.is_active ? 'Deactivate' : 'Reactivate'}
               </button>
               <button type="button" onClick={handleResetPassword} disabled={resettingPw}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border border-transparent transition-all ${t.chipBg} ${t.textMuted} ${t.hoverBg}`}>
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs ${TYPE_WEIGHT.semibold} border border-transparent transition-all ${t.chipBg} ${t.textMuted} ${t.hoverBg}`}>
                 {resettingPw ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Key className="h-3.5 w-3.5" />}
                 Reset password
               </button>
             </div>
             <button type="button" onClick={handleSave} disabled={!isDirty || saving}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${saved ? 'bg-emerald-500/15 text-emerald-500' : isDirty ? 'bg-brand-500/20 hover:bg-brand-500/30 text-brand-500' : `${t.chipBg} ${t.textFaint} cursor-not-allowed`}`}>
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm ${TYPE_WEIGHT.semibold} transition-all ${saved ? 'bg-emerald-500/15 text-emerald-500' : isDirty ? 'bg-brand-500/20 hover:bg-brand-500/30 text-brand-500' : `${t.chipBg} ${t.textFaint} cursor-not-allowed`}`}>
               {saving ? <><RefreshCw className="h-3.5 w-3.5 animate-spin" />Saving…</> : saved ? <><Check className="h-3.5 w-3.5" />Saved</> : <><Save className="h-3.5 w-3.5" />Save changes</>}
             </button>
           </div>
@@ -280,16 +280,16 @@ function AdminContent() {
           <div className="flex items-center gap-2">
             {isAtLeast('admin') && (
               <button type="button" onClick={() => setInviteOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all">
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all`}>
                 <UserPlus className="h-3.5 w-3.5" /> Invite user
               </button>
             )}
             <button type="button" onClick={fetchUsers}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${t.chipBg} ${t.hoverBg} ${t.textMuted} ${t.hoverText}`}>
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs ${TYPE_WEIGHT.medium} transition-all ${t.chipBg} ${t.hoverBg} ${t.textMuted} ${t.hoverText}`}>
               <RefreshCw className={`h-3.5 w-3.5 ${fetching ? 'animate-spin' : ''}`} /> Refresh
             </button>
             <Link href="/admin/lists"
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${t.chipBg} ${t.hoverBg} ${t.textMuted} ${t.hoverText}`}>
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs ${TYPE_WEIGHT.medium} transition-all ${t.chipBg} ${t.hoverBg} ${t.textMuted} ${t.hoverText}`}>
               <MapPin className="h-3.5 w-3.5" /> Manage Shared Lists
             </Link>
           </div>
@@ -306,12 +306,12 @@ function AdminContent() {
         <div className={`flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-5 py-3.5 border-b ${t.border}`}>
           <div className="flex items-center gap-2">
             <Users className="h-4 w-4 text-brand-500" />
-            <span className={`text-sm font-semibold ${t.textPrimary}`}>{filtered.length} {filtered.length === 1 ? 'user' : 'users'}</span>
+            <span className={`text-sm ${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{filtered.length} {filtered.length === 1 ? 'user' : 'users'}</span>
           </div>
           <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
             <div className="flex items-center gap-1 flex-wrap">
               <button type="button" onClick={() => setRoleFilter('all')}
-                className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${roleFilter === 'all' ? 'bg-brand-500/20 text-brand-500' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}>
+                className={`px-2.5 py-1 rounded-lg text-xs ${TYPE_WEIGHT.semibold} transition-all ${roleFilter === 'all' ? 'bg-brand-500/20 text-brand-500' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}>
                 All
               </button>
               {(ROLE_ORDER as UserRole[]).map(r => {
@@ -319,7 +319,7 @@ function AdminContent() {
                 const hex = ROLE_META[r].hex;
                 return (
                   <button key={r} type="button" onClick={() => setRoleFilter(r)}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${active ? '' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}
+                    className={`px-2.5 py-1 rounded-lg text-xs ${TYPE_WEIGHT.semibold} transition-all ${active ? '' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}
                     style={active ? { background: `${hex}22`, color: hex } : undefined}>
                     {ROLE_LABELS[r]}
                   </button>
@@ -349,7 +349,7 @@ function AdminContent() {
       </div>
 
       <div className={`${t.glass} rounded-2xl ${t.shadow} p-5`}>
-        <p className={`text-xs font-semibold uppercase tracking-wider mb-3 ${t.textFaint}`}>Role guide</p>
+        <p className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider mb-3 ${t.textFaint}`}>Role guide</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {(ROLE_ORDER as UserRole[]).map(r => {
             const M = ROLE_META[r];
@@ -358,7 +358,7 @@ function AdminContent() {
               <div key={r} className="flex items-start gap-2.5 p-3 rounded-xl border" style={{ background: `${M.hex}12`, borderColor: `${M.hex}35` }}>
                 <RI className="h-4 w-4 shrink-0 mt-0.5" style={{ color: M.hex }} />
                 <div>
-                  <p className="text-xs font-semibold" style={{ color: M.hex }}>{ROLE_LABELS[r]}</p>
+                  <p className={`text-xs ${TYPE_WEIGHT.semibold}`} style={{ color: M.hex }}>{ROLE_LABELS[r]}</p>
                   <p className={`text-[11px] mt-0.5 ${t.textMuted}`}>{M.desc}</p>
                 </div>
               </div>
@@ -382,7 +382,7 @@ function AdminContent() {
                 const active = inviteRole === r;
                 return (
                   <button key={r} type="button" onClick={() => setInviteRole(r)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all"
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs ${TYPE_WEIGHT.semibold} border transition-all`}
                     style={active ? { background: `${M.hex}22`, color: M.hex, borderColor: `${M.hex}55` } : { background: t.light ? 'rgba(15,23,42,0.04)' : 'rgba(255,255,255,0.05)', borderColor: t.light ? 'rgba(15,23,42,0.1)' : 'rgba(255,255,255,0.1)' }}>
                     <RI className="h-3 w-3" />{ROLE_LABELS[r]}
                   </button>

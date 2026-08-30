@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
 import {
   useTheme, PageHero, StatTile, StatCard, StatusBadge, ProgressBar, FormField, FormActions,
-  SearchInput, CenterModal, PrimaryButton, EmptyState, useCollapseSection, SelectField, type Accent,
+  SearchInput, CenterModal, PrimaryButton, EmptyState, useCollapseSection, SelectField, type Accent, TYPE_WEIGHT,
 } from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
 import {
@@ -280,7 +280,7 @@ function EquipmentCard({
             <Factory className="h-4 w-4" style={{ color: item.color }} />
           </div>
           <div className="min-w-0">
-            <p className={`text-sm font-semibold truncate ${t.textPrimary}`}>{item.name}</p>
+            <p className={`text-sm ${TYPE_WEIGHT.semibold} truncate ${t.textPrimary}`}>{item.name}</p>
             <p className={`text-[11px] truncate ${t.textFaint}`}>{item.model} · {item.location}</p>
           </div>
         </div>
@@ -299,7 +299,7 @@ function EquipmentCard({
           </div>
           <div className="flex justify-between items-center">
             <span className={t.textFaint}>Next Maintenance</span>
-            <span className={`flex items-center gap-1.5 ${daysUntilMaintenance !== null && daysUntilMaintenance <= 7 ? 'text-amber-500 font-medium' : t.textMuted}`}>
+            <span className={`flex items-center gap-1.5 ${daysUntilMaintenance !== null && daysUntilMaintenance <= 7 ? `text-amber-500 ${TYPE_WEIGHT.medium}` : t.textMuted}`}>
               {item.nextMaintenance || 'N/A'}
               {daysUntilMaintenance !== null && daysUntilMaintenance <= 7 && <StatusBadge color="#f59e0b" label="Soon" />}
             </span>
@@ -308,11 +308,11 @@ function EquipmentCard({
 
         <div className="flex gap-1.5 pt-1">
           <button type="button" onClick={onLogMaintenance}
-            className={`flex-1 py-1.5 rounded-lg text-[11px] font-medium ${t.chipBg} ${t.hoverBg} ${t.textMuted} transition-all inline-flex items-center justify-center gap-1`}>
+            className={`flex-1 py-1.5 rounded-lg text-[11px] ${TYPE_WEIGHT.medium} ${t.chipBg} ${t.hoverBg} ${t.textMuted} transition-all inline-flex items-center justify-center gap-1`}>
             <Wrench className="h-3 w-3" /> Log Maintenance
           </button>
           <button type="button" onClick={onReserve}
-            className={`flex-1 py-1.5 rounded-lg text-[11px] font-medium ${t.chipBg} ${t.hoverBg} ${t.textMuted} transition-all inline-flex items-center justify-center gap-1`}>
+            className={`flex-1 py-1.5 rounded-lg text-[11px] ${TYPE_WEIGHT.medium} ${t.chipBg} ${t.hoverBg} ${t.textMuted} transition-all inline-flex items-center justify-center gap-1`}>
             <Clock className="h-3 w-3" /> Reserve
           </button>
           <button type="button" title="Remove equipment" onClick={onRemove}
@@ -453,7 +453,7 @@ function EquipmentAvailabilityContent() {
       <div className={`${t.glassSoft} rounded-xl p-1 flex gap-1 flex-wrap`}>
         {TABS.map(tab => (
           <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id)}
-            className={`flex-1 min-w-[110px] inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all ${activeTab === tab.id ? 'bg-cyan-500/15 text-cyan-500' : `${t.textFaint} ${t.hoverBg} ${t.hoverText}`}`}>
+            className={`flex-1 min-w-[110px] inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs ${TYPE_WEIGHT.medium} transition-all ${activeTab === tab.id ? 'bg-cyan-500/15 text-cyan-500' : `${t.textFaint} ${t.hoverBg} ${t.hoverText}`}`}>
             <tab.icon className="h-3.5 w-3.5" /> {tab.label}
           </button>
         ))}
@@ -463,28 +463,28 @@ function EquipmentAvailabilityContent() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div className="lg:col-span-2 space-y-4">
             <div className={`${t.glass} rounded-2xl ${t.shadow} p-5`}>
-              <h3 className={`font-semibold mb-1 ${t.textPrimary}`}>Availability Overview</h3>
+              <h3 className={`${TYPE_WEIGHT.semibold} mb-1 ${t.textPrimary}`}>Availability Overview</h3>
               <p className={`text-xs mb-4 ${t.textFaint}`}>Current equipment status and utilization</p>
-              <p className={`text-sm font-semibold mb-3 ${t.textMuted}`}>Equipment Status</p>
+              <p className={`text-sm ${TYPE_WEIGHT.semibold} mb-3 ${t.textMuted}`}>Equipment Status</p>
               <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
                 {Object.entries(STATUS_CONFIG).map(([statusKey, config]) => {
                   const count = equipment.filter(i => i.status === statusKey).length;
                   return <StatCard key={statusKey} icon={config.icon} accent={statusKey === STATUS_TYPES.OPERATIONAL ? 'emerald' : statusKey === STATUS_TYPES.BREAKDOWN ? 'blue' : 'cyan'} label={config.label} value={count} />;
                 })}
               </div>
-              <p className={`text-sm font-semibold mb-3 ${t.textMuted}`}>Category Performance</p>
+              <p className={`text-sm ${TYPE_WEIGHT.semibold} mb-3 ${t.textMuted}`}>Category Performance</p>
               <div className="space-y-2">
                 {Object.entries(categoryStats).map(([category, cs]) => (
                   <div key={category} className={`flex items-center justify-between p-3 rounded-lg ${t.chipBg}`}>
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 rounded-full flex items-center justify-center bg-cyan-500/20"><ToolCase className="w-4 h-4 text-cyan-500" /></div>
                       <div>
-                        <div className={`font-medium capitalize text-sm ${t.textPrimary}`}>{category}</div>
+                        <div className={`${TYPE_WEIGHT.medium} capitalize text-sm ${t.textPrimary}`}>{category}</div>
                         <div className={`text-xs ${t.textFaint}`}>{cs.operational}/{cs.total} operational</div>
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className={`font-semibold text-sm ${t.textPrimary}`}>{cs.availability}%</div>
+                      <div className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>{cs.availability}%</div>
                       <div className={`text-xs ${t.textFaint}`}>Availability</div>
                     </div>
                   </div>
@@ -495,23 +495,23 @@ function EquipmentAvailabilityContent() {
 
           <div className="space-y-4">
             <div className={`${t.glass} rounded-2xl ${t.shadow} p-5 space-y-3`}>
-              <h3 className={`font-semibold ${t.textPrimary}`}>Quick Insights</h3>
+              <h3 className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>Quick Insights</h3>
               <div className="flex items-center gap-3 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
                 <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
-                <div><div className="font-semibold text-sm text-emerald-500">Good Availability</div><div className={`text-xs ${t.textMuted}`}>{stats.availabilityRate}% of equipment is operational</div></div>
+                <div><div className={`${TYPE_WEIGHT.semibold} text-sm text-emerald-500`}>Good Availability</div><div className={`text-xs ${t.textMuted}`}>{stats.availabilityRate}% of equipment is operational</div></div>
               </div>
               <div className="flex items-center gap-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
                 <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0" />
-                <div><div className="font-semibold text-sm text-amber-500">Maintenance Due</div><div className={`text-xs ${t.textMuted}`}>{stats.maintenanceDue} equipment due for maintenance</div></div>
+                <div><div className={`${TYPE_WEIGHT.semibold} text-sm text-amber-500`}>Maintenance Due</div><div className={`text-xs ${t.textMuted}`}>{stats.maintenanceDue} equipment due for maintenance</div></div>
               </div>
               <div className="flex items-center gap-3 p-3 rounded-lg bg-brand-500/10 border border-brand-500/20">
                 <TrendingUp className="w-5 h-5 text-brand-500 shrink-0" />
-                <div><div className="font-semibold text-sm text-brand-500">Optimal Utilization</div><div className={`text-xs ${t.textMuted}`}>Average utilization at {stats.utilizationRate}%</div></div>
+                <div><div className={`${TYPE_WEIGHT.semibold} text-sm text-brand-500`}>Optimal Utilization</div><div className={`text-xs ${t.textMuted}`}>Average utilization at {stats.utilizationRate}%</div></div>
               </div>
             </div>
 
             <div className={`${t.glass} rounded-2xl ${t.shadow} p-5 space-y-2`}>
-              <h3 className={`font-semibold mb-1 ${t.textPrimary}`}>Quick Actions</h3>
+              <h3 className={`${TYPE_WEIGHT.semibold} mb-1 ${t.textPrimary}`}>Quick Actions</h3>
               <PrimaryButton icon={Plus} accent="cyan" size="md" fullWidth onClick={() => setAddOpen(true)}>Add New Equipment</PrimaryButton>
               <button type="button" onClick={exportToCSV}
                 className={`w-full py-2.5 rounded-xl text-sm ${t.chipBg} ${t.hoverBg} ${t.textMuted} transition-all inline-flex items-center justify-center gap-2`}>
@@ -555,13 +555,13 @@ function EquipmentAvailabilityContent() {
       {activeTab === 'maintenance' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div className={`${t.glass} rounded-2xl ${t.shadow} p-5`}>
-            <h3 className={`font-semibold ${t.textPrimary}`}>Maintenance Logs</h3>
+            <h3 className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>Maintenance Logs</h3>
             <p className={`text-xs mb-4 ${t.textFaint}`}>Recent maintenance activities</p>
             <div className="space-y-2.5">
               {maintenanceLogs.slice(0, 10).map(log => (
                 <div key={log.id} className={`flex items-center justify-between p-3 rounded-lg ${t.chipBg}`}>
                   <div className="min-w-0">
-                    <div className={`font-medium text-sm truncate ${t.textPrimary}`}>{log.equipmentName}</div>
+                    <div className={`${TYPE_WEIGHT.medium} text-sm truncate ${t.textPrimary}`}>{log.equipmentName}</div>
                     <div className={`text-xs truncate ${t.textMuted}`}>{log.description}</div>
                     <div className={`text-[10px] mt-0.5 ${t.textFaint}`}>{log.date} · {log.duration}h · ${log.cost}</div>
                   </div>
@@ -578,7 +578,7 @@ function EquipmentAvailabilityContent() {
           </div>
 
           <div className={`${t.glass} rounded-2xl ${t.shadow} p-5`}>
-            <h3 className={`font-semibold ${t.textPrimary}`}>Upcoming Maintenance</h3>
+            <h3 className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>Upcoming Maintenance</h3>
             <p className={`text-xs mb-4 ${t.textFaint}`}>Equipment due for maintenance</p>
             <div className="space-y-2.5">
               {equipment
@@ -591,7 +591,7 @@ function EquipmentAvailabilityContent() {
                   const daysUntil = Math.ceil((new Date(item.nextMaintenance).getTime() - Date.now()) / 86400000);
                   return (
                     <div key={item.id} className={`flex items-center justify-between p-3 rounded-lg ${t.chipBg}`}>
-                      <div><div className={`font-medium text-sm ${t.textPrimary}`}>{item.name}</div><div className={`text-xs ${t.textFaint}`}>Due: {item.nextMaintenance}</div></div>
+                      <div><div className={`${TYPE_WEIGHT.medium} text-sm ${t.textPrimary}`}>{item.name}</div><div className={`text-xs ${t.textFaint}`}>Due: {item.nextMaintenance}</div></div>
                       <StatusBadge color={daysUntil <= 7 ? '#f43f5e' : '#94a3b8'} label={`${daysUntil} days`} />
                     </div>
                   );
@@ -611,7 +611,7 @@ function EquipmentAvailabilityContent() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div className={`${t.glass} rounded-2xl ${t.shadow} p-5 space-y-4`}>
             <div>
-              <h3 className={`font-semibold ${t.textPrimary}`}>Export Reports</h3>
+              <h3 className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>Export Reports</h3>
               <p className={`text-xs ${t.textFaint}`}>Generate equipment availability reports</p>
             </div>
             <button type="button" onClick={exportToCSV}
@@ -623,7 +623,7 @@ function EquipmentAvailabilityContent() {
               <Download className="h-4 w-4" /> Export to PDF
             </button>
             <div className={`text-xs p-3 rounded-lg ${t.chipBg} ${t.textMuted}`}>
-              <p className="font-semibold mb-1">Current Statistics:</p>
+              <p className={`${TYPE_WEIGHT.semibold} mb-1`}>Current Statistics:</p>
               <p>• Total Equipment: {stats.totalEquipment}</p>
               <p>• Availability Rate: {stats.availabilityRate}%</p>
               <p>• Utilization Rate: {stats.utilizationRate}%</p>
@@ -633,12 +633,12 @@ function EquipmentAvailabilityContent() {
 
           <div className={`${t.glass} rounded-2xl ${t.shadow} p-5 space-y-4`}>
             <div>
-              <h3 className={`font-semibold ${t.textPrimary}`}>System Settings</h3>
+              <h3 className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>System Settings</h3>
               <p className={`text-xs ${t.textFaint}`}>Configure equipment tracking preferences</p>
             </div>
             <div className="flex items-center justify-between">
               <div>
-                <p className={`font-semibold text-sm ${t.textPrimary}`}>Show Offline Equipment</p>
+                <p className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>Show Offline Equipment</p>
                 <p className={`text-xs ${t.textFaint}`}>Display offline equipment in lists</p>
               </div>
               <button type="button" title="Toggle show offline equipment"

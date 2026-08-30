@@ -16,7 +16,7 @@ import {
 import {
   useTheme, accentText, STATUS_TONE, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle,
   useCollapseSection, CenterModal, ACCENT_HEX, SelectField,
-  GroupSection, RecordCard, staggerContainer, fadeUp, InfoRow, SummaryItem, LoadingState,
+  GroupSection, RecordCard, staggerContainer, fadeUp, InfoRow, SummaryItem, LoadingState, TYPE_WEIGHT,
 } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
@@ -133,10 +133,10 @@ function EquipmentCard({ eq, onEdit, onDelete }: { eq: EquipmentItem; onEdit: ()
         </div>
       }
       actions={<>
-        <button onClick={onEdit} type="button" className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 text-white text-[12px] font-semibold hover:brightness-110 transition-all">
+        <button onClick={onEdit} type="button" className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 text-white text-[12px] ${TYPE_WEIGHT.semibold} hover:brightness-110 transition-all`}>
           <Pencil className="h-3.5 w-3.5" /> Edit
         </button>
-        <button onClick={onDelete} type="button" className={`px-4 flex items-center justify-center gap-1.5 py-2 rounded-lg ${t.chipBg} text-rose-500 hover:bg-rose-500/10 text-[12px] font-semibold transition-all`}>
+        <button onClick={onDelete} type="button" className={`px-4 flex items-center justify-center gap-1.5 py-2 rounded-lg ${t.chipBg} text-rose-500 hover:bg-rose-500/10 text-[12px] ${TYPE_WEIGHT.semibold} transition-all`}>
           <Trash2 className="h-3.5 w-3.5" /> Delete
         </button>
       </>}
@@ -154,7 +154,7 @@ function EquipmentCard({ eq, onEdit, onDelete }: { eq: EquipmentItem; onEdit: ()
       </div>
       {eq.maintenance_notes && (
         <div>
-          <p className={`text-[10px] font-semibold ${t.textTertiary} uppercase tracking-wider mb-1.5`}>Maintenance Notes</p>
+          <p className={`text-[10px] ${TYPE_WEIGHT.semibold} ${t.textTertiary} uppercase tracking-wider mb-1.5`}>Maintenance Notes</p>
           <p className={`text-xs ${t.textMuted}`}>{eq.maintenance_notes}</p>
         </div>
       )}
@@ -176,7 +176,7 @@ function EquipmentRow({ eq, onEdit, onDelete }: { eq: EquipmentItem; onEdit: () 
         <div className="shrink-0"><Icon className="h-5 w-5" style={{ color: statusColor }} /></div>
 
         <button type="button" onClick={() => setExpanded(o => !o)} className="flex-1 min-w-0 text-left">
-          <div className={`font-semibold text-sm ${t.textPrimary}`}>{eq.name}</div>
+          <div className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>{eq.name}</div>
           <div className="flex items-center gap-2 mt-0.5 flex-wrap">
             <span className={`text-xs font-mono ${t.textFaint}`}>{eq.equipment_id}</span>
             {eq.category && <span className={`text-xs ${t.textFaint}`}>· {eq.category}</span>}
@@ -409,7 +409,7 @@ function EquipmentPageContent() {
             <button
               type="button"
               onClick={() => { setEditingEq(null); setIsFormOpen(true); }}
-              className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 transition-all hover:brightness-110"
+              className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 transition-all hover:brightness-110`}
             >
               <Plus className="h-3.5 w-3.5" /> Add Equipment
             </button>
@@ -437,13 +437,13 @@ function EquipmentPageContent() {
             <button
               type="button"
               onClick={() => setShowFilters(v => !v)}
-              className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-medium transition-colors ${showFilters ? 'bg-brand-500/15 text-brand-400' : `${t.textMuted} ${t.hoverText} ${t.glassSoft}`}`}
+              className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.medium} transition-colors ${showFilters ? 'bg-brand-500/15 text-brand-400' : `${t.textMuted} ${t.hoverText} ${t.glassSoft}`}`}
             >
               <Filter className="h-3.5 w-3.5" /> Filters
               {hasActiveFilters && <span className={`ml-1 px-1.5 py-0.5 ${t.chipBg} rounded text-[10px]`}>{filtered.length}</span>}
             </button>
             {hasActiveFilters && (
-              <button type="button" onClick={clearFilters} className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-medium ${t.textFaint} ${t.hoverText} ${t.hoverBg} transition-colors`}>
+              <button type="button" onClick={clearFilters} className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.medium} ${t.textFaint} ${t.hoverText} ${t.hoverBg} transition-colors`}>
                 <FilterX className="h-3.5 w-3.5" /> Clear
               </button>
             )}
@@ -459,7 +459,7 @@ function EquipmentPageContent() {
               { label: 'Location', value: locationFilter, onChange: setLocationFilter, options: [{ value: 'all', label: 'All Locations' }, ...uniqueLocations.map(l => ({ value: l, label: l }))] },
             ].map(f => (
               <div key={f.label}>
-                <label className={`text-xs font-medium ${t.textFaint} mb-1 block`}>{f.label}</label>
+                <label className={`text-xs ${TYPE_WEIGHT.medium} ${t.textFaint} mb-1 block`}>{f.label}</label>
                 <SelectField size="filter"
                   value={f.value}
                   onChange={f.onChange}
@@ -472,19 +472,19 @@ function EquipmentPageContent() {
       </div>
 
       <p className={`text-sm ${t.textFaint}`}>
-        Showing <span className={`font-semibold ${t.textPrimary}`}>{filtered.length}</span> of {equipment.length} items
+        Showing <span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{filtered.length}</span> of {equipment.length} items
         {hasActiveFilters && ' (filtered)'}
       </p>
 
       {filtered.length === 0 ? (
         <div className={`${t.glass} rounded-2xl p-12 text-center`}>
           <Server className={`h-12 w-12 ${t.textFaint} mx-auto mb-4`} />
-          <h3 className={`text-lg font-semibold ${t.textPrimary} mb-2`}>No Equipment Found</h3>
+          <h3 className={`text-lg ${TYPE_WEIGHT.semibold} ${t.textPrimary} mb-2`}>No Equipment Found</h3>
           <p className={`${t.textFaint} text-sm mb-4`}>
             {equipment.length === 0 ? 'Add your first equipment asset to get started.' : 'Try adjusting your search or filters.'}
           </p>
           {equipment.length === 0 && (
-            <button type="button" onClick={() => { setEditingEq(null); setIsFormOpen(true); }} className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all">
+            <button type="button" onClick={() => { setEditingEq(null); setIsFormOpen(true); }} className={`inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-[13px] ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all`}>
               <Plus className="h-3.5 w-3.5" /> Add Equipment
             </button>
           )}
@@ -558,7 +558,7 @@ function EquipmentPageContent() {
             <button
               type="button"
               onClick={() => deleteConfirm !== null && handleDelete(deleteConfirm)}
-              className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-rose-500 to-rose-700 hover:brightness-110 transition-all inline-flex items-center justify-center gap-2"
+              className={`flex-1 py-2.5 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-rose-500 to-rose-700 hover:brightness-110 transition-all inline-flex items-center justify-center gap-2`}
             >
               <Trash2 className="h-4 w-4" /> Delete
             </button>

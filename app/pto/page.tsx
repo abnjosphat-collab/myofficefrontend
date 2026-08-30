@@ -14,7 +14,7 @@ import { UnderlineTabs } from '@/components/shared/UnderlineTabs';
 import { toast } from "sonner";
 import {
   useTheme, accentText, STATUS_TONE, PageHero, StatTile, StatusBadge, SearchInput, ProgressBar, FormField, FormActions,
-  useCollapseSection, CenterModal, ACCENT_HEX, EmptyState, PrimaryButton, GlowCard, SelectField,
+  useCollapseSection, CenterModal, ACCENT_HEX, EmptyState, PrimaryButton, GlowCard, SelectField, TYPE_WEIGHT,
 } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
@@ -88,7 +88,7 @@ function YesNoRow({ label, value, onChange, name }: { label: string; value: YesN
       <span className={`text-sm ${t.textMuted}`}>{label}</span>
       <div className="flex gap-3.5">
         {(['Yes', 'No'] as YesNoType[]).map(opt => (
-          <label key={opt} className={`flex items-center gap-1.5 cursor-pointer text-sm ${opt === value ? (opt === 'Yes' ? `${accentText('emerald', t.light)} font-bold` : 'text-red-400 font-bold') : t.textFaint}`}>
+          <label key={opt} className={`flex items-center gap-1.5 cursor-pointer text-sm ${opt === value ? (opt === 'Yes' ? `${accentText('emerald', t.light)} ${TYPE_WEIGHT.bold}` : `text-red-400 ${TYPE_WEIGHT.bold}`) : t.textFaint}`}>
             <input type="radio" name={name} value={opt} checked={value === opt} onChange={() => onChange(opt)}
               className="cursor-pointer" style={{ accentColor: opt === 'Yes' ? '#34d399' : '#f87171' }} />
             {opt}
@@ -106,7 +106,7 @@ function ActionPlanCard({ item, index, onChange, onRemove }: { item: ActionPlanI
   return (
     <div className={`${t.chipBg} rounded-xl p-3.5`}>
       <div className="flex justify-between items-center mb-2.5">
-        <span className="text-[11px] font-bold text-brand-400 uppercase tracking-wide">Action #{index + 1}</span>
+        <span className={`text-[11px] ${TYPE_WEIGHT.bold} text-brand-400 uppercase tracking-wide`}>Action #{index + 1}</span>
         <button type="button" onClick={() => onRemove(item.id)} title="Remove" className="text-red-400 hover:text-red-300 transition-colors"><Trash2 className="h-3.5 w-3.5" /></button>
       </div>
       <div className="grid grid-cols-2 gap-2">
@@ -151,7 +151,7 @@ function PTOCard({ report, index, onView, onEdit, onDelete }: PTOCardProps) {
             <SectionIcon className="h-5 w-5 shrink-0" style={{ color: sColor }} />
             <div>
               <div className={`text-[11px] mb-0.5 ${t.textFaint}`}>PTO-{index + 1}</div>
-              <div className={`font-bold text-sm leading-tight max-w-[180px] truncate ${t.textPrimary}`}>{report.jobTaskObserved}</div>
+              <div className={`${TYPE_WEIGHT.bold} text-sm leading-tight max-w-[180px] truncate ${t.textPrimary}`}>{report.jobTaskObserved}</div>
             </div>
           </div>
           <div className="flex flex-col gap-1 items-end">
@@ -169,7 +169,7 @@ function PTOCard({ report, index, onView, onEdit, onDelete }: PTOCardProps) {
         {hasRisk && (
           <div className="flex items-center gap-1.5 bg-red-500/10 border border-red-500/25 rounded-lg px-2.5 py-1.5 mb-2.5">
             <AlertTriangle className="h-3.5 w-3.5 text-red-400 flex-shrink-0" />
-            <span className="text-[11px] text-red-400 font-semibold">Risk Identified — Review Required</span>
+            <span className={`text-[11px] text-red-400 ${TYPE_WEIGHT.semibold}`}>Risk Identified — Review Required</span>
           </div>
         )}
 
@@ -222,7 +222,7 @@ function PTODetailModal({ report, open, onClose, onEdit, onDelete, onStatusChang
         <div className={`flex justify-between items-center ${t.chipBg} rounded-xl px-3.5 py-2.5`}>
           <div className="flex items-center gap-2">
             <div className="p-1.5 rounded-lg" style={{ background: `${sColor}22` }}><SectionIcon className="h-4 w-4" style={{ color: sColor }} /></div>
-            <div><span className={`font-bold ${t.textPrimary}`}>{report.section}</span><span className={`text-[11px] ml-2 ${t.textFaint}`}>{report.observationType}</span></div>
+            <div><span className={`${TYPE_WEIGHT.bold} ${t.textPrimary}`}>{report.section}</span><span className={`text-[11px] ml-2 ${t.textFaint}`}>{report.observationType}</span></div>
           </div>
           <div className="flex gap-2 items-center">
             {hasRisk && <StatusBadge color="#ef4444" label="Risk Identified" />}
@@ -234,7 +234,7 @@ function PTODetailModal({ report, open, onClose, onEdit, onDelete, onStatusChang
 
         {progress.total > 0 && (
           <div className={`${t.chipBg} rounded-xl px-3.5 py-3`}>
-            <div className="flex justify-between text-xs mb-1.5"><span className={t.textFaint}>Action Plan Progress</span><span className={`font-semibold ${t.textPrimary}`}>{progress.completed}/{progress.total} completed</span></div>
+            <div className="flex justify-between text-xs mb-1.5"><span className={t.textFaint}>Action Plan Progress</span><span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{progress.completed}/{progress.total} completed</span></div>
             <ProgressBar value={progress.pct} color={progress.pct === 100 ? '#10b981' : '#60a5fa'} showValue={false} />
             <div className="flex gap-2 mt-2">
               <StatusBadge color="#f59e0b" label={`${progress.pending} Pending`} />
@@ -246,12 +246,12 @@ function PTODetailModal({ report, open, onClose, onEdit, onDelete, onStatusChang
 
         <div className="grid grid-cols-4 gap-2">
           {[{ label: 'Observer', val: report.observerName || 'Not specified' }, { label: 'Worker', val: report.workerName || 'Not specified' }, { label: 'Date', val: fmtDate(report.date) }, { label: 'Occupation', val: report.occupation || 'N/A' }].map(({ label, val }) => (
-            <div key={label} className={infoBox}><div className={`text-[10px] mb-0.5 ${t.textFaint}`}>{label}</div><div className={`text-sm font-semibold ${t.textPrimary}`}>{val}</div></div>
+            <div key={label} className={infoBox}><div className={`text-[10px] mb-0.5 ${t.textFaint}`}>{label}</div><div className={`text-sm ${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{val}</div></div>
           ))}
         </div>
 
         <div className={`${t.chipBg} rounded-xl px-3.5 py-3`}>
-          <div className={`font-bold text-xs uppercase tracking-wide mb-2.5 ${t.textFaint}`}>Task Details</div>
+          <div className={`${TYPE_WEIGHT.bold} text-xs uppercase tracking-wide mb-2.5 ${t.textFaint}`}>Task Details</div>
           <div className="grid grid-cols-2 gap-2">
             <div className={`col-span-2 ${infoBox}`}><div className={`text-[10px] mb-0.5 ${t.textFaint}`}>Job/Task Observed</div><div className={`text-sm ${t.textMuted}`}>{report.jobTaskObserved}</div></div>
             <div className={infoBox}><div className={`text-[10px] mb-0.5 ${t.textFaint}`}>SHEQ Reference</div><div className={`text-sm ${t.textMuted}`}>{report.sheqRefNo || 'N/A'}</div></div>
@@ -263,20 +263,20 @@ function PTODetailModal({ report, open, onClose, onEdit, onDelete, onStatusChang
 
         {reasonsList.length > 0 && (
           <div className={`${t.chipBg} rounded-xl px-3.5 py-3`}>
-            <div className={`font-bold text-xs uppercase tracking-wide mb-2 ${t.textFaint}`}>Reasons for Observation</div>
+            <div className={`${TYPE_WEIGHT.bold} text-xs uppercase tracking-wide mb-2 ${t.textFaint}`}>Reasons for Observation</div>
             <div className="flex flex-wrap gap-1.5">{reasonsList.map((r, i) => <StatusBadge key={i} color="#a78bfa" label={r} />)}</div>
           </div>
         )}
 
         <div className="grid grid-cols-2 gap-2.5">
           <div className={`${t.chipBg} rounded-xl px-3.5 py-3`}>
-            <div className={`font-bold text-xs uppercase tracking-wide mb-2 flex items-center gap-1.5 ${t.textFaint}`}><BookOpen className="h-3 w-3" /> Procedures</div>
+            <div className={`${TYPE_WEIGHT.bold} text-xs uppercase tracking-wide mb-2 flex items-center gap-1.5 ${t.textFaint}`}><BookOpen className="h-3 w-3" /> Procedures</div>
             {[{ label: 'Procedure Available', val: report.procedures.hasProcedure }, { label: 'Employee Familiar', val: report.procedures.familiarWithProcedure }].map(({ label, val }) => (
               <div key={label} className={`flex justify-between items-center py-1.5 border-b ${t.border} last:border-0`}><span className={`text-xs ${t.textFaint}`}>{label}</span><StatusBadge color={val === 'Yes' ? '#34d399' : '#f87171'} label={val} /></div>
             ))}
           </div>
           <div className={`${t.chipBg} rounded-xl px-3.5 py-3`}>
-            <div className={`font-bold text-xs uppercase tracking-wide mb-2 flex items-center gap-1.5 ${t.textFaint}`}><ShieldAlert className="h-3 w-3" /> Risk Assessment</div>
+            <div className={`${TYPE_WEIGHT.bold} text-xs uppercase tracking-wide mb-2 flex items-center gap-1.5 ${t.textFaint}`}><ShieldAlert className="h-3 w-3" /> Risk Assessment</div>
             {[{ label: 'Assessment Made', val: report.riskAssessment?.made }, { label: 'Hazards Identified', val: report.riskAssessment?.identified }, { label: 'Controls Effective', val: report.riskAssessment?.effective }].map(({ label, val }) => (
               <div key={label} className={`flex justify-between items-center py-1.5 border-b ${t.border} last:border-0`}><span className={`text-xs ${t.textFaint}`}>{label}</span><StatusBadge color={val === 'Yes' ? '#34d399' : '#f87171'} label={val ?? 'Not specified'} /></div>
             ))}
@@ -285,7 +285,7 @@ function PTODetailModal({ report, open, onClose, onEdit, onDelete, onStatusChang
 
         {remediesList.length > 0 && (
           <div className={`${t.chipBg} rounded-xl px-3.5 py-3`}>
-            <div className={`font-bold text-xs uppercase tracking-wide mb-2 ${t.textFaint}`}>Suggested Remedies</div>
+            <div className={`${TYPE_WEIGHT.bold} text-xs uppercase tracking-wide mb-2 ${t.textFaint}`}>Suggested Remedies</div>
             <div className="flex flex-wrap gap-1.5">{remediesList.map((r, i) => <StatusBadge key={i} color="#60a5fa" label={r} />)}</div>
           </div>
         )}
@@ -297,7 +297,7 @@ function PTODetailModal({ report, open, onClose, onEdit, onDelete, onStatusChang
 
         {report.actionPlan?.length > 0 && (
           <div>
-            <div className={`font-bold text-xs uppercase tracking-wide mb-2.5 ${t.textFaint}`}>Action Plan ({report.actionPlan.length})</div>
+            <div className={`${TYPE_WEIGHT.bold} text-xs uppercase tracking-wide mb-2.5 ${t.textFaint}`}>Action Plan ({report.actionPlan.length})</div>
             <div className="flex flex-col gap-2">
               {report.actionPlan.map((action, idx) => {
                 const ac = ACTION_COLORS[action.status];
@@ -319,7 +319,7 @@ function PTODetailModal({ report, open, onClose, onEdit, onDelete, onStatusChang
       </div>
 
       <div className={`flex gap-2 px-5 py-4 border-t ${t.border}`}>
-        <button type="button" onClick={() => { onClose(); onDelete(report.id); }} className="bg-red-500/15 hover:bg-red-500/25 rounded-xl px-4 py-2.5 text-red-400 text-sm font-semibold transition-colors">Delete</button>
+        <button type="button" onClick={() => { onClose(); onDelete(report.id); }} className={`bg-red-500/15 hover:bg-red-500/25 rounded-xl px-4 py-2.5 text-red-400 text-sm ${TYPE_WEIGHT.semibold} transition-colors`}>Delete</button>
         <button type="button" onClick={onClose} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border} transition-all`}>Close</button>
         <PrimaryButton size="md" fullWidth onClick={() => { onClose(); onEdit(report); }}>Edit</PrimaryButton>
       </div>
@@ -398,7 +398,7 @@ function PTOFormModal({ open, editing, onClose, onSave, saving }: { open: boolea
         {tab === 'reasons' && (
           <div className="flex flex-col gap-5">
             <div>
-              <div className={`font-bold text-xs uppercase tracking-wide mb-2.5 ${t.textFaint}`}>Reasons for Observation</div>
+              <div className={`${TYPE_WEIGHT.bold} text-xs uppercase tracking-wide mb-2.5 ${t.textFaint}`}>Reasons for Observation</div>
               <div className="grid grid-cols-2 gap-1">
                 {(Object.keys(REASON_LABELS) as (keyof Reasons)[]).map(key => (
                   <label key={key} className={checkLabelCls}>
@@ -409,14 +409,14 @@ function PTOFormModal({ open, editing, onClose, onSave, saving }: { open: boolea
               </div>
             </div>
             <div>
-              <div className={`font-bold text-xs uppercase tracking-wide mb-2.5 ${t.textFaint}`}>SHEQ Work Procedure</div>
+              <div className={`${TYPE_WEIGHT.bold} text-xs uppercase tracking-wide mb-2.5 ${t.textFaint}`}>SHEQ Work Procedure</div>
               <div className="flex flex-col gap-1.5">
                 <YesNoRow label="Is a SHEQ work procedure available?" value={form.procedures?.hasProcedure || 'No'} name="hasProcedure" onChange={v => set('procedures', { ...form.procedures, hasProcedure: v })} />
                 <YesNoRow label="Is the employee familiar with the procedure?" value={form.procedures?.familiarWithProcedure || 'No'} name="familiarWithProcedure" onChange={v => set('procedures', { ...form.procedures, familiarWithProcedure: v })} />
               </div>
             </div>
             <div>
-              <div className={`font-bold text-xs uppercase tracking-wide mb-2.5 ${t.textFaint}`}>Suggested Remedies</div>
+              <div className={`${TYPE_WEIGHT.bold} text-xs uppercase tracking-wide mb-2.5 ${t.textFaint}`}>Suggested Remedies</div>
               <div className="grid grid-cols-2 gap-1">
                 {(Object.keys(REMEDY_LABELS) as (keyof SuggestedRemedies)[]).map(key => (
                   <label key={key} className={checkLabelCls}>
@@ -432,7 +432,7 @@ function PTOFormModal({ open, editing, onClose, onSave, saving }: { open: boolea
         {tab === 'risk' && (
           <div className="flex flex-col gap-5">
             <div>
-              <div className={`font-bold text-xs uppercase tracking-wide mb-2.5 ${t.textFaint}`}>Risk Assessment</div>
+              <div className={`${TYPE_WEIGHT.bold} text-xs uppercase tracking-wide mb-2.5 ${t.textFaint}`}>Risk Assessment</div>
               <div className="flex flex-col gap-1.5">
                 <YesNoRow label="Has a risk assessment been made?" value={form.riskAssessment?.made || 'No'} name="raMade" onChange={v => set('riskAssessment', { ...form.riskAssessment, made: v })} />
                 <YesNoRow label="Have hazards/risks/controls been identified?" value={form.riskAssessment?.identified || 'No'} name="raIdentified" onChange={v => set('riskAssessment', { ...form.riskAssessment, identified: v })} />
@@ -440,13 +440,13 @@ function PTOFormModal({ open, editing, onClose, onSave, saving }: { open: boolea
               </div>
             </div>
             <div>
-              <div className={`font-bold text-xs uppercase tracking-wide mb-2.5 ${t.textFaint}`}>Observation Scope & Follow-up</div>
+              <div className={`${TYPE_WEIGHT.bold} text-xs uppercase tracking-wide mb-2.5 ${t.textFaint}`}>Observation Scope & Follow-up</div>
               <div className="flex flex-col gap-1.5">
                 <div className={`flex justify-between items-center px-3 py-2.5 rounded-lg ${t.chipBg}`}>
                   <span className={`text-sm ${t.textMuted}`}>Observation Scope</span>
                   <div className="flex gap-3.5">
                     {(['All', 'Partial'] as const).map(opt => (
-                      <label key={opt} className={`flex items-center gap-1.5 cursor-pointer text-sm ${form.observationScope === opt ? 'text-brand-400 font-bold' : t.textFaint}`}>
+                      <label key={opt} className={`flex items-center gap-1.5 cursor-pointer text-sm ${form.observationScope === opt ? `text-brand-400 ${TYPE_WEIGHT.bold}` : t.textFaint}`}>
                         <input type="radio" name="scope" value={opt} checked={form.observationScope === opt} onChange={() => set('observationScope', opt)} style={{ accentColor: '#60a5fa' }} className="cursor-pointer" />
                         {opt}
                       </label>
@@ -466,8 +466,8 @@ function PTOFormModal({ open, editing, onClose, onSave, saving }: { open: boolea
         {tab === 'actions' && (
           <div>
             <div className="flex justify-between items-center mb-3.5">
-              <div><div className={`font-bold text-sm ${t.textPrimary}`}>Action Plan</div><div className={`text-[11px] mt-0.5 ${t.textFaint}`}>Define corrective or improvement actions.</div></div>
-              <button type="button" onClick={addAction} className="flex items-center gap-1.5 bg-brand-500/15 hover:bg-brand-500/25 rounded-lg px-3 py-1.5 text-brand-400 text-sm font-semibold transition-colors"><Plus className="h-3.5 w-3.5" /> Add Action</button>
+              <div><div className={`${TYPE_WEIGHT.bold} text-sm ${t.textPrimary}`}>Action Plan</div><div className={`text-[11px] mt-0.5 ${t.textFaint}`}>Define corrective or improvement actions.</div></div>
+              <button type="button" onClick={addAction} className={`flex items-center gap-1.5 bg-brand-500/15 hover:bg-brand-500/25 rounded-lg px-3 py-1.5 text-brand-400 text-sm ${TYPE_WEIGHT.semibold} transition-colors`}><Plus className="h-3.5 w-3.5" /> Add Action</button>
             </div>
             {(form.actionPlan || []).length === 0 ? (
               <div className={`text-center py-8 ${t.textFaint}`}>
@@ -606,7 +606,7 @@ function PTOPageContent() {
   const hasFilters = !!(search || sectionFilter !== 'all' || statusFilter !== 'all' || obsTypeFilter !== 'all' || dateFrom || dateTo);
 
   const selCls = `h-8 rounded-lg px-2.5 text-xs outline-none transition-colors ${t.inputBg}`;
-  const thCls = `text-left px-3 py-2 text-[10px] uppercase tracking-wide font-medium ${t.textFaint}`;
+  const thCls = `text-left px-3 py-2 text-[10px] uppercase tracking-wide ${TYPE_WEIGHT.medium} ${t.textFaint}`;
   const tdCls = `px-3 py-2.5 text-sm ${t.textMuted}`;
 
   return (
@@ -738,7 +738,7 @@ function PTOPageContent() {
           <div className={`flex items-center gap-3 text-sm ${t.textMuted}`}><AlertTriangle className="h-5 w-5 text-red-400 flex-shrink-0" /> Are you sure you want to delete this PTO report?</div>
           <div className="flex gap-2">
             <button type="button" onClick={() => setDeleteTarget(null)} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border} transition-all`}>Cancel</button>
-            <button type="button" onClick={() => deleteTarget && handleDelete(deleteTarget)} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-rose-500 to-rose-700 hover:brightness-110 transition-all">Delete</button>
+            <button type="button" onClick={() => deleteTarget && handleDelete(deleteTarget)} className={`flex-1 py-2.5 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-rose-500 to-rose-700 hover:brightness-110 transition-all`}>Delete</button>
           </div>
         </div>
       </CenterModal>

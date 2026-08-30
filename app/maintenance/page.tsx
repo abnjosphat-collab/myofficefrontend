@@ -8,7 +8,7 @@ import {
   useTheme, accentText, PageHero, StatusBadge, ViewToggle,
   useCollapseSection, ProgressBar, ACCENT_HEX, GlowCard, SelectField,
   useConfirm, SearchInput, EmptyState, LoadingState, InfoRow,
-  TYPE_SCALE, RADIUS,
+  TYPE_SCALE, RADIUS, TYPE_WEIGHT,
 } from '@/components/shared/theme';
 import {
   Wrench, Plus, RefreshCw,
@@ -57,7 +57,7 @@ function WorkOrderCard({ workOrder, onClick, onEdit }: { workOrder: WorkOrder; o
             {workOrder.classification && <StatusBadge color={CLASS_COLORS[workOrder.classification]} label={CLASS_SHORT[workOrder.classification]} />}
           </div>
           <span className="text-left mt-1 block">
-            <div className={`font-semibold text-sm leading-tight transition-colors truncate max-w-[200px] ${t.textPrimary}`}>{workOrder.equipment_info}</div>
+            <div className={`${TYPE_WEIGHT.semibold} text-sm leading-tight transition-colors truncate max-w-[200px] ${t.textPrimary}`}>{workOrder.equipment_info}</div>
           </span>
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">
@@ -91,7 +91,7 @@ function WorkOrderRow({ workOrder, onClick, isExpanded, onToggle, onEdit }: { wo
         <div className={`font-mono text-xs w-[5.5rem] flex-shrink-0 truncate ${t.textFaint}`}>#{workOrder.work_order_number}</div>
         <button type="button" onClick={onClick} className="flex-1 min-w-0 text-left">
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className={`font-medium text-sm truncate transition-colors ${t.textPrimary}`}>{workOrder.equipment_info}</span>
+            <span className={`${TYPE_WEIGHT.medium} text-sm truncate transition-colors ${t.textPrimary}`}>{workOrder.equipment_info}</span>
             {workOrder.classification && <StatusBadge color={CLASS_COLORS[workOrder.classification]} label={workOrder.classification === 'custom' ? (workOrder.classification_custom?.slice(0, 6) || 'Custom') : CLASS_SHORT[workOrder.classification]} />}
             {workOrder.discipline && <StatusBadge color={workOrder.discipline === 'Electrical' ? '#fbbf24' : ACCENT_HEX.blue} label={`${workOrder.discipline === 'Electrical' ? '⚡' : '⚙'} ${workOrder.trade || workOrder.discipline}`} />}
             {overdue && <StatusBadge color="#e11d48" label={`Overdue · ${workOrder.due_date}`} dot />}
@@ -115,7 +115,7 @@ function WorkOrderRow({ workOrder, onClick, isExpanded, onToggle, onEdit }: { wo
             <InfoRow label="Time Worked" value={workOrder.total_time_worked} />
             <InfoRow label="Est. Hours" value={workOrder.estimated_hours ? `${workOrder.estimated_hours}h` : undefined} />
             <InfoRow label="Due Date" value={workOrder.due_date
-              ? <span className={overdue ? 'text-rose-600 font-semibold' : ''}>{workOrder.due_date}{overdue && ' — overdue'}</span>
+              ? <span className={overdue ? `text-rose-600 ${TYPE_WEIGHT.semibold}` : ''}>{workOrder.due_date}{overdue && ' — overdue'}</span>
               : undefined} />
             {(workOrder.work_done_details || workOrder.job_request_details) && (
               <div className="col-span-2 sm:col-span-4">
@@ -150,14 +150,14 @@ function ScheduleRow({ schedule, onEdit, onDelete, onToggle, onRunNow }: { sched
     <div className={`flex items-center gap-4 px-5 py-3 border-b ${t.border} ${t.hoverBgSoft} transition-colors`}>
       <div className={`w-2 h-2 rounded-full flex-shrink-0 ${schedule.active ? 'bg-green-400' : `${t.chipBg}`}`} />
       <div className="flex-1 min-w-0">
-        <div className={`font-medium text-sm truncate ${t.textPrimary}`}>{schedule.name}</div>
+        <div className={`${TYPE_WEIGHT.medium} text-sm truncate ${t.textPrimary}`}>{schedule.name}</div>
         <div className={`text-xs truncate ${t.textFaint}`}>{schedule.equipment_info}{schedule.to_department ? ` · ${schedule.to_department}` : ''}{schedule.allocated_to ? ` — ${schedule.allocated_to}` : ''}</div>
       </div>
       <div className="text-brand-400/70 text-xs flex-shrink-0 hidden md:block w-52 truncate"><Repeat2 className="h-3 w-3 inline mr-1 opacity-60" />{recurrenceLabel(schedule)}</div>
       <div className="flex-shrink-0 hidden sm:block text-right"><div className={`text-[10px] uppercase tracking-wide ${t.textFaint}`}>Next</div><div className={`text-xs ${t.textMuted}`}>{schedule.next_due_date || '—'}</div></div>
       <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: pcfg.color }} title={pcfg.label} />
       <div className="flex items-center gap-1.5 flex-shrink-0">
-        <button type="button" onClick={onRunNow} title="Create work order(s) from this schedule now" className="text-[10px] px-2.5 py-0.5 rounded transition-colors text-brand-400 bg-brand-500/[0.10] hover:bg-brand-500/[0.20] whitespace-nowrap font-medium">Create Work Order(s)</button>
+        <button type="button" onClick={onRunNow} title="Create work order(s) from this schedule now" className={`text-[10px] px-2.5 py-0.5 rounded transition-colors text-brand-400 bg-brand-500/[0.10] hover:bg-brand-500/[0.20] whitespace-nowrap ${TYPE_WEIGHT.medium}`}>Create Work Order(s)</button>
         <button type="button" onClick={onToggle} className={`text-[10px] px-2 py-0.5 rounded transition-colors ${schedule.active ? 'text-green-400 bg-green-500/10 hover:bg-green-500/20' : `${t.textFaint} ${t.chipBg} ${t.hoverBg}`}`}>{schedule.active ? 'Active' : 'Paused'}</button>
         <button type="button" onClick={onEdit} title="Edit schedule" className={`${t.chipBg} ${t.hoverBg} rounded p-1.5 transition-colors`}><Pencil className={`h-3 w-3 ${t.textFaint}`} /></button>
         <button type="button" onClick={onDelete} title="Delete schedule" className={`${t.chipBg} hover:bg-rose-500/[0.15] rounded p-1.5 transition-colors`}><Trash2 className={`h-3 w-3 ${t.textFaint}`} /></button>
@@ -402,7 +402,7 @@ function MaintenancePageContent() {
                 statusColor={(_v, row) => statusCfg(row.status as WorkOrderStatus).color.replace('#', '')}
               />
             )}
-            {mainTab === 'workorders' && <button type="button" onClick={() => setShowCreateModal(true)} className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all"><Plus className="h-3.5 w-3.5" /> New Work Order</button>}
+            {mainTab === 'workorders' && <button type="button" onClick={() => setShowCreateModal(true)} className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all`}><Plus className="h-3.5 w-3.5" /> New Work Order</button>}
           </>
         }
       >
@@ -416,7 +416,7 @@ function MaintenancePageContent() {
             { label: 'Overdue', value: stats.overdue, color: 'text-red-400' },
           ].map(s => (
             <div key={s.label} className="text-center">
-              <div className={`text-2xl font-bold ${s.color}`}>{s.value}</div>
+              <div className={`text-2xl ${TYPE_WEIGHT.bold} ${s.color}`}>{s.value}</div>
               <div className={`text-xs mt-0.5 ${t.textFaint}`}>{s.label}</div>
             </div>
           ))}
@@ -429,7 +429,7 @@ function MaintenancePageContent() {
           const active = mainTab === tb.key;
           return (
             <button key={tb.key} type="button" onClick={() => { setMainTab(tb.key); if (tb.key === 'workorders' && bulkMode) exitBulk(); }}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 ${RADIUS.chip} ${TYPE_SCALE.body} font-medium tracking-tight transition-colors ${active ? 'bg-brand-500/15 text-brand-400' : `${t.textMuted} ${t.hoverText} ${t.hoverBg}`}`}>
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 ${RADIUS.chip} ${TYPE_SCALE.body} ${TYPE_WEIGHT.medium} tracking-tight transition-colors ${active ? 'bg-brand-500/15 text-brand-400' : `${t.textMuted} ${t.hoverText} ${t.hoverBg}`}`}>
               <tb.icon className="h-3.5 w-3.5" />{tb.label}
             </button>
           );
@@ -443,7 +443,7 @@ function MaintenancePageContent() {
             <div className={`flex items-center justify-between px-5 py-3 border-b ${t.border}`}>
               <div className="flex items-center gap-2">
                 <CalendarClock className="h-4 w-4 text-brand-400" />
-                <span className={`font-semibold text-sm ${t.textPrimary}`}>Recurring Schedules</span>
+                <span className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>Recurring Schedules</span>
                 {schedules.length > 0 && <span className={`text-xs ${t.chipBg} rounded-full px-2 py-0.5 ${t.textFaint}`}>{schedules.filter(s => s.active).length} active</span>}
               </div>
               <div className="flex items-center gap-2">
@@ -499,7 +499,7 @@ function MaintenancePageContent() {
                 {STATUS_TABS.map(tab => {
                   const active = statusTab === tab.key;
                   return (
-                    <button type="button" key={tab.key} onClick={() => setStatusTab(tab.key)} className={`px-2.5 py-1 ${RADIUS.chip} ${TYPE_SCALE.label} font-medium tracking-tight transition-colors ${active ? 'bg-brand-500/15 text-brand-400' : `${t.chipBg} ${t.textMuted} ${t.hoverBg}`}`}>
+                    <button type="button" key={tab.key} onClick={() => setStatusTab(tab.key)} className={`px-2.5 py-1 ${RADIUS.chip} ${TYPE_SCALE.label} ${TYPE_WEIGHT.medium} tracking-tight transition-colors ${active ? 'bg-brand-500/15 text-brand-400' : `${t.chipBg} ${t.textMuted} ${t.hoverBg}`}`}>
                       {tab.label}<span className={`ml-1.5 text-[10px] ${active ? '' : t.textFaint}`}>{tabCount(tab.key)}</span>
                     </button>
                   );
@@ -568,7 +568,7 @@ function MaintenancePageContent() {
                   {selectedIds.size === 0 ? 'Select all' : `${selectedIds.size} selected`}
                 </button>
                 <div className="flex-1" />
-                {selectedIds.size > 0 && <button type="button" onClick={handleBulkDelete} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-rose-500/15 hover:bg-rose-500/25 text-rose-500 transition-colors"><Trash2 className="h-3.5 w-3.5" />Delete {selectedIds.size} work order{selectedIds.size !== 1 ? 's' : ''}</button>}
+                {selectedIds.size > 0 && <button type="button" onClick={handleBulkDelete} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs ${TYPE_WEIGHT.medium} bg-rose-500/15 hover:bg-rose-500/25 text-rose-500 transition-colors`}><Trash2 className="h-3.5 w-3.5" />Delete {selectedIds.size} work order{selectedIds.size !== 1 ? 's' : ''}</button>}
                 <button type="button" onClick={exitBulk} className={`flex items-center gap-1 text-xs ${t.textFaint} ${t.hoverText} transition-colors px-2 py-1.5`}><X className="h-3.5 w-3.5" /> Cancel</button>
               </div>
             )}

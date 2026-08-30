@@ -24,7 +24,7 @@ import { exportFilename } from '@/lib/exportUtils';
 import { lineTotal } from '@/components/shared/utils';
 import {
   useTheme, PageHero, StatTile, StatusBadge, ViewToggle,
-  FormField, FormActions, useCollapseSection, CenterModal, ACCENT_HEX, GlowCard, SelectField, accentText, HintText,
+  FormField, FormActions, useCollapseSection, CenterModal, ACCENT_HEX, GlowCard, SelectField, accentText, HintText, TYPE_WEIGHT,
 } from '@/components/shared/theme';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -107,7 +107,7 @@ function BreakdownCard({ breakdown, onView, onEdit, onDelete, isExpanded, onTogg
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="p-1.5 rounded-lg shrink-0" style={{ background: `${tm.color}22`, color: tm.color }}><TypeIcon className="h-3.5 w-3.5" /></div>
             <div className="min-w-0">
-              <h4 className={`text-sm font-semibold truncate ${t.textPrimary}`}>{breakdown.machine_name}</h4>
+              <h4 className={`text-sm ${TYPE_WEIGHT.semibold} truncate ${t.textPrimary}`}>{breakdown.machine_name}</h4>
               <p className={`text-xs ${t.textFaint}`}>ID: {breakdown.machine_id}</p>
             </div>
           </div>
@@ -131,8 +131,8 @@ function BreakdownCard({ breakdown, onView, onEdit, onDelete, isExpanded, onTogg
         </div>
 
         <div className="grid grid-cols-2 gap-2 mb-3">
-          <div className={`${t.chipBg} rounded-xl p-2 text-center`}><div className="text-sm font-semibold text-brand-400">{downtime}</div><div className={`text-[10px] ${t.textFaint}`}>Downtime</div></div>
-          <div className={`${t.chipBg} rounded-xl p-2 text-center`}><div className={`text-sm font-semibold ${accentText('emerald', t.light)}`}>${cost.toFixed(0)}</div><div className={`text-[10px] ${t.textFaint}`}>Cost</div></div>
+          <div className={`${t.chipBg} rounded-xl p-2 text-center`}><div className={`text-sm ${TYPE_WEIGHT.semibold} text-brand-400`}>{downtime}</div><div className={`text-[10px] ${t.textFaint}`}>Downtime</div></div>
+          <div className={`${t.chipBg} rounded-xl p-2 text-center`}><div className={`text-sm ${TYPE_WEIGHT.semibold} ${accentText('emerald', t.light)}`}>${cost.toFixed(0)}</div><div className={`text-[10px] ${t.textFaint}`}>Cost</div></div>
         </div>
 
         {isExpanded && (
@@ -168,7 +168,7 @@ function SortBtn({ field, label, sortField, sortDirection, onSort }: { field: st
   const t = useTheme();
   const active = sortField === field;
   return (
-    <button type="button" onClick={() => onSort(field)} className={`flex items-center gap-1 text-xs font-semibold uppercase tracking-wider transition-colors ${t.textFaint} ${t.hoverText}`}>
+    <button type="button" onClick={() => onSort(field)} className={`flex items-center gap-1 text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider transition-colors ${t.textFaint} ${t.hoverText}`}>
       {label}
       <div className="flex flex-col">
         <ChevronUp className={`h-2.5 w-2.5 -mb-0.5 ${active && sortDirection === 'asc' ? 'text-brand-400' : 'opacity-30'}`} />
@@ -189,7 +189,7 @@ function BreakdownTable({ breakdowns, onView, onEdit, onDelete, sortField, sortD
     return (
       <div className="text-center py-16">
         <div className={`mx-auto w-14 h-14 rounded-full ${t.chipBg} flex items-center justify-center mb-4`}><AlertCircle className="h-6 w-6 text-brand-400/60" /></div>
-        <p className={`text-sm font-medium ${t.textMuted}`}>No breakdowns match your filters</p>
+        <p className={`text-sm ${TYPE_WEIGHT.medium} ${t.textMuted}`}>No breakdowns match your filters</p>
         <p className={`text-xs mt-1 ${t.textFaint}`}>Try clearing filters or log a new breakdown</p>
       </div>
     );
@@ -202,8 +202,8 @@ function BreakdownTable({ breakdowns, onView, onEdit, onDelete, sortField, sortD
             <th className="w-10 py-3 px-3" aria-label="Expand row"></th>
             <th className="py-3 px-3 text-left"><SortBtn field="machine_name" label="Machine" sortField={sortField} sortDirection={sortDirection} onSort={onSort} /></th>
             <th className="py-3 px-3 text-left"><SortBtn field="breakdown_date" label="Date" sortField={sortField} sortDirection={sortDirection} onSort={onSort} /></th>
-            {['Status', 'Priority', 'Type', 'Artisan', 'Downtime', 'Cost'].map(h => <th key={h} className={`py-3 px-3 text-left text-xs font-semibold uppercase tracking-wider ${t.textFaint}`}>{h}</th>)}
-            <th className={`py-3 px-3 text-right text-xs font-semibold uppercase tracking-wider ${t.textFaint}`}>Actions</th>
+            {['Status', 'Priority', 'Type', 'Artisan', 'Downtime', 'Cost'].map(h => <th key={h} className={`py-3 px-3 text-left text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textFaint}`}>{h}</th>)}
+            <th className={`py-3 px-3 text-right text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textFaint}`}>Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -223,14 +223,14 @@ function BreakdownTable({ breakdowns, onView, onEdit, onDelete, sortField, sortD
                       {isExp ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
                     </button>
                   </td>
-                  <td className="py-2.5 px-3"><div className={`font-medium truncate max-w-[140px] ${t.textMuted}`}>{bd.machine_name}</div><div className={`text-xs truncate ${t.textFaint}`}>{bd.machine_id}</div></td>
+                  <td className="py-2.5 px-3"><div className={`${TYPE_WEIGHT.medium} truncate max-w-[140px] ${t.textMuted}`}>{bd.machine_name}</div><div className={`text-xs truncate ${t.textFaint}`}>{bd.machine_id}</div></td>
                   <td className={`py-2.5 px-3 whitespace-nowrap ${t.textMuted}`}>{formatDate(bd.breakdown_date)}</td>
                   <td className="py-2.5 px-3"><StatusBadge color={sMeta.color} label={sMeta.name} dot /></td>
                   <td className="py-2.5 px-3"><StatusBadge color={pMeta.color} label={pMeta.name} /></td>
                   <td className="py-2.5 px-3"><StatusBadge color={tMeta.color} label={tMeta.name} /></td>
                   <td className={`py-2.5 px-3 whitespace-nowrap ${t.textMuted}`}>{bd.artisan_name || '—'}</td>
-                  <td className="py-2.5 px-3"><span className="flex items-center gap-1 text-brand-400 font-medium"><Clock className="h-3 w-3" />{downtime}</span></td>
-                  <td className={`py-2.5 px-3 ${accentText('emerald', t.light)} font-medium`}>${cost.toFixed(0)}</td>
+                  <td className="py-2.5 px-3"><span className={`flex items-center gap-1 text-brand-400 ${TYPE_WEIGHT.medium}`}><Clock className="h-3 w-3" />{downtime}</span></td>
+                  <td className={`py-2.5 px-3 ${accentText('emerald', t.light)} ${TYPE_WEIGHT.medium}`}>${cost.toFixed(0)}</td>
                   <td className="py-2.5 px-3">
                     <div className="flex items-center justify-end gap-1">
                       <button type="button" title="View" onClick={() => onView(bd)} className={`h-6 w-6 flex items-center justify-center rounded ${t.textFaint} hover:text-brand-400`}><Eye className="h-3.5 w-3.5" /></button>
@@ -244,20 +244,20 @@ function BreakdownTable({ breakdowns, onView, onEdit, onDelete, sortField, sortD
                     <td colSpan={10} className="px-4 py-3">
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
                         <div className="space-y-1">
-                          <p className={`font-semibold uppercase tracking-wider text-[10px] mb-1.5 ${t.textFaint}`}>Breakdown Details</p>
+                          <p className={`${TYPE_WEIGHT.semibold} uppercase tracking-wider text-[10px] mb-1.5 ${t.textFaint}`}>Breakdown Details</p>
                           <p className={t.textMuted}><span className={t.textFaint}>Description:</span> {bd.breakdown_description || '—'}</p>
                           <p className={t.textMuted}><span className={t.textFaint}>Location:</span> {bd.location}</p>
                           <p className={t.textMuted}><span className={t.textFaint}>Department:</span> {bd.department}</p>
                           {bd.breakdown_nature && <p className={t.textMuted}><span className={t.textFaint}>Nature:</span> {bd.breakdown_nature}</p>}
                         </div>
                         <div className="space-y-1">
-                          <p className={`font-semibold uppercase tracking-wider text-[10px] mb-1.5 ${t.textFaint}`}>Timing</p>
+                          <p className={`${TYPE_WEIGHT.semibold} uppercase tracking-wider text-[10px] mb-1.5 ${t.textFaint}`}>Timing</p>
                           <p className={t.textMuted}><span className={t.textFaint}>Breakdown:</span> {formatTime(bd.breakdown_start)} – {formatTime(bd.breakdown_end)}</p>
                           <p className={t.textMuted}><span className={t.textFaint}>Work:</span> {formatTime(bd.work_start)} – {formatTime(bd.work_end)}</p>
                           <p className={t.textMuted}><span className={t.textFaint}>Total Downtime:</span> {downtime}</p>
                         </div>
                         <div className="space-y-1">
-                          <p className={`font-semibold uppercase tracking-wider text-[10px] mb-1.5 ${t.textFaint}`}>Work & Recommendations</p>
+                          <p className={`${TYPE_WEIGHT.semibold} uppercase tracking-wider text-[10px] mb-1.5 ${t.textFaint}`}>Work & Recommendations</p>
                           <p className={`break-words ${t.textMuted}`}><span className={t.textFaint}>Work Done:</span> {bd.work_done || '—'}</p>
                           <p className={`break-words ${t.textMuted}`}><span className={t.textFaint}>Recommendations:</span> {bd.artisan_recommendations || '—'}</p>
                         </div>
@@ -303,12 +303,12 @@ function DetailsModal({ breakdown, isOpen, onClose, onEdit, onDelete }: {
             { label: 'Nature of Breakdown', val: breakdown.breakdown_nature || '—' },
             { label: 'Breakdown Date', val: formatDate(breakdown.breakdown_date) }, { label: 'Total Downtime', val: downtime },
           ].map(({ label, val }) => (
-            <div key={label} className={`${t.chipBg} rounded-xl p-3`}><span className={`text-[10px] font-semibold uppercase tracking-wider block mb-0.5 ${t.textFaint}`}>{label}</span><span className={`text-sm ${t.textMuted}`}>{val}</span></div>
+            <div key={label} className={`${t.chipBg} rounded-xl p-3`}><span className={`text-[10px] ${TYPE_WEIGHT.semibold} uppercase tracking-wider block mb-0.5 ${t.textFaint}`}>{label}</span><span className={`text-sm ${t.textMuted}`}>{val}</span></div>
           ))}
         </div>
 
         <div>
-          <span className={`text-[10px] font-semibold uppercase tracking-wider block mb-0.5 ${t.textFaint}`}>Description</span>
+          <span className={`text-[10px] ${TYPE_WEIGHT.semibold} uppercase tracking-wider block mb-0.5 ${t.textFaint}`}>Description</span>
           <div className={`${t.chipBg} rounded-xl p-3 text-sm whitespace-pre-wrap break-words ${t.textMuted}`}>{breakdown.breakdown_description || 'No description'}</div>
         </div>
 
@@ -317,21 +317,21 @@ function DetailsModal({ breakdown, isOpen, onClose, onEdit, onDelete }: {
             { label: 'Breakdown Start', val: formatTime(breakdown.breakdown_start) }, { label: 'Breakdown End', val: formatTime(breakdown.breakdown_end) },
             { label: 'Work Start', val: formatTime(breakdown.work_start) }, { label: 'Work End', val: formatTime(breakdown.work_end) },
           ].map(({ label, val }) => (
-            <div key={label} className={`${t.chipBg} rounded-xl p-3`}><span className={`text-[10px] font-semibold uppercase tracking-wider block mb-0.5 ${t.textFaint}`}>{label}</span><span className={`text-sm ${t.textMuted}`}>{val}</span></div>
+            <div key={label} className={`${t.chipBg} rounded-xl p-3`}><span className={`text-[10px] ${TYPE_WEIGHT.semibold} uppercase tracking-wider block mb-0.5 ${t.textFaint}`}>{label}</span><span className={`text-sm ${t.textMuted}`}>{val}</span></div>
           ))}
         </div>
 
-        {breakdown.work_done && <div><span className={`text-[10px] font-semibold uppercase tracking-wider block mb-0.5 ${t.textFaint}`}>Work Performed</span><div className={`${t.chipBg} rounded-xl p-3 text-sm whitespace-pre-wrap break-words ${t.textMuted}`}>{breakdown.work_done}</div></div>}
-        {breakdown.artisan_recommendations && <div><span className={`text-[10px] font-semibold uppercase tracking-wider block mb-0.5 ${t.textFaint}`}>Recommendations</span><div className={`${t.chipBg} rounded-xl p-3 text-sm whitespace-pre-wrap break-words ${t.textMuted}`}>{breakdown.artisan_recommendations}</div></div>}
+        {breakdown.work_done && <div><span className={`text-[10px] ${TYPE_WEIGHT.semibold} uppercase tracking-wider block mb-0.5 ${t.textFaint}`}>Work Performed</span><div className={`${t.chipBg} rounded-xl p-3 text-sm whitespace-pre-wrap break-words ${t.textMuted}`}>{breakdown.work_done}</div></div>}
+        {breakdown.artisan_recommendations && <div><span className={`text-[10px] ${TYPE_WEIGHT.semibold} uppercase tracking-wider block mb-0.5 ${t.textFaint}`}>Recommendations</span><div className={`${t.chipBg} rounded-xl p-3 text-sm whitespace-pre-wrap break-words ${t.textMuted}`}>{breakdown.artisan_recommendations}</div></div>}
 
         {Array.isArray(breakdown.spares_used) && breakdown.spares_used.length > 0 && (
           <div>
-            <div className="flex items-center justify-between mb-2"><span className={`text-[10px] font-semibold uppercase tracking-wider ${t.textFaint}`}>Spare Parts Used</span><span className={`text-xs font-semibold ${accentText('emerald', t.light)}`}>Total: ${cost.toFixed(2)}</span></div>
+            <div className="flex items-center justify-between mb-2"><span className={`text-[10px] ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textFaint}`}>Spare Parts Used</span><span className={`text-xs ${TYPE_WEIGHT.semibold} ${accentText('emerald', t.light)}`}>Total: ${cost.toFixed(2)}</span></div>
             <div className="space-y-1.5">
               {(breakdown.spares_used as SpareUsed[]).map((spare, i) => (
                 <div key={i} className={`flex justify-between items-center ${t.chipBg} rounded-xl px-3 py-2 text-sm`}>
                   <span className={t.textMuted}>{spare.name} ×{spare.quantity}</span>
-                  <span className={`${accentText('emerald', t.light)} font-medium`}>${spare.total_cost?.toFixed(2)}</span>
+                  <span className={`${accentText('emerald', t.light)} ${TYPE_WEIGHT.medium}`}>${spare.total_cost?.toFixed(2)}</span>
                 </div>
               ))}
             </div>
@@ -340,8 +340,8 @@ function DetailsModal({ breakdown, isOpen, onClose, onEdit, onDelete }: {
 
         <div className="flex gap-2 pt-2">
           <button type="button" onClick={onClose} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border}`}>Close</button>
-          <button type="button" onClick={() => { onEdit(breakdown); onClose(); }} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-amber-500 to-amber-700 hover:brightness-110">Edit</button>
-          <button type="button" onClick={() => { onDelete(breakdown); onClose(); }} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-rose-500 to-rose-700 hover:brightness-110">Delete</button>
+          <button type="button" onClick={() => { onEdit(breakdown); onClose(); }} className={`flex-1 py-2.5 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-amber-500 to-amber-700 hover:brightness-110`}>Edit</button>
+          <button type="button" onClick={() => { onDelete(breakdown); onClose(); }} className={`flex-1 py-2.5 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-rose-500 to-rose-700 hover:brightness-110`}>Delete</button>
         </div>
       </div>
     </CenterModal>
@@ -432,7 +432,7 @@ function FormModal({ isOpen, onClose, onSubmit, initialData, mode = 'create' }: 
         <div className={`flex gap-1 p-1 ${t.glassSoft} rounded-xl`}>
           {FORM_TABS.map(tb => (
             <button key={tb.key} type="button" onClick={() => setTab(tb.key)}
-              className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold transition-all ${tab === tb.key ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} ${t.hoverText}`}`}>
+              className={`flex-1 py-1.5 px-2 rounded-lg text-xs ${TYPE_WEIGHT.semibold} transition-all ${tab === tb.key ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} ${t.hoverText}`}`}>
               {tb.label}
             </button>
           ))}
@@ -495,17 +495,17 @@ function FormModal({ isOpen, onClose, onSubmit, initialData, mode = 'create' }: 
                 <input type="number" className={inputCls} placeholder="Quantity" value={String(spareForm.quantity)} onChange={e => setSpareForm(p => ({ ...p, quantity: parseInt(e.target.value) || 1 }))} />
                 <input type="number" className={inputCls} placeholder="Unit Price" value={String(spareForm.unit_price)} onChange={e => setSpareForm(p => ({ ...p, unit_price: parseFloat(e.target.value) || 0 }))} />
               </div>
-              <button type="button" onClick={addSpare} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-brand-500/15 text-brand-400 hover:bg-brand-500/25 transition-all"><Plus className="h-3.5 w-3.5" />Add Spare</button>
+              <button type="button" onClick={addSpare} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs ${TYPE_WEIGHT.semibold} bg-brand-500/15 text-brand-400 hover:bg-brand-500/25 transition-all`}><Plus className="h-3.5 w-3.5" />Add Spare</button>
               {errors.spare && <p className="mt-1 text-[11px] text-rose-500">{errors.spare}</p>}
             </div>
             {fd.spares_used.length > 0 && (
               <div className="space-y-1.5">
-                <p className={`text-xs font-semibold uppercase tracking-wider ${t.textFaint}`}>Parts Added</p>
+                <p className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textFaint}`}>Parts Added</p>
                 {fd.spares_used.map((s, i) => (
                   <div key={i} className={`flex justify-between items-center ${t.chipBg} rounded-xl px-3 py-2 text-sm`}>
-                    <div><span className={`font-medium ${t.textMuted}`}>{s.name}</span>{s.part_number && <span className={`ml-2 text-xs ${t.textFaint}`}>({s.part_number})</span>}<span className={`ml-2 text-xs ${t.textFaint}`}>{s.quantity} × ${s.unit_price}</span></div>
+                    <div><span className={`${TYPE_WEIGHT.medium} ${t.textMuted}`}>{s.name}</span>{s.part_number && <span className={`ml-2 text-xs ${t.textFaint}`}>({s.part_number})</span>}<span className={`ml-2 text-xs ${t.textFaint}`}>{s.quantity} × ${s.unit_price}</span></div>
                     <div className="flex items-center gap-2">
-                      <span className={`${accentText('emerald', t.light)} font-semibold`}>${lineTotal(s.quantity, s.unit_price).toFixed(2)}</span>
+                      <span className={`${accentText('emerald', t.light)} ${TYPE_WEIGHT.semibold}`}>${lineTotal(s.quantity, s.unit_price).toFixed(2)}</span>
                       <button type="button" title="Remove spare part" onClick={() => removeSpare(i)} className="h-6 w-6 flex items-center justify-center rounded text-rose-500/60 hover:text-rose-500"><Trash2 className="h-3 w-3" /></button>
                     </div>
                   </div>
@@ -523,7 +523,7 @@ function FormModal({ isOpen, onClose, onSubmit, initialData, mode = 'create' }: 
               <FormField label="Work Start"><input type="time" title="Work start" className={inputCls} value={fd.work_start} onChange={e => set('work_start', e.target.value)} /></FormField>
               <FormField label="Work End"><input type="time" title="Work end" className={inputCls} value={fd.work_end} onChange={e => set('work_end', e.target.value)} /></FormField>
             </div>
-            {calcPreview && <div className="bg-brand-500/[0.08] rounded-xl p-3 text-sm"><span className={t.textFaint}>Calculated Downtime: </span><span className="text-brand-400 font-semibold">{calcPreview}</span></div>}
+            {calcPreview && <div className="bg-brand-500/[0.08] rounded-xl p-3 text-sm"><span className={t.textFaint}>Calculated Downtime: </span><span className={`text-brand-400 ${TYPE_WEIGHT.semibold}`}>{calcPreview}</span></div>}
           </div>
         )}
 
@@ -646,7 +646,7 @@ function BreakdownsPageContent() {
                 formats={['excel']}
               />
             )}
-            <button type="button" onClick={handleCreate} className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all"><Plus className="h-3.5 w-3.5" /> New Breakdown</button>
+            <button type="button" onClick={handleCreate} className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all`}><Plus className="h-3.5 w-3.5" /> New Breakdown</button>
           </>
         }
       >
@@ -667,9 +667,9 @@ function BreakdownsPageContent() {
               className={`w-full h-9 pl-9 pr-3 rounded-xl text-sm ${t.inputBg} focus:outline-none`} />
           </div>
           <div className="flex gap-2 flex-wrap items-center">
-            <button type="button" onClick={() => setShowDateRange(p => !p)} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${showDateRange ? 'bg-brand-500/15 text-brand-400' : `${t.chipBg} ${t.textMuted} ${t.hoverBg}`}`}><Calendar className="h-3.5 w-3.5" />Date Range</button>
-            <button type="button" onClick={() => setShowFilters(v => !v)} className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-medium transition-colors ${showFilters ? 'bg-brand-500/15 text-brand-400' : `${t.textMuted} ${t.glassSoft} ${t.hoverText}`}`}><Filter className="h-3.5 w-3.5" /> Filters {activeFilterCount > 0 && <span className={`ml-1 px-1.5 py-0.5 ${t.chipBg} rounded text-[10px]`}>{activeFilterCount}</span>}</button>
-            {activeFilterCount > 0 && <button type="button" onClick={clearFilters} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold ${t.textFaint} ${t.chipBg} ${t.hoverText}`}><FilterX className="h-3.5 w-3.5" />Clear</button>}
+            <button type="button" onClick={() => setShowDateRange(p => !p)} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs ${TYPE_WEIGHT.semibold} transition-all ${showDateRange ? 'bg-brand-500/15 text-brand-400' : `${t.chipBg} ${t.textMuted} ${t.hoverBg}`}`}><Calendar className="h-3.5 w-3.5" />Date Range</button>
+            <button type="button" onClick={() => setShowFilters(v => !v)} className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.medium} transition-colors ${showFilters ? 'bg-brand-500/15 text-brand-400' : `${t.textMuted} ${t.glassSoft} ${t.hoverText}`}`}><Filter className="h-3.5 w-3.5" /> Filters {activeFilterCount > 0 && <span className={`ml-1 px-1.5 py-0.5 ${t.chipBg} rounded text-[10px]`}>{activeFilterCount}</span>}</button>
+            {activeFilterCount > 0 && <button type="button" onClick={clearFilters} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs ${TYPE_WEIGHT.semibold} ${t.textFaint} ${t.chipBg} ${t.hoverText}`}><FilterX className="h-3.5 w-3.5" />Clear</button>}
           </div>
         </div>
 
@@ -679,7 +679,7 @@ function BreakdownsPageContent() {
             <FormField label="End Date"><input type="date" title="End date" value={endDate} onChange={e => setEndDate(e.target.value)} className={`h-9 px-3 rounded-lg text-sm ${t.inputBg} focus:outline-none`} /></FormField>
             <div className="self-end">
               <button type="button" onClick={() => { const now = new Date(), m = new Date(); m.setDate(now.getDate() - 30); setStartDate(m.toISOString().split('T')[0]); setEndDate(now.toISOString().split('T')[0]); }}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold ${t.textMuted} ${t.glassSoft} ${t.hoverText}`}>Last 30 days</button>
+                className={`px-3 py-1.5 rounded-xl text-xs ${TYPE_WEIGHT.semibold} ${t.textMuted} ${t.glassSoft} ${t.hoverText}`}>Last 30 days</button>
             </div>
           </div>
         )}
@@ -696,14 +696,14 @@ function BreakdownsPageContent() {
 
       {/* View toggle tabs */}
       <div className={`flex items-center gap-1 p-1 ${t.glassSoft} rounded-xl w-fit`}>
-        <button type="button" onClick={() => setActiveView('records')} className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${activeView === 'records' ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} ${t.hoverText}`}`}><TableIcon className="h-3.5 w-3.5 inline mr-1.5" />Records</button>
-        <button type="button" onClick={() => setActiveView('analytics')} className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${activeView === 'analytics' ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} ${t.hoverText}`}`}><Activity className="h-3.5 w-3.5 inline mr-1.5" />Analytics</button>
+        <button type="button" onClick={() => setActiveView('records')} className={`px-4 py-1.5 rounded-lg text-xs ${TYPE_WEIGHT.semibold} transition-all ${activeView === 'records' ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} ${t.hoverText}`}`}><TableIcon className="h-3.5 w-3.5 inline mr-1.5" />Records</button>
+        <button type="button" onClick={() => setActiveView('analytics')} className={`px-4 py-1.5 rounded-lg text-xs ${TYPE_WEIGHT.semibold} transition-all ${activeView === 'analytics' ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} ${t.hoverText}`}`}><Activity className="h-3.5 w-3.5 inline mr-1.5" />Analytics</button>
       </div>
 
       {activeView === 'records' && (
         <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
           <div className={`flex items-center justify-between px-4 py-3 border-b ${t.border}`}>
-            <h3 className={`text-sm font-semibold ${t.textPrimary}`}>Breakdown Records ({filteredBreakdowns.length} of {breakdowns.length})</h3>
+            <h3 className={`text-sm ${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>Breakdown Records ({filteredBreakdowns.length} of {breakdowns.length})</h3>
             <ViewToggle value={viewMode} onChange={setViewMode} options={[{ value: 'table', icon: TableIcon, label: 'Table view' }, { value: 'grid', icon: LayoutGrid, label: 'Grid view' }]} />
           </div>
           {!loading && !loadError && filteredBreakdowns.length > 0 && viewMode === 'table' && (
@@ -714,16 +714,16 @@ function BreakdownsPageContent() {
           ) : loadError ? (
             <div className="text-center py-16">
               <div className={`mx-auto w-14 h-14 rounded-full ${t.chipBg} flex items-center justify-center mb-4`}><AlertTriangle className={`h-6 w-6 ${t.light ? 'text-rose-600/70' : 'text-rose-400/70'}`} /></div>
-              <p className={`text-sm font-medium ${t.textMuted}`}>Could not load breakdowns</p>
+              <p className={`text-sm ${TYPE_WEIGHT.medium} ${t.textMuted}`}>Could not load breakdowns</p>
               <p className={`text-xs mt-1 mb-4 ${t.textFaint}`}>{loadError}</p>
-              <button type="button" onClick={() => loadBreakdowns()} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110"><Loader2 className="h-4 w-4" />Try again</button>
+              <button type="button" onClick={() => loadBreakdowns()} className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110`}><Loader2 className="h-4 w-4" />Try again</button>
             </div>
           ) : filteredBreakdowns.length === 0 ? (
             <div className="text-center py-16">
               <div className={`mx-auto w-14 h-14 rounded-full ${t.chipBg} flex items-center justify-center mb-4`}><AlertTriangle className="h-6 w-6 text-brand-400/60" /></div>
-              <p className={`text-sm font-medium ${t.textMuted}`}>No breakdowns found</p>
+              <p className={`text-sm ${TYPE_WEIGHT.medium} ${t.textMuted}`}>No breakdowns found</p>
               <p className={`text-xs mt-1 mb-4 ${t.textFaint}`}>Try clearing filters or log a new breakdown</p>
-              <button type="button" onClick={handleCreate} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110"><Plus className="h-4 w-4" />Log First Breakdown</button>
+              <button type="button" onClick={handleCreate} className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110`}><Plus className="h-4 w-4" />Log First Breakdown</button>
             </div>
           ) : viewMode === 'grid' ? (
             <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -748,7 +748,7 @@ function BreakdownsPageContent() {
           <p className={`text-sm ${t.textMuted}`}>Delete the breakdown record for &quot;{deleteTarget?.machine_name}&quot; on {deleteTarget?.breakdown_date}? This cannot be undone.</p>
           <div className="flex gap-2">
             <button type="button" onClick={() => setDeleteTarget(null)} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border}`}>Cancel</button>
-            <button type="button" onClick={confirmDelete} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-rose-500 to-rose-700 hover:brightness-110 inline-flex items-center justify-center gap-2"><Trash2 className="h-4 w-4" /> Delete</button>
+            <button type="button" onClick={confirmDelete} className={`flex-1 py-2.5 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-rose-500 to-rose-700 hover:brightness-110 inline-flex items-center justify-center gap-2`}><Trash2 className="h-4 w-4" /> Delete</button>
           </div>
         </div>
       </CenterModal>
@@ -803,7 +803,7 @@ function AnalyticsView({ filters, startDate, endDate }: { filters: Filters; star
     return (
       <div className={`${t.glass} rounded-lg px-3 py-2 text-xs ${t.shadow}`}>
         <p className={`mb-1 ${t.textFaint}`}>{label}</p>
-        {payload.map((entry, idx) => <p key={idx} className={`font-medium ${t.textPrimary}`}>{entry.name}: {entry.value.toLocaleString()}</p>)}
+        {payload.map((entry, idx) => <p key={idx} className={`${TYPE_WEIGHT.medium} ${t.textPrimary}`}>{entry.name}: {entry.value.toLocaleString()}</p>)}
       </div>
     );
   };
@@ -813,7 +813,7 @@ function AnalyticsView({ filters, startDate, endDate }: { filters: Filters; star
       <div className={`flex gap-1 p-1 ${t.glassSoft} rounded-xl w-full overflow-x-auto flex-nowrap`}>
         {tabs.map(tb => (
           <button key={tb.key} type="button" onClick={() => setActiveTab(tb.key)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${activeTab === tb.key ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} ${t.hoverText}`}`}>
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs ${TYPE_WEIGHT.semibold} whitespace-nowrap transition-all ${activeTab === tb.key ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} ${t.hoverText}`}`}>
             <tb.icon className="h-3.5 w-3.5" /> {tb.label}
           </button>
         ))}
@@ -822,7 +822,7 @@ function AnalyticsView({ filters, startDate, endDate }: { filters: Filters; star
       {activeTab === 'overview' && (
         <div className="space-y-4">
           <div className={`${t.glass} rounded-2xl p-4`}>
-            <h3 className={`flex items-center gap-2 text-sm font-semibold mb-3 ${t.textPrimary}`}><TrendingUp className={`h-4 w-4 ${accentText('emerald', t.light)}`} /> Monthly Breakdown Trends</h3>
+            <h3 className={`flex items-center gap-2 text-sm ${TYPE_WEIGHT.semibold} mb-3 ${t.textPrimary}`}><TrendingUp className={`h-4 w-4 ${accentText('emerald', t.light)}`} /> Monthly Breakdown Trends</h3>
             {data.monthly_trends.length > 0 ? (
               <ResponsiveContainer width="100%" height={280}>
                 <ReAreaChart data={data.monthly_trends} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
@@ -838,7 +838,7 @@ function AnalyticsView({ filters, startDate, endDate }: { filters: Filters; star
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div className={`${t.glass} rounded-2xl p-4`}>
-              <h3 className={`flex items-center gap-2 text-sm font-semibold mb-3 ${t.textPrimary}`}><Building2 className="h-4 w-4 text-brand-400" /> Department Comparison</h3>
+              <h3 className={`flex items-center gap-2 text-sm ${TYPE_WEIGHT.semibold} mb-3 ${t.textPrimary}`}><Building2 className="h-4 w-4 text-brand-400" /> Department Comparison</h3>
               {data.department_comparison.length > 0 ? (
                 <ResponsiveContainer width="100%" height={260}>
                   <ComposedChart data={data.department_comparison} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
@@ -854,7 +854,7 @@ function AnalyticsView({ filters, startDate, endDate }: { filters: Filters; star
               ) : <p className={`text-xs text-center py-8 ${t.textFaint}`}>No data</p>}
             </div>
             <div className={`${t.glass} rounded-2xl p-4`}>
-              <h3 className={`flex items-center gap-2 text-sm font-semibold mb-3 ${t.textPrimary}`}><PieChartIcon className={`h-4 w-4 ${accentText('violet', t.light)}`} /> Breakdown Types</h3>
+              <h3 className={`flex items-center gap-2 text-sm ${TYPE_WEIGHT.semibold} mb-3 ${t.textPrimary}`}><PieChartIcon className={`h-4 w-4 ${accentText('violet', t.light)}`} /> Breakdown Types</h3>
               {data.breakdown_type_distribution.length > 0 ? (
                 <ResponsiveContainer width="100%" height={260}>
                   <RePieChart>
@@ -873,7 +873,7 @@ function AnalyticsView({ filters, startDate, endDate }: { filters: Filters; star
 
       {activeTab === 'heatmap' && (
         <div className={`${t.glass} rounded-2xl p-4`}>
-          <h3 className={`flex items-center gap-2 text-sm font-semibold ${t.textPrimary}`}><Activity className={`h-4 w-4 ${accentText('violet', t.light)}`} /> Hour × Day Heatmap</h3>
+          <h3 className={`flex items-center gap-2 text-sm ${TYPE_WEIGHT.semibold} ${t.textPrimary}`}><Activity className={`h-4 w-4 ${accentText('violet', t.light)}`} /> Hour × Day Heatmap</h3>
           <p className={`text-xs mb-3 ${t.textFaint}`}>Darker = more breakdowns</p>
           <div className="overflow-x-auto">
             <div className="min-w-[600px]">
@@ -902,7 +902,7 @@ function AnalyticsView({ filters, startDate, endDate }: { filters: Filters; star
 
       {activeTab === 'machines' && (
         <div className={`${t.glass} rounded-2xl p-4`}>
-          <h3 className={`flex items-center gap-2 text-sm font-semibold mb-3 ${t.textPrimary}`}><Wrench className="h-4 w-4 text-rose-500" /> Top Problem Machines</h3>
+          <h3 className={`flex items-center gap-2 text-sm ${TYPE_WEIGHT.semibold} mb-3 ${t.textPrimary}`}><Wrench className="h-4 w-4 text-rose-500" /> Top Problem Machines</h3>
           {data.top_problem_machines.length > 0 ? (
             <div className="space-y-4">
               {data.top_problem_machines.slice(0, 10).map((machine, idx) => {
@@ -912,10 +912,10 @@ function AnalyticsView({ filters, startDate, endDate }: { filters: Filters; star
                   <div key={idx} className="space-y-1.5">
                     <div className="flex items-start justify-between">
                       <div className="flex-1 min-w-0">
-                        <div className={`text-sm font-medium truncate flex items-center gap-2 ${t.textPrimary}`}><span className={`w-5 h-5 rounded-full ${t.chipBg} flex items-center justify-center text-[10px] font-mono ${t.textFaint}`}>{idx + 1}</span>{machine.name}</div>
+                        <div className={`text-sm ${TYPE_WEIGHT.medium} truncate flex items-center gap-2 ${t.textPrimary}`}><span className={`w-5 h-5 rounded-full ${t.chipBg} flex items-center justify-center text-[10px] font-mono ${t.textFaint}`}>{idx + 1}</span>{machine.name}</div>
                         <div className={`text-[10px] ml-7 ${t.textFaint}`}>{machine.department} · {formatTimeMinutes(machine.total_downtime)} downtime</div>
                       </div>
-                      <div className="text-right ml-3"><div className={`text-sm font-semibold ${t.textPrimary}`}>{machine.count}</div><div className={`text-[10px] ${t.textFaint}`}>breakdowns</div></div>
+                      <div className="text-right ml-3"><div className={`text-sm ${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{machine.count}</div><div className={`text-[10px] ${t.textFaint}`}>breakdowns</div></div>
                     </div>
                     <div className={`h-2 ${t.chipBg} rounded-full overflow-hidden ml-7`}><div className="h-full bg-gradient-to-r from-rose-500 to-rose-400 rounded-full" style={{ width: `${pct}%` }} /></div>
                   </div>
@@ -928,7 +928,7 @@ function AnalyticsView({ filters, startDate, endDate }: { filters: Filters; star
 
       {activeTab === 'artisans' && (
         <div className={`${t.glass} rounded-2xl p-4`}>
-          <h3 className={`flex items-center gap-2 text-sm font-semibold mb-3 ${t.textPrimary}`}><Users className="h-4 w-4 text-amber-500" /> Top Artisans</h3>
+          <h3 className={`flex items-center gap-2 text-sm ${TYPE_WEIGHT.semibold} mb-3 ${t.textPrimary}`}><Users className="h-4 w-4 text-amber-500" /> Top Artisans</h3>
           {data.artisan_performance.length > 0 ? (
             <div className="space-y-3">
               {data.artisan_performance.slice(0, 10).map((a, idx) => {
@@ -938,7 +938,7 @@ function AnalyticsView({ filters, startDate, endDate }: { filters: Filters; star
                   <div key={idx} className="space-y-1.5">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2"><span className={`w-5 h-5 rounded-full ${t.chipBg} flex items-center justify-center text-[10px] font-mono ${t.textFaint}`}>{idx + 1}</span><span className={`text-sm truncate ${t.textPrimary}`}>{a.name}</span></div>
-                      <div className="text-right"><div className={`text-sm font-semibold ${t.textPrimary}`}>{a.count}</div><div className={`text-[10px] ${t.textFaint}`}>avg {formatTimeMinutes(a.avg_repair_time)}</div></div>
+                      <div className="text-right"><div className={`text-sm ${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{a.count}</div><div className={`text-[10px] ${t.textFaint}`}>avg {formatTimeMinutes(a.avg_repair_time)}</div></div>
                     </div>
                     <div className={`h-1.5 ${t.chipBg} rounded-full overflow-hidden ml-7`}><div className="h-full bg-gradient-to-r from-amber-500 to-amber-400 rounded-full" style={{ width: `${pct}%` }} /></div>
                   </div>
@@ -951,7 +951,7 @@ function AnalyticsView({ filters, startDate, endDate }: { filters: Filters; star
 
       {activeTab === 'spares' && (
         <div className={`${t.glass} rounded-2xl p-4`}>
-          <h3 className={`flex items-center gap-2 text-sm font-semibold mb-3 ${t.textPrimary}`}><Package className="h-4 w-4 text-violet-500" /> Most Used Spare Parts</h3>
+          <h3 className={`flex items-center gap-2 text-sm ${TYPE_WEIGHT.semibold} mb-3 ${t.textPrimary}`}><Package className="h-4 w-4 text-violet-500" /> Most Used Spare Parts</h3>
           {data.top_spare_parts.length > 0 ? (
             <div className="space-y-3">
               {data.top_spare_parts.slice(0, 10).map((spare, idx) => {
@@ -966,7 +966,7 @@ function AnalyticsView({ filters, startDate, endDate }: { filters: Filters; star
                           <div><div className={`text-sm truncate ${t.textPrimary}`}>{spare.name}</div>{spare.part_number && <div className={`text-[10px] ${t.textFaint}`}>{spare.part_number}</div>}</div>
                         </div>
                       </div>
-                      <div className="text-right ml-2"><div className={`text-sm font-semibold ${t.textPrimary}`}>{spare.total_quantity}×</div><div className="text-amber-500/80 text-[10px]">{formatCurrency(spare.total_cost)}</div></div>
+                      <div className="text-right ml-2"><div className={`text-sm ${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{spare.total_quantity}×</div><div className="text-amber-500/80 text-[10px]">{formatCurrency(spare.total_cost)}</div></div>
                     </div>
                     <div className={`h-1.5 ${t.chipBg} rounded-full overflow-hidden ml-7`}><div className="h-full bg-gradient-to-r from-violet-500 to-violet-400 rounded-full" style={{ width: `${pct}%` }} /></div>
                   </div>

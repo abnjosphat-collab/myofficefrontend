@@ -11,7 +11,7 @@ import { formatDate } from '@/lib/format';
 import { toast } from 'sonner';
 import {
   useTheme, accentText, PageHero, StatTile, StatusBadge, SearchInput, FormField, FormActions,
-  useCollapseSection, CenterModal, PrimaryButton, EmptyState, ACCENT_HEX, SelectField, useConfirm,
+  useCollapseSection, CenterModal, PrimaryButton, EmptyState, ACCENT_HEX, SelectField, useConfirm, TYPE_WEIGHT,
 } from '@/components/shared/theme';
 import { PredictiveInput } from '@/components/shared/PredictiveInput';
 import { EmployeeNameInput } from '@/components/shared/EmployeeNameInput';
@@ -175,8 +175,8 @@ function ReportDetailModal({ report, open, onClose, onEdit, onDelete }: {
       </div>
       <div className={`flex gap-2 px-5 py-4 border-t ${t.border}`}>
         <button type="button" onClick={onClose} className={`flex-1 py-2 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border} transition-all`}>Close</button>
-        <button type="button" onClick={() => { onClose(); onEdit(report); }} className="flex-1 py-2 rounded-xl text-sm font-medium text-brand-400 hover:text-brand-300 border border-brand-400/25 transition-all">Edit</button>
-        <button type="button" onClick={() => { onClose(); onDelete(report.id); }} className={`flex-1 py-2 rounded-xl text-sm font-medium ${accentText('rose', t.light)} hover:bg-rose-500/20 border border-rose-500/25 transition-all`}>Delete</button>
+        <button type="button" onClick={() => { onClose(); onEdit(report); }} className={`flex-1 py-2 rounded-xl text-sm ${TYPE_WEIGHT.medium} text-brand-400 hover:text-brand-300 border border-brand-400/25 transition-all`}>Edit</button>
+        <button type="button" onClick={() => { onClose(); onDelete(report.id); }} className={`flex-1 py-2 rounded-xl text-sm ${TYPE_WEIGHT.medium} ${accentText('rose', t.light)} hover:bg-rose-500/20 border border-rose-500/25 transition-all`}>Delete</button>
       </div>
     </CenterModal>
   );
@@ -240,7 +240,7 @@ function NearMissContent() {
   const hasFilters = !!(search || sectionFilter !== 'all' || dateFrom || dateTo);
 
   const selCls = `h-9 rounded-lg px-2.5 text-xs outline-none transition-colors ${t.inputBg}`;
-  const thCls = `text-left px-3 py-2 text-[10px] uppercase tracking-wide font-medium ${t.textFaint}`;
+  const thCls = `text-left px-3 py-2 text-[10px] uppercase tracking-wide ${TYPE_WEIGHT.medium} ${t.textFaint}`;
 
   const exportColumns: DLColumn[] = [
     { key: 'date', label: 'Date', width: 14, format: v => v ? formatDate(v as string) : '' },
@@ -305,13 +305,13 @@ function NearMissContent() {
           <div className={`${t.glass} rounded-2xl px-5 py-3 flex flex-wrap items-center gap-2`}>
             <span className={`text-[10px] uppercase tracking-wider mr-1 flex items-center gap-1 ${t.textFaint}`}><Users className="h-3 w-3" /> By Reporter:</span>
             {Object.entries(stats.byReporter).sort((a, b) => b[1] - a[1]).map(([name, count]) => (
-              <span key={name} className={`inline-flex items-center gap-1 text-[11px] px-2.5 py-0.5 rounded-full ${t.chipBg} ${t.textMuted}`}>{name} <span className={`font-bold ${accentText('amber', t.light)}`}>{count}</span></span>
+              <span key={name} className={`inline-flex items-center gap-1 text-[11px] px-2.5 py-0.5 rounded-full ${t.chipBg} ${t.textMuted}`}>{name} <span className={`${TYPE_WEIGHT.bold} ${accentText('amber', t.light)}`}>{count}</span></span>
             ))}
           </div>
         )}
 
         <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><AlertTriangle className={`h-4 w-4 ${accentText('amber', t.light)}`} /><span className={`font-semibold text-sm ${t.textPrimary}`}>Near Miss Reports</span><span className={`ml-auto text-xs ${t.textFaint}`}>{filteredReports.length}</span></div>
+          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><AlertTriangle className={`h-4 w-4 ${accentText('amber', t.light)}`} /><span className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>Near Miss Reports</span><span className={`ml-auto text-xs ${t.textFaint}`}>{filteredReports.length}</span></div>
           {loading ? (
             <div className="flex items-center justify-center py-16"><RefreshCw className={`h-6 w-6 animate-spin ${t.textFaint}`} /></div>
           ) : loadError ? (
@@ -336,7 +336,7 @@ function NearMissContent() {
                       <React.Fragment key={report.id}>
                         <tr className={`border-b ${t.border} cursor-pointer transition-colors ${expanded ? t.chipBg : t.hoverBgSoft}`} onClick={() => { setSelectedReport(report); setDetailOpen(true); }}>
                           <td className="px-3 py-3 whitespace-nowrap"><div className={`text-xs ${t.textMuted}`}>{fmtDate(report.date)}</div><div className={`text-[10px] mt-0.5 ${t.textFaint}`}>{fmtTime(report.time)}</div></td>
-                          <td className={`px-3 py-3 text-sm font-medium ${t.textPrimary}`}>{report.department}</td>
+                          <td className={`px-3 py-3 text-sm ${TYPE_WEIGHT.medium} ${t.textPrimary}`}>{report.department}</td>
                           <td className="px-3 py-3"><StatusBadge color={SECTION_HEX[report.section]} label={report.section} /></td>
                           <td className={`px-3 py-3 text-xs max-w-[160px] truncate ${t.textFaint}`}>{report.location}</td>
                           <td className={`px-3 py-3 text-xs ${t.textFaint}`}>{report.reporterName || <span className="italic opacity-60">Anonymous</span>}</td>

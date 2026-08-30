@@ -5,7 +5,7 @@ import { useState, useMemo } from 'react';
 import { AppShell } from '@/components/app-shell';
 import { BarChart2, Plus, X } from '@/components/shared/theme';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
-import { useTheme, PageHero, StatCard, FormField, PrimaryButton, SelectField, type Accent } from '@/components/shared/theme';
+import { useTheme, PageHero, StatCard, FormField, PrimaryButton, SelectField, type Accent, TYPE_WEIGHT } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
 import { formatDate } from '@/lib/format';
@@ -107,7 +107,7 @@ function ProductionContent() {
       {showForm && (
         <div className={`${t.glass} rounded-2xl ${t.shadow} p-6`}>
           <div className="flex items-center justify-between mb-4">
-            <h2 className={`font-semibold ${t.textPrimary}`}>Log Production Data</h2>
+            <h2 className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>Log Production Data</h2>
             <button type="button" onClick={() => setShowForm(false)} className={`${t.textFaint} ${t.hoverText}`}><X className="w-5 h-5" /></button>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
@@ -133,7 +133,7 @@ function ProductionContent() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className={`${t.glass} rounded-2xl ${t.shadow} p-5`}>
-          <h2 className={`font-semibold mb-4 ${t.textPrimary}`}>Tonnes Milled Trend</h2>
+          <h2 className={`${TYPE_WEIGHT.semibold} mb-4 ${t.textPrimary}`}>Tonnes Milled Trend</h2>
           <ResponsiveContainer width="100%" height={200}>
             <LineChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" stroke={grid} />
@@ -146,7 +146,7 @@ function ProductionContent() {
           </ResponsiveContainer>
         </div>
         <div className={`${t.glass} rounded-2xl ${t.shadow} p-5`}>
-          <h2 className={`font-semibold mb-4 ${t.textPrimary}`}>Grade Trend (g/t)</h2>
+          <h2 className={`${TYPE_WEIGHT.semibold} mb-4 ${t.textPrimary}`}>Grade Trend (g/t)</h2>
           <ResponsiveContainer width="100%" height={200}>
             <LineChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" stroke={grid} />
@@ -161,12 +161,12 @@ function ProductionContent() {
       </div>
 
       <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-        <div className={`p-4 border-b ${t.border}`}><h2 className={`font-semibold ${t.textPrimary}`}>Production Records — Last 14 Shifts</h2></div>
+        <div className={`p-4 border-b ${t.border}`}><h2 className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>Production Records — Last 14 Shifts</h2></div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead><tr className={`border-b ${t.border}`}>
               {['Date', 'Shift', 'Tonnes', 'Grade', 'Recovery', 'Gold Oz', 'Avail%', 'Downtime', 'Reason'].map(h => (
-                <th key={h} className={`px-4 py-3 text-left text-xs font-medium ${t.textFaint}`}>{h}</th>
+                <th key={h} className={`px-4 py-3 text-left text-xs ${TYPE_WEIGHT.medium} ${t.textFaint}`}>{h}</th>
               ))}
             </tr></thead>
             <tbody className={`divide-y ${t.divide}`}>
@@ -174,10 +174,10 @@ function ProductionContent() {
                 <tr key={r.id} className={`${t.hoverBg} transition-colors`}>
                   <td className={`px-4 py-2.5 ${t.textMuted}`}>{r.date}</td>
                   <td className={`px-4 py-2.5 ${t.textFaint}`}>{r.shift}</td>
-                  <td className={`px-4 py-2.5 font-semibold ${r.tonnesMilled >= TARGETS.tonnesMilled ? 'text-emerald-500' : 'text-amber-500'}`}>{r.tonnesMilled}</td>
-                  <td className={`px-4 py-2.5 font-semibold ${r.grade >= TARGETS.grade ? 'text-emerald-500' : 'text-amber-500'}`}>{r.grade}</td>
+                  <td className={`px-4 py-2.5 ${TYPE_WEIGHT.semibold} ${r.tonnesMilled >= TARGETS.tonnesMilled ? 'text-emerald-500' : 'text-amber-500'}`}>{r.tonnesMilled}</td>
+                  <td className={`px-4 py-2.5 ${TYPE_WEIGHT.semibold} ${r.grade >= TARGETS.grade ? 'text-emerald-500' : 'text-amber-500'}`}>{r.grade}</td>
                   <td className={`px-4 py-2.5 ${r.recovery >= TARGETS.recovery ? 'text-emerald-500' : 'text-amber-500'}`}>{r.recovery}%</td>
-                  <td className={`px-4 py-2.5 font-semibold ${r.goldOz >= TARGETS.goldOz ? 'text-emerald-500' : 'text-amber-500'}`}>{r.goldOz}</td>
+                  <td className={`px-4 py-2.5 ${TYPE_WEIGHT.semibold} ${r.goldOz >= TARGETS.goldOz ? 'text-emerald-500' : 'text-amber-500'}`}>{r.goldOz}</td>
                   <td className={`px-4 py-2.5 ${t.textMuted}`}>{r.millAvail}%</td>
                   <td className={`px-4 py-2.5 ${t.textFaint}`}>{r.downtimeHrs}h</td>
                   <td className={`px-4 py-2.5 text-xs ${t.textFaint}`}>{r.downtimeReason || '—'}</td>

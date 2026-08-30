@@ -66,7 +66,7 @@ import {
   Home
 } from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
-import { useTheme, PageHero, accentText } from '@/components/shared/theme';
+import { useTheme, PageHero, accentText, TYPE_WEIGHT } from '@/components/shared/theme';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -434,7 +434,7 @@ function VisualizationContent() {
               >
                 <ChevronLeft className="h-5 w-5" />
               </Button>
-              <h2 className="text-xl font-bold text-white">
+              <h2 className={`text-xl ${TYPE_WEIGHT.bold} text-white`}>
                 {pageData.visualizations[fullscreenChart]?.layout?.title || fullscreenChart}
               </h2>
             </div>
@@ -574,7 +574,7 @@ function VisualizationContent() {
                           {page.icon}
                         </div>
                         <div>
-                          <h3 className="font-semibold">{page.name}</h3>
+                          <h3 className={`${TYPE_WEIGHT.semibold}`}>{page.name}</h3>
                           <Badge variant="outline" className="mt-1 text-xs">
                             {page.category}
                           </Badge>
@@ -610,7 +610,7 @@ function VisualizationContent() {
                         {page.icon}
                       </div>
                       <div>
-                        <h3 className="font-semibold">{page.name}</h3>
+                        <h3 className={`${TYPE_WEIGHT.semibold}`}>{page.name}</h3>
                         <p className={`text-sm ${t.textMuted}`}>{page.description}</p>
                       </div>
                     </div>
@@ -637,7 +637,7 @@ function VisualizationContent() {
                   {selectedPage.icon}
                 </div>
                 <div>
-                  <h2 className={`text-2xl font-bold ${t.textPrimary}`}>{selectedPage.name}</h2>
+                  <h2 className={`text-2xl ${TYPE_WEIGHT.bold} ${t.textPrimary}`}>{selectedPage.name}</h2>
                   <p className={`${t.textMuted}`}>{selectedPage.description}</p>
                 </div>
               </div>
@@ -674,7 +674,7 @@ function VisualizationContent() {
                             {pkg.icon}
                           </div>
                           <div>
-                            <h3 className="font-semibold">{pkg.name}</h3>
+                            <h3 className={`${TYPE_WEIGHT.semibold}`}>{pkg.name}</h3>
                             <p className={`text-sm ${t.textMuted}`}>{pkg.description}</p>
                           </div>
                         </div>
@@ -746,25 +746,25 @@ function VisualizationContent() {
                       <CardContent>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                           <div className={`p-4 rounded-lg ${t.light ? 'bg-brand-50' : 'bg-brand-500/10'}`}>
-                            <div className={`text-2xl font-bold ${accentText('brand', t.light)}`}>
+                            <div className={`text-2xl ${TYPE_WEIGHT.bold} ${accentText('brand', t.light)}`}>
                               {pageData.data_summary.total_records.toLocaleString()}
                             </div>
                             <div className={`text-sm ${t.textMuted}`}>Total Records</div>
                           </div>
                           <div className={`p-4 rounded-lg ${t.light ? 'bg-green-50' : 'bg-green-500/10'}`}>
-                            <div className={`text-2xl font-bold ${accentText('green', t.light)}`}>
+                            <div className={`text-2xl ${TYPE_WEIGHT.bold} ${accentText('green', t.light)}`}>
                               {pageData.data_summary.columns.length}
                             </div>
                             <div className={`text-sm ${t.textMuted}`}>Data Columns</div>
                           </div>
                           <div className={`p-4 rounded-lg ${t.light ? 'bg-purple-50' : 'bg-purple-500/10'}`}>
-                            <div className={`text-2xl font-bold ${accentText('purple', t.light)}`}>
+                            <div className={`text-2xl ${TYPE_WEIGHT.bold} ${accentText('purple', t.light)}`}>
                               {Object.keys(pageData.visualizations).length}
                             </div>
                             <div className={`text-sm ${t.textMuted}`}>Visualizations</div>
                           </div>
                           <div className={`p-4 rounded-lg ${t.light ? 'bg-amber-50' : 'bg-amber-500/10'}`}>
-                            <div className={`text-2xl font-bold ${accentText('amber', t.light)}`}>
+                            <div className={`text-2xl ${TYPE_WEIGHT.bold} ${accentText('amber', t.light)}`}>
                               {pageData.page_info.primary_metrics.length}
                             </div>
                             <div className={`text-sm ${t.textMuted}`}>Key Metrics</div>
@@ -773,7 +773,7 @@ function VisualizationContent() {
 
                         {/* Key Metrics */}
                         <div className="mt-6">
-                          <h4 className="font-semibold mb-3">Key Metrics for {selectedPage.name}</h4>
+                          <h4 className={`${TYPE_WEIGHT.semibold} mb-3`}>Key Metrics for {selectedPage.name}</h4>
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                             {pageData.page_info.primary_metrics.map((metric, index) => (
                               <Badge key={index} variant="outline" className="justify-center py-2">
@@ -880,7 +880,7 @@ function VisualizationContent() {
                   <>
                     <div className="flex justify-between items-center">
                       <div>
-                        <h2 className={`text-2xl font-bold ${t.textPrimary} flex items-center gap-2`}>
+                        <h2 className={`text-2xl ${TYPE_WEIGHT.bold} ${t.textPrimary} flex items-center gap-2`}>
                           <BarChart3 className="h-6 w-6" />
                           Interactive Visualizations
                         </h2>
@@ -914,7 +914,7 @@ function VisualizationContent() {
                                       : 'hover:bg-accent'
                                   }`}
                                 >
-                                  <div className="font-medium text-sm">
+                                  <div className={`${TYPE_WEIGHT.medium} text-sm`}>
                                     {chart.layout?.title || key}
                                   </div>
                                   <div className={`flex items-center justify-between text-xs ${t.textMuted} mt-1`}>
@@ -965,7 +965,7 @@ function VisualizationContent() {
                 <div className="flex items-center gap-3">
                   <Brain className={`h-5 w-5 ${accentText('purple', t.light)}`} />
                   <div>
-                    <h2 className={`text-2xl font-bold ${t.textPrimary}`}>🤖 AI Analysis</h2>
+                    <h2 className={`text-2xl ${TYPE_WEIGHT.bold} ${t.textPrimary}`}>🤖 AI Analysis</h2>
                     <p className={`${t.textMuted}`}>
                       Powered by Hugging Face Transformers for {selectedPage.name}
                     </p>
@@ -999,7 +999,7 @@ function VisualizationContent() {
                             {aiAnalysis.insights.map((insight, index) => (
                               <div key={index} className="p-4 border rounded-lg hover:shadow-sm transition-shadow">
                                 <div className="flex items-center justify-between mb-2">
-                                  <h4 className="font-semibold">{insight.metric}</h4>
+                                  <h4 className={`${TYPE_WEIGHT.semibold}`}>{insight.metric}</h4>
                                   <Badge variant={
                                     insight.trend === 'increasing' ? 'default' :
                                     insight.trend === 'decreasing' ? 'destructive' : 'outline'
@@ -1009,19 +1009,19 @@ function VisualizationContent() {
                                 </div>
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
                                   <div className={`text-center p-2 ${t.chipBg} rounded`}>
-                                    <div className="font-bold">{insight.average.toFixed(1)}</div>
+                                    <div className={`${TYPE_WEIGHT.bold}`}>{insight.average.toFixed(1)}</div>
                                     <div className={`text-xs ${t.textMuted}`}>Avg</div>
                                   </div>
                                   <div className={`text-center p-2 ${t.chipBg} rounded`}>
-                                    <div className="font-bold">{insight.median.toFixed(1)}</div>
+                                    <div className={`${TYPE_WEIGHT.bold}`}>{insight.median.toFixed(1)}</div>
                                     <div className={`text-xs ${t.textMuted}`}>Median</div>
                                   </div>
                                   <div className={`text-center p-2 ${t.chipBg} rounded`}>
-                                    <div className="font-bold">{insight.min.toFixed(1)}</div>
+                                    <div className={`${TYPE_WEIGHT.bold}`}>{insight.min.toFixed(1)}</div>
                                     <div className={`text-xs ${t.textMuted}`}>Min</div>
                                   </div>
                                   <div className={`text-center p-2 ${t.chipBg} rounded`}>
-                                    <div className="font-bold">{insight.max.toFixed(1)}</div>
+                                    <div className={`${TYPE_WEIGHT.bold}`}>{insight.max.toFixed(1)}</div>
                                     <div className={`text-xs ${t.textMuted}`}>Max</div>
                                   </div>
                                 </div>
@@ -1052,7 +1052,7 @@ function VisualizationContent() {
                               }`}>
                                 <div className="flex items-start justify-between">
                                   <div>
-                                    <div className="font-medium">{rec.title}</div>
+                                    <div className={`${TYPE_WEIGHT.medium}`}>{rec.title}</div>
                                     <div className={`text-sm ${t.textMuted} mt-1`}>{rec.description}</div>
                                   </div>
                                   <Badge variant={
@@ -1088,7 +1088,7 @@ function VisualizationContent() {
                               aiAnalysis.anomalies.map((anomaly, index) => (
                                 <div key={index} className="p-3 border rounded-lg hover:shadow-sm">
                                   <div className="flex items-center justify-between mb-1">
-                                    <span className="font-medium">{anomaly.metric}</span>
+                                    <span className={`${TYPE_WEIGHT.medium}`}>{anomaly.metric}</span>
                                     <Badge variant="destructive">{anomaly.count} cases</Badge>
                                   </div>
                                   <p className={`text-sm ${t.textMuted}`}>{anomaly.description}</p>
@@ -1121,7 +1121,7 @@ function VisualizationContent() {
                             {aiAnalysis.predictions.map((pred, index) => (
                               <div key={index} className="p-4 border rounded-lg">
                                 <div className="flex items-center justify-between mb-3">
-                                  <h4 className="font-semibold">{pred.metric}</h4>
+                                  <h4 className={`${TYPE_WEIGHT.semibold}`}>{pred.metric}</h4>
                                   <Badge variant={pred.trend === 'increasing' ? 'default' : 'outline'}>
                                     {pred.trend}
                                   </Badge>
@@ -1129,7 +1129,7 @@ function VisualizationContent() {
                                 <div className="space-y-2">
                                   <div className="flex items-center justify-between text-sm">
                                     <span>Next Periods:</span>
-                                    <span className="font-medium">
+                                    <span className={`${TYPE_WEIGHT.medium}`}>
                                       {pred.forecast.map(f => f.toFixed(1)).join(', ')}
                                     </span>
                                   </div>
@@ -1137,7 +1137,7 @@ function VisualizationContent() {
                                     <span>Confidence:</span>
                                     <div className="flex items-center gap-2">
                                       <Progress value={pred.confidence * 100} className="w-24 h-2" />
-                                      <span className="font-medium">{(pred.confidence * 100).toFixed(0)}%</span>
+                                      <span className={`${TYPE_WEIGHT.medium}`}>{(pred.confidence * 100).toFixed(0)}%</span>
                                     </div>
                                   </div>
                                 </div>
@@ -1168,7 +1168,7 @@ function VisualizationContent() {
                 <div className="flex items-center gap-3">
                   <Zap className={`h-5 w-5 ${accentText('amber', t.light)}`} />
                   <div>
-                    <h2 className={`text-2xl font-bold ${t.textPrimary}`}>⚡ Data Processing</h2>
+                    <h2 className={`text-2xl ${TYPE_WEIGHT.bold} ${t.textPrimary}`}>⚡ Data Processing</h2>
                     <p className={`${t.textMuted}`}>
                       Lightning-fast data processing with Polars (10-100x faster than pandas)
                     </p>
@@ -1192,7 +1192,7 @@ function VisualizationContent() {
                             <Clock className={`h-4 w-4 ${t.textMuted}`} />
                             <span>Processing Time</span>
                           </div>
-                          <div className="text-2xl font-bold text-green-600">~10ms</div>
+                          <div className={`text-2xl ${TYPE_WEIGHT.bold} text-green-600`}>~10ms</div>
                         </div>
                         <Progress value={95} className="h-2" />
                       </div>
@@ -1203,7 +1203,7 @@ function VisualizationContent() {
                             <MemoryStick className={`h-4 w-4 ${t.textMuted}`} />
                             <span>Memory Usage</span>
                           </div>
-                          <div className="text-2xl font-bold text-brand-600">4.2MB</div>
+                          <div className={`text-2xl ${TYPE_WEIGHT.bold} text-brand-600`}>4.2MB</div>
                         </div>
                         <Progress value={65} className="h-2" />
                       </div>
@@ -1214,7 +1214,7 @@ function VisualizationContent() {
                             <ArrowUpDown className={`h-4 w-4 ${t.textMuted}`} />
                             <span>Speed vs Pandas</span>
                           </div>
-                          <div className="text-2xl font-bold text-purple-600">42x</div>
+                          <div className={`text-2xl ${TYPE_WEIGHT.bold} text-purple-600`}>42x</div>
                         </div>
                         <Progress value={95} className="h-2" />
                       </div>
@@ -1239,7 +1239,7 @@ function VisualizationContent() {
                       ].map((op, index) => (
                         <div key={index} className="mb-4 last:mb-0 p-3 border rounded-lg hover:bg-accent">
                           <div className="flex justify-between items-center mb-2">
-                            <span className="font-medium">{op.operation}</span>
+                            <span className={`${TYPE_WEIGHT.medium}`}>{op.operation}</span>
                             <Badge variant="outline">{op.time}</Badge>
                           </div>
                           <div className={`flex justify-between text-sm ${t.textMuted}`}>
@@ -1264,13 +1264,13 @@ function VisualizationContent() {
                       <div className="space-y-4">
                         <div className="grid grid-cols-2 gap-4">
                           <div className={`p-3 ${t.chipBg} rounded-lg`}>
-                            <div className={`text-xl font-bold ${t.textPrimary}`}>
+                            <div className={`text-xl ${TYPE_WEIGHT.bold} ${t.textPrimary}`}>
                               {pageData?.data_summary.total_records.toLocaleString() || '0'}
                             </div>
                             <div className={`text-sm ${t.textMuted}`}>Total Records</div>
                           </div>
                           <div className={`p-3 ${t.chipBg} rounded-lg`}>
-                            <div className={`text-xl font-bold ${t.textPrimary}`}>
+                            <div className={`text-xl ${TYPE_WEIGHT.bold} ${t.textPrimary}`}>
                               {pageData?.data_summary.columns.length || '0'}
                             </div>
                             <div className={`text-sm ${t.textMuted}`}>Columns</div>
@@ -1279,7 +1279,7 @@ function VisualizationContent() {
                         
                         <div className="p-4 bg-gradient-to-r from-amber-50 to-orange-50 rounded-lg">
                           <div className="text-center">
-                            <div className="text-3xl font-bold text-amber-600">42x</div>
+                            <div className={`text-3xl ${TYPE_WEIGHT.bold} text-amber-600`}>42x</div>
                             <div className={`text-sm ${t.textMuted}`}>Faster with Polars</div>
                           </div>
                         </div>
@@ -1294,7 +1294,7 @@ function VisualizationContent() {
                 <div className="flex items-center gap-3">
                   <TrendingUp className={`h-5 w-5 ${accentText('green', t.light)}`} />
                   <div>
-                    <h2 className={`text-2xl font-bold ${t.textPrimary}`}>📊 Static Publication Charts</h2>
+                    <h2 className={`text-2xl ${TYPE_WEIGHT.bold} ${t.textPrimary}`}>📊 Static Publication Charts</h2>
                     <p className={`${t.textMuted}`}>Matplotlib & Seaborn for reports and publications</p>
                   </div>
                 </div>
@@ -1352,7 +1352,7 @@ function VisualizationContent() {
                         <div className="space-y-3">
                           <div className={`h-40 ${t.chipBg} rounded-lg flex items-center justify-center`}>
                             <div className="text-center">
-                              <div className={`text-4xl font-bold ${t.textFaint}`}>{index + 1}</div>
+                              <div className={`text-4xl ${TYPE_WEIGHT.bold} ${t.textFaint}`}>{index + 1}</div>
                               <div className={`text-sm ${t.textMuted}`}>Chart Preview</div>
                             </div>
                           </div>
@@ -1406,21 +1406,21 @@ function VisualizationContent() {
         <div className="mt-12 pt-8 border-t">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             <div className="text-center p-4">
-              <div className="text-3xl font-bold text-purple-600">{pageOptions.length}</div>
+              <div className={`text-3xl ${TYPE_WEIGHT.bold} text-purple-600`}>{pageOptions.length}</div>
               <div className={`text-sm ${t.textMuted}`}>Pages Available</div>
             </div>
             <div className="text-center p-4">
-              <div className="text-3xl font-bold text-brand-600">
+              <div className={`text-3xl ${TYPE_WEIGHT.bold} text-brand-600`}>
                 {pageData ? Object.keys(pageData.visualizations).length : 0}
               </div>
               <div className={`text-sm ${t.textMuted}`}>Active Visualizations</div>
             </div>
             <div className="text-center p-4">
-              <div className="text-3xl font-bold text-green-600">42x</div>
+              <div className={`text-3xl ${TYPE_WEIGHT.bold} text-green-600`}>42x</div>
               <div className={`text-sm ${t.textMuted}`}>Processing Speed</div>
             </div>
             <div className="text-center p-4">
-              <div className="text-3xl font-bold text-amber-600">100%</div>
+              <div className={`text-3xl ${TYPE_WEIGHT.bold} text-amber-600`}>100%</div>
               <div className={`text-sm ${t.textMuted}`}>Interactive</div>
             </div>
           </div>

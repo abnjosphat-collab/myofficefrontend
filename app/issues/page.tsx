@@ -7,7 +7,7 @@ import { formatCurrency, formatCurrencyShort, nowLocal, fmtDateTime as formatDat
 import { EXPORT_BRAND_ARGB, EXPORT_BRAND_RGB } from '@/lib/exportUtils';
 import {
   useTheme, PageHero, StatTile, StatCard, FormField, SearchInput, PrimaryButton,
-  useCollapseSection, ACCENT_HEX, Combobox, type ComboOption,
+  useCollapseSection, ACCENT_HEX, Combobox, type ComboOption, TYPE_WEIGHT,
 } from '@/components/shared/theme';
 import React, { useState, useMemo, useCallback } from 'react';
 import {
@@ -247,7 +247,7 @@ const SparePicker = React.memo(({
         return (
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0">
-              <span className="font-mono text-[#86BBD8] font-semibold">{s.stock_code}</span>
+              <span className={`font-mono text-[#86BBD8] ${TYPE_WEIGHT.semibold}`}>{s.stock_code}</span>
               <span className={`${t.textMuted} ml-2`}>{s.description.slice(0, 46)}</span>
             </div>
             <div className="flex items-center gap-3 flex-shrink-0 text-[10px]">
@@ -569,7 +569,7 @@ function IssuesPageContent() {
             </button>
             <div className="relative">
               <button type="button" onClick={() => setShowDlMenu(p => !p)} disabled={issues.length === 0}
-                className={`h-8 px-3 flex items-center gap-1.5 text-xs rounded-lg font-semibold ${t.chipBg} ${t.hoverBg} ${t.textMuted} ${t.hoverText} transition-all disabled:opacity-40`}>
+                className={`h-8 px-3 flex items-center gap-1.5 text-xs rounded-lg ${TYPE_WEIGHT.semibold} ${t.chipBg} ${t.hoverBg} ${t.textMuted} ${t.hoverText} transition-all disabled:opacity-40`}>
                 <Download className="h-3.5 w-3.5" /> Download
               </button>
               {showDlMenu && (
@@ -609,7 +609,7 @@ function IssuesPageContent() {
         <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
           <div className={`px-5 py-3 border-b ${t.border} flex items-center gap-2`}>
             <ClipboardList className="h-3.5 w-3.5 text-[#86BBD8]" />
-            <span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Record New Issue</span>
+            <span className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textMuted}`}>Record New Issue</span>
           </div>
           <div className="p-5 space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -635,9 +635,9 @@ function IssuesPageContent() {
 
             <div>
               <div className="flex items-center justify-between mb-2">
-                <span className={`text-[11px] font-semibold uppercase tracking-wider ${t.textFaint}`}>Items to Issue</span>
+                <span className={`text-[11px] ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textFaint}`}>Items to Issue</span>
                 <button type="button" onClick={addItem}
-                  className={`inline-flex items-center gap-1 h-6 px-2.5 text-[11px] rounded-lg font-medium ${t.chipBg} ${t.hoverBg} ${t.textMuted} transition-all`}>
+                  className={`inline-flex items-center gap-1 h-6 px-2.5 text-[11px] rounded-lg ${TYPE_WEIGHT.medium} ${t.chipBg} ${t.hoverBg} ${t.textMuted} transition-all`}>
                   <Plus className="h-2.5 w-2.5" /> Add Item
                 </button>
               </div>
@@ -683,7 +683,7 @@ function IssuesPageContent() {
               {items.some(i => i.unit_price > 0) && (
                 <div className="flex justify-end mt-2 pr-8">
                   <div className={`text-xs ${t.textFaint}`}>
-                    Issue total: <span className={`${t.textPrimary} font-semibold ml-1`}>
+                    Issue total: <span className={`${t.textPrimary} ${TYPE_WEIGHT.semibold} ml-1`}>
                       {formatCurrency(items.reduce((s, i) => s + calcLineTotal(i.qty, i.unit_price), 0))}
                     </span>
                   </div>
@@ -712,7 +712,7 @@ function IssuesPageContent() {
                 { id: 'analytics', label: 'Analytics', icon: BarChart3 },
               ] as const).map(tab => (
                 <button key={tab.id} type="button" onClick={() => setLogTab(tab.id)}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${logTab === tab.id ? 'bg-brand-500/15 text-brand-500' : `${t.textFaint} ${t.hoverBg} ${t.hoverText}`}`}>
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs ${TYPE_WEIGHT.medium} rounded-lg transition-all ${logTab === tab.id ? 'bg-brand-500/15 text-brand-500' : `${t.textFaint} ${t.hoverBg} ${t.hoverText}`}`}>
                   <tab.icon className="h-3 w-3" />
                   {tab.label}
                 </button>
@@ -758,7 +758,7 @@ function IssuesPageContent() {
               ) : filteredIssues.length === 0 ? (
                 <div className={`text-center py-20 ${t.textFaint}`}>
                   <PackageMinus className="h-12 w-12 mx-auto mb-4 opacity-20" />
-                  <div className={`text-sm font-medium ${t.textMuted}`}>No issue records</div>
+                  <div className={`text-sm ${TYPE_WEIGHT.medium} ${t.textMuted}`}>No issue records</div>
                   <div className="text-xs mt-1">
                     {search || dateFrom || dateTo ? 'No records match your filters' : 'Use the form above to record the first issue'}
                   </div>
@@ -769,7 +769,7 @@ function IssuesPageContent() {
                     <thead>
                       <tr className={`border-b ${t.border}`}>
                         {['Date & Time', 'Issued To', 'Items', 'Cost', 'Issued By', 'Notes', ''].map((h, i) => (
-                          <th key={i} className={`py-2.5 text-[10px] font-semibold uppercase tracking-wider ${t.textFaint} ${i === 0 ? 'pl-5 pr-3 text-left' : i === 3 ? 'px-3 text-right' : i === 6 ? 'px-3 w-16' : 'px-3 text-left'}`}>
+                          <th key={i} className={`py-2.5 text-[10px] ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textFaint} ${i === 0 ? 'pl-5 pr-3 text-left' : i === 3 ? 'px-3 text-right' : i === 6 ? 'px-3 w-16' : 'px-3 text-left'}`}>
                             {h}
                           </th>
                         ))}
@@ -786,12 +786,12 @@ function IssuesPageContent() {
                               onClick={() => toggleRow(issue.id)}>
                               <td className={`pl-5 pr-3 py-3 text-xs ${t.textMuted} whitespace-nowrap`}>{formatDateTime(issue.issued_at)}</td>
                               <td className="px-3 py-3">
-                                <div className={`text-xs font-semibold ${t.textPrimary}`}>{issue.recipient_name}</div>
+                                <div className={`text-xs ${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{issue.recipient_name}</div>
                                 {issue.recipient_id && <div className={`text-[10px] mt-0.5 font-mono ${t.textFaint}`}>{issue.recipient_id}</div>}
                               </td>
                               <td className="px-3 py-3">
                                 <div className={`text-xs ${t.textMuted}`}>
-                                  <span className={`font-semibold ${t.textPrimary}`}>{issue.items.length}</span> item{issue.items.length !== 1 ? 's' : ''}
+                                  <span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{issue.items.length}</span> item{issue.items.length !== 1 ? 's' : ''}
                                 </div>
                                 {issue.items[0] && (
                                   <div className={`text-[10px] mt-0.5 truncate max-w-[180px] ${t.textFaint}`}>
@@ -802,7 +802,7 @@ function IssuesPageContent() {
                               </td>
                               <td className="px-3 py-3 text-right">
                                 {hasCost
-                                  ? <span className={`text-xs font-semibold ${t.textPrimary}`}>{formatCurrency(cost)}</span>
+                                  ? <span className={`text-xs ${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{formatCurrency(cost)}</span>
                                   : <span className={`text-[10px] ${t.textFaint}`}>—</span>
                                 }
                               </td>
@@ -830,12 +830,12 @@ function IssuesPageContent() {
                                   <div className="space-y-1">
                                     {issue.items.map((item, i) => (
                                       <div key={i} className={`flex items-center gap-4 text-xs px-3 py-2 rounded-lg ${t.chipBg} border ${t.border}`}>
-                                        {item.stock_code && <span className="font-mono text-[#86BBD8] font-semibold flex-shrink-0 w-24 truncate">{item.stock_code}</span>}
+                                        {item.stock_code && <span className={`font-mono text-[#86BBD8] ${TYPE_WEIGHT.semibold} flex-shrink-0 w-24 truncate`}>{item.stock_code}</span>}
                                         <span className={`${t.textMuted} flex-1`}>{item.description}</span>
-                                        <span className={`${t.textPrimary} font-semibold flex-shrink-0`}>{item.qty}</span>
+                                        <span className={`${t.textPrimary} ${TYPE_WEIGHT.semibold} flex-shrink-0`}>{item.qty}</span>
                                         <span className={`${t.textFaint} flex-shrink-0 w-8 text-right`}>{item.unit || 'UN'}</span>
                                         {(item.unit_price || 0) > 0
-                                          ? <span className="text-[#86BBD8] flex-shrink-0 w-20 text-right font-medium">{formatCurrency(calcLineTotal(item.qty, item.unit_price || 0))}</span>
+                                          ? <span className={`text-[#86BBD8] flex-shrink-0 w-20 text-right ${TYPE_WEIGHT.medium}`}>{formatCurrency(calcLineTotal(item.qty, item.unit_price || 0))}</span>
                                           : <span className={`${t.textFaint} flex-shrink-0 w-20 text-right text-[10px]`}>no price</span>
                                         }
                                       </div>
@@ -843,7 +843,7 @@ function IssuesPageContent() {
                                   </div>
                                   {cost > 0 && (
                                     <div className="flex justify-end mt-2 pr-1">
-                                      <span className={`text-xs ${t.textFaint}`}>Total: <span className={`${t.textPrimary} font-semibold ml-1`}>{formatCurrency(cost)}</span></span>
+                                      <span className={`text-xs ${t.textFaint}`}>Total: <span className={`${t.textPrimary} ${TYPE_WEIGHT.semibold} ml-1`}>{formatCurrency(cost)}</span></span>
                                     </div>
                                   )}
                                   {issue.notes && <div className={`mt-2 text-[11px] italic ${t.textFaint}`}>Note: {issue.notes}</div>}
@@ -995,7 +995,7 @@ function IssuesPageContent() {
                         <thead>
                           <tr className={`border-b ${t.border}`}>
                             {['Period', 'Issues', 'Items', 'Total Cost', 'Avg Cost / Issue'].map((h, i) => (
-                              <th key={i} className={`py-2.5 px-4 text-[10px] font-semibold uppercase tracking-wider ${t.textFaint} ${i === 0 ? 'text-left' : 'text-right'}`}>{h}</th>
+                              <th key={i} className={`py-2.5 px-4 text-[10px] ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textFaint} ${i === 0 ? 'text-left' : 'text-right'}`}>{h}</th>
                             ))}
                           </tr>
                         </thead>
@@ -1005,7 +1005,7 @@ function IssuesPageContent() {
                               <td className={`px-4 py-2 text-xs ${t.textMuted}`}>{pt.label}</td>
                               <td className={`px-4 py-2 text-xs ${t.textMuted} text-right`}>{pt.count || '—'}</td>
                               <td className={`px-4 py-2 text-xs ${t.textMuted} text-right`}>{pt.itemCount || '—'}</td>
-                              <td className="px-4 py-2 text-xs text-right font-medium" style={{ color: pt.cost > 0 ? '#86BBD8' : undefined }}>
+                              <td className={`px-4 py-2 text-xs text-right ${TYPE_WEIGHT.medium}`} style={{ color: pt.cost > 0 ? '#86BBD8' : undefined }}>
                                 {pt.cost > 0 ? formatCurrency(pt.cost) : <span className={t.textFaint}>—</span>}
                               </td>
                               <td className={`px-4 py-2 text-xs ${t.textFaint} text-right`}>

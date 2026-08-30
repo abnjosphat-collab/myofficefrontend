@@ -2,7 +2,7 @@
 import { useState, useMemo } from 'react';
 import { LayoutDashboard, TrendingUp, TrendingDown, Minus, Wrench, RefreshCw, Gauge, ClipboardCheck, Clock3, AlertTriangle, ClipboardList, Droplet, Users } from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
-import { useTheme, PageHero, StatCard, ACCENT_HEX, type Accent } from '@/components/shared/theme';
+import { useTheme, PageHero, StatCard, ACCENT_HEX, type Accent, TYPE_WEIGHT } from '@/components/shared/theme';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
 import { useEngineeringDashboardData, statusDist } from './useEngineeringDashboardData';
 
@@ -47,7 +47,7 @@ function CustomTooltip({ active, payload, label, tooltipStyle, textFaint }: any)
     <div className="rounded-xl px-3 py-2 text-xs shadow-xl" style={tooltipStyle}>
       <p className={`mb-1 ${textFaint}`}>{label}</p>
       {payload.map((p: any) => (
-        <p key={p.name} style={{ color: p.color }} className="font-semibold">{p.name}: {p.value}{p.name === 'target' || p.name === 'actual' ? '%' : ''}</p>
+        <p key={p.name} style={{ color: p.color }} className={`${TYPE_WEIGHT.semibold}`}>{p.name}: {p.value}{p.name === 'target' || p.name === 'actual' ? '%' : ''}</p>
       ))}
     </div>
   );
@@ -71,7 +71,7 @@ function EngineeringDashboardContent() {
           <div className="flex gap-1">
             {(['week', 'month', 'quarter'] as const).map(p => (
               <button key={p} type="button" onClick={() => setPeriod(p)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${period === p ? 'bg-cyan-500/20 text-cyan-500' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}>
+                className={`px-3 py-1.5 rounded-lg text-xs ${TYPE_WEIGHT.semibold} transition-all ${period === p ? 'bg-cyan-500/20 text-cyan-500' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}>
                 {p.charAt(0).toUpperCase() + p.slice(1)}
               </button>
             ))}
@@ -94,7 +94,7 @@ function EngineeringDashboardContent() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className={`lg:col-span-2 ${t.glass} rounded-2xl ${t.shadow} p-5`}>
-          <p className={`text-sm font-semibold mb-4 ${t.textPrimary}`}>Fleet Availability vs Target (%)</p>
+          <p className={`text-sm ${TYPE_WEIGHT.semibold} mb-4 ${t.textPrimary}`}>Fleet Availability vs Target (%)</p>
           <ResponsiveContainer width="100%" height={200}>
             <LineChart data={avTrend} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={grid} />
@@ -108,7 +108,7 @@ function EngineeringDashboardContent() {
         </div>
 
         <div className={`${t.glass} rounded-2xl ${t.shadow} p-5`}>
-          <p className={`text-sm font-semibold mb-2 ${t.textPrimary}`}>Fleet Status Now</p>
+          <p className={`text-sm ${TYPE_WEIGHT.semibold} mb-2 ${t.textPrimary}`}>Fleet Status Now</p>
           <div className="flex items-center justify-center">
             <ResponsiveContainer width="100%" height={150}>
               <PieChart>
@@ -126,7 +126,7 @@ function EngineeringDashboardContent() {
                   <div className="h-2 w-2 rounded-full" style={{ background: d.color }} />
                   <span className={t.textMuted}>{d.name}</span>
                 </div>
-                <span className={`font-semibold ${t.textPrimary}`}>{d.value}</span>
+                <span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{d.value}</span>
               </div>
             ))}
           </div>
@@ -135,7 +135,7 @@ function EngineeringDashboardContent() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className={`${t.glass} rounded-2xl ${t.shadow} p-5`}>
-          <p className={`text-sm font-semibold mb-4 ${t.textPrimary}`}>Monthly Breakdown Count</p>
+          <p className={`text-sm ${TYPE_WEIGHT.semibold} mb-4 ${t.textPrimary}`}>Monthly Breakdown Count</p>
           <ResponsiveContainer width="100%" height={180}>
             <BarChart data={bdTrend} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={grid} />
@@ -148,19 +148,19 @@ function EngineeringDashboardContent() {
         </div>
 
         <div className={`${t.glass} rounded-2xl ${t.shadow} p-5`}>
-          <p className={`text-sm font-semibold mb-3 ${t.textPrimary}`}>Top 5 Repeat Failures (MTD)</p>
+          <p className={`text-sm ${TYPE_WEIGHT.semibold} mb-3 ${t.textPrimary}`}>Top 5 Repeat Failures (MTD)</p>
           <div className="space-y-2">
             {topFails.map((b, i) => (
               <div key={b.equipment} className="flex items-center gap-3">
                 <span className={`text-xs w-4 shrink-0 ${t.textFaint}`}>{i + 1}</span>
                 <div className="flex-1 min-w-0">
-                  <p className={`text-xs font-medium truncate ${t.textPrimary}`}>{b.equipment}</p>
+                  <p className={`text-xs ${TYPE_WEIGHT.medium} truncate ${t.textPrimary}`}>{b.equipment}</p>
                   <div className={`h-1.5 mt-1 rounded-full ${t.chipBg} overflow-hidden`}>
                     <div className="h-full rounded-full bg-rose-500" style={{ width: `${(b.count / 10) * 100}%` }} />
                   </div>
                 </div>
                 <div className="text-right shrink-0">
-                  <p className={`text-xs font-semibold ${t.textPrimary}`}>{b.count}×</p>
+                  <p className={`text-xs ${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{b.count}×</p>
                   <p className={`text-[10px] ${t.textFaint}`}>{b.hours}h</p>
                 </div>
               </div>
@@ -173,7 +173,7 @@ function EngineeringDashboardContent() {
         <div className={`flex items-center justify-between px-5 py-3.5 border-b ${t.border}`}>
           <div className="flex items-center gap-2">
             <Wrench className="h-4 w-4 text-[#86BBD8]" />
-            <span className={`text-sm font-semibold ${t.textPrimary}`}>Open Work Orders ({openWOs.length})</span>
+            <span className={`text-sm ${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>Open Work Orders ({openWOs.length})</span>
           </div>
           <a href="/job-cards" className="text-xs text-[#86BBD8] hover:text-[#86BBD8]/70 transition-colors">View all →</a>
         </div>
@@ -186,9 +186,9 @@ function EngineeringDashboardContent() {
             <div key={wo.id} className={`flex items-center gap-3 px-5 py-3 border-b ${t.border} last:border-0 ${t.hoverBg} transition-colors`}>
               <span className={`text-xs font-mono w-28 shrink-0 ${t.textFaint}`}>{wo.id}</span>
               <p className={`text-sm flex-1 truncate ${t.textPrimary}`}>{wo.title}</p>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ color: PRIORITY_HEX[wo.priority], background: `${PRIORITY_HEX[wo.priority]}22`, border: `1px solid ${PRIORITY_HEX[wo.priority]}40` }}>{wo.priority}</span>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] ${TYPE_WEIGHT.semibold}`} style={{ color: PRIORITY_HEX[wo.priority], background: `${PRIORITY_HEX[wo.priority]}22`, border: `1px solid ${PRIORITY_HEX[wo.priority]}40` }}>{wo.priority}</span>
               <span className={`text-xs shrink-0 ${t.textFaint}`}>{wo.assigned}</span>
-              <span className="text-xs font-semibold shrink-0" style={{ color: wo.age <= 1 ? undefined : wo.age <= 3 ? '#f59e0b' : '#f43f5e' }}>{wo.age}d</span>
+              <span className={`text-xs ${TYPE_WEIGHT.semibold} shrink-0`} style={{ color: wo.age <= 1 ? undefined : wo.age <= 3 ? '#f59e0b' : '#f43f5e' }}>{wo.age}d</span>
             </div>
           ))}
         </div>

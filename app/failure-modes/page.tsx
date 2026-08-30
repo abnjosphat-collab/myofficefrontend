@@ -4,7 +4,7 @@
 import { useState } from 'react';
 import { AppShell } from '@/components/app-shell';
 import { AlertOctagon, ChevronDown, ChevronUp, RefreshCw } from '@/components/shared/theme';
-import { useTheme, accentText, PageHero, StatTile, ACCENT_HEX } from '@/components/shared/theme';
+import { useTheme, accentText, PageHero, StatTile, ACCENT_HEX, TYPE_WEIGHT } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
 import { useFailureModesData } from './useFailureModesData';
@@ -86,11 +86,11 @@ function FailureModesContent() {
 
       <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
         <div className={`p-4 border-b ${t.border} flex items-center justify-between flex-wrap gap-3`}>
-          <h2 className={`font-semibold ${t.textPrimary}`}>Failure Modes</h2>
+          <h2 className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>Failure Modes</h2>
           <div className="flex gap-2 flex-wrap">
-            <button type="button" onClick={() => setEquipFilter('all')} className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${equipFilter === 'all' ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}>All</button>
+            <button type="button" onClick={() => setEquipFilter('all')} className={`px-3 py-1 rounded-lg text-xs ${TYPE_WEIGHT.semibold} transition-colors ${equipFilter === 'all' ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}>All</button>
             {EQ_TYPES_STATIC.map(eq => (
-              <button type="button" key={eq} onClick={() => setEquipFilter(eq)} className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${equipFilter === eq ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}>{eq}</button>
+              <button type="button" key={eq} onClick={() => setEquipFilter(eq)} className={`px-3 py-1 rounded-lg text-xs ${TYPE_WEIGHT.semibold} transition-colors ${equipFilter === eq ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}>{eq}</button>
             ))}
           </div>
         </div>
@@ -104,7 +104,7 @@ function FailureModesContent() {
               <button type="button" onClick={() => setExpanded(prev => prev === m.id ? null : m.id)} className={`w-full flex items-center gap-3 px-5 py-4 ${t.hoverBgSoft} transition-colors text-left`}>
                 <div className="flex-1 grid grid-cols-2 md:grid-cols-7 gap-x-3 items-center text-sm">
                   <div className="col-span-2 md:col-span-1">
-                    <div className={`font-medium ${t.textPrimary}`}>{m.equipType}</div>
+                    <div className={`${TYPE_WEIGHT.medium} ${t.textPrimary}`}>{m.equipType}</div>
                     <div className={`text-xs ${t.textFaint}`}>{m.component}</div>
                   </div>
                   <div className="col-span-2">
@@ -115,7 +115,7 @@ function FailureModesContent() {
                   <div className="hidden md:block"><RatingDots value={m.probability} /></div>
                   <div className="hidden md:block"><RatingDots value={m.detectability} /></div>
                   <div className="flex items-center gap-3">
-                    <span className="text-xl font-bold" style={{ color: rpnHex(m.rpn) }}>{m.rpn}</span>
+                    <span className={`text-xl ${TYPE_WEIGHT.bold}`} style={{ color: rpnHex(m.rpn) }}>{m.rpn}</span>
                     <div className={`text-xs ${t.textFaint}`}>×{m.occurrences}</div>
                   </div>
                 </div>
@@ -130,11 +130,11 @@ function FailureModesContent() {
                       <div><span className={t.textFaint}>Detectability: </span><span className={t.textMuted}>{m.detectability}/5</span></div>
                       <div><span className={t.textFaint}>Last Occurred: </span><span className={t.textMuted}>{m.lastOccurred}</span></div>
                     </div>
-                    <div className="text-brand-400 text-xs font-semibold uppercase tracking-wider mb-1">Corrective Actions</div>
+                    <div className={`text-brand-400 text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider mb-1`}>Corrective Actions</div>
                     <p className={`text-sm leading-relaxed ${t.textMuted}`}>{m.corrective}</p>
                   </div>
                   <div>
-                    <div className={`${accentText('emerald', t.light)} text-xs font-semibold uppercase tracking-wider mb-1`}>Preventive Actions</div>
+                    <div className={`${accentText('emerald', t.light)} text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider mb-1`}>Preventive Actions</div>
                     <p className={`text-sm leading-relaxed ${t.textMuted}`}>{m.preventive}</p>
                   </div>
                 </div>

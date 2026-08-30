@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { AppShell } from '@/components/app-shell';
 import { Droplets, ChevronDown, ChevronUp, FlaskConical, RefreshCw } from '@/components/shared/theme';
 import { useModuleData } from '@/lib/useModuleData';
-import { useTheme, PageHero, StatTile, StatusBadge } from '@/components/shared/theme';
+import { useTheme, PageHero, StatTile, StatusBadge, TYPE_WEIGHT } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
 import { formatDate } from '@/lib/format';
@@ -89,7 +89,7 @@ function LubricationContent() {
           <div className="flex gap-1">
             {(['schedules', 'samples'] as const).map(tab => (
               <button key={tab} type="button" onClick={() => setActiveTab(tab)}
-                className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${activeTab === tab ? 'bg-brand-500/15 text-brand-500' : `${t.textFaint} ${t.hoverText}`}`}>
+                className={`px-4 py-1.5 rounded-lg text-sm ${TYPE_WEIGHT.medium} transition-colors ${activeTab === tab ? 'bg-brand-500/15 text-brand-500' : `${t.textFaint} ${t.hoverText}`}`}>
                 {tab === 'schedules' ? 'Lube Schedules' : <span className="flex items-center gap-1"><FlaskConical className="w-3.5 h-3.5" /> Oil Samples</span>}
               </button>
             ))}
@@ -99,7 +99,7 @@ function LubricationContent() {
               <div className="flex gap-2">
                 {(['all', 'current', 'due_soon', 'overdue'] as const).map(s => (
                   <button key={s} type="button" onClick={() => setFilter(s)}
-                    className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${filter === s ? 'bg-brand-500/20 text-brand-500' : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}>
+                    className={`px-3 py-1 rounded-lg text-xs ${TYPE_WEIGHT.semibold} transition-colors ${filter === s ? 'bg-brand-500/20 text-brand-500' : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}>
                     {s === 'all' ? 'All' : s === 'due_soon' ? 'Due Soon' : s.charAt(0).toUpperCase() + s.slice(1)}
                   </button>
                 ))}
@@ -134,7 +134,7 @@ function LubricationContent() {
               <div key={s.id}>
                 <button type="button" onClick={() => setExpanded(prev => prev === s.id ? null : s.id)} className={`w-full flex items-center px-5 py-3 ${t.hoverBg} transition-colors text-left gap-4`}>
                   <div className="flex-1 grid grid-cols-2 md:grid-cols-5 gap-x-4 items-center text-sm">
-                    <span className={`font-medium col-span-2 md:col-span-1 ${t.textPrimary}`}>{s.equipment_name}</span>
+                    <span className={`${TYPE_WEIGHT.medium} col-span-2 md:col-span-1 ${t.textPrimary}`}>{s.equipment_name}</span>
                     <span className={t.textMuted}>{s.lube_point}</span>
                     <span className={t.textFaint}>{s.lubricant_type} {s.lubricant_grade}</span>
                     <span className={`hidden md:block ${t.textFaint}`}>Every {s.interval_days}d</span>
@@ -147,7 +147,7 @@ function LubricationContent() {
                 </button>
                 {expanded === s.id && (
                   <div className={`px-5 pb-4 ${t.chipBg}`}>
-                    <div className={`text-xs font-semibold uppercase tracking-wider mb-2 ${t.textFaint}`}>Schedule Details</div>
+                    <div className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider mb-2 ${t.textFaint}`}>Schedule Details</div>
                     <div className={`space-y-1 text-xs ${t.textMuted}`}>
                       <div>Last done: {s.last_done_date}</div>
                       <div>Next due: {s.next_due_date}</div>
@@ -165,13 +165,13 @@ function LubricationContent() {
             <table className="w-full text-sm">
               <thead><tr className={`border-b ${t.border}`}>
                 {['Equipment', 'Component', 'Sample Date', 'Viscosity cSt', 'Particles /mL', 'Water %', 'Result', 'Notes'].map(h => (
-                  <th key={h} className={`px-4 py-3 text-left text-xs font-medium ${t.textFaint}`}>{h}</th>
+                  <th key={h} className={`px-4 py-3 text-left text-xs ${TYPE_WEIGHT.medium} ${t.textFaint}`}>{h}</th>
                 ))}
               </tr></thead>
               <tbody className={`divide-y ${t.divide}`}>
                 {OIL_SAMPLES.map(s => (
                   <tr key={s.id} className={`${t.hoverBg} transition-colors`}>
-                    <td className={`px-4 py-3 font-medium ${t.textPrimary}`}>{s.equipment}</td>
+                    <td className={`px-4 py-3 ${TYPE_WEIGHT.medium} ${t.textPrimary}`}>{s.equipment}</td>
                     <td className={`px-4 py-3 ${t.textMuted}`}>{s.component}</td>
                     <td className={`px-4 py-3 ${t.textFaint}`}>{s.sampleDate}</td>
                     <td className={`px-4 py-3 ${t.textMuted}`}>{s.viscosity}</td>

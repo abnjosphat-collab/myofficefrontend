@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Activity, RefreshCw, Search, Check } from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
 import { PredictiveInput } from '@/components/shared/PredictiveInput';
-import { useTheme, PageHero, CenterModal, FormField, PrimaryButton, EmptyState, GlowCard, SelectField } from '@/components/shared/theme';
+import { useTheme, PageHero, CenterModal, FormField, PrimaryButton, EmptyState, GlowCard, SelectField, TYPE_WEIGHT } from '@/components/shared/theme';
 import { useEquipment, toBoardStatus, type BoardStatus } from '@/lib/useEquipment';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
@@ -37,7 +37,7 @@ function StatusDrawer({ entry, onClose, onSave }: {
               const active = status === s;
               return (
                 <button key={s} type="button" onClick={() => setStatus(s)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all"
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs ${TYPE_WEIGHT.semibold} border transition-all`}
                   style={active ? { background: `${M.hex}22`, color: M.hex, borderColor: `${M.hex}55` } : { background: t.light ? 'rgba(15,23,42,0.04)' : 'rgba(255,255,255,0.05)', color: undefined, borderColor: t.light ? 'rgba(15,23,42,0.1)' : 'rgba(255,255,255,0.1)' }}>
                   <div className="h-2 w-2 rounded-full" style={{ background: M.hex }} />{M.label}
                 </button>
@@ -78,8 +78,8 @@ function EquipCard({ entry, onEdit }: { entry: BoardEntry; onEdit: (e: BoardEntr
       surface="relative rounded-2xl border p-4 cursor-pointer"
       style={{ background: `${S.hex}12`, borderColor: `${S.hex}35` }}>
       <div className="flex items-start justify-between gap-2 mb-2">
-        <p className={`text-sm font-semibold leading-tight ${t.textPrimary}`}>{entry.name}</p>
-        <div className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold shrink-0 border" style={{ background: `${S.hex}20`, color: S.hex, borderColor: `${S.hex}40` }}>
+        <p className={`text-sm ${TYPE_WEIGHT.semibold} leading-tight ${t.textPrimary}`}>{entry.name}</p>
+        <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] ${TYPE_WEIGHT.semibold} shrink-0 border`} style={{ background: `${S.hex}20`, color: S.hex, borderColor: `${S.hex}40` }}>
           <div className="h-1.5 w-1.5 rounded-full" style={{ background: S.hex }} />
           {S.label}
         </div>
@@ -160,11 +160,11 @@ function EquipmentStatusContent() {
         actions={
           <>
             <div className="hidden sm:flex flex-col items-end mr-1">
-              <span className="text-2xl font-bold text-emerald-500 font-heading">{availability}%</span>
+              <span className={`text-2xl ${TYPE_WEIGHT.bold} text-emerald-500 font-heading`}>{availability}%</span>
               <span className={`text-[10px] ${t.textFaint}`}>Fleet Availability</span>
             </div>
             <button type="button" onClick={refetch}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${t.chipBg} ${t.hoverBg} ${t.textMuted} ${t.hoverText}`}>
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs ${TYPE_WEIGHT.medium} transition-all ${t.chipBg} ${t.hoverBg} ${t.textMuted} ${t.hoverText}`}>
               <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} /> Refresh
             </button>
             {filtered.length > 0 && (
@@ -186,7 +186,7 @@ function EquipmentStatusContent() {
               className={`flex flex-col items-center py-3 gap-0.5 rounded-xl transition-all border-b-2 ${filter === s ? '' : `border-transparent ${t.hoverBg}`}`}
               style={filter === s ? { borderColor: M.hex } : undefined}>
               <div className="h-2.5 w-2.5 rounded-full" style={{ background: M.hex }} />
-              <span className="text-xl font-bold font-heading" style={{ color: filter === s ? M.hex : undefined }}>{counts[s]}</span>
+              <span className={`text-xl ${TYPE_WEIGHT.bold} font-heading`} style={{ color: filter === s ? M.hex : undefined }}>{counts[s]}</span>
               <span className={`text-[9px] uppercase tracking-wide ${t.textFaint}`}>{M.label}</span>
             </button>
           ))}

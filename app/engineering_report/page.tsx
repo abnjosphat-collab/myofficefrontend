@@ -3,7 +3,7 @@
 
 import { useState, useMemo } from 'react';
 import { AppShell } from '@/components/app-shell';
-import { useTheme, PageHero, StatCard, type Accent } from '@/components/shared/theme';
+import { useTheme, PageHero, StatCard, type Accent, TYPE_WEIGHT } from '@/components/shared/theme';
 import {
   FileBarChart, RefreshCw, Download, Calendar, Wrench, Activity,
   AlertTriangle, CheckCircle2, TrendingUp,
@@ -57,7 +57,7 @@ function SectionHeader({ title, icon: Icon }: { title: string; icon: React.Eleme
       <div className="p-1.5 rounded-lg bg-[#86BBD8]/15 border border-[#86BBD8]/20">
         <Icon className="h-3.5 w-3.5 text-[#86BBD8]" />
       </div>
-      <h2 className={`text-sm font-bold tracking-tight ${t.textPrimary}`}>{title}</h2>
+      <h2 className={`text-sm ${TYPE_WEIGHT.bold} tracking-tight ${t.textPrimary}`}>{title}</h2>
       <div className={`flex-1 h-px ${t.border} border-t`} />
     </div>
   );
@@ -160,7 +160,7 @@ function EngineeringReportContent() {
                     {periodOptions.map(o => (
                       <button key={o.val} type="button"
                         onClick={() => { setPeriod(o.val); setOpenPeriod(false); }}
-                        className={`w-full text-left px-4 py-2.5 text-xs transition-colors ${t.hoverBg} ${period === o.val ? 'text-[#86BBD8] font-semibold' : t.textMuted}`}>
+                        className={`w-full text-left px-4 py-2.5 text-xs transition-colors ${t.hoverBg} ${period === o.val ? `text-[#86BBD8] ${TYPE_WEIGHT.semibold}` : t.textMuted}`}>
                         {o.label}
                       </button>
                     ))}
@@ -173,7 +173,7 @@ function EngineeringReportContent() {
               <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
             </button>
             <button type="button" onClick={() => window.print()}
-              className="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-[#2A4D69]/60 border border-[#86BBD8]/35 text-white text-xs font-semibold hover:bg-[#2A4D69]/80 transition-all">
+              className={`flex items-center gap-1.5 h-8 px-3 rounded-lg bg-[#2A4D69]/60 border border-[#86BBD8]/35 text-white text-xs ${TYPE_WEIGHT.semibold} hover:bg-[#2A4D69]/80 transition-all`}>
               <Download className="h-3.5 w-3.5" /> Print / Export
             </button>
           </>
@@ -197,7 +197,7 @@ function EngineeringReportContent() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className={`${t.glass} rounded-2xl ${t.shadow} p-5`}>
-          <h3 className={`text-sm font-semibold mb-4 ${t.textPrimary}`}>Breakdown Trend — Last 6 Months</h3>
+          <h3 className={`text-sm ${TYPE_WEIGHT.semibold} mb-4 ${t.textPrimary}`}>Breakdown Trend — Last 6 Months</h3>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={bdTrend} barSize={28}>
               <CartesianGrid strokeDasharray="3 3" stroke={grid} />
@@ -210,7 +210,7 @@ function EngineeringReportContent() {
         </div>
 
         <div className={`${t.glass} rounded-2xl ${t.shadow} p-5`}>
-          <h3 className={`text-sm font-semibold mb-3 ${t.textPrimary}`}>Work Order Status Distribution</h3>
+          <h3 className={`text-sm ${TYPE_WEIGHT.semibold} mb-3 ${t.textPrimary}`}>Work Order Status Distribution</h3>
           {jcDist.length === 0 ? (
             <div className={`flex items-center justify-center h-40 ${t.textFaint} text-sm`}>No job card data</div>
           ) : (
@@ -222,7 +222,7 @@ function EngineeringReportContent() {
                   <div key={status}>
                     <div className="flex justify-between text-xs mb-1">
                       <span className={`capitalize ${t.textMuted}`}>{status}</span>
-                      <span className={`font-semibold ${t.textPrimary}`}>{count}</span>
+                      <span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{count}</span>
                     </div>
                     <div className={`h-1.5 rounded-full ${t.chipBg} overflow-hidden`}>
                       <div className="h-full rounded-full transition-all" style={{ width: `${(count / max) * 100}%`, background: color }} />
@@ -247,7 +247,7 @@ function EngineeringReportContent() {
 
       {prodTrend.length > 0 && (
         <div className={`${t.glass} rounded-2xl ${t.shadow} p-5`}>
-          <h3 className={`text-sm font-semibold mb-4 ${t.textPrimary}`}>Daily Tonnes Milled vs Target</h3>
+          <h3 className={`text-sm ${TYPE_WEIGHT.semibold} mb-4 ${t.textPrimary}`}>Daily Tonnes Milled vs Target</h3>
           <ResponsiveContainer width="100%" height={200}>
             <LineChart data={prodTrend}>
               <CartesianGrid strokeDasharray="3 3" stroke={grid} />
@@ -269,12 +269,12 @@ function EngineeringReportContent() {
               <div key={equipment} className="flex items-center gap-3">
                 <span className={`text-xs w-4 shrink-0 ${t.textFaint}`}>{i + 1}</span>
                 <div className="flex-1 min-w-0">
-                  <p className={`text-xs font-medium truncate ${t.textPrimary}`}>{equipment}</p>
+                  <p className={`text-xs ${TYPE_WEIGHT.medium} truncate ${t.textPrimary}`}>{equipment}</p>
                   <div className={`h-1.5 mt-1 rounded-full ${t.chipBg} overflow-hidden`}>
                     <div className="h-full rounded-full bg-rose-500" style={{ width: `${(count / topFails[0].count) * 100}%` }} />
                   </div>
                 </div>
-                <span className={`text-xs font-bold shrink-0 ${t.textPrimary}`}>{count}×</span>
+                <span className={`text-xs ${TYPE_WEIGHT.bold} shrink-0 ${t.textPrimary}`}>{count}×</span>
               </div>
             ))}
           </div>
@@ -295,7 +295,7 @@ function EngineeringReportContent() {
                 <div className={`flex-1 h-2 rounded-full ${t.chipBg} overflow-hidden`}>
                   <div className="h-full rounded-full" style={{ width: `${compliance.length > 0 ? (count / compliance.length) * 100 : 0}%`, background: color }} />
                 </div>
-                <span className="text-sm font-bold shrink-0" style={{ color }}>{count}</span>
+                <span className={`text-sm ${TYPE_WEIGHT.bold} shrink-0`} style={{ color }}>{count}</span>
               </div>
             ))}
             {compliance.length === 0 && <p className={`${t.textFaint} text-xs text-center py-4`}>No compliance data — run SQL migration</p>}
@@ -315,7 +315,7 @@ function EngineeringReportContent() {
                 <div className={`flex-1 h-2 rounded-full ${t.chipBg} overflow-hidden`}>
                   <div className="h-full rounded-full" style={{ width: `${lube.length > 0 ? (count / lube.length) * 100 : 0}%`, background: color }} />
                 </div>
-                <span className="text-sm font-bold shrink-0" style={{ color }}>{count}</span>
+                <span className={`text-sm ${TYPE_WEIGHT.bold} shrink-0`} style={{ color }}>{count}</span>
               </div>
             ))}
             {lube.length === 0 && <p className={`${t.textFaint} text-xs text-center py-4`}>No lube data — run SQL migration</p>}
@@ -327,31 +327,31 @@ function EngineeringReportContent() {
         <SectionHeader title="Report Summary" icon={FileBarChart} />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
           <div>
-            <p className={`text-xs font-semibold uppercase tracking-wide mb-2 ${t.textFaint}`}>Maintenance</p>
+            <p className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wide mb-2 ${t.textFaint}`}>Maintenance</p>
             <ul className={`space-y-1.5 text-xs ${t.textMuted}`}>
-              <li className="flex justify-between"><span>Total breakdowns</span><span className={`font-semibold ${t.textPrimary}`}>{totalBDs}</span></li>
-              <li className="flex justify-between"><span>Total downtime</span><span className={`font-semibold ${t.textPrimary}`}>{totalDowntime.toFixed(1)}h</span></li>
-              <li className="flex justify-between"><span>Average MTTR</span><span className={`font-semibold ${t.textPrimary}`}>{avgMTTR}h</span></li>
-              <li className="flex justify-between"><span>Work orders closed</span><span className={`font-semibold ${t.textPrimary}`}>{completedJCs}</span></li>
-              <li className="flex justify-between"><span>Work orders open</span><span className={`font-semibold ${t.textPrimary}`}>{openJCs}</span></li>
+              <li className="flex justify-between"><span>Total breakdowns</span><span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{totalBDs}</span></li>
+              <li className="flex justify-between"><span>Total downtime</span><span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{totalDowntime.toFixed(1)}h</span></li>
+              <li className="flex justify-between"><span>Average MTTR</span><span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{avgMTTR}h</span></li>
+              <li className="flex justify-between"><span>Work orders closed</span><span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{completedJCs}</span></li>
+              <li className="flex justify-between"><span>Work orders open</span><span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{openJCs}</span></li>
             </ul>
           </div>
           <div>
-            <p className={`text-xs font-semibold uppercase tracking-wide mb-2 ${t.textFaint}`}>Production</p>
+            <p className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wide mb-2 ${t.textFaint}`}>Production</p>
             <ul className={`space-y-1.5 text-xs ${t.textMuted}`}>
-              <li className="flex justify-between"><span>Tonnes milled</span><span className={`font-semibold ${t.textPrimary}`}>{totalTonnes.toLocaleString()}t</span></li>
-              <li className="flex justify-between"><span>Recovery rate</span><span className={`font-semibold ${t.textPrimary}`}>{avgRecovery}%</span></li>
-              <li className="flex justify-between"><span>Gold produced</span><span className="font-semibold text-amber-500">{totalGold}oz</span></li>
-              <li className="flex justify-between"><span>Shift records</span><span className={`font-semibold ${t.textPrimary}`}>{periodProd.length}</span></li>
+              <li className="flex justify-between"><span>Tonnes milled</span><span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{totalTonnes.toLocaleString()}t</span></li>
+              <li className="flex justify-between"><span>Recovery rate</span><span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{avgRecovery}%</span></li>
+              <li className="flex justify-between"><span>Gold produced</span><span className={`${TYPE_WEIGHT.semibold} text-amber-500`}>{totalGold}oz</span></li>
+              <li className="flex justify-between"><span>Shift records</span><span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{periodProd.length}</span></li>
             </ul>
           </div>
           <div>
-            <p className={`text-xs font-semibold uppercase tracking-wide mb-2 ${t.textFaint}`}>Compliance &amp; Safety</p>
+            <p className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wide mb-2 ${t.textFaint}`}>Compliance &amp; Safety</p>
             <ul className={`space-y-1.5 text-xs ${t.textMuted}`}>
-              <li className="flex justify-between"><span>Compliance overdue</span><span className={`font-semibold ${overdueComp.length ? 'text-rose-500' : 'text-emerald-500'}`}>{overdueComp.length}</span></li>
-              <li className="flex justify-between"><span>Due soon</span><span className="font-semibold text-amber-500">{dueSoonComp.length}</span></li>
-              <li className="flex justify-between"><span>Lube overdue</span><span className={`font-semibold ${overdueLube.length ? 'text-rose-500' : 'text-emerald-500'}`}>{overdueLube.length}</span></li>
-              <li className="flex justify-between"><span>PM compliance</span><span className={`font-semibold ${pmCompliance >= 90 ? 'text-emerald-500' : 'text-amber-500'}`}>{pmCompliance}%</span></li>
+              <li className="flex justify-between"><span>Compliance overdue</span><span className={`${TYPE_WEIGHT.semibold} ${overdueComp.length ? 'text-rose-500' : 'text-emerald-500'}`}>{overdueComp.length}</span></li>
+              <li className="flex justify-between"><span>Due soon</span><span className={`${TYPE_WEIGHT.semibold} text-amber-500`}>{dueSoonComp.length}</span></li>
+              <li className="flex justify-between"><span>Lube overdue</span><span className={`${TYPE_WEIGHT.semibold} ${overdueLube.length ? 'text-rose-500' : 'text-emerald-500'}`}>{overdueLube.length}</span></li>
+              <li className="flex justify-between"><span>PM compliance</span><span className={`${TYPE_WEIGHT.semibold} ${pmCompliance >= 90 ? 'text-emerald-500' : 'text-amber-500'}`}>{pmCompliance}%</span></li>
             </ul>
           </div>
         </div>

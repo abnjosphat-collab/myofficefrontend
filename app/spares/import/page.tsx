@@ -9,7 +9,7 @@ import {
 } from '@/components/shared/theme';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
-import { useTheme, PageHero, PrimaryButton } from '@/components/shared/theme';
+import { useTheme, PageHero, PrimaryButton, TYPE_WEIGHT } from '@/components/shared/theme';
 
 // ─── TYPES ───────────────────────────────────────────────────────────────────
 
@@ -77,9 +77,9 @@ function ColumnSelector({
   return (
     <div className={`rounded-2xl p-4 flex flex-col gap-3 relative ${t.glassSoft}`}>
       <div className="flex items-center justify-between">
-        <span className={`text-xs uppercase tracking-wide font-semibold ${t.textFaint}`}>{label}</span>
+        <span className={`text-xs uppercase tracking-wide ${TYPE_WEIGHT.semibold} ${t.textFaint}`}>{label}</span>
         {value && (
-          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+          <span className={`text-[10px] ${TYPE_WEIGHT.semibold} px-2 py-0.5 rounded-full`}
             style={{ background: bg, color }}>
             {confLabel} confidence
           </span>
@@ -286,7 +286,7 @@ function SpareImportContent() {
             {uploading ? (
               <>
                 <Loader2 className="h-12 w-12 animate-spin" style={{ color: '#86BBD8' }} />
-                <div className={`font-medium ${t.textMuted}`}>Analysing columns&hellip;</div>
+                <div className={`${TYPE_WEIGHT.medium} ${t.textMuted}`}>Analysing columns&hellip;</div>
               </>
             ) : (
               <>
@@ -295,7 +295,7 @@ function SpareImportContent() {
                   <FileSpreadsheet className="h-8 w-8" style={{ color: '#86BBD8' }} />
                 </div>
                 <div className="text-center">
-                  <div className={`font-semibold text-base ${t.textMuted}`}>Drop your file here</div>
+                  <div className={`${TYPE_WEIGHT.semibold} text-base ${t.textMuted}`}>Drop your file here</div>
                   <div className={`text-sm mt-1 ${t.textFaint}`}>or click to browse &mdash; .xlsx&nbsp;&nbsp;.csv</div>
                 </div>
               </>
@@ -325,11 +325,11 @@ function SpareImportContent() {
           <div className={`rounded-2xl p-4 flex flex-wrap items-center gap-4 ${t.glassSoft}`}>
             <div className="flex items-center gap-2 flex-1 min-w-0">
               <FileSpreadsheet className="h-5 w-5 flex-shrink-0" style={{ color: '#86BBD8' }} />
-              <span className={`text-sm font-medium truncate ${t.textMuted}`}>{fileName}</span>
+              <span className={`text-sm ${TYPE_WEIGHT.medium} truncate ${t.textMuted}`}>{fileName}</span>
               <span className={`text-xs flex-shrink-0 ${t.textFaint}`}>
                 &mdash; {inferResult.total_rows} rows &bull; {inferResult.all_columns.length} columns
                 {inferResult.has_categories && (
-                  <span className="ml-2 px-2 py-0.5 rounded-full text-[10px] font-semibold"
+                  <span className={`ml-2 px-2 py-0.5 rounded-full text-[10px] ${TYPE_WEIGHT.semibold}`}
                     style={{ background: 'rgba(134,187,216,0.15)', color: '#86BBD8' }}>
                     categories detected
                   </span>
@@ -344,7 +344,7 @@ function SpareImportContent() {
 
           {/* Column mapping cards */}
           <div>
-            <div className={`text-xs uppercase tracking-wide font-semibold mb-3 px-1 ${t.textFaint}`}>
+            <div className={`text-xs uppercase tracking-wide ${TYPE_WEIGHT.semibold} mb-3 px-1 ${t.textFaint}`}>
               Column Mapping &mdash; adjust if any are wrong
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -378,12 +378,12 @@ function SpareImportContent() {
           {/* Row summary */}
           {extracted.length > 0 && (
             <div className="flex flex-wrap items-center gap-3">
-              <span className="text-xs px-2.5 py-1 rounded-lg font-semibold"
+              <span className={`text-xs px-2.5 py-1 rounded-lg ${TYPE_WEIGHT.semibold}`}
                 style={{ background: 'rgba(52,211,153,0.15)', color: '#34d399' }}>
                 {validRows.length} ready to import
               </span>
               {invalidRows.length > 0 && (
-                <span className="text-xs px-2.5 py-1 rounded-lg font-semibold"
+                <span className={`text-xs px-2.5 py-1 rounded-lg ${TYPE_WEIGHT.semibold}`}
                   style={{ background: 'rgba(244,63,94,0.15)', color: '#f43f5e' }}>
                   {invalidRows.length} skipped (empty stock code or description)
                 </span>
@@ -393,7 +393,7 @@ function SpareImportContent() {
 
           {/* Import mode selector */}
           <div className={`rounded-2xl p-4 space-y-2 ${t.glassSoft}`}>
-            <div className={`text-xs uppercase tracking-wide font-semibold mb-3 ${t.textFaint}`}>
+            <div className={`text-xs uppercase tracking-wide ${TYPE_WEIGHT.semibold} mb-3 ${t.textFaint}`}>
               If a stock code already exists in the database…
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -425,9 +425,9 @@ function SpareImportContent() {
                         <div className="h-1.5 w-1.5 rounded-full bg-[#86BBD8]" />
                       )}
                     </div>
-                    <span className={`text-sm font-semibold ${t.textMuted}`}>{opt.title}</span>
+                    <span className={`text-sm ${TYPE_WEIGHT.semibold} ${t.textMuted}`}>{opt.title}</span>
                     {opt.recommended && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold bg-[#86BBD8]/15 text-[#86BBD8]">
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded ${TYPE_WEIGHT.semibold} bg-[#86BBD8]/15 text-[#86BBD8]`}>
                         Recommended
                       </span>
                     )}
@@ -442,7 +442,7 @@ function SpareImportContent() {
           {extracted.length > 0 && (
             <div className={`rounded-2xl overflow-hidden ${t.glassSoft}`}>
               <div className={`px-4 py-3 border-b flex items-center justify-between ${t.border}`}>
-                <span className={`text-sm font-semibold ${t.textMuted}`}>
+                <span className={`text-sm ${TYPE_WEIGHT.semibold} ${t.textMuted}`}>
                   Preview{extracted.length > 30 ? ' (first 30 rows)' : ''}
                 </span>
                 {invalidRows.length > 0 && (
@@ -456,12 +456,12 @@ function SpareImportContent() {
                 <table className="w-full text-xs">
                   <thead>
                     <tr className={`border-b ${t.border}`}>
-                      <th className={`px-3 py-2 text-left font-medium w-10 ${t.textFaint}`}>#</th>
-                      <th className={`px-3 py-2 text-left font-medium ${t.textFaint}`}>Stock Code</th>
-                      <th className={`px-3 py-2 text-left font-medium ${t.textFaint}`}>Description</th>
-                      <th className={`px-3 py-2 text-right font-medium ${t.textFaint}`}>Unit Price</th>
+                      <th className={`px-3 py-2 text-left ${TYPE_WEIGHT.medium} w-10 ${t.textFaint}`}>#</th>
+                      <th className={`px-3 py-2 text-left ${TYPE_WEIGHT.medium} ${t.textFaint}`}>Stock Code</th>
+                      <th className={`px-3 py-2 text-left ${TYPE_WEIGHT.medium} ${t.textFaint}`}>Description</th>
+                      <th className={`px-3 py-2 text-right ${TYPE_WEIGHT.medium} ${t.textFaint}`}>Unit Price</th>
                       {inferResult.has_categories && (
-                        <th className={`px-3 py-2 text-left font-medium ${t.textFaint}`}>Category</th>
+                        <th className={`px-3 py-2 text-left ${TYPE_WEIGHT.medium} ${t.textFaint}`}>Category</th>
                       )}
                     </tr>
                   </thead>
@@ -490,7 +490,7 @@ function SpareImportContent() {
                         {inferResult.has_categories && (
                           <td className="px-3 py-1.5 max-w-[160px] truncate">
                             {row.category
-                              ? <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-[#86BBD8]/[0.12] text-[#86BBD8]">
+                              ? <span className={`px-2 py-0.5 rounded-full text-[10px] ${TYPE_WEIGHT.medium} bg-[#86BBD8]/[0.12] text-[#86BBD8]`}>
                                   {row.category}
                                 </span>
                               : <span className={t.textFaint}>—</span>}
@@ -535,7 +535,7 @@ function SpareImportContent() {
           <div className="rounded-2xl p-10 text-center"
             style={{ background: 'rgba(52,211,153,0.05)', border: '1px solid rgba(52,211,153,0.18)' }}>
             <CheckCircle2 className="h-16 w-16 mx-auto mb-4" style={{ color: '#34d399' }} />
-            <div className={`text-3xl font-bold mb-2 ${t.textPrimary}`}>
+            <div className={`text-3xl ${TYPE_WEIGHT.bold} mb-2 ${t.textPrimary}`}>
               {result.created} inserted &nbsp;&bull;&nbsp; {result.updated ?? 0} updated
             </div>
             <div className={`text-sm ${t.textFaint}`}>

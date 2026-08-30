@@ -14,7 +14,7 @@ import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButto
 import { exportFilename } from '@/lib/exportUtils';
 import { PillTabs } from '@/components/shared/PillTabs';
 import {
-  useTheme, PageHero, StatTile, StatusBadge, SearchInput, ProgressBar, useCollapseSection, ACCENT_HEX, SelectField, accentText,
+  useTheme, PageHero, StatTile, StatusBadge, SearchInput, ProgressBar, useCollapseSection, ACCENT_HEX, SelectField, accentText, TYPE_WEIGHT,
 } from '@/components/shared/theme';
 import type { Equipment } from './types';
 import { useAvailabilityData } from './useAvailabilityData';
@@ -83,7 +83,7 @@ function AvailabilityContent() {
   ];
 
   const selCls = `h-9 rounded-lg px-3 text-sm outline-none transition-colors ${t.inputBg}`;
-  const thCls = `text-left px-3 py-2 text-[10px] uppercase tracking-wide font-medium ${t.textFaint}`;
+  const thCls = `text-left px-3 py-2 text-[10px] uppercase tracking-wide ${TYPE_WEIGHT.medium} ${t.textFaint}`;
   const tdCls = `px-3 py-2.5 text-sm ${t.textMuted}`;
 
   const TABS: { key: typeof tab; label: string; icon: ElementType }[] = [
@@ -116,7 +116,7 @@ function AvailabilityContent() {
                 statusColor={(_v, row) => statusCfg(row.status as Equipment['status']).color.replace('#', '')}
               />
             )}
-            <Link href="/breakdowns" className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-medium ${t.chipBg} ${t.textMuted} ${t.hoverBg}`}>
+            <Link href="/breakdowns" className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.medium} ${t.chipBg} ${t.textMuted} ${t.hoverBg}`}>
               <AlertTriangle className="h-3.5 w-3.5" /> Breakdowns
             </Link>
           </>
@@ -134,27 +134,27 @@ function AvailabilityContent() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className={`${t.glass} rounded-xl p-4`}>
           <div className="flex items-center gap-1.5 mb-1"><Percent className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs ${t.textFaint}`}>Overall Availability</span></div>
-          <div className={`text-xl font-bold ${avColor(stats.overallAvailability)}`}>{stats.overallAvailability.toFixed(1)}%</div>
+          <div className={`text-xl ${TYPE_WEIGHT.bold} ${avColor(stats.overallAvailability)}`}>{stats.overallAvailability.toFixed(1)}%</div>
           <div className="mt-2"><ProgressBar value={stats.overallAvailability} color={avHex(stats.overallAvailability)} showValue={false} /></div>
         </div>
         <div className={`${t.glass} rounded-xl p-4`}>
           <div className="flex items-center gap-1.5 mb-1"><Clock className={`h-3.5 w-3.5 ${accentText('emerald', t.light)}`} /><span className={`text-xs ${t.textFaint}`}>Avg Uptime</span></div>
-          <div className={`text-xl font-bold ${accentText('emerald', t.light)}`}>{stats.avgUptime.toFixed(1)}h</div>
+          <div className={`text-xl ${TYPE_WEIGHT.bold} ${accentText('emerald', t.light)}`}>{stats.avgUptime.toFixed(1)}h</div>
         </div>
         <div className={`${t.glass} rounded-xl p-4`}>
           <div className="flex items-center gap-1.5 mb-1"><Activity className="h-3.5 w-3.5 text-red-400" /><span className={`text-xs ${t.textFaint}`}>Avg Downtime</span></div>
-          <div className="text-xl font-bold text-red-400">{stats.avgDowntime.toFixed(1)}h</div>
+          <div className={`text-xl ${TYPE_WEIGHT.bold} text-red-400`}>{stats.avgDowntime.toFixed(1)}h</div>
         </div>
         <div className={`${t.glass} rounded-xl p-4`}>
           <div className="flex items-center gap-1.5 mb-1"><AlertTriangle className={`h-3.5 w-3.5 ${accentText('amber', t.light)}`} /><span className={`text-xs ${t.textFaint}`}>Total Downtime</span></div>
-          <div className={`text-xl font-bold ${accentText('amber', t.light)}`}>{stats.totalBreakdownHours.toFixed(0)}h</div>
+          <div className={`text-xl ${TYPE_WEIGHT.bold} ${accentText('amber', t.light)}`}>{stats.totalBreakdownHours.toFixed(0)}h</div>
         </div>
       </div>
 
       <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
         <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}>
           <Search className="h-4 w-4 text-brand-400" />
-          <span className={`font-semibold text-sm ${t.textPrimary}`}>Filters</span>
+          <span className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>Filters</span>
         </div>
         <div className="px-5 pb-4 pt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
           <SearchInput value={searchTerm} onChange={setSearchTerm} placeholder="Search by name, category, department…" />
@@ -179,7 +179,7 @@ function AvailabilityContent() {
       ) : tab === 'overview' ? (
         <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
           <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}>
-            <Gauge className="h-4 w-4 text-brand-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Equipment Availability Dashboard</span>
+            <Gauge className="h-4 w-4 text-brand-400" /><span className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>Equipment Availability Dashboard</span>
           </div>
           {filtered.length === 0 ? (
             <div className={`py-12 text-center text-sm ${t.textFaint}`}>No equipment data. Add equipment and breakdown data to start tracking.</div>
@@ -207,7 +207,7 @@ function AvailabilityContent() {
                     const downtime = eq.downtime ?? 0;
                     return (
                       <tr key={eq.id} className={`border-b ${t.border} ${t.hoverBgSoft} transition-colors`}>
-                        <td className={tdCls}><span className={`font-medium ${t.textPrimary}`}>{eq.name}</span></td>
+                        <td className={tdCls}><span className={`${TYPE_WEIGHT.medium} ${t.textPrimary}`}>{eq.name}</span></td>
                         <td className={tdCls}>{eq.category}</td>
                         <td className={tdCls}>{eq.department}</td>
                         <td className={tdCls}><StatusBadge color={scfg.color} label={scfg.label} /></td>
@@ -215,7 +215,7 @@ function AvailabilityContent() {
                         <td className={`${tdCls} text-right text-red-400`}>{bdHours.toFixed(1)}h</td>
                         <td className={`${tdCls} text-right`}>
                           <div className="flex items-center gap-2 justify-end">
-                            <span className={`font-bold text-sm ${avColor(av)}`}>{av.toFixed(1)}%</span>
+                            <span className={`${TYPE_WEIGHT.bold} text-sm ${avColor(av)}`}>{av.toFixed(1)}%</span>
                             <div className="w-20"><ProgressBar value={av} color={avHex(av)} showValue={false} /></div>
                           </div>
                         </td>
@@ -238,7 +238,7 @@ function AvailabilityContent() {
       ) : tab === 'detailed' ? (
         <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
           <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}>
-            <Calculator className="h-4 w-4 text-brand-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Detailed Availability Analysis</span>
+            <Calculator className="h-4 w-4 text-brand-400" /><span className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>Detailed Availability Analysis</span>
           </div>
           {filtered.length === 0 ? (
             <div className={`py-12 text-center text-sm ${t.textFaint}`}>No equipment data available for detailed analysis.</div>
@@ -261,13 +261,13 @@ function AvailabilityContent() {
                     const downtime = eq.downtime ?? 0;
                     return (
                     <tr key={eq.id} className={`border-b ${t.border} ${t.hoverBgSoft} transition-colors`}>
-                      <td className={tdCls}><span className={`font-medium ${t.textPrimary}`}>{eq.name}</span></td>
+                      <td className={tdCls}><span className={`${TYPE_WEIGHT.medium} ${t.textPrimary}`}>{eq.name}</span></td>
                       <td className={`${tdCls} text-center`}><StatusBadge color={mtbf > 200 ? '#34d399' : mtbf > 100 ? '#94a3b8' : '#f87171'} label={`${mtbf.toFixed(1)}h`} /></td>
                       <td className={`${tdCls} text-center`}><StatusBadge color={mttr < 5 ? '#34d399' : mttr < 10 ? '#94a3b8' : '#f87171'} label={`${mttr.toFixed(1)}h`} /></td>
                       <td className={`${tdCls} text-xs`}>{fmtDate(eq.last_maintenance)}</td>
                       <td className="px-3 py-2.5 text-xs text-brand-400">{fmtDate(eq.next_maintenance ?? null)}</td>
                       <td className={`${tdCls} text-right`}>{bdHours > 0 && opHours > 0 ? (bdHours / opHours * 100).toFixed(1) : '0.0'}%</td>
-                      <td className={`${tdCls} text-right text-red-400 font-medium`}>${(downtime * 250).toLocaleString()}</td>
+                      <td className={`${tdCls} text-right text-red-400 ${TYPE_WEIGHT.medium}`}>${(downtime * 250).toLocaleString()}</td>
                     </tr>
                     );
                   })}
@@ -280,26 +280,26 @@ function AvailabilityContent() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
             <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}>
-              <LineChart className="h-4 w-4 text-brand-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Availability Trends</span>
+              <LineChart className="h-4 w-4 text-brand-400" /><span className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>Availability Trends</span>
             </div>
             <div className="p-5">
               <div className={`rounded-xl border ${t.border} ${t.chipBg} h-48 flex items-center justify-center mb-4`}>
                 <div className="text-center">
                   <LineChart className={`h-8 w-8 mx-auto mb-2 ${t.textFaint}`} />
                   <p className={`text-sm ${t.textFaint}`}>Chart integration point</p>
-                  <p className={`text-lg font-bold mt-1 ${avColor(stats.overallAvailability)}`}>{stats.overallAvailability.toFixed(1)}% current</p>
+                  <p className={`text-lg ${TYPE_WEIGHT.bold} mt-1 ${avColor(stats.overallAvailability)}`}>{stats.overallAvailability.toFixed(1)}% current</p>
                 </div>
               </div>
               <div className="space-y-2 text-sm">
-                <div className={`flex justify-between ${t.textMuted}`}><span>Last month</span><span className={`font-medium ${avColor(stats.monthAvailability)}`}>{stats.monthAvailability.toFixed(1)}%</span></div>
-                <div className={`flex justify-between ${t.textMuted}`}><span>Last week</span><span className={`font-medium ${avColor(stats.weekAvailability)}`}>{stats.weekAvailability.toFixed(1)}%</span></div>
+                <div className={`flex justify-between ${t.textMuted}`}><span>Last month</span><span className={`${TYPE_WEIGHT.medium} ${avColor(stats.monthAvailability)}`}>{stats.monthAvailability.toFixed(1)}%</span></div>
+                <div className={`flex justify-between ${t.textMuted}`}><span>Last week</span><span className={`${TYPE_WEIGHT.medium} ${avColor(stats.weekAvailability)}`}>{stats.weekAvailability.toFixed(1)}%</span></div>
               </div>
             </div>
           </div>
 
           <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
             <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}>
-              <BarChart3 className="h-4 w-4 text-brand-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Department Comparison</span>
+              <BarChart3 className="h-4 w-4 text-brand-400" /><span className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>Department Comparison</span>
             </div>
             <div className="p-5 space-y-3">
               {departments.map(dept => {
@@ -309,7 +309,7 @@ function AvailabilityContent() {
                   <div key={dept}>
                     <div className="flex justify-between mb-1">
                       <span className={`text-xs ${t.textMuted}`}>{dept}</span>
-                      <span className={`text-xs font-bold ${avColor(deptAv)}`}>{deptAv.toFixed(1)}%</span>
+                      <span className={`text-xs ${TYPE_WEIGHT.bold} ${avColor(deptAv)}`}>{deptAv.toFixed(1)}%</span>
                     </div>
                     <ProgressBar value={deptAv} color={avHex(deptAv)} showValue={false} />
                   </div>
@@ -322,9 +322,9 @@ function AvailabilityContent() {
       )}
 
       <div className="flex justify-end gap-2">
-        <Link href="/equipment" className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-medium ${t.chipBg} ${t.textMuted} ${t.hoverBg}`}><ToolCase className="h-3.5 w-3.5" /> Manage Equipment</Link>
-        <Link href="/breakdowns/new" className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all"><Plus className="h-3.5 w-3.5" /> Report Breakdown</Link>
-        <Link href="/reports/availability" className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-medium ${t.chipBg} ${t.textMuted} ${t.hoverBg}`}><BarChart3 className="h-3.5 w-3.5" /> Generate Report</Link>
+        <Link href="/equipment" className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.medium} ${t.chipBg} ${t.textMuted} ${t.hoverBg}`}><ToolCase className="h-3.5 w-3.5" /> Manage Equipment</Link>
+        <Link href="/breakdowns/new" className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all`}><Plus className="h-3.5 w-3.5" /> Report Breakdown</Link>
+        <Link href="/reports/availability" className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.medium} ${t.chipBg} ${t.textMuted} ${t.hoverBg}`}><BarChart3 className="h-3.5 w-3.5" /> Generate Report</Link>
       </div>
     </main>
   );

@@ -23,7 +23,7 @@ import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButto
 import { exportFilename } from '@/lib/exportUtils';
 import {
   useTheme, StatusBadge, ProgressBar, StatTile, FormField, CenterModal,
-  PrimaryButton, EmptyState, useCollapseSection, GlowCard, SelectField,
+  PrimaryButton, EmptyState, useCollapseSection, GlowCard, SelectField, TYPE_WEIGHT,
 } from '@/components/shared/theme';
 import { toast } from "sonner";
 import type { SectionType, BehaviourType, PacheduStatus, PacheduReport, PacheduStats } from './types';
@@ -94,7 +94,7 @@ const TableRowItem: React.FC<TableRowItemProps> = ({ report, onView, onEdit, onD
   return (
     <tr className={`border-b ${t.border} ${t.hoverBg} transition-colors`}>
       <td className={`px-4 py-3 text-xs ${t.textMuted}`}>{formatDate(report.date)}</td>
-      <td className={`px-4 py-3 text-xs font-medium ${t.textPrimary}`}>{report.observerName || 'Anonymous'}</td>
+      <td className={`px-4 py-3 text-xs ${TYPE_WEIGHT.medium} ${t.textPrimary}`}>{report.observerName || 'Anonymous'}</td>
       <td className={`px-4 py-3 text-xs ${t.textMuted}`}>{report.location}</td>
       <td className={`px-4 py-3 text-xs ${t.textMuted} max-w-[180px] truncate`}>{report.activityObserved}</td>
       <td className="px-4 py-3"><StatusBadge color={SECTION_META[report.sectionChoice].hex} label={report.sectionChoice} /></td>
@@ -166,7 +166,7 @@ const PacheduCard: React.FC<PacheduCardProps> = ({ report, index, onView, onEdit
                 {hasRisks && <StatusBadge color="#f43f5e" label="High Risk" />}
               </div>
               <p className={`text-[10px] ${t.textFaint}`}>Care #{index + 1}</p>
-              <h3 className={`font-semibold text-sm truncate mt-0.5 ${t.textPrimary}`}>{report.observerName || 'Anonymous'}</h3>
+              <h3 className={`${TYPE_WEIGHT.semibold} text-sm truncate mt-0.5 ${t.textPrimary}`}>{report.observerName || 'Anonymous'}</h3>
             </div>
           </div>
           <div className="relative shrink-0" onClick={(e) => e.stopPropagation()}>
@@ -177,10 +177,10 @@ const PacheduCard: React.FC<PacheduCardProps> = ({ report, index, onView, onEdit
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
                 <div className={`absolute right-0 top-8 z-20 w-48 rounded-xl ${t.glass} ${t.shadow} overflow-hidden`}>
-                  <div className={`px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider border-b ${t.border} ${t.textFaint}`}>Actions</div>
+                  <div className={`px-3 py-1.5 text-[10px] ${TYPE_WEIGHT.semibold} uppercase tracking-wider border-b ${t.border} ${t.textFaint}`}>Actions</div>
                   <button type="button" onClick={() => { setMenuOpen(false); onView(report); }} className={`w-full flex items-center gap-2 px-3 py-2 text-xs ${t.textMuted} ${t.hoverBg} ${t.hoverText}`}><Eye className="h-3.5 w-3.5" /> View Details</button>
                   <button type="button" onClick={() => { setMenuOpen(false); onEdit(report); }} className={`w-full flex items-center gap-2 px-3 py-2 text-xs ${t.textMuted} ${t.hoverBg} ${t.hoverText}`}><Pencil className="h-3.5 w-3.5" /> Edit</button>
-                  <div className={`border-t ${t.border} px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider ${t.textFaint}`}>Change Status</div>
+                  <div className={`border-t ${t.border} px-3 py-1.5 text-[10px] ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textFaint}`}>Change Status</div>
                   <StatusMenu onChange={s => { setMenuOpen(false); onStatusChange?.(report.id, s); }} />
                   <div className={`border-t ${t.border}`}>
                     <button type="button" onClick={() => { setMenuOpen(false); onDelete(report.id); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-rose-500 hover:bg-rose-500/10">
@@ -196,11 +196,11 @@ const PacheduCard: React.FC<PacheduCardProps> = ({ report, index, onView, onEdit
 
       <div className={`grid grid-cols-3 border-b ${t.border}`}>
         <div className={`py-2 text-center border-r ${t.border}`}>
-          <p className={`text-base font-bold ${t.textPrimary}`}>{report.impacts?.length || 0}</p>
+          <p className={`text-base ${TYPE_WEIGHT.bold} ${t.textPrimary}`}>{report.impacts?.length || 0}</p>
           <p className={`text-[10px] ${t.textFaint}`}>Impacts</p>
         </div>
         <div className={`py-2 text-center border-r ${t.border}`}>
-          <p className={`text-base font-bold ${t.textPrimary}`}>{report.checklist?.length || 0}</p>
+          <p className={`text-base ${TYPE_WEIGHT.bold} ${t.textPrimary}`}>{report.checklist?.length || 0}</p>
           <p className={`text-[10px] ${t.textFaint}`}>Checklist</p>
         </div>
         <div className="py-2 flex items-center justify-center"><StatusBadge color={STATUS_META[report.status].hex} label={STATUS_META[report.status].label} /></div>
@@ -250,7 +250,7 @@ const PacheduDetailModal: React.FC<PacheduDetailModalProps> = ({ report, open, o
         <div className={`flex flex-wrap items-center justify-between gap-3 p-4 rounded-xl ${t.chipBg} border ${t.border}`}>
           <div className="flex items-center gap-3">
             <div className={`p-2 rounded-lg ${t.chipBg}`}><SectionIcon className="h-5 w-5" style={{ color: SECTION_META[report.sectionChoice].hex }} /></div>
-            <div><p className={`text-sm font-medium ${t.textMuted}`}>{report.sectionChoice}</p><p className={`text-[10px] ${t.textFaint}`}>Section</p></div>
+            <div><p className={`text-sm ${TYPE_WEIGHT.medium} ${t.textMuted}`}>{report.sectionChoice}</p><p className={`text-[10px] ${t.textFaint}`}>Section</p></div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge color={behaviourMeta.hex} label={report.behaviourType} />
@@ -263,38 +263,38 @@ const PacheduDetailModal: React.FC<PacheduDetailModalProps> = ({ report, open, o
           {[{ label: 'Location', value: report.location || 'N/A' }, { label: 'Date', value: formatDate(report.date) }, { label: 'Observer', value: report.observerName || 'Anonymous' }, { label: 'Department', value: report.dept || 'N/A' }].map(item => (
             <div key={item.label} className={`${t.chipBg} rounded-xl p-3`}>
               <p className={`text-[10px] mb-0.5 ${t.textFaint}`}>{item.label}</p>
-              <p className={`text-sm font-medium ${t.textMuted}`}>{item.value}</p>
+              <p className={`text-sm ${TYPE_WEIGHT.medium} ${t.textMuted}`}>{item.value}</p>
             </div>
           ))}
         </div>
 
         <div className={`rounded-xl ${t.chipBg} border ${t.border} p-4`}>
-          <p className={`text-xs font-semibold uppercase tracking-wider mb-2 ${t.textFaint}`}>Activity Observed</p>
+          <p className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider mb-2 ${t.textFaint}`}>Activity Observed</p>
           <p className={`text-sm ${t.textMuted}`}>{report.activityObserved || 'N/A'}</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className={`rounded-xl ${t.chipBg} border ${t.border} p-4`}>
-            <p className={`text-xs font-semibold uppercase tracking-wider mb-1 ${t.textFaint}`}>What did you see?</p>
+            <p className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider mb-1 ${t.textFaint}`}>What did you see?</p>
             <p className={`text-[10px] mb-2 ${t.textFaint}`}>Waonei? / Uboneni?</p>
             <p className={`text-sm whitespace-pre-wrap ${t.textMuted}`}>{report.whatDidYouSee || 'N/A'}</p>
           </div>
           <div className={`rounded-xl ${t.chipBg} border ${t.border} p-4`}>
-            <p className={`text-xs font-semibold uppercase tracking-wider mb-1 ${t.textFaint}`}>Reasons</p>
+            <p className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider mb-1 ${t.textFaint}`}>Reasons</p>
             <p className={`text-[10px] mb-2 ${t.textFaint}`}>Zvikonzero / Isizatho</p>
             <p className={`text-sm whitespace-pre-wrap ${t.textMuted}`}>{report.reasons || 'N/A'}</p>
           </div>
         </div>
 
         <div className={`rounded-xl ${t.chipBg} border-l-4 border-emerald-500/60 p-4`}>
-          <p className={`text-xs font-semibold uppercase tracking-wider mb-1 ${t.textFaint}`}>What did you do to ensure you Care?</p>
+          <p className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider mb-1 ${t.textFaint}`}>What did you do to ensure you Care?</p>
           <p className={`text-[10px] mb-2 ${t.textFaint}`}>Waitei chinoratidza kuti unehanya neumwe wako?</p>
           <p className={`text-sm whitespace-pre-wrap ${t.textMuted}`}>{report.whatDidYouDo || 'N/A'}</p>
         </div>
 
         {report.impacts && report.impacts.length > 0 && (
           <div className={`rounded-xl ${t.chipBg} border ${t.border} p-4`}>
-            <p className={`text-xs font-semibold uppercase tracking-wider mb-3 ${t.textFaint}`}>Potential Impacts</p>
+            <p className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider mb-3 ${t.textFaint}`}>Potential Impacts</p>
             <div className="flex flex-wrap gap-2">
               {report.impacts.map((impact, idx) => (
                 <StatusBadge key={idx} color={impact.includes("Serious") || impact.includes("Fatality") ? '#f43f5e' : '#f59e0b'} label={impact} />
@@ -305,7 +305,7 @@ const PacheduDetailModal: React.FC<PacheduDetailModalProps> = ({ report, open, o
 
         {report.checklist && report.checklist.length > 0 && (
           <div className={`rounded-xl ${t.chipBg} border ${t.border} p-4`}>
-            <p className={`text-xs font-semibold uppercase tracking-wider mb-3 ${t.textFaint}`}>Referral Checklist</p>
+            <p className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider mb-3 ${t.textFaint}`}>Referral Checklist</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
               {report.checklist.map((item, idx) => (
                 <div key={idx} className={`flex items-center gap-2 text-xs ${t.textMuted} ${t.chipBg} rounded-lg px-3 py-1.5`}>
@@ -483,9 +483,9 @@ function PacheduContent() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <nav className={`flex items-center gap-1.5 text-xs mb-2 ${t.textFaint}`}>
-            <span>Home</span><ChevronRight className="h-3 w-3" /><span className="text-[#86BBD8] font-medium">Pachedu</span>
+            <span>Home</span><ChevronRight className="h-3 w-3" /><span className={`text-[#86BBD8] ${TYPE_WEIGHT.medium}`}>Pachedu</span>
           </nav>
-          <h1 className={`text-2xl font-bold font-heading tracking-tight flex items-center gap-2 ${t.textPrimary}`}>
+          <h1 className={`text-2xl ${TYPE_WEIGHT.bold} font-heading tracking-tight flex items-center gap-2 ${t.textPrimary}`}>
             <HeartHandshake className="h-6 w-6 text-amber-500" /> Pachedu — Care Observations
           </h1>
           <p className={`text-sm mt-1 ${t.textFaint}`}>Be Your Brother&apos;s Keeper — track care observations and supportive actions.</p>
@@ -518,7 +518,7 @@ function PacheduContent() {
           <button type="button" onClick={() => sections.toggle('stats')} className={`w-full flex items-center justify-between px-5 py-3 ${t.hoverBg} transition-all`}>
             <div className="flex items-center gap-2">
               <HeartHandshake className="h-3.5 w-3.5 text-amber-500" />
-              <span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Overview</span>
+              <span className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textMuted}`}>Overview</span>
               <span className={`text-xs ${t.textFaint}`}>{stats.total} observations total</span>
             </div>
             {sections.expanded.stats ? <ChevronUp className={`h-3.5 w-3.5 ${t.textFaint}`} /> : <ChevronDown className={`h-3.5 w-3.5 ${t.textFaint}`} />}
@@ -539,7 +539,7 @@ function PacheduContent() {
       {stats && stats.total > 0 && (
         <div className={`rounded-2xl ${t.glass} overflow-hidden`}>
           <button type="button" onClick={() => sections.toggle('distribution')} className={`w-full flex items-center justify-between px-5 py-3 ${t.hoverBg} transition-all`}>
-            <span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Distribution by Section</span>
+            <span className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textMuted}`}>Distribution by Section</span>
             {sections.expanded.distribution ? <ChevronUp className={`h-3.5 w-3.5 ${t.textFaint}`} /> : <ChevronDown className={`h-3.5 w-3.5 ${t.textFaint}`} />}
           </button>
           {sections.expanded.distribution && (
@@ -552,7 +552,7 @@ function PacheduContent() {
                 return (
                   <div key={section} className="flex-1">
                     <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2"><Icon className="h-4 w-4" style={{ color: meta.hex }} /><span className={`text-sm font-medium ${t.textMuted}`}>{section}</span></div>
+                      <div className="flex items-center gap-2"><Icon className="h-4 w-4" style={{ color: meta.hex }} /><span className={`text-sm ${TYPE_WEIGHT.medium} ${t.textMuted}`}>{section}</span></div>
                       <span className={`text-xs ${t.textFaint}`}>{count} ({pct}%)</span>
                     </div>
                     <ProgressBar value={pct} color={meta.hex} showValue={false} />
@@ -597,7 +597,7 @@ function PacheduContent() {
         <button type="button" onClick={() => sections.toggle('records')} className={`w-full flex items-center justify-between px-5 py-3 ${t.hoverBg} transition-all`}>
           <div className="flex items-center gap-2">
             <FileText className="h-3.5 w-3.5 text-[#86BBD8]" />
-            <span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Records</span>
+            <span className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textMuted}`}>Records</span>
             <span className={`text-xs ${t.textFaint}`}>{filteredReports.length} of {reports.length} observations</span>
           </div>
           {sections.expanded.records ? <ChevronUp className={`h-3.5 w-3.5 ${t.textFaint}`} /> : <ChevronDown className={`h-3.5 w-3.5 ${t.textFaint}`} />}
@@ -609,7 +609,7 @@ function PacheduContent() {
             {error && !loading && (
               <div className="rounded-2xl bg-rose-500/10 border border-rose-500/20 p-5 flex items-center gap-3">
                 <AlertTriangle className="h-5 w-5 text-rose-500 shrink-0" />
-                <div className="flex-1"><p className="text-sm font-medium text-rose-500">Error Loading Data</p><p className="text-xs text-rose-500/70 mt-0.5">{error}</p></div>
+                <div className="flex-1"><p className={`text-sm ${TYPE_WEIGHT.medium} text-rose-500`}>Error Loading Data</p><p className="text-xs text-rose-500/70 mt-0.5">{error}</p></div>
                 <button type="button" onClick={loadData} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-500/10 text-rose-500 text-xs hover:bg-rose-500/20 transition-colors">
                   <RefreshCw className="h-3.5 w-3.5" /> Retry
                 </button>
@@ -637,7 +637,7 @@ function PacheduContent() {
                     <table className="w-full text-sm">
                       <thead><tr className={`border-b ${t.border}`}>
                         {['Date', 'Observer', 'Location', 'Activity', 'Section', 'Behaviour', 'Status', ''].map(h => (
-                          <th key={h} className={`px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider ${t.textFaint}`}>{h}</th>
+                          <th key={h} className={`px-4 py-2.5 text-left text-[10px] ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textFaint}`}>{h}</th>
                         ))}
                       </tr></thead>
                       <tbody>
@@ -660,7 +660,7 @@ function PacheduContent() {
         <form id="pachedu-form" onSubmit={handleSubmit}>
           <div className="px-5 py-4 space-y-5 max-h-[65vh] overflow-y-auto">
             <div className={`rounded-xl ${t.chipBg} border ${t.border} p-4`}>
-              <p className={`text-xs font-semibold uppercase tracking-wider mb-4 ${t.textFaint}`}>Basic Information</p>
+              <p className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider mb-4 ${t.textFaint}`}>Basic Information</p>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <FormField label="Location" required>
                   <input value={formData.location || ''} onChange={e => setFormData({ ...formData, location: e.target.value })} placeholder="Where did this occur?" className={inputCls} />
@@ -683,13 +683,13 @@ function PacheduContent() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className={`rounded-xl ${t.chipBg} border-l-4 border-amber-500/60 p-4 space-y-3`}>
                 <div>
-                  <p className={`text-xs font-bold uppercase tracking-wider ${t.textMuted}`}>What did you see? *</p>
+                  <p className={`text-xs ${TYPE_WEIGHT.bold} uppercase tracking-wider ${t.textMuted}`}>What did you see? *</p>
                   <p className={`text-[10px] ${t.textFaint}`}>Waonei? / Uboneni?</p>
                 </div>
                 <textarea rows={5} value={formData.whatDidYouSee || ''} onChange={e => setFormData({ ...formData, whatDidYouSee: e.target.value })}
                   placeholder="Describe what you observed..." className={`w-full px-3 py-2 rounded-lg text-sm outline-none transition-colors resize-none ${t.inputBg}`} />
                 <div>
-                  <p className={`text-[10px] font-bold uppercase tracking-wider mb-1 ${t.textFaint}`}>Reasons</p>
+                  <p className={`text-[10px] ${TYPE_WEIGHT.bold} uppercase tracking-wider mb-1 ${t.textFaint}`}>Reasons</p>
                   <p className={`text-[10px] mb-1.5 ${t.textFaint}`}>Zvikonzero / Isizatho</p>
                   <textarea value={formData.reasons || ''} onChange={e => setFormData({ ...formData, reasons: e.target.value })}
                     placeholder="Why do you think this happened?" className={`w-full px-3 py-2 rounded-lg text-sm outline-none transition-colors resize-none ${t.inputBg}`} />
@@ -697,7 +697,7 @@ function PacheduContent() {
               </div>
               <div className={`rounded-xl ${t.chipBg} border-l-4 border-emerald-500/60 p-4 space-y-3`}>
                 <div>
-                  <p className={`text-xs font-bold uppercase tracking-wider ${t.textMuted}`}>What did you do to ensure you Care? *</p>
+                  <p className={`text-xs ${TYPE_WEIGHT.bold} uppercase tracking-wider ${t.textMuted}`}>What did you do to ensure you Care? *</p>
                   <p className={`text-[10px] ${t.textFaint}`}>Waitei chinoratidza kuti unehanya neumwe wako?</p>
                 </div>
                 <textarea rows={9} value={formData.whatDidYouDo || ''} onChange={e => setFormData({ ...formData, whatDidYouDo: e.target.value })}
@@ -708,7 +708,7 @@ function PacheduContent() {
             <div className={`rounded-xl ${t.chipBg} border ${t.border} p-4`}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-3">
-                  <p className="text-xs font-bold text-amber-500/90 uppercase tracking-wider">Could this result in?</p>
+                  <p className={`text-xs ${TYPE_WEIGHT.bold} text-amber-500/90 uppercase tracking-wider`}>Could this result in?</p>
                   <div className="grid grid-cols-2 gap-2">
                     {IMPACT_OPTIONS.map(impact => (
                       <label key={impact} className="flex items-start gap-2 cursor-pointer group">
@@ -720,7 +720,7 @@ function PacheduContent() {
                 </div>
                 <div className="space-y-4">
                   <div className={`rounded-lg ${t.chipBg} p-3 space-y-3`}>
-                    <p className={`text-xs font-bold uppercase tracking-wider ${t.textFaint}`}>Behaviour Classification</p>
+                    <p className={`text-xs ${TYPE_WEIGHT.bold} uppercase tracking-wider ${t.textFaint}`}>Behaviour Classification</p>
                     <div className="flex gap-4">
                       {BEHAVIOUR_TYPES.map(type => (
                         <label key={type} className="flex items-center gap-2 cursor-pointer group">
@@ -747,12 +747,12 @@ function PacheduContent() {
 
             <div className={`rounded-xl border ${t.border} overflow-hidden`}>
               <div className={`px-4 py-3 ${t.chipBg} border-b ${t.border}`}>
-                <p className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Referral Checklist</p>
+                <p className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textMuted}`}>Referral Checklist</p>
               </div>
               <div className="p-4 grid grid-cols-1 md:grid-cols-4 gap-4">
                 {CHECKLIST_CATEGORIES.map(category => (
                   <div key={category.name} className="space-y-2">
-                    <p className="text-[10px] font-bold text-amber-500/90 uppercase tracking-wider border-b border-amber-500/20 pb-1">{category.name}</p>
+                    <p className={`text-[10px] ${TYPE_WEIGHT.bold} text-amber-500/90 uppercase tracking-wider border-b border-amber-500/20 pb-1`}>{category.name}</p>
                     {category.items.map(item => (
                       <label key={item} className="flex items-start gap-2 cursor-pointer group">
                         <input type="checkbox" checked={formData.checklist?.includes(item) || false} onChange={() => handleChecklistToggle(item)} className="mt-0.5 h-3 w-3 accent-brand-600 cursor-pointer shrink-0" />
@@ -764,7 +764,7 @@ function PacheduContent() {
               </div>
             </div>
 
-            <p className="text-xs font-bold italic text-center text-amber-500/80 pb-2">&quot;Tinokutendai nekuita kuti PPM ive inoshandika zvisina njodzi.&quot;</p>
+            <p className={`text-xs ${TYPE_WEIGHT.bold} italic text-center text-amber-500/80 pb-2`}>&quot;Tinokutendai nekuita kuti PPM ive inoshandika zvisina njodzi.&quot;</p>
           </div>
           <div className={`flex justify-end gap-2 px-5 py-4 border-t ${t.border}`}>
             <button type="button" onClick={() => setIsFormModalOpen(false)} className={`px-4 py-2 rounded-xl ${t.chipBg} ${t.textFaint} text-sm ${t.hoverBg} ${t.hoverText} transition-colors`}>Cancel</button>
@@ -787,7 +787,7 @@ function PacheduContent() {
         </div>
         <div className={`flex justify-end gap-2 px-5 py-4 border-t ${t.border}`}>
           <button type="button" onClick={() => setDeleteConfirm(null)} className={`px-4 py-2 rounded-xl ${t.chipBg} ${t.textFaint} text-sm ${t.hoverText} transition-colors`}>Cancel</button>
-          <button type="button" onClick={() => deleteConfirm && handleDelete(deleteConfirm)} className="px-4 py-2 rounded-xl bg-rose-500/20 text-rose-500 text-sm font-semibold hover:bg-rose-500/30 transition-colors">Delete</button>
+          <button type="button" onClick={() => deleteConfirm && handleDelete(deleteConfirm)} className={`px-4 py-2 rounded-xl bg-rose-500/20 text-rose-500 text-sm ${TYPE_WEIGHT.semibold} hover:bg-rose-500/30 transition-colors`}>Delete</button>
         </div>
       </CenterModal>
     </main>

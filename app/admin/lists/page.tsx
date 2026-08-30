@@ -12,7 +12,7 @@ import {
   MapPin, Wrench, Plus, Trash2, Pencil, Check, X, Loader2, AlertCircle, Lock,
 } from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
-import { useTheme, PageHero, EmptyState, useConfirm } from '@/components/shared/theme';
+import { useTheme, PageHero, EmptyState, useConfirm, TYPE_WEIGHT } from '@/components/shared/theme';
 import { useAuth } from '@/lib/auth-context';
 import { toast } from 'sonner';
 import { api } from '@/lib/apiClient';
@@ -174,7 +174,7 @@ function AdminListsContent() {
         <div className={`flex gap-1 p-2 border-b ${t.border}`}>
           {KNOWN_LISTS.map(l => (
             <button key={l.key} type="button" onClick={() => setActiveList(l.key)}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-semibold transition-all ${activeList === l.key ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} ${t.hoverText} ${t.hoverBg}`}`}>
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs ${TYPE_WEIGHT.semibold} transition-all ${activeList === l.key ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} ${t.hoverText} ${t.hoverBg}`}`}>
               <l.icon className="h-3.5 w-3.5" />{l.label}
             </button>
           ))}
@@ -186,7 +186,7 @@ function AdminListsContent() {
               onKeyDown={e => { if (e.key === 'Enter') handleAdd(); }}
               placeholder="Add a new value…" className={`flex-1 h-9 px-3 rounded-lg text-sm ${t.inputBg} focus:outline-none`} />
             <button type="button" onClick={handleAdd} disabled={adding || !newValue.trim()}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 disabled:opacity-50 transition-all">
+              className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 disabled:opacity-50 transition-all`}>
               {adding ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />} Add
             </button>
           </div>

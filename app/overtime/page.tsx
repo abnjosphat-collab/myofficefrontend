@@ -17,7 +17,7 @@ import {
 import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, ProgressBar, FormField, FormActions,
   useCollapseSection, CenterModal, ACCENT_HEX, ACCENT, type Accent, EmptyState, PrimaryButton, GlowCard, SelectField, accentText,
-  CountUp, PulsingIcon, TYPE_SCALE, staggerContainer, fadeUp, HintText,
+  CountUp, PulsingIcon, TYPE_SCALE, staggerContainer, fadeUp, HintText, TYPE_WEIGHT,
 } from '@/components/shared/theme';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ApprovalGate, type SignatureResult } from '@/components/shared/ApprovalGate';
@@ -101,7 +101,7 @@ function TypeBadge({ type }: { type: OTType }) {
   const hex = TYPE_HEX[type] ?? '#94a3b8';
   const label = TYPE_LABELS[type] ?? String(type);
   return (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ backgroundColor: `${hex}22`, color: hex }}>
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] ${TYPE_WEIGHT.semibold}`} style={{ backgroundColor: `${hex}22`, color: hex }}>
       <Icon className="h-2.5 w-2.5" />{label}
     </span>
   );
@@ -117,7 +117,7 @@ function PlanningBadge({ status }: { status?: PlanningStatus | null }) {
   const hex = PLANNING_HEX[status] ?? '#94a3b8';
   const label = PLANNING_LABELS[status] ?? String(status);
   return (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ backgroundColor: `${hex}22`, color: hex }}>
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] ${TYPE_WEIGHT.semibold}`} style={{ backgroundColor: `${hex}22`, color: hex }}>
       <Icon className="h-2.5 w-2.5" />{label}
     </span>
   );
@@ -130,7 +130,7 @@ function PayoutBadge({ method }: { method?: PayoutMethod | null }) {
   if (method !== 'lieu') return null;
   const Icon = PAYOUT_ICONS.lieu;
   return (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ backgroundColor: `${PAYOUT_HEX.lieu}22`, color: PAYOUT_HEX.lieu }}>
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] ${TYPE_WEIGHT.semibold}`} style={{ backgroundColor: `${PAYOUT_HEX.lieu}22`, color: PAYOUT_HEX.lieu }}>
       <Icon className="h-2.5 w-2.5" />{PAYOUT_LABELS.lieu}
     </span>
   );
@@ -317,7 +317,7 @@ function OTFormModal({ open, onClose, onSave, editing, records }: {
           <div className="grid grid-cols-3 gap-3">
             <FormField label="Start Time" required><input type="time" className={inputCls} value={form.start_time} onChange={e => set('start_time', e.target.value)} /></FormField>
             <FormField label="End Time" required><input type="time" className={inputCls} value={form.end_time} onChange={e => set('end_time', e.target.value)} /></FormField>
-            <FormField label="Duration"><div className={`${inputCls} flex items-center text-brand-400 font-semibold pointer-events-none`}>{hours > 0 ? `${hours.toFixed(1)}h` : '—'}</div></FormField>
+            <FormField label="Duration"><div className={`${inputCls} flex items-center text-brand-400 ${TYPE_WEIGHT.semibold} pointer-events-none`}>{hours > 0 ? `${hours.toFixed(1)}h` : '—'}</div></FormField>
           </div>
         )}
 
@@ -325,7 +325,7 @@ function OTFormModal({ open, onClose, onSave, editing, records }: {
           <div className="flex items-start gap-2.5 rounded-xl px-3.5 py-3 bg-amber-500/10 border border-amber-500/30">
             <AlertTriangle className={`h-4 w-4 ${accentText('amber', t.light)} shrink-0 mt-0.5`} />
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-semibold text-amber-500">Already has a request for this exact slot</p>
+              <p className={`text-xs ${TYPE_WEIGHT.semibold} text-amber-500`}>Already has a request for this exact slot</p>
               <p className={`text-xs mt-0.5 ${t.textMuted}`}>
                 {duplicate.employee_name} · {formatDate(duplicate.date)} · {duplicate.start_time}–{duplicate.end_time}
                 {duplicate.hours != null && ` (${duplicate.hours}h)`}
@@ -366,7 +366,7 @@ function OTFormModal({ open, onClose, onSave, editing, records }: {
               <input type="number" min={1} step={1} className={inputCls} placeholder="Quantity" value={spareDraft.quantity} onChange={e => setSpareDraft(s => ({ ...s, quantity: e.target.value }))} />
               <input type="number" min={0} step={0.01} className={inputCls} placeholder="Unit Price" value={spareDraft.unit_price} onChange={e => setSpareDraft(s => ({ ...s, unit_price: e.target.value }))} />
             </div>
-            <button type="button" onClick={addSpare} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-brand-500/15 text-brand-400 hover:bg-brand-500/25 transition-all">
+            <button type="button" onClick={addSpare} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs ${TYPE_WEIGHT.semibold} bg-brand-500/15 text-brand-400 hover:bg-brand-500/25 transition-all`}>
               <Plus className="h-3.5 w-3.5" /> Add Spare
             </button>
             {spares.length > 0 && (
@@ -374,12 +374,12 @@ function OTFormModal({ open, onClose, onSave, editing, records }: {
                 {spares.map((s, i) => (
                   <div key={i} className={`flex justify-between items-center ${t.inputBg} rounded-lg px-3 py-2 text-sm`}>
                     <div>
-                      <span className={`font-medium ${t.textMuted}`}>{s.name}</span>
+                      <span className={`${TYPE_WEIGHT.medium} ${t.textMuted}`}>{s.name}</span>
                       {s.part_number && <span className={`ml-2 text-xs ${t.textFaint}`}>({s.part_number})</span>}
                       <span className={`ml-2 text-xs ${t.textFaint}`}>{s.quantity} × R{(s.unit_price || 0).toFixed(2)}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className={`${accentText('emerald', t.light)} font-semibold`}>R{(s.total_cost || 0).toFixed(2)}</span>
+                      <span className={`${accentText('emerald', t.light)} ${TYPE_WEIGHT.semibold}`}>R{(s.total_cost || 0).toFixed(2)}</span>
                       <button type="button" title="Remove spare" onClick={() => removeSpare(i)} className="h-6 w-6 flex items-center justify-center rounded text-rose-500/60 hover:text-rose-500"><Trash2 className="h-3 w-3" /></button>
                     </div>
                   </div>
@@ -421,7 +421,7 @@ function OTDetailModal({ record, onClose, onEdit, onApprove, onReject }: {
         <div className="flex items-center gap-3">
           <Avatar name={record.employee_name} size="lg" />
           <div>
-            <p className={`font-semibold ${t.textPrimary}`}>{record.employee_name}</p>
+            <p className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{record.employee_name}</p>
             <p className={`text-xs ${t.textFaint}`}>{record.position} · {record.employee_id}</p>
           </div>
           <div className="ml-auto flex flex-col items-end gap-1">
@@ -444,7 +444,7 @@ function OTDetailModal({ record, onClose, onEdit, onApprove, onReject }: {
               {record.spares_used.map((s, i) => (
                 <div key={i} className="flex justify-between items-center text-xs">
                   <span className={t.textMuted}>{s.name}{s.part_number && ` (${s.part_number})`} · {s.quantity} × R{(s.unit_price || 0).toFixed(2)}</span>
-                  <span className={`font-semibold ${accentText('emerald', t.light)}`}>R{(s.total_cost || 0).toFixed(2)}</span>
+                  <span className={`${TYPE_WEIGHT.semibold} ${accentText('emerald', t.light)}`}>R{(s.total_cost || 0).toFixed(2)}</span>
                 </div>
               ))}
             </div>
@@ -455,7 +455,7 @@ function OTDetailModal({ record, onClose, onEdit, onApprove, onReject }: {
           {rows.map(({ l, v }) => (
             <div key={l} className={`${t.chipBg} rounded-lg p-2.5`}>
               <p className={`text-[10px] mb-0.5 ${t.textFaint}`}>{l}</p>
-              <p className={`text-xs font-medium ${t.textMuted}`}>{v}</p>
+              <p className={`text-xs ${TYPE_WEIGHT.medium} ${t.textMuted}`}>{v}</p>
             </div>
           ))}
         </div>
@@ -463,13 +463,13 @@ function OTDetailModal({ record, onClose, onEdit, onApprove, onReject }: {
         <div className="flex gap-2 pt-2">
           {record.status === 'pending' && (
             <>
-              <button type="button" onClick={onReject} className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-rose-500/15 hover:bg-rose-500/25 ${accentText('rose', t.light)} transition-colors`}><XCircle className="h-3.5 w-3.5" /> Reject</button>
-              <button type="button" onClick={onApprove} className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-emerald-500/15 hover:bg-emerald-500/25 ${accentText('emerald', t.light)} transition-colors`}><CheckCircle2 className="h-3.5 w-3.5" /> Approve</button>
+              <button type="button" onClick={onReject} className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs ${TYPE_WEIGHT.semibold} bg-rose-500/15 hover:bg-rose-500/25 ${accentText('rose', t.light)} transition-colors`}><XCircle className="h-3.5 w-3.5" /> Reject</button>
+              <button type="button" onClick={onApprove} className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs ${TYPE_WEIGHT.semibold} bg-emerald-500/15 hover:bg-emerald-500/25 ${accentText('emerald', t.light)} transition-colors`}><CheckCircle2 className="h-3.5 w-3.5" /> Approve</button>
             </>
           )}
-          <button type="button" onClick={onEdit} className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium ${t.chipBg} ${t.textMuted} ${t.hoverBg} transition-colors`}><Edit className="h-3.5 w-3.5" /> Edit</button>
+          <button type="button" onClick={onEdit} className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs ${TYPE_WEIGHT.medium} ${t.chipBg} ${t.textMuted} ${t.hoverBg} transition-colors`}><Edit className="h-3.5 w-3.5" /> Edit</button>
           <div className="ml-auto" />
-          <button type="button" onClick={onClose} className={`px-3 py-2 rounded-lg text-xs font-medium ${t.chipBg} ${t.textMuted} ${t.hoverBg} transition-colors`}>Close</button>
+          <button type="button" onClick={onClose} className={`px-3 py-2 rounded-lg text-xs ${TYPE_WEIGHT.medium} ${t.chipBg} ${t.textMuted} ${t.hoverBg} transition-colors`}>Close</button>
         </div>
       </div>
     </CenterModal>
@@ -555,9 +555,9 @@ function AnalyzeStat({ icon: Icon, accent, label, value, suffix = '', decimals =
     <GlowCard color={ACCENT_HEX[accent]} className="p-3.5">
       <div className="flex items-center gap-1.5 mb-3">
         <Icon className={`h-3.5 w-3.5 shrink-0 ${a.icon}`} />
-        <p className={`${t.textSecondary} ${TYPE_SCALE.label} font-medium uppercase tracking-wide truncate`}>{label}</p>
+        <p className={`${t.textSecondary} ${TYPE_SCALE.label} ${TYPE_WEIGHT.medium} uppercase tracking-wide truncate`}>{label}</p>
       </div>
-      <p className={`${TYPE_SCALE.statLarge} leading-none font-bold ${t.textPrimary} tracking-tight tabular-nums`}>
+      <p className={`${TYPE_SCALE.statLarge} leading-none ${TYPE_WEIGHT.bold} ${t.textPrimary} tracking-tight tabular-nums`}>
         <CountUp value={value} suffix={suffix} duration={decimals ? 1.2 : 0.9} />
       </p>
     </GlowCard>
@@ -599,7 +599,7 @@ function OvertimeHeatmap({ grid, weekdayLabels, punchRecords }: { grid: number[]
     <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
       <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}>
         <Calendar className="h-4 w-4 text-brand-400" />
-        <span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>When Overtime Happens</span>
+        <span className={`${TYPE_WEIGHT.semibold} ${TYPE_SCALE.title} ${t.textPrimary}`}>When Overtime Happens</span>
         <HintText className="ml-auto">click a cell to see who worked overtime then</HintText>
       </div>
       <div className="p-4 overflow-x-auto">
@@ -658,7 +658,7 @@ function OvertimeHeatmap({ grid, weekdayLabels, punchRecords }: { grid: number[]
             className={`border-t ${t.border} p-4`}
           >
             <div className="flex items-center gap-2 mb-2">
-              <span className={`${TYPE_SCALE.body} font-semibold ${t.textPrimary}`}>{selectedLabel}</span>
+              <span className={`${TYPE_SCALE.body} ${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{selectedLabel}</span>
               <StatusBadge color={ACCENT_HEX.violet} label={`${selectedTotal.toFixed(1)}h`} />
               {selectedEntries.length > 0 && <span className={`${TYPE_SCALE.caption} ${t.textFaint}`}>{selectedEntries.length} entr{selectedEntries.length !== 1 ? 'ies' : 'y'}</span>}
             </div>
@@ -669,11 +669,11 @@ function OvertimeHeatmap({ grid, weekdayLabels, punchRecords }: { grid: number[]
                 {selectedEntries.map((e, i) => (
                   <motion.div key={i} variants={fadeUp} className={`flex items-center justify-between gap-3 ${t.chipBg} rounded-lg px-3 py-1.5`}>
                     <div className="min-w-0 flex-1">
-                      <span className={`${TYPE_SCALE.caption} font-medium ${t.textPrimary}`}>{e.employee_name}</span>
+                      <span className={`${TYPE_SCALE.caption} ${TYPE_WEIGHT.medium} ${t.textPrimary}`}>{e.employee_name}</span>
                       <span className={`${TYPE_SCALE.caption} ${t.textFaint} ml-2`}>{fmtDate(e.date)}</span>
                       {e.reason && <p className={`${TYPE_SCALE.caption} ${t.textFaint} truncate`}>{e.reason}</p>}
                     </div>
-                    <span className={`${TYPE_SCALE.caption} font-semibold shrink-0 ${accentText('violet', t.light)}`}>{e.hours}h</span>
+                    <span className={`${TYPE_SCALE.caption} ${TYPE_WEIGHT.semibold} shrink-0 ${accentText('violet', t.light)}`}>{e.hours}h</span>
                   </motion.div>
                 ))}
               </motion.div>
@@ -824,8 +824,8 @@ function ArtisanBarRow({ a, maxHours, active, onToggle }: {
     <button type="button" onClick={onToggle} title={`Click to ${active ? 'remove' : 'filter by'} ${a.employee_name}`}
       className={`w-full text-left rounded-lg px-2 -mx-2 py-1.5 transition-colors ${active ? 'bg-brand-500/10' : t.hoverBgSoft}`}>
       <div className="flex justify-between text-xs mb-1">
-        <span className={`font-medium ${active ? accentText('violet', t.light) : t.textPrimary}`}>{a.employee_name}{a.position ? <span className={t.textFaint}> · {a.position}</span> : null}</span>
-        <span className={`font-semibold ${t.textPrimary}`}>{a.hours}h</span>
+        <span className={`${TYPE_WEIGHT.medium} ${active ? accentText('violet', t.light) : t.textPrimary}`}>{a.employee_name}{a.position ? <span className={t.textFaint}> · {a.position}</span> : null}</span>
+        <span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{a.hours}h</span>
       </div>
       <ProgressBar value={(a.hours / maxHours) * 100} color={active ? ACCENT_HEX.violet : ACCENT_HEX.blue} showValue={false} />
     </button>
@@ -852,19 +852,19 @@ function OverviewSubTab({ filtered, richStats, byArtisan, maxArtisanHours, resul
         <AnalyzeStat icon={UsersRound} accent="indigo" label="Employees Involved" value={richStats.uniqueEmployees} />
         <AnalyzeStat icon={Gauge} accent="amber" label="Avg Hrs / Instance" value={richStats.avgHours} suffix="h" decimals={1} />
         <GlowCard color={ACCENT_HEX.cyan} className="p-3.5">
-          <div className="flex items-center gap-1.5 mb-2"><TrendingUp className={`h-3.5 w-3.5 ${accentText('cyan', t.light)}`} /><span className={`${TYPE_SCALE.label} font-medium uppercase tracking-wide ${t.textSecondary}`}>Busiest Day</span></div>
-          <p className={`${TYPE_SCALE.statLarge} leading-none font-bold ${t.textPrimary}`}>{richStats.busiestDay}</p>
+          <div className="flex items-center gap-1.5 mb-2"><TrendingUp className={`h-3.5 w-3.5 ${accentText('cyan', t.light)}`} /><span className={`${TYPE_SCALE.label} ${TYPE_WEIGHT.medium} uppercase tracking-wide ${t.textSecondary}`}>Busiest Day</span></div>
+          <p className={`${TYPE_SCALE.statLarge} leading-none ${TYPE_WEIGHT.bold} ${t.textPrimary}`}>{richStats.busiestDay}</p>
         </GlowCard>
         <GlowCard color={ACCENT_HEX.emerald} className="p-3.5">
-          <div className="flex items-center gap-1.5 mb-2"><Lightbulb className={`h-3.5 w-3.5 ${accentText('emerald', t.light)}`} /><span className={`${TYPE_SCALE.label} font-medium uppercase tracking-wide ${t.textSecondary}`}>Most Common Reason</span></div>
-          <p className={`${TYPE_SCALE.stat} leading-tight font-bold ${t.textPrimary} truncate`} title={result?.top_reasons[0]?.phrase || undefined}>
+          <div className="flex items-center gap-1.5 mb-2"><Lightbulb className={`h-3.5 w-3.5 ${accentText('emerald', t.light)}`} /><span className={`${TYPE_SCALE.label} ${TYPE_WEIGHT.medium} uppercase tracking-wide ${t.textSecondary}`}>Most Common Reason</span></div>
+          <p className={`${TYPE_SCALE.stat} leading-tight ${TYPE_WEIGHT.bold} ${t.textPrimary} truncate`} title={result?.top_reasons[0]?.phrase || undefined}>
             {loading && !result ? '…' : result?.top_reasons[0] ? `“${result.top_reasons[0].phrase}”` : '—'}
           </p>
         </GlowCard>
         <AnalyzeStat icon={Wrench} accent="violet" label="Machines Involved" value={result?.top_machines.length ?? 0} />
         <GlowCard color={ACCENT_HEX.blue} className="p-3.5">
-          <div className="flex items-center gap-1.5 mb-2"><Wallet className={`h-3.5 w-3.5 ${accentText('blue', t.light)}`} /><span className={`${TYPE_SCALE.label} font-medium uppercase tracking-wide ${t.textSecondary}`}>Spares Cost</span></div>
-          <p className={`${TYPE_SCALE.statLarge} leading-none font-bold ${t.textPrimary}`}>{formatCurrencyShort(richStats.spareCost)}</p>
+          <div className="flex items-center gap-1.5 mb-2"><Wallet className={`h-3.5 w-3.5 ${accentText('blue', t.light)}`} /><span className={`${TYPE_SCALE.label} ${TYPE_WEIGHT.medium} uppercase tracking-wide ${t.textSecondary}`}>Spares Cost</span></div>
+          <p className={`${TYPE_SCALE.statLarge} leading-none ${TYPE_WEIGHT.bold} ${t.textPrimary}`}>{formatCurrencyShort(richStats.spareCost)}</p>
         </GlowCard>
       </motion.div>
 
@@ -872,7 +872,7 @@ function OverviewSubTab({ filtered, richStats, byArtisan, maxArtisanHours, resul
 
       <motion.div variants={fadeUp} className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><TrendingUp className="h-4 w-4 text-brand-400" /><span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>Weekly Trend</span></div>
+          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><TrendingUp className="h-4 w-4 text-brand-400" /><span className={`${TYPE_WEIGHT.semibold} ${TYPE_SCALE.title} ${t.textPrimary}`}>Weekly Trend</span></div>
           <div className="p-4">
             {!result || result.weekly_series.length < 2 ? (
               <p className={`text-sm text-center py-14 ${t.textFaint}`}>{loading ? 'Loading…' : 'Not enough data for a trend yet'}</p>
@@ -897,7 +897,7 @@ function OverviewSubTab({ filtered, richStats, byArtisan, maxArtisanHours, resul
         </div>
 
         <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><UsersRound className="h-4 w-4 text-brand-400" /><span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>Top Employees by Hours</span><span className={`ml-auto ${TYPE_SCALE.caption} ${t.textFaint}`}>click a name to filter</span></div>
+          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><UsersRound className="h-4 w-4 text-brand-400" /><span className={`${TYPE_WEIGHT.semibold} ${TYPE_SCALE.title} ${t.textPrimary}`}>Top Employees by Hours</span><span className={`ml-auto ${TYPE_SCALE.caption} ${t.textFaint}`}>click a name to filter</span></div>
           <div className="p-4 space-y-1">
             {byArtisan.slice(0, 6).map(a => (
               <ArtisanBarRow key={a.employee_id || a.employee_name} a={a} maxHours={maxArtisanHours}
@@ -936,7 +936,7 @@ function AnalyticsSubTab({ filtered, byType, byStatus, bySection, byArtisan, max
     <div className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><PieChart className="h-4 w-4 text-brand-400" /><span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>By Overtime Type</span><span className={`ml-auto ${TYPE_SCALE.caption} ${t.textFaint}`}>{typeTotal} total</span></div>
+          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><PieChart className="h-4 w-4 text-brand-400" /><span className={`${TYPE_WEIGHT.semibold} ${TYPE_SCALE.title} ${t.textPrimary}`}>By Overtime Type</span><span className={`ml-auto ${TYPE_SCALE.caption} ${t.textFaint}`}>{typeTotal} total</span></div>
           <div className="p-4">
             {byType.length === 0 ? <p className={`text-sm text-center py-16 ${t.textFaint}`}>No data</p> : (
               <ResponsiveContainer width="100%" height={220}>
@@ -953,7 +953,7 @@ function AnalyticsSubTab({ filtered, byType, byStatus, bySection, byArtisan, max
         </div>
 
         <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><CheckCircle2 className="h-4 w-4 text-brand-400" /><span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>By Status</span><span className={`ml-auto ${TYPE_SCALE.caption} ${t.textFaint}`}>{statusTotal} total</span></div>
+          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><CheckCircle2 className="h-4 w-4 text-brand-400" /><span className={`${TYPE_WEIGHT.semibold} ${TYPE_SCALE.title} ${t.textPrimary}`}>By Status</span><span className={`ml-auto ${TYPE_SCALE.caption} ${t.textFaint}`}>{statusTotal} total</span></div>
           <div className="p-4">
             {byStatus.length === 0 ? <p className={`text-sm text-center py-16 ${t.textFaint}`}>No data</p> : (
               <ResponsiveContainer width="100%" height={220}>
@@ -978,23 +978,23 @@ function AnalyticsSubTab({ filtered, byType, byStatus, bySection, byArtisan, max
             <GlowCard key={s} color={hex} className="p-3.5">
               <div className="flex items-center gap-1.5 mb-2">
                 {s === 'approved' ? <CheckCircle2 className={`h-3.5 w-3.5 ${accentText('emerald', t.light)}`} /> : s === 'rejected' ? <XCircle className={`h-3.5 w-3.5 ${accentText('rose', t.light)}`} /> : <Clock4 className="h-3.5 w-3.5 text-brand-400" />}
-                <span className={`${TYPE_SCALE.label} font-medium uppercase tracking-wide ${t.textSecondary}`}>{s.charAt(0).toUpperCase() + s.slice(1)}</span>
+                <span className={`${TYPE_SCALE.label} ${TYPE_WEIGHT.medium} uppercase tracking-wide ${t.textSecondary}`}>{s.charAt(0).toUpperCase() + s.slice(1)}</span>
               </div>
-              <p className={`${TYPE_SCALE.statLarge} leading-none font-bold tabular-nums`} style={{ color: hex }}><CountUp value={count} duration={0.9} /></p>
+              <p className={`${TYPE_SCALE.statLarge} leading-none ${TYPE_WEIGHT.bold} tabular-nums`} style={{ color: hex }}><CountUp value={count} duration={0.9} /></p>
             </GlowCard>
           );
         })}
         <AnalyzeStat icon={UsersRound} accent="violet" label="Employees" value={richStats.uniqueEmployees} />
         <AnalyzeStat icon={Clock4} accent="blue" label="Avg Hrs/Request" value={richStats.avgHours} suffix="h" decimals={1} />
         <GlowCard color={ACCENT_HEX.indigo} className="p-3.5">
-          <div className="flex items-center gap-1.5 mb-2"><TrendingUp className={`h-3.5 w-3.5 ${accentText('indigo', t.light)}`} /><span className={`${TYPE_SCALE.label} font-medium uppercase tracking-wide ${t.textSecondary}`}>Busiest Day</span></div>
-          <p className={`${TYPE_SCALE.statLarge} leading-none font-bold ${t.textPrimary}`}>{richStats.busiestDay}</p>
+          <div className="flex items-center gap-1.5 mb-2"><TrendingUp className={`h-3.5 w-3.5 ${accentText('indigo', t.light)}`} /><span className={`${TYPE_SCALE.label} ${TYPE_WEIGHT.medium} uppercase tracking-wide ${t.textSecondary}`}>Busiest Day</span></div>
+          <p className={`${TYPE_SCALE.statLarge} leading-none ${TYPE_WEIGHT.bold} ${t.textPrimary}`}>{richStats.busiestDay}</p>
         </GlowCard>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><Wrench className="h-4 w-4 text-brand-400" /><span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>By Section</span></div>
+          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><Wrench className="h-4 w-4 text-brand-400" /><span className={`${TYPE_WEIGHT.semibold} ${TYPE_SCALE.title} ${t.textPrimary}`}>By Section</span></div>
           <div className="p-4">
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={bySection} barSize={28}>
@@ -1012,7 +1012,7 @@ function AnalyticsSubTab({ filtered, byType, byStatus, bySection, byArtisan, max
         </div>
 
         <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><UsersRound className="h-4 w-4 text-brand-400" /><span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>Top Artisans by Hours</span><span className={`ml-auto ${TYPE_SCALE.caption} ${t.textFaint}`}>click a name to filter</span></div>
+          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><UsersRound className="h-4 w-4 text-brand-400" /><span className={`${TYPE_WEIGHT.semibold} ${TYPE_SCALE.title} ${t.textPrimary}`}>Top Artisans by Hours</span><span className={`ml-auto ${TYPE_SCALE.caption} ${t.textFaint}`}>click a name to filter</span></div>
           <div className="p-4 space-y-1">
             {byArtisan.map(a => (
               <ArtisanBarRow key={a.employee_id || a.employee_name} a={a} maxHours={maxArtisanHours}
@@ -1025,7 +1025,7 @@ function AnalyticsSubTab({ filtered, byType, byStatus, bySection, byArtisan, max
       </div>
 
       <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-        <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><TrendingUp className="h-4 w-4 text-brand-400" /><span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>By Day of Week</span></div>
+        <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><TrendingUp className="h-4 w-4 text-brand-400" /><span className={`${TYPE_WEIGHT.semibold} ${TYPE_SCALE.title} ${t.textPrimary}`}>By Day of Week</span></div>
         <div className="p-4">
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={byWeekday} barSize={28}>
@@ -1089,7 +1089,7 @@ function CategoryDetailTable({ categories }: { categories: OTCategoryDetail[] })
   const [expanded, setExpanded] = useState<string | null>(null);
   const [sort, setSort] = useState<{ key: CategorySortKey; dir: 'asc' | 'desc' }>({ key: 'hours', dir: 'desc' });
   if (categories.length === 0) return null;
-  const thCls = `${TYPE_SCALE.caption} font-medium ${t.textFaint} px-3 py-2`;
+  const thCls = `${TYPE_SCALE.caption} ${TYPE_WEIGHT.medium} ${t.textFaint} px-3 py-2`;
   const tdCls = `${TYPE_SCALE.caption} ${t.textMuted} px-3 py-2`;
 
   const sorted = [...categories].sort((a, b) => (a[sort.key] - b[sort.key]) * (sort.dir === 'asc' ? 1 : -1));
@@ -1099,7 +1099,7 @@ function CategoryDetailTable({ categories }: { categories: OTCategoryDetail[] })
     <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
       <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}>
         <Layers className="h-4 w-4 text-brand-400" />
-        <span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>Category Detail</span>
+        <span className={`${TYPE_WEIGHT.semibold} ${TYPE_SCALE.title} ${t.textPrimary}`}>Category Detail</span>
       </div>
       <HintText className="px-5 pt-3">
         Click any category row below to expand it and see the individual overtime records behind that number. Click a column heading (Instances / Hours / Avg h / % Total) to sort by it — click again to reverse the order.
@@ -1145,9 +1145,9 @@ function CategoryDetailTable({ categories }: { categories: OTCategoryDetail[] })
               return (
                 <React.Fragment key={c.category}>
                   <tr onClick={() => setExpanded(isOpen ? null : c.category)} className={`border-b ${t.border} ${t.hoverBgSoft} cursor-pointer transition-colors`}>
-                    <td className={`${tdCls} pl-4 font-medium ${t.textPrimary}`}>&ldquo;{c.category}&rdquo;</td>
+                    <td className={`${tdCls} pl-4 ${TYPE_WEIGHT.medium} ${t.textPrimary}`}>&ldquo;{c.category}&rdquo;</td>
                     <td className={`text-right ${tdCls}`}>{c.instances}</td>
-                    <td className={`text-right ${tdCls} font-semibold text-brand-400`}>{c.hours}h</td>
+                    <td className={`text-right ${tdCls} ${TYPE_WEIGHT.semibold} text-brand-400`}>{c.hours}h</td>
                     <td className={`text-right ${tdCls}`}>{c.avg_hours}h</td>
                     <td className={`text-right ${tdCls}`}>{c.pct_of_total}%</td>
                     <td className={tdCls}>{c.top_weekday ?? '—'}</td>
@@ -1168,11 +1168,11 @@ function CategoryDetailTable({ categories }: { categories: OTCategoryDetail[] })
                               {c.records.map((r, i) => (
                                 <motion.div key={i} variants={fadeUp} className={`flex items-center justify-between gap-3 ${t.glassSoft} rounded-lg px-3 py-1.5`}>
                                   <div className="min-w-0 flex-1">
-                                    <span className={`${TYPE_SCALE.caption} font-medium ${t.textPrimary}`}>{r.employee_name}</span>
+                                    <span className={`${TYPE_SCALE.caption} ${TYPE_WEIGHT.medium} ${t.textPrimary}`}>{r.employee_name}</span>
                                     <span className={`${TYPE_SCALE.caption} ${t.textFaint} ml-2`}>{fmtDate(r.date)}</span>
                                     {r.reason && <p className={`${TYPE_SCALE.caption} ${t.textFaint} truncate`}>{r.reason}</p>}
                                   </div>
-                                  <span className={`${TYPE_SCALE.caption} font-semibold shrink-0 ${accentText('violet', t.light)}`}>{r.hours}h</span>
+                                  <span className={`${TYPE_SCALE.caption} ${TYPE_WEIGHT.semibold} shrink-0 ${accentText('violet', t.light)}`}>{r.hours}h</span>
                                 </motion.div>
                               ))}
                             </motion.div>
@@ -1207,7 +1207,7 @@ function AnalysisEmpty({ records, error, onRefresh }: { records: OTRecord[]; err
       <PulsingIcon className="h-12 w-12 mx-auto mb-3 flex items-center justify-center">
         <Brain className={`h-9 w-9 ${accentText('amber', t.light)}`} />
       </PulsingIcon>
-      <h3 className={`${TYPE_SCALE.subtitle} font-semibold mb-1.5 ${t.textPrimary}`}>No Analysis Yet</h3>
+      <h3 className={`${TYPE_SCALE.subtitle} ${TYPE_WEIGHT.semibold} mb-1.5 ${t.textPrimary}`}>No Analysis Yet</h3>
       <p className={`${TYPE_SCALE.body} mb-4 max-w-md mx-auto ${t.textFaint}`}>
         {error || (records.length === 0
           ? 'No records in the current filter selection.'
@@ -1215,7 +1215,7 @@ function AnalysisEmpty({ records, error, onRefresh }: { records: OTRecord[]; err
       </p>
       {records.length > 0 && (
         <button type="button" onClick={onRefresh}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all">
+          className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all`}>
           <Brain className="h-4 w-4" /> Generate Analysis
         </button>
       )}
@@ -1255,7 +1255,7 @@ function PatternsSubTab({ records, result, loading, updating, error, onRefresh }
       <AnalysisStatusBar result={result} updating={updating} error={error} onRefresh={onRefresh} />
 
       <motion.div variants={fadeUp} className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-        <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><FileText className="h-4 w-4 text-brand-400" /><span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>Observed Facts</span></div>
+        <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><FileText className="h-4 w-4 text-brand-400" /><span className={`${TYPE_WEIGHT.semibold} ${TYPE_SCALE.title} ${t.textPrimary}`}>Observed Facts</span></div>
         <div className="p-4 space-y-4">
           <p className={`${TYPE_SCALE.body} ${t.textMuted}`}>{result.summary}</p>
           {/* Total Hours / Instances / Employees already live on the Overview tab — these
@@ -1270,7 +1270,7 @@ function PatternsSubTab({ records, result, loading, updating, error, onRefresh }
 
       {result.top_reasons.length > 0 && (
         <motion.div variants={fadeUp} className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><FileText className="h-4 w-4 text-brand-400" /><span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>Recurring Reasons</span></div>
+          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><FileText className="h-4 w-4 text-brand-400" /><span className={`${TYPE_WEIGHT.semibold} ${TYPE_SCALE.title} ${t.textPrimary}`}>Recurring Reasons</span></div>
           <div className="p-4">
             <ResponsiveContainer width="100%" height={240}>
               <BarChart data={result.top_reasons} barSize={28} margin={{ bottom: 24 }}>
@@ -1291,14 +1291,14 @@ function PatternsSubTab({ records, result, loading, updating, error, onRefresh }
 
       {result.top_machines.length > 0 && (
         <motion.div variants={fadeUp} className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><Wrench className="h-4 w-4 text-brand-400" /><span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>Machines Mentioned</span></div>
+          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><Wrench className="h-4 w-4 text-brand-400" /><span className={`${TYPE_WEIGHT.semibold} ${TYPE_SCALE.title} ${t.textPrimary}`}>Machines Mentioned</span></div>
           <div className="p-4 space-y-3">
             {(() => {
               const maxHours = Math.max(...result.top_machines.map(x => x.hours), 1);
               return result.top_machines.map((m, i) => (
                 <div key={i}>
                   <div className="flex justify-between text-xs mb-1">
-                    <span className={`font-medium ${t.textPrimary} truncate`}>{m.name}</span>
+                    <span className={`${TYPE_WEIGHT.medium} ${t.textPrimary} truncate`}>{m.name}</span>
                     <span className={`shrink-0 ml-2 ${t.textFaint}`}>{m.count}× · {m.hours}h</span>
                   </div>
                   <ProgressBar value={(m.hours / maxHours) * 100} color={ACCENT_HEX.cyan} showValue={false} />
@@ -1312,7 +1312,7 @@ function PatternsSubTab({ records, result, loading, updating, error, onRefresh }
       {result.weekly_series.length > 1 && (
         <motion.div variants={fadeUp} className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
           <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}>
-            <TrendingUp className="h-4 w-4 text-brand-400" /><span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>Weekly Trend</span>
+            <TrendingUp className="h-4 w-4 text-brand-400" /><span className={`${TYPE_WEIGHT.semibold} ${TYPE_SCALE.title} ${t.textPrimary}`}>Weekly Trend</span>
             <StatusBadge color={DIR_HEX[result.trend_direction]} label={result.trend_direction} />
             {result.trends[0] && <span className={`ml-auto ${TYPE_SCALE.caption} ${t.textFaint} truncate max-w-[50%]`}>{result.trends[0].insight}</span>}
           </div>
@@ -1358,7 +1358,7 @@ function CausesSubTab({ records, result, loading, updating, error, onRefresh }: 
       {result.possible_causes.length > 0 && (
         <motion.div variants={fadeUp} className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
           <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}>
-            <AlertTriangle className="h-4 w-4 text-brand-400" /><span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>Possible Causes</span>
+            <AlertTriangle className="h-4 w-4 text-brand-400" /><span className={`${TYPE_WEIGHT.semibold} ${TYPE_SCALE.title} ${t.textPrimary}`}>Possible Causes</span>
             <div className="ml-auto flex items-center gap-2.5">
               {SEVERITY_ORDER.map(sev => {
                 const n = result.possible_causes.filter(p => p.severity === sev).length;
@@ -1377,7 +1377,7 @@ function CausesSubTab({ records, result, loading, updating, error, onRefresh }: 
               if (items.length === 0) return null;
               return (
                 <div key={sev}>
-                  <p className={`${TYPE_SCALE.label} font-semibold uppercase tracking-wide mb-2`} style={{ color: SEV_HEX[sev] }}>{sev}</p>
+                  <p className={`${TYPE_SCALE.label} ${TYPE_WEIGHT.semibold} uppercase tracking-wide mb-2`} style={{ color: SEV_HEX[sev] }}>{sev}</p>
                   <motion.div variants={staggerContainer} initial="hidden" animate="show" className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
                     {items.map((p, i) => {
                       const SevIcon = p.severity === 'critical' || p.severity === 'high' ? AlertTriangle : AlertCircle;
@@ -1389,7 +1389,7 @@ function CausesSubTab({ records, result, loading, updating, error, onRefresh }: 
                                 <SevIcon className="h-4 w-4" style={{ color: SEV_HEX[p.severity] }} />
                               </PulsingIcon>
                               <div className="min-w-0 flex-1">
-                                <p className={`${TYPE_SCALE.body} font-semibold`} style={{ color: SEV_HEX[p.severity] }}>{p.title}</p>
+                                <p className={`${TYPE_SCALE.body} ${TYPE_WEIGHT.semibold}`} style={{ color: SEV_HEX[p.severity] }}>{p.title}</p>
                                 <p className={`${TYPE_SCALE.caption} mt-0.5 ${t.textMuted}`}>{p.description}</p>
                               </div>
                             </div>
@@ -1407,7 +1407,7 @@ function CausesSubTab({ records, result, loading, updating, error, onRefresh }: 
 
       {result.recommendations.length > 0 && (
         <motion.div variants={fadeUp} className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><Brain className="h-4 w-4 text-brand-400" /><span className={`font-semibold ${TYPE_SCALE.title} ${t.textPrimary}`}>Recommendations</span></div>
+          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><Brain className="h-4 w-4 text-brand-400" /><span className={`${TYPE_WEIGHT.semibold} ${TYPE_SCALE.title} ${t.textPrimary}`}>Recommendations</span></div>
           <motion.div variants={staggerContainer} initial="hidden" animate="show" className="p-4 space-y-2.5">
             {result.recommendations.map((r, i) => (
               <motion.div key={i} variants={fadeUp}>
@@ -1415,7 +1415,7 @@ function CausesSubTab({ records, result, loading, updating, error, onRefresh }: 
                   <div className="p-4">
                     <div className="flex items-center gap-2 mb-1">
                       <StatusBadge color={PRIORITY_HEX[r.priority]} label={PRIORITY_LABEL[r.priority]} />
-                      <p className={`${TYPE_SCALE.body} font-medium ${t.textPrimary}`}>{r.action}</p>
+                      <p className={`${TYPE_SCALE.body} ${TYPE_WEIGHT.medium} ${t.textPrimary}`}>{r.action}</p>
                     </div>
                     <p className={`${TYPE_SCALE.caption} ${t.textFaint}`}>{r.rationale} · {r.target}</p>
                   </div>
@@ -1656,11 +1656,11 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
   return (
     <div className="space-y-4">
       <div className={`${t.glass} rounded-2xl ${t.shadow} p-4 flex flex-wrap items-center gap-3`}>
-        <div className="flex items-center gap-1.5"><CalendarRange className="h-4 w-4 text-brand-400" /><span className={`text-sm font-medium ${t.textMuted}`}>Range</span></div>
+        <div className="flex items-center gap-1.5"><CalendarRange className="h-4 w-4 text-brand-400" /><span className={`text-sm ${TYPE_WEIGHT.medium} ${t.textMuted}`}>Range</span></div>
         <input type="date" title="From date" value={from} onChange={e => setFrom(e.target.value)} className={`h-9 rounded-lg px-2.5 text-xs outline-none transition-colors ${t.inputBg}`} />
         <span className={t.textFaint}>to</span>
         <input type="date" title="To date" value={to} onChange={e => setTo(e.target.value)} className={`h-9 rounded-lg px-2.5 text-xs outline-none transition-colors ${t.inputBg}`} />
-        <button type="button" onClick={() => { setFrom(defaultFrom); setTo(defaultTo); }} title="Last completed Monday-Sunday week" className={`h-9 px-3 rounded-lg text-xs font-medium transition-colors ${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText}`}>Last Week</button>
+        <button type="button" onClick={() => { setFrom(defaultFrom); setTo(defaultTo); }} title="Last completed Monday-Sunday week" className={`h-9 px-3 rounded-lg text-xs ${TYPE_WEIGHT.medium} transition-colors ${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText}`}>Last Week</button>
         <div className="flex items-center gap-1.5">
           <TrendingUp className={`h-3.5 w-3.5 ${t.textFaint}`} />
           <SelectField size="filter" title="Sort order" value={sortMode} onChange={v => setSortMode(v as typeof sortMode)}
@@ -1675,15 +1675,15 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
             {days.length} day{days.length !== 1 ? 's' : ''} · {rows.length} employee{rows.length !== 1 ? 's' : ''} · {grandTotal.toFixed(1)}h total
             {grandTotal > 0 && (
               <>
-                {' · '}<span style={{ color: PLANNING_HEX.planned }} className="font-semibold">Planned {grandTotalPlanned.toFixed(1)}h</span>
-                {' · '}<span style={{ color: PLANNING_HEX.unplanned }} className="font-semibold">Unplanned {grandTotalUnplanned.toFixed(1)}h</span>
+                {' · '}<span style={{ color: PLANNING_HEX.planned }} className={`${TYPE_WEIGHT.semibold}`}>Planned {grandTotalPlanned.toFixed(1)}h</span>
+                {' · '}<span style={{ color: PLANNING_HEX.unplanned }} className={`${TYPE_WEIGHT.semibold}`}>Unplanned {grandTotalUnplanned.toFixed(1)}h</span>
                 {grandTotalUnclassified > 0 && <>{' · '}<span className={t.textFaint}>Unclassified {grandTotalUnclassified.toFixed(1)}h</span></>}
               </>
             )}
           </span>
         )}
         {!invalidRange && rows.length > 0 && (
-          <button type="button" onClick={downloadExcel} disabled={downloading} className="ml-auto flex items-center gap-1.5 h-9 px-3 rounded-lg text-xs font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 disabled:opacity-60 transition-all">
+          <button type="button" onClick={downloadExcel} disabled={downloading} className={`ml-auto flex items-center gap-1.5 h-9 px-3 rounded-lg text-xs ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 disabled:opacity-60 transition-all`}>
             {downloading ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />} Download Excel
           </button>
         )}
@@ -1693,16 +1693,16 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
         <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
           <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}>
             <UsersRound className="h-4 w-4 text-brand-400" />
-            <span className={`font-semibold text-sm ${t.textPrimary}`}>Highest This Week</span>
-            <span className={`ml-auto text-xs ${t.textFaint}`}>{topEmployees[0].employee_name} is <span className={`font-semibold ${accentText('blue', t.light)}`}>{topEmployeeShare}%</span> of the total</span>
+            <span className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>Highest This Week</span>
+            <span className={`ml-auto text-xs ${t.textFaint}`}>{topEmployees[0].employee_name} is <span className={`${TYPE_WEIGHT.semibold} ${accentText('blue', t.light)}`}>{topEmployeeShare}%</span> of the total</span>
           </div>
           <div className={`divide-y ${t.border}`}>
             {topEmployeeInstances.map(emp => (
               <div key={emp.employee_id || emp.employee_name} className="p-4 space-y-2.5">
                 <div>
                   <div className="flex justify-between items-baseline text-sm mb-1 gap-2">
-                    <span className={`font-semibold truncate ${t.textPrimary}`}>{emp.employee_name}{emp.position ? <span className={`font-normal ${t.textFaint}`}> · {emp.position}</span> : null}</span>
-                    <span className={`shrink-0 font-bold ${accentText('blue', t.light)}`}>{emp.total.toFixed(1)}h</span>
+                    <span className={`${TYPE_WEIGHT.semibold} truncate ${t.textPrimary}`}>{emp.employee_name}{emp.position ? <span className={`font-normal ${t.textFaint}`}> · {emp.position}</span> : null}</span>
+                    <span className={`shrink-0 ${TYPE_WEIGHT.bold} ${accentText('blue', t.light)}`}>{emp.total.toFixed(1)}h</span>
                   </div>
                   <ProgressBar value={(emp.total / maxTopEmployeeHours) * 100} color={ACCENT_HEX.blue} showValue={false} />
                 </div>
@@ -1711,7 +1711,7 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
                     <p className={`text-xs ${t.textFaint}`}>No individual instances logged for this week's hours.</p>
                   ) : emp.instances.map(inst => (
                     <div key={inst.id} className="flex flex-wrap items-baseline gap-x-2 text-xs">
-                      <span className={`shrink-0 font-medium ${t.textMuted}`}>{fmtDate(inst.date)}</span>
+                      <span className={`shrink-0 ${TYPE_WEIGHT.medium} ${t.textMuted}`}>{fmtDate(inst.date)}</span>
                       <span className={`shrink-0 ${accentText('blue', t.light)}`}>
                         {inst.start_time && inst.end_time ? `${inst.start_time}–${inst.end_time}` : 'hours only'} · {(inst.hours ?? calcHours(inst.start_time, inst.end_time)).toFixed(1)}h
                       </span>
@@ -1751,13 +1751,13 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
                     <TableHead key={ds} className={`text-center min-w-[64px] px-0.5 sticky top-0 z-20 ${stickyBg} ${isWknd ? t.chipBg : ''}`}>
                       <div className="flex flex-col items-center text-[9px] py-1">
                         <span className={t.textFaint}>{d.toLocaleDateString('en-GB', { weekday: 'short' })}</span>
-                        <span className={`font-bold text-sm ${ds === today ? 'text-brand-400' : t.textMuted}`}>{d.getDate()}</span>
+                        <span className={`${TYPE_WEIGHT.bold} text-sm ${ds === today ? 'text-brand-400' : t.textMuted}`}>{d.getDate()}</span>
                         <span className={t.textFaint}>{d.toLocaleDateString('en-GB', { month: 'short' })}</span>
                       </div>
                     </TableHead>
                   );
                 })}
-                <TableHead className={`text-center min-w-16 text-[10px] font-semibold sticky top-0 z-20 ${stickyBg} ${t.textMuted}`}>Total</TableHead>
+                <TableHead className={`text-center min-w-16 text-[10px] ${TYPE_WEIGHT.semibold} sticky top-0 z-20 ${stickyBg} ${t.textMuted}`}>Total</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -1767,7 +1767,7 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
                     <div className="flex items-center gap-2.5">
                       <Avatar />
                       <div className="min-w-0">
-                        <p className={`text-sm font-medium truncate ${t.textPrimary}`}>{row.employee_name}</p>
+                        <p className={`text-sm ${TYPE_WEIGHT.medium} truncate ${t.textPrimary}`}>{row.employee_name}</p>
                         <p className={`text-[10px] truncate ${t.textFaint}`}>{row.employee_id}{row.position ? ` · ${row.position}` : ''}</p>
                       </div>
                     </div>
@@ -1777,20 +1777,20 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
                     const h = row.byDate.get(ds) || 0;
                     const isWknd = d.getDay() === 0 || d.getDay() === 6;
                     return (
-                      <TableCell key={ds} className={`text-center text-xs ${isWknd ? t.chipBg : ''} ${h > 0 ? 'font-semibold text-brand-400' : t.textFaint}`}>
+                      <TableCell key={ds} className={`text-center text-xs ${isWknd ? t.chipBg : ''} ${h > 0 ? `${TYPE_WEIGHT.semibold} text-brand-400` : t.textFaint}`}>
                         {h > 0 ? h.toFixed(1) : '—'}
                       </TableCell>
                     );
                   })}
-                  <TableCell className={`text-center text-sm font-bold ${t.textPrimary}`}>{row.total.toFixed(1)}</TableCell>
+                  <TableCell className={`text-center text-sm ${TYPE_WEIGHT.bold} ${t.textPrimary}`}>{row.total.toFixed(1)}</TableCell>
                 </TableRow>
               ))}
               <TableRow className={`${t.border} ${t.chipBg} hover:bg-transparent`}>
-                <TableCell className={`sticky left-0 z-10 ${t.chipBg} border-r ${t.border} text-xs font-bold ${t.textPrimary}`}>TOTAL</TableCell>
+                <TableCell className={`sticky left-0 z-10 ${t.chipBg} border-r ${t.border} text-xs ${TYPE_WEIGHT.bold} ${t.textPrimary}`}>TOTAL</TableCell>
                 {dayTotals.map((dt, i) => (
-                  <TableCell key={i} className={`text-center text-xs font-semibold ${t.textMuted}`}>{dt > 0 ? dt.toFixed(1) : '—'}</TableCell>
+                  <TableCell key={i} className={`text-center text-xs ${TYPE_WEIGHT.semibold} ${t.textMuted}`}>{dt > 0 ? dt.toFixed(1) : '—'}</TableCell>
                 ))}
-                <TableCell className="text-center text-sm font-bold text-brand-400">{grandTotal.toFixed(1)}</TableCell>
+                <TableCell className={`text-center text-sm ${TYPE_WEIGHT.bold} text-brand-400`}>{grandTotal.toFixed(1)}</TableCell>
               </TableRow>
             </TableBody>
           </Table>
@@ -1971,7 +1971,7 @@ function OvertimeContent() {
   };
 
   const selCls = `h-9 rounded-lg px-3 text-sm outline-none transition-colors ${t.inputBg}`;
-  const thCls = `text-left px-3 py-2 text-[10px] uppercase tracking-wide font-medium ${t.textFaint}`;
+  const thCls = `text-left px-3 py-2 text-[10px] uppercase tracking-wide ${TYPE_WEIGHT.medium} ${t.textFaint}`;
   const tdCls = `px-3 py-2.5 text-sm ${t.textMuted}`;
 
   const GridCard = ({ r }: { r: OTRecord }) => {
@@ -1981,7 +1981,7 @@ function OvertimeContent() {
         <div className="flex items-start justify-between mb-2">
           <div className="flex items-center gap-2">
             <Avatar name={r.employee_name} />
-            <div><p className={`text-xs font-semibold ${t.textPrimary}`}>{r.employee_name}</p><p className={`text-[10px] ${t.textFaint}`}>{r.employee_id}</p></div>
+            <div><p className={`text-xs ${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{r.employee_name}</p><p className={`text-[10px] ${t.textFaint}`}>{r.employee_id}</p></div>
           </div>
           <StatusBadge color={STATUS_HEX[r.status]} label={r.status} />
         </div>
@@ -1991,14 +1991,14 @@ function OvertimeContent() {
           <PayoutBadge method={r.payout_method} />
         </div>
         <div className={`mt-2 space-y-0.5 text-[11px] ${t.textFaint}`}>
-          <p>{fmtDate(r.date)} · {r.start_time}–{r.end_time} {hours > 0 && <span className="text-brand-400 font-semibold">({hours.toFixed(1)}h)</span>}</p>
+          <p>{fmtDate(r.date)} · {r.start_time}–{r.end_time} {hours > 0 && <span className={`text-brand-400 ${TYPE_WEIGHT.semibold}`}>({hours.toFixed(1)}h)</span>}</p>
           <p className="truncate">{r.reason}</p>
         </div>
         <div className="flex gap-1 mt-3">
           {r.status === 'pending' && (
             <>
-              <button type="button" onClick={e => { e.stopPropagation(); setApproving(r); }} className={`flex-1 py-1 text-[10px] font-semibold rounded-lg bg-emerald-500/15 ${accentText('emerald', t.light)} hover:bg-emerald-500/25 transition-all`}>Approve</button>
-              <button type="button" onClick={e => { e.stopPropagation(); setRejecting(r); }} className={`flex-1 py-1 text-[10px] font-semibold rounded-lg bg-rose-500/15 ${accentText('rose', t.light)} hover:bg-rose-500/25 transition-all`}>Reject</button>
+              <button type="button" onClick={e => { e.stopPropagation(); setApproving(r); }} className={`flex-1 py-1 text-[10px] ${TYPE_WEIGHT.semibold} rounded-lg bg-emerald-500/15 ${accentText('emerald', t.light)} hover:bg-emerald-500/25 transition-all`}>Approve</button>
+              <button type="button" onClick={e => { e.stopPropagation(); setRejecting(r); }} className={`flex-1 py-1 text-[10px] ${TYPE_WEIGHT.semibold} rounded-lg bg-rose-500/15 ${accentText('rose', t.light)} hover:bg-rose-500/25 transition-all`}>Reject</button>
             </>
           )}
           <button type="button" title="Edit" onClick={e => { e.stopPropagation(); setEditing(r); setFormOpen(true); }} className={`h-6 w-6 flex items-center justify-center rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-all`}><Edit className="h-3 w-3" /></button>
@@ -2044,15 +2044,15 @@ function OvertimeContent() {
       </PageHero>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className={`${t.glass} rounded-xl p-4`}><div className="flex items-center gap-1.5 mb-1"><Clock4 className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs ${t.textFaint}`}>Total</span></div><div className={`text-xl font-bold ${t.textPrimary}`}>{stats.total}</div></div>
-        <div className={`${t.glass} rounded-xl p-4`}><div className="flex items-center gap-1.5 mb-1"><Clock4 className={`h-3.5 w-3.5 ${accentText('amber', t.light)}`} /><span className={`text-xs ${t.textFaint}`}>Pending</span></div><div className={`text-xl font-bold ${accentText('amber', t.light)}`}>{stats.pending}</div></div>
-        <div className={`${t.glass} rounded-xl p-4`}><div className="flex items-center gap-1.5 mb-1"><CheckCircle2 className={`h-3.5 w-3.5 ${accentText('emerald', t.light)}`} /><span className={`text-xs ${t.textFaint}`}>Approved</span></div><div className={`text-xl font-bold ${accentText('emerald', t.light)}`}>{stats.approved}</div></div>
-        <div className={`${t.glass} rounded-xl p-4`}><div className="flex items-center gap-1.5 mb-1"><Calendar className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs ${t.textFaint}`}>OT Hours</span></div><div className="text-xl font-bold text-brand-400">{stats.totalHrs}h</div></div>
+        <div className={`${t.glass} rounded-xl p-4`}><div className="flex items-center gap-1.5 mb-1"><Clock4 className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs ${t.textFaint}`}>Total</span></div><div className={`text-xl ${TYPE_WEIGHT.bold} ${t.textPrimary}`}>{stats.total}</div></div>
+        <div className={`${t.glass} rounded-xl p-4`}><div className="flex items-center gap-1.5 mb-1"><Clock4 className={`h-3.5 w-3.5 ${accentText('amber', t.light)}`} /><span className={`text-xs ${t.textFaint}`}>Pending</span></div><div className={`text-xl ${TYPE_WEIGHT.bold} ${accentText('amber', t.light)}`}>{stats.pending}</div></div>
+        <div className={`${t.glass} rounded-xl p-4`}><div className="flex items-center gap-1.5 mb-1"><CheckCircle2 className={`h-3.5 w-3.5 ${accentText('emerald', t.light)}`} /><span className={`text-xs ${t.textFaint}`}>Approved</span></div><div className={`text-xl ${TYPE_WEIGHT.bold} ${accentText('emerald', t.light)}`}>{stats.approved}</div></div>
+        <div className={`${t.glass} rounded-xl p-4`}><div className="flex items-center gap-1.5 mb-1"><Calendar className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs ${t.textFaint}`}>OT Hours</span></div><div className={`text-xl ${TYPE_WEIGHT.bold} text-brand-400`}>{stats.totalHrs}h</div></div>
       </div>
 
       <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
         <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}>
-          <Search className="h-4 w-4 text-brand-400" /><span className={`font-semibold text-sm ${t.textPrimary}`}>Filters</span>
+          <Search className="h-4 w-4 text-brand-400" /><span className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>Filters</span>
         </div>
         <div className="px-5 pb-4 pt-3 space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
@@ -2075,7 +2075,7 @@ function OvertimeContent() {
               <div className="flex gap-1.5 overflow-x-auto pb-0.5">
                 {monthOptions.map(m => (
                   <button key={m.key} type="button" onClick={() => toggleMonthFilter(m)}
-                    className={`shrink-0 px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${activeMonth === m.key ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText}`}`}>
+                    className={`shrink-0 px-2.5 py-1 rounded-full text-xs ${TYPE_WEIGHT.medium} whitespace-nowrap transition-colors ${activeMonth === m.key ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText}`}`}>
                     {m.label}
                   </button>
                 ))}
@@ -2141,9 +2141,9 @@ function OvertimeContent() {
           <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
             {selectedIds.size > 0 && (
               <div className={`flex items-center gap-2 px-5 py-2.5 border-b ${t.border} bg-brand-500/[0.06]`}>
-                <span className={`text-xs font-semibold ${t.textPrimary}`}>{selectedIds.size} selected</span>
-                <button type="button" onClick={() => setBulkAction('approve')} className={`flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-emerald-500/15 ${accentText('emerald', t.light)} hover:bg-emerald-500/25 transition-all`}><CheckCircle2 className="h-3 w-3" /> Approve</button>
-                <button type="button" onClick={() => setBulkAction('reject')} className={`flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-rose-500/15 ${accentText('rose', t.light)} hover:bg-rose-500/25 transition-all`}><XCircle className="h-3 w-3" /> Reject</button>
+                <span className={`text-xs ${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{selectedIds.size} selected</span>
+                <button type="button" onClick={() => setBulkAction('approve')} className={`flex items-center gap-1 text-[11px] ${TYPE_WEIGHT.semibold} px-2.5 py-1 rounded-lg bg-emerald-500/15 ${accentText('emerald', t.light)} hover:bg-emerald-500/25 transition-all`}><CheckCircle2 className="h-3 w-3" /> Approve</button>
+                <button type="button" onClick={() => setBulkAction('reject')} className={`flex items-center gap-1 text-[11px] ${TYPE_WEIGHT.semibold} px-2.5 py-1 rounded-lg bg-rose-500/15 ${accentText('rose', t.light)} hover:bg-rose-500/25 transition-all`}><XCircle className="h-3 w-3" /> Reject</button>
                 <button type="button" onClick={() => setSelectedIds(new Set())} className={`ml-auto text-[11px] ${t.textFaint} ${t.hoverText} transition-colors`}>Clear</button>
               </div>
             )}
@@ -2174,12 +2174,12 @@ function OvertimeContent() {
                         <td className={tdCls}>
                           <div className="flex items-center gap-2.5">
                             <Avatar name={r.employee_name} />
-                            <div><p className={`text-sm font-medium ${t.textPrimary}`}>{r.employee_name}</p><p className={`text-[10px] ${t.textFaint}`}>{r.employee_id} · {r.position}</p></div>
+                            <div><p className={`text-sm ${TYPE_WEIGHT.medium} ${t.textPrimary}`}>{r.employee_name}</p><p className={`text-[10px] ${t.textFaint}`}>{r.employee_id} · {r.position}</p></div>
                           </div>
                         </td>
                         <td className={tdCls}><div className="flex items-center gap-1.5 flex-wrap"><TypeBadge type={r.overtime_type} /><PlanningBadge status={r.planning_status} /><PayoutBadge method={r.payout_method} /></div></td>
                         <td className={tdCls}><p className="text-xs">{fmtDate(r.date)}</p><p className={`text-[10px] ${t.textFaint}`}>{r.start_time} – {r.end_time}</p></td>
-                        <td className={tdCls}><span className="text-xs font-semibold text-brand-400">{h > 0 ? `${h.toFixed(1)}h` : '—'}</span></td>
+                        <td className={tdCls}><span className={`text-xs ${TYPE_WEIGHT.semibold} text-brand-400`}>{h > 0 ? `${h.toFixed(1)}h` : '—'}</span></td>
                         <td className={tdCls}><span className={`text-xs max-w-[200px] truncate block ${t.textFaint}`}>{r.reason}</span></td>
                         <td className={tdCls}><StatusBadge color={STATUS_HEX[r.status]} label={r.status} /></td>
                         <td className={tdCls}>
@@ -2262,7 +2262,7 @@ function OvertimeContent() {
           <p className={`text-sm ${t.textMuted}`}>Delete overtime request for {delTarget?.employee_name}? This cannot be undone.</p>
           <div className="flex gap-2">
             <button type="button" onClick={() => setDelTarget(null)} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border} transition-all`}>Cancel</button>
-            <button type="button" onClick={handleDelete} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-rose-500 to-rose-700 hover:brightness-110 transition-all">Delete</button>
+            <button type="button" onClick={handleDelete} className={`flex-1 py-2.5 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-rose-500 to-rose-700 hover:brightness-110 transition-all`}>Delete</button>
           </div>
         </div>
       </CenterModal>

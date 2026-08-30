@@ -5,7 +5,7 @@ import { AppShell } from '@/components/app-shell';
 import {
   useTheme, STATUS_TONE, PageHero, StatTile, StatusBadge, FormField, FormActions,
   SearchInput, ViewToggle, CenterModal, PrimaryButton, EmptyState, useCollapseSection, SelectField,
-  GroupSection, RecordCard, ACCENT_HEX, staggerContainer, fadeUp, InfoRow, SummaryItem, LoadingState,
+  GroupSection, RecordCard, ACCENT_HEX, staggerContainer, fadeUp, InfoRow, SummaryItem, LoadingState, TYPE_WEIGHT,
 } from '@/components/shared/theme';
 import { formatDate } from '@/lib/format';
 import React, { useState, useEffect, useMemo } from 'react';
@@ -263,7 +263,7 @@ function DriverCard({ driver, onEdit, onDelete }: { driver: Driver; onEdit: () =
   const dColor = deptColor(driver.department);
   const statusColor = STATUS_COLORS[driver.status] || STATUS_TONE.neutral;
   const expiryNote = licenceExpiryNote(driver.license_expiry);
-  const expiryTone = isExpired(driver.license_expiry) ? 'text-rose-500 font-semibold' : isExpiringSoon(driver.license_expiry) ? 'text-amber-500' : t.textFaint;
+  const expiryTone = isExpired(driver.license_expiry) ? `text-rose-500 ${TYPE_WEIGHT.semibold}` : isExpiringSoon(driver.license_expiry) ? 'text-amber-500' : t.textFaint;
   const primaryPhone = driver.phone_numbers?.[0];
 
   return (
@@ -285,10 +285,10 @@ function DriverCard({ driver, onEdit, onDelete }: { driver: Driver; onEdit: () =
         </div>
       }
       actions={<>
-        <button onClick={onEdit} type="button" className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 text-white text-[12px] font-semibold hover:brightness-110 transition-all">
+        <button onClick={onEdit} type="button" className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 text-white text-[12px] ${TYPE_WEIGHT.semibold} hover:brightness-110 transition-all`}>
           <Pencil className="h-3.5 w-3.5" /> Edit
         </button>
-        <button onClick={onDelete} type="button" className={`px-4 flex items-center justify-center gap-1.5 py-2 rounded-lg ${t.chipBg} text-rose-500 hover:bg-rose-500/10 text-[12px] font-semibold transition-all`}>
+        <button onClick={onDelete} type="button" className={`px-4 flex items-center justify-center gap-1.5 py-2 rounded-lg ${t.chipBg} text-rose-500 hover:bg-rose-500/10 text-[12px] ${TYPE_WEIGHT.semibold} transition-all`}>
           <Trash2 className="h-3.5 w-3.5" /> Delete
         </button>
       </>}
@@ -301,7 +301,7 @@ function DriverCard({ driver, onEdit, onDelete }: { driver: Driver; onEdit: () =
       </div>
       {(driver.phone_numbers?.length ?? 0) > 0 && (
         <div>
-          <p className={`text-[10px] font-semibold ${t.textTertiary} uppercase tracking-wider mb-1.5`}>Phone Numbers</p>
+          <p className={`text-[10px] ${TYPE_WEIGHT.semibold} ${t.textTertiary} uppercase tracking-wider mb-1.5`}>Phone Numbers</p>
           <div className="flex flex-wrap gap-1.5">
             {driver.phone_numbers!.map((p, i) => (
               <a key={i} href={`tel:${p.replace(/\s/g, '')}`} className="flex items-center gap-1.5 text-xs text-brand-400 hover:underline">
@@ -331,7 +331,7 @@ function DriverRow({ driver, onEdit, onDelete }: { driver: Driver; onEdit: () =>
         <div className="shrink-0"><Car className="h-5 w-5" style={{ color: dColor }} /></div>
 
         <button type="button" onClick={() => setExpanded(o => !o)} className="flex-1 min-w-0 text-left">
-          <div className={`font-semibold text-sm ${t.textPrimary}`}>{driver.full_name}</div>
+          <div className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>{driver.full_name}</div>
           <div className="flex items-center gap-2 mt-0.5 flex-wrap">
             {driver.department && <span className={`text-xs ${t.textFaint}`}>{driver.department}</span>}
             {driver.license_class && <span className={`text-xs font-mono ${t.textFaint}`}>· {driver.license_class}</span>}

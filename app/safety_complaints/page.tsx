@@ -14,7 +14,7 @@ import { PredictiveInput } from '@/components/shared/PredictiveInput';
 import { ListAutocomplete } from '@/components/shared/ListAutocomplete';
 import {
   useTheme, accentText, PageHero, StatTile, StatusBadge, SearchInput, FormField, FormActions,
-  useCollapseSection, CenterModal, PrimaryButton, EmptyState, ACCENT_HEX, SelectField, useConfirm,
+  useCollapseSection, CenterModal, PrimaryButton, EmptyState, ACCENT_HEX, SelectField, useConfirm, TYPE_WEIGHT,
 } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
@@ -150,7 +150,7 @@ function ComplaintForm({ open, onClose, initial, onSave }: {
           </div>
 
           <div className={`rounded-xl p-3 ${t.chipBg} space-y-3`}>
-            <p className={`text-[10px] font-semibold uppercase tracking-wider ${t.textFaint}`}>Foreman / Supervisor</p>
+            <p className={`text-[10px] ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textFaint}`}>Foreman / Supervisor</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <FormField label="Name"><PredictiveInput historyKey="handover_supervisor" value={form.supervisorName || ''} onChange={v => set('supervisorName', v)} placeholder="Supervisor / Foreman name" inputClassName={inputCls} /></FormField>
               <FormField label="Signature (initials)"><input type="text" value={form.supervisorSignature || ''} onChange={e => set('supervisorSignature', e.target.value)} placeholder="e.g. J.D." className={inputCls} /></FormField>
@@ -213,7 +213,7 @@ function DetailModal({ complaint, onClose, onEdit }: {
       </div>
       <div className={`flex gap-2 px-5 py-4 border-t ${t.border}`}>
         <button type="button" onClick={onClose} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border} transition-all`}>Close</button>
-        <button type="button" onClick={() => { onClose(); onEdit(complaint); }} className="flex-1 py-2.5 rounded-xl text-sm font-medium text-brand-400 hover:text-brand-300 border border-brand-400/25 transition-all">Edit</button>
+        <button type="button" onClick={() => { onClose(); onEdit(complaint); }} className={`flex-1 py-2.5 rounded-xl text-sm ${TYPE_WEIGHT.medium} text-brand-400 hover:text-brand-300 border border-brand-400/25 transition-all`}>Edit</button>
       </div>
     </CenterModal>
   );
@@ -227,13 +227,13 @@ function BarChartList({ data, color = '#86BBD8', label }: { data: { key: string;
   const max = Math.max(...data.map(d => d.value), 1);
   return (
     <div>
-      <p className={`text-[10px] font-semibold uppercase tracking-wider mb-3 ${t.textFaint}`}>{label}</p>
+      <p className={`text-[10px] ${TYPE_WEIGHT.semibold} uppercase tracking-wider mb-3 ${t.textFaint}`}>{label}</p>
       <div className="space-y-2">
         {data.map(d => (
           <div key={d.key} className="flex items-center gap-2">
             <span className={`text-[11px] w-24 truncate shrink-0 ${t.textMuted}`}>{d.key}</span>
             <div className={`flex-1 h-5 rounded ${t.chipBg} overflow-hidden`}><div className="h-full rounded transition-all duration-700" style={{ width: `${(d.value / max) * 100}%`, background: color }} /></div>
-            <span className="text-[11px] font-semibold w-6 text-right shrink-0" style={{ color }}>{d.value}</span>
+            <span className={`text-[11px] ${TYPE_WEIGHT.semibold} w-6 text-right shrink-0`} style={{ color }}>{d.value}</span>
           </div>
         ))}
       </div>
@@ -255,13 +255,13 @@ function ClosureGauge({ rate, total, closed }: { rate: number; total: number; cl
           <circle cx="55" cy="55" r={r} fill="none" stroke={color} strokeWidth="10" strokeDasharray={circumference} strokeDashoffset={offset} strokeLinecap="round" style={{ transition: 'stroke-dashoffset 1s ease' }} />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className={`text-2xl font-bold leading-none ${t.textPrimary}`}>{rate}%</span>
+          <span className={`text-2xl ${TYPE_WEIGHT.bold} leading-none ${t.textPrimary}`}>{rate}%</span>
           <span className={`text-[10px] mt-0.5 ${t.textFaint}`}>closed</span>
         </div>
       </div>
       <div className={`flex items-center gap-4 text-xs ${t.textFaint}`}>
-        <span><span className={`font-semibold ${t.textPrimary}`}>{closed}</span> closed</span>
-        <span><span className={`font-semibold ${t.textPrimary}`}>{total}</span> total</span>
+        <span><span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{closed}</span> closed</span>
+        <span><span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{total}</span> total</span>
       </div>
     </div>
   );
@@ -273,7 +273,7 @@ function TrendChart({ data }: { data: { month: string; total: number; closed: nu
   const max = Math.max(...data.map(d => d.total), 1);
   return (
     <div>
-      <p className={`text-[10px] font-semibold uppercase tracking-wider mb-3 ${t.textFaint}`}>Monthly Trend (last 6 months)</p>
+      <p className={`text-[10px] ${TYPE_WEIGHT.semibold} uppercase tracking-wider mb-3 ${t.textFaint}`}>Monthly Trend (last 6 months)</p>
       <div className="flex items-end gap-2 h-28 mt-1">
         {data.map(d => (
           <div key={d.month} className="flex-1 flex flex-col items-center gap-1">
@@ -317,7 +317,7 @@ function AnalyticsTab({ stats }: { stats: Stats }) {
         {kpis.map(k => (
           <div key={k.label} className={`${t.glass} rounded-xl p-3 text-center`}>
             <k.icon className="h-4 w-4 mx-auto mb-1" style={{ color: k.color }} />
-            <div className="text-xl font-bold leading-none" style={{ color: k.color }}>{k.value}</div>
+            <div className={`text-xl ${TYPE_WEIGHT.bold} leading-none`} style={{ color: k.color }}>{k.value}</div>
             <div className={`text-[10px] mt-1 leading-tight ${t.textFaint}`}>{k.label}</div>
           </div>
         ))}
@@ -325,7 +325,7 @@ function AnalyticsTab({ stats }: { stats: Stats }) {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className={`${t.glass} rounded-2xl p-5`}>
-          <p className={`text-[10px] font-semibold uppercase tracking-wider mb-3 ${t.textFaint}`}>Overall Closure Rate</p>
+          <p className={`text-[10px] ${TYPE_WEIGHT.semibold} uppercase tracking-wider mb-3 ${t.textFaint}`}>Overall Closure Rate</p>
           <ClosureGauge rate={stats.closureRate} total={stats.total} closed={stats.closed} />
           {stats.overdue > 0 && (
             <div className="mt-3 flex items-center gap-2 rounded-lg px-3 py-2 bg-rose-500/10">
@@ -340,7 +340,7 @@ function AnalyticsTab({ stats }: { stats: Stats }) {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className={`${t.glass} rounded-2xl p-5`}><BarChartList data={categoryData} color="#86BBD8" label="Issues by Category" /></div>
         <div className={`${t.glass} rounded-2xl p-5`}>
-          <p className={`text-[10px] font-semibold uppercase tracking-wider mb-3 ${t.textFaint}`}>Issues by Priority</p>
+          <p className={`text-[10px] ${TYPE_WEIGHT.semibold} uppercase tracking-wider mb-3 ${t.textFaint}`}>Issues by Priority</p>
           {priorityData.length === 0 ? <p className={`text-xs py-6 text-center ${t.textFaint}`}>No data</p> : (
             <div className="space-y-2">
               {priorityData.map(d => {
@@ -350,7 +350,7 @@ function AnalyticsTab({ stats }: { stats: Stats }) {
                   <div key={d.key} className="flex items-center gap-2">
                     <span className={`text-[11px] w-16 truncate shrink-0 capitalize ${t.textMuted}`}>{d.key}</span>
                     <div className={`flex-1 h-5 rounded ${t.chipBg} overflow-hidden`}><div className="h-full rounded transition-all duration-700" style={{ width: `${(d.value / max) * 100}%`, background: color }} /></div>
-                    <span className="text-[11px] font-semibold w-6 text-right shrink-0" style={{ color }}>{d.value}</span>
+                    <span className={`text-[11px] ${TYPE_WEIGHT.semibold} w-6 text-right shrink-0`} style={{ color }}>{d.value}</span>
                   </div>
                 );
               })}
@@ -458,7 +458,7 @@ function SafetyComplaintsContent() {
   const toggleRow = (id: string) => setExpandedRows(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
   const selCls = `h-9 rounded-lg px-2.5 text-xs outline-none transition-colors ${t.inputBg}`;
-  const thCls = `text-left px-3 py-2 text-[10px] uppercase tracking-wide font-medium ${t.textFaint}`;
+  const thCls = `text-left px-3 py-2 text-[10px] uppercase tracking-wide ${TYPE_WEIGHT.medium} ${t.textFaint}`;
 
   return (
     <main className="max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
@@ -519,7 +519,7 @@ function SafetyComplaintsContent() {
           </div>
 
           <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-            <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><MessageSquareWarning className={`h-4 w-4 ${accentText('amber', t.light)}`} /><span className={`font-semibold text-sm ${t.textPrimary}`}>Complaints Register</span><span className={`ml-auto text-xs ${t.textFaint}`}>{filtered.length}</span></div>
+            <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><MessageSquareWarning className={`h-4 w-4 ${accentText('amber', t.light)}`} /><span className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>Complaints Register</span><span className={`ml-auto text-xs ${t.textFaint}`}>{filtered.length}</span></div>
             {loading ? (
               <div className="flex items-center justify-center py-16"><RefreshCw className={`h-6 w-6 animate-spin ${t.textFaint}`} /></div>
             ) : filtered.length === 0 ? (
@@ -563,8 +563,8 @@ function SafetyComplaintsContent() {
                             <tr className={`border-b ${t.border} ${t.chipBg}`}>
                               <td colSpan={9} className="px-5 py-3">
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
-                                  {c.issueRaised && <div className="sm:col-span-2 lg:col-span-3"><span className={`font-semibold uppercase text-[10px] tracking-wider ${t.textFaint}`}>Issue Raised</span><p className={`mt-0.5 ${t.textMuted}`}>{c.issueRaised}</p></div>}
-                                  {c.actionPlan && <div className="sm:col-span-2 lg:col-span-3"><span className={`font-semibold uppercase text-[10px] tracking-wider ${t.textFaint}`}>Action Plan</span><p className={`mt-0.5 ${t.textMuted}`}>{c.actionPlan}</p></div>}
+                                  {c.issueRaised && <div className="sm:col-span-2 lg:col-span-3"><span className={`${TYPE_WEIGHT.semibold} uppercase text-[10px] tracking-wider ${t.textFaint}`}>Issue Raised</span><p className={`mt-0.5 ${t.textMuted}`}>{c.issueRaised}</p></div>}
+                                  {c.actionPlan && <div className="sm:col-span-2 lg:col-span-3"><span className={`${TYPE_WEIGHT.semibold} uppercase text-[10px] tracking-wider ${t.textFaint}`}>Action Plan</span><p className={`mt-0.5 ${t.textMuted}`}>{c.actionPlan}</p></div>}
                                   {c.location && <div><span className={t.textFaint}>Location: </span><span className={t.textMuted}>{c.location}</span></div>}
                                   {c.section && <div><span className={t.textFaint}>Section: </span><span className={t.textMuted}>{c.section}</span></div>}
                                   {c.byWho && <div><span className={t.textFaint}>Responsible: </span><span className={t.textMuted}>{c.byWho}</span></div>}

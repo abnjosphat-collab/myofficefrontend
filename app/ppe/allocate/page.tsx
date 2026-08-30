@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AppShell } from '@/components/app-shell';
 import { api } from '@/lib/apiClient';
-import { useTheme, PageHero, FormField, FormActions, SelectField } from '@/components/shared/theme';
+import { useTheme, PageHero, FormField, FormActions, SelectField, TYPE_WEIGHT } from '@/components/shared/theme';
 
 interface Employee { id: string; name: string; }
 interface PpeItem { id: string; itemName: string; category: string; size: string; }
@@ -74,7 +74,7 @@ function CreateAllocationContent() {
         title="Allocate Protective Equipment"
         description="Assign PPE items to employees and track allocation details"
         actions={
-          <Link href="/ppe" className={`h-8 px-3 rounded-lg text-xs font-medium inline-flex items-center gap-1.5 ${t.chipBg} ${t.hoverBg} ${t.textMuted}`}>
+          <Link href="/ppe" className={`h-8 px-3 rounded-lg text-xs ${TYPE_WEIGHT.medium} inline-flex items-center gap-1.5 ${t.chipBg} ${t.hoverBg} ${t.textMuted}`}>
             <ArrowLeft className="h-3.5 w-3.5" /> Back to PPE
           </Link>
         }
@@ -83,7 +83,7 @@ function CreateAllocationContent() {
       <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
         <div className={`px-5 py-3 border-b ${t.border} flex items-center gap-2`}>
           <Shield className="h-3.5 w-3.5 text-emerald-500" />
-          <span className={`font-semibold text-sm ${t.textPrimary}`}>Allocation Details</span>
+          <span className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>Allocation Details</span>
         </div>
         <form onSubmit={handleSubmit}>
           <div className="p-5 space-y-4">

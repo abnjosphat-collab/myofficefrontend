@@ -6,7 +6,7 @@ import { formatDate } from '@/lib/format';
 import { formatCurrency, lineTotal as calcLineTotal } from '@/components/shared/utils';
 import { api } from '@/lib/apiClient';
 import { EXPORT_BRAND_RGB } from '@/lib/exportUtils';
-import { useTheme, accentText, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle, FormField, FormActions, CenterModal, ACCENT_HEX, STATUS_TONE, GlowCard, SelectField, GroupSection, staggerContainer, fadeUp, Combobox, type ComboOption as SharedComboOption } from '@/components/shared/theme';
+import { useTheme, accentText, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle, FormField, FormActions, CenterModal, ACCENT_HEX, STATUS_TONE, GlowCard, SelectField, GroupSection, staggerContainer, fadeUp, Combobox, type ComboOption as SharedComboOption, TYPE_WEIGHT } from '@/components/shared/theme';
 import { PredictiveInput } from '@/components/shared/PredictiveInput';
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
@@ -154,7 +154,7 @@ const SpareCard = React.memo(({ spare, isFavorite, isExpanded, onEdit, onDelete,
         <div className="flex items-start justify-between mb-2">
           <div className="flex-1 min-w-0 pr-2">
             <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
-              <span className={`font-mono font-bold text-sm ${t.textPrimary}`}>{spare.stock_code}</span>
+              <span className={`font-mono ${TYPE_WEIGHT.bold} text-sm ${t.textPrimary}`}>{spare.stock_code}</span>
               {spare.safety_stock && <StatusBadge color={ACCENT_HEX.blue} label="Safety" />}
               {isFavorite && <Star className={`h-3 w-3 fill-amber-400 ${accentText('amber', t.light)} flex-shrink-0`} />}
             </div>
@@ -203,10 +203,10 @@ const SpareCard = React.memo(({ spare, isFavorite, isExpanded, onEdit, onDelete,
 
         <div className="flex items-center justify-between">
           <div>
-            <div className={`text-sm font-bold ${t.textPrimary}`}>{formatCurrency(spare.unit_price)}<span className={`text-[10px] ml-1 ${t.textFaint}`}>/{spare.unit_of_measure || 'UN'}</span></div>
+            <div className={`text-sm ${TYPE_WEIGHT.bold} ${t.textPrimary}`}>{formatCurrency(spare.unit_price)}<span className={`text-[10px] ml-1 ${t.textFaint}`}>/{spare.unit_of_measure || 'UN'}</span></div>
             <div className={`text-[10px] ${t.textFaint}`}>Inv: {formatCurrency(invValue)}</div>
           </div>
-          <button onClick={() => onAddToReq(spare)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-white transition-all hover:-translate-y-0.5 bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110">
+          <button onClick={() => onAddToReq(spare)} className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs ${TYPE_WEIGHT.medium} text-white transition-all hover:-translate-y-0.5 bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110`}>
             <ShoppingCart className="h-3 w-3" /> Add to Req
           </button>
         </div>
@@ -223,13 +223,13 @@ const SpareCard = React.memo(({ spare, isFavorite, isExpanded, onEdit, onDelete,
           <div className="grid grid-cols-2 gap-2">
             <div className={`p-2.5 rounded-lg ${t.chipBg} space-y-1`}>
               <div className={`text-[10px] uppercase tracking-wide ${t.textFaint}`}>Stock Levels</div>
-              <div className="flex justify-between"><span className={t.textFaint}>Current</span><span className={`font-semibold ${t.textMuted}`}>{spare.current_quantity}</span></div>
+              <div className="flex justify-between"><span className={t.textFaint}>Current</span><span className={`${TYPE_WEIGHT.semibold} ${t.textMuted}`}>{spare.current_quantity}</span></div>
               <div className="flex justify-between"><span className={t.textFaint}>Minimum</span><span className={t.textMuted}>{spare.min_quantity}</span></div>
               <div className="flex justify-between"><span className={t.textFaint}>Maximum</span><span className={t.textMuted}>{spare.max_quantity}</span></div>
             </div>
             <div className={`p-2.5 rounded-lg ${t.chipBg} space-y-1`}>
               <div className={`text-[10px] uppercase tracking-wide ${t.textFaint}`}>Pricing</div>
-              <div className="flex justify-between"><span className={t.textFaint}>Unit Price</span><span className={`font-semibold ${t.textMuted}`}>{formatCurrency(spare.unit_price)}</span></div>
+              <div className="flex justify-between"><span className={t.textFaint}>Unit Price</span><span className={`${TYPE_WEIGHT.semibold} ${t.textMuted}`}>{formatCurrency(spare.unit_price)}</span></div>
               <div className="flex justify-between"><span className={t.textFaint}>Inv. Value</span><span className={t.textMuted}>{formatCurrency(invValue)}</span></div>
               <div className="flex justify-between"><span className={t.textFaint}>Safety Stock</span><span className={spare.safety_stock ? 'text-brand-400' : t.textFaint}>{spare.safety_stock ? 'Yes' : 'No'}</span></div>
             </div>
@@ -277,7 +277,7 @@ function RequisitionLineRow({ line, allSpares, onUpdate, onRemove }: {
           <div className={`absolute top-full left-0 right-0 z-50 mt-0.5 rounded-xl overflow-hidden max-h-[220px] overflow-y-auto ${t.glass} ${t.shadow}`}>
             {suggestions.map(s => (
               <button key={s.id} onMouseDown={() => pick(s)} className={`w-full text-left px-3 py-2 ${t.hoverBgSoft} transition-all border-b ${t.border} last:border-0`}>
-                <div className={`font-mono text-xs font-semibold ${t.textPrimary}`}>{s.stock_code}<span className={`ml-2 text-[10px] font-normal ${t.textFaint}`}>{s.unit_of_measure || 'UN'}</span></div>
+                <div className={`font-mono text-xs ${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{s.stock_code}<span className={`ml-2 text-[10px] font-normal ${t.textFaint}`}>{s.unit_of_measure || 'UN'}</span></div>
                 <div className={`text-[11px] truncate ${t.textFaint}`}>{s.description}</div>
               </button>
             ))}
@@ -293,7 +293,7 @@ function RequisitionLineRow({ line, allSpares, onUpdate, onRemove }: {
         <button onClick={() => onUpdate(line.id, { qty: line.qty + 1 })} className={`h-6 w-5 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} text-sm leading-none transition-all`}>+</button>
       </div>
       <div className={`text-xs text-right pr-1 ${t.textMuted}`}>{line.spare ? formatCurrency(line.spare.unit_price) : '—'}</div>
-      <div className={`text-xs font-bold text-right pr-1 ${t.textPrimary}`}>{line.spare ? formatCurrency(lineTotal) : '—'}</div>
+      <div className={`text-xs ${TYPE_WEIGHT.bold} text-right pr-1 ${t.textPrimary}`}>{line.spare ? formatCurrency(lineTotal) : '—'}</div>
       <button title="Remove line" onClick={() => onRemove(line.id)} className={`h-6 w-6 flex items-center justify-center rounded hover:bg-rose-500/15 ${t.textFaint} hover:text-rose-500 transition-all`}><X className="h-3 w-3" /></button>
     </div>
   );
@@ -383,7 +383,7 @@ const CategoryTagPicker = React.memo(({ selected, onChange }: { selected: string
       {selected.length > 0 && (
         <div className="flex flex-wrap gap-1">
           {selected.map(cat => (
-            <span key={cat} className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full font-medium bg-brand-500/15 text-brand-400">
+            <span key={cat} className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full ${TYPE_WEIGHT.medium} bg-brand-500/15 text-brand-400`}>
               {cat}<button type="button" onClick={() => toggle(cat)} className="hover:opacity-70 transition-opacity leading-none">×</button>
             </span>
           ))}
@@ -445,7 +445,7 @@ function SpareFormDialog({ open, onClose, onSave, editData }: {
 
   const section = (title: string, children: React.ReactNode) => (
     <div className={`rounded-xl ${t.chipBg} p-3 space-y-3`}>
-      <div className="text-[11px] font-semibold text-brand-400 uppercase tracking-wider">{title}</div>
+      <div className={`text-[11px] ${TYPE_WEIGHT.semibold} text-brand-400 uppercase tracking-wider`}>{title}</div>
       {children}
     </div>
   );
@@ -779,11 +779,11 @@ function SparesPageContent() {
         actions={
           <>
             <button onClick={() => loadData(true)} disabled={refreshing} title="Refresh" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} disabled:opacity-40`}><RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} /></button>
-            <button onClick={() => setShowRequisition(v => !v)} className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${showRequisition ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textMuted} ${t.hoverBg}`}`}>
+            <button onClick={() => setShowRequisition(v => !v)} className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs ${TYPE_WEIGHT.semibold} transition-all ${showRequisition ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textMuted} ${t.hoverBg}`}`}>
               <ShoppingCart className="h-3.5 w-3.5" /> Requisition {reqLines.length > 0 && <span className="px-1 rounded-full bg-brand-500/30 text-[10px]">{reqLines.length}</span>}
             </button>
-            <Link href="/spares/import"><button className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold ${t.textMuted} ${t.chipBg} ${t.hoverBg}`}><Upload className="h-3.5 w-3.5" /> Import Excel</button></Link>
-            <button onClick={() => { setEditingSpare(null); setFormOpen(true); }} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all"><Plus className="h-4 w-4" /> Add Spare</button>
+            <Link href="/spares/import"><button className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs ${TYPE_WEIGHT.semibold} ${t.textMuted} ${t.chipBg} ${t.hoverBg}`}><Upload className="h-3.5 w-3.5" /> Import Excel</button></Link>
+            <button onClick={() => { setEditingSpare(null); setFormOpen(true); }} className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all`}><Plus className="h-4 w-4" /> Add Spare</button>
             <button title={showStats ? 'Hide stats' : 'Show stats'} onClick={() => setShowStats(v => !v)} className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}>{showStats ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}</button>
           </>
         }
@@ -804,7 +804,7 @@ function SparesPageContent() {
           <div className={`flex items-center justify-between px-5 py-3 border-b ${t.border}`}>
             <div className="flex items-center gap-2">
               <BarChart3 className="h-3.5 w-3.5 text-brand-400" />
-              <span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Category Breakdown</span>
+              <span className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textMuted}`}>Category Breakdown</span>
               <span className={`text-[11px] ${t.textFaint}`}>{categoryBreakdown.length} categories — click to filter</span>
               {categoryFilter !== 'all' && <button onClick={() => setCategoryFilter('all')} className="text-[11px] px-1.5 py-0.5 rounded bg-brand-500/15 text-brand-400">{categoryFilter} ×</button>}
             </div>
@@ -826,10 +826,10 @@ function SparesPageContent() {
                       surface="rounded-xl p-3"
                       className={`text-left cursor-pointer ${isActive ? 'bg-brand-500/15 ring-1 ring-brand-400/40' : `${t.chipBg} ${t.hoverBg}`}`}>
                       <div className="flex items-start justify-between mb-2">
-                        <span className={`text-[11px] font-semibold leading-tight break-words ${t.textMuted}`}>{cat}</span>
+                        <span className={`text-[11px] ${TYPE_WEIGHT.semibold} leading-tight break-words ${t.textMuted}`}>{cat}</span>
                         {hasIssues && (out > 0 ? <AlertOctagon className="h-3 w-3 text-rose-500 flex-shrink-0 ml-1 mt-0.5" /> : <AlertTriangle className="h-3 w-3 text-amber-500 flex-shrink-0 ml-1 mt-0.5" />)}
                       </div>
-                      <div className="flex items-baseline gap-1 mb-2"><span className={`text-base font-bold ${t.textPrimary}`}>{count}</span><span className={`text-[10px] ${t.textFaint}`}>items</span></div>
+                      <div className="flex items-baseline gap-1 mb-2"><span className={`text-base ${TYPE_WEIGHT.bold} ${t.textPrimary}`}>{count}</span><span className={`text-[10px] ${t.textFaint}`}>items</span></div>
                       <div className={`h-1 rounded-full ${t.chipBg} overflow-hidden mb-1.5`}><div className="h-full rounded-full bg-brand-400/60" style={{ width: `${pct}%` }} /></div>
                       {hasIssues ? (
                         <div className="flex gap-1 flex-wrap">
@@ -852,7 +852,7 @@ function SparesPageContent() {
           <div className={`flex items-center justify-between px-5 py-3 border-b ${t.border} flex-wrap gap-2`}>
             <div className="flex items-center gap-2">
               <ShoppingCart className="h-3.5 w-3.5 text-brand-400" />
-              <span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Requisition / Price Builder</span>
+              <span className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textMuted}`}>Requisition / Price Builder</span>
               {reqLines.length > 0 && <span className={`text-[11px] ${t.textFaint}`}>{reqLines.length} line{reqLines.length !== 1 ? 's' : ''} · {formatCurrency(reqGrandTotal)}</span>}
             </div>
             <div className="flex items-center gap-1.5 flex-wrap justify-end">
@@ -869,7 +869,7 @@ function SparesPageContent() {
                 <button onClick={downloadRequisitionPDF} className="inline-flex items-center gap-1 h-6 px-2 text-[11px] rounded-lg bg-brand-500/20 hover:bg-brand-500/30 text-brand-400"><Download className="h-2.5 w-2.5" /> PDF</button>
                 <button onClick={() => { setReqLines([]); setReqHeader(defaultReqHeader); }} className={`h-6 px-2 text-[11px] rounded-lg ${t.chipBg} hover:bg-rose-500/15 ${t.textFaint} hover:text-rose-500`}>Clear</button>
               </>)}
-              <button onClick={() => addReqLine()} className="inline-flex items-center gap-1 h-6 px-2 text-[11px] rounded-lg text-white font-medium bg-brand-500/80 hover:bg-brand-500"><Plus className="h-2.5 w-2.5" /> Add Line</button>
+              <button onClick={() => addReqLine()} className={`inline-flex items-center gap-1 h-6 px-2 text-[11px] rounded-lg text-white ${TYPE_WEIGHT.medium} bg-brand-500/80 hover:bg-brand-500`}><Plus className="h-2.5 w-2.5" /> Add Line</button>
               <button title="Close" aria-label="Close" onClick={() => setShowRequisition(false)} className={`h-9 w-9 flex items-center justify-center rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textFaint}`}><X className="h-4 w-4" /></button>
             </div>
           </div>
@@ -882,12 +882,12 @@ function SparesPageContent() {
                 <div key={req.id} className={`flex items-center justify-between p-2.5 rounded-xl ${t.chipBg} group`}>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <span className={`text-xs font-medium ${t.textMuted}`}>{req.name}</span>
-                      {req.header.urgency !== 'routine' && <span className={`px-1.5 py-0.5 rounded text-[9px] font-medium ${req.header.urgency === 'emergency' ? 'bg-rose-500/20 text-rose-500' : 'bg-amber-500/20 text-amber-500'}`}>{req.header.urgency}</span>}
-                      {req.header.priority === 'critical' && <span className="px-1.5 py-0.5 rounded text-[9px] font-medium bg-rose-500/10 text-rose-500/80">critical</span>}
+                      <span className={`text-xs ${TYPE_WEIGHT.medium} ${t.textMuted}`}>{req.name}</span>
+                      {req.header.urgency !== 'routine' && <span className={`px-1.5 py-0.5 rounded text-[9px] ${TYPE_WEIGHT.medium} ${req.header.urgency === 'emergency' ? 'bg-rose-500/20 text-rose-500' : 'bg-amber-500/20 text-amber-500'}`}>{req.header.urgency}</span>}
+                      {req.header.priority === 'critical' && <span className={`px-1.5 py-0.5 rounded text-[9px] ${TYPE_WEIGHT.medium} bg-rose-500/10 text-rose-500/80`}>critical</span>}
                     </div>
                     <div className={`text-[10px] mt-0.5 flex items-center gap-2 flex-wrap ${t.textFaint}`}>
-                      <span>{req.lines.length} item{req.lines.length !== 1 ? 's' : ''}</span><span>·</span><span className={`font-medium ${t.textMuted}`}>{formatCurrency(req.grand_total)}</span>
+                      <span>{req.lines.length} item{req.lines.length !== 1 ? 's' : ''}</span><span>·</span><span className={`${TYPE_WEIGHT.medium} ${t.textMuted}`}>{formatCurrency(req.grand_total)}</span>
                       {req.header.requester && <><span>·</span><span>{req.header.requester}</span></>}
                       {req.header.required_for && <><span>·</span><span className="italic">{req.header.required_for}</span></>}
                       <span>·</span><span>{formatDate(req.updated_at || req.saved_at)}</span>
@@ -916,13 +916,13 @@ function SparesPageContent() {
             {reqLines.length === 0 ? (
               <div className={`text-center py-6 text-sm ${t.textFaint}`}>Click <strong className={t.textMuted}>+ Add Line</strong> or <strong className={t.textMuted}>Add to Req</strong> on any spare card to build a price list.</div>
             ) : (<>
-              <div className={`grid text-[10px] font-semibold uppercase tracking-wider px-2 pb-1 ${t.textFaint}`} style={{ gridTemplateColumns: '180px 1fr 48px 96px 80px 90px 28px' }}>
+              <div className={`grid text-[10px] ${TYPE_WEIGHT.semibold} uppercase tracking-wider px-2 pb-1 ${t.textFaint}`} style={{ gridTemplateColumns: '180px 1fr 48px 96px 80px 90px 28px' }}>
                 <div>Stock Code</div><div>Description</div><div className="text-center">UoM</div><div className="text-center">Qty</div><div className="text-right">Unit Price</div><div className="text-right">Total</div><div />
               </div>
               {reqLines.map(line => <RequisitionLineRow key={line.id} line={line} allSpares={spares} onUpdate={updateReqLine} onRemove={removeReqLine} />)}
               <div className={`grid items-center pt-2 border-t ${t.border} mt-2`} style={{ gridTemplateColumns: '180px 1fr 48px 96px 80px 90px 28px' }}>
-                <div className={`col-span-5 text-right pr-1 text-xs font-semibold uppercase tracking-wider ${t.textFaint}`}>Grand Total</div>
-                <div className={`text-right pr-1 text-base font-bold ${t.textPrimary}`}>{formatCurrency(reqGrandTotal)}</div><div />
+                <div className={`col-span-5 text-right pr-1 text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textFaint}`}>Grand Total</div>
+                <div className={`text-right pr-1 text-base ${TYPE_WEIGHT.bold} ${t.textPrimary}`}>{formatCurrency(reqGrandTotal)}</div><div />
               </div>
             </>)}
           </div>
@@ -934,7 +934,7 @@ function SparesPageContent() {
         <div className={`flex items-center justify-between px-5 py-3 border-b ${t.border}`}>
           <div className="flex items-center gap-2">
             <Filter className="h-3.5 w-3.5 text-brand-400" />
-            <span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Filters</span>
+            <span className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textMuted}`}>Filters</span>
             {activeFilterCount > 0 && <span className="text-[11px] px-1.5 py-0.5 rounded bg-brand-500/15 text-brand-400">{activeFilterCount} active</span>}
           </div>
           <div className="flex items-center gap-1">
@@ -949,11 +949,11 @@ function SparesPageContent() {
               <div><div className={`text-[11px] mb-1.5 ${t.textFaint}`}>Category</div><SearchableDropdown value={categoryFilter} onChange={setCategoryFilter} placeholder="All categories" options={[{ value: 'all', label: 'All categories' }, ...ALL_PREDEFINED_CATS.map(c => ({ value: c, label: c })), ...categories.filter(c => !ALL_PREDEFINED_CATS.includes(c)).map(c => ({ value: c, label: c }))]} /></div>
               {categoryFilter !== 'all' && <button onClick={() => setCategoryFilter('all')} className={`h-9 px-3 inline-flex items-center gap-1.5 rounded-lg text-xs ${t.chipBg} ${t.textMuted} ${t.hoverBg} self-end`}><X className="h-3 w-3" /> Clear: {categoryFilter}</button>}
             </div>
-            <div><div className={`text-[11px] mb-1.5 ${t.textFaint}`}>Stock Status</div><div className="flex flex-wrap gap-1.5">{[['all', 'All'], ['out', 'Out of Stock'], ['low', 'Low Stock'], ['adequate', 'Adequate'], ['in', 'In Stock']].map(([v, l]) => <button key={v} onClick={() => setStockFilter(v)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${stockFilter === v ? 'bg-brand-500/20 text-brand-400 font-semibold' : `${t.chipBg} ${t.textMuted} ${t.hoverBg}`}`}>{l}</button>)}</div></div>
-            <div><div className={`text-[11px] mb-1.5 ${t.textFaint}`}>Priority</div><div className="flex flex-wrap gap-1.5">{[['all', 'All'], ['critical', 'Critical'], ['high', 'High'], ['medium', 'Medium'], ['low', 'Low']].map(([v, l]) => <button key={v} onClick={() => setPriorityFilter(v)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${priorityFilter === v ? 'bg-brand-500/20 text-brand-400 font-semibold' : `${t.chipBg} ${t.textMuted} ${t.hoverBg}`}`}>{l}</button>)}</div></div>
+            <div><div className={`text-[11px] mb-1.5 ${t.textFaint}`}>Stock Status</div><div className="flex flex-wrap gap-1.5">{[['all', 'All'], ['out', 'Out of Stock'], ['low', 'Low Stock'], ['adequate', 'Adequate'], ['in', 'In Stock']].map(([v, l]) => <button key={v} onClick={() => setStockFilter(v)} className={`px-3 py-1.5 rounded-lg text-xs ${TYPE_WEIGHT.medium} transition-all ${stockFilter === v ? `bg-brand-500/20 text-brand-400 ${TYPE_WEIGHT.semibold}` : `${t.chipBg} ${t.textMuted} ${t.hoverBg}`}`}>{l}</button>)}</div></div>
+            <div><div className={`text-[11px] mb-1.5 ${t.textFaint}`}>Priority</div><div className="flex flex-wrap gap-1.5">{[['all', 'All'], ['critical', 'Critical'], ['high', 'High'], ['medium', 'Medium'], ['low', 'Low']].map(([v, l]) => <button key={v} onClick={() => setPriorityFilter(v)} className={`px-3 py-1.5 rounded-lg text-xs ${TYPE_WEIGHT.medium} transition-all ${priorityFilter === v ? `bg-brand-500/20 text-brand-400 ${TYPE_WEIGHT.semibold}` : `${t.chipBg} ${t.textMuted} ${t.hoverBg}`}`}>{l}</button>)}</div></div>
             <div className="flex flex-wrap items-center gap-4 pt-1">
               <div className={`flex items-center gap-2 text-[11px] ${t.textFaint}`}>
-                <span className="font-semibold uppercase tracking-wider">Sort:</span>
+                <span className={`${TYPE_WEIGHT.semibold} uppercase tracking-wider`}>Sort:</span>
                 <SortBtn field="stock_code" label="Code" /><SortBtn field="description" label="Description" /><SortBtn field="unit_price" label="Price" /><SortBtn field="current_quantity" label="Stock" /><SortBtn field="priority" label="Priority" /><SortBtn field="category" label="Category" />
               </div>
               <button onClick={() => setShowFavOnly(v => !v)} className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs transition-all ${showFavOnly ? 'bg-amber-500/15 text-amber-500' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}><Star className={`h-3 w-3 ${showFavOnly ? `fill-amber-400 ${accentText('amber', t.light)}` : ''}`} /> Favorites{favorites.size > 0 && ` (${favorites.size})`}</button>
@@ -965,7 +965,7 @@ function SparesPageContent() {
       {/* Records */}
       <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
         <div className={`flex items-center gap-3 px-5 py-3 border-b ${t.border} flex-wrap`}>
-          <div className="flex items-center gap-2 flex-shrink-0"><Package className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Records</span><span className={`text-[11px] ${t.textFaint}`}>{filteredSpares.length} of {spares.length}</span></div>
+          <div className="flex items-center gap-2 flex-shrink-0"><Package className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textMuted}`}>Records</span><span className={`text-[11px] ${t.textFaint}`}>{filteredSpares.length} of {spares.length}</span></div>
           <div className="flex-1 min-w-0 max-w-xs"><SearchInput value={search} onChange={setSearch} placeholder="Search spares…" /></div>
           <div className="flex items-center gap-1.5 flex-shrink-0 ml-auto">
             {viewMode === 'grid' && <button onClick={handleToggleExpandAll} title={expandAllCards ? 'Collapse all' : 'Expand all'} className={`h-7 px-2 inline-flex items-center gap-1 text-[11px] rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textFaint}`}>{expandAllCards ? <ChevronsUp className="h-3 w-3" /> : <ChevronsDown className="h-3 w-3" />}{expandAllCards ? 'Collapse' : 'Expand'}</button>}
@@ -981,12 +981,12 @@ function SparesPageContent() {
             ) : filteredSpares.length === 0 ? (
               <div className="text-center py-16">
                 <Package className={`h-12 w-12 mx-auto mb-4 ${t.textFaint}`} />
-                <div className={`text-base font-medium mb-2 ${t.textMuted}`}>No spare parts found</div>
+                <div className={`text-base ${TYPE_WEIGHT.medium} mb-2 ${t.textMuted}`}>No spare parts found</div>
                 <div className={`text-sm mb-6 ${t.textFaint}`}>{spares.length === 0 ? 'Add your first spare part or run the seed script to import the stock list.' : 'Try adjusting your filters.'}</div>
                 {activeFilterCount > 0 ? (
                   <button onClick={clearFilters} className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm ${t.textMuted} ${t.chipBg} ${t.hoverBg}`}><X className="h-4 w-4" /> Clear Filters</button>
                 ) : (
-                  <button onClick={() => setFormOpen(true)} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110"><Plus className="h-4 w-4" /> Add Spare Part</button>
+                  <button onClick={() => setFormOpen(true)} className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110`}><Plus className="h-4 w-4" /> Add Spare Part</button>
                 )}
               </div>
             ) : viewMode === 'grid' ? (
@@ -1018,12 +1018,12 @@ function SparesPageContent() {
                   <thead>
                     <tr className={`border-b ${t.border}`}>
                       {[['Stock Code', 'stock_code'], ['Description', 'description'], ['Category', null], ['Machine', 'machine_type'], ['Stock', 'current_quantity'], ['Unit Price', 'unit_price'], ['Value', null], ['Status', 'status'], ['Priority', 'priority']].map(([label, field]) => (
-                        <th key={label as string} className={`text-left p-3 text-xs font-semibold uppercase tracking-wide ${t.textFaint} ${field ? `cursor-pointer ${t.hoverText}` : ''}`} onClick={() => field && handleSort(field as SortConfig['field'])}>
+                        <th key={label as string} className={`text-left p-3 text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wide ${t.textFaint} ${field ? `cursor-pointer ${t.hoverText}` : ''}`} onClick={() => field && handleSort(field as SortConfig['field'])}>
                           <div className="flex items-center gap-1">{label}{field && sortConfig.field === field && (sortConfig.direction === 'asc' ? <ChevronsUp className="h-3 w-3 text-brand-400" /> : <ChevronsDown className="h-3 w-3 text-brand-400" />)}</div>
                         </th>
                       ))}
-                      <th className={`p-3 text-xs font-semibold uppercase tracking-wide w-8 ${t.textFaint}`}><span className="sr-only">Expand</span></th>
-                      <th className={`p-3 text-right text-xs font-semibold uppercase tracking-wide ${t.textFaint}`}>Actions</th>
+                      <th className={`p-3 text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wide w-8 ${t.textFaint}`}><span className="sr-only">Expand</span></th>
+                      <th className={`p-3 text-right text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wide ${t.textFaint}`}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1036,7 +1036,7 @@ function SparesPageContent() {
                       return (
                         <React.Fragment key={spare.id}>
                           <tr className={`border-b ${t.border} cursor-pointer transition-colors ${rowExpanded ? t.chipBg : t.hoverBgSoft}`} onClick={toggleTableRow}>
-                            <td className={`p-3 font-mono font-semibold text-xs ${t.textPrimary}`}>{spare.stock_code}</td>
+                            <td className={`p-3 font-mono ${TYPE_WEIGHT.semibold} text-xs ${t.textPrimary}`}>{spare.stock_code}</td>
                             <td className={`p-3 text-xs max-w-[220px] ${t.textMuted}`}><div className="truncate">{spare.description}</div></td>
                             <td className="p-3"><div className="flex flex-wrap gap-0.5">{(spare.categories && spare.categories.length > 0 ? spare.categories : spare.category ? [spare.category] : ['—']).map(cat => <span key={cat} className={`text-[11px] px-1.5 py-0.5 rounded ${t.chipBg} ${t.textMuted}`}>{cat}</span>)}</div></td>
                             <td className={`p-3 text-xs ${t.textFaint}`}>{spare.machine_type || '—'}</td>
@@ -1059,8 +1059,8 @@ function SparesPageContent() {
                               <td colSpan={11} className="py-3 px-6">
                                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 text-xs">
                                   <div><div className={`text-[10px] uppercase tracking-wide mb-0.5 ${t.textFaint}`}>Full Description</div><div className={`leading-relaxed ${t.textMuted}`}>{spare.description}</div></div>
-                                  <div><div className={`text-[10px] uppercase tracking-wide mb-0.5 ${t.textFaint}`}>Stock Levels</div><div className={t.textMuted}>Current: <span className={`font-semibold ${t.textPrimary}`}>{spare.current_quantity}</span> · Min: {spare.min_quantity} · Max: {spare.max_quantity}</div></div>
-                                  <div><div className={`text-[10px] uppercase tracking-wide mb-0.5 ${t.textFaint}`}>Pricing</div><div className={t.textMuted}>Unit: <span className={`font-semibold ${t.textPrimary}`}>{formatCurrency(spare.unit_price)}</span> · Inv: {formatCurrency(invVal)}</div></div>
+                                  <div><div className={`text-[10px] uppercase tracking-wide mb-0.5 ${t.textFaint}`}>Stock Levels</div><div className={t.textMuted}>Current: <span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{spare.current_quantity}</span> · Min: {spare.min_quantity} · Max: {spare.max_quantity}</div></div>
+                                  <div><div className={`text-[10px] uppercase tracking-wide mb-0.5 ${t.textFaint}`}>Pricing</div><div className={t.textMuted}>Unit: <span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{formatCurrency(spare.unit_price)}</span> · Inv: {formatCurrency(invVal)}</div></div>
                                   <div><div className={`text-[10px] uppercase tracking-wide mb-0.5 ${t.textFaint}`}>Unit of Measure</div><div className={t.textMuted}>{spare.unit_of_measure || 'UN'} {spare.safety_stock && <span className="ml-1 text-brand-400">· Safety Stock</span>}</div></div>
                                   {spare.supplier && <div><div className={`text-[10px] uppercase tracking-wide mb-0.5 ${t.textFaint}`}>Supplier</div><div className={t.textMuted}>{spare.supplier}</div></div>}
                                   {spare.storage_location && <div><div className={`text-[10px] uppercase tracking-wide mb-0.5 ${t.textFaint}`}>Storage Location</div><div className={t.textMuted}>{spare.storage_location}</div></div>}
@@ -1082,14 +1082,14 @@ function SparesPageContent() {
               <div className={`flex items-center justify-between mt-5 pt-4 border-t ${t.border}`}>
                 <span className={`text-[11px] ${t.textFaint}`}>Showing {(safeCurrentPage - 1) * PAGE_SIZE + 1}–{Math.min(safeCurrentPage * PAGE_SIZE, filteredSpares.length)} of {filteredSpares.length}</span>
                 <div className="flex items-center gap-1">
-                  <button onClick={() => setCurrentPage(1)} disabled={safeCurrentPage === 1} className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.chipBg} ${t.textFaint} ${t.hoverBg} disabled:opacity-25 text-xs font-bold`}>«</button>
+                  <button onClick={() => setCurrentPage(1)} disabled={safeCurrentPage === 1} className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.chipBg} ${t.textFaint} ${t.hoverBg} disabled:opacity-25 text-xs ${TYPE_WEIGHT.bold}`}>«</button>
                   <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={safeCurrentPage === 1} className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.chipBg} ${t.textFaint} ${t.hoverBg} disabled:opacity-25`}><ChevronDown className="h-3.5 w-3.5 rotate-90" /></button>
                   {Array.from({ length: totalPages }, (_, i) => i + 1).filter(p => p === 1 || p === totalPages || Math.abs(p - safeCurrentPage) <= 2).reduce<(number | '…')[]>((acc, p, i, arr) => { if (i > 0 && p - (arr[i - 1] as number) > 1) acc.push('…'); acc.push(p); return acc; }, []).map((p, i) =>
                     p === '…' ? <span key={`ellipsis-${i}`} className={`h-7 w-6 flex items-center justify-center text-xs ${t.textFaint}`}>…</span>
-                      : <button key={p} onClick={() => setCurrentPage(p as number)} className={`h-7 min-w-[28px] px-1.5 flex items-center justify-center rounded-lg text-xs font-medium transition-all ${safeCurrentPage === p ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}>{p}</button>
+                      : <button key={p} onClick={() => setCurrentPage(p as number)} className={`h-7 min-w-[28px] px-1.5 flex items-center justify-center rounded-lg text-xs ${TYPE_WEIGHT.medium} transition-all ${safeCurrentPage === p ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}>{p}</button>
                   )}
                   <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={safeCurrentPage === totalPages} className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.chipBg} ${t.textFaint} ${t.hoverBg} disabled:opacity-25`}><ChevronDown className="h-3.5 w-3.5 -rotate-90" /></button>
-                  <button onClick={() => setCurrentPage(totalPages)} disabled={safeCurrentPage === totalPages} className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.chipBg} ${t.textFaint} ${t.hoverBg} disabled:opacity-25 text-xs font-bold`}>»</button>
+                  <button onClick={() => setCurrentPage(totalPages)} disabled={safeCurrentPage === totalPages} className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.chipBg} ${t.textFaint} ${t.hoverBg} disabled:opacity-25 text-xs ${TYPE_WEIGHT.bold}`}>»</button>
                 </div>
                 <span className={`text-[11px] ${t.textFaint}`}>Page {safeCurrentPage} of {totalPages}</span>
               </div>
@@ -1105,7 +1105,7 @@ function SparesPageContent() {
           <p className={`text-sm ${t.textMuted}`}>Delete this spare part? This cannot be undone.</p>
           <div className="flex gap-2">
             <button type="button" onClick={() => setDeleteId(null)} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border}`}>Cancel</button>
-            <button type="button" onClick={confirmDelete} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-rose-500 to-rose-700 hover:brightness-110 inline-flex items-center justify-center gap-2"><Trash2 className="h-4 w-4" /> Delete</button>
+            <button type="button" onClick={confirmDelete} className={`flex-1 py-2.5 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-rose-500 to-rose-700 hover:brightness-110 inline-flex items-center justify-center gap-2`}><Trash2 className="h-4 w-4" /> Delete</button>
           </div>
         </div>
       </CenterModal>

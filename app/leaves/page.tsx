@@ -18,7 +18,7 @@ import { formatDate, formatDateTime } from '@/lib/format';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import {
   useTheme, PageHero, StatusBadge, ACCENT_HEX, CenterModal, FormField, accentText,
-  useCollapseSection, EmptyState, PrimaryButton, GlowCard, SelectField, useConfirm,
+  useCollapseSection, EmptyState, PrimaryButton, GlowCard, SelectField, useConfirm, TYPE_WEIGHT,
 } from '@/components/shared/theme';
 import type { Leave, Stats } from './types';
 import {
@@ -99,7 +99,7 @@ function LeaveCard({ leave, onView, onEdit, onDelete }: { leave: Leave; onView: 
               <Icon className="h-4 w-4" style={{ color: leaveType.color }} />
             </div>
             <div className="flex-1 min-w-0">
-              <div className={`text-base font-semibold truncate ${t.textPrimary}`}>{leave.employee_name}</div>
+              <div className={`text-base ${TYPE_WEIGHT.semibold} truncate ${t.textPrimary}`}>{leave.employee_name}</div>
               <div className={`text-xs truncate ${t.textFaint}`}>{leave.position} • {leave.employee_id}</div>
             </div>
           </div>
@@ -126,9 +126,9 @@ function LeaveCard({ leave, onView, onEdit, onDelete }: { leave: Leave; onView: 
           <LeaveStatusBadge status={leave.status} />
         </div>
         <div className="space-y-1.5 text-sm">
-          <div className="flex justify-between items-center"><span className={t.textFaint}>Duration</span><span className={`font-semibold ${t.textPrimary}`}>{formatDays(leave.total_days)}</span></div>
-          <div className="flex justify-between items-center"><span className={t.textFaint}>Dates</span><span className={`font-medium text-xs ${t.textPrimary}`}>{fmtDate(leave.start_date)} – {fmtDate(leave.end_date)}</span></div>
-          <div className="flex justify-between items-center"><span className={t.textFaint}>Applied</span><span className={`font-medium text-xs ${t.textFaint}`}>{fmtDateTime(leave.applied_date)}</span></div>
+          <div className="flex justify-between items-center"><span className={t.textFaint}>Duration</span><span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{formatDays(leave.total_days)}</span></div>
+          <div className="flex justify-between items-center"><span className={t.textFaint}>Dates</span><span className={`${TYPE_WEIGHT.medium} text-xs ${t.textPrimary}`}>{fmtDate(leave.start_date)} – {fmtDate(leave.end_date)}</span></div>
+          <div className="flex justify-between items-center"><span className={t.textFaint}>Applied</span><span className={`${TYPE_WEIGHT.medium} text-xs ${t.textFaint}`}>{fmtDateTime(leave.applied_date)}</span></div>
         </div>
 
         {leave.reason && <div className={`mt-3 rounded-lg ${t.chipBg} p-2 text-xs line-clamp-2 ${t.textFaint}`}>{leave.reason}</div>}
@@ -306,7 +306,7 @@ function LeaveApplicationForm({ onClose, onSuccess, editData, leaves }: { onClos
         {calculatedDays > 0 && (
           <div className={`rounded-xl ${t.chipBg} px-4 py-3 flex items-center justify-between`}>
             <span className={`text-sm ${t.textFaint}`}>Total leave days</span>
-            <span className={`text-2xl font-bold ${t.textPrimary}`}>{calculatedDays}<span className={`text-sm ml-1 ${t.textFaint}`}>days</span></span>
+            <span className={`text-2xl ${TYPE_WEIGHT.bold} ${t.textPrimary}`}>{calculatedDays}<span className={`text-sm ml-1 ${t.textFaint}`}>days</span></span>
           </div>
         )}
 
@@ -314,7 +314,7 @@ function LeaveApplicationForm({ onClose, onSuccess, editData, leaves }: { onClos
           <div className="flex items-start gap-2.5 rounded-xl px-3.5 py-3 bg-amber-500/10 border border-amber-500/30">
             <AlertTriangle className={`h-4 w-4 ${accentText('amber', t.light)} shrink-0 mt-0.5`} />
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-semibold text-amber-500">Already has an overlapping leave request</p>
+              <p className={`text-xs ${TYPE_WEIGHT.semibold} text-amber-500`}>Already has an overlapping leave request</p>
               <p className={`text-xs mt-0.5 ${t.textMuted}`}>
                 {overlapping.employee_name} · {fmtDate(overlapping.start_date)} – {fmtDate(overlapping.end_date)} · {LEAVE_TYPES[overlapping.leave_type]?.name || overlapping.leave_type}
               </p>
@@ -356,7 +356,7 @@ function LeaveApplicationForm({ onClose, onSuccess, editData, leaves }: { onClos
         </div>
 
         <div className="flex justify-end gap-2 pt-2">
-          <button type="button" onClick={onClose} className={`px-4 py-2 rounded-xl text-sm font-medium ${t.chipBg} ${t.hoverBg} ${t.textMuted} border ${t.border} transition-all`}>Cancel</button>
+          <button type="button" onClick={onClose} className={`px-4 py-2 rounded-xl text-sm ${TYPE_WEIGHT.medium} ${t.chipBg} ${t.hoverBg} ${t.textMuted} border ${t.border} transition-all`}>Cancel</button>
           <PrimaryButton type="submit" size="md" submitting={loading}>{editData ? 'Update Request' : 'Submit Request'}</PrimaryButton>
         </div>
       </form>
@@ -420,7 +420,7 @@ function LeaveDetailsModal({ leave, onClose, onEdit, onDelete, onStatusUpdate }:
           {updating && <div className={`flex items-center gap-2 p-3 rounded-lg ${t.chipBg} ${t.textFaint}`}><Loader2 className="h-4 w-4 animate-spin" /><span className="text-sm">Updating...</span></div>}
 
           <div className={`${t.chipBg} rounded-xl overflow-hidden`}>
-            <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}><User className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Employee</span></div>
+            <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}><User className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textMuted}`}>Employee</span></div>
             <div className="px-3.5 py-3 grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-2.5">
               <IF label="Name" value={leave.employee_name} /><IF label="Employee ID" value={leave.employee_id} /><IF label="Position" value={leave.position} />
               <IF label="Department" value={leave.department} /><IF label="Contact" value={leave.contact_number} />
@@ -429,10 +429,10 @@ function LeaveDetailsModal({ leave, onClose, onEdit, onDelete, onStatusUpdate }:
           </div>
 
           <div className={`${t.chipBg} rounded-xl overflow-hidden`}>
-            <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}><CalendarDays className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Leave Details</span></div>
+            <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}><CalendarDays className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textMuted}`}>Leave Details</span></div>
             <div className="px-3.5 py-3 grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-2.5">
               <IF label="Type" value={selectedLeaveType.name} /><IF label="Start Date" value={fmtDate(leave.start_date)} /><IF label="End Date" value={fmtDate(leave.end_date)} />
-              <div><div className={`text-[10px] uppercase tracking-wide mb-0.5 ${t.textFaint}`}>Duration</div><div className={`font-semibold text-sm ${t.textPrimary}`}>{formatDays(leave.total_days)}</div></div>
+              <div><div className={`text-[10px] uppercase tracking-wide mb-0.5 ${t.textFaint}`}>Duration</div><div className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>{formatDays(leave.total_days)}</div></div>
               <IF label="Applied" value={fmtDateTime(leave.applied_date)} />
               {leave.handover_to && <IF label="Handover To" value={leave.handover_to} />}
             </div>
@@ -440,7 +440,7 @@ function LeaveDetailsModal({ leave, onClose, onEdit, onDelete, onStatusUpdate }:
 
           {leave.reason && (
             <div className={`${t.chipBg} rounded-xl overflow-hidden`}>
-              <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}><FileText className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Reason</span></div>
+              <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}><FileText className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textMuted}`}>Reason</span></div>
               <p className={`px-3.5 py-3 text-sm whitespace-pre-wrap ${t.textFaint}`}>{leave.reason}</p>
             </div>
           )}
@@ -450,11 +450,11 @@ function LeaveDetailsModal({ leave, onClose, onEdit, onDelete, onStatusUpdate }:
               display. Rebuild from git history if the feature is ever wanted. */}
 
           <div className="flex flex-wrap gap-2 justify-between pt-1">
-            <button type="button" onClick={handleDelete} disabled={updating} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-rose-500/10 hover:bg-rose-500/20 ${accentText('rose', t.light)} transition-all disabled:opacity-50`}><Trash2 className="h-3.5 w-3.5" /> Delete</button>
+            <button type="button" onClick={handleDelete} disabled={updating} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs ${TYPE_WEIGHT.medium} bg-rose-500/10 hover:bg-rose-500/20 ${accentText('rose', t.light)} transition-all disabled:opacity-50`}><Trash2 className="h-3.5 w-3.5" /> Delete</button>
             <div className="flex gap-2">
-              <button type="button" onClick={() => { onEdit(leave); onClose(); }} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium ${t.chipBg} ${t.hoverBg} ${t.textMuted} transition-all`}><Edit className="h-3.5 w-3.5" /> Edit</button>
+              <button type="button" onClick={() => { onEdit(leave); onClose(); }} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs ${TYPE_WEIGHT.medium} ${t.chipBg} ${t.hoverBg} ${t.textMuted} transition-all`}><Edit className="h-3.5 w-3.5" /> Edit</button>
               <div className="relative">
-                <button type="button" onClick={() => setShowStatusActions(v => !v)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all">Update Status <ChevronDown className="h-3.5 w-3.5" /></button>
+                <button type="button" onClick={() => setShowStatusActions(v => !v)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all`}>Update Status <ChevronDown className="h-3.5 w-3.5" /></button>
                 {showStatusActions && (
                   <>
                     <div className="fixed inset-0 z-10" onClick={() => setShowStatusActions(false)} />
@@ -589,7 +589,7 @@ function LeaveManagementContent() {
 
   const activeFilterCount = [filter !== 'all', typeFilter !== 'all', !!dateFrom, !!dateTo, !!searchTerm].filter(Boolean).length;
   const inputCls = `px-3 py-2 w-full text-sm rounded-lg outline-none transition-colors ${t.inputBg}`;
-  const pillCls = (active: boolean) => `px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${active ? 'bg-brand-500/25 text-brand-400 font-semibold' : `${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText}`}`;
+  const pillCls = (active: boolean) => `px-3 py-1.5 rounded-lg text-xs ${TYPE_WEIGHT.medium} transition-all ${active ? `bg-brand-500/25 text-brand-400 ${TYPE_WEIGHT.semibold}` : `${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText}`}`;
 
   return (
     <main className="max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
@@ -616,7 +616,7 @@ function LeaveManagementContent() {
             { label: 'Approval Rate', value: `${stats.approvalRate}%`, textClass: 'text-brand-400', onClick: undefined },
           ].map(stat => (
             <button type="button" key={stat.label} onClick={stat.onClick} className={`rounded-xl p-3 text-left ${t.chipBg} transition-all ${stat.onClick ? `${t.hoverBg} cursor-pointer` : 'cursor-default'}`}>
-              <div className={`text-2xl font-bold ${stat.textClass}`}>{stat.value}</div>
+              <div className={`text-2xl ${TYPE_WEIGHT.bold} ${stat.textClass}`}>{stat.value}</div>
               <div className={`text-xs mt-0.5 ${t.textFaint}`}>{stat.label}</div>
             </button>
           ))}
@@ -626,7 +626,7 @@ function LeaveManagementContent() {
       {typeSummary.length > 0 && (
         <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
           <div className={`flex items-center justify-between px-5 py-3 border-b ${t.border}`}>
-            <div className="flex items-center gap-2"><BarChart3 className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Leave Type Breakdown</span><span className={`text-[11px] ${t.textFaint}`}>click to filter</span></div>
+            <div className="flex items-center gap-2"><BarChart3 className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textMuted}`}>Leave Type Breakdown</span><span className={`text-[11px] ${t.textFaint}`}>click to filter</span></div>
             <button type="button" title={showTypeSummary ? 'Collapse' : 'Expand'} onClick={() => setShowTypeSummary(v => !v)} className={`h-6 w-6 flex items-center justify-center rounded-md ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-all`}>{showTypeSummary ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}</button>
           </div>
           {showTypeSummary && (
@@ -638,8 +638,8 @@ function LeaveManagementContent() {
                   <GlowCard key={key} onClick={() => setTypeFilter(isActive ? 'all' : key)} color={type.color}
                     surface="rounded-xl overflow-hidden p-4"
                     className={`group text-left cursor-pointer ${isActive ? `${t.chipBg} ring-1 ring-brand-400/40` : `${t.chipBg} ${t.hoverBg}`}`}>
-                    <div className="flex items-center justify-between mb-2"><Icon className="h-4 w-4" style={{ color: type.color }} /><span className={`text-xs font-bold ${t.textPrimary}`}>{count}</span></div>
-                    <div className={`text-xs font-semibold mb-0.5 ${t.textMuted}`}>{type.shortName}</div>
+                    <div className="flex items-center justify-between mb-2"><Icon className="h-4 w-4" style={{ color: type.color }} /><span className={`text-xs ${TYPE_WEIGHT.bold} ${t.textPrimary}`}>{count}</span></div>
+                    <div className={`text-xs ${TYPE_WEIGHT.semibold} mb-0.5 ${t.textMuted}`}>{type.shortName}</div>
                     <div className={`text-[11px] ${t.textFaint}`}>{totalDays}d total</div>
                     <div className={`mt-2 h-1 rounded-full ${t.chipBg} overflow-hidden`}><div className="h-full rounded-full transition-all" style={{ width: `${percentage}%`, backgroundColor: type.color }} /></div>
                   </GlowCard>
@@ -653,7 +653,7 @@ function LeaveManagementContent() {
       {employeeSummary.length > 0 && (
         <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
           <div className={`flex items-center justify-between px-5 py-3 border-b ${t.border}`}>
-            <div className="flex items-center gap-2"><Users className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Employee Summary</span><span className={`text-[11px] ${t.textFaint}`}>{employeeSummary.length} employees</span></div>
+            <div className="flex items-center gap-2"><Users className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textMuted}`}>Employee Summary</span><span className={`text-[11px] ${t.textFaint}`}>{employeeSummary.length} employees</span></div>
             <button type="button" title={showEmployeeSummary ? 'Collapse' : 'Expand'} onClick={() => setShowEmployeeSummary(v => !v)} className={`h-6 w-6 flex items-center justify-center rounded-md ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-all`}>{showEmployeeSummary ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}</button>
           </div>
           {showEmployeeSummary && (
@@ -666,7 +666,7 @@ function LeaveManagementContent() {
                     <div key={emp.id} className={`flex items-center gap-3 p-3 rounded-lg ${t.hoverBgSoft} cursor-pointer transition-all`} onClick={() => { setSearchTerm(emp.name); setFilter('all'); }}>
                       <User className="h-5 w-5 text-brand-400 shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <div className={`text-sm font-medium truncate ${t.textPrimary}`}>{emp.name}</div>
+                        <div className={`text-sm ${TYPE_WEIGHT.medium} truncate ${t.textPrimary}`}>{emp.name}</div>
                         <div className="flex items-center gap-2 mt-0.5">
                           <div className={`h-1.5 rounded-full ${t.chipBg} overflow-hidden flex-1`}><div className="h-full bg-brand-400/60 rounded-full transition-all" style={{ width: `${percentage}%` }} /></div>
                           <span className={`text-[11px] flex-shrink-0 ${t.textFaint}`}>{emp.total_days}d</span>
@@ -689,7 +689,7 @@ function LeaveManagementContent() {
       <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
         <div className={`flex items-center justify-between px-5 py-3 border-b ${t.border}`}>
           <div className="flex items-center gap-2">
-            <Filter className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Filters</span>
+            <Filter className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textMuted}`}>Filters</span>
             {activeFilterCount > 0 && <StatusBadge color={ACCENT_HEX.blue} label={`${activeFilterCount} active`} />}
           </div>
           <div className="flex items-center gap-1">
@@ -731,7 +731,7 @@ function LeaveManagementContent() {
 
       <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
         <div className={`flex items-center gap-3 px-5 py-3 border-b ${t.border} flex-wrap`}>
-          <div className="flex items-center gap-2 shrink-0"><FileText className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Records</span><span className={`text-[11px] ${t.textFaint}`}>{filteredLeaves.length} of {leaves.length}</span></div>
+          <div className="flex items-center gap-2 shrink-0"><FileText className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textMuted}`}>Records</span><span className={`text-[11px] ${t.textFaint}`}>{filteredLeaves.length} of {leaves.length}</span></div>
           <div className="flex-1 relative min-w-0 max-w-xs">
             <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 pointer-events-none ${t.textFaint}`} />
             <input type="text" placeholder="Search employee…" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className={`pl-7 pr-3 h-7 w-full text-xs rounded-lg outline-none transition-colors ${t.inputBg}`} />
@@ -779,20 +779,20 @@ function LeaveManagementContent() {
               <div className={`rounded-xl overflow-hidden border ${t.border}`}>
                 {selectedIds.size > 0 && (
                   <div className={`flex items-center gap-2 px-4 py-2.5 border-b ${t.border} bg-brand-500/[0.06]`}>
-                    <span className={`text-xs font-semibold ${t.textPrimary}`}>{selectedIds.size} selected</span>
-                    <button type="button" onClick={() => setBulkAction('approved')} className={`flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-emerald-500/15 ${accentText('emerald', t.light)} hover:bg-emerald-500/25 transition-all`}><CheckCircle2 className="h-3 w-3" /> Approve</button>
-                    <button type="button" onClick={() => setBulkAction('rejected')} className={`flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-rose-500/15 ${accentText('rose', t.light)} hover:bg-rose-500/25 transition-all`}><XCircle className="h-3 w-3" /> Reject</button>
+                    <span className={`text-xs ${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{selectedIds.size} selected</span>
+                    <button type="button" onClick={() => setBulkAction('approved')} className={`flex items-center gap-1 text-[11px] ${TYPE_WEIGHT.semibold} px-2.5 py-1 rounded-lg bg-emerald-500/15 ${accentText('emerald', t.light)} hover:bg-emerald-500/25 transition-all`}><CheckCircle2 className="h-3 w-3" /> Approve</button>
+                    <button type="button" onClick={() => setBulkAction('rejected')} className={`flex items-center gap-1 text-[11px] ${TYPE_WEIGHT.semibold} px-2.5 py-1 rounded-lg bg-rose-500/15 ${accentText('rose', t.light)} hover:bg-rose-500/25 transition-all`}><XCircle className="h-3 w-3" /> Reject</button>
                     <button type="button" onClick={() => setSelectedIds(new Set())} className={`ml-auto text-[11px] ${t.textFaint} ${t.hoverText} transition-colors`}>Clear</button>
                   </div>
                 )}
                 <table className="w-full text-sm">
                   <thead>
                     <tr className={`border-b ${t.border}`}>
-                      <th className={`text-left px-4 py-2.5 text-xs font-semibold ${t.chipBg} ${t.textFaint} w-8`}>
+                      <th className={`text-left px-4 py-2.5 text-xs ${TYPE_WEIGHT.semibold} ${t.chipBg} ${t.textFaint} w-8`}>
                         {pendingInView.length > 0 && <input type="checkbox" checked={allPendingSelected} onChange={toggleSelectAll} title="Select all pending" className="rounded" />}
                       </th>
                       {['Employee', 'Type', 'Dates', 'Days', 'Status', 'Applied', 'Actions'].map((h, i) => (
-                        <th key={h} className={`${i === 6 ? 'text-right' : 'text-left'} px-4 py-2.5 text-xs font-semibold ${t.chipBg} ${t.textFaint}`}>{h}</th>
+                        <th key={h} className={`${i === 6 ? 'text-right' : 'text-left'} px-4 py-2.5 text-xs ${TYPE_WEIGHT.semibold} ${t.chipBg} ${t.textFaint}`}>{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -802,7 +802,7 @@ function LeaveManagementContent() {
                         <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                           {leave.status === 'pending' && <input type="checkbox" checked={selectedIds.has(leave.id)} onChange={() => toggleSelect(leave.id)} className="rounded" />}
                         </td>
-                        <td className="px-4 py-3"><div className={`font-medium ${t.textPrimary}`}>{leave.employee_name}</div><div className={`text-xs ${t.textFaint}`}>{leave.employee_id}</div></td>
+                        <td className="px-4 py-3"><div className={`${TYPE_WEIGHT.medium} ${t.textPrimary}`}>{leave.employee_name}</div><div className={`text-xs ${t.textFaint}`}>{leave.employee_id}</div></td>
                         <td className="px-4 py-3"><StatusBadge color={LEAVE_TYPES[leave.leave_type]?.color ?? ACCENT_HEX.blue} label={LEAVE_TYPES[leave.leave_type]?.shortName || leave.leave_type} /></td>
                         <td className={`px-4 py-3 whitespace-nowrap ${t.textMuted}`}>{fmtDate(leave.start_date)} – {fmtDate(leave.end_date)}</td>
                         <td className={`px-4 py-3 ${t.textMuted}`}>{formatDays(leave.total_days)}</td>

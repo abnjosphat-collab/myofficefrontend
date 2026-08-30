@@ -6,7 +6,7 @@ import { AppShell } from '@/components/app-shell';
 import { PredictiveInput } from '@/components/shared/PredictiveInput';
 import { ClipboardList, ChevronDown, ChevronUp, Plus, X, Moon, Sun, Clock, RefreshCw } from '@/components/shared/theme';
 import { useModuleData } from '@/lib/useModuleData';
-import { useTheme, PageHero, StatTile, StatusBadge, FormField, PrimaryButton, SelectField } from '@/components/shared/theme';
+import { useTheme, PageHero, StatTile, StatusBadge, FormField, PrimaryButton, SelectField, TYPE_WEIGHT } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
 import { formatDate } from '@/lib/format';
@@ -98,7 +98,7 @@ function HandoverContent() {
       {showForm && (
         <div className={`${t.glass} rounded-2xl ${t.shadow} p-6`}>
           <div className="flex items-center justify-between mb-4">
-            <h2 className={`font-semibold ${t.textPrimary}`}>New Handover Report</h2>
+            <h2 className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>New Handover Report</h2>
             <button type="button" onClick={() => setShowForm(false)} className={`${t.textFaint} ${t.hoverText} transition-colors`}><X className="w-5 h-5" /></button>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-3">
@@ -133,7 +133,7 @@ function HandoverContent() {
       )}
 
       <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-        <div className={`p-4 border-b ${t.border}`}><h2 className={`font-semibold ${t.textPrimary}`}>Handover History</h2></div>
+        <div className={`p-4 border-b ${t.border}`}><h2 className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>Handover History</h2></div>
         <div className={`divide-y ${t.divide}`}>
           {records.map(h => {
             // ?? fallback: an unrecognized shift value (legacy/malformed data)
@@ -145,7 +145,7 @@ function HandoverContent() {
               <div key={h.id}>
                 <button type="button" onClick={() => toggle(h.id)} className={`w-full flex items-center justify-between px-5 py-4 ${t.hoverBg} transition-colors text-left`}>
                   <div className="flex items-center gap-3 flex-wrap">
-                    <span className={`font-medium text-sm ${t.textPrimary}`}>{h.handover_date}</span>
+                    <span className={`${TYPE_WEIGHT.medium} text-sm ${t.textPrimary}`}>{h.handover_date}</span>
                     <StatusBadge color={SHIFT_HEX[h.shift]} label={h.shift} />
                     <span className={`text-sm ${t.textFaint}`}>{h.section}</span>
                     <span className={`text-xs ${t.textFaint}`}>{h.outgoing_supervisor} → {h.incoming_supervisor}</span>
@@ -154,11 +154,11 @@ function HandoverContent() {
                 </button>
                 {expanded === h.id && (
                   <div className="px-5 pb-5 grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div><div className="text-brand-500 text-xs font-semibold mb-1 uppercase tracking-wider">Completed Work</div><p className={`text-sm leading-relaxed ${t.textMuted}`}>{h.completed_work}</p></div>
-                    <div><div className="text-amber-500 text-xs font-semibold mb-1 uppercase tracking-wider">Outstanding Work</div><p className={`text-sm leading-relaxed ${t.textMuted}`}>{h.outstanding_work}</p></div>
-                    <div><div className="text-rose-500 text-xs font-semibold mb-1 uppercase tracking-wider">Safety Concerns</div><p className={`text-sm leading-relaxed ${t.textMuted}`}>{h.safety_concerns}</p></div>
+                    <div><div className={`text-brand-500 text-xs ${TYPE_WEIGHT.semibold} mb-1 uppercase tracking-wider`}>Completed Work</div><p className={`text-sm leading-relaxed ${t.textMuted}`}>{h.completed_work}</p></div>
+                    <div><div className={`text-amber-500 text-xs ${TYPE_WEIGHT.semibold} mb-1 uppercase tracking-wider`}>Outstanding Work</div><p className={`text-sm leading-relaxed ${t.textMuted}`}>{h.outstanding_work}</p></div>
+                    <div><div className={`text-rose-500 text-xs ${TYPE_WEIGHT.semibold} mb-1 uppercase tracking-wider`}>Safety Concerns</div><p className={`text-sm leading-relaxed ${t.textMuted}`}>{h.safety_concerns}</p></div>
                     <div>
-                      <div className={`text-xs font-semibold mb-2 uppercase tracking-wider ${t.textFaint}`}>Equipment Status</div>
+                      <div className={`text-xs ${TYPE_WEIGHT.semibold} mb-2 uppercase tracking-wider ${t.textFaint}`}>Equipment Status</div>
                       <div className="flex flex-wrap gap-2">
                         {(h.equipment_summary ?? []).map((eq, i) => (
                           <div key={i} className="flex items-center gap-1.5">

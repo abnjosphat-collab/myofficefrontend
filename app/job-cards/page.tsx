@@ -6,7 +6,7 @@ import { ApprovalGate } from '@/components/shared/ApprovalGate';
 import { useModuleData } from '@/lib/useModuleData';
 import {
   useTheme, PageHero, StatusBadge, ProgressBar, FormField, SearchInput, CenterModal,
-  PrimaryButton, EmptyState, SelectField,
+  PrimaryButton, EmptyState, SelectField, TYPE_WEIGHT,
 } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
@@ -54,7 +54,7 @@ function JobCardDetail({ jc, onClose, onSave }: { jc: JobCard; onClose: () => vo
             {[{ icon: User, label: 'Assigned', val: data.assigned_to }, { icon: User, label: 'Supervisor', val: data.supervisor }, { icon: Calendar, label: 'Scheduled', val: data.scheduled_date }, { icon: Clock, label: 'Labour Hrs', val: `${data.labour_hours}h` }].map(({ icon: Icon, label, val }) => (
               <div key={label} className={`${t.chipBg} rounded-xl p-3`}>
                 <div className={`flex items-center gap-1.5 mb-1 ${t.textFaint}`}><Icon className="h-3 w-3" />{label}</div>
-                <p className={`font-semibold ${t.textPrimary}`}>{val}</p>
+                <p className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{val}</p>
               </div>
             ))}
           </div>
@@ -63,7 +63,7 @@ function JobCardDetail({ jc, onClose, onSave }: { jc: JobCard; onClose: () => vo
 
           <div>
             <div className="flex items-center justify-between mb-2">
-              <p className={`text-xs font-semibold uppercase tracking-wider ${t.textFaint}`}>Tasks</p>
+              <p className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textFaint}`}>Tasks</p>
               <div className="flex items-center gap-2 w-40">
                 <ProgressBar value={progress} color="#34d399" showValue={false} />
                 <span className={`text-xs ${t.textFaint}`}>{progress}%</span>
@@ -84,7 +84,7 @@ function JobCardDetail({ jc, onClose, onSave }: { jc: JobCard; onClose: () => vo
 
           {data.parts_used.length > 0 && (
             <div>
-              <p className={`text-xs font-semibold uppercase tracking-wider mb-2 ${t.textFaint}`}>Parts Used</p>
+              <p className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider mb-2 ${t.textFaint}`}>Parts Used</p>
               <div className="space-y-1.5">
                 {data.parts_used.map(p => (
                   <div key={p.id} className={`flex items-center gap-3 px-3 py-2 rounded-xl ${t.chipBg} border ${t.border}`}>
@@ -117,7 +117,7 @@ function JobCardDetail({ jc, onClose, onSave }: { jc: JobCard; onClose: () => vo
         </div>
 
         <div className={`p-5 border-t ${t.border} flex flex-wrap justify-end gap-2`}>
-          <button type="button" onClick={onClose} className={`px-4 py-2 rounded-xl text-sm font-medium ${t.chipBg} ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all`}>Cancel</button>
+          <button type="button" onClick={onClose} className={`px-4 py-2 rounded-xl text-sm ${TYPE_WEIGHT.medium} ${t.chipBg} ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all`}>Cancel</button>
           <PrimaryButton icon={Save} accent="violet" size="md" onClick={() => { onSave(data); onClose(); }}>Save</PrimaryButton>
           {allDone && data.status !== 'completed' && (
             <PrimaryButton icon={PenLine} accent="emerald" size="md" onClick={() => setSignOffOpen(true)}>Supervisor Sign-Off</PrimaryButton>
@@ -215,7 +215,7 @@ function JobCardsContent() {
         <div className="flex flex-wrap gap-1.5">
           {(['all', 'open', 'in_progress', 'on_hold', 'completed'] as const).map(s => (
             <button type="button" key={s} onClick={() => setFilter(s)}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${filter === s ? 'bg-amber-500/15 text-amber-500' : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}>
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs ${TYPE_WEIGHT.semibold} transition-all ${filter === s ? 'bg-amber-500/15 text-amber-500' : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}>
               {s === 'all' ? 'All' : S_LABEL[s]}
               <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${filter === s ? 'bg-amber-500/25' : t.chipBg}`}>{counts[s]}</span>
             </button>
@@ -244,7 +244,7 @@ function JobCardsContent() {
                       <StatusBadge color={priorityColor(jc.priority)} label={jc.priority} />
                       <StatusBadge color={statusColor(jc.status)} label={statusLabel(jc.status)} />
                     </div>
-                    <p className={`text-sm font-semibold truncate ${t.textPrimary}`}>{jc.title}</p>
+                    <p className={`text-sm ${TYPE_WEIGHT.semibold} truncate ${t.textPrimary}`}>{jc.title}</p>
                     <p className={`text-xs mt-0.5 ${t.textFaint}`}>{jc.equipment_name} · {jc.section} · {jc.assigned_to}</p>
                   </div>
                   {jcTasks.length > 0 && (

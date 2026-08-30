@@ -13,7 +13,7 @@ import {
 import {
   useTheme, STATUS_TONE, PageHero, StatTile, StatusBadge, ProgressBar,
   SearchInput, ViewToggle, useCollapseSection, ACCENT_HEX,
-  GroupSection, RecordCard, staggerContainer, fadeUp, InfoRow, SummaryItem, useConfirm,
+  GroupSection, RecordCard, staggerContainer, fadeUp, InfoRow, SummaryItem, useConfirm, TYPE_WEIGHT,
 } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
@@ -79,13 +79,13 @@ function InventoryCard({ item, onDelete }: { item: InventoryItem; onDelete: () =
         </div>
       }
       actions={<>
-        <Link href={`/inventory/view/${item.id}`} className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg ${t.chipBg} ${t.textMuted} ${t.hoverText} text-[12px] font-semibold transition-all`}>
+        <Link href={`/inventory/view/${item.id}`} className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg ${t.chipBg} ${t.textMuted} ${t.hoverText} text-[12px] ${TYPE_WEIGHT.semibold} transition-all`}>
           <Eye className="h-3.5 w-3.5" /> View
         </Link>
-        <Link href={`/inventory/edit/${item.id}`} className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 text-white text-[12px] font-semibold hover:brightness-110 transition-all">
+        <Link href={`/inventory/edit/${item.id}`} className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 text-white text-[12px] ${TYPE_WEIGHT.semibold} hover:brightness-110 transition-all`}>
           <Pencil className="h-3.5 w-3.5" /> Edit
         </Link>
-        <button onClick={onDelete} type="button" className={`px-4 flex items-center justify-center gap-1.5 py-2 rounded-lg ${t.chipBg} text-rose-500 hover:bg-rose-500/10 text-[12px] font-semibold transition-all`}>
+        <button onClick={onDelete} type="button" className={`px-4 flex items-center justify-center gap-1.5 py-2 rounded-lg ${t.chipBg} text-rose-500 hover:bg-rose-500/10 text-[12px] ${TYPE_WEIGHT.semibold} transition-all`}>
           <Trash2 className="h-3.5 w-3.5" /> Delete
         </button>
       </>}
@@ -114,7 +114,7 @@ function InventoryRow({ item, onDelete }: { item: InventoryItem; onDelete: () =>
         <div className="shrink-0"><Package className="h-5 w-5" style={{ color: statusColor }} /></div>
 
         <Link href={`/inventory/view/${item.id}`} className="flex-1 min-w-0 text-left">
-          <div className={`font-semibold text-sm ${t.textPrimary}`}>{item.name}</div>
+          <div className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>{item.name}</div>
           <div className="flex items-center gap-2 mt-0.5 flex-wrap">
             <span className={`text-xs font-mono ${t.textFaint}`}>{item.sku}</span>
             {item.category && <span className={`text-xs ${t.textFaint}`}>· {item.category}</span>}
@@ -270,7 +270,7 @@ function InventoryPageContent() {
             )}
             <Link
               href="/inventory/create"
-              className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 transition-all hover:brightness-110`}
+              className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 transition-all hover:brightness-110`}
             >
               <Plus className="h-3.5 w-3.5" /> New Item
             </Link>
@@ -290,13 +290,13 @@ function InventoryPageContent() {
             <button
               type="button"
               onClick={() => setShowFilters(v => !v)}
-              className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-medium transition-colors ${showFilters ? 'bg-brand-500/15 text-brand-400' : `${t.textMuted} ${t.hoverText} ${t.glassSoft}`}`}
+              className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.medium} transition-colors ${showFilters ? 'bg-brand-500/15 text-brand-400' : `${t.textMuted} ${t.hoverText} ${t.glassSoft}`}`}
             >
               <Filter className="h-3.5 w-3.5" /> Filters
               {hasActiveFilters && <span className={`ml-1 px-1.5 py-0.5 ${t.chipBg} rounded text-[10px]`}>{filtered.length}</span>}
             </button>
             {hasActiveFilters && (
-              <button type="button" onClick={clearFilters} className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-medium ${t.textFaint} ${t.hoverText} ${t.hoverBg} transition-colors`}>
+              <button type="button" onClick={clearFilters} className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.medium} ${t.textFaint} ${t.hoverText} ${t.hoverBg} transition-colors`}>
                 <FilterX className="h-3.5 w-3.5" /> Clear
               </button>
             )}
@@ -307,7 +307,7 @@ function InventoryPageContent() {
         {showFilters && (
           <div className={`pt-4 border-t ${t.border} grid grid-cols-1 sm:grid-cols-3 gap-4`}>
             <div>
-              <p className={`text-xs font-semibold ${t.textFaint} mb-2`}>Category</p>
+              <p className={`text-xs ${TYPE_WEIGHT.semibold} ${t.textFaint} mb-2`}>Category</p>
               <div className="space-y-1.5 max-h-32 overflow-y-auto">
                 {CATEGORIES.map(cat => (
                   <label key={cat} className="flex items-center gap-2 cursor-pointer">
@@ -323,7 +323,7 @@ function InventoryPageContent() {
               </div>
             </div>
             <div>
-              <p className={`text-xs font-semibold ${t.textFaint} mb-2`}>Stock Status</p>
+              <p className={`text-xs ${TYPE_WEIGHT.semibold} ${t.textFaint} mb-2`}>Stock Status</p>
               <div className="space-y-1.5">
                 {(['in-stock', 'low-stock', 'out-of-stock'] as const).map(s => (
                   <label key={s} className="flex items-center gap-2 cursor-pointer">
@@ -339,7 +339,7 @@ function InventoryPageContent() {
               </div>
             </div>
             <div>
-              <p className={`text-xs font-semibold ${t.textFaint} mb-2`}>Supplier</p>
+              <p className={`text-xs ${TYPE_WEIGHT.semibold} ${t.textFaint} mb-2`}>Supplier</p>
               <div className="space-y-1.5 max-h-32 overflow-y-auto">
                 {SUPPLIERS.map(sup => (
                   <label key={sup} className="flex items-center gap-2 cursor-pointer">
@@ -360,14 +360,14 @@ function InventoryPageContent() {
 
       {/* Results */}
       <p className={`text-sm ${t.textFaint}`}>
-        Showing <span className={`font-semibold ${t.textPrimary}`}>{filtered.length}</span> of {inventory.length} items
+        Showing <span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{filtered.length}</span> of {inventory.length} items
         {hasActiveFilters && ' (filtered)'}
       </p>
 
       {filtered.length === 0 ? (
         <div className={`${t.glass} rounded-2xl p-12 text-center`}>
           <Package className={`h-12 w-12 ${t.textFaint} mx-auto mb-4`} />
-          <h3 className={`text-lg font-semibold ${t.textPrimary} mb-2`}>
+          <h3 className={`text-lg ${TYPE_WEIGHT.semibold} ${t.textPrimary} mb-2`}>
             {inventory.length === 0 ? 'No Inventory Items Yet' : 'No Items Match'}
           </h3>
           <p className={`${t.textFaint} text-sm mb-4`}>
@@ -376,7 +376,7 @@ function InventoryPageContent() {
               : 'Try adjusting your search or filters.'}
           </p>
           {inventory.length === 0 && (
-            <Link href="/inventory/create" className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all">
+            <Link href="/inventory/create" className={`inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-[13px] ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all`}>
               <Plus className="h-3.5 w-3.5" /> Add First Item
             </Link>
           )}

@@ -8,7 +8,7 @@ import { ShieldCheck, Plus, X, RefreshCw } from '@/components/shared/theme';
 import { useModuleData } from '@/lib/useModuleData';
 import { daysUntil } from '@/lib/dates';
 import { formatDate } from '@/lib/format';
-import { useTheme, accentText, PageHero, StatTile, StatusBadge, FormField, PrimaryButton, ACCENT_HEX } from '@/components/shared/theme';
+import { useTheme, accentText, PageHero, StatTile, StatusBadge, FormField, PrimaryButton, ACCENT_HEX, TYPE_WEIGHT } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
 import type { Status, ComplianceItem } from './types';
@@ -97,7 +97,7 @@ function ComplianceRegisterContent() {
       {showAdd && (
         <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden p-6`}>
           <div className="flex items-center justify-between mb-4">
-            <h2 className={`font-semibold ${t.textPrimary}`}>New Compliance Item</h2>
+            <h2 className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>New Compliance Item</h2>
             <button type="button" onClick={() => setShowAdd(false)} title="Close" aria-label="Close" className={`h-9 w-9 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-colors`}><X className="w-5 h-5" /></button>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
@@ -114,10 +114,10 @@ function ComplianceRegisterContent() {
 
       <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
         <div className={`p-4 border-b ${t.border} flex items-center justify-between flex-wrap gap-3`}>
-          <h2 className={`font-semibold ${t.textPrimary}`}>Compliance Items</h2>
+          <h2 className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>Compliance Items</h2>
           <div className="flex gap-2 flex-wrap">
             {(['all', 'current', 'due_soon', 'overdue'] as const).map(s => (
-              <button key={s} type="button" onClick={() => setFilter(s)} className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${filter === s ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}>
+              <button key={s} type="button" onClick={() => setFilter(s)} className={`px-3 py-1 rounded-lg text-xs ${TYPE_WEIGHT.semibold} transition-colors ${filter === s ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}>
                 {s === 'all' ? 'All' : s === 'due_soon' ? 'Due Soon' : s.charAt(0).toUpperCase() + s.slice(1)}
               </button>
             ))}
@@ -128,7 +128,7 @@ function ComplianceRegisterContent() {
             <thead>
               <tr className={`border-b ${t.border}`}>
                 {['Equipment', 'Inspection Type', 'Reg. Body', 'Cert. No.', 'Expiry', 'Days', 'Status', 'Responsible'].map(h => (
-                  <th key={h} className={`px-4 py-3 text-left text-xs font-medium ${t.textFaint}`}>{h}</th>
+                  <th key={h} className={`px-4 py-3 text-left text-xs ${TYPE_WEIGHT.medium} ${t.textFaint}`}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -137,13 +137,13 @@ function ComplianceRegisterContent() {
                 const days = daysUntil(item.expiry_date);
                 return (
                   <tr key={item.id} className={`border-b ${t.border} last:border-0 ${t.hoverBgSoft} transition-colors`}>
-                    <td className={`px-4 py-3 font-medium ${t.textPrimary}`}>{item.equipment_name}</td>
+                    <td className={`px-4 py-3 ${TYPE_WEIGHT.medium} ${t.textPrimary}`}>{item.equipment_name}</td>
                     <td className={`px-4 py-3 ${t.textMuted}`}>{item.inspection_type}</td>
                     <td className="px-4 py-3"><StatusBadge color={ACCENT_HEX.blue} label={item.regulatory_body} /></td>
                     <td className={`px-4 py-3 font-mono text-xs ${t.textFaint}`}>{item.certificate_no}</td>
                     <td className={`px-4 py-3 ${t.textMuted}`}>{item.expiry_date}</td>
                     <td className="px-4 py-3">
-                      <span className={`font-semibold text-xs ${days < 0 ? accentText('rose', t.light) : days <= 30 ? accentText('amber', t.light) : accentText('emerald', t.light)}`}>
+                      <span className={`${TYPE_WEIGHT.semibold} text-xs ${days < 0 ? accentText('rose', t.light) : days <= 30 ? accentText('amber', t.light) : accentText('emerald', t.light)}`}>
                         {days < 0 ? `${Math.abs(days)}d ago` : `${days}d`}
                       </span>
                     </td>

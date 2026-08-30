@@ -14,7 +14,7 @@ import { AppShell } from '@/components/app-shell';
 import { formatDate } from '@/lib/format';
 import {
   useTheme, accentText, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle,
-  FormField, FormActions, useCollapseSection, CenterModal, ProgressBar, ACCENT_HEX, GlowCard, SelectField,
+  FormField, FormActions, useCollapseSection, CenterModal, ProgressBar, ACCENT_HEX, GlowCard, SelectField, TYPE_WEIGHT,
 } from '@/components/shared/theme';
 import { Toaster, toast } from 'sonner';
 import type { Attachment, PaymentStage, ServiceRecord, StageData, StoresStage } from './types';
@@ -107,7 +107,7 @@ function StageRow({ stage, record, onUpdate }: { stage: typeof STAGES[number]; r
           <Icon className="h-3.5 w-3.5 text-brand-400" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className={`text-sm font-medium ${done ? t.textPrimary : t.textFaint}`}>{stage.label}</p>
+          <p className={`text-sm ${TYPE_WEIGHT.medium} ${done ? t.textPrimary : t.textFaint}`}>{stage.label}</p>
           {done && summary && <p className={`text-[11px] mt-0.5 truncate ${t.textFaint}`}>{summary}</p>}
           {!done && <p className={`text-[11px] mt-0.5 ${t.textFaint}`}>Tap the circle when this stage is complete</p>}
         </div>
@@ -186,11 +186,11 @@ function AttachmentPanel({ serviceId }: { serviceId: string }) {
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <div>
-          <p className={`text-xs font-medium ${t.textMuted}`}>Scanned hard copies &amp; supporting documents</p>
+          <p className={`text-xs ${TYPE_WEIGHT.medium} ${t.textMuted}`}>Scanned hard copies &amp; supporting documents</p>
           <p className={`text-[11px] mt-0.5 ${t.textFaint}`}>Upload completion certificates, invoices, GRVs, or any other documents.</p>
         </div>
         <button type="button" onClick={() => inputRef.current?.click()} disabled={uploading}
-          className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all disabled:opacity-50">
+          className={`inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all disabled:opacity-50`}>
           {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
           {uploading ? 'Uploading…' : 'Attach file'}
         </button>
@@ -208,7 +208,7 @@ function AttachmentPanel({ serviceId }: { serviceId: string }) {
             <div key={a.id} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl ${t.chipBg} group`}>
               <Paperclip className="h-3.5 w-3.5 text-brand-400 shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className={`text-xs font-medium truncate ${t.textMuted}`}>{a.filename}</p>
+                <p className={`text-xs ${TYPE_WEIGHT.medium} truncate ${t.textMuted}`}>{a.filename}</p>
                 <p className={`text-[11px] ${t.textFaint}`}>{fmtBytes(a.file_size)} · {fmtDate(a.created_at)}</p>
               </div>
               <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -231,7 +231,7 @@ function AttachmentPanel({ serviceId }: { serviceId: string }) {
           <p className={`text-sm ${t.textMuted}`}>This file will be permanently deleted.</p>
           <div className="flex gap-2">
             <button type="button" onClick={() => setDeleteId(null)} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border}`}>Cancel</button>
-            <button type="button" onClick={remove} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-rose-500 to-rose-700 hover:brightness-110">Remove</button>
+            <button type="button" onClick={remove} className={`flex-1 py-2.5 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-rose-500 to-rose-700 hover:brightness-110`}>Remove</button>
           </div>
         </div>
       </CenterModal>
@@ -263,13 +263,13 @@ function ServiceCard({ record, expanded, onToggle, onUpdate, onEdit, onDelete }:
           </div>
         </div>
 
-        <h3 className={`text-sm font-semibold leading-snug mb-1.5 ${t.textPrimary}`}>{record.description || '—'}</h3>
+        <h3 className={`text-sm ${TYPE_WEIGHT.semibold} leading-snug mb-1.5 ${t.textPrimary}`}>{record.description || '—'}</h3>
 
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           {record.supplier && <span className={`flex items-center gap-1 text-xs ${t.textFaint}`}><Building2 className="h-3 w-3 shrink-0" />{record.supplier}</span>}
           {record.contact_person && <span className={`flex items-center gap-1 text-xs ${t.textFaint}`}><Phone className="h-3 w-3 shrink-0" />{record.contact_person}</span>}
           {record.date && <span className={`flex items-center gap-1 text-xs ${t.textFaint}`}><Calendar className="h-3 w-3 shrink-0" />{fmtDate(record.date)}</span>}
-          {record.amount && <span className="text-xs font-semibold text-brand-400 ml-auto">{record.amount}</span>}
+          {record.amount && <span className={`text-xs ${TYPE_WEIGHT.semibold} text-brand-400 ml-auto`}>{record.amount}</span>}
         </div>
 
         {(record.requisition_number || record.invoice_number || record.order_number) && (
@@ -295,7 +295,7 @@ function ServiceCard({ record, expanded, onToggle, onUpdate, onEdit, onDelete }:
 
       <div className={`border-t ${t.border}`}>
         <button type="button" onClick={onToggle} className={`w-full flex items-center justify-between px-4 sm:px-5 py-2.5 text-xs ${t.textFaint} ${t.hoverText} ${t.hoverBgSoft} transition-all`}>
-          <span className="font-medium">{expanded ? 'Collapse' : 'Pipeline & Attachments'}</span>
+          <span className={`${TYPE_WEIGHT.medium}`}>{expanded ? 'Collapse' : 'Pipeline & Attachments'}</span>
           {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
         </button>
         {expanded && (
@@ -303,7 +303,7 @@ function ServiceCard({ record, expanded, onToggle, onUpdate, onEdit, onDelete }:
             <div className={`flex gap-1 ${t.glassSoft} rounded-lg p-1 w-fit mb-3`}>
               {(['pipeline', 'attachments'] as const).map(k => (
                 <button key={k} type="button" onClick={() => setPipeTab(k)}
-                  className={`px-3 py-1.5 rounded-md text-xs font-medium capitalize transition-colors ${pipeTab === k ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} ${t.hoverText}`}`}>
+                  className={`px-3 py-1.5 rounded-md text-xs ${TYPE_WEIGHT.medium} capitalize transition-colors ${pipeTab === k ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} ${t.hoverText}`}`}>
                   {k}
                 </button>
               ))}
@@ -338,7 +338,7 @@ function ListView({ records, onEdit, onDelete, onView }: { records: ServiceRecor
         <thead>
           <tr className={`border-b ${t.border}`}>
             {['Date', 'Description', 'REQ #', 'Amount', 'Pipeline', 'Category', ''].map(h => (
-              <th key={h} className={`text-left p-3 text-xs font-semibold uppercase tracking-wide ${t.textFaint}`}>{h}</th>
+              <th key={h} className={`text-left p-3 text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wide ${t.textFaint}`}>{h}</th>
             ))}
           </tr>
         </thead>
@@ -349,11 +349,11 @@ function ListView({ records, onEdit, onDelete, onView }: { records: ServiceRecor
               <tr key={r.id} className={`border-b ${t.border} ${t.hoverBgSoft} cursor-pointer`} onClick={() => onView(r)}>
                 <td className={`p-3 text-xs ${t.textMuted}`}>{fmtDate(r.date)}</td>
                 <td className="p-3 min-w-0">
-                  <p className={`text-sm font-medium truncate ${t.textPrimary}`}>{r.description || '—'}</p>
+                  <p className={`text-sm ${TYPE_WEIGHT.medium} truncate ${t.textPrimary}`}>{r.description || '—'}</p>
                   {r.supplier && <p className={`text-[11px] truncate flex items-center gap-1 ${t.textFaint}`}><Building2 className="h-2.5 w-2.5 shrink-0" />{r.supplier}</p>}
                 </td>
                 <td className={`p-3 text-xs ${t.textFaint}`}>{r.requisition_number || '—'}</td>
-                <td className="p-3 text-xs font-semibold text-brand-400 text-right">{r.amount || '—'}</td>
+                <td className={`p-3 text-xs ${TYPE_WEIGHT.semibold} text-brand-400 text-right`}>{r.amount || '—'}</td>
                 <td className="p-3">
                   <div className="flex items-center gap-2">
                     <ProgressBar value={(d / 6) * 100} color={d === 6 ? '#34d399' : d > 0 ? ACCENT_HEX.blue : '#94a3b8'} showValue={false} />
@@ -397,7 +397,7 @@ function SheetView({ records, onView }: { records: ServiceRecord[]; onView: (r: 
         <thead>
           <tr className={`border-b ${t.border}`}>
             {SHEET_COLS.map((h, i) => (
-              <th key={h} className={`p-2.5 text-[10px] font-semibold uppercase tracking-wide whitespace-nowrap ${i >= 7 ? 'text-center' : 'text-left'} ${t.textFaint}`}>{h}</th>
+              <th key={h} className={`p-2.5 text-[10px] ${TYPE_WEIGHT.semibold} uppercase tracking-wide whitespace-nowrap ${i >= 7 ? 'text-center' : 'text-left'} ${t.textFaint}`}>{h}</th>
             ))}
           </tr>
         </thead>
@@ -406,7 +406,7 @@ function SheetView({ records, onView }: { records: ServiceRecord[]; onView: (r: 
             <tr key={r.id} className={`border-b ${t.border} ${t.hoverBgSoft} cursor-pointer`} onClick={() => onView(r)}>
               <td className={`p-2.5 ${t.textFaint}`}>{i + 1}</td>
               <td className={`p-2.5 whitespace-nowrap ${t.textMuted}`}>{r.date ? fmtDate(r.date) : '—'}</td>
-              <td className={`p-2.5 font-medium whitespace-nowrap ${t.textPrimary}`}>{r.supplier || '—'}</td>
+              <td className={`p-2.5 ${TYPE_WEIGHT.medium} whitespace-nowrap ${t.textPrimary}`}>{r.supplier || '—'}</td>
               <td className="p-2.5 min-w-[220px] max-w-[320px] truncate" title={r.description}>{r.description || '—'}</td>
               <td className={`p-2.5 whitespace-nowrap ${t.textFaint}`}>{r.requisition_number || '—'}</td>
               <td className={`p-2.5 whitespace-nowrap ${t.textFaint}`}>{r.order_number || '—'}</td>
@@ -451,7 +451,7 @@ function ServiceForm({ initial, onSave, onClose }: { initial: ServiceRecord; onS
         <FormField label="Contact person"><input className={inputCls} placeholder="Representative's name" value={form.contact_person} onChange={set('contact_person')} /></FormField>
       </div>
       <div className={`p-3 rounded-xl ${t.chipBg} space-y-3`}>
-        <p className={`text-[11px] font-semibold uppercase tracking-wider ${t.textFaint}`}>Reference Numbers</p>
+        <p className={`text-[11px] ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textFaint}`}>Reference Numbers</p>
         <div className="grid grid-cols-3 gap-3">
           <FormField label="Requisition No."><input className={inputCls} placeholder="REQ-..." value={form.requisition_number} onChange={set('requisition_number')} /></FormField>
           <FormField label="Invoice No."><input className={inputCls} placeholder="INV-..." value={form.invoice_number} onChange={set('invoice_number')} /></FormField>
@@ -576,11 +576,11 @@ function ExcelImportModal({ onImport, onExtracted, onClose }: {
     <form onSubmit={doImport} className="space-y-5">
       <div className="grid grid-cols-2 gap-3">
         <div className={`p-3 rounded-xl ${t.chipBg}`}>
-          <p className={`text-xs font-semibold mb-1 flex items-center gap-1.5 ${t.textMuted}`}><FileSpreadsheet className="h-3.5 w-3.5" /> Spreadsheet</p>
+          <p className={`text-xs ${TYPE_WEIGHT.semibold} mb-1 flex items-center gap-1.5 ${t.textMuted}`}><FileSpreadsheet className="h-3.5 w-3.5" /> Spreadsheet</p>
           <p className={`text-[11px] leading-relaxed ${t.textFaint}`}>Excel (.xlsx, .xls) or CSV with headers: Date, Description, Supplier/Contractor, Contact, PR #/REQ #, INV #, PO #, Amount, Category, Comments — plus Planning, Engineering Manager, Finance Manager, General Manager, Stores (TRUE/FALSE) and GRV # to bring in the approval circuit too.</p>
         </div>
         <div className={`p-3 rounded-xl ${t.chipBg}`}>
-          <p className={`text-xs font-semibold mb-1 flex items-center gap-1.5 ${t.textMuted}`}><Eye className="h-3.5 w-3.5" /> Document / Scan</p>
+          <p className={`text-xs ${TYPE_WEIGHT.semibold} mb-1 flex items-center gap-1.5 ${t.textMuted}`}><Eye className="h-3.5 w-3.5" /> Document / Scan</p>
           <p className={`text-[11px] leading-relaxed ${t.textFaint}`}>PDF, JPEG, PNG, TIFF, WEBP — OCR will read the text and pre-fill the form for you to review.</p>
         </div>
       </div>
@@ -593,7 +593,7 @@ function ExcelImportModal({ onImport, onExtracted, onClose }: {
             <Upload className={`h-8 w-8 mx-auto mb-2 ${t.textFaint}`} />
             <p className={`text-sm mb-1 ${t.textMuted}`}>Choose a spreadsheet, PDF, or image</p>
             <p className={`text-[11px] mb-3 ${t.textFaint}`}>.xlsx · .xls · .csv · .pdf · .jpg · .png · .tiff · .webp</p>
-            <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all">
+            <label className={`cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all`}>
               <Upload className="h-4 w-4" /> Browse file
               <input type="file" accept=".xlsx,.xls,.csv,.pdf,.jpg,.jpeg,.png,.webp,.tiff,.tif,.bmp" className="hidden"
                 onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); e.currentTarget.value = ''; }} />
@@ -606,10 +606,10 @@ function ExcelImportModal({ onImport, onExtracted, onClose }: {
 
       {preview.length > 0 && (
         <div>
-          <p className={`text-xs font-semibold mb-2 ${t.textMuted}`}>Preview — first {preview.length} rows ({rows.length} total will be imported)</p>
+          <p className={`text-xs ${TYPE_WEIGHT.semibold} mb-2 ${t.textMuted}`}>Preview — first {preview.length} rows ({rows.length} total will be imported)</p>
           <div className={`overflow-x-auto rounded-xl ${t.chipBg}`}>
             <table className="w-full text-xs">
-              <thead><tr className={`border-b ${t.border}`}>{headers.map(h => <th key={h} className={`px-3 py-2 text-left font-semibold whitespace-nowrap ${t.textFaint}`}>{h}</th>)}</tr></thead>
+              <thead><tr className={`border-b ${t.border}`}>{headers.map(h => <th key={h} className={`px-3 py-2 text-left ${TYPE_WEIGHT.semibold} whitespace-nowrap ${t.textFaint}`}>{h}</th>)}</tr></thead>
               <tbody>{preview.map((row, i) => <tr key={i} className={`border-b ${t.border}`}>{row.map((cell, j) => <td key={j} className={`px-3 py-2 whitespace-nowrap max-w-[160px] truncate ${t.textMuted}`}>{cell}</td>)}</tr>)}</tbody>
             </table>
           </div>
@@ -649,7 +649,7 @@ function OcrUploadModal({ onExtracted, onClose }: { onExtracted: (partial: Parti
   return (
     <div className="space-y-4">
       <div className={`p-4 rounded-xl ${t.chipBg}`}>
-        <p className={`text-xs font-semibold mb-1 ${t.textMuted}`}>How this works</p>
+        <p className={`text-xs ${TYPE_WEIGHT.semibold} mb-1 ${t.textMuted}`}>How this works</p>
         <p className={`text-[11px] leading-relaxed ${t.textFaint}`}>
           Upload a scanned completion certificate, invoice, or any service document. OCR will extract the text and pre-fill the form — review and edit before saving.
           <br />Supported: PDF, JPEG, PNG, WEBP · Max 20 MB
@@ -666,7 +666,7 @@ function OcrUploadModal({ onExtracted, onClose }: { onExtracted: (partial: Parti
           <>
             <FileDown className={`h-8 w-8 mx-auto mb-2 ${t.textFaint}`} />
             <p className={`text-sm mb-3 ${t.textMuted}`}>Choose a scanned document to extract data from</p>
-            <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all">
+            <label className={`cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all`}>
               <Upload className="h-4 w-4" /> Choose file
               <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
             </label>
@@ -813,15 +813,15 @@ function ServicesPageContent() {
         actions={
           <>
             <button type="button" onClick={() => setOcrOpen(true)} title="Scan a document to extract data"
-              className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-semibold text-white bg-gradient-to-br from-violet-500 to-violet-700 hover:brightness-110 transition-all">
+              className={`inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-violet-500 to-violet-700 hover:brightness-110 transition-all`}>
               <Scan className="h-3.5 w-3.5" /> Scan
             </button>
             <button type="button" onClick={() => setImportOpen(true)} title="Import records from Excel"
-              className={`inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-semibold ${t.textMuted} ${t.glassSoft} ${t.hoverText} transition-all`}>
+              className={`inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg ${TYPE_WEIGHT.semibold} ${t.textMuted} ${t.glassSoft} ${t.hoverText} transition-all`}>
               <FileSpreadsheet className="h-3.5 w-3.5" /> Import
             </button>
             <button type="button" onClick={() => { setEditRecord(null); setFormOpen(true); }}
-              className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all">
+              className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all`}>
               <Plus className="h-3.5 w-3.5" /> New Service
             </button>
           </>
@@ -839,7 +839,7 @@ function ServicesPageContent() {
       {apiError && (
         <div className={`flex items-start gap-3 p-4 rounded-2xl bg-rose-500/10 ${accentText('rose', t.light)} text-sm`}>
           <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-          <div><p className="font-semibold">Backend not reachable</p><p className="text-xs opacity-80 mt-0.5">{apiError} — Make sure the backend is running.</p></div>
+          <div><p className={`${TYPE_WEIGHT.semibold}`}>Backend not reachable</p><p className="text-xs opacity-80 mt-0.5">{apiError} — Make sure the backend is running.</p></div>
         </div>
       )}
 
@@ -849,10 +849,10 @@ function ServicesPageContent() {
           <SearchInput value={search} onChange={setSearch} placeholder="Search description, supplier, REQ, INV, GRV…" className="flex-1" />
           <div className="flex gap-2 flex-wrap items-center">
             <button type="button" onClick={() => setShowFilters(v => !v)}
-              className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-medium transition-colors ${showFilters ? 'bg-brand-500/15 text-brand-400' : `${t.textMuted} ${t.glassSoft} ${t.hoverText}`}`}>
+              className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.medium} transition-colors ${showFilters ? 'bg-brand-500/15 text-brand-400' : `${t.textMuted} ${t.glassSoft} ${t.hoverText}`}`}>
               <Filter className="h-3.5 w-3.5" /> Filters
             </button>
-            {anyFilter && <button type="button" onClick={clearFilters} className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-medium ${t.textFaint} ${t.hoverText} ${t.hoverBg}`}><X className="h-3.5 w-3.5" /> Clear</button>}
+            {anyFilter && <button type="button" onClick={clearFilters} className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.medium} ${t.textFaint} ${t.hoverText} ${t.hoverBg}`}><X className="h-3.5 w-3.5" /> Clear</button>}
             <ViewToggle value={viewMode} onChange={setViewMode} options={[{ value: 'grid', icon: LayoutGrid, label: 'Grid view' }, { value: 'table', icon: Table2, label: 'Table view' }, { value: 'sheet', icon: FileSpreadsheet, label: 'Sheet view — everything at once, like the Excel tracker' }]} />
           </div>
         </div>
@@ -875,7 +875,7 @@ function ServicesPageContent() {
       {/* Records */}
       <div className="space-y-3">
         <div className="flex items-center justify-between flex-wrap gap-2">
-          <p className={`text-sm ${t.textFaint}`}>Showing <span className={`font-semibold ${t.textPrimary}`}>{processed.length}</span> of {total}</p>
+          <p className={`text-sm ${t.textFaint}`}>Showing <span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{processed.length}</span> of {total}</p>
           <div className="flex items-center gap-2">
             <SelectField size="filter" title="Sort by" value={sortBy} onChange={setSortBy}
               options={[
@@ -900,10 +900,10 @@ function ServicesPageContent() {
         ) : processed.length === 0 ? (
           <div className={`${t.glass} rounded-2xl p-12 text-center`}>
             <Wrench className={`h-12 w-12 ${t.textFaint} mx-auto mb-4`} />
-            <h3 className={`text-lg font-semibold ${t.textPrimary} mb-2`}>{anyFilter ? 'No records match your filters' : 'No service records yet'}</h3>
+            <h3 className={`text-lg ${TYPE_WEIGHT.semibold} ${t.textPrimary} mb-2`}>{anyFilter ? 'No records match your filters' : 'No service records yet'}</h3>
             <p className={`text-sm mb-4 ${t.textFaint}`}>{anyFilter ? 'Adjust your search or clear the filters.' : 'Click "New Service" to log the first record, or import from Excel.'}</p>
             {!anyFilter && (
-              <button type="button" onClick={() => { setEditRecord(null); setFormOpen(true); }} className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110">
+              <button type="button" onClick={() => { setEditRecord(null); setFormOpen(true); }} className={`inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-[13px] ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110`}>
                 <Plus className="h-3.5 w-3.5" /> Add Service
               </button>
             )}
@@ -923,12 +923,12 @@ function ServicesPageContent() {
 
       {/* Pipeline legend */}
       <div className={`${t.glass} rounded-2xl ${t.shadow} p-5`}>
-        <h3 className={`text-sm font-semibold mb-1 ${t.textPrimary}`}>Approval Pipeline — Stage Order</h3>
+        <h3 className={`text-sm ${TYPE_WEIGHT.semibold} mb-1 ${t.textPrimary}`}>Approval Pipeline — Stage Order</h3>
         <p className={`text-[11px] mb-3 ${t.textFaint}`}>Records progress through these stages in order. Each stage must be signed off before payment is processed.</p>
         <div className="flex flex-wrap gap-2">
           {STAGES.map((s, i) => (
             <div key={s.key} className={`flex items-center gap-2 px-3 py-2 rounded-xl ${t.chipBg}`}>
-              <span className={`text-[11px] font-semibold ${t.textFaint}`}>{i + 1}.</span>
+              <span className={`text-[11px] ${TYPE_WEIGHT.semibold} ${t.textFaint}`}>{i + 1}.</span>
               <s.icon className="h-3.5 w-3.5 text-brand-400" />
               <span className={`text-xs ${t.textMuted}`}>{s.label}</span>
             </div>
@@ -953,12 +953,12 @@ function ServicesPageContent() {
                 return <StatusBadge color={info.color} label={info.label} dot />;
               })()}
               {viewRecord.category && <StatusBadge color={ACCENT_HEX.blue} label={viewRecord.category} />}
-              {viewRecord.amount && <span className="text-sm font-semibold text-brand-400">{viewRecord.amount}</span>}
+              {viewRecord.amount && <span className={`text-sm ${TYPE_WEIGHT.semibold} text-brand-400`}>{viewRecord.amount}</span>}
             </div>
             <div className={`flex gap-1 ${t.glassSoft} rounded-lg p-1 w-fit`}>
               {(['pipeline', 'attachments'] as const).map(k => (
                 <button key={k} type="button" onClick={() => setViewTab(k)}
-                  className={`px-3 py-1.5 rounded-md text-xs font-medium capitalize transition-colors ${viewTab === k ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} ${t.hoverText}`}`}>{k}</button>
+                  className={`px-3 py-1.5 rounded-md text-xs ${TYPE_WEIGHT.medium} capitalize transition-colors ${viewTab === k ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} ${t.hoverText}`}`}>{k}</button>
               ))}
             </div>
             {viewTab === 'pipeline' ? (
@@ -989,7 +989,7 @@ function ServicesPageContent() {
           <p className={`text-sm ${t.textMuted}`}>This service record and all its pipeline data will be permanently deleted.</p>
           <div className="flex gap-2">
             <button type="button" onClick={() => setDeleteId(null)} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border}`}>Cancel</button>
-            <button type="button" onClick={handleDelete} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-rose-500 to-rose-700 hover:brightness-110 inline-flex items-center justify-center gap-2"><Trash2 className="h-4 w-4" /> Delete</button>
+            <button type="button" onClick={handleDelete} className={`flex-1 py-2.5 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-rose-500 to-rose-700 hover:brightness-110 inline-flex items-center justify-center gap-2`}><Trash2 className="h-4 w-4" /> Delete</button>
           </div>
         </div>
       </CenterModal>

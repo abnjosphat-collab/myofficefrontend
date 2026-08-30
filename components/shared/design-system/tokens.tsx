@@ -307,16 +307,21 @@ export const TYPE_SCALE = {
   hero: 'text-[32px] sm:text-[42px]', // hero title
 } as const;
 
-// ─── Type weight — PILOT, app/employees/page.tsx ONLY ────────────────────────
+// ─── Type weight ──────────────────────────────────────────────────────────────
 // TYPE_SCALE (above) covers size; there was no equivalent named scale for
-// font-weight, so every page (55 of ~90 app/**/page.tsx files, as of the
-// 2026-08-30 UI-consistency audit) hand-picks font-medium/semibold/bold ad hoc,
-// field by field. This is a pilot of a shared weight vocabulary, scoped to the
-// Employees page only — same discipline as STATUS_TONE's rollout (piloted on
-// one page first, adopted elsewhere only after explicit user sign-off). Do NOT
-// adopt this in another page, or inside a shared component in components.tsx,
-// without that same sign-off step. Only 3 weights were found in use anywhere
-// in the app — no font-normal/font-light to account for.
+// font-weight, so every page hand-picked font-medium/semibold/bold ad hoc, field
+// by field (2026-08-30 UI-consistency audit). Piloted on app/employees/page.tsx
+// first (same discipline as STATUS_TONE's rollout — one page, explicit sign-off,
+// then the rest), then rolled out across every app/**/page.tsx via an AST-based
+// codemod once approved — 1180 occurrences across 49 files, all converted to the
+// identical resolved string (this token adds a name, not a behavior change).
+// Only 3 weights were ever found in use anywhere in the app — no font-normal/
+// font-light to account for. Two standalone pages with no design-system
+// dependency at all (app/auth/callback, app/auth/set-password — no useTheme(),
+// no AppShell, intentionally isolated auth-flow chrome) were left on raw
+// Tailwind literals rather than adding a first-time design-system import just
+// for this. Still NOT adopted inside shared components in components.tsx/
+// primitives.tsx — those are cross-page internals, a separate, larger change.
 export const TYPE_WEIGHT = {
   medium: 'font-medium',     // secondary emphasis — badge labels, InfoRow values, filter labels
   semibold: 'font-semibold', // primary emphasis — card/row titles, section headers
