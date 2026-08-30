@@ -1,8 +1,12 @@
 # Runs the frontend checks on every push/PR to main: type-check, unit tests, and the
 # Playwright smoke suite (e2e/smoke.mjs — loads every real page with /api/** mocked,
-# fails on console errors/hydration issues). Nothing here deploys anything (Vercel
-# deploys on push to main independently) — this only answers "did this change break
-# something," automatically.
+# fails on console errors/hydration issues). The `deploy` job (below, push-to-main only)
+# then gates the actual Vercel production deploy on all of that passing — see its own
+# comment for how, and for the one-time dashboard setup this needs (a Deploy Hook +
+# turning off Vercel's own auto-deploy) that isn't expressible in this file. Mirrors
+# Render's native "Auto-Deploy → After CI Checks Pass" toggle for the backend, which
+# Vercel has no dashboard equivalent of — this workflow-based Deploy Hook is the
+# equivalent mechanism (2026-08-30).
 #
 # The smoke suite runs against `next build && next start` (a production build), not
 # `next dev` — dev mode's first-hit-per-route Turbopack compile is measurably slower,
@@ -109,3 +113,39 @@ jobs:
             playwright-report/
             test-results/
           retention-days: 14
+
+  # Gates the actual Vercel production deploy on `check` passing, instead of Vercel's
+  # own Git integration deploying immediately on every push regardless of CI. Vercel has
+  # no dashboard toggle for this (unlike Render's "Auto-Deploy → After CI Checks Pass"
+  # used for the backend) — a Deploy Hook is the standard workaround: a project-specific
+  # secret URL that triggers a deploy when POSTed to, with nothing else needed from this
+  # workflow's side.
+  #
+  # One-time manual setup (not expressible in this file — dashboard-only steps):
+  #   1. Vercel dashboard -> this project -> Settings -> Git -> Deploy Hooks -> create one
+  #      named e.g. "github-ci-gate" targeting the `main` branch. Copy the URL it gives you.
+  #   2. Vercel dashboard -> Settings -> Git -> under "Ignored Build Step" (or the
+  #      project's Git integration settings), turn OFF automatic deployments for `main`
+  #      (keep Preview deployments on other branches/PRs on, if wanted — those are a
+  #      separate, lower-stakes concern from gating production). Skipping this step means
+  #      Vercel keeps deploying on every push AS WELL AS this job — the gate does nothing.
+  #   3. GitHub repo -> Settings -> Secrets and variables -> Actions -> New repository
+  #      secret named VERCEL_DEPLOY_HOOK_URL, value = the URL from step 1.
+  # Once all three are done, a push to main only reaches production after `check` passes.
+  deploy:
+    needs: check
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Vercel production deploy
+        run: |
+          if [ -z "${{ secrets.VERCEL_DEPLOY_HOOK_URL }}" ]; then
+            echo "VERCEL_DEPLOY_HOOK_URL secret not set yet — skipping (see the one-time setup steps in this job's comment). Vercel's own Git integration is still deploying independently until that secret exists and its auto-deploy is turned off."
+            exit 0
+          fi
+          code=$(curl -s -o /dev/null -w "%{http_code}" -X POST "${{ secrets.VERCEL_DEPLOY_HOOK_URL }}")
+          if [ "$code" -ge 200 ] && [ "$code" -lt 300 ]; then
+            echo "Deploy hook triggered ($code)"
+          else
+            echo "Deploy hook call failed (HTTP $code)" && exit 1
+          fi
