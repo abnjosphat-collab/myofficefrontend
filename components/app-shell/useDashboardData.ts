@@ -70,6 +70,93 @@ async function safeJson(url: string): Promise<any> {
   }
 }
 
+interface DashboardLoadResult { stats: DashboardStats; activity: ActivityItem[] }
+
+// This hook has 5 independent call sites (app/page.tsx twice, BottomBar,
+// SidebarNavigation, useNotifications) — the last three all live inside AppShell,
+// which wraps every page, so EVERY page load used to fire this same 6-endpoint
+// Promise.all batch 3 times over, simultaneously, tripling load on those endpoints
+// on every navigation (confirmed live via network logging on /equipment: the same 6
+// URLs firing 3x). `_inflight` dedupes any calls that overlap in time — same fix
+// shape as hooks/useLookups.ts's in-flight-promise sharing — so 3 components
+// mounting together in the same AppShell render share one fetch instead of firing
+// their own. Deliberately NOT a persistent result cache like useLookups.ts's
+// employee/equipment lists: dashboard KPIs (open breakdowns, active work orders)
+// are time-sensitive, so `_inflight` clears the moment it settles and the next
+// separate page visit fetches fresh data again — this only kills duplicate
+// simultaneous requests, not staleness.
+let _inflight: Promise<DashboardLoadResult> | null = null;
+
+async function loadDashboardData(): Promise<DashboardLoadResult> {
+  const [employees, woStats, equipment, breakdownOverview, workOrders, breakdowns] = await Promise.all([
+    safeJson(`${API_BASE}/api/employees`),
+    safeJson(`${API_BASE}/api/maintenance/work-orders/stats/summary`),
+    safeJson(`${API_BASE}/api/equipment`),
+    safeJson(`${API_BASE}/api/breakdowns/dashboard/overview`),
+    // Only the newest 6 are ever shown (sliced below) — no reason to pull
+    // the entire table over the wire on every page load.
+    safeJson(`${API_BASE}/api/maintenance/work-orders?limit=6`),
+    safeJson(`${API_BASE}/api/breakdowns/get-breakdowns?limit=6`),
+  ]);
+
+  const employeeCount = Array.isArray(employees) ? employees.length : null;
+
+  const activeWorkOrders = woStats
+    ? (woStats.pending ?? 0) + (woStats.in_progress ?? 0)
+    : null;
+
+  // Equipment status vocabulary in the DB is inconsistent ("operational" is what's
+  // actually seeded, though the API model default is "Available") — match either.
+  let equipmentAvailablePct: number | null = null;
+  if (Array.isArray(equipment) && equipment.length > 0) {
+    const available = equipment.filter((e: any) => {
+      const s = (e.status || '').toLowerCase();
+      return s === 'available' || s === 'operational';
+    }).length;
+    equipmentAvailablePct = Math.round((available / equipment.length) * 100);
+  }
+
+  const openBreakdowns = breakdownOverview?.metrics?.open_breakdowns ?? null;
+
+  // Activity feed: merge the newest work orders + breakdowns into one timeline.
+  const woItems: ActivityItem[] = Array.isArray(workOrders)
+    ? workOrders.slice(0, 6).map((w: any) => ({
+      id: `wo-${w.id}`,
+      action: `Work order ${w.work_order_number ? `#${w.work_order_number}` : ''} — ${w.job_request_details || 'raised'}`.slice(0, 80),
+      module: 'Maintenance',
+      icon: ClipboardPlus,
+      time: timeAgo(w.created_at || w.date_raised),
+      timestamp: new Date(w.created_at || w.date_raised || 0).getTime(),
+      status: w.status === 'pending' ? 'pending' : 'normal',
+      user: w.requested_by,
+    }))
+    : [];
+
+  const breakdownRecords = breakdowns?.data ?? (Array.isArray(breakdowns) ? breakdowns : []);
+  const bdItems: ActivityItem[] = Array.isArray(breakdownRecords)
+    ? breakdownRecords.slice(0, 6).map((b: any) => ({
+      id: `bd-${b.id}`,
+      action: `Breakdown reported — ${b.machine_name || b.machine_id || 'equipment'}`,
+      module: 'Breakdowns',
+      icon: AlertTriangle,
+      time: timeAgo(b.created_at || b.breakdown_date),
+      timestamp: new Date(b.created_at || b.breakdown_date || 0).getTime(),
+      status: (b.priority === 'critical' || b.priority === 'high') ? 'critical' : 'normal',
+      user: b.artisan_name,
+    }))
+    : [];
+
+  const activity = [...woItems, ...bdItems]
+    .filter(i => i.timestamp > 0)
+    .sort((a, b) => b.timestamp - a.timestamp)
+    .slice(0, 8);
+
+  return {
+    stats: { employeeCount, activeWorkOrders, equipmentAvailablePct, openBreakdowns },
+    activity,
+  };
+}
+
 export function useDashboardData() {
   const [stats, setStats] = useState<DashboardStats>(EMPTY_STATS);
   const [activity, setActivity] = useState<ActivityItem[]>([]);
@@ -78,78 +165,21 @@ export function useDashboardData() {
   useEffect(() => {
     let cancelled = false;
 
-    async function load() {
-      const [employees, woStats, equipment, breakdownOverview, workOrders, breakdowns] = await Promise.all([
-        safeJson(`${API_BASE}/api/employees`),
-        safeJson(`${API_BASE}/api/maintenance/work-orders/stats/summary`),
-        safeJson(`${API_BASE}/api/equipment`),
-        safeJson(`${API_BASE}/api/breakdowns/dashboard/overview`),
-        // Only the newest 6 are ever shown (sliced below) — no reason to pull
-        // the entire table over the wire on every page load.
-        safeJson(`${API_BASE}/api/maintenance/work-orders?limit=6`),
-        safeJson(`${API_BASE}/api/breakdowns/get-breakdowns?limit=6`),
-      ]);
-      if (cancelled) return;
-
-      const employeeCount = Array.isArray(employees) ? employees.length : null;
-
-      const activeWorkOrders = woStats
-        ? (woStats.pending ?? 0) + (woStats.in_progress ?? 0)
-        : null;
-
-      // Equipment status vocabulary in the DB is inconsistent ("operational" is what's
-      // actually seeded, though the API model default is "Available") — match either.
-      let equipmentAvailablePct: number | null = null;
-      if (Array.isArray(equipment) && equipment.length > 0) {
-        const available = equipment.filter((e: any) => {
-          const s = (e.status || '').toLowerCase();
-          return s === 'available' || s === 'operational';
-        }).length;
-        equipmentAvailablePct = Math.round((available / equipment.length) * 100);
-      }
-
-      const openBreakdowns = breakdownOverview?.metrics?.open_breakdowns ?? null;
-
-      setStats({ employeeCount, activeWorkOrders, equipmentAvailablePct, openBreakdowns });
-
-      // Activity feed: merge the newest work orders + breakdowns into one timeline.
-      const woItems: ActivityItem[] = Array.isArray(workOrders)
-        ? workOrders.slice(0, 6).map((w: any) => ({
-          id: `wo-${w.id}`,
-          action: `Work order ${w.work_order_number ? `#${w.work_order_number}` : ''} — ${w.job_request_details || 'raised'}`.slice(0, 80),
-          module: 'Maintenance',
-          icon: ClipboardPlus,
-          time: timeAgo(w.created_at || w.date_raised),
-          timestamp: new Date(w.created_at || w.date_raised || 0).getTime(),
-          status: w.status === 'pending' ? 'pending' : 'normal',
-          user: w.requested_by,
-        }))
-        : [];
-
-      const breakdownRecords = breakdowns?.data ?? (Array.isArray(breakdowns) ? breakdowns : []);
-      const bdItems: ActivityItem[] = Array.isArray(breakdownRecords)
-        ? breakdownRecords.slice(0, 6).map((b: any) => ({
-          id: `bd-${b.id}`,
-          action: `Breakdown reported — ${b.machine_name || b.machine_id || 'equipment'}`,
-          module: 'Breakdowns',
-          icon: AlertTriangle,
-          time: timeAgo(b.created_at || b.breakdown_date),
-          timestamp: new Date(b.created_at || b.breakdown_date || 0).getTime(),
-          status: (b.priority === 'critical' || b.priority === 'high') ? 'critical' : 'normal',
-          user: b.artisan_name,
-        }))
-        : [];
-
-      const merged = [...woItems, ...bdItems]
-        .filter(i => i.timestamp > 0)
-        .sort((a, b) => b.timestamp - a.timestamp)
-        .slice(0, 8);
-
-      setActivity(merged);
-      setLoading(false);
+    let p = _inflight;
+    if (!p) {
+      p = loadDashboardData();
+      _inflight = p;
+      // Clear once settled (success or failure) so the NEXT page visit gets fresh
+      // data — this dedupes simultaneous mounts, it doesn't cache results.
+      p.finally(() => { if (_inflight === p) _inflight = null; });
     }
+    p.then((result) => {
+      if (cancelled) return;
+      setStats(result.stats);
+      setActivity(result.activity);
+      setLoading(false);
+    });
 
-    load();
     return () => { cancelled = true; };
   }, []);
 
