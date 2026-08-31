@@ -1,7 +1,7 @@
 // app/leave-management/page.tsx
 'use client';
 
-import React, { useState, useEffect, ElementType } from 'react';
+import React, { useState, ElementType } from 'react';
 import {
   Calendar, Plus, Trash2, History, Users, User, Download, Upload,
   CheckCircle, XCircle,
@@ -138,15 +138,13 @@ function Panel({ icon: Icon, title, children, actions }: { icon: ElementType; ti
 function LeaveManagementContent() {
   const t = useTheme();
   const sections = useCollapseSection({ hero: true });
-  const [requests, setRequests] = useState<LeaveRequest[]>([]);
-  const [teamStats, setTeamStats] = useState<TeamLeaveStat[]>([]);
+  const [requests, setRequests] = useState<LeaveRequest[]>(SAMPLE_REQUESTS);
+  const [teamStats, setTeamStats] = useState<TeamLeaveStat[]>(SAMPLE_STATS);
   const [filters, setFilters] = useState<Filters>({ status: 'all', type: 'all', department: 'all' });
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const [search, setSearch] = useState('');
   const [newReq, setNewReq] = useState<NewLeaveRequest>(EMPTY_NEW);
   const [tab, setTab] = useState<'new-request' | 'requests' | 'team' | 'history'>('new-request');
-
-  useEffect(() => { setRequests(SAMPLE_REQUESTS); setTeamStats(SAMPLE_STATS); }, []);
 
   const set = (k: keyof NewLeaveRequest, v: string | number) =>
     setNewReq(p => {

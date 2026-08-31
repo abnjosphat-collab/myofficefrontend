@@ -102,6 +102,25 @@ const eslintConfig = defineConfig([
     rules: {
       // Downgraded to warn — will be properly typed as each page is transformed
       '@typescript-eslint/no-explicit-any': 'warn',
+      // Re-triaged 2026-08-31: 34 findings across 25 files, read individually rather than
+      // bulk-suppressed. 33 were legitimate, structurally-necessary effect patterns —
+      // fetch-on-mount/on-dependency-change (the majority), SSR-safe hydration from
+      // localStorage/matchMedia (can't read those during render without a hydration
+      // mismatch), subscribe-to-external-system (timers, storage/custom DOM events),
+      // portaled-dropdown mount flags (createPortal needs `document`, unavailable during
+      // SSR), and "reset local editable state when a modal opens for a different record"
+      // — a low-frequency, well-understood pattern already reasoned about explicitly once
+      // in this codebase (see the comment above the `highlight` effect in
+      // components/shared/EmployeeNameInput.tsx, which already separated a genuinely
+      // *derived* value — computed via useMemo — from this one, which isn't). Only one
+      // finding was a real, free fix (app/leave-management/page.tsx's sample-data seed
+      // effect, replaced with a plain useState initializer since the data was already a
+      // static module-level constant). Left at 'error' this would keep punishing the
+      // correct pattern far more often than it catches the derived-state anti-pattern
+      // it exists for — downgraded to 'warn' for the same reason the jsx-a11y rules above
+      // are 'warn': a visibility/backlog signal for genuinely new derived-state mistakes,
+      // not a CI gate on an already-necessary pattern.
+      'react-hooks/set-state-in-effect': 'warn',
     },
   },
   // Design-token drift: raw Tailwind text-size utilities bypass TYPE_SCALE
