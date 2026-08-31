@@ -110,6 +110,7 @@ export function TopNavigation({
                 type="text"
                 autoComplete="off"
                 name="module-search"
+                aria-label="Search modules, employees, documents"
                 placeholder="Search modules, employees, documents…"
                 value={searchQuery}
                 onChange={(e) => onSearchChange(e.target.value)}
@@ -247,7 +248,7 @@ export function TopNavigation({
             <AnimatePresence>
               {notifOpen && (
                 <>
-                  <div className="fixed inset-0 z-10" onClick={() => setNotifOpen(false)} />
+                  <button type="button" aria-label="Close notifications panel" className="fixed inset-0 z-10 cursor-default" onClick={() => setNotifOpen(false)} />
                   <motion.div
                     initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
                     transition={{ duration: 0.2 }}
@@ -292,9 +293,9 @@ export function TopNavigation({
             <Search className={`absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 ${t.textFaint} pointer-events-none`} />
             <input
               type="text"
-              autoFocus
               autoComplete="off"
               name="module-search-mobile"
+              aria-label="Search modules"
               placeholder="Search modules…"
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}

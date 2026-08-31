@@ -45,7 +45,7 @@ function ListRow({ item, onRename, onDelete }: { item: LookupValue; onRename: (i
     <div className={`flex items-center gap-2 px-3 py-2 rounded-lg ${t.chipBg}`}>
       {editing ? (
         <>
-          <input autoFocus value={draft} onChange={e => setDraft(e.target.value)}
+          <input aria-label="Rename value" value={draft} onChange={e => setDraft(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') save(); if (e.key === 'Escape') { setEditing(false); setDraft(item.value); } }}
             className={`flex-1 h-8 px-2 rounded-md text-sm ${t.inputBg} focus:outline-none`} />
           <button type="button" title="Save" onClick={save} disabled={saving} className="h-7 w-7 flex items-center justify-center rounded-md bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/25 disabled:opacity-50">
@@ -184,7 +184,7 @@ function AdminListsContent() {
           <div className="flex gap-2">
             <input value={newValue} onChange={e => setNewValue(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') handleAdd(); }}
-              placeholder="Add a new value…" className={`flex-1 h-9 px-3 rounded-lg text-sm ${t.inputBg} focus:outline-none`} />
+              placeholder="Add a new value…" aria-label="New value" className={`flex-1 h-9 px-3 rounded-lg text-sm ${t.inputBg} focus:outline-none`} />
             <button type="button" onClick={handleAdd} disabled={adding || !newValue.trim()}
               className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 disabled:opacity-50 transition-all`}>
               {adding ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />} Add

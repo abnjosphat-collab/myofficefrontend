@@ -580,9 +580,9 @@ function BulkAssignDialog({ initialEmployee, allEmployees, period, timesheets, o
           )}
 
           <div className="flex flex-wrap items-center gap-4">
-            <label className={`flex items-center gap-2 text-sm cursor-pointer select-none ${t.textMuted}`}><input type="checkbox" checked={skipWeekends} onChange={e => setSkipWeekends(e.target.checked)} className="rounded" /> Skip weekends</label>
-            <label className={`flex items-center gap-2 text-sm cursor-pointer select-none ${t.textMuted}`}><input type="checkbox" checked={standby} onChange={e => setStandby(e.target.checked)} className="rounded" /> Standby (flat 8h OT for the period)</label>
-            <label className={`flex items-center gap-2 text-sm cursor-pointer select-none ${t.textMuted}`}><input type="checkbox" checked={nightAllowance} onChange={e => setNightAllowance(e.target.checked)} className="rounded" /> Night Shift Allowance (actual 18:00–06:00 hours, not flat)</label>
+            <label htmlFor="ts-skip-weekends" className={`flex items-center gap-2 text-sm cursor-pointer select-none ${t.textMuted}`}><input id="ts-skip-weekends" aria-label="Skip weekends" type="checkbox" checked={skipWeekends} onChange={e => setSkipWeekends(e.target.checked)} className="rounded" /> Skip weekends</label>
+            <label htmlFor="ts-standby" className={`flex items-center gap-2 text-sm cursor-pointer select-none ${t.textMuted}`}><input id="ts-standby" aria-label="Standby (flat 8h OT for the period)" type="checkbox" checked={standby} onChange={e => setStandby(e.target.checked)} className="rounded" /> Standby (flat 8h OT for the period)</label>
+            <label htmlFor="ts-night-allowance" className={`flex items-center gap-2 text-sm cursor-pointer select-none ${t.textMuted}`}><input id="ts-night-allowance" aria-label="Night Shift Allowance (actual 18:00–06:00 hours, not flat)" type="checkbox" checked={nightAllowance} onChange={e => setNightAllowance(e.target.checked)} className="rounded" /> Night Shift Allowance (actual 18:00–06:00 hours, not flat)</label>
           </div>
 
           <div className="space-y-2">
@@ -1687,7 +1687,7 @@ function TimesheetsContent() {
         <SectionHeader icon={LayoutGrid} title={`${activeTab === 'salaried' ? 'Salaried' : 'NEC'} Timesheet Grid`} sub={`${tabEmployees.length} employees`} open={showGrid} onToggle={() => setShowGrid(v => !v)}>
           <div className="relative">
             <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 ${t.textFaint}`} />
-            <input placeholder="Search…" className={`${t.inputBg} rounded-lg text-xs pl-7 pr-3 py-1 h-7 w-36 outline-none`} value={search} onChange={e => setSearch(e.target.value)} />
+            <input aria-label="Search employees" placeholder="Search…" className={`${t.inputBg} rounded-lg text-xs pl-7 pr-3 py-1 h-7 w-36 outline-none`} value={search} onChange={e => setSearch(e.target.value)} />
           </div>
           <button type="button" title={`Sort: ${sortBy === 'name' ? 'A–Z name' : 'Department'}`} onClick={() => setSortBy(s => s === 'name' ? 'dept' : 'name')}
             className={`flex items-center gap-1 text-[10px] px-2 py-1 rounded-md ${t.chipBg} ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all`}>
@@ -1716,11 +1716,9 @@ function TimesheetsContent() {
             <div className="px-5 py-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {tabEmployees.map(emp => (
                 <div key={emp.id} className="space-y-1">
-                  <label className={`text-[10px] ${TYPE_WEIGHT.medium} flex items-center gap-1.5 ${t.textFaint}`}>
-                    <User className="h-3.5 w-3.5 shrink-0 text-brand-400" />
-                    {emp.name}
-                  </label>
-                  <PredictiveInput historyKey="timesheets_period_note" multiline rows={2}
+                  <PredictiveInput
+                    historyKey="timesheets_period_note" multiline rows={2}
+                    label={<span className={`text-[10px] flex items-center gap-1.5 ${TYPE_WEIGHT.medium}`}><User className="h-3.5 w-3.5 shrink-0 text-brand-400" />{emp.name}</span>}
                     placeholder={`Notes for ${emp.name.split(' ')[0]}…`} value={empNotes[emp.id] || ''} onChange={v => updateEmpNote(emp.id, v)}
                     inputClassName={`${t.inputBg} text-xs px-2.5 py-1.5`} />
                 </div>

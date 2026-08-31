@@ -276,7 +276,7 @@ function ScheduleEventModal({ assignment, prefillDate, onSave, onClose, saving }
           </div>
         )}
 
-        <FormField label="Note / Reason"><input className={inputCls} value={form.note} onChange={e => sf('note')(e.target.value)} placeholder="e.g. Family vacation, covering for colleague…" /></FormField>
+        <FormField label="Note / Reason"><input aria-label="Note / Reason" className={inputCls} value={form.note} onChange={e => sf('note')(e.target.value)} placeholder="e.g. Family vacation, covering for colleague…" /></FormField>
 
         {allEvents.length > 0 && (
           <div>
@@ -526,11 +526,11 @@ function ShiftCard({ assignment, onView, onEdit, onDelete }: { assignment: Shift
               <div className={`text-xs truncate ${t.textFaint}`}>{assignment.designation || assignment.department || assignment.employee_id}</div>
             </div>
           </div>
-          <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
+          <div className="flex items-center gap-1.5 shrink-0">
             <DayStatusBadge status={status} />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button type="button" aria-label="More options" className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText} transition-all`}><MoreVertical className="h-3.5 w-3.5" /></button>
+                <button type="button" aria-label="More options" onClick={e => e.stopPropagation()} className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText} transition-all`}><MoreVertical className="h-3.5 w-3.5" /></button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => onView(assignment)}><Eye className="h-3.5 w-3.5" /> View Details</DropdownMenuItem>
@@ -765,10 +765,10 @@ function ShiftAssignForm({ open, onClose, editing, employees, onSaved }: { open:
               </Popover>
             </FormField>
             <div className="grid grid-cols-2 gap-3">
-              <FormField label="Employee ID"><input className={inputCls} value={form.employee_id} onChange={setField('employee_id')} placeholder="C1234" /></FormField>
-              <FormField label="Phone"><input className={inputCls} value={form.phone} onChange={setField('phone')} placeholder="+263…" /></FormField>
-              <FormField label="Designation"><input className={inputCls} value={form.designation} onChange={setField('designation')} placeholder="Engineer" /></FormField>
-              <FormField label="Department"><input className={inputCls} value={form.department} onChange={setField('department')} placeholder="Operations" /></FormField>
+              <FormField label="Employee ID"><input aria-label="Employee ID" className={inputCls} value={form.employee_id} onChange={setField('employee_id')} placeholder="C1234" /></FormField>
+              <FormField label="Phone"><input aria-label="Phone" className={inputCls} value={form.phone} onChange={setField('phone')} placeholder="+263…" /></FormField>
+              <FormField label="Designation"><input aria-label="Designation" className={inputCls} value={form.designation} onChange={setField('designation')} placeholder="Engineer" /></FormField>
+              <FormField label="Department"><input aria-label="Department" className={inputCls} value={form.department} onChange={setField('department')} placeholder="Operations" /></FormField>
             </div>
           </div>
         </div>
@@ -869,7 +869,7 @@ function ShiftAssignForm({ open, onClose, editing, employees, onSaved }: { open:
           </div>
         )}
 
-        <FormField label="Notes"><textarea rows={2} className={inputCls} value={form.notes} onChange={setField('notes')} placeholder="Optional notes…" /></FormField>
+        <FormField label="Notes"><textarea aria-label="Notes" rows={2} className={inputCls} value={form.notes} onChange={setField('notes')} placeholder="Optional notes…" /></FormField>
 
         <div className="flex gap-2 pt-1">
           <button type="button" onClick={onClose} className={`flex-1 px-4 py-2.5 rounded-xl text-sm ${TYPE_WEIGHT.medium} ${t.textMuted} border ${t.border} ${t.hoverBg} transition-all`}>Cancel</button>
@@ -1023,14 +1023,14 @@ function ShiftsContent() {
               {assignments.length === 0 ? <p className={`py-8 text-center text-sm ${t.textFaint}`}>No assignments yet</p> : assignments.slice(0, 20).map(a => {
                 const s = todayStatus(a);
                 return (
-                  <div key={a.id} className={`flex items-center gap-3 p-3 rounded-lg ${t.hoverBgSoft} cursor-pointer transition-all`} onClick={() => openView(a)}>
+                  <button type="button" key={a.id} className={`w-full flex items-center gap-3 p-3 rounded-lg text-left ${t.hoverBgSoft} cursor-pointer transition-all`} onClick={() => openView(a)}>
                     <Avatar name={a.employee_name} />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1"><span className={`text-sm ${TYPE_WEIGHT.medium} truncate ${t.textPrimary}`}>{a.employee_name}</span><DayStatusBadge status={s} /></div>
                       <ProgressBar value={cycleProgress(a)} color={getShiftPattern(a.shift_type).color} showValue={false} />
                     </div>
                     <ShiftTypeBadge type={a.shift_type} />
-                  </div>
+                  </button>
                 );
               })}
             </div>
@@ -1092,7 +1092,7 @@ function ShiftsContent() {
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className={`border-b ${t.border}`}><tr><th className={thCls}>Employee</th><th className={thCls}>Pattern</th><th className={thCls}>Today</th><th className={thCls}>Cycle Start</th><th className={thCls}>Department</th><th className={thCls}></th></tr></thead>
+                <thead className={`border-b ${t.border}`}><tr><th className={thCls}>Employee</th><th className={thCls}>Pattern</th><th className={thCls}>Today</th><th className={thCls}>Cycle Start</th><th className={thCls}>Department</th><th className={thCls}><span className="sr-only">Actions</span></th></tr></thead>
                 <tbody>
                   {filtered.map(a => (
                     <tr key={a.id} className={`cursor-pointer border-b ${t.border} ${t.hoverBgSoft} transition-colors`} onClick={() => openView(a)}>
@@ -1101,9 +1101,9 @@ function ShiftsContent() {
                       <td className="px-3 py-2.5"><DayStatusBadge status={todayStatus(a)} /></td>
                       <td className={`px-3 py-2.5 text-sm ${t.textFaint}`}>{fmtDate(a.cycle_start_date)}</td>
                       <td className={`px-3 py-2.5 text-sm ${t.textFaint}`}>{a.department || '—'}</td>
-                      <td className="px-3 py-2.5" onClick={e => e.stopPropagation()}>
+                      <td className="px-3 py-2.5" aria-label="Actions">
                         <DropdownMenu>
-                          <DropdownMenuTrigger asChild><button type="button" aria-label="More options" className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.textFaint} ${t.hoverText} ${t.hoverBg} transition-all`}><MoreVertical className="h-3.5 w-3.5" /></button></DropdownMenuTrigger>
+                          <DropdownMenuTrigger asChild><button type="button" aria-label="More options" onClick={e => e.stopPropagation()} className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.textFaint} ${t.hoverText} ${t.hoverBg} transition-all`}><MoreVertical className="h-3.5 w-3.5" /></button></DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => openView(a)}><Eye className="h-3.5 w-3.5" /> View</DropdownMenuItem>
                             <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => openEdit(a)}><Pencil className="h-3.5 w-3.5" /> Edit</DropdownMenuItem>

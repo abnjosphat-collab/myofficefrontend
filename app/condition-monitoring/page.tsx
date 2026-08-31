@@ -96,16 +96,16 @@ function ConditionMonitoringContent() {
               <SelectField size="form" title="Type" value={form.type} onChange={v => setForm(f => ({ ...f, type: v as CMType }))}
                 options={CM_TYPES.map(ty => ({ value: ty, label: ty }))} />
             </FormField>
-            <FormField label="Date"><input type="date" title="Date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} className={inputCls} /></FormField>
-            <FormField label="Value"><input placeholder="Value" value={form.value} onChange={e => setForm(f => ({ ...f, value: e.target.value }))} className={inputCls} /></FormField>
-            <FormField label="Unit"><input placeholder="Unit" value={form.unit} onChange={e => setForm(f => ({ ...f, unit: e.target.value }))} className={inputCls} /></FormField>
+            <FormField label="Date"><input type="date" title="Date" aria-label="Date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} className={inputCls} /></FormField>
+            <FormField label="Value"><input placeholder="Value" aria-label="Value" value={form.value} onChange={e => setForm(f => ({ ...f, value: e.target.value }))} className={inputCls} /></FormField>
+            <FormField label="Unit"><input placeholder="Unit" aria-label="Unit" value={form.unit} onChange={e => setForm(f => ({ ...f, unit: e.target.value }))} className={inputCls} /></FormField>
             <FormField label="Result">
               <SelectField size="form" title="Result" value={form.result} onChange={v => setForm(f => ({ ...f, result: v as CMResult }))}
                 options={(['normal', 'caution', 'critical'] as CMResult[]).map(r => ({ value: r, label: r }))} />
             </FormField>
-            <FormField label="Technician"><input placeholder="Technician" value={form.technician} onChange={e => setForm(f => ({ ...f, technician: e.target.value }))} className={inputCls} /></FormField>
+            <FormField label="Technician"><input placeholder="Technician" aria-label="Technician" value={form.technician} onChange={e => setForm(f => ({ ...f, technician: e.target.value }))} className={inputCls} /></FormField>
           </div>
-          <FormField label="Notes"><textarea rows={2} placeholder="Notes..." value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} className={`${inputCls} resize-none mb-3`} /></FormField>
+          <FormField label="Notes"><textarea rows={2} placeholder="Notes..." aria-label="Notes" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} className={`${inputCls} resize-none mb-3`} /></FormField>
           <PrimaryButton onClick={submit}>Save Reading</PrimaryButton>
         </div>
       )}

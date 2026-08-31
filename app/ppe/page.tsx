@@ -135,6 +135,7 @@ function EmployeeAutocomplete({ value, onChange, options, placeholder, onSelect,
   return (
     <div className="relative">
       <input type="text" value={q} placeholder={placeholder}
+        aria-label={display === 'name' ? 'Employee Name' : 'Employee ID'}
         className={`${t.inputBg} rounded-lg text-sm px-3 py-2 w-full transition-all focus:outline-none`}
         onChange={e => { setQ(e.target.value); onChange(e.target.value); setOpen(true); setHighlight(0); }}
         onFocus={() => setOpen(true)}
@@ -187,6 +188,7 @@ function IssuedByInput({ value, onChange, employees }: IssuedByInputProps) {
   return (
     <div className="relative">
       <input type="text" value={q} placeholder="Type a name or pick from employees…"
+        aria-label="Issued By"
         className={`${t.inputBg} rounded-lg text-sm px-3 py-2 w-full transition-all focus:outline-none`}
         onChange={e => { setQ(e.target.value); onChange(e.target.value); setOpen(true); }}
         onFocus={() => setOpen(true)}
@@ -594,12 +596,12 @@ function PPEIssueForm({ isOpen, onClose, onSubmit, initialData, employee, allEmp
             <div className="grid grid-cols-3 gap-3">
               <FormField label="Issue Date" required>
                 <input type="date" value={form.issue_date} onChange={e => set('issue_date', e.target.value)}
-                  title="Issue date" className={inputCls} style={{ colorScheme: t.light ? 'light' : 'dark' }} />
+                  title="Issue date" aria-label="Issue Date" className={inputCls} style={{ colorScheme: t.light ? 'light' : 'dark' }} />
               </FormField>
               <FormField label={expiryTouched ? 'Expiry Date' : matrix[form.ppe_type] === 0 ? 'Expiry Date · no expiry' : `Expiry Date · auto (${matrix[form.ppe_type] || '—'}mo)`}>
                 <input type="date" value={form.expiry_date}
                   onChange={e => { setExpiryTouched(true); set('expiry_date', e.target.value); }}
-                  title="Expiry date — auto-calculated from the matrix; edit to override" className={inputCls} style={{ colorScheme: t.light ? 'light' : 'dark' }} />
+                  title="Expiry date — auto-calculated from the matrix; edit to override" aria-label="Expiry Date" className={inputCls} style={{ colorScheme: t.light ? 'light' : 'dark' }} />
               </FormField>
               <FormField label="Location">
                 <ListAutocomplete listName="location" value={form.location} onChange={v => set('location', v as any)} />
@@ -608,7 +610,7 @@ function PPEIssueForm({ isOpen, onClose, onSubmit, initialData, employee, allEmp
             <div className="grid grid-cols-2 gap-3">
               <FormField label="Mine Section">
                 <input type="text" value={form.mine_section} onChange={e => set('mine_section', e.target.value)}
-                  className={inputCls} placeholder="Optional section" />
+                  aria-label="Mine Section" className={inputCls} placeholder="Optional section" />
               </FormField>
               <FormField label="Issued By">
                 <IssuedByInput value={form.issued_by} onChange={v => set('issued_by', v)} employees={allEmployees} />
@@ -618,7 +620,7 @@ function PPEIssueForm({ isOpen, onClose, onSubmit, initialData, employee, allEmp
 
           <FormField label="Notes">
             <textarea value={form.notes} onChange={e => set('notes', e.target.value)}
-              rows={2} className={`${inputCls} resize-none`} placeholder="Any additional notes…" />
+              aria-label="Notes" rows={2} className={`${inputCls} resize-none`} placeholder="Any additional notes…" />
           </FormField>
         </div>
         <FormActions onCancel={onClose} submitting={saving}
@@ -688,15 +690,15 @@ function DueItemsList({ employees, filterType, onEditItem, onDeleteItem, onViewI
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative flex-1 max-w-56">
           <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 ${t.textFaint}`} />
-          <input type="text" placeholder="Search employee or item…" value={search}
+          <input type="text" placeholder="Search employee or item…" aria-label="Search employee or item" value={search}
             onChange={e => setSearch(e.target.value)}
             className={`pl-7 pr-3 py-1.5 w-full text-xs rounded-lg ${t.inputBg} transition-all`} />
         </div>
         <SelectField size="filter" value={typeFilter} onChange={setTypeFilter} title="PPE Type filter"
           options={[{ value: 'all', label: 'All Types' }, ...Object.entries(PPE_TYPES).map(([k, pt]) => ({ value: k, label: pt.name }))]} />
         {filterType === 'due' && items.length > 0 && (
-          <label className={`flex items-center gap-1.5 text-xs ${t.textFaint} cursor-pointer ml-auto`}>
-            <input type="checkbox" checked={allSelected} onChange={toggleSelectAll} className="rounded" /> Select all
+          <label htmlFor="ppe-due-select-all" className={`flex items-center gap-1.5 text-xs ${t.textFaint} cursor-pointer ml-auto`}>
+            <input id="ppe-due-select-all" type="checkbox" checked={allSelected} onChange={toggleSelectAll} aria-label="Select all" className="rounded" /> Select all
           </label>
         )}
       </div>
@@ -723,7 +725,7 @@ function DueItemsList({ employees, filterType, onEditItem, onDeleteItem, onViewI
                 <GlowCard color={glowColor} onClick={() => onViewItem(item)} className="p-3.5 flex items-center gap-3">
                   {filterType === 'due' && (
                     <input type="checkbox" checked={selectedIds.has(String(item.id))} onChange={() => toggleSelect(String(item.id))}
-                      onClick={e => e.stopPropagation()} className="rounded shrink-0" />
+                      onClick={e => e.stopPropagation()} aria-label={`Select ${item.employee_name}'s ${item.item_name}`} className="rounded shrink-0" />
                   )}
                   <div className={`p-2 rounded-lg shrink-0 ${t.chipBg}`}><Icon className="h-4 w-4" style={{ color: ppeType.color }} /></div>
 
@@ -746,18 +748,18 @@ function DueItemsList({ employees, filterType, onEditItem, onDeleteItem, onViewI
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
+                  <div className="flex items-center gap-1 shrink-0">
                     {filterType === 'due' && (
-                      <button type="button" title="Mark as not required" onClick={() => onToggleNotRequired(item)}
+                      <button type="button" title="Mark as not required" onClick={e => { e.stopPropagation(); onToggleNotRequired(item); }}
                         className={`h-7 px-2 flex items-center justify-center rounded-lg text-[11px] ${TYPE_WEIGHT.medium} ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all`}>
                         Not required
                       </button>
                     )}
-                    <button type="button" title="Edit" onClick={() => onEditItem(item)}
+                    <button type="button" title="Edit" onClick={e => { e.stopPropagation(); onEditItem(item); }}
                       className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} hover:text-brand-500 transition-all`}>
                       <Pencil className="h-3.5 w-3.5" />
                     </button>
-                    <button type="button" title="Delete" onClick={() => onDeleteItem(item.id)}
+                    <button type="button" title="Delete" onClick={e => { e.stopPropagation(); onDeleteItem(item.id); }}
                       className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} hover:text-rose-500 transition-all`}>
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
@@ -813,6 +815,7 @@ function PPEMatrixModal({ isOpen, onClose, matrix, records, onSetInterval, onRec
                 <input type="number" min={0} max={120} value={months}
                   onChange={e => onSetInterval(key, Math.max(0, Math.min(120, parseInt(e.target.value) || 0)))}
                   title={`${info.name} — months until expiry (0 = no expiry)`}
+                  aria-label={`${info.name} — months until expiry`}
                   className={`w-16 h-8 px-2 rounded-lg text-sm text-center ${t.inputBg} focus:outline-none`} />
                 <span className={`text-[11px] ${t.textFaint} w-16`}>{months === 0 ? 'no expiry' : 'mo'}</span>
                 <button type="button" onClick={() => onRecalculate(key)} disabled={activeCount === 0}
@@ -1366,7 +1369,7 @@ export default function PPEManagement() {
             {(filterType === 'all' || filterType === 'active') && (
               <div className="relative">
                 <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 ${t.textFaint}`} />
-                <input type="text" placeholder="Search employee…" value={searchTerm}
+                <input type="text" placeholder="Search employee…" aria-label="Search employee" value={searchTerm}
                   onChange={e => setSearchTerm(e.target.value)}
                   className={`pl-7 pr-8 py-1.5 text-xs w-44 rounded-lg ${t.inputBg} transition-all`} />
                 {searchTerm && (

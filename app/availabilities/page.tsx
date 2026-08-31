@@ -329,8 +329,8 @@ function AvailabilitiesContent() {
             options={[{ value: 'all', label: 'All Departments' }, ...depts.map(d => ({ value: d, label: d }))]} />
           <SelectField size="filter" title="Category" value={catFilter} onChange={setCatFilter}
             options={[{ value: 'all', label: 'All Categories' }, ...cats.map(c => ({ value: c, label: c }))]} />
-          <FormField label="From"><input type="date" title="From date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className={`w-full ${selCls}`} /></FormField>
-          <FormField label="To"><input type="date" title="To date" value={dateTo} onChange={e => setDateTo(e.target.value)} className={`w-full ${selCls}`} /></FormField>
+          <FormField label="From"><input type="date" title="From date" aria-label="From date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className={`w-full ${selCls}`} /></FormField>
+          <FormField label="To"><input type="date" title="To date" aria-label="To date" value={dateTo} onChange={e => setDateTo(e.target.value)} className={`w-full ${selCls}`} /></FormField>
           <div className="flex items-end gap-2 sm:col-span-2">
             {periodRows.length > 0 && (
               <DownloadButton
@@ -370,7 +370,7 @@ function AvailabilitiesContent() {
                       <td className={tdCls}><span className={`${TYPE_WEIGHT.medium} ${t.textPrimary}`}>{r.name}</span></td>
                       <td className={tdCls}>{r.category}</td>
                       <td className={tdCls}>{r.department}</td>
-                      <td className={`${tdCls} text-right`}>
+                      <td className={`${tdCls} text-right`} aria-label={`Availability: ${r.pct.toFixed(1)}%`}>
                         <div className="flex items-center gap-2 justify-end">
                           <span className={`${TYPE_WEIGHT.bold} text-sm ${avColor(r.pct)}`}>{r.pct.toFixed(1)}%</span>
                           <div className="w-20"><ProgressBar value={r.pct} color={avHex(r.pct)} showValue={false} /></div>
@@ -411,7 +411,7 @@ function AvailabilitiesContent() {
                   {periodRows.map(r => (
                     <tr key={r.periodKey} className={`border-b ${t.border} ${t.hoverBgSoft} transition-colors`}>
                       <td className={tdCls}><span className={`${TYPE_WEIGHT.medium} ${t.textPrimary}`}>{r.label}</span></td>
-                      <td className={`${tdCls} text-right`}>
+                      <td className={`${tdCls} text-right`} aria-label={`Average availability: ${r.avgAvailability.toFixed(1)}%`}>
                         <div className="flex items-center gap-2 justify-end">
                           <span className={`${TYPE_WEIGHT.bold} text-sm ${avColor(r.avgAvailability)}`}>{r.avgAvailability.toFixed(1)}%</span>
                           <div className="w-20"><ProgressBar value={r.avgAvailability} color={avHex(r.avgAvailability)} showValue={false} /></div>
@@ -501,7 +501,7 @@ function AvailabilitiesContent() {
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className={`border-b ${t.border}`}>
-                  <tr><th className={thCls}>Date</th><th className={thCls}>Equipment</th><th className={`${thCls} text-right`}>Availability</th><th className={`${thCls} text-right`}>Op. Hrs</th><th className={`${thCls} text-right`}>Down. Hrs</th><th className={thCls}>Source / Notes</th><th className={thCls}></th></tr>
+                  <tr><th className={thCls}>Date</th><th className={thCls}>Equipment</th><th className={`${thCls} text-right`}>Availability</th><th className={`${thCls} text-right`}>Op. Hrs</th><th className={`${thCls} text-right`}>Down. Hrs</th><th className={thCls}>Source / Notes</th><th className={thCls} aria-label="Actions"></th></tr>
                 </thead>
                 <tbody>
                   {filtered.map(r => {
@@ -513,7 +513,7 @@ function AvailabilitiesContent() {
                       <tr key={r.id} className={`border-b ${t.border} ${t.hoverBgSoft} transition-colors`}>
                         <td className="px-3 py-2.5 text-xs font-mono text-white/80">{r.date}</td>
                         <td className={tdCls}><span className={`${TYPE_WEIGHT.medium} ${t.textPrimary}`}>{name}</span></td>
-                        <td className={`${tdCls} text-right`}>
+                        <td className={`${tdCls} text-right`} aria-label={`Availability: ${avPct.toFixed(1)}%`}>
                           <div className="flex items-center gap-2 justify-end">
                             <span className={`${TYPE_WEIGHT.bold} text-xs ${avColor(avPct)}`}>{avPct.toFixed(1)}%</span>
                             <div className="w-16"><ProgressBar value={avPct} color={avHex(avPct)} showValue={false} /></div>

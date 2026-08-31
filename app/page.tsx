@@ -242,7 +242,7 @@ function ModuleRow({
   return (
     <div className="relative">
       {selectMode ? (
-        <div onClick={onToggleSelected} style={glowVar} className={`${rowCls} cursor-pointer ${isSelected ? 'ring-1 ring-brand-400/60' : ''}`}>{inner}</div>
+        <button type="button" onClick={onToggleSelected} style={glowVar} className={`${rowCls} w-full text-left border-0 bg-transparent cursor-pointer ${isSelected ? 'ring-1 ring-brand-400/60' : ''}`}>{inner}</button>
       ) : (
         <Link href={module.href} onClick={() => trackModuleUsage(module.href)} style={glowVar} className={rowCls}>{inner}</Link>
       )}
@@ -485,6 +485,8 @@ function IntroSlides() {
             key={i}
             onClick={() => setIndex(i)}
             title={`Slide ${i + 1}`}
+            aria-label={`Go to slide ${i + 1}`}
+            aria-current={i === index}
             type="button"
             className={`h-1.5 rounded-full transition-all ${i === index ? '' : t.chipBg}`}
             style={{ width: i === index ? 16 : 6, background: i === index ? ACCENT_RGBA[slide.accent] : undefined }}

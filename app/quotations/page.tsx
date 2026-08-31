@@ -335,6 +335,7 @@ const QuotationGeneratorContent = () => {
             <div className="grid grid-cols-2 gap-2">
               {PREMIUM_THEMES.map(theme => (
                 <button key={theme.id} type="button" onClick={() => setQuotation({ ...quotation, theme: theme.id })}
+                  aria-label={`Use ${theme.name} theme`}
                   className={`p-2.5 rounded-xl border-2 transition-all text-left ${quotation.theme === theme.id ? 'border-brand-500/60 bg-brand-500/10' : `${t.border} hover:border-brand-400/40`}`}>
                   <div className="flex items-center gap-2">
                     <div className={`w-3.5 h-3.5 rounded-full shrink-0 ${theme.dotClass}`} />
@@ -347,30 +348,30 @@ const QuotationGeneratorContent = () => {
 
           <Panel id="companyDetails" title="Company Details" icon={Building} sections={sections}>
             <div className="space-y-3">
-              <FormField label="Company Name"><input value={company.name} onChange={(e) => setCompany({ ...company, name: e.target.value })} className={inputCls} /></FormField>
+              <FormField label="Company Name"><input aria-label="Company Name" value={company.name} onChange={(e) => setCompany({ ...company, name: e.target.value })} className={inputCls} /></FormField>
               <FormField label="Company Logo">
                 {company.logo && <img src={company.logo} alt="Logo" className="w-12 h-12 object-contain rounded mb-2" />}
-                <input type="file" accept="image/*" onChange={handleLogoUpload} title="Upload company logo"
+                <input type="file" accept="image/*" onChange={handleLogoUpload} title="Upload company logo" aria-label="Upload company logo"
                   className={`w-full text-xs ${t.textMuted} file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 ${t.chipBg} file:text-inherit`} />
               </FormField>
               <div className="grid grid-cols-2 gap-2">
-                <FormField label="Email"><input value={company.email} onChange={(e) => setCompany({ ...company, email: e.target.value })} className={inputCls} /></FormField>
-                <FormField label="Phone"><input value={company.phone} onChange={(e) => setCompany({ ...company, phone: e.target.value })} className={inputCls} /></FormField>
+                <FormField label="Email"><input aria-label="Company Email" value={company.email} onChange={(e) => setCompany({ ...company, email: e.target.value })} className={inputCls} /></FormField>
+                <FormField label="Phone"><input aria-label="Company Phone" value={company.phone} onChange={(e) => setCompany({ ...company, phone: e.target.value })} className={inputCls} /></FormField>
               </div>
-              <FormField label="Tagline"><input value={company.tagline} onChange={(e) => setCompany({ ...company, tagline: e.target.value })} className={inputCls} /></FormField>
+              <FormField label="Tagline"><input aria-label="Company Tagline" value={company.tagline} onChange={(e) => setCompany({ ...company, tagline: e.target.value })} className={inputCls} /></FormField>
             </div>
           </Panel>
 
           <Panel id="clientInfo" title="Client Information" icon={User} sections={sections}>
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-2">
-                <FormField label="Client Name" required><input value={client.name} onChange={(e) => setClient({ ...client, name: e.target.value })} className={inputCls} /></FormField>
-                <FormField label="Company"><input value={client.company} onChange={(e) => setClient({ ...client, company: e.target.value })} className={inputCls} /></FormField>
+                <FormField label="Client Name" required><input aria-label="Client Name" value={client.name} onChange={(e) => setClient({ ...client, name: e.target.value })} className={inputCls} /></FormField>
+                <FormField label="Company"><input aria-label="Client Company" value={client.company} onChange={(e) => setClient({ ...client, company: e.target.value })} className={inputCls} /></FormField>
               </div>
-              <FormField label="Email"><input type="email" value={client.email} onChange={(e) => setClient({ ...client, email: e.target.value })} className={inputCls} /></FormField>
+              <FormField label="Email"><input aria-label="Client Email" type="email" value={client.email} onChange={(e) => setClient({ ...client, email: e.target.value })} className={inputCls} /></FormField>
               <div className="grid grid-cols-2 gap-2">
-                <FormField label="Phone"><input value={client.phone} onChange={(e) => setClient({ ...client, phone: e.target.value })} className={inputCls} /></FormField>
-                <FormField label="Country"><input value={client.country} onChange={(e) => setClient({ ...client, country: e.target.value })} className={inputCls} /></FormField>
+                <FormField label="Phone"><input aria-label="Client Phone" value={client.phone} onChange={(e) => setClient({ ...client, phone: e.target.value })} className={inputCls} /></FormField>
+                <FormField label="Country"><input aria-label="Client Country" value={client.country} onChange={(e) => setClient({ ...client, country: e.target.value })} className={inputCls} /></FormField>
               </div>
             </div>
           </Panel>
@@ -378,15 +379,15 @@ const QuotationGeneratorContent = () => {
           <Panel id="quotationDetails" title="Quotation Details" icon={FileText} sections={sections}>
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-2">
-                <FormField label="Quotation #"><input value={quotation.quotationNumber} onChange={(e) => setQuotation({ ...quotation, quotationNumber: e.target.value })} className={inputCls} /></FormField>
+                <FormField label="Quotation #"><input aria-label="Quotation Number" value={quotation.quotationNumber} onChange={(e) => setQuotation({ ...quotation, quotationNumber: e.target.value })} className={inputCls} /></FormField>
                 <FormField label="Currency">
                   <SelectField size="form" title="Currency" value={quotation.currency} onChange={v => setQuotation({ ...quotation, currency: v })}
                     options={CURRENCIES.map(c => ({ value: c.code, label: `${c.code} (${c.symbol})` }))} />
                 </FormField>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <FormField label="Tax Rate (%)"><input type="number" value={quotation.taxRate} onChange={(e) => setQuotation({ ...quotation, taxRate: parseFloat(e.target.value) || 0 })} className={inputCls} /></FormField>
-                <FormField label="Discount (%)"><input type="number" value={quotation.discount} onChange={(e) => setQuotation({ ...quotation, discount: parseFloat(e.target.value) || 0 })} className={inputCls} /></FormField>
+                <FormField label="Tax Rate (%)"><input aria-label="Tax Rate" type="number" value={quotation.taxRate} onChange={(e) => setQuotation({ ...quotation, taxRate: parseFloat(e.target.value) || 0 })} className={inputCls} /></FormField>
+                <FormField label="Discount (%)"><input aria-label="Discount" type="number" value={quotation.discount} onChange={(e) => setQuotation({ ...quotation, discount: parseFloat(e.target.value) || 0 })} className={inputCls} /></FormField>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <FormField label="Payment Terms">
@@ -500,11 +501,11 @@ const QuotationGeneratorContent = () => {
                   <div className="col-span-1 flex items-end justify-center pb-1">
                     <div className={`w-7 h-7 bg-brand-500/20 rounded-lg flex items-center justify-center text-brand-500 ${TYPE_WEIGHT.semibold} text-xs`}>{index + 1}</div>
                   </div>
-                  <div className="col-span-5"><FormField label="Description"><input value={item.description} onChange={(e) => updateItem(item.id, 'description', e.target.value)} placeholder="Item description" className={inputCls} /></FormField></div>
-                  <div className="col-span-2"><FormField label="Quantity"><input type="number" value={item.quantity} onChange={(e) => updateItem(item.id, 'quantity', parseInt(e.target.value) || 0)} className={inputCls} /></FormField></div>
-                  <div className="col-span-2"><FormField label="Rate"><input type="number" value={item.rate} onChange={(e) => updateItem(item.id, 'rate', parseFloat(e.target.value) || 0)} className={inputCls} /></FormField></div>
+                  <div className="col-span-5"><FormField label="Description"><input aria-label={`Item ${index + 1} description`} value={item.description} onChange={(e) => updateItem(item.id, 'description', e.target.value)} placeholder="Item description" className={inputCls} /></FormField></div>
+                  <div className="col-span-2"><FormField label="Quantity"><input aria-label={`Item ${index + 1} quantity`} type="number" value={item.quantity} onChange={(e) => updateItem(item.id, 'quantity', parseInt(e.target.value) || 0)} className={inputCls} /></FormField></div>
+                  <div className="col-span-2"><FormField label="Rate"><input aria-label={`Item ${index + 1} rate`} type="number" value={item.rate} onChange={(e) => updateItem(item.id, 'rate', parseFloat(e.target.value) || 0)} className={inputCls} /></FormField></div>
                   <div className="col-span-1">
-                    <label className={`block text-xs ${TYPE_WEIGHT.medium} ${t.textFaint} mb-1`}>Amount</label>
+                    <span className={`block text-xs ${TYPE_WEIGHT.medium} ${t.textFaint} mb-1`}>Amount</span>
                     <div className={`h-9 flex items-center px-3 text-sm ${TYPE_WEIGHT.semibold} text-[#86BBD8] ${t.inputBg} rounded-lg`}>{currencySymbol}{item.amount.toFixed(2)}</div>
                   </div>
                   <div className="col-span-1 flex items-end pb-0.5 justify-center">

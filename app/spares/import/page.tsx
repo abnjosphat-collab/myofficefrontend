@@ -97,7 +97,7 @@ function ColumnSelector({
 
       {open && (
         <>
-          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <button type="button" aria-label="Close dropdown" className="fixed inset-0 z-40 bg-transparent border-0 cursor-default" onClick={() => setOpen(false)} />
           <div className={`absolute left-0 right-0 top-full mt-1 z-50 rounded-xl overflow-hidden ${t.shadow} ${t.glass}`}>
             {columns.map(col => (
               <button key={col} type="button"
@@ -277,6 +277,10 @@ function SpareImportContent() {
             onDragLeave={() => setDragging(false)}
             onDrop={onDrop}
             onClick={() => !uploading && fileRef.current?.click()}
+            role="button"
+            tabIndex={0}
+            aria-label="Upload spares file — drop a file here or press Enter to browse"
+            onKeyDown={e => { if (!uploading && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); fileRef.current?.click(); } }}
             className="cursor-pointer rounded-2xl border-2 border-dashed transition-all flex flex-col items-center justify-center gap-5 py-20 px-8 select-none"
             style={{
               borderColor: dragging ? '#86BBD8' : undefined,
@@ -300,7 +304,7 @@ function SpareImportContent() {
                 </div>
               </>
             )}
-            <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={onFileChange} />
+            <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" aria-label="Spares file" className="hidden" onChange={onFileChange} />
           </div>
 
           <div className={`rounded-xl px-4 py-3 flex items-start gap-3 text-xs ${t.glassSoft}`}>

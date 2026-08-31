@@ -55,7 +55,12 @@ export interface PredictiveInputProps {
   onChange: (v: string) => void;
   /** Called when the user commits a value (blur or Enter on single-line) */
   onCommit?: (v: string) => void;
-  label?: string;
+  /** Plain string in most cases; accepts richer content (e.g. an icon + text) too —
+   *  it's rendered as-is inside this component's own properly-associated <label>. */
+  label?: React.ReactNode;
+  /** Override the generated id used for the input/textarea (e.g. to associate an
+   *  external, custom-styled <label htmlFor> instead of this component's own). */
+  id?: string;
   placeholder?: string;
   required?: boolean;
   disabled?: boolean;
@@ -77,6 +82,7 @@ export function PredictiveInput({
   onChange,
   onCommit,
   label,
+  id: idProp,
   placeholder = '',
   required = false,
   disabled = false,
@@ -108,6 +114,8 @@ export function PredictiveInput({
   const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null);
   const listboxId = useId();
   const optionId = (i: number) => `${listboxId}-opt-${i}`;
+  const generatedFieldId = useId();
+  const fieldId = idProp ?? generatedFieldId;
 
   useEffect(() => setMounted(true), []);
 
@@ -226,64 +234,87 @@ export function PredictiveInput({
     error ? (t.light ? 'border border-red-400' : 'border border-red-400/50') : ''
   } ${t.inputBg} ${inputClassName}`;
 
+  // Shared filler content for both branches below — doesn't itself need to be a
+  // literal, unconditional JSX child of <label> (only the actual control does, for
+  // label-has-for's static nesting check), so a variable reference is fine here.
+  const captionId = label ? `${fieldId}-caption` : undefined;
+  const captionSpan = label && (
+    <span id={captionId} className="text-xs font-medium block mb-1">
+      {label}{required && <span className="text-red-400 ml-0.5">*</span>}
+    </span>
+  );
+  const ghostOverlay = !multiline && ghost && (
+    <div
+      aria-hidden
+      className="absolute left-0 right-0 px-3 h-9 flex items-center pointer-events-none text-sm overflow-hidden"
+      style={{ top: label ? 'calc(1.25rem + 4px)' : 0 }}
+    >
+      <span className="invisible whitespace-pre">{value}</span>
+      <span className={`whitespace-pre ${t.textFaint}`}>{ghost}</span>
+      <span className="ml-1 text-[9px] text-brand-400 border border-brand-400/30 rounded px-0.5">Tab</span>
+    </div>
+  );
+  const labelClassName = label ? `block ${t.textFaint}` : undefined;
+
   return (
     <div ref={wrapRef} className={`relative ${className}`}>
-      {label && (
-        <label className={`text-xs font-medium block mb-1 ${t.textFaint}`}>
-          {label}{required && <span className="text-red-400 ml-0.5">*</span>}
-        </label>
-      )}
-
-      {/* Ghost text layer (single-line only) */}
-      {!multiline && ghost && (
-        <div
-          aria-hidden
-          className="absolute left-0 right-0 px-3 h-9 flex items-center pointer-events-none text-sm overflow-hidden"
-          style={{ top: label ? 'calc(1.25rem + 4px)' : 0 }}
-        >
-          <span className="invisible whitespace-pre">{value}</span>
-          <span className={`whitespace-pre ${t.textFaint}`}>{ghost}</span>
-          <span className="ml-1 text-[9px] text-brand-400 border border-brand-400/30 rounded px-0.5">Tab</span>
-        </div>
-      )}
-
+      {/* Always wrapped in <label> (with htmlFor+id, even when there's no visible
+          caption) so the control is a real nested-and-id-associated label target —
+          the caption span itself is optional/visual only. Two literal <label> blocks
+          (rather than one wrapping a ternary) so each one's control child is a direct,
+          unconditional descendant — label-has-for's nesting check doesn't evaluate
+          conditional expressions, only literal JSX structure. */}
       {multiline ? (
-        <textarea
-          ref={inputRef as React.Ref<HTMLTextAreaElement>}
-          value={value}
-          disabled={disabled}
-          placeholder={placeholder}
-          rows={rows}
-          role="combobox"
-          aria-expanded={showPanel}
-          aria-controls={listboxId}
-          aria-autocomplete="list"
-          aria-activedescendant={showPanel && list[highlight] ? optionId(highlight) : undefined}
-          className={BASE_CLS + ' py-2'}
-          onChange={e => handleChange(e.target.value)}
-          onFocus={() => setOpen(true)}
-          onBlur={handleBlur}
-          onKeyDown={handleKey}
-        />
+        <label htmlFor={fieldId} className={labelClassName}>
+          {captionSpan}
+          {ghostOverlay}
+          <textarea
+            ref={inputRef as React.Ref<HTMLTextAreaElement>}
+            id={fieldId}
+            aria-label={captionId ? undefined : (placeholder || undefined)}
+            aria-labelledby={captionId}
+            value={value}
+            disabled={disabled}
+            placeholder={placeholder}
+            rows={rows}
+            role="combobox"
+            aria-expanded={showPanel}
+            aria-controls={listboxId}
+            aria-autocomplete="list"
+            aria-activedescendant={showPanel && list[highlight] ? optionId(highlight) : undefined}
+            className={BASE_CLS + ' py-2'}
+            onChange={e => handleChange(e.target.value)}
+            onFocus={() => setOpen(true)}
+            onBlur={handleBlur}
+            onKeyDown={handleKey}
+          />
+        </label>
       ) : (
-        <input
-          ref={inputRef as React.Ref<HTMLInputElement>}
-          type="text"
-          value={value}
-          disabled={disabled}
-          placeholder={placeholder}
-          autoComplete="off"
-          role="combobox"
-          aria-expanded={showPanel}
-          aria-controls={listboxId}
-          aria-autocomplete="list"
-          aria-activedescendant={showPanel && list[highlight] ? optionId(highlight) : undefined}
-          className={BASE_CLS + ' h-9'}
-          onChange={e => handleChange(e.target.value)}
-          onFocus={() => setOpen(true)}
-          onBlur={handleBlur}
-          onKeyDown={handleKey}
-        />
+        <label htmlFor={fieldId} className={labelClassName}>
+          {captionSpan}
+          {ghostOverlay}
+          <input
+            ref={inputRef as React.Ref<HTMLInputElement>}
+            type="text"
+            id={fieldId}
+            aria-label={captionId ? undefined : (placeholder || undefined)}
+            aria-labelledby={captionId}
+            value={value}
+            disabled={disabled}
+            placeholder={placeholder}
+            autoComplete="off"
+            role="combobox"
+            aria-expanded={showPanel}
+            aria-controls={listboxId}
+            aria-autocomplete="list"
+            aria-activedescendant={showPanel && list[highlight] ? optionId(highlight) : undefined}
+            className={BASE_CLS + ' h-9'}
+            onChange={e => handleChange(e.target.value)}
+            onFocus={() => setOpen(true)}
+            onBlur={handleBlur}
+            onKeyDown={handleKey}
+          />
+        </label>
       )}
 
       {error && <p className="text-red-400 text-[11px] mt-0.5">{error}</p>}

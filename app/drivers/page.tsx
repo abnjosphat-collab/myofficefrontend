@@ -155,6 +155,7 @@ function PhoneRows({ phones, onChange }: { phones: string[]; onChange: (v: strin
             <Phone className={`absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 ${t.textFaint}`} />
             <input type="tel" value={p} onChange={e => update(i, e.target.value)}
               placeholder={i === 0 ? 'Primary number…' : 'Additional number…'}
+              aria-label={i === 0 ? 'Primary phone number' : `Additional phone number ${i + 1}`}
               className={`w-full pl-7 pr-3 h-9 text-sm rounded-lg outline-none transition-colors ${t.inputBg}`} />
           </div>
           {phones.length > 1 && (
@@ -211,15 +212,15 @@ function DriverModal({ open, onClose, onSave, initial, departments }: {
       <form onSubmit={handleSubmit}>
         <div className="px-5 py-4 space-y-4">
           <FormField label="Full Name" required>
-            <input type="text" value={form.full_name} onChange={e => setF('full_name', e.target.value)} placeholder="e.g. John Moyo" className={inputCls} autoFocus />
+            <input type="text" value={form.full_name} onChange={e => setF('full_name', e.target.value)} placeholder="e.g. John Moyo" aria-label="Full name" className={inputCls} />
           </FormField>
           <FormField label="Phone Number(s)">
             <PhoneRows phones={form.phones} onChange={v => setF('phones', v)} />
           </FormField>
           <div className="grid grid-cols-2 gap-3">
             <FormField label="Department">
-              <input list="dept-list" value={form.department} onChange={e => setF('department', e.target.value)} placeholder="Select or type…" className={inputCls} />
-              <datalist id="dept-list">{allDepts.map(d => <option key={d} value={d} />)}</datalist>
+              <input list="dept-list" value={form.department} onChange={e => setF('department', e.target.value)} placeholder="Select or type…" aria-label="Department" className={inputCls} />
+              <datalist id="dept-list">{allDepts.map(d => <option key={d} value={d}>{d}</option>)}</datalist>
             </FormField>
             <FormField label="Status">
               <SelectField size="form" value={form.status} title="Status" onChange={v => setF('status', v as DriverForm['status'])}
@@ -228,15 +229,15 @@ function DriverModal({ open, onClose, onSave, initial, departments }: {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <FormField label="Licence Class">
-              <input list="lic-list" value={form.license_class} onChange={e => setF('license_class', e.target.value)} placeholder="e.g. Code 10, PrDP…" className={inputCls} />
-              <datalist id="lic-list">{LICENSE_CLASSES.map(l => <option key={l} value={l} />)}</datalist>
+              <input list="lic-list" value={form.license_class} onChange={e => setF('license_class', e.target.value)} placeholder="e.g. Code 10, PrDP…" aria-label="Licence class" className={inputCls} />
+              <datalist id="lic-list">{LICENSE_CLASSES.map(l => <option key={l} value={l}>{l}</option>)}</datalist>
             </FormField>
             <FormField label="Licence Expiry">
-              <input type="date" value={form.license_expiry} title="Licence expiry" onChange={e => setF('license_expiry', e.target.value)} className={inputCls} />
+              <input type="date" value={form.license_expiry} title="Licence expiry" aria-label="Licence expiry" onChange={e => setF('license_expiry', e.target.value)} className={inputCls} />
             </FormField>
           </div>
           <FormField label="Notes">
-            <input type="text" value={form.notes} onChange={e => setF('notes', e.target.value)} placeholder="Any additional info…" className={inputCls} />
+            <input type="text" value={form.notes} onChange={e => setF('notes', e.target.value)} placeholder="Any additional info…" aria-label="Notes" className={inputCls} />
           </FormField>
         </div>
         <FormActions onCancel={onClose} submitting={saving} submitLabel={initial ? 'Save Changes' : 'Add Driver'} />

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback, useId } from 'react';
 import { API_BASE } from '@/lib/config';
 import { UserCircle, ChevronDown, X, Loader2, useTheme } from '@/components/shared/theme';
 
@@ -132,6 +132,7 @@ export function EmployeeNameInput({
   }
 
   const t = useTheme();
+  const inputId = useId();
   const GIN = `w-full h-9 px-3 pr-8 rounded-lg outline-none transition-all text-sm ${
     error ? (t.light ? 'border border-red-400' : 'border border-red-400/50') : ''
   } ${t.inputBg}`;
@@ -139,18 +140,20 @@ export function EmployeeNameInput({
   return (
     <div ref={wrapRef} className={`relative ${className}`}>
       {label && (
-        <label className={`text-xs font-medium block mb-1 ${t.textFaint}`}>
+        <label htmlFor={inputId} className={`text-xs font-medium block mb-1 ${t.textFaint}`}>
           {label}{required && <span className="text-red-400 ml-0.5">*</span>}
         </label>
       )}
       <div className="relative">
         <UserCircle className={`absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none ${t.textFaint}`} />
         <input
+          id={inputId}
           ref={inputRef}
           type="text"
           value={value}
           disabled={disabled}
           placeholder={placeholder}
+          aria-label={label || placeholder || 'Employee name'}
           className={GIN + ' pl-8'}
           autoComplete="off"
           onChange={e => { onChange(e.target.value, null); setOpen(true); }}

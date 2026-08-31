@@ -352,8 +352,12 @@ function ModuleCard({ label, href, icon, color, total, donutSegments, miniStats,
   legend: { label: string; value: number; color: string }[]; P: ReturnType<typeof usePalette>;
 }) {
   const [hovered, setHovered] = useState(false);
+  // role="presentation" below — the mouse enter/leave pair is a purely decorative hover
+  // highlight (background/border/shadow tint), not a functional interaction; every piece
+  // of real content (label, "Open" link, chart, stats) keeps its own semantics and stays
+  // fully keyboard/AT accessible regardless of this wrapper's role.
   return (
-    <div onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
+    <div onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} role="presentation"
       style={{ background: hovered ? P.cardBg2 : P.cardBg, backdropFilter: 'blur(24px) saturate(1.4)', WebkitBackdropFilter: 'blur(24px) saturate(1.4)', border: hovered ? `1px solid ${color}44` : P.cardBorder, borderRadius: 14, padding: '18px 18px 14px', display: 'flex', flexDirection: 'column', gap: 12, boxShadow: hovered ? `0 8px 32px ${color}22` : 'none', transition: 'all 0.25s ease' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
@@ -416,10 +420,10 @@ function CommentsSection({ open, onToggle, P }: { open: boolean; onToggle: () =>
       {open && (
         <div style={{ padding: '20px 24px' }}>
           <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-            <input value={author} onChange={e => setAuthor(e.target.value)} placeholder="Your name (optional)" style={{ ...inputCls, width: 170 }} title="Your name" />
+            <input value={author} onChange={e => setAuthor(e.target.value)} placeholder="Your name (optional)" style={{ ...inputCls, width: 170 }} title="Your name" aria-label="Your name" />
             <input value={text} onChange={e => setText(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); add(); } }}
-              placeholder="Add a safety observation or note… (Enter to submit)" style={{ ...inputCls, flex: 1 }} title="Note" />
+              placeholder="Add a safety observation or note… (Enter to submit)" style={{ ...inputCls, flex: 1 }} title="Note" aria-label="Note" />
             <button type="button" onClick={add} style={{ background: 'rgba(96,165,250,0.18)', border: '1px solid rgba(96,165,250,0.35)', borderRadius: 9, padding: '0 16px', color: '#60a5fa', cursor: 'pointer', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>Add</button>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 260, overflowY: 'auto' }}>
@@ -587,9 +591,9 @@ function SHEQDashboardContent() {
           ))}
           {showCustom && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 4 }}>
-              <input type="date" value={customFrom} onChange={e => setCustomFrom(e.target.value)} style={{ ...inputCls, width: 138 }} title="From date" />
+              <input type="date" value={customFrom} onChange={e => setCustomFrom(e.target.value)} style={{ ...inputCls, width: 138 }} title="From date" aria-label="From date" />
               <span style={{ fontSize: 11, color: P.textFaintest }}>to</span>
-              <input type="date" value={customTo} onChange={e => setCustomTo(e.target.value)} style={{ ...inputCls, width: 138 }} title="To date" />
+              <input type="date" value={customTo} onChange={e => setCustomTo(e.target.value)} style={{ ...inputCls, width: 138 }} title="To date" aria-label="To date" />
             </div>
           )}
         </div>
@@ -681,7 +685,7 @@ function SHEQDashboardContent() {
                       <div style={{ display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'center' }}>
                         <span style={{ fontSize: 16, fontWeight: 800, color }}>{actual}</span>
                         <span style={{ fontSize: 11, color: P.textFaintest }}>/</span>
-                        <input type="number" min={1} max={999} title={`${label} target`} value={targetDraft[key]}
+                        <input type="number" min={1} max={999} title={`${label} target`} aria-label={`${label} target`} value={targetDraft[key]}
                           onChange={e => setTargetDraft(p => ({ ...p, [key]: Math.max(1, parseInt(e.target.value) || 1) }))}
                           style={{ width: 44, textAlign: 'center', background: 'rgba(168,85,247,0.15)', border: '1px solid rgba(168,85,247,0.45)', borderRadius: 7, color: '#a855f7', fontSize: 13, fontWeight: 800, padding: '2px 4px', outline: 'none' }} />
                       </div>

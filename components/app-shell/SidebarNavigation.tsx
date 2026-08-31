@@ -82,7 +82,7 @@ export function SidebarNavigation({
 
   return (
     <>
-      {isOpen && <div className={`fixed inset-0 ${t.scrim} backdrop-blur-[1px] z-30 lg:hidden`} onClick={onClose} />}
+      {isOpen && <button type="button" aria-label="Close navigation menu" onClick={onClose} className={`fixed inset-0 z-30 border-0 p-0 ${t.scrim} backdrop-blur-[1px] lg:hidden`} />}
       <motion.aside
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}

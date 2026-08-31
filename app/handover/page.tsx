@@ -102,7 +102,7 @@ function HandoverContent() {
             <button type="button" onClick={() => setShowForm(false)} className={`${t.textFaint} ${t.hoverText} transition-colors`}><X className="w-5 h-5" /></button>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-3">
-            <FormField label="Date"><input type="date" title="Handover date" value={form.handover_date} onChange={e => setForm(f => ({ ...f, handover_date: e.target.value }))} className={inputCls} /></FormField>
+            <FormField label="Date"><input type="date" title="Handover date" aria-label="Handover date" value={form.handover_date} onChange={e => setForm(f => ({ ...f, handover_date: e.target.value }))} className={inputCls} /></FormField>
             <FormField label="Shift">
               <SelectField size="form" title="Shift" value={form.shift} onChange={v => setForm(f => ({ ...f, shift: v as Shift }))}
                 options={SHIFTS.map(s => ({ value: s, label: s }))} />
@@ -112,15 +112,15 @@ function HandoverContent() {
             <FormField label="Incoming Supervisor"><PredictiveInput historyKey="handover_supervisor" placeholder="Incoming Supervisor" value={form.incoming_supervisor} onChange={v => setForm(f => ({ ...f, incoming_supervisor: v }))} inputClassName={inputCls} /></FormField>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
-            <FormField label="Completed Work"><textarea rows={3} placeholder="Completed work..." value={form.completed_work} onChange={e => setForm(f => ({ ...f, completed_work: e.target.value }))} className={`${inputCls} resize-none h-auto py-2`} /></FormField>
-            <FormField label="Outstanding Work"><textarea rows={3} placeholder="Outstanding work..." value={form.outstanding_work} onChange={e => setForm(f => ({ ...f, outstanding_work: e.target.value }))} className={`${inputCls} resize-none h-auto py-2`} /></FormField>
-            <FormField label="Safety Concerns"><textarea rows={3} placeholder="Safety concerns..." value={form.safety_concerns} onChange={e => setForm(f => ({ ...f, safety_concerns: e.target.value }))} className={`${inputCls} resize-none h-auto py-2`} /></FormField>
+            <FormField label="Completed Work"><textarea rows={3} placeholder="Completed work..." aria-label="Completed Work" value={form.completed_work} onChange={e => setForm(f => ({ ...f, completed_work: e.target.value }))} className={`${inputCls} resize-none h-auto py-2`} /></FormField>
+            <FormField label="Outstanding Work"><textarea rows={3} placeholder="Outstanding work..." aria-label="Outstanding Work" value={form.outstanding_work} onChange={e => setForm(f => ({ ...f, outstanding_work: e.target.value }))} className={`${inputCls} resize-none h-auto py-2`} /></FormField>
+            <FormField label="Safety Concerns"><textarea rows={3} placeholder="Safety concerns..." aria-label="Safety Concerns" value={form.safety_concerns} onChange={e => setForm(f => ({ ...f, safety_concerns: e.target.value }))} className={`${inputCls} resize-none h-auto py-2`} /></FormField>
           </div>
           <div className="mb-3">
             <div className={`text-xs mb-2 ${t.textFaint}`}>Equipment Summary</div>
             {form.equipment_summary.map((eq, i) => (
               <div key={i} className="flex gap-2 mb-2">
-                <input placeholder="Equipment name" value={eq.name} onChange={e => updateEq(i, 'name', e.target.value)} className={inputCls} />
+                <input placeholder="Equipment name" aria-label="Equipment name" value={eq.name} onChange={e => updateEq(i, 'name', e.target.value)} className={inputCls} />
                 <SelectField size="form" title="Equipment status" value={eq.status} onChange={v => updateEq(i, 'status', v)} className="min-w-[130px]"
                   options={['Running', 'Standby', 'Monitor', 'Breakdown']} />
                 <button type="button" title="Remove equipment" onClick={() => removeEq(i)} className={`${t.textFaint} hover:text-rose-500 transition-colors px-1`}><X className="w-4 h-4" /></button>

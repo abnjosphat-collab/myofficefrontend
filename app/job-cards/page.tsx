@@ -104,13 +104,13 @@ function JobCardDetail({ jc, onClose, onSave }: { jc: JobCard; onClose: () => vo
                 options={(Object.keys(S_LABEL) as JCStatus[]).map(s => ({ value: s, label: S_LABEL[s] }))} />
             </FormField>
             <FormField label="Labour Hours">
-              <input type="number" step="0.5" placeholder="0" title="Labour hours" value={data.labour_hours}
+              <input type="number" step="0.5" placeholder="0" title="Labour hours" aria-label="Labour hours" value={data.labour_hours}
                 onChange={e => setData(prev => ({ ...prev, labour_hours: +e.target.value }))} className={inputCls} />
             </FormField>
           </div>
           {data.notes !== undefined && (
             <FormField label="Notes">
-              <textarea placeholder="Additional notes…" value={data.notes} onChange={e => setData(prev => ({ ...prev, notes: e.target.value }))} rows={2}
+              <textarea placeholder="Additional notes…" aria-label="Notes" value={data.notes} onChange={e => setData(prev => ({ ...prev, notes: e.target.value }))} rows={2}
                 className={`w-full px-3 py-2 rounded-lg text-sm outline-none transition-colors resize-none ${t.inputBg}`} />
             </FormField>
           )}
@@ -236,8 +236,9 @@ function JobCardsContent() {
               const jcTasks = jc.tasks ?? [];
               const progress = jcTasks.length ? Math.round((jcTasks.filter(x => x.done).length / jcTasks.length) * 100) : 0;
               return (
-                <div key={jc.id} onClick={() => setSelected(jc)}
-                  className={`flex items-center gap-4 px-5 py-4 border-b ${t.border} last:border-0 ${t.hoverBg} cursor-pointer transition-colors`}>
+                <button key={jc.id} type="button" onClick={() => setSelected(jc)}
+                  aria-label={`View job card ${jc.job_no}: ${jc.title}`}
+                  className={`w-full flex items-center gap-4 px-5 py-4 border-b ${t.border} last:border-0 ${t.hoverBg} cursor-pointer transition-colors text-left`}>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap mb-1">
                       <span className={`text-xs font-mono ${t.textFaint}`}>{jc.job_no}</span>
@@ -254,7 +255,7 @@ function JobCardsContent() {
                     </div>
                   )}
                   <span className={`text-xs shrink-0 ${t.textFaint}`}>{jc.scheduled_date}</span>
-                </div>
+                </button>
               );
             })}
           </div>

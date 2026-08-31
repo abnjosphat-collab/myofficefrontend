@@ -121,22 +121,22 @@ function StageRow({ stage, record, onUpdate }: { stage: typeof STAGES[number]; r
           {isPay ? (
             <>
               <div className="grid grid-cols-2 gap-3">
-                <FormField label="Paid by"><input className={inputCls} placeholder="Name of person who made payment" value={record.payment.paid_by} onChange={e => setPay('paid_by', e.target.value)} /></FormField>
-                <FormField label="Date of payment"><input type="date" title="Date of payment" className={inputCls} value={record.payment.payment_date} onChange={e => setPay('payment_date', e.target.value)} /></FormField>
+                <FormField label="Paid by"><input aria-label="Paid by" className={inputCls} placeholder="Name of person who made payment" value={record.payment.paid_by} onChange={e => setPay('paid_by', e.target.value)} /></FormField>
+                <FormField label="Date of payment"><input type="date" title="Date of payment" aria-label="Date of payment" className={inputCls} value={record.payment.payment_date} onChange={e => setPay('payment_date', e.target.value)} /></FormField>
               </div>
-              <FormField label="Payment reference / transaction number"><input className={inputCls} placeholder="e.g. EFT-2024-001 or cheque number" value={record.payment.payment_reference} onChange={e => setPay('payment_reference', e.target.value)} /></FormField>
-              <FormField label="Payment comments"><textarea rows={2} placeholder="Any notes about this payment…" value={record.payment.comments} onChange={e => setPay('comments', e.target.value)} className={`${inputCls} h-auto py-2 resize-none`} /></FormField>
+              <FormField label="Payment reference / transaction number"><input aria-label="Payment reference / transaction number" className={inputCls} placeholder="e.g. EFT-2024-001 or cheque number" value={record.payment.payment_reference} onChange={e => setPay('payment_reference', e.target.value)} /></FormField>
+              <FormField label="Payment comments"><textarea aria-label="Payment comments" rows={2} placeholder="Any notes about this payment…" value={record.payment.comments} onChange={e => setPay('comments', e.target.value)} className={`${inputCls} h-auto py-2 resize-none`} /></FormField>
             </>
           ) : (
             <>
               <div className="grid grid-cols-2 gap-3">
-                <FormField label="Signed / approved by"><input className={inputCls} placeholder="Full name of approver" value={(data as StageData).signed_by} onChange={e => setData('signed_by', e.target.value)} /></FormField>
-                <FormField label="Date signed"><input type="date" title="Date signed" className={inputCls} value={(data as StageData).signed_date} onChange={e => setData('signed_date', e.target.value)} /></FormField>
+                <FormField label="Signed / approved by"><input aria-label="Signed / approved by" className={inputCls} placeholder="Full name of approver" value={(data as StageData).signed_by} onChange={e => setData('signed_by', e.target.value)} /></FormField>
+                <FormField label="Date signed"><input type="date" title="Date signed" aria-label="Date signed" className={inputCls} value={(data as StageData).signed_date} onChange={e => setData('signed_date', e.target.value)} /></FormField>
               </div>
               {isStores && (
-                <FormField label="GRV Number (Goods Received Voucher)"><input className={inputCls} placeholder="e.g. GRV-2024-001" value={(data as StoresStage).grv_number} onChange={e => setData('grv_number', e.target.value)} /></FormField>
+                <FormField label="GRV Number (Goods Received Voucher)"><input aria-label="GRV Number (Goods Received Voucher)" className={inputCls} placeholder="e.g. GRV-2024-001" value={(data as StoresStage).grv_number} onChange={e => setData('grv_number', e.target.value)} /></FormField>
               )}
-              <FormField label="Comments for this stage"><textarea rows={2} placeholder="e.g. Document handed to [name], awaiting countersignature…" value={(data as StageData).comments} onChange={e => setData('comments', e.target.value)} className={`${inputCls} h-auto py-2 resize-none`} /></FormField>
+              <FormField label="Comments for this stage"><textarea aria-label="Comments for this stage" rows={2} placeholder="e.g. Document handed to [name], awaiting countersignature…" value={(data as StageData).comments} onChange={e => setData('comments', e.target.value)} className={`${inputCls} h-auto py-2 resize-none`} /></FormField>
             </>
           )}
         </div>
@@ -194,7 +194,7 @@ function AttachmentPanel({ serviceId }: { serviceId: string }) {
           {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
           {uploading ? 'Uploading…' : 'Attach file'}
         </button>
-        <input ref={inputRef} type="file" title="Attach file" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) upload(f); e.target.value = ''; }} />
+        <input ref={inputRef} type="file" title="Attach file" aria-label="Attach file" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) upload(f); e.target.value = ''; }} />
       </div>
 
       {attachments.length === 0 ? (
@@ -363,9 +363,9 @@ function ListView({ records, onEdit, onDelete, onView }: { records: ServiceRecor
                 <td className="p-3">{r.category ? <StatusBadge color={ACCENT_HEX.blue} label={r.category} /> : <span className={`text-xs ${t.textFaint}`}>—</span>}</td>
                 <td className="p-3" onClick={e => e.stopPropagation()}>
                   <div className="flex items-center justify-end gap-1">
-                    <button type="button" onClick={() => onView(r)} title="View pipeline" className={`h-6 w-6 flex items-center justify-center rounded-md ${t.textFaint} hover:text-brand-400 ${t.hoverBg}`}><Eye className="h-3 w-3" /></button>
-                    <button type="button" onClick={() => onEdit(r)} title="Edit" className={`h-6 w-6 flex items-center justify-center rounded-md ${t.textFaint} ${t.hoverText} ${t.hoverBg}`}><Edit2 className="h-3 w-3" /></button>
-                    <button type="button" onClick={() => onDelete(r.id)} title="Delete" className={`h-6 w-6 flex items-center justify-center rounded-md ${t.textFaint} hover:text-rose-500 ${t.hoverBg}`}><Trash2 className="h-3 w-3" /></button>
+                    <button type="button" onClick={() => onView(r)} title="View pipeline" aria-label="View pipeline" className={`h-6 w-6 flex items-center justify-center rounded-md ${t.textFaint} hover:text-brand-400 ${t.hoverBg}`}><Eye className="h-3 w-3" /></button>
+                    <button type="button" onClick={() => onEdit(r)} title="Edit" aria-label="Edit record" className={`h-6 w-6 flex items-center justify-center rounded-md ${t.textFaint} ${t.hoverText} ${t.hoverBg}`}><Edit2 className="h-3 w-3" /></button>
+                    <button type="button" onClick={() => onDelete(r.id)} title="Delete" aria-label="Delete record" className={`h-6 w-6 flex items-center justify-center rounded-md ${t.textFaint} hover:text-rose-500 ${t.hoverBg}`}><Trash2 className="h-3 w-3" /></button>
                   </div>
                 </td>
               </tr>
@@ -437,29 +437,29 @@ function ServiceForm({ initial, onSave, onClose }: { initial: ServiceRecord; onS
   return (
     <form onSubmit={e => { e.preventDefault(); onSave(form); }} className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
-        <FormField label="Date of service"><input type="date" title="Date of service" className={inputCls} value={form.date} onChange={set('date')} /></FormField>
+        <FormField label="Date of service"><input type="date" title="Date of service" aria-label="Date of service" className={inputCls} value={form.date} onChange={set('date')} /></FormField>
         <FormField label="Category">
           <SelectField size="form" title="Category" value={form.category} onChange={v => setForm(p => ({ ...p, category: v }))}
             placeholder="Select a category…" options={CATS.map(c => ({ value: c, label: c }))} />
         </FormField>
       </div>
       <FormField label="Description of service" required>
-        <textarea placeholder="Describe what service was performed — e.g. 'Replaced hydraulic pump on Compressor #3'" rows={3} value={form.description} onChange={set('description')} className={`${inputCls} h-auto py-2 resize-none`} />
+        <textarea aria-label="Description of service" placeholder="Describe what service was performed — e.g. 'Replaced hydraulic pump on Compressor #3'" rows={3} value={form.description} onChange={set('description')} className={`${inputCls} h-auto py-2 resize-none`} />
       </FormField>
       <div className="grid grid-cols-2 gap-3">
-        <FormField label="Supplier / Contractor"><input className={inputCls} placeholder="Company name" value={form.supplier} onChange={set('supplier')} /></FormField>
-        <FormField label="Contact person"><input className={inputCls} placeholder="Representative's name" value={form.contact_person} onChange={set('contact_person')} /></FormField>
+        <FormField label="Supplier / Contractor"><input aria-label="Supplier / Contractor" className={inputCls} placeholder="Company name" value={form.supplier} onChange={set('supplier')} /></FormField>
+        <FormField label="Contact person"><input aria-label="Contact person" className={inputCls} placeholder="Representative's name" value={form.contact_person} onChange={set('contact_person')} /></FormField>
       </div>
       <div className={`p-3 rounded-xl ${t.chipBg} space-y-3`}>
         <p className={`text-[11px] ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textFaint}`}>Reference Numbers</p>
         <div className="grid grid-cols-3 gap-3">
-          <FormField label="Requisition No."><input className={inputCls} placeholder="REQ-..." value={form.requisition_number} onChange={set('requisition_number')} /></FormField>
-          <FormField label="Invoice No."><input className={inputCls} placeholder="INV-..." value={form.invoice_number} onChange={set('invoice_number')} /></FormField>
-          <FormField label="Order / PO No."><input className={inputCls} placeholder="PO-..." value={form.order_number} onChange={set('order_number')} /></FormField>
+          <FormField label="Requisition No."><input aria-label="Requisition No." className={inputCls} placeholder="REQ-..." value={form.requisition_number} onChange={set('requisition_number')} /></FormField>
+          <FormField label="Invoice No."><input aria-label="Invoice No." className={inputCls} placeholder="INV-..." value={form.invoice_number} onChange={set('invoice_number')} /></FormField>
+          <FormField label="Order / PO No."><input aria-label="Order / PO No." className={inputCls} placeholder="PO-..." value={form.order_number} onChange={set('order_number')} /></FormField>
         </div>
       </div>
-      <FormField label="Total amount"><input className={inputCls} placeholder="e.g. $1,500.00" value={form.amount} onChange={set('amount')} /></FormField>
-      <FormField label="General comments / notes"><textarea placeholder="Any additional context…" rows={2} value={form.general_comments} onChange={set('general_comments')} className={`${inputCls} h-auto py-2 resize-none`} /></FormField>
+      <FormField label="Total amount"><input aria-label="Total amount" className={inputCls} placeholder="e.g. $1,500.00" value={form.amount} onChange={set('amount')} /></FormField>
+      <FormField label="General comments / notes"><textarea aria-label="General comments / notes" placeholder="Any additional context…" rows={2} value={form.general_comments} onChange={set('general_comments')} className={`${inputCls} h-auto py-2 resize-none`} /></FormField>
       <FormActions onCancel={onClose} submitLabel={initial.description ? 'Save Changes' : 'Add Service Record'} accent="violet" />
     </form>
   );
@@ -593,9 +593,9 @@ function ExcelImportModal({ onImport, onExtracted, onClose }: {
             <Upload className={`h-8 w-8 mx-auto mb-2 ${t.textFaint}`} />
             <p className={`text-sm mb-1 ${t.textMuted}`}>Choose a spreadsheet, PDF, or image</p>
             <p className={`text-[11px] mb-3 ${t.textFaint}`}>.xlsx · .xls · .csv · .pdf · .jpg · .png · .tiff · .webp</p>
-            <label className={`cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all`}>
+            <label htmlFor="services-import-file-input" className={`cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all`}>
               <Upload className="h-4 w-4" /> Browse file
-              <input type="file" accept=".xlsx,.xls,.csv,.pdf,.jpg,.jpeg,.png,.webp,.tiff,.tif,.bmp" className="hidden"
+              <input id="services-import-file-input" aria-label="Browse file" type="file" accept=".xlsx,.xls,.csv,.pdf,.jpg,.jpeg,.png,.webp,.tiff,.tif,.bmp" className="hidden"
                 onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); e.currentTarget.value = ''; }} />
             </label>
           </>
@@ -666,9 +666,9 @@ function OcrUploadModal({ onExtracted, onClose }: { onExtracted: (partial: Parti
           <>
             <FileDown className={`h-8 w-8 mx-auto mb-2 ${t.textFaint}`} />
             <p className={`text-sm mb-3 ${t.textMuted}`}>Choose a scanned document to extract data from</p>
-            <label className={`cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all`}>
+            <label htmlFor="services-ocr-file-input" className={`cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all`}>
               <Upload className="h-4 w-4" /> Choose file
-              <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
+              <input id="services-ocr-file-input" aria-label="Choose file" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
             </label>
           </>
         )}
@@ -858,8 +858,8 @@ function ServicesPageContent() {
         </div>
         {showFilters && (
           <div className={`pt-4 border-t ${t.border} grid grid-cols-2 sm:grid-cols-4 gap-3`}>
-            <FormField label="Date from"><input type="date" title="Date from" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className={`w-full h-8 px-2 rounded text-[13px] ${t.inputBg} focus:outline-none`} /></FormField>
-            <FormField label="Date to"><input type="date" title="Date to" value={dateTo} onChange={e => setDateTo(e.target.value)} className={`w-full h-8 px-2 rounded text-[13px] ${t.inputBg} focus:outline-none`} /></FormField>
+            <FormField label="Date from"><input type="date" title="Date from" aria-label="Date from" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className={`w-full h-8 px-2 rounded text-[13px] ${t.inputBg} focus:outline-none`} /></FormField>
+            <FormField label="Date to"><input type="date" title="Date to" aria-label="Date to" value={dateTo} onChange={e => setDateTo(e.target.value)} className={`w-full h-8 px-2 rounded text-[13px] ${t.inputBg} focus:outline-none`} /></FormField>
             <FormField label="Category">
               <SelectField size="filter" title="Category" value={filterCat} onChange={setFilterCat}
                 options={[{ value: '', label: 'All categories' }, ...CATS.map(c => ({ value: c, label: c }))]} />

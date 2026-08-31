@@ -97,21 +97,21 @@ function CreateAllocationContent() {
                   placeholder="Select PPE item…" options={ppeItems.map(i => ({ value: i.id, label: `${i.itemName} (${i.size})` }))} />
               </FormField>
               <FormField label="Serial Number" required>
-                <input value={formData.serialNumber} onChange={e => set('serialNumber', e.target.value)} placeholder="Enter serial number" className={inputCls} required />
+                <input aria-label="Serial Number" value={formData.serialNumber} onChange={e => set('serialNumber', e.target.value)} placeholder="Enter serial number" className={inputCls} required />
               </FormField>
               <FormField label="Condition">
                 <SelectField size="form" value={formData.condition} title="Condition" onChange={v => set('condition', v)}
                   options={CONDITION_OPTIONS.map(o => ({ value: o.value, label: o.label }))} />
               </FormField>
               <FormField label="Issue Date" required>
-                <input type="date" value={formData.issueDate} title="Issue date" onChange={e => set('issueDate', e.target.value)} className={inputCls} required />
+                <input type="date" value={formData.issueDate} title="Issue date" aria-label="Issue date" onChange={e => set('issueDate', e.target.value)} className={inputCls} required />
               </FormField>
               <FormField label="Expiry Date" required>
-                <input type="date" value={formData.expiryDate} title="Expiry date" onChange={e => set('expiryDate', e.target.value)} className={inputCls} required />
+                <input type="date" value={formData.expiryDate} title="Expiry date" aria-label="Expiry date" onChange={e => set('expiryDate', e.target.value)} className={inputCls} required />
               </FormField>
             </div>
             <FormField label="Notes">
-              <textarea value={formData.notes} onChange={e => set('notes', e.target.value)} placeholder="Additional notes about this allocation…" rows={3}
+              <textarea aria-label="Notes" value={formData.notes} onChange={e => set('notes', e.target.value)} placeholder="Additional notes about this allocation…" rows={3}
                 className={`w-full px-3 py-2 rounded-lg text-sm outline-none transition-colors resize-none ${t.inputBg}`} />
             </FormField>
           </div>

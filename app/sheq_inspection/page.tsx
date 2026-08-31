@@ -72,22 +72,22 @@ function FindingFormCard({
         </button>
       </div>
       <FormField label="Finding Description" required>
-        <textarea value={finding.finding} rows={2} placeholder="Describe the issue or finding…"
+        <textarea aria-label="Finding Description" value={finding.finding} rows={2} placeholder="Describe the issue or finding…"
           onChange={e => onChange(finding.id, 'finding', e.target.value)}
           className={`w-full px-3 py-2 rounded-lg text-sm outline-none transition-colors resize-none ${t.inputBg}`} />
       </FormField>
       <FormField label="Required Action" required>
-        <textarea value={finding.requiredAction} rows={2} placeholder="What corrective action is required?"
+        <textarea aria-label="Required Action" value={finding.requiredAction} rows={2} placeholder="What corrective action is required?"
           onChange={e => onChange(finding.id, 'requiredAction', e.target.value)}
           className={`w-full px-3 py-2 rounded-lg text-sm outline-none transition-colors resize-none ${t.inputBg}`} />
       </FormField>
       <div className="grid grid-cols-2 gap-3">
         <FormField label="Assigned To" required>
-          <input value={finding.byWho} placeholder="Person responsible" title="Assigned to"
+          <input value={finding.byWho} placeholder="Person responsible" title="Assigned to" aria-label="Assigned to"
             onChange={e => onChange(finding.id, 'byWho', e.target.value)} className={inputCls} />
         </FormField>
         <FormField label="Due Date" required>
-          <input type="date" value={finding.byWhen} title="Due date"
+          <input type="date" value={finding.byWhen} title="Due date" aria-label="Due date"
             onChange={e => onChange(finding.id, 'byWhen', e.target.value)} className={inputCls} />
         </FormField>
         <FormField label="Priority">
@@ -106,14 +106,14 @@ function FindingFormCard({
             options={SECTIONS.map(s => ({ value: s, label: SECTION_LABELS[s] }))} />
         </FormField>
         <FormField label="Completed Date">
-          <input type="date" value={finding.completedDate || ''} title="Completed date"
+          <input type="date" value={finding.completedDate || ''} title="Completed date" aria-label="Completed date"
             disabled={finding.status !== 'closed'}
             onChange={e => onChange(finding.id, 'completedDate', e.target.value)}
             className={`${inputCls} ${finding.status !== 'closed' ? 'opacity-40 cursor-not-allowed' : ''}`} />
         </FormField>
       </div>
       <FormField label="Remarks">
-        <textarea value={finding.remarks || ''} rows={2} placeholder="Additional remarks…"
+        <textarea aria-label="Remarks" value={finding.remarks || ''} rows={2} placeholder="Additional remarks…"
           onChange={e => onChange(finding.id, 'remarks', e.target.value)}
           className={`w-full px-3 py-2 rounded-lg text-sm outline-none transition-colors resize-none ${t.inputBg}`} />
       </FormField>
@@ -200,7 +200,7 @@ function InspectionFormModal({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="md:col-span-2">
                 <FormField label="Inspection Title" required>
-                  <input value={form.title || ''} placeholder="e.g. Monthly Safety Audit" title="Inspection title"
+                  <input value={form.title || ''} placeholder="e.g. Monthly Safety Audit" title="Inspection title" aria-label="Inspection title"
                     onChange={e => set({ title: e.target.value })}
                     className={`w-full h-9 px-3 rounded-lg text-sm outline-none transition-colors ${t.inputBg}`} />
                 </FormField>
@@ -234,12 +234,12 @@ function InspectionFormModal({
                   options={(['draft', 'submitted', 'approved', 'rejected'] as InspectionStatus[]).map(s => ({ value: s, label: s.charAt(0).toUpperCase() + s.slice(1) }))} />
               </FormField>
               <FormField label="Date" required>
-                <input type="date" value={form.date || ''} title="Inspection date"
+                <input type="date" value={form.date || ''} title="Inspection date" aria-label="Inspection date"
                   onChange={e => set({ date: e.target.value })}
                   className={`w-full h-9 px-3 rounded-lg text-sm outline-none transition-colors ${t.inputBg}`} />
               </FormField>
               <FormField label="Time" required>
-                <input type="time" value={form.time || ''} title="Inspection time"
+                <input type="time" value={form.time || ''} title="Inspection time" aria-label="Inspection time"
                   onChange={e => set({ time: e.target.value })}
                   className={`w-full h-9 px-3 rounded-lg text-sm outline-none transition-colors ${t.inputBg}`} />
               </FormField>
@@ -437,9 +437,9 @@ function InspectionCard({
             <p className={`text-sm ${TYPE_WEIGHT.semibold} truncate ${t.textPrimary}`}>{inspection.title}</p>
           </div>
         </div>
-        <div className="flex items-center gap-1.5 flex-shrink-0" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center gap-1.5 flex-shrink-0">
           <StatusBadge color={INSPECTION_STATUS_HEX[inspection.status]} label={inspection.status} />
-          <button type="button" title={expanded ? 'Collapse' : 'Expand'} onClick={onToggle}
+          <button type="button" title={expanded ? 'Collapse' : 'Expand'} onClick={e => { e.stopPropagation(); onToggle(); }}
             className={`h-6 w-6 flex items-center justify-center rounded ${t.textFaint} ${t.hoverText} transition-all`}>
             {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
           </button>
@@ -474,7 +474,7 @@ function InspectionCard({
       </div>
 
       {expanded && (
-        <div className={`border-t ${t.border} px-4 py-3 space-y-3`} onClick={e => e.stopPropagation()}>
+        <div className={`border-t ${t.border} px-4 py-3 space-y-3`}>
           {inspection.findings?.length ? (
             <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
               {inspection.findings.map((f, idx) => (
@@ -506,7 +506,7 @@ function InspectionCard({
               { label: 'Edit', icon: Pencil, fn: onEdit, color: ACCENT },
               { label: 'Delete', icon: Trash2, fn: onDelete, color: '#f43f5e' },
             ].map(({ label, icon: Icon, fn, color }) => (
-              <button key={label} type="button" onClick={fn}
+              <button key={label} type="button" onClick={e => { e.stopPropagation(); fn(); }}
                 className={`flex-1 py-1.5 rounded-lg text-[11px] ${TYPE_WEIGHT.medium} border transition-all hover:-translate-y-0.5 inline-flex items-center justify-center gap-1`}
                 style={{ color, borderColor: `${color}25`, background: `${color}10` }}>
                 <Icon className="h-3 w-3" /> {label}
@@ -672,8 +672,8 @@ function SHEQInspectionContent() {
               options={[{ value: 'all', label: 'All Sections' }, ...SECTIONS.map(s => ({ value: s, label: SECTION_LABELS[s] }))]} />
             <SelectField size="filter" value={statusFilter} onChange={setStatusFilter} title="Status filter"
               options={[{ value: 'all', label: 'All Status' }, ...(['draft', 'submitted', 'approved', 'rejected'] as InspectionStatus[]).map(s => ({ value: s, label: s.charAt(0).toUpperCase() + s.slice(1) }))]} />
-            <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} title="From date" className={selCls} />
-            <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} title="To date" className={selCls} />
+            <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} title="From date" aria-label="From date" className={selCls} />
+            <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} title="To date" aria-label="To date" className={selCls} />
             {hasFilters && (
               <button type="button" onClick={() => { setSearch(''); setSectionFilter('all'); setStatusFilter('all'); setDateFrom(''); setDateTo(''); }}
                 title="Clear filters" className={`h-7 px-2.5 flex items-center gap-1 text-[11px] rounded-lg ${t.chipBg} ${t.textFaint} ${t.hoverText} transition-all`}>
@@ -719,7 +719,7 @@ function SHEQInspectionContent() {
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead><tr className={`border-b ${t.border}`}>
-                  <th className={thCls}></th>
+                  <th className={thCls}><span className="sr-only">Expand</span></th>
                   <th className={thCls}>Title</th>
                   <th className={thCls}>Inspector(s)</th>
                   <th className={thCls}>Section</th>
@@ -727,7 +727,7 @@ function SHEQInspectionContent() {
                   <th className={thCls}>Date</th>
                   <th className={thCls}>Findings</th>
                   <th className={thCls}>Status</th>
-                  <th className={`${thCls} text-right`}></th>
+                  <th className={`${thCls} text-right`}><span className="sr-only">Actions</span></th>
                 </tr></thead>
                 <tbody>
                   {filtered.map(inspection => (
@@ -753,9 +753,9 @@ function SHEQInspectionContent() {
                         <td className="px-3 py-3"><StatusBadge color={INSPECTION_STATUS_HEX[inspection.status]} label={inspection.status} /></td>
                         <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
                           <div className="flex justify-end gap-1">
-                            <button type="button" title="Edit" onClick={() => { setEditingInspection(inspection); setFormOpen(true); }}
+                            <button type="button" title="Edit" aria-label="Edit inspection" onClick={() => { setEditingInspection(inspection); setFormOpen(true); }}
                               className={`h-7 w-7 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-brand-400`}><Pencil className="h-3.5 w-3.5" /></button>
-                            <button type="button" title="Delete" onClick={() => handleDelete(inspection.id)}
+                            <button type="button" title="Delete" aria-label="Delete inspection" onClick={() => handleDelete(inspection.id)}
                               className={`h-7 w-7 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:${t.light ? 'text-rose-600' : 'text-rose-400'}`}><Trash2 className="h-3.5 w-3.5" /></button>
                           </div>
                         </td>

@@ -68,7 +68,7 @@ export function ApprovalGate({
 
   return (
     <div className="fixed inset-0 z-[400] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onCancel} />
+      <button type="button" aria-label="Dismiss approval dialog" onClick={onCancel} className="absolute inset-0 bg-black/70 backdrop-blur-sm cursor-default" />
       <div className="relative oz-glass-panel rounded-2xl w-full max-w-md shadow-2xl z-10 overflow-hidden">
         {/* Header */}
         <div className={`px-6 py-4 border-b ${accentClass}`}>

@@ -9,7 +9,7 @@
 // window.confirm()'s boolean contract so call sites migrate with a one-line change.
 'use client';
 
-import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useTheme } from './tokens';
 import { AlertTriangle } from './icons';
@@ -38,6 +38,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
   const t = useTheme();
   const [opts, setOpts] = useState<ConfirmOptions | null>(null);
   const resolver = useRef<((v: boolean) => void) | null>(null);
+  const cancelRef = useRef<HTMLButtonElement | null>(null);
 
   const confirm = useCallback<ConfirmFn>((options) => {
     setOpts(options);
@@ -52,6 +53,29 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
 
   const destructive = opts?.destructive;
 
+  // Escape-to-close, wired at the document level rather than an onKeyDown prop on
+  // the dialog's non-interactive (role="alertdialog") container — a plain div isn't
+  // a keyboard-interactive element, so a JSX keydown handler there both trips
+  // jsx-a11y/no-noninteractive-element-interactions and is fragile in practice (it'd
+  // only fire while focus happens to be somewhere inside the dialog). A document
+  // listener works reliably for as long as the dialog is open, matching how real
+  // modal implementations do this.
+  useEffect(() => {
+    if (!opts) return;
+    const onKeyDown = (e: KeyboardEvent) => { if (e.key === 'Escape') close(false); };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [opts, close]);
+
+  // Move focus into the dialog on open — WAI-ARIA modal-dialog practice, done via a ref
+  // + effect rather than the `autoFocus` JSX prop (which jsx-a11y/no-autofocus flags,
+  // since it's disorienting when misused on ordinary page-load form fields; a genuine
+  // modal moving focus to itself is the sanctioned exception). Defaults to Cancel, not
+  // Confirm/Delete, so an accidental Enter press can't complete a destructive action.
+  useEffect(() => {
+    if (opts) cancelRef.current?.focus();
+  }, [opts]);
+
   return (
     <ConfirmContext.Provider value={confirm}>
       {children}
@@ -61,7 +85,6 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
             className="fixed inset-0 z-[60] flex items-center justify-center p-4"
             role="alertdialog"
             aria-modal="true"
-            onKeyDown={(e) => { if (e.key === 'Escape') close(false); }}
           >
             <motion.div
               className="absolute inset-0 bg-slate-900/50 backdrop-blur-md"
@@ -89,6 +112,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
               </div>
               <div className="flex items-center justify-end gap-2 mt-5">
                 <button
+                  ref={cancelRef}
                   type="button"
                   onClick={() => close(false)}
                   className={`h-8 px-3 rounded-lg text-[13px] font-medium ${t.chipBg} ${t.hoverBg} ${t.textMuted} ${t.hoverText} transition-colors`}
@@ -97,7 +121,6 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
                 </button>
                 <button
                   type="button"
-                  autoFocus
                   onClick={() => close(true)}
                   className={`h-8 px-3.5 rounded-lg text-[13px] font-semibold text-white transition-all hover:brightness-110 ${
                     destructive

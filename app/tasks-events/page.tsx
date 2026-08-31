@@ -86,11 +86,11 @@ function FormModal({ open, onClose, onSaved, initialData }: {
     <CenterModal open={open} onClose={onClose} title={mode === 'edit' ? 'Edit Event / Task' : 'New Event / Task'} accent="violet" width="max-w-lg">
       <form onSubmit={handleSubmit} className="p-5 space-y-4">
         <FormField label="Title" required>
-          <input autoFocus value={form.title} onChange={e => set('title', e.target.value)}
+          <input aria-label="Title" value={form.title} onChange={e => set('title', e.target.value)}
             placeholder="What needs doing?" className="w-full h-9 rounded-lg px-3 text-sm outline-none bg-white/10" />
         </FormField>
         <FormField label="Description">
-          <textarea rows={3} value={form.description} onChange={e => set('description', e.target.value)}
+          <textarea aria-label="Description" rows={3} value={form.description} onChange={e => set('description', e.target.value)}
             className="w-full rounded-lg px-3 py-2 text-sm outline-none bg-white/10 resize-none" />
         </FormField>
         <div className="grid grid-cols-2 gap-3">
@@ -103,11 +103,11 @@ function FormModal({ open, onClose, onSaved, initialData }: {
         </div>
         <div className="grid grid-cols-2 gap-3">
           <FormField label="Date">
-            <input type="date" value={form.event_date} onChange={e => set('event_date', e.target.value)}
+            <input aria-label="Date" type="date" value={form.event_date} onChange={e => set('event_date', e.target.value)}
               className="w-full h-9 rounded-lg px-3 text-sm outline-none bg-white/10" />
           </FormField>
           <FormField label="Due Date">
-            <input type="date" value={form.due_date} onChange={e => set('due_date', e.target.value)}
+            <input aria-label="Due Date" type="date" value={form.due_date} onChange={e => set('due_date', e.target.value)}
               className="w-full h-9 rounded-lg px-3 text-sm outline-none bg-white/10" />
           </FormField>
         </div>
@@ -205,7 +205,7 @@ function DetailsModal({ item, open, onClose, onEdit, onDelete, onToggle }: {
             ))}
           </div>
           <div className="flex gap-2">
-            <input value={draft} onChange={e => setDraft(e.target.value)} placeholder="Add a progress update…"
+            <input value={draft} onChange={e => setDraft(e.target.value)} placeholder="Add a progress update…" aria-label="Add a progress update"
               onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handlePost(); } }}
               className="flex-1 h-9 rounded-lg px-3 text-sm outline-none bg-white/10" />
             <PrimaryButton onClick={handlePost} submitting={posting} disabled={!draft.trim()}>Post</PrimaryButton>
@@ -411,7 +411,9 @@ function TasksEventsContent() {
         ) : (
           <div className="divide-y divide-white/10">
             {filtered.map(item => (
-              <div key={item.id} onClick={() => setViewing(item)} className={`flex items-center gap-3 px-5 py-3 cursor-pointer transition-colors ${t.hoverBgSoft}`}>
+              <div key={item.id} onClick={() => setViewing(item)} role="button" tabIndex={0}
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setViewing(item); } }}
+                className={`flex items-center gap-3 px-5 py-3 cursor-pointer transition-colors ${t.hoverBgSoft}`}>
                 <button type="button" onClick={e => { e.stopPropagation(); toggle(item); }} title={item.status === 'completed' ? 'Mark pending' : 'Mark complete'}
                   className={`h-6 w-6 flex items-center justify-center rounded-full border shrink-0 transition-colors ${
                     item.status === 'completed' ? 'bg-emerald-500/20 border-emerald-500/40' : `${t.chipBg} ${t.border} ${t.textFaint}`

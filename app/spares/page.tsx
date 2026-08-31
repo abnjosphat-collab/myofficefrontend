@@ -268,7 +268,7 @@ function RequisitionLineRow({ line, allSpares, onUpdate, onRemove }: {
   return (
     <div className={`grid gap-1.5 items-center p-2 rounded-xl ${t.chipBg}`} style={{ gridTemplateColumns: '180px 1fr 48px 96px 80px 90px 28px' }}>
       <div className="relative">
-        <input type="text" value={line.searchValue} placeholder="Stock code…"
+        <input type="text" value={line.searchValue} placeholder="Stock code…" aria-label="Search stock code"
           onChange={e => onUpdate(line.id, { searchValue: e.target.value, spare: null, dropdownOpen: true })}
           onFocus={() => onUpdate(line.id, { dropdownOpen: true })}
           onBlur={() => setTimeout(() => onUpdate(line.id, { dropdownOpen: false }), 160)}
@@ -288,7 +288,7 @@ function RequisitionLineRow({ line, allSpares, onUpdate, onRemove }: {
       <div className={`text-[11px] text-center ${t.textFaint}`}>{line.spare?.unit_of_measure ?? '—'}</div>
       <div className="flex items-center gap-0.5">
         <button onClick={() => onUpdate(line.id, { qty: Math.max(1, line.qty - 1) })} className={`h-6 w-5 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} text-sm leading-none transition-all`}>−</button>
-        <input type="number" min={1} value={line.qty} onChange={e => onUpdate(line.id, { qty: Math.max(1, Number(e.target.value) || 1) })} title="Quantity"
+        <input type="number" min={1} value={line.qty} onChange={e => onUpdate(line.id, { qty: Math.max(1, Number(e.target.value) || 1) })} title="Quantity" aria-label="Quantity"
           className={`w-10 text-center text-xs rounded-md ${t.inputBg} py-1`} />
         <button onClick={() => onUpdate(line.id, { qty: line.qty + 1 })} className={`h-6 w-5 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} text-sm leading-none transition-all`}>+</button>
       </div>
@@ -336,13 +336,14 @@ const SearchableDropdown = React.memo(({ value, onChange, options, placeholder =
       </button>
       {open && pos && createPortal(
         <>
-          <div className="fixed inset-0 z-[9998]" onClick={() => setOpen(false)} />
+          <button type="button" aria-label="Close menu" onClick={() => setOpen(false)}
+            className="fixed inset-0 z-[9998] cursor-default border-0 bg-transparent p-0" />
           <div style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, zIndex: 9999 }}
             className={`rounded-xl overflow-hidden ${t.glass} ${t.shadow}`}>
             <div className={`p-2 border-b ${t.border}`}>
               <div className="relative">
                 <Search className={`absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 ${t.textFaint}`} />
-                <input autoFocus type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search categories…" className={`w-full pl-6 pr-2 py-1.5 text-xs rounded-lg ${t.inputBg} focus:outline-none`} />
+                <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search categories…" aria-label="Search categories" className={`w-full pl-6 pr-2 py-1.5 text-xs rounded-lg ${t.inputBg} focus:outline-none`} />
               </div>
             </div>
             <div className="max-h-48 overflow-y-auto">
@@ -396,7 +397,7 @@ const CategoryTagPicker = React.memo(({ selected, onChange }: { selected: string
       )}
       <div className="flex gap-1.5">
         <input type="text" value={inputVal} onChange={e => setInputVal(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustom(); } }}
-          placeholder="Type a new category and press Enter…" className={`flex-1 px-2.5 py-1.5 text-xs rounded-lg ${t.inputBg} focus:outline-none`} />
+          placeholder="Type a new category and press Enter…" aria-label="Add custom category" className={`flex-1 px-2.5 py-1.5 text-xs rounded-lg ${t.inputBg} focus:outline-none`} />
         <button type="button" onClick={addCustom} className={`px-2.5 py-1.5 text-xs rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textMuted}`}>Add</button>
       </div>
     </div>
@@ -457,18 +458,18 @@ function SpareFormDialog({ open, onClose, onSave, editData }: {
         <form onSubmit={handleSave} className="space-y-3 py-1">
           {section('Required', <>
             <div className="grid grid-cols-2 gap-3">
-              <FormField label="Stock Code" required><input className={inputCls} value={form.stock_code} onChange={e => set('stock_code', e.target.value)} placeholder="e.g. 106335" disabled={!!editData} /></FormField>
-              <FormField label="Unit Price (USD)" required><input type="number" step="0.01" min="0" className={inputCls} value={form.unit_price} onChange={e => set('unit_price', parseFloat(e.target.value) || 0)} /></FormField>
+              <FormField label="Stock Code" required><input className={inputCls} value={form.stock_code} onChange={e => set('stock_code', e.target.value)} placeholder="e.g. 106335" disabled={!!editData} aria-label="Stock Code" /></FormField>
+              <FormField label="Unit Price (USD)" required><input type="number" step="0.01" min="0" className={inputCls} value={form.unit_price} onChange={e => set('unit_price', parseFloat(e.target.value) || 0)} aria-label="Unit Price (USD)" /></FormField>
             </div>
-            <FormField label="Description" required><input className={inputCls} value={form.description} onChange={e => set('description', e.target.value)} placeholder="Part description" /></FormField>
+            <FormField label="Description" required><input className={inputCls} value={form.description} onChange={e => set('description', e.target.value)} placeholder="Part description" aria-label="Description" /></FormField>
           </>)}
 
           {section('Stock Levels', <>
             <div className="grid grid-cols-4 gap-2">
               {([['Current Qty', 'current_quantity'], ['Min Qty', 'min_quantity'], ['Max Qty', 'max_quantity']] as const).map(([lbl, key]) => (
-                <FormField key={key} label={lbl}><input type="number" min="0" className={inputCls} value={form[key] as number} onChange={e => set(key, parseInt(e.target.value) || 0)} /></FormField>
+                <FormField key={key} label={lbl}><input type="number" min="0" className={inputCls} value={form[key] as number} onChange={e => set(key, parseInt(e.target.value) || 0)} aria-label={lbl} /></FormField>
               ))}
-              <FormField label="UoM"><input className={inputCls} value={form.unit_of_measure} onChange={e => set('unit_of_measure', e.target.value)} placeholder="UN" /></FormField>
+              <FormField label="UoM"><input className={inputCls} value={form.unit_of_measure} onChange={e => set('unit_of_measure', e.target.value)} placeholder="UN" aria-label="UoM" /></FormField>
             </div>
             <div className="grid grid-cols-2 gap-3 items-center">
               <FormField label="Priority">
@@ -485,13 +486,13 @@ function SpareFormDialog({ open, onClose, onSave, editData }: {
           {section('Classification (Optional)', <>
             <FormField label="Categories (select multiple or type custom)"><CategoryTagPicker selected={form.categories} onChange={cats => setForm(p => ({ ...p, categories: cats, category: cats[0] || '' }))} /></FormField>
             <div className="grid grid-cols-2 gap-3">
-              <FormField label="Machine / Equipment"><input className={inputCls} value={form.machine_type} onChange={e => set('machine_type', e.target.value)} placeholder="e.g. Crusher, Winder" /></FormField>
-              <FormField label="Storage Location"><input className={inputCls} value={form.storage_location} onChange={e => set('storage_location', e.target.value)} placeholder="e.g. A1-S3" /></FormField>
+              <FormField label="Machine / Equipment"><input className={inputCls} value={form.machine_type} onChange={e => set('machine_type', e.target.value)} placeholder="e.g. Crusher, Winder" aria-label="Machine / Equipment" /></FormField>
+              <FormField label="Storage Location"><input className={inputCls} value={form.storage_location} onChange={e => set('storage_location', e.target.value)} placeholder="e.g. A1-S3" aria-label="Storage Location" /></FormField>
             </div>
-            <FormField label="Supplier"><input className={inputCls} value={form.supplier} onChange={e => set('supplier', e.target.value)} placeholder="Supplier name" /></FormField>
+            <FormField label="Supplier"><input className={inputCls} value={form.supplier} onChange={e => set('supplier', e.target.value)} placeholder="Supplier name" aria-label="Supplier" /></FormField>
           </>)}
 
-          {section('Notes (Optional)', <textarea rows={2} className={`${inputCls} h-auto py-2 resize-none`} value={form.notes} onChange={e => set('notes', e.target.value)} placeholder="Any additional notes…" />)}
+          {section('Notes (Optional)', <textarea rows={2} className={`${inputCls} h-auto py-2 resize-none`} value={form.notes} onChange={e => set('notes', e.target.value)} placeholder="Any additional notes…" aria-label="Notes" />)}
 
           <DialogFooter><FormActions onCancel={onClose} submitting={saving} submitLabel={editData ? 'Update' : 'Add Spare'} accent="violet" /></DialogFooter>
         </form>
@@ -814,7 +815,7 @@ function SparesPageContent() {
             <div className="p-4 space-y-3">
               <div className="relative max-w-xs">
                 <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none ${t.textFaint}`} />
-                <input type="text" value={catSearch} onChange={e => setCatSearch(e.target.value)} placeholder="Search categories…" className={`pl-8 pr-3 py-1.5 w-full text-xs rounded-lg ${t.inputBg} focus:outline-none`} />
+                <input type="text" value={catSearch} onChange={e => setCatSearch(e.target.value)} placeholder="Search categories…" aria-label="Search categories" className={`pl-8 pr-3 py-1.5 w-full text-xs rounded-lg ${t.inputBg} focus:outline-none`} />
                 {catSearch && <button onClick={() => setCatSearch('')} className={`absolute right-2 top-1/2 -translate-y-1/2 ${t.textFaint} ${t.hoverText}`}><X className="h-3 w-3" /></button>}
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
@@ -860,7 +861,7 @@ function SparesPageContent() {
               {reqLines.length > 0 && (<>
                 {showSavePrompt ? (
                   <div className="flex items-center gap-1">
-                    <input autoFocus value={saveReqName} onChange={e => setSaveReqName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') saveCurrentRequisition(); if (e.key === 'Escape') setShowSavePrompt(false); }} placeholder="Requisition name…" className={`h-6 px-2 text-[11px] rounded-lg w-36 ${t.inputBg} focus:outline-none`} />
+                    <input value={saveReqName} onChange={e => setSaveReqName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') saveCurrentRequisition(); if (e.key === 'Escape') setShowSavePrompt(false); }} placeholder="Requisition name…" aria-label="Requisition name" className={`h-6 px-2 text-[11px] rounded-lg w-36 ${t.inputBg} focus:outline-none`} />
                     <button onClick={saveCurrentRequisition} className="h-6 px-2 text-[11px] rounded-lg bg-brand-500/20 text-brand-400 hover:bg-brand-500/30">Save</button>
                     <button type="button" title="Cancel" onClick={() => setShowSavePrompt(false)} className={`h-6 w-6 flex items-center justify-center rounded ${t.textFaint} ${t.hoverText}`}><X className="h-3 w-3" /></button>
                   </div>
@@ -1048,14 +1049,14 @@ function SparesPageContent() {
                             <td className="p-3" onClick={e => e.stopPropagation()}><button title={rowExpanded ? 'Collapse' : 'Expand'} onClick={toggleTableRow} className={`h-6 w-6 flex items-center justify-center rounded ${t.textFaint} ${t.hoverText}`}>{rowExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}</button></td>
                             <td className="p-3 text-right" onClick={e => e.stopPropagation()}>
                               <div className="flex items-center justify-end gap-1">
-                                <button title="Add to requisition" className={`h-7 w-7 inline-flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} hover:text-brand-400`} onClick={() => addToReq(spare)}><ShoppingCart className="h-3.5 w-3.5" /></button>
-                                <button title="Edit" className={`h-7 w-7 inline-flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint}`} onClick={() => { setEditingSpare(spare); setFormOpen(true); }}><Pencil className="h-3.5 w-3.5" /></button>
-                                <button title="Delete" className={`h-7 w-7 inline-flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} hover:text-rose-500`} onClick={() => setDeleteId(spare.id)}><Trash2 className="h-3.5 w-3.5" /></button>
+                                <button title="Add to requisition" aria-label={`Add ${spare.stock_code} to requisition`} className={`h-7 w-7 inline-flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} hover:text-brand-400`} onClick={() => addToReq(spare)}><ShoppingCart className="h-3.5 w-3.5" /></button>
+                                <button title="Edit" aria-label={`Edit ${spare.stock_code}`} className={`h-7 w-7 inline-flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint}`} onClick={() => { setEditingSpare(spare); setFormOpen(true); }}><Pencil className="h-3.5 w-3.5" /></button>
+                                <button title="Delete" aria-label={`Delete ${spare.stock_code}`} className={`h-7 w-7 inline-flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} hover:text-rose-500`} onClick={() => setDeleteId(spare.id)}><Trash2 className="h-3.5 w-3.5" /></button>
                               </div>
                             </td>
                           </tr>
                           {rowExpanded && (
-                            <tr className={`border-b ${t.border}`}>
+                            <tr className={`border-b ${t.border}`} aria-label={`Details for ${spare.stock_code}`}>
                               <td colSpan={11} className="py-3 px-6">
                                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 text-xs">
                                   <div><div className={`text-[10px] uppercase tracking-wide mb-0.5 ${t.textFaint}`}>Full Description</div><div className={`leading-relaxed ${t.textMuted}`}>{spare.description}</div></div>

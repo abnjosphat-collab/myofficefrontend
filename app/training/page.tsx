@@ -1,7 +1,7 @@
 // app/training/page.tsx — Training & Certification Register
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useId } from 'react';
 import {
   AlertTriangle, Award, BarChart3, BookOpen, Calendar, CheckCircle,
   Download, FileText, Pencil, Percent, Plus, RefreshCw, Search,
@@ -45,6 +45,7 @@ const TABS = [
 
 function TrainingContent() {
   const t = useTheme();
+  const certFileInputId = useId();
   const sections = useCollapseSection({ filters: true });
   const [activeTab, setActiveTab] = useState<typeof TABS[number]['id']>('register');
 
@@ -242,8 +243,8 @@ function TrainingContent() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex gap-1 justify-end">
-                            <button type="button" title="Edit" onClick={() => openEdit(c)} className={`h-7 w-7 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-brand-500`}><Pencil className="h-3.5 w-3.5" /></button>
-                            <button type="button" title="Delete" onClick={() => setDeleteTarget(c)} className={`h-7 w-7 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-rose-500`}><Trash2 className="h-3.5 w-3.5" /></button>
+                            <button type="button" title="Edit" aria-label={`Edit ${c.certification_name}`} onClick={() => openEdit(c)} className={`h-7 w-7 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-brand-500`}><Pencil className="h-3.5 w-3.5" /></button>
+                            <button type="button" title="Delete" aria-label={`Delete ${c.certification_name}`} onClick={() => setDeleteTarget(c)} className={`h-7 w-7 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-rose-500`}><Trash2 className="h-3.5 w-3.5" /></button>
                           </div>
                         </td>
                       </tr>
@@ -344,19 +345,19 @@ function TrainingContent() {
       <CenterModal open={modalOpen} onClose={() => setModalOpen(false)} title={editCert ? 'Edit Certification Record' : 'Add Certification Record'} width="max-w-2xl">
         <form onSubmit={saveRecord}>
           <div className="px-5 py-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <FormField label="Employee Name" required><input value={form.employee_name} onChange={e => setForm(f => ({ ...f, employee_name: e.target.value }))} placeholder="Full name" className={inputCls} /></FormField>
-            <FormField label="Employee ID" required><input value={form.employee_id} onChange={e => setForm(f => ({ ...f, employee_id: e.target.value }))} placeholder="e.g. E001" className={inputCls} /></FormField>
-            <FormField label="Department"><input value={form.department} onChange={e => setForm(f => ({ ...f, department: e.target.value }))} placeholder="e.g. Safety" className={inputCls} /></FormField>
-            <FormField label="Certification Name" required><input value={form.certification_name} onChange={e => setForm(f => ({ ...f, certification_name: e.target.value }))} placeholder="e.g. First Aid & CPR" className={inputCls} /></FormField>
-            <FormField label="Expiry Date" required><input type="date" title="Expiry date" value={form.expiry_date} onChange={e => setForm(f => ({ ...f, expiry_date: e.target.value }))} className={inputCls} /></FormField>
-            <FormField label="Required Refresher"><input value={form.required_refresher} onChange={e => setForm(f => ({ ...f, required_refresher: e.target.value }))} placeholder="e.g. BLS Refresher" className={inputCls} /></FormField>
+            <FormField label="Employee Name" required><input value={form.employee_name} onChange={e => setForm(f => ({ ...f, employee_name: e.target.value }))} placeholder="Full name" aria-label="Employee Name" className={inputCls} /></FormField>
+            <FormField label="Employee ID" required><input value={form.employee_id} onChange={e => setForm(f => ({ ...f, employee_id: e.target.value }))} placeholder="e.g. E001" aria-label="Employee ID" className={inputCls} /></FormField>
+            <FormField label="Department"><input value={form.department} onChange={e => setForm(f => ({ ...f, department: e.target.value }))} placeholder="e.g. Safety" aria-label="Department" className={inputCls} /></FormField>
+            <FormField label="Certification Name" required><input value={form.certification_name} onChange={e => setForm(f => ({ ...f, certification_name: e.target.value }))} placeholder="e.g. First Aid & CPR" aria-label="Certification Name" className={inputCls} /></FormField>
+            <FormField label="Expiry Date" required><input type="date" title="Expiry date" aria-label="Expiry date" value={form.expiry_date} onChange={e => setForm(f => ({ ...f, expiry_date: e.target.value }))} className={inputCls} /></FormField>
+            <FormField label="Required Refresher"><input value={form.required_refresher} onChange={e => setForm(f => ({ ...f, required_refresher: e.target.value }))} placeholder="e.g. BLS Refresher" aria-label="Required Refresher" className={inputCls} /></FormField>
 
             <div className="sm:col-span-2">
               <FormField label="Certificate Document (PDF / Image)">
-                <label className={`flex items-center gap-3 px-4 py-3 rounded-xl cursor-pointer transition-colors ${t.inputBg}`}>
+                <label htmlFor={certFileInputId} className={`flex items-center gap-3 px-4 py-3 rounded-xl cursor-pointer transition-colors ${t.inputBg}`}>
                   <UploadCloud className="h-4 w-4 text-emerald-500 shrink-0" />
                   <span className={`text-sm truncate ${t.textMuted}`}>{form.certificate_file ? form.certificate_file.name : editCert?.certificate_url ? 'Replace existing file…' : 'Choose file…'}</span>
-                  <input type="file" accept=".pdf,.jpg,.jpeg,.png" className="hidden" title="Certificate document" onChange={e => setForm(f => ({ ...f, certificate_file: e.target.files?.[0] ?? null }))} />
+                  <input id={certFileInputId} type="file" accept=".pdf,.jpg,.jpeg,.png" className="hidden" title="Certificate document" aria-label="Certificate document" onChange={e => setForm(f => ({ ...f, certificate_file: e.target.files?.[0] ?? null }))} />
                 </label>
               </FormField>
               {form.certificate_file && <p className="text-xs text-emerald-500 mt-1.5 flex items-center gap-1"><CheckCircle className="h-3 w-3" /> {form.certificate_file.name} selected</p>}

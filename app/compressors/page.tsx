@@ -278,14 +278,14 @@ function CompressorReadingsSystem() {
       <CenterModal open={showAddCompressor} onClose={() => setShowAddCompressor(false)} title="Add New Compressor" accent="violet" width="max-w-2xl">
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           <div className="grid grid-cols-2 gap-3">
-            <FormField label="Compressor Name" required><input className={inputCls} value={fd.name} onChange={e => setFd(p => ({ ...p, name: e.target.value }))} placeholder="Compressor #1" /></FormField>
-            <FormField label="Model" required><input className={inputCls} value={fd.model} onChange={e => setFd(p => ({ ...p, model: e.target.value }))} placeholder="Atlas Copco GA37" /></FormField>
-            <FormField label="Capacity" required><input className={inputCls} value={fd.capacity} onChange={e => setFd(p => ({ ...p, capacity: e.target.value }))} placeholder="37 kW" /></FormField>
+            <FormField label="Compressor Name" required><input aria-label="Compressor Name" className={inputCls} value={fd.name} onChange={e => setFd(p => ({ ...p, name: e.target.value }))} placeholder="Compressor #1" /></FormField>
+            <FormField label="Model" required><input aria-label="Model" className={inputCls} value={fd.model} onChange={e => setFd(p => ({ ...p, model: e.target.value }))} placeholder="Atlas Copco GA37" /></FormField>
+            <FormField label="Capacity" required><input aria-label="Capacity" className={inputCls} value={fd.capacity} onChange={e => setFd(p => ({ ...p, capacity: e.target.value }))} placeholder="37 kW" /></FormField>
             <FormField label="Location">
               <ListAutocomplete listName="location" value={fd.location} onChange={v => setFd(p => ({ ...p, location: v }))} />
             </FormField>
-            <FormField label="Total Running Hours"><input type="number" className={inputCls} value={String(fd.total_running_hours)} onChange={e => setFd(p => ({ ...p, total_running_hours: parseFloat(e.target.value) || 0 }))} /></FormField>
-            <FormField label="Total Loaded Hours"><input type="number" className={inputCls} value={String(fd.total_loaded_hours)} onChange={e => setFd(p => ({ ...p, total_loaded_hours: parseFloat(e.target.value) || 0 }))} /></FormField>
+            <FormField label="Total Running Hours"><input type="number" aria-label="Total Running Hours" className={inputCls} value={String(fd.total_running_hours)} onChange={e => setFd(p => ({ ...p, total_running_hours: parseFloat(e.target.value) || 0 }))} /></FormField>
+            <FormField label="Total Loaded Hours"><input type="number" aria-label="Total Loaded Hours" className={inputCls} value={String(fd.total_loaded_hours)} onChange={e => setFd(p => ({ ...p, total_loaded_hours: parseFloat(e.target.value) || 0 }))} /></FormField>
             <FormField label="Initial Status">
               <SelectField size="form" title="Initial status" value={fd.status} onChange={v => setFd(p => ({ ...p, status: v }))}
                 options={Object.entries(STATUS_CONFIG).map(([k, v]) => ({ value: k, label: v.label }))} />
@@ -464,7 +464,10 @@ function CompressorReadingsSystem() {
                       return (
                         <React.Fragment key={c.id}>
                           <tr className={`border-b ${t.border} ${t.hoverBgSoft} transition-colors`}>
-                            <td className="py-2.5 px-3">
+                            {/* aria-label mirrors the (real, already-visible) name/model text below — the
+                                icon+nested-divs structure sits past this rule's default recursion depth,
+                                so it can't statically see that text is there even though screen readers do. */}
+                            <td className="py-2.5 px-3" aria-label={`${c.name} — ${c.model}`}>
                               <div className="flex items-center gap-2.5">
                                 <div className={`w-7 h-7 rounded-full ${t.chipBg} flex items-center justify-center`}><Gauge className="h-3.5 w-3.5 text-brand-400" /></div>
                                 <div><div className={`${TYPE_WEIGHT.medium} ${t.textMuted}`}>{c.name}</div><div className={`text-xs ${t.textFaint}`}>{c.model}</div></div>
@@ -560,9 +563,9 @@ function CompressorReadingsSystem() {
                   <div className={`px-4 py-3 border-b ${t.border}`}><p className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textFaint}`}>Export Data</p></div>
                   <div className="p-3 space-y-2">
                     <button type="button" onClick={generateCSVReport} className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm ${t.textMuted} ${t.chipBg} ${t.hoverBg} transition-all`}><FileText className="h-4 w-4 text-brand-400" />Export to CSV</button>
-                    <label className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm ${t.textMuted} ${t.chipBg} ${t.hoverBg} transition-all cursor-pointer`}>
+                    <label htmlFor="compressor-import-csv" className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm ${t.textMuted} ${t.chipBg} ${t.hoverBg} transition-all cursor-pointer`}>
                       <Upload className={`h-4 w-4 ${accentText('amber', t.light)}`} />Import from CSV
-                      <input type="file" accept=".csv" aria-label="Import CSV file" className="hidden" onChange={async e => { const f = e.target.files?.[0]; if (f) { try { await importData(f); } catch { /* handled */ } } }} />
+                      <input id="compressor-import-csv" type="file" accept=".csv" aria-label="Import CSV file" className="hidden" onChange={async e => { const f = e.target.files?.[0]; if (f) { try { await importData(f); } catch { /* handled */ } } }} />
                     </label>
                   </div>
                 </div>
@@ -596,7 +599,9 @@ function CompressorReadingsSystem() {
                           {analyticsData.performanceMetrics.map(m => (
                             <tr key={m.compressor_id} className={`border-b ${t.border} ${t.hoverBgSoft} transition-colors`}>
                               <td className={`py-2.5 px-3 ${TYPE_WEIGHT.medium} ${t.textMuted}`}>{m.compressor_name}</td>
-                              <td className="py-2.5 px-3">
+                              {/* aria-label mirrors the visible percentage — same recursion-depth gap as
+                                  the compressor-name column above. */}
+                              <td className="py-2.5 px-3" aria-label={`${m.avg_efficiency}% average efficiency`}>
                                 <div className="flex items-center gap-1.5">
                                   <div className={`w-2 h-2 rounded-full ${m.avg_efficiency >= 80 ? 'bg-emerald-500' : m.avg_efficiency >= 60 ? 'bg-brand-500' : m.avg_efficiency >= 40 ? 'bg-amber-500' : 'bg-rose-500'}`} />
                                   <span className={t.textMuted}>{m.avg_efficiency}%</span>

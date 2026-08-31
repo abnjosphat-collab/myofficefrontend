@@ -105,10 +105,10 @@ function ReportFormModal({ open, onClose, onSave, report }: {
                 ]} />
             </FormField>
             <FormField label="Date" required>
-              <input type="date" value={form.date || ''} onChange={e => set('date', e.target.value)} title="Incident date" className={inputCls} />
+              <input type="date" value={form.date || ''} onChange={e => set('date', e.target.value)} title="Incident date" aria-label="Incident date" className={inputCls} />
             </FormField>
             <FormField label="Time" required>
-              <input type="time" value={form.time || ''} onChange={e => set('time', e.target.value)} title="Incident time" className={inputCls} />
+              <input type="time" value={form.time || ''} onChange={e => set('time', e.target.value)} title="Incident time" aria-label="Incident time" className={inputCls} />
             </FormField>
             <div className="col-span-2">
               <FormField label="Location" required>
@@ -294,8 +294,8 @@ function NearMissContent() {
             <SearchInput value={search} onChange={setSearch} placeholder="Search department, reporter, location…" className="w-56" />
             <SelectField size="filter" title="Section" value={sectionFilter} onChange={setSectionFilter}
               options={[{ value: 'all', label: 'All Sections' }, { value: 'Mechanical', label: 'Mechanical' }, { value: 'Electrical', label: 'Electrical' }, { value: 'General', label: 'General' }]} />
-            <input type="date" title="From date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className={selCls} />
-            <input type="date" title="To date" value={dateTo} onChange={e => setDateTo(e.target.value)} className={selCls} />
+            <input type="date" title="From date" aria-label="From date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className={selCls} />
+            <input type="date" title="To date" aria-label="To date" value={dateTo} onChange={e => setDateTo(e.target.value)} className={selCls} />
             {hasFilters && <button type="button" onClick={clearFilters} className={`flex items-center gap-1 text-xs px-2 py-1.5 rounded-lg transition-colors ${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText}`}><X className="h-3 w-3" /> Clear</button>}
             <span className={`text-[11px] ml-auto ${t.textFaint}`}>{filteredReports.length} of {reports.length}</span>
           </div>
@@ -327,7 +327,7 @@ function NearMissContent() {
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className={`border-b ${t.border}`}>
-                  <tr><th className={thCls}>Date & Time</th><th className={thCls}>Department</th><th className={thCls}>Section</th><th className={thCls}>Location</th><th className={thCls}>Reporter</th><th className={thCls}></th></tr>
+                  <tr><th className={thCls}>Date & Time</th><th className={thCls}>Department</th><th className={thCls}>Section</th><th className={thCls}>Location</th><th className={thCls}>Reporter</th><th className={thCls}><span className="sr-only">Actions</span></th></tr>
                 </thead>
                 <tbody>
                   {filteredReports.map(report => {
@@ -342,9 +342,9 @@ function NearMissContent() {
                           <td className={`px-3 py-3 text-xs ${t.textFaint}`}>{report.reporterName || <span className="italic opacity-60">Anonymous</span>}</td>
                           <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
                             <div className="flex gap-1 justify-end">
-                              <button type="button" title={expanded ? 'Collapse' : 'Expand'} onClick={() => toggleRow(report.id)} className={`p-1.5 rounded ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-colors`}>{expanded ? '−' : '+'}</button>
-                              <button type="button" title="Edit" onClick={() => { setEditingReport(report); setFormOpen(true); }} className={`p-1.5 rounded ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-colors`}>✎</button>
-                              <button type="button" title="Delete" onClick={() => handleDelete(report.id)} className={`p-1.5 rounded ${t.chipBg} hover:bg-rose-500/15 ${t.textFaint} hover:${t.light ? 'text-rose-600' : 'text-rose-400'} transition-colors`}>×</button>
+                              <button type="button" title={expanded ? 'Collapse' : 'Expand'} aria-label={expanded ? 'Collapse report details' : 'Expand report details'} onClick={() => toggleRow(report.id)} className={`p-1.5 rounded ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-colors`}>{expanded ? '−' : '+'}</button>
+                              <button type="button" title="Edit" aria-label="Edit near miss report" onClick={() => { setEditingReport(report); setFormOpen(true); }} className={`p-1.5 rounded ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-colors`}>✎</button>
+                              <button type="button" title="Delete" aria-label="Delete near miss report" onClick={() => handleDelete(report.id)} className={`p-1.5 rounded ${t.chipBg} hover:bg-rose-500/15 ${t.textFaint} hover:${t.light ? 'text-rose-600' : 'text-rose-400'} transition-colors`}>×</button>
                             </div>
                           </td>
                         </tr>

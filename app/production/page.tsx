@@ -111,21 +111,21 @@ function ProductionContent() {
             <button type="button" onClick={() => setShowForm(false)} className={`${t.textFaint} ${t.hoverText}`}><X className="w-5 h-5" /></button>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
-            <FormField label="Date"><input type="date" title="Date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} className={inputCls} /></FormField>
+            <FormField label="Date"><input type="date" title="Date" aria-label="Date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} className={inputCls} /></FormField>
             <FormField label="Shift">
               <SelectField size="form" title="Shift" value={form.shift} onChange={v => setForm(f => ({ ...f, shift: v }))}
                 options={['Day', 'Night', 'Afternoon']} />
             </FormField>
-            <FormField label="Tonnes Milled"><input placeholder="Tonnes Milled" type="number" value={form.tonnesMilled} onChange={e => setForm(f => ({ ...f, tonnesMilled: e.target.value }))} className={inputCls} /></FormField>
-            <FormField label="Feed Rate (tph)"><input placeholder="Feed Rate (tph)" type="number" value={form.feedRate} onChange={e => setForm(f => ({ ...f, feedRate: e.target.value }))} className={inputCls} /></FormField>
-            <FormField label="Grade (g/t)"><input placeholder="Grade (g/t)" type="number" step="0.1" value={form.grade} onChange={e => setForm(f => ({ ...f, grade: e.target.value }))} className={inputCls} /></FormField>
-            <FormField label="Recovery %"><input placeholder="Recovery %" type="number" step="0.1" value={form.recovery} onChange={e => setForm(f => ({ ...f, recovery: e.target.value }))} className={inputCls} /></FormField>
-            <FormField label="Gold Oz"><input placeholder="Gold Oz" type="number" value={form.goldOz} onChange={e => setForm(f => ({ ...f, goldOz: e.target.value }))} className={inputCls} /></FormField>
-            <FormField label="Mill Avail %"><input placeholder="Mill Avail %" type="number" value={form.millAvail} onChange={e => setForm(f => ({ ...f, millAvail: e.target.value }))} className={inputCls} /></FormField>
-            <FormField label="Power kWh"><input placeholder="Power kWh" type="number" value={form.powerKwh} onChange={e => setForm(f => ({ ...f, powerKwh: e.target.value }))} className={inputCls} /></FormField>
-            <FormField label="Downtime Hrs"><input placeholder="Downtime Hrs" type="number" step="0.1" value={form.downtimeHrs} onChange={e => setForm(f => ({ ...f, downtimeHrs: e.target.value }))} className={inputCls} /></FormField>
-            <FormField label="Downtime Reason"><input placeholder="Downtime Reason" value={form.downtimeReason} onChange={e => setForm(f => ({ ...f, downtimeReason: e.target.value }))} className={inputCls} /></FormField>
-            <FormField label="Comments"><input placeholder="Comments" value={form.comments} onChange={e => setForm(f => ({ ...f, comments: e.target.value }))} className={inputCls} /></FormField>
+            <FormField label="Tonnes Milled"><input placeholder="Tonnes Milled" aria-label="Tonnes Milled" type="number" value={form.tonnesMilled} onChange={e => setForm(f => ({ ...f, tonnesMilled: e.target.value }))} className={inputCls} /></FormField>
+            <FormField label="Feed Rate (tph)"><input placeholder="Feed Rate (tph)" aria-label="Feed Rate (tph)" type="number" value={form.feedRate} onChange={e => setForm(f => ({ ...f, feedRate: e.target.value }))} className={inputCls} /></FormField>
+            <FormField label="Grade (g/t)"><input placeholder="Grade (g/t)" aria-label="Grade (g/t)" type="number" step="0.1" value={form.grade} onChange={e => setForm(f => ({ ...f, grade: e.target.value }))} className={inputCls} /></FormField>
+            <FormField label="Recovery %"><input placeholder="Recovery %" aria-label="Recovery %" type="number" step="0.1" value={form.recovery} onChange={e => setForm(f => ({ ...f, recovery: e.target.value }))} className={inputCls} /></FormField>
+            <FormField label="Gold Oz"><input placeholder="Gold Oz" aria-label="Gold Oz" type="number" value={form.goldOz} onChange={e => setForm(f => ({ ...f, goldOz: e.target.value }))} className={inputCls} /></FormField>
+            <FormField label="Mill Avail %"><input placeholder="Mill Avail %" aria-label="Mill Avail %" type="number" value={form.millAvail} onChange={e => setForm(f => ({ ...f, millAvail: e.target.value }))} className={inputCls} /></FormField>
+            <FormField label="Power kWh"><input placeholder="Power kWh" aria-label="Power kWh" type="number" value={form.powerKwh} onChange={e => setForm(f => ({ ...f, powerKwh: e.target.value }))} className={inputCls} /></FormField>
+            <FormField label="Downtime Hrs"><input placeholder="Downtime Hrs" aria-label="Downtime Hrs" type="number" step="0.1" value={form.downtimeHrs} onChange={e => setForm(f => ({ ...f, downtimeHrs: e.target.value }))} className={inputCls} /></FormField>
+            <FormField label="Downtime Reason"><input placeholder="Downtime Reason" aria-label="Downtime Reason" value={form.downtimeReason} onChange={e => setForm(f => ({ ...f, downtimeReason: e.target.value }))} className={inputCls} /></FormField>
+            <FormField label="Comments"><input placeholder="Comments" aria-label="Comments" value={form.comments} onChange={e => setForm(f => ({ ...f, comments: e.target.value }))} className={inputCls} /></FormField>
           </div>
           <PrimaryButton accent="violet" size="md" onClick={submit}>Save Record</PrimaryButton>
         </div>

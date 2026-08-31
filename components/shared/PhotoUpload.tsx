@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { API_BASE } from '@/lib/config';
 import { authFetch } from '@/lib/api';
 import { Camera, Upload, X, ZoomIn, ImageIcon } from '@/components/shared/theme';
@@ -33,6 +33,9 @@ export function PhotoUpload({
   disabled = false,
   accentColor = '#86BBD8',
 }: PhotoUploadProps) {
+  const uid = useId();
+  const fileInputId = `photo-upload-file-${uid}`;
+  const cameraInputId = `photo-upload-camera-${uid}`;
   const fileRef   = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
   const [uploading,  setUploading]  = useState(false);
@@ -113,7 +116,7 @@ export function PhotoUpload({
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={url}
-                alt={`Photo ${idx + 1}`}
+                alt={`${label} attachment ${idx + 1}`}
                 className="w-full h-full object-cover"
               />
               {/* Hover overlay */}
@@ -177,21 +180,20 @@ export function PhotoUpload({
       {canAdd && (
         <div className="flex gap-2">
           {/* File upload */}
-          <label className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl cursor-pointer transition-all text-xs text-white/45 hover:text-white/75"
-            style={{
-              border: '1.5px dashed rgba(255,255,255,0.15)',
-              background: 'rgba(255,255,255,0.03)',
-            }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = `${accentColor}50`; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.15)'; }}
+          <label
+            htmlFor={fileInputId}
+            className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl cursor-pointer transition-all text-xs text-white/45 hover:text-white/75 border-[1.5px] border-dashed border-white/15 bg-white/[0.03] hover:border-[var(--photo-upload-accent)]"
+            style={{ '--photo-upload-accent': `${accentColor}50` } as React.CSSProperties}
           >
             <Upload className="h-3.5 w-3.5 shrink-0" />
             <span>Upload photo{maxPhotos - photos.length > 1 ? 's' : ''}</span>
             <input
+              id={fileInputId}
               ref={fileRef}
               type="file"
               multiple
               accept={ACCEPTED}
+              aria-label={`Upload photo${maxPhotos - photos.length > 1 ? 's' : ''}`}
               className="hidden"
               onChange={e => handleFiles(e.target.files)}
             />
@@ -199,22 +201,20 @@ export function PhotoUpload({
 
           {/* Camera capture */}
           <label
-            className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl cursor-pointer transition-all text-xs text-white/45 hover:text-white/75"
+            htmlFor={cameraInputId}
+            className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl cursor-pointer transition-all text-xs text-white/45 hover:text-white/75 border border-white/[0.12] bg-white/[0.03] hover:border-[var(--photo-upload-accent)]"
             title="Take a photo with camera"
-            style={{
-              border: '1px solid rgba(255,255,255,0.12)',
-              background: 'rgba(255,255,255,0.03)',
-            }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = `${accentColor}40`; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.12)'; }}
+            style={{ '--photo-upload-accent': `${accentColor}40` } as React.CSSProperties}
           >
             <Camera className="h-3.5 w-3.5 shrink-0" />
             <span className="hidden sm:inline">Camera</span>
             <input
+              id={cameraInputId}
               ref={cameraRef}
               type="file"
               accept="image/*"
               capture="environment"
+              aria-label="Take a photo with camera"
               className="hidden"
               onChange={e => handleFiles(e.target.files)}
             />
@@ -230,26 +230,36 @@ export function PhotoUpload({
 
       {/* Lightbox */}
       {lightbox && (
-        <div
-          className="fixed inset-0 z-[200] bg-black/92 flex items-center justify-center p-6 backdrop-blur-sm"
-          onClick={() => setLightbox(null)}
-        >
+        <>
+          {/* Click-outside scrim to dismiss — a real (unstyled) button so it's a valid
+              interactive control; kept out of the tab order since the explicit Close
+              button below is the keyboard-equivalent way to dismiss, and this is a
+              mouse-only affordance. A separate layer (not a wrapping element) so the
+              Close button and image don't need their own stopPropagation. */}
           <button
             type="button"
-            title="Close"
+            tabIndex={-1}
+            aria-label="Close photo preview"
             onClick={() => setLightbox(null)}
-            className="absolute top-5 right-5 h-9 w-9 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors z-10"
-          >
-            <X className="h-5 w-5 text-white" />
-          </button>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={lightbox}
-            alt="Full size preview"
-            className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl"
-            onClick={e => e.stopPropagation()}
+            className="fixed inset-0 z-[200] bg-black/92 backdrop-blur-sm cursor-default"
           />
-        </div>
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 pointer-events-none">
+            <button
+              type="button"
+              title="Close"
+              onClick={() => setLightbox(null)}
+              className="absolute top-5 right-5 h-9 w-9 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors z-10 pointer-events-auto"
+            >
+              <X className="h-5 w-5 text-white" />
+            </button>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={lightbox}
+              alt="Full size preview"
+              className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl pointer-events-auto"
+            />
+          </div>
+        </>
       )}
     </div>
   );

@@ -18,6 +18,15 @@ const a11yRecommended = jsxA11y.flatConfigs.recommended;
 const a11yWarnRules = Object.fromEntries(
   Object.keys(a11yRecommended.rules).map((rule) => [rule, "warn"])
 );
+// label-has-for is deprecated upstream in favor of label-has-associated-control (which
+// stays enabled above and already covers the real requirement: a label needs a matching
+// htmlFor/id OR to nest its control). label-has-for's default `required` option demands
+// BOTH nesting AND id — unsatisfiable for a generic wrapper component (e.g. FormField in
+// components/shared/design-system/components.tsx) whose control is passed in as an opaque
+// `children` prop, since such a component can never author a literal nested <input>/
+// <select>/<textarea> tag even when its actual (correct, htmlFor/id-associated) label is
+// fine. Turned off rather than satisfied per-callsite with a fake nested element.
+a11yWarnRules["jsx-a11y/label-has-for"] = "off";
 
 // A single className chunk with two unmodified bg-* color utilities silently lets one
 // win with no warning — found and fixed 3 separate times in this codebase already. A

@@ -80,15 +80,15 @@ function ActionItemCard({ item, index, onChange, onRemove }: { item: ActionItem;
         <button type="button" onClick={() => onRemove(item.id)} title="Remove action" className="text-red-400 hover:text-red-300 transition-colors"><Trash2 className="h-3.5 w-3.5" /></button>
       </div>
       <div className="grid grid-cols-2 gap-2">
-        <div className="col-span-2"><FormField label="Action Description" required><input className={inputCls} value={item.action} placeholder="Describe the action..." onChange={e => onChange(item.id, 'action', e.target.value)} /></FormField></div>
-        <FormField label="Responsible Person" required><input className={inputCls} value={item.responsible} placeholder="Full name" onChange={e => onChange(item.id, 'responsible', e.target.value)} /></FormField>
-        <FormField label="Target Date" required><input type="date" className={inputCls} value={item.targetDate} title="Target date" onChange={e => onChange(item.id, 'targetDate', e.target.value)} /></FormField>
+        <div className="col-span-2"><FormField label="Action Description" required><input className={inputCls} value={item.action} placeholder="Describe the action..." aria-label="Action description" onChange={e => onChange(item.id, 'action', e.target.value)} /></FormField></div>
+        <FormField label="Responsible Person" required><input className={inputCls} value={item.responsible} placeholder="Full name" aria-label="Responsible person" onChange={e => onChange(item.id, 'responsible', e.target.value)} /></FormField>
+        <FormField label="Target Date" required><input type="date" className={inputCls} value={item.targetDate} title="Target date" aria-label="Target date" onChange={e => onChange(item.id, 'targetDate', e.target.value)} /></FormField>
         <FormField label="Status">
           <SelectField size="form" value={item.status} title="Status" onChange={v => onChange(item.id, 'status', v as ActionStatus)}
             options={[{ value: 'Pending', label: 'Pending' }, { value: 'In Progress', label: 'In Progress' }, { value: 'Completed', label: 'Completed' }]} />
         </FormField>
-        {item.status === 'Completed' && <FormField label="Completed Date"><input type="date" className={inputCls} value={item.completedDate || ''} title="Completed date" onChange={e => onChange(item.id, 'completedDate', e.target.value)} /></FormField>}
-        <div className="col-span-2"><FormField label="Remarks (Optional)"><textarea className={`${inputCls} resize-none`} style={{ minHeight: 48 }} value={item.remarks || ''} placeholder="Additional notes..." onChange={e => onChange(item.id, 'remarks', e.target.value)} /></FormField></div>
+        {item.status === 'Completed' && <FormField label="Completed Date"><input type="date" className={inputCls} value={item.completedDate || ''} title="Completed date" aria-label="Completed date" onChange={e => onChange(item.id, 'completedDate', e.target.value)} /></FormField>}
+        <div className="col-span-2"><FormField label="Remarks (Optional)"><textarea className={`${inputCls} resize-none`} style={{ minHeight: 48 }} value={item.remarks || ''} placeholder="Additional notes..." aria-label="Remarks" onChange={e => onChange(item.id, 'remarks', e.target.value)} /></FormField></div>
       </div>
     </div>
   );
@@ -138,10 +138,10 @@ function VFLCard({ report, index, onView, onEdit, onDelete }: { report: VFLRepor
           <StatusBadge color={STATUS_HEX[report.status] ?? STATUS_TONE.neutral} label={report.status.charAt(0).toUpperCase() + report.status.slice(1)} />
         </div>
 
-        <div onClick={e => e.stopPropagation()} className="flex justify-end gap-1.5 mt-2.5">
-          <button type="button" onClick={() => onView(report)} title="View" className={`${t.chipBg} ${t.hoverBg} rounded-md px-2 py-1 text-xs flex items-center gap-1 transition-colors ${t.textFaint}`}><Eye className="h-3 w-3" /> View</button>
-          <button type="button" onClick={() => onEdit(report)} title="Edit" className={`${t.chipBg} ${t.hoverBg} rounded-md px-2 py-1 text-xs flex items-center gap-1 transition-colors text-brand-400`}><PenTool className="h-3 w-3" /> Edit</button>
-          <button type="button" onClick={() => onDelete(report.id)} title="Delete" className={`${t.chipBg} ${t.hoverBg} rounded-md px-2 py-1 text-xs flex items-center gap-1 transition-colors text-red-400`}><Trash2 className="h-3 w-3" /> Delete</button>
+        <div className="flex justify-end gap-1.5 mt-2.5">
+          <button type="button" onClick={e => { e.stopPropagation(); onView(report); }} title="View" className={`${t.chipBg} ${t.hoverBg} rounded-md px-2 py-1 text-xs flex items-center gap-1 transition-colors ${t.textFaint}`}><Eye className="h-3 w-3" /> View</button>
+          <button type="button" onClick={e => { e.stopPropagation(); onEdit(report); }} title="Edit" className={`${t.chipBg} ${t.hoverBg} rounded-md px-2 py-1 text-xs flex items-center gap-1 transition-colors text-brand-400`}><PenTool className="h-3 w-3" /> Edit</button>
+          <button type="button" onClick={e => { e.stopPropagation(); onDelete(report.id); }} title="Delete" className={`${t.chipBg} ${t.hoverBg} rounded-md px-2 py-1 text-xs flex items-center gap-1 transition-colors text-red-400`}><Trash2 className="h-3 w-3" /> Delete</button>
         </div>
       </div>
     </GlowCard>
@@ -270,8 +270,8 @@ function VFLFormModal({ open, editing, onClose, onSave, saving }: { open: boolea
                 options={SECTIONS.map(s => ({ value: s, label: s }))} />
             </FormField>
             <div className="col-span-2"><FormField label="Department/Section"><PredictiveInput historyKey="vfl_department" value={form.departmentSection || ''} onChange={v => set('departmentSection', v)} placeholder="e.g. Engineering" hints={['Engineering', 'Mechanical', 'Electrical', 'Mining', 'Processing', 'Safety', 'Maintenance', 'Operations']} /></FormField></div>
-            <FormField label="Date" required><input type="date" className={inputCls} value={form.date || ''} title="Observation date" onChange={e => set('date', e.target.value)} /></FormField>
-            <FormField label="Time" required><input type="time" className={inputCls} value={form.time || ''} title="Observation time" onChange={e => set('time', e.target.value)} /></FormField>
+            <FormField label="Date" required><input type="date" className={inputCls} value={form.date || ''} title="Observation date" aria-label="Observation date" onChange={e => set('date', e.target.value)} /></FormField>
+            <FormField label="Time" required><input type="time" className={inputCls} value={form.time || ''} title="Observation time" aria-label="Observation time" onChange={e => set('time', e.target.value)} /></FormField>
             <FormField label="Status">
               <SelectField size="form" value={form.status || 'draft'} title="Status" onChange={v => set('status', v as VFLStatus)}
                 options={[{ value: 'draft', label: 'Draft' }, { value: 'submitted', label: 'Submitted' }, { value: 'reviewed', label: 'Reviewed' }, { value: 'closed', label: 'Closed' }]} />
@@ -285,7 +285,7 @@ function VFLFormModal({ open, editing, onClose, onSave, saving }: { open: boolea
               <div className={`text-xs ${TYPE_WEIGHT.medium} mb-2 ${t.textFaint}`}>Behaviour Category *</div>
               <div className="flex gap-4 flex-wrap">
                 {BEHAVIOUR_CATEGORIES.map(cat => (
-                  <label key={cat} className={radioLabelCls}><input type="radio" style={{ accentColor: '#10b981' }} name="behaviourCat" value={cat} checked={form.behaviourCategory === cat} onChange={() => set('behaviourCategory', cat)} /><span className={`${TYPE_WEIGHT.semibold}`} style={{ color: BEHAVIOUR_HEX[cat] }}>{cat}</span></label>
+                  <label key={cat} htmlFor={`behaviour-cat-${cat}`} className={radioLabelCls}><input id={`behaviour-cat-${cat}`} type="radio" style={{ accentColor: '#10b981' }} name="behaviourCat" value={cat} aria-label={cat} checked={form.behaviourCategory === cat} onChange={() => set('behaviourCategory', cat)} /><span className={`${TYPE_WEIGHT.semibold}`} style={{ color: BEHAVIOUR_HEX[cat] }}>{cat}</span></label>
                 ))}
               </div>
             </div>
@@ -293,16 +293,16 @@ function VFLFormModal({ open, editing, onClose, onSave, saving }: { open: boolea
               <div className={`text-xs ${TYPE_WEIGHT.medium} mb-2 ${t.textFaint}`}>Observation Type *</div>
               <div className="flex flex-col gap-2">
                 {OBSERVATION_TYPES.map(type => (
-                  <label key={type} className={radioLabelCls}><input type="radio" style={{ accentColor: '#10b981' }} name="obsType" value={type} checked={form.observationType === type} onChange={() => set('observationType', type)} /><span style={{ color: OBSERVATION_HEX[type] }}>{type}</span></label>
+                  <label key={type} htmlFor={`obs-type-${type}`} className={radioLabelCls}><input id={`obs-type-${type}`} type="radio" style={{ accentColor: '#10b981' }} name="obsType" value={type} aria-label={type} checked={form.observationType === type} onChange={() => set('observationType', type)} /><span style={{ color: OBSERVATION_HEX[type] }}>{type}</span></label>
                 ))}
               </div>
             </div>
-            <FormField label="Description" required><textarea className={`${inputCls} resize-none`} style={{ minHeight: 100 }} value={form.description || ''} placeholder="Relate details of the observation..." onChange={e => set('description', e.target.value)} /></FormField>
+            <FormField label="Description" required><textarea className={`${inputCls} resize-none`} style={{ minHeight: 100 }} value={form.description || ''} placeholder="Relate details of the observation..." aria-label="Description" onChange={e => set('description', e.target.value)} /></FormField>
             <div className={`${t.chipBg} rounded-xl p-3.5`}>
               <div className={`flex items-center gap-1.5 text-xs ${TYPE_WEIGHT.medium} mb-2.5 ${t.textFaint}`}><MessageSquare className="h-3.5 w-3.5" /> Coaching Technique Used *</div>
               <div className="flex gap-4 flex-wrap">
                 {COACHING_TECHNIQUES.map(tech => (
-                  <label key={tech} className={radioLabelCls}><input type="radio" style={{ accentColor: '#10b981' }} name="coaching" value={tech} checked={form.coachingTechnique === tech} onChange={() => set('coachingTechnique', tech)} /><span className={`${TYPE_WEIGHT.bold} ${t.textPrimary}`}>{tech}</span><span className={`text-[11px] ${t.textFaint}`}>({COACHING_DESC[tech]})</span></label>
+                  <label key={tech} htmlFor={`coaching-${tech}`} className={radioLabelCls}><input id={`coaching-${tech}`} type="radio" style={{ accentColor: '#10b981' }} name="coaching" value={tech} aria-label={tech} checked={form.coachingTechnique === tech} onChange={() => set('coachingTechnique', tech)} /><span className={`${TYPE_WEIGHT.bold} ${t.textPrimary}`}>{tech}</span><span className={`text-[11px] ${t.textFaint}`}>({COACHING_DESC[tech]})</span></label>
                 ))}
               </div>
             </div>
@@ -472,8 +472,8 @@ function VFLObservationContent() {
             <SelectField size="filter" title="Section" value={sectionFilter} onChange={setSectionFilter} options={[{ value: 'all', label: 'All Sections' }, { value: 'Mechanical', label: 'Mechanical' }, { value: 'Electrical', label: 'Electrical' }]} />
             <SelectField size="filter" title="Status" value={statusFilter} onChange={setStatusFilter} options={[{ value: 'all', label: 'All Status' }, { value: 'draft', label: 'Draft' }, { value: 'submitted', label: 'Submitted' }, { value: 'reviewed', label: 'Reviewed' }, { value: 'closed', label: 'Closed' }]} />
             <SelectField size="filter" title="Behaviour" value={behaviourFilter} onChange={setBehaviourFilter} options={[{ value: 'all', label: 'All Behaviour' }, { value: 'Safe Behaviour', label: 'Safe' }, { value: 'Unsafe Behaviour', label: 'Unsafe' }]} />
-            <input type="date" title="From date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className={selCls} />
-            <input type="date" title="To date" value={dateTo} onChange={e => setDateTo(e.target.value)} className={selCls} />
+            <input type="date" title="From date" aria-label="From date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className={selCls} />
+            <input type="date" title="To date" aria-label="To date" value={dateTo} onChange={e => setDateTo(e.target.value)} className={selCls} />
             {hasFilters && <button type="button" onClick={clearFilters} className={`flex items-center gap-1 text-xs px-2 py-1.5 rounded-lg transition-colors ${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText}`}><X className="h-3 w-3" /> Clear</button>}
             <span className={`text-[11px] ml-auto ${t.textFaint}`}>{filtered.length} of {total}</span>
           </div>
@@ -501,7 +501,7 @@ function VFLObservationContent() {
           <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className={`border-b ${t.border}`}><tr><th className={thCls}>Date</th><th className={thCls}>Observer</th><th className={thCls}>Designation</th><th className={thCls}>Section</th><th className={thCls}>Behaviour</th><th className={thCls}>Coaching</th><th className={thCls}>Status</th><th className={thCls}></th></tr></thead>
+                <thead className={`border-b ${t.border}`}><tr><th className={thCls}>Date</th><th className={thCls}>Observer</th><th className={thCls}>Designation</th><th className={thCls}>Section</th><th className={thCls}>Behaviour</th><th className={thCls}>Coaching</th><th className={thCls}>Status</th><th className={thCls}><span className="sr-only">Actions</span></th></tr></thead>
                 <tbody>
                   {filtered.map(r => (
                     <tr key={r.id} onClick={() => { setSelectedReport(r); setDetailOpen(true); }} className={`border-b ${t.border} ${t.hoverBgSoft} transition-colors cursor-pointer`}>
@@ -512,10 +512,10 @@ function VFLObservationContent() {
                       <td className="px-3 py-2.5"><StatusBadge color={BEHAVIOUR_HEX[r.behaviourCategory] || ACCENT_HEX.blue} label={r.behaviourCategory} /></td>
                       <td className={`px-3 py-2.5 text-xs ${t.textFaint}`}>{r.coachingTechnique}</td>
                       <td className="px-3 py-2.5"><StatusBadge color={STATUS_HEX[r.status] ?? STATUS_TONE.neutral} label={r.status.charAt(0).toUpperCase() + r.status.slice(1)} /></td>
-                      <td className="px-3 py-2.5" onClick={e => e.stopPropagation()}>
+                      <td className="px-3 py-2.5">
                         <div className="flex gap-1 justify-end">
-                          <button type="button" title="Edit" onClick={() => handleEdit(r)} className={`p-1.5 rounded ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-colors`}><PenTool className="h-3 w-3" /></button>
-                          <button type="button" title="Delete" onClick={() => setDeleteTarget(r.id)} className={`p-1.5 rounded ${t.chipBg} hover:bg-rose-500/15 ${t.textFaint} hover:${t.light ? 'text-rose-600' : 'text-rose-400'} transition-colors`}><Trash2 className="h-3 w-3" /></button>
+                          <button type="button" title="Edit" aria-label={`Edit VFL observation for ${r.observerName}`} onClick={e => { e.stopPropagation(); handleEdit(r); }} className={`p-1.5 rounded ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-colors`}><PenTool className="h-3 w-3" /></button>
+                          <button type="button" title="Delete" aria-label={`Delete VFL observation for ${r.observerName}`} onClick={e => { e.stopPropagation(); setDeleteTarget(r.id); }} className={`p-1.5 rounded ${t.chipBg} hover:bg-rose-500/15 ${t.textFaint} hover:${t.light ? 'text-rose-600' : 'text-rose-400'} transition-colors`}><Trash2 className="h-3 w-3" /></button>
                         </div>
                       </td>
                     </tr>

@@ -309,49 +309,64 @@ function InventoryPageContent() {
             <div>
               <p className={`text-xs ${TYPE_WEIGHT.semibold} ${t.textFaint} mb-2`}>Category</p>
               <div className="space-y-1.5 max-h-32 overflow-y-auto">
-                {CATEGORIES.map(cat => (
-                  <label key={cat} className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={selectedCategories.includes(cat)}
-                      onChange={e => setSelectedCategories(prev => e.target.checked ? [...prev, cat] : prev.filter(c => c !== cat))}
-                      className="h-3.5 w-3.5 rounded accent-brand-500"
-                    />
-                    <span className={`text-xs ${t.textMuted}`}>{cat}</span>
-                  </label>
-                ))}
+                {CATEGORIES.map(cat => {
+                  const inputId = `inv-filter-cat-${cat.replace(/\s+/g, '-').toLowerCase()}`;
+                  return (
+                    <label key={cat} htmlFor={inputId} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        id={inputId}
+                        type="checkbox"
+                        checked={selectedCategories.includes(cat)}
+                        onChange={e => setSelectedCategories(prev => e.target.checked ? [...prev, cat] : prev.filter(c => c !== cat))}
+                        aria-label={cat}
+                        className="h-3.5 w-3.5 rounded accent-brand-500"
+                      />
+                      <span className={`text-xs ${t.textMuted}`}>{cat}</span>
+                    </label>
+                  );
+                })}
               </div>
             </div>
             <div>
               <p className={`text-xs ${TYPE_WEIGHT.semibold} ${t.textFaint} mb-2`}>Stock Status</p>
               <div className="space-y-1.5">
-                {(['in-stock', 'low-stock', 'out-of-stock'] as const).map(s => (
-                  <label key={s} className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={selectedStatus.includes(s)}
-                      onChange={e => setSelectedStatus(prev => e.target.checked ? [...prev, s] : prev.filter(x => x !== s))}
-                      className="h-3.5 w-3.5 rounded accent-brand-500"
-                    />
-                    <span className={`text-xs ${t.textMuted}`}>{STATUS_LABELS[s]} ({statusCounts[s]})</span>
-                  </label>
-                ))}
+                {(['in-stock', 'low-stock', 'out-of-stock'] as const).map(s => {
+                  const inputId = `inv-filter-status-${s}`;
+                  return (
+                    <label key={s} htmlFor={inputId} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        id={inputId}
+                        type="checkbox"
+                        checked={selectedStatus.includes(s)}
+                        onChange={e => setSelectedStatus(prev => e.target.checked ? [...prev, s] : prev.filter(x => x !== s))}
+                        aria-label={STATUS_LABELS[s]}
+                        className="h-3.5 w-3.5 rounded accent-brand-500"
+                      />
+                      <span className={`text-xs ${t.textMuted}`}>{STATUS_LABELS[s]} ({statusCounts[s]})</span>
+                    </label>
+                  );
+                })}
               </div>
             </div>
             <div>
               <p className={`text-xs ${TYPE_WEIGHT.semibold} ${t.textFaint} mb-2`}>Supplier</p>
               <div className="space-y-1.5 max-h-32 overflow-y-auto">
-                {SUPPLIERS.map(sup => (
-                  <label key={sup} className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={selectedSuppliers.includes(sup)}
-                      onChange={e => setSelectedSuppliers(prev => e.target.checked ? [...prev, sup] : prev.filter(s => s !== sup))}
-                      className="h-3.5 w-3.5 rounded accent-brand-500"
-                    />
-                    <span className={`text-xs ${t.textMuted}`}>{sup}</span>
-                  </label>
-                ))}
+                {SUPPLIERS.map(sup => {
+                  const inputId = `inv-filter-supplier-${sup.replace(/\s+/g, '-').toLowerCase()}`;
+                  return (
+                    <label key={sup} htmlFor={inputId} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        id={inputId}
+                        type="checkbox"
+                        checked={selectedSuppliers.includes(sup)}
+                        onChange={e => setSelectedSuppliers(prev => e.target.checked ? [...prev, sup] : prev.filter(s => s !== sup))}
+                        aria-label={sup}
+                        className="h-3.5 w-3.5 rounded accent-brand-500"
+                      />
+                      <span className={`text-xs ${t.textMuted}`}>{sup}</span>
+                    </label>
+                  );
+                })}
               </div>
             </div>
           </div>

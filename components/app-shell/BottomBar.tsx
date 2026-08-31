@@ -75,7 +75,8 @@ export function BottomBar({
           <AnimatePresence>
             {openMenu === 'notifications' && (
               <>
-                <div className="fixed inset-0 z-10" onClick={() => setOpenMenu(null)} />
+                <button type="button" tabIndex={-1} aria-label="Close notifications menu"
+                  className="fixed inset-0 z-10 cursor-default" onClick={() => setOpenMenu(null)} />
                 <motion.div
                   initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }}
                   transition={{ duration: 0.2 }}
@@ -122,7 +123,8 @@ export function BottomBar({
           <AnimatePresence>
             {openMenu === 'feedback' && (
               <>
-                <div className="fixed inset-0 z-10" onClick={() => setOpenMenu(null)} />
+                <button type="button" tabIndex={-1} aria-label="Close feedback menu"
+                  className="fixed inset-0 z-10 cursor-default" onClick={() => setOpenMenu(null)} />
                 <motion.div
                   initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }}
                   transition={{ duration: 0.2 }}
@@ -161,6 +163,7 @@ export function BottomBar({
                         onChange={(e) => setFeedbackText(e.target.value)}
                         rows={3}
                         placeholder="Tell us what would make this better…"
+                        aria-label="Feedback message"
                         className={`${t.inputBg} rounded-lg w-full text-[12px] p-2 resize-none focus:outline-none`}
                       />
                       <motion.button
@@ -193,7 +196,8 @@ export function BottomBar({
           <AnimatePresence>
             {openMenu === 'settings' && (
               <>
-                <div className="fixed inset-0 z-10" onClick={() => { setOpenMenu(null); setResetConfirming(false); }} />
+                <button type="button" tabIndex={-1} aria-label="Close settings menu"
+                  className="fixed inset-0 z-10 cursor-default" onClick={() => { setOpenMenu(null); setResetConfirming(false); }} />
                 <motion.div
                   initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }}
                   transition={{ duration: 0.2 }}

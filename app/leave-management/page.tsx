@@ -322,10 +322,10 @@ function LeaveManagementContent() {
                       placeholder="Select employee…"
                       options={TEAM_MEMBERS.map(e => ({ value: e.name, label: `${e.name} — ${e.department}` }))} />
                   </FormField>
-                  <FormField label="Employee ID"><input className={`${inputCls} opacity-60`} value={newReq.employeeId} readOnly /></FormField>
+                  <FormField label="Employee ID"><input aria-label="Employee ID" className={`${inputCls} opacity-60`} value={newReq.employeeId} readOnly /></FormField>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <FormField label="Department"><input className={`${inputCls} opacity-60`} value={newReq.department} readOnly /></FormField>
+                  <FormField label="Department"><input aria-label="Department" className={`${inputCls} opacity-60`} value={newReq.department} readOnly /></FormField>
                   <FormField label="Leave Type" required>
                     <SelectField size="form" value={newReq.leaveType} title="Leave Type" onChange={v => set('leaveType', v)}
                       placeholder="Select leave type…"
@@ -333,17 +333,17 @@ function LeaveManagementContent() {
                   </FormField>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <FormField label="Start Date" required><input type="date" className={inputCls} value={newReq.startDate} onChange={e => set('startDate', e.target.value)} /></FormField>
-                  <FormField label="End Date" required><input type="date" className={inputCls} value={newReq.endDate} onChange={e => set('endDate', e.target.value)} /></FormField>
-                  <FormField label="Total Days"><input className={`${inputCls} opacity-60`} value={`${newReq.totalDays}`} readOnly /></FormField>
+                  <FormField label="Start Date" required><input aria-label="Start Date" type="date" className={inputCls} value={newReq.startDate} onChange={e => set('startDate', e.target.value)} /></FormField>
+                  <FormField label="End Date" required><input aria-label="End Date" type="date" className={inputCls} value={newReq.endDate} onChange={e => set('endDate', e.target.value)} /></FormField>
+                  <FormField label="Total Days"><input aria-label="Total Days" className={`${inputCls} opacity-60`} value={`${newReq.totalDays}`} readOnly /></FormField>
                 </div>
                 <FormField label="Reason for Leave" required>
-                  <textarea rows={3} value={newReq.reason} onChange={e => set('reason', e.target.value)} placeholder="Please provide details about your leave request…"
+                  <textarea aria-label="Reason for Leave" rows={3} value={newReq.reason} onChange={e => set('reason', e.target.value)} placeholder="Please provide details about your leave request…"
                     className={`w-full text-sm rounded-lg px-3 py-2 outline-none transition-colors resize-none ${t.inputBg}`} />
                 </FormField>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <FormField label="Emergency Contact"><input className={inputCls} value={newReq.emergencyContact} onChange={e => set('emergencyContact', e.target.value)} placeholder="Phone number for emergencies" /></FormField>
-                  <FormField label="Handover Notes"><input className={inputCls} value={newReq.handoverNotes} onChange={e => set('handoverNotes', e.target.value)} placeholder="Work to be covered during leave" /></FormField>
+                  <FormField label="Emergency Contact"><input aria-label="Emergency Contact" className={inputCls} value={newReq.emergencyContact} onChange={e => set('emergencyContact', e.target.value)} placeholder="Phone number for emergencies" /></FormField>
+                  <FormField label="Handover Notes"><input aria-label="Handover Notes" className={inputCls} value={newReq.handoverNotes} onChange={e => set('handoverNotes', e.target.value)} placeholder="Work to be covered during leave" /></FormField>
                 </div>
                 <div className="flex justify-end pt-2">
                   <PrimaryButton icon={Send} onClick={submitRequest}>Submit Leave Request</PrimaryButton>

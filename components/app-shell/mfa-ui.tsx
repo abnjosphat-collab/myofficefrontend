@@ -181,7 +181,7 @@ export function MfaChallenge({ onVerified, onCancel }: { onVerified: () => void;
         <h2 className="text-lg font-bold text-[#2A4D69] font-heading">Two-factor verification</h2>
         <p className="text-xs text-[#6B7B8E] mt-1">Enter the 6-digit code from your authenticator app.</p>
       </div>
-      <Input inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder="000000" autoFocus
+      <Input inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder="000000"
         value={code} onChange={e => setCode(e.target.value.replace(/\D/g, ''))}
         className="border-[#2A4D69]/20 focus:border-[#2A4D69] text-base tracking-[0.5em] text-center" />
       {error && <div className="text-red-600 text-xs bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</div>}

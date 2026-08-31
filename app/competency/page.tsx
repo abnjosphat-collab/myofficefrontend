@@ -67,8 +67,10 @@ function CompetencyContent() {
   return (
     <main className="max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
       {popover && (
-        <div className="fixed inset-0 z-50" onClick={() => setPopover(null)}>
-          <div className={`absolute rounded-xl p-2 ${t.glassPopover} ${t.shadow}`} style={{ left: Math.min(popover.x - 80, window.innerWidth - 200), top: popover.y }} onClick={e => e.stopPropagation()}>
+        <>
+          <button type="button" aria-label="Dismiss skill level picker" onClick={() => setPopover(null)}
+            className="fixed inset-0 z-50 border-0 bg-transparent p-0 cursor-default appearance-none" />
+          <div className={`fixed z-50 rounded-xl p-2 ${t.glassPopover} ${t.shadow}`} style={{ left: Math.min(popover.x - 80, window.innerWidth - 200), top: popover.y }}>
             <div className="flex items-center justify-between mb-2 px-1">
               <span className={`text-xs ${TYPE_WEIGHT.medium} ${t.textMuted}`}>{popover.skill}</span>
               <button type="button" onClick={() => setPopover(null)} className={`${t.textFaint} ${t.hoverText}`}><X className="w-3.5 h-3.5" /></button>
@@ -82,7 +84,7 @@ function CompetencyContent() {
               ))}
             </div>
           </div>
-        </div>
+        </>
       )}
 
       <PageHero

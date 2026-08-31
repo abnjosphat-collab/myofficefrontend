@@ -233,15 +233,15 @@ function BreakdownTable({ breakdowns, onView, onEdit, onDelete, sortField, sortD
                   <td className={`py-2.5 px-3 ${accentText('emerald', t.light)} ${TYPE_WEIGHT.medium}`}>${cost.toFixed(0)}</td>
                   <td className="py-2.5 px-3">
                     <div className="flex items-center justify-end gap-1">
-                      <button type="button" title="View" onClick={() => onView(bd)} className={`h-6 w-6 flex items-center justify-center rounded ${t.textFaint} hover:text-brand-400`}><Eye className="h-3.5 w-3.5" /></button>
-                      <button type="button" title="Edit" onClick={() => onEdit(bd)} className={`h-6 w-6 flex items-center justify-center rounded ${t.textFaint} hover:${t.light ? 'text-amber-600' : 'text-amber-400'}`}><Edit className="h-3.5 w-3.5" /></button>
-                      <button type="button" title="Delete" onClick={() => onDelete(bd)} className={`h-6 w-6 flex items-center justify-center rounded ${t.textFaint} hover:text-rose-500`}><Trash2 className="h-3.5 w-3.5" /></button>
+                      <button type="button" title="View" aria-label="View breakdown" onClick={() => onView(bd)} className={`h-6 w-6 flex items-center justify-center rounded ${t.textFaint} hover:text-brand-400`}><Eye className="h-3.5 w-3.5" /></button>
+                      <button type="button" title="Edit" aria-label="Edit breakdown" onClick={() => onEdit(bd)} className={`h-6 w-6 flex items-center justify-center rounded ${t.textFaint} hover:${t.light ? 'text-amber-600' : 'text-amber-400'}`}><Edit className="h-3.5 w-3.5" /></button>
+                      <button type="button" title="Delete" aria-label="Delete breakdown" onClick={() => onDelete(bd)} className={`h-6 w-6 flex items-center justify-center rounded ${t.textFaint} hover:text-rose-500`}><Trash2 className="h-3.5 w-3.5" /></button>
                     </div>
                   </td>
                 </tr>
                 {isExp && (
                   <tr className={`border-b ${t.border} ${t.chipBg}`}>
-                    <td colSpan={10} className="px-4 py-3">
+                    <td colSpan={10} className="px-4 py-3" aria-label="Additional breakdown details">
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
                         <div className="space-y-1">
                           <p className={`${TYPE_WEIGHT.semibold} uppercase tracking-wider text-[10px] mb-1.5 ${t.textFaint}`}>Breakdown Details</p>
@@ -446,14 +446,14 @@ function FormModal({ isOpen, onClose, onSubmit, initialData, mode = 'create' }: 
                 placeholder="Select or type machine name…" />
               {errors.machine_name && <p className="text-xs text-rose-500 mt-1">{errors.machine_name}</p>}
             </FormField>
-            <FormField label="Machine ID"><input className={inputCls} value={fd.machine_id} onChange={e => set('machine_id', e.target.value)} placeholder="Optional" /></FormField>
+            <FormField label="Machine ID"><input aria-label="Machine ID" className={inputCls} value={fd.machine_id} onChange={e => set('machine_id', e.target.value)} placeholder="Optional" /></FormField>
             <FormField label="Artisan Name" required>
               <EmployeeAutocomplete value={fd.artisan_name} onChange={v => set('artisan_name', v)}
                 onSelect={emp => { if (emp.department) set('department', emp.department); }}
                 placeholder="Select or type artisan name…" />
               {errors.artisan_name && <p className="text-xs text-rose-500 mt-1">{errors.artisan_name}</p>}
             </FormField>
-            <FormField label="Breakdown Date" required><input type="date" title="Breakdown date" className={inputCls} value={fd.breakdown_date} onChange={e => set('breakdown_date', e.target.value)} /></FormField>
+            <FormField label="Breakdown Date" required><input type="date" title="Breakdown date" aria-label="Breakdown date" className={inputCls} value={fd.breakdown_date} onChange={e => set('breakdown_date', e.target.value)} /></FormField>
             <FormField label="Nature of Breakdown">
               <ListAutocomplete listName="breakdown_nature" value={fd.breakdown_nature} onChange={v => set('breakdown_nature', v)} placeholder="e.g., Bearing Failure" />
             </FormField>
@@ -491,9 +491,9 @@ function FormModal({ isOpen, onClose, onSubmit, initialData, mode = 'create' }: 
                 <SpareAutocomplete value={spareForm.name} onChange={v => setSpareForm(p => ({ ...p, name: v }))}
                   onSelect={s => setSpareForm(p => ({ ...p, name: s.description || p.name, part_number: s.stock_code || p.part_number, unit_price: s.unit_price ?? p.unit_price }))}
                   placeholder="Part Name" />
-                <input className={inputCls} placeholder="Part Number" value={spareForm.part_number} onChange={e => setSpareForm(p => ({ ...p, part_number: e.target.value }))} />
-                <input type="number" className={inputCls} placeholder="Quantity" value={String(spareForm.quantity)} onChange={e => setSpareForm(p => ({ ...p, quantity: parseInt(e.target.value) || 1 }))} />
-                <input type="number" className={inputCls} placeholder="Unit Price" value={String(spareForm.unit_price)} onChange={e => setSpareForm(p => ({ ...p, unit_price: parseFloat(e.target.value) || 0 }))} />
+                <input aria-label="Part Number" className={inputCls} placeholder="Part Number" value={spareForm.part_number} onChange={e => setSpareForm(p => ({ ...p, part_number: e.target.value }))} />
+                <input aria-label="Quantity" type="number" className={inputCls} placeholder="Quantity" value={String(spareForm.quantity)} onChange={e => setSpareForm(p => ({ ...p, quantity: parseInt(e.target.value) || 1 }))} />
+                <input aria-label="Unit Price" type="number" className={inputCls} placeholder="Unit Price" value={String(spareForm.unit_price)} onChange={e => setSpareForm(p => ({ ...p, unit_price: parseFloat(e.target.value) || 0 }))} />
               </div>
               <button type="button" onClick={addSpare} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs ${TYPE_WEIGHT.semibold} bg-brand-500/15 text-brand-400 hover:bg-brand-500/25 transition-all`}><Plus className="h-3.5 w-3.5" />Add Spare</button>
               {errors.spare && <p className="mt-1 text-[11px] text-rose-500">{errors.spare}</p>}
@@ -518,10 +518,10 @@ function FormModal({ isOpen, onClose, onSubmit, initialData, mode = 'create' }: 
         {tab === 'timing' && (
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
-              <FormField label="Breakdown Start"><input type="time" title="Breakdown start" className={inputCls} value={fd.breakdown_start} onChange={e => set('breakdown_start', e.target.value)} /></FormField>
-              <FormField label="Breakdown End"><input type="time" title="Breakdown end" className={inputCls} value={fd.breakdown_end} onChange={e => set('breakdown_end', e.target.value)} /></FormField>
-              <FormField label="Work Start"><input type="time" title="Work start" className={inputCls} value={fd.work_start} onChange={e => set('work_start', e.target.value)} /></FormField>
-              <FormField label="Work End"><input type="time" title="Work end" className={inputCls} value={fd.work_end} onChange={e => set('work_end', e.target.value)} /></FormField>
+              <FormField label="Breakdown Start"><input type="time" title="Breakdown start" aria-label="Breakdown start" className={inputCls} value={fd.breakdown_start} onChange={e => set('breakdown_start', e.target.value)} /></FormField>
+              <FormField label="Breakdown End"><input type="time" title="Breakdown end" aria-label="Breakdown end" className={inputCls} value={fd.breakdown_end} onChange={e => set('breakdown_end', e.target.value)} /></FormField>
+              <FormField label="Work Start"><input type="time" title="Work start" aria-label="Work start" className={inputCls} value={fd.work_start} onChange={e => set('work_start', e.target.value)} /></FormField>
+              <FormField label="Work End"><input type="time" title="Work end" aria-label="Work end" className={inputCls} value={fd.work_end} onChange={e => set('work_end', e.target.value)} /></FormField>
             </div>
             {calcPreview && <div className="bg-brand-500/[0.08] rounded-xl p-3 text-sm"><span className={t.textFaint}>Calculated Downtime: </span><span className={`text-brand-400 ${TYPE_WEIGHT.semibold}`}>{calcPreview}</span></div>}
           </div>
@@ -675,8 +675,8 @@ function BreakdownsPageContent() {
 
         {showDateRange && (
           <div className={`flex flex-wrap gap-3 ${t.chipBg} rounded-xl p-3`}>
-            <FormField label="Start Date"><input type="date" title="Start date" value={startDate} onChange={e => setStartDate(e.target.value)} className={`h-9 px-3 rounded-lg text-sm ${t.inputBg} focus:outline-none`} /></FormField>
-            <FormField label="End Date"><input type="date" title="End date" value={endDate} onChange={e => setEndDate(e.target.value)} className={`h-9 px-3 rounded-lg text-sm ${t.inputBg} focus:outline-none`} /></FormField>
+            <FormField label="Start Date"><input type="date" title="Start date" aria-label="Start date" value={startDate} onChange={e => setStartDate(e.target.value)} className={`h-9 px-3 rounded-lg text-sm ${t.inputBg} focus:outline-none`} /></FormField>
+            <FormField label="End Date"><input type="date" title="End date" aria-label="End date" value={endDate} onChange={e => setEndDate(e.target.value)} className={`h-9 px-3 rounded-lg text-sm ${t.inputBg} focus:outline-none`} /></FormField>
             <div className="self-end">
               <button type="button" onClick={() => { const now = new Date(), m = new Date(); m.setDate(now.getDate() - 30); setStartDate(m.toISOString().split('T')[0]); setEndDate(now.toISOString().split('T')[0]); }}
                 className={`px-3 py-1.5 rounded-xl text-xs ${TYPE_WEIGHT.semibold} ${t.textMuted} ${t.glassSoft} ${t.hoverText}`}>Last 30 days</button>

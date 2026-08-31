@@ -250,6 +250,7 @@ export default function UsageAnalyzerPage() {
                     const active = moduleFilter === m.module;
                     return (
                       <button key={m.module} type="button" onClick={() => setModuleFilter(active ? null : m.module)}
+                        aria-label={active ? `Clear filter for ${m.label}` : `Filter by ${m.label}`}
                         className={`w-full text-left px-2.5 py-1.5 rounded-lg transition-colors ${active ? `${t.chipBg} ring-1 ring-brand-500/40` : t.hoverBgSoft}`}>
                         <div className="flex items-center justify-between gap-2 text-[12.5px] mb-1">
                           <span className={`${t.textMuted} truncate`}>{m.label}</span>

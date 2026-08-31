@@ -101,12 +101,12 @@ function ComplianceRegisterContent() {
             <button type="button" onClick={() => setShowAdd(false)} title="Close" aria-label="Close" className={`h-9 w-9 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-colors`}><X className="w-5 h-5" /></button>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
-            <FormField label="Equipment Name"><input placeholder="Equipment Name" value={form.equipment_name} onChange={e => setForm(f => ({ ...f, equipment_name: e.target.value }))} className={inputCls} /></FormField>
+            <FormField label="Equipment Name"><input placeholder="Equipment Name" value={form.equipment_name} onChange={e => setForm(f => ({ ...f, equipment_name: e.target.value }))} aria-label="Equipment Name" className={inputCls} /></FormField>
             <FormField label="Inspection Type"><PredictiveInput historyKey="compliance_inspection_type" placeholder="Inspection Type" value={form.inspection_type} onChange={v => setForm(f => ({ ...f, inspection_type: v }))} inputClassName={inputCls} /></FormField>
             <FormField label="Regulatory Body"><PredictiveInput historyKey="compliance_regulatory_body" placeholder="Regulatory Body" value={form.regulatory_body} onChange={v => setForm(f => ({ ...f, regulatory_body: v }))} inputClassName={inputCls} /></FormField>
-            <FormField label="Certificate No."><input placeholder="Certificate No." value={form.certificate_no} onChange={e => setForm(f => ({ ...f, certificate_no: e.target.value }))} className={inputCls} /></FormField>
-            <FormField label="Expiry Date"><input type="date" title="Expiry date" value={form.expiry_date} onChange={e => setForm(f => ({ ...f, expiry_date: e.target.value }))} className={inputCls} /></FormField>
-            <FormField label="Responsible Person"><input placeholder="Responsible Person" value={form.responsible} onChange={e => setForm(f => ({ ...f, responsible: e.target.value }))} className={inputCls} /></FormField>
+            <FormField label="Certificate No."><input placeholder="Certificate No." value={form.certificate_no} onChange={e => setForm(f => ({ ...f, certificate_no: e.target.value }))} aria-label="Certificate No." className={inputCls} /></FormField>
+            <FormField label="Expiry Date"><input type="date" title="Expiry date" aria-label="Expiry date" value={form.expiry_date} onChange={e => setForm(f => ({ ...f, expiry_date: e.target.value }))} className={inputCls} /></FormField>
+            <FormField label="Responsible Person"><input placeholder="Responsible Person" value={form.responsible} onChange={e => setForm(f => ({ ...f, responsible: e.target.value }))} aria-label="Responsible Person" className={inputCls} /></FormField>
           </div>
           <PrimaryButton onClick={submit}>Add to Register</PrimaryButton>
         </div>

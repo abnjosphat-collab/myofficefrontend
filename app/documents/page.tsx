@@ -121,7 +121,8 @@ function FileActionsMenu({ doc, onPreview, onDownload, onRename, onDelete, onTog
       </button>
       {open && (
         <>
-          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <button type="button" aria-label="Close menu" onClick={() => setOpen(false)}
+            className="fixed inset-0 z-10 cursor-default border-0 bg-transparent p-0" />
           <div className={`absolute right-0 top-8 ${t.glass} rounded-xl ${t.shadow} z-20 w-44 py-1 overflow-hidden`}>
             <button type="button" onClick={e => { e.stopPropagation(); setOpen(false); onPreview(doc); }}
               className={`w-full flex items-center gap-2 px-3 py-2 text-xs ${t.textMuted} ${t.hoverBgSoft} transition-colors`}><Eye className="h-3.5 w-3.5" />Preview</button>
@@ -544,13 +545,13 @@ function DocumentsPageContent() {
                     <span className={`${TYPE_WEIGHT.medium} text-sm truncate ${t.textPrimary}`}>{name}</span>
                   </div>
                   {!isDefault && (
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" onClick={e => e.stopPropagation()}>
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                       <button type="button" title="Rename" className={`h-6 w-6 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-colors`}
-                        onClick={() => { setItemToRename({ name, id, type: 'folder' }); setNewName(name); setIsRenameDialogOpen(true); }}>
+                        onClick={e => { e.stopPropagation(); setItemToRename({ name, id, type: 'folder' }); setNewName(name); setIsRenameDialogOpen(true); }}>
                         <Edit3 className="h-3 w-3" />
                       </button>
                       <button type="button" title="Delete" className={`h-6 w-6 flex items-center justify-center rounded ${t.hoverBg} text-rose-500 hover:${t.light ? 'text-rose-600' : 'text-rose-400'} transition-colors`}
-                        onClick={() => { setItemToDelete({ name, id, type: 'folder' }); setIsDeleteDialogOpen(true); }}>
+                        onClick={e => { e.stopPropagation(); setItemToDelete({ name, id, type: 'folder' }); setIsDeleteDialogOpen(true); }}>
                         <TrashIcon className="h-3 w-3" />
                       </button>
                     </div>
@@ -576,15 +577,15 @@ function DocumentsPageContent() {
             <div className="flex items-start justify-between mb-3 gap-2 min-w-0">
               <div className="flex items-start gap-2 min-w-0 flex-1">
                 <input type="checkbox" checked={selectedItems.has(doc.id)} onChange={() => toggleSelectItem(doc.id)}
-                  onClick={e => e.stopPropagation()} title={`Select ${doc.name}`} className="mt-0.5 accent-brand-500 h-3.5 w-3.5 shrink-0" />
+                  onClick={e => e.stopPropagation()} title={`Select ${doc.name}`} aria-label={`Select ${doc.name}`} className="mt-0.5 accent-brand-500 h-3.5 w-3.5 shrink-0" />
                 <fi.icon className="h-5 w-5 shrink-0" style={{ color: fi.color }} />
                 <div className="min-w-0 flex-1">
                   <p className={`text-sm ${TYPE_WEIGHT.semibold} truncate ${t.textPrimary}`}>{doc.name}</p>
                   <p className={`text-xs ${t.textFaint}`}>{formatFileSize(doc.file_size)}</p>
                 </div>
               </div>
-              <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1" onClick={e => e.stopPropagation()}>
-                <button type="button" onClick={() => handleToggleStar(doc)} title={doc.starred ? 'Unstar' : 'Star'}
+              <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                <button type="button" onClick={e => { e.stopPropagation(); handleToggleStar(doc); }} title={doc.starred ? 'Unstar' : 'Star'}
                   className={`h-6 w-6 flex items-center justify-center rounded ${t.hoverBg} transition-colors`}>
                   <Star className={`h-3.5 w-3.5 ${doc.starred ? `fill-amber-400 ${accentText('amber', t.light)}` : t.textFaint}`} />
                 </button>
@@ -611,7 +612,7 @@ function DocumentsPageContent() {
       <table className="w-full text-sm">
         <thead>
           <tr className={`border-b ${t.border}`}>
-            <th className="w-10 p-3"><input type="checkbox" title="Select all" checked={selectedItems.size === filteredDocuments.length && filteredDocuments.length > 0} onChange={handleSelectAll} className="accent-brand-500" /></th>
+            <th className="w-10 p-3"><input type="checkbox" title="Select all" aria-label="Select all" checked={selectedItems.size === filteredDocuments.length && filteredDocuments.length > 0} onChange={handleSelectAll} className="accent-brand-500" /></th>
             <th className="w-10 p-3"><span className="sr-only">File type icon</span></th>
             <th className={`text-left p-3 ${TYPE_WEIGHT.medium} cursor-pointer ${t.textSecondary} ${t.hoverText}`} onClick={() => { setSortBy('name'); setSortOrder(o => o === 'asc' ? 'desc' : 'asc'); }}>
               Name {sortBy === 'name' && (sortOrder === 'asc' ? <SortAsc className="inline h-3 w-3 ml-1" /> : <SortDesc className="inline h-3 w-3 ml-1" />)}
@@ -628,8 +629,8 @@ function DocumentsPageContent() {
             const fi = fileIconFor(doc.type);
             return (
               <tr key={doc.id} className={`border-b ${t.border} ${t.hoverBgSoft} cursor-pointer group`} onClick={() => handlePreview(doc)}>
-                <td className="p-3" onClick={e => e.stopPropagation()}><input type="checkbox" title={`Select ${doc.name}`} checked={selectedItems.has(doc.id)} onChange={() => toggleSelectItem(doc.id)} className="accent-brand-500" /></td>
-                <td className="p-3"><fi.icon className="h-4 w-4" style={{ color: fi.color }} /></td>
+                <td className="p-3" onClick={e => e.stopPropagation()}><input type="checkbox" title={`Select ${doc.name}`} aria-label={`Select ${doc.name}`} checked={selectedItems.has(doc.id)} onChange={() => toggleSelectItem(doc.id)} className="accent-brand-500" /></td>
+                <td className="p-3"><fi.icon className="h-4 w-4" aria-label={`${doc.type} file`} style={{ color: fi.color }} /></td>
                 <td className={`p-3 ${TYPE_WEIGHT.medium} ${t.textPrimary}`}>
                   <div className="flex items-center gap-2">{doc.name}{doc.starred && <Star className={`h-3 w-3 fill-amber-400 ${accentText('amber', t.light)}`} />}</div>
                   {doc.original_name && doc.original_name !== doc.name && <p className={`text-[11px] ${t.textFaint}`}>{doc.original_name}</p>}
@@ -797,7 +798,8 @@ function DocumentsPageContent() {
 
       {mobileMenuOpen && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setMobileMenuOpen(false)} />
+          <button type="button" aria-label="Close menu" onClick={() => setMobileMenuOpen(false)}
+            className="fixed inset-0 bg-black/50 z-40 lg:hidden cursor-default border-0 p-0" />
           <div className={`fixed left-0 top-0 h-full w-64 ${t.glass} z-50 ${t.shadow} p-4`}>
             <div className="flex justify-between items-center mb-4">
               <h2 className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>Categories</h2>
@@ -845,7 +847,7 @@ function DocumentsPageContent() {
       <CenterModal open={isCreateFolderOpen} onClose={() => setIsCreateFolderOpen(false)} title="Create New Folder" accent="violet" width="max-w-sm">
         <form className="p-5 space-y-4" onSubmit={e => { e.preventDefault(); handleCreateSubfolder(); }}>
           <FormField label="Folder Name">
-            <input autoFocus value={newFolderName} onChange={e => setNewFolderName(e.target.value)} placeholder="Enter folder name" className={`w-full h-9 px-3 rounded-lg text-sm ${t.inputBg} focus:outline-none`} />
+            <input value={newFolderName} onChange={e => setNewFolderName(e.target.value)} placeholder="Enter folder name" aria-label="Folder name" className={`w-full h-9 px-3 rounded-lg text-sm ${t.inputBg} focus:outline-none`} />
           </FormField>
           <FormActions onCancel={() => setIsCreateFolderOpen(false)} submitLabel="Create" accent="violet" />
         </form>
@@ -855,11 +857,13 @@ function DocumentsPageContent() {
       <CenterModal open={isUploadOpen} onClose={() => { setIsUploadOpen(false); setPendingFiles([]); }} title="Upload Files" accent="violet" width="max-w-2xl">
         <form className="p-5 space-y-4" onSubmit={e => { e.preventDefault(); uploadFilesToApi(); }}>
           <div className={`border-2 border-dashed ${t.border} rounded-xl p-6 text-center cursor-pointer hover:border-brand-400/40 transition-all`}
-            onClick={() => fileInputRef.current?.click()}>
+            role="button" tabIndex={0}
+            onClick={() => fileInputRef.current?.click()}
+            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInputRef.current?.click(); } }}>
             <Upload className={`h-8 w-8 mx-auto ${t.textFaint} mb-2`} />
             <p className={`text-sm mb-2 ${t.textFaint}`}>Click to browse or drag and drop files</p>
             <span className={`inline-flex h-8 px-3 items-center rounded-lg text-[13px] ${TYPE_WEIGHT.medium} ${t.textMuted} ${t.glassSoft}`}>Browse Files</span>
-            <input ref={fileInputRef} type="file" multiple className="hidden" title="Choose files"
+            <input ref={fileInputRef} type="file" multiple className="hidden" title="Choose files" aria-label="Choose files to upload"
               onChange={e => {
                 const added: PendingFile[] = Array.from(e.target.files ?? []).map(f => ({ file: f, name: f.name, description: '' }));
                 setPendingFiles(prev => [...prev, ...added]);
@@ -923,7 +927,7 @@ function DocumentsPageContent() {
       <CenterModal open={isRenameDialogOpen} onClose={() => setIsRenameDialogOpen(false)} title={`Rename ${itemToRename?.type === 'folder' ? 'Folder' : 'File'}`} accent="violet" width="max-w-sm">
         <form className="p-5 space-y-4" onSubmit={e => { e.preventDefault(); handleRenameConfirm(); }}>
           <FormField label="New name">
-            <input autoFocus value={newName} onChange={e => setNewName(e.target.value)} placeholder="Enter new name" className={`w-full h-9 px-3 rounded-lg text-sm ${t.inputBg} focus:outline-none`} />
+            <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Enter new name" aria-label="New name" className={`w-full h-9 px-3 rounded-lg text-sm ${t.inputBg} focus:outline-none`} />
           </FormField>
           <FormActions onCancel={() => setIsRenameDialogOpen(false)} submitLabel="Rename" accent="violet" />
         </form>

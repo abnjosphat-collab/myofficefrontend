@@ -190,7 +190,7 @@ function AvailabilityContent() {
                   <tr>
                     <th className={thCls}>Equipment</th><th className={thCls}>Category</th><th className={thCls}>Department</th>
                     <th className={thCls}>Status</th><th className={`${thCls} text-right`}>Op. Hours</th><th className={`${thCls} text-right`}>Breakdown h</th>
-                    <th className={`${thCls} text-right`}>Availability</th><th className={`${thCls} text-right`}>Uptime</th><th className={`${thCls} text-right`}>Downtime</th><th className={thCls}></th>
+                    <th className={`${thCls} text-right`}>Availability</th><th className={`${thCls} text-right`}>Uptime</th><th className={`${thCls} text-right`}>Downtime</th><th className={thCls}><span className="sr-only">Actions</span></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -213,7 +213,7 @@ function AvailabilityContent() {
                         <td className={tdCls}><StatusBadge color={scfg.color} label={scfg.label} /></td>
                         <td className={`${tdCls} text-right`}>{opHours.toFixed(1)}h</td>
                         <td className={`${tdCls} text-right text-red-400`}>{bdHours.toFixed(1)}h</td>
-                        <td className={`${tdCls} text-right`}>
+                        <td className={`${tdCls} text-right`} aria-label={`Availability ${av.toFixed(1)}%`}>
                           <div className="flex items-center gap-2 justify-end">
                             <span className={`${TYPE_WEIGHT.bold} text-sm ${avColor(av)}`}>{av.toFixed(1)}%</span>
                             <div className="w-20"><ProgressBar value={av} color={avHex(av)} showValue={false} /></div>
@@ -223,8 +223,8 @@ function AvailabilityContent() {
                         <td className={`${tdCls} text-right text-red-400`}>{downtime.toFixed(1)}h</td>
                         <td className={tdCls}>
                           <div className="flex gap-1.5 justify-end">
-                            <Link href={`/breakdowns?equipment=${eq.id}`} className={`flex items-center gap-1 px-2 py-1 rounded text-[11px] ${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText}`}><AlertTriangle className="h-3 w-3" /> Breakdowns</Link>
-                            <Link href={`/maintenance?equipment=${eq.id}`} className={`flex items-center gap-1 px-2 py-1 rounded text-[11px] ${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText}`}><Settings className="h-3 w-3" /> Maintenance</Link>
+                            <Link href={`/breakdowns?equipment=${eq.id}`} aria-label={`View breakdowns for ${eq.name}`} className={`flex items-center gap-1 px-2 py-1 rounded text-[11px] ${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText}`}><AlertTriangle className="h-3 w-3" /> Breakdowns</Link>
+                            <Link href={`/maintenance?equipment=${eq.id}`} aria-label={`View maintenance for ${eq.name}`} className={`flex items-center gap-1 px-2 py-1 rounded text-[11px] ${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText}`}><Settings className="h-3 w-3" /> Maintenance</Link>
                           </div>
                         </td>
                       </tr>

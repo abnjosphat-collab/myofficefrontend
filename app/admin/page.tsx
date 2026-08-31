@@ -370,7 +370,7 @@ function AdminContent() {
       <CenterModal open={inviteOpen} onClose={() => setInviteOpen(false)} title="Invite user" accent="violet">
         <div className="px-5 py-4 space-y-4">
           <FormField label="Email" required>
-            <input type="email" autoFocus value={inviteEmail} onChange={e => setInviteEmail(e.target.value)}
+            <input type="email" aria-label="Email" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)}
               placeholder="name@example.com"
               className={`w-full h-9 rounded-lg px-3 text-sm outline-none transition-colors ${t.inputBg}`} />
           </FormField>

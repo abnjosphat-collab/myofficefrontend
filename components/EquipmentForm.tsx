@@ -201,32 +201,32 @@ const EquipmentForm = ({ equipment, onSubmit, onCancel }: EquipmentFormProps) =>
           <TabsContent value="basic" className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <FormField label="Equipment ID" required>
-                <input name="equipment_id" value={formData.equipment_id}
+                <input name="equipment_id" value={formData.equipment_id} aria-label="Equipment ID"
                   onChange={(e) => set("equipment_id", e.target.value)}
                   required disabled={loading} placeholder="EQP-001" className={inputCls} />
               </FormField>
               <FormField label="Equipment Name" required>
-                <input name="name" value={formData.name}
+                <input name="name" value={formData.name} aria-label="Equipment Name"
                   onChange={(e) => set("name", e.target.value)}
                   required disabled={loading} placeholder="Industrial Drill Press" className={inputCls} />
               </FormField>
               <FormField label="Model">
-                <input name="model" value={formData.model}
+                <input name="model" value={formData.model} aria-label="Model"
                   onChange={(e) => set("model", e.target.value)}
                   disabled={loading} placeholder="DP-5000" className={inputCls} />
               </FormField>
               <FormField label="Manufacturer">
-                <input name="manufacturer" value={formData.manufacturer}
+                <input name="manufacturer" value={formData.manufacturer} aria-label="Manufacturer"
                   onChange={(e) => set("manufacturer", e.target.value)}
                   disabled={loading} placeholder="Atlas Copco" className={inputCls} />
               </FormField>
               <FormField label="Serial Number">
-                <input name="serial_number" value={formData.serial_number}
+                <input name="serial_number" value={formData.serial_number} aria-label="Serial Number"
                   onChange={(e) => set("serial_number", e.target.value)}
                   disabled={loading} placeholder="SN-DP5000-001" className={inputCls} />
               </FormField>
               <FormField label="Category">
-                <input name="category" value={formData.category}
+                <input name="category" value={formData.category} aria-label="Category"
                   onChange={(e) => set("category", e.target.value)}
                   disabled={loading} placeholder="Machinery" className={inputCls} />
               </FormField>
@@ -242,12 +242,12 @@ const EquipmentForm = ({ equipment, onSubmit, onCancel }: EquipmentFormProps) =>
                 <ListAutocomplete listName="location" value={formData.location} onChange={(v) => set("location", v)} disabled={loading} placeholder="Workshop A" />
               </FormField>
               <FormField label="Department">
-                <input name="department" value={formData.department}
+                <input name="department" value={formData.department} aria-label="Department"
                   onChange={(e) => set("department", e.target.value)}
                   disabled={loading} placeholder="Manufacturing" className={inputCls} />
               </FormField>
               <FormField label="Commission Date">
-                <input type="date" name="commission_date" value={formData.commission_date}
+                <input type="date" name="commission_date" value={formData.commission_date} aria-label="Commission Date"
                   onChange={(e) => set("commission_date", e.target.value)}
                   disabled={loading} className={inputCls} style={{ colorScheme: t.light ? "light" : "dark" }} />
               </FormField>
@@ -262,12 +262,12 @@ const EquipmentForm = ({ equipment, onSubmit, onCancel }: EquipmentFormProps) =>
           <TabsContent value="technical" className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <FormField label="Purchase Cost ($)">
-                <input type="number" step="0.01" min="0" name="purchase_cost" value={formData.purchase_cost}
+                <input type="number" step="0.01" min="0" name="purchase_cost" value={formData.purchase_cost} aria-label="Purchase Cost ($)"
                   onChange={(e) => set("purchase_cost", e.target.value)}
                   disabled={loading} placeholder="12500.00" className={inputCls} />
               </FormField>
               <FormField label="Power Rating">
-                <input name="power_rating" value={formData.power_rating}
+                <input name="power_rating" value={formData.power_rating} aria-label="Power Rating"
                   onChange={(e) => set("power_rating", e.target.value)}
                   disabled={loading} placeholder="45kW" className={inputCls} />
               </FormField>
@@ -281,7 +281,7 @@ const EquipmentForm = ({ equipment, onSubmit, onCancel }: EquipmentFormProps) =>
 
           <TabsContent value="maintenance" className="space-y-4">
             <FormField label="Maintenance Interval (months)">
-              <input type="number" min="0" name="maintenance_interval" value={formData.maintenance_interval}
+              <input type="number" min="0" name="maintenance_interval" value={formData.maintenance_interval} aria-label="Maintenance Interval (months)"
                 onChange={(e) => set("maintenance_interval", e.target.value)}
                 disabled={loading} placeholder="6" className={`${inputCls} max-w-xs`} />
             </FormField>
@@ -295,22 +295,22 @@ const EquipmentForm = ({ equipment, onSubmit, onCancel }: EquipmentFormProps) =>
           <TabsContent value="supplier" className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <FormField label="Supplier Name">
-                <input name="supplier" value={formData.supplier}
+                <input name="supplier" value={formData.supplier} aria-label="Supplier Name"
                   onChange={(e) => set("supplier", e.target.value)}
                   disabled={loading} placeholder="Industrial Tools Inc." className={inputCls} />
               </FormField>
               <FormField label="Contact Person">
-                <input name="supplier_contact" value={formData.supplier_contact}
+                <input name="supplier_contact" value={formData.supplier_contact} aria-label="Contact Person"
                   onChange={(e) => set("supplier_contact", e.target.value)}
                   disabled={loading} placeholder="John Smith" className={inputCls} />
               </FormField>
               <FormField label="Phone Number">
-                <input name="supplier_phone" value={formData.supplier_phone}
+                <input name="supplier_phone" value={formData.supplier_phone} aria-label="Phone Number"
                   onChange={(e) => set("supplier_phone", e.target.value)}
                   disabled={loading} placeholder="+1-555-0101" className={inputCls} />
               </FormField>
               <FormField label="Warranty Information">
-                <input name="warranty_info" value={formData.warranty_info}
+                <input name="warranty_info" value={formData.warranty_info} aria-label="Warranty Information"
                   onChange={(e) => set("warranty_info", e.target.value)}
                   disabled={loading} placeholder="2 years parts and labor" className={inputCls} />
               </FormField>

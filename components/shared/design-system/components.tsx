@@ -178,6 +178,7 @@ export function CardIconButton({
       onClick={onClick}
       type="button"
       title={title}
+      aria-label={title}
       whileHover={{ y: -1.5 }}
       whileTap={{ scale: 0.88 }}
       transition={{ type: 'spring', stiffness: 420, damping: 26 }}
@@ -254,7 +255,7 @@ export function ProgressBar({
 // other input. Use for free-text fields that repeat a lot (department, location,
 // section, designation, machine/artisan name) — not for selects, dates, or unique IDs.
 export function AutofillInput({
-  field, value, onChange, placeholder, type = 'text', required, className, onBlur,
+  field, value, onChange, placeholder, type = 'text', required, className, onBlur, ariaLabel,
 }: {
   /** Stable history key — values are grouped and suggested per key (e.g. "department"). */
   field: string;
@@ -265,9 +266,13 @@ export function AutofillInput({
   required?: boolean;
   className?: string;
   onBlur?: () => void;
+  /** Accessible name — defaults to `placeholder`, then a humanized `field` key,
+   *  since this input is normally wrapped by FormField's visual (unassociated) label. */
+  ariaLabel?: string;
 }) {
   const t = useTheme();
   const listId = useId();
+  const accessibleLabel = ariaLabel ?? placeholder ?? field.replace(/_/g, ' ');
   const [suggestions, setSuggestions] = useState<string[]>([]);
   // Refresh suggestions as the user types (prefix/substring filtered).
   useEffect(() => { setSuggestions(getInputSuggestions(field, value)); }, [field, value]);
@@ -296,6 +301,7 @@ export function AutofillInput({
         value={value}
         required={required}
         placeholder={placeholder}
+        aria-label={accessibleLabel}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={(e) => { if (e.key === 'Tab' && ghost) { e.preventDefault(); acceptGhost(); } }}
         onBlur={() => { recordInput(field, value); onBlur?.(); }}
@@ -303,7 +309,7 @@ export function AutofillInput({
         className={`${cls} relative bg-transparent`}
       />
       <datalist id={listId}>
-        {suggestions.map((s) => <option key={s} value={s} />)}
+        {suggestions.map((s) => <option key={s} value={s}>{s}</option>)}
       </datalist>
     </div>
   );
@@ -313,12 +319,21 @@ export function AutofillInput({
 export function FormField({ label, required, children }: { label: string; required?: boolean; children: ReactNode }) {
   const t = useTheme();
   return (
+    // Deliberately a <div>, not a <label> — jsx-a11y/label-has-for requires a <label>
+    // to satisfy BOTH nesting (a literal <input>/<textarea>/<select> tag, checked
+    // statically) and a matching htmlFor/id, and `children` here is an opaque prop
+    // (sometimes a raw <input>, sometimes SelectField/Combobox/AutofillInput) — FormField
+    // can never author a literal nested control tag, so no <label> here could ever pass
+    // that static check honestly. Real accessible names live on the controls themselves
+    // (AutofillInput/SearchInput/Combobox in this file all set aria-label; plain <input>s
+    // at call sites carry their own title/aria-label) rather than on a <label> whose
+    // association this component structurally cannot guarantee.
     <div>
       {/* textSecondary (gray-600), not textFaint (gray-500) — field labels read as
           washed-out grey on light backgrounds otherwise. */}
-      <label className={`text-xs font-medium ${t.textSecondary} mb-1 block`}>
+      <span className={`text-xs font-medium ${t.textSecondary} mb-1 block`}>
         {label}{required && <span className="text-rose-500 ml-0.5">*</span>}
-      </label>
+      </span>
       {children}
     </div>
   );
@@ -589,36 +604,64 @@ export function RecordCard({
   const open = isControlled ? controlledOpen! : internalOpen;
   const toggle = isControlled ? onToggle! : () => setInternalOpen(o => !o);
   const expandable = !!children;
+  // Ignores clicks/keypresses that originate from the header-actions slot (marked with
+  // data-card-actions below) so those buttons don't also toggle the card — done by
+  // checking the event target rather than an onClick on that wrapper span, since the
+  // wrapper itself isn't an interactive control and shouldn't carry its own handler.
+  const handleHeaderActivate = (e: React.SyntheticEvent) => {
+    if ((e.target as HTMLElement).closest('[data-card-actions]')) return;
+    toggle();
+  };
+  const headerInner = (
+    <>
+      <div className="flex items-start gap-3">
+        <motion.div variants={tileIconItem} className="shrink-0 mt-0.5">
+          <Icon className="h-5 w-5" style={{ color: accentHex }} />
+        </motion.div>
+        <div className="min-w-0 flex-1">
+          <h4 className={`font-semibold text-[14px] leading-tight tracking-tight truncate ${t.textPrimary}`}>{title}</h4>
+          {subtitle && <p className={`text-xs mt-0.5 truncate ${t.textMuted}`}>{subtitle}</p>}
+          {badges && <div className="flex items-center gap-1.5 mt-2 flex-wrap">{badges}</div>}
+        </div>
+        {(headerActions || expandable) && (
+          <div className="flex items-center gap-1.5 shrink-0">
+            {/* display:contents keeps layout identical; data-card-actions marks this
+                region so handleHeaderActivate above skips clicks/keypresses on it. */}
+            {headerActions && <span data-card-actions style={{ display: 'contents' }}>{headerActions}</span>}
+            {expandable && (
+              <button type="button" onClick={e => { e.stopPropagation(); toggle(); }} title={open ? 'Show less' : 'Expand details'}
+                className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all`}>
+                <ChevronDown className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} />
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+      {summary && <div className="mt-3">{summary}</div>}
+    </>
+  );
   return (
     <GlowCard color={accentHex} surface={`${t.glass} rounded-2xl`} className="overflow-hidden">
       {/* Whole header toggles (not just the chevron) — click anywhere on the card head to
-          expand/collapse. Nested action buttons stopPropagation so they don't also toggle. */}
-      <div className={`p-4 ${expandable ? 'cursor-pointer' : ''}`} onClick={expandable ? toggle : undefined}>
-        <div className="flex items-start gap-3">
-          <motion.div variants={tileIconItem} className="shrink-0 mt-0.5">
-            <Icon className="h-5 w-5" style={{ color: accentHex }} />
-          </motion.div>
-          <div className="min-w-0 flex-1">
-            <h4 className={`font-semibold text-[14px] leading-tight tracking-tight truncate ${t.textPrimary}`}>{title}</h4>
-            {subtitle && <p className={`text-xs mt-0.5 truncate ${t.textMuted}`}>{subtitle}</p>}
-            {badges && <div className="flex items-center gap-1.5 mt-2 flex-wrap">{badges}</div>}
-          </div>
-          {(headerActions || expandable) && (
-            <div className="flex items-center gap-1.5 shrink-0">
-              {/* display:contents keeps layout identical while catching clicks on any
-                  action button so they don't bubble up and toggle the card. */}
-              {headerActions && <span style={{ display: 'contents' }} onClick={e => e.stopPropagation()}>{headerActions}</span>}
-              {expandable && (
-                <button type="button" onClick={e => { e.stopPropagation(); toggle(); }} title={open ? 'Show less' : 'Expand details'}
-                  className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all`}>
-                  <ChevronDown className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} />
-                </button>
-              )}
-            </div>
-          )}
+          expand/collapse. Nested action buttons are excluded via handleHeaderActivate so
+          they don't also toggle. Rendered as two literal branches (rather than one div with
+          conditional role/tabIndex props) so the interactive one always has a statically-
+          resolvable role="button" — eslint's static analysis can't prove a ternary'd role
+          prop is ever non-empty, and flags it as unlabeled otherwise. */}
+      {expandable ? (
+        <div
+          className="p-4 cursor-pointer"
+          onClick={handleHeaderActivate}
+          role="button"
+          tabIndex={0}
+          aria-expanded={open}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleHeaderActivate(e); } }}
+        >
+          {headerInner}
         </div>
-        {summary && <div className="mt-3">{summary}</div>}
-      </div>
+      ) : (
+        <div className="p-4">{headerInner}</div>
+      )}
       {expandable && (
         <Collapse open={open}>
           <div className={`px-4 pb-4 border-t ${t.border} pt-3 space-y-3`}>
@@ -684,9 +727,9 @@ export function StatStrip({ items }: { items: { label: string; value: number; su
 
 // ─── SearchInput — the TopNavigation search recipe, generalized ─────────────────
 export function SearchInput({
-  value, onChange, placeholder = 'Search…', className = '', autoFocus,
+  value, onChange, placeholder = 'Search…', className = '',
 }: {
-  value: string; onChange: (v: string) => void; placeholder?: string; className?: string; autoFocus?: boolean;
+  value: string; onChange: (v: string) => void; placeholder?: string; className?: string;
 }) {
   const t = useTheme();
   return (
@@ -694,8 +737,8 @@ export function SearchInput({
       <SearchIcon className={`absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 ${t.textFaint}`} />
       <input
         type="search"
-        autoFocus={autoFocus}
         placeholder={placeholder}
+        aria-label={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         // Without this, browsers apply their own autofill heuristics to a bare
@@ -814,7 +857,16 @@ export function SelectField({
 
       {mounted && open && pos && createPortal(
         <>
-          <div className="fixed inset-0 z-[9998]" onClick={() => setOpen(false)} />
+          {/* Click-outside scrim to dismiss — a real (unstyled) button so it's a valid
+              interactive control; kept out of the tab order since Escape (handled above)
+              is the keyboard-equivalent way to dismiss, and this is a mouse-only affordance. */}
+          <button
+            type="button"
+            tabIndex={-1}
+            aria-label="Close dropdown"
+            className="fixed inset-0 z-[9998] cursor-default"
+            onClick={() => setOpen(false)}
+          />
           <div
             role="listbox"
             style={{
@@ -947,6 +999,7 @@ export function Combobox({
         value={value}
         placeholder={placeholder}
         title={title}
+        aria-label={title || placeholder || 'Search'}
         disabled={disabled}
         role="combobox"
         aria-expanded={showPanel}
@@ -974,6 +1027,11 @@ export function Combobox({
         <div
           id={listboxId}
           role="listbox"
+          // Not part of the tab order on purpose — this follows the ARIA "combobox with
+          // aria-activedescendant" pattern (see the note above): focus stays on the
+          // <input> the whole time, and the currently-highlighted option is communicated
+          // via aria-activedescendant rather than by moving DOM focus into the popup.
+          tabIndex={-1}
           style={{
             position: 'fixed',
             top: pos.above ? undefined : pos.top + 4,
@@ -1030,6 +1088,7 @@ export function ViewToggle<T extends string>({
           key={opt.value}
           type="button"
           title={opt.label}
+          aria-label={opt.label}
           onClick={() => onChange(opt.value)}
           className={`h-7 w-7 flex items-center justify-center rounded-md transition-colors ${
             value === opt.value ? `${ACCENT.violet.chip} ${ACCENT.violet.text}` : `${t.textFaint} ${t.hoverText}`
@@ -1070,15 +1129,17 @@ export function ListItemCard({
           </div>
         </div>
         {(onEdit || onDelete) && (
-          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" onClick={e => e.stopPropagation()}>
+          // stopPropagation lives on each button below (not this wrapper) so the wrapper
+          // itself doesn't need its own click handler — it isn't an interactive control.
+          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
             {onEdit && (
-              <button type="button" title="Edit" onClick={onEdit}
+              <button type="button" title="Edit" onClick={e => { e.stopPropagation(); onEdit(); }}
                 className={`h-6 w-6 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-brand-500 transition-all`}>
                 <Pencil className="h-3 w-3" />
               </button>
             )}
             {onDelete && (
-              <button type="button" title="Delete" onClick={onDelete}
+              <button type="button" title="Delete" onClick={e => { e.stopPropagation(); onDelete(); }}
                 className={`h-6 w-6 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-rose-500 transition-all`}>
                 <Trash2 className="h-3 w-3" />
               </button>
@@ -1245,12 +1306,23 @@ export function InfoCard({
     ...style,
   };
 
+  // Rendered as two literal branches (rather than one div with conditional role/tabIndex
+  // props) so the clickable one always has a statically-resolvable role="button" — eslint
+  // can't prove a ternary'd role prop is ever non-empty, and flags it as unlabeled otherwise.
   return (
     <GlowCard color={accentColor} surface={radius} elevated={elevated}>
       {href ? (
         <Link href={href} onClick={onClick} className={surfaceCls} style={tileStyle}>{inner}</Link>
+      ) : onClick ? (
+        <div
+          onClick={onClick}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } }}
+          className={surfaceCls} style={tileStyle}
+        >{inner}</div>
       ) : (
-        <div onClick={onClick} className={surfaceCls} style={tileStyle}>{inner}</div>
+        <div className={surfaceCls} style={tileStyle}>{inner}</div>
       )}
     </GlowCard>
   );

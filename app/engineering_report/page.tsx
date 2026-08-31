@@ -155,7 +155,11 @@ function EngineeringReportContent() {
               </button>
               {openPeriod && (
                 <>
-                  <div className="fixed inset-0 z-40" onClick={() => setOpenPeriod(false)} />
+                  {/* Click-outside scrim to dismiss — a real (unstyled) button so it's a valid
+                      interactive control; kept out of the tab order since the period button
+                      itself remains the keyboard way in/out of this menu. */}
+                  <button type="button" tabIndex={-1} aria-label="Close period menu"
+                    className="fixed inset-0 z-40 cursor-default" onClick={() => setOpenPeriod(false)} />
                   <div className={`absolute right-0 top-full mt-1 z-[160] rounded-xl overflow-hidden w-44 ${t.glass} ${t.shadow}`}>
                     {periodOptions.map(o => (
                       <button key={o.val} type="button"

@@ -379,6 +379,7 @@ export function SignaturePad({
         <>
           <canvas
             ref={canvasRef}
+            aria-label="Signature drawing pad — draw your signature with mouse, pen, or touch"
             onPointerDown={start}
             onPointerMove={move}
             onPointerUp={end}
@@ -395,6 +396,7 @@ export function SignaturePad({
             ref={fileRef}
             type="file"
             accept="image/*"
+            aria-label="Upload a scan of your signature"
             className="hidden"
             onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
           />
@@ -412,11 +414,13 @@ export function SignaturePad({
           </div>
           {scanErr && <p className="text-xs text-rose-400">{scanErr}</p>}
           {allowSaved && (
-            <label className="flex cursor-pointer items-center gap-2 text-xs text-white/50 hover:text-white/70">
+            <label htmlFor="signature-save-checkbox" className="flex cursor-pointer items-center gap-2 text-xs text-white/50 hover:text-white/70">
               <input
+                id="signature-save-checkbox"
                 type="checkbox"
                 checked={saveForNextTime}
                 onChange={e => setSaveForNextTime(e.target.checked)}
+                aria-label={saved.has_signature ? 'Replace my saved signature with this one' : 'Save this signature for next time'}
                 className="h-3.5 w-3.5 accent-[#86BBD8]"
               />
               {saved.has_signature ? 'Replace my saved signature with this one' : 'Save this signature for next time'}
@@ -450,6 +454,7 @@ export function SignaturePad({
               autoComplete="current-password"
               onChange={e => { setPassword(e.target.value); setUnlockErr(''); }}
               placeholder="Account password"
+              aria-label="Account password"
               className="w-full rounded-lg border border-white/15 bg-white/[0.06] py-2.5 pl-9 pr-3 text-sm text-white placeholder:text-white/30 focus:border-[#86BBD8]/50 focus:outline-none"
             />
           </div>

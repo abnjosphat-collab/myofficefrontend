@@ -268,8 +268,8 @@ function OTFormModal({ open, onClose, onSave, editing, records }: {
         </FormField>
 
         <div className="grid grid-cols-2 gap-3">
-          <FormField label="Employee ID"><input className={inputCls} value={form.employee_id} onChange={e => set('employee_id', e.target.value)} placeholder="e.g. C1165" /></FormField>
-          <FormField label="Position"><input className={inputCls} value={form.position} onChange={e => set('position', e.target.value)} placeholder="Job title" /></FormField>
+          <FormField label="Employee ID"><input aria-label="Employee ID" className={inputCls} value={form.employee_id} onChange={e => set('employee_id', e.target.value)} placeholder="e.g. C1165" /></FormField>
+          <FormField label="Position"><input aria-label="Position" className={inputCls} value={form.position} onChange={e => set('position', e.target.value)} placeholder="Job title" /></FormField>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
@@ -277,7 +277,7 @@ function OTFormModal({ open, onClose, onSave, editing, records }: {
             <SelectField size="form" value={form.overtime_type} title="Overtime type" onChange={v => set('overtime_type', v as OTType)}
               options={SELECTABLE_OT_TYPES.map(ty => ({ value: ty, label: TYPE_LABELS[ty] }))} />
           </FormField>
-          <FormField label="Date" required><input type="date" className={inputCls} value={form.date} onChange={e => set('date', e.target.value)} /></FormField>
+          <FormField label="Date" required><input aria-label="Date" type="date" className={inputCls} value={form.date} onChange={e => set('date', e.target.value)} /></FormField>
         </div>
 
         <FormField label="Planned or Unplanned?" required>
@@ -296,20 +296,20 @@ function OTFormModal({ open, onClose, onSave, editing, records }: {
           />
         </FormField>
 
-        <label className="flex items-center gap-2 text-xs cursor-pointer select-none" title="Skip exact times and just enter the hours worked">
-          <input type="checkbox" checked={useHours} onChange={e => setUseHours(e.target.checked)} className="accent-brand-500" />
+        <label htmlFor="overtime-use-hours" className="flex items-center gap-2 text-xs cursor-pointer select-none" title="Skip exact times and just enter the hours worked">
+          <input id="overtime-use-hours" type="checkbox" checked={useHours} onChange={e => setUseHours(e.target.checked)} aria-label="Enter hours instead of start/end time" className="accent-brand-500" />
           <span className={t.textMuted}>Pressed for time — just enter hours</span>
         </label>
 
         {useHours ? (
           <FormField label="Hours" required>
-            <input type="number" min={0.5} max={24} step={0.5} className={inputCls} value={form.hours}
+            <input aria-label="Hours" type="number" min={0.5} max={24} step={0.5} className={inputCls} value={form.hours}
               onChange={e => set('hours', e.target.value)} placeholder="e.g. 3.5" />
           </FormField>
         ) : (
           <div className="grid grid-cols-3 gap-3">
-            <FormField label="Start Time" required><input type="time" className={inputCls} value={form.start_time} onChange={e => set('start_time', e.target.value)} /></FormField>
-            <FormField label="End Time" required><input type="time" className={inputCls} value={form.end_time} onChange={e => set('end_time', e.target.value)} /></FormField>
+            <FormField label="Start Time" required><input aria-label="Start Time" type="time" className={inputCls} value={form.start_time} onChange={e => set('start_time', e.target.value)} /></FormField>
+            <FormField label="End Time" required><input aria-label="End Time" type="time" className={inputCls} value={form.end_time} onChange={e => set('end_time', e.target.value)} /></FormField>
             <FormField label="Duration"><div className={`${inputCls} flex items-center text-brand-400 ${TYPE_WEIGHT.semibold} pointer-events-none`}>{hours > 0 ? `${hours.toFixed(1)}h` : '—'}</div></FormField>
           </div>
         )}
@@ -338,8 +338,8 @@ function OTFormModal({ open, onClose, onSave, editing, records }: {
         </FormField>
 
         <div className="grid grid-cols-2 gap-3">
-          <FormField label="Contact Number"><input className={inputCls} value={form.contact_number} onChange={e => set('contact_number', e.target.value)} placeholder="+263 77 ..." /></FormField>
-          <FormField label="Notes"><input className={inputCls} value={form.notes} onChange={e => set('notes', e.target.value)} placeholder="Optional notes..." /></FormField>
+          <FormField label="Contact Number"><input aria-label="Contact Number" className={inputCls} value={form.contact_number} onChange={e => set('contact_number', e.target.value)} placeholder="+263 77 ..." /></FormField>
+          <FormField label="Notes"><input aria-label="Notes" className={inputCls} value={form.notes} onChange={e => set('notes', e.target.value)} placeholder="Optional notes..." /></FormField>
         </div>
 
         <FormField label="Spares Used (optional)">
@@ -356,8 +356,8 @@ function OTFormModal({ open, onClose, onSave, editing, records }: {
                   placeholder="Search spares register or type manually…"
                 />
               </div>
-              <input type="number" min={1} step={1} className={inputCls} placeholder="Quantity" value={spareDraft.quantity} onChange={e => setSpareDraft(s => ({ ...s, quantity: e.target.value }))} />
-              <input type="number" min={0} step={0.01} className={inputCls} placeholder="Unit Price" value={spareDraft.unit_price} onChange={e => setSpareDraft(s => ({ ...s, unit_price: e.target.value }))} />
+              <input aria-label="Spare quantity" type="number" min={1} step={1} className={inputCls} placeholder="Quantity" value={spareDraft.quantity} onChange={e => setSpareDraft(s => ({ ...s, quantity: e.target.value }))} />
+              <input aria-label="Spare unit price" type="number" min={0} step={0.01} className={inputCls} placeholder="Unit Price" value={spareDraft.unit_price} onChange={e => setSpareDraft(s => ({ ...s, unit_price: e.target.value }))} />
             </div>
             <button type="button" onClick={addSpare} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs ${TYPE_WEIGHT.semibold} bg-brand-500/15 text-brand-400 hover:bg-brand-500/25 transition-all`}>
               <Plus className="h-3.5 w-3.5" /> Add Spare
@@ -1129,7 +1129,7 @@ function CategoryDetailTable({ categories }: { categories: OTCategoryDetail[] })
               <th className={`text-left ${thCls}`}>Top Weekday</th>
               <th className={`text-left ${thCls}`}>Top Employee</th>
               <th className={`text-left ${thCls}`}>Top Spare</th>
-              <th className={`${thCls} w-8`}></th>
+              <th className={`${thCls} w-8`} aria-label="Toggle row details"></th>
             </tr>
           </thead>
           <tbody>
@@ -1154,8 +1154,8 @@ function CategoryDetailTable({ categories }: { categories: OTCategoryDetail[] })
                   </tr>
                   <AnimatePresence>
                     {isOpen && (
-                      <tr>
-                        <td colSpan={9} className="p-0">
+                      <tr aria-label={`Details for ${c.category}`}>
+                        <td colSpan={9} className="p-0" aria-label={`Details for ${c.category}`}>
                           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.18 }} className="overflow-hidden">
                             <motion.div initial="hidden" animate="show" variants={staggerContainer} className={`p-3 space-y-1.5 ${t.chipBg}`}>
                               {c.records.map((r, i) => (
@@ -1696,9 +1696,9 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
     <div className="space-y-4">
       <div className={`${t.glass} rounded-2xl ${t.shadow} p-4 flex flex-wrap items-center gap-3`}>
         <div className="flex items-center gap-1.5"><CalendarRange className="h-4 w-4 text-brand-400" /><span className={`text-sm ${TYPE_WEIGHT.medium} ${t.textMuted}`}>Range</span></div>
-        <input type="date" title="From date" value={from} onChange={e => setFrom(e.target.value)} className={`h-9 rounded-lg px-2.5 text-xs outline-none transition-colors ${t.inputBg}`} />
+        <input type="date" title="From date" aria-label="From date" value={from} onChange={e => setFrom(e.target.value)} className={`h-9 rounded-lg px-2.5 text-xs outline-none transition-colors ${t.inputBg}`} />
         <span className={t.textFaint}>to</span>
-        <input type="date" title="To date" value={to} onChange={e => setTo(e.target.value)} className={`h-9 rounded-lg px-2.5 text-xs outline-none transition-colors ${t.inputBg}`} />
+        <input type="date" title="To date" aria-label="To date" value={to} onChange={e => setTo(e.target.value)} className={`h-9 rounded-lg px-2.5 text-xs outline-none transition-colors ${t.inputBg}`} />
         <button type="button" onClick={() => { setFrom(defaultFrom); setTo(defaultTo); }} title="Last completed Monday-Sunday week" className={`h-9 px-3 rounded-lg text-xs ${TYPE_WEIGHT.medium} transition-colors ${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText}`}>Last Week</button>
         <div className="flex items-center gap-1.5">
           <TrendingUp className={`h-3.5 w-3.5 ${t.textFaint}`} />
@@ -2132,8 +2132,8 @@ function OvertimeContent() {
                 icon) — giving this pair its own 2-column span, plus min-w-0 on each input,
                 keeps them from overflowing/overlapping the grid cell at narrower widths. */}
             <div className="flex gap-2 sm:col-span-2 lg:col-span-2">
-              <input type="date" title="From date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className={`flex-1 min-w-0 ${selCls}`} />
-              <input type="date" title="To date" value={dateTo} onChange={e => setDateTo(e.target.value)} className={`flex-1 min-w-0 ${selCls}`} />
+              <input type="date" title="From date" aria-label="From date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className={`flex-1 min-w-0 ${selCls}`} />
+              <input type="date" title="To date" aria-label="To date" value={dateTo} onChange={e => setDateTo(e.target.value)} className={`flex-1 min-w-0 ${selCls}`} />
             </div>
           </div>
           {monthOptions.length > 0 && (
@@ -2219,7 +2219,7 @@ function OvertimeContent() {
                 <thead className={`border-b ${t.border}`}>
                   <tr>
                     <th className={`${thCls} w-8`}>
-                      {pendingInView.length > 0 && <input type="checkbox" checked={allPendingSelected} onChange={toggleSelectAll} title="Select all pending" className="rounded" />}
+                      {pendingInView.length > 0 && <input type="checkbox" checked={allPendingSelected} onChange={toggleSelectAll} title="Select all pending" aria-label="Select all pending" className="rounded" />}
                     </th>
                     <th className={thCls}>Employee</th><th className={thCls}>Type</th>
                     <th className={thCls}>
@@ -2228,7 +2228,7 @@ function OvertimeContent() {
                         Date {dateSort === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
                       </button>
                     </th>
-                    <th className={thCls}>Hours</th><th className={thCls}>Reason</th><th className={thCls}>Status</th><th className={thCls}></th></tr>
+                    <th className={thCls}>Hours</th><th className={thCls}>Reason</th><th className={thCls}>Status</th><th className={thCls} aria-label="Actions"></th></tr>
                 </thead>
                 <tbody>
                   {filtered.map(r => {
@@ -2236,7 +2236,7 @@ function OvertimeContent() {
                     return (
                       <tr key={r.id} onClick={() => setViewing(r)} className={`border-b ${t.border} ${t.hoverBgSoft} transition-colors cursor-pointer`}>
                         <td className={tdCls} onClick={e => e.stopPropagation()}>
-                          {r.status === 'pending' && <input type="checkbox" checked={selectedIds.has(String(r.id))} onChange={() => toggleSelect(String(r.id))} className="rounded" />}
+                          {r.status === 'pending' && <input type="checkbox" checked={selectedIds.has(String(r.id))} onChange={() => toggleSelect(String(r.id))} aria-label={`Select ${r.employee_name}'s overtime request`} className="rounded" />}
                         </td>
                         <td className={tdCls}>
                           <div className="flex items-center gap-2.5">
@@ -2250,16 +2250,16 @@ function OvertimeContent() {
                         <td className={tdCls}><span className={`text-xs max-w-[200px] truncate block ${t.textFaint}`}>{r.reason}</span></td>
                         <td className={tdCls}><StatusBadge color={STATUS_HEX[r.status]} label={r.status} /></td>
                         <td className={tdCls}>
-                          <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
-                            <button type="button" title="View" onClick={() => setViewing(r)} className={`h-6 w-6 flex items-center justify-center rounded-md ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-all`}><Eye className="h-3 w-3" /></button>
-                            <button type="button" title="Edit" onClick={() => { setEditing(r); setFormOpen(true); }} className={`h-6 w-6 flex items-center justify-center rounded-md ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-all`}><Edit className="h-3 w-3" /></button>
+                          <div className="flex items-center gap-1">
+                            <button type="button" title="View" onClick={e => { e.stopPropagation(); setViewing(r); }} className={`h-6 w-6 flex items-center justify-center rounded-md ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-all`}><Eye className="h-3 w-3" /></button>
+                            <button type="button" title="Edit" onClick={e => { e.stopPropagation(); setEditing(r); setFormOpen(true); }} className={`h-6 w-6 flex items-center justify-center rounded-md ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-all`}><Edit className="h-3 w-3" /></button>
                             {r.status === 'pending' && (
                               <>
-                                <button type="button" title="Approve" onClick={() => setApproving(r)} className={`h-6 w-6 flex items-center justify-center rounded-md bg-emerald-500/15 hover:bg-emerald-500/30 ${accentText('emerald', t.light)} transition-all`}><CheckCircle2 className="h-3 w-3" /></button>
-                                <button type="button" title="Reject" onClick={() => setRejecting(r)} className={`h-6 w-6 flex items-center justify-center rounded-md bg-rose-500/15 hover:bg-rose-500/30 ${accentText('rose', t.light)} transition-all`}><XCircle className="h-3 w-3" /></button>
+                                <button type="button" title="Approve" onClick={e => { e.stopPropagation(); setApproving(r); }} className={`h-6 w-6 flex items-center justify-center rounded-md bg-emerald-500/15 hover:bg-emerald-500/30 ${accentText('emerald', t.light)} transition-all`}><CheckCircle2 className="h-3 w-3" /></button>
+                                <button type="button" title="Reject" onClick={e => { e.stopPropagation(); setRejecting(r); }} className={`h-6 w-6 flex items-center justify-center rounded-md bg-rose-500/15 hover:bg-rose-500/30 ${accentText('rose', t.light)} transition-all`}><XCircle className="h-3 w-3" /></button>
                               </>
                             )}
-                            <button type="button" title="Delete" onClick={() => setDelTarget(r)} className={`h-6 w-6 flex items-center justify-center rounded-md ${t.chipBg} hover:bg-rose-500/20 ${t.textFaint} hover:${t.light ? 'text-rose-600' : 'text-rose-400'} transition-all`}><Trash2 className="h-3 w-3" /></button>
+                            <button type="button" title="Delete" onClick={e => { e.stopPropagation(); setDelTarget(r); }} className={`h-6 w-6 flex items-center justify-center rounded-md ${t.chipBg} hover:bg-rose-500/20 ${t.textFaint} hover:${t.light ? 'text-rose-600' : 'text-rose-400'} transition-all`}><Trash2 className="h-3 w-3" /></button>
                           </div>
                         </td>
                       </tr>

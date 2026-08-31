@@ -115,12 +115,12 @@ function ComplaintForm({ open, onClose, initial, onSave }: {
       <form onSubmit={handleSubmit}>
         <div className="p-5 space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <FormField label="Date" required><input type="date" title="Date" value={form.date || ''} onChange={e => set('date', e.target.value)} className={inputCls} /></FormField>
-            <FormField label="Raised By (optional)"><input type="text" value={form.raisedBy || ''} onChange={e => set('raisedBy', e.target.value)} placeholder="Name of person raising" className={inputCls} /></FormField>
+            <FormField label="Date" required><input type="date" title="Date" aria-label="Date" value={form.date || ''} onChange={e => set('date', e.target.value)} className={inputCls} /></FormField>
+            <FormField label="Raised By (optional)"><input type="text" value={form.raisedBy || ''} onChange={e => set('raisedBy', e.target.value)} placeholder="Name of person raising" aria-label="Raised By" className={inputCls} /></FormField>
           </div>
 
           <FormField label="Issue Raised" required>
-            <textarea value={form.issueRaised || ''} onChange={e => set('issueRaised', e.target.value)} placeholder="Describe the safety complaint in detail…" rows={3} className={`${inputCls} resize-none`} />
+            <textarea value={form.issueRaised || ''} onChange={e => set('issueRaised', e.target.value)} placeholder="Describe the safety complaint in detail…" rows={3} aria-label="Issue Raised" className={`${inputCls} resize-none`} />
           </FormField>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -141,19 +141,19 @@ function ComplaintForm({ open, onClose, initial, onSave }: {
           <FormField label="Location"><ListAutocomplete listName="location" value={form.location || ''} onChange={v => set('location', v)} placeholder="Where was the complaint raised?" /></FormField>
 
           <FormField label="Action Plan">
-            <textarea value={form.actionPlan || ''} onChange={e => set('actionPlan', e.target.value)} placeholder="Describe the corrective action plan…" rows={2} className={`${inputCls} resize-none`} />
+            <textarea value={form.actionPlan || ''} onChange={e => set('actionPlan', e.target.value)} placeholder="Describe the corrective action plan…" rows={2} aria-label="Action Plan" className={`${inputCls} resize-none`} />
           </FormField>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <FormField label="By Who"><input type="text" value={form.byWho || ''} onChange={e => set('byWho', e.target.value)} placeholder="Responsible person" className={inputCls} /></FormField>
-            <FormField label="By When"><input type="date" title="By when" value={form.byWhen || ''} onChange={e => set('byWhen', e.target.value)} className={inputCls} /></FormField>
+            <FormField label="By Who"><input type="text" value={form.byWho || ''} onChange={e => set('byWho', e.target.value)} placeholder="Responsible person" aria-label="By Who" className={inputCls} /></FormField>
+            <FormField label="By When"><input type="date" title="By when" aria-label="By when" value={form.byWhen || ''} onChange={e => set('byWhen', e.target.value)} className={inputCls} /></FormField>
           </div>
 
           <div className={`rounded-xl p-3 ${t.chipBg} space-y-3`}>
             <p className={`text-[10px] ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textFaint}`}>Foreman / Supervisor</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <FormField label="Name"><PredictiveInput historyKey="handover_supervisor" value={form.supervisorName || ''} onChange={v => set('supervisorName', v)} placeholder="Supervisor / Foreman name" inputClassName={inputCls} /></FormField>
-              <FormField label="Signature (initials)"><input type="text" value={form.supervisorSignature || ''} onChange={e => set('supervisorSignature', e.target.value)} placeholder="e.g. J.D." className={inputCls} /></FormField>
+              <FormField label="Signature (initials)"><input type="text" value={form.supervisorSignature || ''} onChange={e => set('supervisorSignature', e.target.value)} placeholder="e.g. J.D." aria-label="Signature (initials)" className={inputCls} /></FormField>
             </div>
           </div>
 
@@ -162,7 +162,7 @@ function ComplaintForm({ open, onClose, initial, onSave }: {
               <SelectField size="form" title="Status" value={form.status || 'open'} onChange={v => set('status', v)}
                 options={STATUSES.map(s => ({ value: s, label: s.charAt(0).toUpperCase() + s.slice(1) }))} />
             </FormField>
-            <FormField label="Date Closed"><input type="date" title="Date closed" value={form.dateClosed || ''} onChange={e => set('dateClosed', e.target.value)} className={inputCls} /></FormField>
+            <FormField label="Date Closed"><input type="date" title="Date closed" aria-label="Date closed" value={form.dateClosed || ''} onChange={e => set('dateClosed', e.target.value)} className={inputCls} /></FormField>
           </div>
         </div>
         <FormActions onCancel={onClose} submitting={saving} submitLabel={initial?.id ? 'Update' : 'Submit'} accent="amber" />
@@ -511,8 +511,8 @@ function SafetyComplaintsContent() {
               <SelectField size="filter" title="Category" value={categoryF} onChange={setCategoryF} options={[{ value: 'all', label: 'All Categories' }, ...CATEGORIES.map(c => ({ value: c, label: c }))]} />
               {byWhoOptions.length > 0 && <SelectField size="filter" title="Responsible" value={byWhoF} onChange={setByWhoF} options={[{ value: 'all', label: 'All Responsible' }, ...byWhoOptions.map(v => ({ value: v, label: v }))]} />}
               {locationOptions.length > 0 && <SelectField size="filter" title="Location" value={locationF} onChange={setLocationF} options={[{ value: 'all', label: 'All Locations' }, ...locationOptions.map(v => ({ value: v, label: v }))]} />}
-              <input type="date" title="From date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className={selCls} />
-              <input type="date" title="To date" value={dateTo} onChange={e => setDateTo(e.target.value)} className={selCls} />
+              <input type="date" title="From date" aria-label="From date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className={selCls} />
+              <input type="date" title="To date" aria-label="To date" value={dateTo} onChange={e => setDateTo(e.target.value)} className={selCls} />
               {hasFilters && <button type="button" onClick={clearFilters} className={`flex items-center gap-1 text-xs px-2 py-1.5 rounded-lg transition-colors ${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText}`}><X className="h-3 w-3" /> Clear</button>}
               <span className={`text-[11px] ml-auto ${t.textFaint}`}>{filtered.length} of {complaints.length}</span>
             </div>
@@ -530,7 +530,7 @@ function SafetyComplaintsContent() {
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className={`border-b ${t.border}`}>
-                    <tr><th className={thCls}>Date</th><th className={thCls}>Raised By</th><th className={thCls}>Issue</th><th className={thCls}>Category</th><th className={thCls}>Priority</th><th className={thCls}>Supervisor</th><th className={thCls}>By When</th><th className={thCls}>Status</th><th className={thCls}></th></tr>
+                    <tr><th className={thCls}>Date</th><th className={thCls}>Raised By</th><th className={thCls}>Issue</th><th className={thCls}>Category</th><th className={thCls}>Priority</th><th className={thCls}>Supervisor</th><th className={thCls}>By When</th><th className={thCls}>Status</th><th className={thCls} aria-label="Actions"></th></tr>
                   </thead>
                   <tbody>
                     {filtered.map(c => {
@@ -552,15 +552,15 @@ function SafetyComplaintsContent() {
                             <td className={`px-3 py-3 text-xs whitespace-nowrap ${t.textFaint}`}>{c.byWhen || '—'}</td>
                             <td className="px-3 py-3"><StatusBadge color={STATUS_HEX[c.status] ?? ACCENT_HEX.blue} label={c.status} /></td>
                             <td className="px-3 py-3">
-                              <div className="flex items-center justify-end gap-0.5" onClick={e => e.stopPropagation()}>
-                                <button type="button" title="Expand" onClick={() => toggleRow(c.id)} className={`h-7 w-7 flex items-center justify-center rounded ${t.textFaint} ${t.hoverText} transition-all`}>{isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}</button>
-                                <button type="button" title="Edit" onClick={() => { setEditing(c); setFormOpen(true); }} className={`h-7 w-7 flex items-center justify-center rounded hover:bg-brand-500/15 ${t.textFaint} hover:text-brand-400 transition-all`}><Pencil className="h-3 w-3" /></button>
-                                <button type="button" title="Delete" onClick={() => handleDelete(c.id)} className={`h-7 w-7 flex items-center justify-center rounded hover:bg-rose-500/20 ${t.textFaint} hover:${t.light ? 'text-rose-600' : 'text-rose-400'} transition-all`}><Trash2 className="h-3 w-3" /></button>
+                              <div className="flex items-center justify-end gap-0.5">
+                                <button type="button" title="Expand" aria-label={isExpanded ? 'Collapse complaint details' : 'Expand complaint details'} onClick={e => { e.stopPropagation(); toggleRow(c.id); }} className={`h-7 w-7 flex items-center justify-center rounded ${t.textFaint} ${t.hoverText} transition-all`}>{isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}</button>
+                                <button type="button" title="Edit" aria-label="Edit complaint" onClick={e => { e.stopPropagation(); setEditing(c); setFormOpen(true); }} className={`h-7 w-7 flex items-center justify-center rounded hover:bg-brand-500/15 ${t.textFaint} hover:text-brand-400 transition-all`}><Pencil className="h-3 w-3" /></button>
+                                <button type="button" title="Delete" aria-label="Delete complaint" onClick={e => { e.stopPropagation(); handleDelete(c.id); }} className={`h-7 w-7 flex items-center justify-center rounded hover:bg-rose-500/20 ${t.textFaint} hover:${t.light ? 'text-rose-600' : 'text-rose-400'} transition-all`}><Trash2 className="h-3 w-3" /></button>
                               </div>
                             </td>
                           </tr>
                           {isExpanded && (
-                            <tr className={`border-b ${t.border} ${t.chipBg}`}>
+                            <tr aria-label="Complaint details" className={`border-b ${t.border} ${t.chipBg}`}>
                               <td colSpan={9} className="px-5 py-3">
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
                                   {c.issueRaised && <div className="sm:col-span-2 lg:col-span-3"><span className={`${TYPE_WEIGHT.semibold} uppercase text-[10px] tracking-wider ${t.textFaint}`}>Issue Raised</span><p className={`mt-0.5 ${t.textMuted}`}>{c.issueRaised}</p></div>}

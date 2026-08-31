@@ -165,8 +165,8 @@ function AnalyticsFilterBar({ allOrders, filters, onChange }: { allOrders: WorkO
       {!open && activeCount > 0 && <div className="flex flex-wrap gap-1.5 px-4 pb-3">{activeChips.map(c => <FilterChip key={c.key} label={c.label} onRemove={() => set(c.key, '')} />)}</div>}
       {open && (
         <div className={`border-t ${t.border} px-4 py-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3`}>
-          <FormField label="From Date"><input type="date" title="From date" value={filters.dateFrom} onChange={e => set('dateFrom', e.target.value)} className={inpCls} /></FormField>
-          <FormField label="To Date"><input type="date" title="To date" value={filters.dateTo} onChange={e => set('dateTo', e.target.value)} className={inpCls} /></FormField>
+          <FormField label="From Date"><input type="date" title="From date" aria-label="From date" value={filters.dateFrom} onChange={e => set('dateFrom', e.target.value)} className={inpCls} /></FormField>
+          <FormField label="To Date"><input type="date" title="To date" aria-label="To date" value={filters.dateTo} onChange={e => set('dateTo', e.target.value)} className={inpCls} /></FormField>
           {depts.length > 0 && <FormField label="Department"><SelectField size="filter" title="Department" value={filters.department} onChange={v => set('department', v)} options={[{ value: '', label: 'All departments' }, ...depts.map(d => ({ value: d, label: d }))]} /></FormField>}
           <FormField label="Classification">
             <SelectField size="filter" title="Classification" value={filters.classification} onChange={v => set('classification', v)}

@@ -165,7 +165,7 @@ function ReqModal({ open, onClose, onSave, editing }: {
           <div className="md:col-span-2 relative">
             <FormField label="Requester" required>
               <input
-                className={inputCls} placeholder="Type name to search employees…" autoComplete="off"
+                className={inputCls} placeholder="Type name to search employees…" autoComplete="off" aria-label="Requester"
                 value={form.requester ?? ''}
                 onChange={e => { set({ requester: e.target.value }); setEmpSearch(e.target.value); }}
                 onFocus={e => setEmpSearch(e.target.value)}
@@ -198,7 +198,7 @@ function ReqModal({ open, onClose, onSave, editing }: {
           </div>
 
           <FormField label="Date" required>
-            <input type="date" title="Requisition date" className={inputCls} value={form.date ?? ''} onChange={e => set({ date: e.target.value })} />
+            <input type="date" title="Requisition date" aria-label="Requisition date" className={inputCls} value={form.date ?? ''} onChange={e => set({ date: e.target.value })} />
           </FormField>
 
           <FormField label="Section">
@@ -222,14 +222,14 @@ function ReqModal({ open, onClose, onSave, editing }: {
                   set({ required_for: v, ...(eq && SECTIONS.includes(eq.section as Requisition['section']) ? { section: eq.section as Requisition['section'] } : {}) });
                 }}
                 options={[{ value: '', label: '— Select equipment or type below —' }, ...equipment.map(eq => ({ value: eq.label, label: `${eq.label}${eq.section ? ` (${eq.section})` : ''}` }))]} />
-              <input className={`${inputCls} mt-1.5`} placeholder="Or type manually (project, work order, other…)"
+              <input className={`${inputCls} mt-1.5`} placeholder="Or type manually (project, work order, other…)" aria-label="Required for (manual entry)"
                 value={equipment.find(eq => eq.label === form.required_for) ? '' : (form.required_for ?? '')}
                 onChange={e => set({ required_for: e.target.value })} />
             </FormField>
           </div>
 
           <FormField label="Requisition #">
-            <input className={inputCls} placeholder="e.g. REQ-001" value={form.requisitionNumber ?? ''} onChange={e => set({ requisitionNumber: e.target.value })} />
+            <input className={inputCls} placeholder="e.g. REQ-001" aria-label="Requisition number" value={form.requisitionNumber ?? ''} onChange={e => set({ requisitionNumber: e.target.value })} />
           </FormField>
         </div>
 
@@ -250,12 +250,12 @@ function ReqModal({ open, onClose, onSave, editing }: {
                 </div>
                 <div className="col-span-2">
                   <FormField label="Unit Cost">
-                    <input type="number" min="0" step="0.01" title="Unit cost" placeholder="0.00" className={inputCls} value={it.costPerUnit} onChange={e => setItem(i, { costPerUnit: parseFloat(e.target.value) || 0 })} />
+                    <input type="number" min="0" step="0.01" title="Unit cost" aria-label="Unit cost" placeholder="0.00" className={inputCls} value={it.costPerUnit} onChange={e => setItem(i, { costPerUnit: parseFloat(e.target.value) || 0 })} />
                   </FormField>
                 </div>
                 <div className="col-span-2">
                   <FormField label="Qty">
-                    <input type="number" min="1" title="Quantity" placeholder="1" className={inputCls} value={it.quantity} onChange={e => setItem(i, { quantity: parseInt(e.target.value) || 1 })} />
+                    <input type="number" min="1" title="Quantity" aria-label="Quantity" placeholder="1" className={inputCls} value={it.quantity} onChange={e => setItem(i, { quantity: parseInt(e.target.value) || 1 })} />
                   </FormField>
                 </div>
                 <div className="col-span-2">
@@ -280,7 +280,7 @@ function ReqModal({ open, onClose, onSave, editing }: {
         </div>
 
         <FormField label="Notes (optional)">
-          <textarea value={form.notes ?? ''} onChange={e => set({ notes: e.target.value })} rows={2} placeholder="Any additional notes…" className={`${inputCls} h-auto py-2 resize-none`} />
+          <textarea value={form.notes ?? ''} onChange={e => set({ notes: e.target.value })} rows={2} placeholder="Any additional notes…" aria-label="Notes" className={`${inputCls} h-auto py-2 resize-none`} />
         </FormField>
 
         <div className={`flex items-center justify-between pt-2 border-t ${t.border}`}>
@@ -530,10 +530,10 @@ function RequisitionsPageContent() {
                 options={[{ value: 'all', label: 'All Sections' }, ...SECTIONS.map(s => ({ value: s, label: s }))]} />
             </FormField>
             <FormField label="From">
-              <input type="date" title="From date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className={`w-full h-8 px-2 rounded text-[13px] ${t.inputBg} focus:outline-none`} />
+              <input type="date" title="From date" aria-label="From date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className={`w-full h-8 px-2 rounded text-[13px] ${t.inputBg} focus:outline-none`} />
             </FormField>
             <FormField label="To">
-              <input type="date" title="To date" value={dateTo} onChange={e => setDateTo(e.target.value)} className={`w-full h-8 px-2 rounded text-[13px] ${t.inputBg} focus:outline-none`} />
+              <input type="date" title="To date" aria-label="To date" value={dateTo} onChange={e => setDateTo(e.target.value)} className={`w-full h-8 px-2 rounded text-[13px] ${t.inputBg} focus:outline-none`} />
             </FormField>
           </div>
         )}
@@ -600,9 +600,9 @@ function RequisitionsPageContent() {
                         <td className={`p-3 ${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>{formatCurrency(itemTotal(r.items))}</td>
                         <td className="p-3" onClick={e => e.stopPropagation()}>
                           <div className="flex gap-1 justify-end">
-                            <button type="button" title="View" onClick={() => setViewing(r)} className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}><Eye className="h-3.5 w-3.5" /></button>
-                            <button type="button" title="Edit" onClick={() => { setEditing(r); setFormOpen(true); }} className="h-7 w-7 flex items-center justify-center rounded-lg bg-brand-500/10 hover:bg-brand-500/20 text-brand-400"><Pencil className="h-3.5 w-3.5" /></button>
-                            <button type="button" title="Delete" onClick={() => setDelTarget(r)} className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} hover:text-rose-500`}><Trash2 className="h-3.5 w-3.5" /></button>
+                            <button type="button" title="View" aria-label={`View requisition ${r.requisitionNumber}`} onClick={() => setViewing(r)} className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}><Eye className="h-3.5 w-3.5" /></button>
+                            <button type="button" title="Edit" aria-label={`Edit requisition ${r.requisitionNumber}`} onClick={() => { setEditing(r); setFormOpen(true); }} className="h-7 w-7 flex items-center justify-center rounded-lg bg-brand-500/10 hover:bg-brand-500/20 text-brand-400"><Pencil className="h-3.5 w-3.5" /></button>
+                            <button type="button" title="Delete" aria-label={`Delete requisition ${r.requisitionNumber}`} onClick={() => setDelTarget(r)} className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} hover:text-rose-500`}><Trash2 className="h-3.5 w-3.5" /></button>
                           </div>
                         </td>
                       </tr>

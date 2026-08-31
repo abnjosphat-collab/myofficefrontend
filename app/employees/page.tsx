@@ -441,6 +441,7 @@ function EmployeeForm({ initialData, onSubmit, onCancel, isSubmitting }: Employe
         <input
           value={temps[k]}
           placeholder={ph}
+          aria-label={ph}
           onChange={e => setTemps(p => ({ ...p, [k]: e.target.value }))}
           onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addItem(f, temps[k], k))}
           className={inputCls}
@@ -494,6 +495,7 @@ function EmployeeForm({ initialData, onSubmit, onCancel, isSubmitting }: Employe
                   value={form[f]}
                   onChange={e => set(f, upper ? e.target.value.toUpperCase() : e.target.value)}
                   placeholder={ph}
+                  aria-label={label}
                   className={`${inputCls} ${errors[f] ? 'ring-1 ring-rose-500/50' : ''}`}
                 />
                 {errors[f] && <p className="text-xs text-rose-500 mt-1">{errors[f]}</p>}
@@ -501,7 +503,7 @@ function EmployeeForm({ initialData, onSubmit, onCancel, isSubmitting }: Employe
             ))}
             <div className="md:col-span-2">
               <FormField label="Address">
-                <textarea value={form.address} rows={2} placeholder="Optional"
+                <textarea value={form.address} rows={2} placeholder="Optional" aria-label="Address"
                   onChange={e => set('address', e.target.value)}
                   className={`${inputCls} h-auto py-2 resize-none`} />
               </FormField>
@@ -512,7 +514,7 @@ function EmployeeForm({ initialData, onSubmit, onCancel, isSubmitting }: Employe
         {tab === 'employment' && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField label="Engagement Date" required>
-              <input type="date" title="Date of engagement" value={form.date_of_engagement}
+              <input type="date" title="Date of engagement" aria-label="Date of engagement" value={form.date_of_engagement}
                 onChange={e => set('date_of_engagement', e.target.value)}
                 className={`${inputCls} ${errors.date_of_engagement ? 'ring-1 ring-rose-500/50' : ''}`} />
               {errors.date_of_engagement && <p className="text-xs text-rose-500 mt-1">{errors.date_of_engagement}</p>}
@@ -569,7 +571,7 @@ function EmployeeForm({ initialData, onSubmit, onCancel, isSubmitting }: Employe
         {tab === 'additional' && (
           <div className="space-y-5">
             <FormField label="Driver's License Class">
-              <input value={form.drivers_license_class} placeholder="Optional"
+              <input value={form.drivers_license_class} placeholder="Optional" aria-label="Driver's License Class"
                 onChange={e => set('drivers_license_class', e.target.value)} className={inputCls} />
             </FormField>
             <FormField label="Other Positions">{tagInput('other_positions', 'pos', 'Add position', '#a78bfa')}</FormField>

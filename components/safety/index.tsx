@@ -254,7 +254,7 @@ export function SafetySearchBar({
     <div className={`relative flex-1 min-w-0 sm:min-w-48 sm:max-w-72 ${className || ''}`}>
       <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/30 pointer-events-none" />
       <input type="text" value={value} onChange={e => onChange(e.target.value)}
-        placeholder={placeholder}
+        placeholder={placeholder} aria-label={placeholder}
         className="pl-8 pr-8 py-2 sm:py-1.5 w-full text-xs rounded-lg bg-white/[0.07] border border-white/[0.12] text-white placeholder:text-white/30 focus:outline-none focus:border-white/30 transition-all" />
       {value && (
         <button type="button" onClick={() => onChange('')}
@@ -329,9 +329,16 @@ export function SafetyModal({
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-[160] flex items-center justify-center p-4 overflow-y-auto"
-      style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)' }}
-      onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className={`w-full ${width} rounded-2xl shadow-2xl my-4`}
+      style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)' }}>
+      {/* Real <button> covering the backdrop, not a click handler on the wrapping div —
+          gives keyboard users a focusable, Enter/Space-operable way to dismiss without
+          making the whole dialog wrapper (which contains its own interactive controls)
+          fake up a role="button". Sits behind the panel: both are positioned (fixed vs
+          relative) with default stacking order, so the later dialog panel paints on top
+          and still receives its own clicks. */}
+      <button type="button" onClick={onClose} aria-label="Close dialog"
+        className="fixed inset-0 w-full h-full bg-transparent border-0 p-0 m-0 cursor-default" />
+      <div className={`relative w-full ${width} rounded-2xl shadow-2xl my-4`}
         style={{ background: 'rgba(8,18,32,0.98)', border: '1px solid rgba(255,255,255,0.12)' }}>
         <div className="px-5 py-4 border-b border-white/[0.08] flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -361,12 +368,26 @@ export function FormField({
 }: {
   label: string; required?: boolean; children: React.ReactNode; className?: string;
 }) {
+  // Associate the visible label with its control via id/htmlFor (not just visual
+  // proximity) so screen readers announce the field name. Generates one id per
+  // FormField instance and injects it into the single child control — this
+  // component is designed to wrap exactly one input/select/textarea per field,
+  // matching every other FormField in this codebase.
+  const generatedId = React.useId();
+  const child = React.isValidElement(children)
+    ? React.cloneElement(children as React.ReactElement<{ id?: string }>, {
+        id: (children as React.ReactElement<{ id?: string }>).props.id || generatedId,
+      })
+    : children;
+  const controlId = React.isValidElement(children)
+    ? (children as React.ReactElement<{ id?: string }>).props.id || generatedId
+    : undefined;
   return (
     <div className={className}>
-      <label className={glassLabel}>
+      <label className={glassLabel} htmlFor={controlId}>
         {label}{required && <span className="text-rose-400 ml-0.5">*</span>}
       </label>
-      {children}
+      {child}
     </div>
   );
 }
@@ -451,15 +472,16 @@ export function ActionItemsEditor({
           ) : (
             <>
               <textarea value={item.action} onChange={e => update(item.id, { action: e.target.value })}
-                placeholder="Describe the corrective action…"
+                placeholder="Describe the corrective action…" aria-label="Corrective action"
                 rows={2} className={glassTextarea} />
               <div className="grid grid-cols-3 gap-2">
                 <input type="text" value={item.responsible}
                   onChange={e => update(item.id, { responsible: e.target.value })}
-                  placeholder="Responsible person"
+                  placeholder="Responsible person" aria-label="Responsible person"
                   className={glassInput + ' text-xs py-1.5'} />
                 <input type="date" value={item.targetDate}
                   onChange={e => update(item.id, { targetDate: e.target.value })}
+                  aria-label="Target date"
                   className={glassInput + ' text-xs py-1.5'} style={{ colorScheme: 'dark' }} />
                 <select value={item.status}
                   onChange={e => update(item.id, { status: e.target.value as ActionItem['status'] })}
@@ -473,11 +495,11 @@ export function ActionItemsEditor({
                 <div className="grid grid-cols-2 gap-2">
                   <input type="date" value={item.completedDate || ''}
                     onChange={e => update(item.id, { completedDate: e.target.value })}
-                    placeholder="Completion date"
+                    placeholder="Completion date" aria-label="Completion date"
                     className={glassInput + ' text-xs py-1.5'} style={{ colorScheme: 'dark' }} />
                   <input type="text" value={item.remarks || ''}
                     onChange={e => update(item.id, { remarks: e.target.value })}
-                    placeholder="Remarks…"
+                    placeholder="Remarks…" aria-label="Remarks"
                     className={glassInput + ' text-xs py-1.5'} />
                 </div>
               )}
@@ -531,7 +553,7 @@ export function RowActions({
   editLabel?: string; deleteLabel?: string;
 }) {
   return (
-    <div className="flex items-center justify-end gap-0.5" onClick={e => e.stopPropagation()}>
+    <div className="flex items-center justify-end gap-0.5">
       {onToggle && (
         <button type="button" title={expanded ? 'Collapse' : 'Expand'}
           onClick={e => { e.stopPropagation(); onToggle(); }}
@@ -540,7 +562,7 @@ export function RowActions({
         </button>
       )}
       {onEdit && (
-        <button type="button" title={editLabel}
+        <button type="button" title={editLabel} aria-label={editLabel}
           onClick={e => { e.stopPropagation(); onEdit(); }}
           className="h-9 w-9 sm:h-7 sm:w-7 flex items-center justify-center rounded hover:bg-[#86BBD8]/15 text-white/25 hover:text-[#86BBD8] transition-all">
           <svg className="h-3.5 w-3.5 sm:h-3 sm:w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
@@ -648,12 +670,12 @@ export function DateRangeFilter({
   return (
     <div className="flex flex-wrap items-center gap-2">
       <input type="date" value={from} onChange={e => onFromChange(e.target.value)}
-        title="From date"
+        title="From date" aria-label="From date"
         className="px-3 py-2 sm:py-1.5 text-xs rounded-lg bg-white/[0.07] border border-white/[0.12] text-white focus:outline-none focus:border-white/30 transition-all min-w-0"
         style={{ colorScheme: 'dark' }} />
       <span className="text-white/20 text-xs">to</span>
       <input type="date" value={to} onChange={e => onToChange(e.target.value)}
-        title="To date"
+        title="To date" aria-label="To date"
         className="px-3 py-2 sm:py-1.5 text-xs rounded-lg bg-white/[0.07] border border-white/[0.12] text-white focus:outline-none focus:border-white/30 transition-all min-w-0"
         style={{ colorScheme: 'dark' }} />
     </div>

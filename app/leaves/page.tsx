@@ -103,16 +103,16 @@ function LeaveCard({ leave, onView, onEdit, onDelete }: { leave: Leave; onView: 
               <div className={`text-xs truncate ${t.textFaint}`}>{leave.position} • {leave.employee_id}</div>
             </div>
           </div>
-          <div className="relative flex-shrink-0" onClick={e => e.stopPropagation()}>
-            <button type="button" title="More options" onClick={() => setMenuOpen(v => !v)} className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-all`}><MoreVertical className="h-3.5 w-3.5" /></button>
+          <div className="relative flex-shrink-0">
+            <button type="button" title="More options" aria-label="More options" onClick={e => { e.stopPropagation(); setMenuOpen(v => !v); }} className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-all`}><MoreVertical className="h-3.5 w-3.5" /></button>
             {menuOpen && (
               <>
-                <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
+                <button type="button" aria-label="Close menu" className="fixed inset-0 z-10 cursor-default" onClick={e => { e.stopPropagation(); setMenuOpen(false); }} />
                 <div className={`absolute right-0 top-8 z-20 w-44 rounded-xl overflow-hidden ${t.glass} ${t.shadow}`}>
-                  <button type="button" onClick={() => { onView(leave); setMenuOpen(false); }} className={`w-full flex items-center gap-2 px-3 py-2 text-xs ${t.textMuted} ${t.hoverBgSoft} transition-colors`}><Eye className="h-3.5 w-3.5" /> View Details</button>
-                  <button type="button" onClick={() => { onEdit(leave); setMenuOpen(false); }} className={`w-full flex items-center gap-2 px-3 py-2 text-xs ${t.textMuted} ${t.hoverBgSoft} transition-colors`}><Edit className="h-3.5 w-3.5" /> Edit</button>
+                  <button type="button" onClick={e => { e.stopPropagation(); onView(leave); setMenuOpen(false); }} className={`w-full flex items-center gap-2 px-3 py-2 text-xs ${t.textMuted} ${t.hoverBgSoft} transition-colors`}><Eye className="h-3.5 w-3.5" /> View Details</button>
+                  <button type="button" onClick={e => { e.stopPropagation(); onEdit(leave); setMenuOpen(false); }} className={`w-full flex items-center gap-2 px-3 py-2 text-xs ${t.textMuted} ${t.hoverBgSoft} transition-colors`}><Edit className="h-3.5 w-3.5" /> Edit</button>
                   <div className={`h-px ${t.border} mx-2`} />
-                  <button type="button" onClick={() => { handleDelete(); setMenuOpen(false); }} disabled={deleting} className={`w-full flex items-center gap-2 px-3 py-2 text-xs ${accentText('rose', t.light)} hover:bg-rose-500/10 transition-colors disabled:opacity-50`}>
+                  <button type="button" onClick={e => { e.stopPropagation(); handleDelete(); setMenuOpen(false); }} disabled={deleting} className={`w-full flex items-center gap-2 px-3 py-2 text-xs ${accentText('rose', t.light)} hover:bg-rose-500/10 transition-colors disabled:opacity-50`}>
                     {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />} Delete
                   </button>
                 </div>
@@ -294,11 +294,11 @@ function LeaveApplicationForm({ onClose, onSuccess, editData, leaves }: { onClos
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <FormField label="Start Date" required>
-            <input type="date" title="Start date" required value={formData.start_date || ''} onChange={e => handleChange('start_date', e.target.value)} className={inputCls} />
+            <input type="date" title="Start date" aria-label="Start date" required value={formData.start_date || ''} onChange={e => handleChange('start_date', e.target.value)} className={inputCls} />
             {validationErrors.start_date && <p className={`${accentText('rose', t.light)} text-xs mt-1`}>{validationErrors.start_date}</p>}
           </FormField>
           <FormField label="End Date" required>
-            <input type="date" title="End date" required value={formData.end_date || ''} onChange={e => handleChange('end_date', e.target.value)} min={formData.start_date} className={inputCls} />
+            <input type="date" title="End date" aria-label="End date" required value={formData.end_date || ''} onChange={e => handleChange('end_date', e.target.value)} min={formData.start_date} className={inputCls} />
             {validationErrors.end_date && <p className={`${accentText('rose', t.light)} text-xs mt-1`}>{validationErrors.end_date}</p>}
           </FormField>
         </div>
@@ -327,23 +327,23 @@ function LeaveApplicationForm({ onClose, onSuccess, editData, leaves }: { onClos
         )}
 
         <FormField label="Contact Number During Leave" required>
-          <input type="text" value={formData.contact_number || ''} onChange={e => handleChange('contact_number', e.target.value)} placeholder="Phone number to reach you" className={inputCls} />
+          <input type="text" value={formData.contact_number || ''} onChange={e => handleChange('contact_number', e.target.value)} placeholder="Phone number to reach you" aria-label="Contact number during leave" className={inputCls} />
           {validationErrors.contact_number && <p className={`${accentText('rose', t.light)} text-xs mt-1`}>{validationErrors.contact_number}</p>}
         </FormField>
 
         <div className="relative">
           <FormField label="Reason for Leave" required>
             <textarea rows={3} required value={formData.reason || ''} onChange={e => handleReasonChange(e.target.value)} onKeyDown={handleReasonKeyDown}
-              placeholder="Type a reason or choose from suggestions..." className={`w-full px-3 py-2 rounded-lg text-sm resize-none outline-none transition-colors ${t.inputBg}`} />
+              placeholder="Type a reason or choose from suggestions..." aria-label="Reason for leave" className={`w-full px-3 py-2 rounded-lg text-sm resize-none outline-none transition-colors ${t.inputBg}`} />
           </FormField>
           {validationErrors.reason && <p className={`${accentText('rose', t.light)} text-xs mt-1`}>{validationErrors.reason}</p>}
           {suggestions.length > 0 && (
             <div className={`absolute z-20 w-full mt-1 rounded-xl overflow-hidden ${t.glass} ${t.shadow}`}>
               {suggestions.map((s, index) => (
-                <div key={s} className={`px-3 py-2 cursor-pointer text-sm transition-all ${index === selectedSuggestionIndex ? `${t.chipBg} ${t.textPrimary}` : `${t.textFaint} ${t.hoverBgSoft} ${t.hoverText}`}`}
+                <button key={s} type="button" className={`w-full px-3 py-2 text-left text-sm transition-all ${index === selectedSuggestionIndex ? `${t.chipBg} ${t.textPrimary}` : `${t.textFaint} ${t.hoverBgSoft} ${t.hoverText}`}`}
                   onClick={() => { setFormData(prev => ({ ...prev, reason: s })); setSuggestions([]); }}>
                   {s}
-                </div>
+                </button>
               ))}
             </div>
           )}
@@ -351,8 +351,8 @@ function LeaveApplicationForm({ onClose, onSuccess, editData, leaves }: { onClos
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <FormField label="Emergency Contact"><input type="text" value={formData.emergency_contact || ''} onChange={e => handleChange('emergency_contact', e.target.value)} placeholder="Name and phone number" className={inputCls} /></FormField>
-          <FormField label="Handover To"><input type="text" value={formData.handover_to || ''} onChange={e => handleChange('handover_to', e.target.value)} placeholder="Colleague's name" className={inputCls} /></FormField>
+          <FormField label="Emergency Contact"><input type="text" value={formData.emergency_contact || ''} onChange={e => handleChange('emergency_contact', e.target.value)} placeholder="Name and phone number" aria-label="Emergency contact" className={inputCls} /></FormField>
+          <FormField label="Handover To"><input type="text" value={formData.handover_to || ''} onChange={e => handleChange('handover_to', e.target.value)} placeholder="Colleague's name" aria-label="Handover to" className={inputCls} /></FormField>
         </div>
 
         <div className="flex justify-end gap-2 pt-2">
@@ -457,7 +457,7 @@ function LeaveDetailsModal({ leave, onClose, onEdit, onDelete, onStatusUpdate }:
                 <button type="button" onClick={() => setShowStatusActions(v => !v)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all`}>Update Status <ChevronDown className="h-3.5 w-3.5" /></button>
                 {showStatusActions && (
                   <>
-                    <div className="fixed inset-0 z-10" onClick={() => setShowStatusActions(false)} />
+                    <button type="button" aria-label="Close status menu" className="fixed inset-0 z-10 cursor-default" onClick={() => setShowStatusActions(false)} />
                     <div className={`absolute right-0 bottom-9 z-20 w-44 rounded-xl overflow-hidden ${t.glass} ${t.shadow}`}>
                       <button type="button" onClick={() => handleStatusChange('approved')} className={`w-full flex items-center gap-2 px-3 py-2 text-xs ${accentText('emerald', t.light)} ${t.hoverBgSoft} transition-colors`}><CheckCircle2 className="h-3.5 w-3.5" /> Approve</button>
                       <button type="button" onClick={() => handleStatusChange('rejected')} className={`w-full flex items-center gap-2 px-3 py-2 text-xs ${accentText('rose', t.light)} ${t.hoverBgSoft} transition-colors`}><XCircle className="h-3.5 w-3.5" /> Reject</button>
@@ -663,7 +663,7 @@ function LeaveManagementContent() {
                   const maxDays = employeeSummary[0]?.total_days || 1;
                   const percentage = Math.round((emp.total_days / maxDays) * 100);
                   return (
-                    <div key={emp.id} className={`flex items-center gap-3 p-3 rounded-lg ${t.hoverBgSoft} cursor-pointer transition-all`} onClick={() => { setSearchTerm(emp.name); setFilter('all'); }}>
+                    <button key={emp.id} type="button" aria-label={`Filter leave requests by ${emp.name}`} className={`w-full flex items-center gap-3 p-3 rounded-lg ${t.hoverBgSoft} cursor-pointer transition-all text-left`} onClick={() => { setSearchTerm(emp.name); setFilter('all'); }}>
                       <User className="h-5 w-5 text-brand-400 shrink-0" />
                       <div className="flex-1 min-w-0">
                         <div className={`text-sm ${TYPE_WEIGHT.medium} truncate ${t.textPrimary}`}>{emp.name}</div>
@@ -677,7 +677,7 @@ function LeaveManagementContent() {
                         {emp.approved > 0 && <StatusBadge color="#34d399" label={`${emp.approved}a`} />}
                         {emp.rejected > 0 && <StatusBadge color="#f87171" label={`${emp.rejected}r`} />}
                       </div>
-                    </div>
+                    </button>
                   );
                 })}
               </div>
@@ -720,10 +720,10 @@ function LeaveManagementContent() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="relative">
                 <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 ${t.textFaint}`} />
-                <input type="text" placeholder="Search employee..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className={`pl-8 ${inputCls}`} />
+                <input type="text" placeholder="Search employee..." aria-label="Search employee" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className={`pl-8 ${inputCls}`} />
               </div>
-              <div><input type="date" title="Filter from date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className={inputCls} /><div className={`text-[10px] mt-0.5 ${t.textFaint}`}>From date</div></div>
-              <div><input type="date" title="Filter to date" value={dateTo} onChange={e => setDateTo(e.target.value)} className={inputCls} /><div className={`text-[10px] mt-0.5 ${t.textFaint}`}>To date</div></div>
+              <div><input type="date" title="Filter from date" aria-label="Filter from date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className={inputCls} /><div className={`text-[10px] mt-0.5 ${t.textFaint}`}>From date</div></div>
+              <div><input type="date" title="Filter to date" aria-label="Filter to date" value={dateTo} onChange={e => setDateTo(e.target.value)} className={inputCls} /><div className={`text-[10px] mt-0.5 ${t.textFaint}`}>To date</div></div>
             </div>
           </div>
         )}
@@ -734,7 +734,7 @@ function LeaveManagementContent() {
           <div className="flex items-center gap-2 shrink-0"><FileText className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textMuted}`}>Records</span><span className={`text-[11px] ${t.textFaint}`}>{filteredLeaves.length} of {leaves.length}</span></div>
           <div className="flex-1 relative min-w-0 max-w-xs">
             <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 pointer-events-none ${t.textFaint}`} />
-            <input type="text" placeholder="Search employee…" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className={`pl-7 pr-3 h-7 w-full text-xs rounded-lg outline-none transition-colors ${t.inputBg}`} />
+            <input type="text" placeholder="Search employee…" aria-label="Search employee" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className={`pl-7 pr-3 h-7 w-full text-xs rounded-lg outline-none transition-colors ${t.inputBg}`} />
           </div>
           <div className="flex items-center gap-1.5 shrink-0 ml-auto">
             {filteredLeaves.length > 0 && (
@@ -789,7 +789,7 @@ function LeaveManagementContent() {
                   <thead>
                     <tr className={`border-b ${t.border}`}>
                       <th className={`text-left px-4 py-2.5 text-xs ${TYPE_WEIGHT.semibold} ${t.chipBg} ${t.textFaint} w-8`}>
-                        {pendingInView.length > 0 && <input type="checkbox" checked={allPendingSelected} onChange={toggleSelectAll} title="Select all pending" className="rounded" />}
+                        {pendingInView.length > 0 && <input type="checkbox" checked={allPendingSelected} onChange={toggleSelectAll} title="Select all pending" aria-label="Select all pending" className="rounded" />}
                       </th>
                       {['Employee', 'Type', 'Dates', 'Days', 'Status', 'Applied', 'Actions'].map((h, i) => (
                         <th key={h} className={`${i === 6 ? 'text-right' : 'text-left'} px-4 py-2.5 text-xs ${TYPE_WEIGHT.semibold} ${t.chipBg} ${t.textFaint}`}>{h}</th>
@@ -800,7 +800,7 @@ function LeaveManagementContent() {
                     {filteredLeaves.map(leave => (
                       <tr key={leave.id} className={`cursor-pointer border-b ${t.border} ${t.hoverBgSoft} transition-colors`} onClick={() => setSelectedLeave(leave)}>
                         <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
-                          {leave.status === 'pending' && <input type="checkbox" checked={selectedIds.has(leave.id)} onChange={() => toggleSelect(leave.id)} className="rounded" />}
+                          {leave.status === 'pending' && <input type="checkbox" checked={selectedIds.has(leave.id)} onChange={() => toggleSelect(leave.id)} aria-label={`Select leave request for ${leave.employee_name}`} className="rounded" />}
                         </td>
                         <td className="px-4 py-3"><div className={`${TYPE_WEIGHT.medium} ${t.textPrimary}`}>{leave.employee_name}</div><div className={`text-xs ${t.textFaint}`}>{leave.employee_id}</div></td>
                         <td className="px-4 py-3"><StatusBadge color={LEAVE_TYPES[leave.leave_type]?.color ?? ACCENT_HEX.blue} label={LEAVE_TYPES[leave.leave_type]?.shortName || leave.leave_type} /></td>

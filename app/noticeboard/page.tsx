@@ -189,9 +189,9 @@ function NoticeCard({ notice, onView, onEdit, onDelete }: {
           <StatusBadge color={PRIORITY_HEX[notice.priority] ?? '#94a3b8'} label={notice.priority} />
           <StatusBadge color={STATUS_HEX[notice.status] ?? '#94a3b8'} label={notice.status} />
         </div>
-        <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
-          <button type="button" title="Edit" onClick={() => onEdit(notice)} className={`h-7 w-7 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-brand-500`}><Edit className="h-3.5 w-3.5" /></button>
-          <button type="button" title="Delete" onClick={async () => { if (await confirm({ title: 'Delete this notice?', destructive: true })) onDelete(notice.id); }} className={`h-7 w-7 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-rose-500`}><Trash2 className="h-3.5 w-3.5" /></button>
+        <div className="flex items-center gap-1">
+          <button type="button" title="Edit" aria-label="Edit notice" onClick={e => { e.stopPropagation(); onEdit(notice); }} className={`h-7 w-7 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-brand-500`}><Edit className="h-3.5 w-3.5" /></button>
+          <button type="button" title="Delete" aria-label="Delete notice" onClick={async e => { e.stopPropagation(); if (await confirm({ title: 'Delete this notice?', destructive: true })) onDelete(notice.id); }} className={`h-7 w-7 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-rose-500`}><Trash2 className="h-3.5 w-3.5" /></button>
         </div>
       </div>
     </GlowCard>
@@ -243,15 +243,15 @@ function EditNoticeModal({ isOpen, onClose, notice, onSave, isLoading }: {
       <form onSubmit={handleSubmit}>
         <div className="px-5 py-4 space-y-4 max-h-[65vh] overflow-y-auto">
           <FormField label="Title" required>
-            <input value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} placeholder="Enter notice title" className={inputCls} />
+            <input value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} placeholder="Enter notice title" aria-label="Title" className={inputCls} />
           </FormField>
           <FormField label="Content" required>
             <textarea value={form.content} onChange={e => setForm(p => ({ ...p, content: e.target.value }))} rows={5}
-              placeholder="Enter notice content" className={`w-full px-3 py-2 rounded-lg text-sm outline-none transition-colors resize-none ${t.inputBg}`} />
+              placeholder="Enter notice content" aria-label="Content" className={`w-full px-3 py-2 rounded-lg text-sm outline-none transition-colors resize-none ${t.inputBg}`} />
           </FormField>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <FormField label="Publish Date" required>
-              <input type="date" value={form.date} title="Publish date" onChange={e => setForm(p => ({ ...p, date: e.target.value }))} className={inputCls} />
+              <input type="date" value={form.date} title="Publish date" aria-label="Publish date" onChange={e => setForm(p => ({ ...p, date: e.target.value }))} className={inputCls} />
             </FormField>
             <FormField label="Category" required>
               <SelectField size="form" value={form.category} title="Category" onChange={v => setForm(p => ({ ...p, category: v }))}
@@ -269,7 +269,7 @@ function EditNoticeModal({ isOpen, onClose, notice, onSave, isLoading }: {
             </FormField>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <FormField label="Author"><input value={form.author} onChange={e => setForm(p => ({ ...p, author: e.target.value }))} placeholder="Enter author name" className={inputCls} /></FormField>
+            <FormField label="Author"><input value={form.author} onChange={e => setForm(p => ({ ...p, author: e.target.value }))} placeholder="Enter author name" aria-label="Author" className={inputCls} /></FormField>
             <FormField label="Department">
               <SelectField size="form" value={form.department} title="Department" onChange={v => setForm(p => ({ ...p, department: v }))}
                 options={DEPARTMENTS.map(d => ({ value: d, label: d }))} />
@@ -284,24 +284,24 @@ function EditNoticeModal({ isOpen, onClose, notice, onSave, isLoading }: {
             </FormField>
           </div>
           <FormField label="Expiry Date">
-            <input type="date" value={form.expires_at} title="Expiry date" min={form.date} onChange={e => setForm(p => ({ ...p, expires_at: e.target.value }))} className={inputCls} />
+            <input type="date" value={form.expires_at} title="Expiry date" aria-label="Expiry date" min={form.date} onChange={e => setForm(p => ({ ...p, expires_at: e.target.value }))} className={inputCls} />
           </FormField>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <FormField label="Attachment Name"><input value={form.attachment_name} onChange={e => setForm(p => ({ ...p, attachment_name: e.target.value }))} placeholder="e.g. policy.pdf" className={inputCls} /></FormField>
-            <FormField label="Attachment URL"><input value={form.attachment_url} onChange={e => setForm(p => ({ ...p, attachment_url: e.target.value }))} placeholder="https://…" className={inputCls} /></FormField>
-            <FormField label="File Size"><input value={form.attachment_size} onChange={e => setForm(p => ({ ...p, attachment_size: e.target.value }))} placeholder="e.g. 2.5 MB" className={inputCls} /></FormField>
+            <FormField label="Attachment Name"><input value={form.attachment_name} onChange={e => setForm(p => ({ ...p, attachment_name: e.target.value }))} placeholder="e.g. policy.pdf" aria-label="Attachment name" className={inputCls} /></FormField>
+            <FormField label="Attachment URL"><input value={form.attachment_url} onChange={e => setForm(p => ({ ...p, attachment_url: e.target.value }))} placeholder="https://…" aria-label="Attachment URL" className={inputCls} /></FormField>
+            <FormField label="File Size"><input value={form.attachment_size} onChange={e => setForm(p => ({ ...p, attachment_size: e.target.value }))} placeholder="e.g. 2.5 MB" aria-label="File size" className={inputCls} /></FormField>
           </div>
-          <label className={`flex items-center gap-2 cursor-pointer text-xs ${t.textMuted} ${t.chipBg} rounded-lg px-3 py-2 w-fit`}>
+          <label htmlFor="notice-attachment-file" className={`flex items-center gap-2 cursor-pointer text-xs ${t.textMuted} ${t.chipBg} rounded-lg px-3 py-2 w-fit`}>
             <Upload className="h-3.5 w-3.5" /> Upload File
-            <input type="file" className="hidden" title="Upload attachment file" onChange={handleAttachmentUpload} />
+            <input id="notice-attachment-file" type="file" className="hidden" title="Upload attachment file" aria-label="Upload attachment file" onChange={handleAttachmentUpload} />
           </label>
           <div className="flex flex-wrap gap-6">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={form.is_pinned} onChange={e => setForm(p => ({ ...p, is_pinned: e.target.checked }))} className="h-4 w-4 accent-brand-600" />
+            <label htmlFor="notice-is-pinned" className="flex items-center gap-2 cursor-pointer">
+              <input id="notice-is-pinned" type="checkbox" checked={form.is_pinned} onChange={e => setForm(p => ({ ...p, is_pinned: e.target.checked }))} aria-label="Pin to top" className="h-4 w-4 accent-brand-600" />
               <span className={`text-sm ${t.textMuted}`}>Pin to top</span>
             </label>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={form.requires_acknowledgment} onChange={e => setForm(p => ({ ...p, requires_acknowledgment: e.target.checked }))} className="h-4 w-4 accent-brand-600" />
+            <label htmlFor="notice-requires-ack" className="flex items-center gap-2 cursor-pointer">
+              <input id="notice-requires-ack" type="checkbox" checked={form.requires_acknowledgment} onChange={e => setForm(p => ({ ...p, requires_acknowledgment: e.target.checked }))} aria-label="Require acknowledgment" className="h-4 w-4 accent-brand-600" />
               <span className={`text-sm ${t.textMuted}`}>Require acknowledgment</span>
             </label>
           </div>
@@ -482,10 +482,10 @@ function NoticeboardContent() {
                   <td className="px-3 py-2.5"><StatusBadge color={STATUS_HEX[notice.status] ?? '#94a3b8'} label={notice.status} /></td>
                   <td className={`px-3 py-2.5 text-xs ${t.textMuted}`}>{notice.author || '-'}</td>
                   <td className={`px-3 py-2.5 text-xs ${t.textMuted}`}>{formatDate(notice.date)}</td>
-                  <td className="px-3 py-2.5" onClick={e => e.stopPropagation()}>
+                  <td className="px-3 py-2.5">
                     <div className="flex items-center justify-end gap-1">
-                      <button type="button" title="Edit" onClick={() => { setEditingNotice(notice); setIsModalOpen(true); }} className={`h-7 w-7 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-brand-500`}><Edit className="h-3.5 w-3.5" /></button>
-                      <button type="button" title="Delete" onClick={async () => { if (await confirm({ title: 'Delete this notice?', destructive: true })) handleDeleteNotice(notice.id); }} className={`h-7 w-7 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-rose-500`}><Trash2 className="h-3.5 w-3.5" /></button>
+                      <button type="button" title="Edit" aria-label="Edit notice" onClick={e => { e.stopPropagation(); setEditingNotice(notice); setIsModalOpen(true); }} className={`h-7 w-7 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-brand-500`}><Edit className="h-3.5 w-3.5" /></button>
+                      <button type="button" title="Delete" aria-label="Delete notice" onClick={async e => { e.stopPropagation(); if (await confirm({ title: 'Delete this notice?', destructive: true })) handleDeleteNotice(notice.id); }} className={`h-7 w-7 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-rose-500`}><Trash2 className="h-3.5 w-3.5" /></button>
                     </div>
                   </td>
                 </tr>

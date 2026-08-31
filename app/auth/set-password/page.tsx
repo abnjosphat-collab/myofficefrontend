@@ -47,9 +47,9 @@ function SetPasswordForm() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-3">
-          <input type="password" autoFocus placeholder="New password" value={password}
+          <input type="password" placeholder="New password" aria-label="New password" value={password}
             onChange={e => setPassword(e.target.value)} minLength={6} required className={inputCls} />
-          <input type="password" placeholder="Confirm password" value={confirm}
+          <input type="password" placeholder="Confirm password" aria-label="Confirm password" value={confirm}
             onChange={e => setConfirm(e.target.value)} minLength={6} required className={inputCls} />
 
           {error && <p className="text-rose-400 text-xs">{error}</p>}

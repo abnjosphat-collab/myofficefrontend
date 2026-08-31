@@ -88,8 +88,8 @@ function YesNoRow({ label, value, onChange, name }: { label: string; value: YesN
       <span className={`text-sm ${t.textMuted}`}>{label}</span>
       <div className="flex gap-3.5">
         {(['Yes', 'No'] as YesNoType[]).map(opt => (
-          <label key={opt} className={`flex items-center gap-1.5 cursor-pointer text-sm ${opt === value ? (opt === 'Yes' ? `${accentText('emerald', t.light)} ${TYPE_WEIGHT.bold}` : `text-red-400 ${TYPE_WEIGHT.bold}`) : t.textFaint}`}>
-            <input type="radio" name={name} value={opt} checked={value === opt} onChange={() => onChange(opt)}
+          <label key={opt} htmlFor={`${name}-${opt}`} className={`flex items-center gap-1.5 cursor-pointer text-sm ${opt === value ? (opt === 'Yes' ? `${accentText('emerald', t.light)} ${TYPE_WEIGHT.bold}` : `text-red-400 ${TYPE_WEIGHT.bold}`) : t.textFaint}`}>
+            <input id={`${name}-${opt}`} type="radio" name={name} value={opt} checked={value === opt} onChange={() => onChange(opt)} aria-label={opt}
               className="cursor-pointer" style={{ accentColor: opt === 'Yes' ? '#34d399' : '#f87171' }} />
             {opt}
           </label>
@@ -112,17 +112,17 @@ function ActionPlanCard({ item, index, onChange, onRemove }: { item: ActionPlanI
       <div className="grid grid-cols-2 gap-2">
         <div className="col-span-2"><FormField label="Required Action *"><PredictiveInput historyKey="pto_required_action" value={item.action} placeholder="Describe the required action..." onChange={v => onChange(item.id, 'action', v)} inputClassName={inputCls} /></FormField></div>
         <FormField label="By Whom *"><PredictiveInput historyKey="handover_supervisor" value={item.byWhom} placeholder="Responsible person" onChange={v => onChange(item.id, 'byWhom', v)} inputClassName={inputCls} /></FormField>
-        <FormField label="By When *"><input type="date" className={inputCls} value={item.byWhen} title="Due date" onChange={e => onChange(item.id, 'byWhen', e.target.value)} /></FormField>
+        <FormField label="By When *"><input type="date" className={inputCls} value={item.byWhen} title="Due date" aria-label="Due date" onChange={e => onChange(item.id, 'byWhen', e.target.value)} /></FormField>
         <FormField label="Status">
           <SelectField size="form" value={item.status} title="Status" onChange={v => onChange(item.id, 'status', v as ActionStatus)}
             options={[{ value: 'Pending', label: 'Pending' }, { value: 'In Progress', label: 'In Progress' }, { value: 'Completed', label: 'Completed' }]} />
         </FormField>
         {item.status === 'Completed' && (
-          <FormField label="Completed Date"><input type="date" className={inputCls} value={item.completedDate || ''} title="Completed date" onChange={e => onChange(item.id, 'completedDate', e.target.value)} /></FormField>
+          <FormField label="Completed Date"><input type="date" className={inputCls} value={item.completedDate || ''} title="Completed date" aria-label="Completed date" onChange={e => onChange(item.id, 'completedDate', e.target.value)} /></FormField>
         )}
         <div className="col-span-2">
           <FormField label="Remarks (Optional)">
-            <textarea className={`w-full text-sm rounded-lg px-3 py-2 outline-none transition-colors resize-none ${t.inputBg}`} style={{ minHeight: 44 }} value={item.remarks || ''} placeholder="Additional notes..." onChange={e => onChange(item.id, 'remarks', e.target.value)} title="Remarks" />
+            <textarea className={`w-full text-sm rounded-lg px-3 py-2 outline-none transition-colors resize-none ${t.inputBg}`} style={{ minHeight: 44 }} value={item.remarks || ''} placeholder="Additional notes..." onChange={e => onChange(item.id, 'remarks', e.target.value)} title="Remarks" aria-label="Remarks" />
           </FormField>
         </div>
       </div>
@@ -187,10 +187,10 @@ function PTOCard({ report, index, onView, onEdit, onDelete }: PTOCardProps) {
 
         <div className={`flex justify-between items-center border-t ${t.border} pt-2.5`}>
           <StatusBadge color={STATUS_COLORS[report.status]} label={report.status.charAt(0).toUpperCase() + report.status.slice(1)} />
-          <div onClick={e => e.stopPropagation()} className="flex gap-1.5">
-            <button type="button" onClick={() => onView(report)} title="View" className={`${t.chipBg} ${t.hoverBg} rounded-md px-2 py-1 text-xs flex items-center gap-1 transition-colors ${t.textFaint}`}><Eye className="h-3 w-3" /> View</button>
-            <button type="button" onClick={() => onEdit(report)} title="Edit" className={`${t.chipBg} ${t.hoverBg} rounded-md px-2 py-1 text-xs flex items-center gap-1 transition-colors text-brand-400`}><Pencil className="h-3 w-3" /> Edit</button>
-            <button type="button" onClick={() => onDelete(report.id)} title="Delete" className={`${t.chipBg} ${t.hoverBg} rounded-md px-2 py-1 text-xs flex items-center gap-1 transition-colors text-red-400`}><Trash2 className="h-3 w-3" /> Delete</button>
+          <div className="flex gap-1.5">
+            <button type="button" onClick={e => { e.stopPropagation(); onView(report); }} title="View" className={`${t.chipBg} ${t.hoverBg} rounded-md px-2 py-1 text-xs flex items-center gap-1 transition-colors ${t.textFaint}`}><Eye className="h-3 w-3" /> View</button>
+            <button type="button" onClick={e => { e.stopPropagation(); onEdit(report); }} title="Edit" className={`${t.chipBg} ${t.hoverBg} rounded-md px-2 py-1 text-xs flex items-center gap-1 transition-colors text-brand-400`}><Pencil className="h-3 w-3" /> Edit</button>
+            <button type="button" onClick={e => { e.stopPropagation(); onDelete(report.id); }} title="Delete" className={`${t.chipBg} ${t.hoverBg} rounded-md px-2 py-1 text-xs flex items-center gap-1 transition-colors text-red-400`}><Trash2 className="h-3 w-3" /> Delete</button>
           </div>
         </div>
       </div>
@@ -374,23 +374,23 @@ function PTOFormModal({ open, editing, onClose, onSave, saving }: { open: boolea
       <form onSubmit={handleSubmit} className="p-5 space-y-4">
         {tab === 'basic' && (
           <div className="grid grid-cols-2 gap-3">
-            <FormField label="Date *"><input type="date" className={inputCls} value={form.date || ''} title="Date" onChange={e => set('date', e.target.value)} /></FormField>
-            <FormField label="Observer Name *"><input className={inputCls} value={form.observerName || ''} placeholder="Observer's full name" onChange={e => set('observerName', e.target.value)} title="Observer name" /></FormField>
+            <FormField label="Date *"><input type="date" className={inputCls} value={form.date || ''} title="Date" aria-label="Date" onChange={e => set('date', e.target.value)} /></FormField>
+            <FormField label="Observer Name *"><input className={inputCls} value={form.observerName || ''} placeholder="Observer's full name" onChange={e => set('observerName', e.target.value)} title="Observer name" aria-label="Observer name" /></FormField>
             <FormField label="Section *">
               <SelectField size="form" value={form.section || 'Mechanical'} title="Section" onChange={v => set('section', v as SectionType)}
                 options={SECTIONS.map(s => ({ value: s, label: s }))} />
             </FormField>
-            <FormField label="Dept / Contractor"><input className={inputCls} value={form.deptSectionContractor || ''} placeholder="Department or contractor" onChange={e => set('deptSectionContractor', e.target.value)} title="Department or contractor" /></FormField>
-            <FormField label="Worker Name *"><input className={inputCls} value={form.workerName || ''} placeholder="Worker's full name" onChange={e => set('workerName', e.target.value)} title="Worker name" /></FormField>
-            <FormField label="Occupation"><input className={inputCls} value={form.occupation || ''} placeholder="Job title / occupation" onChange={e => set('occupation', e.target.value)} title="Occupation" /></FormField>
-            <div className="col-span-2"><FormField label="Job / Task Observed *"><input className={inputCls} value={form.jobTaskObserved || ''} placeholder="Describe the task being observed" onChange={e => set('jobTaskObserved', e.target.value)} title="Job/task observed" /></FormField></div>
-            <FormField label="SHEQ Reference No."><input className={inputCls} value={form.sheqRefNo || ''} placeholder="e.g., SHEQ-001" onChange={e => set('sheqRefNo', e.target.value)} title="SHEQ reference number" /></FormField>
+            <FormField label="Dept / Contractor"><input className={inputCls} value={form.deptSectionContractor || ''} placeholder="Department or contractor" onChange={e => set('deptSectionContractor', e.target.value)} title="Department or contractor" aria-label="Department or contractor" /></FormField>
+            <FormField label="Worker Name *"><input className={inputCls} value={form.workerName || ''} placeholder="Worker's full name" onChange={e => set('workerName', e.target.value)} title="Worker name" aria-label="Worker name" /></FormField>
+            <FormField label="Occupation"><input className={inputCls} value={form.occupation || ''} placeholder="Job title / occupation" onChange={e => set('occupation', e.target.value)} title="Occupation" aria-label="Occupation" /></FormField>
+            <div className="col-span-2"><FormField label="Job / Task Observed *"><input className={inputCls} value={form.jobTaskObserved || ''} placeholder="Describe the task being observed" onChange={e => set('jobTaskObserved', e.target.value)} title="Job/task observed" aria-label="Job/task observed" /></FormField></div>
+            <FormField label="SHEQ Reference No."><input className={inputCls} value={form.sheqRefNo || ''} placeholder="e.g., SHEQ-001" onChange={e => set('sheqRefNo', e.target.value)} title="SHEQ reference number" aria-label="SHEQ reference number" /></FormField>
             <FormField label="Observation Type">
               <SelectField size="form" value={form.observationType || 'Initial'} title="Observation type" onChange={v => set('observationType', v as ObservationType)}
                 options={[{ value: 'Initial', label: 'Initial' }, { value: 'Follow up', label: 'Follow up' }]} />
             </FormField>
-            <FormField label="Time on Job (Months)"><input className={inputCls} value={form.timeOnJob?.months || ''} placeholder="0" onChange={e => set('timeOnJob', { ...form.timeOnJob, months: e.target.value })} title="Months on job" /></FormField>
-            <FormField label="Time on Job (Years)"><input className={inputCls} value={form.timeOnJob?.years || ''} placeholder="0" onChange={e => set('timeOnJob', { ...form.timeOnJob, years: e.target.value })} title="Years on job" /></FormField>
+            <FormField label="Time on Job (Months)"><input className={inputCls} value={form.timeOnJob?.months || ''} placeholder="0" onChange={e => set('timeOnJob', { ...form.timeOnJob, months: e.target.value })} title="Months on job" aria-label="Months on job" /></FormField>
+            <FormField label="Time on Job (Years)"><input className={inputCls} value={form.timeOnJob?.years || ''} placeholder="0" onChange={e => set('timeOnJob', { ...form.timeOnJob, years: e.target.value })} title="Years on job" aria-label="Years on job" /></FormField>
             <div className="col-span-2"><YesNoRow label="Was the worker told in advance?" value={form.notification?.toldInAdvance || 'No'} name="toldInAdvance" onChange={v => set('notification', { toldInAdvance: v })} /></div>
           </div>
         )}
@@ -401,8 +401,8 @@ function PTOFormModal({ open, editing, onClose, onSave, saving }: { open: boolea
               <div className={`${TYPE_WEIGHT.bold} text-xs uppercase tracking-wide mb-2.5 ${t.textFaint}`}>Reasons for Observation</div>
               <div className="grid grid-cols-2 gap-1">
                 {(Object.keys(REASON_LABELS) as (keyof Reasons)[]).map(key => (
-                  <label key={key} className={checkLabelCls}>
-                    <input type="checkbox" style={{ accentColor: '#60a5fa' }} className="cursor-pointer w-3.5 h-3.5" checked={form.reasons?.[key] || false} onChange={e => set('reasons', { ...form.reasons, [key]: e.target.checked })} />
+                  <label key={key} htmlFor={`reason-${key}`} className={checkLabelCls}>
+                    <input id={`reason-${key}`} type="checkbox" style={{ accentColor: '#60a5fa' }} className="cursor-pointer w-3.5 h-3.5" checked={form.reasons?.[key] || false} onChange={e => set('reasons', { ...form.reasons, [key]: e.target.checked })} aria-label={REASON_LABELS[key]} />
                     {REASON_LABELS[key]}
                   </label>
                 ))}
@@ -419,8 +419,8 @@ function PTOFormModal({ open, editing, onClose, onSave, saving }: { open: boolea
               <div className={`${TYPE_WEIGHT.bold} text-xs uppercase tracking-wide mb-2.5 ${t.textFaint}`}>Suggested Remedies</div>
               <div className="grid grid-cols-2 gap-1">
                 {(Object.keys(REMEDY_LABELS) as (keyof SuggestedRemedies)[]).map(key => (
-                  <label key={key} className={checkLabelCls}>
-                    <input type="checkbox" style={{ accentColor: '#60a5fa' }} className="cursor-pointer w-3.5 h-3.5" checked={form.suggestedRemedies?.[key] === 'Yes'} onChange={e => set('suggestedRemedies', { ...form.suggestedRemedies, [key]: e.target.checked ? 'Yes' : 'No' })} />
+                  <label key={key} htmlFor={`remedy-${key}`} className={checkLabelCls}>
+                    <input id={`remedy-${key}`} type="checkbox" style={{ accentColor: '#60a5fa' }} className="cursor-pointer w-3.5 h-3.5" checked={form.suggestedRemedies?.[key] === 'Yes'} onChange={e => set('suggestedRemedies', { ...form.suggestedRemedies, [key]: e.target.checked ? 'Yes' : 'No' })} aria-label={REMEDY_LABELS[key]} />
                     {REMEDY_LABELS[key]}
                   </label>
                 ))}
@@ -446,8 +446,8 @@ function PTOFormModal({ open, editing, onClose, onSave, saving }: { open: boolea
                   <span className={`text-sm ${t.textMuted}`}>Observation Scope</span>
                   <div className="flex gap-3.5">
                     {(['All', 'Partial'] as const).map(opt => (
-                      <label key={opt} className={`flex items-center gap-1.5 cursor-pointer text-sm ${form.observationScope === opt ? `text-brand-400 ${TYPE_WEIGHT.bold}` : t.textFaint}`}>
-                        <input type="radio" name="scope" value={opt} checked={form.observationScope === opt} onChange={() => set('observationScope', opt)} style={{ accentColor: '#60a5fa' }} className="cursor-pointer" />
+                      <label key={opt} htmlFor={`scope-${opt}`} className={`flex items-center gap-1.5 cursor-pointer text-sm ${form.observationScope === opt ? `text-brand-400 ${TYPE_WEIGHT.bold}` : t.textFaint}`}>
+                        <input id={`scope-${opt}`} type="radio" name="scope" value={opt} checked={form.observationScope === opt} onChange={() => set('observationScope', opt)} style={{ accentColor: '#60a5fa' }} className="cursor-pointer" aria-label={opt} />
                         {opt}
                       </label>
                     ))}
@@ -659,8 +659,8 @@ function PTOPageContent() {
               options={[{ value: 'all', label: 'All Status' }, { value: 'draft', label: 'Draft' }, { value: 'submitted', label: 'Submitted' }, { value: 'reviewed', label: 'Reviewed' }, { value: 'closed', label: 'Closed' }]} />
             <SelectField size="filter" title="Type" value={obsTypeFilter} onChange={setObsTypeFilter}
               options={[{ value: 'all', label: 'All Types' }, { value: 'Initial', label: 'Initial' }, { value: 'Follow up', label: 'Follow up' }]} />
-            <input type="date" title="From date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className={selCls} />
-            <input type="date" title="To date" value={dateTo} onChange={e => setDateTo(e.target.value)} className={selCls} />
+            <input type="date" title="From date" aria-label="From date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className={selCls} />
+            <input type="date" title="To date" aria-label="To date" value={dateTo} onChange={e => setDateTo(e.target.value)} className={selCls} />
             {hasFilters && <button type="button" onClick={clearFilters} className={`flex items-center gap-1 text-xs px-2 py-1.5 rounded-lg transition-colors ${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText}`}><X className="h-3 w-3" /> Clear</button>}
             <span className={`text-[11px] ml-auto ${t.textFaint}`}>{filtered.length} of {total}</span>
           </div>
@@ -691,7 +691,7 @@ function PTOPageContent() {
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className={`border-b ${t.border}`}>
-                  <tr><th className={thCls}>Date</th><th className={thCls}>Observer</th><th className={thCls}>Worker</th><th className={thCls}>Task</th><th className={thCls}>Section</th><th className={thCls}>Type</th><th className={thCls}>Status</th><th className={thCls}>Risk</th><th className={thCls}></th></tr>
+                  <tr><th className={thCls}>Date</th><th className={thCls}>Observer</th><th className={thCls}>Worker</th><th className={thCls}>Task</th><th className={thCls}>Section</th><th className={thCls}>Type</th><th className={thCls}>Status</th><th className={thCls}>Risk</th><th className={thCls} aria-label="Actions"></th></tr>
                 </thead>
                 <tbody>
                   {filtered.map(r => {
@@ -706,10 +706,10 @@ function PTOPageContent() {
                         <td className={tdCls}><StatusBadge color={OBS_COLORS[r.observationType]} label={r.observationType} /></td>
                         <td className={tdCls}><StatusBadge color={STATUS_COLORS[r.status]} label={r.status.charAt(0).toUpperCase() + r.status.slice(1)} /></td>
                         <td className={tdCls}>{hasRisk ? <StatusBadge color="#ef4444" label="⚠ High" /> : <span className={t.textFaint}>—</span>}</td>
-                        <td className={tdCls} onClick={e => e.stopPropagation()}>
+                        <td className={tdCls}>
                           <div className="flex gap-1 justify-end">
-                            <button type="button" title="Edit" onClick={() => handleEdit(r)} className={`p-1.5 rounded ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-colors`}><Pencil className="h-3 w-3" /></button>
-                            <button type="button" title="Delete" onClick={() => setDeleteTarget(r.id)} className={`p-1.5 rounded ${t.chipBg} hover:bg-rose-500/15 ${t.textFaint} hover:${t.light ? 'text-rose-600' : 'text-rose-400'} transition-colors`}><Trash2 className="h-3 w-3" /></button>
+                            <button type="button" title="Edit" aria-label="Edit PTO report" onClick={e => { e.stopPropagation(); handleEdit(r); }} className={`p-1.5 rounded ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-colors`}><Pencil className="h-3 w-3" /></button>
+                            <button type="button" title="Delete" aria-label="Delete PTO report" onClick={e => { e.stopPropagation(); setDeleteTarget(r.id); }} className={`p-1.5 rounded ${t.chipBg} hover:bg-rose-500/15 ${t.textFaint} hover:${t.light ? 'text-rose-600' : 'text-rose-400'} transition-colors`}><Trash2 className="h-3 w-3" /></button>
                           </div>
                         </td>
                       </tr>

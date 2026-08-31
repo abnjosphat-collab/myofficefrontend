@@ -68,7 +68,10 @@ function StatusMenu({ onChange }: { onChange: (s: PacheduStatus) => void }) {
   return (
     <div className={`border-t ${t.border}`}>
       {(['draft', 'submitted', 'reviewed', 'closed'] as PacheduStatus[]).map(s => (
-        <button key={s} type="button" onClick={() => onChange(s)}
+        // stopPropagation here (rather than on a wrapping div) since some callers render
+        // this inside a card whose own onClick opens the detail view — picking a status
+        // shouldn't also trigger that.
+        <button key={s} type="button" onClick={(e) => { e.stopPropagation(); onChange(s); }}
           className={`w-full flex items-center gap-2 px-3 py-2 text-xs ${t.textMuted} ${t.hoverBg} ${t.hoverText} transition-colors`}>
           {STATUS_META[s].label}
         </button>
@@ -101,13 +104,17 @@ const TableRowItem: React.FC<TableRowItemProps> = ({ report, onView, onEdit, onD
       <td className="px-4 py-3"><StatusBadge color={BEHAVIOUR_META[report.behaviourType].hex} label={report.behaviourType} /></td>
       <td className="px-4 py-3"><StatusBadge color={STATUS_META[report.status].hex} label={STATUS_META[report.status].label} /></td>
       <td className="px-4 py-3 text-right">
-        <div className="relative inline-block" onClick={(e) => e.stopPropagation()}>
+        {/* No row-level onClick exists on this <tr> today, so there's nothing for a
+            stopPropagation wrapper to guard against here (unlike PacheduCard's grid
+            view below, whose GlowCard IS clickable) — plain div, no handler needed. */}
+        <div className="relative inline-block">
           <button type="button" title="More options" onClick={() => setMenuOpen(v => !v)} className={`p-1.5 rounded-lg ${t.textFaint} ${t.hoverText} ${t.hoverBg} transition-colors`}>
             <MoreVertical className="h-4 w-4" />
           </button>
           {menuOpen && (
             <>
-              <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
+              <button type="button" tabIndex={-1} aria-label="Close menu"
+                className="fixed inset-0 z-10 cursor-default" onClick={() => setMenuOpen(false)} />
               <div className={`absolute right-0 top-8 z-20 w-44 rounded-xl ${t.glass} ${t.shadow} overflow-hidden`}>
                 <button type="button" onClick={() => { setMenuOpen(false); onView(); }} className={`w-full flex items-center gap-2 px-3 py-2 text-xs ${t.textMuted} ${t.hoverBg} ${t.hoverText}`}><Eye className="h-3.5 w-3.5" /> View</button>
                 <button type="button" onClick={() => { setMenuOpen(false); onEdit(); }} className={`w-full flex items-center gap-2 px-3 py-2 text-xs ${t.textMuted} ${t.hoverBg} ${t.hoverText}`}><Pencil className="h-3.5 w-3.5" /> Edit</button>
@@ -169,21 +176,25 @@ const PacheduCard: React.FC<PacheduCardProps> = ({ report, index, onView, onEdit
               <h3 className={`${TYPE_WEIGHT.semibold} text-sm truncate mt-0.5 ${t.textPrimary}`}>{report.observerName || 'Anonymous'}</h3>
             </div>
           </div>
-          <div className="relative shrink-0" onClick={(e) => e.stopPropagation()}>
-            <button type="button" title="More options" onClick={() => setMenuOpen(v => !v)} className={`p-1.5 rounded-lg ${t.textFaint} ${t.hoverText} ${t.hoverBg} transition-colors`}>
+          {/* This card's GlowCard wraps the whole thing in onClick={() => onView(report)},
+              so every control in this menu stops propagation itself (rather than on a
+              wrapping div) to keep clicks here from also opening the detail view. */}
+          <div className="relative shrink-0">
+            <button type="button" title="More options" onClick={(e) => { e.stopPropagation(); setMenuOpen(v => !v); }} className={`p-1.5 rounded-lg ${t.textFaint} ${t.hoverText} ${t.hoverBg} transition-colors`}>
               <MoreVertical className="h-4 w-4" />
             </button>
             {menuOpen && (
               <>
-                <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
+                <button type="button" tabIndex={-1} aria-label="Close menu"
+                  className="fixed inset-0 z-10 cursor-default" onClick={(e) => { e.stopPropagation(); setMenuOpen(false); }} />
                 <div className={`absolute right-0 top-8 z-20 w-48 rounded-xl ${t.glass} ${t.shadow} overflow-hidden`}>
                   <div className={`px-3 py-1.5 text-[10px] ${TYPE_WEIGHT.semibold} uppercase tracking-wider border-b ${t.border} ${t.textFaint}`}>Actions</div>
-                  <button type="button" onClick={() => { setMenuOpen(false); onView(report); }} className={`w-full flex items-center gap-2 px-3 py-2 text-xs ${t.textMuted} ${t.hoverBg} ${t.hoverText}`}><Eye className="h-3.5 w-3.5" /> View Details</button>
-                  <button type="button" onClick={() => { setMenuOpen(false); onEdit(report); }} className={`w-full flex items-center gap-2 px-3 py-2 text-xs ${t.textMuted} ${t.hoverBg} ${t.hoverText}`}><Pencil className="h-3.5 w-3.5" /> Edit</button>
+                  <button type="button" onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onView(report); }} className={`w-full flex items-center gap-2 px-3 py-2 text-xs ${t.textMuted} ${t.hoverBg} ${t.hoverText}`}><Eye className="h-3.5 w-3.5" /> View Details</button>
+                  <button type="button" onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onEdit(report); }} className={`w-full flex items-center gap-2 px-3 py-2 text-xs ${t.textMuted} ${t.hoverBg} ${t.hoverText}`}><Pencil className="h-3.5 w-3.5" /> Edit</button>
                   <div className={`border-t ${t.border} px-3 py-1.5 text-[10px] ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textFaint}`}>Change Status</div>
                   <StatusMenu onChange={s => { setMenuOpen(false); onStatusChange?.(report.id, s); }} />
                   <div className={`border-t ${t.border}`}>
-                    <button type="button" onClick={() => { setMenuOpen(false); onDelete(report.id); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-rose-500 hover:bg-rose-500/10">
+                    <button type="button" onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onDelete(report.id); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-rose-500 hover:bg-rose-500/10">
                       <Trash2 className="h-3.5 w-3.5" /> Delete
                     </button>
                   </div>
@@ -327,7 +338,8 @@ const PacheduDetailModal: React.FC<PacheduDetailModalProps> = ({ report, open, o
           </button>
           {statusMenuOpen && (
             <>
-              <div className="fixed inset-0 z-10" onClick={() => setStatusMenuOpen(false)} />
+              <button type="button" tabIndex={-1} aria-label="Close status menu"
+                className="fixed inset-0 z-10 cursor-default" onClick={() => setStatusMenuOpen(false)} />
               <div className={`absolute bottom-9 left-0 z-20 w-40 rounded-xl ${t.glass} ${t.shadow} overflow-hidden`}>
                 <StatusMenu onChange={s => { setStatusMenuOpen(false); onStatusChange?.(report.id, s); }} />
               </div>
@@ -569,6 +581,7 @@ function PacheduContent() {
           <div className="flex-1 relative">
             <Search className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none ${t.textFaint}`} />
             <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search by observer, location, activity..."
+              aria-label="Search by observer, location, activity"
               className={`w-full pl-9 pr-9 h-9 rounded-lg text-sm outline-none transition-colors ${t.inputBg}`} />
             {searchTerm && (
               <button type="button" title="Clear search" onClick={() => setSearchTerm('')} className={`absolute right-3 top-1/2 -translate-y-1/2 ${t.textFaint} ${t.hoverText}`}>
@@ -582,8 +595,8 @@ function PacheduContent() {
             options={[{ value: 'all', label: 'All Departments' }, ...uniqueDepts.map(d => ({ value: d, label: d }))]} />
           <SelectField size="filter" value={selectedStatus} title="Filter by status" onChange={setSelectedStatus} className="lg:w-[140px]"
             options={[{ value: 'all', label: 'All Status' }, { value: 'draft', label: 'Draft' }, { value: 'submitted', label: 'Submitted' }, { value: 'reviewed', label: 'Reviewed' }, { value: 'closed', label: 'Closed' }]} />
-          <input type="date" value={dateFrom} title="Start date" onChange={(e) => setDateFrom(e.target.value)} className={selectCls} />
-          <input type="date" value={dateTo} title="End date" onChange={(e) => setDateTo(e.target.value)} className={selectCls} />
+          <input type="date" value={dateFrom} title="Start date" aria-label="Start date" onChange={(e) => setDateFrom(e.target.value)} className={selectCls} />
+          <input type="date" value={dateTo} title="End date" aria-label="End date" onChange={(e) => setDateTo(e.target.value)} className={selectCls} />
           {hasActiveFilters && (
             <button type="button" onClick={clearFilters} className={`flex items-center gap-1.5 px-3 py-2 rounded-lg ${t.textFaint} ${t.hoverText} ${t.hoverBg} text-sm transition-colors`}>
               <FilterX className="h-4 w-4" /> Clear
@@ -663,10 +676,10 @@ function PacheduContent() {
               <p className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider mb-4 ${t.textFaint}`}>Basic Information</p>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <FormField label="Location" required>
-                  <input value={formData.location || ''} onChange={e => setFormData({ ...formData, location: e.target.value })} placeholder="Where did this occur?" className={inputCls} />
+                  <input value={formData.location || ''} onChange={e => setFormData({ ...formData, location: e.target.value })} placeholder="Where did this occur?" aria-label="Location" className={inputCls} />
                 </FormField>
                 <FormField label="Date" required>
-                  <input type="date" value={formData.date || ''} title="Observation date" onChange={e => setFormData({ ...formData, date: e.target.value })} className={inputCls} />
+                  <input type="date" value={formData.date || ''} title="Observation date" aria-label="Observation date" onChange={e => setFormData({ ...formData, date: e.target.value })} className={inputCls} />
                 </FormField>
                 <FormField label="Section" required>
                   <SelectField size="form" value={formData.sectionChoice || 'Mechanical'} title="Section" onChange={v => setFormData({ ...formData, sectionChoice: v as SectionType })}
@@ -674,7 +687,7 @@ function PacheduContent() {
                 </FormField>
                 <div className="md:col-span-3">
                   <FormField label="Activity Observed" required>
-                    <input value={formData.activityObserved || ''} onChange={e => setFormData({ ...formData, activityObserved: e.target.value })} placeholder="What activity was being performed?" className={inputCls} />
+                    <input value={formData.activityObserved || ''} onChange={e => setFormData({ ...formData, activityObserved: e.target.value })} placeholder="What activity was being performed?" aria-label="Activity Observed" className={inputCls} />
                   </FormField>
                 </div>
               </div>
@@ -687,12 +700,12 @@ function PacheduContent() {
                   <p className={`text-[10px] ${t.textFaint}`}>Waonei? / Uboneni?</p>
                 </div>
                 <textarea rows={5} value={formData.whatDidYouSee || ''} onChange={e => setFormData({ ...formData, whatDidYouSee: e.target.value })}
-                  placeholder="Describe what you observed..." className={`w-full px-3 py-2 rounded-lg text-sm outline-none transition-colors resize-none ${t.inputBg}`} />
+                  placeholder="Describe what you observed..." aria-label="What did you see?" className={`w-full px-3 py-2 rounded-lg text-sm outline-none transition-colors resize-none ${t.inputBg}`} />
                 <div>
                   <p className={`text-[10px] ${TYPE_WEIGHT.bold} uppercase tracking-wider mb-1 ${t.textFaint}`}>Reasons</p>
                   <p className={`text-[10px] mb-1.5 ${t.textFaint}`}>Zvikonzero / Isizatho</p>
                   <textarea value={formData.reasons || ''} onChange={e => setFormData({ ...formData, reasons: e.target.value })}
-                    placeholder="Why do you think this happened?" className={`w-full px-3 py-2 rounded-lg text-sm outline-none transition-colors resize-none ${t.inputBg}`} />
+                    placeholder="Why do you think this happened?" aria-label="Reasons" className={`w-full px-3 py-2 rounded-lg text-sm outline-none transition-colors resize-none ${t.inputBg}`} />
                 </div>
               </div>
               <div className={`rounded-xl ${t.chipBg} border-l-4 border-emerald-500/60 p-4 space-y-3`}>
@@ -701,7 +714,7 @@ function PacheduContent() {
                   <p className={`text-[10px] ${t.textFaint}`}>Waitei chinoratidza kuti unehanya neumwe wako?</p>
                 </div>
                 <textarea rows={9} value={formData.whatDidYouDo || ''} onChange={e => setFormData({ ...formData, whatDidYouDo: e.target.value })}
-                  placeholder="Describe the actions you took..." className={`w-full px-3 py-2 rounded-lg text-sm outline-none transition-colors resize-none ${t.inputBg}`} />
+                  placeholder="Describe the actions you took..." aria-label="What did you do to ensure you Care?" className={`w-full px-3 py-2 rounded-lg text-sm outline-none transition-colors resize-none ${t.inputBg}`} />
               </div>
             </div>
 
@@ -710,24 +723,30 @@ function PacheduContent() {
                 <div className="space-y-3">
                   <p className={`text-xs ${TYPE_WEIGHT.bold} text-amber-500/90 uppercase tracking-wider`}>Could this result in?</p>
                   <div className="grid grid-cols-2 gap-2">
-                    {IMPACT_OPTIONS.map(impact => (
-                      <label key={impact} className="flex items-start gap-2 cursor-pointer group">
-                        <input type="checkbox" checked={formData.impacts?.includes(impact) || false} onChange={() => handleImpactToggle(impact)} className="mt-0.5 h-3.5 w-3.5 accent-brand-600 cursor-pointer" />
-                        <span className={`text-xs leading-tight ${t.textMuted} ${t.groupHoverText}`}>{impact}</span>
-                      </label>
-                    ))}
+                    {IMPACT_OPTIONS.map(impact => {
+                      const impactId = `pachedu-impact-${impact.replace(/[^a-zA-Z0-9]+/g, '-')}`;
+                      return (
+                        <label key={impact} htmlFor={impactId} className="flex items-start gap-2 cursor-pointer group">
+                          <input id={impactId} type="checkbox" checked={formData.impacts?.includes(impact) || false} onChange={() => handleImpactToggle(impact)} aria-label={impact} className="mt-0.5 h-3.5 w-3.5 accent-brand-600 cursor-pointer" />
+                          <span className={`text-xs leading-tight ${t.textMuted} ${t.groupHoverText}`}>{impact}</span>
+                        </label>
+                      );
+                    })}
                   </div>
                 </div>
                 <div className="space-y-4">
                   <div className={`rounded-lg ${t.chipBg} p-3 space-y-3`}>
                     <p className={`text-xs ${TYPE_WEIGHT.bold} uppercase tracking-wider ${t.textFaint}`}>Behaviour Classification</p>
                     <div className="flex gap-4">
-                      {BEHAVIOUR_TYPES.map(type => (
-                        <label key={type} className="flex items-center gap-2 cursor-pointer group">
-                          <input type="checkbox" checked={formData.behaviourType === type} onChange={() => setFormData({ ...formData, behaviourType: type })} className="h-4 w-4 accent-brand-600 cursor-pointer" />
-                          <span className={`text-sm ${t.textMuted} ${t.groupHoverText}`}>{type}</span>
-                        </label>
-                      ))}
+                      {BEHAVIOUR_TYPES.map(type => {
+                        const typeId = `pachedu-behaviour-${type.replace(/[^a-zA-Z0-9]+/g, '-')}`;
+                        return (
+                          <label key={type} htmlFor={typeId} className="flex items-center gap-2 cursor-pointer group">
+                            <input id={typeId} type="checkbox" checked={formData.behaviourType === type} onChange={() => setFormData({ ...formData, behaviourType: type })} aria-label={type} className="h-4 w-4 accent-brand-600 cursor-pointer" />
+                            <span className={`text-sm ${t.textMuted} ${t.groupHoverText}`}>{type}</span>
+                          </label>
+                        );
+                      })}
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
@@ -753,12 +772,15 @@ function PacheduContent() {
                 {CHECKLIST_CATEGORIES.map(category => (
                   <div key={category.name} className="space-y-2">
                     <p className={`text-[10px] ${TYPE_WEIGHT.bold} text-amber-500/90 uppercase tracking-wider border-b border-amber-500/20 pb-1`}>{category.name}</p>
-                    {category.items.map(item => (
-                      <label key={item} className="flex items-start gap-2 cursor-pointer group">
-                        <input type="checkbox" checked={formData.checklist?.includes(item) || false} onChange={() => handleChecklistToggle(item)} className="mt-0.5 h-3 w-3 accent-brand-600 cursor-pointer shrink-0" />
-                        <span className={`text-[11px] leading-tight ${t.textMuted} ${t.groupHoverText}`}>{item}</span>
-                      </label>
-                    ))}
+                    {category.items.map(item => {
+                      const itemId = `pachedu-checklist-${category.name}-${item}`.replace(/[^a-zA-Z0-9]+/g, '-');
+                      return (
+                        <label key={item} htmlFor={itemId} className="flex items-start gap-2 cursor-pointer group">
+                          <input id={itemId} type="checkbox" checked={formData.checklist?.includes(item) || false} onChange={() => handleChecklistToggle(item)} aria-label={item} className="mt-0.5 h-3 w-3 accent-brand-600 cursor-pointer shrink-0" />
+                          <span className={`text-[11px] leading-tight ${t.textMuted} ${t.groupHoverText}`}>{item}</span>
+                        </label>
+                      );
+                    })}
                   </div>
                 ))}
               </div>

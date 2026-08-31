@@ -52,11 +52,11 @@ function StatusDrawer({ entry, onClose, onSave }: {
         </FormField>
         <div className="grid grid-cols-2 gap-3">
           <FormField label="Job Card No.">
-            <input value={jobCard} onChange={e => setJobCard(e.target.value)} placeholder="JC-2024-XXXX" className={inputCls} />
+            <input value={jobCard} onChange={e => setJobCard(e.target.value)} placeholder="JC-2024-XXXX" aria-label="Job Card No." className={inputCls} />
           </FormField>
           <FormField label="Downtime (hrs)">
             <input type="number" step="0.5" min="0" value={hours} onChange={e => setHours(+e.target.value)}
-              title="Downtime hours" placeholder="0" className={inputCls} />
+              title="Downtime hours" aria-label="Downtime hours" placeholder="0" className={inputCls} />
           </FormField>
         </div>
       </div>
@@ -200,7 +200,7 @@ function EquipmentStatusContent() {
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative flex-1 min-w-[200px]">
           <Search className={`absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none ${t.textFaint}`} />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search equipment name or ID…"
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search equipment name or ID…" aria-label="Search equipment name or ID"
             className={`w-full pl-9 pr-3 h-9 rounded-xl text-sm outline-none transition-colors ${t.inputBg}`} />
         </div>
         <SelectField size="filter" value={section} onChange={setSection} title="Filter by section"

@@ -209,12 +209,12 @@ export function WorkOrderDetailModal({ workOrder, onClose, onRefresh, onDelete }
                   ))}
                 </div>
                 {artisan.classification === 'custom' && (
-                  <FormField label="Specify Type"><input value={artisan.classification_custom} onChange={e => setA('classification_custom', e.target.value)} placeholder="e.g. Commissioning, Shutdown work…" className={`w-full rounded px-2.5 py-1.5 text-xs outline-none transition-colors ${t.inputBg}`} /></FormField>
+                  <FormField label="Specify Type"><input value={artisan.classification_custom} onChange={e => setA('classification_custom', e.target.value)} placeholder="e.g. Commissioning, Shutdown work…" aria-label="Specify Type" className={`w-full rounded px-2.5 py-1.5 text-xs outline-none transition-colors ${t.inputBg}`} /></FormField>
                 )}
                 {artisan.classification === 'breakdown' && (
                   <FormField label="Failure Mode">
-                    <input value={artisan.failure_mode} onChange={e => setA('failure_mode', e.target.value)} list="failure-mode-list" placeholder="Select or type failure mode…" className={`w-full rounded px-2.5 py-1.5 text-xs outline-none transition-colors ${t.inputBg}`} />
-                    <datalist id="failure-mode-list">{FAILURE_MODES.map(m => <option key={m} value={m} />)}</datalist>
+                    <input value={artisan.failure_mode} onChange={e => setA('failure_mode', e.target.value)} list="failure-mode-list" placeholder="Select or type failure mode…" aria-label="Failure Mode" className={`w-full rounded px-2.5 py-1.5 text-xs outline-none transition-colors ${t.inputBg}`} />
+                    <datalist id="failure-mode-list" aria-label="Failure mode suggestions">{FAILURE_MODES.map(m => <option key={m} value={m}>{m}</option>)}</datalist>
                   </FormField>
                 )}
                 <div className="grid grid-cols-2 gap-3">
@@ -230,8 +230,8 @@ export function WorkOrderDetailModal({ workOrder, onClose, onRefresh, onDelete }
                   </FormField>
                   {artisan.discipline === 'Mechanical' && (
                     <FormField label="Trade">
-                      <input value={artisan.trade} onChange={e => setA('trade', e.target.value)} list="trade-list" placeholder="Select or type trade…" className={`w-full rounded px-2.5 py-1.5 text-xs outline-none transition-colors ${t.inputBg}`} />
-                      <datalist id="trade-list">{MECHANICAL_TRADES.map(tr => <option key={tr} value={tr} />)}</datalist>
+                      <input value={artisan.trade} onChange={e => setA('trade', e.target.value)} list="trade-list" placeholder="Select or type trade…" aria-label="Trade" className={`w-full rounded px-2.5 py-1.5 text-xs outline-none transition-colors ${t.inputBg}`} />
+                      <datalist id="trade-list" aria-label="Trade suggestions">{MECHANICAL_TRADES.map(tr => <option key={tr} value={tr}>{tr}</option>)}</datalist>
                     </FormField>
                   )}
                 </div>
@@ -245,7 +245,7 @@ export function WorkOrderDetailModal({ workOrder, onClose, onRefresh, onDelete }
                   </Select>
                 </FormField>
                 <FormField label={`Progress: ${artisan.progress}%`}>
-                  <input type="range" min="0" max="100" value={artisan.progress} title={`Artisan progress: ${artisan.progress}%`} onChange={e => setA('progress', parseInt(e.target.value))} className="w-full mt-2 accent-cyan-400" />
+                  <input type="range" min="0" max="100" value={artisan.progress} title={`Artisan progress: ${artisan.progress}%`} aria-label={`Artisan progress: ${artisan.progress}%`} onChange={e => setA('progress', parseInt(e.target.value))} className="w-full mt-2 accent-cyan-400" />
                 </FormField>
               </div>
 
@@ -289,8 +289,8 @@ export function WorkOrderDetailModal({ workOrder, onClose, onRefresh, onDelete }
                 <div className={`flex items-center gap-1.5 text-xs font-medium ${subLabel}`}><Package className={`h-3.5 w-3.5 ${ic.amber}`} /> Spares Used</div>
                 <div className="grid grid-cols-[1fr_70px_80px_auto] gap-2 items-end">
                   <FormField label="Spare / Part"><SpareAutocomplete value={newSpare.name} onChange={v => setNewSpare(s => ({ ...s, name: v }))} onSelect={item => setNewSpare(s => ({ ...s, name: item.description ?? '', unit_cost: String(item.unit_price ?? 0) }))} placeholder="Search spares register or type…" /></FormField>
-                  <FormField label="Qty"><input type="number" min="0.01" step="0.01" value={newSpare.quantity} onChange={e => setNewSpare(s => ({ ...s, quantity: e.target.value }))} className={`w-full rounded px-2 py-1.5 text-xs outline-none transition-colors ${t.inputBg}`} /></FormField>
-                  <FormField label="Unit Cost (R)"><input type="number" min="0" step="0.01" value={newSpare.unit_cost} onChange={e => setNewSpare(s => ({ ...s, unit_cost: e.target.value }))} className={`w-full rounded px-2 py-1.5 text-xs outline-none transition-colors ${t.inputBg}`} /></FormField>
+                  <FormField label="Qty"><input type="number" min="0.01" step="0.01" value={newSpare.quantity} onChange={e => setNewSpare(s => ({ ...s, quantity: e.target.value }))} aria-label="Quantity" className={`w-full rounded px-2 py-1.5 text-xs outline-none transition-colors ${t.inputBg}`} /></FormField>
+                  <FormField label="Unit Cost (R)"><input type="number" min="0" step="0.01" value={newSpare.unit_cost} onChange={e => setNewSpare(s => ({ ...s, unit_cost: e.target.value }))} aria-label="Unit Cost (R)" className={`w-full rounded px-2 py-1.5 text-xs outline-none transition-colors ${t.inputBg}`} /></FormField>
                   <button type="button" onClick={addArtisanSpare} className={`h-[30px] px-3 rounded text-xs font-semibold transition-colors ${light ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-sm' : 'bg-amber-500/15 hover:bg-amber-500/25 text-amber-400'}`}>Add</button>
                 </div>
                 {artisanSpares.length > 0 && (
@@ -333,7 +333,7 @@ export function WorkOrderDetailModal({ workOrder, onClose, onRefresh, onDelete }
                   </Select>
                 </FormField>
                 <FormField label={`Confirmed Progress: ${foreman.progress}%`}>
-                  <input type="range" min="0" max="100" value={foreman.progress} title={`Foreman confirmed progress: ${foreman.progress}%`} onChange={e => setF('progress', parseInt(e.target.value))} className="w-full mt-2 accent-violet-400" />
+                  <input type="range" min="0" max="100" value={foreman.progress} title={`Foreman confirmed progress: ${foreman.progress}%`} aria-label={`Foreman confirmed progress: ${foreman.progress}%`} onChange={e => setF('progress', parseInt(e.target.value))} className="w-full mt-2 accent-violet-400" />
                 </FormField>
               </div>
               <PredictiveArea id="f-notes" label="Foreman Comments" value={foreman.notes} onChange={v => setF('notes', v)} placeholder="Comments on work done, observations, follow-up required…" rows={3} autoComplete="on" />

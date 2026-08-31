@@ -63,14 +63,14 @@ function CorrectiveActionCard({ action, index, onChange, onRemove }: {
             <button type="button" title="Remove action" onClick={() => onRemove(action.id)} className={`h-5 w-5 flex items-center justify-center rounded hover:bg-rose-500/20 ${t.textFaint} hover:${t.light ? 'text-rose-600' : 'text-rose-400'} transition-all`}><Trash2 className="h-3 w-3" /></button>
           </div>
         </div>
-        <FormField label="Finding / Issue" required><textarea value={action.finding} rows={2} placeholder="Describe the finding or unsafe condition…" onChange={e => onChange(action.id, { finding: e.target.value })} className={`${inputCls} resize-none`} /></FormField>
-        <FormField label="Corrective Action" required><textarea value={action.action} rows={2} placeholder="What action needs to be taken?" onChange={e => onChange(action.id, { action: e.target.value })} className={`${inputCls} resize-none`} /></FormField>
+        <FormField label="Finding / Issue" required><textarea value={action.finding} rows={2} placeholder="Describe the finding or unsafe condition…" onChange={e => onChange(action.id, { finding: e.target.value })} aria-label="Finding / Issue" className={`${inputCls} resize-none`} /></FormField>
+        <FormField label="Corrective Action" required><textarea value={action.action} rows={2} placeholder="What action needs to be taken?" onChange={e => onChange(action.id, { action: e.target.value })} aria-label="Corrective Action" className={`${inputCls} resize-none`} /></FormField>
         <div className="grid grid-cols-2 gap-3">
-          <FormField label="Assigned To" required><input value={action.byWho} placeholder="Person responsible" onChange={e => onChange(action.id, { byWho: e.target.value })} className={inputCls} /></FormField>
-          <FormField label="Due Date" required><input type="date" value={action.byWhen} title="Due date" onChange={e => onChange(action.id, { byWhen: e.target.value })} className={inputCls} /></FormField>
-          {action.status === 'Completed' && <FormField label="Completed Date"><input type="date" value={action.completedDate || ''} title="Completed date" onChange={e => onChange(action.id, { completedDate: e.target.value })} className={inputCls} /></FormField>}
+          <FormField label="Assigned To" required><input value={action.byWho} placeholder="Person responsible" onChange={e => onChange(action.id, { byWho: e.target.value })} aria-label="Assigned To" className={inputCls} /></FormField>
+          <FormField label="Due Date" required><input type="date" value={action.byWhen} title="Due date" aria-label="Due date" onChange={e => onChange(action.id, { byWhen: e.target.value })} className={inputCls} /></FormField>
+          {action.status === 'Completed' && <FormField label="Completed Date"><input type="date" value={action.completedDate || ''} title="Completed date" aria-label="Completed date" onChange={e => onChange(action.id, { completedDate: e.target.value })} className={inputCls} /></FormField>}
         </div>
-        <FormField label="Remarks"><textarea value={action.remarks || ''} rows={2} placeholder="Additional notes…" onChange={e => onChange(action.id, { remarks: e.target.value })} className={`${inputCls} resize-none`} /></FormField>
+        <FormField label="Remarks"><textarea value={action.remarks || ''} rows={2} placeholder="Additional notes…" onChange={e => onChange(action.id, { remarks: e.target.value })} aria-label="Remarks" className={`${inputCls} resize-none`} /></FormField>
       </div>
     </div>
   );
@@ -130,7 +130,7 @@ function ReportFormModal({ open, onClose, onSave, report }: {
           {tab === 'details' && (
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <FormField label="Date" required><input type="date" value={form.date || ''} title="Incident date" onChange={e => set({ date: e.target.value })} className={inputCls} /></FormField>
+                <FormField label="Date" required><input type="date" value={form.date || ''} title="Incident date" aria-label="Incident date" onChange={e => set({ date: e.target.value })} className={inputCls} /></FormField>
                 <FormField label="Section" required>
                   <SelectField size="form" value={form.section || 'General'} title="Section" onChange={v => set({ section: v as SectionType })}
                     options={SECTIONS.map(s => ({ value: s, label: s }))} />
@@ -312,8 +312,8 @@ function ReportCard({ report, expanded, onToggle, onView, onEdit, onDelete }: {
           <SIcon className="h-5 w-5 shrink-0" style={{ color: sColor }} />
           <div className="min-w-0"><p className={`text-[10px] ${t.textFaint}`}>{report.section} • {fmtDate(report.date)}</p><p className={`text-sm ${TYPE_WEIGHT.semibold} truncate ${t.textPrimary}`}>{report.department}</p></div>
         </div>
-        <div className="flex items-center gap-1.5 flex-shrink-0" onClick={e => e.stopPropagation()}>
-          <button type="button" title={expanded ? 'Collapse' : 'Expand'} onClick={onToggle} className={`h-6 w-6 flex items-center justify-center rounded ${t.textFaint} ${t.hoverText} transition-all`}>{expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}</button>
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          <button type="button" title={expanded ? 'Collapse' : 'Expand'} onClick={e => { e.stopPropagation(); onToggle(); }} className={`h-6 w-6 flex items-center justify-center rounded ${t.textFaint} ${t.hoverText} transition-all`}>{expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}</button>
         </div>
       </div>
 
@@ -329,7 +329,7 @@ function ReportCard({ report, expanded, onToggle, onView, onEdit, onDelete }: {
       </div>
 
       {expanded && (
-        <div className={`border-t ${t.border} px-4 py-3 space-y-3`} onClick={e => e.stopPropagation()}>
+        <div className={`border-t ${t.border} px-4 py-3 space-y-3`}>
           {report.investigationFindings && <div><p className={`text-[10px] uppercase tracking-wide mb-1 ${t.textFaint}`}>Investigation</p><p className={`text-xs line-clamp-3 ${t.textFaint}`}>{report.investigationFindings}</p></div>}
           {actions.length > 0 && (
             <div>
@@ -349,9 +349,9 @@ function ReportCard({ report, expanded, onToggle, onView, onEdit, onDelete }: {
             <div><p className={`text-[10px] ${t.textFaint}`}>SHEQ Checked</p><p className={t.textFaint}>{report.sheqCheckedBy || 'Not specified'}</p></div>
           </div>
           <div className="flex gap-1.5 pt-1">
-            <button type="button" title="View" onClick={onView} className={`flex-1 py-1.5 rounded-lg text-[11px] ${TYPE_WEIGHT.medium} bg-brand-500/10 text-brand-400 transition-all hover:-translate-y-0.5 inline-flex items-center justify-center gap-1`}><Eye className="h-3 w-3" /> View</button>
-            <button type="button" title="Edit" onClick={onEdit} className={`flex-1 py-1.5 rounded-lg text-[11px] ${TYPE_WEIGHT.medium} bg-brand-500/10 text-brand-400 transition-all hover:-translate-y-0.5 inline-flex items-center justify-center gap-1`}><Pencil className="h-3 w-3" /> Edit</button>
-            <button type="button" title="Delete" onClick={onDelete} className={`flex-1 py-1.5 rounded-lg text-[11px] ${TYPE_WEIGHT.medium} bg-rose-500/10 ${accentText('rose', t.light)} transition-all hover:-translate-y-0.5 inline-flex items-center justify-center gap-1`}><Trash2 className="h-3 w-3" /> Delete</button>
+            <button type="button" title="View" onClick={e => { e.stopPropagation(); onView(); }} className={`flex-1 py-1.5 rounded-lg text-[11px] ${TYPE_WEIGHT.medium} bg-brand-500/10 text-brand-400 transition-all hover:-translate-y-0.5 inline-flex items-center justify-center gap-1`}><Eye className="h-3 w-3" /> View</button>
+            <button type="button" title="Edit" onClick={e => { e.stopPropagation(); onEdit(); }} className={`flex-1 py-1.5 rounded-lg text-[11px] ${TYPE_WEIGHT.medium} bg-brand-500/10 text-brand-400 transition-all hover:-translate-y-0.5 inline-flex items-center justify-center gap-1`}><Pencil className="h-3 w-3" /> Edit</button>
+            <button type="button" title="Delete" onClick={e => { e.stopPropagation(); onDelete(); }} className={`flex-1 py-1.5 rounded-lg text-[11px] ${TYPE_WEIGHT.medium} bg-rose-500/10 ${accentText('rose', t.light)} transition-all hover:-translate-y-0.5 inline-flex items-center justify-center gap-1`}><Trash2 className="h-3 w-3" /> Delete</button>
           </div>
         </div>
       )}
@@ -506,8 +506,8 @@ function WorkStoppageContent() {
             <SearchInput value={search} onChange={setSearch} placeholder="Search by department, description, issued by…" className="w-56" />
             <SelectField size="filter" title="Section" value={sectionFilter} onChange={setSectionFilter} options={[{ value: 'all', label: 'All Sections' }, ...SECTIONS.map(s => ({ value: s, label: s }))]} />
             <SelectField size="filter" title="Status" value={statusFilter} onChange={setStatusFilter} options={[{ value: 'all', label: 'All Status' }, { value: 'pending', label: 'Pending' }, { value: 'in-progress', label: 'In Progress' }, { value: 'completed', label: 'Completed' }, { value: 'overdue', label: 'Overdue' }]} />
-            <input type="date" title="From date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className={selCls} />
-            <input type="date" title="To date" value={dateTo} onChange={e => setDateTo(e.target.value)} className={selCls} />
+            <input type="date" title="From date" aria-label="From date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className={selCls} />
+            <input type="date" title="To date" aria-label="To date" value={dateTo} onChange={e => setDateTo(e.target.value)} className={selCls} />
             {hasFilters && <button type="button" onClick={() => { setSearch(''); setSectionFilter('all'); setStatusFilter('all'); setDateFrom(''); setDateTo(''); }} className={`flex items-center gap-1 text-xs px-2 py-1.5 rounded-lg transition-colors ${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText}`}><X className="h-3 w-3" /> Clear</button>}
             <div className="ml-auto flex items-center gap-1.5">
               <button type="button" title="Expand all" onClick={() => setExpandedIds(new Set(reports.map(r => r.id)))} className={`h-8 px-2.5 flex items-center gap-1 text-[11px] rounded-lg ${t.chipBg} ${t.textFaint} ${t.hoverText} transition-all`}><Maximize2 className="h-3 w-3" /> Expand all</button>
@@ -537,7 +537,7 @@ function WorkStoppageContent() {
           <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className={`border-b ${t.border}`}><tr><th className={thCls}></th><th className={thCls}>Department</th><th className={thCls}>Section</th><th className={thCls}>Issued By</th><th className={thCls}>Date</th><th className={thCls}>Actions</th><th className={thCls}></th></tr></thead>
+                <thead className={`border-b ${t.border}`}><tr><th className={thCls}><span className="sr-only">Expand row</span></th><th className={thCls}>Department</th><th className={thCls}>Section</th><th className={thCls}>Issued By</th><th className={thCls}>Date</th><th className={thCls}>Actions</th><th className={thCls}><span className="sr-only">Row actions</span></th></tr></thead>
                 <tbody>
                   {filtered.map(report => {
                     const actions = report.correctiveActions || [];
@@ -553,8 +553,8 @@ function WorkStoppageContent() {
                           <td className="px-3 py-3 text-xs"><span className={`${TYPE_WEIGHT.semibold} ${t.textMuted}`}>{actions.length}</span><span className={`ml-1 ${t.textFaint}`}>({completedCount} done)</span></td>
                           <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
                             <div className="flex gap-1 justify-end">
-                              <button type="button" title="Edit" onClick={() => { setEditingReport(report); setFormOpen(true); }} className={`p-1.5 rounded ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-colors`}><Pencil className="h-3 w-3" /></button>
-                              <button type="button" title="Delete" onClick={() => handleDelete(report.id)} className={`p-1.5 rounded ${t.chipBg} hover:bg-rose-500/15 ${t.textFaint} hover:${t.light ? 'text-rose-600' : 'text-rose-400'} transition-colors`}><Trash2 className="h-3 w-3" /></button>
+                              <button type="button" title="Edit" aria-label={`Edit ${report.department} report`} onClick={() => { setEditingReport(report); setFormOpen(true); }} className={`p-1.5 rounded ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-colors`}><Pencil className="h-3 w-3" /></button>
+                              <button type="button" title="Delete" aria-label={`Delete ${report.department} report`} onClick={() => handleDelete(report.id)} className={`p-1.5 rounded ${t.chipBg} hover:bg-rose-500/15 ${t.textFaint} hover:${t.light ? 'text-rose-600' : 'text-rose-400'} transition-colors`}><Trash2 className="h-3 w-3" /></button>
                             </div>
                           </td>
                         </tr>

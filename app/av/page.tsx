@@ -97,30 +97,30 @@ function MaintenanceLogForm({
                 ]} />
             </FormField>
             <FormField label="Date">
-              <input type="date" value={form.date} title="Date" onChange={e => setForm({ ...form, date: e.target.value })} className={inputCls} />
+              <input type="date" value={form.date} title="Date" aria-label="Date" onChange={e => setForm({ ...form, date: e.target.value })} className={inputCls} />
             </FormField>
           </div>
           <FormField label="Description" required>
             <input value={form.description} onChange={e => setForm({ ...form, description: e.target.value })}
-              placeholder="Describe the maintenance work…" className={inputCls} />
+              placeholder="Describe the maintenance work…" aria-label="Description" className={inputCls} />
           </FormField>
           <div className="grid grid-cols-2 gap-3">
             <FormField label="Duration (hours)">
-              <input type="number" value={form.duration} title="Duration"
+              <input type="number" value={form.duration} title="Duration" aria-label="Duration (hours)"
                 onChange={e => setForm({ ...form, duration: parseInt(e.target.value) || 0 })} className={inputCls} />
             </FormField>
             <FormField label="Cost ($)">
-              <input type="number" step="0.01" value={form.cost} title="Cost"
+              <input type="number" step="0.01" value={form.cost} title="Cost" aria-label="Cost ($)"
                 onChange={e => setForm({ ...form, cost: parseFloat(e.target.value) || 0 })} className={inputCls} />
             </FormField>
           </div>
           <FormField label="Technician" required>
             <input value={form.technician} onChange={e => setForm({ ...form, technician: e.target.value })}
-              placeholder="Technician name" className={inputCls} />
+              placeholder="Technician name" aria-label="Technician" className={inputCls} />
           </FormField>
           <FormField label="Notes">
             <input value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })}
-              placeholder="Additional notes…" className={inputCls} />
+              placeholder="Additional notes…" aria-label="Notes" className={inputCls} />
           </FormField>
         </div>
         <FormActions onCancel={onClose} submitting={saving} submitLabel="Log Maintenance" />
@@ -165,23 +165,23 @@ function ReservationForm({
         <div className="px-5 py-4 space-y-4">
           <FormField label="Project" required>
             <input value={form.project} onChange={e => setForm({ ...form, project: e.target.value })}
-              placeholder="Project name" className={inputCls} />
+              placeholder="Project name" aria-label="Project" className={inputCls} />
           </FormField>
           <FormField label="Requested By" required>
             <input value={form.requestedBy} onChange={e => setForm({ ...form, requestedBy: e.target.value })}
-              placeholder="Requester name" className={inputCls} />
+              placeholder="Requester name" aria-label="Requested By" className={inputCls} />
           </FormField>
           <div className="grid grid-cols-2 gap-3">
             <FormField label="Start Date">
-              <input type="date" value={form.startDate} title="Start date" onChange={e => setForm({ ...form, startDate: e.target.value })} className={inputCls} />
+              <input type="date" value={form.startDate} title="Start date" aria-label="Start date" onChange={e => setForm({ ...form, startDate: e.target.value })} className={inputCls} />
             </FormField>
             <FormField label="End Date">
-              <input type="date" value={form.endDate} title="End date" onChange={e => setForm({ ...form, endDate: e.target.value })} className={inputCls} />
+              <input type="date" value={form.endDate} title="End date" aria-label="End date" onChange={e => setForm({ ...form, endDate: e.target.value })} className={inputCls} />
             </FormField>
           </div>
           <FormField label="Notes">
             <input value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })}
-              placeholder="Additional notes…" className={inputCls} />
+              placeholder="Additional notes…" aria-label="Notes" className={inputCls} />
           </FormField>
         </div>
         <FormActions onCancel={onClose} submitting={saving} submitLabel="Reserve Equipment" />
@@ -222,7 +222,7 @@ function AddEquipmentForm({
       <form onSubmit={handleSubmit}>
         <div className="px-5 py-4 space-y-4 max-h-[60vh] overflow-y-auto">
           <FormField label="Equipment Name" required>
-            <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Excavator CAT 320" className={inputCls} />
+            <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Excavator CAT 320" aria-label="Equipment Name" className={inputCls} />
           </FormField>
           <div className="grid grid-cols-2 gap-3">
             <FormField label="Type" required>
@@ -238,10 +238,10 @@ function AddEquipmentForm({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <FormField label="Model" required>
-              <input value={form.model} onChange={e => setForm({ ...form, model: e.target.value })} placeholder="CAT 320" className={inputCls} />
+              <input value={form.model} onChange={e => setForm({ ...form, model: e.target.value })} placeholder="CAT 320" aria-label="Model" className={inputCls} />
             </FormField>
             <FormField label="Serial Number">
-              <input value={form.serial} onChange={e => setForm({ ...form, serial: e.target.value })} placeholder="CAT320-001" className={inputCls} />
+              <input value={form.serial} onChange={e => setForm({ ...form, serial: e.target.value })} placeholder="CAT320-001" aria-label="Serial Number" className={inputCls} />
             </FormField>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -251,7 +251,7 @@ function AddEquipmentForm({
                 options={LOCATIONS.map(l => ({ value: l, label: l }))} />
             </FormField>
             <FormField label="Utilization (%)">
-              <input type="number" min={0} max={100} value={form.utilization} title="Utilization"
+              <input type="number" min={0} max={100} value={form.utilization} title="Utilization" aria-label="Utilization (%)"
                 onChange={e => setForm({ ...form, utilization: parseInt(e.target.value) || 0 })} className={inputCls} />
             </FormField>
           </div>
@@ -642,14 +642,14 @@ function EquipmentAvailabilityContent() {
                 <p className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>Show Offline Equipment</p>
                 <p className={`text-xs ${t.textFaint}`}>Display offline equipment in lists</p>
               </div>
-              <button type="button" title="Toggle show offline equipment"
+              <button type="button" title="Toggle show offline equipment" aria-label="Toggle show offline equipment" aria-pressed={settings.showOffline}
                 onClick={() => saveSettings({ ...settings, showOffline: !settings.showOffline })}
                 className={`h-6 w-11 rounded-full transition-colors relative ${settings.showOffline ? 'bg-cyan-500' : t.chipBg}`}>
                 <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${settings.showOffline ? 'translate-x-[22px]' : 'translate-x-0.5'}`} />
               </button>
             </div>
             <FormField label="Maintenance Alert Threshold (days)">
-              <input type="number" value={settings.maintenanceThreshold} title="Maintenance alert threshold"
+              <input type="number" value={settings.maintenanceThreshold} title="Maintenance alert threshold" aria-label="Maintenance alert threshold (days)"
                 onChange={e => saveSettings({ ...settings, maintenanceThreshold: parseInt(e.target.value) || 90 })}
                 className={`w-full h-9 px-3 rounded-lg text-sm outline-none transition-colors ${t.inputBg}`} />
             </FormField>

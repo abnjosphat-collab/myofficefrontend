@@ -235,15 +235,15 @@ function ContractorsContent() {
             <button type="button" aria-label="Close" title="Close" onClick={() => setShowAdd(false)} className={`h-9 w-9 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-colors`}><X className="w-5 h-5" /></button>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
-            <FormField label="Company Name"><input placeholder="Company Name" value={form.company} onChange={e => setForm(f => ({ ...f, company: e.target.value }))} className={inputCls} /></FormField>
+            <FormField label="Company Name"><input placeholder="Company Name" value={form.company} onChange={e => setForm(f => ({ ...f, company: e.target.value }))} aria-label="Company Name" className={inputCls} /></FormField>
             <FormField label="Trade">
               <SelectField size="form" title="Trade" value={form.trade} onChange={v => setForm(f => ({ ...f, trade: v }))}
                 options={TRADES.map(tr => ({ value: tr, label: tr }))} />
             </FormField>
-            <FormField label="Contact Person"><input placeholder="Contact Person" value={form.contact} onChange={e => setForm(f => ({ ...f, contact: e.target.value }))} className={inputCls} /></FormField>
-            <FormField label="Phone"><input placeholder="Phone" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} className={inputCls} /></FormField>
-            <FormField label="Contract Expiry"><input type="date" title="Contract expiry date" value={form.contractExpiry} onChange={e => setForm(f => ({ ...f, contractExpiry: e.target.value }))} className={inputCls} /></FormField>
-            <FormField label="Insurance Expiry"><input type="date" title="Insurance expiry date" value={form.insuranceExpiry} onChange={e => setForm(f => ({ ...f, insuranceExpiry: e.target.value }))} className={inputCls} /></FormField>
+            <FormField label="Contact Person"><input placeholder="Contact Person" value={form.contact} onChange={e => setForm(f => ({ ...f, contact: e.target.value }))} aria-label="Contact Person" className={inputCls} /></FormField>
+            <FormField label="Phone"><input placeholder="Phone" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} aria-label="Phone" className={inputCls} /></FormField>
+            <FormField label="Contract Expiry"><input type="date" title="Contract expiry date" aria-label="Contract expiry date" value={form.contractExpiry} onChange={e => setForm(f => ({ ...f, contractExpiry: e.target.value }))} className={inputCls} /></FormField>
+            <FormField label="Insurance Expiry"><input type="date" title="Insurance expiry date" aria-label="Insurance expiry date" value={form.insuranceExpiry} onChange={e => setForm(f => ({ ...f, insuranceExpiry: e.target.value }))} className={inputCls} /></FormField>
           </div>
           <PrimaryButton accent="violet" size="md" onClick={submit}>Save Contractor</PrimaryButton>
         </div>

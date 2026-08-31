@@ -574,7 +574,8 @@ function IssuesPageContent() {
               </button>
               {showDlMenu && (
                 <>
-                  <div className="fixed inset-0 z-40" onClick={() => setShowDlMenu(false)} />
+                  <button type="button" tabIndex={-1} aria-label="Close download menu"
+                    className="fixed inset-0 z-40 cursor-default" onClick={() => setShowDlMenu(false)} />
                   <div className={`absolute right-0 top-full mt-1 z-50 rounded-xl overflow-hidden w-48 ${t.glass} ${t.shadow}`}>
                     <button type="button" onClick={downloadIssuesExcel}
                       className={`w-full flex items-center gap-2.5 px-4 py-3 text-xs ${t.textMuted} ${t.hoverBg} transition-all border-b ${t.border}`}>
@@ -619,7 +620,7 @@ function IssuesPageContent() {
                   placeholder="Name or employee ID…" />
               </FormField>
               <FormField label="Date & Time">
-                <input type="datetime-local" value={issuedAt} onChange={e => setIssuedAt(e.target.value)} title="Date and time"
+                <input type="datetime-local" value={issuedAt} onChange={e => setIssuedAt(e.target.value)} title="Date and time" aria-label="Date and time"
                   className={inputCls} />
               </FormField>
               <FormField label="Issued By">
@@ -629,7 +630,7 @@ function IssuesPageContent() {
               </FormField>
               <FormField label="Notes">
                 <input type="text" value={notes} onChange={e => setNotes(e.target.value)}
-                  className={inputCls} placeholder="Reason, job no., project…" />
+                  aria-label="Notes" className={inputCls} placeholder="Reason, job no., project…" />
               </FormField>
             </div>
 
@@ -659,16 +660,16 @@ function IssuesPageContent() {
                       placeholder="Code or search…" />
                     <input type="text" value={item.description}
                       onChange={e => updateItem(item.id, { description: e.target.value })}
-                      placeholder="Description…" className={rowInputCls} />
-                    <input type="number" min="0.01" step="any" value={item.qty} title="Quantity"
+                      placeholder="Description…" aria-label="Description" className={rowInputCls} />
+                    <input type="number" min="0.01" step="any" value={item.qty} title="Quantity" aria-label="Quantity"
                       onChange={e => updateItem(item.id, { qty: Math.max(0.01, parseFloat(e.target.value) || 1) })}
                       className={`${rowInputCls} text-right`} />
-                    <input type="text" value={item.unit} title="Unit"
+                    <input type="text" value={item.unit} title="Unit" aria-label="Unit"
                       onChange={e => updateItem(item.id, { unit: e.target.value })}
                       placeholder="UN" className={`${rowInputCls} text-center`} />
                     <div className="relative">
                       <span className={`absolute left-2 top-1/2 -translate-y-1/2 text-[10px] ${t.textFaint}`}>$</span>
-                      <input type="number" min="0" step="0.01" value={item.unit_price} title="Unit price"
+                      <input type="number" min="0" step="0.01" value={item.unit_price} title="Unit price" aria-label="Unit price"
                         onChange={e => updateItem(item.id, { unit_price: parseFloat(e.target.value) || 0 })}
                         className={`${rowInputCls} pl-5 text-right`} />
                     </div>
@@ -737,10 +738,10 @@ function IssuesPageContent() {
             <>
               <div className={`px-5 py-3 border-b ${t.border} grid grid-cols-1 sm:grid-cols-3 gap-2`}>
                 <SearchInput value={search} onChange={setSearch} placeholder="Search recipient, item, notes…" />
-                <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} title="From date"
+                <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} title="From date" aria-label="From date"
                   className={`px-3 py-1.5 text-xs rounded-lg outline-none transition-colors ${t.inputBg}`} />
                 <div className="flex gap-2">
-                  <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} title="To date"
+                  <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} title="To date" aria-label="To date"
                     className={`flex-1 px-3 py-1.5 text-xs rounded-lg outline-none transition-colors ${t.inputBg}`} />
                   {(search || dateFrom || dateTo) && (
                     <button type="button" onClick={() => { setSearch(''); setDateFrom(''); setDateTo(''); }}
@@ -783,7 +784,10 @@ function IssuesPageContent() {
                         return (
                           <React.Fragment key={issue.id}>
                             <tr className={`border-b ${t.border} cursor-pointer transition-colors ${expanded ? t.chipBg : t.hoverBg}`}
-                              onClick={() => toggleRow(issue.id)}>
+                              // Skips the trailing actions cell (marked data-row-actions below) so clicking
+                              // anywhere in it — not just directly on the two buttons — doesn't also toggle
+                              // the row; keeps the actions <td> from needing its own click handler.
+                              onClick={e => { if ((e.target as HTMLElement).closest('[data-row-actions]')) return; toggleRow(issue.id); }}>
                               <td className={`pl-5 pr-3 py-3 text-xs ${t.textMuted} whitespace-nowrap`}>{formatDateTime(issue.issued_at)}</td>
                               <td className="px-3 py-3">
                                 <div className={`text-xs ${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{issue.recipient_name}</div>
@@ -808,7 +812,7 @@ function IssuesPageContent() {
                               </td>
                               <td className={`px-3 py-3 text-xs ${t.textFaint}`}>{issue.issued_by || '—'}</td>
                               <td className={`px-3 py-3 text-xs ${t.textFaint} max-w-[160px]`}><div className="truncate">{issue.notes || '—'}</div></td>
-                              <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
+                              <td className="px-3 py-3" data-row-actions aria-label="Row actions">
                                 <div className="flex items-center justify-end gap-1">
                                   <button type="button" title={expanded ? 'Collapse' : 'Expand'}
                                     onClick={e => { e.stopPropagation(); toggleRow(issue.id); }}
