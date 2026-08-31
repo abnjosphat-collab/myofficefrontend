@@ -75,6 +75,9 @@
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
     "zod": "^4.3.5"
   },
+  "overrides": {
+    "uuid": "^11.1.1"
+  },
   "devDependencies": {
     "@playwright/test": "^1.61.1",
     "@tailwindcss/postcss": "^4",
