@@ -36,7 +36,7 @@ import {
 } from 'recharts';
 import { OT_TYPES, SELECTABLE_OT_TYPES, STATUSES, type OTType, type OTStatus, type OTRecord, type OTForm, type SpareUsedEntry, type PlanningStatus, type PayoutMethod } from './types';
 import { useOvertimeData, buildOvertimePayload, createOT, updateOT, deleteOT, postOvertimeAnalysis } from './useOvertimeData';
-import { calcHours, mondayOf, toISODate, addDays, buildWeeklyRows, cleanReasonText } from './calcOvertime';
+import { calcHours, mondayOf, toISODate, addDays, buildWeeklyRows, cleanReasonText, groupSimilarReasons } from './calcOvertime';
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 
@@ -1468,24 +1468,39 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
   // week's overtime and why, distinct from the separate Causes & Actions AI tab (which
   // requires navigating away and running an analysis). Both computed instantly from
   // whatever week is currently selected here.
+  //
+  // Covers EVERY employee with hours this period, not just a top-N cut (2026-08-31, per
+  // request) — sorted highest-first so the biggest contributors still lead, but nobody's
+  // left off. `topEmployeeShare` keeps its name: it's still literally the top (first)
+  // employee's share of the grand total, that meaning didn't change when the list below
+  // it stopped being capped.
   const weekRecords = useMemo(() => records.filter(r => r.date >= from && r.date <= to), [records, from, to]);
-  const topEmployees = useMemo(() => [...rowsByName].filter(r => r.total > 0).sort((a, b) => b.total - a.total).slice(0, 5), [rowsByName]);
-  const maxTopEmployeeHours = Math.max(1, ...topEmployees.map(r => r.total));
-  const topEmployeeShare = grandTotal > 0 && topEmployees[0] ? Math.round((topEmployees[0].total / grandTotal) * 100) : 0;
-  // For each top earner, their actual OT records this week — date, time, hours, and the
-  // reason they gave — so "who has the most overtime" reads alongside "what were they
-  // doing and when", not just a total.
-  const topEmployeeInstances = useMemo(() => topEmployees.map(emp => ({
+  const activeEmployees = useMemo(() => [...rowsByName].filter(r => r.total > 0).sort((a, b) => b.total - a.total), [rowsByName]);
+  const maxEmployeeHours = Math.max(1, ...activeEmployees.map(r => r.total));
+  const topEmployeeShare = grandTotal > 0 && activeEmployees[0] ? Math.round((activeEmployees[0].total / grandTotal) * 100) : 0;
+  // For each employee, their actual OT records this week — date, time, hours, and the
+  // reason they gave — so "who has overtime" reads alongside "what were they doing and
+  // when", not just a total.
+  const employeeInstances = useMemo(() => activeEmployees.map(emp => ({
     ...emp,
     // Highest hours first within each person too, not chronological — the point is to
     // surface what's driving their total, so the biggest single instance leads.
     instances: weekRecords
       .filter(r => (r.employee_id || r.employee_name) === (emp.employee_id || emp.employee_name))
       .sort((a, b) => (b.hours ?? calcHours(b.start_time, b.end_time)) - (a.hours ?? calcHours(a.start_time, a.end_time))),
-  })), [topEmployees, weekRecords]);
+  })), [activeEmployees, weekRecords]);
 
-  // groupSimilarReasons (./calcOvertime.ts) fed the now-removed "Overtime by Work
-  // Description" panel — kept exported there for when that section comes back.
+  // Per-person "main cause" — one line per employee naming their single dominant reason
+  // for the period, not a full instance list. Reuses groupSimilarReasons (built for the
+  // page-wide "Overtime by Work Description" panel, below) scoped down to one person's
+  // own instances instead of everyone's — same fuzzy-matching, smaller input, so a
+  // recurring task worded slightly differently each time it's logged ("Burnet daily
+  // checks" vs "Burnett daily check") still reads as one cause, not two. `peopleCount`
+  // on each cluster is always 1 here (one person's own records) and unused.
+  const employeeMainCause = useMemo(() => employeeInstances.map(emp => ({
+    ...emp,
+    mainCause: groupSimilarReasons(emp.instances)[0] ?? null,
+  })), [employeeInstances]);
 
   const stickyBg = t.light ? 'bg-white' : 'bg-[#040c18]';
   const today = toISODate(new Date());
@@ -1577,9 +1592,36 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
     // not just the live view.
     let cursor = 4 + rows.length + 1 + 2;
 
-    // Top earners get their actual instances listed — date, time, hours, and the reason
+    // Main Reason — one compact line per person naming their single dominant cause for
+    // the period, ahead of the full instance-by-instance detail below. Matches the
+    // on-screen "Main Reason" panel; same employeeMainCause data.
+    if (employeeMainCause.length > 0) {
+      ws.mergeCells(cursor, 1, cursor, totalCols);
+      const mrTitleCell = ws.getCell(cursor, 1);
+      mrTitleCell.value = 'Main Reason (By Person)';
+      mrTitleCell.font = { name: FONT, bold: true, size: 11, color: { argb: 'FFFFFFFF' } };
+      mrTitleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: HEADER_FILL } };
+      mrTitleCell.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
+      ws.getRow(cursor).height = 20;
+      cursor++;
+
+      employeeMainCause.forEach((emp, i) => {
+        ws.mergeCells(cursor, 2, cursor, totalCols);
+        const mrCell = ws.getCell(cursor, 2);
+        mrCell.value = emp.mainCause
+          ? `${emp.employee_name} — "${emp.mainCause.label}" (${fmtHours(emp.mainCause.hours)}h across ${emp.mainCause.count} ${emp.mainCause.count === 1 ? 'entry' : 'entries'})`
+          : `${emp.employee_name} — no reason given for this period's hours`;
+        mrCell.font = { name: FONT, size: 9, italic: !emp.mainCause };
+        mrCell.alignment = { horizontal: 'left', indent: 2 };
+        mrCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: i % 2 !== 0 ? STRIPE_FILL : 'FFFFFFFF' } };
+        cursor++;
+      });
+      cursor++; // blank row before the detailed section
+    }
+
+    // Every employee's actual instances listed — date, time, hours, and the reason
     // given — not just a total, matching the on-screen panel above.
-    if (topEmployeeInstances.length > 0) {
+    if (employeeInstances.length > 0) {
       ws.mergeCells(cursor, 1, cursor, totalCols);
       const teTitleCell = ws.getCell(cursor, 1);
       teTitleCell.value = 'Weekly Summary';
@@ -1589,7 +1631,7 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
       ws.getRow(cursor).height = 20;
       cursor++;
 
-      topEmployeeInstances.forEach(emp => {
+      employeeInstances.forEach(emp => {
         ws.mergeCells(cursor, 2, cursor, totalCols);
         const empCell = ws.getCell(cursor, 2);
         empCell.value = `${emp.employee_name}${emp.position ? ' · ' + emp.position : ''} — ${fmtHours(emp.total)}h`;
@@ -1601,7 +1643,7 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
         if (emp.instances.length === 0) {
           ws.mergeCells(cursor, 2, cursor, totalCols);
           const noneCell = ws.getCell(cursor, 2);
-          noneCell.value = "No individual instances logged for this week&apos;s hours.";
+          noneCell.value = "No individual instances logged for this week's hours.";
           noneCell.font = { name: FONT, italic: true, size: 9, color: { argb: 'FF8AA0B4' } };
           noneCell.alignment = { horizontal: 'left', indent: 2 };
           cursor++;
@@ -1685,22 +1727,50 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
         )}
       </div>
 
-      {!invalidRange && topEmployees.length > 0 && (
+      {/* Quick per-person "why" — one line each, ahead of the full instance-by-instance
+          breakdown below. Reuses groupSimilarReasons scoped to one person's own records
+          (see employeeMainCause above), so a recurring task worded slightly differently
+          each time it's logged still reads as one cause, not several. */}
+      {!invalidRange && employeeMainCause.length > 0 && (
+        <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
+          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}>
+            <Lightbulb className="h-4 w-4 text-brand-400" />
+            <span className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>Main Reason</span>
+          </div>
+          <div className={`divide-y ${t.border}`}>
+            {employeeMainCause.map(emp => (
+              <div key={emp.employee_id || emp.employee_name} className="flex flex-wrap items-baseline gap-x-2 px-4 py-2 text-xs">
+                <span className={`shrink-0 ${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{emp.employee_name}</span>
+                {emp.mainCause ? (
+                  <>
+                    <span className={`${t.textFaint} truncate`}>&ldquo;{emp.mainCause.label}&rdquo;</span>
+                    <span className={`shrink-0 ml-auto ${accentText('blue', t.light)}`}>{emp.mainCause.hours.toFixed(1)}h · {emp.mainCause.count} {emp.mainCause.count === 1 ? 'entry' : 'entries'}</span>
+                  </>
+                ) : (
+                  <span className={`${t.textFaint} italic`}>no reason given</span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {!invalidRange && activeEmployees.length > 0 && (
         <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
           <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}>
             <UsersRound className="h-4 w-4 text-brand-400" />
-            <span className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>Highest This Week</span>
-            <span className={`ml-auto text-xs ${t.textFaint}`}>{topEmployees[0].employee_name} is <span className={`${TYPE_WEIGHT.semibold} ${accentText('blue', t.light)}`}>{topEmployeeShare}%</span> of the total</span>
+            <span className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>Overtime By Person</span>
+            <span className={`ml-auto text-xs ${t.textFaint}`}>{activeEmployees[0].employee_name} is <span className={`${TYPE_WEIGHT.semibold} ${accentText('blue', t.light)}`}>{topEmployeeShare}%</span> of the total</span>
           </div>
           <div className={`divide-y ${t.border}`}>
-            {topEmployeeInstances.map(emp => (
+            {employeeInstances.map(emp => (
               <div key={emp.employee_id || emp.employee_name} className="p-4 space-y-2.5">
                 <div>
                   <div className="flex justify-between items-baseline text-sm mb-1 gap-2">
                     <span className={`${TYPE_WEIGHT.semibold} truncate ${t.textPrimary}`}>{emp.employee_name}{emp.position ? <span className={`font-normal ${t.textFaint}`}> · {emp.position}</span> : null}</span>
                     <span className={`shrink-0 ${TYPE_WEIGHT.bold} ${accentText('blue', t.light)}`}>{emp.total.toFixed(1)}h</span>
                   </div>
-                  <ProgressBar value={(emp.total / maxTopEmployeeHours) * 100} color={ACCENT_HEX.blue} showValue={false} />
+                  <ProgressBar value={(emp.total / maxEmployeeHours) * 100} color={ACCENT_HEX.blue} showValue={false} />
                 </div>
                 <div className={`pl-3 border-l-2 ${t.border} space-y-1`}>
                   {emp.instances.length === 0 ? (
@@ -1721,10 +1791,11 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
         </div>
       )}
 
-      {/* "Overtime by Work Description" (fuzzy-grouped similar reasons) pulled for now —
-          not ready to send out, revisit and perfect later. groupSimilarReasons stays
-          exported from ./calcOvertime.ts; cleanReasonText is still used directly below,
-          by the Highest This Week instance list. */}
+      {/* "Overtime by Work Description" (fuzzy-grouped similar reasons, page-wide) pulled
+          for now — not ready to send out, revisit and perfect later. groupSimilarReasons
+          itself is now in active use above (the Main Reason panel, per-person scope);
+          cleanReasonText is still used directly below, by the Overtime By Person
+          instance list. */}
 
       {invalidRange ? (
         <div className={`${t.glass} rounded-2xl ${t.shadow}`}>
