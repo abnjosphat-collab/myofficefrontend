@@ -146,6 +146,19 @@ const eslintConfig = defineConfig([
         },
       ],
       "local/no-bg-class-collision": "warn",
+      // Page-size guardrail. Every payroll bug this project has found has lived in
+      // untested inline logic with nowhere to put a test (see the calcX.ts convention
+      // in frontend/docs/ENGINEERING_STANDARDS.md) — a page that keeps absorbing more
+      // state/handlers/view-branches instead of extracting them is exactly where that
+      // pattern recurs. 600 lines was picked from this codebase's own distribution
+      // (median 79, p90 601, p95 989 across app/**+components/**) — it's the same line
+      // as "already in the top ~10%, worth a second look", not an arbitrary house
+      // number. 'warn' only: 36 files are already over this line and aren't being
+      // retroactively split in this pass — this stops new pages from silently growing
+      // into the same shape, and nudges a split (extract a calcX.ts, a sub-view
+      // component, a tab into its own file) the next time a flagged file is touched
+      // for other work, same as the TYPE_SCALE rule above.
+      "max-lines": ["warn", { max: 600, skipBlankLines: true, skipComments: true }],
     },
   },
   // The MFA sign-in bypass and the admin/callback sign-in bypass were two independent
