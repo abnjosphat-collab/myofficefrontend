@@ -69,10 +69,31 @@ what they catch.
 
 `npx vitest run --coverage` (also what CI runs) shows a real percentage
 against `lib/**`, `app/**`, `components/**`, `hooks/**`. It's report-only, no
-threshold gate. There's no component-testing library installed yet
-(`@testing-library/react` etc.) — extracting logic into a `calcX.ts` (rule 1)
-is what actually makes something here testable without adding that
-infrastructure first.
+threshold gate. Extracting logic into a `calcX.ts` (rule 1) is still the
+first move for anything computational — a render test is for behavior that
+only exists once JSX is actually mounted (focus management, what a click or
+keypress does, what ends up in the accessible tree), not a substitute for
+pulling out logic that doesn't need a DOM at all.
+
+`@testing-library/react` + `@testing-library/jest-dom` +
+`@testing-library/user-event` are installed and wired into
+`vitest.config.ts` (`setupFiles: ['./vitest.setup.ts']`, which also runs
+`cleanup()` after every test — `vitest.config.ts` doesn't set `test.globals`,
+so RTL's own auto-cleanup never registers without it). Two components have
+render tests today, both picked because they carry real interactive
+behavior that a `calcX.ts`-style unit test can't reach:
+`components/shared/design-system/confirm.test.tsx` (focus-management,
+Escape/backdrop/button dismissal, the default-to-Cancel-not-Delete
+behavior) and `components/shared/PredictiveInput.test.tsx` (label
+association, ghost-text Tab-to-accept, localStorage history persistence and
+its frequency-then-recency ranking). Follow the same house style as
+`lib/dates.test.ts`: one `describe` per component, `render`/`screen` from
+`@testing-library/react`, query by role/accessible name (not test-ids,
+not snapshots) so a test also proves the a11y wiring is real. This is not a
+mandate to backfill render tests for all 71 pages at once — add one the
+same way `calcX.ts` gets adopted: opportunistically, for a component with
+real behavior worth pinning down, when it's already being touched or when a
+bug in that behavior is being fixed.
 
 ## 5. Auth state comes from `useAuth()`, never a raw Supabase call
 
