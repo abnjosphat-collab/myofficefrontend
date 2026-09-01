@@ -645,6 +645,7 @@ interface DueItemsProps {
 function DueItemsList({ employees, filterType, onEditItem, onDeleteItem, onViewItem, onToggleNotRequired, onBulkMarkNotRequired }: DueItemsProps) {
   const t = useTheme();
   const [typeFilter, setTypeFilter] = useState('all');
+  const [sizeFilter, setSizeFilter] = useState('all');
   const [search, setSearch] = useState('');
   // Bulk triage for the Overdue tab specifically — with many items flagged by the
   // replacement-interval matrix but not actually needing reorder, marking each one
@@ -652,22 +653,54 @@ function DueItemsList({ employees, filterType, onEditItem, onDeleteItem, onViewI
   // the Overtime/Leaves bulk-approve toolbars elsewhere in this app.
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  const items = useMemo(() => {
-    const out: (PPERecord & { employee_name: string; employee_id: string })[] = [];
+  type DueItem = PPERecord & { employee_name: string; employee_id: string };
+
+  // Filtered by status/type/search but NOT by size yet — this is what the size dropdown
+  // and the reorder-by-size quick stats below are both built from, so switching type
+  // never leaves a size selected that no longer applies, and the counts always answer
+  // "of the items I'm currently looking at, how many per size."
+  const typeFilteredItems = useMemo<DueItem[]>(() => {
+    const out: DueItem[] = [];
     employees.forEach(emp => {
       emp.records.forEach(rec => {
         if (filterType === 'soon-to-due' && !(isExpiringSoon(rec.expiry_date) && rec.status === 'active')) return;
         if (filterType === 'due'         && !(isExpired(rec.expiry_date)      && rec.status === 'active')) return;
         if (typeFilter !== 'all' && rec.ppe_type !== typeFilter) return;
         if (search) {
-          const t = search.toLowerCase();
-          if (!emp.employee_name?.toLowerCase().includes(t) && !rec.item_name?.toLowerCase().includes(t)) return;
+          const q = search.toLowerCase();
+          if (!emp.employee_name?.toLowerCase().includes(q) && !rec.item_name?.toLowerCase().includes(q)) return;
         }
         out.push({ ...rec, employee_name: emp.employee_name, employee_id: emp.employee_id });
       });
     });
-    return out.sort((a, b) => new Date(a.expiry_date ?? 0).getTime() - new Date(b.expiry_date ?? 0).getTime());
+    return out;
   }, [employees, filterType, typeFilter, search]);
+
+  // Reorder-by-size quick stats: how many of each size are due/expiring right now among
+  // the currently type-filtered items — e.g. select "Boots" and this directly answers
+  // "how many size 8 do we need to order." Sorted by count so the biggest reorder need
+  // surfaces first.
+  const sizeCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    typeFilteredItems.forEach(item => {
+      const size = (item.size || '').trim() || 'Unspecified';
+      counts.set(size, (counts.get(size) ?? 0) + 1);
+    });
+    return [...counts.entries()].sort((a, b) => b[1] - a[1]);
+  }, [typeFilteredItems]);
+
+  const items = useMemo(() => {
+    return typeFilteredItems
+      .filter(item => sizeFilter === 'all' || ((item.size || '').trim() || 'Unspecified') === sizeFilter)
+      .sort((a, b) => new Date(a.expiry_date ?? 0).getTime() - new Date(b.expiry_date ?? 0).getTime());
+  }, [typeFilteredItems, sizeFilter]);
+
+  // A size that no longer appears for the newly selected type (or status tab) would
+  // otherwise silently filter the list to empty — reset it whenever the set of
+  // available sizes changes out from under it.
+  useEffect(() => {
+    if (sizeFilter !== 'all' && !sizeCounts.some(([size]) => size === sizeFilter)) setSizeFilter('all');
+  }, [sizeCounts, sizeFilter]);
 
   useEffect(() => { setSelectedIds(new Set()); }, [filterType]);
   const toggleSelect = (id: string) => setSelectedIds(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
@@ -675,7 +708,7 @@ function DueItemsList({ employees, filterType, onEditItem, onDeleteItem, onViewI
   const toggleSelectAll = () => setSelectedIds(allSelected ? new Set() : new Set(items.map(i => String(i.id))));
   const handleBulkMarkNotRequired = () => { onBulkMarkNotRequired([...selectedIds]); setSelectedIds(new Set()); };
 
-  if (items.length === 0 && !search && typeFilter === 'all') {
+  if (items.length === 0 && !search && typeFilter === 'all' && sizeFilter === 'all') {
     return (
       <div className={`text-center py-12 ${t.glassSoft} rounded-xl`}>
         <CheckCircle2 className={`h-12 w-12 mx-auto mb-3 ${t.light ? 'text-emerald-600/60' : 'text-emerald-400/60'}`} />
@@ -684,6 +717,10 @@ function DueItemsList({ employees, filterType, onEditItem, onDeleteItem, onViewI
       </div>
     );
   }
+
+  const accentClasses = filterType === 'due'
+    ? { chip: 'bg-rose-500/10 border-rose-500/30', text: 'text-rose-600 dark:text-rose-400' }
+    : { chip: 'bg-amber-500/10 border-amber-500/30', text: 'text-amber-600 dark:text-amber-400' };
 
   return (
     <div className="space-y-3">
@@ -696,12 +733,34 @@ function DueItemsList({ employees, filterType, onEditItem, onDeleteItem, onViewI
         </div>
         <SelectField size="filter" value={typeFilter} onChange={setTypeFilter} title="PPE Type filter"
           options={[{ value: 'all', label: 'All Types' }, ...Object.entries(PPE_TYPES).map(([k, pt]) => ({ value: k, label: pt.name }))]} />
+        <SelectField size="filter" value={sizeFilter} onChange={setSizeFilter} title="Size filter"
+          options={[{ value: 'all', label: 'All Sizes' }, ...sizeCounts.map(([size]) => ({ value: size, label: size }))]} />
         {filterType === 'due' && items.length > 0 && (
           <label htmlFor="ppe-due-select-all" className={`flex items-center gap-1.5 text-xs ${t.textFaint} cursor-pointer ml-auto`}>
             <input id="ppe-due-select-all" type="checkbox" checked={allSelected} onChange={toggleSelectAll} aria-label="Select all" className="rounded" /> Select all
           </label>
         )}
       </div>
+      {/* Reorder-by-size quick stats — how many of each size are due/expiring among the
+          currently type-filtered items, e.g. select "Boots" to see "8 × 5, 9 × 3…" at a
+          glance. Doubles as a size-filter shortcut: click a chip to filter to just that
+          size, click again (or "All Sizes" above) to clear it. */}
+      {sizeCounts.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className={`text-[11px] ${TYPE_WEIGHT.medium} ${t.textFaint} shrink-0`}>Reorder by size:</span>
+          {sizeCounts.map(([size, count]) => (
+            <button key={size} type="button"
+              onClick={() => setSizeFilter(prev => prev === size ? 'all' : size)}
+              title={`${count} ${filterType === 'due' ? 'overdue' : 'expiring soon'} — size ${size}`}
+              className={`flex items-center gap-1 text-[11px] px-2 py-1 rounded-lg border ${TYPE_WEIGHT.medium} transition-all ${
+                sizeFilter === size ? `${accentClasses.chip} ${accentClasses.text}` : `${t.glassSoft} ${t.textMuted} ${t.hoverBg} ${t.hoverText} border-transparent`
+              }`}>
+              {size}
+              <span className={`px-1 py-0.5 rounded text-[10px] ${TYPE_WEIGHT.bold} ${sizeFilter === size ? 'bg-white/20' : t.chipBg} ${sizeFilter === size ? '' : t.textFaint}`}>{count}</span>
+            </button>
+          ))}
+        </div>
+      )}
       {filterType === 'due' && selectedIds.size > 0 && (
         <div className={`flex items-center gap-2 px-3 py-2 rounded-lg ${t.chipBg}`}>
           <span className={`text-xs ${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{selectedIds.size} selected</span>
