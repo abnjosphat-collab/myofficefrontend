@@ -33,6 +33,7 @@ import {
 } from './usePPEData';
 import { isExpiringSoon, isExpired, computeComplianceRate, computeSizeBreakdown, thisWeekRange, groupOrderList, type OrderListEntry } from './calcPPE';
 import { useOrderList } from './useOrderList';
+import { SECTION_ORDER, normalizeSection, sectionColor } from '@/lib/sections';
 
 // Data-model types (PPERecord, EmployeeRow, PPEStats, etc.) now live in ./types —
 // imported above. Component prop interfaces below stay page-local.
@@ -316,6 +317,7 @@ function EmployeePPECard({ employee, isExpanded, onToggle, onIssueNew, onEditIte
       open={isExpanded}
       onToggle={onToggle}
       badges={<>
+        <StatusBadge color={sectionColor(employee.section)} label={normalizeSection(employee.section)} />
         <StatusBadge color="#10b981" label={`${active.length} Active`} dot />
         {expired.length > 0 && <StatusBadge color="#f43f5e" label={`${expired.length} Overdue`} />}
         {expiring.length > 0 && <StatusBadge color="#f59e0b" label={`${expiring.length} Expiring`} />}
@@ -976,6 +978,9 @@ export default function PPEManagement() {
   const sections = useCollapseSection({ heroStats: false, typeBreakdown: false, sizeBreakdown: false, records: false, orderList: false });
   const [filterType,    setFilterType]    = useState<'all' | 'active' | 'soon-to-due' | 'due'>('all');
   const [searchTerm,    setSearchTerm]    = useState('');
+  // Mechanical/Electrical/Civil/Instrumentation — same categorization as
+  // app/employees/page.tsx (lib/sections.ts), sourced from EmployeeWithPPE.section.
+  const [sectionFilter, setSectionFilter] = useState('all');
   // All employee cards start collapsed (empty object = all false)
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
@@ -1013,6 +1018,10 @@ export default function PPEManagement() {
           employee_id: r.employee_id,
           employee_name: emp?.employee_name || r.employee_name,
           position: emp?.position || r.position,
+          // Prefer the employee register's own section (same field employees/page.tsx
+          // filters/groups by) — mine_section on the PPE record is a free-text field
+          // auto-seeded from it at issue time but editable afterward, so it can drift.
+          section: emp?.section || r.mine_section || '',
           records: [],
         });
       }
@@ -1021,8 +1030,28 @@ export default function PPEManagement() {
     return Array.from(map.values());
   }, [records, apiEmployees]);
 
+  // Sections actually present among the currently loaded PPE employees — drives the
+  // Section filter's options so it never offers a section nobody here belongs to.
+  const sectionCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    employeesWithPPE.forEach(e => {
+      const s = normalizeSection(e.section);
+      counts.set(s, (counts.get(s) ?? 0) + 1);
+    });
+    return SECTION_ORDER.filter(s => counts.has(s)).map(s => [s, counts.get(s)!] as const)
+      .concat(counts.has('Unassigned') ? [['Unassigned', counts.get('Unassigned')!]] : []);
+  }, [employeesWithPPE]);
+
+  // Applied once, upstream of every view (employee cards AND the Overdue/Expiring Soon
+  // tabs) so one Section control governs the whole page rather than needing a second
+  // copy inside DueItemsList's own local filter bar.
+  const sectionFilteredEmployees = useMemo(() => {
+    if (sectionFilter === 'all') return employeesWithPPE;
+    return employeesWithPPE.filter(e => normalizeSection(e.section) === sectionFilter);
+  }, [employeesWithPPE, sectionFilter]);
+
   const filteredEmployees = useMemo(() => {
-    let list = employeesWithPPE;
+    let list = sectionFilteredEmployees;
     if (filterType === 'active')     list = list.filter(e => e.records.some(r => r.status === 'active'));
     if (filterType === 'soon-to-due') list = list.filter(e => e.records.some(r => isExpiringSoon(r.expiry_date) && r.status === 'active'));
     if (filterType === 'due')         list = list.filter(e => e.records.some(r => isExpired(r.expiry_date) && r.status === 'active'));
@@ -1034,7 +1063,7 @@ export default function PPEManagement() {
         e.position?.toLowerCase().includes(t));
     }
     return list;
-  }, [employeesWithPPE, filterType, searchTerm]);
+  }, [sectionFilteredEmployees, filterType, searchTerm]);
 
   const enhancedStats = useMemo<EnhancedStats | null>(() => {
     if (!stats) return null;
@@ -1557,6 +1586,15 @@ export default function PPEManagement() {
                 </button>
               ))}
             </div>
+            <div className="flex items-center gap-2">
+              {/* Mechanical/Electrical/Civil/Instrumentation — same categorization as
+                  app/employees/page.tsx (lib/sections.ts). Governs every view below,
+                  not just "All Employees": the employee cards, and the Overdue/Expiring
+                  Soon tabs (DueItemsList gets the already section-filtered list). */}
+              {sectionCounts.length > 1 && (
+                <SelectField size="filter" value={sectionFilter} onChange={setSectionFilter} title="Section filter"
+                  options={[{ value: 'all', label: 'All Sections' }, ...sectionCounts.map(([s, count]) => ({ value: s, label: `${s} (${count})` }))]} />
+              )}
             {/* Search */}
             {(filterType === 'all' || filterType === 'active') && (
               <div className="relative">
@@ -1572,6 +1610,7 @@ export default function PPEManagement() {
                 )}
               </div>
             )}
+            </div>
           </div>
         </div>
 
@@ -1622,7 +1661,7 @@ export default function PPEManagement() {
                   </motion.button>
                 </div>
               ) : (filterType === 'soon-to-due' || filterType === 'due') ? (
-                <DueItemsList employees={employeesWithPPE} filterType={filterType}
+                <DueItemsList employees={sectionFilteredEmployees} filterType={filterType}
                   onEditItem={r => { setEditData(r); setShowForm(true); }}
                   onDeleteItem={handleDelete}
                   onViewItem={item => { setDetailItem(item); setShowDetail(true); }}

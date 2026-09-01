@@ -31,6 +31,10 @@ export interface EmployeeRow {
 export interface EmployeeWithPPE {
   employee_id: string; employee_name: string;
   position: string; records: PPERecord[];
+  // Employee's Mechanical/Electrical/Civil/Instrumentation section — see lib/sections.ts.
+  // Not yet normalized here; normalize at the point of display/filter (matches how the
+  // rest of this file leaves raw strings as-is and lets calcPPE.ts do the shaping).
+  section: string;
 }
 
 export interface PPEStats {
