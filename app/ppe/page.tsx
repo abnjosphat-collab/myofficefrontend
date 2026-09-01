@@ -11,6 +11,7 @@ import {
   Award, ChevronRight,
   Shirt, ChevronsUp, ChevronsDown, X,
   BoxingGlove, Goggles, Boot, Seatbelt, FaceMask, Hoodie, ShirtFolded, Pants, Belt, Umbrella,
+  CalendarRange, ShoppingCart, ClipboardList,
 } from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
 import { ListAutocomplete } from '@/components/shared/ListAutocomplete';
@@ -30,7 +31,8 @@ import {
   usePPEData,
   createPPERecord, updatePPERecord, deletePPERecord,
 } from './usePPEData';
-import { isExpiringSoon, isExpired, computeComplianceRate, computeSizeBreakdown } from './calcPPE';
+import { isExpiringSoon, isExpired, computeComplianceRate, computeSizeBreakdown, thisWeekRange, groupOrderList, type OrderListEntry } from './calcPPE';
+import { useOrderList } from './useOrderList';
 
 // Data-model types (PPERecord, EmployeeRow, PPEStats, etc.) now live in ./types —
 // imported above. Component prop interfaces below stay page-local.
@@ -640,13 +642,24 @@ interface DueItemsProps {
   onViewItem: (r: PPERecord) => void;
   onToggleNotRequired: (r: PPERecord) => void;
   onBulkMarkNotRequired: (ids: string[]) => void;
+  onAddToOrderList: (items: OrderListEntry[]) => void;
+  isOnOrderList: (id: string) => boolean;
 }
 
-function DueItemsList({ employees, filterType, onEditItem, onDeleteItem, onViewItem, onToggleNotRequired, onBulkMarkNotRequired }: DueItemsProps) {
+function DueItemsList({ employees, filterType, onEditItem, onDeleteItem, onViewItem, onToggleNotRequired, onBulkMarkNotRequired, onAddToOrderList, isOnOrderList }: DueItemsProps) {
   const t = useTheme();
   const [typeFilter, setTypeFilter] = useState('all');
   const [sizeFilter, setSizeFilter] = useState('all');
   const [search, setSearch] = useState('');
+  // Date-range narrowing on top of the tab's own overdue/expiring-soon window — e.g.
+  // "expiring soon" already means "within 30 days," and this lets someone narrow that
+  // down further to "specifically this week" for a more targeted reorder/chase-up list.
+  // Both ends are inclusive comparisons against expiry_date's ISO string, so a range
+  // wider than the tab's own window is a no-op rather than an error.
+  const [showDateRange, setShowDateRange] = useState(false);
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const dateRangeActive = !!(dateFrom || dateTo);
   // Bulk triage for the Overdue tab specifically — with many items flagged by the
   // replacement-interval matrix but not actually needing reorder, marking each one
   // "not required" individually isn't practical. Same checkbox-multi-select pattern as
@@ -666,6 +679,8 @@ function DueItemsList({ employees, filterType, onEditItem, onDeleteItem, onViewI
         if (filterType === 'soon-to-due' && !(isExpiringSoon(rec.expiry_date) && rec.status === 'active')) return;
         if (filterType === 'due'         && !(isExpired(rec.expiry_date)      && rec.status === 'active')) return;
         if (typeFilter !== 'all' && rec.ppe_type !== typeFilter) return;
+        if (dateFrom && (!rec.expiry_date || rec.expiry_date < dateFrom)) return;
+        if (dateTo   && (!rec.expiry_date || rec.expiry_date > dateTo))   return;
         if (search) {
           const q = search.toLowerCase();
           if (!emp.employee_name?.toLowerCase().includes(q) && !rec.item_name?.toLowerCase().includes(q)) return;
@@ -674,7 +689,7 @@ function DueItemsList({ employees, filterType, onEditItem, onDeleteItem, onViewI
       });
     });
     return out;
-  }, [employees, filterType, typeFilter, search]);
+  }, [employees, filterType, typeFilter, dateFrom, dateTo, search]);
 
   // Reorder-by-size quick stats: how many of each size are due/expiring right now among
   // the currently type-filtered items — e.g. select "Boots" and this directly answers
@@ -707,8 +722,18 @@ function DueItemsList({ employees, filterType, onEditItem, onDeleteItem, onViewI
   const allSelected = items.length > 0 && items.every(i => selectedIds.has(String(i.id)));
   const toggleSelectAll = () => setSelectedIds(allSelected ? new Set() : new Set(items.map(i => String(i.id))));
   const handleBulkMarkNotRequired = () => { onBulkMarkNotRequired([...selectedIds]); setSelectedIds(new Set()); };
+  const toOrderEntry = (item: DueItem): OrderListEntry => ({
+    record_id: String(item.id), employee_id: item.employee_id, employee_name: item.employee_name,
+    ppe_type: item.ppe_type, item_name: item.item_name, size: item.size,
+  });
+  const handleBulkAddToOrderList = () => {
+    const toAdd = items.filter(i => selectedIds.has(String(i.id))).map(toOrderEntry);
+    onAddToOrderList(toAdd);
+    toast.success(`Added ${toAdd.length} item${toAdd.length !== 1 ? 's' : ''} to the order list`);
+    setSelectedIds(new Set());
+  };
 
-  if (items.length === 0 && !search && typeFilter === 'all' && sizeFilter === 'all') {
+  if (items.length === 0 && !search && typeFilter === 'all' && sizeFilter === 'all' && !dateRangeActive) {
     return (
       <div className={`text-center py-12 ${t.glassSoft} rounded-xl`}>
         <CheckCircle2 className={`h-12 w-12 mx-auto mb-3 ${t.light ? 'text-emerald-600/60' : 'text-emerald-400/60'}`} />
@@ -735,12 +760,38 @@ function DueItemsList({ employees, filterType, onEditItem, onDeleteItem, onViewI
           options={[{ value: 'all', label: 'All Types' }, ...Object.entries(PPE_TYPES).map(([k, pt]) => ({ value: k, label: pt.name }))]} />
         <SelectField size="filter" value={sizeFilter} onChange={setSizeFilter} title="Size filter"
           options={[{ value: 'all', label: 'All Sizes' }, ...sizeCounts.map(([size]) => ({ value: size, label: size }))]} />
-        {filterType === 'due' && items.length > 0 && (
+        <button type="button" onClick={() => setShowDateRange(p => !p)}
+          className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border ${TYPE_WEIGHT.medium} transition-all ${
+            showDateRange || dateRangeActive ? `${accentClasses.chip} ${accentClasses.text}` : `${t.glassSoft} ${t.textMuted} ${t.hoverBg} ${t.hoverText} border-transparent`
+          }`}>
+          <CalendarRange className="h-3.5 w-3.5" /> Date Range
+          {dateRangeActive && <span className={`w-1.5 h-1.5 rounded-full ${filterType === 'due' ? 'bg-rose-500' : 'bg-amber-500'}`} />}
+        </button>
+        {items.length > 0 && (
           <label htmlFor="ppe-due-select-all" className={`flex items-center gap-1.5 text-xs ${t.textFaint} cursor-pointer ml-auto`}>
             <input id="ppe-due-select-all" type="checkbox" checked={allSelected} onChange={toggleSelectAll} aria-label="Select all" className="rounded" /> Select all
           </label>
         )}
       </div>
+      {/* Narrows the tab's own overdue/expiring-soon window down to a specific range —
+          e.g. "Expiring Soon" already means "within 30 days"; this lets someone chase up
+          specifically this week's due dates instead of the whole 30-day list. */}
+      {showDateRange && (
+        <div className={`flex flex-wrap items-end gap-3 ${t.chipBg} rounded-xl p-3`}>
+          <FormField label="From"><input type="date" title="From date" aria-label="From date" value={dateFrom}
+            onChange={e => setDateFrom(e.target.value)} className={`h-9 px-3 rounded-lg text-sm ${t.inputBg} focus:outline-none`} /></FormField>
+          <FormField label="To"><input type="date" title="To date" aria-label="To date" value={dateTo}
+            onChange={e => setDateTo(e.target.value)} className={`h-9 px-3 rounded-lg text-sm ${t.inputBg} focus:outline-none`} /></FormField>
+          <button type="button" onClick={() => { const { from, to } = thisWeekRange(); setDateFrom(from); setDateTo(to); }}
+            className={`h-9 px-3 rounded-lg text-xs ${TYPE_WEIGHT.semibold} ${t.textMuted} ${t.glassSoft} ${t.hoverText}`}>This Week</button>
+          {dateRangeActive && (
+            <button type="button" onClick={() => { setDateFrom(''); setDateTo(''); }}
+              className={`h-9 px-3 rounded-lg text-xs ${TYPE_WEIGHT.semibold} ${t.textFaint} ${t.hoverText} flex items-center gap-1`}>
+              <X className="h-3 w-3" /> Clear
+            </button>
+          )}
+        </div>
+      )}
       {/* Reorder-by-size quick stats — how many of each size are due/expiring among the
           currently type-filtered items, e.g. select "Boots" to see "8 × 5, 9 × 3…" at a
           glance. Doubles as a size-filter shortcut: click a chip to filter to just that
@@ -761,13 +812,19 @@ function DueItemsList({ employees, filterType, onEditItem, onDeleteItem, onViewI
           ))}
         </div>
       )}
-      {filterType === 'due' && selectedIds.size > 0 && (
+      {selectedIds.size > 0 && (
         <div className={`flex items-center gap-2 px-3 py-2 rounded-lg ${t.chipBg}`}>
           <span className={`text-xs ${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{selectedIds.size} selected</span>
-          <button type="button" onClick={handleBulkMarkNotRequired}
-            className={`ml-auto text-[11px] ${TYPE_WEIGHT.semibold} px-2.5 py-1 rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all`}>
-            Mark {selectedIds.size} as not required
+          <button type="button" onClick={handleBulkAddToOrderList}
+            className={`ml-auto text-[11px] ${TYPE_WEIGHT.semibold} px-2.5 py-1 rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all flex items-center gap-1`}>
+            <ShoppingCart className="h-3 w-3" /> Add {selectedIds.size} to order list
           </button>
+          {filterType === 'due' && (
+            <button type="button" onClick={handleBulkMarkNotRequired}
+              className={`text-[11px] ${TYPE_WEIGHT.semibold} px-2.5 py-1 rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all`}>
+              Mark {selectedIds.size} as not required
+            </button>
+          )}
           <button type="button" onClick={() => setSelectedIds(new Set())} className={`text-[11px] ${t.textFaint} ${t.hoverText} transition-colors`}>Clear</button>
         </div>
       )}
@@ -782,10 +839,8 @@ function DueItemsList({ employees, filterType, onEditItem, onDeleteItem, onViewI
             return (
               <motion.div key={item.id} variants={fadeUp}>
                 <GlowCard color={glowColor} onClick={() => onViewItem(item)} className="p-3.5 flex items-center gap-3">
-                  {filterType === 'due' && (
-                    <input type="checkbox" checked={selectedIds.has(String(item.id))} onChange={() => toggleSelect(String(item.id))}
-                      onClick={e => e.stopPropagation()} aria-label={`Select ${item.employee_name}'s ${item.item_name}`} className="rounded shrink-0" />
-                  )}
+                  <input type="checkbox" checked={selectedIds.has(String(item.id))} onChange={() => toggleSelect(String(item.id))}
+                    onClick={e => e.stopPropagation()} aria-label={`Select ${item.employee_name}'s ${item.item_name}`} className="rounded shrink-0" />
                   <div className={`p-2 rounded-lg shrink-0 ${t.chipBg}`}><Icon className="h-4 w-4" style={{ color: ppeType.color }} /></div>
 
                   <div className="min-w-0 flex-1 grid grid-cols-2 sm:grid-cols-4 gap-x-3 gap-y-1 items-center">
@@ -814,6 +869,15 @@ function DueItemsList({ employees, filterType, onEditItem, onDeleteItem, onViewI
                         Not required
                       </button>
                     )}
+                    <button type="button"
+                      title={isOnOrderList(String(item.id)) ? 'Already on the order list' : 'Add to order list'}
+                      disabled={isOnOrderList(String(item.id))}
+                      onClick={e => { e.stopPropagation(); onAddToOrderList([toOrderEntry(item)]); toast.success('Added to the order list'); }}
+                      className={`h-7 px-2 flex items-center justify-center rounded-lg text-[11px] ${TYPE_WEIGHT.medium} transition-all ${
+                        isOnOrderList(String(item.id)) ? `${accentClasses.text} cursor-default` : `${t.hoverBg} ${t.textFaint} ${t.hoverText}`
+                      }`}>
+                      <ShoppingCart className="h-3.5 w-3.5" />
+                    </button>
                     <button type="button" title="Edit" onClick={e => { e.stopPropagation(); onEditItem(item); }}
                       className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} hover:text-brand-500 transition-all`}>
                       <Pencil className="h-3.5 w-3.5" />
@@ -899,6 +963,7 @@ export default function PPEManagement() {
   // usePPEData (./usePPEData) — `refresh` is aliased back to `load` since every call
   // site below already calls load()/load(true).
   const { records, setRecords, apiEmployees, stats, statsError, recordsError, loading, refreshing, matrix, setMatrix, refresh: load } = usePPEData();
+  const orderList = useOrderList();
 
   // UI state
   const [showForm,      setShowForm]      = useState(false);
@@ -908,7 +973,7 @@ export default function PPEManagement() {
   const [detailItem,    setDetailItem]    = useState<PPERecord | null>(null);
   const [showDetail,    setShowDetail]    = useState(false);
   // Master collapse — all page sections. Read sections.expanded[key] / sections.toggle(key).
-  const sections = useCollapseSection({ heroStats: false, typeBreakdown: false, sizeBreakdown: false, records: false });
+  const sections = useCollapseSection({ heroStats: false, typeBreakdown: false, sizeBreakdown: false, records: false, orderList: false });
   const [filterType,    setFilterType]    = useState<'all' | 'active' | 'soon-to-due' | 'due'>('all');
   const [searchTerm,    setSearchTerm]    = useState('');
   // All employee cards start collapsed (empty object = all false)
@@ -993,6 +1058,13 @@ export default function PPEManagement() {
   // "to reorder" count (past expiry, i.e. needs replacing). Lets a purchaser see e.g.
   // "Helmet · L × 12 (3 to reorder)" at a glance. Returns [type, [size, {inUse, reorder}][]][].
   const sizeBreakdown = useMemo(() => computeSizeBreakdown(records), [records]);
+  const orderGroups = useMemo(() => groupOrderList(orderList.entries), [orderList.entries]);
+  const orderListColumns: DLColumn[] = [
+    { key: 'item_name', label: 'Item', width: 22 },
+    { key: 'size', label: 'Size', width: 10 },
+    { key: 'count', label: 'Qty', width: 8 },
+    { key: 'people', label: 'For (Employees)', width: 44 },
+  ];
 
   // ── Expand / collapse ─────────────────────────────────────────────────────
 
@@ -1402,6 +1474,67 @@ export default function PPEManagement() {
           </div>
         )}
 
+        {/* ── ORDER LIST — items flagged from Overdue/Expiring Soon to actually order ── */}
+        {orderList.entries.length > 0 && (
+          <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
+            <button type="button" onClick={() => sections.toggle('orderList')}
+              className={`w-full flex items-center justify-between px-5 py-3 ${t.hoverBgSoft} transition-all`}>
+              <div className="flex items-center gap-2">
+                <ClipboardList className="h-3.5 w-3.5 text-brand-500" />
+                <span className={`text-xs ${TYPE_WEIGHT.semibold} ${t.textSecondary} uppercase tracking-wider`}>Order List</span>
+                <span className={`text-[11px] ${t.textFaint} font-normal normal-case tracking-normal`}>
+                  {orderList.entries.length} item{orderList.entries.length !== 1 ? 's' : ''} · {orderGroups.length} line{orderGroups.length !== 1 ? 's' : ''}
+                </span>
+              </div>
+              {sections.expanded.orderList
+                ? <ChevronUp className={`h-3.5 w-3.5 ${t.textFaint}`} />
+                : <ChevronDown className={`h-3.5 w-3.5 ${t.textFaint}`} />}
+            </button>
+            <Collapse open={!!sections.expanded.orderList}>
+              <div className={`px-4 pb-4 pt-3 border-t ${t.border} space-y-3`}>
+                <div className="flex items-center justify-between gap-2">
+                  <p className={`text-xs ${t.textFaint}`}>What to actually order, grouped by item and size.</p>
+                  <div className="flex items-center gap-2">
+                    <DownloadButton data={orderGroups as unknown as Record<string, unknown>[]} columns={orderListColumns}
+                      filename={exportFilename('PPE_Order_List')} title="PPE Order List"
+                      subtitle={`${orderList.entries.length} item${orderList.entries.length !== 1 ? 's' : ''} to order`} />
+                    <button type="button" onClick={async () => { if (await confirm({ title: 'Clear the order list?', message: 'This removes every item you’ve added — it does not affect the actual PPE records.', destructive: true, confirmLabel: 'Clear' })) orderList.clear(); }}
+                      className={`text-[11px] ${TYPE_WEIGHT.semibold} px-2.5 py-1.5 rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all`}>
+                      Clear
+                    </button>
+                  </div>
+                </div>
+                <div className={`rounded-xl ${t.glassSoft} overflow-hidden`}>
+                  <div className={`grid grid-cols-[1fr_auto_auto_2fr] gap-x-3 px-3 py-2 text-[10px] uppercase tracking-wide ${t.textFaint} border-b ${t.border}`}>
+                    <span>Item</span><span className="text-right">Size</span><span className="text-right">Qty</span><span>For</span>
+                  </div>
+                  {orderGroups.map(row => (
+                    <div key={`${row.ppe_type}::${row.size}`} className={`grid grid-cols-[1fr_auto_auto_2fr] gap-x-3 px-3 py-2 text-xs items-center border-b ${t.border} last:border-b-0`}>
+                      <span className={`${TYPE_WEIGHT.medium} ${t.textPrimary} truncate`}>{row.item_name}</span>
+                      <span className="text-right tabular-nums">{row.size}</span>
+                      <span className={`text-right tabular-nums ${TYPE_WEIGHT.semibold}`}>{row.count}</span>
+                      <span className={`${t.textMuted} truncate`} title={row.people.join(', ')}>{row.people.join(', ')}</span>
+                    </div>
+                  ))}
+                </div>
+                {/* Per-entry removal — the grouped table above is read-only (it's the
+                    export shape), so undoing a single mis-add happens here instead. */}
+                <div className="flex flex-wrap gap-1.5">
+                  {orderList.entries.map(e => (
+                    <span key={e.record_id} className={`flex items-center gap-1 text-[11px] px-2 py-1 rounded-lg ${t.chipBg} ${t.textMuted}`}>
+                      {e.employee_name} · {e.item_name}{e.size ? ` · ${e.size}` : ''}
+                      <button type="button" title="Remove from order list" onClick={() => orderList.remove(e.record_id)}
+                        className={`${t.textFaint} hover:text-rose-500 transition-colors`}>
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </Collapse>
+          </div>
+        )}
+
         {/* ── FILTER + EXPAND/COLLAPSE BAR ── */}
         <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
           <div className="px-5 py-3 flex flex-wrap items-center gap-2 justify-between">
@@ -1494,7 +1627,9 @@ export default function PPEManagement() {
                   onDeleteItem={handleDelete}
                   onViewItem={item => { setDetailItem(item); setShowDetail(true); }}
                   onToggleNotRequired={handleToggleNotRequired}
-                  onBulkMarkNotRequired={handleBulkMarkNotRequired} />
+                  onBulkMarkNotRequired={handleBulkMarkNotRequired}
+                  onAddToOrderList={orderList.addMany}
+                  isOnOrderList={orderList.has} />
               ) : filteredEmployees.length === 0 ? (
                 <div className={`text-center py-16 rounded-xl ${t.glassSoft}`}>
                   <HardHat className={`h-12 w-12 mx-auto mb-4 ${t.textTertiary}`} />
