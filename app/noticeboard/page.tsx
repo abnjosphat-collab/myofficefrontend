@@ -16,11 +16,11 @@ import {
   Bell, Plus, Search, Trash2, Edit, FileText, AlertTriangle, RefreshCw,
   Calendar, Tag, Paperclip, Download, AlertCircle, CheckCircle,
   Eye, ChevronDown, ChevronUp, X, User, Building, LayoutGrid, Table as TableIcon,
-  Save, Upload, Link as LinkIcon, Clock, Share2, Copy, BarChart3, Pin, PinOff, Clock4, Users, Archive, EyeOff,
+  Save, Upload, Link as LinkIcon, Clock, Share2, Copy, BarChart3, Pin, PinOff, Clock4, Archive, EyeOff,
   useConfirm,
 } from '@/components/shared/theme';
 import type { Notice, NoticeFormData, NoticeFilters, CalculatedStats } from './types';
-import { useNoticeboardData, createNotice, updateNotice, deleteNotice, togglePin } from './useNoticeboardData';
+import { useNoticeboardData, createNotice, updateNotice, deleteNotice, togglePin, archiveNotice, uploadNoticeAttachment } from './useNoticeboardData';
 
 // ==================== CONSTANTS ====================
 
@@ -211,6 +211,7 @@ function EditNoticeModal({ isOpen, onClose, notice, onSave, isLoading }: {
 }) {
   const t = useTheme();
   const [form, setForm] = useState<NoticeFormData>(blankForm());
+  const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
   const inputCls = `w-full h-9 px-3 rounded-lg text-sm outline-none transition-colors ${t.inputBg}`;
 
   useEffect(() => {
@@ -233,10 +234,29 @@ function EditNoticeModal({ isOpen, onClose, notice, onSave, isLoading }: {
     await onSave(form);
   };
 
-  const handleAttachmentUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Previously read the picked File's name/size straight into the form and never
+  // uploaded it anywhere — attachment_url stayed blank, so "Download attachment" on
+  // the finished notice had nothing to link to (looked like it worked; silently
+  // didn't). Now actually uploads via /api/notices/upload-attachment (a broad,
+  // still-explicit allowlist — see backend/app/uploads.py's NOTICE_ATTACHMENT_EXTS)
+  // and fills the three fields from the server's response.
+  const handleAttachmentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) setForm(p => ({ ...p, attachment_name: file.name, attachment_size: `${(file.size / (1024 * 1024)).toFixed(2)} MB` }));
+    e.target.value = ''; // allow re-picking the same file after a failed upload
+    if (!file) return;
+    setIsUploadingAttachment(true);
+    try {
+      const uploaded = await uploadNoticeAttachment(file);
+      setForm(p => ({ ...p, ...uploaded }));
+      toast.success('Attachment uploaded');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to upload attachment');
+    } finally {
+      setIsUploadingAttachment(false);
+    }
   };
+
+  const clearAttachment = () => setForm(p => ({ ...p, attachment_name: '', attachment_url: '', attachment_size: '' }));
 
   return (
     <CenterModal open={isOpen} onClose={onClose} title={notice ? 'Edit Notice' : 'Create New Notice'} width="max-w-2xl">
@@ -291,10 +311,22 @@ function EditNoticeModal({ isOpen, onClose, notice, onSave, isLoading }: {
             <FormField label="Attachment URL"><input value={form.attachment_url} onChange={e => setForm(p => ({ ...p, attachment_url: e.target.value }))} placeholder="https://…" aria-label="Attachment URL" className={inputCls} /></FormField>
             <FormField label="File Size"><input value={form.attachment_size} onChange={e => setForm(p => ({ ...p, attachment_size: e.target.value }))} placeholder="e.g. 2.5 MB" aria-label="File size" className={inputCls} /></FormField>
           </div>
-          <label htmlFor="notice-attachment-file" className={`flex items-center gap-2 cursor-pointer text-xs ${t.textMuted} ${t.chipBg} rounded-lg px-3 py-2 w-fit`}>
-            <Upload className="h-3.5 w-3.5" /> Upload File
-            <input id="notice-attachment-file" type="file" className="hidden" title="Upload attachment file" aria-label="Upload attachment file" onChange={handleAttachmentUpload} />
-          </label>
+          <div className="flex items-center gap-2">
+            <label htmlFor="notice-attachment-file"
+              className={`flex items-center gap-2 text-xs ${t.textMuted} ${t.chipBg} rounded-lg px-3 py-2 w-fit ${isUploadingAttachment ? 'opacity-60 cursor-wait' : 'cursor-pointer'}`}>
+              {isUploadingAttachment ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+              {isUploadingAttachment ? 'Uploading…' : 'Upload File'}
+              <input id="notice-attachment-file" type="file" className="hidden" disabled={isUploadingAttachment}
+                title="Upload attachment file" aria-label="Upload attachment file"
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.ppt,.pptx,.txt,.rtf,.odt,.ods,.odp,.jpg,.jpeg,.png,.gif,.webp,.svg,.bmp,.tif,.tiff,.heic,.zip,.rar,.7z,.tar,.gz,.mp3,.wav,.m4a,.ogg,.aac,.mp4,.mov,.avi,.webm,.mkv,.json,.xml"
+                onChange={handleAttachmentUpload} />
+            </label>
+            {form.attachment_name && (
+              <button type="button" onClick={clearAttachment} className={`flex items-center gap-1 text-xs ${t.textFaint} hover:text-rose-500 transition-colors`}>
+                <X className="h-3 w-3" /> Remove
+              </button>
+            )}
+          </div>
           <div className="flex flex-wrap gap-6">
             <label htmlFor="notice-is-pinned" className="flex items-center gap-2 cursor-pointer">
               <input id="notice-is-pinned" type="checkbox" checked={form.is_pinned} onChange={e => setForm(p => ({ ...p, is_pinned: e.target.checked }))} aria-label="Pin to top" className="h-4 w-4 accent-brand-600" />
@@ -325,7 +357,11 @@ function NoticeboardContent() {
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
   const [filters, setFilters] = useState<NoticeFilters>({ category: 'all', priority: 'all', status: 'all', department: 'all', is_pinned: null });
-  const { data, setData, isLoading, setIsLoading, refresh: fetchNotices } = useNoticeboardData(filters, search);
+  // View-only — filters the grid/table below without touching the hero KPI tiles or
+  // Quick Actions counts, which stay true totals (same convention as every other
+  // filter on this page not touching the stats up top).
+  const [hideExpired, setHideExpired] = useState(false);
+  const { data, setData, isLoading, setIsLoading, loadError, refresh: fetchNotices } = useNoticeboardData(filters, search);
 
   // isLoading deliberately doubles as this modal's `submitting` flag (see the
   // EditNoticeModal render below) — preserved from the original, not a new coupling.
@@ -357,11 +393,35 @@ function NoticeboardContent() {
   };
 
   const calculatedStats = useMemo(() => calculateClientSideStats(data), [data]);
-  const pinnedNotices = data.filter(n => n.is_pinned);
-  const regularNotices = data.filter(n => !n.is_pinned);
   const expiredNotices = data.filter(n => n.expires_at && new Date(n.expires_at) < new Date());
+  const displayNotices = hideExpired ? data.filter(n => !expiredNotices.includes(n)) : data;
+  const pinnedNotices = displayNotices.filter(n => n.is_pinned);
+  const regularNotices = displayNotices.filter(n => !n.is_pinned);
   const selectCls = `h-9 px-3 rounded-lg text-xs outline-none transition-colors ${t.inputBg}`;
   const hasFilters = search || Object.values(filters).some(f => f !== 'all' && f !== null);
+
+  // Both previously rendered with no onClick at all — clicking them did nothing.
+  const handleArchiveAllExpired = async () => {
+    const targets = expiredNotices.filter(n => n.status !== 'Archived');
+    if (targets.length === 0) { toast.info('No expired notices to archive'); return; }
+    const results = await Promise.allSettled(targets.map(n => archiveNotice(n.id)));
+    const ok = results.filter(r => r.status === 'fulfilled').length;
+    const fail = results.length - ok;
+    if (ok > 0) toast.success(`Archived ${ok} expired notice${ok !== 1 ? 's' : ''}`);
+    if (fail > 0) toast.warning(`${fail} failed to archive`);
+    await fetchNotices();
+  };
+
+  const handleUnpinAll = async () => {
+    if (pinnedNotices.length === 0) { toast.info('No pinned notices'); return; }
+    const targets = [...pinnedNotices];
+    const results = await Promise.allSettled(targets.map(n => togglePin(n.id, true)));
+    const ok = results.filter(r => r.status === 'fulfilled').length;
+    const fail = results.length - ok;
+    if (ok > 0) toast.success(`Unpinned ${ok} notice${ok !== 1 ? 's' : ''}`);
+    if (fail > 0) toast.warning(`${fail} failed to unpin`);
+    await fetchNotices();
+  };
 
   const exportColumns: DLColumn[] = [
     { key: 'title', label: 'Title', width: 30 },
@@ -455,6 +515,21 @@ function NoticeboardContent() {
 
       {isLoading ? (
         <div className={`flex items-center justify-center py-16 ${t.textFaint}`}><RefreshCw className="h-5 w-5 animate-spin mr-2" /> Loading notices…</div>
+      ) : loadError && data.length === 0 ? (
+        // A failed fetch used to fall straight through to the "no notices" empty
+        // state below — indistinguishable from a genuinely empty noticeboard. This
+        // is the real error state (only shown when there's nothing already on
+        // screen to fall back to; a failed *refresh* just toasts and keeps showing
+        // the stale list, same as PPE's recordsError pattern).
+        <div className={`${t.glass} rounded-2xl overflow-hidden text-center py-16`}>
+          <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-amber-500" />
+          <p className={`text-sm ${TYPE_WEIGHT.semibold} ${t.textMuted} mb-1`}>Couldn&apos;t load notices</p>
+          <p className={`text-xs ${t.textFaint} mb-4`}>The server may still be starting up — try again in a moment.</p>
+          <button type="button" onClick={fetchNotices}
+            className={`inline-flex items-center gap-1.5 text-xs px-4 py-2 rounded-lg ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all`}>
+            <RefreshCw className="h-3.5 w-3.5" /> Retry
+          </button>
+        </div>
       ) : data.length === 0 ? (
         <div className={`${t.glass} rounded-2xl overflow-hidden`}>
           <EmptyState icon={FileText} title="No notices found" message={hasFilters ? 'Try adjusting your search or filters' : 'Get started by creating your first notice'}
@@ -515,10 +590,22 @@ function NoticeboardContent() {
       <div className={`${t.glass} rounded-2xl ${t.shadow} p-5`}>
         <h3 className={`text-sm ${TYPE_WEIGHT.semibold} mb-3 ${t.textPrimary}`}>Quick Actions</h3>
         <div className="flex flex-wrap gap-2">
-          <button type="button" className={`px-3 py-1.5 rounded-lg text-xs ${t.chipBg} ${t.hoverBg} ${t.textMuted} inline-flex items-center gap-1.5`}><Archive className="h-3.5 w-3.5" /> Archive All Expired</button>
-          <button type="button" className={`px-3 py-1.5 rounded-lg text-xs ${t.chipBg} ${t.hoverBg} ${t.textMuted} inline-flex items-center gap-1.5`}><EyeOff className="h-3.5 w-3.5" /> Hide Expired Notices</button>
-          <button type="button" className={`px-3 py-1.5 rounded-lg text-xs ${t.chipBg} ${t.hoverBg} ${t.textMuted} inline-flex items-center gap-1.5`}><PinOff className="h-3.5 w-3.5" /> Unpin All</button>
-          <button type="button" className={`px-3 py-1.5 rounded-lg text-xs ${t.chipBg} ${t.hoverBg} ${t.textMuted} inline-flex items-center gap-1.5`}><Users className="h-3.5 w-3.5" /> View Acknowledgment Reports</button>
+          <button type="button" onClick={handleArchiveAllExpired}
+            title={`${expiredNotices.filter(n => n.status !== 'Archived').length} expired, not yet archived`}
+            className={`px-3 py-1.5 rounded-lg text-xs ${t.chipBg} ${t.hoverBg} ${t.textMuted} inline-flex items-center gap-1.5`}>
+            <Archive className="h-3.5 w-3.5" /> Archive All Expired
+          </button>
+          <button type="button" onClick={() => setHideExpired(v => !v)}
+            className={`px-3 py-1.5 rounded-lg text-xs inline-flex items-center gap-1.5 transition-all ${
+              hideExpired ? 'bg-brand-500/15 text-brand-500' : `${t.chipBg} ${t.hoverBg} ${t.textMuted}`
+            }`}>
+            <EyeOff className="h-3.5 w-3.5" /> {hideExpired ? 'Showing Non-Expired Only' : 'Hide Expired Notices'}
+          </button>
+          <button type="button" onClick={handleUnpinAll}
+            title={`${pinnedNotices.length} currently pinned`}
+            className={`px-3 py-1.5 rounded-lg text-xs ${t.chipBg} ${t.hoverBg} ${t.textMuted} inline-flex items-center gap-1.5`}>
+            <PinOff className="h-3.5 w-3.5" /> Unpin All
+          </button>
         </div>
       </div>
 
