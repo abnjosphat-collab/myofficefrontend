@@ -326,7 +326,11 @@ export function PredictiveInput({
           id={listboxId}
           role="listbox"
           style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, zIndex: 180 }}
-          className={`rounded-xl overflow-hidden oz-slide-up ${t.glassPopover} ${t.shadow}`}
+          // pointer-events-auto — a CenterModal (Radix Dialog) sets pointer-events:none
+          // on <body> while open; this panel is portaled to document.body directly (a
+          // sibling of Dialog.Content, not a descendant), so without this it silently
+          // inherits `none` and becomes unclickable from inside any modal.
+          className={`pointer-events-auto rounded-xl overflow-hidden oz-slide-up ${t.glassPopover} ${t.shadow}`}
         >
           <div className="max-h-44 overflow-y-auto p-1">
             {list.map((s, i) => {

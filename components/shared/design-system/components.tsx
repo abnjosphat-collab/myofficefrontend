@@ -864,7 +864,7 @@ export function SelectField({
             type="button"
             tabIndex={-1}
             aria-label="Close dropdown"
-            className="fixed inset-0 z-[9998] cursor-default"
+            className="fixed inset-0 z-[9998] cursor-default pointer-events-auto"
             onClick={() => setOpen(false)}
           />
           <div
@@ -881,7 +881,14 @@ export function SelectField({
               maxWidth: 'min(92vw, 360px)',
               zIndex: 9999,
             }}
-            className={`rounded-lg overflow-hidden ${t.glassPopover} ${t.shadow} max-h-60 overflow-y-auto py-1`}
+            // pointer-events-auto: a Radix Dialog (CenterModal) sets `pointer-events: none`
+            // on <body> while open (its scroll-lock mechanism) and only re-enables it on
+            // its own Dialog.Content subtree. This panel is portaled to document.body
+            // directly — a sibling of Dialog.Content, not a descendant — so without this
+            // it silently inherits `none` and every option becomes unclickable whenever
+            // this dropdown is opened from inside a CenterModal (found live: Notice/PPE-
+            // issue forms — any SelectField inside any modal was affected, not one field).
+            className={`pointer-events-auto rounded-lg overflow-hidden ${t.glassPopover} ${t.shadow} max-h-60 overflow-y-auto py-1`}
             onScroll={onListScroll}
           >
             {scrollEdge === 'top' && <ScrollEdgeGlow edge="top" />}
@@ -1040,7 +1047,11 @@ export function Combobox({
             width: Math.max(pos.width, minWidth ?? 0),
             zIndex: 9999,
           }}
-          className={`rounded-xl overflow-hidden ${t.glassPopover} ${t.shadow} max-h-60 overflow-y-auto`}
+          // pointer-events-auto — see the identical note on SelectField's listbox in
+          // this same file: a CenterModal (Radix Dialog) sets pointer-events:none on
+          // <body> while open, which this portaled-to-body panel would otherwise
+          // silently inherit, making every option unclickable from inside a modal.
+          className={`pointer-events-auto rounded-xl overflow-hidden ${t.glassPopover} ${t.shadow} max-h-60 overflow-y-auto`}
           onMouseDown={e => e.preventDefault()}
           onScroll={onListScroll}
         >

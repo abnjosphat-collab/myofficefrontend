@@ -337,9 +337,13 @@ const SearchableDropdown = React.memo(({ value, onChange, options, placeholder =
       {open && pos && createPortal(
         <>
           <button type="button" aria-label="Close menu" onClick={() => setOpen(false)}
-            className="fixed inset-0 z-[9998] cursor-default border-0 bg-transparent p-0" />
+            className="fixed inset-0 z-[9998] cursor-default border-0 bg-transparent p-0 pointer-events-auto" />
+          {/* pointer-events-auto — a CenterModal (Radix Dialog) sets pointer-events:none
+              on <body> while open; this panel is portaled to document.body directly (a
+              sibling of Dialog.Content, not a descendant), so without this it silently
+              inherits `none` and becomes unclickable from inside any modal. */}
           <div style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, zIndex: 9999 }}
-            className={`rounded-xl overflow-hidden ${t.glass} ${t.shadow}`}>
+            className={`pointer-events-auto rounded-xl overflow-hidden ${t.glass} ${t.shadow}`}>
             <div className={`p-2 border-b ${t.border}`}>
               <div className="relative">
                 <Search className={`absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 ${t.textFaint}`} />
