@@ -12,7 +12,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/apiClient';
 import { toast } from 'sonner';
-import type { Notice, NoticeFilters, NoticeFormData } from './types';
+import type { Notice, NoticeFilters, NoticeFormData, Attachment } from './types';
 
 export async function getAllNotices(filters: Record<string, string | boolean | undefined> = {}) {
   const params = new URLSearchParams();
@@ -43,12 +43,10 @@ export async function archiveNotice(id: string) {
   return api.patch(`/api/notices/${id}`, { status: 'Archived' });
 }
 
-export interface UploadedAttachment { attachment_name: string; attachment_url: string; attachment_size: string; }
-
-export async function uploadNoticeAttachment(file: File): Promise<UploadedAttachment> {
+export async function uploadNoticeAttachment(file: File): Promise<Attachment> {
   const fd = new FormData();
   fd.append('file', file);
-  return api.post<UploadedAttachment>('/api/notices/upload-attachment', fd);
+  return api.post<Attachment>('/api/notices/upload-attachment', fd);
 }
 
 export function useNoticeboardData(filters: NoticeFilters, search: string) {

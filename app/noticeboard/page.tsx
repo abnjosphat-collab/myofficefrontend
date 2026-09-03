@@ -17,10 +17,12 @@ import {
   Calendar, Tag, Paperclip, Download, AlertCircle, CheckCircle,
   Eye, ChevronDown, ChevronUp, X, User, Building, LayoutGrid, Table as TableIcon,
   Save, Upload, Link as LinkIcon, Clock, Share2, Copy, BarChart3, Pin, PinOff, Clock4, Archive, EyeOff,
+  Video, Music, FileSpreadsheet,
   useConfirm,
 } from '@/components/shared/theme';
-import type { Notice, NoticeFormData, NoticeFilters, CalculatedStats } from './types';
+import type { Notice, NoticeFormData, NoticeFilters, CalculatedStats, Attachment } from './types';
 import { useNoticeboardData, createNotice, updateNotice, deleteNotice, togglePin, archiveNotice, uploadNoticeAttachment } from './useNoticeboardData';
+import { attachmentKind, isPreviewableImage, NOTICE_ATTACHMENT_ACCEPT } from './attachments';
 
 // ==================== CONSTANTS ====================
 
@@ -59,6 +61,29 @@ function calculateClientSideStats(notices: Notice[]): CalculatedStats {
     }
   });
   return { total_notices: notices.length, status_breakdown: statusBreakdown, priority_breakdown: priorityBreakdown, category_breakdown: categoryBreakdown, pinned_count: pinned, expired_count: expired, expiring_soon_count: expiringSoon };
+}
+
+const ATTACHMENT_KIND_ICON = { image: FileText, video: Video, audio: Music, pdf: FileText, spreadsheet: FileSpreadsheet, document: FileText, archive: Archive, file: Paperclip } as const;
+
+// A real image thumbnail for image attachments (the actual "preview" ask — a filename
+// alone doesn't tell you if it's the right poster/photo); every other kind gets a
+// type-specific icon instead of one generic paperclip, so mixed attachments (a PDF
+// next to a safety-briefing clip) are distinguishable at a glance.
+function AttachmentThumb({ attachment, size = 'sm' }: { attachment: Attachment; size?: 'sm' | 'lg' }) {
+  const t = useTheme();
+  const dim = size === 'lg' ? 'h-10 w-10' : 'h-8 w-8';
+  if (isPreviewableImage(attachment.name) && attachment.url) {
+    // Remote Supabase Storage URL, arbitrary per-notice upload — not a build-time-known
+    // local asset next/image can optimize, same reasoning as PhotoUpload.tsx's <img>s.
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={attachment.url} alt="" className={`${dim} rounded-lg object-cover shrink-0 ${t.border} border`} />;
+  }
+  const Icon = ATTACHMENT_KIND_ICON[attachmentKind(attachment.name)];
+  return (
+    <div className={`${dim} rounded-lg flex items-center justify-center shrink-0 ${t.chipBg}`}>
+      <Icon className="h-4 w-4 text-brand-500" />
+    </div>
+  );
 }
 
 // ==================== NOTICE DETAILS MODAL ====================
@@ -114,21 +139,28 @@ function NoticeDetailsModal({ isOpen, onClose, notice, onDelete, onEdit, onToggl
           {notice.updated_at && <div><p className={t.textFaint}>Last Updated</p><p className={`${TYPE_WEIGHT.medium} mt-0.5 ${t.textMuted}`}>{formatDateTime(notice.updated_at)}</p></div>}
         </div>
 
-        {(notice.attachment_name || notice.attachment_url) && (
-          <div className={`rounded-lg p-3 flex items-center justify-between gap-3 ${t.chipBg}`}>
-            <div className="flex items-center gap-2 min-w-0">
-              <Paperclip className="h-4 w-4 text-brand-500 shrink-0" />
-              <div className="min-w-0">
-                <p className={`text-sm ${TYPE_WEIGHT.medium} truncate ${t.textPrimary}`}>{notice.attachment_name || 'Unnamed file'}</p>
-                {notice.attachment_size && <p className={`text-[11px] ${t.textFaint}`}>{notice.attachment_size}</p>}
+        {notice.attachments && notice.attachments.length > 0 && (
+          <div className="space-y-2">
+            <p className={`text-xs ${TYPE_WEIGHT.semibold} ${t.textFaint} flex items-center gap-1.5`}>
+              <Paperclip className="h-3.5 w-3.5" /> Attachments ({notice.attachments.length})
+            </p>
+            {notice.attachments.map((a, i) => (
+              <div key={`${a.url}-${i}`} className={`rounded-lg p-3 flex items-center justify-between gap-3 ${t.chipBg}`}>
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <AttachmentThumb attachment={a} size="lg" />
+                  <div className="min-w-0">
+                    <p className={`text-sm ${TYPE_WEIGHT.medium} truncate ${t.textPrimary}`}>{a.name || 'Unnamed file'}</p>
+                    {a.size && <p className={`text-[11px] ${t.textFaint}`}>{a.size}</p>}
+                  </div>
+                </div>
+                {a.url && (
+                  <a href={a.url} target="_blank" rel="noopener noreferrer" title="Download attachment"
+                    className={`h-8 w-8 flex items-center justify-center rounded-lg shrink-0 ${t.hoverBg} ${t.textFaint} hover:text-brand-500`}>
+                    <Download className="h-4 w-4" />
+                  </a>
+                )}
               </div>
-            </div>
-            {notice.attachment_url && (
-              <a href={notice.attachment_url} target="_blank" rel="noopener noreferrer" title="Download attachment"
-                className={`h-8 w-8 flex items-center justify-center rounded-lg shrink-0 ${t.hoverBg} ${t.textFaint} hover:text-brand-500`}>
-                <Download className="h-4 w-4" />
-              </a>
-            )}
+            ))}
           </div>
         )}
 
@@ -181,7 +213,11 @@ function NoticeCard({ notice, onView, onEdit, onDelete }: {
           <StatusBadge color="#64748b" label={notice.category} />
           {isExpired && <StatusBadge color="#f43f5e" label="Expired" />}
           {expiresSoon && !isExpired && <StatusBadge color="#f59e0b" label="Expires Soon" />}
-          {notice.attachment_name && <Paperclip className="h-3.5 w-3.5 text-brand-500" />}
+          {!!notice.attachments?.length && (
+            <span className={`flex items-center gap-1 text-[11px] ${TYPE_WEIGHT.medium} text-brand-500`}>
+              <Paperclip className="h-3.5 w-3.5" />{notice.attachments.length > 1 ? notice.attachments.length : ''}
+            </span>
+          )}
         </div>
       </div>
       <div className={`px-4 py-2.5 border-t ${t.border} flex items-center justify-between`}>
@@ -203,7 +239,7 @@ function NoticeCard({ notice, onView, onEdit, onDelete }: {
 const blankForm = (): NoticeFormData => ({
   title: '', content: '', date: new Date().toISOString().split('T')[0], category: 'General', priority: 'Medium', status: 'Draft',
   is_pinned: false, requires_acknowledgment: false, author: '', department: 'General', expires_at: '',
-  target_audience: 'All Employees', notification_type: 'General Announcement', attachment_name: '', attachment_url: '', attachment_size: '',
+  target_audience: 'All Employees', notification_type: 'General Announcement', attachments: [],
 });
 
 function EditNoticeModal({ isOpen, onClose, notice, onSave, isLoading }: {
@@ -222,7 +258,7 @@ function EditNoticeModal({ isOpen, onClose, notice, onSave, isLoading }: {
       is_pinned: notice.is_pinned || false, author: notice.author || '', department: notice.department || 'General',
       expires_at: notice.expires_at ? notice.expires_at.split('T')[0] : '', target_audience: notice.target_audience || 'All Employees',
       notification_type: notice.notification_type || 'General Announcement', requires_acknowledgment: notice.requires_acknowledgment || false,
-      attachment_name: notice.attachment_name || '', attachment_url: notice.attachment_url || '', attachment_size: notice.attachment_size || '',
+      attachments: notice.attachments || [],
     } : blankForm());
   }, [notice, isOpen]);
 
@@ -239,24 +275,25 @@ function EditNoticeModal({ isOpen, onClose, notice, onSave, isLoading }: {
   // the finished notice had nothing to link to (looked like it worked; silently
   // didn't). Now actually uploads via /api/notices/upload-attachment (a broad,
   // still-explicit allowlist — see backend/app/uploads.py's NOTICE_ATTACHMENT_EXTS)
-  // and fills the three fields from the server's response.
+  // and appends the result to the attachments list. Multiple files, and multiple
+  // upload rounds, both just append — there's no fixed limit.
   const handleAttachmentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = ''; // allow re-picking the same file after a failed upload
-    if (!file) return;
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = ''; // allow re-picking the same file(s) after a failed upload
+    if (files.length === 0) return;
     setIsUploadingAttachment(true);
-    try {
-      const uploaded = await uploadNoticeAttachment(file);
-      setForm(p => ({ ...p, ...uploaded }));
-      toast.success('Attachment uploaded');
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to upload attachment');
-    } finally {
-      setIsUploadingAttachment(false);
+    const results = await Promise.allSettled(files.map(uploadNoticeAttachment));
+    const uploaded = results.filter((r): r is PromiseFulfilledResult<Attachment> => r.status === 'fulfilled').map(r => r.value);
+    const failCount = results.length - uploaded.length;
+    if (uploaded.length > 0) {
+      setForm(p => ({ ...p, attachments: [...p.attachments, ...uploaded] }));
+      toast.success(`Uploaded ${uploaded.length} attachment${uploaded.length !== 1 ? 's' : ''}`);
     }
+    if (failCount > 0) toast.error(`${failCount} attachment${failCount !== 1 ? 's' : ''} failed to upload`);
+    setIsUploadingAttachment(false);
   };
 
-  const clearAttachment = () => setForm(p => ({ ...p, attachment_name: '', attachment_url: '', attachment_size: '' }));
+  const removeAttachment = (index: number) => setForm(p => ({ ...p, attachments: p.attachments.filter((_, i) => i !== index) }));
 
   return (
     <CenterModal open={isOpen} onClose={onClose} title={notice ? 'Edit Notice' : 'Create New Notice'} width="max-w-2xl">
@@ -306,27 +343,36 @@ function EditNoticeModal({ isOpen, onClose, notice, onSave, isLoading }: {
           <FormField label="Expiry Date">
             <input type="date" value={form.expires_at} title="Expiry date" aria-label="Expiry date" min={form.date} onChange={e => setForm(p => ({ ...p, expires_at: e.target.value }))} className={inputCls} />
           </FormField>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <FormField label="Attachment Name"><input value={form.attachment_name} onChange={e => setForm(p => ({ ...p, attachment_name: e.target.value }))} placeholder="e.g. policy.pdf" aria-label="Attachment name" className={inputCls} /></FormField>
-            <FormField label="Attachment URL"><input value={form.attachment_url} onChange={e => setForm(p => ({ ...p, attachment_url: e.target.value }))} placeholder="https://…" aria-label="Attachment URL" className={inputCls} /></FormField>
-            <FormField label="File Size"><input value={form.attachment_size} onChange={e => setForm(p => ({ ...p, attachment_size: e.target.value }))} placeholder="e.g. 2.5 MB" aria-label="File size" className={inputCls} /></FormField>
-          </div>
-          <div className="flex items-center gap-2">
-            <label htmlFor="notice-attachment-file"
-              className={`flex items-center gap-2 text-xs ${t.textMuted} ${t.chipBg} rounded-lg px-3 py-2 w-fit ${isUploadingAttachment ? 'opacity-60 cursor-wait' : 'cursor-pointer'}`}>
-              {isUploadingAttachment ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
-              {isUploadingAttachment ? 'Uploading…' : 'Upload File'}
-              <input id="notice-attachment-file" type="file" className="hidden" disabled={isUploadingAttachment}
-                title="Upload attachment file" aria-label="Upload attachment file"
-                accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.ppt,.pptx,.txt,.rtf,.odt,.ods,.odp,.jpg,.jpeg,.png,.gif,.webp,.svg,.bmp,.tif,.tiff,.heic,.zip,.rar,.7z,.tar,.gz,.mp3,.wav,.m4a,.ogg,.aac,.mp4,.mov,.avi,.webm,.mkv,.json,.xml"
-                onChange={handleAttachmentUpload} />
-            </label>
-            {form.attachment_name && (
-              <button type="button" onClick={clearAttachment} className={`flex items-center gap-1 text-xs ${t.textFaint} hover:text-rose-500 transition-colors`}>
-                <X className="h-3 w-3" /> Remove
-              </button>
-            )}
-          </div>
+          <FormField label={`Attachments${form.attachments.length > 0 ? ` (${form.attachments.length})` : ''}`}>
+            <div className="space-y-2">
+              <label htmlFor="notice-attachment-file"
+                className={`flex items-center gap-2 text-xs ${t.textMuted} ${t.chipBg} rounded-lg px-3 py-2 w-fit ${isUploadingAttachment ? 'opacity-60 cursor-wait' : 'cursor-pointer'}`}>
+                {isUploadingAttachment ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                {isUploadingAttachment ? 'Uploading…' : 'Upload Files'}
+                <input id="notice-attachment-file" type="file" multiple className="hidden" disabled={isUploadingAttachment}
+                  title="Upload attachment files" aria-label="Upload attachment files"
+                  accept={NOTICE_ATTACHMENT_ACCEPT}
+                  onChange={handleAttachmentUpload} />
+              </label>
+              {form.attachments.length > 0 && (
+                <div className="space-y-1.5">
+                  {form.attachments.map((a, i) => (
+                    <div key={`${a.url}-${i}`} className={`flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 ${t.chipBg}`}>
+                      <AttachmentThumb attachment={a} />
+                      <div className="min-w-0 flex-1">
+                        <p className={`text-xs ${TYPE_WEIGHT.medium} truncate ${t.textPrimary}`}>{a.name}</p>
+                        {a.size && <p className={`text-[10px] ${t.textFaint}`}>{a.size}</p>}
+                      </div>
+                      <button type="button" title="Remove attachment" onClick={() => removeAttachment(i)}
+                        className={`shrink-0 h-6 w-6 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-rose-500 transition-colors`}>
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </FormField>
           <div className="flex flex-wrap gap-6">
             <label htmlFor="notice-is-pinned" className="flex items-center gap-2 cursor-pointer">
               <input id="notice-is-pinned" type="checkbox" checked={form.is_pinned} onChange={e => setForm(p => ({ ...p, is_pinned: e.target.checked }))} aria-label="Pin to top" className="h-4 w-4 accent-brand-600" />
