@@ -1,5 +1,5 @@
 // frontend/app/layout.tsx
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Montserrat, Inter, Geist_Mono, Manrope, Plus_Jakarta_Sans, Sora } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sonner";
@@ -37,6 +37,28 @@ export const metadata: Metadata = {
   description:
     "Organise your business information elegantly. Personnel, operations, safety, analytics — all in one platform designed for African businesses.",
   keywords: ["business management", "ERP", "workflow", "Africa", "Ozech"],
+  manifest: "/manifest.json",
+  icons: {
+    icon: [
+      { url: "/icons/favicon-16.png", sizes: "16x16", type: "image/png" },
+      { url: "/icons/favicon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "MyOffice",
+  },
+};
+
+// themeColor/viewport live in a separate export (not `metadata`) as of Next.js 14+ —
+// putting themeColor in `metadata` is deprecated and silently ignored.
+export const viewport: Viewport = {
+  themeColor: "#7c3aed",
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({

@@ -13,6 +13,7 @@ import { TopNavigation } from './TopNavigation';
 import { SidebarNavigation } from './SidebarNavigation';
 import { BottomBar } from './BottomBar';
 import { UsageTracker } from './UsageTracker';
+import { ServiceWorkerRegistrar } from './ServiceWorkerRegistrar';
 import { useAppShellState } from './useAppShellState';
 import { AppShellContext } from './context';
 import { PreferencesPanel } from './PreferencesPanel';
@@ -54,6 +55,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <AppShellContext.Provider value={s}>
     <UsageTracker />
+    <ServiceWorkerRegistrar />
     <div
       className="relative flex h-screen flex-col"
       style={{ background: t.light ? bgLayers.light : bgLayers.darkWash }}
