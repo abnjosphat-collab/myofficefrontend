@@ -16,6 +16,7 @@ import { UsageTracker } from './UsageTracker';
 import { useAppShellState } from './useAppShellState';
 import { AppShellContext } from './context';
 import { PreferencesPanel } from './PreferencesPanel';
+import { ActiveNoticesPopup } from './ActiveNoticesPopup';
 import { hasSeenPrefs } from '@/lib/prefs';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -129,6 +130,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </CenterModal>
 
       <PreferencesPanel open={prefsOpen} onClose={() => setPrefsOpen(false)} welcome={prefsWelcome} />
+      <ActiveNoticesPopup />
     </div>
     </AppShellContext.Provider>
   );

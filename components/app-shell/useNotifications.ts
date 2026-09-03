@@ -9,6 +9,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useDashboardData, type ActivityItem } from './useDashboardData';
 import { useOperationalAlerts } from './useOperationalAlerts';
+import { useNoticeAlerts } from './useNoticeAlerts';
 
 const SEEN_KEY = 'oz_notifSeen';
 const SEEN_EVENT = 'oz-notif-seen-changed';
@@ -39,7 +40,8 @@ export interface Notification extends ActivityItem {
 export function useNotifications() {
   const { activity, loading: activityLoading } = useDashboardData();
   const { alerts, loading: alertsLoading } = useOperationalAlerts();
-  const loading = activityLoading || alertsLoading;
+  const { alerts: noticeAlerts, loading: noticeLoading } = useNoticeAlerts();
+  const loading = activityLoading || alertsLoading || noticeLoading;
   const [seen, setSeen] = useState<string[]>([]);
 
   useEffect(() => {
@@ -57,7 +59,8 @@ export function useNotifications() {
 
   // Alerts (pending approvals, unresolved SHEQ, overdue work orders) surface first —
   // they're the ones with an actual action attached, not just "here's what happened."
-  const merged = useMemo(() => [...alerts, ...activity], [alerts, activity]);
+  // Notices come next — still worth seeing promptly, but not a personal approval queue.
+  const merged = useMemo(() => [...alerts, ...noticeAlerts, ...activity], [alerts, noticeAlerts, activity]);
 
   const notifications = useMemo<Notification[]>(
     () => merged.map(a => ({ ...a, unread: !seenSet.has(a.id) })),
@@ -66,12 +69,15 @@ export function useNotifications() {
 
   const unreadCount = useMemo(() => notifications.filter(n => n.unread).length, [notifications]);
 
-  const markAllRead = useCallback(() => {
-    const ids = merged.map(a => a.id);
+  const markRead = useCallback((ids: string[]) => {
     const combined = Array.from(new Set([...readSeen(), ...ids]));
     writeSeen(combined);
     setSeen(combined);
-  }, [merged]);
+  }, []);
 
-  return { notifications, unreadCount, loading, markAllRead };
+  const markAllRead = useCallback(() => {
+    markRead(merged.map(a => a.id));
+  }, [merged, markRead]);
+
+  return { notifications, unreadCount, loading, markAllRead, markRead };
 }
