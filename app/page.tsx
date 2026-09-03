@@ -451,7 +451,14 @@ function IntroSlides() {
   const a = ACCENT[slide.accent];
 
   return (
-    <div className={`relative flex items-center gap-3 mt-10 mb-4 px-4 py-3 rounded-xl border ${t.border}`}>
+    // flex-wrap: on a narrow viewport there isn't room for prev/text/next AND the
+    // dots+pause+hide cluster on one line. Without it, the text block's flex-1/min-w-0
+    // got squeezed by the surrounding shrink-0 controls down to almost no width at
+    // all, wrapping every single word onto its own line. min-w-[180px] on the text
+    // block (replacing min-w-0) is what actually forces the wrap to kick in — it's the
+    // floor that makes the row run out of horizontal room and drop the controls
+    // cluster to a second line instead of collapsing the text.
+    <div className={`relative flex flex-wrap items-center gap-3 mt-10 mb-4 px-4 py-3 rounded-xl border ${t.border}`}>
       <button onClick={prev} type="button" title="Previous slide" className={`shrink-0 p-1.5 rounded-full ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-colors`}>
         <ChevronLeft className="h-4 w-4" />
       </button>
@@ -463,7 +470,7 @@ function IntroSlides() {
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: -20 }}
           transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-          className="flex items-center gap-4 flex-1 min-w-0"
+          className="flex items-center gap-4 flex-1 min-w-[180px]"
         >
           <PulsingIcon className="h-9 w-9 flex items-center justify-center shrink-0">
             <slide.icon className={`h-6 w-6 ${a.icon}`} />
@@ -479,7 +486,7 @@ function IntroSlides() {
         <ChevronRight className="h-4 w-4" />
       </button>
 
-      <div className="flex items-center gap-1.5 shrink-0 pl-1">
+      <div className="flex items-center gap-1.5 shrink-0 pl-1 ml-auto">
         {INTRO_SLIDES.map((_, i) => (
           <button
             key={i}
