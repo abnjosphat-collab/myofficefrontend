@@ -179,17 +179,22 @@ const EXPORT_GROUP_OPTIONS: { value: ExportGroupBy; label: string; hint: string 
   { value: 'profession', label: 'Profession only', hint: 'One sheet per role, regardless of section' },
 ];
 
+// Section isn't a column here — every row on a given worksheet already shares one
+// (that's the grouping key itself, see RosterExportDialog below), so repeating it per
+// row would be redundant. Trimmed to the fields actually needed for a roster handout;
+// email/grade/class/supervisor/id_number live in the full flat registry export instead.
 const EXPORT_COLUMNS = [
   { header: 'Employee ID', key: 'employee_id', width: 14 },
   { header: 'First Name', key: 'first_name', width: 18 },
   { header: 'Last Name', key: 'last_name', width: 18 },
   { header: 'Designation', key: 'designation', width: 24 },
   { header: 'Department', key: 'department', width: 20 },
-  { header: 'Section', key: 'section', width: 18 },
+  { header: 'Phone', key: 'phone', width: 16 },
   { header: 'Employment Type', key: 'employment_type', width: 16 },
+  { header: 'Start Date', key: 'date_of_engagement', width: 14 },
 ];
-const EXPORT_PDF_HEAD = ['Employee ID', 'First Name', 'Last Name', 'Designation', 'Department', 'Section', 'Employment Type'];
-const exportPdfRow = (e: Employee) => [e.employee_id, e.first_name, e.last_name, e.designation || '', e.department || '', e.section || '', e.employment_type || ''];
+const EXPORT_PDF_HEAD = ['Employee ID', 'First Name', 'Last Name', 'Designation', 'Department', 'Phone', 'Employment Type', 'Start Date'];
+const exportPdfRow = (e: Employee) => [e.employee_id, e.first_name, e.last_name, e.designation || '', e.department || '', e.phone || '', e.employment_type || '', e.date_of_engagement ? fmtDate(e.date_of_engagement) : ''];
 
 function RosterExportDialog({ employees, onClose }: { employees: Employee[]; onClose: () => void }) {
   const t = useTheme();
@@ -210,6 +215,11 @@ function RosterExportDialog({ employees, onClose }: { employees: Employee[]; onC
 
   const fileStub = `Personnel_By_${groupBy === 'section_profession' ? 'Section_and_Profession' : groupBy[0].toUpperCase() + groupBy.slice(1)}`;
 
+  // ws.addRow(employee) writes raw field values as-is (no per-column formatter, unlike
+  // DownloadButton's `format` callback) — this formats the one field that needs it
+  // (date_of_engagement is a raw ISO string otherwise) before handing rows to ExcelJS.
+  const toExportRow = (e: Employee) => ({ ...e, date_of_engagement: e.date_of_engagement ? fmtDate(e.date_of_engagement) : '' });
+
   const generateExcel = async () => {
     const ExcelJS = (await import('exceljs')).default;
     const { saveAs } = await import('file-saver');
@@ -227,7 +237,7 @@ function RosterExportDialog({ employees, onClose }: { employees: Employee[]; onC
           ws.mergeCells(labelRow.number, 1, labelRow.number, EXPORT_COLUMNS.length);
           labelRow.getCell(1).font = { bold: true, italic: true, size: 10, color: { argb: EXPORT_BRAND_ARGB } };
           labelRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8EEF3' } };
-          sub.employees.forEach(e => ws.addRow(e as any));
+          sub.employees.forEach(e => ws.addRow(toExportRow(e) as any));
         }
       }
     } else {
@@ -235,7 +245,7 @@ function RosterExportDialog({ employees, onClose }: { employees: Employee[]; onC
         const ws = wb.addWorksheet(g.label.slice(0, 31));
         ws.columns = EXPORT_COLUMNS;
         styleExcelHeaderRow(ws.getRow(1));
-        g.rows.forEach(e => ws.addRow(e as any));
+        g.rows.forEach(e => ws.addRow(toExportRow(e) as any));
       }
     }
 
@@ -937,22 +947,25 @@ function EmployeesPageContent() {
   };
   const clearFilters = () => { setSearch(''); setClassFilter('all'); setEtypeFilter('all'); setSectionFilter('all'); setDeptFilter('all'); setRoleFilter('all'); };
 
+  // Trimmed to the core roster fields (was 14 columns — email/grade/class/supervisor/
+  // id_number/section dropped) and rows sorted by section so the sheet reads grouped
+  // even though DownloadButton itself is a flat, single-sheet exporter — the fuller
+  // bold-multi-sheet-by-section treatment lives in RosterExportDialog (the "Download
+  // organized by section" button below), which already existed.
   const registryExportColumns: DLColumn[] = [
     { key: 'employee_id', label: 'Employee ID', width: 14 },
     { key: 'first_name', label: 'First Name', width: 18 },
     { key: 'last_name', label: 'Last Name', width: 18 },
-    { key: 'employment_type', label: 'Type', width: 10 },
     { key: 'designation', label: 'Designation', width: 24 },
     { key: 'department', label: 'Department', width: 20 },
-    { key: 'section', label: 'Section', width: 18 },
-    { key: 'grade', label: 'Grade', width: 10 },
-    { key: 'employee_class', label: 'Class', width: 14 },
-    { key: 'email', label: 'Email', width: 28 },
     { key: 'phone', label: 'Phone', width: 16 },
-    { key: 'date_of_engagement', label: 'Date of Engagement', width: 18, format: v => fmtDate(v as string) },
-    { key: 'supervisor', label: 'Supervisor', width: 20 },
-    { key: 'id_number', label: 'ID Number', width: 16 },
+    { key: 'employment_type', label: 'Employment Type', width: 16 },
+    { key: 'date_of_engagement', label: 'Start Date', width: 14, format: v => fmtDate(v as string) },
   ];
+  const registryExportRows = useMemo(
+    () => [...employees].sort((a, b) => (a.section || '').localeCompare(b.section || '') || a.last_name.localeCompare(b.last_name)),
+    [employees],
+  );
 
   return (
     <main className="max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
@@ -970,7 +983,7 @@ function EmployeesPageContent() {
             </button>
             {employees.length > 0 && (
               <DownloadButton
-                data={employees as unknown as Record<string, unknown>[]}
+                data={registryExportRows as unknown as Record<string, unknown>[]}
                 columns={registryExportColumns}
                 filename={exportFilename('Personnel_Registry')}
                 title="Personnel Registry"

@@ -95,15 +95,25 @@ export function DownloadButton({
       }
 
       // ── Column definitions ───────────────────────────────────────────────
+      // Deliberately no `header` property here. ExcelJS's `worksheet.columns` setter
+      // always writes each column's `header` text into row 1, unconditionally — a hard
+      // ExcelJS convention, not configurable. When a title/subtitle exists (row 1 is
+      // already "Personnel Registry" etc., merged across every column), that write
+      // clobbers it, and because the row is merged it also silently collapses every
+      // column's distinct header text down to whichever one ExcelJS wrote last — the
+      // downloaded file's real header row showed one column's label repeated across
+      // every column, and the title was gone. `key`/`width` alone are unaffected by
+      // this and are all `ws.addRow(valuesObject)` below actually needs; the header
+      // row's text is written explicitly, at the real headerRowNum, below instead.
       ws.columns = columns.map(c => ({
-        header: c.label,
-        key:    c.key,
-        width:  c.width ?? Math.max(c.label.length + 6, 18),
+        key:   c.key,
+        width: c.width ?? Math.max(c.label.length + 6, 18),
       }));
 
-      // ── Header row styling ───────────────────────────────────────────────
+      // ── Header row (text + styling) ───────────────────────────────────────
       const hdr = ws.getRow(headerRowNum);
       hdr.height = 24;
+      columns.forEach((c, i) => { hdr.getCell(i + 1).value = c.label; });
       hdr.eachCell(cell => {
         cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: EXPORT_BRAND_ARGB } };
         cell.font      = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11, name: 'Calibri' };
