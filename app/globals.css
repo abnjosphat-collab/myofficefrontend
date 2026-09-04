@@ -25,11 +25,14 @@
    at all, body copy falls back to the system font while only <h1>–<h6> pick up a
    webfont, making headings and everything else look like mismatched typefaces (that
    was the original bug). `--font-active` is set by FontStyleProvider (a user-facing
-   Settings > Typography preference, default "System" — the look already in use
-   app-wide before that fix) so the whole app always shares ONE body typeface, whichever
-   one is selected. Headings stay Montserrat via the h1–h6 rule further down regardless. */
+   Settings > Typography preference, default "Manrope" — see tokens.tsx's DEFAULT_FONT)
+   so the whole app always shares ONE body typeface, whichever one is selected. The
+   fallback here (var(--font-manrope)) matches that default so first paint — before
+   FontStyleProvider's effect runs — already renders Manrope instead of flashing the
+   system stack and then swapping. Headings stay Montserrat via the h1–h6 rule further
+   down regardless. */
 body {
-  font-family: var(--font-active, ui-sans-serif, system-ui, -apple-system, sans-serif);
+  font-family: var(--font-active, var(--font-manrope), ui-sans-serif, system-ui, -apple-system, sans-serif);
 }
 
 @theme inline {

@@ -121,8 +121,14 @@ export const FONT_OPTIONS: { id: FontChoice; label: string; cssVar: string | nul
   { id: 'sora',   label: 'Sora',        cssVar: 'var(--font-sora)', sample: 'var(--font-sora)' },
 ];
 
+// Manrope is the app-wide default (changed from 'system' — see globals.css's body
+// rule, whose CSS fallback was updated to match so first paint, before this
+// provider's effect runs, already renders Manrope instead of flashing system font
+// then swapping). Still fully user-overridable via the Settings > Typography switcher.
+const DEFAULT_FONT: FontChoice = 'manrope';
+
 type FontStyleContextValue = { font: FontChoice; setFont: (f: FontChoice) => void };
-const FontStyleContext = createContext<FontStyleContextValue>({ font: 'system', setFont: () => {} });
+const FontStyleContext = createContext<FontStyleContextValue>({ font: DEFAULT_FONT, setFont: () => {} });
 export const useFontStyle = () => useContext(FontStyleContext);
 
 /** App-wide body-typeface provider — mount once near the root (components/Providers.tsx).
@@ -130,7 +136,7 @@ export const useFontStyle = () => useContext(FontStyleContext);
  *  is instant and every page shares exactly one typeface at a time (the thing that was
  *  broken before: some elements had an explicit font, most silently fell back). */
 export function FontStyleProvider({ children }: { children: ReactNode }) {
-  const [font, setFontState] = useState<FontChoice>('system');
+  const [font, setFontState] = useState<FontChoice>(DEFAULT_FONT);
   useEffect(() => {
     try {
       const saved = localStorage.getItem(FONT_KEY) as FontChoice | null;
