@@ -10,7 +10,7 @@ import {
   Users, UserRound,
   Award, ChevronRight,
   Shirt, ChevronsUp, ChevronsDown, X,
-  BoxingGlove, Goggles, Boot, Seatbelt, FaceMask, Hoodie, ShirtFolded, Pants, Belt, Umbrella,
+  BoxingGlove, Goggles, Boot, Seatbelt, FaceMask, Hoodie, ShirtFolded, Pants, Belt, Umbrella, Link,
   CalendarRange, ShoppingCart, ClipboardList,
 } from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
@@ -49,6 +49,7 @@ const PPE_TYPES: Record<string, PPETypeInfo> = {
   gumboots:      { name: 'Safety Gum Boots',     shortName: 'GumBoots',   color: '#a78bfa', icon: Boot,        bgColor: 'bg-violet-500/15',  textColor: 'text-violet-300',  borderColor: 'border-violet-500/25',  description: 'Steel-toe foot protection' },
   safety_shoes:  { name: 'Safety Shoes',         shortName: 'Shoes',      color: '#38bdf8', icon: Boot,        bgColor: 'bg-sky-500/15',     textColor: 'text-sky-300',     borderColor: 'border-sky-500/25',     description: 'Protective footwear for various work environments' },
   harness:       { name: 'Safety Harness',       shortName: 'Harness',    color: '#34d399', icon: Seatbelt,    bgColor: 'bg-emerald-500/15', textColor: 'text-emerald-300', borderColor: 'border-emerald-500/25', description: 'Fall protection for heights and shafts' },
+  safety_chain_belt: { name: 'Safety Chain & Belt', shortName: 'Chain & Belt', color: '#fb923c', icon: Link, bgColor: 'bg-orange-500/15', textColor: 'text-orange-300', borderColor: 'border-orange-500/25', description: 'Chain and belt for securing workers underground' },
   respirator:    { name: 'Respirator',           shortName: 'Respirator', color: '#2dd4bf', icon: FaceMask,    bgColor: 'bg-teal-500/15',    textColor: 'text-teal-300',    borderColor: 'border-teal-500/25',    description: 'Respiratory protection from dust and chemicals' },
   Cap_lamp_belt: { name: 'Cap Lamp Belt',        shortName: 'Lamp Belt',  color: '#f472b6', icon: Belt,        bgColor: 'bg-pink-500/15',    textColor: 'text-pink-300',    borderColor: 'border-pink-500/25',    description: 'Lighting for underground operations' },
   worksuit:      { name: 'Protective Work Suit', shortName: 'Work Suit',  color: '#4169E1', icon: Hoodie,      bgColor: 'bg-orange-500/15',  textColor: 'text-orange-300',  borderColor: 'border-orange-500/25',  description: 'Full body protection for various work environments' },
