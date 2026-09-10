@@ -16,7 +16,7 @@ import {
   ClipboardList, ClipboardPlus, Plus, User, Gauge,
   Sun, Receipt, Settings, Award, Truck, Radar,
   Droplet, FileCheck, LayoutDashboard,
-  ListTodo,
+  ListTodo, BookOpen, FlaskConical,
 } from '@/components/shared/theme';
 import type { Accent } from '@/components/shared/theme';
 import type { UserRole } from '@/lib/supabase';
@@ -62,9 +62,11 @@ export const CATEGORIES: Category[] = [
     icon: Building, accent: 'blue', growth: '+12%',
     modules: [
       { icon: Users,    title: 'Personnel',  description: 'Employee profiles & team structure', href: '/employees',  tags: ['HR', 'People'], badge: '12', featured: true, metrics: [{ label: 'Active', value: '48' }, { label: 'Departments', value: '6' }] },
+      { icon: FlaskConical, title: 'Personnel Preview', description: 'Polished UI sandbox — compare before rollout', href: '/employees-preview', tags: ['HR', 'Preview'], badge: 'Preview' },
       { icon: ToolCase, title: 'Equipment', description: 'Track equipment across your site',  href: '/equipment',  tags: ['Equipment'], badge: '48', metrics: [{ label: 'Total', value: '234' }, { label: 'In Use', value: '189' }] },
       { icon: Package,  title: 'Inventory',  description: 'Manage stock levels & reorder points', href: '/inventory',  tags: ['Stock'], badge: '156', metrics: [{ label: 'Items', value: '1.2k' }, { label: 'Low Stock', value: '8' }] },
       { icon: Folder,   title: 'Documents',  description: 'Centralised document repository', href: '/documents',  tags: ['Files'], badge: '234', metrics: [{ label: 'Total', value: '2.4k' }, { label: 'Recent', value: '34' }] },
+      { icon: BookOpen, title: 'SOP Library', description: 'Living, versioned standard operating procedures', href: '/sop-library', tags: ['SOPs', 'Governance'] },
       { icon: PackageMinus, title: 'Stock Issues', description: 'Items issued to personnel', href: '/issues', tags: ['Inventory'], badge: '19' },
       { icon: Receipt,      title: 'Quotations',   description: 'Generate customer quotations', href: '/quotations', tags: ['Finance'] },
       { icon: Truck,        title: 'Drivers',      description: 'Authorised driver register', href: '/drivers', tags: ['Fleet'] },
@@ -108,6 +110,7 @@ export const CATEGORIES: Category[] = [
     icon: Clock4, accent: 'indigo', growth: '+5%',
     modules: [
       { icon: Clock4,       title: 'Timesheets', description: 'Daily attendance records',  href: '/timesheets', tags: ['Attendance'], badge: '42', metrics: [{ label: 'Today', value: '38' }, { label: 'On Leave', value: '4' }] },
+      { icon: HardHat,      title: 'Artisan Timesheets', description: 'Formal monthly daily timesheets for artisans', href: '/artisan-timesheets', tags: ['Attendance', 'Artisans', 'HR'] },
       { icon: Calculator,   title: 'Overtime',   description: 'Overtime requests & approvals', href: '/overtime',   tags: ['Payroll'], badge: '6', metrics: [{ label: 'Pending', value: '3' }, { label: 'Approved', value: '12' }] },
       { icon: CalendarDays, title: 'Leaves',     description: 'Leave applications & balances', href: '/leaves',     tags: ['HR'], badge: '18', metrics: [{ label: 'Pending', value: '5' }, { label: 'Available', value: '87' }] },
       { icon: Sun,          title: 'Shifts',     description: 'Shift cycles & standby rosters', href: '/shifts',     tags: ['Scheduling'], badge: '9' },

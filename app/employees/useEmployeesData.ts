@@ -9,19 +9,61 @@ import { api } from '@/lib/apiClient';
 import { API_BASE } from '@/lib/config';
 import { toast } from 'sonner';
 import { invalidateEmployeesCache } from '@/hooks/useLookups';
+import { normalizeDesignation, normalizeEmployeeRoleFields, resolveDriverLicense } from '@/lib/employeeCatalog';
+import { normalizePhoneField } from '@/lib/phone';
+import {
+  normalizedEmployeeFields, type NormalizationPlan,
+} from './calcNormalizeRoster';
 import type { Employee, EmployeeFormData } from './types';
 
 const EMPLOYEES_API = `${API_BASE}/api/employees`;
 
+export interface BulkNormalizeResult {
+  succeeded: number;
+  failed: number;
+  errors?: string[];
+}
+
 export async function loadEmployees() { return api.get<Employee[]>(EMPLOYEES_API); }
 export async function saveEmployee(data: EmployeeFormData, id?: number) {
-  // Every other page's employee picker (leaves, overtime, maintenance, ...) shares
-  // one cached fetch (hooks/useLookups.ts) that never expires on its own — without
-  // this, a phone/section/name edit here stays invisible everywhere else until a
-  // full page reload.
-  const saved = id ? await api.put<Employee>(`${EMPLOYEES_API}/${id}`, data) : await api.post<Employee>(EMPLOYEES_API, data);
+  const role = normalizeEmployeeRoleFields(data.designation, data.section, data.first_name, data.last_name);
+  const payload = {
+    ...data,
+    designation: role.designation,
+    section: role.section,
+    phone: normalizePhoneField(data.phone),
+    drivers_license_class: resolveDriverLicense(data.drivers_license_class),
+    date_of_engagement: data.date_of_engagement?.trim() ? data.date_of_engagement : null,
+  };
+  const saved = id ? await api.put<Employee>(`${EMPLOYEES_API}/${id}`, payload) : await api.post<Employee>(EMPLOYEES_API, payload);
   invalidateEmployeesCache();
   return saved;
+}
+
+export async function bulkNormalizeEmployees(
+  plan: NormalizationPlan,
+  employees: Employee[],
+): Promise<BulkNormalizeResult> {
+  const affectedIds = new Set(plan.items.map(i => i.id));
+  const updates = employees
+    .filter(e => affectedIds.has(e.id))
+    .map(e => {
+      const norm = normalizedEmployeeFields(e);
+      return {
+        id: e.id,
+        designation: norm.designation,
+        section: norm.section,
+        phone: norm.phone,
+        archived: norm.archived,
+      };
+    });
+
+  const result = await api.post<BulkNormalizeResult>(
+    `${EMPLOYEES_API}/bulk-normalize`,
+    { updates },
+  );
+  invalidateEmployeesCache();
+  return result;
 }
 export async function removeEmployee(id: number) {
   await api.delete(`${EMPLOYEES_API}/${id}`);

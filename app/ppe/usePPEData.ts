@@ -5,9 +5,11 @@
 // separate useState/useEffect pairs itself.
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/apiClient';
 import { toast } from 'sonner';
+import { sanitizeDisplayName } from './calcPPE';
+import { normalizeDesignation } from '@/lib/employeeCatalog';
 import type { EmployeeRow, FormState, PPERecord, PPEStats } from './types';
 
 // PPE replacement matrix — default months-until-expiry per item type, calculated from the
@@ -29,8 +31,8 @@ export const fetchAllEmployees = async (): Promise<EmployeeRow[]> => {
     const data = await api.get<any[]>('/api/employees/');
     return data.map(e => ({
       employee_id: e.employee_id,
-      employee_name: `${e.first_name || ''} ${e.last_name || ''}`.trim(),
-      position: e.designation || '',
+      employee_name: sanitizeDisplayName(`${e.first_name || ''} ${e.last_name || ''}`.trim()),
+      position: normalizeDesignation(e.designation) || e.designation || '',
       department: e.department || '',
       section: e.section || '',
     }));
@@ -65,12 +67,16 @@ export function usePPEData() {
   const [recordsError, setRecordsError] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const hasLoadedOnce = useRef(false);
   // Effective PPE replacement matrix (company defaults, overridden by the backend once
   // the ppe_matrix table exists). Drives expiry auto-calc + the Recalculate control.
   const [matrix, setMatrix] = useState<Record<string, number>>(PPE_MATRIX_DEFAULTS);
 
   const load = useCallback(async (quiet = false) => {
-    if (!quiet) setLoading(true);
+    // Only block the Records panel with a full spinner on the very first load.
+    // Quiet refreshes (and later reloads) keep existing rows visible so tabs
+    // don't flash blank while data is re-fetched.
+    if (!quiet && !hasLoadedOnce.current) setLoading(true);
     setRefreshing(true);
     try {
       const [rec, st, emp] = await Promise.all([fetchPPERecords(), fetchPPEStats(), fetchAllEmployees()]);
@@ -80,6 +86,7 @@ export function usePPEData() {
       setStatsError(st === null);
       if (st === null) toast.error('Failed to load PPE stats');
       if (emp.length > 0) setApiEmployees(emp);
+      hasLoadedOnce.current = true;
     } catch (err: any) {
       // fetchPPERecords threw, so Promise.all never reached setRecords — records
       // stays whatever it was (the [] default on first load, or the last-good list

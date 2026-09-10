@@ -22,10 +22,13 @@ import {
 } from '@/components/shared/theme';
 import type { Leave, Stats } from './types';
 import {
-  calcDays, createLeave, deleteLeave, updateLeave, updateLeaveStatus, useLeavesData,
+  createLeave, deleteLeave, updateLeave, updateLeaveStatus, useLeavesData,
 } from './useLeavesData';
+import { calcLeaveDays, calcCalendarLeaveDays } from '@/lib/calcLeaveDays';
 import { EmployeeAutocomplete } from '@/components/shared/EmployeeAutocomplete';
 import type { EmployeeLookup } from '@/hooks/useLookups';
+import { primaryContactPhone, hasContactPhone } from '@/lib/phone';
+import { normalizeDesignation } from '@/lib/employeeCatalog';
 
 const COMMON_REASONS = [
   "Annual leave", "Sick leave", "Family emergency", "Medical appointment",
@@ -49,6 +52,23 @@ const LEAVE_TYPES: Record<string, LeaveType> = {
   study: { name: 'Study Leave', shortName: 'Study', color: '#059669', icon: GraduationCap, description: 'Professional development and education' },
   lieu: { name: 'Leave in Lieu of Overtime', shortName: 'In Lieu', color: '#0891b2', icon: Clock, description: 'Time off earned from worked overtime' },
 };
+
+/** Default reason text when the user has not typed a custom reason yet. */
+function defaultReasonForLeaveType(leaveType: string): string {
+  switch (leaveType) {
+    case 'sick': return 'Sick leave';
+    case 'emergency': return 'Family emergency';
+    case 'compassionate': return 'Bereavement';
+    case 'maternity': return 'Maternity leave';
+    case 'study': return 'Study leave';
+    case 'lieu': return 'Leave in lieu of overtime';
+    default: return 'Annual leave';
+  }
+}
+
+const DEFAULT_LEAVE_REASONS = new Set(
+  Object.keys(LEAVE_TYPES).map(key => defaultReasonForLeaveType(key).toLowerCase()),
+);
 
 // ---------- Utility Functions ----------
 // A null/undefined `days` (a leave record missing total_days — legacy data, or one
@@ -151,10 +171,12 @@ function LeaveApplicationForm({ onClose, onSuccess, editData, leaves }: { onClos
       leave_type: editData.leave_type || 'annual', start_date: editData.start_date || '', end_date: editData.end_date || '',
       reason: editData.reason || '', contact_number: editData.contact_number || '', emergency_contact: editData.emergency_contact || '',
       handover_to: editData.handover_to || '', department: editData.department || '', manager_name: editData.manager_name || '',
+      exclude_weekends_holidays: editData.exclude_weekends_holidays ?? false,
       applied_date: editData.applied_date,
     } : {
       employee_id: '', employee_name: '', position: '', leave_type: 'annual', start_date: '', end_date: '',
-      reason: 'Annual leave', contact_number: '', emergency_contact: '', handover_to: '', department: '', manager_name: '',
+      reason: defaultReasonForLeaveType('annual'), contact_number: '', emergency_contact: '', handover_to: '', department: '', manager_name: '',
+      exclude_weekends_holidays: true,
     }
   );
   const [loading, setLoading] = useState(false);
@@ -202,14 +224,23 @@ function LeaveApplicationForm({ onClose, onSuccess, editData, leaves }: { onClos
     if (!formData.start_date) errors.start_date = 'Start date is required';
     if (!formData.end_date) errors.end_date = 'End date is required';
     if (!formData.reason?.trim()) errors.reason = 'Reason is required';
-    if (!formData.contact_number?.trim()) errors.contact_number = 'Contact number is required';
+    if (!hasContactPhone(formData.contact_number)) errors.contact_number = 'Contact number is required';
     if (formData.start_date && formData.end_date && new Date(formData.end_date) < new Date(formData.start_date)) errors.end_date = 'End date must be after start date';
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
   };
 
   const handleChange = (field: keyof Leave, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData(prev => {
+      const next = { ...prev, [field]: value };
+      if (field === 'leave_type') {
+        const currentReason = prev.reason?.trim() ?? '';
+        if (!currentReason || DEFAULT_LEAVE_REASONS.has(currentReason.toLowerCase())) {
+          next.reason = defaultReasonForLeaveType(value);
+        }
+      }
+      return next;
+    });
     if (validationErrors[field]) setValidationErrors(prev => { const rest = { ...prev }; delete rest[field]; return rest; });
   };
 
@@ -225,7 +256,8 @@ function LeaveApplicationForm({ onClose, onSuccess, editData, leaves }: { onClos
     const name = employee.name || employee.full_name || `${employee.first_name || ''} ${employee.last_name || ''}`.trim() || `Employee ${employee.id}`;
     setFormData(prev => ({
       ...prev, employee_id: employee.employee_id || String(employee.id), employee_name: name,
-      position: employee.designation || '', contact_number: employee.phone || '',
+      position: normalizeDesignation(employee.designation as string) || employee.designation || '',
+      contact_number: primaryContactPhone(employee.phone as string) || '',
       manager_name: (employee.supervisor as string) || (employee.manager_name as string) || '',
       department: employee.department || '',
     }));
@@ -236,14 +268,23 @@ function LeaveApplicationForm({ onClose, onSuccess, editData, leaves }: { onClos
     if (!validateForm()) return;
     setLoading(true); setError('');
     try {
-      const result = editData?.id ? await updateLeave(editData.id, formData) : await createLeave(formData);
+      const payload = {
+        ...formData,
+        contact_number: primaryContactPhone(formData.contact_number) || formData.contact_number?.trim() || '',
+        position: normalizeDesignation(formData.position) || formData.position || '',
+      };
+      const result = editData?.id ? await updateLeave(editData.id, payload) : await createLeave(payload);
       onSuccess(editData ? 'Leave application updated successfully!' : 'Leave application submitted successfully!', result);
       onClose();
     } catch (err) { setError((err as Error).message || 'An unexpected error occurred'); }
     finally { setLoading(false); }
   };
 
-  const calculatedDays = calcDays(formData.start_date, formData.end_date);
+  const excludeWeekends = formData.exclude_weekends_holidays ?? false;
+  const calculatedDays = calcLeaveDays(formData.start_date, formData.end_date, {
+    excludeWeekendsAndHolidays: excludeWeekends,
+  });
+  const calendarDays = calcCalendarLeaveDays(formData.start_date, formData.end_date);
   const selectedLeaveType = LEAVE_TYPES[formData.leave_type || 'annual'];
 
   const inputCls = `w-full h-9 rounded-lg px-3 text-sm outline-none transition-colors ${t.inputBg}`;
@@ -300,13 +341,36 @@ function LeaveApplicationForm({ onClose, onSuccess, editData, leaves }: { onClos
           <FormField label="End Date" required>
             <input type="date" title="End date" aria-label="End date" required value={formData.end_date || ''} onChange={e => handleChange('end_date', e.target.value)} min={formData.start_date} className={inputCls} />
             {validationErrors.end_date && <p className={`${accentText('rose', t.light)} text-xs mt-1`}>{validationErrors.end_date}</p>}
+            <p className={`text-[11px] mt-1 ${t.textFaint}`}>Last day on leave (not your return-to-work date).</p>
           </FormField>
         </div>
 
+        <label className={`flex items-start gap-3 rounded-xl px-3.5 py-3 cursor-pointer ${t.chipBg}`}>
+          <input
+            type="checkbox"
+            checked={excludeWeekends}
+            onChange={e => setFormData(prev => ({ ...prev, exclude_weekends_holidays: e.target.checked }))}
+            className="mt-0.5 h-4 w-4 rounded border-gray-400 text-brand-500 focus:ring-brand-500"
+          />
+          <span>
+            <span className={`block text-sm ${TYPE_WEIGHT.medium} ${t.textPrimary}`}>Count working days only</span>
+            <span className={`block text-xs mt-0.5 ${t.textFaint}`}>Exclude weekends and Zimbabwe public holidays (e.g. Fri–Mon = 2 days).</span>
+          </span>
+        </label>
+
         {calculatedDays > 0 && (
           <div className={`rounded-xl ${t.chipBg} px-4 py-3 flex items-center justify-between`}>
-            <span className={`text-sm ${t.textFaint}`}>Total leave days</span>
-            <span className={`text-2xl ${TYPE_WEIGHT.bold} ${t.textPrimary}`}>{calculatedDays}<span className={`text-sm ml-1 ${t.textFaint}`}>days</span></span>
+            <span className={`text-sm ${t.textFaint}`}>
+              {excludeWeekends ? 'Working leave days' : 'Total leave days'}
+            </span>
+            <div className="text-right">
+              <span className={`text-2xl ${TYPE_WEIGHT.bold} ${t.textPrimary}`}>
+                {calculatedDays}<span className={`text-sm ml-1 ${t.textFaint}`}>days</span>
+              </span>
+              {excludeWeekends && calendarDays !== calculatedDays && (
+                <p className={`text-[11px] mt-0.5 ${t.textFaint}`}>{calendarDays} calendar days in range</p>
+              )}
+            </div>
           </div>
         )}
 
@@ -327,8 +391,9 @@ function LeaveApplicationForm({ onClose, onSuccess, editData, leaves }: { onClos
         )}
 
         <FormField label="Contact Number During Leave" required>
-          <input type="text" value={formData.contact_number || ''} onChange={e => handleChange('contact_number', e.target.value)} placeholder="Phone number to reach you" aria-label="Contact number during leave" className={inputCls} />
+          <input type="text" value={formData.contact_number || ''} onChange={e => handleChange('contact_number', e.target.value)} placeholder="Primary phone number to reach you" aria-label="Contact number during leave" className={inputCls} />
           {validationErrors.contact_number && <p className={`${accentText('rose', t.light)} text-xs mt-1`}>{validationErrors.contact_number}</p>}
+          <p className={`text-[11px] mt-1 ${t.textFaint}`}>If the employee has multiple numbers on file, only the primary number is used.</p>
         </FormField>
 
         <div className="relative">
@@ -433,6 +498,7 @@ function LeaveDetailsModal({ leave, onClose, onEdit, onDelete, onStatusUpdate }:
             <div className="px-3.5 py-3 grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-2.5">
               <IF label="Type" value={selectedLeaveType.name} /><IF label="Start Date" value={fmtDate(leave.start_date)} /><IF label="End Date" value={fmtDate(leave.end_date)} />
               <div><div className={`text-[10px] uppercase tracking-wide mb-0.5 ${t.textFaint}`}>Duration</div><div className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>{formatDays(leave.total_days)}</div></div>
+              <IF label="Day Count" value={leave.exclude_weekends_holidays ? 'Working days (excl. weekends & holidays)' : 'Calendar days'} />
               <IF label="Applied" value={fmtDateTime(leave.applied_date)} />
               {leave.handover_to && <IF label="Handover To" value={leave.handover_to} />}
             </div>

@@ -232,7 +232,10 @@ export function TopNavigation({
           </button>
           <div className="relative">
             <button
-              onClick={() => { setNotifOpen(v => { const next = !v; if (next) markAllRead(); return next; }); }}
+              onClick={() => {
+                if (!notifOpen) markAllRead();
+                setNotifOpen(v => !v);
+              }}
               className={`relative h-11 w-11 flex items-center justify-center ${t.hoverBg} ${t.textMuted}`}
               type="button" title="Notifications"
               aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'}

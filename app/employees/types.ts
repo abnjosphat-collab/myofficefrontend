@@ -29,6 +29,8 @@ export interface Employee {
   awards_recognition?: string[];
   other_positions?: string[];
   previous_employer?: string;
+  /** Hidden from the active roster — used for roles like Hoist Driver that may return later. */
+  archived?: boolean;
 }
 
 export interface EmployeeFormData {
@@ -53,9 +55,10 @@ export interface EmployeeFormData {
   awards_recognition: string[];
   other_positions: string[];
   previous_employer: string;
+  archived: boolean;
 }
 
-export type SortField = 'first_name' | 'employee_id' | 'designation' | 'department' | 'date_of_engagement';
+export type SortField = 'first_name' | 'employee_id' | 'designation' | 'section' | 'date_of_engagement';
 export type SortDir = 'asc' | 'desc';
 
 /** Section → profession/designation grouping — shared by the on-page accordion

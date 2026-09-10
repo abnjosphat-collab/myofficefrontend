@@ -7,7 +7,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import type { OrderListEntry } from './calcPPE';
+import { orderEntryFulfilled, type OrderListEntry } from './calcPPE';
 
 const STORAGE_KEY = 'oz_ppe_order_list';
 
@@ -17,6 +17,10 @@ function load(): OrderListEntry[] {
     const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]');
     return Array.isArray(raw) ? raw : [];
   } catch { return []; }
+}
+
+function persistEntries(next: OrderListEntry[]) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch { /* storage unavailable */ }
 }
 
 export function useOrderList() {
@@ -29,7 +33,7 @@ export function useOrderList() {
 
   const persist = useCallback((next: OrderListEntry[]) => {
     setEntries(next);
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch { /* storage unavailable — list still works for this session */ }
+    persistEntries(next);
   }, []);
 
   // record_id uniqueness is enforced here, not in groupOrderList — clicking "Add to
@@ -38,20 +42,43 @@ export function useOrderList() {
   const addMany = useCallback((toAdd: OrderListEntry[]) => {
     setEntries(prev => {
       const existingIds = new Set(prev.map(e => e.record_id));
-      const fresh = toAdd.filter(e => !existingIds.has(e.record_id));
+      const stamped = toAdd.map(e => ({ ...e, added_at: e.added_at ?? new Date().toISOString() }));
+      const fresh = stamped.filter(e => !existingIds.has(e.record_id));
       const next = [...prev, ...fresh];
-      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch { /* storage unavailable */ }
+      persistEntries(next);
       return next;
     });
   }, []);
 
   const remove = useCallback((recordId: string) => {
-    persist(entries.filter(e => e.record_id !== recordId));
-  }, [entries, persist]);
+    setEntries(prev => {
+      const next = prev.filter(e => e.record_id !== recordId);
+      persistEntries(next);
+      return next;
+    });
+  }, []);
+
+  const removeMany = useCallback((recordIds: string[]) => {
+    const ids = new Set(recordIds);
+    setEntries(prev => {
+      const next = prev.filter(e => !ids.has(e.record_id));
+      persistEntries(next);
+      return next;
+    });
+  }, []);
+
+  /** Drop order lines fulfilled by a newly issued item (same employee + type + size). */
+  const removeFulfilled = useCallback((employeeId: string, ppeType: string, size: string) => {
+    setEntries(prev => {
+      const next = prev.filter(e => !orderEntryFulfilled(e, employeeId, ppeType, size));
+      persistEntries(next);
+      return next;
+    });
+  }, []);
 
   const clear = useCallback(() => persist([]), [persist]);
 
   const has = useCallback((recordId: string) => entries.some(e => e.record_id === recordId), [entries]);
 
-  return { entries, addMany, remove, clear, has };
+  return { entries, addMany, remove, removeMany, removeFulfilled, clear, has };
 }

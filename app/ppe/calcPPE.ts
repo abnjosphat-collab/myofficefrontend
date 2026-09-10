@@ -2,17 +2,67 @@
 // badges, KPI tiles, the reorder-by-size breakdown), split out of page.tsx per the
 // "extract + test business logic" standard (app/timesheets/calcTotals.ts precedent).
 // Previously inline in page.tsx with no test coverage at all.
+import { daysUntil } from '@/lib/dates';
 import type { PPERecord } from './types';
+
+/** Trim + uppercase so PM453 / pm453n match the register. */
+export function normalizeEmployeeId(id: string): string {
+  return (id || '').trim().toUpperCase();
+}
+
+/** Strip stray trailing backticks sometimes saved into free-text name fields. */
+export function sanitizeDisplayName(name: string): string {
+  return (name || '').replace(/`+$/g, '').trim();
+}
+
+export interface EmployeeRegisterRow {
+  employee_id: string;
+  employee_name: string;
+  position?: string;
+  section?: string;
+  department?: string;
+}
+
+export function employeeRegisterById(rows: EmployeeRegisterRow[]): Map<string, EmployeeRegisterRow> {
+  const map = new Map<string, EmployeeRegisterRow>();
+  rows.forEach(r => {
+    if (r.employee_id) map.set(normalizeEmployeeId(r.employee_id), r);
+  });
+  return map;
+}
+
+/** Overlay live personnel-register name/position onto a PPE record for display/export. */
+export function enrichPPERecord(record: PPERecord, register: Map<string, EmployeeRegisterRow>): PPERecord {
+  const live = register.get(normalizeEmployeeId(record.employee_id));
+  if (!live) {
+    return { ...record, employee_name: sanitizeDisplayName(record.employee_name) };
+  }
+  return {
+    ...record,
+    employee_name: live.employee_name,
+    position: live.position || record.position,
+    mine_section: live.section || record.mine_section,
+    department: live.department || record.department,
+  };
+}
+
+export function enrichPPERecords(records: PPERecord[], registerRows: EmployeeRegisterRow[]): PPERecord[] {
+  const register = employeeRegisterById(registerRows);
+  return records.map(r => enrichPPERecord(r, register));
+}
 
 // A record with no expiry_date (e.g. gloves, matrix interval 0 = "no expiry") is never
 // expiring-soon or expired — there's nothing to count down to.
 export const isExpiringSoon = (d?: string | null, days = 30): boolean => {
   if (!d) return false;
-  const diff = Math.ceil((new Date(d).getTime() - Date.now()) / 86400000);
-  return diff <= days && diff > 0;
+  const diff = daysUntil(d);
+  return diff > 0 && diff <= days;
 };
 
-export const isExpired = (d?: string | null): boolean => !!d && new Date(d) < new Date();
+export const isExpired = (d?: string | null): boolean => {
+  if (!d) return false;
+  return daysUntil(d) <= 0;
+};
 
 // % of active records not yet past their expiry date. null (not 0/100) when there are no
 // active records at all — "no data" and "fully compliant" must render differently.
@@ -76,6 +126,61 @@ export interface OrderListEntry {
   record_id: string;
   employee_id: string; employee_name: string;
   ppe_type: string; item_name: string; size: string;
+  /** ISO date from the due record — drives sort/filter in the order list UI. */
+  expiry_date?: string | null;
+  /** When this entry was flagged for ordering (ISO timestamp). */
+  added_at?: string;
+}
+
+export type OrderListSortKey = 'expiry' | 'employee' | 'type' | 'item' | 'added';
+export type OrderListUrgency = 'all' | 'overdue' | 'soon';
+
+export interface OrderListFilters {
+  type?: string;
+  size?: string;
+  search?: string;
+  urgency?: OrderListUrgency;
+}
+
+const normSize = (size?: string) => (size || '').trim() || 'Unspecified';
+
+export function filterOrderList(entries: OrderListEntry[], filters: OrderListFilters): OrderListEntry[] {
+  const { type = 'all', size = 'all', search = '', urgency = 'all' } = filters;
+  const q = search.trim().toLowerCase();
+  return entries.filter(e => {
+    if (type !== 'all' && e.ppe_type !== type) return false;
+    if (size !== 'all' && normSize(e.size) !== size) return false;
+    if (urgency === 'overdue' && !isExpired(e.expiry_date)) return false;
+    if (urgency === 'soon' && !(isExpiringSoon(e.expiry_date) && !isExpired(e.expiry_date))) return false;
+    if (q) {
+      const hay = `${e.employee_name} ${e.item_name} ${e.size} ${e.employee_id}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+}
+
+export function sortOrderList(entries: OrderListEntry[], sortBy: OrderListSortKey, dir: 'asc' | 'desc' = 'asc'): OrderListEntry[] {
+  const mul = dir === 'asc' ? 1 : -1;
+  const dateKey = (d?: string | null) => (d ? new Date(d).getTime() : Number.MAX_SAFE_INTEGER);
+  return [...entries].sort((a, b) => {
+    let cmp = 0;
+    switch (sortBy) {
+      case 'expiry': cmp = dateKey(a.expiry_date) - dateKey(b.expiry_date); break;
+      case 'added': cmp = dateKey(a.added_at) - dateKey(b.added_at); break;
+      case 'employee': cmp = a.employee_name.localeCompare(b.employee_name); break;
+      case 'type': cmp = a.ppe_type.localeCompare(b.ppe_type) || a.item_name.localeCompare(b.item_name); break;
+      case 'item': cmp = a.item_name.localeCompare(b.item_name) || normSize(a.size).localeCompare(normSize(b.size)); break;
+    }
+    return cmp * mul || a.employee_name.localeCompare(b.employee_name);
+  });
+}
+
+/** True when a newly issued item fulfills an order-list line (same person + type + size). */
+export function orderEntryFulfilled(entry: OrderListEntry, employeeId: string, ppeType: string, size: string): boolean {
+  return entry.employee_id === employeeId
+    && entry.ppe_type === ppeType
+    && normSize(entry.size) === normSize(size);
 }
 
 export interface OrderGroupRow {

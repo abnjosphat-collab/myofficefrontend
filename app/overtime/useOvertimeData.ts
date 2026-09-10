@@ -29,6 +29,28 @@ export async function createOT(body: Record<string, unknown>): Promise<OTRecord>
 export async function updateOT(id: number | string, body: object): Promise<OTRecord> {
   return api.patch<OTRecord>(`/api/overtime/${id}`, body);
 }
+
+export interface BulkOTStatusResult {
+  succeeded: number;
+  failed: number;
+  updated: OTRecord[];
+}
+
+/** Approve or reject many pending records in one API call. */
+export async function bulkUpdateOTStatus(body: {
+  ids: (number | string)[];
+  status: 'approved' | 'rejected';
+  approved_by?: string;
+  approved_at?: string;
+  approval_signature?: string;
+  rejected_by?: string;
+  rejected_at?: string;
+}): Promise<BulkOTStatusResult> {
+  return api.post<BulkOTStatusResult>('/api/overtime/bulk-status', {
+    ...body,
+    ids: body.ids.map(id => (typeof id === 'number' ? id : parseInt(String(id), 10))).filter(n => !Number.isNaN(n)),
+  });
+}
 export async function deleteOT(id: number | string): Promise<void> {
   await api.delete(`/api/overtime/${id}`);
 }

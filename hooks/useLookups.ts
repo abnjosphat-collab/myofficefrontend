@@ -82,7 +82,7 @@ function useLookup<T>(cacheGet: () => T[] | null, cacheSet: (v: T[]) => void, lo
 }
 
 export function useEmployees(): EmployeeLookup[] {
-  return useLookup<EmployeeLookup>(
+  const all = useLookup<EmployeeLookup>(
     () => _emp, (v) => { _emp = v; },
     async () => {
       const d = await api.get<unknown>('/api/employees');
@@ -90,6 +90,7 @@ export function useEmployees(): EmployeeLookup[] {
     },
     'employees',
   );
+  return all.filter(e => e.archived !== true);
 }
 
 // This cache has no TTL — it's fetched once per browser session and never expires on

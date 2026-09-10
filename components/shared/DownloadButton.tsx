@@ -239,7 +239,7 @@ export function DownloadButton({
       <button
         type="button"
         onClick={onlyFormat === 'excel' ? downloadExcel : downloadPDF}
-        className={`inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-semibold text-white border transition-all hover:-translate-y-0.5 bg-emerald-500/20 border-emerald-500/35 hover:bg-emerald-500/30 ${className}`}
+        className={`inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-semibold border border-emerald-500/30 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/25 transition-all hover:-translate-y-0.5 ${className}`}
       >
         <Icon className="h-3.5 w-3.5" />
         Download
@@ -258,7 +258,7 @@ export function DownloadButton({
       <DropdownMenu.Trigger asChild>
         <button
           type="button"
-          className={`inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-semibold text-white border transition-all hover:-translate-y-0.5 bg-emerald-500/20 border-emerald-500/35 hover:bg-emerald-500/30 ${className}`}
+          className={`inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-semibold border border-emerald-500/30 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/25 transition-all hover:-translate-y-0.5 ${className}`}
         >
           <Download className="h-3.5 w-3.5" />
           Download

@@ -26,6 +26,8 @@ import { EmployeeAutocomplete } from '@/components/shared/EmployeeAutocomplete';
 import { EmployeeMultiPicker, type PickedEmployee } from '@/components/shared/EmployeeMultiPicker';
 import { SpareAutocomplete } from '@/components/shared/SpareAutocomplete';
 import { formatDate } from '@/lib/format';
+import { primaryContactPhone } from '@/lib/phone';
+import { normalizeDesignation } from '@/lib/employeeCatalog';
 import { formatCurrencyShort } from '@/components/shared/utils';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename, EXPORT_BRAND_ARGB } from '@/lib/exportUtils';
@@ -35,7 +37,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts';
 import { OT_TYPES, SELECTABLE_OT_TYPES, STATUSES, type OTType, type OTStatus, type OTRecord, type OTForm, type SpareUsedEntry, type PlanningStatus, type PayoutMethod } from './types';
-import { useOvertimeData, buildOvertimePayload, createOT, updateOT, deleteOT, postOvertimeAnalysis } from './useOvertimeData';
+import { useOvertimeData, buildOvertimePayload, createOT, updateOT, deleteOT, bulkUpdateOTStatus, postOvertimeAnalysis } from './useOvertimeData';
 import { calcHours, mondayOf, toISODate, addDays, buildWeeklyRows, cleanReasonText, groupSimilarReasons } from './calcOvertime';
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
@@ -260,9 +262,9 @@ function OTFormModal({ open, onClose, onSave, editing, records }: {
             onSelect={emp => setForm(f => ({
               ...f,
               employee_id: emp.employee_id || f.employee_id,
-              position: emp.designation || f.position,
+              position: normalizeDesignation(emp.designation as string) || emp.designation || f.position,
               department: emp.department || f.department,
-              contact_number: emp.phone || f.contact_number,
+              contact_number: primaryContactPhone(emp.phone as string) || f.contact_number,
             }))}
           />
         </FormField>
@@ -2015,26 +2017,51 @@ function OvertimeContent() {
   const toggleSelect = (id: string) => setSelectedIds(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const selectedRecords = useMemo(() => records.filter(r => r.status === 'pending' && selectedIds.has(String(r.id))), [records, selectedIds]);
 
+  const mergeUpdatedRecords = (updated: OTRecord[]) => {
+    setRecords(prev => {
+      const map = new Map(prev.map(r => [String(r.id), r]));
+      updated.forEach(u => map.set(String(u.id), u));
+      return [...map.values()];
+    });
+  };
+
   const handleBulkApprove = async (sig: SignatureResult) => {
     const targets = selectedRecords;
-    const results = await Promise.allSettled(targets.map(r => updateOT(r.id, { status: 'approved', approved_by: sig.signerName, approved_at: sig.signedAt, approval_signature: sig.dataUrl })));
-    const updated = results.filter((r): r is PromiseFulfilledResult<OTRecord> => r.status === 'fulfilled').map(r => r.value);
-    setRecords(prev => { const map = new Map(prev.map(r => [String(r.id), r])); updated.forEach(u => map.set(String(u.id), u)); return [...map.values()]; });
-    const failed = results.length - updated.length;
-    if (failed > 0) toast.warning(`${failed} failed to approve`);
-    if (updated.length > 0) toast.success(`Approved ${updated.length} request${updated.length !== 1 ? 's' : ''}`);
-    setSelectedIds(new Set());
+    try {
+      const result = await bulkUpdateOTStatus({
+        ids: targets.map(r => r.id),
+        status: 'approved',
+        approved_by: sig.signerName,
+        approved_at: sig.signedAt,
+        approval_signature: sig.dataUrl,
+      });
+      mergeUpdatedRecords(result.updated);
+      if (result.failed > 0) toast.warning(`${result.failed} could not be approved (already processed or missing)`);
+      if (result.succeeded > 0) toast.success(`Approved ${result.succeeded} request${result.succeeded !== 1 ? 's' : ''}`);
+      setSelectedIds(new Set());
+      setBulkAction(null);
+    } catch (err) {
+      toast.error(`Bulk approve failed: ${(err as Error).message}`);
+    }
   };
 
   const handleBulkReject = async (sig: SignatureResult) => {
     const targets = selectedRecords;
-    const results = await Promise.allSettled(targets.map(r => updateOT(r.id, { status: 'rejected', rejected_by: sig.signerName, rejected_at: sig.signedAt })));
-    const updated = results.filter((r): r is PromiseFulfilledResult<OTRecord> => r.status === 'fulfilled').map(r => r.value);
-    setRecords(prev => { const map = new Map(prev.map(r => [String(r.id), r])); updated.forEach(u => map.set(String(u.id), u)); return [...map.values()]; });
-    const failed = results.length - updated.length;
-    if (failed > 0) toast.warning(`${failed} failed to reject`);
-    if (updated.length > 0) toast.success(`Rejected ${updated.length} request${updated.length !== 1 ? 's' : ''}`);
-    setSelectedIds(new Set());
+    try {
+      const result = await bulkUpdateOTStatus({
+        ids: targets.map(r => r.id),
+        status: 'rejected',
+        rejected_by: sig.signerName,
+        rejected_at: sig.signedAt,
+      });
+      mergeUpdatedRecords(result.updated);
+      if (result.failed > 0) toast.warning(`${result.failed} could not be rejected (already processed or missing)`);
+      if (result.succeeded > 0) toast.success(`Rejected ${result.succeeded} request${result.succeeded !== 1 ? 's' : ''}`);
+      setSelectedIds(new Set());
+      setBulkAction(null);
+    } catch (err) {
+      toast.error(`Bulk reject failed: ${(err as Error).message}`);
+    }
   };
 
   const selCls = `h-9 rounded-lg px-3 text-sm outline-none transition-colors ${t.inputBg}`;

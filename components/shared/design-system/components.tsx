@@ -18,7 +18,7 @@ import { useTheme, ACCENT, ACCENT_HEX, ACCENT_TEXT, accentText, SPACING, RADIUS,
 import { blendRgb, hexToRgbTuple, rgbString, rgbaString, isValidHex, DEFAULT_BG_ACCENT } from './color';
 import { getInputSuggestions, recordInput } from '@/lib/inputHistory';
 import { getDefaultExpanded } from '@/lib/prefs';
-import { GlowCard, PulsingIcon, AnimatedText, Collapse, CountUp, useScrollEdgeFlash, ScrollEdgeGlow } from './primitives';
+import { GlowCard, PulsingIcon, AnimatedText, Collapse, CountUp, useScrollEdgeFlash, ScrollEdgeGlow, usePortaledListWheelScroll } from './primitives';
 import { tileIconItem, tileTextContainer, tileTextItem, staggerContainer, fadeUp } from './motion';
 
 // ─── useCollapseSection — drop-in replacement for the legacy usePageCollapse ────
@@ -35,10 +35,11 @@ export function useCollapseSection(initial: Record<string, boolean>) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const toggle = (key: string) => setExpanded(prev => ({ ...prev, [key]: !prev[key] }));
+  const toggle = useCallback((key: string) => setExpanded(prev => ({ ...prev, [key]: !prev[key] })), []);
+  const expand = useCallback((key: string) => setExpanded(prev => (prev[key] ? prev : { ...prev, [key]: true })), []);
   const allOpen = Object.values(expanded).every(Boolean);
-  const toggleAll = () => setExpanded(Object.fromEntries(Object.keys(expanded).map(k => [k, !allOpen])));
-  return { expanded, toggle, allOpen, toggleAll };
+  const toggleAll = useCallback(() => setExpanded(Object.fromEntries(Object.keys(expanded).map(k => [k, !allOpen]))), [expanded, allOpen]);
+  return { expanded, toggle, expand, allOpen, toggleAll };
 }
 
 // ─── Spinner / LoadingState — the one shared loading indicator ──────────────────
@@ -785,11 +786,13 @@ export function SelectField({
 }) {
   const t = useTheme();
   const btnRef = useRef<HTMLButtonElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
   const [mounted, setMounted] = useState(false);
   const [pos, setPos] = useState<{ top: number; left: number; width: number; above: boolean } | null>(null);
   const { edge: scrollEdge, onScroll: onListScroll } = useScrollEdgeFlash();
+  usePortaledListWheelScroll(listRef, open && !!pos);
 
   const opts = options.map(o => (typeof o === 'string' ? { value: o, label: o } : o));
   const selected = opts.find(o => o.value === value);
@@ -868,6 +871,7 @@ export function SelectField({
             onClick={() => setOpen(false)}
           />
           <div
+            ref={listRef}
             role="listbox"
             style={{
               position: 'fixed',
@@ -888,7 +892,8 @@ export function SelectField({
             // it silently inherits `none` and every option becomes unclickable whenever
             // this dropdown is opened from inside a CenterModal (found live: Notice/PPE-
             // issue forms — any SelectField inside any modal was affected, not one field).
-            className={`pointer-events-auto rounded-lg overflow-hidden ${t.glassPopover} ${t.shadow} max-h-60 overflow-y-auto py-1`}
+            // Trackpad scroll: usePortaledListWheelScroll — RemoveScroll blocks native wheel.
+            className={`pointer-events-auto rounded-lg overflow-x-hidden overflow-y-auto overscroll-contain ${t.glassPopover} ${t.shadow} max-h-60 py-1`}
             onScroll={onListScroll}
           >
             {scrollEdge === 'top' && <ScrollEdgeGlow edge="top" />}
@@ -956,6 +961,7 @@ export function Combobox({
 }) {
   const t = useTheme();
   const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const [mounted, setMounted] = useState(false);
@@ -997,6 +1003,7 @@ export function Combobox({
   const commit = (opt: ComboOption) => { onSelect(opt); setOpen(false); };
   const sizeCls = size === 'filter' ? 'h-8 px-2.5 text-[13px] rounded-lg' : 'h-9 px-3 text-sm rounded-lg';
   const showPanel = open && (loading || options.length > 0 || !!emptyText);
+  usePortaledListWheelScroll(listRef, !!showPanel && !!pos);
 
   return (
     <div className={`relative ${className}`}>
@@ -1032,6 +1039,7 @@ export function Combobox({
       />
       {mounted && showPanel && pos && createPortal(
         <div
+          ref={listRef}
           id={listboxId}
           role="listbox"
           // Not part of the tab order on purpose — this follows the ARIA "combobox with
@@ -1051,7 +1059,7 @@ export function Combobox({
           // this same file: a CenterModal (Radix Dialog) sets pointer-events:none on
           // <body> while open, which this portaled-to-body panel would otherwise
           // silently inherit, making every option unclickable from inside a modal.
-          className={`pointer-events-auto rounded-xl overflow-hidden ${t.glassPopover} ${t.shadow} max-h-60 overflow-y-auto`}
+          className={`pointer-events-auto rounded-xl overflow-x-hidden overflow-y-auto overscroll-contain ${t.glassPopover} ${t.shadow} max-h-60`}
           onMouseDown={e => e.preventDefault()}
           onScroll={onListScroll}
         >

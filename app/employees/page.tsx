@@ -12,58 +12,55 @@ import {
   FilterX, ChevronsDownUp, ChevronsUpDown, ChevronDown, ChevronUp,
   Clock, AlertCircle, Trash2, X, Pencil, Mail, Briefcase,
   GraduationCap, Sparkles, UserRound, BriefcaseBusiness,
-  List, LayoutGrid, MapPin, Filter, Award, Plus, Phone,
-  FileSpreadsheet, FileText,
+  List, LayoutGrid, MapPin, Filter, Award, Plus, Phone, Archive,
+  FileSpreadsheet, FileText, HardHat,
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle,
-  FormField, FormActions, useCollapseSection, CenterModal, ACCENT_HEX, SelectField, TYPE_SCALE, TYPE_WEIGHT, RADIUS,
+  FormField, FormActions, useCollapseSection, CenterModal, ACCENT_HEX, STATUS_TONE, SelectField, Combobox, type ComboOption, TYPE_SCALE, TYPE_WEIGHT, RADIUS,
   GroupSection, RecordCard, staggerContainer, fadeUp,
   Subsection, InfoRow, SummaryItem, LoadingState, AutofillInput, useConfirm, accentText,
 } from '@/components/shared/theme';
 import { formatDate } from '@/lib/format';
-import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename, EXPORT_BRAND_ARGB, EXPORT_BRAND_RGB, styleExcelHeaderRow } from '@/lib/exportUtils';
+import { exportPersonnelRegistryExcel } from './exportPersonnelRegistry';
+import {
+  designationSelectOptions, foremanSelectOptions, normalizeDesignation,
+  designationFilterOptions, driverLicenseSelectOptions, resolveDriverLicense,
+  sectionForDesignation, normalizeEmployeeRoleFields, rosterSubgroupLabel,
+  ARTISAN_FILTER_VALUE, ARTISAN_SUBCATEGORY, FOREMAN_SUBCATEGORY, isArtisanClass1Designation,
+} from '@/lib/employeeCatalog';
+import { formatPhoneDisplay, telHref, normalizePhoneField } from '@/lib/phone';
+import {
+  normalizeSection, sectionColor, SECTION_ORDER, sectionSelectOptions,
+} from '@/lib/sections';
 import type { Employee, EmployeeFormData, SectionGroup, SortDir, SortField } from './types';
 import { removeEmployee, saveEmployee, useEmployeesData } from './useEmployeesData';
+import { NormalizeRosterDialog } from './NormalizeRosterDialog';
+import { useAuth } from '@/lib/auth-context';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const CLASS_OPTIONS = ['Permanent', 'Contract', 'Internship', 'Part-Time'] as const;
+const EMPLOYMENT_TYPE_OPTIONS = [
+  { value: 'none', label: 'Not set' },
+  { value: 'NEC', label: 'NEC' },
+  { value: 'SALARIED', label: 'Salaried' },
+] as const;
 
 const CLASS_COLORS: Record<string, string> = {
-  Permanent: '#34d399', Contract: '#f59e0b', Internship: ACCENT_HEX.blue, 'Part-Time': '#a78bfa',
+  Permanent: STATUS_TONE.good,
+  Contract: STATUS_TONE.warning,
+  Internship: ACCENT_HEX.blue,
+  'Part-Time': ACCENT_HEX.violet,
 };
 const ETYPE_COLORS: Record<string, string> = { NEC: ACCENT_HEX.indigo, SALARIED: ACCENT_HEX.cyan };
-const SECTION_COLORS: Record<string, string> = {
-  Mechanical: ACCENT_HEX.blue, Electrical: ACCENT_HEX.amber, Civil: ACCENT_HEX.emerald, Instrumentation: ACCENT_HEX.violet,
-};
+const NEUTRAL_BADGE = STATUS_TONE.neutral;
 
-// Stable display order for the section groups (the record accordions).
-const SECTION_ORDER = ['Mechanical', 'Electrical', 'Civil', 'Instrumentation'];
+/** Shared grid columns for list-view header + rows — keeps badges and actions aligned. */
+const LIST_ROW_GRID =
+  'grid grid-cols-[2rem_minmax(0,1.35fr)_minmax(0,1fr)_88px_72px_72px_7.5rem] items-center gap-x-3';
 
-// Case/whitespace-insensitive canonicalization — source data has inconsistent
-// casing ("Electrical" vs "electrical " etc.); without this, each variant was
-// treated as a distinct section, splitting one real group into several and
-// giving each a different (hashed) color — the "color chaos" bug. Every
-// display label AND every color lookup for a section must go through this
-// so the same real-world section always reads as one group, one color.
-function normalizeSection(section?: string): string {
-  const s = (section || '').trim();
-  if (!s) return 'Unassigned';
-  const canonical = SECTION_ORDER.find(c => c.toLowerCase() === s.toLowerCase());
-  return canonical ?? s;
-}
-
-// Palette for sections that aren't one of the predefined four — drawn from the shared
-// ACCENT_HEX brand palette (not arbitrary hexes) so every group colour stays in harmony
-// with the rest of the app; hashed so each distinct section name is stable.
-const GROUP_PALETTE = [ACCENT_HEX.blue, ACCENT_HEX.amber, ACCENT_HEX.emerald, ACCENT_HEX.violet, ACCENT_HEX.cyan, ACCENT_HEX.indigo];
-function sectionColor(section?: string) {
-  const s = normalizeSection(section);
-  if (s === 'Unassigned') return '#94a3b8';
-  if (SECTION_COLORS[s]) return SECTION_COLORS[s];
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
-  return GROUP_PALETTE[h % GROUP_PALETTE.length];
+function driverLabel(e: Pick<Employee, 'drivers_license_class'>): string {
+  return resolveDriverLicense(e.drivers_license_class);
 }
 
 /** Section → profession/designation grouping — the same categorisation the on-page
@@ -89,12 +86,20 @@ function groupBySectionAndProfession(list: Employee[]): SectionGroup[] {
       const employeesInSection = map.get(section)!;
       const subMap = new Map<string, Employee[]>();
       for (const e of employeesInSection) {
-        const subKey = (e.designation || '').trim() || 'Other';
+        const subKey = rosterSubgroupLabel(e.designation);
         if (!subMap.has(subKey)) subMap.set(subKey, []);
         subMap.get(subKey)!.push(e);
       }
       const subgroups = [...subMap.keys()]
-        .sort((a, b) => (a === 'Other' ? 1 : b === 'Other' ? -1 : a.localeCompare(b)))
+        .sort((a, b) => {
+          if (a === ARTISAN_SUBCATEGORY) return -1;
+          if (b === ARTISAN_SUBCATEGORY) return 1;
+          if (a === FOREMAN_SUBCATEGORY) return -1;
+          if (b === FOREMAN_SUBCATEGORY) return 1;
+          if (a === 'Other') return 1;
+          if (b === 'Other') return -1;
+          return a.localeCompare(b);
+        })
         .map(designation => ({ designation, employees: subMap.get(designation)! }));
       const hasMeaningfulSubgroups = subgroups.length > 1 && subgroups.some(sg => sg.employees.length > 1);
       return { section, color: sectionColor(section === 'Unassigned' ? undefined : section), employees: employeesInSection, subgroups, hasMeaningfulSubgroups };
@@ -106,7 +111,7 @@ function groupBySectionAndProfession(list: Employee[]): SectionGroup[] {
 function groupByProfession(list: Employee[]): { designation: string; employees: Employee[] }[] {
   const map = new Map<string, Employee[]>();
   for (const e of list) {
-    const key = (e.designation || '').trim() || 'Unclassified';
+    const key = normalizeDesignation(e.designation) || 'Unclassified';
     if (!map.has(key)) map.set(key, []);
     map.get(key)!.push(e);
   }
@@ -132,35 +137,86 @@ function tenure(eng?: string) {
 // fmtDate was identical to the shared formatDate — alias it to the single source.
 const fmtDate = formatDate;
 
+function EmployeeResults({
+  employees, viewMode, onEdit, onDelete, expandRows = false, showListHeader = false,
+}: {
+  employees: Employee[];
+  viewMode: 'list' | 'grid';
+  onEdit: (e: Employee) => void;
+  onDelete: (e: Employee) => void;
+  expandRows?: boolean;
+  showListHeader?: boolean;
+}) {
+  const t = useTheme();
+  const gridCls = viewMode === 'grid'
+    ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4'
+    : 'flex flex-col gap-1.5';
+  return (
+    <div className={viewMode === 'list' ? 'rounded-xl border overflow-hidden' : undefined} style={viewMode === 'list' ? { borderColor: `${ACCENT_HEX.violet}22` } : undefined}>
+      {viewMode === 'list' && showListHeader && (
+        <ListRowHeader />
+      )}
+      <motion.div variants={staggerContainer} initial="hidden" animate="show" className={gridCls}>
+        {employees.map(e => (
+          <motion.div key={e.id} variants={fadeUp} className={viewMode === 'grid' ? 'min-w-0' : undefined}>
+            {viewMode === 'grid'
+              ? <EmployeeCard employee={e} onEdit={onEdit} onDelete={onDelete} />
+              : <EmployeeRow employee={e} onEdit={onEdit} onDelete={onDelete} defaultExpanded={expandRows} />}
+          </motion.div>
+        ))}
+      </motion.div>
+      {viewMode === 'list' && employees.length === 0 && (
+        <p className={`px-4 py-6 text-center text-sm ${t.textFaint}`}>No employees in this group.</p>
+      )}
+    </div>
+  );
+}
+
+function ListRowHeader() {
+  const t = useTheme();
+  return (
+    <div className={`${LIST_ROW_GRID} px-4 py-2.5 text-[10px] uppercase tracking-wider ${TYPE_WEIGHT.semibold} ${t.textFaint} border-b ${t.border} ${t.chipBg} max-lg:hidden`}>
+      <span aria-hidden />
+      <span>Employee</span>
+      <span className="hidden xl:block">Designation</span>
+      <span className="hidden md:block text-center">Section</span>
+      <span className="hidden sm:block text-center">Type</span>
+      <span className="hidden sm:block text-center">Class</span>
+      <span className="text-right">Actions</span>
+    </div>
+  );
+}
+
+function EmployeeListShell({ children, showHeader = false }: { children: React.ReactNode; showHeader?: boolean }) {
+  return (
+    <div className="rounded-xl border overflow-hidden" style={{ borderColor: `${ACCENT_HEX.violet}22` }}>
+      {showHeader && <ListRowHeader />}
+      {children}
+    </div>
+  );
+}
+
+function renderEmployeeList(
+  employees: Employee[],
+  onEdit: (e: Employee) => void,
+  onDelete: (e: Employee) => void,
+  showHeader = false,
+) {
+  return (
+    <EmployeeListShell showHeader={showHeader}>
+      {employees.map(e => (
+        <motion.div key={e.id} variants={fadeUp}>
+          <EmployeeRow employee={e} onEdit={onEdit} onDelete={onDelete} />
+        </motion.div>
+      ))}
+    </EmployeeListShell>
+  );
+}
+
 
 // ─── Small themed building blocks ────────────────────────────────────────────
 // InfoRow/SummaryItem now come from the shared design system (promoted from
 // this page's own local versions — see the design-system migration).
-
-function FilterChips({ label, options, value, onChange }: {
-  label: string; options: { value: string; label: string }[]; value: string; onChange: (v: string) => void;
-}) {
-  const t = useTheme();
-  return (
-    <div>
-      <p className={`${TYPE_SCALE.label} ${TYPE_WEIGHT.medium} mb-1.5 ${t.textFaint}`}>{label}</p>
-      <div className="flex flex-wrap gap-1.5">
-        {options.map(o => (
-          <button
-            key={o.value}
-            type="button"
-            onClick={() => onChange(o.value)}
-            className={`h-8 px-2.5 rounded-lg text-[13px] ${TYPE_WEIGHT.semibold} transition-colors ${
-              value === o.value ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textPrimary} ${t.hoverText} ${t.hoverBg}`
-            }`}
-          >
-            {o.label}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 // ─── Roster Export Dialog ──────────────────────────────────────────────────────
 // Organizes the full roster for export — by section, by profession/designation,
@@ -188,13 +244,20 @@ const EXPORT_COLUMNS = [
   { header: 'First Name', key: 'first_name', width: 18 },
   { header: 'Last Name', key: 'last_name', width: 18 },
   { header: 'Designation', key: 'designation', width: 24 },
-  { header: 'Department', key: 'department', width: 20 },
+  { header: 'Section', key: 'section', width: 18 },
   { header: 'Phone', key: 'phone', width: 16 },
   { header: 'Employment Type', key: 'employment_type', width: 16 },
   { header: 'Start Date', key: 'date_of_engagement', width: 14 },
 ];
-const EXPORT_PDF_HEAD = ['Employee ID', 'First Name', 'Last Name', 'Designation', 'Department', 'Phone', 'Employment Type', 'Start Date'];
-const exportPdfRow = (e: Employee) => [e.employee_id, e.first_name, e.last_name, e.designation || '', e.department || '', e.phone || '', e.employment_type || '', e.date_of_engagement ? fmtDate(e.date_of_engagement) : ''];
+const EXPORT_PDF_HEAD = ['Employee ID', 'First Name', 'Last Name', 'Designation', 'Section', 'Phone', 'Employment Type', 'Start Date'];
+const exportPdfRow = (e: Employee) => [
+  e.employee_id, e.first_name, e.last_name,
+  normalizeDesignation(e.designation) || '',
+  normalizeSection(e.section) === 'Unassigned' ? '' : normalizeSection(e.section),
+  formatPhoneDisplay(e.phone) || '',
+  e.employment_type || '',
+  e.date_of_engagement ? fmtDate(e.date_of_engagement) : '',
+];
 
 function RosterExportDialog({ employees, onClose }: { employees: Employee[]; onClose: () => void }) {
   const t = useTheme();
@@ -218,7 +281,13 @@ function RosterExportDialog({ employees, onClose }: { employees: Employee[]; onC
   // ws.addRow(employee) writes raw field values as-is (no per-column formatter, unlike
   // DownloadButton's `format` callback) — this formats the one field that needs it
   // (date_of_engagement is a raw ISO string otherwise) before handing rows to ExcelJS.
-  const toExportRow = (e: Employee) => ({ ...e, date_of_engagement: e.date_of_engagement ? fmtDate(e.date_of_engagement) : '' });
+  const toExportRow = (e: Employee) => ({
+    ...e,
+    designation: normalizeDesignation(e.designation) || '',
+    section: normalizeSection(e.section) === 'Unassigned' ? '' : normalizeSection(e.section),
+    phone: formatPhoneDisplay(e.phone) || '',
+    date_of_engagement: e.date_of_engagement ? fmtDate(e.date_of_engagement) : '',
+  });
 
   const generateExcel = async () => {
     const ExcelJS = (await import('exceljs')).default;
@@ -362,6 +431,7 @@ function RosterExportDialog({ employees, onClose }: { employees: Employee[]; onC
 
 interface EmployeeFormProps {
   initialData?: Employee | null;
+  allEmployees: Employee[];
   onSubmit: (d: EmployeeFormData) => Promise<void>;
   onCancel: () => void;
   isSubmitting: boolean;
@@ -373,42 +443,66 @@ const EMPTY_FORM: EmployeeFormData = {
   employee_class: '', employment_type: '', supervisor: '', section: '',
   department: '', grade: '',
   qualifications: [], drivers_license_class: '',
-  offences: [], awards_recognition: [], other_positions: [], previous_employer: '',
+  offences: [], awards_recognition: [], other_positions: [], previous_employer: '', archived: false,
 };
 
-function EmployeeForm({ initialData, onSubmit, onCancel, isSubmitting }: EmployeeFormProps) {
+function EmployeeForm({ initialData, allEmployees, onSubmit, onCancel, isSubmitting }: EmployeeFormProps) {
   const t = useTheme();
-  const [form, setForm] = useState<EmployeeFormData>(
-    initialData ? {
+  const [form, setForm] = useState<EmployeeFormData>(() => {
+    if (!initialData) return { ...EMPTY_FORM };
+    const role = normalizeEmployeeRoleFields(initialData.designation, initialData.section, initialData.first_name, initialData.last_name);
+    return {
       employee_id: initialData.employee_id || '',
       first_name: initialData.first_name || '',
       last_name: initialData.last_name || '',
       id_number: initialData.id_number || '',
       email: initialData.email || '',
-      phone: initialData.phone || '',
+      phone: normalizePhoneField(initialData.phone) || '',
       address: initialData.address || '',
       date_of_engagement: initialData.date_of_engagement || '',
-      designation: initialData.designation || '',
+      designation: role.designation,
       employee_class: initialData.employee_class || '',
       employment_type: (initialData.employment_type as 'NEC' | 'SALARIED' | '') || '',
       supervisor: initialData.supervisor || '',
-      section: initialData.section || '',
+      section: role.section,
       department: initialData.department || '',
       grade: initialData.grade || '',
       qualifications: initialData.qualifications || [],
-      drivers_license_class: initialData.drivers_license_class || '',
+      drivers_license_class: resolveDriverLicense(initialData.drivers_license_class) || initialData.drivers_license_class || '',
       offences: initialData.offences || [],
       awards_recognition: initialData.awards_recognition || [],
       other_positions: initialData.other_positions || [],
       previous_employer: initialData.previous_employer || '',
-    } : { ...EMPTY_FORM }
+      archived: !!initialData.archived,
+    };
+  });
+
+  const designationComboOptions = useMemo((): ComboOption[] => {
+    const q = (form.designation || '').trim().toLowerCase();
+    const opts = designationSelectOptions(form.designation).filter(o => o.value);
+    const filtered = !q
+      ? opts
+      : opts.filter(o => o.label.toLowerCase().includes(q) || o.value.toLowerCase().includes(q));
+    return filtered.slice(0, 20).map(o => ({ value: o.value, label: o.label }));
+  }, [form.designation]);
+  const sectionOptions = useMemo(
+    () => sectionSelectOptions(form.section),
+    [form.section],
+  );
+  const supervisorOptions = useMemo(
+    () => foremanSelectOptions(allEmployees, form.supervisor),
+    [allEmployees, form.supervisor],
+  );
+  const driverLicenseOptions = useMemo(
+    () => driverLicenseSelectOptions(form.drivers_license_class),
+    [form.drivers_license_class],
   );
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [tab, setTab] = useState<'basic' | 'employment' | 'qualifications' | 'additional'>('basic');
   const [temps, setTemps] = useState({ qual: '', offence: '', award: '', pos: '' });
 
-  const set = (f: keyof EmployeeFormData, v: string | string[]) => {
+  const set = (f: keyof EmployeeFormData, v: string | string[] | boolean) => {
     setForm(p => ({ ...p, [f]: v }));
     if (errors[f]) setErrors(p => { const n = { ...p }; delete n[f]; return n; });
   };
@@ -424,7 +518,6 @@ function EmployeeForm({ initialData, onSubmit, onCancel, isSubmitting }: Employe
     if (!form.first_name.trim()) e.first_name = 'Required';
     if (!form.last_name.trim()) e.last_name = 'Required';
     if (!form.id_number.trim()) e.id_number = 'Required';
-    if (!form.date_of_engagement) e.date_of_engagement = 'Required';
     if (!form.designation.trim()) e.designation = 'Required';
     setErrors(e);
     return !Object.keys(e).length;
@@ -497,7 +590,7 @@ function EmployeeForm({ initialData, onSubmit, onCancel, isSubmitting }: Employe
               { f: 'last_name' as const,   label: 'Last Name',   ph: 'Last name', required: true },
               { f: 'id_number' as const,   label: 'ID Number',   ph: 'National ID or passport', required: true },
               { f: 'email' as const,       label: 'Email',       ph: 'Optional', type: 'email' },
-              { f: 'phone' as const,       label: 'Phone',       ph: 'Optional' },
+              { f: 'phone' as const,       label: 'Phone',       ph: '+263 77 123 4567 — use / between multiple numbers' },
             ].map(({ f, label, ph, upper, type, required }) => (
               <FormField key={f} label={label} required={required}>
                 <input
@@ -523,16 +616,34 @@ function EmployeeForm({ initialData, onSubmit, onCancel, isSubmitting }: Employe
 
         {tab === 'employment' && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField label="Engagement Date" required>
-              <input type="date" title="Date of engagement" aria-label="Date of engagement" value={form.date_of_engagement}
+            <FormField label="Engagement Date">
+              <input type="date" title="Date of engagement (optional)" aria-label="Date of engagement" value={form.date_of_engagement}
                 onChange={e => set('date_of_engagement', e.target.value)}
-                className={`${inputCls} ${errors.date_of_engagement ? 'ring-1 ring-rose-500/50' : ''}`} />
-              {errors.date_of_engagement && <p className="text-xs text-rose-500 mt-1">{errors.date_of_engagement}</p>}
+                className={inputCls} />
             </FormField>
             <FormField label="Designation" required>
-              <AutofillInput field="designation" value={form.designation} placeholder="Job title / position"
+              <Combobox
+                size="form"
+                title="Designation"
+                placeholder="Search or select designation…"
+                value={form.designation || ''}
                 onChange={v => set('designation', v)}
-                className={`${inputCls} ${errors.designation ? 'ring-1 ring-rose-500/50' : ''}`} />
+                onSelect={opt => {
+                  set('designation', opt.value);
+                  const implied = sectionForDesignation(opt.value);
+                  if (implied) set('section', implied);
+                }}
+                onBlurCommit={() => {
+                  const normalized = normalizeDesignation(form.designation);
+                  if (normalized && normalized !== form.designation) {
+                    set('designation', normalized);
+                    const implied = sectionForDesignation(normalized);
+                    if (implied) set('section', implied);
+                  }
+                }}
+                options={designationComboOptions}
+                emptyText="No matching designation"
+              />
               {errors.designation && <p className="text-xs text-rose-500 mt-1">{errors.designation}</p>}
             </FormField>
             <FormField label="Employee Class">
@@ -544,25 +655,31 @@ function EmployeeForm({ initialData, onSubmit, onCancel, isSubmitting }: Employe
               />
             </FormField>
             <FormField label="Employment Type">
-              <div className="flex gap-2">
-                {(['', 'NEC', 'SALARIED'] as const).map(et => (
-                  <button key={et || 'none'} type="button"
-                    onClick={() => set('employment_type', et)}
-                    className={`flex-1 h-9 rounded-lg text-xs ${TYPE_WEIGHT.semibold} transition-all ${
-                      form.employment_type === et
-                        ? et === 'NEC' ? `bg-indigo-500/20 ${accentText('indigo', t.light)}` : et === 'SALARIED' ? 'bg-teal-500/20 text-teal-400' : `${t.chipBg} ${t.textMuted}`
-                        : `${t.hoverBg} ${t.textFaint}`
-                    }`}>
-                    {et || 'Not set'}
-                  </button>
-                ))}
-              </div>
+              <SelectField size="form"
+                title="Employment type"
+                value={form.employment_type || 'none'}
+                onChange={v => set('employment_type', v === 'none' ? '' : v as 'NEC' | 'SALARIED')}
+                options={[...EMPLOYMENT_TYPE_OPTIONS]}
+              />
+            </FormField>
+            <FormField label="Section">
+              <SelectField size="form"
+                title="Section"
+                value={form.section || ''}
+                onChange={v => set('section', v)}
+                options={sectionOptions}
+              />
+            </FormField>
+            <FormField label="Foreman / Supervisor">
+              <SelectField size="form"
+                title="Foreman or supervisor"
+                value={form.supervisor || ''}
+                onChange={v => set('supervisor', v)}
+                options={supervisorOptions}
+              />
             </FormField>
             {[
-              { f: 'department' as const,        label: 'Department' },
-              { f: 'section' as const,           label: 'Section' },
               { f: 'grade' as const,             label: 'Grade' },
-              { f: 'supervisor' as const,        label: 'Supervisor' },
               { f: 'previous_employer' as const, label: 'Previous Employer' },
             ].map(({ f, label }) => (
               <FormField key={f} label={label}>
@@ -581,12 +698,27 @@ function EmployeeForm({ initialData, onSubmit, onCancel, isSubmitting }: Employe
         {tab === 'additional' && (
           <div className="space-y-5">
             <FormField label="Driver's License Class">
-              <input value={form.drivers_license_class} placeholder="Optional" aria-label="Driver's License Class"
-                onChange={e => set('drivers_license_class', e.target.value)} className={inputCls} />
+              <SelectField size="form"
+                title="Driver's license class"
+                value={form.drivers_license_class || ''}
+                onChange={v => set('drivers_license_class', v)}
+                options={driverLicenseOptions}
+              />
             </FormField>
-            <FormField label="Other Positions">{tagInput('other_positions', 'pos', 'Add position', '#a78bfa')}</FormField>
-            <FormField label="Awards & Recognition">{tagInput('awards_recognition', 'award', 'Add award or recognition', '#f59e0b')}</FormField>
-            <FormField label="Offences">{tagInput('offences', 'offence', 'Add offence record', '#f43f5e')}</FormField>
+            <FormField label="Other Positions">{tagInput('other_positions', 'pos', 'Add position', ACCENT_HEX.violet)}</FormField>
+            <FormField label="Awards & Recognition">{tagInput('awards_recognition', 'award', 'Add award or recognition', STATUS_TONE.warning)}</FormField>
+            <FormField label="Offences">{tagInput('offences', 'offence', 'Add offence record', STATUS_TONE.critical)}</FormField>
+            <FormField label="Archived">
+              <label className={`flex items-center gap-2 text-sm ${t.textMuted} cursor-pointer`}>
+                <input
+                  type="checkbox"
+                  checked={!!form.archived}
+                  onChange={e => set('archived', e.target.checked)}
+                  className="rounded border-white/20"
+                />
+                Hide from active roster (e.g. Hoist Drivers no longer on site)
+              </label>
+            </FormField>
           </div>
         )}
       </div>
@@ -598,158 +730,224 @@ function EmployeeForm({ initialData, onSubmit, onCancel, isSubmitting }: Employe
 
 // ─── EmployeeRow ──────────────────────────────────────────────────────────────
 
-interface EmployeeRowProps {
-  employee: Employee; onEdit: (e: Employee) => void; onDelete: (e: Employee) => void;
+function DetailPanel({
+  icon: Icon, title, accent, children, suffix,
+}: {
+  icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
+  title: string;
+  accent: string;
+  children: React.ReactNode;
+  suffix?: React.ReactNode;
+}) {
+  const t = useTheme();
+  return (
+    <div className={`${t.chipBg} rounded-xl overflow-hidden border ${t.border}`}>
+      <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}>
+        <Icon className="h-3.5 w-3.5" style={{ color: accent }} />
+        <span className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textSecondary}`}>{title}</span>
+        {suffix}
+      </div>
+      {children}
+    </div>
+  );
 }
 
-function EmployeeRow({ employee, onEdit, onDelete }: EmployeeRowProps) {
+function EmployeeRowActions({
+  employee, expanded, onToggle, onEdit, onDelete, className = '',
+}: {
+  employee: Employee;
+  expanded: boolean;
+  onToggle: () => void;
+  onEdit: (e: Employee) => void;
+  onDelete: (e: Employee) => void;
+  className?: string;
+}) {
   const t = useTheme();
-  const [expanded, setExpanded] = useState(false);
+  const secColor = sectionColor(employee.section);
+  return (
+    <div className={`flex items-center justify-end gap-0.5 ${className}`}>
+      {employee.email && (
+        <button type="button" title="Send email" onClick={() => window.open(`mailto:${employee.email}`, '_blank')}
+          className="h-7 w-7 flex items-center justify-center rounded-lg transition-all"
+          style={{ backgroundColor: `${ACCENT_HEX.violet}18`, color: ACCENT_HEX.violet }}>
+          <Mail className="h-3.5 w-3.5" strokeWidth={1.75} />
+        </button>
+      )}
+      {employee.phone && telHref(employee.phone) && (
+        <button type="button" title="Call" onClick={() => window.open(telHref(employee.phone), '_self')}
+          className="h-7 w-7 flex items-center justify-center rounded-lg transition-all"
+          style={{ backgroundColor: `${STATUS_TONE.good}18`, color: STATUS_TONE.good }}>
+          <Phone className="h-3.5 w-3.5" />
+        </button>
+      )}
+      <button type="button" title="Edit employee" onClick={() => onEdit(employee)}
+        className="h-7 w-7 flex items-center justify-center rounded-lg transition-all"
+        style={{ backgroundColor: `${ACCENT_HEX.violet}18`, color: ACCENT_HEX.violet }}>
+        <Pencil className="h-3.5 w-3.5" />
+      </button>
+      <button type="button" title="Delete employee" onClick={() => onDelete(employee)}
+        className="h-7 w-7 flex items-center justify-center rounded-lg transition-all"
+        style={{ backgroundColor: `${STATUS_TONE.critical}14`, color: STATUS_TONE.critical }}>
+        <Trash2 className="h-3.5 w-3.5" />
+      </button>
+      <button type="button" title={expanded ? 'Collapse' : 'Expand'} onClick={onToggle}
+        className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all`}>
+        {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" style={{ color: secColor }} />}
+      </button>
+    </div>
+  );
+}
+
+interface EmployeeRowProps {
+  employee: Employee; onEdit: (e: Employee) => void; onDelete: (e: Employee) => void;
+  defaultExpanded?: boolean;
+}
+
+function EmployeeRow({ employee, onEdit, onDelete, defaultExpanded = false }: EmployeeRowProps) {
+  const t = useTheme();
+  const [expanded, setExpanded] = useState(defaultExpanded);
   const name = `${employee.first_name} ${employee.last_name}`;
   const ten = tenure(employee.date_of_engagement);
   const quals = employee.qualifications?.length ?? 0;
   const secColor = sectionColor(employee.section);
+  const designation = normalizeDesignation(employee.designation);
+  const sectionLabel = employee.section ? normalizeSection(employee.section) : '';
+  const driver = driverLabel(employee);
+  const toggle = () => setExpanded(o => !o);
 
   return (
-    <div className={`border-b ${t.border}`}>
-      <div className={`flex items-center gap-3.5 px-4 py-3 ${t.hoverBgSoft} transition-colors group`}>
-        <div className="shrink-0">
-          <UserRound className="h-5 w-5" style={{ color: secColor }} />
+    <div
+      className={`border-b last:border-b-0 ${t.border} ${expanded ? t.chipBg : t.hoverBgSoft} transition-colors`}
+      style={{ borderLeftWidth: 3, borderLeftColor: expanded ? secColor : 'transparent' }}
+    >
+      <div className={`${LIST_ROW_GRID} px-4 py-3 group max-lg:flex max-lg:flex-wrap max-lg:items-center max-lg:gap-3`}>
+        <div
+          className="h-8 w-8 rounded-full flex items-center justify-center shrink-0 max-lg:order-1"
+          style={{ backgroundColor: `${secColor}18` }}
+        >
+          <UserRound className="h-4 w-4" style={{ color: secColor }} />
         </div>
 
-        <button type="button" onClick={() => setExpanded(o => !o)} className="flex-1 min-w-0 text-left">
-          {/* text-[14px] + tracking-tight, not text-sm — matches RecordCard's grid-view
-              title exactly (components.tsx:526), so a name reads identically whether the
-              page is in list or grid view. */}
-          <div className={`${TYPE_WEIGHT.semibold} text-[14px] tracking-tight ${t.textPrimary}`}>{name}</div>
+        <button type="button" onClick={toggle} className="min-w-0 text-left max-lg:order-2 max-lg:flex-1">
+          <div className={`${TYPE_WEIGHT.semibold} text-[14px] tracking-tight ${t.textPrimary} truncate`}>{name}</div>
           <div className="flex items-center gap-2 mt-0.5 flex-wrap">
             <span className={`text-xs font-mono ${t.textFaint}`}>{employee.employee_id}</span>
-            {employee.designation && <span className={`text-xs ${t.textFaint}`}>· {employee.designation}</span>}
-            {employee.section && <StatusBadge color={secColor} label={normalizeSection(employee.section)} />}
+            {designation && <span className={`text-xs ${t.textFaint} xl:hidden truncate max-w-[12rem]`}>· {designation}</span>}
+            <span className={`hidden lg:flex items-center gap-1 text-[11px] ${t.textFaint}`}>
+              <Clock className="h-3 w-3" style={{ color: secColor }} />{ten}
+            </span>
+            {quals > 0 && (
+              <span className={`hidden lg:flex items-center gap-1 text-[11px] ${t.textFaint}`}>
+                <GraduationCap className="h-3 w-3" style={{ color: secColor }} />{quals}
+              </span>
+            )}
           </div>
         </button>
 
-        <div className="flex items-center gap-2 shrink-0">
-          {employee.employment_type && (
-            <span className="hidden sm:block"><StatusBadge color={ETYPE_COLORS[employee.employment_type] ?? '#94a3b8'} label={employee.employment_type} /></span>
-          )}
-          <span className="hidden sm:block"><StatusBadge color={CLASS_COLORS[employee.employee_class || ''] ?? '#94a3b8'} label={employee.employee_class || 'Unclassified'} /></span>
-          <span className={`hidden md:flex items-center gap-1 text-[11px] ${t.textFaint}`}><Clock className="h-3 w-3" style={{ color: secColor }} />{ten}</span>
-          {quals > 0 && <span className={`hidden lg:flex items-center gap-1 text-[11px] ${t.textFaint}`}><GraduationCap className="h-3 w-3" style={{ color: secColor }} />{quals}</span>}
+        <div className={`hidden xl:block min-w-0 text-xs ${t.textMuted} truncate`} title={designation}>
+          {designation || '—'}
         </div>
 
-        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-          {employee.email && (
-            <button type="button" title="Send email" onClick={() => window.open(`mailto:${employee.email}`, '_blank')}
-              className="h-7 w-7 flex items-center justify-center rounded-lg bg-brand-500/10 hover:bg-brand-500/20 text-brand-400 transition-all">
-              <Mail className="h-3.5 w-3.5" strokeWidth={1.75} />
-            </button>
-          )}
-          {employee.phone && (
-            <button type="button" title="Call" onClick={() => window.open(`tel:${employee.phone}`, '_self')}
-              className="h-7 w-7 flex items-center justify-center rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 transition-all">
-              <Phone className="h-3.5 w-3.5" />
-            </button>
-          )}
-          <button type="button" title="Edit employee" onClick={() => onEdit(employee)}
-            className="h-7 w-7 flex items-center justify-center rounded-lg bg-brand-500/10 hover:bg-brand-500/20 text-brand-400 transition-all">
-            <Pencil className="h-3.5 w-3.5" />
-          </button>
-          <button type="button" title="Delete employee" onClick={() => onDelete(employee)}
-            className="h-7 w-7 flex items-center justify-center rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 transition-all">
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
-          <button type="button" title={expanded ? 'Collapse' : 'Expand'} onClick={() => setExpanded(o => !o)}
-            className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all`}>
-            {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-          </button>
+        <div className="hidden md:flex justify-center">
+          {sectionLabel
+            ? <StatusBadge color={secColor} label={sectionLabel} />
+            : <span className={`text-xs ${t.textFaint}`}>—</span>}
         </div>
 
-        <button type="button" title={expanded ? 'Collapse' : 'Expand'} onClick={() => setExpanded(o => !o)}
-          className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.textFaint} ${t.hoverText} transition-all md:hidden`}>
-          {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-        </button>
+        <div className="hidden sm:flex justify-center">
+          {employee.employment_type
+            ? <StatusBadge color={ETYPE_COLORS[employee.employment_type] ?? NEUTRAL_BADGE} label={employee.employment_type} />
+            : <span className={`text-xs ${t.textFaint}`}>—</span>}
+        </div>
+
+        <div className="hidden sm:flex justify-center items-center gap-1.5">
+          <StatusBadge
+            color={CLASS_COLORS[employee.employee_class || ''] ?? NEUTRAL_BADGE}
+            label={employee.employee_class || 'Unclassified'}
+          />
+        </div>
+
+        <EmployeeRowActions
+          employee={employee}
+          expanded={expanded}
+          onToggle={toggle}
+          onEdit={onEdit}
+          onDelete={onDelete}
+          className="max-lg:order-3 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 lg:focus-within:opacity-100 transition-opacity"
+        />
       </div>
 
       {expanded && (
-        <div className={`px-4 pb-4 pt-3 border-t ${t.border} ${t.hoverBgSoft} space-y-3`}>
+        <div className={`px-4 pb-4 pt-1 border-t ${t.border} space-y-3`}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div className={`${t.chipBg} rounded-xl overflow-hidden`}>
-              <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}>
-                <UserRound className="h-3.5 w-3.5 text-brand-400" />
-                <span className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textSecondary}`}>Personal</span>
-              </div>
+            <DetailPanel icon={UserRound} title="Personal" accent={secColor}>
               <div className="px-3.5 py-3 grid grid-cols-2 gap-x-6 gap-y-2.5">
                 <InfoRow label="ID Number" value={employee.id_number} />
-                <InfoRow label="Phone" value={employee.phone ? <a href={`tel:${employee.phone}`} className="text-brand-400 hover:underline">{employee.phone}</a> : undefined} />
-                <div className="col-span-2"><InfoRow label="Email" value={employee.email ? <a href={`mailto:${employee.email}`} className="text-brand-400 hover:underline">{employee.email}</a> : undefined} /></div>
+                <InfoRow label="Phone" value={employee.phone ? (
+                  telHref(employee.phone)
+                    ? <a href={telHref(employee.phone)} className="hover:underline" style={{ color: secColor }}>{formatPhoneDisplay(employee.phone)}</a>
+                    : formatPhoneDisplay(employee.phone)
+                ) : undefined} />
+                <div className="col-span-2"><InfoRow label="Email" value={employee.email ? <a href={`mailto:${employee.email}`} className="hover:underline" style={{ color: secColor }}>{employee.email}</a> : undefined} /></div>
                 {employee.address && <div className="col-span-2"><InfoRow label="Address" value={employee.address} /></div>}
               </div>
-            </div>
+            </DetailPanel>
 
-            <div className={`${t.chipBg} rounded-xl overflow-hidden`}>
-              <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}>
-                <BriefcaseBusiness className="h-3.5 w-3.5 text-brand-400" />
-                <span className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textSecondary}`}>Employment</span>
-              </div>
+            <DetailPanel icon={BriefcaseBusiness} title="Employment" accent={secColor}>
               <div className="px-3.5 py-3 grid grid-cols-2 gap-x-6 gap-y-2.5">
                 <InfoRow label="Engaged" value={fmtDate(employee.date_of_engagement)} />
                 <InfoRow label="Tenure" value={ten} />
-                <InfoRow label="Section" value={employee.section ? normalizeSection(employee.section) : undefined} />
+                <InfoRow label="Designation" value={designation || undefined} />
+                <InfoRow label="Section" value={sectionLabel || undefined} />
                 <InfoRow label="Grade" value={employee.grade} />
                 <InfoRow label="Supervisor" value={employee.supervisor} />
+                {driver && <InfoRow label="Driver's Licence" value={driver} />}
                 <InfoRow label="Prev. Employer" value={employee.previous_employer} />
               </div>
-            </div>
+            </DetailPanel>
           </div>
 
           {quals > 0 && (
-            <div className={`${t.chipBg} rounded-xl overflow-hidden`}>
-              <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}>
-                <GraduationCap className="h-3.5 w-3.5 text-brand-400" />
-                <span className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textSecondary}`}>Qualifications</span>
-                <span className={`text-[10px] ml-1 ${t.textFaint}`}>{quals} recorded</span>
-              </div>
+            <DetailPanel
+              icon={GraduationCap}
+              title="Qualifications"
+              accent={secColor}
+              suffix={<span className={`text-[10px] ml-1 ${t.textFaint}`}>{quals} recorded</span>}
+            >
               <div className="px-3.5 py-3 flex flex-wrap gap-1.5">
                 {employee.qualifications!.map((q, i) => <StatusBadge key={i} color={ACCENT_HEX.blue} label={q} />)}
               </div>
-            </div>
+            </DetailPanel>
           )}
 
           {((employee.awards_recognition?.length ?? 0) > 0 || (employee.other_positions?.length ?? 0) > 0) && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {(employee.awards_recognition?.length ?? 0) > 0 && (
-                <div className={`${t.chipBg} rounded-xl overflow-hidden`}>
-                  <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}>
-                    <Award className={`h-3.5 w-3.5 ${accentText('amber', t.light)}`} />
-                    <span className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textSecondary}`}>Awards</span>
-                  </div>
+                <DetailPanel icon={Award} title="Awards" accent={STATUS_TONE.warning}>
                   <div className="px-3.5 py-3 flex flex-wrap gap-1.5">
-                    {employee.awards_recognition!.map((a, i) => <StatusBadge key={i} color="#f59e0b" label={a} />)}
+                    {employee.awards_recognition!.map((a, i) => <StatusBadge key={i} color={STATUS_TONE.warning} label={a} />)}
                   </div>
-                </div>
+                </DetailPanel>
               )}
               {(employee.other_positions?.length ?? 0) > 0 && (
-                <div className={`${t.chipBg} rounded-xl overflow-hidden`}>
-                  <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}>
-                    <Briefcase className={`h-3.5 w-3.5 ${accentText('violet', t.light)}`} />
-                    <span className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textSecondary}`}>Other Positions</span>
-                  </div>
+                <DetailPanel icon={Briefcase} title="Other Positions" accent={ACCENT_HEX.violet}>
                   <div className="px-3.5 py-3 flex flex-wrap gap-1.5">
-                    {employee.other_positions!.map((p, i) => <StatusBadge key={i} color="#a78bfa" label={p} />)}
+                    {employee.other_positions!.map((p, i) => <StatusBadge key={i} color={ACCENT_HEX.violet} label={p} />)}
                   </div>
-                </div>
+                </DetailPanel>
               )}
             </div>
           )}
 
           <div className="flex items-center gap-2 pt-1">
             <button type="button" onClick={() => onEdit(employee)}
-              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-brand-500/15 hover:bg-brand-500/25 text-brand-400 transition-all ${TYPE_WEIGHT.medium}`}>
+              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition-all ${TYPE_WEIGHT.medium}`}
+              style={{ backgroundColor: `${ACCENT_HEX.violet}18`, color: ACCENT_HEX.violet }}>
               <Pencil className="h-3 w-3" /> Edit Employee
             </button>
             <button type="button" onClick={() => onDelete(employee)}
-              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 transition-all ${TYPE_WEIGHT.medium}`}>
+              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition-all ${TYPE_WEIGHT.medium}`}
+              style={{ backgroundColor: `${STATUS_TONE.critical}14`, color: STATUS_TONE.critical }}>
               <Trash2 className="h-3 w-3" /> Delete
             </button>
           </div>
@@ -776,16 +974,16 @@ function EmployeeCard({ employee, onEdit, onDelete }: {
       icon={UserRound}
       accentHex={secColor}
       title={`${employee.first_name} ${employee.last_name}`}
-      subtitle={employee.designation || 'No role'}
+      subtitle={normalizeDesignation(employee.designation) || 'No role'}
       badges={<>
-        {employee.section && <StatusBadge color={secColor} label={employee.section} />}
-        {employee.employment_type && <StatusBadge color={ETYPE_COLORS[employee.employment_type] ?? '#94a3b8'} label={employee.employment_type} />}
-        {employee.employee_class && <StatusBadge color={CLASS_COLORS[employee.employee_class] ?? '#94a3b8'} label={employee.employee_class} />}
+        {employee.section && <StatusBadge color={secColor} label={normalizeSection(employee.section)} />}
+        {employee.employment_type && <StatusBadge color={ETYPE_COLORS[employee.employment_type] ?? NEUTRAL_BADGE} label={employee.employment_type} />}
+        {employee.employee_class && <StatusBadge color={CLASS_COLORS[employee.employee_class] ?? NEUTRAL_BADGE} label={employee.employee_class} />}
       </>}
       summary={
         <div className={`grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs ${t.textMuted}`}>
           <SummaryItem icon={Hash} label="Mine No." value={employee.employee_id} color={secColor} />
-          <SummaryItem icon={Phone} label="Phone" value={employee.phone} color={secColor} />
+          <SummaryItem icon={Phone} label="Phone" value={formatPhoneDisplay(employee.phone) || undefined} color={secColor} />
           {employee.address && <div className="col-span-2"><SummaryItem icon={MapPin} label="Address" value={employee.address} color={secColor} /></div>}
         </div>
       }
@@ -800,10 +998,9 @@ function EmployeeCard({ employee, onEdit, onDelete }: {
     >
       <div className="grid grid-cols-2 gap-x-4 gap-y-2.5">
         <InfoRow label="ID Number" value={employee.id_number} />
-        <InfoRow label="Department" value={employee.department} />
+        <InfoRow label="Section" value={employee.section ? normalizeSection(employee.section) : undefined} />
         <InfoRow label="Tenure" value={ten} />
         <InfoRow label="Joined" value={fmtDate(employee.date_of_engagement)} />
-        <InfoRow label="Grade" value={employee.grade} />
         <InfoRow label="Supervisor" value={employee.supervisor} />
       </div>
       {employee.email && (
@@ -828,17 +1025,19 @@ function EmployeeCard({ employee, onEdit, onDelete }: {
 function EmployeesPageContent() {
   const t = useTheme();
   const confirm = useConfirm();
+  const { isAtLeast } = useAuth();
+  const canManageRoster = isAtLeast('manager');
   const { employees, isLoading, error, setError, reload } = useEmployeesData();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [showRosterExport, setShowRosterExport] = useState(false);
+  const [showNormalize, setShowNormalize] = useState(false);
 
   const [search, setSearch] = useState('');
   const [classFilter,   setClassFilter]   = useState('all');
   const [etypeFilter,   setEtypeFilter]   = useState('all');
   const [sectionFilter, setSectionFilter] = useState('all');
-  const [deptFilter,    setDeptFilter]    = useState('all');
   const [roleFilter,    setRoleFilter]    = useState('all');
   const [sortBy, setSortBy] = useState<SortField>('first_name');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
@@ -850,30 +1049,33 @@ function EmployeesPageContent() {
   // designation (e.g. Mechanical → Fitters/Riggers/Boilermakers); tracked by
   // "section::designation" key, default all open.
   const [collapsedSubgroups, setCollapsedSubgroups] = useState<Set<string>>(new Set());
-  const [showFilters, setShowFilters] = useState(true);
+  const [showFilters, setShowFilters] = useState(false);
 
   const sections = useCollapseSection({ hero: true });
 
-  const uniqueDepts    = useMemo(() => [...new Set(employees.map(e => e.department).filter(Boolean) as string[])].sort(), [employees]);
-  const uniqueRoles    = useMemo(() => [...new Set(employees.map(e => e.designation).filter(Boolean) as string[])].sort(), [employees]);
-  // Normalized (see normalizeSection) so "Electrical" / "electrical " collapse to one
-  // filter option instead of listing every raw-casing variant separately.
-  const uniqueSections = useMemo(() => {
-    const set = new Set(employees.map(e => normalizeSection(e.section)));
-    set.delete('Unassigned');
-    const known = SECTION_ORDER.filter(s => set.has(s));
-    const other = [...set].filter(s => !SECTION_ORDER.includes(s)).sort();
-    return [...known, ...other];
-  }, [employees]);
+  const activeEmployees = useMemo(() => employees.filter(e => e.archived !== true), [employees]);
+  const archivedEmployees = useMemo(() => employees.filter(e => e.archived === true), [employees]);
+
+  const legacyRoles = useMemo(
+    () => [...new Set(activeEmployees.map(e => (e.designation || '').trim()).filter(Boolean))],
+    [activeEmployees],
+  );
+  const roleFilterOptions = useMemo(() => designationFilterOptions(legacyRoles), [legacyRoles]);
+  const sectionFilterOptions = useMemo(() => [
+    { value: 'all', label: 'All sections' },
+    ...SECTION_ORDER.map(s => ({ value: s, label: s })),
+    { value: 'Unassigned', label: 'Unassigned' },
+  ], []);
 
   const filtered = useMemo(() => {
-    let list = [...employees];
+    let list = [...activeEmployees];
     if (search) {
       const s = search.toLowerCase();
       list = list.filter(e =>
         `${e.first_name} ${e.last_name}`.toLowerCase().includes(s) ||
         e.employee_id?.toLowerCase().includes(s) ||
         (e.designation?.toLowerCase() ?? '').includes(s) ||
+        (normalizeDesignation(e.designation).toLowerCase()).includes(s) ||
         (e.id_number?.toLowerCase() ?? '').includes(s) ||
         (e.section?.toLowerCase() ?? '').includes(s)
       );
@@ -881,22 +1083,25 @@ function EmployeesPageContent() {
     if (classFilter   !== 'all') list = list.filter(e => (e.employee_class || 'Unclassified') === classFilter);
     if (etypeFilter   !== 'all') list = list.filter(e => (e.employment_type || '') === etypeFilter);
     if (sectionFilter !== 'all') list = list.filter(e => normalizeSection(e.section) === sectionFilter);
-    if (deptFilter    !== 'all') list = list.filter(e => e.department === deptFilter);
-    if (roleFilter    !== 'all') list = list.filter(e => e.designation === roleFilter);
+    if (roleFilter === ARTISAN_FILTER_VALUE) {
+      list = list.filter(e => isArtisanClass1Designation(e.designation));
+    } else if (roleFilter !== 'all') {
+      list = list.filter(e => normalizeDesignation(e.designation) === roleFilter
+        || (e.designation || '').trim() === roleFilter);
+    }
     list.sort((a, b) => {
       let av: string, bv: string;
       if (sortBy === 'first_name') { av = `${a.first_name} ${a.last_name}`; bv = `${b.first_name} ${b.last_name}`; }
       else if (sortBy === 'date_of_engagement') { av = a.date_of_engagement || ''; bv = b.date_of_engagement || ''; }
+      else if (sortBy === 'section') { av = normalizeSection(a.section); bv = normalizeSection(b.section); }
       else { av = (a[sortBy] as string) || ''; bv = (b[sortBy] as string) || ''; }
       return sortDir === 'asc' ? av > bv ? 1 : -1 : av < bv ? 1 : -1;
     });
     return list;
-  }, [employees, search, classFilter, etypeFilter, sectionFilter, deptFilter, roleFilter, sortBy, sortDir]);
+  }, [activeEmployees, search, classFilter, etypeFilter, sectionFilter, roleFilter, sortBy, sortDir]);
 
-  // Group the filtered/sorted list by section — defined sections first (in a stable
-  // order), any other sections alphabetically, "Unassigned" last — then by profession/
-  // designation within each section. Shared with the export dialog (groupBySectionAndProfession).
-  const grouped = useMemo(() => groupBySectionAndProfession(filtered), [filtered]);
+  const isSearchActive = search.trim().length > 0;
+  const grouped = useMemo(() => (isSearchActive ? [] : groupBySectionAndProfession(filtered)), [filtered, isSearchActive]);
 
   // A group is open unless the user collapsed it; an active search force-opens every
   // group so matches are always visible.
@@ -919,14 +1124,16 @@ function EmployeesPageContent() {
     return next;
   });
 
-  const activeFilterCount = [search, classFilter !== 'all', etypeFilter !== 'all', sectionFilter !== 'all', deptFilter !== 'all', roleFilter !== 'all'].filter(Boolean).length;
+  const activeFilterCount = [classFilter !== 'all', etypeFilter !== 'all', sectionFilter !== 'all', roleFilter !== 'all'].filter(Boolean).length;
 
   const stats = useMemo(() => ({
-    total:    employees.length,
-    nec:      employees.filter(e => e.employment_type === 'NEC').length,
-    salaried: employees.filter(e => e.employment_type === 'SALARIED').length,
-    permanent:employees.filter(e => e.employee_class === 'Permanent').length,
-  }), [employees]);
+    total:    activeEmployees.length,
+    nec:      activeEmployees.filter(e => e.employment_type === 'NEC').length,
+    salaried: activeEmployees.filter(e => e.employment_type === 'SALARIED').length,
+    permanent:activeEmployees.filter(e => e.employee_class === 'Permanent').length,
+    artisans: activeEmployees.filter(e => isArtisanClass1Designation(e.designation)).length,
+    archived: archivedEmployees.length,
+  }), [activeEmployees, archivedEmployees]);
 
   const openAdd  = () => { setSelectedEmployee(null); setShowForm(true); };
   const openEdit = (e: Employee) => { setSelectedEmployee(e); setShowForm(true); };
@@ -945,27 +1152,15 @@ function EmployeesPageContent() {
       const m = err instanceof Error ? err.message : 'Save failed'; setError(m); toast.error(m);
     } finally { setIsSubmitting(false); }
   };
-  const clearFilters = () => { setSearch(''); setClassFilter('all'); setEtypeFilter('all'); setSectionFilter('all'); setDeptFilter('all'); setRoleFilter('all'); };
+  const clearFilters = () => { setSearch(''); setClassFilter('all'); setEtypeFilter('all'); setSectionFilter('all'); setRoleFilter('all'); };
+  const showAllStaff = () => { setEtypeFilter('all'); setClassFilter('all'); setSectionFilter('all'); setRoleFilter('all'); };
+  const artisansOnly = roleFilter === ARTISAN_FILTER_VALUE;
+  const toggleArtisansOnly = () => setRoleFilter(prev => prev === ARTISAN_FILTER_VALUE ? 'all' : ARTISAN_FILTER_VALUE);
+  const showArtisansOnly = () => setRoleFilter(ARTISAN_FILTER_VALUE);
 
-  // Trimmed to the core roster fields (was 14 columns — email/grade/class/supervisor/
-  // id_number/section dropped) and rows sorted by section so the sheet reads grouped
-  // even though DownloadButton itself is a flat, single-sheet exporter — the fuller
-  // bold-multi-sheet-by-section treatment lives in RosterExportDialog (the "Download
-  // organized by section" button below), which already existed.
-  const registryExportColumns: DLColumn[] = [
-    { key: 'employee_id', label: 'Employee ID', width: 14 },
-    { key: 'first_name', label: 'First Name', width: 18 },
-    { key: 'last_name', label: 'Last Name', width: 18 },
-    { key: 'designation', label: 'Designation', width: 24 },
-    { key: 'department', label: 'Department', width: 20 },
-    { key: 'phone', label: 'Phone', width: 16 },
-    { key: 'employment_type', label: 'Employment Type', width: 16 },
-    { key: 'date_of_engagement', label: 'Start Date', width: 14, format: v => fmtDate(v as string) },
-  ];
-  const registryExportRows = useMemo(
-    () => [...employees].sort((a, b) => (a.section || '').localeCompare(b.section || '') || a.last_name.localeCompare(b.last_name)),
-    [employees],
-  );
+  const downloadPersonnelRegistry = () => {
+    void exportPersonnelRegistryExcel(activeEmployees, exportFilename('Personnel_Registry'));
+  };
 
   return (
     <main className="max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
@@ -981,19 +1176,27 @@ function EmployeesPageContent() {
             <button type="button" onClick={reload} title="Refresh" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-colors`}>
               <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
             </button>
-            {employees.length > 0 && (
-              <DownloadButton
-                data={registryExportRows as unknown as Record<string, unknown>[]}
-                columns={registryExportColumns}
-                filename={exportFilename('Personnel_Registry')}
-                title="Personnel Registry"
-                formats={['excel']}
-              />
+            {activeEmployees.length > 0 && (
+              <button
+                type="button"
+                title="Download Personnel Registry (Excel, grouped by designation)"
+                onClick={downloadPersonnelRegistry}
+                className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.semibold} border border-emerald-500/30 bg-emerald-500/15 ${accentText('emerald', t.light)} hover:bg-emerald-500/25 transition-all hover:brightness-110`}
+              >
+                <FileSpreadsheet className="h-4 w-4" />
+                Download
+              </button>
             )}
-            <button type="button" onClick={() => setShowRosterExport(true)} disabled={employees.length === 0} title="Download organized by section or profession"
+            <button type="button" onClick={() => setShowRosterExport(true)} disabled={activeEmployees.length === 0} title="Download organized by section or profession"
               className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-colors disabled:opacity-40`}>
               <Award className="h-4 w-4" />
             </button>
+            {canManageRoster && activeEmployees.length > 0 && (
+              <button type="button" onClick={() => setShowNormalize(true)} title="Normalize designations, sections, and phone numbers across the roster"
+                className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-colors`}>
+                <Sparkles className="h-4 w-4" />
+              </button>
+            )}
             <button type="button" onClick={openAdd} className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 transition-all hover:brightness-110`}>
               <Plus className="h-3.5 w-3.5" /> Add Employee
             </button>
@@ -1001,7 +1204,8 @@ function EmployeesPageContent() {
         }
       >
         <div className="flex flex-wrap gap-1">
-          <StatTile icon={Users} color={ACCENT_HEX.blue} value={stats.total} label="Total Staff" onClick={() => { setEtypeFilter('all'); setClassFilter('all'); }} />
+          <StatTile icon={Users} color={ACCENT_HEX.blue} value={stats.total} label="Total Staff" onClick={showAllStaff} />
+          <StatTile icon={HardHat} color="#f97316" value={stats.artisans} label="Artisans" onClick={showArtisansOnly} />
           <StatTile icon={BriefcaseBusiness} color={ACCENT_HEX.indigo} value={stats.nec} label="NEC" onClick={() => setEtypeFilter('NEC')} />
           <StatTile icon={BriefcaseBusiness} color="#14b8a6" value={stats.salaried} label="Salaried" onClick={() => setEtypeFilter('SALARIED')} />
           <StatTile icon={UserCheck} color={ACCENT_HEX.amber} value={stats.permanent} label="Permanent" onClick={() => setClassFilter('Permanent')} />
@@ -1016,90 +1220,109 @@ function EmployeesPageContent() {
         </div>
       )}
 
-      {/* Filters */}
-      <div className={`${t.glass} ${RADIUS.card} ${t.shadow} p-4 space-y-4`}>
-        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-          <SearchInput value={search} onChange={setSearch} placeholder="Search name, ID, role…" className="flex-1" />
-          <div className="flex gap-2 flex-wrap items-center">
-            <button type="button" onClick={() => setShowFilters(v => !v)}
-              className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.medium} transition-colors ${showFilters ? 'bg-brand-500/15 text-brand-400' : `${t.textMuted} ${t.hoverText} ${t.glassSoft}`}`}>
-              <Filter className="h-3.5 w-3.5" /> Filters
-              {activeFilterCount > 0 && <span className={`ml-1 px-1.5 py-0.5 ${t.chipBg} rounded text-[10px]`}>{activeFilterCount}</span>}
-            </button>
-            {activeFilterCount > 0 && (
-              <button type="button" onClick={clearFilters} className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.medium} ${t.textFaint} ${t.hoverText} ${t.hoverBg} transition-colors`}>
-                <FilterX className="h-3.5 w-3.5" /> Clear
+      {/* Registry — search lives with the results it filters */}
+      <div className={`${t.glass} ${RADIUS.card} ${t.shadow} overflow-hidden`}>
+        <div className={`p-4 border-b ${t.border} space-y-3`}>
+          <div className="flex flex-col lg:flex-row gap-3 lg:items-center">
+            <SearchInput
+              value={search}
+              onChange={setSearch}
+              placeholder="Search by name, mine number, designation…"
+              className="flex-1 min-w-0"
+            />
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              <button
+                type="button"
+                title="Show Class 1 trades and winder technicians only"
+                onClick={toggleArtisansOnly}
+                className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.medium} transition-colors ${
+                  artisansOnly
+                    ? 'bg-orange-500/15 text-orange-400 ring-1 ring-orange-500/30'
+                    : `${t.textMuted} ${t.hoverText} ${t.glassSoft}`
+                }`}
+              >
+                <HardHat className="h-3.5 w-3.5" /> Artisans only
               </button>
-            )}
-            <ViewToggle value={viewMode} onChange={setViewMode} options={[{ value: 'list', icon: List, label: 'List view' }, { value: 'grid', icon: LayoutGrid, label: 'Grid view' }]} />
-          </div>
-        </div>
-
-        {showFilters && (
-          <div className={`pt-4 border-t ${t.border} space-y-3`}>
-            <FilterChips label="Employment Type" value={etypeFilter} onChange={setEtypeFilter}
-              options={[{ value: 'all', label: 'All Types' }, { value: 'NEC', label: 'NEC' }, { value: 'SALARIED', label: 'Salaried' }]} />
-            <FilterChips label="Employee Class" value={classFilter} onChange={setClassFilter}
-              options={[{ value: 'all', label: 'All Classes' }, ...CLASS_OPTIONS.map(c => ({ value: c, label: c }))]} />
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <p className={`${TYPE_SCALE.label} ${TYPE_WEIGHT.medium} mb-1.5 ${t.textFaint}`}>Section</p>
-                <SelectField size="filter" title="Filter by section" value={sectionFilter} onChange={setSectionFilter}
-                  options={[{ value: 'all', label: 'All Sections' }, ...uniqueSections.map(s => ({ value: s, label: s })), { value: 'Unassigned', label: 'Unassigned' }]} />
-              </div>
-              <div>
-                <p className={`${TYPE_SCALE.label} ${TYPE_WEIGHT.medium} mb-1.5 ${t.textFaint}`}>Department</p>
-                <SelectField size="filter" title="Filter by department" value={deptFilter} onChange={setDeptFilter}
-                  options={[{ value: 'all', label: 'All Departments' }, ...uniqueDepts.map(d => ({ value: d, label: d }))]} />
-              </div>
-              <div>
-                <p className={`${TYPE_SCALE.label} ${TYPE_WEIGHT.medium} mb-1.5 ${t.textFaint}`}>Role / Profession</p>
-                <SelectField size="filter" title="Filter by role" value={roleFilter} onChange={setRoleFilter}
-                  options={[{ value: 'all', label: 'All Roles' }, ...uniqueRoles.map(r => ({ value: r, label: r }))]} />
-              </div>
+              <button type="button" onClick={() => setShowFilters(v => !v)}
+                className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.medium} transition-colors ${showFilters || activeFilterCount > 0 ? 'bg-brand-500/15 text-brand-400' : `${t.textMuted} ${t.hoverText} ${t.glassSoft}`}`}>
+                <Filter className="h-3.5 w-3.5" /> Filters
+                {activeFilterCount > 0 && <span className={`ml-0.5 px-1.5 py-0.5 ${t.chipBg} rounded text-[10px]`}>{activeFilterCount}</span>}
+              </button>
+              {(activeFilterCount > 0 || search) && (
+                <button type="button" onClick={clearFilters}
+                  className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.medium} ${t.textFaint} ${t.hoverText} ${t.hoverBg} transition-colors`}>
+                  <FilterX className="h-3.5 w-3.5" /> Clear
+                </button>
+              )}
+              <SelectField size="filter" title="Sort by" value={sortBy} onChange={v => setSortBy(v as SortField)}
+                options={[
+                  { value: 'first_name', label: 'Name' },
+                  { value: 'employee_id', label: 'Mine No.' },
+                  { value: 'designation', label: 'Designation' },
+                  { value: 'section', label: 'Section' },
+                  { value: 'date_of_engagement', label: 'Engagement date' },
+                ]} />
+              <button type="button" title="Toggle sort direction" onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}
+                className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all`}>
+                <ArrowUpDown className="h-3.5 w-3.5" />
+              </button>
+              <ViewToggle value={viewMode} onChange={setViewMode} options={[{ value: 'grid', icon: LayoutGrid, label: 'Card view' }, { value: 'list', icon: List, label: 'List view' }]} />
             </div>
           </div>
-        )}
-      </div>
 
-      {/* Records — grouped by section (homepage category-accordion vocabulary) */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between flex-wrap gap-2">
-          <p className={`${TYPE_SCALE.body} ${t.textFaint}`}>
-            Showing <span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{filtered.length}</span> of {employees.length} employees
-            {grouped.length > 0 && <span> · {grouped.length} section{grouped.length === 1 ? '' : 's'}</span>}
-          </p>
-          <div className="flex items-center gap-2">
-            <SelectField size="filter" title="Sort by" value={sortBy} onChange={v => setSortBy(v as SortField)}
-              options={[
-                { value: 'first_name', label: 'Name (A–Z)' },
-                { value: 'employee_id', label: 'Employee ID' },
-                { value: 'designation', label: 'Role' },
-                { value: 'department', label: 'Department' },
-                { value: 'date_of_engagement', label: 'Date of Engagement' },
-              ]} />
-            <button type="button" title="Toggle sort direction" onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}
-              className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all`}>
-              <ArrowUpDown className="h-3.5 w-3.5" />
-            </button>
-            <ViewToggle value={viewMode} onChange={setViewMode} options={[{ value: 'grid', icon: LayoutGrid, label: 'Card grid' }, { value: 'list', icon: List, label: 'Compact rows' }]} />
-            {grouped.length > 1 && !search && (
-              <button type="button" onClick={toggleAllGroups}
-                className={`flex items-center gap-1.5 text-[12px] ${TYPE_WEIGHT.medium} ${t.textMuted} ${t.hoverText} ${t.glassSoft} rounded-lg px-2.5 py-1.5 transition-colors`}>
-                {allGroupsOpen ? <ChevronsDownUp className="h-3.5 w-3.5" /> : <ChevronsUpDown className="h-3.5 w-3.5" />}
-                {allGroupsOpen ? 'Collapse all' : 'Expand all'}
-              </button>
-            )}
-          </div>
+          {showFilters && (
+            <div className={`grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 pt-1 border-t ${t.border}`}>
+              <FormField label="Section">
+                <SelectField size="filter" title="Filter by section" value={sectionFilter} onChange={setSectionFilter} options={sectionFilterOptions} />
+              </FormField>
+              <FormField label="Designation">
+                <SelectField size="filter" title="Filter by designation" value={roleFilter} onChange={setRoleFilter} options={roleFilterOptions} />
+              </FormField>
+              <FormField label="Employment Type">
+                <SelectField size="filter" title="Filter by employment type" value={etypeFilter} onChange={setEtypeFilter}
+                  options={[{ value: 'all', label: 'All types' }, { value: 'NEC', label: 'NEC' }, { value: 'SALARIED', label: 'Salaried' }]} />
+              </FormField>
+              <FormField label="Employee Class">
+                <SelectField size="filter" title="Filter by employee class" value={classFilter} onChange={setClassFilter}
+                  options={[{ value: 'all', label: 'All classes' }, ...CLASS_OPTIONS.map(c => ({ value: c, label: c }))]} />
+              </FormField>
+            </div>
+          )}
         </div>
 
+        <div className={`px-4 py-3 flex items-center justify-between flex-wrap gap-2 border-b ${t.border} ${t.chipBg}`}>
+          <p className={`${TYPE_SCALE.body} ${t.textFaint}`}>
+            {isSearchActive ? (
+              <>
+                <span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{filtered.length}</span>
+                {' '}result{filtered.length === 1 ? '' : 's'} for &ldquo;{search.trim()}&rdquo;
+              </>
+            ) : (
+              <>
+                Showing <span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{filtered.length}</span> of {activeEmployees.length} active
+                {artisansOnly && <span className="text-orange-400"> · Artisans only</span>}
+                {stats.archived > 0 && <span className={t.textFaint}> · {stats.archived} archived</span>}
+                {grouped.length > 0 && <span> · {grouped.length} section{grouped.length === 1 ? '' : 's'}</span>}
+              </>
+            )}
+          </p>
+          {!isSearchActive && grouped.length > 1 && (
+            <button type="button" onClick={toggleAllGroups}
+              className={`flex items-center gap-1.5 text-[12px] ${TYPE_WEIGHT.medium} ${t.textMuted} ${t.hoverText} transition-colors`}>
+              {allGroupsOpen ? <ChevronsDownUp className="h-3.5 w-3.5" /> : <ChevronsUpDown className="h-3.5 w-3.5" />}
+              {allGroupsOpen ? 'Collapse all' : 'Expand all'}
+            </button>
+          )}
+        </div>
+
+        <div className="p-4">
         {isLoading ? (
-          <div className={`${t.glass} ${RADIUS.card} p-16 text-center`}>
+          <div className="py-16 text-center">
             <LoadingState />
           </div>
         ) : filtered.length === 0 ? (
-          <div className={`${t.glass} ${RADIUS.card} p-12 text-center`}>
-            {employees.length === 0 ? (
+          <div className="py-12 text-center">
+            {activeEmployees.length === 0 && archivedEmployees.length === 0 ? (
               <>
                 <Users className={`h-12 w-12 ${t.textFaint} mx-auto mb-4`} />
                 <h3 className={`text-lg ${TYPE_WEIGHT.semibold} ${t.textPrimary} mb-2`}>No employees yet</h3>
@@ -1119,8 +1342,10 @@ function EmployeesPageContent() {
               </>
             )}
           </div>
+        ) : isSearchActive ? (
+          <EmployeeResults employees={filtered} viewMode={viewMode} onEdit={openEdit} onDelete={onDelete} expandRows showListHeader />
         ) : (
-          <motion.div variants={staggerContainer} initial="hidden" animate="show" className="space-y-3">
+          <div className="space-y-3">
             {grouped.map(g => (
               <GroupSection
                 key={g.section}
@@ -1131,7 +1356,7 @@ function EmployeesPageContent() {
                 countLabel={g.employees.length === 1 ? 'person' : 'people'}
                 open={isGroupOpen(g.section)}
                 onToggle={() => toggleGroup(g.section)}
-                gridClassName={g.hasMeaningfulSubgroups ? 'space-y-1' : (viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4' : 'grid grid-cols-1 gap-0 -mx-4')}
+                gridClassName={g.hasMeaningfulSubgroups ? 'space-y-3' : (viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4' : '')}
               >
                 {g.hasMeaningfulSubgroups ? (
                   g.subgroups.map(sg => (
@@ -1142,30 +1367,47 @@ function EmployeesPageContent() {
                       count={sg.employees.length}
                       open={isSubOpen(g.section, sg.designation)}
                       onToggle={() => toggleSub(g.section, sg.designation)}
-                      gridClassName={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4' : 'grid grid-cols-1 gap-0'}
+                      gridClassName={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4' : ''}
                     >
-                      {sg.employees.map(e => (
-                        <motion.div key={e.id} variants={fadeUp}>
-                          {viewMode === 'grid'
-                            ? <EmployeeCard employee={e} onEdit={openEdit} onDelete={onDelete} />
-                            : <EmployeeRow employee={e} onEdit={openEdit} onDelete={onDelete} />}
-                        </motion.div>
-                      ))}
+                      {viewMode === 'grid' ? (
+                        sg.employees.map(e => (
+                          <motion.div key={e.id} variants={fadeUp}>
+                            <EmployeeCard employee={e} onEdit={openEdit} onDelete={onDelete} />
+                          </motion.div>
+                        ))
+                      ) : renderEmployeeList(sg.employees, openEdit, onDelete)}
                     </Subsection>
                   ))
-                ) : (
+                ) : viewMode === 'grid' ? (
                   g.employees.map(e => (
                     <motion.div key={e.id} variants={fadeUp}>
-                      {viewMode === 'grid'
-                        ? <EmployeeCard employee={e} onEdit={openEdit} onDelete={onDelete} />
-                        : <EmployeeRow employee={e} onEdit={openEdit} onDelete={onDelete} />}
+                      <EmployeeCard employee={e} onEdit={openEdit} onDelete={onDelete} />
                     </motion.div>
                   ))
-                )}
+                ) : renderEmployeeList(g.employees, openEdit, onDelete, true)}
               </GroupSection>
             ))}
-          </motion.div>
+            {archivedEmployees.length > 0 && (
+              <GroupSection
+                icon={Archive}
+                accentHex={STATUS_TONE.neutral}
+                title="Archived Personnel"
+                count={archivedEmployees.length}
+                countLabel={archivedEmployees.length === 1 ? 'person' : 'people'}
+                open={isGroupOpen('__archived__')}
+                onToggle={() => toggleGroup('__archived__')}
+                gridClassName={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4' : ''}
+              >
+                {viewMode === 'grid' ? archivedEmployees.map(e => (
+                  <motion.div key={e.id} variants={fadeUp}>
+                    <EmployeeCard employee={e} onEdit={openEdit} onDelete={onDelete} />
+                  </motion.div>
+                )) : renderEmployeeList(archivedEmployees, openEdit, onDelete, true)}
+              </GroupSection>
+            )}
+          </div>
         )}
+        </div>
       </div>
 
       <CenterModal
@@ -1179,6 +1421,7 @@ function EmployeesPageContent() {
         <div className="p-5">
           <EmployeeForm
             initialData={selectedEmployee}
+            allEmployees={employees}
             onSubmit={onSubmit}
             onCancel={() => { setShowForm(false); setSelectedEmployee(null); }}
             isSubmitting={isSubmitting}
@@ -1186,7 +1429,15 @@ function EmployeesPageContent() {
         </div>
       </CenterModal>
 
-      {showRosterExport && <RosterExportDialog employees={employees} onClose={() => setShowRosterExport(false)} />}
+      {showRosterExport && <RosterExportDialog employees={activeEmployees} onClose={() => setShowRosterExport(false)} />}
+      {showNormalize && (
+        <NormalizeRosterDialog
+          open={showNormalize}
+          employees={employees}
+          onClose={() => setShowNormalize(false)}
+          onComplete={reload}
+        />
+      )}
     </main>
   );
 }

@@ -11,7 +11,7 @@ import {
   Award, ChevronRight,
   Shirt, ChevronsUp, ChevronsDown, X,
   BoxingGlove, Goggles, Boot, Seatbelt, FaceMask, Hoodie, ShirtFolded, Pants, Belt, Umbrella, Link,
-  CalendarRange, ShoppingCart, ClipboardList,
+  CalendarRange, ShoppingCart,
 } from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
 import { ListAutocomplete } from '@/components/shared/ListAutocomplete';
@@ -31,8 +31,9 @@ import {
   usePPEData,
   createPPERecord, updatePPERecord, deletePPERecord,
 } from './usePPEData';
-import { isExpiringSoon, isExpired, computeComplianceRate, computeSizeBreakdown, thisWeekRange, groupOrderList, type OrderListEntry } from './calcPPE';
+import { isExpiringSoon, isExpired, computeComplianceRate, computeSizeBreakdown, thisWeekRange, enrichPPERecords, normalizeEmployeeId, type OrderListEntry } from './calcPPE';
 import { useOrderList } from './useOrderList';
+import { OrderListPanel } from './OrderListPanel';
 import { SECTION_ORDER, normalizeSection, sectionColor } from '@/lib/sections';
 
 // Data-model types (PPERecord, EmployeeRow, PPEStats, etc.) now live in ./types —
@@ -429,6 +430,8 @@ interface IssueFormProps {
   onClose: () => void;
   onSubmit: (data: FormState) => Promise<void>;
   initialData: PPERecord | null;
+  /** Prefill a new issue (creates a record on submit — does not update initialData). */
+  prefill?: PPERecord | null;
   employee: EmployeeWithPPE | null;
   allEmployees: EmployeeRow[];
   matrix: Record<string, number>;
@@ -445,7 +448,7 @@ const blankForm = (): FormState => ({
 // `FormField`/`FormActions` now come from the shared design-system (promoted from
 // this page's own local versions — see the design-system migration plan).
 
-function PPEIssueForm({ isOpen, onClose, onSubmit, initialData, employee, allEmployees, matrix }: IssueFormProps) {
+function PPEIssueForm({ isOpen, onClose, onSubmit, initialData, prefill, employee, allEmployees, matrix }: IssueFormProps) {
   const t = useTheme();
   const confirm = useConfirm();
   const [form, setForm] = useState<FormState>(blankForm());
@@ -460,25 +463,26 @@ function PPEIssueForm({ isOpen, onClose, onSubmit, initialData, employee, allEmp
   useEffect(() => {
     if (isOpen) {
       setExpiryTouched(false);
+      const seed = initialData ?? prefill;
       setForm({
         ...blankForm(),
-        employee_name: employee?.employee_name || initialData?.employee_name || '',
-        employee_id:   employee?.employee_id   || initialData?.employee_id   || '',
-        position:      employee?.position      || initialData?.position      || '',
-        ppe_type:      initialData?.ppe_type      || 'helmet',
-        item_name:     initialData?.item_name     || '',
-        size:          initialData?.size          || '',
-        issue_date:    initialData?.issue_date    || todayLocal(),
-        expiry_date:   initialData?.expiry_date   || '',
-        condition:     initialData?.condition     || 'good',
-        status:        initialData?.status        || 'active',
-        notes:         initialData?.notes         || '',
-        issued_by:     initialData?.issued_by     || '',
-        location:      initialData?.location      || 'Workshop',
-        mine_section:  initialData?.mine_section  || '',
+        employee_name: employee?.employee_name || seed?.employee_name || '',
+        employee_id:   employee?.employee_id   || seed?.employee_id   || '',
+        position:      employee?.position      || seed?.position      || '',
+        ppe_type:      seed?.ppe_type      || 'helmet',
+        item_name:     seed?.item_name     || '',
+        size:          seed?.size          || '',
+        issue_date:    seed?.issue_date    || todayLocal(),
+        expiry_date:   seed?.expiry_date   || '',
+        condition:     seed?.condition     || 'good',
+        status:        seed?.status        || 'active',
+        notes:         seed?.notes         || '',
+        issued_by:     seed?.issued_by     || '',
+        location:      seed?.location      || 'Workshop',
+        mine_section:  seed?.mine_section  || '',
       });
     }
-  }, [isOpen, initialData, employee]);
+  }, [isOpen, initialData, prefill, employee]);
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setForm(p => ({ ...p, [k]: v }));
 
@@ -640,6 +644,7 @@ function PPEIssueForm({ isOpen, onClose, onSubmit, initialData, employee, allEmp
 interface DueItemsProps {
   employees: EmployeeWithPPE[];
   filterType: 'due' | 'soon-to-due';
+  sectionFilterActive?: boolean;
   onEditItem: (r: PPERecord) => void;
   onDeleteItem: (id: string) => void;
   onViewItem: (r: PPERecord) => void;
@@ -649,7 +654,7 @@ interface DueItemsProps {
   isOnOrderList: (id: string) => boolean;
 }
 
-function DueItemsList({ employees, filterType, onEditItem, onDeleteItem, onViewItem, onToggleNotRequired, onBulkMarkNotRequired, onAddToOrderList, isOnOrderList }: DueItemsProps) {
+function DueItemsList({ employees, filterType, sectionFilterActive = false, onEditItem, onDeleteItem, onViewItem, onToggleNotRequired, onBulkMarkNotRequired, onAddToOrderList, isOnOrderList }: DueItemsProps) {
   const t = useTheme();
   const [typeFilter, setTypeFilter] = useState('all');
   const [sizeFilter, setSizeFilter] = useState('all');
@@ -720,7 +725,20 @@ function DueItemsList({ employees, filterType, onEditItem, onDeleteItem, onViewI
     if (sizeFilter !== 'all' && !sizeCounts.some(([size]) => size === sizeFilter)) setSizeFilter('all');
   }, [sizeCounts, sizeFilter]);
 
-  useEffect(() => { setSelectedIds(new Set()); }, [filterType]);
+  useEffect(() => {
+    setTypeFilter('all');
+    setSizeFilter('all');
+    setSearch('');
+    setDateFrom('');
+    setDateTo('');
+    setShowDateRange(false);
+    setSelectedIds(new Set());
+  }, [filterType]);
+
+  const localFiltersActive = typeFilter !== 'all' || sizeFilter !== 'all' || !!search || dateRangeActive;
+  const accentClasses = filterType === 'due'
+    ? { chip: 'bg-rose-500/10 border-rose-500/30', text: 'text-rose-600 dark:text-rose-400' }
+    : { chip: 'bg-amber-500/10 border-amber-500/30', text: 'text-amber-600 dark:text-amber-400' };
   const toggleSelect = (id: string) => setSelectedIds(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const allSelected = items.length > 0 && items.every(i => selectedIds.has(String(i.id)));
   const toggleSelectAll = () => setSelectedIds(allSelected ? new Set() : new Set(items.map(i => String(i.id))));
@@ -728,6 +746,7 @@ function DueItemsList({ employees, filterType, onEditItem, onDeleteItem, onViewI
   const toOrderEntry = (item: DueItem): OrderListEntry => ({
     record_id: String(item.id), employee_id: item.employee_id, employee_name: item.employee_name,
     ppe_type: item.ppe_type, item_name: item.item_name, size: item.size,
+    expiry_date: item.expiry_date, added_at: new Date().toISOString(),
   });
   const handleBulkAddToOrderList = () => {
     const toAdd = items.filter(i => selectedIds.has(String(i.id))).map(toOrderEntry);
@@ -736,22 +755,42 @@ function DueItemsList({ employees, filterType, onEditItem, onDeleteItem, onViewI
     setSelectedIds(new Set());
   };
 
-  if (items.length === 0 && !search && typeFilter === 'all' && sizeFilter === 'all' && !dateRangeActive) {
+  if (items.length === 0 && !localFiltersActive) {
     return (
       <div className={`text-center py-12 ${t.glassSoft} rounded-xl`}>
         <CheckCircle2 className={`h-12 w-12 mx-auto mb-3 ${t.light ? 'text-emerald-600/60' : 'text-emerald-400/60'}`} />
-        <p className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>No {filterType === 'due' ? 'overdue' : 'expiring soon'} items</p>
-        <p className={`text-sm ${t.textFaint} mt-1`}>All PPE is up to date</p>
+        <p className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>
+          {sectionFilterActive
+            ? `No ${filterType === 'due' ? 'overdue' : 'expiring soon'} items in this section`
+            : `No ${filterType === 'due' ? 'overdue' : 'expiring soon'} items`}
+        </p>
+        <p className={`text-sm ${t.textFaint} mt-1`}>
+          {sectionFilterActive ? 'Set Section to All Sections above to see the full list' : 'All PPE is up to date'}
+        </p>
       </div>
     );
   }
 
-  const accentClasses = filterType === 'due'
-    ? { chip: 'bg-rose-500/10 border-rose-500/30', text: 'text-rose-600 dark:text-rose-400' }
-    : { chip: 'bg-amber-500/10 border-amber-500/30', text: 'text-amber-600 dark:text-amber-400' };
+  const clearLocalFilters = () => {
+    setTypeFilter('all');
+    setSizeFilter('all');
+    setSearch('');
+    setDateFrom('');
+    setDateTo('');
+    setShowDateRange(false);
+  };
 
   return (
     <div className="space-y-3">
+      {items.length === 0 && localFiltersActive && (
+        <div className={`flex flex-wrap items-center justify-between gap-2 rounded-xl px-4 py-3 ${t.chipBg}`}>
+          <p className={`text-sm ${t.textMuted}`}>No items match the active filters.</p>
+          <button type="button" onClick={clearLocalFilters}
+            className={`text-xs px-3 py-1.5 rounded-lg ${TYPE_WEIGHT.semibold} ${accentClasses.chip} ${accentClasses.text}`}>
+            Clear filters
+          </button>
+        </div>
+      )}
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative flex-1 max-w-56">
           <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 ${t.textFaint}`} />
@@ -834,13 +873,13 @@ function DueItemsList({ employees, filterType, onEditItem, onDeleteItem, onViewI
       {items.length === 0 ? (
         <div className={`text-center py-8 ${t.textFaint} text-sm rounded-xl ${t.glassSoft}`}>No items match the current filters</div>
       ) : (
-        <motion.div variants={staggerContainer} initial="hidden" animate="show" className="space-y-2">
+        <div className="space-y-2">
           {items.map(item => {
             const ppeType = PPE_TYPES[item.ppe_type] || PPE_TYPES.helmet;
             const Icon = ppeType.icon;
             const glowColor = filterType === 'due' ? '#f43f5e' : '#f59e0b';
             return (
-              <motion.div key={item.id} variants={fadeUp}>
+              <div key={item.id}>
                 <GlowCard color={glowColor} onClick={() => onViewItem(item)} className="p-3.5 flex items-center gap-3">
                   <input type="checkbox" checked={selectedIds.has(String(item.id))} onChange={() => toggleSelect(String(item.id))}
                     onClick={e => e.stopPropagation()} aria-label={`Select ${item.employee_name}'s ${item.item_name}`} className="rounded shrink-0" />
@@ -891,10 +930,10 @@ function DueItemsList({ employees, filterType, onEditItem, onDeleteItem, onViewI
                     </button>
                   </div>
                 </GlowCard>
-              </motion.div>
+              </div>
             );
           })}
-        </motion.div>
+        </div>
       )}
     </div>
   );
@@ -968,15 +1007,24 @@ export default function PPEManagement() {
   const { records, setRecords, apiEmployees, stats, statsError, recordsError, loading, refreshing, matrix, setMatrix, refresh: load } = usePPEData();
   const orderList = useOrderList();
 
+  // PPE records snapshot employee_name at issue time — overlay the live personnel
+  // register so a stale/garbled name on an old record doesn't diverge from Employees.
+  const displayRecords = useMemo(
+    () => enrichPPERecords(records, apiEmployees),
+    [records, apiEmployees],
+  );
+
   // UI state
   const [showForm,      setShowForm]      = useState(false);
   const [showMatrix,    setShowMatrix]    = useState(false);
   const [editData,      setEditData]      = useState<PPERecord | null>(null);
+  const [issuePrefill,  setIssuePrefill]  = useState<PPERecord | null>(null);
+  const [orderFulfillId, setOrderFulfillId] = useState<string | null>(null);
   const [selEmployee,   setSelEmployee]   = useState<EmployeeWithPPE | null>(null);
   const [detailItem,    setDetailItem]    = useState<PPERecord | null>(null);
   const [showDetail,    setShowDetail]    = useState(false);
   // Master collapse — all page sections. Read sections.expanded[key] / sections.toggle(key).
-  const sections = useCollapseSection({ heroStats: false, typeBreakdown: false, sizeBreakdown: false, records: false, orderList: false });
+  const sections = useCollapseSection({ heroStats: false, typeBreakdown: false, sizeBreakdown: false, records: true, orderList: true });
   const [filterType,    setFilterType]    = useState<'all' | 'active' | 'soon-to-due' | 'due'>('all');
   const [searchTerm,    setSearchTerm]    = useState('');
   // Mechanical/Electrical/Civil/Instrumentation — same categorization as
@@ -985,6 +1033,13 @@ export default function PPEManagement() {
   // All employee cards start collapsed (empty object = all false)
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
+  // Expiring Soon / Overdue are useless with Records collapsed — open it automatically.
+  useEffect(() => {
+    if (filterType === 'soon-to-due' || filterType === 'due') {
+      sections.expand('records');
+    }
+  }, [filterType, sections.expand]);
+
   // Data loading (records/stats/employees fetch + matrix load) now happens inside
   // usePPEData — see the destructure above.
 
@@ -992,12 +1047,12 @@ export default function PPEManagement() {
 
   const ppeEmployees = useMemo(() => {
     const map = new Map<string, EmployeeRow>();
-    records.forEach(r => {
+    displayRecords.forEach(r => {
       if (!map.has(r.employee_id))
         map.set(r.employee_id, { employee_id: r.employee_id, employee_name: r.employee_name, position: r.position, department: r.department || '', section: r.mine_section || '' });
     });
     return Array.from(map.values());
-  }, [records]);
+  }, [displayRecords]);
 
   const allEmployeesForForm = useMemo(() => {
     const map = new Map<string, EmployeeRow>();
@@ -1007,21 +1062,15 @@ export default function PPEManagement() {
   }, [apiEmployees, ppeEmployees]);
 
   const employeesWithPPE = useMemo<EmployeeWithPPE[]>(() => {
-    // Prefer the live personnel register (apiEmployees) for name/position so editing
-    // someone in Personnel is reflected on their PPE card; fall back to the value stored
-    // on the PPE record when the employee isn't (yet) in the register.
-    const live = new Map(apiEmployees.map(e => [e.employee_id, e]));
+    const live = new Map(apiEmployees.map(e => [normalizeEmployeeId(e.employee_id), e]));
     const map = new Map<string, EmployeeWithPPE>();
-    records.forEach(r => {
+    displayRecords.forEach(r => {
       if (!map.has(r.employee_id)) {
-        const emp = live.get(r.employee_id);
+        const emp = live.get(normalizeEmployeeId(r.employee_id));
         map.set(r.employee_id, {
           employee_id: r.employee_id,
-          employee_name: emp?.employee_name || r.employee_name,
-          position: emp?.position || r.position,
-          // Prefer the employee register's own section (same field employees/page.tsx
-          // filters/groups by) — mine_section on the PPE record is a free-text field
-          // auto-seeded from it at issue time but editable afterward, so it can drift.
+          employee_name: r.employee_name,
+          position: r.position,
           section: emp?.section || r.mine_section || '',
           records: [],
         });
@@ -1029,7 +1078,7 @@ export default function PPEManagement() {
       map.get(r.employee_id)!.records.push(r);
     });
     return Array.from(map.values());
-  }, [records, apiEmployees]);
+  }, [displayRecords, apiEmployees]);
 
   // Sections actually present among the currently loaded PPE employees — drives the
   // Section filter's options so it never offers a section nobody here belongs to.
@@ -1088,13 +1137,6 @@ export default function PPEManagement() {
   // "to reorder" count (past expiry, i.e. needs replacing). Lets a purchaser see e.g.
   // "Helmet · L × 12 (3 to reorder)" at a glance. Returns [type, [size, {inUse, reorder}][]][].
   const sizeBreakdown = useMemo(() => computeSizeBreakdown(records), [records]);
-  const orderGroups = useMemo(() => groupOrderList(orderList.entries), [orderList.entries]);
-  const orderListColumns: DLColumn[] = [
-    { key: 'item_name', label: 'Item', width: 22 },
-    { key: 'size', label: 'Size', width: 10 },
-    { key: 'count', label: 'Qty', width: 8 },
-    { key: 'people', label: 'For (Employees)', width: 44 },
-  ];
 
   // ── Expand / collapse ─────────────────────────────────────────────────────
 
@@ -1106,15 +1148,65 @@ export default function PPEManagement() {
   // ── Handlers ──────────────────────────────────────────────────────────────
 
   const openIssueForm = (emp?: EmployeeWithPPE) => {
+    setIssuePrefill(null);
+    setOrderFulfillId(null);
     setSelEmployee(emp ?? null);
     setEditData(null);
     setShowForm(true);
   };
 
+  const openIssueFromOrder = (entry: OrderListEntry) => {
+    const emp = employeesWithPPE.find(e => e.employee_id === entry.employee_id) ?? null;
+    setSelEmployee(emp ? { ...emp, employee_name: entry.employee_name } : {
+      employee_id: entry.employee_id,
+      employee_name: entry.employee_name,
+      position: '',
+      section: '',
+      records: [],
+    });
+    setEditData(null);
+    setOrderFulfillId(entry.record_id);
+    setIssuePrefill({
+      id: '',
+      employee_id: entry.employee_id,
+      employee_name: entry.employee_name,
+      position: emp?.position ?? '',
+      department: '',
+      ppe_type: entry.ppe_type,
+      item_name: entry.item_name,
+      size: entry.size,
+      issue_date: todayLocal(),
+      expiry_date: null,
+      condition: 'good',
+      status: 'active',
+      notes: '',
+      issued_by: '',
+      location: 'Workshop',
+      mine_section: emp?.section ?? '',
+    });
+    setShowForm(true);
+  };
+
+  const closeIssueForm = () => {
+    setShowForm(false);
+    setEditData(null);
+    setIssuePrefill(null);
+    setOrderFulfillId(null);
+    setSelEmployee(null);
+  };
+
   const handleSubmit = async (formData: FormState) => {
-    if (editData) { await updatePPERecord(editData.id, formData); toast.success('PPE record updated'); }
-    else          { await createPPERecord(formData);               toast.success('PPE issued successfully'); }
-    setShowForm(false); setEditData(null); setSelEmployee(null);
+    if (editData) {
+      await updatePPERecord(editData.id, formData);
+      toast.success('PPE record updated');
+      orderList.remove(editData.id);
+    } else {
+      await createPPERecord(formData);
+      toast.success('PPE issued successfully');
+    }
+    if (orderFulfillId) orderList.remove(orderFulfillId);
+    orderList.removeFulfilled(formData.employee_id, formData.ppe_type, formData.size);
+    closeIssueForm();
     load(true);
   };
 
@@ -1206,7 +1298,7 @@ export default function PPEManagement() {
   // issues only (a returned/lost/damaged item has no live "next issue" date to
   // show) and colors every row, not just the ones that need attention, so it
   // reads at a glance: red = already due, amber = due soon, green = fine.
-  const summaryRecords = records
+  const summaryRecords = displayRecords
     .filter(r => r.status === 'active')
     .slice()
     .sort((a, b) => {
@@ -1318,7 +1410,7 @@ export default function PPEManagement() {
                 <div className="flex items-center gap-1.5">
                   <span className={`text-[10px] ${TYPE_WEIGHT.medium} ${t.textFaint} hidden sm:inline`}>Register</span>
                   <DownloadButton
-                    data={records as unknown as Record<string, unknown>[]}
+                    data={displayRecords as unknown as Record<string, unknown>[]}
                     columns={exportColumns}
                     pdfColumns={exportPdfColumns}
                     filename={exportFilename('PPE_Register')}
@@ -1505,65 +1597,15 @@ export default function PPEManagement() {
         )}
 
         {/* ── ORDER LIST — items flagged from Overdue/Expiring Soon to actually order ── */}
-        {orderList.entries.length > 0 && (
-          <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-            <button type="button" onClick={() => sections.toggle('orderList')}
-              className={`w-full flex items-center justify-between px-5 py-3 ${t.hoverBgSoft} transition-all`}>
-              <div className="flex items-center gap-2">
-                <ClipboardList className="h-3.5 w-3.5 text-brand-500" />
-                <span className={`text-xs ${TYPE_WEIGHT.semibold} ${t.textSecondary} uppercase tracking-wider`}>Order List</span>
-                <span className={`text-[11px] ${t.textFaint} font-normal normal-case tracking-normal`}>
-                  {orderList.entries.length} item{orderList.entries.length !== 1 ? 's' : ''} · {orderGroups.length} line{orderGroups.length !== 1 ? 's' : ''}
-                </span>
-              </div>
-              {sections.expanded.orderList
-                ? <ChevronUp className={`h-3.5 w-3.5 ${t.textFaint}`} />
-                : <ChevronDown className={`h-3.5 w-3.5 ${t.textFaint}`} />}
-            </button>
-            <Collapse open={!!sections.expanded.orderList}>
-              <div className={`px-4 pb-4 pt-3 border-t ${t.border} space-y-3`}>
-                <div className="flex items-center justify-between gap-2">
-                  <p className={`text-xs ${t.textFaint}`}>What to actually order, grouped by item and size.</p>
-                  <div className="flex items-center gap-2">
-                    <DownloadButton data={orderGroups as unknown as Record<string, unknown>[]} columns={orderListColumns}
-                      filename={exportFilename('PPE_Order_List')} title="PPE Order List"
-                      subtitle={`${orderList.entries.length} item${orderList.entries.length !== 1 ? 's' : ''} to order`} />
-                    <button type="button" onClick={async () => { if (await confirm({ title: 'Clear the order list?', message: 'This removes every item you’ve added — it does not affect the actual PPE records.', destructive: true, confirmLabel: 'Clear' })) orderList.clear(); }}
-                      className={`text-[11px] ${TYPE_WEIGHT.semibold} px-2.5 py-1.5 rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all`}>
-                      Clear
-                    </button>
-                  </div>
-                </div>
-                <div className={`rounded-xl ${t.glassSoft} overflow-hidden`}>
-                  <div className={`grid grid-cols-[1fr_auto_auto_2fr] gap-x-3 px-3 py-2 text-[10px] uppercase tracking-wide ${t.textFaint} border-b ${t.border}`}>
-                    <span>Item</span><span className="text-right">Size</span><span className="text-right">Qty</span><span>For</span>
-                  </div>
-                  {orderGroups.map(row => (
-                    <div key={`${row.ppe_type}::${row.size}`} className={`grid grid-cols-[1fr_auto_auto_2fr] gap-x-3 px-3 py-2 text-xs items-center border-b ${t.border} last:border-b-0`}>
-                      <span className={`${TYPE_WEIGHT.medium} ${t.textPrimary} truncate`}>{row.item_name}</span>
-                      <span className="text-right tabular-nums">{row.size}</span>
-                      <span className={`text-right tabular-nums ${TYPE_WEIGHT.semibold}`}>{row.count}</span>
-                      <span className={`${t.textMuted} truncate`} title={row.people.join(', ')}>{row.people.join(', ')}</span>
-                    </div>
-                  ))}
-                </div>
-                {/* Per-entry removal — the grouped table above is read-only (it's the
-                    export shape), so undoing a single mis-add happens here instead. */}
-                <div className="flex flex-wrap gap-1.5">
-                  {orderList.entries.map(e => (
-                    <span key={e.record_id} className={`flex items-center gap-1 text-[11px] px-2 py-1 rounded-lg ${t.chipBg} ${t.textMuted}`}>
-                      {e.employee_name} · {e.item_name}{e.size ? ` · ${e.size}` : ''}
-                      <button type="button" title="Remove from order list" onClick={() => orderList.remove(e.record_id)}
-                        className={`${t.textFaint} hover:text-rose-500 transition-colors`}>
-                        <X className="h-3 w-3" />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </Collapse>
-          </div>
-        )}
+        <OrderListPanel
+          entries={orderList.entries}
+          ppeTypes={PPE_TYPES}
+          expanded={!!sections.expanded.orderList}
+          onToggleExpanded={() => sections.toggle('orderList')}
+          onRemove={orderList.remove}
+          onClear={orderList.clear}
+          onIssue={openIssueFromOrder}
+        />
 
         {/* ── FILTER + EXPAND/COLLAPSE BAR ── */}
         <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
@@ -1643,7 +1685,12 @@ export default function PPEManagement() {
 
           <Collapse open={!!sections.expanded.records}>
             <div className={`border-t ${t.border} p-4`}>
-              {loading ? (
+              {refreshing && records.length > 0 && (
+                <p className={`flex items-center gap-2 text-xs ${t.textFaint} mb-3`}>
+                  <RefreshCw className="h-3.5 w-3.5 animate-spin" /> Refreshing…
+                </p>
+              )}
+              {loading && records.length === 0 ? (
                 <div className={`flex items-center justify-center py-16 gap-2 ${t.textFaint}`}>
                   <RefreshCw className="h-5 w-5 animate-spin" /> Loading PPE records…
                 </div>
@@ -1662,7 +1709,8 @@ export default function PPEManagement() {
                   </motion.button>
                 </div>
               ) : (filterType === 'soon-to-due' || filterType === 'due') ? (
-                <DueItemsList employees={sectionFilteredEmployees} filterType={filterType}
+                <DueItemsList key={filterType} employees={sectionFilteredEmployees} filterType={filterType}
+                  sectionFilterActive={sectionFilter !== 'all'}
                   onEditItem={r => { setEditData(r); setShowForm(true); }}
                   onDeleteItem={handleDelete}
                   onViewItem={item => { setDetailItem(item); setShowDetail(true); }}
@@ -1709,8 +1757,8 @@ export default function PPEManagement() {
       </main>
 
       <PPEIssueForm isOpen={showForm}
-        onClose={() => { setShowForm(false); setEditData(null); setSelEmployee(null); }}
-        onSubmit={handleSubmit} initialData={editData} employee={selEmployee}
+        onClose={closeIssueForm}
+        onSubmit={handleSubmit} initialData={editData} prefill={issuePrefill} employee={selEmployee}
         allEmployees={allEmployeesForForm} matrix={matrix} />
 
       <PPEMatrixModal isOpen={showMatrix} onClose={() => setShowMatrix(false)}

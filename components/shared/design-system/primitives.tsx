@@ -32,6 +32,31 @@ export function useScrollEdgeFlash() {
   return { edge, onScroll };
 }
 
+/**
+ * Portaled dropdown panels sit outside Radix Dialog's RemoveScroll shards, so
+ * document-level scroll lock calls preventDefault on wheel events — trackpad
+ * two-finger scroll does nothing and only dragging the scrollbar works.
+ * Manually apply deltaY to scrollTop (still works after preventDefault).
+ */
+export function usePortaledListWheelScroll(
+  ref: React.RefObject<HTMLElement | null>,
+  enabled: boolean,
+) {
+  useEffect(() => {
+    if (!enabled) return;
+    const el = ref.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      if (el.scrollHeight <= el.clientHeight + 1) return;
+      const prev = el.scrollTop;
+      el.scrollTop += e.deltaY;
+      if (el.scrollTop !== prev) e.stopPropagation();
+    };
+    el.addEventListener('wheel', onWheel, { passive: true });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [enabled, ref]);
+}
+
 export function ScrollEdgeGlow({ edge }: { edge: 'top' | 'bottom' }) {
   return (
     <AnimatePresence>

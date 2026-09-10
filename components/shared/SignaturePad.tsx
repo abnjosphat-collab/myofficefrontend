@@ -1,8 +1,8 @@
 // components/shared/SignaturePad.tsx
 // Canvas signature capture — draw, clear, confirm.
 'use client';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { PenLine, RefreshCw, Lock, CheckCircle2, Upload } from '@/components/shared/theme';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { PenLine, RefreshCw, Lock, CheckCircle2, Upload, useTheme } from '@/components/shared/theme';
 import { api } from '@/lib/apiClient';
 
 export interface SignatureResult {
@@ -25,6 +25,7 @@ export interface SignatureResult {
  *  paper are usually grey rather than white, so this sits well below 1. */
 const PAPER_LUMINANCE = 0.62;
 const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
+const INK_COLOR = '#0f172a';
 
 /**
  * Turn a photo/scan of a signature into the same shape a drawn one has:
@@ -62,7 +63,7 @@ function processScan(
       } else {
         // Darker ink → more opaque, so anti-aliased edges stay soft.
         const strength = Math.min(1, (PAPER_LUMINANCE - lum) / PAPER_LUMINANCE);
-        d[i] = 255; d[i + 1] = 255; d[i + 2] = 255;
+        d[i] = 15; d[i + 1] = 23; d[i + 2] = 42;
         d[i + 3] = Math.round(255 * strength);
         if (x < minX) minX = x;
         if (x > maxX) maxX = x;
@@ -101,6 +102,11 @@ interface SavedInfo {
   updated_at?: string;
 }
 
+export interface SignatureReuseOption {
+  label: string;
+  dataUrl: string;
+}
+
 interface SignaturePadProps {
   signerName: string;
   /** The signed-in user's email — paired with the password field below (as a
@@ -120,6 +126,10 @@ interface SignaturePadProps {
    *  below actually confirms one exists — never forces the unlock form open for
    *  someone who has nothing saved. Default false (unchanged "Draw now" default). */
   preferSaved?: boolean;
+  /** Pre-check "Save for next time" when the user has no saved signature yet. */
+  defaultSaveForNextTime?: boolean;
+  /** One-click reuse — signatures already captured elsewhere on this timesheet. */
+  reuseSignatures?: SignatureReuseOption[];
 }
 
 export function SignaturePad({
@@ -130,7 +140,11 @@ export function SignaturePad({
   onCancel,
   allowSaved = true,
   preferSaved = false,
+  defaultSaveForNextTime = false,
+  reuseSignatures = [],
 }: SignaturePadProps) {
+  const theme = useTheme();
+  const saveCheckboxId = useId();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawing = useRef(false);
   const [hasInk, setHasInk] = useState(false);
@@ -156,10 +170,11 @@ export function SignaturePad({
         if (cancelled) return;
         setSaved(r);
         if (preferSaved && r.has_signature) setMode('unlock');
+        if (defaultSaveForNextTime && !r.has_signature) setSaveForNextTime(true);
       })
       .catch(() => { /* no saved signature, or endpoint unavailable — draw mode still works */ });
     return () => { cancelled = true; };
-  }, [allowSaved, preferSaved]);
+  }, [allowSaved, preferSaved, defaultSaveForNextTime]);
 
   // Keep the backing store matched to the element's CSS box. Setting canvas
   // .width/.height wipes the bitmap and resets the context, so re-apply stroke
@@ -194,7 +209,7 @@ export function SignaturePad({
       ctx.lineWidth = 2;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
-      ctx.strokeStyle = '#ffffff';
+      ctx.strokeStyle = INK_COLOR;
       if (snapshot) ctx.drawImage(snapshot, 0, 0, width, height);
     };
 
@@ -299,6 +314,7 @@ export function SignaturePad({
       // If it fails the signature is still valid, so don't block the sign-off.
       try {
         await api.put('/api/signatures/me', { image_data: dataUrl, source: inkSource });
+        setSaved(prev => ({ ...prev, has_signature: true, source: inkSource }));
       } catch {
         /* ignored — see above */
       }
@@ -336,22 +352,47 @@ export function SignaturePad({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm">
           <PenLine className="h-4 w-4 text-[#86BBD8]" />
-          <span className="text-white/50">Signing as</span>
-          <span className="font-semibold text-white">{signerName}</span>
+          <span className={theme.textFaint}>Signing as</span>
+          <span className={`font-semibold ${theme.textPrimary}`}>{signerName}</span>
         </div>
         {mode === 'draw' && (
           <button
             type="button"
             onClick={clear}
             disabled={!hasInk}
-            className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-white/50 transition-all hover:bg-white/[0.07] hover:text-white disabled:pointer-events-none disabled:opacity-40"
+            className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium ${theme.textFaint} transition-all ${theme.hoverBg} disabled:pointer-events-none disabled:opacity-40`}
           >
             <RefreshCw className="h-3.5 w-3.5" /> Clear
           </button>
         )}
       </div>
 
-      {/* Mode switch — only when a saved signature actually exists */}
+      {reuseSignatures.length > 0 && (
+        <div className={`rounded-xl border ${theme.border} ${theme.chipBg} p-3 space-y-2`}>
+          <p className={`text-xs font-medium ${theme.textMuted}`}>Use the compiler&apos;s signature</p>
+          <div className="flex flex-wrap gap-2">
+            {reuseSignatures.map(opt => (
+              <button
+                key={opt.label}
+                type="button"
+                onClick={() => onSign({
+                  signerName,
+                  signedAt: new Date().toISOString(),
+                  dataUrl: opt.dataUrl,
+                  method: 'saved',
+                })}
+                className={`inline-flex items-center gap-2 rounded-lg border ${theme.border} px-2 py-1.5 text-xs ${theme.hoverBg}`}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={opt.dataUrl} alt="" className="h-6 max-w-[72px] object-contain rounded border border-slate-200 bg-white" />
+                <span className={theme.textPrimary}>{opt.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Mode switch — only when a saved signature actually exists on the account */}
       {allowSaved && saved.has_signature && (
         <div className="flex gap-1 rounded-xl border border-white/10 bg-white/[0.04] p-1">
           <button
@@ -384,10 +425,10 @@ export function SignaturePad({
             onPointerMove={move}
             onPointerUp={end}
             onPointerLeave={end}
-            className="h-40 w-full cursor-crosshair touch-none rounded-xl border border-white/15 bg-white/[0.04]"
+            className="h-40 w-full cursor-crosshair touch-none rounded-xl border border-slate-300 bg-white shadow-inner"
           />
           {!hasInk && (
-            <p className="-mt-2 text-center text-xs text-white/35">
+            <p className={`-mt-2 text-center text-xs ${theme.textFaint}`}>
               Draw your signature above, or upload a photo of one
             </p>
           )}
@@ -404,7 +445,7 @@ export function SignaturePad({
             <button
               type="button"
               onClick={() => fileRef.current?.click()}
-              className="flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/[0.06] px-3 py-1.5 text-xs font-medium text-white/70 transition-all hover:bg-white/[0.12] hover:text-white"
+              className={`flex items-center gap-1.5 rounded-lg border ${theme.border} ${theme.chipBg} px-3 py-1.5 text-xs font-medium ${theme.textMuted} transition-all ${theme.hoverBg}`}
             >
               <Upload className="h-3.5 w-3.5" /> Upload a scan
             </button>
@@ -414,9 +455,9 @@ export function SignaturePad({
           </div>
           {scanErr && <p className="text-xs text-rose-400">{scanErr}</p>}
           {allowSaved && (
-            <label htmlFor="signature-save-checkbox" className="flex cursor-pointer items-center gap-2 text-xs text-white/50 hover:text-white/70">
+            <label htmlFor={saveCheckboxId} className={`flex cursor-pointer items-center gap-2 text-xs ${theme.textFaint}`}>
               <input
-                id="signature-save-checkbox"
+                id={saveCheckboxId}
                 type="checkbox"
                 checked={saveForNextTime}
                 onChange={e => setSaveForNextTime(e.target.checked)}

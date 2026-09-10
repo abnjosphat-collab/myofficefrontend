@@ -29,6 +29,7 @@ export interface Leave {
   handover_to?: string;
   status: 'pending' | 'approved' | 'rejected';
   total_days: number;
+  exclude_weekends_holidays?: boolean;
   applied_date: string;
   updated_at?: string;
   department?: string;

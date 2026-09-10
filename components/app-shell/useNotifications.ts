@@ -29,7 +29,9 @@ function writeSeen(ids: string[]) {
     // Cap so the seen-list can't grow unbounded as activity ids churn.
     const capped = ids.slice(-200);
     window.localStorage.setItem(SEEN_KEY, JSON.stringify(capped));
-    window.dispatchEvent(new CustomEvent(SEEN_EVENT));
+    // Defer so a caller inside another component's setState batch (e.g. the bell
+    // toggle) doesn't synchronously setState in every useNotifications subscriber.
+    queueMicrotask(() => window.dispatchEvent(new CustomEvent(SEEN_EVENT)));
   } catch { /* storage unavailable — non-fatal */ }
 }
 

@@ -1,18 +1,25 @@
-// lib/sections.ts — the Mechanical/Electrical/Civil/Instrumentation employee-section
-// categorization, canonically defined in app/employees/page.tsx and since re-implemented
-// (with small drift — e.g. overtime's Electrical hex diverged from employees') in
-// app/overtime/page.tsx, app/pto/page.tsx and components/safety/index.tsx. This is the
-// shared extraction: new call sites (e.g. app/ppe) should import from here rather than
-// add a 5th copy. The 4 existing duplicates aren't migrated here — out of scope for
-// whichever feature prompted this file; migrate one opportunistically when it's next
-// touched, the same way calcX.ts extraction happens elsewhere in this app.
+// lib/sections.ts — Mechanical / Electrical / Planning employee-section categorization.
+// Legacy Civil and Instrumentation values are mapped on read so old records group
+// correctly until migrated via the Employees form.
 import { ACCENT_HEX } from '@/components/shared/theme';
 
 /** Stable display order for the section groups. */
-export const SECTION_ORDER = ['Mechanical', 'Electrical', 'Civil', 'Instrumentation'];
+export const SECTION_ORDER: string[] = ['Management', 'Mechanical', 'Electrical', 'Planning'];
+
+/** Legacy section names → current canonical section (keys are lowercased). */
+const SECTION_ALIASES: Record<string, string> = {
+  civil: 'Planning',
+  instrumentation: 'Electrical',
+};
 
 export const SECTION_COLORS: Record<string, string> = {
-  Mechanical: ACCENT_HEX.blue, Electrical: ACCENT_HEX.amber, Civil: ACCENT_HEX.emerald, Instrumentation: ACCENT_HEX.violet,
+  Management: ACCENT_HEX.indigo,
+  Mechanical: ACCENT_HEX.blue,
+  Electrical: ACCENT_HEX.amber,
+  Planning: ACCENT_HEX.emerald,
+  // Legacy — kept so unmigrated rows still color consistently
+  Civil: ACCENT_HEX.emerald,
+  Instrumentation: ACCENT_HEX.violet,
 };
 
 // Case/whitespace-insensitive canonicalization — source data has inconsistent casing
@@ -21,8 +28,20 @@ export const SECTION_COLORS: Record<string, string> = {
 export function normalizeSection(section?: string): string {
   const s = (section || '').trim();
   if (!s) return 'Unassigned';
+  const alias = SECTION_ALIASES[s.toLowerCase()];
+  if (alias) return alias;
   const canonical = SECTION_ORDER.find(c => c.toLowerCase() === s.toLowerCase());
   return canonical ?? s;
+}
+
+/** Dropdown options for the Employees form. */
+export function sectionSelectOptions(current?: string | null): { value: string; label: string }[] {
+  const normalized = normalizeSection(current ?? undefined);
+  const opts: { value: string; label: string }[] = SECTION_ORDER.map(s => ({ value: s, label: s }));
+  if (normalized && normalized !== 'Unassigned' && !SECTION_ORDER.includes(normalized)) {
+    opts.unshift({ value: normalized, label: `${normalized} (legacy)` });
+  }
+  return [{ value: '', label: 'None' }, ...opts];
 }
 
 // A stable, non-arbitrary color for a section outside the 4 predefined ones — hashed

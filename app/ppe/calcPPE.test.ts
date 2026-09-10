@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest';
-import { isExpiringSoon, isExpired, computeComplianceRate, computeSizeBreakdown, thisWeekRange, groupOrderList, type OrderListEntry } from './calcPPE';
+import { isExpiringSoon, isExpired, computeComplianceRate, computeSizeBreakdown, thisWeekRange, groupOrderList, filterOrderList, sortOrderList, orderEntryFulfilled, enrichPPERecord, employeeRegisterById, type OrderListEntry } from './calcPPE';
 import type { PPERecord } from './types';
 
 beforeAll(() => { process.env.TZ = 'Africa/Johannesburg'; });
@@ -31,6 +31,7 @@ describe('isExpiringSoon', () => {
   });
   it('is false once already expired (that is isExpired\'s job, not this one\'s)', () => {
     expect(isExpiringSoon(daysFromNow(-1))).toBe(false);
+    expect(isExpiringSoon(daysFromNow(0))).toBe(false);
   });
   it('is false beyond the window', () => {
     expect(isExpiringSoon(daysFromNow(31))).toBe(false);
@@ -46,8 +47,9 @@ describe('isExpired', () => {
     expect(isExpired(null)).toBe(false);
     expect(isExpired(undefined)).toBe(false);
   });
-  it('is true for a past date, false for a future one', () => {
+  it('is true for a past date or today, false for a future one', () => {
     expect(isExpired(daysFromNow(-1))).toBe(true);
+    expect(isExpired(daysFromNow(0))).toBe(true);
     expect(isExpired(daysFromNow(1))).toBe(false);
   });
 });
@@ -175,6 +177,72 @@ describe('groupOrderList', () => {
 
   it('returns an empty array for an empty order list', () => {
     expect(groupOrderList([])).toEqual([]);
+  });
+});
+
+describe('enrichPPERecord', () => {
+  it('overlays live register name/position and normalizes employee_id lookup', () => {
+    const register = employeeRegisterById([
+      { employee_id: 'pm453n', employee_name: 'Tanaka Chiwara', position: 'Mechanical Graduate Trainee', section: 'Mechanical' },
+    ]);
+    const raw = rec({
+      employee_id: 'PM453n',
+      employee_name: 'Tanaka Chiwara the Graduate traine Tanaka Chiwara`',
+      position: 'Wrong title',
+    });
+    const enriched = enrichPPERecord(raw, register);
+    expect(enriched.employee_name).toBe('Tanaka Chiwara');
+    expect(enriched.position).toBe('Mechanical Graduate Trainee');
+  });
+
+  it('strips trailing backticks when register row is missing', () => {
+    const enriched = enrichPPERecord(
+      rec({ employee_name: 'Jane Doe`' }),
+      employeeRegisterById([]),
+    );
+    expect(enriched.employee_name).toBe('Jane Doe');
+  });
+});
+
+describe('filterOrderList', () => {
+  const entries: OrderListEntry[] = [
+    orderEntry({ record_id: '1', ppe_type: 'helmet', employee_name: 'Alice', expiry_date: daysFromNow(-2) }),
+    orderEntry({ record_id: '2', ppe_type: 'gloves', employee_name: 'Bob', expiry_date: daysFromNow(10) }),
+    orderEntry({ record_id: '3', ppe_type: 'helmet', employee_name: 'Carol', expiry_date: daysFromNow(60) }),
+  ];
+
+  it('filters by type, size, search, and urgency', () => {
+    expect(filterOrderList(entries, { type: 'helmet' })).toHaveLength(2);
+    expect(filterOrderList(entries, { urgency: 'overdue' })).toHaveLength(1);
+    expect(filterOrderList(entries, { urgency: 'soon' })).toHaveLength(1);
+    expect(filterOrderList(entries, { search: 'bob' })).toHaveLength(1);
+  });
+});
+
+describe('sortOrderList', () => {
+  it('sorts by expiry ascending (soonest first)', () => {
+    const entries = [
+      orderEntry({ record_id: '1', expiry_date: daysFromNow(30) }),
+      orderEntry({ record_id: '2', expiry_date: daysFromNow(5) }),
+    ];
+    const sorted = sortOrderList(entries, 'expiry', 'asc');
+    expect(sorted.map(e => e.record_id)).toEqual(['2', '1']);
+  });
+
+  it('sorts by employee name', () => {
+    const entries = [
+      orderEntry({ record_id: '1', employee_name: 'Zara' }),
+      orderEntry({ record_id: '2', employee_name: 'Alice' }),
+    ];
+    expect(sortOrderList(entries, 'employee', 'asc').map(e => e.record_id)).toEqual(['2', '1']);
+  });
+});
+
+describe('orderEntryFulfilled', () => {
+  it('matches employee + type + normalized size', () => {
+    const entry = orderEntry({ employee_id: 'C1000', ppe_type: 'helmet', size: ' L ' });
+    expect(orderEntryFulfilled(entry, 'C1000', 'helmet', 'L')).toBe(true);
+    expect(orderEntryFulfilled(entry, 'C1000', 'gloves', 'L')).toBe(false);
   });
 });
 

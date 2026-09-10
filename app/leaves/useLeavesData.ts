@@ -9,13 +9,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/apiClient';
 import { toast } from 'sonner';
+import { normalizeDesignation } from '@/lib/employeeCatalog';
+import { primaryContactPhone } from '@/lib/phone';
+import { calcLeaveDays } from '@/lib/calcLeaveDays';
 import type { EmployeeSearchResult, Leave, Stats } from './types';
 
-export function calcDays(start?: string, end?: string): number {
-  if (!start || !end) return 0;
-  const days = Math.ceil((new Date(end).getTime() - new Date(start).getTime()) / 86400000) + 1;
-  return Math.max(0, days);
-}
+export { calcLeaveDays as calcDays } from '@/lib/calcLeaveDays';
 
 export const fetchLeaves = async (): Promise<Leave[]> => {
   try {
@@ -29,12 +28,28 @@ export const fetchLeaves = async (): Promise<Leave[]> => {
 };
 
 export const createLeave = async (leaveData: Partial<Leave>): Promise<Leave> => {
-  return api.post<Leave>('/api/leaves', { ...leaveData, applied_date: new Date().toISOString(), status: 'pending', total_days: calcDays(leaveData.start_date, leaveData.end_date) });
+  const exclude = leaveData.exclude_weekends_holidays ?? false;
+  return api.post<Leave>('/api/leaves', {
+    ...leaveData,
+    applied_date: new Date().toISOString(),
+    status: 'pending',
+    exclude_weekends_holidays: exclude,
+    total_days: calcLeaveDays(leaveData.start_date, leaveData.end_date, { excludeWeekendsAndHolidays: exclude }),
+  });
 };
 
 export const updateLeave = async (leaveId: string, leaveData: Partial<Leave>): Promise<Leave> => {
-  const saved = await api.patch<Leave>(`/api/leaves/${leaveId}`, { ...leaveData, total_days: calcDays(leaveData.start_date, leaveData.end_date) });
-  return saved ?? ({ ...leaveData, id: leaveId, total_days: calcDays(leaveData.start_date, leaveData.end_date) } as Leave);
+  const exclude = leaveData.exclude_weekends_holidays ?? false;
+  const saved = await api.patch<Leave>(`/api/leaves/${leaveId}`, {
+    ...leaveData,
+    exclude_weekends_holidays: exclude,
+    total_days: calcLeaveDays(leaveData.start_date, leaveData.end_date, { excludeWeekendsAndHolidays: exclude }),
+  });
+  return saved ?? ({
+    ...leaveData,
+    id: leaveId,
+    total_days: calcLeaveDays(leaveData.start_date, leaveData.end_date, { excludeWeekendsAndHolidays: exclude }),
+  } as Leave);
 };
 
 export const updateLeaveStatus = async (leaveId: string, status: Leave['status'], notes?: string): Promise<Leave> => {
@@ -56,8 +71,8 @@ export const fetchEmployeeSearchResults = async (): Promise<EmployeeSearchResult
     else fullName = String(emp.name || emp.employee_name || emp.full_name || emp.Name || '');
     return {
       id, employee_id: employeeId, name: fullName,
-      designation: String(emp.designation || emp.position || emp.job_title || ''),
-      phone: String(emp.phone || emp.contact_number || emp.mobile || ''),
+      designation: normalizeDesignation(String(emp.designation || emp.position || emp.job_title || '')),
+      phone: primaryContactPhone(String(emp.phone || emp.contact_number || emp.mobile || '')),
       supervisor: String(emp.supervisor || emp.manager_name || emp.manager || ''),
       department: String(emp.department || emp.dept || ''),
     };
