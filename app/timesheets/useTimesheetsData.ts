@@ -10,6 +10,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { api as apiClient } from '@/lib/apiClient';
 import { toast } from 'sonner';
 import { toLocalISODate } from '@/lib/dates';
+import type { ShiftAssignment } from '@/app/shifts/types';
 import type { ApprovedLeaveRecord, ApprovedOvertimeRecord, Employee, Period, TimesheetEntry } from './types';
 
 export const api = {
@@ -52,6 +53,9 @@ export const api = {
   async approvedOvertime(): Promise<ApprovedOvertimeRecord[]> {
     return (await apiClient.get<ApprovedOvertimeRecord[]>('/api/overtime?status=approved')) || [];
   },
+  async shiftAssignments(): Promise<ShiftAssignment[]> {
+    return (await apiClient.get<ShiftAssignment[]>('/api/standby')) || [];
+  },
 };
 
 export function useTimesheetsData(activePeriod: Period) {
@@ -59,24 +63,29 @@ export function useTimesheetsData(activePeriod: Period) {
   const [timesheets, setTimesheets] = useState<TimesheetEntry[]>([]);
   const [approvedLeaves, setApprovedLeaves] = useState<ApprovedLeaveRecord[]>([]);
   const [approvedOvertime, setApprovedOvertime] = useState<ApprovedOvertimeRecord[]>([]);
+  const [shiftAssignments, setShiftAssignments] = useState<ShiftAssignment[]>([]);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [emps, sheets, leaves, ot] = await Promise.all([
+      const [emps, sheets, leaves, ot, shifts] = await Promise.all([
         api.employees(), api.timesheets(toLocalISODate(activePeriod.start), toLocalISODate(activePeriod.end)),
-        api.approvedLeaves(), api.approvedOvertime(),
+        api.approvedLeaves(), api.approvedOvertime(), api.shiftAssignments(),
       ]);
       setAllEmployees(emps);
       setTimesheets(sheets);
       setApprovedLeaves(leaves);
       setApprovedOvertime(ot);
+      setShiftAssignments(shifts);
     } catch (e) { toast.error('Failed to load: ' + (e as Error).message); }
     finally { setLoading(false); }
   }, [activePeriod]);
 
   useEffect(() => { load(); }, [load]);
 
-  return { allEmployees, timesheets, setTimesheets, approvedLeaves, approvedOvertime, loading, refresh: load };
+  return {
+    allEmployees, timesheets, setTimesheets, approvedLeaves, approvedOvertime, shiftAssignments,
+    loading, refresh: load,
+  };
 }

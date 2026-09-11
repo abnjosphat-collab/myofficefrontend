@@ -1,0 +1,180 @@
+// Merges saved timesheet rows with approved leave, approved overtime (Overtime module),
+// shift-roster standby flags, and ZW public-holiday gaps. Overtime hours use the same
+// calc as the Overtime page; standby is a separate flat allowance (see calcTotals.ts).
+import { calcHours as calcOvertimeHours } from '@/app/overtime/calcOvertime';
+import { computeDayStatus } from '@/app/shifts/calcShifts';
+import type { ShiftAssignment } from '@/app/shifts/types';
+import { zimHolidayName } from '@/lib/zimHolidays';
+import type { ApprovedLeaveRecord, ApprovedOvertimeRecord, StatusKey, TimesheetEntry } from './types';
+
+export const OT_TYPE_TO_BUCKET: Record<string, 'ot15' | 'ot20'> = {
+  weekend: 'ot20',
+  holiday: 'ot20',
+  regular: 'ot15',
+  emergency: 'ot15',
+  project: 'ot15',
+  night: 'ot15',
+};
+
+/** Hours exactly as recorded in the Overtime module (prefer stored `hours`). */
+export function approvedOvertimeHours(ot: ApprovedOvertimeRecord): number {
+  if (ot.hours != null && !Number.isNaN(ot.hours)) return Math.max(0, ot.hours);
+  return calcOvertimeHours(ot.start_time, ot.end_time);
+}
+
+function isOnStandbyRoster(assignment: ShiftAssignment | undefined, dateStr: string): boolean {
+  if (!assignment || assignment.is_active === false) return false;
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const status = computeDayStatus(assignment, new Date(y, m - 1, d));
+  return status === 'standby' || status === 'on+standby';
+}
+
+function findShiftAssignment(assignments: ShiftAssignment[], humanEmployeeId: string): ShiftAssignment | undefined {
+  const key = humanEmployeeId.trim();
+  return assignments.find(a =>
+    a.is_active !== false &&
+    (a.employee_id === key || a.employee_id?.trim() === key),
+  );
+}
+
+export interface MergeEffectiveTimesheetsInput {
+  timesheets: TimesheetEntry[];
+  approvedLeaves: ApprovedLeaveRecord[];
+  approvedOvertime: ApprovedOvertimeRecord[];
+  shiftAssignments: ShiftAssignment[];
+  dayStrs: string[];
+  tabIds: string[];
+  employeeIdByHuman: Map<string, string>;
+  leaveTypeToStatus: Record<string, StatusKey>;
+  statusLabel: (status: StatusKey) => string;
+}
+
+export function mergeEffectiveTimesheets(input: MergeEffectiveTimesheetsInput): TimesheetEntry[] {
+  const {
+    timesheets, approvedLeaves, approvedOvertime, shiftAssignments,
+    dayStrs, tabIds, employeeIdByHuman, leaveTypeToStatus, statusLabel,
+  } = input;
+
+  const merged = new Map<string, TimesheetEntry>();
+  timesheets.forEach(ts => merged.set(`${ts.employee_id}:${ts.date}`, ts));
+
+  const dayStrSet = new Set(dayStrs);
+  const tabIdSet = new Set(tabIds);
+
+  approvedLeaves.forEach(lv => {
+    const dbId = employeeIdByHuman.get(lv.employee_id);
+    if (!dbId || !tabIdSet.has(dbId)) return;
+    const status = leaveTypeToStatus[lv.leave_type];
+    if (!status) return;
+    dayStrs.forEach(ds => {
+      if (ds < lv.start_date || ds > lv.end_date) return;
+      const key = `${dbId}:${ds}`;
+      if (merged.has(key)) return;
+      merged.set(key, {
+        employee_id: parseInt(dbId, 10),
+        date: ds,
+        status,
+        regular_hours: 8,
+        overtime_hours: 0,
+        holiday_overtime_hours: 0,
+        nightshift_hours: 0,
+        total_hours: 8,
+        standby_allowance: false,
+        notes: `Auto: ${statusLabel(status)} (approved leave)`,
+        _auto: 'leave',
+      });
+    });
+  });
+
+  approvedOvertime.forEach(ot => {
+    const dbId = employeeIdByHuman.get(ot.employee_id);
+    if (!dbId || !tabIdSet.has(dbId) || !dayStrSet.has(ot.date)) return;
+    const bucket = OT_TYPE_TO_BUCKET[ot.overtime_type];
+    if (!bucket) return;
+    const hours = approvedOvertimeHours(ot);
+    if (hours <= 0) return;
+    const key = `${dbId}:${ot.date}`;
+    const existing = merged.get(key);
+
+    const base: TimesheetEntry = existing ?? {
+      employee_id: parseInt(dbId, 10),
+      date: ot.date,
+      status: 'work',
+      regular_hours: 0,
+      overtime_hours: 0,
+      holiday_overtime_hours: 0,
+      nightshift_hours: 0,
+      total_hours: 0,
+      standby_allowance: false,
+    };
+
+    const updated: TimesheetEntry = { ...base };
+    if (bucket === 'ot20') updated.holiday_overtime_hours = (base.holiday_overtime_hours || 0) + hours;
+    else updated.overtime_hours = (base.overtime_hours || 0) + hours;
+    updated.total_hours = (base.regular_hours || 0) + (updated.overtime_hours || 0) + (updated.holiday_overtime_hours || 0)
+      + (base.nightshift_hours || 0) + (base.callout_overtime_hours || 0);
+    updated._auto = base._auto === 'leave' ? 'both' : 'overtime';
+    if (ot.reason?.trim()) {
+      const tag = `OT (${ot.overtime_type}): ${ot.reason.trim()}`;
+      updated.notes = updated.notes?.includes(tag) ? updated.notes : updated.notes ? `${updated.notes}; ${tag}` : tag;
+    }
+    merged.set(key, updated);
+  });
+
+  dayStrs.forEach(ds => {
+    const holidayName = zimHolidayName(ds);
+    if (!holidayName) return;
+    tabIds.forEach(id => {
+      const key = `${id}:${ds}`;
+      if (merged.has(key)) return;
+      merged.set(key, {
+        employee_id: parseInt(id, 10),
+        date: ds,
+        status: 'holiday_paid',
+        regular_hours: 8,
+        overtime_hours: 0,
+        holiday_overtime_hours: 0,
+        nightshift_hours: 0,
+        total_hours: 8,
+        standby_allowance: false,
+        notes: `Auto: Paid Public Holiday (${holidayName})`,
+        _auto: 'holiday',
+      });
+    });
+  });
+
+  tabIds.forEach(dbId => {
+    const humanId = [...employeeIdByHuman.entries()].find(([, v]) => v === dbId)?.[0];
+    if (!humanId) return;
+    const assignment = findShiftAssignment(shiftAssignments, humanId);
+    dayStrs.forEach(ds => {
+      if (!isOnStandbyRoster(assignment, ds)) return;
+      const key = `${dbId}:${ds}`;
+      const existing = merged.get(key);
+      if (existing?.id) {
+        if (!existing.standby_allowance) {
+          merged.set(key, { ...existing, standby_allowance: true });
+        }
+        return;
+      }
+      const base: TimesheetEntry = existing ?? {
+        employee_id: parseInt(dbId, 10),
+        date: ds,
+        status: 'work',
+        regular_hours: 0,
+        overtime_hours: 0,
+        holiday_overtime_hours: 0,
+        nightshift_hours: 0,
+        total_hours: 0,
+        standby_allowance: false,
+      };
+      merged.set(key, {
+        ...base,
+        standby_allowance: true,
+        notes: base.notes?.includes('Standby roster') ? base.notes : base.notes ? `${base.notes}; Standby roster` : 'Auto: Standby roster',
+      });
+    });
+  });
+
+  return [...merged.values()];
+}

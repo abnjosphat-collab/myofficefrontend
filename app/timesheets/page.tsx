@@ -26,6 +26,7 @@ import type {
   ApprovedLeaveRecord, ApprovedOvertimeRecord, EditCell, Employee, EntryForm,
   HourTotals, Period, RowData, StatusConfig, StatusKey, TimesheetEntry,
 } from './types';
+import { mergeEffectiveTimesheets } from './mergeEffectiveTimesheets';
 import { api, useTimesheetsData } from './useTimesheetsData';
 import { LEAVE_STATUSES, DOUBLE_TIME_STATUSES, ZERO_HOUR_STATUSES, apply208, calcEmployeeTotals } from './calcTotals';
 import { buildDefaultEntry, cloneEntryForDate, fillTargetDayIndices } from './fillEntry';
@@ -58,13 +59,6 @@ const STATUS_CFG: Record<StatusKey, StatusConfig> = {
 const LEAVE_TYPE_TO_STATUS: Record<string, StatusKey> = {
   annual: 'leave', sick: 'sick', compassionate: 'special_leave',
   maternity: 'maternity', study: 'study', lieu: 'lieu',
-};
-
-// Overtime page's overtime_type -> which multiplier bucket it lands in here. The timesheet
-// only has two OT buckets (1.5x / 2.0x); weekend and holiday overtime count as double-time,
-// everything else (regular/emergency/project/night) as 1.5x.
-const OT_TYPE_TO_BUCKET: Record<string, 'ot15' | 'ot20'> = {
-  weekend: 'ot20', holiday: 'ot20', regular: 'ot15', emergency: 'ot15', project: 'ot15', night: 'ot15',
 };
 
 // ─────────────────── HELPERS ───────────────────
@@ -148,6 +142,7 @@ function SectionHeader({ icon: Icon, title, sub, open, onToggle, children }: {
 // ─────────────────── STATUS BADGE ───────────────────
 
 function StatusPill({ status, dark = false }: { status: StatusKey; dark?: boolean }) {
+  if (dark && status === 'work') return null;
   const cfg = STATUS_CFG[status] || STATUS_CFG.work;
   const { Icon } = cfg;
   const size = dark ? 'gap-0.5 px-1.5 py-0.5 text-[9px]' : 'gap-1 px-2 py-0.5 text-[10px]';
@@ -1240,7 +1235,9 @@ function TimesheetGrid({ employees, timesheets, days, onCellClick, onQuickAdd, o
                       {entry && (
                         <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover/cell:block z-50 min-w-[130px]">
                           <div className={`${t.glass} rounded-lg px-2.5 py-2 text-left ${t.shadow}`}>
-                            <p className={`text-[10px] ${TYPE_WEIGHT.semibold} mb-1 ${t.textMuted}`}>{STATUS_CFG[entry.status]?.label}</p>
+                            {entry.status !== 'work' && (
+                              <p className={`text-[10px] ${TYPE_WEIGHT.semibold} mb-1 ${t.textMuted}`}>{STATUS_CFG[entry.status]?.label}</p>
+                            )}
                             {entry.start_time && <p className={`text-[9px] ${t.textFaint}`}>{entry.start_time} – {entry.end_time}</p>}
                             {!ZERO_HOUR_STATUSES.has(entry.status) && (
                               <div className="mt-1 space-y-0.5">
@@ -1344,7 +1341,10 @@ function TimesheetsContent() {
   const activePeriod = activeTab === 'salaried' ? salariedPeriod : necPeriod;
   const days = useMemo(() => getDays(activePeriod), [activePeriod]);
 
-  const { allEmployees, timesheets, setTimesheets, approvedLeaves, approvedOvertime, loading, refresh: load } = useTimesheetsData(activePeriod);
+  const {
+    allEmployees, timesheets, setTimesheets, approvedLeaves, approvedOvertime, shiftAssignments,
+    loading, refresh: load,
+  } = useTimesheetsData(activePeriod);
 
   const [salariedExtra, setSalariedExtra] = useState<string[]>(() => readLS(LS_SALARIED_EXTRA));
   const [necExtra, setNecExtra] = useState<string[]>(() => readLS(LS_NEC_EXTRA));
@@ -1421,76 +1421,17 @@ function TimesheetsContent() {
   // on top (overtime), it never overwrites what a person entered. See the TimesheetEntry
   // `_auto` field for how these are told apart in the UI, and handleSaveEntry for why editing
   // one of these cells safely creates a real entry rather than corrupting anything.
-  const effectiveTimesheets = useMemo(() => {
-    const merged = new Map<string, TimesheetEntry>();
-    timesheets.forEach(ts => merged.set(`${ts.employee_id}:${ts.date}`, ts));
-
-    const dayStrs = days.map(fmtDate);
-    const dayStrSet = new Set(dayStrs);
-    const tabIdSet = new Set(tabIds);
-
-    approvedLeaves.forEach(lv => {
-      const dbId = employeeIdByHuman.get(lv.employee_id);
-      if (!dbId || !tabIdSet.has(dbId)) return;
-      const status = LEAVE_TYPE_TO_STATUS[lv.leave_type];
-      if (!status) return;
-      dayStrs.forEach(ds => {
-        if (ds < lv.start_date || ds > lv.end_date) return;
-        const key = `${dbId}:${ds}`;
-        if (merged.has(key)) return; // a real entry already exists — it wins
-        merged.set(key, {
-          employee_id: parseInt(dbId), date: ds, status,
-          regular_hours: 8, overtime_hours: 0, holiday_overtime_hours: 0, nightshift_hours: 0,
-          total_hours: 8, standby_allowance: false,
-          notes: `Auto: ${STATUS_CFG[status].label} (approved leave)`,
-          _auto: 'leave',
-        });
-      });
-    });
-
-    approvedOvertime.forEach(ot => {
-      const dbId = employeeIdByHuman.get(ot.employee_id);
-      if (!dbId || !tabIdSet.has(dbId) || !dayStrSet.has(ot.date)) return;
-      const bucket = OT_TYPE_TO_BUCKET[ot.overtime_type];
-      if (!bucket) return;
-      const hours = ot.hours ?? calcHours(ot.start_time, ot.end_time);
-      if (hours <= 0) return;
-      const key = `${dbId}:${ot.date}`;
-      const base: TimesheetEntry = merged.get(key) ?? {
-        employee_id: parseInt(dbId), date: ot.date, status: 'work',
-        regular_hours: 0, overtime_hours: 0, holiday_overtime_hours: 0, nightshift_hours: 0,
-        total_hours: 0, standby_allowance: false,
-      };
-      const updated: TimesheetEntry = { ...base };
-      if (bucket === 'ot20') updated.holiday_overtime_hours = (base.holiday_overtime_hours || 0) + hours;
-      else updated.overtime_hours = (base.overtime_hours || 0) + hours;
-      updated.total_hours = (base.total_hours || 0) + hours;
-      updated._auto = base._auto === 'leave' ? 'both' : 'overtime';
-      merged.set(key, updated);
-    });
-
-    // Zimbabwe public holidays: anyone with no entry at all on a holiday date is assumed
-    // not to have worked it and gets the standard 8h paid-holiday credit automatically —
-    // same "fills gaps, never overwrites" rule as leave/OT above, so a real entry (or one
-    // of those overlays, e.g. approved leave that happens to cover the holiday) still wins.
-    dayStrs.forEach(ds => {
-      const holidayName = zimHolidayName(ds);
-      if (!holidayName) return;
-      tabIds.forEach(id => {
-        const key = `${id}:${ds}`;
-        if (merged.has(key)) return;
-        merged.set(key, {
-          employee_id: parseInt(id), date: ds, status: 'holiday_paid',
-          regular_hours: 8, overtime_hours: 0, holiday_overtime_hours: 0, nightshift_hours: 0,
-          total_hours: 8, standby_allowance: false,
-          notes: `Auto: Paid Public Holiday (${holidayName})`,
-          _auto: 'holiday',
-        });
-      });
-    });
-
-    return [...merged.values()];
-  }, [timesheets, approvedLeaves, approvedOvertime, employeeIdByHuman, tabIds, days]);
+  const effectiveTimesheets = useMemo(() => mergeEffectiveTimesheets({
+    timesheets,
+    approvedLeaves,
+    approvedOvertime,
+    shiftAssignments,
+    dayStrs: days.map(fmtDate),
+    tabIds,
+    employeeIdByHuman,
+    leaveTypeToStatus: LEAVE_TYPE_TO_STATUS,
+    statusLabel: status => STATUS_CFG[status].label,
+  }), [timesheets, approvedLeaves, approvedOvertime, shiftAssignments, employeeIdByHuman, tabIds, days]);
 
   const summary = useMemo(() => {
     const tot = tabEmployees.reduce((acc, e) => {
@@ -1730,7 +1671,7 @@ function TimesheetsContent() {
             { icon: Zap, val: `${summary.ot15.toFixed(0)}h`, label: 'OT 1.5×', color: 'text-orange-400' },
             { icon: Zap, val: `${summary.ot20.toFixed(0)}h`, label: 'OT 2.0×', color: accentText('purple', t.light) },
             { icon: Moon, val: `${summary.night.toFixed(0)}h`, label: 'nightshift', color: accentText('indigo', t.light) },
-            summary.standbyBonus > 0 ? { icon: LayoutGrid, val: `${summary.standbyBonus}h`, label: 'standby OT', color: accentText('amber', t.light) } : null,
+            summary.standbyBonus > 0 ? { icon: LayoutGrid, val: `${summary.standbyBonus}h`, label: 'standby allowance', color: accentText('amber', t.light) } : null,
             { icon: CalendarDays, val: `${completion}%`, label: `filled (${summary.filled}/${summary.possible})`, color: completion === 100 ? accentText('emerald', t.light) : t.textMuted },
           ].filter(Boolean).map((item, i, arr) => {
             const it = item as { icon: ElementType; val: string; label: string; color: string };
