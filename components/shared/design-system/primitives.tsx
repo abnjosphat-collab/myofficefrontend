@@ -354,18 +354,23 @@ export function CenterModal({
                   exit={{ opacity: 0, scale: 0.94, y: 10 }}
                   transition={{ type: 'spring', damping: 26, stiffness: 320 }}
                 >
-                  <div className={`relative px-5 py-4 border-b ${t.border} shrink-0 overflow-hidden`}>
+                  <div className={`relative px-5 py-4 border-b ${t.border} shrink-0 overflow-visible`}>
                     <div
-                      className={`absolute -top-10 -left-10 h-32 w-32 rounded-full bg-gradient-to-br ${a.gradient} opacity-[0.18] blur-2xl pointer-events-none`}
-                    />
+                      className={`pointer-events-none absolute inset-0 overflow-hidden rounded-t-xl`}
+                      aria-hidden
+                    >
+                      <div
+                        className={`absolute -top-10 -left-10 h-32 w-32 rounded-full bg-gradient-to-br ${a.gradient} opacity-[0.18] blur-2xl`}
+                      />
+                    </div>
                     <Dialog.Close asChild>
                       <button
-                        className={`absolute top-2.5 right-2.5 h-10 w-10 flex items-center justify-center rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-colors`}
+                        className={`absolute top-1 right-1 z-20 flex h-12 w-12 min-h-12 min-w-12 cursor-pointer items-center justify-center rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-colors pointer-events-auto`}
                         type="button"
                         aria-label="Close"
                         title="Close"
                       >
-                        <X className="h-5 w-5 pointer-events-none" />
+                        <X className="h-5 w-5 shrink-0 pointer-events-none" aria-hidden />
                       </button>
                     </Dialog.Close>
                     <Dialog.Title asChild>

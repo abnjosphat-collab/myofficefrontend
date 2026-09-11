@@ -232,7 +232,7 @@ function ContractorsContent() {
         <div className={`${t.glass} rounded-2xl ${t.shadow} p-6`}>
           <div className="flex items-center justify-between mb-4">
             <h2 className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>New Contractor</h2>
-            <button type="button" aria-label="Close" title="Close" onClick={() => setShowAdd(false)} className={`h-9 w-9 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-colors`}><X className="w-5 h-5" /></button>
+            <button type="button" aria-label="Close" title="Close" onClick={() => setShowAdd(false)} className={`flex h-12 w-12 min-h-12 min-w-12 cursor-pointer items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-colors`}><X className="w-5 h-5 shrink-0 pointer-events-none" aria-hidden /></button>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
             <FormField label="Company Name"><input placeholder="Company Name" value={form.company} onChange={e => setForm(f => ({ ...f, company: e.target.value }))} aria-label="Company Name" className={inputCls} /></FormField>

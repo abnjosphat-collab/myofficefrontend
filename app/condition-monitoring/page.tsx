@@ -87,7 +87,7 @@ function ConditionMonitoringContent() {
         <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden p-6`}>
           <div className="flex items-center justify-between mb-4">
             <h2 className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>New Reading</h2>
-            <button type="button" onClick={() => setShowAdd(false)} title="Close" aria-label="Close" className={`h-9 w-9 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}><X className="w-5 h-5" /></button>
+            <button type="button" onClick={() => setShowAdd(false)} title="Close" aria-label="Close" className={`flex h-12 w-12 min-h-12 min-w-12 cursor-pointer items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}><X className="w-5 h-5 shrink-0 pointer-events-none" aria-hidden /></button>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
             <FormField label="Equipment"><PredictiveInput historyKey="cm_equipment" placeholder="Equipment" value={form.equipment} onChange={v => setForm(f => ({ ...f, equipment: v }))} inputClassName={inputCls} /></FormField>

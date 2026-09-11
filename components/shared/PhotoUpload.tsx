@@ -248,9 +248,9 @@ export function PhotoUpload({
               type="button"
               title="Close"
               onClick={() => setLightbox(null)}
-              className="absolute top-5 right-5 h-9 w-9 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors z-10 pointer-events-auto"
+              className="absolute top-4 right-4 z-20 flex h-12 w-12 min-h-12 min-w-12 cursor-pointer items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors pointer-events-auto"
             >
-              <X className="h-5 w-5 text-white" />
+              <X className="h-5 w-5 shrink-0 text-white pointer-events-none" aria-hidden />
             </button>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
