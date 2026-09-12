@@ -105,7 +105,7 @@ describe('calcEmployeeTotals — actual vs. total', () => {
       regular_hours: 8, overtime_hours: 2, nightshift_hours: 4, nightshift_allowance: true, standby_allowance: true,
     })]);
     expect(t.actual).toBe(8); // reg only, post-cap
-    expect(t.total).toBe(8 + 2 + 0 + 4 + 8 + 4); // reg + ot15 + ot20 + night + standbyBonus + nightAllowanceBonus
+    expect(t.total).toBe(8 + 2 + 0 + 0 + 8 + 4); // reg + ot15 + ot20 + night + standbyBonus + nightAllowanceBonus (allowance not double-counted in night)
   });
 
   it('reports excess and moves it into ot15 once reg exceeds 208 across the period', () => {

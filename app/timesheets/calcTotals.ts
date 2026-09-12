@@ -25,7 +25,11 @@ export function calcEmployeeTotals(empId: string, timesheets: TimesheetEntry[]):
     .sort((a, b) => a.date.localeCompare(b.date))
     .forEach(e => {
       reg += e.regular_hours || 0;
-      night += e.nightshift_hours || 0;
+      // NEC night-shift allowance lives in nightshift_hours with nightshift_allowance set.
+      // Count those hours once (allowance column), not again in the raw night column.
+      const nh = e.nightshift_hours || 0;
+      if (e.nightshift_allowance) nightAllowanceBonus += nh;
+      else night += nh;
       if (DOUBLE_TIME_STATUSES.has(e.status)) {
         ot20 += (e.regular_hours || 0) + (e.overtime_hours || 0) + (e.holiday_overtime_hours || 0);
         reg -= e.regular_hours || 0;
@@ -36,12 +40,6 @@ export function calcEmployeeTotals(empId: string, timesheets: TimesheetEntry[]):
       // Standby is a flat 8h once per contiguous run (of any length) — a fresh run earns
       // it the moment it starts, then stays flat until the run breaks.
       if (e.standby_allowance) { if (!inStandbyRun) { standbyBonus += 8; inStandbyRun = true; } } else inStandbyRun = false;
-      // Night Shift Allowance is NOT flat — it's the actual hours worked between 18:00 and
-      // 06:00 (nightshift_hours, already computed as exactly that overlap) on days someone
-      // is on a scheduled night shift (the nightshift_allowance flag). A callout entry has
-      // no start/end time and never carries this flag, so callout hours never contribute
-      // here — only genuine rostered night-shift hours do.
-      if (e.nightshift_allowance) nightAllowanceBonus += e.nightshift_hours || 0;
     });
 
   const a = apply208(reg, ot15);

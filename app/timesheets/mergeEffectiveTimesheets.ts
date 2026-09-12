@@ -69,24 +69,35 @@ export function mergeEffectiveTimesheets(input: MergeEffectiveTimesheetsInput): 
     dayStrs.forEach(ds => {
       if (ds < lv.start_date || ds > lv.end_date) return;
       const key = `${dbId}:${ds}`;
-      if (merged.has(key)) return;
+      const existing = merged.get(key);
+      const tag = `Auto: ${statusLabel(status)} (leave module)`;
       merged.set(key, {
         employee_id: parseInt(dbId, 10),
         date: ds,
         status,
         regular_hours: 8,
-        overtime_hours: 0,
-        holiday_overtime_hours: 0,
-        nightshift_hours: 0,
-        total_hours: 8,
-        standby_allowance: false,
-        notes: `Auto: ${statusLabel(status)} (approved leave)`,
-        _auto: 'leave',
+        overtime_hours: existing?.overtime_hours ?? 0,
+        holiday_overtime_hours: existing?.holiday_overtime_hours ?? 0,
+        nightshift_hours: existing?.nightshift_hours ?? 0,
+        nightshift_allowance: existing?.nightshift_allowance ?? false,
+        standby_allowance: existing?.standby_allowance ?? false,
+        total_hours: 8 + (existing?.overtime_hours ?? 0) + (existing?.holiday_overtime_hours ?? 0)
+          + (existing?.nightshift_hours ?? 0) + (existing?.callout_overtime_hours ?? 0),
+        start_time: existing?.start_time,
+        end_time: existing?.end_time,
+        notes: existing?.notes?.includes(tag) ? existing.notes : existing?.notes ? `${existing.notes}; ${tag}` : tag,
+        id: existing?.id,
+        _auto: existing?.id ? undefined : 'leave',
       });
     });
   });
 
+  const seenOvertimeIds = new Set<number>();
   approvedOvertime.forEach(ot => {
+    if (ot.id != null) {
+      if (seenOvertimeIds.has(ot.id)) return;
+      seenOvertimeIds.add(ot.id);
+    }
     const dbId = employeeIdByHuman.get(ot.employee_id);
     if (!dbId || !tabIdSet.has(dbId) || !dayStrSet.has(ot.date)) return;
     const bucket = OT_TYPE_TO_BUCKET[ot.overtime_type];

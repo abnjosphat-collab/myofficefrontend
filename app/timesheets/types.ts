@@ -37,6 +37,7 @@ export interface TimesheetEntry {
 /** Minimal shape pulled from the Leaves page's records — only what's needed to project an
  *  approved leave onto the timesheet grid. */
 export interface ApprovedLeaveRecord {
+  id?: number;
   employee_id: string; leave_type: string; start_date: string; end_date: string; status: string;
   reason?: string;
 }
@@ -44,6 +45,7 @@ export interface ApprovedLeaveRecord {
 /** Minimal shape pulled from the Overtime page's records — only what's needed to add
  *  approved overtime hours onto the timesheet grid. */
 export interface ApprovedOvertimeRecord {
+  id?: number;
   employee_id: string; overtime_type: string; date: string; start_time?: string; end_time?: string; status: string;
   /** Set when the overtime entry was logged via the "pressed for time" hours-only fast path. */
   hours?: number;

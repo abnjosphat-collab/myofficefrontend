@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { toLocalISODate } from '@/lib/dates';
 import type { ShiftAssignment } from '@/app/shifts/types';
 import type { ApprovedLeaveRecord, ApprovedOvertimeRecord, Employee, Period, TimesheetEntry } from './types';
+import { periodUsesUnsignedModuleRecords } from './necModuleBatch';
 
 export const api = {
   async employees(): Promise<Employee[]> {
@@ -44,14 +45,19 @@ export const api = {
   async delete(id: number): Promise<void> {
     await apiClient.delete(`/api/timesheets/${id}`);
   },
-  // Approved-only, company-wide (leaves/overtime don't support a date-range query — the
-  // grid-day check below filters to the active period). A person on leave or with
-  // overtime that's merely pending shouldn't move hours around until it's actually approved.
-  async approvedLeaves(): Promise<ApprovedLeaveRecord[]> {
-    return (await apiClient.get<ApprovedLeaveRecord[]>('/api/leaves?status=approved')) || [];
+  /** Leaves for grid merge — approved only, except the scoped NEC Aug–Sep 2026 batch. */
+  async moduleLeaves(period: Period): Promise<ApprovedLeaveRecord[]> {
+    const all = periodUsesUnsignedModuleRecords(period)
+      ? ((await apiClient.get<ApprovedLeaveRecord[]>('/api/leaves')) || [])
+      : ((await apiClient.get<ApprovedLeaveRecord[]>('/api/leaves?status=approved')) || []);
+    return all.filter(l => l.status !== 'rejected');
   },
-  async approvedOvertime(): Promise<ApprovedOvertimeRecord[]> {
-    return (await apiClient.get<ApprovedOvertimeRecord[]>('/api/overtime?status=approved')) || [];
+  /** Overtime for grid merge — approved only, except the scoped NEC Aug–Sep 2026 batch. */
+  async moduleOvertime(period: Period): Promise<ApprovedOvertimeRecord[]> {
+    const all = periodUsesUnsignedModuleRecords(period)
+      ? ((await apiClient.get<ApprovedOvertimeRecord[]>('/api/overtime')) || [])
+      : ((await apiClient.get<ApprovedOvertimeRecord[]>('/api/overtime?status=approved')) || []);
+    return all.filter(o => o.status !== 'rejected');
   },
   async shiftAssignments(): Promise<ShiftAssignment[]> {
     return (await apiClient.get<ShiftAssignment[]>('/api/standby')) || [];
@@ -71,7 +77,7 @@ export function useTimesheetsData(activePeriod: Period) {
     try {
       const [emps, sheets, leaves, ot, shifts] = await Promise.all([
         api.employees(), api.timesheets(toLocalISODate(activePeriod.start), toLocalISODate(activePeriod.end)),
-        api.approvedLeaves(), api.approvedOvertime(), api.shiftAssignments(),
+        api.moduleLeaves(activePeriod), api.moduleOvertime(activePeriod), api.shiftAssignments(),
       ]);
       setAllEmployees(emps);
       setTimesheets(sheets);
