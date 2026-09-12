@@ -116,13 +116,13 @@ body {
   --brand-800: #6b21a8;
   --brand-900: #581c87;
 
-  /* Backgrounds */
-  --background: oklch(0.978 0.006 234);
-  --foreground: oklch(0.18 0.02 234);
+  /* Backgrounds — warm stone canvas (brand lives in accents, not the page wash) */
+  --background: #fafaf9;
+  --foreground: #0a0a0a;
 
   /* Cards */
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.18 0.02 234);
+  --card: #ffffff;
+  --card-foreground: #0a0a0a;
 
   /* Popovers */
   --popover: oklch(1 0 0);
@@ -157,35 +157,37 @@ body {
   --destructive: oklch(0.577 0.245 27.325);
 
   /* Borders & Inputs */
-  --border: oklch(0.905 0.015 234);
-  --input: oklch(0.905 0.015 234);
+  --border: #e4e4e1;
+  --input: #e4e4e1;
   --ring: var(--brand-600);
 
-  /* Charts — Ozech brand palette */
-  --chart-1: oklch(0.38 0.065 234);   /* Ozech Blue */
-  --chart-2: oklch(0.74 0.060 220);   /* Sky Blue */
-  --chart-3: oklch(0.72 0.075 163);   /* Seafoam Green */
-  --chart-4: oklch(0.828 0.189 84.429); /* Amber */
-  --chart-5: oklch(0.577 0.245 27.325); /* Red */
+  /* Charts — brand-violet ramp + stone + semantic destructive */
+  --chart-1: var(--brand-700);
+  --chart-2: var(--brand-500);
+  --chart-3: var(--brand-400);
+  --chart-4: #78716c;
+  --chart-5: oklch(0.577 0.245 27.325);
 
-  /* Sidebar */
-  --sidebar: oklch(0.25 0.035 234);
-  --sidebar-foreground: oklch(0.92 0.01 234);
-  --sidebar-primary: oklch(0.74 0.060 220);
-  --sidebar-primary-foreground: oklch(0.18 0.02 234);
-  --sidebar-accent: oklch(0.32 0.045 234);
-  --sidebar-accent-foreground: oklch(0.92 0.01 234);
-  --sidebar-border: oklch(0.32 0.045 234);
-  --sidebar-ring: oklch(0.74 0.060 220);
+  /* Sidebar — stone surfaces, brand primary (shadcn sidebar primitives) */
+  --sidebar: #fafaf9;
+  --sidebar-foreground: #0a0a0a;
+  --sidebar-primary: var(--brand-600);
+  --sidebar-primary-foreground: #faf5ff;
+  --sidebar-accent: var(--brand-50);
+  --sidebar-accent-foreground: var(--brand-800);
+  --sidebar-border: #e4e4e1;
+  --sidebar-ring: var(--brand-600);
+
+  color-scheme: light;
 }
 
 .dark {
-  --background: oklch(0.15 0.02 234);
-  --foreground: oklch(0.95 0.005 234);
-  --card: oklch(0.20 0.025 234);
-  --card-foreground: oklch(0.95 0.005 234);
-  --popover: oklch(0.20 0.025 234);
-  --popover-foreground: oklch(0.95 0.005 234);
+  --background: #0c0c0b;
+  --foreground: #f5f5f4;
+  --card: #161614;
+  --card-foreground: #f5f5f4;
+  --popover: #161614;
+  --popover-foreground: #f5f5f4;
   /* Same brand-violet remap as :root above. --primary-foreground flips to
      near-white here (it was near-black, correct for the old pale Sky-Blue
      primary) since --brand-600 is a saturated color that needs light text on
@@ -194,32 +196,35 @@ body {
      this by theme either. */
   --primary: var(--brand-600);
   --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.26 0.025 234);
-  --secondary-foreground: oklch(0.92 0.01 234);
-  --muted: oklch(0.26 0.025 234);
-  --muted-foreground: oklch(0.65 0.025 234);
+  --secondary: #1f1f1c;
+  --secondary-foreground: #f5f5f4;
+  --muted: #1c1c19;
+  --muted-foreground: #a8a8a3;
   --accent: var(--brand-900);
   --accent-foreground: var(--brand-100);
   --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
+  --border: #2a2a26;
+  --input: #2a2a26;
   /* --brand-400, lighter than :root's --brand-600 — same asymmetry the app's
      own accentText() helper (design-system/tokens.tsx) uses everywhere else:
      a more saturated shade for light mode, a lighter one for dark. */
   --ring: var(--brand-400);
-  --chart-1: oklch(0.65 0.065 220);
-  --chart-2: oklch(0.74 0.060 220);
-  --chart-3: oklch(0.72 0.075 163);
-  --chart-4: oklch(0.828 0.189 84.429);
+  /* Charts: brand-violet ramp + stone + semantic rose (no rainbow on charcoal). */
+  --chart-1: var(--brand-500);
+  --chart-2: var(--brand-400);
+  --chart-3: var(--brand-300);
+  --chart-4: #a8a8a3;
   --chart-5: oklch(0.704 0.191 22.216);
-  --sidebar: oklch(0.18 0.025 234);
-  --sidebar-foreground: oklch(0.92 0.01 234);
-  --sidebar-primary: oklch(0.65 0.065 220);
-  --sidebar-primary-foreground: oklch(0.15 0.02 234);
-  --sidebar-accent: oklch(0.25 0.035 234);
-  --sidebar-accent-foreground: oklch(0.92 0.01 234);
+  --sidebar: #141412;
+  --sidebar-foreground: #f5f5f4;
+  --sidebar-primary: var(--brand-500);
+  --sidebar-primary-foreground: #faf5ff;
+  --sidebar-accent: #1f1f1c;
+  --sidebar-accent-foreground: #f5f5f4;
   --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.65 0.065 220);
+  --sidebar-ring: var(--brand-400);
+
+  color-scheme: dark;
 }
 
 @layer base {

@@ -34,7 +34,7 @@ needing to be repeated across every page that copied the pattern.**
 
 | File | Contents |
 |---|---|
-| `tokens.tsx` | `useTheme()`, `ThemeProvider`, `ACCENT`/`ACCENT_HEX`/`ACCENT_RGBA` (the 6-color accent palette), `TYPE_SCALE`, `SPACING`, `RADIUS`. Read colors/sizing from here — never hardcode a hex or an arbitrary `text-[Npx]`. |
+| `tokens.tsx` | `useTheme()`, `ThemeProvider`, `ACCENT`/`ACCENT_HEX`, `STATUS_TONE`, `decorativeAccentHex`, `isStatusToneHex`, `uiIconClass`, `TYPE_SCALE`, `SPACING`, `RADIUS`. Read colors from here — see [`docs/COLOR_HARMONY.md`](../../docs/COLOR_HARMONY.md). |
 | `color.ts` | Color math helpers (`hexToRgba`, `rgbaFromHexSafe`, etc.) for turning a hex into a themed rgba string. |
 | `motion.ts` | Shared framer-motion variants (`fadeUp`, `staggerContainer`, `fadeTextVariant`, `tileIconItem`/`tileTextContainer`/`tileTextItem`). Reuse these instead of writing a new `variants={{ ... }}` object per component — that's how animation timing/easing drifts out of sync across pages. |
 | `primitives.tsx` | Low-level reusable building blocks: `GlowCard`, `CountUp`, `EmptyState`, `Collapse`, `AnimatedText`, `PulsingIcon`. |
@@ -155,6 +155,19 @@ icon + title + description (+ optional metric/badge)", use this instead of
 composing raw `GlowCard` + manual layout — it already has the standardized
 `SPACING.cardPad`/`SPACING.cardTextGap` spacing and the text-emerge
 animation wired up.
+
+**Default `iconTone="neutral"`** (stone icon + brand hover glow). Use
+`iconTone="accent"` only for deliberate categorical tiles (see
+`frontend/docs/COLOR_HARMONY.md`).
+
+### Dialogs (`CenterModal` + `components/ui/dialog`)
+
+`CenterModal` is the standard centred ERP dialog (glass, accent glow shadow,
+48px close, Radix focus trap). Shadcn `DialogContent` in `components/ui/dialog`
+is themed to match and shares `handleModalEscapeKeyDown` from
+`dialog-shared.ts` (Escape closes nested selects before the modal). Use
+`CenterModal` for new ordinary modals; keep Radix `Sheet`/alert-dialog variants
+for specialised patterns.
 
 ### `PrimaryButton`
 

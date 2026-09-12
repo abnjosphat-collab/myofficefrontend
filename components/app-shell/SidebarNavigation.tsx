@@ -4,17 +4,38 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Bookmark, ChevronDown, Lightbulb, PanelLeftClose, PanelLeftOpen, Pencil, X,
 } from '@/components/shared/theme';
 import {
-  useTheme, Collapse, staggerContainer, fadeUp, ACCENT_RGBA, rgbaFromHexSafe, AccentIcon, type Accent,
+  useTheme, Collapse, staggerContainer, fadeUp, ACCENT_RGBA, rgbaFromHexSafe, AccentIcon, uiIconClass, type Accent,
 } from '@/components/shared/theme';
 import { trackModuleUsage, type Category, type Module } from './modules';
 import { useDashboardData } from './useDashboardData';
 
-function SidebarCategoryRow({ cat, isOpen, onToggle, accentHex }: { cat: Category; isOpen: boolean; onToggle: () => void; accentHex: string }) {
+function SidebarModuleLink({ module }: { module: Module }) {
+  const t = useTheme();
+  const pathname = usePathname();
+  const active = pathname === module.href || (module.href !== '/' && pathname.startsWith(`${module.href}/`));
+  return (
+    <Link
+      href={module.href}
+      onClick={() => trackModuleUsage(module.href)}
+      className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-[12.5px] transition-colors ${
+        active
+          ? `${t.light ? 'text-brand-600 bg-brand-500/10' : 'text-brand-400 bg-brand-500/15'} font-medium`
+          : `${t.textTertiary} ${t.hoverBg} ${t.hoverText}`
+      }`}
+    >
+      <module.icon className={`h-3.5 w-3.5 shrink-0 ${active ? (t.light ? 'text-brand-600' : 'text-brand-400') : uiIconClass('neutral', t.light)}`} />
+      <span className="truncate">{module.title}</span>
+    </Link>
+  );
+}
+
+function SidebarCategoryRow({ cat, isOpen, onToggle }: { cat: Category; isOpen: boolean; onToggle: () => void }) {
   const t = useTheme();
   const catOpen = isOpen;
   return (
@@ -22,9 +43,9 @@ function SidebarCategoryRow({ cat, isOpen, onToggle, accentHex }: { cat: Categor
       <button
         onClick={onToggle}
         type="button"
-        className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-[13px] ${t.textMuted} ${t.hoverBg} ${t.hoverText} transition-all duration-300 hover:shadow-[0_8px_18px_-10px_rgba(37,99,235,0.45)] hover:-translate-y-px group`}
+        className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-[13px] ${t.textMuted} ${t.hoverBg} ${t.hoverText} transition-colors group`}
       >
-        <cat.icon className="h-3.5 w-3.5 shrink-0 transition-colors" style={{ color: accentHex }} />
+        <cat.icon className={`h-3.5 w-3.5 shrink-0 transition-colors ${uiIconClass('neutral', t.light)}`} />
         <span className="flex-1 truncate text-left">{cat.title}</span>
         <span className={`text-[10px] ${t.textTertiary} tabular-nums`}>{cat.modules.length}</span>
         <motion.span animate={{ rotate: catOpen ? 180 : 0 }} transition={{ duration: 0.25 }} className="shrink-0">
@@ -34,15 +55,7 @@ function SidebarCategoryRow({ cat, isOpen, onToggle, accentHex }: { cat: Categor
       <Collapse open={catOpen}>
         <div className="space-y-0.5 py-0.5 pl-8">
           {cat.modules.map(module => (
-            <Link
-              key={module.href}
-              href={module.href}
-              onClick={() => trackModuleUsage(module.href)}
-              className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-[12.5px] ${t.textTertiary} ${t.hoverBg} ${t.hoverText} transition-colors`}
-            >
-              <module.icon className="h-3.5 w-3.5 shrink-0" style={{ color: accentHex }} />
-              <span className="truncate">{module.title}</span>
-            </Link>
+            <SidebarModuleLink key={module.href} module={module} />
           ))}
         </div>
       </Collapse>
@@ -103,7 +116,7 @@ export function SidebarNavigation({
               initial={{ opacity: 0, scaleX: 0.6 }} animate={{ opacity: 1, scaleX: 1 }} exit={{ opacity: 0 }}
               transition={{ duration: 0.3 }}
               className="pointer-events-none sticky top-0 left-0 right-0 h-6 -mb-6 z-10"
-              style={{ background: `linear-gradient(to bottom, ${ACCENT_RGBA.blue}, transparent)` }}
+              style={{ background: `linear-gradient(to bottom, ${ACCENT_RGBA.violet}, transparent)` }}
             />
           )}
         </AnimatePresence>
@@ -149,8 +162,8 @@ export function SidebarNavigation({
                 ) : (
                   favoriteModules.map(({ module }) => (
                     <div key={module.href} className="relative flex items-center">
-                      <Link href={module.href} onClick={() => trackModuleUsage(module.href)} className={`flex-1 flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-[13px] ${t.textMuted} ${t.hoverBg} ${t.hoverText} transition-all duration-300 hover:shadow-[0_8px_18px_-10px_rgba(37,99,235,0.45)] hover:-translate-y-px ${editingFavorites ? 'pr-8' : ''}`}>
-                        <Bookmark className="h-3.5 w-3.5 shrink-0 transition-colors" style={{ color: accentHex }} weight="fill" />
+                      <Link href={module.href} onClick={() => trackModuleUsage(module.href)} className={`flex-1 flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-[13px] ${t.textMuted} ${t.hoverBg} ${t.hoverText} transition-colors ${editingFavorites ? 'pr-8' : ''}`}>
+                        <Bookmark className={`h-3.5 w-3.5 shrink-0 ${t.light ? 'text-brand-600' : 'text-brand-400'}`} weight="fill" />
                         <span className="truncate">{module.title}</span>
                       </Link>
                       {editingFavorites && (
@@ -182,7 +195,7 @@ export function SidebarNavigation({
             <Collapse open={!!expandedSections.modules}>
               <div className="space-y-0.5 pt-1">
                 {visibleCategories.map(cat => (
-                  <SidebarCategoryRow key={cat.id} cat={cat} isOpen={!!expandedCats[cat.id]} onToggle={() => toggleCat(cat.id)} accentHex={accentHex} />
+                  <SidebarCategoryRow key={cat.id} cat={cat} isOpen={!!expandedCats[cat.id]} onToggle={() => toggleCat(cat.id)} />
                 ))}
               </div>
             </Collapse>
@@ -284,7 +297,7 @@ export function SidebarNavigation({
                   title={module.title}
                   className={`p-2 rounded-lg ${t.hoverBg} ${t.hoverText} transition-colors`}
                 >
-                  <Bookmark className="h-4 w-4" style={{ color: accentHex }} strokeWidth={1.75} />
+                  <Bookmark className={`h-4 w-4 ${t.light ? 'text-brand-600' : 'text-brand-400'}`} strokeWidth={1.75} />
                 </Link>
               ))}
             </div>
@@ -297,7 +310,7 @@ export function SidebarNavigation({
               initial={{ opacity: 0, scaleX: 0.6 }} animate={{ opacity: 1, scaleX: 1 }} exit={{ opacity: 0 }}
               transition={{ duration: 0.3 }}
               className="pointer-events-none sticky bottom-0 left-0 right-0 h-6 -mt-6 shrink-0"
-              style={{ background: `linear-gradient(to top, ${ACCENT_RGBA.blue}, transparent)` }}
+              style={{ background: `linear-gradient(to top, ${ACCENT_RGBA.violet}, transparent)` }}
             />
           )}
         </AnimatePresence>

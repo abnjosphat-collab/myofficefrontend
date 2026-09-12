@@ -1,7 +1,7 @@
 // frontend/app/maintenance/helpers.ts — pure display/calc functions used by
 // both the maintenance page and its extracted modal/analytics components.
 import { todayLocal } from '@/lib/dates';
-import { ACCENT_HEX } from '@/components/shared/theme';
+import { STATUS_TONE } from '@/components/shared/theme';
 import {
   Clock, PlayCircle, CheckCircle2, PauseCircle, XCircle, CalendarOff, AlertCircle,
 } from '@/components/shared/theme';
@@ -32,22 +32,22 @@ export function recurrenceLabel(s: MaintenanceSchedule): string {
 
 export function statusCfg(s: WorkOrderStatus) {
   const m = {
-    'pending': { Icon: Clock, color: '#facc15', label: 'Pending' },
-    'in-progress': { Icon: PlayCircle, color: ACCENT_HEX.blue, label: 'In Progress' },
-    'completed': { Icon: CheckCircle2, color: '#34d399', label: 'Completed' },
-    'on-hold': { Icon: PauseCircle, color: '#fb923c', label: 'On Hold' },
-    'cancelled': { Icon: XCircle, color: '#f87171', label: 'Cancelled' },
-    'postponed': { Icon: CalendarOff, color: '#c084fc', label: 'Postponed' },
-    'not-done': { Icon: AlertCircle, color: '#94a3b8', label: 'Not Done' },
+    'pending': { Icon: Clock, color: STATUS_TONE.warning, label: 'Pending' },
+    'in-progress': { Icon: PlayCircle, color: STATUS_TONE.info, label: 'In Progress' },
+    'completed': { Icon: CheckCircle2, color: STATUS_TONE.good, label: 'Completed' },
+    'on-hold': { Icon: PauseCircle, color: STATUS_TONE.warning, label: 'On Hold' },
+    'cancelled': { Icon: XCircle, color: STATUS_TONE.critical, label: 'Cancelled' },
+    'postponed': { Icon: CalendarOff, color: STATUS_TONE.neutral, label: 'Postponed' },
+    'not-done': { Icon: AlertCircle, color: STATUS_TONE.neutral, label: 'Not Done' },
   } as const;
   return m[s] ?? m['pending'];
 }
 export function priorityCfg(p: WorkOrderPriority) {
   const m = {
-    'urgent': { color: '#ef4444', label: 'Urgent' },
-    'high': { color: '#f97316', label: 'High' },
-    'medium': { color: '#eab308', label: 'Medium' },
-    'low': { color: '#22c55e', label: 'Low' },
+    'urgent': { color: STATUS_TONE.critical, label: 'Urgent' },
+    'high': { color: STATUS_TONE.warning, label: 'High' },
+    'medium': { color: STATUS_TONE.warning, label: 'Medium' },
+    'low': { color: STATUS_TONE.neutral, label: 'Low' },
   } as const;
   return m[p] ?? m['medium'];
 }

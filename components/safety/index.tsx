@@ -6,7 +6,7 @@ import { API_BASE } from '@/lib/config';
 import {
   RefreshCw, ChevronUp, ChevronDown, ChevronRight,
   Search, X, Loader2, Plus, Trash2, Check,
-  AlertCircle, TrendingUp, TrendingDown,
+  AlertCircle, TrendingUp, TrendingDown, useTheme,
 } from '@/components/shared/theme';
 import { toast } from 'sonner';
 
@@ -179,8 +179,9 @@ export function SafetyHero({
   showStats?: boolean; onToggleStats?: () => void;
   actions?: React.ReactNode;
 }) {
+  const t = useTheme();
   return (
-    <div className="oz-glass-dark rounded-2xl overflow-hidden">
+    <div className={`${t.glass} ${t.shadow} rounded-2xl overflow-hidden border ${t.border}`}>
       <div className="px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-2 sm:gap-3">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <div className="p-2 sm:p-2.5 rounded-xl flex-shrink-0"
@@ -233,8 +234,9 @@ export function SafetyHero({
 // ─── CONTROLS BAR ─────────────────────────────────────────────────────────────
 
 export function SafetyControls({ children }: { children: React.ReactNode }) {
+  const t = useTheme();
   return (
-    <div className="oz-glass-panel rounded-2xl overflow-hidden">
+    <div className={`${t.glass} ${t.shadow} rounded-2xl overflow-hidden border ${t.border}`}>
       <div className="px-4 sm:px-5 py-3 flex flex-wrap items-center gap-2 sm:gap-3">
         {children}
       </div>
@@ -302,8 +304,9 @@ export function SafetyPanel({
   children: React.ReactNode; label?: string;
   count?: number; className?: string;
 }) {
+  const t = useTheme();
   return (
-    <div className={`oz-glass-panel rounded-2xl overflow-hidden ${className || ''}`}>
+    <div className={`${t.glass} ${t.shadow} rounded-2xl overflow-hidden border ${t.border} ${className || ''}`}>
       {label && (
         <div className="px-5 py-2.5 border-b border-white/[0.07] flex items-center justify-between">
           <span className="text-[11px] font-semibold text-white/40 uppercase tracking-wider">{label}</span>

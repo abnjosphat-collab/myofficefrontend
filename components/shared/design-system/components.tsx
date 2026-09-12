@@ -14,7 +14,7 @@ import { motion } from 'framer-motion';
 // not directly from lucide — so shared components render in the same icon family/style
 // as the rest of the app.
 import { ChevronRight, ChevronDown, Loader2, Check, SearchIcon, Pencil, Trash2, ArrowUpRight, ArrowDownRight, Info } from './icons';
-import { useTheme, ACCENT, ACCENT_HEX, ACCENT_TEXT, accentText, SPACING, RADIUS, TILE_SURFACE, TILE_ASPECT, TYPE_SCALE, type Accent } from './tokens';
+import { useTheme, ACCENT, ACCENT_HEX, ACCENT_TEXT, accentText, SPACING, RADIUS, TILE_SURFACE, TILE_BORDER, TILE_ASPECT, TILE_COMPACT_BAR, TYPE_SCALE, uiIconClass, decorativeAccentHex, isStatusToneHex, BRAND_GLOW_HEX, type Accent, type UiIconTone } from './tokens';
 import { blendRgb, hexToRgbTuple, rgbString, rgbaString, isValidHex, DEFAULT_BG_ACCENT } from './color';
 import { getInputSuggestions, recordInput } from '@/lib/inputHistory';
 import { getDefaultExpanded } from '@/lib/prefs';
@@ -162,7 +162,7 @@ export function AccentText({ accent, as: As = 'span', className = '', children }
 // and shows a clear tinted "active" state. Reused across the homepage module cards,
 // quick-action cards and anywhere else a card needs corner actions, so they all match.
 export function CardIconButton({
-  icon: Icon, onClick, title, active = false, activeHex, filled = false,
+  icon: Icon, onClick, title, active = false, activeHex, filled = false, size = 'md', disableLift = false,
 }: {
   icon: ElementType; onClick: (e: React.MouseEvent) => void; title: string;
   /** Toggle state — when true the button reads as "on" using `activeHex`. */
@@ -171,19 +171,24 @@ export function CardIconButton({
   activeHex?: string;
   /** Render the glyph filled (e.g. a bookmark that's been pinned). */
   filled?: boolean;
+  size?: 'sm' | 'md';
+  /** Avoid a separate micro-lift on card corners — the whole tile already lifts on hover. */
+  disableLift?: boolean;
 }) {
   const t = useTheme();
-  const hex = activeHex ?? ACCENT_HEX.blue;
+  const hex = activeHex ?? BRAND_GLOW_HEX;
+  const dim = size === 'sm' ? 'h-7 w-7' : 'h-8 w-8';
+  const iconDim = size === 'sm' ? 'h-[15px] w-[15px]' : 'h-[17px] w-[17px]';
   return (
     <motion.button
       onClick={onClick}
       type="button"
       title={title}
       aria-label={title}
-      whileHover={{ y: -1.5 }}
+      whileHover={disableLift ? undefined : { y: -1.5 }}
       whileTap={{ scale: 0.88 }}
       transition={{ type: 'spring', stiffness: 420, damping: 26 }}
-      className={`h-8 w-8 flex items-center justify-center rounded-lg border backdrop-blur-md transition-colors duration-200 ${
+      className={`${dim} flex items-center justify-center rounded-lg border backdrop-blur-md transition-colors duration-200 ${
         active ? '' : `${t.glassSoft} ${t.border} ${t.textFaint} ${t.hoverText}`
       }`}
       style={active ? { color: hex, background: `${hex}1f`, borderColor: `${hex}55` } : undefined}
@@ -191,7 +196,7 @@ export function CardIconButton({
       {/* Phosphor icons are solid-path glyphs (unlike lucide's stroke paths) — forcing
          fill="none" makes them render invisible. Use `weight="fill"` instead to get a
          filled look, and leave the rest to the global solid/outline icon-style toggle. */}
-      <Icon className="h-[17px] w-[17px]" weight={filled ? 'fill' : undefined} />
+      <Icon className={iconDim} weight={filled ? 'fill' : undefined} />
     </motion.button>
   );
 }
@@ -201,11 +206,20 @@ export function CardIconButton({
 // page's hero stats share that "living dashboard" feel; string values (e.g. "4.2h",
 // "✓", "87%") render as-is.
 export function StatTile({
-  icon: Icon, color, value, label, onClick,
+  icon: Icon, color, value, label, onClick, iconTone = 'neutral',
 }: {
-  icon: React.ElementType; color: string; value: string | number; label: string; onClick?: () => void;
+  icon: React.ElementType;
+  /** Decorative hue (light mode) or `STATUS_TONE` when `iconTone="semantic"` (both themes). */
+  color?: string;
+  value: string | number;
+  label: string;
+  onClick?: () => void;
+  iconTone?: 'neutral' | 'semantic';
 }) {
   const t = useTheme();
+  const iconHex = iconTone === 'semantic'
+    ? decorativeAccentHex(t.light, color, { semantic: true })
+    : decorativeAccentHex(t.light, color);
   return (
     <button
       type="button"
@@ -213,7 +227,10 @@ export function StatTile({
       disabled={!onClick}
       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg ${t.hoverBg} transition-all disabled:cursor-default group`}
     >
-      <Icon className="w-3.5 h-3.5" style={{ color }} />
+      <Icon
+        className={`w-3.5 h-3.5 ${iconHex ? '' : uiIconClass('neutral', t.light)}`}
+        style={iconHex ? { color: iconHex } : undefined}
+      />
       <span className={`text-base font-bold ${t.textPrimary} tabular-nums`}>
         {typeof value === 'number' ? <CountUp value={value} /> : value}
       </span>
@@ -241,7 +258,12 @@ export function ProgressBar({
         <motion.div
           initial={{ width: 0 }} animate={{ width: `${value}%` }}
           transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-          className="h-full rounded-full" style={{ background: color }}
+          className="h-full rounded-full"
+          style={{
+            background: color
+              ? (decorativeAccentHex(t.light, color, { semantic: isStatusToneHex(color) }) ?? BRAND_GLOW_HEX)
+              : BRAND_GLOW_HEX,
+          }}
         />
       </div>
     </div>
@@ -422,12 +444,13 @@ export function CollapsibleHeader({
 // The caller supplies the grouping + the item cards (each wrapped in its own
 // `<motion.div variants={fadeUp}>` so items reveal in sequence, matching the homepage).
 export function GroupSection({
-  icon: Icon, accentHex, title, count, countLabel = 'items', description, summary,
+  icon: Icon, accentHex, iconTone = 'neutral', title, count, countLabel = 'items', description, summary,
   open, onToggle, gridClassName = 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4', children,
 }: {
   icon?: ElementType;
-  /** Accent color for the group (e.g. a section's assigned hex) — tints the icon. */
-  accentHex: string;
+  /** When `iconTone="accent"`, tints the group icon; otherwise neutral structure colour. */
+  accentHex?: string;
+  iconTone?: UiIconTone | 'accent';
   title: string;
   count?: number;
   countLabel?: string;
@@ -441,6 +464,9 @@ export function GroupSection({
   children: ReactNode;
 }) {
   const t = useTheme();
+  const groupHex = decorativeAccentHex(t.light, accentHex, {
+    semantic: accentHex != null && isStatusToneHex(accentHex),
+  });
   return (
     <motion.div variants={fadeUp} className={`${t.glass} rounded-2xl ${t.shadow} scroll-mt-24 overflow-hidden`}>
       <button
@@ -449,9 +475,14 @@ export function GroupSection({
         type="button"
       >
         {Icon && (
-          <div className="h-8 w-8 flex items-center justify-center shrink-0 rounded-lg group-hover:scale-105 transition-transform"
-            style={{ background: `${accentHex}1a` }}>
-            <Icon className="h-5 w-5" style={{ color: accentHex }} />
+          <div className={`h-8 w-8 flex items-center justify-center shrink-0 rounded-lg group-hover:scale-105 transition-transform ${
+            groupHex ? '' : t.chipBg
+          }`}
+            style={groupHex ? { background: `${groupHex}1a` } : undefined}>
+            <Icon
+              className={`h-5 w-5 ${groupHex ? '' : uiIconClass('neutral', t.light)}`}
+              style={groupHex ? { color: groupHex } : undefined}
+            />
           </div>
         )}
         <div className="flex-1 min-w-0">
@@ -511,7 +542,10 @@ export function Subsection({
     <div>
       <button type="button" onClick={onToggle}
         className={`w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-left ${t.hoverBgSoft} transition-colors group`}>
-        <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: color }} />
+        <span
+          className={`h-1.5 w-1.5 rounded-full shrink-0 ${t.light ? '' : t.textFaint}`}
+          style={t.light ? { background: color } : { background: 'currentColor', opacity: 0.55 }}
+        />
         <span className={`text-[12.5px] font-semibold ${t.textSecondary} tracking-tight`}>{label}</span>
         <span className={`text-[11px] ${t.textTertiary} tabular-nums`}>{count}{countLabel ? ` ${countLabel}` : ''}</span>
         <ChevronDown className={`h-3.5 w-3.5 ${t.textFaint} ml-auto transition-transform shrink-0 ${open ? 'rotate-180' : ''}`} />
@@ -550,14 +584,23 @@ export function InfoRow({ label, value }: { label: string; value?: ReactNode }) 
 // title/badges read as inconsistent "some icons pop, some don't" (this was
 // flagged and fixed on the employees page); default (no `color`) falls back
 // to the muted `textFaint` tone for contexts that want it de-emphasized.
-export function SummaryItem({ icon: Icon, label, value, color, strokeWidth }: {
-  icon: ElementType; label: string; value?: string; color?: string; strokeWidth?: number;
+export function SummaryItem({ icon: Icon, label, value, color, strokeWidth, iconTone = 'neutral' }: {
+  icon: ElementType; label: string; value?: string;
+  /** Decorative section/category tint — light mode only unless `iconTone="accent"` forces neutral in dark. */
+  color?: string;
+  strokeWidth?: number;
+  iconTone?: 'neutral' | 'accent';
 }) {
   const t = useTheme();
   if (!value) return null;
+  const iconHex = decorativeAccentHex(t.light, color);
   return (
     <span className="flex items-start gap-1.5 min-w-0">
-      <Icon className={`h-3 w-3 mt-0.5 shrink-0 ${color ? '' : t.textFaint}`} strokeWidth={strokeWidth} style={color ? { color } : undefined} />
+      <Icon
+        className={`h-3 w-3 mt-0.5 shrink-0 ${iconHex ? '' : t.textFaint}`}
+        strokeWidth={strokeWidth}
+        style={iconHex ? { color: iconHex } : undefined}
+      />
       <span className="min-w-0 truncate"><span className={t.textFaint}>{label}: </span>{value}</span>
     </span>
   );
@@ -583,11 +626,13 @@ export function SummaryItem({ icon: Icon, label, value, color, strokeWidth }: {
 //                   Expansion is CLICK-ONLY — never wire it to hover (a hover-expand felt
 //                   twitchy on the PPE page and was removed).
 export function RecordCard({
-  icon: Icon, accentHex, title, subtitle, badges, summary, actions, headerActions, children,
+  icon: Icon, accentHex = BRAND_GLOW_HEX, iconTone = 'neutral', title, subtitle, badges, summary, actions, headerActions, children,
   defaultOpen = false, open: controlledOpen, onToggle,
 }: {
   icon: ElementType;
-  accentHex: string;
+  /** Hover glow tint — defaults to brand; pass a STATUS_TONE hex for semantic record cards. */
+  accentHex?: string;
+  iconTone?: UiIconTone | 'accent';
   title: string;
   subtitle?: string;
   badges?: ReactNode;
@@ -600,6 +645,10 @@ export function RecordCard({
   onToggle?: () => void;
 }) {
   const t = useTheme();
+  const cardAccent = decorativeAccentHex(t.light, accentHex, {
+    semantic: accentHex != null && isStatusToneHex(accentHex),
+  });
+  const glowHex = cardAccent ?? BRAND_GLOW_HEX;
   const [internalOpen, setInternalOpen] = useState(defaultOpen);
   const isControlled = controlledOpen !== undefined && onToggle !== undefined;
   const open = isControlled ? controlledOpen! : internalOpen;
@@ -617,7 +666,10 @@ export function RecordCard({
     <>
       <div className="flex items-start gap-3">
         <motion.div variants={tileIconItem} className="shrink-0 mt-0.5">
-          <Icon className="h-5 w-5" style={{ color: accentHex }} />
+          <Icon
+            className={`h-5 w-5 ${cardAccent ? '' : uiIconClass('neutral', t.light)}`}
+            style={cardAccent ? { color: cardAccent } : undefined}
+          />
         </motion.div>
         <div className="min-w-0 flex-1">
           <h4 className={`font-semibold text-[14px] leading-tight tracking-tight truncate ${t.textPrimary}`}>{title}</h4>
@@ -642,7 +694,7 @@ export function RecordCard({
     </>
   );
   return (
-    <GlowCard color={accentHex} surface={`${t.glass} rounded-2xl`} className="overflow-hidden">
+    <GlowCard color={glowHex} surface={`${t.glass} rounded-2xl`} className="overflow-hidden">
       {/* Whole header toggles (not just the chevron) — click anywhere on the card head to
           expand/collapse. Nested action buttons are excluded via handleHeaderActivate so
           they don't also toggle. Rendered as two literal branches (rather than one div with
@@ -679,49 +731,79 @@ export function RecordCard({
 // GlowCard, so it shares the exact same hover-lift as every other card in the app)
 // with an icon+label row, a big value, and an optional trend indicator.
 export function StatCard({
-  icon: Icon, accent = 'violet', label, value, trend,
+  icon: Icon, accent = 'violet', label, value, trend, iconTone = 'neutral', density = 'default',
 }: {
   icon: ElementType; accent?: Accent; label: string; value: string | number;
   trend?: { direction: 'up' | 'down'; label: string };
+  /** Neutral icons + brand glow — see docs/COLOR_HARMONY.md */
+  iconTone?: UiIconTone | 'accent';
+  density?: 'default' | 'compact';
 }) {
   const t = useTheme();
-  const a = ACCENT[accent];
   const trendColor = trend?.direction === 'up' ? t.trendUp : t.trendDown;
+  const glowHex = iconTone === 'accent'
+    ? (decorativeAccentHex(t.light, ACCENT_HEX[accent]) ?? BRAND_GLOW_HEX)
+    : BRAND_GLOW_HEX;
   return (
-    <GlowCard color={ACCENT_HEX[accent]} className="p-3.5">
-      <div className="flex items-center gap-1.5 mb-3">
-        <Icon className={`h-3.5 w-3.5 shrink-0 ${a.icon}`} />
-        <p className={`${t.textSecondary} text-[11px] font-medium uppercase tracking-wide truncate`}>{label}</p>
-      </div>
-      <p className={`text-[28px] leading-none font-bold ${t.textPrimary} tracking-tight tabular-nums`}>{value}</p>
+    <InfoCard
+      icon={Icon}
+      accentColor={glowHex}
+      iconTone={iconTone}
+      metricValue={value}
+      title={label}
+      density={density}
+    >
       {trend && (
         <div className={`flex items-center gap-1 mt-2 text-[11px] font-medium ${trendColor}`}>
           {trend.direction === 'up' ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
           <span>{trend.label}</span>
         </div>
       )}
-    </GlowCard>
+    </InfoCard>
   );
 }
 
 // ─── StatStrip — the homepage hero's grouped stat row (value + label, separated by
 // thin vertical dividers, numbers count up on mount). Use as an alternative to a grid
 // of StatTiles inside a PageHero when the stats read better as one flowing line.
-export function StatStrip({ items }: { items: { label: string; value: number; suffix?: string }[] }) {
+export function StatStrip({
+  items, className = '',
+}: {
+  items: { label: string; value: string | number; suffix?: string; href?: string }[];
+  className?: string;
+}) {
   const t = useTheme();
   return (
-    <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
-      {items.map((stat, i) => (
-        <div key={stat.label} className="flex items-baseline gap-2 relative">
-          {i > 0 && (
-            <span className="absolute -left-4 top-0.5 bottom-0.5 w-px" style={{ background: t.light ? '#e5e7eb' : 'rgba(255,255,255,0.1)' }} />
-          )}
+    <div className={`flex flex-wrap items-center gap-x-8 gap-y-3 ${className}`}>
+      {items.map((stat, i) => {
+        const valueEl = (
           <span className={`text-[20px] font-semibold ${t.textPrimary} tracking-tight tabular-nums`}>
-            <CountUp value={stat.value} suffix={stat.suffix} />
+            {typeof stat.value === 'number'
+              ? <CountUp value={stat.value} suffix={stat.suffix} />
+              : <>{stat.value}{stat.suffix}</>}
           </span>
-          <span className={`text-[12px] ${t.textFaint}`}>{stat.label}</span>
-        </div>
-      ))}
+        );
+        const labelEl = <span className={`text-[12px] ${t.textFaint}`}>{stat.label}</span>;
+        const inner = stat.href ? (
+          <Link href={stat.href} className={`flex items-baseline gap-2 ${t.linkHover} rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500/50`}>
+            {valueEl}
+            {labelEl}
+          </Link>
+        ) : (
+          <div className="flex items-baseline gap-2">
+            {valueEl}
+            {labelEl}
+          </div>
+        );
+        return (
+          <div key={stat.label} className="flex items-baseline relative">
+            {i > 0 && (
+              <span className="absolute -left-4 top-0.5 bottom-0.5 w-px" style={{ background: t.light ? '#e5e7eb' : 'rgba(255,255,255,0.1)' }} />
+            )}
+            {inner}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -1187,15 +1269,20 @@ export function ListItemCard({
 
 // ─── PageHero — generalizes PPE's hero block ────────────────────────────────────
 export function PageHero({
-  icon: Icon, accent = 'violet', crumbs, title, description, actions, statsOpen, children,
+  icon: Icon, accent = 'violet', iconTone = 'neutral', crumbs, title, description, actions, statsOpen, children,
 }: {
   icon: React.ElementType; accent?: Accent;
+  /** Neutral stone icons by default (COLOR_HARMONY); `accent` tints the hero icon for deliberate category heroes. */
+  iconTone?: UiIconTone | 'accent';
   crumbs?: string[]; title: string; description?: string;
   actions?: ReactNode;
   statsOpen?: boolean; children?: ReactNode;
 }) {
   const t = useTheme();
   const a = ACCENT[accent];
+  const showAccentHero = iconTone === 'accent' && t.light;
+  const heroIconClass = showAccentHero ? a.icon : uiIconClass(iconTone === 'brand' ? 'brand' : 'neutral', t.light);
+  const heroIconWrap = showAccentHero ? `${a.chip} border ${t.border}` : `${t.chipBg} border ${t.border}`;
   return (
     <motion.div
       initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
@@ -1203,8 +1290,8 @@ export function PageHero({
     >
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-6 py-4">
         <div className="flex items-center gap-3 min-w-0">
-          <PulsingIcon className={`p-2.5 rounded-xl shrink-0 ${a.chip} border ${t.border}`}>
-            <Icon className={`h-5 w-5 ${a.icon}`} />
+          <PulsingIcon className={`p-2.5 rounded-xl shrink-0 ${heroIconWrap}`}>
+            <Icon className={`h-5 w-5 ${heroIconClass}`} />
           </PulsingIcon>
           <div className="min-w-0">
             {crumbs && crumbs.length > 0 && (
@@ -1247,10 +1334,14 @@ export function PageHero({
 // modal/quick-view headers, list headers). `children` renders below the description for
 // anything a specific card needs on top (metrics grid, tags, a CTA button, badges…).
 export function InfoCard({
-  icon: Icon, iconColor, accentColor, badge, metricValue, metricLabel, title, description,
-  variant = 'tile', aspect = TILE_ASPECT, radius = RADIUS.chip, href, onClick, animateText = true, elevated = false, children, className = '', style,
+  icon: Icon, iconColor, accentColor, iconTone = 'neutral', badge, metricValue, metricLabel, title, description,
+  variant = 'tile', aspect = TILE_ASPECT, radius = RADIUS.chip, href, onClick, animateText = true, elevated = false,
+  density = 'default', cornerActions, children, className = '', style,
 }: {
-  icon: ElementType; iconColor?: string; accentColor: string; badge?: ReactNode;
+  icon: ElementType; iconColor?: string; accentColor: string;
+  /** `neutral` = stone icon + brand hover glow (default). Use `accent` for deliberate categorical tiles. */
+  iconTone?: UiIconTone | 'accent';
+  badge?: ReactNode;
   metricValue?: ReactNode; metricLabel?: string; title: string; description?: string;
   /** Rest-state lift + accent glow before hover — see GlowCard's `elevated`. */
   elevated?: boolean;
@@ -1259,6 +1350,10 @@ export function InfoCard({
   variant?: 'tile' | 'header';
   /** Only used by variant="tile" — the fixed width:height ratio of the grid tile. */
   aspect?: string;
+  /** Shorter KPI / quick-action tiles on the homepage. */
+  density?: 'default' | 'compact';
+  /** Pin inside the tile surface so corner controls lift with the card (not the page). */
+  cornerActions?: ReactNode;
   href?: string; onClick?: () => void;
   /** Set false for a modal/quick-view header that should show its description immediately
    * rather than waiting for a hover (there's nothing to hover before the modal is even open). */
@@ -1268,6 +1363,17 @@ export function InfoCard({
   style?: CSSProperties;
 }) {
   const t = useTheme();
+  const compact = density === 'compact';
+  const tileAccent = iconTone === 'accent'
+    ? decorativeAccentHex(t.light, accentColor)
+    : undefined;
+  const glowHex = tileAccent ?? BRAND_GLOW_HEX;
+  const iconPaint = iconColor
+    ? decorativeAccentHex(t.light, iconColor, { semantic: isStatusToneHex(iconColor) })
+    : tileAccent;
+  const iconClass = iconPaint
+    ? undefined
+    : uiIconClass(iconTone === 'accent' ? 'neutral' : iconTone, t.light);
 
   const descriptionEl = description && (
     <AnimatedText
@@ -1282,7 +1388,7 @@ export function InfoCard({
     return (
       <div className={`flex items-center gap-3 ${className}`}>
         <PulsingIcon className="h-9 w-9 flex items-center justify-center shrink-0">
-          <Icon className="h-6 w-6" style={{ color: iconColor ?? accentColor }} />
+          <Icon className={`h-6 w-6 ${iconClass ?? ''}`} style={iconPaint ? { color: iconPaint } : undefined} />
         </PulsingIcon>
         <div className="min-w-0">
           <h3 className={`font-medium ${t.textPrimary} text-[12.5px] tracking-tight truncate`}>{title}</h3>
@@ -1293,11 +1399,47 @@ export function InfoCard({
     );
   }
 
-  const inner = (
+  const corner = cornerActions ? (
+    <div
+      className={`absolute z-10 flex items-center gap-1 ${compact ? 'top-0.5 right-0.5' : 'top-1.5 right-1.5'}`}
+      onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+      onPointerDown={(e) => e.stopPropagation()}
+    >
+      {cornerActions}
+    </div>
+  ) : null;
+
+  const textPad = cornerActions ? 'pr-6' : '';
+
+  const inner = compact ? (
     <>
-      <div className="flex items-center gap-1.5">
+      <Icon className={`h-3.5 w-3.5 shrink-0 ${iconClass ?? ''}`} style={iconPaint ? { color: iconPaint } : undefined} />
+      <div className={`min-w-0 flex-1 ${textPad}`}>
+        {metricValue !== undefined ? (
+          <>
+            <p className={`text-[9px] font-medium uppercase tracking-wide ${t.textTertiary} truncate leading-none`}>{title}</p>
+            <p className={`text-sm font-bold ${t.textPrimary} tabular-nums leading-tight truncate`}>
+              {metricValue}
+              {metricLabel && <span className={`text-[8px] font-medium ${t.textTertiary} uppercase tracking-wide ml-1 align-middle`}>{metricLabel}</span>}
+            </p>
+          </>
+        ) : (
+          <>
+            <h4 className={`font-medium ${t.textPrimary} text-[11px] leading-tight truncate`}>{title}</h4>
+            {description && (
+              <p className={`text-[9px] ${t.textTertiary} leading-tight truncate`}>{description}</p>
+            )}
+          </>
+        )}
+      </div>
+      {badge}
+      {children}
+    </>
+  ) : (
+    <>
+      <div className={`flex items-center gap-1.5 ${cornerActions ? 'pr-8' : ''}`}>
         <motion.div variants={tileIconItem} className="shrink-0">
-          <Icon className="h-[18px] w-[18px]" style={{ color: iconColor ?? accentColor }} />
+          <Icon className={`h-[18px] w-[18px] ${iconClass ?? ''}`} style={iconPaint ? { color: iconPaint } : undefined} />
         </motion.div>
         {badge}
       </div>
@@ -1315,13 +1457,23 @@ export function InfoCard({
     </>
   );
 
-  const surfaceCls = `flex flex-col justify-between ${aspect} ${t.glassSoft} ${radius} ${SPACING.cardPad} ${className}`;
+  const surfaceInner = (
+    <>
+      {corner}
+      {inner}
+    </>
+  );
+
+  const surfaceCls = compact
+    ? `group/tile relative flex flex-row items-center gap-2 px-2.5 py-1 ${TILE_COMPACT_BAR} overflow-hidden ${t.glassSoft} ${radius} ${className}`
+    : `group/tile relative flex flex-col justify-between ${aspect} ${t.glassSoft} ${radius} ${SPACING.cardPad} ${className}`;
 
   // glassSoft still supplies the border and blur; this overrides only its background
   // tint, giving the plain field TILE_SURFACE documents. Caller `style` spreads last
   // so a tile that genuinely needs a different surface can still say so.
   const tileStyle: CSSProperties = {
     backgroundColor: t.light ? TILE_SURFACE.light : TILE_SURFACE.dark,
+    borderColor: t.light ? TILE_BORDER.light : TILE_BORDER.dark,
     ...style,
   };
 
@@ -1329,9 +1481,9 @@ export function InfoCard({
   // props) so the clickable one always has a statically-resolvable role="button" — eslint
   // can't prove a ternary'd role prop is ever non-empty, and flags it as unlabeled otherwise.
   return (
-    <GlowCard color={accentColor} surface={radius} elevated={elevated}>
+    <GlowCard color={glowHex} surface={radius} elevated={elevated}>
       {href ? (
-        <Link href={href} onClick={onClick} className={surfaceCls} style={tileStyle}>{inner}</Link>
+        <Link href={href} onClick={onClick} className={surfaceCls} style={tileStyle}>{surfaceInner}</Link>
       ) : onClick ? (
         <div
           onClick={onClick}
@@ -1339,9 +1491,9 @@ export function InfoCard({
           tabIndex={0}
           onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } }}
           className={surfaceCls} style={tileStyle}
-        >{inner}</div>
+        >{surfaceInner}</div>
       ) : (
-        <div className={surfaceCls} style={tileStyle}>{inner}</div>
+        <div className={surfaceCls} style={tileStyle}>{surfaceInner}</div>
       )}
     </GlowCard>
   );

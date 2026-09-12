@@ -71,19 +71,18 @@ export default function RootLayout({
     // `.dark` class onto <html> before React hydrates, so the client attributes
     // deliberately differ from the server-rendered ones. Scoped to this element's own
     // attributes only — it does not suppress warnings for any child.
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning data-scroll-behavior="smooth">
       <head>
         {/* Applies the saved theme to <html> before first paint. Without this, every
             load renders light and only flips once ThemeProvider's effect runs — a
             white flash on each navigation for anyone using dark mode. Kept in sync
             with THEME_KEY / the .dark class in design-system/tokens.tsx.
-            A first-ever visit (no stored preference yet) falls back to the OS's
-            prefers-color-scheme instead of hardcoding light — once the user picks
-            explicitly (via the in-app toggle), that stored choice always wins over
-            the OS setting from then on. */}
+            Stored `system` (or no value) follows prefers-color-scheme; explicit
+            light/dark always wins. Kept in sync with readThemePreference() in
+            design-system/tokens.tsx. */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var v=localStorage.getItem('myoffice_theme');var d=v?v==='dark':window.matchMedia('(prefers-color-scheme: dark)').matches;document.documentElement.classList.toggle('dark',d);document.documentElement.dataset.theme=d?'dark':'light';var s={small:0.925,'default':1,large:1.075,xlarge:1.15}[localStorage.getItem('oz_fontScale')];if(s){document.documentElement.style.zoom=String(s);}}catch(e){}})();`,
+            __html: `(function(){try{var v=localStorage.getItem('myoffice_theme');var d=v==='dark'||(v!=='light'&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);document.documentElement.dataset.theme=d?'dark':'light';document.documentElement.style.colorScheme=d?'dark':'light';var s={small:0.925,'default':1,large:1.075,xlarge:1.15}[localStorage.getItem('oz_fontScale')];if(s){document.documentElement.style.zoom=String(s);}}catch(e){}})();`,
           }}
         />
       </head>

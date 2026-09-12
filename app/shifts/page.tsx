@@ -61,10 +61,10 @@ const STATUS_COLORS: Record<DayStatus, { hex: string; label: string }> = {
   on: { hex: STATUS_TONE.good, label: 'On Duty' },
   off: { hex: STATUS_TONE.neutral, label: 'Off Duty' },
   standby: { hex: STATUS_TONE.warning, label: 'Standby' },
-  'on+standby': { hex: '#86BBD8', label: 'On + Standby' },
+  'on+standby': { hex: STATUS_TONE.info, label: 'On + Standby' },
 };
 
-const _T = { color: '#86BBD8' };
+const _T = { color: STATUS_TONE.info };
 const SHIFT_TIMING_PRESETS: Record<string, { label: string; abbr: string; hours: string; color: string; icon: ElementType }> = {
   day: { ..._T, label: 'Day Shift', abbr: 'D', hours: '07:00–17:00', icon: Sun },
   morning: { ..._T, label: 'Morning Shift', abbr: 'AM', hours: '06:00–14:00', icon: Sunrise },
@@ -73,7 +73,11 @@ const SHIFT_TIMING_PRESETS: Record<string, { label: string; abbr: string; hours:
   custom: { ..._T, label: 'Custom', abbr: 'CX', hours: '', icon: Settings2 },
 };
 
-const _Ab = '#94a3b8', _Wk = '#34d399', _Am = '#fbbf24', _Ro = '#fb7185', _In = '#86BBD8';
+const _Ab = STATUS_TONE.neutral;
+const _Wk = STATUS_TONE.good;
+const _Am = STATUS_TONE.warning;
+const _Ro = STATUS_TONE.critical;
+const _In = STATUS_TONE.info;
 
 const EVENT_TYPES: Record<EventType, { label: string; abbr: string; color: string; defaultStatus: DayStatus | null; showTiming: boolean; icon: ElementType }> = {
   annual_leave: { label: 'Annual Leave', abbr: 'AL', color: _Ab, defaultStatus: 'off', showTiming: false, icon: Umbrella },
@@ -427,7 +431,7 @@ function ScheduleView({ assignments, leaves, onView, onUpdateOverrides }: {
                 const isSby = status === 'standby' || status === 'on+standby';
                 const et = event ? (EVENT_TYPES[event.type as EventType] ?? EVENT_TYPES.custom) : leave ? EVENT_TYPES[leaveToEventType(leave.leave_type)] : null;
 
-                const cellColor = et ? et.color : isHoliday ? '#f472b6' : isOn ? (timing?.color ?? '#34d399') : isSby ? '#fbbf24' : null;
+                const cellColor = et ? et.color : isHoliday ? STATUS_TONE.critical : isOn ? (timing?.color ?? STATUS_TONE.good) : isSby ? STATUS_TONE.warning : null;
                 const cellStyle = cellColor ? { backgroundColor: `${cellColor}18`, borderColor: `${cellColor}40`, color: cellColor } : undefined;
 
                 return (
@@ -460,7 +464,7 @@ function ScheduleView({ assignments, leaves, onView, onUpdateOverrides }: {
                         return (
                           <>
                             {TimingIcon ? <TimingIcon className="h-4 w-4" style={{ color: timing!.color }} /> : isSby ? <Shield className="h-4 w-4 text-teal-400" /> : <div className="h-2.5 w-2.5 rounded-full bg-emerald-400/80 ring-2 ring-emerald-400/20" />}
-                            <span className={`text-[10px] ${TYPE_WEIGHT.bold} leading-none tracking-wide`} style={{ color: timing?.color ?? (isSby ? '#2dd4bf' : '#34d399') }}>{timing?.abbr ?? (isSby ? 'SBY' : 'ON')}</span>
+                            <span className={`text-[10px] ${TYPE_WEIGHT.bold} leading-none tracking-wide`} style={{ color: timing?.color ?? (isSby ? STATUS_TONE.info : STATUS_TONE.good) }}>{timing?.abbr ?? (isSby ? 'SBY' : 'ON')}</span>
                             {hours && <span className="text-[7px] opacity-60 leading-none font-mono whitespace-nowrap">{hours}</span>}
                           </>
                         );

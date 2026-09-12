@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef, useCallback, useId } from 'react';
 import { API_BASE } from '@/lib/config';
-import { UserCircle, ChevronDown, X, Loader2, useTheme } from '@/components/shared/theme';
+import { UserCircle, ChevronDown, X, Loader2, useTheme, DROPDOWN_PANEL_ANIM } from '@/components/shared/theme';
 
 const API = API_BASE;
 
@@ -176,7 +176,7 @@ export function EmployeeNameInput({
 
       {/* Dropdown */}
       {open && !disabled && (
-        <div className={`absolute left-0 right-0 top-full mt-1 z-[180] rounded-xl overflow-hidden oz-slide-up ${t.glassPopover} ${t.shadow}`}>
+        <div className={`absolute left-0 right-0 top-full mt-1 z-[180] rounded-xl overflow-hidden ${DROPDOWN_PANEL_ANIM} ${t.glassPopover} ${t.shadow}`}>
           {filtered.length === 0 ? (
             <div className={`px-3 py-3 text-xs italic ${t.textFaint}`}>
               No employees found — name will be saved as typed

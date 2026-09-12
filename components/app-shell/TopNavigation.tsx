@@ -193,7 +193,7 @@ export function TopNavigation({
             onClick={t.toggle}
             className={`h-11 w-11 flex items-center justify-center ${t.hoverBg} ${t.textMuted}`}
             type="button"
-            title={t.light ? 'Switch to dark mode' : 'Switch to light mode'}
+            title={t.light ? 'Use dark mode' : 'Use light mode'}
           >
             {t.light ? <Moon className="h-[18px] w-[18px]" /> : <Sun className="h-[18px] w-[18px]" />}
           </button>

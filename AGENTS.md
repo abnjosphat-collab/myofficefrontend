@@ -7,3 +7,10 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+# MyOffice (this repo)
+
+- **Product / quality brief:** workspace `docs/PRODUCT.md` (parent `myoffice/` folder) or [docs/PRODUCT.md](./docs/PRODUCT.md).
+- **Frontend wiring rules:** [docs/ENGINEERING_STANDARDS.md](./docs/ENGINEERING_STANDARDS.md).
+- **UI system:** [components/shared/design-system/README.md](./components/shared/design-system/README.md).
+- **Cursor:** `.cursor/rules/myoffice-core.mdc` at workspace root; skill `.claude/skills/myoffice-conventions/`.

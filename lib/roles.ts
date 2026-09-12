@@ -1,6 +1,6 @@
 // lib/roles.ts — single source for role metadata (labels, badge styles,
 // per-role icon/description). This was duplicated across app/admin/page.tsx,
-// components/app-shell/AuthMenu.tsx, components/Header.tsx and
+// components/app-shell/AuthMenu.tsx and
 // components/shared/ApprovalGate.tsx. Import from here instead.
 //
 // ROLE_ORDER/roleAtLeast themselves are NOT redefined here — they live in

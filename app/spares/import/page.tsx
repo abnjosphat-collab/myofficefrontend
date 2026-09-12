@@ -9,7 +9,7 @@ import {
 } from '@/components/shared/theme';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
-import { useTheme, PageHero, PrimaryButton, TYPE_WEIGHT } from '@/components/shared/theme';
+import { useTheme, PageHero, PrimaryButton, TYPE_WEIGHT, STATUS_TONE } from '@/components/shared/theme';
 
 // ─── TYPES ───────────────────────────────────────────────────────────────────
 
@@ -39,9 +39,9 @@ interface ExtractedRow {
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 
 function confidenceLabel(c: number): { label: string; color: string; bg: string } {
-  if (c >= 0.70) return { label: 'High',   color: '#34d399', bg: 'rgba(52,211,153,0.12)' };
-  if (c >= 0.40) return { label: 'Medium', color: '#fbbf24', bg: 'rgba(251,191,36,0.12)' };
-  return              { label: 'Low',    color: '#f87171', bg: 'rgba(248,113,113,0.12)' };
+  if (c >= 0.70) return { label: 'High', color: STATUS_TONE.good, bg: `${STATUS_TONE.good}20` };
+  if (c >= 0.40) return { label: 'Medium', color: STATUS_TONE.warning, bg: `${STATUS_TONE.warning}20` };
+  return { label: 'Low', color: STATUS_TONE.critical, bg: `${STATUS_TONE.critical}20` };
 }
 
 function extractRows(rawRows: Record<string, any>[], mapping: Mapping): ExtractedRow[] {
@@ -105,7 +105,7 @@ function ColumnSelector({
                 className={`w-full text-left px-3 py-2.5 text-sm transition-all border-b flex items-center justify-between gap-2 ${t.border} ${t.hoverBg}`}
                 style={{
                   background: col === value ? 'rgba(134,187,216,0.12)' : undefined,
-                  color: col === value ? '#86BBD8' : undefined,
+                  color: col === value ? STATUS_TONE.info : undefined,
                 }}>
                 <span className={col === value ? '' : t.textMuted}>{col}</span>
                 {col === value && <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0" />}
@@ -283,20 +283,20 @@ function SpareImportContent() {
             onKeyDown={e => { if (!uploading && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); fileRef.current?.click(); } }}
             className="cursor-pointer rounded-2xl border-2 border-dashed transition-all flex flex-col items-center justify-center gap-5 py-20 px-8 select-none"
             style={{
-              borderColor: dragging ? '#86BBD8' : undefined,
+              borderColor: dragging ? STATUS_TONE.info : undefined,
               background:  dragging ? 'rgba(134,187,216,0.06)' : undefined,
               cursor: uploading ? 'default' : 'pointer',
             }}>
             {uploading ? (
               <>
-                <Loader2 className="h-12 w-12 animate-spin" style={{ color: '#86BBD8' }} />
+                <Loader2 className="h-12 w-12 animate-spin" style={{ color: STATUS_TONE.info }} />
                 <div className={`${TYPE_WEIGHT.medium} ${t.textMuted}`}>Analysing columns&hellip;</div>
               </>
             ) : (
               <>
                 <div className="h-16 w-16 rounded-2xl flex items-center justify-center"
                   style={{ background: 'rgba(134,187,216,0.12)' }}>
-                  <FileSpreadsheet className="h-8 w-8" style={{ color: '#86BBD8' }} />
+                  <FileSpreadsheet className="h-8 w-8" style={{ color: STATUS_TONE.info }} />
                 </div>
                 <div className="text-center">
                   <div className={`${TYPE_WEIGHT.semibold} text-base ${t.textMuted}`}>Drop your file here</div>
@@ -328,13 +328,13 @@ function SpareImportContent() {
           {/* File bar */}
           <div className={`rounded-2xl p-4 flex flex-wrap items-center gap-4 ${t.glassSoft}`}>
             <div className="flex items-center gap-2 flex-1 min-w-0">
-              <FileSpreadsheet className="h-5 w-5 flex-shrink-0" style={{ color: '#86BBD8' }} />
+              <FileSpreadsheet className="h-5 w-5 flex-shrink-0" style={{ color: STATUS_TONE.info }} />
               <span className={`text-sm ${TYPE_WEIGHT.medium} truncate ${t.textMuted}`}>{fileName}</span>
               <span className={`text-xs flex-shrink-0 ${t.textFaint}`}>
                 &mdash; {inferResult.total_rows} rows &bull; {inferResult.all_columns.length} columns
                 {inferResult.has_categories && (
                   <span className={`ml-2 px-2 py-0.5 rounded-full text-[10px] ${TYPE_WEIGHT.semibold}`}
-                    style={{ background: 'rgba(134,187,216,0.15)', color: '#86BBD8' }}>
+                    style={{ background: `${STATUS_TONE.info}26`, color: STATUS_TONE.info }}>
                     categories detected
                   </span>
                 )}
@@ -383,7 +383,7 @@ function SpareImportContent() {
           {extracted.length > 0 && (
             <div className="flex flex-wrap items-center gap-3">
               <span className={`text-xs px-2.5 py-1 rounded-lg ${TYPE_WEIGHT.semibold}`}
-                style={{ background: 'rgba(52,211,153,0.15)', color: '#34d399' }}>
+                style={{ background: `${STATUS_TONE.good}26`, color: STATUS_TONE.good }}>
                 {validRows.length} ready to import
               </span>
               {invalidRows.length > 0 && (
@@ -424,14 +424,14 @@ function SpareImportContent() {
                   }}>
                   <div className="flex items-center gap-2 mb-1">
                     <div className="h-3.5 w-3.5 rounded-full border-2 flex items-center justify-center flex-shrink-0"
-                      style={{ borderColor: importMode === opt.mode ? '#86BBD8' : undefined }}>
+                      style={{ borderColor: importMode === opt.mode ? STATUS_TONE.info : undefined }}>
                       {importMode === opt.mode && (
-                        <div className="h-1.5 w-1.5 rounded-full bg-[#86BBD8]" />
+                        <div className="h-1.5 w-1.5 rounded-full" style={{ background: STATUS_TONE.info }} />
                       )}
                     </div>
                     <span className={`text-sm ${TYPE_WEIGHT.semibold} ${t.textMuted}`}>{opt.title}</span>
                     {opt.recommended && (
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded ${TYPE_WEIGHT.semibold} bg-[#86BBD8]/15 text-[#86BBD8]`}>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded ${TYPE_WEIGHT.semibold}`} style={{ background: `${STATUS_TONE.info}26`, color: STATUS_TONE.info }}>
                         Recommended
                       </span>
                     )}
@@ -450,7 +450,7 @@ function SpareImportContent() {
                   Preview{extracted.length > 30 ? ' (first 30 rows)' : ''}
                 </span>
                 {invalidRows.length > 0 && (
-                  <span className="text-xs flex items-center gap-1" style={{ color: '#f87171' }}>
+                  <span className="text-xs flex items-center gap-1" style={{ color: STATUS_TONE.critical }}>
                     <AlertTriangle className="h-3 w-3" />
                     Red rows are missing stock code or description
                   </span>
@@ -477,13 +477,13 @@ function SpareImportContent() {
                         }}>
                         <td className={`px-3 py-1.5 ${t.textFaint}`}>{i + 1}</td>
                         <td className="px-3 py-1.5 font-mono"
-                          style={{ color: row.stock_code ? '#86BBD8' : '#f87171' }}>
-                          {row.stock_code || <span style={{ fontStyle: 'italic', color: '#f87171' }}>missing</span>}
+                          style={{ color: row.stock_code ? STATUS_TONE.info : STATUS_TONE.critical }}>
+                          {row.stock_code || <span style={{ fontStyle: 'italic', color: STATUS_TONE.critical }}>missing</span>}
                         </td>
                         <td className={`px-3 py-1.5 max-w-[220px] truncate`}
-                          style={{ color: row.description ? undefined : '#f87171' }}>
+                          style={{ color: row.description ? undefined : STATUS_TONE.critical }}>
                           <span className={row.description ? t.textMuted : ''}>
-                            {row.description || <span style={{ fontStyle: 'italic', color: '#f87171' }}>missing</span>}
+                            {row.description || <span style={{ fontStyle: 'italic', color: STATUS_TONE.critical }}>missing</span>}
                           </span>
                         </td>
                         <td className="px-3 py-1.5 text-right tabular-nums">
@@ -494,7 +494,7 @@ function SpareImportContent() {
                         {inferResult.has_categories && (
                           <td className="px-3 py-1.5 max-w-[160px] truncate">
                             {row.category
-                              ? <span className={`px-2 py-0.5 rounded-full text-[10px] ${TYPE_WEIGHT.medium} bg-[#86BBD8]/[0.12] text-[#86BBD8]`}>
+                              ? <span className={`px-2 py-0.5 rounded-full text-[10px] ${TYPE_WEIGHT.medium}`} style={{ background: `${STATUS_TONE.info}1f`, color: STATUS_TONE.info }}>
                                   {row.category}
                                 </span>
                               : <span className={t.textFaint}>—</span>}
@@ -538,7 +538,7 @@ function SpareImportContent() {
         <div className="space-y-4">
           <div className="rounded-2xl p-10 text-center"
             style={{ background: 'rgba(52,211,153,0.05)', border: '1px solid rgba(52,211,153,0.18)' }}>
-            <CheckCircle2 className="h-16 w-16 mx-auto mb-4" style={{ color: '#34d399' }} />
+            <CheckCircle2 className="h-16 w-16 mx-auto mb-4" style={{ color: STATUS_TONE.good }} />
             <div className={`text-3xl ${TYPE_WEIGHT.bold} mb-2 ${t.textPrimary}`}>
               {result.created} inserted &nbsp;&bull;&nbsp; {result.updated ?? 0} updated
             </div>

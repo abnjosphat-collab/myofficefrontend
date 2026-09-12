@@ -3,25 +3,38 @@
 // page should read colors and sizing from — see MyOffice-Design-System.docx.
 'use client';
 
-import { createContext, useContext, useState, useMemo, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useState, useMemo, useEffect, useCallback, type ReactNode } from 'react';
 
 // ─── Glass surface classes (dark mode — frosted cards over photo/dark background) ──
 
-const GLASS = 'bg-white/[0.07] backdrop-blur-2xl border border-white/[0.12]';
-const GLASS_SOFT = 'bg-white/[0.05] backdrop-blur-xl border border-white/10';
+const GLASS = 'bg-[#161614]/80 backdrop-blur-xl border border-white/[0.08]';
+const GLASS_SOFT = 'bg-[#161614]/65 backdrop-blur-lg border border-white/[0.08]';
 // A small popover/dropdown (option lists, menus) can land anywhere on the page —
 // often directly over dense text (a table row, a form) rather than open page
 // background. GLASS's 7% opacity is fine for a large surface card but leaves text
 // behind it visibly bleeding through on a small high-contrast-need panel, so these
 // get a near-opaque backing instead while keeping the same blur/border language.
-const GLASS_POPOVER = 'bg-slate-950/90 backdrop-blur-2xl border border-white/[0.12]';
+const GLASS_POPOVER = 'bg-[#121210]/95 backdrop-blur-2xl border border-white/[0.10]';
 const SHADOW_AMBIENT = 'shadow-[0_1px_1px_rgba(0,0,0,0.08),0_16px_32px_-20px_rgba(0,0,0,0.55)]';
 
 // ─── Light theme ("white mode") equivalents ─────────────────────────────────
 
-const LIGHT_GLASS = 'bg-white border border-gray-200';
-const LIGHT_GLASS_SOFT = 'bg-white border border-gray-100';
+const LIGHT_GLASS = 'bg-white border border-stone-200/90 shadow-sm';
+const LIGHT_GLASS_SOFT = 'bg-white/95 border border-stone-200/80';
 const LIGHT_SHADOW = 'shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_16px_-10px_rgba(0,0,0,0.08)]';
+
+/** Respects OS reduced-motion — use to shorten or disable decorative Framer loops. */
+export function usePrefersReducedMotion(): boolean {
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const apply = () => setReduced(mq.matches);
+    apply();
+    mq.addEventListener('change', apply);
+    return () => mq.removeEventListener('change', apply);
+  }, []);
+  return reduced;
+}
 
 export function themeClasses(light: boolean) {
   return {
@@ -54,53 +67,97 @@ export function themeClasses(light: boolean) {
     scrim: light ? 'bg-gray-900/10' : 'bg-slate-900/50',
     linkText: light ? 'text-brand-600' : 'text-brand-300',
     linkHover: light ? 'hover:text-brand-700' : 'hover:text-brand-200',
-    pageBg: light ? 'bg-gray-50' : 'bg-slate-900',
+    pageBg: light ? 'bg-stone-50' : 'bg-[#0c0c0b]',
   };
 }
 
-export type Theme = { light: boolean; toggle: () => void } & ReturnType<typeof themeClasses>;
+export type ThemePreference = 'system' | 'light' | 'dark';
 
-export const ThemeContext = createContext<Theme>({ light: true, toggle: () => {}, ...themeClasses(true) });
+export type Theme = {
+  light: boolean;
+  /** Stored choice — `system` follows OS light/dark until user picks explicitly. */
+  preference: ThemePreference;
+  setPreference: (p: ThemePreference) => void;
+  /** Quick override: sets explicit light or dark (leaves system mode). */
+  toggle: () => void;
+} & ReturnType<typeof themeClasses>;
+
+export const ThemeContext = createContext<Theme>({
+  light: true,
+  preference: 'system',
+  setPreference: () => {},
+  toggle: () => {},
+  ...themeClasses(true),
+});
 export const useTheme = () => useContext(ThemeContext);
 
 /** App-wide theme provider — mount once near the root (see components/Providers.tsx). */
 export const THEME_KEY = 'myoffice_theme';
 
-export function ThemeProvider({ children }: { children: ReactNode }) {
-  // Starts light on the server and on the first client render so hydration matches
-  // the prerendered HTML; the inline script in app/layout.tsx has already set the
-  // real theme on <html> before paint, so there's no flash — this effect just
-  // brings React's state into line with it. Same fallback as that script: an
-  // explicit stored choice always wins, otherwise defer to the OS's
-  // prefers-color-scheme rather than hardcoding light for a first-ever visit.
-  const [light, setLight] = useState(true);
-  useEffect(() => {
+export function readThemePreference(): ThemePreference {
+  if (typeof window === 'undefined') return 'system';
+  try {
     const stored = localStorage.getItem(THEME_KEY);
-    const dark = stored ? stored === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
-    if (dark) setLight(false);
+    if (stored === 'light' || stored === 'dark' || stored === 'system') return stored;
+  } catch { /* storage blocked */ }
+  return 'system';
+}
+
+export function resolveLightFromPreference(preference: ThemePreference): boolean {
+  if (preference === 'light') return true;
+  if (preference === 'dark') return false;
+  if (typeof window === 'undefined') return true;
+  return !window.matchMedia('(prefers-color-scheme: dark)').matches;
+}
+
+/** Keep `<html>` in sync for globals.css / shadcn `.dark` tokens (see layout pre-paint script). */
+export function applyThemeToDocument(light: boolean) {
+  if (typeof document === 'undefined') return;
+  document.documentElement.dataset.theme = light ? 'light' : 'dark';
+  document.documentElement.classList.toggle('dark', !light);
+  document.documentElement.style.colorScheme = light ? 'light' : 'dark';
+}
+
+export function ThemeProvider({ children }: { children: ReactNode }) {
+  // Server + first client paint stay light; app/layout.tsx inline script applies the
+  // real mode before paint. This state catches up on mount, then stays authoritative.
+  const [preference, setPreferenceState] = useState<ThemePreference>('system');
+  const [light, setLight] = useState(true);
+
+  const syncFromPreference = useCallback((pref: ThemePreference) => {
+    const nextLight = resolveLightFromPreference(pref);
+    setLight(nextLight);
+    applyThemeToDocument(nextLight);
   }, []);
+
+  useEffect(() => {
+    const pref = readThemePreference();
+    setPreferenceState(pref);
+    syncFromPreference(pref);
+  }, [syncFromPreference]);
+
+  useEffect(() => {
+    if (preference !== 'system') return;
+    const media = window.matchMedia('(prefers-color-scheme: dark)');
+    const onChange = () => syncFromPreference('system');
+    media.addEventListener('change', onChange);
+    return () => media.removeEventListener('change', onChange);
+  }, [preference, syncFromPreference]);
+
+  const setPreference = useCallback((pref: ThemePreference) => {
+    setPreferenceState(pref);
+    try { localStorage.setItem(THEME_KEY, pref); } catch { /* non-fatal */ }
+    syncFromPreference(pref);
+  }, [syncFromPreference]);
 
   const value = useMemo(() => ({
     light,
-    toggle: () => setLight(l => {
-      const next = !l;
-      localStorage.setItem(THEME_KEY, next ? 'light' : 'dark');
-      return next;
-    }),
+    preference,
+    setPreference,
+    toggle: () => setPreference(light ? 'dark' : 'light'),
     ...themeClasses(light),
-  }), [light]);
-  // Reflect the current mode onto the root element so plain CSS (globals.css) can branch
-  // on it too — e.g. native <select>/<option> styling, which can't read React context.
-  useEffect(() => {
-    document.documentElement.dataset.theme = light ? 'light' : 'dark';
-    // ALSO toggle the `.dark` class. globals.css defines the entire dark palette
-    // (--background, --card, --popover, --border, every --sidebar-*) under a
-    // `.dark` selector, but nothing ever added that class — so `body { bg-background }`
-    // stayed near-white in dark mode. All the glass surfaces are translucent white
-    // meant to sit on a dark page, so on a white body they washed out and the violet
-    // ambient glows bled through: the whole app went flat purple.
-    document.documentElement.classList.toggle('dark', !light);
-  }, [light]);
+  }), [light, preference, setPreference]);
+
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
 
@@ -207,6 +264,32 @@ export function FontScaleProvider({ children }: { children: ReactNode }) {
   return <FontScaleContext.Provider value={value}>{children}</FontScaleContext.Provider>;
 }
 
+// ─── Structural icon tones (navigation / catalog — not categorical rainbow) ───
+// Use for module grids, sidebars, KPI icons. Brand + STATUS_TONE handle emphasis.
+export type UiIconTone = 'neutral' | 'muted' | 'brand';
+
+export function uiIconClass(tone: UiIconTone, light: boolean): string {
+  switch (tone) {
+    case 'brand':
+      return light ? 'text-brand-600' : 'text-brand-400';
+    case 'muted':
+      return light ? 'text-stone-400' : 'text-stone-500';
+    default:
+      return light ? 'text-stone-600' : 'text-stone-400';
+  }
+}
+
+/** Category/KPI decorative hex — vivid on light stone; omitted on dark (use neutral icons). */
+export function decorativeAccentHex(
+  light: boolean,
+  hex: string | undefined,
+  opts?: { semantic?: boolean },
+): string | undefined {
+  if (!hex) return undefined;
+  if (opts?.semantic) return hex;
+  return light ? hex : undefined;
+}
+
 // ─── Accent colour palette (shared across pages for consistent theming) ────
 
 export type Accent = 'blue' | 'amber' | 'indigo' | 'emerald' | 'cyan' | 'violet';
@@ -241,6 +324,9 @@ export const ACCENT_HEX: Record<Accent, string> = {
   emerald: '#059669', cyan: '#0891b2', violet: '#9333ea',
 };
 
+/** Default GlowCard / hover accent when tile icons use neutral tones. */
+export const BRAND_GLOW_HEX = ACCENT_HEX.violet;
+
 // ─── Status tones — the reserved palette for a record's state ──────────────
 // Distinct from ACCENT above: ACCENT is for categorical identity (a module, a
 // department — arbitrary groups where any hue works as long as it's applied
@@ -269,6 +355,13 @@ export const STATUS_TONE = {
   info: ACCENT_HEX.blue, // reserved, medium priority, in progress
   neutral: '#94a3b8',   // retired, low priority, not set
 } as const;
+
+const STATUS_TONE_HEX = new Set<string>(Object.values(STATUS_TONE));
+
+/** True when `hex` is one of the shared operational status colours (visible in both themes). */
+export function isStatusToneHex(hex: string): boolean {
+  return STATUS_TONE_HEX.has(hex);
+}
 
 // ─── Light-aware accent text ────────────────────────────────────────────────
 // Pages hardcode `text-{color}-400` for small inline accents (status icons,
@@ -358,13 +451,22 @@ export const SPACING = {
  *  instead: the icon and the metric value, against this clean field.
  *  Pair with RADIUS.chip and TILE_ASPECT, and let GlowCard supply the rest shadow —
  *  tiles sit flat at rest and only lift on hover. */
+/** Module/info tiles — same role as portal `card` surfaces (school: #fff / #161614). */
 export const TILE_SURFACE = {
   light: '#ffffff',
-  dark: 'rgba(255,255,255,0.05)',
+  dark: '#161614',
+} as const;
+
+export const TILE_BORDER = {
+  light: 'rgba(228, 228, 225, 0.95)',
+  dark: 'rgba(42, 42, 38, 0.95)',
 } as const;
 
 /** Short tiles. 3:2 was tried first and read too tall/heavy in a dense grid. */
 export const TILE_ASPECT = 'aspect-[16/9]';
+
+/** KPI / quick-action rows — short horizontal strip, not a tall aspect tile. */
+export const TILE_COMPACT_BAR = 'h-11';
 
 export const RADIUS = {
   input: 'rounded',        // search input

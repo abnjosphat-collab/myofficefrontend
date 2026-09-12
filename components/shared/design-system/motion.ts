@@ -13,6 +13,9 @@ import type { Variants } from 'framer-motion';
 export const EASE_OUT: [number, number, number, number] = [0.22, 1, 0.36, 1];
 export const EASE_SOFT: [number, number, number, number] = [0.16, 1, 0.3, 1];
 
+/** Portaled dropdown / datalist panels (replaces legacy `oz-slide-up`). */
+export const DROPDOWN_PANEL_ANIM = 'animate-in fade-in-0 slide-in-from-bottom-2 duration-300';
+
 /** Default entrance stagger for sibling cards/list items revealing on mount. */
 export const staggerContainer: Variants = {
   hidden: {},

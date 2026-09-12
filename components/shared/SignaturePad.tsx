@@ -154,6 +154,8 @@ export function SignaturePad({
   const [saveForNextTime, setSaveForNextTime] = useState(false);
   const [password, setPassword] = useState('');
   const [unlocking, setUnlocking] = useState(false);
+  /** True for the whole confirm/unlock flow, including async onSign (bulk API). */
+  const [submitting, setSubmitting] = useState(false);
   const [unlockErr, setUnlockErr] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
   const [scanErr, setScanErr] = useState('');
@@ -306,32 +308,35 @@ export function SignaturePad({
 
   const confirm = async () => {
     const canvas = canvasRef.current;
-    if (!canvas || !hasInk) return;
+    if (!canvas || !hasInk || submitting) return;
     const dataUrl = canvas.toDataURL('image/png');
-
-    if (saveForNextTime) {
-      // Storing the signature is a convenience, not part of this approval.
-      // If it fails the signature is still valid, so don't block the sign-off.
-      try {
-        await api.put('/api/signatures/me', { image_data: dataUrl, source: inkSource });
-        setSaved(prev => ({ ...prev, has_signature: true, source: inkSource }));
-      } catch {
-        /* ignored — see above */
+    setSubmitting(true);
+    try {
+      await onSign({
+        signerName,
+        signedAt: new Date().toISOString(),
+        dataUrl,
+        method: inkSource,
+      });
+      if (saveForNextTime) {
+        // After approval so bulk/sign-off is not blocked on a convenience save.
+        try {
+          await api.put('/api/signatures/me', { image_data: dataUrl, source: inkSource });
+          setSaved(prev => ({ ...prev, has_signature: true, source: inkSource }));
+        } catch {
+          /* ignored — approval already succeeded */
+        }
       }
+    } finally {
+      setSubmitting(false);
     }
-
-    await onSign({
-      signerName,
-      signedAt: new Date().toISOString(),
-      dataUrl,
-      method: inkSource,
-    });
   };
 
   const unlockAndSign = async () => {
-    if (!password) return;
+    if (!password || submitting) return;
     setUnlocking(true);
     setUnlockErr('');
+    setSubmitting(true);
     try {
       const r = await api.post<{ image_data: string }>('/api/signatures/unlock', { password });
       await onSign({
@@ -344,6 +349,7 @@ export function SignaturePad({
       setUnlockErr(e instanceof Error ? e.message : 'Could not unlock signature.');
     } finally {
       setUnlocking(false);
+      setSubmitting(false);
     }
   };
 
@@ -471,7 +477,7 @@ export function SignaturePad({
       ) : (
         <form
           className="flex flex-col gap-3 rounded-xl border border-white/15 bg-white/[0.04] p-4"
-          onSubmit={e => { e.preventDefault(); if (password && !unlocking) unlockAndSign(); }}
+          onSubmit={e => { e.preventDefault(); if (password && !unlocking && !submitting) unlockAndSign(); }}
         >
           <div className="flex items-center gap-2 text-xs text-white/50">
             <CheckCircle2 className="h-4 w-4 text-emerald-400" />
@@ -507,17 +513,18 @@ export function SignaturePad({
         <button
           type="button"
           onClick={onCancel}
-          className="flex-1 rounded-xl border border-white/15 bg-white/[0.07] px-4 py-2.5 text-sm font-medium text-white/70 transition-all hover:bg-white/[0.14] hover:text-white"
+          disabled={submitting}
+          className="flex-1 rounded-xl border border-white/15 bg-white/[0.07] px-4 py-2.5 text-sm font-medium text-white/70 transition-all hover:bg-white/[0.14] hover:text-white disabled:pointer-events-none disabled:opacity-40"
         >
           Cancel
         </button>
         <button
           type="button"
           onClick={mode === 'draw' ? confirm : unlockAndSign}
-          disabled={mode === 'draw' ? !hasInk : !password || unlocking}
+          disabled={submitting || (mode === 'draw' ? !hasInk : !password || unlocking)}
           className="flex-1 rounded-xl border border-[#86BBD8]/35 bg-[#2A4D69]/60 px-4 py-2.5 text-sm font-semibold text-white transition-all hover:bg-[#2A4D69]/80 disabled:pointer-events-none disabled:opacity-40"
         >
-          {unlocking ? 'Unlocking…' : actionLabel}
+          {submitting && !unlocking ? 'Processing…' : unlocking ? 'Unlocking…' : actionLabel}
         </button>
       </div>
     </div>

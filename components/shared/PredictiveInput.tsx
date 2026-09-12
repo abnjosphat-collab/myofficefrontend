@@ -12,7 +12,7 @@
 
 import { useState, useEffect, useRef, useCallback, useId } from 'react';
 import { createPortal } from 'react-dom';
-import { useTheme } from '@/components/shared/theme';
+import { useTheme, DROPDOWN_PANEL_ANIM } from '@/components/shared/theme';
 
 const MAX_HISTORY = 40;
 
@@ -330,7 +330,7 @@ export function PredictiveInput({
           // on <body> while open; this panel is portaled to document.body directly (a
           // sibling of Dialog.Content, not a descendant), so without this it silently
           // inherits `none` and becomes unclickable from inside any modal.
-          className={`pointer-events-auto rounded-xl overflow-hidden oz-slide-up ${t.glassPopover} ${t.shadow}`}
+          className={`pointer-events-auto rounded-xl overflow-hidden ${DROPDOWN_PANEL_ANIM} ${t.glassPopover} ${t.shadow}`}
         >
           <div className="max-h-44 overflow-y-auto p-1">
             {list.map((s, i) => {

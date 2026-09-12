@@ -8,7 +8,7 @@ import {
   useTheme, accentText, PageHero, StatusBadge, ViewToggle,
   useCollapseSection, ProgressBar, ACCENT_HEX, GlowCard, SelectField,
   useConfirm, SearchInput, EmptyState, LoadingState, InfoRow,
-  TYPE_SCALE, RADIUS, TYPE_WEIGHT,
+  TYPE_SCALE, RADIUS, TYPE_WEIGHT, STATUS_TONE,
 } from '@/components/shared/theme';
 import {
   Wrench, Plus, RefreshCw,
@@ -35,7 +35,12 @@ import { lineTotal } from "@/components/shared/utils";
 import { formatDate } from "@/lib/format";
 
 // Display/sort maps used only within this file's own WorkOrderCard/Row and sort logic.
-const CLASS_COLORS: Record<string, string> = { breakdown: '#f87171', planned_maintenance: '#4ade80', project: '#60a5fa', custom: '#c084fc' };
+const CLASS_COLORS: Record<string, string> = {
+  breakdown: STATUS_TONE.critical,
+  planned_maintenance: STATUS_TONE.good,
+  project: STATUS_TONE.info,
+  custom: STATUS_TONE.neutral,
+};
 const CLASS_SHORT: Record<string, string> = { planned_maintenance: 'PM', project: 'Proj', breakdown: 'BKD', custom: 'Custom' };
 const PORD: Record<WorkOrderPriority, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
 const SORD: Record<WorkOrderStatus, number> = {

@@ -56,6 +56,23 @@ export const updateLeaveStatus = async (leaveId: string, status: Leave['status']
   return api.patch<Leave>(`/api/leaves/${leaveId}`, { status, ...(notes ? { notes } : {}) });
 };
 
+export type BulkLeaveStatusResult = {
+  succeeded: number;
+  failed: number;
+  updated: Leave[];
+};
+
+/** Approve or reject many pending leave requests in one API call. */
+export async function bulkUpdateLeaveStatus(body: {
+  ids: (number | string)[];
+  status: 'approved' | 'rejected';
+}): Promise<BulkLeaveStatusResult> {
+  return api.post<BulkLeaveStatusResult>('/api/leaves/bulk-status', {
+    status: body.status,
+    ids: body.ids.map(id => (typeof id === 'number' ? id : parseInt(String(id), 10))).filter(n => !Number.isNaN(n)),
+  });
+}
+
 export const deleteLeave = async (leaveId: string): Promise<{ success: boolean; message: string }> => {
   return (await api.delete<{ success: boolean; message: string }>(`/api/leaves/${leaveId}`)) ?? { success: true, message: 'Deleted' };
 };
@@ -79,29 +96,51 @@ export const fetchEmployeeSearchResults = async (): Promise<EmployeeSearchResult
   });
 };
 
+function statsFromLeaves(leavesData: Leave[]): Stats {
+  const today = new Date().toISOString().split('T')[0];
+  const approvedLeaves = leavesData.filter(l => l.status === 'approved');
+  const rejectedLeaves = leavesData.filter(l => l.status === 'rejected');
+  const decided = approvedLeaves.length + rejectedLeaves.length;
+  const approvalRate = decided > 0 ? Math.round((approvedLeaves.length / decided) * 100) : 0;
+  const totalDays = leavesData.reduce((sum, l) => sum + (l.total_days || 0), 0);
+  const avgDays = leavesData.length > 0 ? Math.round(totalDays / leavesData.length) : 0;
+  return {
+    total: leavesData.length,
+    pending: leavesData.filter(l => l.status === 'pending').length,
+    approved: approvedLeaves.length,
+    rejected: rejectedLeaves.length,
+    on_leave_now: approvedLeaves.filter(l => l.start_date <= today && l.end_date >= today).length,
+    approvalRate,
+    total_days_requested: totalDays,
+    average_days: avgDays,
+  };
+}
+
 export function useLeavesData() {
   const [leaves, setLeaves] = useState<Leave[]>([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<Stats>({ total: 0, pending: 0, approved: 0, rejected: 0, on_leave_now: 0, approvalRate: 0, total_days_requested: 0, average_days: 0 });
+
+  const mergeUpdatedLeaves = useCallback((updated: Leave[]) => {
+    setLeaves(prev => {
+      const map = new Map(prev.map(l => [l.id, l]));
+      updated.forEach(row => {
+        const id = String(row.id);
+        const existing = map.get(id);
+        map.set(id, { ...(existing ?? row), ...row, id });
+      });
+      const next = [...map.values()];
+      setStats(statsFromLeaves(next));
+      return next;
+    });
+  }, []);
 
   const fetchAllData = useCallback(async () => {
     try {
       setLoading(true);
       const leavesData = await fetchLeaves();
       setLeaves(leavesData);
-      const today = new Date().toISOString().split('T')[0];
-      const approvedLeaves = leavesData.filter(l => l.status === 'approved');
-      const rejectedLeaves = leavesData.filter(l => l.status === 'rejected');
-      const decided = approvedLeaves.length + rejectedLeaves.length;
-      const approvalRate = decided > 0 ? Math.round((approvedLeaves.length / decided) * 100) : 0;
-      const totalDays = leavesData.reduce((sum, l) => sum + (l.total_days || 0), 0);
-      const avgDays = leavesData.length > 0 ? Math.round(totalDays / leavesData.length) : 0;
-      setStats({
-        total: leavesData.length, pending: leavesData.filter(l => l.status === 'pending').length,
-        approved: approvedLeaves.length, rejected: rejectedLeaves.length,
-        on_leave_now: approvedLeaves.filter(l => l.start_date <= today && l.end_date >= today).length,
-        approvalRate, total_days_requested: totalDays, average_days: avgDays,
-      });
+      setStats(statsFromLeaves(leavesData));
       setLoading(false);
     } catch (err) { toast.error((err as Error).message || 'Failed to fetch data'); setLoading(false); }
   }, []);
@@ -119,5 +158,5 @@ export function useLeavesData() {
     return () => { if (interval) clearInterval(interval); document.removeEventListener('visibilitychange', handleVisibility); };
   }, [fetchAllData]);
 
-  return { leaves, stats, loading, refresh: fetchAllData };
+  return { leaves, stats, loading, refresh: fetchAllData, mergeUpdatedLeaves };
 }

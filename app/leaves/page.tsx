@@ -22,7 +22,7 @@ import {
 } from '@/components/shared/theme';
 import type { Leave, Stats } from './types';
 import {
-  createLeave, deleteLeave, updateLeave, updateLeaveStatus, useLeavesData,
+  bulkUpdateLeaveStatus, createLeave, deleteLeave, updateLeave, updateLeaveStatus, useLeavesData,
 } from './useLeavesData';
 import { calcLeaveDays, calcCalendarLeaveDays } from '@/lib/calcLeaveDays';
 import { EmployeeAutocomplete } from '@/components/shared/EmployeeAutocomplete';
@@ -563,7 +563,7 @@ const leavesExportColumns: DLColumn[] = [
 function LeaveManagementContent() {
   const t = useTheme();
   const sections = useCollapseSection({ hero: true });
-  const { leaves, stats, loading, refresh: fetchAllData } = useLeavesData();
+  const { leaves, stats, loading, refresh: fetchAllData, mergeUpdatedLeaves } = useLeavesData();
   const [selectedLeave, setSelectedLeave] = useState<Leave | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editData, setEditData] = useState<Leave | null>(null);
@@ -625,16 +625,25 @@ function LeaveManagementContent() {
   const toggleSelect = (id: string) => setSelectedIds(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const selectedLeaves = useMemo(() => leaves.filter(l => l.status === 'pending' && selectedIds.has(l.id)), [leaves, selectedIds]);
 
-  const handleBulkStatusUpdate = async () => {
+  const handleBulkStatusUpdate = async (_sig: SignatureResult) => {
     if (!bulkAction) return;
     const targets = selectedLeaves;
-    const results = await Promise.allSettled(targets.map(l => updateLeaveStatus(l.id, bulkAction)));
-    const succeeded = results.filter(r => r.status === 'fulfilled').length;
-    const failed = results.length - succeeded;
-    if (failed > 0) toast.warning(`${failed} failed to update`);
-    if (succeeded > 0) toast.success(`${bulkAction === 'approved' ? 'Approved' : 'Rejected'} ${succeeded} request${succeeded !== 1 ? 's' : ''}`);
-    setSelectedIds(new Set());
-    fetchAllData();
+    try {
+      const result = await bulkUpdateLeaveStatus({
+        ids: targets.map(l => l.id),
+        status: bulkAction,
+      });
+      mergeUpdatedLeaves(result.updated.map(row => ({ ...row, id: String(row.id) })));
+      if (result.failed > 0) toast.warning(`${result.failed} could not be updated (already processed or missing)`);
+      if (result.succeeded > 0) {
+        toast.success(`${bulkAction === 'approved' ? 'Approved' : 'Rejected'} ${result.succeeded} request${result.succeeded !== 1 ? 's' : ''}`);
+      }
+      setSelectedIds(new Set());
+      setBulkAction(null);
+    } catch (err) {
+      toast.error(`Bulk update failed: ${(err as Error).message}`);
+      throw err;
+    }
   };
 
   const typeSummary = useMemo(() => Object.entries(LEAVE_TYPES).map(([key, type]) => {
@@ -899,7 +908,7 @@ function LeaveManagementContent() {
           requiredRole="manager"
           variant={bulkAction === 'approved' ? 'approve' : 'reject'}
           preferSavedSignature={bulkAction === 'approved'}
-          onConfirm={async () => { await handleBulkStatusUpdate(); }}
+          onConfirm={handleBulkStatusUpdate}
           onCancel={() => setBulkAction(null)}
         />
       )}

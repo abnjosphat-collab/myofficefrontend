@@ -2,7 +2,7 @@
 // Full approval flow: auth check → role check → signature capture → confirm
 'use client';
 import { useState } from 'react';
-import { Lock, ShieldAlert, LogIn, CheckCircle2, XCircle, AlertTriangle } from '@/components/shared/theme';
+import { Lock, ShieldAlert, LogIn, CheckCircle2, XCircle, Loader2, useTheme, accentText } from '@/components/shared/theme';
 import { useAuth } from '@/lib/auth-context';
 import { SignaturePad, type SignatureResult } from './SignaturePad';
 import type { UserRole } from '@/lib/auth-context';
@@ -42,6 +42,7 @@ export function ApprovalGate({
   preferSavedSignature = false,
 }: ApprovalGateProps) {
   const { user, profile, isAtLeast, loading } = useAuth();
+  const t = useTheme();
   const [saving, setSaving] = useState(false);
   const [done,   setDone]   = useState(false);
 
@@ -52,7 +53,7 @@ export function ApprovalGate({
   const accentClass = variant === 'reject'
     ? 'border-rose-500/30 bg-rose-500/10'
     : variant === 'sign'
-    ? 'border-[#86BBD8]/30 bg-[#86BBD8]/10'
+    ? 'border-brand-500/30 bg-brand-500/10'
     : 'border-emerald-500/30 bg-emerald-500/10';
 
   const handleSign = async (sig: SignatureResult) => {
@@ -60,7 +61,7 @@ export function ApprovalGate({
     try {
       await onConfirm(sig);
       setDone(true);
-      setTimeout(onCancel, 800);
+      setTimeout(onCancel, 450);
     } finally {
       setSaving(false);
     }
@@ -68,82 +69,85 @@ export function ApprovalGate({
 
   return (
     <div className="fixed inset-0 z-[400] flex items-center justify-center p-4">
-      <button type="button" aria-label="Dismiss approval dialog" onClick={onCancel} className="absolute inset-0 bg-black/70 backdrop-blur-sm cursor-default" />
-      <div className="relative oz-glass-panel rounded-2xl w-full max-w-md shadow-2xl z-10 overflow-hidden">
-        {/* Header */}
-        <div className={`px-6 py-4 border-b ${accentClass}`}>
+      <button type="button" aria-label="Dismiss approval dialog" onClick={onCancel} className={`absolute inset-0 ${t.scrim} backdrop-blur-sm cursor-default`} />
+      <div className={`relative ${t.glass} ${t.shadow} rounded-2xl w-full max-w-md z-10 overflow-hidden border ${t.border}`}>
+        <div className={`px-6 py-4 border-b ${t.border} ${accentClass}`}>
           <div className="flex items-center gap-3">
             {variant === 'reject'
-              ? <XCircle className="h-5 w-5 text-rose-400 shrink-0" />
+              ? <XCircle className={`h-5 w-5 shrink-0 ${accentText('rose', t.light)}`} />
               : variant === 'sign'
-              ? <CheckCircle2 className="h-5 w-5 text-[#86BBD8] shrink-0" />
-              : <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0" />}
+              ? <CheckCircle2 className="h-5 w-5 shrink-0 text-brand-500" />
+              : <CheckCircle2 className={`h-5 w-5 shrink-0 ${accentText('emerald', t.light)}`} />}
             <div>
-              <h3 className="text-base font-bold text-white">{title}</h3>
-              {description && <p className="text-xs text-white/50 mt-0.5">{description}</p>}
+              <h3 className={`text-base font-bold ${t.textPrimary}`}>{title}</h3>
+              {description && <p className={`text-xs mt-0.5 ${t.textMuted}`}>{description}</p>}
             </div>
           </div>
         </div>
 
         <div className="p-6">
-          {/* Not logged in */}
           {!isLoggedIn && (
             <div className="flex flex-col items-center gap-4 py-4">
               <div className="h-14 w-14 rounded-full bg-amber-500/15 border border-amber-500/25 flex items-center justify-center">
-                <Lock className="h-6 w-6 text-amber-400" />
+                <Lock className={`h-6 w-6 ${accentText('amber', t.light)}`} />
               </div>
               <div className="text-center">
-                <p className="text-white font-semibold">Sign in required</p>
-                <p className="text-white/50 text-sm mt-1">
-                  You must be signed in as a <span className="text-[#86BBD8] font-medium">{ROLE_LABELS[requiredRole]}</span> or above to {actionLabel.toLowerCase().replace('sign & ', '')}.
+                <p className={`font-semibold ${t.textPrimary}`}>Sign in required</p>
+                <p className={`text-sm mt-1 ${t.textMuted}`}>
+                  You must be signed in as a <span className="text-brand-500 font-medium">{ROLE_LABELS[requiredRole]}</span> or above to {actionLabel.toLowerCase().replace('sign & ', '')}.
                 </p>
               </div>
               <button type="button" onClick={onCancel}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#2A4D69]/60 hover:bg-[#2A4D69]/80 border border-[#86BBD8]/35 text-white font-semibold text-sm transition-all">
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-white font-semibold text-sm transition-all bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110">
                 <LogIn className="h-4 w-4" /> Sign in to continue
               </button>
             </div>
           )}
 
-          {/* Logged in but wrong role */}
           {isLoggedIn && !isAuthorized && (
             <div className="flex flex-col items-center gap-4 py-4">
               <div className="h-14 w-14 rounded-full bg-rose-500/15 border border-rose-500/25 flex items-center justify-center">
-                <ShieldAlert className="h-6 w-6 text-rose-400" />
+                <ShieldAlert className={`h-6 w-6 ${accentText('rose', t.light)}`} />
               </div>
               <div className="text-center">
-                <p className="text-white font-semibold">Insufficient permissions</p>
-                <p className="text-white/50 text-sm mt-1">
-                  Your role (<span className="text-white/70 font-medium">{ROLE_LABELS[profile?.role ?? 'user']}</span>) cannot approve.
-                  A <span className="text-[#86BBD8] font-medium">{ROLE_LABELS[requiredRole]}</span> or above is required.
+                <p className={`font-semibold ${t.textPrimary}`}>Insufficient permissions</p>
+                <p className={`text-sm mt-1 ${t.textMuted}`}>
+                  Your role (<span className={`font-medium ${t.textSecondary}`}>{ROLE_LABELS[profile?.role ?? 'user']}</span>) cannot approve.
+                  A <span className="text-brand-500 font-medium">{ROLE_LABELS[requiredRole]}</span> or above is required.
                 </p>
               </div>
               <button type="button" onClick={onCancel}
-                className="px-5 py-2.5 rounded-xl bg-white/[0.07] hover:bg-white/[0.14] border border-white/15 text-white/70 hover:text-white text-sm font-medium transition-all">
+                className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${t.chipBg} ${t.textMuted} ${t.hoverText} border ${t.border}`}>
                 Close
               </button>
             </div>
           )}
 
-          {/* Authorized — show signature pad */}
-          {isLoggedIn && isAuthorized && !done && (
+          {isLoggedIn && isAuthorized && !done && saving && (
+            <div className="flex flex-col items-center gap-3 py-8">
+              <Loader2 className={`h-8 w-8 animate-spin ${accentText('brand', t.light)}`} />
+              <p className={`text-sm font-medium ${t.textPrimary}`}>Applying approval…</p>
+              <p className={`text-xs ${t.textMuted}`}>This may take a moment for large selections.</p>
+            </div>
+          )}
+
+          {isLoggedIn && isAuthorized && !done && !saving && (
             <SignaturePad
               signerName={displayName}
               userEmail={user?.email}
-              actionLabel={saving ? 'Saving…' : actionLabel}
+              actionLabel={actionLabel}
               onSign={handleSign}
               onCancel={onCancel}
               preferSaved={preferSavedSignature}
             />
           )}
 
-          {/* Done */}
           {done && (
             <div className="flex flex-col items-center gap-3 py-6">
               <div className="h-14 w-14 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center">
-                <CheckCircle2 className="h-7 w-7 text-emerald-400" />
+                <CheckCircle2 className={`h-7 w-7 ${accentText('emerald', t.light)}`} />
               </div>
-              <p className="text-white font-semibold">Done</p>
+              <p className={`font-semibold ${t.textPrimary}`}>Done</p>
             </div>
           )}
         </div>

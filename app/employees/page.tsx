@@ -17,7 +17,7 @@ import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle,
   FormField, FormActions, useCollapseSection, CenterModal, ACCENT_HEX, STATUS_TONE, SelectField, Combobox, type ComboOption, TYPE_SCALE, TYPE_WEIGHT, RADIUS,
   GroupSection, RecordCard, staggerContainer, fadeUp,
-  Subsection, InfoRow, SummaryItem, LoadingState, AutofillInput, useConfirm, accentText,
+  Subsection, InfoRow, SummaryItem, LoadingState, AutofillInput, useConfirm, accentText, uiIconClass, decorativeAccentHex,
 } from '@/components/shared/theme';
 import { formatDate } from '@/lib/format';
 import { exportFilename, EXPORT_BRAND_ARGB, EXPORT_BRAND_RGB, styleExcelHeaderRow } from '@/lib/exportUtils';
@@ -740,10 +740,14 @@ function DetailPanel({
   suffix?: React.ReactNode;
 }) {
   const t = useTheme();
+  const panelIconHex = decorativeAccentHex(t.light, accent);
   return (
     <div className={`${t.chipBg} rounded-xl overflow-hidden border ${t.border}`}>
       <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}>
-        <Icon className="h-3.5 w-3.5" style={{ color: accent }} />
+        <Icon
+          className={`h-3.5 w-3.5 ${panelIconHex ? '' : uiIconClass('neutral', t.light)}`}
+          style={panelIconHex ? { color: panelIconHex } : undefined}
+        />
         <span className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textSecondary}`}>{title}</span>
         {suffix}
       </div>
@@ -885,10 +889,10 @@ function EmployeeRow({ employee, onEdit, onDelete, defaultExpanded = false }: Em
                 <InfoRow label="ID Number" value={employee.id_number} />
                 <InfoRow label="Phone" value={employee.phone ? (
                   telHref(employee.phone)
-                    ? <a href={telHref(employee.phone)} className="hover:underline" style={{ color: secColor }}>{formatPhoneDisplay(employee.phone)}</a>
+                    ? <a href={telHref(employee.phone)} className="text-brand-500 dark:text-brand-400 hover:underline">{formatPhoneDisplay(employee.phone)}</a>
                     : formatPhoneDisplay(employee.phone)
                 ) : undefined} />
-                <div className="col-span-2"><InfoRow label="Email" value={employee.email ? <a href={`mailto:${employee.email}`} className="hover:underline" style={{ color: secColor }}>{employee.email}</a> : undefined} /></div>
+                <div className="col-span-2"><InfoRow label="Email" value={employee.email ? <a href={`mailto:${employee.email}`} className="text-brand-500 dark:text-brand-400 hover:underline">{employee.email}</a> : undefined} /></div>
                 {employee.address && <div className="col-span-2"><InfoRow label="Address" value={employee.address} /></div>}
               </div>
             </DetailPanel>
@@ -976,7 +980,7 @@ function EmployeeCard({ employee, onEdit, onDelete }: {
       title={`${employee.first_name} ${employee.last_name}`}
       subtitle={normalizeDesignation(employee.designation) || 'No role'}
       badges={<>
-        {employee.section && <StatusBadge color={secColor} label={normalizeSection(employee.section)} />}
+        {employee.section && <StatusBadge color={t.light ? secColor : NEUTRAL_BADGE} label={normalizeSection(employee.section)} />}
         {employee.employment_type && <StatusBadge color={ETYPE_COLORS[employee.employment_type] ?? NEUTRAL_BADGE} label={employee.employment_type} />}
         {employee.employee_class && <StatusBadge color={CLASS_COLORS[employee.employee_class] ?? NEUTRAL_BADGE} label={employee.employee_class} />}
       </>}

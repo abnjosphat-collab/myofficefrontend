@@ -798,7 +798,7 @@ function SparesPageContent() {
           <StatTile icon={Database} color={ACCENT_HEX.violet} value={formatCurrency(stats.totalValue)} label="Total Value" />
           <StatTile icon={AlertOctagon} color="#f43f5e" value={stats.outOfStock} label="Out of Stock" onClick={() => setStockFilter('out')} />
           <StatTile icon={AlertTriangle} color="#f59e0b" value={stats.lowStock} label="Low Stock" onClick={() => setStockFilter('low')} />
-          <StatTile icon={BarChart3} color="#34d399" value={stats.categories} label="Categories" />
+          <StatTile icon={BarChart3} color={STATUS_TONE.good} value={stats.categories} label="Categories" />
           <StatTile icon={Check} color="#60a5fa" value={stats.safetyCount} label="Safety Stock" />
         </div>
       </PageHero>

@@ -1,6 +1,5 @@
 // components/app-shell/AuthMenu.tsx — real Supabase/Google auth, ported from the
-// legacy components/Header.tsx (do not edit Header.tsx — it's still used by
-// PageShell until every page has migrated off it). Visual design re-skinned to
+// Ported from the retired Header.tsx (Sep 2026). Visual design re-skinned to
 // match the homepage shell's compact avatar-button chrome instead of Header's
 // dark navbar buttons; the auth logic itself (signIn/signUp/signOut, role badge)
 // is unchanged.

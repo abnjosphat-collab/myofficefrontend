@@ -51,13 +51,18 @@ export function glowShadow(hex: string, alpha = 0.32): string {
   return `0 16px 32px -14px ${hexToRgba(hex, alpha)}`;
 }
 
-/** Derives the light-mode page gradient and dark-mode wash from any hex accent. */
+/** App shell background — neutral canvas with brand as accent, not a full purple wash
+ *  (Meridian/school-style harmony). Accent hex only tints dark mode subtly at the top. */
 export function bgLayersFromHex(hex: string) {
   const safe = isValidHex(hex) ? hex : DEFAULT_BG_ACCENT;
   const rgb = hexToRgbTuple(safe);
-  const light = `linear-gradient(160deg, ${rgbString(blendRgb(rgb, 'white', 0.96))} 0%, ${rgbString(blendRgb(rgb, 'white', 0.90))} 45%, ${rgbString(blendRgb(rgb, 'white', 0.93))} 100%)`;
-  const darkBase = blendRgb(rgb, 'black', 0.6);
-  const darkDeep = blendRgb(rgb, 'black', 0.75);
-  const darkWash = `linear-gradient(to bottom, ${rgbaString(darkBase, 0.68)}, ${rgbaString(darkBase, 0.46)}, ${rgbaString(darkDeep, 0.8)})`;
+  const light = [
+    'linear-gradient(180deg, #fafaf9 0%, #f5f5f4 55%, #f0efec 100%)',
+    `radial-gradient(ellipse 90% 50% at 100% 0%, ${rgbaString(rgb, 0.06)} 0%, transparent 55%)`,
+  ].join(', ');
+  const darkWash = [
+    `radial-gradient(ellipse 100% 70% at 50% -15%, ${rgbaString(rgb, 0.14)} 0%, transparent 50%)`,
+    'linear-gradient(180deg, #0c0c0b 0%, #121210 45%, #0a0a09 100%)',
+  ].join(', ');
   return { light, darkWash };
 }

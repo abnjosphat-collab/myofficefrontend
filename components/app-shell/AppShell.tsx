@@ -1,7 +1,6 @@
 // components/app-shell/AppShell.tsx — the shared page wrapper: homepage's own
-// background/header/sidebar/footer chrome, extracted so every page can use it in
-// place of components/PageShell.tsx (which still wraps Header/Footer/wallpaper for
-// pages not yet migrated). No wallpaper here, per the homepage's design.
+// background/header/sidebar/footer chrome for every module route. Legacy
+// PageShell/Header/Footer were removed Sep 2026. No wallpaper here, per the homepage design.
 'use client';
 
 import { useMemo, useEffect, useState } from 'react';
@@ -17,6 +16,7 @@ import { ServiceWorkerRegistrar } from './ServiceWorkerRegistrar';
 import { useAppShellState } from './useAppShellState';
 import { AppShellContext } from './context';
 import { PreferencesPanel } from './PreferencesPanel';
+import { QuickActionsManagePanel } from './QuickActionsManagePanel';
 import { ActiveNoticesPopup } from './ActiveNoticesPopup';
 import { hasSeenPrefs } from '@/lib/prefs';
 
@@ -132,6 +132,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </CenterModal>
 
       <PreferencesPanel open={prefsOpen} onClose={() => setPrefsOpen(false)} welcome={prefsWelcome} />
+      <QuickActionsManagePanel open={s.quickActionsManageOpen} onClose={() => s.setQuickActionsManageOpen(false)} />
       <ActiveNoticesPopup />
     </div>
     </AppShellContext.Provider>

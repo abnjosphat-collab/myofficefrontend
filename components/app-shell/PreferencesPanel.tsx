@@ -8,7 +8,8 @@
 import { useState } from 'react';
 import {
   useTheme, CenterModal, useFontStyle, FONT_OPTIONS, useFontScale, FONT_SCALE_OPTIONS,
-  Moon, Sun, Type, LayoutGrid, List, ChevronsDownUp, Check,
+  Moon, Sun, Monitor, Type, LayoutGrid, List, ChevronsDownUp, Check,
+  type ThemePreference,
 } from '@/components/shared/theme';
 import { clearInputHistory } from '@/lib/inputHistory';
 import {
@@ -77,11 +78,19 @@ export function PreferencesPanel({
       width="max-w-lg"
     >
       <div className={`px-5 py-2 divide-y ${t.divide}`}>
-        <Row icon={t.light ? Sun : Moon} label="Theme" hint="Light or dark appearance">
-          <Segmented<'light' | 'dark'>
-            value={t.light ? 'light' : 'dark'}
-            options={[{ id: 'light', label: 'Light' }, { id: 'dark', label: 'Dark' }]}
-            onChange={v => { if ((v === 'light') !== t.light) t.toggle(); }}
+        <Row
+          icon={t.preference === 'system' ? Monitor : t.light ? Sun : Moon}
+          label="Theme"
+          hint={t.preference === 'system' ? 'Matches your device (light or dark)' : 'Fixed appearance'}
+        >
+          <Segmented<ThemePreference>
+            value={t.preference}
+            options={[
+              { id: 'system', label: 'System' },
+              { id: 'light', label: 'Light' },
+              { id: 'dark', label: 'Dark' },
+            ]}
+            onChange={t.setPreference}
           />
         </Row>
 

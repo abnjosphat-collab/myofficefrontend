@@ -54,6 +54,8 @@ export interface QuickAction {
   accent: Accent;
   removable?: boolean;
   auto?: boolean;
+  /** Static shortcuts from QUICK_ACTIONS — dismissed by id, not href. */
+  builtin?: boolean;
 }
 
 export const CATEGORIES: Category[] = [
@@ -149,9 +151,9 @@ export const CATEGORIES: Category[] = [
 ];
 
 export const QUICK_ACTIONS: QuickAction[] = [
-  { id: 'new-wo',  icon: Plus,     label: 'New Work Order',   href: '/maintenance', accent: 'amber' },
-  { id: 'upload',  icon: Upload,   label: 'Upload Document',  href: '/documents',   accent: 'blue' },
-  { id: 'add-emp', icon: User,     label: 'Add Employee',     href: '/employees',   accent: 'emerald' },
+  { id: 'new-wo',  icon: Plus,     label: 'New Work Order',   href: '/maintenance', accent: 'amber', builtin: true, removable: true },
+  { id: 'upload',  icon: Upload,   label: 'Upload Document',  href: '/documents',   accent: 'blue', builtin: true, removable: true },
+  { id: 'add-emp', icon: User,     label: 'Add Employee',     href: '/employees',   accent: 'emerald', builtin: true, removable: true },
 ];
 
 export const TOTAL_MODULES = CATEGORIES.reduce((sum, c) => sum + c.modules.length, 0);
@@ -165,7 +167,9 @@ export const ALL_MODULES_BY_HREF = new Map<string, { module: Module; accent: Acc
 
 export const USAGE_KEY = 'oz_moduleUsage';
 export const AUTO_QA_DISMISSED_KEY = 'oz_qaDismissed';
+export const BUILTIN_QA_DISMISSED_KEY = 'oz_qaBuiltinDismissed';
 export const MANUAL_QA_KEY = 'oz_qaManual';
+export const INTRO_SLIDES_HIDDEN_KEY = 'oz_introSlidesHidden';
 export const FAVORITES_KEY = 'oz_favorites';
 export const SIDEBAR_COLLAPSED_KEY = 'oz_sidebarCollapsed';
 export const FREQUENT_THRESHOLD = 3;

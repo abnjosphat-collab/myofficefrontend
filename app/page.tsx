@@ -6,28 +6,24 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Users, ClipboardCheck, Activity, Shield, Search, LayoutGrid, Bookmark, Sparkles,
+  Search, LayoutGrid, Bookmark, Sparkles,
   SlidersHorizontal, Palette, PanelLeftClose, Bell, ShieldAlert,
   ChevronLeft, ChevronRight, ChevronDown, X,
   ArrowUpRight, ArrowDownRight, ArrowRight, Check, Eye, EyeOff, Maximize2, Plus,
   Pause, Play, CheckSquare, Square, List,
 } from '@/components/shared/theme';
 import {
-  useTheme, Collapse, AnimatedText, PulsingIcon, CenterModal, GlowCard, InfoCard, EmptyState, StatCard, StatStrip,
-  CardIconButton, ViewToggle, staggerContainer, fadeUp, ACCENT, ACCENT_RGBA, ACCENT_HEX, rgbaFromHexSafe, SPACING, type Accent, TYPE_WEIGHT,
+  useTheme, Collapse, AnimatedText, PulsingIcon, CenterModal, InfoCard, EmptyState, StatStrip,
+  CardIconButton, ViewToggle, staggerContainer, fadeUp, ACCENT, ACCENT_RGBA, ACCENT_HEX, BRAND_GLOW_HEX, uiIconClass, rgbaFromHexSafe, SPACING, type Accent, TYPE_WEIGHT,
 } from '@/components/shared/theme';
 import {
-  AppShell, useAppShell, QUICK_ACTIONS, trackModuleUsage, useDashboardData,
+  AppShell, useAppShell, trackModuleUsage, useDashboardData, INTRO_SLIDES_HIDDEN_KEY,
   type Module, type QuickAction, type Category,
 } from '@/components/app-shell';
+import type { DashboardStats } from '@/components/app-shell';
 
 // ─── Dashboard-only data (not shell chrome) ─────────────────────────────────
-// KPI values are live — see useDashboardData (components/app-shell/useDashboardData.ts),
-// which derives them from the existing /api/employees, /api/maintenance/work-orders,
-// /api/equipment and /api/breakdowns endpoints. No hardcoded numbers, no fabricated
-// trend percentages (there's no historical snapshot to compute a real trend from yet).
-
-interface KPIItem { id: string; title: string; value: string; icon: React.ElementType; accent: Accent }
+// Live ops snapshot in the hero StatStrip — see useDashboardData (useDashboardData.ts).
 
 const INTRO_SLIDES: { icon: React.ElementType; accent: Accent; title: string; description: string }[] = [
   { icon: LayoutGrid,  accent: 'blue',    title: 'Welcome to MyOffice', description: 'One workspace for personnel, operations, safety, inventory and analytics.' },
@@ -41,58 +37,36 @@ const INTRO_SLIDES: { icon: React.ElementType; accent: Accent; title: string; de
   { icon: ShieldAlert, accent: 'emerald', title: 'Stay ahead of safety', description: 'Track PPE, inspections and compliance in real time from the Safety & Compliance hub.' },
 ];
 
-// ─── KPI Card ────────────────────────────────────────────────────────────────
-
-function KPICard({ data, index }: { data: KPIItem; index: number }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 1.2, ease: 'easeInOut', delay: index * 0.22 }}
-    >
-      <StatCard
-        icon={data.icon}
-        accent={data.accent}
-        label={data.title}
-        value={data.value}
-      />
-    </motion.div>
-  );
-}
-
 // ─── Quick Action Card ───────────────────────────────────────────────────────
 
 function QuickActionCard({ action, onRemove }: { action: QuickAction; onRemove?: () => void }) {
-  const Icon = action.icon;
-  const a = ACCENT[action.accent];
-  const t = useTheme();
   return (
     // Explicit initial/animate (not just inherited `variants`) — quick actions the user
     // just pinned mount well after the grid's own stagger-in has already settled (the
     // favorites/quick-actions localStorage read happens in a post-mount effect), and a
     // child that only declares `variants` without its own initial/animate can get stuck
     // at the "hidden" variant forever once the parent stops re-issuing "show".
-    <motion.div initial="hidden" animate="show" variants={fadeUp} className="relative group">
-      <GlowCard color={ACCENT_HEX[action.accent]} surface={`${t.glassSoft} rounded-xl`}>
-        <Link href={action.href} onClick={() => trackModuleUsage(action.href)} className="flex items-center gap-3 p-3.5">
-          <div className="h-9 w-9 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-            <Icon className={`h-5 w-5 ${a.icon}`} />
+    <motion.div initial="hidden" animate="show" variants={fadeUp}>
+      <InfoCard
+        href={action.href}
+        onClick={() => trackModuleUsage(action.href)}
+        icon={action.icon}
+        accentColor={BRAND_GLOW_HEX}
+        iconTone="neutral"
+        density="compact"
+        title={action.label}
+        cornerActions={onRemove ? (
+          <div className="opacity-80 sm:opacity-60 sm:group-hover/tile:opacity-100 sm:group-focus-within/tile:opacity-100 transition-opacity">
+            <CardIconButton
+              size="sm"
+              disableLift
+              icon={X}
+              title={action.auto ? 'Dismiss suggestion' : 'Remove from quick actions'}
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); onRemove(); }}
+            />
           </div>
-          <div className="min-w-0 flex-1">
-            <span className={`text-[13px] ${TYPE_WEIGHT.medium} ${t.textMuted} ${t.groupHoverText} transition-colors truncate block`}>{action.label}</span>
-            {action.auto && <span className={`text-[9.5px] ${TYPE_WEIGHT.medium} ${t.textFaint} uppercase tracking-wide`}>Frequently used</span>}
-          </div>
-        </Link>
-      </GlowCard>
-      {onRemove && (
-        <div className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-          <CardIconButton
-            icon={X}
-            title={action.auto ? 'Dismiss suggestion' : 'Remove from quick actions'}
-            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onRemove(); }}
-          />
-        </div>
-      )}
+        ) : undefined}
+      />
     </motion.div>
   );
 }
@@ -120,38 +94,35 @@ function ModuleCard({
   // locally are now InfoCard's defaults (see TILE_SURFACE / TILE_ASPECT / RADIUS.chip
   // in the design system), so every page adopting InfoCard inherits the same tile.
   return (
-    <div className="relative group">
-      <InfoCard
-        icon={module.icon}
-        accentColor={accentHex}
-        href={selectMode ? undefined : module.href}
-        onClick={selectMode ? onToggleSelected : () => trackModuleUsage(module.href)}
-        title={module.title}
-        description={module.description}
-        metricValue={primaryMetric?.value}
-        metricLabel={primaryMetric?.label}
-        className={selectMode && isSelected ? 'ring-2 ring-brand-400/60' : ''}
-        style={{ cursor: selectMode ? 'pointer' : undefined }}
-        badge={module.badge && (
-          <span className={`text-[9px] ${TYPE_WEIGHT.medium} ${t.textFaint} ${t.chipBg} rounded-full px-1.5 py-0.5 tabular-nums`}>
-            {module.badge}
-          </span>
-        )}
-      />
-      {selectMode ? (
-        <div className="absolute top-2 right-2">
-          <div className={`h-5 w-5 rounded-md flex items-center justify-center transition-colors ${
-            isSelected ? 'bg-brand-500 text-white' : `${t.chipBg} ${t.textFaint}`
-          }`}>
-            {isSelected && <Check className="h-3.5 w-3.5" strokeWidth={2.5} />}
-          </div>
+    <InfoCard
+      icon={module.icon}
+      accentColor={accentHex}
+      iconTone="neutral"
+      href={selectMode ? undefined : module.href}
+      onClick={selectMode ? onToggleSelected : () => trackModuleUsage(module.href)}
+      title={module.title}
+      description={module.description}
+      metricValue={primaryMetric?.value}
+      metricLabel={primaryMetric?.label}
+      className={selectMode && isSelected ? 'ring-2 ring-brand-400/60' : ''}
+      style={{ cursor: selectMode ? 'pointer' : undefined }}
+      badge={module.badge && (
+        <span className={`text-[9px] ${TYPE_WEIGHT.medium} ${t.textFaint} ${t.chipBg} rounded-full px-1.5 py-0.5 tabular-nums`}>
+          {module.badge}
+        </span>
+      )}
+      cornerActions={selectMode ? (
+        <div className={`h-5 w-5 rounded-md flex items-center justify-center transition-colors ${
+          isSelected ? 'bg-brand-500 text-white' : `${t.chipBg} ${t.textFaint}`
+        }`}>
+          {isSelected && <Check className="h-3.5 w-3.5" strokeWidth={2.5} />}
         </div>
       ) : (
-        <div className="absolute top-2 right-2 flex items-center gap-1.5 transition-all">
+        <div className="flex items-center gap-1 opacity-0 group-hover/tile:opacity-100 group-focus-within/tile:opacity-100 transition-opacity">
           <CardIconButton
+            disableLift
             icon={Bookmark}
             active={isFavorite}
-            activeHex={ACCENT_HEX.blue}
             filled={isFavorite}
             title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
             onClick={(e) => {
@@ -161,9 +132,9 @@ function ModuleCard({
             }}
           />
           <CardIconButton
+            disableLift
             icon={isQuickAction ? Check : Plus}
             active={isQuickAction}
-            activeHex={ACCENT_HEX.amber}
             title={isQuickAction ? 'Remove from quick actions' : 'Add to quick actions'}
             onClick={(e) => {
               e.preventDefault(); e.stopPropagation();
@@ -172,13 +143,14 @@ function ModuleCard({
             }}
           />
           <CardIconButton
+            disableLift
             icon={Maximize2}
             title="Quick view"
             onClick={(e) => { e.preventDefault(); e.stopPropagation(); onQuickView(); }}
           />
         </div>
       )}
-    </div>
+    />
   );
 }
 
@@ -210,7 +182,7 @@ function ModuleRow({
           {isSelected && <Check className="h-3 w-3" strokeWidth={3} />}
         </div>
       )}
-      <module.icon className="h-4 w-4 shrink-0" style={{ color: accentHex }} />
+      <module.icon className={`h-4 w-4 shrink-0 ${uiIconClass('neutral', t.light)}`} />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <span className={`text-[13px] ${TYPE_WEIGHT.medium} ${t.textPrimary} truncate`}>{module.title}</span>
@@ -249,7 +221,7 @@ function ModuleRow({
       {!selectMode && (
         <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
           <CardIconButton
-            icon={Bookmark} active={isFavorite} activeHex={ACCENT_HEX.blue} filled={isFavorite}
+            icon={Bookmark} active={isFavorite} filled={isFavorite}
             title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
             onClick={(e) => {
               e.preventDefault(); e.stopPropagation();
@@ -258,7 +230,7 @@ function ModuleRow({
             }}
           />
           <CardIconButton
-            icon={isQuickAction ? Check : Plus} active={isQuickAction} activeHex={ACCENT_HEX.amber}
+            icon={isQuickAction ? Check : Plus} active={isQuickAction}
             title={isQuickAction ? 'Remove from quick actions' : 'Add to quick actions'}
             onClick={(e) => {
               e.preventDefault(); e.stopPropagation();
@@ -288,7 +260,6 @@ function CategorySection({
   selectMode: boolean; selectedHrefs: Set<string>; onToggleSelected: (href: string) => void;
   viewMode: ModuleViewMode;
 }) {
-  const a = ACCENT[category.accent];
   const t = useTheme();
   const visuallyExpanded = isExpanded;
   return (
@@ -303,7 +274,7 @@ function CategorySection({
         type="button"
       >
         <div className="h-8 w-8 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-          <category.icon className={`h-5 w-5 ${a.icon}`} />
+          <category.icon className={`h-5 w-5 ${uiIconClass('neutral', t.light)}`} />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2.5 flex-wrap">
@@ -369,15 +340,16 @@ function CategorySection({
 
 // ─── Module quick-view content (inside popup modal) ─────────────────────────
 
-function ModuleQuickView({ module, accent }: { module: Module; accent: Accent }) {
-  const a = ACCENT[accent];
+function ModuleQuickView({ module }: { module: Module; accent: Accent }) {
   const t = useTheme();
+  const brand = ACCENT.violet;
   return (
     <motion.div variants={staggerContainer} initial="hidden" animate="show" className={`${SPACING.cardPad} space-y-4`}>
       <InfoCard
         variant="header"
         icon={module.icon}
-        accentColor={ACCENT_HEX[accent]}
+        accentColor={BRAND_GLOW_HEX}
+        iconTone="neutral"
         title={module.title}
         description={module.description}
         animateText={false}
@@ -386,7 +358,7 @@ function ModuleQuickView({ module, accent }: { module: Module; accent: Accent })
       {module.metrics && (
         <motion.div variants={staggerContainer} className="grid grid-cols-2 gap-2">
           {module.metrics.map((m, i) => (
-            <motion.div key={i} variants={fadeUp} whileHover={{ y: -2 }} className={`rounded-lg ${t.chipBg} ${t.shadow} ${a.glow} transition-shadow duration-300 p-2 text-center`}>
+            <motion.div key={i} variants={fadeUp} whileHover={{ y: -2 }} className={`rounded-lg ${t.chipBg} ${t.shadow} transition-shadow duration-300 p-2 text-center`}>
               <p className={`text-base ${TYPE_WEIGHT.bold} ${t.textPrimary} tabular-nums leading-none`}>{m.value}</p>
               <p className={`text-[9px] ${t.textTertiary} uppercase tracking-wide mt-1`}>{m.label}</p>
             </motion.div>
@@ -409,7 +381,7 @@ function ModuleQuickView({ module, accent }: { module: Module; accent: Accent })
         <Link
           href={module.href}
           onClick={() => trackModuleUsage(module.href)}
-          className={`flex items-center justify-center gap-1.5 w-full py-2 rounded-lg bg-gradient-to-br ${a.gradient} text-white text-[11.5px] ${TYPE_WEIGHT.semibold} ${a.solidGlow} ${a.glow} hover:brightness-110 transition-all duration-300 ease-out`}
+          className={`flex items-center justify-center gap-1.5 w-full py-2 rounded-lg bg-gradient-to-br ${brand.gradient} text-white text-[11.5px] ${TYPE_WEIGHT.semibold} ${brand.solidGlow} hover:brightness-110 transition-all duration-300 ease-out`}
         >
           Open module <ArrowRight className="h-3 w-3" />
         </Link>
@@ -426,6 +398,12 @@ function IntroSlides() {
   const [paused, setPaused] = useState(false);
   const t = useTheme();
 
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(INTRO_SLIDES_HIDDEN_KEY) === 'true') setHidden(true);
+    } catch { /* storage unavailable */ }
+  }, []);
+
   const next = () => setIndex(i => (i + 1) % INTRO_SLIDES.length);
   const prev = () => setIndex(i => (i - 1 + INTRO_SLIDES.length) % INTRO_SLIDES.length);
 
@@ -438,9 +416,12 @@ function IntroSlides() {
   if (hidden) {
     return (
       <button
-        onClick={() => setHidden(false)}
+        onClick={() => {
+          setHidden(false);
+          try { localStorage.setItem(INTRO_SLIDES_HIDDEN_KEY, 'false'); } catch { /* non-fatal */ }
+        }}
         type="button"
-        className={`flex items-center gap-1.5 text-[12px] ${TYPE_WEIGHT.medium} ${t.textFaint} ${t.hoverText} ${t.glassSoft} rounded-lg px-2.5 py-1.5 mt-10 mb-2 transition-colors`}
+        className={`flex items-center gap-1.5 text-[12px] ${TYPE_WEIGHT.medium} ${t.textFaint} ${t.hoverText} ${t.glassSoft} rounded-lg px-2.5 py-1.5 mt-6 mb-2 transition-colors`}
       >
         <Eye className="h-3.5 w-3.5" /> Show intro slides
       </button>
@@ -448,7 +429,6 @@ function IntroSlides() {
   }
 
   const slide = INTRO_SLIDES[index];
-  const a = ACCENT[slide.accent];
 
   return (
     // flex-wrap: on a narrow viewport there isn't room for prev/text/next AND the
@@ -458,7 +438,7 @@ function IntroSlides() {
     // block (replacing min-w-0) is what actually forces the wrap to kick in — it's the
     // floor that makes the row run out of horizontal room and drop the controls
     // cluster to a second line instead of collapsing the text.
-    <div className={`relative flex flex-wrap items-center gap-3 mt-10 mb-4 px-4 py-3 rounded-xl border ${t.border}`}>
+    <div className={`relative flex flex-wrap items-center gap-3 mt-6 mb-3 px-4 py-3 rounded-xl border ${t.border}`}>
       <button onClick={prev} type="button" title="Previous slide" className={`shrink-0 p-1.5 rounded-full ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-colors`}>
         <ChevronLeft className="h-4 w-4" />
       </button>
@@ -473,7 +453,7 @@ function IntroSlides() {
           className="flex items-center gap-4 flex-1 min-w-[180px]"
         >
           <PulsingIcon className="h-9 w-9 flex items-center justify-center shrink-0">
-            <slide.icon className={`h-6 w-6 ${a.icon}`} />
+            <slide.icon className={`h-6 w-6 ${uiIconClass('neutral', t.light)}`} />
           </PulsingIcon>
           <div className="min-w-0">
             <p className={`text-[14px] ${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{slide.title}</p>
@@ -496,13 +476,21 @@ function IntroSlides() {
             aria-current={i === index}
             type="button"
             className={`h-1.5 rounded-full transition-all ${i === index ? '' : t.chipBg}`}
-            style={{ width: i === index ? 16 : 6, background: i === index ? ACCENT_RGBA[slide.accent] : undefined }}
+            style={{ width: i === index ? 16 : 6, background: i === index ? rgbaFromHexSafe(BRAND_GLOW_HEX, 0.95) : undefined }}
           />
         ))}
         <button onClick={() => setPaused(p => !p)} className={`ml-1 p-1 rounded-md ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-colors`} type="button" title={paused ? 'Resume auto-advance' : 'Pause to keep reading'}>
           {paused ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}
         </button>
-        <button onClick={() => setHidden(true)} className={`p-1 rounded-md ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-colors`} type="button" title="Hide intro slides">
+        <button
+          onClick={() => {
+            setHidden(true);
+            try { localStorage.setItem(INTRO_SLIDES_HIDDEN_KEY, 'true'); } catch { /* non-fatal */ }
+          }}
+          className={`p-1 rounded-md ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-colors`}
+          type="button"
+          title="Hide intro slides"
+        >
           <EyeOff className="h-3.5 w-3.5" />
         </button>
       </div>
@@ -510,12 +498,33 @@ function IntroSlides() {
   );
 }
 
+// ─── Section header (homepage rows) ───────────────────────────────────────────
+
+function DashboardSectionHeader({
+  title, description, actions,
+}: { title: string; description?: string; actions?: React.ReactNode }) {
+  const t = useTheme();
+  return (
+    <div className="flex items-start justify-between gap-3 mb-3">
+      <div className="min-w-0">
+        <h3 className={`text-[15px] ${TYPE_WEIGHT.semibold} ${t.textPrimary} tracking-tight`}>{title}</h3>
+        {description && <p className={`text-[13px] ${t.textSecondary} mt-0.5`}>{description}</p>}
+      </div>
+      {actions && <div className="flex items-center gap-2 shrink-0">{actions}</div>}
+    </div>
+  );
+}
+
 // ─── Dashboard Header ────────────────────────────────────────────────────────
 
-function DashboardHeader({ moduleCount, categoryCount }: { moduleCount: number; categoryCount: number }) {
+function DashboardHeader({
+  moduleCount, categoryCount, liveStats, statsLoading,
+}: {
+  moduleCount: number; categoryCount: number; liveStats: DashboardStats; statsLoading: boolean;
+}) {
   const [now, setNow] = useState<Date | null>(null);
   const t = useTheme();
-  const { stats: liveStats } = useDashboardData();
+  const dash = statsLoading ? '…' : '—';
 
   useEffect(() => {
     setNow(new Date());
@@ -526,8 +535,21 @@ function DashboardHeader({ moduleCount, categoryCount }: { moduleCount: number; 
   const dateLabel = now?.toLocaleDateString('en-GB', { weekday: 'long', month: 'long', day: 'numeric' });
   const timeLabel = now?.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit' });
 
+  const statItems = [
+    { label: 'Modules', value: moduleCount, href: '#modules' },
+    { label: 'Departments', value: categoryCount },
+    { label: 'Team members', value: statsLoading ? '…' : (liveStats.employeeCount ?? dash), href: '/employees' },
+    { label: 'Active work orders', value: statsLoading ? '…' : (liveStats.activeWorkOrders ?? dash), href: '/maintenance' },
+    {
+      label: 'Equipment available',
+      value: statsLoading ? '…' : (liveStats.equipmentAvailablePct !== null ? `${liveStats.equipmentAvailablePct}%` : dash),
+      href: '/equipment',
+    },
+    { label: 'Open breakdowns', value: statsLoading ? '…' : (liveStats.openBreakdowns ?? dash), href: '/breakdowns' },
+  ];
+
   return (
-    <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="mb-9">
+    <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="mb-6">
       <div className={`flex flex-wrap items-center gap-x-2 gap-y-1 mb-4 text-[12px] ${TYPE_WEIGHT.medium} ${t.textFaint}`}>
         <span className={t.trendUp}>
           <span className="inline-flex items-center gap-1.5">
@@ -564,46 +586,8 @@ function DashboardHeader({ moduleCount, categoryCount }: { moduleCount: number; 
 
       <IntroSlides />
 
-      <motion.div
-        variants={staggerContainer}
-        initial="hidden"
-        animate="show"
-        transition={{ delayChildren: 0.9 }}
-        className="flex flex-wrap items-center gap-x-8 gap-y-3 mt-7"
-      >
-        {[
-          { label: 'Modules', value: moduleCount, suffix: '' },
-          { label: 'Departments', value: categoryCount, suffix: '' },
-          // '—' on null, not 0 — null means the load failed (see useDashboardData's
-          // safeJson), and a bare 0 here used to be indistinguishable from a genuinely
-          // healthy "zero open breakdowns."
-          { label: 'Team members', value: liveStats.employeeCount ?? '—', suffix: '' },
-          { label: 'Open Breakdowns', value: liveStats.openBreakdowns ?? '—', suffix: '' },
-        ].map((stat, i) => (
-          <motion.div key={stat.label} variants={fadeUp} className="flex items-baseline gap-2 relative">
-            {i > 0 && (
-              <motion.span
-                initial={{ scaleY: 0 }} animate={{ scaleY: 1 }} transition={{ duration: 0.4, delay: 0.9 + i * 0.1 }}
-                className="absolute -left-4 top-0.5 bottom-0.5 w-px origin-top"
-                style={{ background: t.light ? '#e5e7eb' : 'rgba(255,255,255,0.1)' }}
-              />
-            )}
-            <span className={`text-[20px] ${TYPE_WEIGHT.semibold} ${t.textPrimary} tracking-tight tabular-nums`}>
-              {/* Dissolve / emerge: the final figure fades in out of a soft blur rather
-                 than ticking up — re-keyed on the value so live-loaded stats re-emerge. */}
-              <motion.span
-                key={stat.value}
-                initial={{ opacity: 0, filter: 'blur(10px)', y: 6 }}
-                animate={{ opacity: 1, filter: 'blur(0px)', y: 0 }}
-                transition={{ duration: 0.7, delay: 0.9 + i * 0.1, ease: [0.22, 1, 0.36, 1] }}
-                className="inline-block"
-              >
-                {stat.value}{stat.suffix}
-              </motion.span>
-            </span>
-            <span className={`text-[12px] ${t.textFaint}`}>{stat.label}</span>
-          </motion.div>
-        ))}
+      <motion.div variants={fadeUp} initial="hidden" animate="show" className={`mt-5 px-4 py-3.5 rounded-xl ${t.glassSoft}`}>
+        <StatStrip items={statItems} />
       </motion.div>
     </motion.div>
   );
@@ -615,12 +599,6 @@ function DashboardContent() {
   const t = useTheme();
   const s = useAppShell();
   const { stats: liveStats, loading: statsLoading } = useDashboardData();
-  const kpiData: KPIItem[] = [
-    { id: 'employees', title: 'Total Employees', value: statsLoading ? '…' : (liveStats.employeeCount ?? '—').toString(), icon: Users, accent: 'blue' },
-    { id: 'orders', title: 'Active Work Orders', value: statsLoading ? '…' : (liveStats.activeWorkOrders ?? '—').toString(), icon: ClipboardCheck, accent: 'amber' },
-    { id: 'equipment', title: 'Equipment Available', value: statsLoading ? '…' : (liveStats.equipmentAvailablePct !== null ? `${liveStats.equipmentAvailablePct}%` : '—'), icon: Activity, accent: 'emerald' },
-    { id: 'breakdowns', title: 'Open Breakdowns', value: statsLoading ? '…' : (liveStats.openBreakdowns ?? '—').toString(), icon: Shield, accent: 'indigo' },
-  ];
   const [quickView, setQuickView] = useState<{ module: Module; accent: Accent } | null>(null);
   const [expandedMap, setExpandedMap] = useState<Record<string, boolean>>(
     () => Object.fromEntries(s.visibleCategories.map(c => [c.id, true]))
@@ -680,13 +658,7 @@ function DashboardContent() {
   // (e.g. "New Work Order" and "Maintenance", both pointing at /maintenance).
   // Builtins keep their leading position so the row doesn't reshuffle underneath
   // the user; a replaced one simply drops out.
-  const visibleActions: QuickAction[] = (() => {
-    const earned = [...s.customQuickActions, ...s.frequentQuickActions];
-    const claimed = new Set(earned.map(a => a.href));
-    return [...QUICK_ACTIONS.filter(a => !claimed.has(a.href)), ...earned];
-  })();
-
-  const accentHex = '#7c3aed';
+  const accentHex = BRAND_GLOW_HEX;
 
   return (
     <div className="max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8">
@@ -713,45 +685,54 @@ function DashboardContent() {
         <DashboardHeader
           moduleCount={s.visibleCategories.reduce((n, c) => n + c.modules.length, 0)}
           categoryCount={s.visibleCategories.length}
+          liveStats={liveStats}
+          statsLoading={statsLoading}
         />
       )}
 
-      {/* KPIs */}
-      <motion.div variants={staggerContainer} initial="hidden" animate="show" className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-8">
-        {kpiData.map((kpi, i) => <KPICard key={kpi.id} data={kpi} index={i} />)}
-      </motion.div>
-
       {/* Quick Actions */}
-      {!s.searchQuery && visibleActions.length > 0 && (
-        <div className="mb-8">
-          <div className="flex items-center gap-2 mb-3">
-            <h3 className={`text-[13px] ${TYPE_WEIGHT.semibold} ${t.textSecondary} uppercase tracking-wider`}>Quick Actions</h3>
-          </div>
-          <motion.div variants={staggerContainer} initial="hidden" animate="show" className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            {visibleActions.map(action => (
-              <QuickActionCard
-                key={action.id}
-                action={action}
-                // Auto ("Frequently used") suggestions aren't in quickActionHrefs, so
-                // toggleQuickAction would *add* them — pinning the card instead of
-                // removing it. They need the dismissal list instead.
-                onRemove={action.removable
-                  ? () => action.auto ? s.dismissAutoAction(action.href) : s.toggleQuickAction(action.href)
-                  : undefined}
-              />
-            ))}
-          </motion.div>
+      {!s.searchQuery && (
+        <div className="mb-6">
+          <DashboardSectionHeader
+            title="Quick actions"
+            description="Shortcuts you use often — customize what appears here."
+            actions={(
+              <button
+                type="button"
+                onClick={() => s.setQuickActionsManageOpen(true)}
+                className={`text-[12px] ${TYPE_WEIGHT.medium} ${t.textMuted} ${t.hoverText} ${t.glassSoft} rounded-lg px-2.5 py-1.5 transition-colors`}
+              >
+                Customize
+              </button>
+            )}
+          />
+          {s.visibleQuickActions.length > 0 ? (
+            <motion.div variants={staggerContainer} initial="hidden" animate="show" className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+              {s.visibleQuickActions.map(action => (
+                <QuickActionCard
+                  key={action.id}
+                  action={action}
+                  onRemove={action.removable !== false ? () => s.removeQuickAction(action) : undefined}
+                />
+              ))}
+            </motion.div>
+          ) : (
+            <p className={`text-[13px] ${t.textMuted} px-1`}>
+              No shortcuts selected.{' '}
+              <button type="button" className={`${t.linkText} ${t.linkHover} ${TYPE_WEIGHT.medium}`} onClick={() => s.setQuickActionsManageOpen(true)}>
+                Choose quick actions
+              </button>
+            </p>
+          )}
         </div>
       )}
 
       {/* Modules */}
       <div className="space-y-3" id="modules">
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <h3 className={`text-[15px] ${TYPE_WEIGHT.semibold} ${t.textPrimary} tracking-tight`}>ERP Modules</h3>
-            <p className={`text-[13px] ${t.textSecondary} mt-0.5`}>Organise and access your business operations</p>
-          </div>
-          {!s.searchQuery && (
+        <DashboardSectionHeader
+          title="ERP modules"
+          description="Organise and access your business operations"
+          actions={!s.searchQuery ? (
             <div className="flex items-center gap-2 shrink-0">
               <ViewToggle
                 value={viewMode}
@@ -764,7 +745,7 @@ function DashboardContent() {
               <button
                 onClick={toggleSelectMode}
                 className={`flex items-center gap-1.5 text-[12px] ${TYPE_WEIGHT.medium} rounded-lg px-2.5 py-1.5 transition-colors ${
-                  selectMode ? `${ACCENT.blue.chip} ${ACCENT.blue.text}` : `${t.textMuted} ${t.hoverText} ${t.glassSoft}`
+                  selectMode ? 'bg-brand-500/15 text-brand-600 dark:text-brand-400' : `${t.textMuted} ${t.hoverText} ${t.glassSoft}`
                 }`}
                 type="button"
               >
@@ -780,8 +761,8 @@ function DashboardContent() {
                 {allExpanded ? 'Collapse all' : 'Expand all'}
               </button>
             </div>
-          )}
-        </div>
+          ) : undefined}
+        />
 
         {filteredCategories.length === 0 ? (
           <div className={`${t.glass} rounded-2xl overflow-hidden`}>
@@ -851,10 +832,6 @@ function DashboardContent() {
         {quickView && <ModuleQuickView module={quickView.module} accent={quickView.accent} />}
       </CenterModal>
 
-      <style>{`
-        * { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
-        html { scroll-behavior: smooth; }
-      `}</style>
     </div>
   );
 }

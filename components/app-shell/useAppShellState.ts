@@ -8,7 +8,8 @@ import type { Accent } from '@/components/shared/theme';
 import { useAuth } from '@/lib/auth-context';
 import {
   CATEGORIES, ALL_MODULES_BY_HREF,
-  USAGE_KEY, AUTO_QA_DISMISSED_KEY, MANUAL_QA_KEY, FAVORITES_KEY, SIDEBAR_COLLAPSED_KEY,
+  USAGE_KEY, AUTO_QA_DISMISSED_KEY, BUILTIN_QA_DISMISSED_KEY, MANUAL_QA_KEY, FAVORITES_KEY, SIDEBAR_COLLAPSED_KEY,
+  QUICK_ACTIONS,
   FREQUENT_THRESHOLD, FREQUENT_LIMIT,
   readJSON, writeJSON,
   type Module, type QuickAction, type Category,
@@ -46,6 +47,8 @@ export function useAppShellState() {
   );
   const [quickActionHrefs, setQuickActionHrefs] = useState<Set<string>>(new Set());
   const [dismissedAutoHrefs, setDismissedAutoHrefs] = useState<Set<string>>(new Set());
+  const [dismissedBuiltinIds, setDismissedBuiltinIds] = useState<Set<string>>(new Set());
+  const [quickActionsManageOpen, setQuickActionsManageOpen] = useState(false);
   const [usageCounts, setUsageCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
@@ -53,6 +56,7 @@ export function useAppShellState() {
     setFavoriteHrefs(new Set(readJSON<string[]>(FAVORITES_KEY, defaultFavorites)));
     setQuickActionHrefs(new Set(readJSON<string[]>(MANUAL_QA_KEY, [])));
     setDismissedAutoHrefs(new Set(readJSON<string[]>(AUTO_QA_DISMISSED_KEY, [])));
+    setDismissedBuiltinIds(new Set(readJSON<string[]>(BUILTIN_QA_DISMISSED_KEY, [])));
     setUsageCounts(readJSON<Record<string, number>>(USAGE_KEY, {}));
     setSidebarCollapsedState(readJSON<boolean>(SIDEBAR_COLLAPSED_KEY, false));
     // Deliberately mount-only (see comment above) — visibleCategories is read for its
@@ -98,6 +102,32 @@ export function useAppShellState() {
     writeJSON(AUTO_QA_DISMISSED_KEY, Array.from(next));
     return next;
   });
+  const restoreAutoAction = (href: string) => setDismissedAutoHrefs(prev => {
+    const next = new Set(prev);
+    next.delete(href);
+    writeJSON(AUTO_QA_DISMISSED_KEY, Array.from(next));
+    return next;
+  });
+  const setBuiltinQuickActionVisible = (id: string, visible: boolean) => setDismissedBuiltinIds(prev => {
+    const next = new Set(prev);
+    visible ? next.delete(id) : next.add(id);
+    writeJSON(BUILTIN_QA_DISMISSED_KEY, Array.from(next));
+    return next;
+  });
+  /** Remove any quick-action card from the homepage row (built-in, pin, or auto suggestion). */
+  const removeQuickAction = (action: QuickAction) => {
+    if (action.auto) {
+      dismissAutoAction(action.href);
+      return;
+    }
+    if (action.builtin || QUICK_ACTIONS.some(b => b.id === action.id)) {
+      setBuiltinQuickActionVisible(action.id, false);
+      return;
+    }
+    if (quickActionHrefs.has(action.href)) {
+      toggleQuickAction(action.href);
+    }
+  };
 
   /** Settings-panel action: wipes favorites/quick-actions/usage back to the
    * app's defaults. Local-only (no server-side preferences exist), so this is
@@ -107,10 +137,12 @@ export function useAppShellState() {
     writeJSON(FAVORITES_KEY, defaultFavorites);
     writeJSON(MANUAL_QA_KEY, []);
     writeJSON(AUTO_QA_DISMISSED_KEY, []);
+    writeJSON(BUILTIN_QA_DISMISSED_KEY, []);
     writeJSON(USAGE_KEY, {});
     setFavoriteHrefs(new Set(defaultFavorites));
     setQuickActionHrefs(new Set());
     setDismissedAutoHrefs(new Set());
+    setDismissedBuiltinIds(new Set());
     setUsageCounts({});
   };
 
@@ -157,6 +189,15 @@ export function useAppShellState() {
       });
   }, [usageCounts, quickActionHrefs, dismissedAutoHrefs]);
 
+  const visibleQuickActions = useMemo(() => {
+    const earned = [...customQuickActions, ...frequentQuickActions];
+    const claimed = new Set(earned.map(a => a.href));
+    const builtins = QUICK_ACTIONS.filter(
+      a => !claimed.has(a.href) && !dismissedBuiltinIds.has(a.id),
+    );
+    return [...builtins, ...earned];
+  }, [customQuickActions, frequentQuickActions, dismissedBuiltinIds]);
+
   return {
     visibleCategories,
     sidebarOpen, setSidebarOpen,
@@ -166,7 +207,10 @@ export function useAppShellState() {
     customizeOpen, setCustomizeOpen,
     favoriteHrefs, favoriteModules, toggleFavorite, addFavorites,
     quickActionHrefs, customQuickActions, toggleQuickAction,
-    dismissedAutoHrefs, dismissAutoAction,
+    dismissedAutoHrefs, dismissAutoAction, restoreAutoAction,
+    dismissedBuiltinIds, setBuiltinQuickActionVisible,
+    removeQuickAction, visibleQuickActions,
+    quickActionsManageOpen, setQuickActionsManageOpen,
     frequentQuickActions,
     resetCustomizations,
   };

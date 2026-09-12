@@ -7,7 +7,8 @@ import { useState, useRef, useEffect, useCallback, type ReactNode, type ElementT
 import { motion, AnimatePresence } from 'framer-motion';
 import * as Dialog from '@radix-ui/react-dialog';
 import { X, Plus } from './icons';
-import { useTheme, ACCENT, ACCENT_RGBA, type Accent } from './tokens';
+import { useTheme, usePrefersReducedMotion, ACCENT, ACCENT_RGBA, type Accent } from './tokens';
+import { handleModalEscapeKeyDown } from './dialog-shared';
 import { hexToRgba } from './color';
 import { fadeTextVariant, iconPop } from './motion';
 
@@ -130,8 +131,13 @@ export function AnimatedText({
 }: {
   text: string; className: string; as?: 'h4' | 'p' | 'h2'; trigger?: 'hover' | 'mount';
 }) {
+  const reduced = usePrefersReducedMotion();
   const Tag = motion[as] as typeof motion.p;
   const mountProps = trigger === 'mount' ? { initial: 'rest', animate: 'hover' } : {};
+  if (reduced) {
+    const Plain = as;
+    return <Plain className={className}>{text}</Plain>;
+  }
   return (
     <Tag variants={fadeTextVariant} className={className} {...mountProps}>
       {text}
@@ -140,6 +146,10 @@ export function AnimatedText({
 }
 
 export function PulsingIcon({ className, children }: { className: string; children: ReactNode }) {
+  const reduced = usePrefersReducedMotion();
+  if (reduced) {
+    return <div className={className}>{children}</div>;
+  }
   return (
     <motion.div variants={iconPop} className={className}>
       <motion.div
@@ -189,6 +199,7 @@ export function GlowCard({
   style?: CSSProperties;
 }) {
   const t = useTheme();
+  const reduced = usePrefersReducedMotion();
   return (
     <motion.div
       onClick={onClick}
@@ -197,8 +208,8 @@ export function GlowCard({
       onHoverEnd={onHoverEnd}
       initial="rest"
       animate={forceGlow ? 'hover' : 'rest'}
-      whileHover="hover"
-      whileTap={onClick ? { scale: 0.985 } : undefined}
+      whileHover={reduced ? undefined : 'hover'}
+      whileTap={onClick && !reduced ? { scale: 0.985 } : undefined}
       variants={{
         rest: {
           y: 0,
@@ -214,7 +225,7 @@ export function GlowCard({
           ].join(', '),
         },
         hover: {
-          y: forceGlow ? 0 : elevated ? -6 : -5,
+          y: reduced ? 0 : forceGlow ? 0 : elevated ? -6 : -5,
           boxShadow: [
             `inset 0 1.5px 0 0 ${t.light ? 'rgba(255,255,255,1)' : 'rgba(255,255,255,0.22)'}`,
             `inset 0 -1.5px 0 0 ${t.light ? 'rgba(0,0,0,0.14)' : 'rgba(0,0,0,0.6)'}`,
@@ -308,6 +319,7 @@ export function CenterModal({
 }) {
   const a = ACCENT[accent];
   const t = useTheme();
+  const reduced = usePrefersReducedMotion();
   return (
     <Dialog.Root open={open} onOpenChange={o => { if (!o) onClose(); }}>
       <AnimatePresence>
@@ -319,7 +331,7 @@ export function CenterModal({
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                transition={{ duration: 0.25 }}
+                transition={{ duration: reduced ? 0 : 0.25 }}
               />
             </Dialog.Overlay>
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -330,29 +342,15 @@ export function CenterModal({
               <Dialog.Content
                 asChild
                 aria-describedby={undefined}
-                onEscapeKeyDown={e => {
-                  // Radix's Escape handling runs on a document-level listener
-                  // independent of React's synthetic event bubble chain — a
-                  // descendant field calling stopPropagation on its own onKeyDown
-                  // does NOT reach this (confirmed empirically: it did not stop the
-                  // modal closing before this fix). The correct interception point is
-                  // here. If Escape's target is a field that owns its own open
-                  // dropdown (SelectField/Combobox/PredictiveInput all set
-                  // aria-expanded="true" on themselves while open), let that field's
-                  // own handler close just its dropdown and cancel the modal's
-                  // default close-on-Escape for this one keypress; a second Escape
-                  // (now aria-expanded="false") closes the modal normally.
-                  const target = e.target as HTMLElement | null;
-                  if (target?.getAttribute('aria-expanded') === 'true') e.preventDefault();
-                }}
+                onEscapeKeyDown={handleModalEscapeKeyDown}
               >
                 <motion.div
                   className={`relative w-full ${width} max-h-[85vh] ${t.glass} rounded-xl ${t.shadow} flex flex-col overflow-hidden focus:outline-none`}
                   style={{ boxShadow: `0 24px 60px -20px ${ACCENT_RGBA[accent]}, 0 8px 24px -10px rgba(0,0,0,0.3)` }}
-                  initial={{ opacity: 0, scale: 0.92, y: 16 }}
+                  initial={reduced ? false : { opacity: 0, scale: 0.92, y: 16 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.94, y: 10 }}
-                  transition={{ type: 'spring', damping: 26, stiffness: 320 }}
+                  exit={reduced ? undefined : { opacity: 0, scale: 0.94, y: 10 }}
+                  transition={reduced ? { duration: 0 } : { type: 'spring', damping: 26, stiffness: 320 }}
                 >
                   <div className={`relative px-5 py-4 border-b ${t.border} shrink-0 overflow-visible`}>
                     <div
