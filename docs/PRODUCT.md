@@ -52,6 +52,7 @@ Define metrics precisely (numerator, denominator, period, statuses included, reo
 | Environment, verification commands, git | MyOffice workspace `.claude/skills/myoffice-conventions/SKILL.md` |
 | Work order map | [WORK_ORDERS.md](./WORK_ORDERS.md) |
 | NEC timesheet payroll rules | [NEC_TIMESHEET_RULES.md](./NEC_TIMESHEET_RULES.md) |
+| ChatGPT → Cursor timesheet prompts | [TIMESHEETS_FOR_CHATGPT_PROMPTS.md](./TIMESHEETS_FOR_CHATGPT_PROMPTS.md) |
 | Engineering process | [ENGINEERING_PRINCIPLES.md](./ENGINEERING_PRINCIPLES.md) |
 
 ## Reference projects (optional read)
