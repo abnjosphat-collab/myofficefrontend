@@ -26,3 +26,29 @@ export function styleExcelHeaderRow(row: Row) {
 export function exportFilename(base: string): string {
   return `${base}_${new Date().toISOString().slice(0, 10)}`;
 }
+
+/**
+ * OT 1.5× Excel formula: hours above Reg (Normal) plus prefilled module OT at 1.5×.
+ * HR can extend in the formula bar (e.g. …+6+2+1) — no separate Added OT column.
+ */
+export function excelOt15Formula(
+  actualCol: string,
+  regCol: string,
+  row: number,
+  moduleOt15 = 0,
+): string {
+  const extra = moduleOt15 === 0 ? '0' : String(Number(moduleOt15.toFixed(2)));
+  return `MAX(0,${actualCol}${row}-${regCol}${row})+${extra}`;
+}
+
+/** 1-based column index → Excel column letter (1 = A, 27 = AA). */
+export function excelColumnLetter(col: number): string {
+  let n = col;
+  let s = '';
+  while (n > 0) {
+    const rem = (n - 1) % 26;
+    s = String.fromCharCode(65 + rem) + s;
+    n = Math.floor((n - 1) / 26);
+  }
+  return s;
+}

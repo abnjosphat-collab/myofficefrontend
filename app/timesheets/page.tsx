@@ -9,7 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { EXPORT_BRAND_ARGB, EXPORT_BRAND_RGB } from '@/lib/exportUtils';
+import { EXPORT_BRAND_ARGB, EXPORT_BRAND_RGB, excelColumnLetter, excelOt15Formula } from '@/lib/exportUtils';
 import {
   ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Search, Download, Plus,
   Clock, Users, User, Loader2, CheckCircle, XCircle, AlertTriangle,
@@ -28,7 +28,7 @@ import type {
 } from './types';
 import { mergeEffectiveTimesheets } from './mergeEffectiveTimesheets';
 import { api, useTimesheetsData } from './useTimesheetsData';
-import { LEAVE_STATUSES, DOUBLE_TIME_STATUSES, ZERO_HOUR_STATUSES, calcEmployeeTotals } from './calcTotals';
+import { LEAVE_STATUSES, DOUBLE_TIME_STATUSES, ZERO_HOUR_STATUSES, NEC_REG_CAP, calcEmployeeTotals } from './calcTotals';
 import {
   applyNormalHoursFill, applyOffFill, buildDefaultEntry, canFillFromSource, extractFillFromSource,
   fillTargetDayIndices, isFillProtectedTarget,
@@ -737,6 +737,38 @@ function BulkAddEmployeesDialog({ allEmployees, currentIds, onAdd, onClose }: {
 
 // ─────────────────── DOWNLOAD DIALOG ───────────────────
 
+/** Monochrome timesheet .xlsx styling; leave days use a soft green fill only. */
+const EXCEL_BW = {
+  black: 'FF000000',
+  white: 'FFFFFFFF',
+  headerBg: 'FFEBEBEB',
+  stripe: 'FFF5F5F5',
+  borderThin: 'FFB0B0B0',
+  leaveBg: 'FFDCFCE7',
+} as const;
+
+function appendTimesheetExcelSignatures(
+  ws: import('exceljs').Worksheet,
+  mergeThroughCol: number,
+  font = 'Calibri',
+) {
+  const DOTS = '........................................................';
+  const addSigLine = (label: string) => {
+    ws.addRow([]);
+    const row = ws.addRow([`${label} ${DOTS}`]);
+    ws.mergeCells(row.number, 1, row.number, mergeThroughCol);
+    const cell = row.getCell(1);
+    cell.font = { name: font, size: 11, color: { argb: EXCEL_BW.black } };
+    cell.alignment = { vertical: 'bottom' };
+  };
+  ws.addRow([]);
+  ws.addRow([]);
+  addSigLine('Compiled by:');
+  addSigLine('Approved by Electrical Foreman:');
+  addSigLine('Approved by Mechanical Foreman:');
+  addSigLine('Approved by:');
+}
+
 function DownloadDialog({ employees, timesheets, period, periodType, onClose }: {
   employees: Employee[]; timesheets: TimesheetEntry[]; period: Period; periodType: string; onClose: () => void;
 }) {
@@ -750,149 +782,222 @@ function DownloadDialog({ employees, timesheets, period, periodType, onClose }: 
 
   const getEntry = (eid: string, d: Date) => timesheets.find(ts => String(ts.employee_id) === String(eid) && ts.date === fmtDate(d));
 
-  const calcTotalsLocal = (eid: string): HourTotals => calcEmployeeTotals(eid, timesheets);
+  const periodDateStrs = useMemo(() => days.map(d => fmtDate(d)), [days]);
+  const calcTotalsLocal = useCallback((eid: string): HourTotals => calcEmployeeTotals(eid, timesheets, {
+    periodDates: periodDateStrs,
+    applyRegFloorWithoutAbsent: periodType === 'nec',
+  }), [timesheets, periodDateStrs, periodType]);
 
-  const buildRows = (emp: Employee): RowData[] => days.map(day => {
-    const e = getEntry(emp.id, day);
-    return { day: day.toLocaleDateString('en-GB', { weekday: 'short' }), date: fmtDate(day), status: e ? STATUS_CFG[e.status]?.label || e.status : '—', start: e?.start_time || '—', end: e?.end_time || '—', reg: e?.regular_hours?.toFixed(2) || '0.00', ot15: e?.overtime_hours?.toFixed(2) || '0.00', ot20: e?.holiday_overtime_hours?.toFixed(2) || '0.00', night: e?.nightshift_hours?.toFixed(2) || '0.00', notes: e?.notes || '' };
-  });
+  /** Leave days credit 8 normal hours — Excel shows hours, not "Leave" / abbreviations. */
+  const LEAVE_EXPORT_HOURS = 8;
+  const excelLeaveHours = (e: TimesheetEntry) => (e.regular_hours > 0 ? e.regular_hours : LEAVE_EXPORT_HOURS);
 
-  const statusAbbr = (s: string) => ({ work: '', leave: 'Lv', sick: 'Sick', special_leave: 'SL', holiday: 'PPH', holiday_paid: 'PH', training: 'Trn', off: 'Off', absent: 'Abs' }[s] ?? s);
-  const dayCell = (e: TimesheetEntry | undefined, d: Date): string | number => {
+  const excelDayCell = (e: TimesheetEntry | undefined, d: Date): string | number => {
     if (!e) return d.getDay() === 0 || d.getDay() === 6 ? '·' : '';
     if (ZERO_HOUR_STATUSES.has(e.status as StatusKey)) return statusAbbr(e.status);
-    if (LEAVE_STATUSES.has(e.status as StatusKey)) return statusAbbr(e.status);
-    // DOUBLE_TIME_STATUSES entries store the worked hours in holiday_overtime_hours
-    // (regular_hours is always 0 for these — see TimesheetEntryDialog.handleSave), so
-    // the day-grid cell needs to read from there or a worked holiday/weekend shows "0".
+    if (LEAVE_STATUSES.has(e.status as StatusKey)) return excelLeaveHours(e);
     if (DOUBLE_TIME_STATUSES.has(e.status as StatusKey)) return e.holiday_overtime_hours || 0;
     return e.regular_hours || 0;
   };
 
+  const excelStatusLabel = (e: TimesheetEntry | undefined) => {
+    if (!e) return '—';
+    if (LEAVE_STATUSES.has(e.status)) return `${excelLeaveHours(e)} hrs`;
+    return STATUS_CFG[e.status]?.label || e.status;
+  };
+
+  const buildRows = (emp: Employee): RowData[] => days.map(day => {
+    const e = getEntry(emp.id, day);
+    return { day: day.toLocaleDateString('en-GB', { weekday: 'short' }), date: fmtDate(day), status: excelStatusLabel(e), start: e?.start_time || '—', end: e?.end_time || '—', reg: e?.regular_hours?.toFixed(2) || '0.00', ot15: e?.overtime_hours?.toFixed(2) || '0.00', ot20: e?.holiday_overtime_hours?.toFixed(2) || '0.00', night: e?.nightshift_hours?.toFixed(2) || '0.00', notes: e?.notes || '' };
+  });
+
+  const statusAbbr = (s: string) => ({ work: '', leave: 'Lv', sick: 'Sick', special_leave: 'SL', holiday: 'PPH', holiday_paid: 'PH', training: 'Trn', off: 'Off', absent: 'Abs' }[s] ?? s);
+  const dayCell = (e: TimesheetEntry | undefined, d: Date): string | number => excelDayCell(e, d);
+
   const downloadExcel = async () => {
     const { default: ExcelJS } = await import('exceljs');
-    const wb = new ExcelJS.Workbook(); wb.creator = 'Ozech MyOffice';
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'Ozech MyOffice';
+    wb.calcProperties.fullCalcOnLoad = true;
     const targets = scope === 'combined' ? employees : employees.filter(e => String(e.id) === String(empId));
 
     if (scope === 'combined') {
       const ws = wb.addWorksheet('Timesheet Summary');
       const FIXED_COLS = 3;
       const SUM_COLS = 6;
+      const sumHdr = ['Actual h', 'Reg h', 'OT 1.5×', 'OT 2.0×', 'Standby h', 'Night Allow. h'] as const;
       const totalCols = FIXED_COLS + days.length + SUM_COLS;
       ws.views = [{ state: 'frozen', xSplit: FIXED_COLS, ySplit: 3 }];
 
       const FONT = 'Calibri';
-      // Actual leads (emphasized, brand fill) — it's the headline figure now that Total is
-      // gone; Reg/OT/Standby/Night Allow. follow as the breakdown behind it.
-      const SUM_FILLS = [EXPORT_BRAND_ARGB, 'FFE8F4FD', 'FFD0E8F5', 'FFB8D9F0', 'FFFBEED4', 'FFDCE6F7'];
-      const SUM_COLORS = ['FFFFFFFF', 'FF1E3A5F', 'FF1E3A5F', 'FF1E3A5F', 'FF7A5A1E', 'FF1E3A5F'];
+      const thinBorder = {
+        top: { style: 'thin' as const, color: { argb: EXCEL_BW.borderThin } },
+        bottom: { style: 'thin' as const, color: { argb: EXCEL_BW.borderThin } },
+        left: { style: 'thin' as const, color: { argb: EXCEL_BW.borderThin } },
+        right: { style: 'thin' as const, color: { argb: EXCEL_BW.borderThin } },
+      };
 
       ws.mergeCells(1, 1, 1, totalCols);
       const titleCell = ws.getCell(1, 1);
       titleCell.value = `${tabLabel} Timesheet — ${fmtPeriod(period)}`;
-      titleCell.font = { name: FONT, bold: true, size: 14, color: { argb: EXPORT_BRAND_ARGB } };
+      titleCell.font = { name: FONT, bold: true, size: 14, color: { argb: EXCEL_BW.black } };
       titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
       ws.getRow(1).height = 24;
-      ws.addRow([]);
+      ws.mergeCells(2, 1, 2, totalCols);
+      const legendCell = ws.getCell(2, 1);
+      legendCell.value = 'OT 1.5×: click the cell — formula bar shows =MAX(0, Actual h − Reg h) + module OT. Add more 1.5× hours in the formula (e.g. …+2+1) like your manual sheet.';
+      legendCell.font = { name: FONT, size: 9, italic: true, color: { argb: EXCEL_BW.black } };
+      legendCell.alignment = { wrapText: true, vertical: 'middle' };
+      ws.getRow(2).height = 28;
 
       const hdrRow = ws.getRow(3);
-      hdrRow.values = ['Employee', 'Emp #', 'Position', ...days.map(d => `${d.getDate()}\n${d.toLocaleDateString('en-GB', { weekday: 'short' })}`), 'Actual h', 'Reg h', 'OT 1.5×', 'OT 2.0×', 'Standby h', 'Night Allow. h'];
+      hdrRow.values = ['Mine No', 'Employee', 'Position', ...days.map(d => `${d.getDate()}\n${d.toLocaleDateString('en-GB', { weekday: 'short' })}`), ...sumHdr];
       hdrRow.height = 32;
       hdrRow.eachCell({ includeEmpty: true }, (c, col) => {
-        const isSumCol = col > FIXED_COLS + days.length;
         const isFixedCol = col <= FIXED_COLS;
-        c.font = { name: FONT, bold: true, size: 8, color: { argb: 'FFFFFFFF' } };
-        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isFixedCol ? 'FF1A3450' : isSumCol ? 'FF163554' : EXPORT_BRAND_ARGB } };
+        c.font = { name: FONT, bold: true, size: 8, color: { argb: EXCEL_BW.black } };
+        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: EXCEL_BW.headerBg } };
         c.alignment = { horizontal: isFixedCol ? 'left' : 'center', vertical: 'middle', wrapText: !isFixedCol };
-        c.border = { bottom: { style: 'medium', color: { argb: 'FF86BBD8' } } };
+        c.border = { ...thinBorder, bottom: { style: 'medium', color: { argb: EXCEL_BW.black } } };
       });
-
-      const STATUS_FILL: Record<string, string> = { work: 'FFE8F8F0', leave: 'FFE8E4F8', sick: 'FFF8E4EE', special_leave: 'FFF0E8F8', holiday: 'FFF8EEE4', holiday_paid: 'FFFDF6DC', training: 'FFF8F4E4', off: 'FFF2F4F6', absent: 'FFF8E8E8' };
+      const sumStartCol = FIXED_COLS + days.length + 1;
+      hdrRow.getCell(sumStartCol + 2).note = 'Formula: =MAX(0, Actual h − Reg h) + prefilled 1.5× OT. Extend with +hours in the formula bar.';
 
       targets.forEach((emp, ei) => {
         const totals = calcTotalsLocal(emp.id);
         const empIdDisplay = emp.employeeId || '';
-        const rowVals: (string | number)[] = [emp.name, empIdDisplay, emp.position || ''];
+        const rowVals: (string | number)[] = [empIdDisplay || '—', emp.name, emp.position || ''];
         days.forEach(day => rowVals.push(dayCell(getEntry(emp.id, day), day)));
+        const moduleOt15 = totals.ot15Module ?? 0;
         rowVals.push(totals.actual, totals.reg, totals.ot15, totals.ot20, totals.standbyBonus, totals.nightAllowanceBonus);
 
         const dataRow = ws.getRow(4 + ei);
         dataRow.values = rowVals;
-        const empIdCell = dataRow.getCell(2);
+        const actualCol = FIXED_COLS + days.length + 1;
+        const regCol = actualCol + 1;
+        const ot15Col = actualCol + 2;
+        const actualL = excelColumnLetter(actualCol);
+        const regL = excelColumnLetter(regCol);
+        const rowNum = dataRow.number;
+        const empIdCell = dataRow.getCell(1);
         empIdCell.value = empIdDisplay || '—';
         empIdCell.numFmt = '@';
         dataRow.height = 15;
         const stripe = ei % 2 !== 0;
 
+        const rowBg = stripe ? EXCEL_BW.stripe : EXCEL_BW.white;
         dataRow.eachCell({ includeEmpty: true }, (c, col) => {
-          c.font = { name: FONT, size: 8 };
+          c.font = { name: FONT, size: 8, color: { argb: EXCEL_BW.black } };
           c.alignment = { horizontal: col <= FIXED_COLS ? 'left' : 'center', vertical: 'middle' };
-          if (col <= FIXED_COLS) {
-            c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: stripe ? 'FFF5F8FB' : 'FFFFFFFF' } };
-            if (col === 2) c.font = { name: FONT, size: 8, color: { argb: 'FF4A6F8A' } };
-          }
+          c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: rowBg } };
+          c.border = thinBorder;
         });
 
         days.forEach((day, di) => {
           const e = getEntry(emp.id, day);
           const cell = dataRow.getCell(FIXED_COLS + 1 + di);
           const isWknd = day.getDay() === 0 || day.getDay() === 6;
-          if (e) {
-            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: STATUS_FILL[e.status] || (stripe ? 'FFF5F8FB' : 'FFFFFFFF') } };
-            if (LEAVE_STATUSES.has(e.status as StatusKey) || ZERO_HOUR_STATUSES.has(e.status as StatusKey)) cell.font = { name: FONT, size: 7, italic: true, color: { argb: 'FF4A6F8A' } };
-          } else {
-            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isWknd ? 'FFE8EDF2' : stripe ? 'FFF5F8FB' : 'FFFFFFFF' } };
-            if (isWknd) cell.font = { name: FONT, size: 8, color: { argb: 'FFBBC8D4' } };
+          if (e && LEAVE_STATUSES.has(e.status as StatusKey)) {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: EXCEL_BW.leaveBg } };
+          } else if (ZERO_HOUR_STATUSES.has(e?.status as StatusKey)) {
+            cell.font = { name: FONT, size: 7, italic: true, color: { argb: EXCEL_BW.black } };
+          } else if (isWknd && !e) {
+            cell.font = { name: FONT, size: 8, italic: true, color: { argb: EXCEL_BW.borderThin } };
           }
         });
 
         [0, 1, 2, 3, 4, 5].forEach(si => {
           const c = dataRow.getCell(FIXED_COLS + 1 + days.length + si);
-          c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: SUM_FILLS[si] } };
-          c.font = { name: FONT, size: 8, bold: si === 0, color: { argb: SUM_COLORS[si] } };
-          c.numFmt = '0.00';
+          c.font = { name: FONT, size: 8, bold: si === 0, color: { argb: EXCEL_BW.black } };
+          if (si !== 2) c.numFmt = '0.00';
           c.alignment = { horizontal: 'center', vertical: 'middle' };
         });
+        const ot15Cell = dataRow.getCell(ot15Col);
+        ot15Cell.value = {
+          formula: excelOt15Formula(actualL, regL, rowNum, moduleOt15),
+          result: totals.ot15,
+        };
+        ot15Cell.numFmt = '0.00';
       });
+
+      const firstDataRow = 4;
+      const lastDataRow = 4 + targets.length - 1;
+      const actualCol = FIXED_COLS + days.length + 1;
+      const ot15Col = actualCol + 2;
+      const ot15L = excelColumnLetter(ot15Col);
 
       const gtRow = ws.getRow(4 + targets.length + 1);
-      gtRow.values = ['TOTALS', '', `${targets.length} employees`, ...days.map(() => ''),
-        targets.reduce((s, e) => s + calcTotalsLocal(e.id).actual, 0), targets.reduce((s, e) => s + calcTotalsLocal(e.id).reg, 0),
-        targets.reduce((s, e) => s + calcTotalsLocal(e.id).ot15, 0), targets.reduce((s, e) => s + calcTotalsLocal(e.id).ot20, 0),
-        targets.reduce((s, e) => s + calcTotalsLocal(e.id).standbyBonus, 0), targets.reduce((s, e) => s + calcTotalsLocal(e.id).nightAllowanceBonus, 0)];
+      gtRow.values = ['', 'TOTALS', `${targets.length} employees`, ...days.map(() => ''),
+        targets.reduce((s, e) => s + calcTotalsLocal(e.id).actual, 0),
+        targets.reduce((s, e) => s + calcTotalsLocal(e.id).reg, 0),
+        targets.reduce((s, e) => s + calcTotalsLocal(e.id).ot15, 0),
+        targets.reduce((s, e) => s + calcTotalsLocal(e.id).ot20, 0),
+        targets.reduce((s, e) => s + calcTotalsLocal(e.id).standbyBonus, 0),
+        targets.reduce((s, e) => s + calcTotalsLocal(e.id).nightAllowanceBonus, 0)];
       gtRow.height = 20;
       gtRow.eachCell({ includeEmpty: true }, (c, col) => {
-        const isSumCol = col > FIXED_COLS + days.length;
-        c.font = { name: FONT, bold: true, size: 8, color: { argb: isSumCol ? 'FFFFFFFF' : 'FF1E3A5F' } };
-        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isSumCol ? EXPORT_BRAND_ARGB : 'FFD0E8F5' } };
+        c.font = { name: FONT, bold: true, size: 8, color: { argb: EXCEL_BW.black } };
+        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: EXCEL_BW.headerBg } };
         c.alignment = { horizontal: col <= FIXED_COLS ? 'left' : 'center', vertical: 'middle' };
-        if (isSumCol) c.numFmt = '0.00';
-        c.border = { top: { style: 'medium', color: { argb: 'FF86BBD8' } } };
+        if (col > FIXED_COLS + days.length && col !== ot15Col) c.numFmt = '0.00';
+        c.border = { ...thinBorder, top: { style: 'medium', color: { argb: EXCEL_BW.black } } };
       });
+      const gtOt15 = gtRow.getCell(ot15Col);
+      gtOt15.value = {
+        formula: `SUM(${ot15L}${firstDataRow}:${ot15L}${lastDataRow})`,
+        result: targets.reduce((s, e) => s + calcTotalsLocal(e.id).ot15, 0),
+      };
+      gtOt15.numFmt = '0.00';
 
-      ws.getColumn(1).width = 24; ws.getColumn(2).width = 9; ws.getColumn(3).width = 16;
+      appendTimesheetExcelSignatures(ws, totalCols, FONT);
+
+      ws.getColumn(1).width = 11; ws.getColumn(2).width = 24; ws.getColumn(3).width = 16;
       for (let i = 0; i < days.length; i++) ws.getColumn(FIXED_COLS + 1 + i).width = 5.5;
-      [10, 10, 10, 10, 11, 12].forEach((w, i) => { ws.getColumn(FIXED_COLS + 1 + days.length + i).width = w; });
+      [10, 10, 11, 10, 11, 12].forEach((w, i) => { ws.getColumn(FIXED_COLS + 1 + days.length + i).width = w; });
 
     } else {
       targets.forEach(emp => {
         const ws = wb.addWorksheet(emp.name.slice(0, 31));
         const totals = calcTotalsLocal(emp.id);
+        const FONT = 'Calibri';
+        const thinBorder = {
+          top: { style: 'thin' as const, color: { argb: EXCEL_BW.borderThin } },
+          bottom: { style: 'thin' as const, color: { argb: EXCEL_BW.borderThin } },
+          left: { style: 'thin' as const, color: { argb: EXCEL_BW.borderThin } },
+          right: { style: 'thin' as const, color: { argb: EXCEL_BW.borderThin } },
+        };
         ws.mergeCells('A1:L1'); ws.getCell('A1').value = `${tabLabel} Timesheet`;
-        ws.getCell('A1').font = { bold: true, size: 14, color: { argb: EXPORT_BRAND_ARGB } };
+        ws.getCell('A1').font = { name: FONT, bold: true, size: 14, color: { argb: EXCEL_BW.black } };
         ws.mergeCells('A2:L2'); ws.getCell('A2').value = `${emp.name} | ${fmtPeriod(period)}`;
-        ws.getCell('A2').font = { bold: true, size: 11 };
+        ws.getCell('A2').font = { name: FONT, bold: true, size: 11, color: { argb: EXCEL_BW.black } };
         ws.addRow([]);
         const hdr = ws.addRow(['Day', 'Date', 'Status', 'Start', 'End', 'Regular', 'OT 1.5×', 'OT 2.0×', 'Night', 'Standby', 'Actual', 'Notes']);
-        hdr.eachCell(c => { c.font = { bold: true, color: { argb: 'FFFFFFFF' } }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: EXPORT_BRAND_ARGB } }; c.alignment = { horizontal: 'center' }; });
+        hdr.eachCell(c => {
+          c.font = { name: FONT, bold: true, color: { argb: EXCEL_BW.black } };
+          c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: EXCEL_BW.headerBg } };
+          c.alignment = { horizontal: 'center' };
+          c.border = { ...thinBorder, bottom: { style: 'medium', color: { argb: EXCEL_BW.black } } };
+        });
         buildRows(emp).forEach((row, i) => {
           const r = ws.addRow([row.day, row.date, row.status, row.start, row.end, +row.reg, +row.ot15, +row.ot20, +row.night, '', '', row.notes]);
-          if (i % 2 === 1) r.eachCell(c => { c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF5F7FA' } }; });
+          const e = getEntry(emp.id, days[i]);
+          const isLeave = e && LEAVE_STATUSES.has(e.status as StatusKey);
+          const bg = isLeave ? EXCEL_BW.leaveBg : (i % 2 === 1 ? EXCEL_BW.stripe : EXCEL_BW.white);
+          r.eachCell(c => {
+            c.font = { name: FONT, size: 9, color: { argb: EXCEL_BW.black } };
+            c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bg } };
+            c.border = thinBorder;
+          });
         });
         ws.addRow([]);
         const bonusNote = totals.nightAllowanceBonus > 0 ? ` (incl. ${totals.nightAllowanceBonus}h night allowance)` : '';
         const tr = ws.addRow(['TOTALS', '', '', '', '', totals.reg.toFixed(2), totals.ot15.toFixed(2), totals.ot20.toFixed(2), totals.night.toFixed(2), totals.standbyBonus.toFixed(2), totals.actual.toFixed(2), `Grand: ${totals.total.toFixed(2)}h${bonusNote}`]);
-        tr.eachCell(c => { c.font = { bold: true }; });
+        tr.eachCell(c => {
+          c.font = { name: FONT, bold: true, color: { argb: EXCEL_BW.black } };
+          c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: EXCEL_BW.headerBg } };
+          c.border = { top: { style: 'medium', color: { argb: EXCEL_BW.black } } };
+        });
+        appendTimesheetExcelSignatures(ws, 12, FONT);
         ws.columns = [{ width: 6 }, { width: 13 }, { width: 15 }, { width: 8 }, { width: 8 }, { width: 10 }, { width: 10 }, { width: 10 }, { width: 10 }, { width: 10 }, { width: 10 }, { width: 35 }];
       });
     }
@@ -917,16 +1022,20 @@ function DownloadDialog({ employees, timesheets, period, periodType, onClose }: 
       doc.setFontSize(8); doc.text(`${targets.length} employees · Generated ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`, 10, 14);
 
       const dayW = Math.min(5.5, (277 - 35 - 20 - 66) / days.length);
-      const colStyles: Record<number, { cellWidth: number; halign?: 'center' | 'left' }> = { 0: { cellWidth: 35, halign: 'left' }, 1: { cellWidth: 20, halign: 'left' } };
-      days.forEach((_, i) => { colStyles[2 + i] = { cellWidth: dayW, halign: 'center' }; });
-      [0, 1, 2, 3, 4, 5].forEach(si => { colStyles[2 + days.length + si] = { cellWidth: 11, halign: 'center' }; });
+      const colStyles: Record<number, { cellWidth: number; halign?: 'center' | 'left' }> = {
+        0: { cellWidth: 18, halign: 'left' },
+        1: { cellWidth: 32, halign: 'left' },
+        2: { cellWidth: 20, halign: 'left' },
+      };
+      days.forEach((_, i) => { colStyles[3 + i] = { cellWidth: dayW, halign: 'center' }; });
+      [0, 1, 2, 3, 4, 5].forEach(si => { colStyles[3 + days.length + si] = { cellWidth: 11, halign: 'center' }; });
 
-      const head = [['Employee', 'Position', ...days.map(d => `${d.getDate()}`), 'Actual', 'Reg', 'OT\n1.5×', 'OT\n2.0×', 'Standby', 'Night\nAllow.']];
+      const head = [['Mine No', 'Employee', 'Position', ...days.map(d => `${d.getDate()}`), 'Actual', 'Reg', 'OT\n1.5×', 'OT\n2.0×', 'Standby', 'Night\nAllow.']];
       const body = targets.map(emp => {
         const totals = calcTotalsLocal(emp.id);
-        return [emp.name, emp.position || '', ...days.map(day => { const v = dayCell(getEntry(emp.id, day), day); return v === 0 ? '' : String(v); }), totals.actual.toFixed(1), totals.reg.toFixed(1), totals.ot15.toFixed(1), totals.ot20.toFixed(1), totals.standbyBonus.toFixed(1), totals.nightAllowanceBonus.toFixed(1)];
+        return [emp.employeeId || '—', emp.name, emp.position || '', ...days.map(day => { const v = dayCell(getEntry(emp.id, day), day); return v === 0 ? '' : String(v); }), totals.actual.toFixed(1), totals.reg.toFixed(1), totals.ot15.toFixed(1), totals.ot20.toFixed(1), totals.standbyBonus.toFixed(1), totals.nightAllowanceBonus.toFixed(1)];
       });
-      body.push(['TOTALS', `${targets.length} emp`, ...days.map(() => ''),
+      body.push(['', 'TOTALS', `${targets.length} emp`, ...days.map(() => ''),
         targets.reduce((s, e) => s + calcTotalsLocal(e.id).actual, 0).toFixed(1), targets.reduce((s, e) => s + calcTotalsLocal(e.id).reg, 0).toFixed(1),
         targets.reduce((s, e) => s + calcTotalsLocal(e.id).ot15, 0).toFixed(1), targets.reduce((s, e) => s + calcTotalsLocal(e.id).ot20, 0).toFixed(1),
         targets.reduce((s, e) => s + calcTotalsLocal(e.id).standbyBonus, 0).toFixed(1), targets.reduce((s, e) => s + calcTotalsLocal(e.id).nightAllowanceBonus, 0).toFixed(1)]);
@@ -940,8 +1049,8 @@ function DownloadDialog({ employees, timesheets, period, periodType, onClose }: 
         didParseCell: d => {
           if (d.section === 'body' && d.row.index === targets.length) { d.cell.styles.fontStyle = 'bold'; d.cell.styles.fillColor = [208, 232, 245]; }
           const col = d.column.index;
-          if (col >= 2 && col < 2 + days.length) {
-            const day = days[col - 2];
+          if (col >= 3 && col < 3 + days.length) {
+            const day = days[col - 3];
             if (day && (day.getDay() === 0 || day.getDay() === 6) && d.section === 'body' && d.row.index < targets.length) d.cell.styles.fillColor = [236, 240, 243];
           }
         },
@@ -1016,10 +1125,9 @@ function DownloadDialog({ employees, timesheets, period, periodType, onClose }: 
 
 // ─────────────────── TIMESHEET GRID ───────────────────
 
-const calcTotals = calcEmployeeTotals;
-
-function TimesheetGrid({ employees, timesheets, days, onCellClick, onQuickAdd, onQuickRemove, onBulkAssign, onRemoveEmployee, onFillDays }: {
+function TimesheetGrid({ employees, timesheets, days, getHourTotals, onCellClick, onQuickAdd, onQuickRemove, onBulkAssign, onRemoveEmployee, onFillDays }: {
   employees: Employee[]; timesheets: TimesheetEntry[]; days: Date[];
+  getHourTotals: (empId: string) => HourTotals;
   onCellClick: (emp: Employee, day: Date, entry?: TimesheetEntry) => void;
   onQuickAdd: (emp: Employee, day: Date) => void; onQuickRemove: (emp: Employee, entry: TimesheetEntry) => void;
   onBulkAssign: (emp: Employee) => void; onRemoveEmployee: (id: string) => void;
@@ -1174,8 +1282,8 @@ function TimesheetGrid({ employees, timesheets, days, onCellClick, onQuickAdd, o
             );
           })}
           <TableHead title="Uncapped normal hours for the period (leave counts as 8h). Not reduced when excess goes to overtime." className={`text-center min-w-14 text-[10px] ${TYPE_WEIGHT.semibold} sticky top-0 z-20 ${stickyBg} ${t.textMuted}`}>Actual</TableHead>
-          <TableHead title="Payable regular hours: min(Actual, 208)." className={`text-center min-w-14 ${accentText('emerald', t.light)} text-[10px] ${TYPE_WEIGHT.semibold} sticky top-0 z-20 ${stickyBg}`}>Reg</TableHead>
-          <TableHead title="Normal excess over 208 plus module overtime at 1.5×." className={`text-center min-w-14 text-brand-400 text-[10px] ${TYPE_WEIGHT.semibold} sticky top-0 z-20 ${stickyBg}`}>1.5×</TableHead>
+          <TableHead title="NEC: 208 when Actual is under cap and no Absent days (Off/rest days still allow the floor)." className={`text-center min-w-14 ${accentText('emerald', t.light)} text-[10px] ${TYPE_WEIGHT.semibold} sticky top-0 z-20 ${stickyBg}`}>Reg</TableHead>
+          <TableHead title="max(Actual − Reg, 0) + module 1.5× OT; Excel cell formula can include +manual hours." className={`text-center min-w-14 text-brand-400 text-[10px] ${TYPE_WEIGHT.semibold} sticky top-0 z-20 ${stickyBg}`}>1.5×</TableHead>
           <TableHead className={`text-center min-w-14 text-sky-400 text-[10px] ${TYPE_WEIGHT.semibold} sticky top-0 z-20 ${stickyBg}`}>2.0×</TableHead>
           <TableHead className={`text-center min-w-14 ${accentText('amber', t.light)} text-[10px] ${TYPE_WEIGHT.semibold} sticky top-0 z-20 ${stickyBg}`}>Standby</TableHead>
           <TableHead className={`text-center min-w-16 ${accentText('indigo', t.light)} text-[10px] ${TYPE_WEIGHT.semibold} sticky top-0 z-20 ${stickyBg}`}>Night Allow</TableHead>
@@ -1183,7 +1291,7 @@ function TimesheetGrid({ employees, timesheets, days, onCellClick, onQuickAdd, o
       </TableHeader>
       <TableBody>
         {employees.map(emp => {
-          const totals = calcTotals(emp.id, timesheets);
+          const totals = getHourTotals(emp.id);
           return (
             <TableRow key={emp.id} className={`${t.border} ${t.hoverBgSoft} group/row`}>
               <TableCell className={`sticky left-0 z-10 ${stickyBg} border-r ${t.border} py-0 group/emp`}>
@@ -1362,10 +1470,17 @@ function TimesheetGrid({ employees, timesheets, days, onCellClick, onQuickAdd, o
                 <span className={`text-sm ${TYPE_WEIGHT.bold} ${accentText('emerald', t.light)}`}>{totals.reg.toFixed(1)}</span>
               </TableCell>
               <TableCell
-                className={`text-center py-2 text-sm ${TYPE_WEIGHT.bold} text-brand-400`}
-                title={(totals.excess || 0) > 0
-                  ? `${totals.excess!.toFixed(1)}h excess + ${Math.max(0, totals.ot15 - (totals.excess || 0)).toFixed(1)}h module OT`
-                  : totals.ot15 > 0 ? 'Module overtime at 1.5×' : undefined}
+                className={`text-center py-2 text-sm ${TYPE_WEIGHT.bold} text-brand-400 cursor-help`}
+                title={(() => {
+                  const excess = totals.excess || 0;
+                  const added = totals.ot15Module ?? Math.max(0, totals.ot15 - excess);
+                  return [
+                    '1.5× = MAX(0, Actual − Reg) + module 1.5× OT (+ manual in Excel)',
+                    `= MAX(0, ${totals.actual.toFixed(1)} − ${totals.reg.toFixed(1)}) + ${added.toFixed(1)}`,
+                    `= ${excess.toFixed(1)} + ${added.toFixed(1)} = ${totals.ot15.toFixed(1)}`,
+                    'Excel: =MAX(0, Actual h − Reg h)+prefilled OT — add +2+1 in formula bar if needed.',
+                  ].join('\n');
+                })()}
               >
                 {totals.ot15.toFixed(1)}
               </TableCell>
@@ -1377,7 +1492,7 @@ function TimesheetGrid({ employees, timesheets, days, onCellClick, onQuickAdd, o
         })}
         {employees.length > 0 && (() => {
           const grand = employees.reduce((acc, emp) => {
-            const tt = calcTotals(emp.id, timesheets);
+            const tt = getHourTotals(emp.id);
             return { reg: acc.reg + tt.reg, ot15: acc.ot15 + tt.ot15, ot20: acc.ot20 + tt.ot20, standbyBonus: acc.standbyBonus + tt.standbyBonus, nightAllowanceBonus: acc.nightAllowanceBonus + tt.nightAllowanceBonus, actual: acc.actual + tt.actual };
           }, { reg: 0, ot15: 0, ot20: 0, standbyBonus: 0, nightAllowanceBonus: 0, actual: 0 });
           return (
@@ -1532,16 +1647,25 @@ function TimesheetsContent() {
     statusLabel: status => STATUS_CFG[status].label,
   }), [timesheets, approvedLeaves, approvedOvertime, shiftAssignments, employeeIdByHuman, tabIds, days]);
 
+  const periodDateStrs = useMemo(() => days.map(d => fmtDate(d)), [days]);
+  const getHourTotals = useCallback(
+    (empId: string) => calcEmployeeTotals(empId, effectiveTimesheets, {
+      periodDates: periodDateStrs,
+      applyRegFloorWithoutAbsent: activeTab === 'nec',
+    }),
+    [effectiveTimesheets, periodDateStrs, activeTab],
+  );
+
   const summary = useMemo(() => {
     const tot = tabEmployees.reduce((acc, e) => {
-      const tt = calcTotals(e.id, effectiveTimesheets);
+      const tt = getHourTotals(e.id);
       return { reg: acc.reg + tt.reg, ot15: acc.ot15 + tt.ot15, ot20: acc.ot20 + tt.ot20, night: acc.night + tt.night, standbyBonus: acc.standbyBonus + tt.standbyBonus };
     }, { reg: 0, ot15: 0, ot20: 0, night: 0, standbyBonus: 0 });
     const filled = new Set(effectiveTimesheets.filter(ts => tabIds.includes(String(ts.employee_id))).map(ts => `${ts.employee_id}:${ts.date}`)).size;
     const workingDays = days.filter(d => d.getDay() !== 0 && d.getDay() !== 6).length;
     const possible = tabEmployees.length * workingDays;
     return { ...tot, filled, possible };
-  }, [effectiveTimesheets, tabEmployees, tabIds, days]);
+  }, [getHourTotals, tabEmployees, tabIds, days, effectiveTimesheets]);
 
   const handleSaveEntry = async (empId: string, date: Date, data: Omit<TimesheetEntry, 'id'>) => {
     const ds = fmtDate(date);
@@ -1873,7 +1997,7 @@ function TimesheetsContent() {
             <div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-brand-400" /><span className={`ml-2 text-sm ${t.textFaint}`}>Loading…</span></div>
           ) : (
             <TimesheetGrid
-              employees={tabEmployees} timesheets={effectiveTimesheets} days={days}
+              employees={tabEmployees} timesheets={effectiveTimesheets} days={days} getHourTotals={getHourTotals}
               onCellClick={(emp, day, entry) => setEditCell({ employee: emp, date: day, entry })}
               onQuickAdd={handleQuickAdd} onQuickRemove={handleQuickRemove}
               onBulkAssign={emp => setBulkEmployee(emp)}

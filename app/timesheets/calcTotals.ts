@@ -7,11 +7,38 @@ export const ZERO_HOUR_STATUSES = new Set<StatusKey>(['off', 'absent']);
 
 export const NEC_REG_CAP = 208;
 
+export type CalcEmployeeTotalsOpts = {
+  periodDates?: string[];
+  /** NEC: Reg defaults to 208 when Actual < 208 unless the employee was Absent (not Off). */
+  applyRegFloorWithoutAbsent?: boolean;
+};
+
+/** True if the employee has any deliberate **Absent** day in the period (Off/rest does not count). */
+export function employeeHasAbsentInPeriod(
+  empId: string,
+  timesheets: TimesheetEntry[],
+  periodDates: string[],
+): boolean {
+  const byDate = new Map(
+    timesheets
+      .filter(t => String(t.employee_id) === String(empId))
+      .map(t => [t.date, t]),
+  );
+  return periodDates.some(d => {
+    const e = byDate.get(d);
+    return e != null && e.status === 'absent';
+  });
+}
+
 /** @deprecated Use calcEmployeeTotals — kept for tests that target the cap helper directly. */
 export const apply208 = (reg: number, ot15: number) =>
   reg <= NEC_REG_CAP ? { reg, ot15 } : { reg: NEC_REG_CAP, ot15: ot15 + (reg - NEC_REG_CAP) };
 
-export function calcEmployeeTotals(empId: string, timesheets: TimesheetEntry[]): HourTotals {
+export function calcEmployeeTotals(
+  empId: string,
+  timesheets: TimesheetEntry[],
+  opts?: CalcEmployeeTotalsOpts,
+): HourTotals {
   let normalSum = 0;
   let ot15Module = 0;
   let ot20 = 0;
@@ -40,13 +67,21 @@ export function calcEmployeeTotals(empId: string, timesheets: TimesheetEntry[]):
     });
 
   const actual = normalSum;
-  const reg = Math.min(normalSum, NEC_REG_CAP);
+  let reg = Math.min(normalSum, NEC_REG_CAP);
+  const periodDates = opts?.periodDates ?? [];
+  const hasAbsent = periodDates.length > 0
+    ? employeeHasAbsentInPeriod(empId, timesheets, periodDates)
+    : false;
+  if (opts?.applyRegFloorWithoutAbsent && !hasAbsent && actual < NEC_REG_CAP) {
+    reg = NEC_REG_CAP;
+  }
   const excess = Math.max(0, normalSum - NEC_REG_CAP);
   const ot15 = excess + ot15Module;
 
   return {
     reg,
     ot15,
+    ot15Module,
     ot20,
     night,
     standbyBonus,

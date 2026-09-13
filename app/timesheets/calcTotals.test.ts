@@ -152,6 +152,38 @@ describe('calcEmployeeTotals — actual vs. total', () => {
   });
 });
 
+describe('calcEmployeeTotals — NEC Reg floor (208 when short of hours, not Absent)', () => {
+  const periodDates = Array.from({ length: 5 }, (_, i) => `2026-08-${String(i + 10).padStart(2, '0')}`);
+
+  it('defaults Reg to 208 when Actual is below cap and the employee was not Absent', () => {
+    const timesheets = periodDates.map(d => entry({ date: d, regular_hours: 40 }));
+    const t = calcEmployeeTotals('1', timesheets, { periodDates, applyRegFloorWithoutAbsent: true });
+    expect(t.actual).toBe(200);
+    expect(t.reg).toBe(208);
+    expect(t.ot15).toBe(0);
+  });
+
+  it('still applies Reg floor when Off rest days reduced Actual below 208', () => {
+    const timesheets = [
+      ...periodDates.slice(0, 4).map(d => entry({ date: d, regular_hours: 40 })),
+      entry({ date: periodDates[4], status: 'off', regular_hours: 0 }),
+    ];
+    const t = calcEmployeeTotals('1', timesheets, { periodDates, applyRegFloorWithoutAbsent: true });
+    expect(t.actual).toBe(160);
+    expect(t.reg).toBe(208);
+  });
+
+  it('uses min(Actual, 208) when an Absent day exists (no floor)', () => {
+    const timesheets = [
+      ...periodDates.slice(0, 4).map(d => entry({ date: d, regular_hours: 40 })),
+      entry({ date: periodDates[4], status: 'absent', regular_hours: 0 }),
+    ];
+    const t = calcEmployeeTotals('1', timesheets, { periodDates, applyRegFloorWithoutAbsent: true });
+    expect(t.actual).toBe(160);
+    expect(t.reg).toBe(160);
+  });
+});
+
 describe('status classification sets', () => {
   it('DOUBLE_TIME_STATUSES is exactly holiday and weekend', () => {
     expect([...DOUBLE_TIME_STATUSES].sort()).toEqual(['holiday', 'weekend']);

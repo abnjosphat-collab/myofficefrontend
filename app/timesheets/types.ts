@@ -55,7 +55,10 @@ export interface ApprovedOvertimeRecord {
 export interface Period { start: Date; end: Date; }
 export interface EditCell { employee: Employee; date: Date; entry?: TimesheetEntry; }
 export interface HourTotals {
-  reg: number; ot15: number; ot20: number; night: number; standbyBonus: number;
+  reg: number; ot15: number;
+  /** Module / row-stored overtime at 1.5× (excludes normal excess over 208). */
+  ot15Module?: number;
+  ot20: number; night: number; standbyBonus: number;
   /** Sum of nightshift_hours (actual 18:00–06:00 overlap) on days flagged
    *  nightshift_allowance — i.e. rostered night-shift days, not flat, and not earned by
    *  a callout entry (no start/end time, never carries this flag). Kept as its own column
