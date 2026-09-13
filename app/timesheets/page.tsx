@@ -28,8 +28,12 @@ import type {
 } from './types';
 import { mergeEffectiveTimesheets } from './mergeEffectiveTimesheets';
 import { api, useTimesheetsData } from './useTimesheetsData';
-import { LEAVE_STATUSES, DOUBLE_TIME_STATUSES, ZERO_HOUR_STATUSES, apply208, calcEmployeeTotals } from './calcTotals';
-import { buildDefaultEntry, cloneEntryForDate, fillTargetDayIndices } from './fillEntry';
+import { LEAVE_STATUSES, DOUBLE_TIME_STATUSES, ZERO_HOUR_STATUSES, calcEmployeeTotals } from './calcTotals';
+import {
+  applyNormalHoursFill, applyOffFill, buildDefaultEntry, canFillFromSource, extractFillFromSource,
+  fillTargetDayIndices, isFillProtectedTarget,
+} from './fillEntry';
+import { attachFillPointerDrag, type FillDragState } from './fillDrag';
 
 // ─────────────────── STATUS CONFIG ───────────────────
 
@@ -1026,43 +1030,84 @@ function TimesheetGrid({ employees, timesheets, days, onCellClick, onQuickAdd, o
   const getEntry = (eid: string, d: Date) => timesheets.find(ts => String(ts.employee_id) === String(eid) && ts.date === fmtDate(d));
   const today = fmtDate(new Date());
   const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
-  const [fillDrag, setFillDrag] = useState<{ empId: string; sourceDayIndex: number; endDayIndex: number } | null>(null);
+  const [fillDrag, setFillDrag] = useState<FillDragState | null>(null);
+  const fillCleanupRef = useRef<(() => void) | null>(null);
+  const suppressCellClickUntil = useRef(0);
+  const fillKeyboardRef = useRef<FillDragState | null>(null);
+
+  const commitFillDrag = useCallback((drag: FillDragState) => {
+    const emp = employees.find(e => e.id === drag.empId);
+    if (!emp || drag.endDayIndex === drag.sourceDayIndex) return;
+    suppressCellClickUntil.current = Date.now() + 450;
+    const sourceDay = days[drag.sourceDayIndex];
+    const targets = fillTargetDayIndices(drag.sourceDayIndex, drag.endDayIndex).map(i => days[i]);
+    if (targets.length === 0) return;
+    void onFillDays(emp, sourceDay, targets, getEntry(emp.id, sourceDay));
+  }, [employees, days, onFillDays, timesheets]);
+
+  const endFillSession = useCallback(() => {
+    fillCleanupRef.current?.();
+    fillCleanupRef.current = null;
+    fillKeyboardRef.current = null;
+    setFillDrag(null);
+  }, []);
+
+  const beginFillPointer = useCallback((
+    empId: string,
+    dayIndex: number,
+    e: React.PointerEvent<HTMLElement>,
+  ) => {
+    endFillSession();
+    fillCleanupRef.current = attachFillPointerDrag({
+      empId,
+      sourceDayIndex: dayIndex,
+      pointerId: e.pointerId,
+      captureEl: e.currentTarget,
+      startClientX: e.clientX,
+      startClientY: e.clientY,
+      scrollEl: scrollRef.current,
+      onPreview: setFillDrag,
+      onCommit: drag => {
+        setFillDrag(null);
+        commitFillDrag(drag);
+      },
+      onCancel: () => setFillDrag(null),
+    });
+  }, [commitFillDrag, endFillSession]);
+
+  useEffect(() => () => { fillCleanupRef.current?.(); }, []);
 
   useEffect(() => {
-    if (!fillDrag) return;
-    const EDGE = 48;
-    const STEP = 16;
-    const onMouseMove = (e: MouseEvent) => {
-      const scroller = scrollRef.current;
-      if (scroller) {
-        const rect = scroller.getBoundingClientRect();
-        if (e.clientX > rect.right - EDGE) scroller.scrollLeft += STEP;
-        else if (e.clientX < rect.left + EDGE) scroller.scrollLeft -= STEP;
+    if (!fillDrag || fillCleanupRef.current) return;
+    fillKeyboardRef.current = fillDrag;
+    const onKeyDown = (e: KeyboardEvent) => {
+      const drag = fillKeyboardRef.current;
+      if (!drag) return;
+      if (e.key === 'Escape') {
+        endFillSession();
+        return;
       }
-      const under = document.elementFromPoint(e.clientX, e.clientY);
-      const cell = under?.closest('[data-fill-cell]') as HTMLElement | null;
-      if (cell?.dataset.empId === fillDrag.empId) {
-        const idx = Number(cell.dataset.dayIndex);
-        if (!Number.isNaN(idx)) setFillDrag(prev => (prev ? { ...prev, endDayIndex: idx } : null));
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const d = fillKeyboardRef.current;
+        endFillSession();
+        if (d) commitFillDrag(d);
+        return;
+      }
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        e.preventDefault();
+        const delta = e.key === 'ArrowRight' ? 1 : -1;
+        setFillDrag(prev => {
+          if (!prev) return null;
+          const next = { ...prev, endDayIndex: Math.max(0, Math.min(days.length - 1, prev.endDayIndex + delta)) };
+          fillKeyboardRef.current = next;
+          return next;
+        });
       }
     };
-    const onMouseUp = () => {
-      const drag = fillDrag;
-      setFillDrag(null);
-      const emp = employees.find(e => e.id === drag.empId);
-      if (!emp || drag.endDayIndex === drag.sourceDayIndex) return;
-      const sourceDay = days[drag.sourceDayIndex];
-      const targets = fillTargetDayIndices(drag.sourceDayIndex, drag.endDayIndex).map(i => days[i]);
-      if (targets.length === 0) return;
-      void onFillDays(emp, sourceDay, targets, getEntry(emp.id, sourceDay));
-    };
-    window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mouseup', onMouseUp);
-    return () => {
-      window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('mouseup', onMouseUp);
-    };
-  }, [fillDrag, employees, days, onFillDays, timesheets]);
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [fillDrag, days.length, commitFillDrag, endFillSession]);
 
   const isFillPreview = (empId: string, dayIndex: number) => {
     if (!fillDrag || fillDrag.empId !== empId) return false;
@@ -1084,8 +1129,32 @@ function TimesheetGrid({ employees, timesheets, days, onCellClick, onQuickAdd, o
   // the header. One resolved, always-solid color instead of two stacked ones.
   const dayHeaderBg = (isHoliday: boolean) => isHoliday ? (t.light ? 'bg-violet-50' : 'bg-[#150e2b]') : stickyBg;
 
+  const fillDragHint = fillDrag && (() => {
+    const emp = employees.find(e => e.id === fillDrag.empId);
+    const n = fillTargetDayIndices(fillDrag.sourceDayIndex, fillDrag.endDayIndex).length;
+    const src = getEntry(fillDrag.empId, days[fillDrag.sourceDayIndex]);
+    const off = src && ZERO_HOUR_STATUSES.has(src.status);
+    const hrs = src?.regular_hours ?? (emp ? normalShiftHours(emp.position) : 8);
+    return { empName: emp?.name ?? '', n, hrs, off };
+  })();
+
   return (
-    <Table containerRef={scrollRef} containerClassName={`overflow-auto max-h-[calc(100vh-260px)] ${fillDrag ? 'select-none' : ''}`}>
+    <>
+    {fillDragHint && (
+      <div
+        role="status"
+        aria-live="polite"
+        className={`mx-3 mt-2 mb-0 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-brand-400/30 bg-brand-500/10 px-3 py-2 text-xs ${t.textMuted}`}
+      >
+        <span>
+          <span className={`${TYPE_WEIGHT.semibold} text-brand-400`}>Fill</span>
+          {' '}— {fillDragHint.off ? 'OFF' : `${fillDragHint.hrs}h`} →{' '}
+          <span className={TYPE_WEIGHT.semibold}>{fillDragHint.n}</span> day{fillDragHint.n !== 1 ? 's' : ''}
+          <span className={t.textFaint}> · Esc cancel{fillDragHint.n > 0 ? ', Enter apply' : ''}</span>
+        </span>
+      </div>
+    )}
+    <Table containerRef={scrollRef} containerClassName={`overflow-auto max-h-[calc(100vh-260px)] ${fillDrag ? 'select-none cursor-ew-resize' : ''}`}>
       <TableHeader>
         <TableRow className={`${t.border} hover:bg-transparent`}>
           <TableHead className={`min-w-52 sticky left-0 top-0 z-30 ${stickyBg} border-r ${t.border} ${t.textMuted}`}>Employee</TableHead>
@@ -1104,9 +1173,9 @@ function TimesheetGrid({ employees, timesheets, days, onCellClick, onQuickAdd, o
               </TableHead>
             );
           })}
-          <TableHead className={`text-center min-w-14 text-[10px] ${TYPE_WEIGHT.semibold} sticky top-0 z-20 ${stickyBg} ${t.textMuted}`}>Actual</TableHead>
-          <TableHead className={`text-center min-w-14 ${accentText('emerald', t.light)} text-[10px] ${TYPE_WEIGHT.semibold} sticky top-0 z-20 ${stickyBg}`}>Reg</TableHead>
-          <TableHead className={`text-center min-w-14 text-brand-400 text-[10px] ${TYPE_WEIGHT.semibold} sticky top-0 z-20 ${stickyBg}`}>1.5×</TableHead>
+          <TableHead title="Uncapped normal hours for the period (leave counts as 8h). Not reduced when excess goes to overtime." className={`text-center min-w-14 text-[10px] ${TYPE_WEIGHT.semibold} sticky top-0 z-20 ${stickyBg} ${t.textMuted}`}>Actual</TableHead>
+          <TableHead title="Payable regular hours: min(Actual, 208)." className={`text-center min-w-14 ${accentText('emerald', t.light)} text-[10px] ${TYPE_WEIGHT.semibold} sticky top-0 z-20 ${stickyBg}`}>Reg</TableHead>
+          <TableHead title="Normal excess over 208 plus module overtime at 1.5×." className={`text-center min-w-14 text-brand-400 text-[10px] ${TYPE_WEIGHT.semibold} sticky top-0 z-20 ${stickyBg}`}>1.5×</TableHead>
           <TableHead className={`text-center min-w-14 text-sky-400 text-[10px] ${TYPE_WEIGHT.semibold} sticky top-0 z-20 ${stickyBg}`}>2.0×</TableHead>
           <TableHead className={`text-center min-w-14 ${accentText('amber', t.light)} text-[10px] ${TYPE_WEIGHT.semibold} sticky top-0 z-20 ${stickyBg}`}>Standby</TableHead>
           <TableHead className={`text-center min-w-16 ${accentText('indigo', t.light)} text-[10px] ${TYPE_WEIGHT.semibold} sticky top-0 z-20 ${stickyBg}`}>Night Allow</TableHead>
@@ -1154,8 +1223,9 @@ function TimesheetGrid({ employees, timesheets, days, onCellClick, onQuickAdd, o
                 const cfg = entry ? STATUS_CFG[entry.status] : null;
                 const fillPreview = isFillPreview(emp.id, dayIndex);
                 const fillSource = fillDrag?.empId === emp.id && fillDrag.sourceDayIndex === dayIndex;
+                const fillBlocked = !!entry && isFillProtectedTarget(entry);
                 return (
-                  <TableCell key={ds} className={`text-center p-0.5 ${isWknd ? t.chipBg : ''} ${fillPreview ? 'bg-brand-500/15' : ''}`}>
+                  <TableCell key={ds} className={`text-center p-0.5 ${isWknd ? t.chipBg : ''} ${fillPreview ? (fillBlocked ? 'bg-amber-500/10 ring-1 ring-amber-400/30' : 'bg-brand-500/15 ring-1 ring-brand-400/25') : ''}`}>
                     <div
                       className="relative group/cell"
                       data-fill-cell
@@ -1167,7 +1237,10 @@ function TimesheetGrid({ employees, timesheets, days, onCellClick, onQuickAdd, o
                         className={`w-full min-h-[60px] h-auto rounded-lg text-center flex flex-col items-center justify-center transition-all text-[9px] border gap-0.5 py-1.5 ${
                           entry && cfg ? 'hover:brightness-110' : isToday ? 'bg-brand-500/10 border-brand-400/30 border-dashed hover:bg-brand-500/20' : `border-transparent ${t.hoverBg}`
                         } ${isToday ? 'ring-1 ring-brand-400/30' : ''} ${fillSource ? 'ring-2 ring-brand-400/60' : ''}`}
-                        onClick={() => onCellClick(emp, day, entry)}>
+                        onClick={() => {
+                          if (Date.now() < suppressCellClickUntil.current) return;
+                          onCellClick(emp, day, entry);
+                        }}>
                         {entry && cfg ? (
                           <>
                             <StatusPill status={entry.status} dark />
@@ -1199,19 +1272,38 @@ function TimesheetGrid({ employees, timesheets, days, onCellClick, onQuickAdd, o
                         <span title="Auto-filled from approved leave/overtime — click to confirm"
                           className="absolute top-0.5 left-0.5 h-1.5 w-1.5 rounded-full bg-white ring-2 ring-white/40 pointer-events-none" />
                       )}
-                      <button
-                        type="button"
-                        title="Drag sideways to copy this day's hours to more days (Excel-style fill)"
-                        aria-label={`Fill hours across days from ${ds}`}
-                        onMouseDown={e => {
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        title="Drag across days to fill normal hours or OFF (Excel-style). OT is not copied."
+                        aria-label={`Fill from ${ds}`}
+                        onPointerDown={e => {
+                          if (e.button !== 0) return;
                           e.preventDefault();
                           e.stopPropagation();
-                          setFillDrag({ empId: emp.id, sourceDayIndex: dayIndex, endDayIndex: dayIndex });
+                          if (entry && !canFillFromSource(entry)) {
+                            toast.info('Use a work day or OFF cell as the source');
+                            return;
+                          }
+                          beginFillPointer(emp.id, dayIndex, e);
                         }}
-                        className={`absolute bottom-0.5 left-0.5 z-10 h-4 w-4 flex items-center justify-center rounded-sm border border-brand-400/40 bg-brand-500/15 text-brand-500 opacity-0 group-hover/cell:opacity-100 hover:bg-brand-500/30 transition-all cursor-ew-resize ${fillSource ? 'opacity-100 ring-1 ring-brand-400' : ''}`}
+                        onKeyDown={e => {
+                          if (e.key !== 'Enter' && e.key !== ' ') return;
+                          e.preventDefault();
+                          e.stopPropagation();
+                          if (entry && !canFillFromSource(entry)) {
+                            toast.info('Use a work day or OFF cell as the source');
+                            return;
+                          }
+                          endFillSession();
+                          const drag = { empId: emp.id, sourceDayIndex: dayIndex, endDayIndex: dayIndex };
+                          fillKeyboardRef.current = drag;
+                          setFillDrag(drag);
+                        }}
+                        className={`absolute bottom-0 right-0 z-20 h-4 w-4 flex items-end justify-end cursor-ew-resize touch-manipulation rounded-tl-md border-l border-t border-brand-400/45 bg-brand-500/25 text-brand-300 opacity-70 group-hover/cell:opacity-100 hover:bg-brand-500/40 motion-safe:transition-opacity ${fillSource ? 'opacity-100 ring-1 ring-brand-400 bg-brand-500/45' : ''}`}
                       >
-                        <ChevronRight className="w-2.5 h-2.5" />
-                      </button>
+                        <ChevronRight className="w-2.5 h-2.5 translate-x-px translate-y-px" aria-hidden />
+                      </div>
                       {!entry && (
                         // Instant add, no dialog — a normal shift at this employee's own role
                         // length (see normalShiftHours), or the day's paid-holiday/weekend
@@ -1219,7 +1311,7 @@ function TimesheetGrid({ employees, timesheets, days, onCellClick, onQuickAdd, o
                         // anything this shortcut doesn't cover (leave, custom hours, etc).
                         <button type="button" title="Quick add: normal shift"
                           onClick={e => { e.stopPropagation(); onQuickAdd(emp, day); }}
-                          className="absolute bottom-0.5 right-0.5 h-4 w-4 flex items-center justify-center rounded-full opacity-0 group-hover/cell:opacity-100 bg-emerald-500/15 text-emerald-400/70 hover:bg-emerald-500/30 hover:text-emerald-400 transition-all duration-150">
+                          className="absolute top-0.5 right-0.5 h-4 w-4 flex items-center justify-center rounded-full opacity-0 group-hover/cell:opacity-100 bg-emerald-500/15 text-emerald-400/70 hover:bg-emerald-500/30 hover:text-emerald-400 transition-all duration-150">
                           <Plus className="w-2.5 h-2.5" />
                         </button>
                       )}
@@ -1228,7 +1320,7 @@ function TimesheetGrid({ employees, timesheets, days, onCellClick, onQuickAdd, o
                         // (_auto) projection has nothing to delete yet.
                         <button type="button" title="Quick remove this entry"
                           onClick={e => { e.stopPropagation(); onQuickRemove(emp, entry); }}
-                          className="absolute bottom-0.5 right-0.5 h-4 w-4 flex items-center justify-center rounded-full opacity-0 group-hover/cell:opacity-100 bg-red-500/15 text-red-400/70 hover:bg-red-500/30 hover:text-red-400 transition-all duration-150">
+                          className="absolute top-0.5 right-0.5 h-4 w-4 flex items-center justify-center rounded-full opacity-0 group-hover/cell:opacity-100 bg-red-500/15 text-red-400/70 hover:bg-red-500/30 hover:text-red-400 transition-all duration-150">
                           <X className="w-2.5 h-2.5" />
                         </button>
                       )}
@@ -1265,12 +1357,18 @@ function TimesheetGrid({ employees, timesheets, days, onCellClick, onQuickAdd, o
                   </TableCell>
                 );
               })}
-              <TableCell className="text-center py-2"><span className={`text-base ${TYPE_WEIGHT.bold} ${t.textPrimary}`}>{totals.actual.toFixed(1)}</span></TableCell>
-              <TableCell className="text-center py-2">
-                <div className={`text-sm ${TYPE_WEIGHT.bold} ${accentText('emerald', t.light)}`}>{totals.reg.toFixed(1)}</div>
-                {(totals.excess || 0) > 0 && <div className="text-[9px] text-brand-400">+{totals.excess!.toFixed(1)}→OT</div>}
+              <TableCell className="text-center py-2" title="Uncapped normal hours">{totals.actual.toFixed(1)}</TableCell>
+              <TableCell className="text-center py-2" title={`Payable regular (cap 208)${(totals.excess || 0) > 0 ? ` — ${totals.excess!.toFixed(1)}h over cap in 1.5×` : ''}`}>
+                <span className={`text-sm ${TYPE_WEIGHT.bold} ${accentText('emerald', t.light)}`}>{totals.reg.toFixed(1)}</span>
               </TableCell>
-              <TableCell className={`text-center py-2 text-sm ${TYPE_WEIGHT.bold} text-brand-400`}>{totals.ot15.toFixed(1)}</TableCell>
+              <TableCell
+                className={`text-center py-2 text-sm ${TYPE_WEIGHT.bold} text-brand-400`}
+                title={(totals.excess || 0) > 0
+                  ? `${totals.excess!.toFixed(1)}h excess + ${Math.max(0, totals.ot15 - (totals.excess || 0)).toFixed(1)}h module OT`
+                  : totals.ot15 > 0 ? 'Module overtime at 1.5×' : undefined}
+              >
+                {totals.ot15.toFixed(1)}
+              </TableCell>
               <TableCell className={`text-center py-2 text-sm ${TYPE_WEIGHT.bold} text-sky-400`}>{totals.ot20.toFixed(1)}</TableCell>
               <TableCell className={`text-center py-2 text-sm ${TYPE_WEIGHT.bold} ${accentText('amber', t.light)}`}>{totals.standbyBonus.toFixed(1)}</TableCell>
               <TableCell className={`text-center py-2 text-sm ${TYPE_WEIGHT.bold} ${accentText('indigo', t.light)}`}>{totals.nightAllowanceBonus.toFixed(1)}</TableCell>
@@ -1306,6 +1404,7 @@ function TimesheetGrid({ employees, timesheets, days, onCellClick, onQuickAdd, o
         })()}
       </TableBody>
     </Table>
+    </>
   );
 }
 
@@ -1485,28 +1584,54 @@ function TimesheetsContent() {
     } catch (e) { toast.error('Undo failed: ' + (e as Error).message); }
   };
 
-  const handleBulkSave = async (entries: Omit<TimesheetEntry, 'id'>[]) => {
+  const handleBulkSave = async (
+    entries: Omit<TimesheetEntry, 'id'>[],
+    opts?: { quiet?: boolean },
+  ) => {
     const previousByKey = new Map<string, TimesheetEntry | null>();
-    const results = await Promise.allSettled(entries.map(async entry => {
+    entries.forEach(entry => {
       const key = `${entry.employee_id}:${entry.date}`;
       const existing = timesheets.find(ts => String(ts.employee_id) === String(entry.employee_id) && ts.date === entry.date);
       previousByKey.set(key, existing ?? null);
+    });
+
+    setTimesheets(prev => {
+      const map = new Map(prev.map(ts => [`${ts.employee_id}:${ts.date}`, ts]));
+      entries.forEach(entry => {
+        const key = `${entry.employee_id}:${entry.date}`;
+        const existing = map.get(key);
+        map.set(key, { ...entry, id: existing?.id } as TimesheetEntry);
+      });
+      return [...map.values()];
+    });
+
+    const results = await Promise.allSettled(entries.map(async entry => {
+      const existing = previousByKey.get(`${entry.employee_id}:${entry.date}`);
       if (existing?.id) return api.update(existing.id, entry);
       return api.create(entry);
     }));
     const saved = results.filter(r => r.status === 'fulfilled').map(r => (r as PromiseFulfilledResult<TimesheetEntry>).value);
+    const failedIndices = results.map((r, i) => (r.status === 'rejected' ? i : -1)).filter(i => i >= 0);
+
     setTimesheets(prev => {
       const map = new Map(prev.map(ts => [`${ts.employee_id}:${ts.date}`, ts]));
       saved.forEach(s => map.set(`${s.employee_id}:${s.date}`, s));
+      failedIndices.forEach(i => {
+        const entry = entries[i];
+        const key = `${entry.employee_id}:${entry.date}`;
+        const previous = previousByKey.get(key);
+        if (previous) map.set(key, previous);
+        else map.delete(key);
+      });
       return [...map.values()];
     });
-    const failed = results.filter(r => r.status === 'rejected').length;
-    if (failed > 0) toast.warning(`${failed} entries failed to save`);
+
+    const failed = failedIndices.length;
+    if (failed > 0) toast.warning(`${failed} entr${failed !== 1 ? 'ies' : 'y'} failed to save`);
     if (saved.length > 0) {
       const plan = saved.filter(s => s.id != null).map(s => ({ id: s.id!, previous: previousByKey.get(`${s.employee_id}:${s.date}`) ?? null }));
-      toast.success(`Saved ${saved.length} entr${saved.length !== 1 ? 'ies' : 'y'}`, {
-        action: { label: 'Undo', onClick: () => undoBulk(plan) },
-      });
+      const label = opts?.quiet ? `Filled ${saved.length} day${saved.length !== 1 ? 's' : ''}` : `Saved ${saved.length} entr${saved.length !== 1 ? 'ies' : 'y'}`;
+      toast.success(label, { action: { label: 'Undo', onClick: () => undoBulk(plan) } });
     }
   };
 
@@ -1573,7 +1698,7 @@ function TimesheetsContent() {
     await handleBulkClear([{ employee_id: parseInt(emp.id), date: entry.date }]);
   };
 
-  /** Excel-style horizontal fill — copy one day's entry (or the role default) across days. */
+  /** Excel-style horizontal fill — copy normal hours (+ shift times) only; OT/allowances stay on each target. */
   const handleFillDays = useCallback(async (
     emp: Employee,
     sourceDay: Date,
@@ -1581,15 +1706,38 @@ function TimesheetsContent() {
     sourceEntry?: TimesheetEntry,
   ) => {
     if (targetDays.length === 0) return;
+    if (sourceEntry && !canFillFromSource(sourceEntry)) {
+      toast.info('Fill uses normal work hours only — pick a work day (not leave or 2.0×)');
+      return;
+    }
     const empId = parseInt(emp.id);
-    const template = sourceEntry ?? buildDefaultEntry(emp, sourceDay);
-    const entries = targetDays.map(day => cloneEntryForDate(
-      { ...template, employee_id: empId, date: fmtDate(sourceDay) } as TimesheetEntry,
-      empId,
-      fmtDate(day),
-    ));
-    await handleBulkSave(entries);
-  }, [handleBulkSave]);
+    const fillFrom = sourceEntry
+      ? extractFillFromSource(sourceEntry)
+      : extractFillFromSource(buildDefaultEntry(emp, sourceDay) as TimesheetEntry);
+    const entries: Omit<TimesheetEntry, 'id'>[] = [];
+    let skipped = 0;
+    for (const day of targetDays) {
+      const existing = effectiveTimesheets.find(
+        ts => String(ts.employee_id) === String(emp.id) && ts.date === fmtDate(day),
+      );
+      if (isFillProtectedTarget(existing)) {
+        skipped += 1;
+        continue;
+      }
+      const date = fmtDate(day);
+      if (fillFrom.kind === 'off') {
+        entries.push(applyOffFill(fillFrom.status, existing, empId, date));
+      } else {
+        entries.push(applyNormalHoursFill(fillFrom.normal, existing, empId, date));
+      }
+    }
+    if (entries.length === 0) {
+      toast.info(skipped > 0 ? `No cells filled — ${skipped} protected leave day${skipped !== 1 ? 's' : ''} skipped` : 'Nothing to fill');
+      return;
+    }
+    await handleBulkSave(entries, { quiet: true });
+    if (skipped > 0) toast.info(`Skipped ${skipped} leave day${skipped !== 1 ? 's' : ''} (module-owned)`);
+  }, [handleBulkSave, effectiveTimesheets]);
 
   const handleCopyPreviousPeriod = async () => {
     const prevMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1);
@@ -1710,7 +1858,7 @@ function TimesheetsContent() {
       </div>
 
       <div className={`${t.glass} rounded-2xl [overflow:clip]`}>
-        <SectionHeader icon={LayoutGrid} title={`${activeTab === 'salaried' ? 'Salaried' : 'NEC'} Timesheet Grid`} sub={`${tabEmployees.length} employees · drag → on a cell to fill hours across days`} open={showGrid} onToggle={() => setShowGrid(v => !v)}>
+        <SectionHeader icon={LayoutGrid} title={`${activeTab === 'salaried' ? 'Salaried' : 'NEC'} Timesheet Grid`} sub={`${tabEmployees.length} employees · drag the bottom-right corner handle to fill across days`} open={showGrid} onToggle={() => setShowGrid(v => !v)}>
           <div className="relative">
             <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 ${t.textFaint}`} />
             <input aria-label="Search employees" placeholder="Search…" className={`${t.inputBg} rounded-lg text-xs pl-7 pr-3 py-1 h-7 w-36 outline-none`} value={search} onChange={e => setSearch(e.target.value)} />

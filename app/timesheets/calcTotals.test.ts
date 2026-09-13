@@ -108,12 +108,47 @@ describe('calcEmployeeTotals — actual vs. total', () => {
     expect(t.total).toBe(8 + 2 + 0 + 0 + 8 + 4); // reg + ot15 + ot20 + night + standbyBonus + nightAllowanceBonus (allowance not double-counted in night)
   });
 
-  it('reports excess and moves it into ot15 once reg exceeds 208 across the period', () => {
+  it('keeps actual uncapped while reg caps at 208 and excess flows to ot15', () => {
     const timesheets = Array.from({ length: 30 }, (_, i) => entry({ date: `2026-08-${String(i + 1).padStart(2, '0')}`, regular_hours: 8 }));
     const t = calcEmployeeTotals('1', timesheets); // 30 * 8 = 240
+    expect(t.actual).toBe(240);
     expect(t.reg).toBe(208);
     expect(t.excess).toBe(32);
     expect(t.ot15).toBe(32);
+    expect(t.total).toBe(208 + 32); // excess is in ot15, not also in actual for payable total
+  });
+
+  it('at exactly 208 normal hours: reg equals actual, no excess', () => {
+    const timesheets = Array.from({ length: 26 }, (_, i) => entry({ date: `2026-08-${String(i + 1).padStart(2, '0')}`, regular_hours: 8 }));
+    const t = calcEmployeeTotals('1', timesheets); // 208
+    expect(t.actual).toBe(208);
+    expect(t.reg).toBe(208);
+    expect(t.excess).toBe(0);
+    expect(t.ot15).toBe(0);
+  });
+
+  it('combines normal excess with module OT at 1.5× without double-counting (230 + 6 example)', () => {
+    const timesheets = [
+      ...Array.from({ length: 23 }, (_, i) => entry({ date: `2026-08-${String(i + 1).padStart(2, '0')}`, regular_hours: 10 })),
+      entry({ date: '2026-09-01', overtime_hours: 6, regular_hours: 0, status: 'work' }),
+    ];
+    const t = calcEmployeeTotals('1', timesheets);
+    expect(t.actual).toBe(230);
+    expect(t.reg).toBe(208);
+    expect(t.excess).toBe(22);
+    expect(t.ot15).toBe(28);
+    expect(t.total).toBe(208 + 28);
+  });
+
+  it('keeps holiday/weekend hours in ot20 separate from actual and ot15', () => {
+    const timesheets = [
+      ...Array.from({ length: 23 }, (_, i) => entry({ date: `2026-08-${String(i + 1).padStart(2, '0')}`, regular_hours: 10 })),
+      entry({ date: '2026-09-02', status: 'weekend', regular_hours: 8 }),
+    ];
+    const t = calcEmployeeTotals('1', timesheets);
+    expect(t.actual).toBe(230);
+    expect(t.ot20).toBe(8);
+    expect(t.total).toBe(208 + 22 + 8);
   });
 });
 

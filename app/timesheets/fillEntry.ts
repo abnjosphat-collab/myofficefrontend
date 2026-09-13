@@ -1,6 +1,13 @@
 import { toLocalISODate } from '@/lib/dates';
 import { zimHolidayName } from '@/lib/zimHolidays';
+import { DOUBLE_TIME_STATUSES, LEAVE_STATUSES, ZERO_HOUR_STATUSES } from './calcTotals';
 import type { Employee, StatusKey, TimesheetEntry } from './types';
+
+export type NormalHoursSlice = Pick<TimesheetEntry, 'regular_hours' | 'start_time' | 'end_time'>;
+
+export type FillFromSource =
+  | { kind: 'off'; status: 'off' | 'absent' }
+  | { kind: 'normal'; normal: NormalHoursSlice };
 
 /** Role-based normal shift length — mirrors page.tsx normalShiftHours. */
 export function normalShiftHours(position: string): 8 | 10 {
@@ -41,23 +48,124 @@ export function buildDefaultEntry(emp: Pick<Employee, 'id' | 'position'>, day: D
   };
 }
 
-/** Clone a grid entry onto another date (creates real rows from templates or _auto projections). */
-export function cloneEntryForDate(
-  source: TimesheetEntry,
+export function extractFillFromSource(source: TimesheetEntry): FillFromSource {
+  if (ZERO_HOUR_STATUSES.has(source.status)) {
+    return { kind: 'off', status: source.status === 'absent' ? 'absent' : 'off' };
+  }
+  return { kind: 'normal', normal: extractNormalHoursFromSource(source) };
+}
+
+/** Normal hours + shift times taken from the source cell (fill never copies OT/allowances). */
+export function extractNormalHoursFromSource(source: TimesheetEntry): NormalHoursSlice {
+  const regular_hours = source.regular_hours || 0;
+  const start_time = source.start_time || '07:00';
+  const end_time = source.end_time || (regular_hours > 0 ? timeFromHours(start_time, regular_hours) : '');
+  return { regular_hours, start_time, end_time };
+}
+
+/** New row with only normal work hours (empty target). */
+export function newRowFromNormalHours(
+  normal: NormalHoursSlice,
   empId: number,
   targetDate: string,
 ): Omit<TimesheetEntry, 'id'> {
-  const { id: _id, _auto, ...rest } = source;
-  const notes = rest.notes?.startsWith('Auto:') ? '' : (rest.notes || '');
+  const regular_hours = normal.regular_hours;
+  return {
+    employee_id: empId,
+    date: targetDate,
+    status: 'work',
+    start_time: normal.start_time ?? '07:00',
+    end_time: normal.end_time ?? '',
+    regular_hours,
+    overtime_hours: 0,
+    holiday_overtime_hours: 0,
+    nightshift_hours: 0,
+    standby_allowance: false,
+    nightshift_allowance: false,
+    total_hours: regular_hours,
+    notes: '',
+    overtime_periods: [],
+    callout_overtime_hours: 0,
+    callout_count: 0,
+  };
+}
+
+/** Mark target day OFF (or absent) — 0 hours; does not preserve OT on filled cells. */
+export function applyOffFill(
+  status: 'off' | 'absent',
+  existing: TimesheetEntry | undefined,
+  empId: number,
+  targetDate: string,
+): Omit<TimesheetEntry, 'id'> {
+  const notes = existing?.notes?.startsWith('Auto:') ? '' : (existing?.notes || '');
+  return {
+    employee_id: empId,
+    date: targetDate,
+    status,
+    start_time: '',
+    end_time: '',
+    regular_hours: 0,
+    overtime_hours: 0,
+    holiday_overtime_hours: 0,
+    nightshift_hours: 0,
+    standby_allowance: false,
+    nightshift_allowance: false,
+    total_hours: 0,
+    notes,
+    overtime_periods: [],
+    callout_overtime_hours: 0,
+    callout_count: 0,
+  };
+}
+
+/** Apply normal hours to a target day; keeps existing OT, allowances, and module fields on saved rows. */
+export function applyNormalHoursFill(
+  normal: NormalHoursSlice,
+  existing: TimesheetEntry | undefined,
+  empId: number,
+  targetDate: string,
+): Omit<TimesheetEntry, 'id'> {
+  if (!existing?.id) return newRowFromNormalHours(normal, empId, targetDate);
+
+  const { id: _id, _auto, ...rest } = existing;
+  const ot15 = rest.overtime_hours || 0;
+  const ot20 = rest.holiday_overtime_hours || 0;
+  const night = rest.nightshift_hours || 0;
+  const regular_hours = normal.regular_hours;
   return {
     ...rest,
     employee_id: empId,
     date: targetDate,
-    notes,
+    regular_hours,
+    start_time: normal.start_time ?? rest.start_time,
+    end_time: normal.end_time ?? rest.end_time,
+    overtime_hours: ot15,
+    holiday_overtime_hours: ot20,
+    nightshift_hours: night,
     overtime_periods: rest.overtime_periods ?? [],
     callout_overtime_hours: rest.callout_overtime_hours ?? 0,
     callout_count: rest.callout_count ?? 0,
+    total_hours: regular_hours + ot15 + ot20 + night,
   };
+}
+
+/** Target day is owned by approved leave only — filling would overwrite module leave. */
+export function isFillProtectedTarget(entry?: TimesheetEntry): boolean {
+  return !!entry && entry._auto === 'leave';
+}
+
+/** Fill from work days (normal hours) or OFF/absent (0h). Not from leave or 2.0× days. */
+export function canFillFromSource(entry?: TimesheetEntry): boolean {
+  if (!entry) return true;
+  if (entry._auto === 'leave') return false;
+  if (LEAVE_STATUSES.has(entry.status)) return false;
+  if (DOUBLE_TIME_STATUSES.has(entry.status)) return false;
+  return true;
+}
+
+/** @deprecated Use extractNormalHoursFromSource + applyNormalHoursFill */
+export function prepareFillTemplate(source: TimesheetEntry): Omit<TimesheetEntry, 'id'> {
+  return newRowFromNormalHours(extractNormalHoursFromSource(source), source.employee_id, source.date);
 }
 
 export function fillTargetDayIndices(sourceIndex: number, endIndex: number): number[] {

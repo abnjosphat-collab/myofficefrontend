@@ -61,13 +61,15 @@ export interface HourTotals {
    *  a callout entry (no start/end time, never carries this flag). Kept as its own column
    *  rather than folded into ot15/night, same as standbyBonus. */
   nightAllowanceBonus: number;
-  /** Normal day-shift hours only (== reg, capped at 208). Leave/sick/etc. days already
-   *  count as 8h each via regular_hours. Overtime (1.5x/2.0x), night-window hours, and the
-   *  flat standby/night-allowance bonuses are deliberately excluded — they only show up in
-   *  their own columns and in `total`, which still includes everything. */
+  /** Uncapped sum of normal (regular) hours for the period — includes leave-as-8h via
+   *  regular_hours, excludes double-time days (weekend/holiday worked → 2.0× column). */
   actual: number;
-  total: number; excess?: number;
+  /** Normal hours above {@link NEC_REG_CAP} before module OT — subset of ot15, for display. */
+  excess?: number;
+  total: number;
 }
+
+export const NEC_REG_CAP = 208;
 
 /** 'holiday' = worked ON a public holiday (2.0x, "PPH"). 'holiday_paid' = the holiday
  *  passed with no entry, auto-credited 8 regular hours (see lib/zimHolidays.ts +
