@@ -5,7 +5,8 @@
 // Actual, night allowance paying a flat 8h instead of real hours, holiday hours
 // miscounted) lived in exactly this logic; these tests lock in the fixes already made.
 import { describe, it, expect } from 'vitest';
-import { apply208, calcEmployeeTotals, DOUBLE_TIME_STATUSES, LEAVE_STATUSES, ZERO_HOUR_STATUSES } from './calcTotals';
+import { apply208, calcEmployeeTotals, DOUBLE_TIME_STATUSES, LEAVE_STATUSES, moduleOt15FormulaAddends, ZERO_HOUR_STATUSES } from './calcTotals';
+import type { ApprovedOvertimeRecord } from './types';
 import type { TimesheetEntry } from './types';
 
 function entry(over: Partial<TimesheetEntry> = {}): TimesheetEntry {
@@ -181,6 +182,31 @@ describe('calcEmployeeTotals — NEC Reg floor (208 when short of hours, not Abs
     const t = calcEmployeeTotals('1', timesheets, { periodDates, applyRegFloorWithoutAbsent: true });
     expect(t.actual).toBe(160);
     expect(t.reg).toBe(160);
+  });
+});
+
+describe('moduleOt15FormulaAddends — Excel OT 1.5× line items', () => {
+  const periodDates = ['2026-09-10', '2026-09-11', '2026-09-12'];
+
+  it('lists each approved 1.5× overtime record as its own addend', () => {
+    const approved: ApprovedOvertimeRecord[] = [
+      { id: 1, employee_id: 'C99', overtime_type: 'regular', date: '2026-09-10', status: 'approved', hours: 2 },
+      { id: 2, employee_id: 'C99', overtime_type: 'emergency', date: '2026-09-11', status: 'approved', hours: 3 },
+    ];
+    const timesheets = [
+      entry({ date: '2026-09-10', overtime_hours: 2 }),
+      entry({ date: '2026-09-11', overtime_hours: 3 }),
+    ];
+    expect(moduleOt15FormulaAddends('1', 'C99', timesheets, approved, periodDates)).toEqual([2, 3]);
+  });
+
+  it('splits same-day row OT into approved lines plus remainder', () => {
+    const approved: ApprovedOvertimeRecord[] = [
+      { id: 1, employee_id: 'C99', overtime_type: 'regular', date: '2026-09-10', status: 'approved', hours: 2 },
+      { id: 2, employee_id: 'C99', overtime_type: 'project', date: '2026-09-10', status: 'approved', hours: 1 },
+    ];
+    const timesheets = [entry({ date: '2026-09-10', overtime_hours: 4 })];
+    expect(moduleOt15FormulaAddends('1', 'C99', timesheets, approved, periodDates)).toEqual([2, 1, 1]);
   });
 });
 

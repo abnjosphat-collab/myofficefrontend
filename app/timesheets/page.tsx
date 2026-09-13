@@ -28,7 +28,7 @@ import type {
 } from './types';
 import { mergeEffectiveTimesheets } from './mergeEffectiveTimesheets';
 import { api, useTimesheetsData } from './useTimesheetsData';
-import { LEAVE_STATUSES, DOUBLE_TIME_STATUSES, ZERO_HOUR_STATUSES, NEC_REG_CAP, calcEmployeeTotals } from './calcTotals';
+import { LEAVE_STATUSES, DOUBLE_TIME_STATUSES, ZERO_HOUR_STATUSES, NEC_REG_CAP, calcEmployeeTotals, moduleOt15FormulaAddends } from './calcTotals';
 import {
   applyNormalHoursFill, applyOffFill, buildDefaultEntry, canFillFromSource, extractFillFromSource,
   fillTargetDayIndices, isFillProtectedTarget,
@@ -769,8 +769,8 @@ function appendTimesheetExcelSignatures(
   addSigLine('Approved by:');
 }
 
-function DownloadDialog({ employees, timesheets, period, periodType, onClose }: {
-  employees: Employee[]; timesheets: TimesheetEntry[]; period: Period; periodType: string; onClose: () => void;
+function DownloadDialog({ employees, timesheets, approvedOvertime, period, periodType, onClose }: {
+  employees: Employee[]; timesheets: TimesheetEntry[]; approvedOvertime: ApprovedOvertimeRecord[]; period: Period; periodType: string; onClose: () => void;
 }) {
   const t = useTheme();
   const [format, setFormat] = useState<'excel' | 'pdf'>('excel');
@@ -845,7 +845,7 @@ function DownloadDialog({ employees, timesheets, period, periodType, onClose }: 
       ws.getRow(1).height = 24;
       ws.mergeCells(2, 1, 2, totalCols);
       const legendCell = ws.getCell(2, 1);
-      legendCell.value = 'OT 1.5×: click the cell — formula bar shows =MAX(0, Actual h − Reg h) + module OT. Add more 1.5× hours in the formula (e.g. …+2+1) like your manual sheet.';
+      legendCell.value = `OT 1.5×: formula bar shows =MAX(0, Actual h − ${NEC_REG_CAP}) + each approved 1.5× OT line (+2+3+…). Add more +hours at the end if needed.`;
       legendCell.font = { name: FONT, size: 9, italic: true, color: { argb: EXCEL_BW.black } };
       legendCell.alignment = { wrapText: true, vertical: 'middle' };
       ws.getRow(2).height = 28;
@@ -861,23 +861,21 @@ function DownloadDialog({ employees, timesheets, period, periodType, onClose }: 
         c.border = { ...thinBorder, bottom: { style: 'medium', color: { argb: EXCEL_BW.black } } };
       });
       const sumStartCol = FIXED_COLS + days.length + 1;
-      hdrRow.getCell(sumStartCol + 2).note = 'Formula: =MAX(0, Actual h − Reg h) + prefilled 1.5× OT. Extend with +hours in the formula bar.';
+      hdrRow.getCell(sumStartCol + 2).note = `Formula: =MAX(0, Actual h − ${NEC_REG_CAP}) + one +term per 1.5× OT entry. Extend with +hours in the formula bar.`;
 
       targets.forEach((emp, ei) => {
         const totals = calcTotalsLocal(emp.id);
         const empIdDisplay = emp.employeeId || '';
         const rowVals: (string | number)[] = [empIdDisplay || '—', emp.name, emp.position || ''];
         days.forEach(day => rowVals.push(dayCell(getEntry(emp.id, day), day)));
-        const moduleOt15 = totals.ot15Module ?? 0;
+        const ot15Addends = moduleOt15FormulaAddends(emp.id, emp.employeeId || '', timesheets, approvedOvertime, periodDateStrs);
         rowVals.push(totals.actual, totals.reg, totals.ot15, totals.ot20, totals.standbyBonus, totals.nightAllowanceBonus);
 
         const dataRow = ws.getRow(4 + ei);
         dataRow.values = rowVals;
         const actualCol = FIXED_COLS + days.length + 1;
-        const regCol = actualCol + 1;
         const ot15Col = actualCol + 2;
         const actualL = excelColumnLetter(actualCol);
-        const regL = excelColumnLetter(regCol);
         const rowNum = dataRow.number;
         const empIdCell = dataRow.getCell(1);
         empIdCell.value = empIdDisplay || '—';
@@ -914,7 +912,7 @@ function DownloadDialog({ employees, timesheets, period, periodType, onClose }: 
         });
         const ot15Cell = dataRow.getCell(ot15Col);
         ot15Cell.value = {
-          formula: excelOt15Formula(actualL, regL, rowNum, moduleOt15),
+          formula: excelOt15Formula(actualL, rowNum, ot15Addends, NEC_REG_CAP),
           result: totals.ot15,
         };
         ot15Cell.numFmt = '0.00';
@@ -1283,7 +1281,7 @@ function TimesheetGrid({ employees, timesheets, days, getHourTotals, onCellClick
           })}
           <TableHead title="Uncapped normal hours for the period (leave counts as 8h). Not reduced when excess goes to overtime." className={`text-center min-w-14 text-[10px] ${TYPE_WEIGHT.semibold} sticky top-0 z-20 ${stickyBg} ${t.textMuted}`}>Actual</TableHead>
           <TableHead title="NEC: 208 when Actual is under cap and no Absent days (Off/rest days still allow the floor)." className={`text-center min-w-14 ${accentText('emerald', t.light)} text-[10px] ${TYPE_WEIGHT.semibold} sticky top-0 z-20 ${stickyBg}`}>Reg</TableHead>
-          <TableHead title="max(Actual − Reg, 0) + module 1.5× OT; Excel cell formula can include +manual hours." className={`text-center min-w-14 text-brand-400 text-[10px] ${TYPE_WEIGHT.semibold} sticky top-0 z-20 ${stickyBg}`}>1.5×</TableHead>
+          <TableHead title={`max(Actual − ${NEC_REG_CAP}, 0) + module 1.5× OT; Excel formula uses Actual − ${NEC_REG_CAP} + other OT.`} className={`text-center min-w-14 text-brand-400 text-[10px] ${TYPE_WEIGHT.semibold} sticky top-0 z-20 ${stickyBg}`}>1.5×</TableHead>
           <TableHead className={`text-center min-w-14 text-sky-400 text-[10px] ${TYPE_WEIGHT.semibold} sticky top-0 z-20 ${stickyBg}`}>2.0×</TableHead>
           <TableHead className={`text-center min-w-14 ${accentText('amber', t.light)} text-[10px] ${TYPE_WEIGHT.semibold} sticky top-0 z-20 ${stickyBg}`}>Standby</TableHead>
           <TableHead className={`text-center min-w-16 ${accentText('indigo', t.light)} text-[10px] ${TYPE_WEIGHT.semibold} sticky top-0 z-20 ${stickyBg}`}>Night Allow</TableHead>
@@ -1475,10 +1473,10 @@ function TimesheetGrid({ employees, timesheets, days, getHourTotals, onCellClick
                   const excess = totals.excess || 0;
                   const added = totals.ot15Module ?? Math.max(0, totals.ot15 - excess);
                   return [
-                    '1.5× = MAX(0, Actual − Reg) + module 1.5× OT (+ manual in Excel)',
-                    `= MAX(0, ${totals.actual.toFixed(1)} − ${totals.reg.toFixed(1)}) + ${added.toFixed(1)}`,
+                    `1.5× = MAX(0, Actual − ${NEC_REG_CAP}) + other 1.5× OT`,
+                    `= MAX(0, ${totals.actual.toFixed(1)} − ${NEC_REG_CAP}) + ${added.toFixed(1)}`,
                     `= ${excess.toFixed(1)} + ${added.toFixed(1)} = ${totals.ot15.toFixed(1)}`,
-                    'Excel: =MAX(0, Actual h − Reg h)+prefilled OT — add +2+1 in formula bar if needed.',
+                    `Excel: =MAX(0, Actual h − ${NEC_REG_CAP})+2+3+… (one term per OT line) — add more +hours if needed.`,
                   ].join('\n');
                 })()}
               >
@@ -2036,7 +2034,7 @@ function TimesheetsContent() {
       {bulkEmployee && <BulkAssignDialog initialEmployee={bulkEmployee} allEmployees={tabEmployees} period={activePeriod} timesheets={effectiveTimesheets} onSave={handleBulkSave} onClear={handleBulkClear} onClose={() => setBulkEmployee(null)} />}
 
       {showBulkAdd && <BulkAddEmployeesDialog allEmployees={allEmployees} currentIds={tabIds} onAdd={emps => addToTab(emps.map(e => e.id))} onClose={() => setShowBulkAdd(false)} />}
-      {showDownload && <DownloadDialog employees={tabEmployees} timesheets={effectiveTimesheets} period={activePeriod} periodType={activeTab} onClose={() => setShowDownload(false)} />}
+      {showDownload && <DownloadDialog employees={tabEmployees} timesheets={effectiveTimesheets} approvedOvertime={approvedOvertime} period={activePeriod} periodType={activeTab} onClose={() => setShowDownload(false)} />}
     </main>
   );
 }

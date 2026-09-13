@@ -27,18 +27,24 @@ export function exportFilename(base: string): string {
   return `${base}_${new Date().toISOString().slice(0, 10)}`;
 }
 
+/** Numeric literal for Excel formulas (drops trailing zeros). */
+export function excelFormulaHourLiteral(hours: number): string {
+  return String(Number(hours.toFixed(2)));
+}
+
 /**
- * OT 1.5× Excel formula: hours above Reg (Normal) plus prefilled module OT at 1.5×.
- * HR can extend in the formula bar (e.g. …+6+2+1) — no separate Added OT column.
+ * OT 1.5× Excel formula: Actual minus 208 cap plus each 1.5× OT line as its own +term.
+ * HR can append more +hours in the formula bar for manual adjustments.
  */
 export function excelOt15Formula(
   actualCol: string,
-  regCol: string,
   row: number,
-  moduleOt15 = 0,
+  moduleOt15Parts: number[],
+  regCap = 208,
 ): string {
-  const extra = moduleOt15 === 0 ? '0' : String(Number(moduleOt15.toFixed(2)));
-  return `MAX(0,${actualCol}${row}-${regCol}${row})+${extra}`;
+  const base = `MAX(0,${actualCol}${row}-${regCap})`;
+  if (moduleOt15Parts.length === 0) return `${base}+0`;
+  return `${base}+${moduleOt15Parts.map(excelFormulaHourLiteral).join('+')}`;
 }
 
 /** 1-based column index → Excel column letter (1 = A, 27 = AA). */
