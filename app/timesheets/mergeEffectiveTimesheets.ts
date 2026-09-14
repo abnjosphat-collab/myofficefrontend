@@ -6,7 +6,20 @@ import { computeDayStatus } from '@/app/shifts/calcShifts';
 import type { ShiftAssignment } from '@/app/shifts/types';
 import { zimHolidayName } from '@/lib/zimHolidays';
 import { syncRosterNightFields } from './calcTotals';
+import { normalizeTimesheetEmployeeCode, timesheetEmployeeCodesMatch } from './employeeCode';
 import type { ApprovedLeaveRecord, ApprovedOvertimeRecord, StatusKey, TimesheetEntry } from './types';
+
+function resolveDbEmployeeId(humanCode: string, employeeIdByHuman: Map<string, string>): string | undefined {
+  const norm = normalizeTimesheetEmployeeCode(humanCode);
+  return employeeIdByHuman.get(norm) ?? employeeIdByHuman.get(humanCode.trim());
+}
+
+function isEarlyMorningOvertimeRecord(ot: ApprovedOvertimeRecord): boolean {
+  const st = ot.start_time?.trim();
+  if (!st) return false;
+  const h = Number(st.split(':')[0]);
+  return !Number.isNaN(h) && h < 6;
+}
 
 export const OT_TYPE_TO_BUCKET: Record<string, 'ot15' | 'ot20'> = {
   weekend: 'ot20',
@@ -31,10 +44,9 @@ function isOnStandbyRoster(assignment: ShiftAssignment | undefined, dateStr: str
 }
 
 function findShiftAssignment(assignments: ShiftAssignment[], humanEmployeeId: string): ShiftAssignment | undefined {
-  const key = humanEmployeeId.trim();
+  const key = normalizeTimesheetEmployeeCode(humanEmployeeId);
   return assignments.find(a =>
-    a.is_active !== false &&
-    (a.employee_id === key || a.employee_id?.trim() === key),
+    a.is_active !== false && timesheetEmployeeCodesMatch(a.employee_id || '', key),
   );
 }
 
@@ -63,7 +75,7 @@ export function mergeEffectiveTimesheets(input: MergeEffectiveTimesheetsInput): 
   const tabIdSet = new Set(tabIds);
 
   approvedLeaves.forEach(lv => {
-    const dbId = employeeIdByHuman.get(lv.employee_id);
+    const dbId = resolveDbEmployeeId(lv.employee_id, employeeIdByHuman);
     if (!dbId || !tabIdSet.has(dbId)) return;
     const status = leaveTypeToStatus[lv.leave_type];
     if (!status) return;
@@ -103,7 +115,7 @@ export function mergeEffectiveTimesheets(input: MergeEffectiveTimesheetsInput): 
       if (seenOvertimeIds.has(ot.id)) return;
       seenOvertimeIds.add(ot.id);
     }
-    const dbId = employeeIdByHuman.get(ot.employee_id);
+    const dbId = resolveDbEmployeeId(ot.employee_id, employeeIdByHuman);
     if (!dbId || !tabIdSet.has(dbId) || !dayStrSet.has(ot.date)) return;
     const bucket = OT_TYPE_TO_BUCKET[ot.overtime_type];
     if (!bucket) return;
@@ -204,5 +216,23 @@ export function mergeEffectiveTimesheets(input: MergeEffectiveTimesheetsInput): 
     });
   });
 
-  return [...merged.values()].map(syncRosterNightFields);
+  const earlyMorningOtKeys = new Set<string>();
+  approvedOvertime.forEach(ot => {
+    if (ot.status === 'rejected') return;
+    if (OT_TYPE_TO_BUCKET[ot.overtime_type] !== 'ot15') return;
+    if (!isEarlyMorningOvertimeRecord(ot)) return;
+    const dbId = resolveDbEmployeeId(ot.employee_id, employeeIdByHuman);
+    if (!dbId || !tabIdSet.has(dbId) || !dayStrSet.has(ot.date)) return;
+    if (approvedOvertimeHours(ot) <= 0) return;
+    earlyMorningOtKeys.add(`${dbId}:${ot.date}`);
+  });
+
+  return [...merged.values()].map(e => {
+    const key = `${e.employee_id}:${e.date}`;
+    const mod = moduleOtByKey.get(key);
+    return syncRosterNightFields(e, {
+      moduleOt15ForDay: mod?.ot15 ?? 0,
+      earlyMorningModuleOt: earlyMorningOtKeys.has(key),
+    });
+  });
 }

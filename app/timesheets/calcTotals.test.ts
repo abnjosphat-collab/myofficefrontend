@@ -133,6 +133,40 @@ describe('calcEmployeeTotals — night shift allowance (actual hours, not a flat
     })]);
     expect(t.nightAllowanceBonus).toBe(12);
   });
+
+  it('uses moduleOt15ByDate when row overtime_hours is missing (18:00–04:00 + 2h module OT)', () => {
+    const t = calcEmployeeTotals('1', [entry({
+      start_time: '18:00',
+      end_time: '04:00',
+      regular_hours: 10,
+      overtime_hours: 0,
+      nightshift_hours: 0,
+    })], { moduleOt15ByDate: { '2026-08-10': 2 } });
+    expect(t.nightAllowanceBonus).toBe(12);
+  });
+
+  it('counts 12h night when regular_hours includes post-shift OT but end_time still 04:00', () => {
+    const t = calcEmployeeTotals('1', [entry({
+      start_time: '18:00',
+      end_time: '04:00',
+      regular_hours: 12,
+      overtime_hours: 0,
+      nightshift_hours: 0,
+    })]);
+    expect(t.nightAllowanceBonus).toBe(12);
+  });
+
+  it('reaches 12h night when module OT starts before 06:00 but shift times were not saved as night roster', () => {
+    const t = calcEmployeeTotals('1', [entry({
+      date: '2026-09-10',
+      start_time: '07:00',
+      end_time: '17:00',
+      regular_hours: 10,
+      overtime_hours: 2,
+      nightshift_hours: 0,
+    })], { earlyMorningOtDates: new Set(['2026-09-10']) });
+    expect(t.nightAllowanceBonus).toBe(12);
+  });
 });
 
 describe('calcEmployeeTotals — actual vs. total', () => {

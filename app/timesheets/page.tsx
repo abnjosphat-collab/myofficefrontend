@@ -26,11 +26,12 @@ import type {
   ApprovedLeaveRecord, ApprovedOvertimeRecord, EditCell, Employee, EntryForm,
   HourTotals, Period, RowData, StatusConfig, StatusKey, TimesheetEntry,
 } from './types';
+import { normalizeTimesheetEmployeeCode } from './employeeCode';
 import { mergeEffectiveTimesheets } from './mergeEffectiveTimesheets';
 import { api, useTimesheetsData } from './useTimesheetsData';
 import {
   LEAVE_STATUSES, DOUBLE_TIME_STATUSES, ZERO_HOUR_STATUSES, NEC_REG_CAP, calcEmployeeTotals, moduleOt15FormulaAddends,
-  calcNightHours, deriveNightshiftAllowanceFlag,
+  calcNightHours, deriveNightshiftAllowanceFlag, buildModuleOt15ByDateForEmployee, buildEarlyMorningOtDatesForEmployee,
 } from './calcTotals';
 import {
   applyNormalHoursFill, applyOffFill, buildDefaultEntry, canFillFromSource, extractFillFromSource,
@@ -66,7 +67,7 @@ const STATUS_CFG: Record<StatusKey, StatusConfig> = {
 // 'leave' status (that's what it already meant here); 'compassionate' maps onto
 // 'special_leave', which is that leave's label on the Leaves page too.
 const LEAVE_TYPE_TO_STATUS: Record<string, StatusKey> = {
-  annual: 'leave', sick: 'sick', compassionate: 'special_leave',
+  annual: 'leave', sick: 'sick', compassionate: 'special_leave', emergency: 'special_leave',
   maternity: 'maternity', study: 'study', lieu: 'lieu',
 };
 
@@ -794,8 +795,9 @@ function appendTimesheetExcelSignatures(
   addSigLine('Approved by:');
 }
 
-function DownloadDialog({ employees, timesheets, approvedOvertime, period, periodType, onClose }: {
-  employees: Employee[]; timesheets: TimesheetEntry[]; approvedOvertime: ApprovedOvertimeRecord[]; period: Period; periodType: string; onClose: () => void;
+function DownloadDialog({ employees, timesheets, approvedOvertime, getHourTotals, period, periodType, onClose }: {
+  employees: Employee[]; timesheets: TimesheetEntry[]; approvedOvertime: ApprovedOvertimeRecord[];
+  getHourTotals: (empId: string) => HourTotals; period: Period; periodType: string; onClose: () => void;
 }) {
   const t = useTheme();
   const [format, setFormat] = useState<'excel' | 'pdf'>('excel');
@@ -806,12 +808,7 @@ function DownloadDialog({ employees, timesheets, approvedOvertime, period, perio
   const tabLabel = periodType === 'nec' ? 'NEC' : 'Salaried';
 
   const getEntry = (eid: string, d: Date) => timesheets.find(ts => String(ts.employee_id) === String(eid) && ts.date === fmtDate(d));
-
   const periodDateStrs = useMemo(() => days.map(d => fmtDate(d)), [days]);
-  const calcTotalsLocal = useCallback((eid: string): HourTotals => calcEmployeeTotals(eid, timesheets, {
-    periodDates: periodDateStrs,
-    applyRegFloorWithoutAbsent: periodType === 'nec',
-  }), [timesheets, periodDateStrs, periodType]);
 
   /** Leave days credit 8 normal hours — Excel shows hours, not "Leave" / abbreviations. */
   const LEAVE_EXPORT_HOURS = 8;
@@ -894,7 +891,7 @@ function DownloadDialog({ employees, timesheets, approvedOvertime, period, perio
       hdrRow.getCell(sumStartCol + 2).note = `Formula: =MAX(0, Actual h − ${NEC_REG_CAP}) + one +term per 1.5× OT entry. Extend with +hours in the formula bar.`;
 
       targets.forEach((emp, ei) => {
-        const totals = calcTotalsLocal(emp.id);
+        const totals = getHourTotals(emp.id);
         const empIdDisplay = emp.employeeId || '';
         const rowVals: (string | number)[] = [empIdDisplay || '—', emp.name, emp.position || ''];
         days.forEach(day => rowVals.push(dayCell(getEntry(emp.id, day), day)));
@@ -970,11 +967,11 @@ function DownloadDialog({ employees, timesheets, approvedOvertime, period, perio
       const gtRow = ws.getRow(4 + targets.length + 1);
       gtRow.values = ['', 'TOTALS', `${targets.length} employees`, ...days.map(() => ''),
         null,
-        targets.reduce((s, e) => s + calcTotalsLocal(e.id).reg, 0),
-        targets.reduce((s, e) => s + calcTotalsLocal(e.id).ot15, 0),
-        targets.reduce((s, e) => s + calcTotalsLocal(e.id).ot20, 0),
-        targets.reduce((s, e) => s + calcTotalsLocal(e.id).standbyBonus, 0),
-        targets.reduce((s, e) => s + calcTotalsLocal(e.id).nightAllowanceBonus, 0)];
+        targets.reduce((s, e) => s + getHourTotals(e.id).reg, 0),
+        targets.reduce((s, e) => s + getHourTotals(e.id).ot15, 0),
+        targets.reduce((s, e) => s + getHourTotals(e.id).ot20, 0),
+        targets.reduce((s, e) => s + getHourTotals(e.id).standbyBonus, 0),
+        targets.reduce((s, e) => s + getHourTotals(e.id).nightAllowanceBonus, 0)];
       gtRow.height = 20;
       gtRow.eachCell({ includeEmpty: true }, (c, col) => {
         c.font = { name: FONT, bold: true, size: 8, color: { argb: EXCEL_BW.black } };
@@ -995,7 +992,7 @@ function DownloadDialog({ employees, timesheets, approvedOvertime, period, perio
       const gtOt15 = gtRow.getCell(ot15Col);
       gtOt15.value = {
         formula: `SUM(${ot15L}${firstDataRow}:${ot15L}${lastDataRow})`,
-        result: targets.reduce((s, e) => s + calcTotalsLocal(e.id).ot15, 0),
+        result: targets.reduce((s, e) => s + getHourTotals(e.id).ot15, 0),
       };
       gtOt15.numFmt = '0.00';
 
@@ -1008,7 +1005,7 @@ function DownloadDialog({ employees, timesheets, approvedOvertime, period, perio
     } else {
       targets.forEach(emp => {
         const ws = wb.addWorksheet(emp.name.slice(0, 31));
-        const totals = calcTotalsLocal(emp.id);
+        const totals = getHourTotals(emp.id);
         const FONT = 'Calibri';
         const thinBorder = {
           top: { style: 'thin' as const, color: { argb: EXCEL_BW.borderThin } },
@@ -1082,13 +1079,13 @@ function DownloadDialog({ employees, timesheets, approvedOvertime, period, perio
 
       const head = [['Mine No', 'Employee', 'Position', ...days.map(d => `${d.getDate()}`), 'Actual', 'Reg', 'OT\n1.5×', 'OT\n2.0×', 'Standby', 'Night\nAllow.']];
       const body = targets.map(emp => {
-        const totals = calcTotalsLocal(emp.id);
+        const totals = getHourTotals(emp.id);
         return [emp.employeeId || '—', emp.name, emp.position || '', ...days.map(day => { const v = dayCell(getEntry(emp.id, day), day); return v === 0 ? '' : String(v); }), totals.actual.toFixed(1), totals.reg.toFixed(1), totals.ot15.toFixed(1), totals.ot20.toFixed(1), totals.standbyBonus.toFixed(1), totals.nightAllowanceBonus.toFixed(1)];
       });
       body.push(['', 'TOTALS', `${targets.length} emp`, ...days.map(() => ''),
-        targets.reduce((s, e) => s + calcTotalsLocal(e.id).actual, 0).toFixed(1), targets.reduce((s, e) => s + calcTotalsLocal(e.id).reg, 0).toFixed(1),
-        targets.reduce((s, e) => s + calcTotalsLocal(e.id).ot15, 0).toFixed(1), targets.reduce((s, e) => s + calcTotalsLocal(e.id).ot20, 0).toFixed(1),
-        targets.reduce((s, e) => s + calcTotalsLocal(e.id).standbyBonus, 0).toFixed(1), targets.reduce((s, e) => s + calcTotalsLocal(e.id).nightAllowanceBonus, 0).toFixed(1)]);
+        targets.reduce((s, e) => s + getHourTotals(e.id).actual, 0).toFixed(1), targets.reduce((s, e) => s + getHourTotals(e.id).reg, 0).toFixed(1),
+        targets.reduce((s, e) => s + getHourTotals(e.id).ot15, 0).toFixed(1), targets.reduce((s, e) => s + getHourTotals(e.id).ot20, 0).toFixed(1),
+        targets.reduce((s, e) => s + getHourTotals(e.id).standbyBonus, 0).toFixed(1), targets.reduce((s, e) => s + getHourTotals(e.id).nightAllowanceBonus, 0).toFixed(1)]);
 
       autoTable(doc, {
         startY: 20, head, body,
@@ -1108,7 +1105,7 @@ function DownloadDialog({ employees, timesheets, approvedOvertime, period, perio
     } else {
       targets.forEach((emp, ei) => {
         if (ei > 0) doc.addPage();
-        const totals = calcTotalsLocal(emp.id); const rows = buildRows(emp);
+        const totals = getHourTotals(emp.id); const rows = buildRows(emp);
         const bonusNote = totals.nightAllowanceBonus > 0 ? ` (incl. ${totals.nightAllowanceBonus}h night allow.)` : '';
         doc.setFillColor(...BRAND); doc.rect(0, 0, 297, 18, 'F');
         doc.setTextColor(255, 255, 255); doc.setFontSize(12); doc.text(`${tabLabel} Timesheet`, 10, 7);
@@ -1673,7 +1670,10 @@ function TimesheetsContent() {
   // the DB integer id. This is the join between them.
   const employeeIdByHuman = useMemo(() => {
     const m = new Map<string, string>();
-    allEmployees.forEach(e => { if (e.employeeId) m.set(e.employeeId, e.id); });
+    allEmployees.forEach(e => {
+      if (!e.employeeId) return;
+      m.set(normalizeTimesheetEmployeeCode(e.employeeId), e.id);
+    });
     return m;
   }, [allEmployees]);
 
@@ -1696,11 +1696,22 @@ function TimesheetsContent() {
 
   const periodDateStrs = useMemo(() => days.map(d => fmtDate(d)), [days]);
   const getHourTotals = useCallback(
-    (empId: string) => calcEmployeeTotals(empId, effectiveTimesheets, {
-      periodDates: periodDateStrs,
-      applyRegFloorWithoutAbsent: activeTab === 'nec',
-    }),
-    [effectiveTimesheets, periodDateStrs, activeTab],
+    (empId: string) => {
+      const emp = allEmployees.find(e => e.id === empId);
+      const moduleOt15ByDate = emp?.employeeId
+        ? buildModuleOt15ByDateForEmployee(emp.employeeId, approvedOvertime)
+        : undefined;
+      const earlyMorningOtDates = emp?.employeeId
+        ? buildEarlyMorningOtDatesForEmployee(emp.employeeId, approvedOvertime)
+        : undefined;
+      return calcEmployeeTotals(empId, effectiveTimesheets, {
+        periodDates: periodDateStrs,
+        applyRegFloorWithoutAbsent: activeTab === 'nec',
+        moduleOt15ByDate,
+        earlyMorningOtDates,
+      });
+    },
+    [effectiveTimesheets, periodDateStrs, activeTab, allEmployees, approvedOvertime],
   );
 
   const summary = useMemo(() => {
@@ -2098,7 +2109,7 @@ function TimesheetsContent() {
       {bulkEmployee && <BulkAssignDialog initialEmployee={bulkEmployee} allEmployees={tabEmployees} period={activePeriod} timesheets={effectiveTimesheets} onSave={handleBulkSave} onClear={handleBulkClear} onClose={() => setBulkEmployee(null)} />}
 
       {showBulkAdd && <BulkAddEmployeesDialog allEmployees={allEmployees} currentIds={tabIds} onAdd={emps => addToTab(emps.map(e => e.id))} onClose={() => setShowBulkAdd(false)} />}
-      {showDownload && <DownloadDialog employees={tabEmployees} timesheets={effectiveTimesheets} approvedOvertime={approvedOvertime} period={activePeriod} periodType={activeTab} onClose={() => setShowDownload(false)} />}
+      {showDownload && <DownloadDialog employees={tabEmployees} timesheets={effectiveTimesheets} approvedOvertime={approvedOvertime} getHourTotals={getHourTotals} period={activePeriod} periodType={activeTab} onClose={() => setShowDownload(false)} />}
       {showNecImport && activeTab === 'nec' && (
         <NecScanImportPanel
           open={showNecImport}
