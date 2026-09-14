@@ -35,8 +35,9 @@ export const api = {
     return (await apiClient.get<TimesheetEntry[]>(`/api/timesheets?${p}`)) || [];
   },
   async create(data: Omit<TimesheetEntry, 'id'>): Promise<TimesheetEntry> {
-    const res = await apiClient.post<{ data?: TimesheetEntry } | TimesheetEntry>('/api/timesheets', data);
-    return (res as { data?: TimesheetEntry }).data || (res as TimesheetEntry);
+    const res = await apiClient.post<{ action?: string; data?: TimesheetEntry } | TimesheetEntry>('/api/timesheets', data);
+    if (res && typeof res === 'object' && 'data' in res && res.data) return res.data;
+    return res as TimesheetEntry;
   },
   async update(id: number, data: Partial<TimesheetEntry>): Promise<TimesheetEntry> {
     const res = await apiClient.patch<{ data?: TimesheetEntry } | TimesheetEntry>(`/api/timesheets/${id}`, data);

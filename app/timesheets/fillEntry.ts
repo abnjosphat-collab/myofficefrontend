@@ -143,27 +143,53 @@ export function applyNormalHoursFill(
   targetDate: string,
   nightAllowanceFromSource?: { hours: number; enabled: true },
 ): Omit<TimesheetEntry, 'id'> {
-  if (!existing?.id) return newRowFromNormalHours(normal, empId, targetDate, nightAllowanceFromSource);
+  if (!existing?.id) {
+    const base = newRowFromNormalHours(normal, empId, targetDate, nightAllowanceFromSource);
+    if (!existing) return base;
+    const ot15 = existing.overtime_hours || 0;
+    const ot20 = existing.holiday_overtime_hours || 0;
+    return {
+      ...base,
+      overtime_hours: ot15,
+      holiday_overtime_hours: ot20,
+      standby_allowance: existing.standby_allowance ?? base.standby_allowance,
+      notes: existing.notes?.trim() ? existing.notes : base.notes,
+      overtime_periods: existing.overtime_periods ?? [],
+      callout_overtime_hours: existing.callout_overtime_hours ?? 0,
+      callout_count: existing.callout_count ?? 0,
+      total_hours: (base.total_hours ?? 0) + ot15 + ot20,
+    };
+  }
 
   const { id: _id, _auto, ...rest } = existing;
   const ot15 = rest.overtime_hours || 0;
   const ot20 = rest.holiday_overtime_hours || 0;
-  const night = rest.nightshift_hours || 0;
   const regular_hours = normal.regular_hours;
+  const start_time = normal.start_time ?? rest.start_time;
+  const end_time = normal.end_time ?? rest.end_time;
+  const nh = calcNightHours(start_time ?? '', end_time ?? '');
+  const nightFlag = deriveNightshiftAllowanceFlag({
+    nightshift_hours: nh,
+    start_time,
+    end_time,
+    status: rest.status,
+    regular_hours,
+  });
   return {
     ...rest,
     employee_id: empId,
     date: targetDate,
     regular_hours,
-    start_time: normal.start_time ?? rest.start_time,
-    end_time: normal.end_time ?? rest.end_time,
+    start_time,
+    end_time,
     overtime_hours: ot15,
     holiday_overtime_hours: ot20,
-    nightshift_hours: night,
+    nightshift_hours: nh,
+    nightshift_allowance: nightFlag,
     overtime_periods: rest.overtime_periods ?? [],
     callout_overtime_hours: rest.callout_overtime_hours ?? 0,
     callout_count: rest.callout_count ?? 0,
-    total_hours: regular_hours + ot15 + ot20 + night,
+    total_hours: regular_hours + ot15 + ot20 + nh,
   };
 }
 

@@ -5,6 +5,7 @@ import { calcHours as calcOvertimeHours } from '@/app/overtime/calcOvertime';
 import { computeDayStatus } from '@/app/shifts/calcShifts';
 import type { ShiftAssignment } from '@/app/shifts/types';
 import { zimHolidayName } from '@/lib/zimHolidays';
+import { syncRosterNightFields } from './calcTotals';
 import type { ApprovedLeaveRecord, ApprovedOvertimeRecord, StatusKey, TimesheetEntry } from './types';
 
 export const OT_TYPE_TO_BUCKET: Record<string, 'ot15' | 'ot20'> = {
@@ -203,5 +204,5 @@ export function mergeEffectiveTimesheets(input: MergeEffectiveTimesheetsInput): 
     });
   });
 
-  return [...merged.values()];
+  return [...merged.values()].map(syncRosterNightFields);
 }

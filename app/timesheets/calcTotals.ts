@@ -8,11 +8,27 @@ export const ZERO_HOUR_STATUSES = new Set<StatusKey>(['off', 'absent']);
 
 export const NEC_REG_CAP = 208;
 
+function parseClock(t: string): [number, number] {
+  const parts = t.trim().split(':');
+  if (parts.length < 2) return [NaN, NaN];
+  return [Number(parts[0]), Number(parts[1])];
+}
+
+function endTimeFromStartAndHours(startHHMM: string, hours: number): string {
+  const [h, m] = parseClock(startHHMM);
+  if (Number.isNaN(h)) return '';
+  const total = h * 60 + m + Math.round(hours * 60);
+  const hh = Math.floor(total / 60) % 24;
+  const mm = total % 60;
+  return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+}
+
 /** Overlap with 18:00–06:00 from roster start/end (same rules as the entry editor). */
 export function calcNightHours(start: string, end: string): number {
   if (!start || !end) return 0;
-  const [sh, sm] = start.split(':').map(Number);
-  const [eh, em] = end.split(':').map(Number);
+  const [sh, sm] = parseClock(start);
+  const [eh, em] = parseClock(end);
+  if ([sh, sm, eh, em].some(Number.isNaN)) return 0;
   const s = sh + sm / 60;
   let e = eh + em / 60;
   if (e <= s) e += 24;
@@ -22,25 +38,58 @@ export function calcNightHours(start: string, end: string): number {
 
 export type RosterNightAllowanceEntry = Pick<
   TimesheetEntry,
-  'nightshift_hours' | 'start_time' | 'end_time' | 'status'
->;
+  'nightshift_hours' | 'start_time' | 'end_time' | 'status' | 'nightshift_allowance'
+> & { regular_hours?: number };
+
+/** Resolve shift clock times for night overlap (infers end from regular_hours when missing). */
+export function resolveShiftTimesForNight(e: RosterNightAllowanceEntry): { start: string; end: string } | null {
+  const st = e.start_time?.trim();
+  if (!st) return null;
+  let en = e.end_time?.trim() || '';
+  if (!en && (e.regular_hours || 0) > 0) en = endTimeFromStartAndHours(st, e.regular_hours || 0);
+  if (!en) return null;
+  return { start: st, end: en };
+}
 
 /**
  * Night shift allowance: any 18:00–06:00 hours from a **rostered shift** (start/end).
- * Ad-hoc night work (breakdown callouts) belongs in `callout_overtime_hours`, not here.
+ * Computed from times when present (so saved rows missing `nightshift_hours` still qualify).
+ * Scan/import may store hours without times when `nightshift_allowance` is set.
+ * Ad-hoc breakdown work → `callout_overtime_hours`, not here.
  */
 export function rosterNightAllowanceHours(e: RosterNightAllowanceEntry): number {
   if (LEAVE_STATUSES.has(e.status) || ZERO_HOUR_STATUSES.has(e.status)) return 0;
+  const times = resolveShiftTimesForNight(e);
+  if (times) {
+    const fromClock = calcNightHours(times.start, times.end);
+    if (fromClock > 0) return fromClock;
+  }
   const nh = e.nightshift_hours || 0;
-  if (nh <= 0) return 0;
-  const st = e.start_time?.trim();
-  const en = e.end_time?.trim();
-  if (!st || !en) return 0;
-  return nh;
+  if (nh > 0 && e.nightshift_allowance) return nh;
+  return 0;
 }
 
 export function deriveNightshiftAllowanceFlag(e: RosterNightAllowanceEntry): boolean {
   return rosterNightAllowanceHours(e) > 0;
+}
+
+/** Align stored night fields with shift times (grid display + exports). */
+export function syncRosterNightFields<T extends TimesheetEntry>(e: T): T {
+  if (LEAVE_STATUSES.has(e.status) || ZERO_HOUR_STATUSES.has(e.status)) return e;
+  const allow = rosterNightAllowanceHours(e);
+  const times = resolveShiftTimesForNight(e);
+  if (times) {
+    const nh = calcNightHours(times.start, times.end);
+    return {
+      ...e,
+      nightshift_hours: nh,
+      nightshift_allowance: nh > 0,
+    };
+  }
+  if (allow > 0) {
+    return { ...e, nightshift_hours: allow, nightshift_allowance: true };
+  }
+  return e;
 }
 
 export type CalcEmployeeTotalsOpts = {

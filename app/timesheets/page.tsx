@@ -36,6 +36,7 @@ import {
   applyNormalHoursFill, applyOffFill, buildDefaultEntry, canFillFromSource, extractFillFromSource,
   fillTargetDayIndices, isFillProtectedTarget,
 } from './fillEntry';
+import { resolveFillTargetEntry, timesheetWritePayload } from './timesheetWritePayload';
 import { attachFillPointerDrag, type FillDragState } from './fillDrag';
 import { NecScanImportPanel } from './necImport/NecScanImportPanel';
 
@@ -217,7 +218,7 @@ function TimesheetEntryDialog({ employee, date, entry, onSave, onDelete, onClose
     setSaving(true);
     try {
       const isDT = DOUBLE_TIME_STATUSES.has(form.status);
-      await onSave({
+      await onSave(timesheetWritePayload({
         employee_id: parseInt(employee.id), date: fmtDate(date),
         start_time: form.start_time, end_time: form.end_time,
         regular_hours: isDT ? 0 : form.regular_hours,
@@ -237,7 +238,7 @@ function TimesheetEntryDialog({ employee, date, entry, onSave, onDelete, onClose
         total_hours: total,
         status: form.status, notes: form.notes, overtime_periods: [],
         callout_overtime_hours: form.callout_overtime_hours, callout_count: form.callout_count,
-      });
+      }));
       toast.success('Entry saved');
       onClose();
     } catch (e) { toast.error('Failed: ' + (e as Error).message); }
@@ -1740,12 +1741,13 @@ function TimesheetsContent() {
 
   const handleSaveEntry = async (empId: string, date: Date, data: Omit<TimesheetEntry, 'id'>) => {
     const ds = fmtDate(date);
+    const payload = timesheetWritePayload(data);
     const existing = timesheets.find(ts => String(ts.employee_id) === String(empId) && ts.date === ds);
     if (existing?.id) {
-      const updated = await api.update(existing.id, data);
+      const updated = await api.update(existing.id, payload);
       setTimesheets(prev => prev.map(ts => ts.id === existing.id ? { ...ts, ...updated } : ts));
     } else {
-      const created = await api.create(data);
+      const created = await api.create(payload);
       setTimesheets(prev => [...prev, created]);
     }
   };
@@ -1801,9 +1803,11 @@ function TimesheetsContent() {
     });
 
     const results = await Promise.allSettled(entries.map(async entry => {
-      const existing = previousByKey.get(`${entry.employee_id}:${entry.date}`);
-      if (existing?.id) return api.update(existing.id, entry);
-      return api.create(entry);
+      const key = `${entry.employee_id}:${entry.date}`;
+      const existing = previousByKey.get(key);
+      const payload = timesheetWritePayload(entry);
+      if (existing?.id) return api.update(existing.id, payload);
+      return api.create(payload);
     }));
     const saved = results.filter(r => r.status === 'fulfilled').map(r => (r as PromiseFulfilledResult<TimesheetEntry>).value);
     const failedIndices = results.map((r, i) => (r.status === 'rejected' ? i : -1)).filter(i => i >= 0);
@@ -1912,24 +1916,22 @@ function TimesheetsContent() {
     const entries: Omit<TimesheetEntry, 'id'>[] = [];
     let skipped = 0;
     for (const day of targetDays) {
-      const existing = effectiveTimesheets.find(
-        ts => String(ts.employee_id) === String(emp.id) && ts.date === fmtDate(day),
-      );
+      const dateStr = fmtDate(day);
+      const existing = resolveFillTargetEntry(emp.id, dateStr, timesheets, effectiveTimesheets);
       if (isFillProtectedTarget(existing)) {
         skipped += 1;
         continue;
       }
-      const date = fmtDate(day);
       if (fillFrom.kind === 'off') {
-        entries.push(applyOffFill(fillFrom.status, existing, empId, date));
+        entries.push(timesheetWritePayload(applyOffFill(fillFrom.status, existing, empId, dateStr)));
       } else {
-        entries.push(applyNormalHoursFill(
+        entries.push(timesheetWritePayload(applyNormalHoursFill(
           fillFrom.normal,
           existing,
           empId,
-          date,
+          dateStr,
           fillFrom.kind === 'normal' ? fillFrom.nightAllowance : undefined,
-        ));
+        )));
       }
     }
     if (entries.length === 0) {
@@ -1938,7 +1940,7 @@ function TimesheetsContent() {
     }
     await handleBulkSave(entries, { quiet: true });
     if (skipped > 0) toast.info(`Skipped ${skipped} leave day${skipped !== 1 ? 's' : ''} (module-owned)`);
-  }, [handleBulkSave, effectiveTimesheets]);
+  }, [handleBulkSave, effectiveTimesheets, timesheets]);
 
   const handleCopyPreviousPeriod = async () => {
     const prevMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1);

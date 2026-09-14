@@ -96,9 +96,10 @@ describe('normal-hours fill', () => {
     );
     expect(out.regular_hours).toBe(10);
     expect(out.overtime_hours).toBe(6);
-    expect(out.nightshift_hours).toBe(2);
+    expect(out.nightshift_hours).toBe(0);
+    expect(out.nightshift_allowance).toBe(false);
     expect(out.standby_allowance).toBe(true);
     expect(out.notes).toBe('keep');
-    expect(out.total_hours).toBe(10 + 6 + 2);
+    expect(out.total_hours).toBe(10 + 6);
   });
 });

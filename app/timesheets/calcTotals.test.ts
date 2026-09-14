@@ -105,8 +105,22 @@ describe('calcEmployeeTotals — night shift allowance (actual hours, not a flat
     const t = calcEmployeeTotals('1', [entry({
       start_time: '18:00', end_time: '06:00', nightshift_hours: 10, nightshift_allowance: false,
     })]);
-    expect(t.nightAllowanceBonus).toBe(10);
+    expect(t.nightAllowanceBonus).toBe(12);
     expect(t.night).toBe(0);
+  });
+
+  it('credits night allowance from shift times when nightshift_hours was never saved', () => {
+    const t = calcEmployeeTotals('1', [entry({
+      start_time: '18:00', end_time: '06:00', regular_hours: 12, nightshift_hours: 0,
+    })]);
+    expect(t.nightAllowanceBonus).toBe(12);
+  });
+
+  it('infers shift end from regular_hours when end_time is missing', () => {
+    const t = calcEmployeeTotals('1', [entry({
+      start_time: '18:00', end_time: '', regular_hours: 12, nightshift_hours: 0,
+    })]);
+    expect(t.nightAllowanceBonus).toBe(12);
   });
 });
 
