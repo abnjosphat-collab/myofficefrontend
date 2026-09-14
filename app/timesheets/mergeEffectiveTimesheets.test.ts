@@ -19,6 +19,46 @@ describe('approvedOvertimeHours', () => {
 describe('mergeEffectiveTimesheets — overtime vs standby', () => {
   const human = new Map([['C1', '10']]);
 
+  it('does not double-count when saved row already has the same module OT persisted', () => {
+    const saved: TimesheetEntry = {
+      id: 99, employee_id: 10, date: '2026-08-18', status: 'work', regular_hours: 10,
+      overtime_hours: 3, holiday_overtime_hours: 0,
+    };
+    const merged = mergeEffectiveTimesheets({
+      timesheets: [saved],
+      approvedLeaves: [],
+      approvedOvertime: [{
+        id: 501, employee_id: 'C1', overtime_type: 'regular', date: '2026-08-18', status: 'approved', hours: 3,
+      }],
+      shiftAssignments: [],
+      dayStrs: ['2026-08-18'],
+      tabIds: ['10'],
+      employeeIdByHuman: human,
+      leaveTypeToStatus: {},
+      statusLabel,
+    });
+    expect(merged[0].overtime_hours).toBe(3);
+    expect(calcEmployeeTotals('10', merged).ot15).toBe(3);
+  });
+
+  it('sums multiple approved OT records on the same day without duplicate ids', () => {
+    const merged = mergeEffectiveTimesheets({
+      timesheets: [{ id: 1, employee_id: 10, date: '2026-08-19', status: 'work', regular_hours: 8, overtime_hours: 5 }],
+      approvedLeaves: [],
+      approvedOvertime: [
+        { id: 1, employee_id: 'C1', overtime_type: 'regular', date: '2026-08-19', status: 'approved', hours: 2 },
+        { id: 2, employee_id: 'C1', overtime_type: 'emergency', date: '2026-08-19', status: 'approved', hours: 1 },
+      ],
+      shiftAssignments: [],
+      dayStrs: ['2026-08-19'],
+      tabIds: ['10'],
+      employeeIdByHuman: human,
+      leaveTypeToStatus: {},
+      statusLabel,
+    });
+    expect(merged[0].overtime_hours).toBe(3);
+  });
+
   it('layers approved OT onto saved work rows for grid totals (OT columns only)', () => {
     const saved: TimesheetEntry = {
       id: 99, employee_id: 10, date: '2026-08-10', status: 'work', regular_hours: 10,

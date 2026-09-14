@@ -92,6 +92,10 @@ export function mergeEffectiveTimesheets(input: MergeEffectiveTimesheetsInput): 
     });
   });
 
+  // Overtime module is authoritative per day — SET totals from approved records (deduped by id).
+  // Do not add on top of saved row overtime_hours (that double-counts when rows already persisted module OT).
+  type ModuleOtDay = { ot15: number; ot20: number; tags: string[] };
+  const moduleOtByKey = new Map<string, ModuleOtDay>();
   const seenOvertimeIds = new Set<number>();
   approvedOvertime.forEach(ot => {
     if (ot.id != null) {
@@ -105,11 +109,22 @@ export function mergeEffectiveTimesheets(input: MergeEffectiveTimesheetsInput): 
     const hours = approvedOvertimeHours(ot);
     if (hours <= 0) return;
     const key = `${dbId}:${ot.date}`;
-    const existing = merged.get(key);
+    const acc = moduleOtByKey.get(key) ?? { ot15: 0, ot20: 0, tags: [] };
+    if (bucket === 'ot20') acc.ot20 += hours;
+    else acc.ot15 += hours;
+    if (ot.reason?.trim()) {
+      const tag = `OT (${ot.overtime_type}): ${ot.reason.trim()}`;
+      if (!acc.tags.some(t => t === tag)) acc.tags.push(tag);
+    }
+    moduleOtByKey.set(key, acc);
+  });
 
+  moduleOtByKey.forEach((totals, key) => {
+    const [dbId, date] = key.split(':');
+    const existing = merged.get(key);
     const base: TimesheetEntry = existing ?? {
       employee_id: parseInt(dbId, 10),
-      date: ot.date,
+      date,
       status: 'work',
       regular_hours: 0,
       overtime_hours: 0,
@@ -118,18 +133,19 @@ export function mergeEffectiveTimesheets(input: MergeEffectiveTimesheetsInput): 
       total_hours: 0,
       standby_allowance: false,
     };
-
-    const updated: TimesheetEntry = { ...base };
-    if (bucket === 'ot20') updated.holiday_overtime_hours = (base.holiday_overtime_hours || 0) + hours;
-    else updated.overtime_hours = (base.overtime_hours || 0) + hours;
-    updated.total_hours = (base.regular_hours || 0) + (updated.overtime_hours || 0) + (updated.holiday_overtime_hours || 0)
-      + (base.nightshift_hours || 0) + (base.callout_overtime_hours || 0);
-    updated._auto = base._auto === 'leave' ? 'both' : 'overtime';
-    if (ot.reason?.trim()) {
-      const tag = `OT (${ot.overtime_type}): ${ot.reason.trim()}`;
-      updated.notes = updated.notes?.includes(tag) ? updated.notes : updated.notes ? `${updated.notes}; ${tag}` : tag;
-    }
-    merged.set(key, updated);
+    let notes = base.notes ?? '';
+    totals.tags.forEach(tag => {
+      notes = notes.includes(tag) ? notes : notes ? `${notes}; ${tag}` : tag;
+    });
+    merged.set(key, {
+      ...base,
+      overtime_hours: totals.ot15,
+      holiday_overtime_hours: totals.ot20,
+      total_hours: (base.regular_hours || 0) + totals.ot15 + totals.ot20
+        + (base.nightshift_hours || 0) + (base.callout_overtime_hours || 0),
+      notes: notes || base.notes,
+      _auto: base._auto === 'leave' ? 'both' : base.id ? base._auto : 'overtime',
+    });
   });
 
   dayStrs.forEach(ds => {
