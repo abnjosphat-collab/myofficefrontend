@@ -39,14 +39,30 @@ export function calcNightHours(start: string, end: string): number {
 export type RosterNightAllowanceEntry = Pick<
   TimesheetEntry,
   'nightshift_hours' | 'start_time' | 'end_time' | 'status' | 'nightshift_allowance'
-> & { regular_hours?: number };
+> & {
+  regular_hours?: number;
+  overtime_hours?: number;
+  holiday_overtime_hours?: number;
+};
 
-/** Resolve shift clock times for night overlap (infers end from regular_hours when missing). */
+function moduleOtHoursOnRow(e: RosterNightAllowanceEntry): number {
+  return (e.overtime_hours || 0) + (e.holiday_overtime_hours || 0);
+}
+
+/**
+ * Shift clock span for night overlap — roster end plus module OT worked **after** recorded
+ * end (e.g. 18:00–04:00 + 2h OT → through 06:00 → 12h night allowance).
+ */
 export function resolveShiftTimesForNight(e: RosterNightAllowanceEntry): { start: string; end: string } | null {
   const st = e.start_time?.trim();
   if (!st) return null;
+  const ot = moduleOtHoursOnRow(e);
   let en = e.end_time?.trim() || '';
-  if (!en && (e.regular_hours || 0) > 0) en = endTimeFromStartAndHours(st, e.regular_hours || 0);
+  if (!en && (e.regular_hours || 0) > 0) {
+    en = endTimeFromStartAndHours(st, (e.regular_hours || 0) + ot);
+  } else if (en && ot > 0) {
+    en = endTimeFromStartAndHours(en, ot);
+  }
   if (!en) return null;
   return { start: st, end: en };
 }

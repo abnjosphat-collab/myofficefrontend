@@ -30,7 +30,7 @@ import { mergeEffectiveTimesheets } from './mergeEffectiveTimesheets';
 import { api, useTimesheetsData } from './useTimesheetsData';
 import {
   LEAVE_STATUSES, DOUBLE_TIME_STATUSES, ZERO_HOUR_STATUSES, NEC_REG_CAP, calcEmployeeTotals, moduleOt15FormulaAddends,
-  calcNightHours, rosterNightAllowanceHours, deriveNightshiftAllowanceFlag,
+  calcNightHours, deriveNightshiftAllowanceFlag,
 } from './calcTotals';
 import {
   applyNormalHoursFill, applyOffFill, buildDefaultEntry, canFillFromSource, extractFillFromSource,
@@ -1336,7 +1336,7 @@ function TimesheetGrid({ employees, timesheets, days, getHourTotals, onCellClick
           <TableHead title={`max(Actual − ${NEC_REG_CAP}, 0) + module 1.5× OT; Excel formula uses Actual − ${NEC_REG_CAP} + other OT.`} className={`text-center min-w-14 text-brand-400 text-[10px] ${TYPE_WEIGHT.semibold} sticky top-0 z-20 ${stickyBg}`}>1.5×</TableHead>
           <TableHead className={`text-center min-w-14 text-sky-400 text-[10px] ${TYPE_WEIGHT.semibold} sticky top-0 z-20 ${stickyBg}`}>2.0×</TableHead>
           <TableHead className={`text-center min-w-14 ${accentText('amber', t.light)} text-[10px] ${TYPE_WEIGHT.semibold} sticky top-0 z-20 ${stickyBg}`}>Standby</TableHead>
-          <TableHead title="18:00–06:00 hours from rostered shift start/end (not callout OT). Scroll right if hidden." className={`text-center min-w-16 ${accentText('indigo', t.light)} text-[10px] ${TYPE_WEIGHT.semibold} sticky top-0 z-20 ${stickyBg}`}>Night Allow</TableHead>
+          <TableHead title="Period total: 18:00–06:00 from shift times (+ module OT after shift end). Not shown in day cells — scroll right if hidden." className={`text-center min-w-16 ${accentText('indigo', t.light)} text-[10px] ${TYPE_WEIGHT.semibold} sticky top-0 z-20 ${stickyBg}`}>Night Allow</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -1416,24 +1416,6 @@ function TimesheetGrid({ employees, timesheets, days, getHourTotals, onCellClick
                                 this it was invisible here even though it's correctly counted in
                                 the period's 2.0× total below. */}
                             {!DOUBLE_TIME_STATUSES.has(entry.status as StatusKey) && (entry.holiday_overtime_hours || 0) > 0 && <span className={`text-sky-400 ${TYPE_WEIGHT.semibold}`}>+{entry.holiday_overtime_hours!.toFixed(1)}h @ 2.0×</span>}
-                            {(() => {
-                              const naH = rosterNightAllowanceHours(entry);
-                              if (naH > 0) {
-                                return (
-                                  <span className={`${accentText('indigo', t.light)} text-[9px] ${TYPE_WEIGHT.semibold}`}>
-                                    <Moon className="w-2 h-2 inline -mt-px" />{naH.toFixed(1)}h NA
-                                  </span>
-                                );
-                              }
-                              if ((entry.nightshift_hours || 0) > 0) {
-                                return (
-                                  <span className="text-sky-400 text-[8px]" title="Night hours without shift times — use Callout Hours for breakdown work, or add start/end for a rostered shift.">
-                                    <Moon className="w-2 h-2 inline -mt-px" />{entry.nightshift_hours!.toFixed(1)}n
-                                  </span>
-                                );
-                              }
-                              return null;
-                            })()}
                             {entry.standby_allowance && <span className={`${accentText('amber', t.light)} text-[8px] ${TYPE_WEIGHT.medium}`}>SB</span>}
                           </>
                         ) : (
@@ -1512,14 +1494,10 @@ function TimesheetGrid({ employees, timesheets, days, getHourTotals, onCellClick
                                   : <p className={`text-[9px] ${accentText('emerald', t.light)}`}>{(entry.regular_hours || 0).toFixed(1)}h reg</p>}
                                 {!DOUBLE_TIME_STATUSES.has(entry.status as StatusKey) && (entry.overtime_hours || 0) > 0 && <p className="text-[9px] text-brand-400">+{entry.overtime_hours!.toFixed(1)}h OT 1.5×</p>}
                                 {!DOUBLE_TIME_STATUSES.has(entry.status as StatusKey) && (entry.holiday_overtime_hours || 0) > 0 && <p className="text-[9px] text-sky-400">+{entry.holiday_overtime_hours!.toFixed(1)}h OT 2.0×</p>}
-                                {(entry.nightshift_hours || 0) > 0 && <p className="text-[9px] text-sky-400">{entry.nightshift_hours!.toFixed(1)}h night</p>}
                                 {(entry.callout_overtime_hours || 0) > 0 && <p className="text-[9px] text-orange-400">{entry.callout_overtime_hours!.toFixed(1)}h callout</p>}
                               </div>
                             )}
                             {entry.standby_allowance && <p className={`text-[9px] ${accentText('amber', t.light)} mt-0.5`}>Standby</p>}
-                            {rosterNightAllowanceHours(entry) > 0 && (
-                              <p className={`text-[9px] ${accentText('indigo', t.light)} mt-0.5`}>Night allowance (shift)</p>
-                            )}
                             {entry._auto && (
                               <p className="text-[9px] mt-1 text-brand-400">
                                 {entry._auto === 'leave' ? 'From approved leave' : entry._auto === 'overtime' ? 'Includes approved OT' : 'Approved leave + OT'} — click to confirm

@@ -122,6 +122,17 @@ describe('calcEmployeeTotals — night shift allowance (actual hours, not a flat
     })]);
     expect(t.nightAllowanceBonus).toBe(12);
   });
+
+  it('extends night allowance when module OT continues after roster shift end (10h + 2h OT → 12h night)', () => {
+    const t = calcEmployeeTotals('1', [entry({
+      start_time: '18:00',
+      end_time: '04:00',
+      regular_hours: 10,
+      overtime_hours: 2,
+      nightshift_hours: 0,
+    })]);
+    expect(t.nightAllowanceBonus).toBe(12);
+  });
 });
 
 describe('calcEmployeeTotals — actual vs. total', () => {
