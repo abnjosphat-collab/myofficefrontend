@@ -28,7 +28,10 @@ import type {
 } from './types';
 import { mergeEffectiveTimesheets } from './mergeEffectiveTimesheets';
 import { api, useTimesheetsData } from './useTimesheetsData';
-import { LEAVE_STATUSES, DOUBLE_TIME_STATUSES, ZERO_HOUR_STATUSES, NEC_REG_CAP, calcEmployeeTotals, moduleOt15FormulaAddends } from './calcTotals';
+import {
+  LEAVE_STATUSES, DOUBLE_TIME_STATUSES, ZERO_HOUR_STATUSES, NEC_REG_CAP, calcEmployeeTotals, moduleOt15FormulaAddends,
+  calcNightHours, rosterNightAllowanceHours, deriveNightshiftAllowanceFlag,
+} from './calcTotals';
 import {
   applyNormalHoursFill, applyOffFill, buildDefaultEntry, canFillFromSource, extractFillFromSource,
   fillTargetDayIndices, isFillProtectedTarget,
@@ -82,17 +85,6 @@ const calcHours = (start?: string, end?: string) => {
   let e = eh + em / 60;
   if (e < s) e += 24;
   return Math.max(0, e - s);
-};
-
-const calcNightHours = (start: string, end: string): number => {
-  if (!start || !end) return 0;
-  const [sh, sm] = start.split(':').map(Number);
-  const [eh, em] = end.split(':').map(Number);
-  const s = sh + sm / 60;
-  let e = eh + em / 60;
-  if (e <= s) e += 24;
-  const ov = (a: number, b: number) => Math.max(0, Math.min(e, b) - Math.max(s, a));
-  return ov(0, 6) + ov(18, 24) + ov(24, 30);
 };
 
 const getDays = ({ start, end }: Period) => {
@@ -194,7 +186,20 @@ function TimesheetEntryDialog({ employee, date, entry, onSave, onDelete, onClose
       if (form.start_time && form.end_time) setForm(f => ({ ...f, status: 'holiday' }));
       return;
     }
-    if (form.start_time && form.end_time) setForm(f => ({ ...f, regular_hours: calcHours(f.start_time, f.end_time), nightshift_hours: calcNightHours(f.start_time, f.end_time) }));
+    if (form.start_time && form.end_time) {
+      const nh = calcNightHours(form.start_time, form.end_time);
+      setForm(f => ({
+        ...f,
+        regular_hours: calcHours(f.start_time, f.end_time),
+        nightshift_hours: nh,
+        nightshift_allowance: deriveNightshiftAllowanceFlag({
+          nightshift_hours: nh,
+          start_time: f.start_time,
+          end_time: f.end_time,
+          status: f.status,
+        }),
+      }));
+    }
   }, [form.start_time, form.end_time, form.status]);
 
   const handleStatusChange = (val: string) => {
@@ -222,7 +227,14 @@ function TimesheetEntryDialog({ employee, date, entry, onSave, onDelete, onClose
         overtime_hours: 0,
         holiday_overtime_hours: isDT ? form.regular_hours : 0,
         nightshift_hours: form.nightshift_hours,
-        standby_allowance: form.standby_allowance, nightshift_allowance: form.nightshift_allowance, total_hours: total,
+        standby_allowance: form.standby_allowance,
+        nightshift_allowance: deriveNightshiftAllowanceFlag({
+          nightshift_hours: form.nightshift_hours,
+          start_time: form.start_time,
+          end_time: form.end_time,
+          status: form.status,
+        }),
+        total_hours: total,
         status: form.status, notes: form.notes, overtime_periods: [],
         callout_overtime_hours: form.callout_overtime_hours, callout_count: form.callout_count,
       });
@@ -305,9 +317,15 @@ function TimesheetEntryDialog({ employee, date, entry, onSave, onDelete, onClose
             <Switch checked={form.standby_allowance} onCheckedChange={v => setForm(f => ({ ...f, standby_allowance: v }))} />
           </div>
 
-          <div className={`flex items-center justify-between p-3 rounded-lg bg-indigo-500/[0.08]`}>
-            <div><Label className={`${TYPE_WEIGHT.medium} text-sm ${accentText('indigo', t.light)}`}>Night Shift Allowance</Label><p className={`text-xs ${t.textFaint}`}>Pays the actual hours worked between 18:00–06:00 (shown above as Night) as a shift differential</p></div>
-            <Switch checked={form.nightshift_allowance} onCheckedChange={v => setForm(f => ({ ...f, nightshift_allowance: v }))} />
+          <div className={`p-3 rounded-lg bg-indigo-500/[0.08]`}>
+            <Label className={`${TYPE_WEIGHT.medium} text-sm ${accentText('indigo', t.light)}`}>Night Shift Allowance</Label>
+            <p className={`text-xs ${t.textFaint} mt-0.5`}>
+              Any hours between 18:00–06:00 on this <span className={TYPE_WEIGHT.medium}>rostered shift</span> count in <span className={TYPE_WEIGHT.medium}>Night Allow</span> automatically.
+              Breakdown / callout work at night goes in <span className={TYPE_WEIGHT.medium}>Callout Hours</span> below — not here.
+            </p>
+            {form.nightshift_hours > 0 && form.start_time && form.end_time && (
+              <p className={`text-xs mt-1.5 ${accentText('indigo', t.light)} ${TYPE_WEIGHT.semibold}`}>{form.nightshift_hours.toFixed(2)}h night allowance from shift times</p>
+            )}
           </div>
 
           <div><Label className={`text-xs ${t.textFaint}`}>Notes</Label><Input placeholder="Optional…" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} className={fieldCls} /></div>
@@ -366,7 +384,6 @@ function BulkAssignDialog({ initialEmployee, allEmployees, period, timesheets, o
   const [useNormalShift, setUseNormalShift] = useState(false);
   const [skipWeekends, setSkipWeekends] = useState(false);
   const [standby, setStandby] = useState(false);
-  const [nightAllowance, setNightAllowance] = useState(false);
   const [rangeFrom, setRangeFrom] = useState(fmtDate(period.start));
   const [rangeTo, setRangeTo] = useState(fmtDate(period.end));
 
@@ -456,7 +473,14 @@ function BulkAssignDialog({ initialEmployee, allEmployees, period, timesheets, o
             start_time: LEAVE_STATUSES.has(status) ? '07:00' : ZERO_HOUR_STATUSES.has(status) ? '' : empStart,
             end_time: LEAVE_STATUSES.has(status) ? '15:00' : ZERO_HOUR_STATUSES.has(status) ? '' : empEnd,
             regular_hours: isDT ? 0 : empReg, overtime_hours: 0, holiday_overtime_hours: isDT ? empReg : 0,
-            nightshift_hours: empNight, standby_allowance: standby, nightshift_allowance: nightAllowance,
+            nightshift_hours: empNight,
+            standby_allowance: standby,
+            nightshift_allowance: deriveNightshiftAllowanceFlag({
+              nightshift_hours: empNight,
+              start_time: LEAVE_STATUSES.has(status) ? '07:00' : ZERO_HOUR_STATUSES.has(status) ? '' : empStart,
+              end_time: LEAVE_STATUSES.has(status) ? '15:00' : ZERO_HOUR_STATUSES.has(status) ? '' : empEnd,
+              status,
+            }),
             total_hours: empReg + empNight, status, notes: '',
             overtime_periods: [], callout_overtime_hours: 0, callout_count: 0,
           });
@@ -583,7 +607,6 @@ function BulkAssignDialog({ initialEmployee, allEmployees, period, timesheets, o
           <div className="flex flex-wrap items-center gap-4">
             <label htmlFor="ts-skip-weekends" className={`flex items-center gap-2 text-sm cursor-pointer select-none ${t.textMuted}`}><input id="ts-skip-weekends" aria-label="Skip weekends" type="checkbox" checked={skipWeekends} onChange={e => setSkipWeekends(e.target.checked)} className="rounded" /> Skip weekends</label>
             <label htmlFor="ts-standby" className={`flex items-center gap-2 text-sm cursor-pointer select-none ${t.textMuted}`}><input id="ts-standby" aria-label="Standby (flat 8h OT for the period)" type="checkbox" checked={standby} onChange={e => setStandby(e.target.checked)} className="rounded" /> Standby (flat 8h OT for the period)</label>
-            <label htmlFor="ts-night-allowance" className={`flex items-center gap-2 text-sm cursor-pointer select-none ${t.textMuted}`}><input id="ts-night-allowance" aria-label="Night Shift Allowance (actual 18:00–06:00 hours, not flat)" type="checkbox" checked={nightAllowance} onChange={e => setNightAllowance(e.target.checked)} className="rounded" /> Night Shift Allowance (actual 18:00–06:00 hours, not flat)</label>
           </div>
 
           <div className="space-y-2">
@@ -1312,7 +1335,7 @@ function TimesheetGrid({ employees, timesheets, days, getHourTotals, onCellClick
           <TableHead title={`max(Actual − ${NEC_REG_CAP}, 0) + module 1.5× OT; Excel formula uses Actual − ${NEC_REG_CAP} + other OT.`} className={`text-center min-w-14 text-brand-400 text-[10px] ${TYPE_WEIGHT.semibold} sticky top-0 z-20 ${stickyBg}`}>1.5×</TableHead>
           <TableHead className={`text-center min-w-14 text-sky-400 text-[10px] ${TYPE_WEIGHT.semibold} sticky top-0 z-20 ${stickyBg}`}>2.0×</TableHead>
           <TableHead className={`text-center min-w-14 ${accentText('amber', t.light)} text-[10px] ${TYPE_WEIGHT.semibold} sticky top-0 z-20 ${stickyBg}`}>Standby</TableHead>
-          <TableHead className={`text-center min-w-16 ${accentText('indigo', t.light)} text-[10px] ${TYPE_WEIGHT.semibold} sticky top-0 z-20 ${stickyBg}`}>Night Allow</TableHead>
+          <TableHead title="18:00–06:00 hours from rostered shift start/end (not callout OT). Scroll right if hidden." className={`text-center min-w-16 ${accentText('indigo', t.light)} text-[10px] ${TYPE_WEIGHT.semibold} sticky top-0 z-20 ${stickyBg}`}>Night Allow</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -1392,9 +1415,25 @@ function TimesheetGrid({ employees, timesheets, days, getHourTotals, onCellClick
                                 this it was invisible here even though it's correctly counted in
                                 the period's 2.0× total below. */}
                             {!DOUBLE_TIME_STATUSES.has(entry.status as StatusKey) && (entry.holiday_overtime_hours || 0) > 0 && <span className={`text-sky-400 ${TYPE_WEIGHT.semibold}`}>+{entry.holiday_overtime_hours!.toFixed(1)}h @ 2.0×</span>}
-                            {(entry.nightshift_hours || 0) > 0 && <span className="text-sky-400 text-[8px]"><Moon className="w-2 h-2 inline -mt-px" />{entry.nightshift_hours!.toFixed(1)}n</span>}
+                            {(() => {
+                              const naH = rosterNightAllowanceHours(entry);
+                              if (naH > 0) {
+                                return (
+                                  <span className={`${accentText('indigo', t.light)} text-[9px] ${TYPE_WEIGHT.semibold}`}>
+                                    <Moon className="w-2 h-2 inline -mt-px" />{naH.toFixed(1)}h NA
+                                  </span>
+                                );
+                              }
+                              if ((entry.nightshift_hours || 0) > 0) {
+                                return (
+                                  <span className="text-sky-400 text-[8px]" title="Night hours without shift times — use Callout Hours for breakdown work, or add start/end for a rostered shift.">
+                                    <Moon className="w-2 h-2 inline -mt-px" />{entry.nightshift_hours!.toFixed(1)}n
+                                  </span>
+                                );
+                              }
+                              return null;
+                            })()}
                             {entry.standby_allowance && <span className={`${accentText('amber', t.light)} text-[8px] ${TYPE_WEIGHT.medium}`}>SB</span>}
-                            {entry.nightshift_allowance && <span className={`${accentText('indigo', t.light)} text-[8px] ${TYPE_WEIGHT.medium}`}>NA</span>}
                           </>
                         ) : (
                           <span className={`text-base font-light ${isToday ? 'text-brand-400/50' : t.textFaint}`}>+</span>
@@ -1477,7 +1516,9 @@ function TimesheetGrid({ employees, timesheets, days, getHourTotals, onCellClick
                               </div>
                             )}
                             {entry.standby_allowance && <p className={`text-[9px] ${accentText('amber', t.light)} mt-0.5`}>Standby</p>}
-                            {entry.nightshift_allowance && <p className={`text-[9px] ${accentText('indigo', t.light)} mt-0.5`}>Night Allowance</p>}
+                            {rosterNightAllowanceHours(entry) > 0 && (
+                              <p className={`text-[9px] ${accentText('indigo', t.light)} mt-0.5`}>Night allowance (shift)</p>
+                            )}
                             {entry._auto && (
                               <p className="text-[9px] mt-1 text-brand-400">
                                 {entry._auto === 'leave' ? 'From approved leave' : entry._auto === 'overtime' ? 'Includes approved OT' : 'Approved leave + OT'} — click to confirm
@@ -1686,8 +1727,11 @@ function TimesheetsContent() {
   const summary = useMemo(() => {
     const tot = tabEmployees.reduce((acc, e) => {
       const tt = getHourTotals(e.id);
-      return { reg: acc.reg + tt.reg, ot15: acc.ot15 + tt.ot15, ot20: acc.ot20 + tt.ot20, night: acc.night + tt.night, standbyBonus: acc.standbyBonus + tt.standbyBonus };
-    }, { reg: 0, ot15: 0, ot20: 0, night: 0, standbyBonus: 0 });
+      return {
+        reg: acc.reg + tt.reg, ot15: acc.ot15 + tt.ot15, ot20: acc.ot20 + tt.ot20,
+        nightAllow: acc.nightAllow + tt.nightAllowanceBonus, standbyBonus: acc.standbyBonus + tt.standbyBonus,
+      };
+    }, { reg: 0, ot15: 0, ot20: 0, nightAllow: 0, standbyBonus: 0 });
     const filled = new Set(effectiveTimesheets.filter(ts => tabIds.includes(String(ts.employee_id))).map(ts => `${ts.employee_id}:${ts.date}`)).size;
     const workingDays = days.filter(d => d.getDay() !== 0 && d.getDay() !== 6).length;
     const possible = tabEmployees.length * workingDays;
@@ -1879,7 +1923,13 @@ function TimesheetsContent() {
       if (fillFrom.kind === 'off') {
         entries.push(applyOffFill(fillFrom.status, existing, empId, date));
       } else {
-        entries.push(applyNormalHoursFill(fillFrom.normal, existing, empId, date));
+        entries.push(applyNormalHoursFill(
+          fillFrom.normal,
+          existing,
+          empId,
+          date,
+          fillFrom.kind === 'normal' ? fillFrom.nightAllowance : undefined,
+        ));
       }
     }
     if (entries.length === 0) {
@@ -1974,7 +2024,7 @@ function TimesheetsContent() {
             { icon: Clock, val: `${summary.reg.toFixed(0)}h`, label: 'regular', color: accentText('emerald', t.light) },
             { icon: Zap, val: `${summary.ot15.toFixed(0)}h`, label: 'OT 1.5×', color: 'text-orange-400' },
             { icon: Zap, val: `${summary.ot20.toFixed(0)}h`, label: 'OT 2.0×', color: accentText('purple', t.light) },
-            { icon: Moon, val: `${summary.night.toFixed(0)}h`, label: 'nightshift', color: accentText('indigo', t.light) },
+            { icon: Moon, val: `${summary.nightAllow.toFixed(0)}h`, label: 'night allow.', color: accentText('indigo', t.light) },
             summary.standbyBonus > 0 ? { icon: LayoutGrid, val: `${summary.standbyBonus}h`, label: 'standby allowance', color: accentText('amber', t.light) } : null,
             { icon: CalendarDays, val: `${completion}%`, label: `filled (${summary.filled}/${summary.possible})`, color: completion === 100 ? accentText('emerald', t.light) : t.textMuted },
           ].filter(Boolean).map((item, i, arr) => {

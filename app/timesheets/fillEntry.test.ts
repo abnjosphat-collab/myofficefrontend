@@ -71,6 +71,18 @@ describe('normal-hours fill', () => {
     expect(t.notes).toBe('');
   });
 
+  it('copies night shift allowance onto newly filled empty days when source shift crosses 18:00–06:00', () => {
+    const from = extractFillFromSource(entry({
+      start_time: '18:00', end_time: '06:00', regular_hours: 10,
+      nightshift_hours: 10, nightshift_allowance: false,
+    }));
+    expect(from.kind).toBe('normal');
+    if (from.kind !== 'normal') return;
+    const out = applyNormalHoursFill(from.normal, undefined, 1, '2026-08-12', from.nightAllowance);
+    expect(out.nightshift_allowance).toBe(true);
+    expect(out.nightshift_hours).toBeGreaterThan(0);
+  });
+
   it('applyNormalHoursFill preserves existing OT and allowances on saved targets', () => {
     const existing = entry({
       id: 5, date: '2026-08-11', overtime_hours: 6, nightshift_hours: 2,

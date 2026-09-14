@@ -59,10 +59,7 @@ export interface HourTotals {
   /** Module / row-stored overtime at 1.5× (excludes normal excess over 208). */
   ot15Module?: number;
   ot20: number; night: number; standbyBonus: number;
-  /** Sum of nightshift_hours (actual 18:00–06:00 overlap) on days flagged
-   *  nightshift_allowance — i.e. rostered night-shift days, not flat, and not earned by
-   *  a callout entry (no start/end time, never carries this flag). Kept as its own column
-   *  rather than folded into ot15/night, same as standbyBonus. */
+  /** Roster shift 18:00–06:00 hours (`rosterNightAllowanceHours` in calcTotals.ts) — not callout OT. */
   nightAllowanceBonus: number;
   /** Uncapped sum of normal (regular) hours for the period — includes leave-as-8h via
    *  regular_hours, excludes double-time days (weekend/holiday worked → 2.0× column). */

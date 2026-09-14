@@ -1,13 +1,15 @@
 import { toLocalISODate } from '@/lib/dates';
 import { zimHolidayName } from '@/lib/zimHolidays';
-import { DOUBLE_TIME_STATUSES, LEAVE_STATUSES, ZERO_HOUR_STATUSES } from './calcTotals';
+import { calcNightHours, deriveNightshiftAllowanceFlag, DOUBLE_TIME_STATUSES, LEAVE_STATUSES, ZERO_HOUR_STATUSES } from './calcTotals';
 import type { Employee, StatusKey, TimesheetEntry } from './types';
 
 export type NormalHoursSlice = Pick<TimesheetEntry, 'regular_hours' | 'start_time' | 'end_time'>;
 
 export type FillFromSource =
   | { kind: 'off'; status: 'off' | 'absent' }
-  | { kind: 'normal'; normal: NormalHoursSlice };
+  | { kind: 'normal'; normal: NormalHoursSlice; nightAllowance?: { hours: number; enabled: true } };
+
+export { calcNightHours } from './calcTotals';
 
 /** Role-based normal shift length — mirrors page.tsx normalShiftHours. */
 export function normalShiftHours(position: string): 8 | 10 {
@@ -52,7 +54,10 @@ export function extractFillFromSource(source: TimesheetEntry): FillFromSource {
   if (ZERO_HOUR_STATUSES.has(source.status)) {
     return { kind: 'off', status: source.status === 'absent' ? 'absent' : 'off' };
   }
-  return { kind: 'normal', normal: extractNormalHoursFromSource(source) };
+  const normal = extractNormalHoursFromSource(source);
+  const nh = calcNightHours(normal.start_time ?? '', normal.end_time ?? '');
+  const nightAllowance = nh > 0 ? { enabled: true as const, hours: nh } : undefined;
+  return { kind: 'normal', normal, nightAllowance };
 }
 
 /** Normal hours + shift times taken from the source cell (fill never copies OT/allowances). */
@@ -68,21 +73,33 @@ export function newRowFromNormalHours(
   normal: NormalHoursSlice,
   empId: number,
   targetDate: string,
+  nightAllowanceFromSource?: { hours: number; enabled: true },
 ): Omit<TimesheetEntry, 'id'> {
   const regular_hours = normal.regular_hours;
+  const start = normal.start_time ?? '07:00';
+  const end = normal.end_time ?? '';
+  const nightHours = nightAllowanceFromSource?.enabled
+    ? calcNightHours(start, end) || nightAllowanceFromSource.hours
+    : 0;
+  const nightFlag = deriveNightshiftAllowanceFlag({
+    nightshift_hours: nightHours,
+    start_time: start,
+    end_time: end,
+    status: 'work',
+  });
   return {
     employee_id: empId,
     date: targetDate,
     status: 'work',
-    start_time: normal.start_time ?? '07:00',
-    end_time: normal.end_time ?? '',
+    start_time: start,
+    end_time: end,
     regular_hours,
     overtime_hours: 0,
     holiday_overtime_hours: 0,
-    nightshift_hours: 0,
+    nightshift_hours: nightHours,
     standby_allowance: false,
-    nightshift_allowance: false,
-    total_hours: regular_hours,
+    nightshift_allowance: nightFlag,
+    total_hours: regular_hours + nightHours,
     notes: '',
     overtime_periods: [],
     callout_overtime_hours: 0,
@@ -124,8 +141,9 @@ export function applyNormalHoursFill(
   existing: TimesheetEntry | undefined,
   empId: number,
   targetDate: string,
+  nightAllowanceFromSource?: { hours: number; enabled: true },
 ): Omit<TimesheetEntry, 'id'> {
-  if (!existing?.id) return newRowFromNormalHours(normal, empId, targetDate);
+  if (!existing?.id) return newRowFromNormalHours(normal, empId, targetDate, nightAllowanceFromSource);
 
   const { id: _id, _auto, ...rest } = existing;
   const ot15 = rest.overtime_hours || 0;

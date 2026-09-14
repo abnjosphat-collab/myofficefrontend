@@ -88,15 +88,25 @@ describe('calcEmployeeTotals — standby allowance (flat 8h per contiguous run)'
 });
 
 describe('calcEmployeeTotals — night shift allowance (actual hours, not a flat bonus)', () => {
-  it('sums the real nightshift_hours on flagged days instead of a flat 8h (the reported bug)', () => {
-    const t = calcEmployeeTotals('1', [entry({ nightshift_hours: 5.5, nightshift_allowance: true })]);
+  it('sums the real nightshift_hours from roster shift times instead of a flat 8h (the reported bug)', () => {
+    const t = calcEmployeeTotals('1', [entry({
+      start_time: '18:00', end_time: '23:30', nightshift_hours: 5.5, nightshift_allowance: true,
+    })]);
     expect(t.nightAllowanceBonus).toBe(5.5);
   });
 
-  it('does not credit nightshift_hours when nightshift_allowance is not set (a callout entry)', () => {
+  it('does not credit night hours without roster shift times (use callout_overtime_hours for breakdown work)', () => {
     const t = calcEmployeeTotals('1', [entry({ nightshift_hours: 3, nightshift_allowance: false })]);
     expect(t.nightAllowanceBonus).toBe(0);
-    expect(t.night).toBe(3); // still counted in the raw night total, just not the allowance bonus
+    expect(t.night).toBe(3);
+  });
+
+  it('credits roster shift night hours even when the legacy allowance flag is off', () => {
+    const t = calcEmployeeTotals('1', [entry({
+      start_time: '18:00', end_time: '06:00', nightshift_hours: 10, nightshift_allowance: false,
+    })]);
+    expect(t.nightAllowanceBonus).toBe(10);
+    expect(t.night).toBe(0);
   });
 });
 

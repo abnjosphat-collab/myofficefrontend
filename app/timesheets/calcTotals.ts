@@ -8,6 +8,41 @@ export const ZERO_HOUR_STATUSES = new Set<StatusKey>(['off', 'absent']);
 
 export const NEC_REG_CAP = 208;
 
+/** Overlap with 18:00–06:00 from roster start/end (same rules as the entry editor). */
+export function calcNightHours(start: string, end: string): number {
+  if (!start || !end) return 0;
+  const [sh, sm] = start.split(':').map(Number);
+  const [eh, em] = end.split(':').map(Number);
+  const s = sh + sm / 60;
+  let e = eh + em / 60;
+  if (e <= s) e += 24;
+  const ov = (a: number, b: number) => Math.max(0, Math.min(e, b) - Math.max(s, a));
+  return ov(0, 6) + ov(18, 24) + ov(24, 30);
+}
+
+export type RosterNightAllowanceEntry = Pick<
+  TimesheetEntry,
+  'nightshift_hours' | 'start_time' | 'end_time' | 'status'
+>;
+
+/**
+ * Night shift allowance: any 18:00–06:00 hours from a **rostered shift** (start/end).
+ * Ad-hoc night work (breakdown callouts) belongs in `callout_overtime_hours`, not here.
+ */
+export function rosterNightAllowanceHours(e: RosterNightAllowanceEntry): number {
+  if (LEAVE_STATUSES.has(e.status) || ZERO_HOUR_STATUSES.has(e.status)) return 0;
+  const nh = e.nightshift_hours || 0;
+  if (nh <= 0) return 0;
+  const st = e.start_time?.trim();
+  const en = e.end_time?.trim();
+  if (!st || !en) return 0;
+  return nh;
+}
+
+export function deriveNightshiftAllowanceFlag(e: RosterNightAllowanceEntry): boolean {
+  return rosterNightAllowanceHours(e) > 0;
+}
+
 export type CalcEmployeeTotalsOpts = {
   periodDates?: string[];
   /** NEC: Reg defaults to 208 when Actual < 208 unless the employee was Absent (not Off). */
@@ -60,8 +95,9 @@ export function calcEmployeeTotals(
         ot20 += e.holiday_overtime_hours || 0;
       }
       const nh = e.nightshift_hours || 0;
-      if (e.nightshift_allowance) nightAllowanceBonus += nh;
-      else night += nh;
+      const allowH = rosterNightAllowanceHours(e);
+      nightAllowanceBonus += allowH;
+      if (nh > allowH) night += nh - allowH;
       if (e.standby_allowance) {
         if (!inStandbyRun) { standbyBonus += 8; inStandbyRun = true; }
       } else inStandbyRun = false;
