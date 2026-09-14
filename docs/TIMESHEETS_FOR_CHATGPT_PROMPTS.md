@@ -101,6 +101,13 @@ Options: `calcEmployeeTotals(empId, timesheets, { periodDates, applyRegFloorWith
 
 ---
 
+## Scanned PDF import (in-app)
+
+- **UI:** NEC tab → **Import scans** (`app/timesheets/necImport/`).
+- **API:** backend `/api/nec-timesheet-import` + `app/nec_import/*`.
+- **Flow:** create job → upload PDF(s) → upload validated **review JSON** → preview → dry-run/apply.
+- **Default extraction:** manual review JSON (`NEC_IMPORT_EXTRACTION_PROVIDER=manual_review_json` on server).
+
 ## File cheat sheet
 
 | Concern | Path |
@@ -108,6 +115,7 @@ Options: `calcEmployeeTotals(empId, timesheets, { periodDates, applyRegFloorWith
 | Totals / OT addends | `app/timesheets/calcTotals.ts` |
 | Leave/OT merge | `app/timesheets/mergeEffectiveTimesheets.ts` |
 | Grid + Excel export | `app/timesheets/page.tsx` |
+| Scan import UI | `app/timesheets/necImport/NecScanImportPanel.tsx` |
 | Excel formula helper | `lib/exportUtils.ts` |
 | Sep 2026 batch | `app/timesheets/necModuleBatch.ts` |
 

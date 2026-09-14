@@ -9,7 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { EXPORT_BRAND_ARGB, EXPORT_BRAND_RGB, excelColumnLetter, excelOt15Formula } from '@/lib/exportUtils';
+import { EXPORT_BRAND_ARGB, EXPORT_BRAND_RGB, excelActualSumFormula, excelColumnLetter, excelOt15Formula } from '@/lib/exportUtils';
 import {
   ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Search, Download, Plus,
   Clock, Users, User, Loader2, CheckCircle, XCircle, AlertTriangle,
@@ -34,6 +34,7 @@ import {
   fillTargetDayIndices, isFillProtectedTarget,
 } from './fillEntry';
 import { attachFillPointerDrag, type FillDragState } from './fillDrag';
+import { NecScanImportPanel } from './necImport/NecScanImportPanel';
 
 // ─────────────────── STATUS CONFIG ───────────────────
 
@@ -796,7 +797,9 @@ function DownloadDialog({ employees, timesheets, approvedOvertime, period, perio
     if (!e) return d.getDay() === 0 || d.getDay() === 6 ? '·' : '';
     if (ZERO_HOUR_STATUSES.has(e.status as StatusKey)) return statusAbbr(e.status);
     if (LEAVE_STATUSES.has(e.status as StatusKey)) return excelLeaveHours(e);
-    if (DOUBLE_TIME_STATUSES.has(e.status as StatusKey)) return e.holiday_overtime_hours || 0;
+    if (DOUBLE_TIME_STATUSES.has(e.status as StatusKey)) {
+      return (e.regular_hours || 0) + (e.overtime_hours || 0) + (e.holiday_overtime_hours || 0);
+    }
     return e.regular_hours || 0;
   };
 
@@ -845,7 +848,7 @@ function DownloadDialog({ employees, timesheets, approvedOvertime, period, perio
       ws.getRow(1).height = 24;
       ws.mergeCells(2, 1, 2, totalCols);
       const legendCell = ws.getCell(2, 1);
-      legendCell.value = `OT 1.5×: formula bar shows =MAX(0, Actual h − ${NEC_REG_CAP}) + each approved 1.5× OT line (+2+3+…). Add more +hours at the end if needed.`;
+      legendCell.value = `Actual h = SUM(all day columns, incl. 2.0× days). Use OT 2.0× for double-time pay. OT 1.5× = MAX(0, Actual h − ${NEC_REG_CAP}) + …`;
       legendCell.font = { name: FONT, size: 9, italic: true, color: { argb: EXCEL_BW.black } };
       legendCell.alignment = { wrapText: true, vertical: 'middle' };
       ws.getRow(2).height = 28;
@@ -861,6 +864,9 @@ function DownloadDialog({ employees, timesheets, approvedOvertime, period, perio
         c.border = { ...thinBorder, bottom: { style: 'medium', color: { argb: EXCEL_BW.black } } };
       });
       const sumStartCol = FIXED_COLS + days.length + 1;
+      const firstDayColL = excelColumnLetter(FIXED_COLS + 1);
+      const lastDayColL = excelColumnLetter(FIXED_COLS + days.length);
+      hdrRow.getCell(sumStartCol).note = `Formula: =SUM(${firstDayColL}:${lastDayColL}) — every period day column, including 2.0× days.`;
       hdrRow.getCell(sumStartCol + 2).note = `Formula: =MAX(0, Actual h − ${NEC_REG_CAP}) + one +term per 1.5× OT entry. Extend with +hours in the formula bar.`;
 
       targets.forEach((emp, ei) => {
@@ -877,6 +883,15 @@ function DownloadDialog({ employees, timesheets, approvedOvertime, period, perio
         const ot15Col = actualCol + 2;
         const actualL = excelColumnLetter(actualCol);
         const rowNum = dataRow.number;
+        const dayHoursSum = days.reduce((s, day) => {
+          const v = dayCell(getEntry(emp.id, day), day);
+          return s + (typeof v === 'number' ? v : 0);
+        }, 0);
+        const actualCell = dataRow.getCell(actualCol);
+        actualCell.value = {
+          formula: excelActualSumFormula(firstDayColL, lastDayColL, rowNum),
+          result: dayHoursSum,
+        };
         const empIdCell = dataRow.getCell(1);
         empIdCell.value = empIdDisplay || '—';
         empIdCell.numFmt = '@';
@@ -897,6 +912,9 @@ function DownloadDialog({ employees, timesheets, approvedOvertime, period, perio
           const isWknd = day.getDay() === 0 || day.getDay() === 6;
           if (e && LEAVE_STATUSES.has(e.status as StatusKey)) {
             cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: EXCEL_BW.leaveBg } };
+          } else if (e && DOUBLE_TIME_STATUSES.has(e.status as StatusKey)) {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF5F0E6' } };
+            cell.font = { name: FONT, size: 8, bold: true, color: { argb: EXCEL_BW.black } };
           } else if (ZERO_HOUR_STATUSES.has(e?.status as StatusKey)) {
             cell.font = { name: FONT, size: 7, italic: true, color: { argb: EXCEL_BW.black } };
           } else if (isWknd && !e) {
@@ -923,10 +941,11 @@ function DownloadDialog({ employees, timesheets, approvedOvertime, period, perio
       const actualCol = FIXED_COLS + days.length + 1;
       const ot15Col = actualCol + 2;
       const ot15L = excelColumnLetter(ot15Col);
+      const actualL = excelColumnLetter(actualCol);
 
       const gtRow = ws.getRow(4 + targets.length + 1);
       gtRow.values = ['', 'TOTALS', `${targets.length} employees`, ...days.map(() => ''),
-        targets.reduce((s, e) => s + calcTotalsLocal(e.id).actual, 0),
+        null,
         targets.reduce((s, e) => s + calcTotalsLocal(e.id).reg, 0),
         targets.reduce((s, e) => s + calcTotalsLocal(e.id).ot15, 0),
         targets.reduce((s, e) => s + calcTotalsLocal(e.id).ot20, 0),
@@ -940,6 +959,15 @@ function DownloadDialog({ employees, timesheets, approvedOvertime, period, perio
         if (col > FIXED_COLS + days.length && col !== ot15Col) c.numFmt = '0.00';
         c.border = { ...thinBorder, top: { style: 'medium', color: { argb: EXCEL_BW.black } } };
       });
+      const gtActual = gtRow.getCell(actualCol);
+      gtActual.value = {
+        formula: `SUM(${actualL}${firstDataRow}:${actualL}${lastDataRow})`,
+        result: targets.reduce((s, e) => s + days.reduce((ds, day) => {
+          const v = dayCell(getEntry(e.id, day), day);
+          return ds + (typeof v === 'number' ? v : 0);
+        }, 0), 0),
+      };
+      gtActual.numFmt = '0.00';
       const gtOt15 = gtRow.getCell(ot15Col);
       gtOt15.value = {
         formula: `SUM(${ot15L}${firstDataRow}:${ot15L}${lastDataRow})`,
@@ -1571,6 +1599,7 @@ function TimesheetsContent() {
   const [editCell, setEditCell] = useState<EditCell | null>(null);
   const [showBulkAdd, setShowBulkAdd] = useState(false);
   const [showDownload, setShowDownload] = useState(false);
+  const [showNecImport, setShowNecImport] = useState(false);
   const [bulkEmployee, setBulkEmployee] = useState<Employee | null>(null);
 
   // Automatic base roster: every employee whose employment_type matches this tab.
@@ -1916,6 +1945,11 @@ function TimesheetsContent() {
             <button type="button" title="Refresh timesheets" onClick={load} disabled={loading} className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textMuted} transition-all disabled:opacity-40`}>
               <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} /><span className="hidden sm:inline">Refresh</span>
             </button>
+            {activeTab === 'nec' && (
+              <button type="button" title="Import scanned PDF timesheets" onClick={() => setShowNecImport(true)} className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textMuted} transition-all`}>
+                <FileSpreadsheet className="h-3.5 w-3.5" /><span className="hidden sm:inline">Import scans</span>
+              </button>
+            )}
             <button type="button" title="Download timesheet" onClick={() => setShowDownload(true)} className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textMuted} transition-all`}>
               <Download className="h-3.5 w-3.5" /><span className="hidden sm:inline">Download</span>
             </button>
@@ -2035,6 +2069,14 @@ function TimesheetsContent() {
 
       {showBulkAdd && <BulkAddEmployeesDialog allEmployees={allEmployees} currentIds={tabIds} onAdd={emps => addToTab(emps.map(e => e.id))} onClose={() => setShowBulkAdd(false)} />}
       {showDownload && <DownloadDialog employees={tabEmployees} timesheets={effectiveTimesheets} approvedOvertime={approvedOvertime} period={activePeriod} periodType={activeTab} onClose={() => setShowDownload(false)} />}
+      {showNecImport && activeTab === 'nec' && (
+        <NecScanImportPanel
+          open={showNecImport}
+          period={activePeriod}
+          onClose={() => setShowNecImport(false)}
+          onApplied={() => { void load(); setShowNecImport(false); }}
+        />
+      )}
     </main>
   );
 }

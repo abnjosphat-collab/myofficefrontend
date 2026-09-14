@@ -27,6 +27,11 @@ export function exportFilename(base: string): string {
   return `${base}_${new Date().toISOString().slice(0, 10)}`;
 }
 
+/** Actual h — e.g. SUM(D4:AH4) over all period day columns on that row (ExcelJS: no leading `=`). */
+export function excelActualSumFormula(firstDayCol: string, lastDayCol: string, row: number): string {
+  return `SUM(${firstDayCol}${row}:${lastDayCol}${row})`;
+}
+
 /** Numeric literal for Excel formulas (drops trailing zeros). */
 export function excelFormulaHourLiteral(hours: number): string {
   return String(Number(hours.toFixed(2)));
