@@ -21,6 +21,7 @@ import {
 } from '@/components/shared/theme';
 import { ShiftTimeRangeField } from '@/components/shared/design-system';
 import { defaultDayShiftTimes } from '@/lib/shiftTimePresets';
+import { recordShiftTimeUsage } from '@/lib/shiftTimePresetsPersonal';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ApprovalGate, type SignatureResult } from '@/components/shared/ApprovalGate';
 import { useEmployees, type EmployeeLookup } from '@/hooks/useLookups';
@@ -265,7 +266,11 @@ function OTFormModal({ open, onClose, onSave, editing, records }: {
       return;
     }
     setSaving(true);
-    try { await onSave({ ...buildOvertimePayload(form, useHours), spares_used: spares }, editing?.id); onClose(); }
+    try {
+      if (!useHours) recordShiftTimeUsage(form.start_time, form.end_time);
+      await onSave({ ...buildOvertimePayload(form, useHours), spares_used: spares }, editing?.id);
+      onClose();
+    }
     catch (err) { toast.error((err as Error).message); }
     finally { setSaving(false); }
   };

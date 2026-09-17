@@ -24,6 +24,7 @@ import { ShiftTimeRangeField } from '@/components/shared/design-system';
 import {
   DEFAULT_DAY_SHIFT_END, DEFAULT_DAY_SHIFT_START, TIMESHEET_BULK_SHIFT_PRESETS, isDefaultDayShiftTimes,
 } from '@/lib/shiftTimePresets';
+import { recordShiftTimeUsage } from '@/lib/shiftTimePresetsPersonal';
 import { toLocalISODate } from '@/lib/dates';
 import { zimHolidayName } from '@/lib/zimHolidays';
 import type {
@@ -234,6 +235,9 @@ function TimesheetEntryDialog({ employee, date, entry, onSave, onDelete, onClose
     setSaving(true);
     try {
       const isDT = DOUBLE_TIME_STATUSES.has(form.status);
+      if (!LEAVE_STATUSES.has(form.status) && !ZERO_HOUR_STATUSES.has(form.status) && form.start_time && form.end_time) {
+        recordShiftTimeUsage(form.start_time, form.end_time);
+      }
       await onSave(timesheetWritePayload({
         employee_id: parseInt(employee.id), date: fmtDate(date),
         start_time: form.start_time, end_time: form.end_time,
@@ -502,6 +506,9 @@ function BulkAssignDialog({ initialEmployee, allEmployees, period, timesheets, o
         });
       });
       await onSave(entries);
+      if (!useNormalShift && !LEAVE_STATUSES.has(status) && !ZERO_HOUR_STATUSES.has(status)) {
+        recordShiftTimeUsage(startTime, endTime);
+      }
       setLastApplied({ days: selectedDates.size, emps: selectedEmpIds.size });
       setSelectedDates(new Set());
       setAnchor(null);
