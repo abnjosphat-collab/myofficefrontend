@@ -1379,15 +1379,18 @@ function TimesheetGrid({ employees, timesheets, days, getHourTotals, onCellClick
               <TableHead key={ds} className={`text-center min-w-[70px] px-0.5 sticky top-0 z-20 ${dayHeaderBg(!!holiday)}`}>
                 <button
                   type="button"
-                  title={holiday ? `${holiday} — bulk assign this day for many employees` : 'Bulk assign this day for many employees'}
+                  title={holiday ? `${holiday} — click to bulk-assign this day for many employees` : 'Click to bulk-assign this day for many employees'}
                   onClick={() => onBulkDay(d)}
-                  className={`w-full flex flex-col items-center text-[9px] py-1 rounded-md transition-colors hover:bg-brand-500/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/50`}
+                  className={`w-full flex flex-col items-center gap-0.5 text-[9px] py-1.5 rounded-md transition-colors hover:bg-brand-500/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/50 group/day-hdr`}
                 >
                   <span className={t.textFaint}>{d.toLocaleDateString('en-GB', { weekday: 'short' })}</span>
                   <span className={`${TYPE_WEIGHT.bold} text-sm ${holiday ? accentText('violet', t.light) : ds === today ? 'text-brand-400' : isWknd ? t.textFaint : t.textMuted}`}>{d.getDate()}</span>
                   <span className={t.textFaint}>{d.toLocaleDateString('en-GB', { month: 'short' })}</span>
-                  {holiday && <Sun className={`w-2.5 h-2.5 ${accentText('violet', t.light)} mt-0.5`} />}
-                  <span className={`text-[8px] mt-0.5 ${t.textFaint} opacity-70`}>Bulk</span>
+                  {holiday && <Sun className={`w-2.5 h-2.5 ${accentText('violet', t.light)}`} />}
+                  <span className={`inline-flex items-center gap-0.5 text-[10px] ${TYPE_WEIGHT.semibold} text-brand-400/90 group-hover/day-hdr:text-brand-300`}>
+                    <Layers className="w-2.5 h-2.5" aria-hidden />
+                    Bulk
+                  </span>
                 </button>
               </TableHead>
             );

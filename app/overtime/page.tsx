@@ -431,6 +431,196 @@ function OTFormModal({ open, onClose, onSave, editing, records }: {
   );
 }
 
+/** Same overtime details for many employees — one date/times/type/reason, N pending requests. */
+function OTBulkFormModal({ open, onClose, onSubmit, employees, records, initialPicks }: {
+  open: boolean;
+  onClose: () => void;
+  onSubmit: (payloads: Record<string, unknown>[]) => Promise<void>;
+  employees: EmployeeLookup[];
+  records: OTRecord[];
+  initialPicks?: PickedEmployee[];
+}) {
+  const t = useTheme();
+  const [picks, setPicks] = useState<PickedEmployee[]>([]);
+  const [form, setForm] = useState<Omit<OTForm, 'employee_name' | 'employee_id' | 'position' | 'department' | 'contact_number'>>(() => {
+    const { employee_name: _n, employee_id: _i, position: _p, department: _d, contact_number: _c, ...rest } = blankForm();
+    return rest;
+  });
+  const [useHours, setUseHours] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    const { employee_name: _n, employee_id: _i, position: _p, department: _d, contact_number: _c, ...rest } = blankForm();
+    const holiday = overtimeDefaultsForPublicHoliday(rest.date);
+    setForm(holiday ? { ...rest, ...holiday } : rest);
+    setUseHours(false);
+    setPicks(initialPicks?.length ? [...initialPicks] : []);
+  }, [open, initialPicks]);
+
+  const set = (k: keyof typeof form, v: string) => setForm(f => ({ ...f, [k]: v }));
+
+  const handleDateChange = (dateStr: string) => {
+    setForm(f => {
+      const holiday = overtimeDefaultsForPublicHoliday(dateStr);
+      if (holiday) return { ...f, date: dateStr, ...holiday };
+      return { ...f, date: dateStr };
+    });
+  };
+
+  const hours = useHours ? (parseFloat(form.hours) || 0) : calcHours(form.start_time, form.end_time);
+  const inputCls = `w-full h-9 rounded-lg px-3 text-sm outline-none transition-colors ${t.inputBg}`;
+
+  const planningTabs: PillTab<PlanningStatus | 'unclassified'>[] = [
+    { key: 'planned', label: 'Planned', icon: Calendar },
+    { key: 'unplanned', label: 'Unplanned', icon: AlertCircle },
+  ];
+  const payoutTabs: PillTab<PayoutMethod | 'unclassified'>[] = [
+    { key: 'cash', label: 'To Be Paid', icon: Wallet },
+    { key: 'lieu', label: 'Taken as Leave', icon: Clock4 },
+  ];
+
+  const duplicateCount = useMemo(() => {
+    if (useHours || !form.date || !form.start_time) return 0;
+    return picks.filter(p =>
+      records.some(r =>
+        r.employee_id === p.employee_id &&
+        r.date === form.date &&
+        r.start_time === form.start_time &&
+        r.status !== 'rejected' && r.status !== 'cancelled',
+      ),
+    ).length;
+  }, [picks, records, form.date, form.start_time, useHours]);
+
+  const metaForPick = (pick: PickedEmployee) => {
+    const emp = employees.find(e => String(e.id) === pick.id || e.employee_id === pick.employee_id);
+    return {
+      position: normalizeDesignation(emp?.designation as string) || (emp?.designation as string) || '',
+      department: (emp?.department as string) || '',
+      contact_number: primaryContactPhone(emp?.phone as string) || '',
+    };
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (picks.length === 0) { toast.error('Add at least one employee'); return; }
+    if (useHours ? !(parseFloat(form.hours) > 0) : !(form.start_time && form.end_time)) {
+      toast.error(useHours ? 'Enter the number of hours' : 'Start and end time are required');
+      return;
+    }
+    setSaving(true);
+    try {
+      if (!useHours) recordShiftTimeUsage(form.start_time, form.end_time);
+      const payloads = picks.map(pick => buildOvertimePayload({
+        ...form,
+        employee_name: pick.name,
+        employee_id: pick.employee_id,
+        ...metaForPick(pick),
+      }, useHours));
+      await onSubmit(payloads);
+      onClose();
+    } catch (err) { toast.error((err as Error).message); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <CenterModal open={open} onClose={onClose} title="Bulk Overtime — same shift for many" accent="violet" width="max-w-xl">
+      <form onSubmit={handleSave} className="p-5 space-y-4">
+        <EmployeeMultiPicker
+          label={`Employees (${picks.length} selected)`}
+          placeholder="Search and add each person who worked the same OT…"
+          value={picks}
+          onAdd={p => setPicks(prev => prev.some(x => x.id === p.id) ? prev : [...prev, p])}
+          onRemove={id => setPicks(prev => prev.filter(p => p.id !== id))}
+        />
+        {picks.length > 0 && (
+          <button
+            type="button"
+            className="text-xs text-brand-400 hover:underline -mt-2"
+            onClick={() => setPicks([])}
+          >
+            Clear all employees
+          </button>
+        )}
+
+        <div className="grid grid-cols-2 gap-3">
+          <FormField label="Overtime Type" required>
+            <SelectField size="form" value={form.overtime_type} title="Overtime type" onChange={v => {
+              const ty = v as OTType;
+              if (ty === 'holiday') setForm(f => ({ ...f, overtime_type: ty, ...defaultDayShiftTimes() }));
+              else set('overtime_type', ty);
+            }}
+              options={SELECTABLE_OT_TYPES.map(ty => ({ value: ty, label: TYPE_LABELS[ty] }))} />
+          </FormField>
+          <FormField label="Date" required>
+            <input aria-label="Date" type="date" className={inputCls} value={form.date} onChange={e => handleDateChange(e.target.value)} />
+          </FormField>
+        </div>
+
+        <FormField label="Planned or Unplanned?" required>
+          <PillTabs tabs={planningTabs} value={form.planning_status ?? 'unclassified'} onChange={v => setForm(f => ({ ...f, planning_status: v === 'unclassified' ? null : v }))} />
+        </FormField>
+        <FormField label="Payout" required>
+          <PillTabs tabs={payoutTabs} value={form.payout_method ?? 'unclassified'} onChange={v => setForm(f => ({ ...f, payout_method: v === 'unclassified' ? null : v }))} />
+        </FormField>
+
+        <label htmlFor="overtime-bulk-use-hours" className="flex items-center gap-2 text-xs cursor-pointer select-none">
+          <input id="overtime-bulk-use-hours" type="checkbox" checked={useHours} onChange={e => setUseHours(e.target.checked)} className="accent-brand-500" />
+          <span className={t.textMuted}>Enter hours only (same for everyone)</span>
+        </label>
+
+        {useHours ? (
+          <FormField label="Hours" required>
+            <input aria-label="Hours" type="number" min={0.5} max={24} step={0.5} className={inputCls} value={form.hours} onChange={e => set('hours', e.target.value)} placeholder="e.g. 3.5" />
+          </FormField>
+        ) : (
+          <ShiftTimeRangeField
+            start={form.start_time}
+            end={form.end_time}
+            onChange={(start_time, end_time) => setForm(f => ({ ...f, start_time, end_time }))}
+            inputClassName={inputCls}
+            startLabel="Start Time"
+            endLabel="End Time"
+            trailing={(
+              <FormField label="Duration">
+                <div className={`${inputCls} flex items-center text-brand-400 ${TYPE_WEIGHT.semibold} pointer-events-none`}>
+                  {hours > 0 ? `${hours.toFixed(1)}h` : '—'}
+                </div>
+              </FormField>
+            )}
+          />
+        )}
+
+        {duplicateCount > 0 && (
+          <div className="flex items-start gap-2.5 rounded-xl px-3.5 py-3 bg-amber-500/10 border border-amber-500/30">
+            <AlertTriangle className={`h-4 w-4 ${accentText('amber', t.light)} shrink-0 mt-0.5`} />
+            <p className={`text-xs ${t.textMuted}`}>
+              <span className={`${TYPE_WEIGHT.semibold} text-amber-500`}>{duplicateCount}</span>
+              {' '}selected {duplicateCount === 1 ? 'person already has' : 'people already have'} a request for this date and start time — they will still get another row if you submit (stacked OT is allowed).
+            </p>
+          </div>
+        )}
+
+        <FormField label="Reason">
+          <PredictiveInput historyKey="overtime_reason" multiline rows={2}
+            value={form.reason} onChange={v => set('reason', v)} placeholder="Same reason for everyone (optional)…"
+            inputClassName={`text-sm ${t.inputBg}`} />
+        </FormField>
+        <FormField label="Notes">
+          <input aria-label="Notes" className={inputCls} value={form.notes} onChange={e => set('notes', e.target.value)} placeholder="Optional notes for all…" />
+        </FormField>
+
+        <FormActions
+          onCancel={onClose}
+          submitting={saving}
+          submitLabel={picks.length > 0 ? `Submit ${picks.length} requests` : 'Submit'}
+          accent="violet"
+        />
+      </form>
+    </CenterModal>
+  );
+}
+
 // ─── DETAIL MODAL ─────────────────────────────────────────────────────────────
 
 function OTDetailModal({ record, onClose, onEdit, onApprove, onReject }: {
@@ -1933,6 +2123,7 @@ function OvertimeContent() {
   const [mainTab, setMainTab] = useState<'records' | 'insights' | 'weekly-summary'>('records');
 
   const [formOpen, setFormOpen] = useState(false);
+  const [bulkFormOpen, setBulkFormOpen] = useState(false);
   const [editing, setEditing] = useState<OTRecord | null>(null);
   const [viewing, setViewing] = useState<OTRecord | null>(null);
   const [delTarget, setDelTarget] = useState<OTRecord | null>(null);
@@ -2020,6 +2211,25 @@ function OvertimeContent() {
       const created = await createOT(body);
       setRecords(prev => [created, ...prev]);
       toast.success('Overtime request submitted');
+    }
+  };
+
+  const handleBulkCreate = async (payloads: Record<string, unknown>[]) => {
+    const results = await Promise.allSettled(payloads.map(p => createOT(p)));
+    const created: OTRecord[] = [];
+    let failed = 0;
+    results.forEach(r => {
+      if (r.status === 'fulfilled') created.push(r.value);
+      else failed += 1;
+    });
+    if (created.length > 0) setRecords(prev => [...created, ...prev]);
+    if (failed > 0 && created.length > 0) {
+      toast.warning(`${created.length} submitted, ${failed} failed`);
+    } else if (failed > 0) {
+      toast.error(`All ${failed} submissions failed`);
+      throw new Error('Bulk submit failed');
+    } else {
+      toast.success(`Submitted ${created.length} overtime request${created.length !== 1 ? 's' : ''}`);
     }
   };
 
@@ -2166,6 +2376,9 @@ function OvertimeContent() {
                 formats={['excel']}
               />
             )}
+            <PrimaryButton icon={UsersRound} accent="indigo" onClick={() => setBulkFormOpen(true)}>
+              Bulk Entry
+            </PrimaryButton>
             <PrimaryButton icon={Plus} onClick={() => { setEditing(null); setFormOpen(true); }}>New Request</PrimaryButton>
           </>
         }
@@ -2343,6 +2556,14 @@ function OvertimeContent() {
       )}
 
       <OTFormModal open={formOpen} onClose={() => { setFormOpen(false); setEditing(null); }} onSave={handleSave} editing={editing} records={records} />
+      <OTBulkFormModal
+        open={bulkFormOpen}
+        onClose={() => setBulkFormOpen(false)}
+        onSubmit={handleBulkCreate}
+        employees={employees}
+        records={records}
+        initialPicks={employeePicks.length > 0 ? employeePicks : undefined}
+      />
 
       {viewing && (
         <OTDetailModal
