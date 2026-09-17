@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   rateFor, calcHours, mondayOf, toISODate, addDays, buildWeeklyRows, isExcludedFromWeeklyRoster,
   cleanReasonText, significantTokens, levenshtein, tokensMatch, reasonSimilarity, groupSimilarReasons,
+  overtimeDefaultsForPublicHoliday, PUBLIC_HOLIDAY_OT_REASON,
 } from './calcOvertime';
 import type { OTRecord } from './types';
 import type { EmployeeLookup } from '@/hooks/useLookups';
@@ -13,6 +14,24 @@ function rec(over: Partial<OTRecord> = {}): OTRecord {
     status: 'pending', ...over,
   };
 }
+
+describe('overtimeDefaultsForPublicHoliday', () => {
+  it('returns holiday type and Public Holiday reason on a ZW public holiday', () => {
+    expect(overtimeDefaultsForPublicHoliday('2026-12-25')).toEqual({
+      overtime_type: 'holiday',
+      reason: PUBLIC_HOLIDAY_OT_REASON,
+    });
+    expect(overtimeDefaultsForPublicHoliday('2026-09-15')).toEqual({
+      overtime_type: 'holiday',
+      reason: PUBLIC_HOLIDAY_OT_REASON,
+    });
+  });
+
+  it('returns null on an ordinary working day', () => {
+    expect(overtimeDefaultsForPublicHoliday('2026-09-16')).toBeNull();
+    expect(overtimeDefaultsForPublicHoliday('2025-09-15')).toBeNull();
+  });
+});
 
 describe('rateFor', () => {
   it('pays weekend and holiday at double time', () => {

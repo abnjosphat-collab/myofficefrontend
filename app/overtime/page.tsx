@@ -19,6 +19,7 @@ import {
   useCollapseSection, CenterModal, ACCENT_HEX, ACCENT, type Accent, EmptyState, PrimaryButton, GlowCard, SelectField, accentText,
   CountUp, PulsingIcon, TYPE_SCALE, staggerContainer, fadeUp, HintText, TYPE_WEIGHT,
 } from '@/components/shared/theme';
+import { ShiftTimeRangeField } from '@/components/shared/design-system';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ApprovalGate, type SignatureResult } from '@/components/shared/ApprovalGate';
 import { useEmployees, type EmployeeLookup } from '@/hooks/useLookups';
@@ -38,7 +39,10 @@ import {
 } from 'recharts';
 import { OT_TYPES, SELECTABLE_OT_TYPES, STATUSES, type OTType, type OTStatus, type OTRecord, type OTForm, type SpareUsedEntry, type PlanningStatus, type PayoutMethod } from './types';
 import { useOvertimeData, buildOvertimePayload, createOT, updateOT, deleteOT, bulkUpdateOTStatus, postOvertimeAnalysis } from './useOvertimeData';
-import { calcHours, mondayOf, toISODate, addDays, buildWeeklyRows, cleanReasonText, groupSimilarReasons } from './calcOvertime';
+import {
+  calcHours, mondayOf, toISODate, addDays, buildWeeklyRows, cleanReasonText, groupSimilarReasons,
+  overtimeDefaultsForPublicHoliday,
+} from './calcOvertime';
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 
@@ -185,19 +189,25 @@ function OTFormModal({ open, onClose, onSave, editing, records }: {
 
   useEffect(() => {
     if (open) {
-      setForm(editing ? {
-        employee_name: editing.employee_name, employee_id: editing.employee_id, position: editing.position,
-        department: editing.department || '', overtime_type: editing.overtime_type,
-        // Preserve 'unclassified' (null) as a real, sticky state on an existing legacy
-        // record — must NOT default to 'unplanned'/'cash' here, or saving an unrelated
-        // edit (e.g. fixing a typo in reason) would silently stamp a guessed value on it.
-        planning_status: editing.planning_status ?? null,
-        payout_method: editing.payout_method ?? null,
-        date: editing.date,
-        start_time: editing.start_time || '17:00', end_time: editing.end_time || '20:00',
-        hours: editing.hours != null ? String(editing.hours) : '',
-        reason: editing.reason || '', contact_number: editing.contact_number || '', notes: editing.notes || '',
-      } : blankForm());
+      if (editing) {
+        setForm({
+          employee_name: editing.employee_name, employee_id: editing.employee_id, position: editing.position,
+          department: editing.department || '', overtime_type: editing.overtime_type,
+          // Preserve 'unclassified' (null) as a real, sticky state on an existing legacy
+          // record — must NOT default to 'unplanned'/'cash' here, or saving an unrelated
+          // edit (e.g. fixing a typo in reason) would silently stamp a guessed value on it.
+          planning_status: editing.planning_status ?? null,
+          payout_method: editing.payout_method ?? null,
+          date: editing.date,
+          start_time: editing.start_time || '17:00', end_time: editing.end_time || '20:00',
+          hours: editing.hours != null ? String(editing.hours) : '',
+          reason: editing.reason || '', contact_number: editing.contact_number || '', notes: editing.notes || '',
+        });
+      } else {
+        const base = blankForm();
+        const holiday = overtimeDefaultsForPublicHoliday(base.date);
+        setForm(holiday ? { ...base, ...holiday } : base);
+      }
       // An existing record with no recorded start/end but a stored hours value was
       // entered via the fast path — reopen it the same way.
       setUseHours(!!editing && !editing.start_time && editing.hours != null);
@@ -217,6 +227,14 @@ function OTFormModal({ open, onClose, onSave, editing, records }: {
   const removeSpare = (idx: number) => setSpares(prev => prev.filter((_, i) => i !== idx));
 
   const set = (k: keyof OTForm, v: string) => setForm(f => ({ ...f, [k]: v }));
+
+  const handleDateChange = (dateStr: string) => {
+    setForm(f => {
+      const holiday = overtimeDefaultsForPublicHoliday(dateStr);
+      if (holiday) return { ...f, date: dateStr, ...holiday };
+      return { ...f, date: dateStr };
+    });
+  };
   const hours = useHours ? (parseFloat(form.hours) || 0) : calcHours(form.start_time, form.end_time);
   const inputCls = `w-full h-9 rounded-lg px-3 text-sm outline-none transition-colors ${t.inputBg}`;
 
@@ -279,7 +297,7 @@ function OTFormModal({ open, onClose, onSave, editing, records }: {
             <SelectField size="form" value={form.overtime_type} title="Overtime type" onChange={v => set('overtime_type', v as OTType)}
               options={SELECTABLE_OT_TYPES.map(ty => ({ value: ty, label: TYPE_LABELS[ty] }))} />
           </FormField>
-          <FormField label="Date" required><input aria-label="Date" type="date" className={inputCls} value={form.date} onChange={e => set('date', e.target.value)} /></FormField>
+          <FormField label="Date" required><input aria-label="Date" type="date" className={inputCls} value={form.date} onChange={e => handleDateChange(e.target.value)} /></FormField>
         </div>
 
         <FormField label="Planned or Unplanned?" required>
@@ -309,11 +327,21 @@ function OTFormModal({ open, onClose, onSave, editing, records }: {
               onChange={e => set('hours', e.target.value)} placeholder="e.g. 3.5" />
           </FormField>
         ) : (
-          <div className="grid grid-cols-3 gap-3">
-            <FormField label="Start Time" required><input aria-label="Start Time" type="time" className={inputCls} value={form.start_time} onChange={e => set('start_time', e.target.value)} /></FormField>
-            <FormField label="End Time" required><input aria-label="End Time" type="time" className={inputCls} value={form.end_time} onChange={e => set('end_time', e.target.value)} /></FormField>
-            <FormField label="Duration"><div className={`${inputCls} flex items-center text-brand-400 ${TYPE_WEIGHT.semibold} pointer-events-none`}>{hours > 0 ? `${hours.toFixed(1)}h` : '—'}</div></FormField>
-          </div>
+          <ShiftTimeRangeField
+            start={form.start_time}
+            end={form.end_time}
+            onChange={(start_time, end_time) => setForm(f => ({ ...f, start_time, end_time }))}
+            inputClassName={inputCls}
+            startLabel="Start Time"
+            endLabel="End Time"
+            trailing={(
+              <FormField label="Duration">
+                <div className={`${inputCls} flex items-center text-brand-400 ${TYPE_WEIGHT.semibold} pointer-events-none`}>
+                  {hours > 0 ? `${hours.toFixed(1)}h` : '—'}
+                </div>
+              </FormField>
+            )}
+          />
         )}
 
         {duplicate && (

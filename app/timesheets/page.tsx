@@ -20,6 +20,8 @@ import {
 import { AppShell } from '@/components/app-shell';
 import { PredictiveInput } from '@/components/shared/PredictiveInput';
 import { useTheme, PageHero, ACCENT_HEX, useCollapseSection, EmptyState, accentText, TYPE_WEIGHT } from '@/components/shared/theme';
+import { ShiftTimeRangeField } from '@/components/shared/design-system';
+import { TIMESHEET_BULK_SHIFT_PRESETS } from '@/lib/shiftTimePresets';
 import { toLocalISODate } from '@/lib/dates';
 import { zimHolidayName } from '@/lib/zimHolidays';
 import type {
@@ -285,10 +287,12 @@ function TimesheetEntryDialog({ employee, date, entry, onSave, onDelete, onClose
 
           <div className={`p-3 rounded-lg ${t.chipBg} space-y-3`}>
             <h3 className={`${TYPE_WEIGHT.medium} text-sm ${t.textMuted}`}>{DOUBLE_TIME_STATUSES.has(form.status) ? '2.0× Shift (all hours @ double time)' : 'Regular Shift'}</h3>
-            <div className="grid grid-cols-2 gap-3">
-              <div><Label className={`text-xs ${t.textFaint}`}>Start</Label><Input type="time" value={form.start_time} onChange={e => setForm(f => ({ ...f, start_time: e.target.value }))} className={fieldCls} /></div>
-              <div><Label className={`text-xs ${t.textFaint}`}>End</Label><Input type="time" value={form.end_time} onChange={e => setForm(f => ({ ...f, end_time: e.target.value }))} className={fieldCls} /></div>
-            </div>
+            <ShiftTimeRangeField
+              start={form.start_time}
+              end={form.end_time}
+              onChange={(start_time, end_time) => setForm(f => ({ ...f, start_time, end_time }))}
+              inputClassName={fieldCls}
+            />
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div className={`rounded p-2 text-center ${DOUBLE_TIME_STATUSES.has(form.status) ? 'bg-violet-500/10' : 'bg-emerald-500/10'}`}>
                 <div className={`text-xs ${t.textFaint}`}>{DOUBLE_TIME_STATUSES.has(form.status) ? '2.0× h' : 'Regular'}</div>
@@ -392,11 +396,7 @@ function BulkAssignDialog({ initialEmployee, allEmployees, period, timesheets, o
   const [saving, setSaving] = useState(false);
   const [lastApplied, setLastApplied] = useState<{ days: number; emps: number } | null>(null);
 
-  const shiftPresets: Array<{ label: string; from: string; to: string }> = [
-    { label: '7–5 (10h)', from: '07:00', to: '17:00' }, { label: '7–4 (9h)', from: '07:00', to: '16:00' },
-    { label: '6–6 (12h)', from: '06:00', to: '18:00' }, { label: '7–3 (8h)', from: '07:00', to: '15:00' },
-    { label: 'Night', from: '18:00', to: '06:00' },
-  ];
+  const shiftPresets = TIMESHEET_BULK_SHIFT_PRESETS;
 
   const regHours = LEAVE_STATUSES.has(status) ? 8 : ZERO_HOUR_STATUSES.has(status) ? 0 : calcHours(startTime, endTime);
   const nightHours = (LEAVE_STATUSES.has(status) || ZERO_HOUR_STATUSES.has(status)) ? 0 : calcNightHours(startTime, endTime);
@@ -566,20 +566,12 @@ function BulkAssignDialog({ initialEmployee, allEmployees, period, timesheets, o
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label className={`text-xs ${t.textFaint}`}>Shift Preset</Label>
-              <div className="flex flex-wrap gap-1">
-                <button type="button" onClick={() => setUseNormalShift(true)}
-                  title="8h for lamp room/compressor attendants, 10h for everyone else — set automatically per person"
-                  className={`text-[11px] px-2 py-1 rounded transition-colors ${TYPE_WEIGHT.medium} ${useNormalShift ? `${accentText('indigo', t.light)} bg-indigo-500/20 ${TYPE_WEIGHT.semibold}` : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}>
-                  <Zap className="w-2.5 h-2.5 inline -mt-0.5 mr-0.5" />Normal (by role)
-                </button>
-                {shiftPresets.map(p => (
-                  <button key={p.label} type="button" onClick={() => { setUseNormalShift(false); setStartTime(p.from); setEndTime(p.to); }}
-                    className={`text-[11px] px-2 py-1 rounded transition-colors ${!useNormalShift && startTime === p.from && endTime === p.to ? `bg-brand-500/25 text-brand-400 ${TYPE_WEIGHT.semibold}` : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}>
-                    {p.label}
-                  </button>
-                ))}
-              </div>
+              <Label className={`text-xs ${t.textFaint}`}>Shift mode</Label>
+              <button type="button" onClick={() => setUseNormalShift(true)}
+                title="8h for lamp room/compressor attendants, 10h for everyone else — set automatically per person"
+                className={`text-[11px] px-2.5 py-1.5 rounded-lg transition-colors ${TYPE_WEIGHT.medium} ${useNormalShift ? `${accentText('indigo', t.light)} bg-indigo-500/20 ${TYPE_WEIGHT.semibold}` : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}>
+                <Zap className="w-2.5 h-2.5 inline -mt-0.5 mr-0.5" />Normal (by role)
+              </button>
             </div>
           </div>
 
@@ -594,14 +586,21 @@ function BulkAssignDialog({ initialEmployee, allEmployees, period, timesheets, o
                 ))}
               </div>
             ) : (
-              <div className={`grid grid-cols-3 gap-3 p-3 rounded-lg ${t.chipBg}`}>
-                <div><Label className={`text-xs ${t.textFaint}`}>Start</Label><Input type="time" value={startTime} onChange={e => { setUseNormalShift(false); setStartTime(e.target.value); }} className={`${fieldCls} mt-1`} /></div>
-                <div><Label className={`text-xs ${t.textFaint}`}>End</Label><Input type="time" value={endTime} onChange={e => { setUseNormalShift(false); setEndTime(e.target.value); }} className={`${fieldCls} mt-1`} /></div>
-                <div className="flex flex-col justify-center">
-                  <span className={`text-xs ${t.textFaint}`}>Per day/person</span>
-                  <span className={`text-xl ${TYPE_WEIGHT.bold} ${accentText('emerald', t.light)}`}>{regHours.toFixed(1)}h</span>
-                  {nightHours > 0 && <span className={`text-xs ${accentText('indigo', t.light)}`}>{nightHours.toFixed(1)}h night</span>}
-                </div>
+              <div className={`p-3 rounded-lg ${t.chipBg}`}>
+                <ShiftTimeRangeField
+                  presets={shiftPresets}
+                  start={startTime}
+                  end={endTime}
+                  onChange={(st, en) => { setUseNormalShift(false); setStartTime(st); setEndTime(en); }}
+                  inputClassName={fieldCls}
+                  trailing={(
+                    <div className="flex flex-col justify-end pb-1">
+                      <span className={`text-xs ${t.textFaint}`}>Per day/person</span>
+                      <span className={`text-xl ${TYPE_WEIGHT.bold} ${accentText('emerald', t.light)}`}>{regHours.toFixed(1)}h</span>
+                      {nightHours > 0 && <span className={`text-xs ${accentText('indigo', t.light)}`}>{nightHours.toFixed(1)}h night</span>}
+                    </div>
+                  )}
+                />
               </div>
             )
           )}

@@ -1,7 +1,11 @@
 // Zimbabwe public holidays (Public Holidays Act), computed per calendar year so the
 // Easter-based and "nth weekday" ones (Heroes'/Defence Forces Day) land correctly every
-// year without a hardcoded table needing yearly upkeep. All date math is done with local
-// Date getters (never toISOString) — see lib/dates.ts for why that matters for UTC+ users.
+// year without a hardcoded table needing yearly upkeep. Munhumutapa Day (15 Sep) applies
+// from 2026 onward (SI 148 of 2026). All date math uses local Date getters (never
+// toISOString) — see lib/dates.ts for why that matters for UTC+ users.
+
+/** First calendar year Munhumutapa Day (15 September) is a public holiday. */
+export const MUNHUMUTAPA_DAY_FIRST_YEAR = 2026;
 
 import { toLocalISODate } from './dates';
 
@@ -53,6 +57,9 @@ export function getZimHolidays(year: number): ZimHoliday[] {
     { date: `${year}-04-18`, name: 'Independence Day' },
     { date: `${year}-05-01`, name: "Workers' Day" },
     { date: `${year}-05-25`, name: 'Africa Day' },
+    ...(year >= MUNHUMUTAPA_DAY_FIRST_YEAR
+      ? [{ date: `${year}-09-15`, name: 'Munhumutapa Day' } satisfies ZimHoliday]
+      : []),
     { date: toLocalISODate(heroes), name: "Heroes' Day" },
     { date: toLocalISODate(addDays(heroes, 1)), name: 'Defence Forces Day' },
     { date: `${year}-12-22`, name: 'Unity Day' },

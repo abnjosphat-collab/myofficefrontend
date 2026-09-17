@@ -3,7 +3,16 @@
 // of page.tsx per the "extract + test business logic" standard (app/timesheets/calcTotals.ts
 // precedent). Previously inline in page.tsx with no test coverage at all.
 import type { EmployeeLookup } from '@/hooks/useLookups';
+import { zimHolidayName } from '@/lib/zimHolidays';
 import type { OTRecord, OTType } from './types';
+
+export const PUBLIC_HOLIDAY_OT_REASON = 'Public Holiday';
+
+/** When OT is logged on a Zimbabwe public holiday, default type and reason for the form. */
+export function overtimeDefaultsForPublicHoliday(dateStr: string): { overtime_type: 'holiday'; reason: string } | null {
+  if (!dateStr || !zimHolidayName(dateStr)) return null;
+  return { overtime_type: 'holiday', reason: PUBLIC_HOLIDAY_OT_REASON };
+}
 
 function planningBucket(status: OTRecord['planning_status']): 'plannedHours' | 'unplannedHours' | 'unclassifiedHours' {
   return status === 'planned' ? 'plannedHours' : status === 'unplanned' ? 'unplannedHours' : 'unclassifiedHours';

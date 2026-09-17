@@ -27,9 +27,17 @@ describe('getZimHolidays', () => {
     expect(byName['Defence Forces Day']).toBe('2026-08-11');
   });
 
-  it('returns 13 holidays, sorted by date', () => {
+  it('includes Munhumutapa Day from 2026 (15 September)', () => {
+    expect(getZimHolidays(2025).some(h => h.name === 'Munhumutapa Day')).toBe(false);
+    const byName = Object.fromEntries(getZimHolidays(2026).map(h => [h.name, h.date]));
+    expect(byName['Munhumutapa Day']).toBe('2026-09-15');
+    expect(zimHolidayName('2026-09-15')).toBe('Munhumutapa Day');
+  });
+
+  it('returns 14 holidays in 2026, 13 in 2025, sorted by date', () => {
+    expect(getZimHolidays(2025)).toHaveLength(13);
     const holidays = getZimHolidays(2026);
-    expect(holidays).toHaveLength(13);
+    expect(holidays).toHaveLength(14);
     const dates = holidays.map(h => h.date);
     expect(dates).toEqual([...dates].sort());
   });

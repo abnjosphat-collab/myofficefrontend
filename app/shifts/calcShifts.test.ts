@@ -128,6 +128,11 @@ describe('buildHolidayMap — reuses lib/zimHolidays.ts (the bug this extraction
     expect(map.has('2026-02-21')).toBe(true);
   });
 
+  it('includes Munhumutapa Day (15 September) from 2026', () => {
+    const map = buildHolidayMap([new Date(2026, 8, 1)]);
+    expect(map.get('2026-09-15')).toBe('Munhumutapa Day');
+  });
+
   it('covers every year represented in the input dates', () => {
     const map = buildHolidayMap([new Date(2025, 0, 1), new Date(2026, 0, 1)]);
     expect(map.get('2025-01-01')).toBe("New Year's Day");

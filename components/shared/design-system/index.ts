@@ -12,3 +12,4 @@ export * from './primitives';
 export * from './components';
 export * from './confirm';
 export * from './dialog-shared';
+export { ShiftTimeRangeField, type ShiftTimeRangeFieldProps } from '../ShiftTimeRangeField';

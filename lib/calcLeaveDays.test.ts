@@ -26,6 +26,8 @@ describe('calcWorkingLeaveDays', () => {
     // Thu, Fri working; Sat/Sun off; Mon = Workers' Day (holiday) → 2 working days
     expect(calcWorkingLeaveDays('2026-04-30', '2026-05-04')).toBe(2);
     expect(isWorkingLeaveDay('2026-05-01')).toBe(false);
+    expect(isWorkingLeaveDay('2026-09-15')).toBe(false);
+    expect(calcWorkingLeaveDays('2026-09-14', '2026-09-16')).toBe(2);
   });
 
   it('returns 0 when end is before start', () => {
