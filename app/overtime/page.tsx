@@ -20,6 +20,7 @@ import {
   CountUp, PulsingIcon, TYPE_SCALE, staggerContainer, fadeUp, HintText, TYPE_WEIGHT,
 } from '@/components/shared/theme';
 import { ShiftTimeRangeField } from '@/components/shared/design-system';
+import { defaultDayShiftTimes } from '@/lib/shiftTimePresets';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ApprovalGate, type SignatureResult } from '@/components/shared/ApprovalGate';
 import { useEmployees, type EmployeeLookup } from '@/hooks/useLookups';
@@ -294,7 +295,14 @@ function OTFormModal({ open, onClose, onSave, editing, records }: {
 
         <div className="grid grid-cols-2 gap-3">
           <FormField label="Overtime Type" required>
-            <SelectField size="form" value={form.overtime_type} title="Overtime type" onChange={v => set('overtime_type', v as OTType)}
+            <SelectField size="form" value={form.overtime_type} title="Overtime type" onChange={v => {
+              const ty = v as OTType;
+              if (ty === 'holiday') {
+                setForm(f => ({ ...f, overtime_type: ty, ...defaultDayShiftTimes() }));
+              } else {
+                set('overtime_type', ty);
+              }
+            }}
               options={SELECTABLE_OT_TYPES.map(ty => ({ value: ty, label: TYPE_LABELS[ty] }))} />
           </FormField>
           <FormField label="Date" required><input aria-label="Date" type="date" className={inputCls} value={form.date} onChange={e => handleDateChange(e.target.value)} /></FormField>

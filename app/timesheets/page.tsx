@@ -21,7 +21,9 @@ import { AppShell } from '@/components/app-shell';
 import { PredictiveInput } from '@/components/shared/PredictiveInput';
 import { useTheme, PageHero, ACCENT_HEX, useCollapseSection, EmptyState, accentText, TYPE_WEIGHT } from '@/components/shared/theme';
 import { ShiftTimeRangeField } from '@/components/shared/design-system';
-import { TIMESHEET_BULK_SHIFT_PRESETS } from '@/lib/shiftTimePresets';
+import {
+  DEFAULT_DAY_SHIFT_END, DEFAULT_DAY_SHIFT_START, TIMESHEET_BULK_SHIFT_PRESETS, isDefaultDayShiftTimes,
+} from '@/lib/shiftTimePresets';
 import { toLocalISODate } from '@/lib/dates';
 import { zimHolidayName } from '@/lib/zimHolidays';
 import type {
@@ -169,8 +171,8 @@ function TimesheetEntryDialog({ employee, date, entry, onSave, onDelete, onClose
   // person actually worked it. See effectiveTimesheets for the same day, un-opened.
   const defaultStatus: StatusKey = entry?.status || (holidayName ? 'holiday_paid' : isWeekendDay ? 'weekend' : 'work');
   const [form, setForm] = useState<EntryForm>({
-    start_time: defaultStatus === 'holiday_paid' ? '' : entry?.start_time || '07:00',
-    end_time: defaultStatus === 'holiday_paid' ? '' : entry?.end_time || '17:00',
+    start_time: entry?.start_time ?? (defaultStatus === 'holiday_paid' ? DEFAULT_DAY_SHIFT_START : DEFAULT_DAY_SHIFT_START),
+    end_time: entry?.end_time ?? (defaultStatus === 'holiday_paid' ? DEFAULT_DAY_SHIFT_END : DEFAULT_DAY_SHIFT_END),
     regular_hours: entry?.regular_hours ?? (defaultStatus === 'holiday_paid' ? 8 : 10),
     nightshift_hours: entry?.nightshift_hours ?? 0,
     status: defaultStatus, standby_allowance: entry?.standby_allowance ?? false,
@@ -187,7 +189,12 @@ function TimesheetEntryDialog({ employee, date, entry, onSave, onDelete, onClose
     // they worked it — promote straight to PPH (2.0x) instead of requiring a separate
     // manual Status change on top of the times just entered.
     if (form.status === 'holiday_paid') {
-      if (form.start_time && form.end_time) setForm(f => ({ ...f, status: 'holiday' }));
+      if (
+        form.start_time && form.end_time
+        && !isDefaultDayShiftTimes(form.start_time, form.end_time)
+      ) {
+        setForm(f => ({ ...f, status: 'holiday' }));
+      }
       return;
     }
     if (form.start_time && form.end_time) {
@@ -211,7 +218,13 @@ function TimesheetEntryDialog({ employee, date, entry, onSave, onDelete, onClose
     if (LEAVE_STATUSES.has(s)) setForm(f => ({ ...f, status: s, start_time: '07:00', end_time: '15:00' }));
     else if (ZERO_HOUR_STATUSES.has(s)) setForm(f => ({ ...f, status: s, regular_hours: 0, nightshift_hours: 0, start_time: '', end_time: '' }));
     // Paid public holiday, not worked: fixed 8h credit, no real shift times to record.
-    else if (s === 'holiday_paid') setForm(f => ({ ...f, status: s, regular_hours: 8, nightshift_hours: 0, start_time: '', end_time: '' }));
+    else if (s === 'holiday_paid') setForm(f => ({
+      ...f, status: s, regular_hours: 8, nightshift_hours: 0,
+      start_time: DEFAULT_DAY_SHIFT_START, end_time: DEFAULT_DAY_SHIFT_END,
+    }));
+    else if (s === 'holiday') setForm(f => ({
+      ...f, status: s, start_time: DEFAULT_DAY_SHIFT_START, end_time: DEFAULT_DAY_SHIFT_END,
+    }));
     else setForm(f => ({ ...f, status: s }));
   };
 
@@ -282,7 +295,7 @@ function TimesheetEntryDialog({ employee, date, entry, onSave, onDelete, onClose
             {LEAVE_STATUSES.has(form.status) && <p className="text-xs text-brand-400 bg-brand-500/10 rounded px-2 py-1">8 hours auto-assigned for {STATUS_CFG[form.status]?.label}</p>}
             {DOUBLE_TIME_STATUSES.has(form.status) && <p className={`text-xs ${accentText('violet', t.light)} bg-violet-500/10 rounded px-2 py-1 ${TYPE_WEIGHT.medium}`}>All hours worked count as <strong>2.0× (double time)</strong> — enter the actual shift times below</p>}
             {ZERO_HOUR_STATUSES.has(form.status) && <p className={`text-xs ${t.chipBg} rounded px-2 py-1 ${t.textFaint}`}>0 hours recorded — {STATUS_CFG[form.status]?.label} days are not credited</p>}
-            {form.status === 'holiday_paid' && <p className="text-xs text-amber-400 bg-amber-500/10 rounded px-2 py-1">8 regular hours auto-credited — they didn&apos;t work this public holiday. Enter their actual shift times below if they did; this switches to &quot;{STATUS_CFG.holiday.label}&quot; automatically.</p>}
+            {form.status === 'holiday_paid' && <p className="text-xs text-amber-400 bg-amber-500/10 rounded px-2 py-1">8 regular hours auto-credited if they did not work. Times default to 07:00–17:00 (most shifts); change times or pick &quot;{STATUS_CFG.holiday.label}&quot; if they worked this holiday.</p>}
           </div>
 
           <div className={`p-3 rounded-lg ${t.chipBg} space-y-3`}>

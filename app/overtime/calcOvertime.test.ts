@@ -20,10 +20,14 @@ describe('overtimeDefaultsForPublicHoliday', () => {
     expect(overtimeDefaultsForPublicHoliday('2026-12-25')).toEqual({
       overtime_type: 'holiday',
       reason: PUBLIC_HOLIDAY_OT_REASON,
+      start_time: '07:00',
+      end_time: '17:00',
     });
     expect(overtimeDefaultsForPublicHoliday('2026-09-15')).toEqual({
       overtime_type: 'holiday',
       reason: PUBLIC_HOLIDAY_OT_REASON,
+      start_time: '07:00',
+      end_time: '17:00',
     });
   });
 
