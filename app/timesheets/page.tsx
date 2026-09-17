@@ -380,20 +380,36 @@ function TimesheetEntryDialog({ employee, date, entry, onSave, onDelete, onClose
 
 interface BulkAssignDialogProps {
   initialEmployee: Employee; allEmployees: Employee[]; period: Period; timesheets: TimesheetEntry[];
+  prefillDates?: string[];
+  initialSelectedEmployeeIds?: string[];
   onSave: (entries: Omit<TimesheetEntry, 'id'>[]) => Promise<void>;
   onClear: (targets: { employee_id: number; date: string }[]) => Promise<void>;
   onClose: () => void;
 }
 
-function BulkAssignDialog({ initialEmployee, allEmployees, period, timesheets, onSave, onClear, onClose }: BulkAssignDialogProps) {
+function BulkAssignDialog({
+  initialEmployee, allEmployees, period, timesheets, prefillDates, initialSelectedEmployeeIds, onSave, onClear, onClose,
+}: BulkAssignDialogProps) {
   const t = useTheme();
   const allDays = getDays(period);
 
-  const [selectedEmpIds, setSelectedEmpIds] = useState<Set<string>>(new Set([initialEmployee.id]));
+  const [selectedEmpIds, setSelectedEmpIds] = useState<Set<string>>(() => new Set(
+    initialSelectedEmployeeIds?.length ? initialSelectedEmployeeIds : [initialEmployee.id],
+  ));
   const toggleEmp = (id: string) => setSelectedEmpIds(s => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const toggleAllEmps = () => selectedEmpIds.size === allEmployees.length ? setSelectedEmpIds(new Set([initialEmployee.id])) : setSelectedEmpIds(new Set(allEmployees.map(e => e.id)));
 
-  const [selectedDates, setSelectedDates] = useState<Set<string>>(new Set());
+  const selectMissingOnSelectedDays = () => {
+    if (selectedDates.size === 0) { toast.error('Pick at least one day on the calendar first'); return; }
+    const missing = allEmployees.filter(emp =>
+      [...selectedDates].every(ds => !timesheets.some(ts => String(ts.employee_id) === String(emp.id) && ts.date === ds)),
+    );
+    setSelectedEmpIds(new Set(missing.map(e => e.id)));
+    if (missing.length === 0) toast.info('Everyone already has an entry on the selected day(s)');
+    else toast.success(`Selected ${missing.length} without an entry on those day(s)`);
+  };
+
+  const [selectedDates, setSelectedDates] = useState<Set<string>>(() => new Set(prefillDates ?? []));
   const [anchor, setAnchor] = useState<string | null>(null);
   const [hoverDate, setHoverDate] = useState<string | null>(null);
 
@@ -555,9 +571,15 @@ function BulkAssignDialog({ initialEmployee, allEmployees, period, timesheets, o
           )}
 
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <Label className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wide ${t.textFaint}`}>Employees ({selectedEmpIds.size} selected)</Label>
-              <button type="button" onClick={toggleAllEmps} className="text-xs text-brand-400 hover:underline">{selectedEmpIds.size === allEmployees.length ? 'Deselect all' : 'Select all'}</button>
+              <div className="flex flex-wrap items-center gap-2">
+                <button type="button" onClick={selectMissingOnSelectedDays} className="text-xs text-brand-400 hover:underline" title="Select everyone who has no entry on the calendar day(s) you picked">
+                  Missing on selected days
+                </button>
+                <span className={`text-[10px] ${t.textFaint}`}>·</span>
+                <button type="button" onClick={toggleAllEmps} className="text-xs text-brand-400 hover:underline">{selectedEmpIds.size === allEmployees.length ? 'Deselect all' : 'Select all'}</button>
+              </div>
             </div>
             <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto p-1">
               {allEmployees.map(emp => {
@@ -1191,13 +1213,18 @@ function DownloadDialog({ employees, timesheets, approvedOvertime, getHourTotals
 
 // ─────────────────── TIMESHEET GRID ───────────────────
 
-function TimesheetGrid({ employees, timesheets, days, getHourTotals, onCellClick, onQuickAdd, onQuickRemove, onBulkAssign, onRemoveEmployee, onFillDays }: {
+function TimesheetGrid({ employees, timesheets, days, getHourTotals, onCellClick, onQuickAdd, onQuickRemove, onBulkAssign, onBulkDay, onRemoveEmployee, onFillDays, selectedEmployeeIds, onToggleEmployeeSelect, onToggleAllEmployeeSelect }: {
   employees: Employee[]; timesheets: TimesheetEntry[]; days: Date[];
   getHourTotals: (empId: string) => HourTotals;
   onCellClick: (emp: Employee, day: Date, entry?: TimesheetEntry) => void;
   onQuickAdd: (emp: Employee, day: Date) => void; onQuickRemove: (emp: Employee, entry: TimesheetEntry) => void;
-  onBulkAssign: (emp: Employee) => void; onRemoveEmployee: (id: string) => void;
+  onBulkAssign: (emp: Employee) => void;
+  onBulkDay: (day: Date) => void;
+  onRemoveEmployee: (id: string) => void;
   onFillDays: (emp: Employee, sourceDay: Date, targetDays: Date[], sourceEntry?: TimesheetEntry) => Promise<void>;
+  selectedEmployeeIds: Set<string>;
+  onToggleEmployeeSelect: (id: string) => void;
+  onToggleAllEmployeeSelect: () => void;
 }) {
   const t = useTheme();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -1331,19 +1358,37 @@ function TimesheetGrid({ employees, timesheets, days, getHourTotals, onCellClick
     <Table containerRef={scrollRef} containerClassName={`overflow-auto max-h-[calc(100vh-260px)] ${fillDrag ? 'select-none cursor-ew-resize' : ''}`}>
       <TableHeader>
         <TableRow className={`${t.border} hover:bg-transparent`}>
-          <TableHead className={`min-w-52 sticky left-0 top-0 z-30 ${stickyBg} border-r ${t.border} ${t.textMuted}`}>Employee</TableHead>
+          <TableHead className={`min-w-52 sticky left-0 top-0 z-30 ${stickyBg} border-r ${t.border} ${t.textMuted}`}>
+            <div className="flex items-center gap-2 py-1">
+              <input
+                type="checkbox"
+                aria-label="Select all employees in grid"
+                checked={employees.length > 0 && employees.every(e => selectedEmployeeIds.has(e.id))}
+                ref={el => { if (el) el.indeterminate = selectedEmployeeIds.size > 0 && !employees.every(e => selectedEmployeeIds.has(e.id)); }}
+                onChange={onToggleAllEmployeeSelect}
+                className="rounded accent-brand-500 shrink-0"
+              />
+              <span>Employee</span>
+            </div>
+          </TableHead>
           {days.map(d => {
             const ds = fmtDate(d);
             const isWknd = d.getDay() === 0 || d.getDay() === 6;
             const holiday = zimHolidayName(ds);
             return (
-              <TableHead key={ds} title={holiday || undefined} className={`text-center min-w-[70px] px-0.5 sticky top-0 z-20 ${dayHeaderBg(!!holiday)}`}>
-                <div className="flex flex-col items-center text-[9px] py-1">
+              <TableHead key={ds} className={`text-center min-w-[70px] px-0.5 sticky top-0 z-20 ${dayHeaderBg(!!holiday)}`}>
+                <button
+                  type="button"
+                  title={holiday ? `${holiday} — bulk assign this day for many employees` : 'Bulk assign this day for many employees'}
+                  onClick={() => onBulkDay(d)}
+                  className={`w-full flex flex-col items-center text-[9px] py-1 rounded-md transition-colors hover:bg-brand-500/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/50`}
+                >
                   <span className={t.textFaint}>{d.toLocaleDateString('en-GB', { weekday: 'short' })}</span>
                   <span className={`${TYPE_WEIGHT.bold} text-sm ${holiday ? accentText('violet', t.light) : ds === today ? 'text-brand-400' : isWknd ? t.textFaint : t.textMuted}`}>{d.getDate()}</span>
                   <span className={t.textFaint}>{d.toLocaleDateString('en-GB', { month: 'short' })}</span>
                   {holiday && <Sun className={`w-2.5 h-2.5 ${accentText('violet', t.light)} mt-0.5`} />}
-                </div>
+                  <span className={`text-[8px] mt-0.5 ${t.textFaint} opacity-70`}>Bulk</span>
+                </button>
               </TableHead>
             );
           })}
@@ -1375,6 +1420,14 @@ function TimesheetGrid({ employees, timesheets, days, getHourTotals, onCellClick
                     </button>
                   )}
                   <div className="flex items-center gap-2 pr-5">
+                    <input
+                      type="checkbox"
+                      aria-label={`Select ${emp.name} for bulk assign`}
+                      checked={selectedEmployeeIds.has(emp.id)}
+                      onChange={() => onToggleEmployeeSelect(emp.id)}
+                      onClick={e => e.stopPropagation()}
+                      className="rounded accent-brand-500 shrink-0"
+                    />
                     <User className="h-5 w-5 shrink-0 text-brand-400" />
                     <div className="min-w-0 flex-1">
                       <p className={`text-sm ${TYPE_WEIGHT.medium} truncate leading-tight ${t.textPrimary}`}>{emp.name}</p>
@@ -1636,7 +1689,26 @@ function TimesheetsContent() {
   const [showBulkAdd, setShowBulkAdd] = useState(false);
   const [showDownload, setShowDownload] = useState(false);
   const [showNecImport, setShowNecImport] = useState(false);
-  const [bulkEmployee, setBulkEmployee] = useState<Employee | null>(null);
+  type BulkAssignOpenState = {
+    anchorEmployee: Employee;
+    prefillDates?: string[];
+    prefillEmployeeIds?: string[];
+  };
+  const [bulkAssignOpen, setBulkAssignOpen] = useState<BulkAssignOpenState | null>(null);
+  const [gridSelectedEmpIds, setGridSelectedEmpIds] = useState<Set<string>>(() => new Set());
+
+  const openBulkAssign = useCallback((opts: BulkAssignOpenState) => {
+    setBulkAssignOpen(opts);
+  }, []);
+
+  const toggleGridEmployeeSelect = useCallback((id: string) => {
+    setGridSelectedEmpIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
 
   // Automatic base roster: every employee whose employment_type matches this tab.
   const autoIds = useMemo(
@@ -1712,6 +1784,35 @@ function TimesheetsContent() {
     leaveTypeToStatus: LEAVE_TYPE_TO_STATUS,
     statusLabel: status => STATUS_CFG[status].label,
   }), [timesheets, approvedLeaves, approvedOvertime, shiftAssignments, employeeIdByHuman, tabIds, days]);
+
+  const toggleAllGridEmployees = useCallback(() => {
+    setGridSelectedEmpIds(prev => {
+      if (tabEmployees.length > 0 && tabEmployees.every(e => prev.has(e.id))) return new Set();
+      return new Set(tabEmployees.map(e => e.id));
+    });
+  }, [tabEmployees]);
+
+  const openBulkForSelectedEmployees = useCallback(() => {
+    if (gridSelectedEmpIds.size === 0 || tabEmployees.length === 0) return;
+    const anchor = tabEmployees.find(e => gridSelectedEmpIds.has(e.id)) ?? tabEmployees[0];
+    openBulkAssign({
+      anchorEmployee: anchor,
+      prefillEmployeeIds: [...gridSelectedEmpIds],
+    });
+  }, [gridSelectedEmpIds, tabEmployees, openBulkAssign]);
+
+  const openBulkForDay = useCallback((day: Date) => {
+    if (tabEmployees.length === 0) return;
+    const ds = fmtDate(day);
+    const missing = tabEmployees.filter(emp =>
+      !effectiveTimesheets.some(ts => String(ts.employee_id) === String(emp.id) && ts.date === ds),
+    );
+    openBulkAssign({
+      anchorEmployee: tabEmployees[0],
+      prefillDates: [ds],
+      prefillEmployeeIds: (missing.length > 0 ? missing : tabEmployees).map(e => e.id),
+    });
+  }, [tabEmployees, effectiveTimesheets, openBulkAssign]);
 
   const periodDateStrs = useMemo(() => days.map(d => fmtDate(d)), [days]);
   const getHourTotals = useCallback(
@@ -2018,7 +2119,7 @@ function TimesheetsContent() {
                 per-employee, which made bulk entry easy to miss). Seeded with the first
                 roster employee; anyone can be added or removed inside the dialog. */}
             <button type="button" title="Bulk-enter shifts for one or many employees at once" disabled={tabEmployees.length === 0}
-              onClick={() => setBulkEmployee(tabEmployees[0])}
+              onClick={() => openBulkAssign({ anchorEmployee: tabEmployees[0] })}
               className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textMuted} transition-all disabled:opacity-40`}>
               <Layers className="h-3.5 w-3.5" /> Bulk Entry
             </button>
@@ -2074,7 +2175,7 @@ function TimesheetsContent() {
       </div>
 
       <div className={`${t.glass} rounded-2xl [overflow:clip]`}>
-        <SectionHeader icon={LayoutGrid} title={`${activeTab === 'salaried' ? 'Salaried' : 'NEC'} Timesheet Grid`} sub={`${tabEmployees.length} employees · drag the bottom-right corner handle to fill across days`} open={showGrid} onToggle={() => setShowGrid(v => !v)}>
+        <SectionHeader icon={LayoutGrid} title={`${activeTab === 'salaried' ? 'Salaried' : 'NEC'} Timesheet Grid`} sub={`${tabEmployees.length} employees · check rows + Same shift, or click a day header for bulk · drag cell corner to fill across days`} open={showGrid} onToggle={() => setShowGrid(v => !v)}>
           <div className="relative">
             <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 ${t.textFaint}`} />
             <input aria-label="Search employees" placeholder="Search…" className={`${t.inputBg} rounded-lg text-xs pl-7 pr-3 py-1 h-7 w-36 outline-none`} value={search} onChange={e => setSearch(e.target.value)} />
@@ -2088,14 +2189,36 @@ function TimesheetsContent() {
           loading ? (
             <div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-brand-400" /><span className={`ml-2 text-sm ${t.textFaint}`}>Loading…</span></div>
           ) : (
-            <TimesheetGrid
-              employees={tabEmployees} timesheets={effectiveTimesheets} days={days} getHourTotals={getHourTotals}
-              onCellClick={(emp, day, entry) => setEditCell({ employee: emp, date: day, entry })}
-              onQuickAdd={handleQuickAdd} onQuickRemove={handleQuickRemove}
-              onBulkAssign={emp => setBulkEmployee(emp)}
-              onRemoveEmployee={removeFromTab}
-              onFillDays={handleFillDays}
-            />
+            <>
+              {gridSelectedEmpIds.size > 0 && (
+                <div className={`mx-3 mt-3 mb-1 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-brand-400/25 bg-brand-500/10 px-3 py-2 text-xs ${t.textMuted}`}>
+                  <span>
+                    <span className={`${TYPE_WEIGHT.semibold} text-brand-400`}>{gridSelectedEmpIds.size}</span>
+                    {' '}employee{gridSelectedEmpIds.size !== 1 ? 's' : ''} selected
+                  </span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button type="button" size="sm" className="h-8 bg-brand-600 hover:bg-brand-700 text-white" onClick={openBulkForSelectedEmployees}>
+                      <Layers className="w-3.5 h-3.5 mr-1.5" /> Same shift for selected
+                    </Button>
+                    <button type="button" className={`text-xs ${t.textFaint} hover:underline`} onClick={() => setGridSelectedEmpIds(new Set())}>
+                      Clear selection
+                    </button>
+                  </div>
+                </div>
+              )}
+              <TimesheetGrid
+                employees={tabEmployees} timesheets={effectiveTimesheets} days={days} getHourTotals={getHourTotals}
+                onCellClick={(emp, day, entry) => setEditCell({ employee: emp, date: day, entry })}
+                onQuickAdd={handleQuickAdd} onQuickRemove={handleQuickRemove}
+                onBulkAssign={emp => openBulkAssign({ anchorEmployee: emp, prefillEmployeeIds: [emp.id] })}
+                onBulkDay={openBulkForDay}
+                onRemoveEmployee={removeFromTab}
+                onFillDays={handleFillDays}
+                selectedEmployeeIds={gridSelectedEmpIds}
+                onToggleEmployeeSelect={toggleGridEmployeeSelect}
+                onToggleAllEmployeeSelect={toggleAllGridEmployees}
+              />
+            </>
           )
         )}
       </div>
@@ -2125,7 +2248,19 @@ function TimesheetsContent() {
           onDelete={editCell.entry?.id ? () => handleDeleteEntry(editCell.entry!.id!) : undefined}
           onClose={() => setEditCell(null)} />
       )}
-      {bulkEmployee && <BulkAssignDialog initialEmployee={bulkEmployee} allEmployees={tabEmployees} period={activePeriod} timesheets={effectiveTimesheets} onSave={handleBulkSave} onClear={handleBulkClear} onClose={() => setBulkEmployee(null)} />}
+      {bulkAssignOpen && (
+        <BulkAssignDialog
+          initialEmployee={bulkAssignOpen.anchorEmployee}
+          allEmployees={tabEmployees}
+          period={activePeriod}
+          timesheets={effectiveTimesheets}
+          prefillDates={bulkAssignOpen.prefillDates}
+          initialSelectedEmployeeIds={bulkAssignOpen.prefillEmployeeIds}
+          onSave={handleBulkSave}
+          onClear={handleBulkClear}
+          onClose={() => setBulkAssignOpen(null)}
+        />
+      )}
 
       {showBulkAdd && <BulkAddEmployeesDialog allEmployees={allEmployees} currentIds={tabIds} onAdd={emps => addToTab(emps.map(e => e.id))} onClose={() => setShowBulkAdd(false)} />}
       {showDownload && <DownloadDialog employees={tabEmployees} timesheets={effectiveTimesheets} approvedOvertime={approvedOvertime} getHourTotals={getHourTotals} period={activePeriod} periodType={activeTab} onClose={() => setShowDownload(false)} />}
