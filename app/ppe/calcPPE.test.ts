@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest';
+import { toLocalISODate } from '@/lib/dates';
 import { isExpiringSoon, isExpired, computeComplianceRate, computeSizeBreakdown, thisWeekRange, groupOrderList, filterOrderList, sortOrderList, orderEntryFulfilled, enrichPPERecord, employeeRegisterById, type OrderListEntry } from './calcPPE';
 import type { PPERecord } from './types';
 
@@ -17,7 +18,10 @@ function rec(over: Partial<PPERecord> = {}): PPERecord {
 }
 
 function daysFromNow(days: number): string {
-  return new Date(Date.now() + days * 86400000).toISOString().slice(0, 10);
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + days);
+  return toLocalISODate(d);
 }
 
 describe('isExpiringSoon', () => {

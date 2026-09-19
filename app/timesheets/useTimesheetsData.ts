@@ -72,9 +72,11 @@ export function useTimesheetsData(activePeriod: Period) {
   const [approvedOvertime, setApprovedOvertime] = useState<ApprovedOvertimeRecord[]>([]);
   const [shiftAssignments, setShiftAssignments] = useState<ShiftAssignment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const [emps, sheets, leaves, ot, shifts] = await Promise.all([
         api.employees(), api.timesheets(toLocalISODate(activePeriod.start), toLocalISODate(activePeriod.end)),
@@ -85,7 +87,11 @@ export function useTimesheetsData(activePeriod: Period) {
       setApprovedLeaves(leaves);
       setApprovedOvertime(ot);
       setShiftAssignments(shifts);
-    } catch (e) { toast.error('Failed to load: ' + (e as Error).message); }
+    } catch (e) {
+      const msg = (e as Error).message || 'Unknown error';
+      setLoadError(msg);
+      toast.error('Failed to load: ' + msg);
+    }
     finally { setLoading(false); }
   }, [activePeriod]);
 
@@ -93,6 +99,6 @@ export function useTimesheetsData(activePeriod: Period) {
 
   return {
     allEmployees, timesheets, setTimesheets, approvedLeaves, approvedOvertime, shiftAssignments,
-    loading, refresh: load,
+    loading, loadError, refresh: load,
   };
 }

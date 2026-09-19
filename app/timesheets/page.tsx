@@ -127,16 +127,22 @@ function SectionHeader({ icon: Icon, title, sub, open, onToggle, children }: {
 }) {
   const t = useTheme();
   return (
-    <div className={`flex items-center justify-between px-5 py-3 border-b ${t.border}`}>
-      <div className="flex items-center gap-2 flex-wrap">
+    <div className={`flex flex-wrap items-center justify-between gap-2 px-5 py-3 border-b ${t.border}`}>
+      <div className="flex min-w-0 flex-1 items-center gap-2 flex-wrap">
         <Icon className="h-3.5 w-3.5 text-brand-400 shrink-0" />
         <span className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textMuted}`}>{title}</span>
         {sub && <span className={`text-[11px] ${t.textFaint}`}>{sub}</span>}
       </div>
       <div className="flex items-center gap-1.5">
         {children}
-        <button type="button" onClick={onToggle} className={`h-6 w-6 flex items-center justify-center rounded-md ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-all`}>
-          {open ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={open}
+          aria-label={open ? `Collapse ${title}` : `Expand ${title}`}
+          className={`h-8 w-8 flex items-center justify-center rounded-md ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/50`}
+        >
+          {open ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
         </button>
       </div>
     </div>
@@ -149,7 +155,7 @@ function StatusPill({ status, dark = false }: { status: StatusKey; dark?: boolea
   if (dark && status === 'work') return null;
   const cfg = STATUS_CFG[status] || STATUS_CFG.work;
   const { Icon } = cfg;
-  const size = dark ? 'gap-0.5 px-1.5 py-0.5 text-[9px]' : 'gap-1 px-2 py-0.5 text-[10px]';
+  const size = dark ? 'gap-0.5 px-1.5 py-0.5 text-[10px]' : 'gap-1 px-2 py-0.5 text-xs';
   return (
     <span className={`inline-flex items-center rounded-full ${TYPE_WEIGHT.semibold} ${size}`} style={{ backgroundColor: `${cfg.hex}22`, color: cfg.hex }}>
       <Icon className={dark ? 'w-2 h-2' : 'w-2.5 h-2.5'} />{cfg.label}
@@ -1213,6 +1219,27 @@ function DownloadDialog({ employees, timesheets, approvedOvertime, getHourTotals
 
 // ─────────────────── TIMESHEET GRID ───────────────────
 
+/** Accessible summary for cell buttons (replaces clipped in-table hover tooltips). */
+function entryCellTitle(entry: TimesheetEntry): string {
+  const cfg = STATUS_CFG[entry.status];
+  const parts: string[] = [cfg?.label ?? entry.status];
+  if (entry.start_time && entry.end_time) parts.push(`${entry.start_time} – ${entry.end_time}`);
+  if (!ZERO_HOUR_STATUSES.has(entry.status)) {
+    if (DOUBLE_TIME_STATUSES.has(entry.status as StatusKey)) {
+      parts.push(`${((entry.holiday_overtime_hours || 0) + (entry.regular_hours || 0)).toFixed(1)}h @ 2.0×`);
+    } else {
+      parts.push(`${(entry.regular_hours || 0).toFixed(1)}h regular`);
+      if ((entry.overtime_hours || 0) > 0) parts.push(`+${entry.overtime_hours!.toFixed(1)}h OT 1.5×`);
+      if ((entry.holiday_overtime_hours || 0) > 0) parts.push(`+${entry.holiday_overtime_hours!.toFixed(1)}h OT 2.0×`);
+    }
+    if ((entry.callout_overtime_hours || 0) > 0) parts.push(`${entry.callout_overtime_hours!.toFixed(1)}h callout`);
+  }
+  if (entry.standby_allowance) parts.push('Standby');
+  if (entry._auto) parts.push('Derived from approved leave/OT — click to confirm');
+  if (entry.notes) parts.push(entry.notes);
+  return parts.join(' · ');
+}
+
 function TimesheetGrid({ employees, timesheets, days, getHourTotals, onCellClick, onQuickAdd, onQuickRemove, onBulkAssign, onBulkDay, onRemoveEmployee, onFillDays, selectedEmployeeIds, onToggleEmployeeSelect, onToggleAllEmployeeSelect }: {
   employees: Employee[]; timesheets: TimesheetEntry[]; days: Date[];
   getHourTotals: (empId: string) => HourTotals;
@@ -1355,10 +1382,11 @@ function TimesheetGrid({ employees, timesheets, days, getHourTotals, onCellClick
         </span>
       </div>
     )}
-    <Table containerRef={scrollRef} containerClassName={`overflow-auto max-h-[calc(100vh-260px)] ${fillDrag ? 'select-none cursor-ew-resize' : ''}`}>
+    {/* Sticky stacking: cell chrome (z-0) < employee column (z-20) < date/totals header (z-30) < corner (z-40) */}
+    <Table containerRef={scrollRef} containerClassName={`overflow-auto min-h-[280px] max-h-[min(72dvh,880px)] ${fillDrag ? 'select-none cursor-ew-resize' : ''}`}>
       <TableHeader>
         <TableRow className={`${t.border} hover:bg-transparent`}>
-          <TableHead className={`min-w-52 sticky left-0 top-0 z-30 ${stickyBg} border-r ${t.border} ${t.textMuted}`}>
+          <TableHead className={`min-w-52 sticky left-0 top-0 z-40 ${stickyBg} border-r ${t.border} shadow-[2px_0_0_0_rgba(0,0,0,0.04)] dark:shadow-[2px_0_0_0_rgba(255,255,255,0.04)] ${t.textMuted}`}>
             <div className="flex items-center gap-2 py-1">
               <input
                 type="checkbox"
@@ -1376,31 +1404,29 @@ function TimesheetGrid({ employees, timesheets, days, getHourTotals, onCellClick
             const isWknd = d.getDay() === 0 || d.getDay() === 6;
             const holiday = zimHolidayName(ds);
             return (
-              <TableHead key={ds} className={`text-center min-w-[70px] px-0.5 sticky top-0 z-20 ${dayHeaderBg(!!holiday)}`}>
+              <TableHead key={ds} className={`text-center min-w-[76px] px-0.5 sticky top-0 z-30 ${dayHeaderBg(!!holiday)} shadow-[0_2px_0_0_rgba(0,0,0,0.04)] dark:shadow-[0_2px_0_0_rgba(255,255,255,0.04)]`}>
                 <button
                   type="button"
-                  title={holiday ? `${holiday} — click to bulk-assign this day for many employees` : 'Click to bulk-assign this day for many employees'}
+                  aria-label={holiday ? `Bulk assign ${holiday}, ${ds}` : `Bulk assign all employees on ${ds}`}
+                  title={holiday ? `${holiday} — bulk assign this day` : 'Bulk assign this day for all employees'}
                   onClick={() => onBulkDay(d)}
-                  className={`w-full flex flex-col items-center gap-0.5 text-[9px] py-1.5 rounded-md transition-colors hover:bg-brand-500/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/50 group/day-hdr`}
+                  className={`w-full flex flex-col items-center gap-0.5 text-[11px] py-1.5 rounded-md transition-colors hover:bg-brand-500/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/50 group/day-hdr`}
                 >
                   <span className={t.textFaint}>{d.toLocaleDateString('en-GB', { weekday: 'short' })}</span>
-                  <span className={`${TYPE_WEIGHT.bold} text-sm ${holiday ? accentText('violet', t.light) : ds === today ? 'text-brand-400' : isWknd ? t.textFaint : t.textMuted}`}>{d.getDate()}</span>
-                  <span className={t.textFaint}>{d.toLocaleDateString('en-GB', { month: 'short' })}</span>
-                  {holiday && <Sun className={`w-2.5 h-2.5 ${accentText('violet', t.light)}`} />}
-                  <span className={`inline-flex items-center gap-0.5 text-[10px] ${TYPE_WEIGHT.semibold} text-brand-400/90 group-hover/day-hdr:text-brand-300`}>
-                    <Layers className="w-2.5 h-2.5" aria-hidden />
-                    Bulk
-                  </span>
+                  <span className={`${TYPE_WEIGHT.bold} text-sm tabular-nums ${holiday ? accentText('violet', t.light) : ds === today ? 'text-brand-400' : isWknd ? t.textFaint : t.textMuted}`}>{d.getDate()}</span>
+                  <span className={`hidden sm:inline ${t.textFaint}`}>{d.toLocaleDateString('en-GB', { month: 'short' })}</span>
+                  {holiday && <Sun className={`w-3 h-3 ${accentText('violet', t.light)}`} />}
+                  <Layers className="w-3 h-3 text-brand-400/80 group-hover/day-hdr:text-brand-300" aria-hidden />
                 </button>
               </TableHead>
             );
           })}
-          <TableHead title="Uncapped normal hours for the period (leave counts as 8h). Not reduced when excess goes to overtime." className={`text-center min-w-14 text-[10px] ${TYPE_WEIGHT.semibold} sticky top-0 z-20 ${stickyBg} ${t.textMuted}`}>Actual</TableHead>
-          <TableHead title="NEC: 208 when Actual is under cap and no Absent days (Off/rest days still allow the floor)." className={`text-center min-w-14 ${accentText('emerald', t.light)} text-[10px] ${TYPE_WEIGHT.semibold} sticky top-0 z-20 ${stickyBg}`}>Reg</TableHead>
-          <TableHead title={`max(Actual − ${NEC_REG_CAP}, 0) + module 1.5× OT; Excel formula uses Actual − ${NEC_REG_CAP} + other OT.`} className={`text-center min-w-14 text-brand-400 text-[10px] ${TYPE_WEIGHT.semibold} sticky top-0 z-20 ${stickyBg}`}>1.5×</TableHead>
-          <TableHead className={`text-center min-w-14 text-sky-400 text-[10px] ${TYPE_WEIGHT.semibold} sticky top-0 z-20 ${stickyBg}`}>2.0×</TableHead>
-          <TableHead className={`text-center min-w-14 ${accentText('amber', t.light)} text-[10px] ${TYPE_WEIGHT.semibold} sticky top-0 z-20 ${stickyBg}`}>Standby</TableHead>
-          <TableHead title="Period total: 18:00–06:00 from shift times (+ module OT after shift end). Not shown in day cells — scroll right if hidden." className={`text-center min-w-16 ${accentText('indigo', t.light)} text-[10px] ${TYPE_WEIGHT.semibold} sticky top-0 z-20 ${stickyBg}`}>Night Allow</TableHead>
+          <TableHead title="Uncapped normal hours for the period (leave counts as 8h). Not reduced when excess goes to overtime." className={`text-center min-w-14 text-xs ${TYPE_WEIGHT.semibold} sticky top-0 z-30 ${stickyBg} ${t.textMuted} tabular-nums`}>Actual</TableHead>
+          <TableHead title="NEC: 208 when Actual is under cap and no Absent days (Off/rest days still allow the floor)." className={`text-center min-w-14 ${accentText('emerald', t.light)} text-xs ${TYPE_WEIGHT.semibold} sticky top-0 z-30 ${stickyBg} tabular-nums`}>Reg</TableHead>
+          <TableHead title={`max(Actual − ${NEC_REG_CAP}, 0) + module 1.5× OT; Excel formula uses Actual − ${NEC_REG_CAP} + other OT.`} className={`text-center min-w-14 text-brand-400 text-xs ${TYPE_WEIGHT.semibold} sticky top-0 z-30 ${stickyBg} tabular-nums`}>1.5×</TableHead>
+          <TableHead className={`text-center min-w-14 text-sky-400 text-xs ${TYPE_WEIGHT.semibold} sticky top-0 z-30 ${stickyBg} tabular-nums`}>2.0×</TableHead>
+          <TableHead className={`text-center min-w-14 ${accentText('amber', t.light)} text-xs ${TYPE_WEIGHT.semibold} sticky top-0 z-30 ${stickyBg} tabular-nums`}>Standby</TableHead>
+          <TableHead title="Period total: 18:00–06:00 from shift times (+ module OT after shift end)." className={`text-center min-w-16 ${accentText('indigo', t.light)} text-xs ${TYPE_WEIGHT.semibold} sticky top-0 z-30 ${stickyBg} tabular-nums`}>Night</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -1408,7 +1434,7 @@ function TimesheetGrid({ employees, timesheets, days, getHourTotals, onCellClick
           const totals = getHourTotals(emp.id);
           return (
             <TableRow key={emp.id} className={`${t.border} ${t.hoverBgSoft} group/row`}>
-              <TableCell className={`sticky left-0 z-10 ${stickyBg} border-r ${t.border} py-0 group/emp`}>
+              <TableCell className={`sticky left-0 z-20 ${stickyBg} border-r ${t.border} py-0 group/emp shadow-[2px_0_0_0_rgba(0,0,0,0.03)] dark:shadow-[2px_0_0_0_rgba(255,255,255,0.03)]`}>
                 <div className="relative py-2">
                   {confirmRemoveId === emp.id ? (
                     <div className={`absolute top-1 right-1 flex items-center gap-0.5 ${t.glass} rounded-lg px-1.5 py-1 z-20 border border-red-500/30`}>
@@ -1417,9 +1443,10 @@ function TimesheetGrid({ employees, timesheets, days, getHourTotals, onCellClick
                       <button type="button" title="Cancel" onClick={() => setConfirmRemoveId(null)} className={`h-4 w-4 flex items-center justify-center rounded ${t.chipBg} ${t.textFaint} ${t.hoverBg} transition-all`}><X className="w-2.5 h-2.5" /></button>
                     </div>
                   ) : (
-                    <button type="button" title="Remove employee from this period" onClick={() => setConfirmRemoveId(emp.id)}
-                      className="absolute top-1.5 right-1.5 h-5 w-5 flex items-center justify-center rounded-full opacity-0 group-hover/emp:opacity-100 bg-red-500/[0.08] text-red-400/50 hover:bg-red-500/20 hover:text-red-400 transition-all duration-150">
-                      <X className="w-2.5 h-2.5" />
+                    <button type="button" title="Remove employee from this period" aria-label={`Remove ${emp.name} from this period`}
+                      onClick={() => setConfirmRemoveId(emp.id)}
+                      className="absolute top-1.5 right-1.5 h-7 w-7 flex items-center justify-center rounded-full opacity-50 group-hover/emp:opacity-100 focus-visible:opacity-100 bg-red-500/[0.08] text-red-400/70 hover:bg-red-500/20 hover:text-red-400 transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/40">
+                      <X className="w-3 h-3" />
                     </button>
                   )}
                   <div className="flex items-center gap-2 pr-5">
@@ -1434,11 +1461,11 @@ function TimesheetGrid({ employees, timesheets, days, getHourTotals, onCellClick
                     <User className="h-5 w-5 shrink-0 text-brand-400" />
                     <div className="min-w-0 flex-1">
                       <p className={`text-sm ${TYPE_WEIGHT.medium} truncate leading-tight ${t.textPrimary}`}>{emp.name}</p>
-                      <p className={`text-[10px] truncate mt-0.5 ${t.textFaint}`}>{emp.position}</p>
+                      <p className={`text-xs truncate mt-0.5 ${t.textFaint}`}>{emp.position}</p>
                       <div className="mt-1.5 flex items-center gap-1">
-                        <button type="button" title="Bulk assign shifts for this employee" onClick={() => onBulkAssign(emp)}
-                          className="flex items-center gap-1 text-[10px] px-2 py-[3px] rounded-full bg-brand-500/10 text-brand-400/70 hover:bg-brand-500/20 hover:text-brand-400 transition-all duration-150 group/bulk">
-                          <CalendarDays className="w-2.5 h-2.5 group-hover/bulk:scale-110 transition-transform" /><span className="tracking-wide">Assign shifts</span>
+                        <button type="button" title="Bulk assign shifts for this employee" aria-label={`Assign shifts for ${emp.name}`} onClick={() => onBulkAssign(emp)}
+                          className="flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-brand-500/10 text-brand-400/80 hover:bg-brand-500/20 hover:text-brand-400 transition-all duration-150 group/bulk focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/40">
+                          <CalendarDays className="w-3 h-3 group-hover/bulk:scale-110 transition-transform shrink-0" /><span className="tracking-wide hidden lg:inline">Assign shifts</span>
                         </button>
                       </div>
                     </div>
@@ -1463,10 +1490,21 @@ function TimesheetGrid({ employees, timesheets, days, getHourTotals, onCellClick
                       data-day-index={dayIndex}
                     >
                       <button type="button"
-                        style={entry && cfg ? { backgroundColor: `${cfg.hex}18`, borderColor: `${cfg.hex}55`, color: cfg.hex } : undefined}
-                        className={`w-full min-h-[60px] h-auto rounded-lg text-center flex flex-col items-center justify-center transition-all text-[9px] border gap-0.5 py-1.5 ${
-                          entry && cfg ? 'hover:brightness-110' : isToday ? 'bg-brand-500/10 border-brand-400/30 border-dashed hover:bg-brand-500/20' : `border-transparent ${t.hoverBg}`
-                        } ${isToday ? 'ring-1 ring-brand-400/30' : ''} ${fillSource ? 'ring-2 ring-brand-400/60' : ''}`}
+                        title={entry ? entryCellTitle(entry) : isToday ? 'Add entry for today' : 'Add entry'}
+                        style={
+                          entry && cfg && entry.status !== 'work'
+                            ? { backgroundColor: `${cfg.hex}18`, borderColor: `${cfg.hex}55`, color: cfg.hex }
+                            : undefined
+                        }
+                        className={`w-full min-h-[64px] h-auto rounded-lg text-center flex flex-col items-center justify-center transition-all text-xs border gap-0.5 py-1.5 tabular-nums ${
+                          entry && cfg
+                            ? entry.status === 'work'
+                              ? `${t.chipBg} border ${t.border} ${t.textMuted} hover:border-brand-400/35`
+                              : 'hover:brightness-110'
+                            : isToday
+                              ? 'bg-brand-500/10 border-brand-400/30 border-dashed hover:bg-brand-500/20'
+                              : `border-transparent ${t.hoverBg}`
+                        } ${isToday ? 'ring-1 ring-brand-400/30' : ''} ${fillSource ? 'ring-2 ring-brand-400/60' : ''} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/50`}
                         onClick={() => {
                           if (Date.now() < suppressCellClickUntil.current) return;
                           onCellClick(emp, day, entry);
@@ -1488,17 +1526,15 @@ function TimesheetGrid({ employees, timesheets, days, getHourTotals, onCellClick
                                 this it was invisible here even though it's correctly counted in
                                 the period's 2.0× total below. */}
                             {!DOUBLE_TIME_STATUSES.has(entry.status as StatusKey) && (entry.holiday_overtime_hours || 0) > 0 && <span className={`text-sky-400 ${TYPE_WEIGHT.semibold}`}>+{entry.holiday_overtime_hours!.toFixed(1)}h @ 2.0×</span>}
-                            {entry.standby_allowance && <span className={`${accentText('amber', t.light)} text-[8px] ${TYPE_WEIGHT.medium}`}>SB</span>}
+                            {entry.standby_allowance && <span className={`${accentText('amber', t.light)} text-[10px] ${TYPE_WEIGHT.medium}`}>SB</span>}
                           </>
                         ) : (
                           <span className={`text-base font-light ${isToday ? 'text-brand-400/50' : t.textFaint}`}>+</span>
                         )}
                       </button>
                       {entry?._auto && (
-                        // Derived from approved leave/overtime, not yet a saved entry — click
-                        // to confirm or adjust, same as any other cell.
-                        <span title="Auto-filled from approved leave/overtime — click to confirm"
-                          className="absolute top-0.5 left-0.5 h-1.5 w-1.5 rounded-full bg-white ring-2 ring-white/40 pointer-events-none" />
+                        <span title="Derived from approved leave/overtime — click to confirm"
+                          className="absolute top-1 left-1 h-2 w-2 rounded-full bg-brand-400 ring-2 ring-brand-400/30 pointer-events-none" aria-hidden />
                       )}
                       <div
                         role="button"
@@ -1528,62 +1564,29 @@ function TimesheetGrid({ employees, timesheets, days, getHourTotals, onCellClick
                           fillKeyboardRef.current = drag;
                           setFillDrag(drag);
                         }}
-                        className={`absolute bottom-0 right-0 z-20 h-4 w-4 flex items-end justify-end cursor-ew-resize touch-manipulation rounded-tl-md border-l border-t border-brand-400/45 bg-brand-500/25 text-brand-300 opacity-70 group-hover/cell:opacity-100 hover:bg-brand-500/40 motion-safe:transition-opacity ${fillSource ? 'opacity-100 ring-1 ring-brand-400 bg-brand-500/45' : ''}`}
+                        className={`absolute bottom-0 right-0 z-0 h-6 w-6 flex items-end justify-end cursor-ew-resize touch-manipulation rounded-tl-md border-l border-t border-brand-400/45 bg-brand-500/20 text-brand-300 opacity-50 group-hover/cell:opacity-100 hover:bg-brand-500/35 motion-safe:transition-opacity focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/50 ${fillSource ? 'opacity-100 ring-1 ring-brand-400 bg-brand-500/45' : ''}`}
                       >
-                        <ChevronRight className="w-2.5 h-2.5 translate-x-px translate-y-px" aria-hidden />
+                        <ChevronRight className="w-3 h-3 translate-x-px translate-y-px" aria-hidden />
                       </div>
                       {!entry && (
-                        // Instant add, no dialog — a normal shift at this employee's own role
-                        // length (see normalShiftHours), or the day's paid-holiday/weekend
-                        // default. The cell's own click still opens the full dialog for
-                        // anything this shortcut doesn't cover (leave, custom hours, etc).
-                        <button type="button" title="Quick add: normal shift"
+                        <button type="button" title="Quick add: normal shift" aria-label={`Quick add shift for ${emp.name} on ${ds}`}
                           onClick={e => { e.stopPropagation(); onQuickAdd(emp, day); }}
-                          className="absolute top-0.5 right-0.5 h-4 w-4 flex items-center justify-center rounded-full opacity-0 group-hover/cell:opacity-100 bg-emerald-500/15 text-emerald-400/70 hover:bg-emerald-500/30 hover:text-emerald-400 transition-all duration-150">
-                          <Plus className="w-2.5 h-2.5" />
+                          className="absolute top-1 right-1 h-6 w-6 flex items-center justify-center rounded-full opacity-45 group-hover/cell:opacity-100 focus-visible:opacity-100 bg-emerald-500/15 text-emerald-400/80 hover:bg-emerald-500/30 hover:text-emerald-400 transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/40">
+                          <Plus className="w-3 h-3" />
                         </button>
                       )}
                       {entry?.id != null && (
-                        // Instant remove, no dialog — only for real saved rows; a virtual
-                        // (_auto) projection has nothing to delete yet.
-                        <button type="button" title="Quick remove this entry"
+                        <button type="button" title="Quick remove this entry" aria-label={`Remove entry for ${emp.name} on ${ds}`}
                           onClick={e => { e.stopPropagation(); onQuickRemove(emp, entry); }}
-                          className="absolute top-0.5 right-0.5 h-4 w-4 flex items-center justify-center rounded-full opacity-0 group-hover/cell:opacity-100 bg-red-500/15 text-red-400/70 hover:bg-red-500/30 hover:text-red-400 transition-all duration-150">
-                          <X className="w-2.5 h-2.5" />
+                          className="absolute top-1 right-1 h-6 w-6 flex items-center justify-center rounded-full opacity-45 group-hover/cell:opacity-100 focus-visible:opacity-100 bg-red-500/15 text-red-400/80 hover:bg-red-500/30 hover:text-red-400 transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/40">
+                          <X className="w-3 h-3" />
                         </button>
-                      )}
-                      {entry && (
-                        <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover/cell:block z-50 min-w-[130px]">
-                          <div className={`${t.glass} rounded-lg px-2.5 py-2 text-left ${t.shadow}`}>
-                            {entry.status !== 'work' && (
-                              <p className={`text-[10px] ${TYPE_WEIGHT.semibold} mb-1 ${t.textMuted}`}>{STATUS_CFG[entry.status]?.label}</p>
-                            )}
-                            {entry.start_time && <p className={`text-[9px] ${t.textFaint}`}>{entry.start_time} – {entry.end_time}</p>}
-                            {!ZERO_HOUR_STATUSES.has(entry.status) && (
-                              <div className="mt-1 space-y-0.5">
-                                {DOUBLE_TIME_STATUSES.has(entry.status as StatusKey)
-                                  ? <p className={`text-[9px] ${accentText('amber', t.light)} ${TYPE_WEIGHT.semibold}`}>{((entry.holiday_overtime_hours || 0) + (entry.regular_hours || 0)).toFixed(1)}h @ 2.0×</p>
-                                  : <p className={`text-[9px] ${accentText('emerald', t.light)}`}>{(entry.regular_hours || 0).toFixed(1)}h reg</p>}
-                                {!DOUBLE_TIME_STATUSES.has(entry.status as StatusKey) && (entry.overtime_hours || 0) > 0 && <p className="text-[9px] text-brand-400">+{entry.overtime_hours!.toFixed(1)}h OT 1.5×</p>}
-                                {!DOUBLE_TIME_STATUSES.has(entry.status as StatusKey) && (entry.holiday_overtime_hours || 0) > 0 && <p className="text-[9px] text-sky-400">+{entry.holiday_overtime_hours!.toFixed(1)}h OT 2.0×</p>}
-                                {(entry.callout_overtime_hours || 0) > 0 && <p className="text-[9px] text-orange-400">{entry.callout_overtime_hours!.toFixed(1)}h callout</p>}
-                              </div>
-                            )}
-                            {entry.standby_allowance && <p className={`text-[9px] ${accentText('amber', t.light)} mt-0.5`}>Standby</p>}
-                            {entry._auto && (
-                              <p className="text-[9px] mt-1 text-brand-400">
-                                {entry._auto === 'leave' ? 'From approved leave' : entry._auto === 'overtime' ? 'Includes approved OT' : 'Approved leave + OT'} — click to confirm
-                              </p>
-                            )}
-                            {entry.notes && <p className={`text-[9px] mt-1 italic truncate max-w-[120px] ${t.textFaint}`}>{entry.notes}</p>}
-                          </div>
-                        </div>
                       )}
                     </div>
                   </TableCell>
                 );
               })}
-              <TableCell className="text-center py-2" title="Uncapped normal hours">{totals.actual.toFixed(1)}</TableCell>
+              <TableCell className="text-center py-2 tabular-nums text-sm" title="Uncapped normal hours">{totals.actual.toFixed(1)}</TableCell>
               <TableCell className="text-center py-2" title={`Payable regular (cap 208)${(totals.excess || 0) > 0 ? ` — ${totals.excess!.toFixed(1)}h over cap in 1.5×` : ''}`}>
                 <span className={`text-sm ${TYPE_WEIGHT.bold} ${accentText('emerald', t.light)}`}>{totals.reg.toFixed(1)}</span>
               </TableCell>
@@ -1615,7 +1618,7 @@ function TimesheetGrid({ employees, timesheets, days, getHourTotals, onCellClick
           }, { reg: 0, ot15: 0, ot20: 0, standbyBonus: 0, nightAllowanceBonus: 0, actual: 0 });
           return (
             <TableRow className={`border-t-2 ${t.border} ${t.chipBg}`}>
-              <TableCell className={`sticky left-0 z-10 ${stickyBg} border-r ${t.border} py-3`}>
+              <TableCell className={`sticky left-0 z-20 ${stickyBg} border-r ${t.border} py-3`}>
                 <div className="flex items-center gap-2 px-1">
                   <Users className="w-3.5 h-3.5 text-brand-400/60 shrink-0" />
                   <div><p className={`text-xs ${TYPE_WEIGHT.bold} uppercase tracking-wider ${t.textMuted}`}>Period Totals</p><p className={`text-[10px] ${t.textFaint}`}>{employees.length} employees</p></div>
@@ -1664,7 +1667,7 @@ const EXCLUDED_EMPLOYEE_IDS = new Set<string>(['PP288']);
 
 function TimesheetsContent() {
   const t = useTheme();
-  const sections = useCollapseSection({ hero: true });
+  const sections = useCollapseSection({ hero: false });
   const [activeTab, setActiveTab] = useState<'salaried' | 'nec'>('nec');
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
@@ -1675,7 +1678,7 @@ function TimesheetsContent() {
 
   const {
     allEmployees, timesheets, setTimesheets, approvedLeaves, approvedOvertime, shiftAssignments,
-    loading, refresh: load,
+    loading, loadError, refresh: load,
   } = useTimesheetsData(activePeriod);
 
   const [salariedExtra, setSalariedExtra] = useState<string[]>(() => readLS(LS_SALARIED_EXTRA));
@@ -1685,7 +1688,7 @@ function TimesheetsContent() {
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<'name' | 'dept'>('name');
 
-  const [showPeriod, setShowPeriod] = useState(true);
+  const [showPeriod, setShowPeriod] = useState(false);
   const [showGrid, setShowGrid] = useState(true);
 
   const [editCell, setEditCell] = useState<EditCell | null>(null);
@@ -2089,8 +2092,26 @@ function TimesheetsContent() {
 
   const completion = summary.possible > 0 ? Math.round((summary.filled / summary.possible) * 100) : 0;
 
+  const selectedTotalsSummary = useMemo(() => {
+    const selected = tabEmployees.filter(e => gridSelectedEmpIds.has(e.id));
+    if (selected.length === 0) return null;
+    const roll = selected.reduce(
+      (acc, e) => {
+        const tt = getHourTotals(e.id);
+        return {
+          actual: acc.actual + tt.actual,
+          reg: acc.reg + tt.reg,
+          ot15: acc.ot15 + tt.ot15,
+          ot20: acc.ot20 + tt.ot20,
+        };
+      },
+      { actual: 0, reg: 0, ot15: 0, ot20: 0 },
+    );
+    return { count: selected.length, roll };
+  }, [tabEmployees, gridSelectedEmpIds, getHourTotals]);
+
   return (
-    <main className="max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8 space-y-4">
+    <main className="mx-auto flex w-full max-w-[min(100%,96rem)] flex-col gap-4 p-4 sm:p-6 lg:p-8">
       <PageHero
         icon={Clock}
         accent="violet"
@@ -2123,10 +2144,10 @@ function TimesheetsContent() {
                 roster employee; anyone can be added or removed inside the dialog. */}
             <button type="button" title="Bulk-enter shifts for one or many employees at once" disabled={tabEmployees.length === 0}
               onClick={() => openBulkAssign({ anchorEmployee: tabEmployees[0] })}
-              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textMuted} transition-all disabled:opacity-40`}>
+              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg text-white ${TYPE_WEIGHT.semibold} bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all disabled:opacity-40`}>
               <Layers className="h-3.5 w-3.5" /> Bulk Entry
             </button>
-            <button type="button" title="Add employees to this period" onClick={() => setShowBulkAdd(true)} className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg text-white ${TYPE_WEIGHT.semibold} bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all`}>
+            <button type="button" title="Add employees to this period roster" onClick={() => setShowBulkAdd(true)} className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textMuted} transition-all`}>
               <UserPlus className="h-3.5 w-3.5" /> Add Employees
             </button>
           </>
@@ -2136,8 +2157,8 @@ function TimesheetsContent() {
           {[
             { icon: Users, val: `${tabEmployees.length}`, label: 'employees', color: 'text-brand-400' },
             { icon: Clock, val: `${summary.reg.toFixed(0)}h`, label: 'regular', color: accentText('emerald', t.light) },
-            { icon: Zap, val: `${summary.ot15.toFixed(0)}h`, label: 'OT 1.5×', color: 'text-orange-400' },
-            { icon: Zap, val: `${summary.ot20.toFixed(0)}h`, label: 'OT 2.0×', color: accentText('purple', t.light) },
+            { icon: Zap, val: `${summary.ot15.toFixed(0)}h`, label: 'OT 1.5×', color: 'text-brand-400' },
+            { icon: Zap, val: `${summary.ot20.toFixed(0)}h`, label: 'OT 2.0×', color: 'text-sky-400' },
             { icon: Moon, val: `${summary.nightAllow.toFixed(0)}h`, label: 'night allow.', color: accentText('indigo', t.light) },
             summary.standbyBonus > 0 ? { icon: LayoutGrid, val: `${summary.standbyBonus}h`, label: 'standby allowance', color: accentText('amber', t.light) } : null,
             { icon: CalendarDays, val: `${completion}%`, label: `filled (${summary.filled}/${summary.possible})`, color: completion === 100 ? accentText('emerald', t.light) : t.textMuted },
@@ -2178,10 +2199,10 @@ function TimesheetsContent() {
       </div>
 
       <div className={`${t.glass} rounded-2xl [overflow:clip]`}>
-        <SectionHeader icon={LayoutGrid} title={`${activeTab === 'salaried' ? 'Salaried' : 'NEC'} Timesheet Grid`} sub={`${tabEmployees.length} employees · check rows + Same shift, or click a day header for bulk · drag cell corner to fill across days`} open={showGrid} onToggle={() => setShowGrid(v => !v)}>
-          <div className="relative">
-            <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 ${t.textFaint}`} />
-            <input aria-label="Search employees" placeholder="Search…" className={`${t.inputBg} rounded-lg text-xs pl-7 pr-3 py-1 h-7 w-36 outline-none`} value={search} onChange={e => setSearch(e.target.value)} />
+        <SectionHeader icon={LayoutGrid} title={`${activeTab === 'salaried' ? 'Salaried' : 'NEC'} Timesheet Grid`} sub={`${tabEmployees.length} employees · ${fmtPeriod(activePeriod)}`} open={showGrid} onToggle={() => setShowGrid(v => !v)}>
+          <div className="relative min-w-[8rem] max-w-[14rem] flex-1 sm:flex-none">
+            <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 ${t.textFaint}`} />
+            <input aria-label="Search employees" placeholder="Search…" className={`${t.inputBg} rounded-lg text-sm pl-8 pr-3 py-1.5 h-9 w-full sm:w-40 outline-none focus-visible:ring-2 focus-visible:ring-brand-400/45`} value={search} onChange={e => setSearch(e.target.value)} />
           </div>
           <button type="button" title={`Sort: ${sortBy === 'name' ? 'A–Z name' : 'Department'}`} onClick={() => setSortBy(s => s === 'name' ? 'dept' : 'name')}
             className={`flex items-center gap-1 text-[10px] px-2 py-1 rounded-md ${t.chipBg} ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all`}>
@@ -2193,20 +2214,37 @@ function TimesheetsContent() {
             <div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-brand-400" /><span className={`ml-2 text-sm ${t.textFaint}`}>Loading…</span></div>
           ) : (
             <>
+              {loadError && (
+                <div className={`mx-3 mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2.5 text-sm ${t.textMuted}`} role="alert">
+                  <span><span className={`${TYPE_WEIGHT.semibold} text-red-400`}>Could not load timesheets.</span> {loadError}</span>
+                  <Button type="button" size="sm" variant="outline" className="h-8" onClick={() => void load()}>Retry</Button>
+                </div>
+              )}
               {gridSelectedEmpIds.size > 0 && (
-                <div className={`mx-3 mt-3 mb-1 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-brand-400/25 bg-brand-500/10 px-3 py-2 text-xs ${t.textMuted}`}>
-                  <span>
-                    <span className={`${TYPE_WEIGHT.semibold} text-brand-400`}>{gridSelectedEmpIds.size}</span>
-                    {' '}employee{gridSelectedEmpIds.size !== 1 ? 's' : ''} selected
-                  </span>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Button type="button" size="sm" className="h-8 bg-brand-600 hover:bg-brand-700 text-white" onClick={openBulkForSelectedEmployees}>
-                      <Layers className="w-3.5 h-3.5 mr-1.5" /> Same shift for selected
-                    </Button>
-                    <button type="button" className={`text-xs ${t.textFaint} hover:underline`} onClick={() => setGridSelectedEmpIds(new Set())}>
-                      Clear selection
-                    </button>
+                <div className={`mx-3 mt-3 mb-1 flex flex-col gap-2 rounded-xl border border-brand-400/25 bg-brand-500/10 px-3 py-2.5 text-xs ${t.textMuted}`}>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span>
+                      <span className={`${TYPE_WEIGHT.semibold} text-brand-400`}>{gridSelectedEmpIds.size}</span>
+                      {' '}employee{gridSelectedEmpIds.size !== 1 ? 's' : ''} selected
+                    </span>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button type="button" size="sm" className="h-8 bg-brand-600 hover:bg-brand-700 text-white" onClick={openBulkForSelectedEmployees}>
+                        <Layers className="w-3.5 h-3.5 mr-1.5" /> Same shift for selected
+                      </Button>
+                      <button type="button" className={`text-xs ${t.textFaint} hover:underline`} onClick={() => setGridSelectedEmpIds(new Set())}>
+                        Clear selection
+                      </button>
+                    </div>
                   </div>
+                  {selectedTotalsSummary && (
+                    <div className={`flex flex-wrap items-center gap-x-4 gap-y-1 text-sm tabular-nums border-t border-brand-400/15 pt-2 ${t.textMuted}`}>
+                      <span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>Period totals (selected)</span>
+                      <span>Actual <span className={TYPE_WEIGHT.semibold}>{selectedTotalsSummary.roll.actual.toFixed(1)}</span></span>
+                      <span className={accentText('emerald', t.light)}>Reg <span className={TYPE_WEIGHT.semibold}>{selectedTotalsSummary.roll.reg.toFixed(1)}</span></span>
+                      <span className="text-brand-400">1.5× <span className={TYPE_WEIGHT.semibold}>{selectedTotalsSummary.roll.ot15.toFixed(1)}</span></span>
+                      <span className="text-sky-400">2.0× <span className={TYPE_WEIGHT.semibold}>{selectedTotalsSummary.roll.ot20.toFixed(1)}</span></span>
+                    </div>
+                  )}
                 </div>
               )}
               <TimesheetGrid

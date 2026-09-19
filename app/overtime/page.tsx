@@ -16,7 +16,7 @@ import {
 } from '@/components/shared/theme';
 import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, ProgressBar, FormField, FormActions,
-  useCollapseSection, CenterModal, ACCENT_HEX, ACCENT, type Accent, EmptyState, PrimaryButton, GlowCard, SelectField, accentText,
+  useCollapseSection, CenterModal, ACCENT_HEX, ACCENT, type Accent, EmptyState, PrimaryButton, GlowCard, SelectField, accentText, CollapsibleHeader,
   CountUp, PulsingIcon, TYPE_SCALE, staggerContainer, fadeUp, HintText, TYPE_WEIGHT,
 } from '@/components/shared/theme';
 import { ShiftTimeRangeField } from '@/components/shared/design-system';
@@ -2104,7 +2104,7 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
 
 function OvertimeContent() {
   const t = useTheme();
-  const sections = useCollapseSection({ hero: true, filters: true });
+  const sections = useCollapseSection({ hero: true, quickStats: true, filters: true, filterSummary: true });
 
   const { records, setRecords, loading, refreshing, refresh: load } = useOvertimeData();
   // Joined live against employee master data (not stored on the OT record) so
@@ -2367,6 +2367,10 @@ function OvertimeContent() {
             <button type="button" onClick={() => load(true)} title="Refresh" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}>
               <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
             </button>
+            <button type="button" title={sections.expanded.hero ? 'Hide hero stats' : 'Show hero stats'} onClick={() => sections.toggle('hero')}
+              className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all`}>
+              {sections.expanded.hero ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+            </button>
             {records.length > 0 && (
               <DownloadButton
                 data={records as unknown as Record<string, unknown>[]}
@@ -2391,18 +2395,34 @@ function OvertimeContent() {
         </div>
       </PageHero>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className={`${t.glass} rounded-xl p-4`}><div className="flex items-center gap-1.5 mb-1"><Clock4 className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs ${t.textFaint}`}>Total</span></div><div className={`text-xl ${TYPE_WEIGHT.bold} ${t.textPrimary}`}>{stats.total}</div></div>
-        <div className={`${t.glass} rounded-xl p-4`}><div className="flex items-center gap-1.5 mb-1"><Clock4 className={`h-3.5 w-3.5 ${accentText('amber', t.light)}`} /><span className={`text-xs ${t.textFaint}`}>Pending</span></div><div className={`text-xl ${TYPE_WEIGHT.bold} ${accentText('amber', t.light)}`}>{stats.pending}</div></div>
-        <div className={`${t.glass} rounded-xl p-4`}><div className="flex items-center gap-1.5 mb-1"><CheckCircle2 className={`h-3.5 w-3.5 ${accentText('emerald', t.light)}`} /><span className={`text-xs ${t.textFaint}`}>Approved</span></div><div className={`text-xl ${TYPE_WEIGHT.bold} ${accentText('emerald', t.light)}`}>{stats.approved}</div></div>
-        <div className={`${t.glass} rounded-xl p-4`}><div className="flex items-center gap-1.5 mb-1"><Calendar className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs ${t.textFaint}`}>OT Hours</span></div><div className={`text-xl ${TYPE_WEIGHT.bold} text-brand-400`}>{stats.totalHrs}h</div></div>
+      <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
+        <CollapsibleHeader
+          icon={Gauge}
+          title="Quick stats"
+          sub="same totals as the hero — collapse for a cleaner list view"
+          open={sections.expanded.quickStats}
+          onToggle={() => sections.toggle('quickStats')}
+        />
+        {sections.expanded.quickStats && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 px-5 pb-4">
+            <div className={`${t.chipBg} rounded-xl p-4`}><div className="flex items-center gap-1.5 mb-1"><Clock4 className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs ${t.textFaint}`}>Total</span></div><div className={`text-xl ${TYPE_WEIGHT.bold} ${t.textPrimary}`}>{stats.total}</div></div>
+            <div className={`${t.chipBg} rounded-xl p-4`}><div className="flex items-center gap-1.5 mb-1"><Clock4 className={`h-3.5 w-3.5 ${accentText('amber', t.light)}`} /><span className={`text-xs ${t.textFaint}`}>Pending</span></div><div className={`text-xl ${TYPE_WEIGHT.bold} ${accentText('amber', t.light)}`}>{stats.pending}</div></div>
+            <div className={`${t.chipBg} rounded-xl p-4`}><div className="flex items-center gap-1.5 mb-1"><CheckCircle2 className={`h-3.5 w-3.5 ${accentText('emerald', t.light)}`} /><span className={`text-xs ${t.textFaint}`}>Approved</span></div><div className={`text-xl ${TYPE_WEIGHT.bold} ${accentText('emerald', t.light)}`}>{stats.approved}</div></div>
+            <div className={`${t.chipBg} rounded-xl p-4`}><div className="flex items-center gap-1.5 mb-1"><Calendar className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs ${t.textFaint}`}>OT Hours</span></div><div className={`text-xl ${TYPE_WEIGHT.bold} text-brand-400`}>{stats.totalHrs}h</div></div>
+          </div>
+        )}
       </div>
 
       <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-        <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}>
-          <Search className="h-4 w-4 text-brand-400" /><span className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>Filters</span>
-        </div>
-        <div className="px-5 pb-4 pt-3 space-y-3">
+        <CollapsibleHeader
+          icon={Search}
+          title="Filters"
+          sub={hasActiveFilter ? `${filtered.length} of ${records.length} shown` : `${records.length} records`}
+          open={sections.expanded.filters}
+          onToggle={() => sections.toggle('filters')}
+        />
+        {sections.expanded.filters && (
+        <div className="px-5 pb-4 pt-1 space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
             <SearchInput value={search} onChange={setSearch} placeholder="Search employee, reason…" />
             <SelectField size="filter" title="Status" value={status} onChange={setStatus}
@@ -2454,14 +2474,26 @@ function OvertimeContent() {
             <span className={`text-xs ${t.textFaint}`}>{filtered.length} of {records.length}</span>
           </div>
         </div>
+        )}
       </div>
 
       {hasActiveFilter && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <AnalyzeStat icon={FileText} accent="blue" label="Instances (this view)" value={filteredSummary.instances} />
-          <AnalyzeStat icon={Clock4} accent="violet" label="Total OT Hours" value={filteredSummary.totalHrs} suffix="h" decimals={1} />
-          <AnalyzeStat icon={UsersRound} accent="indigo" label="Employees" value={filteredSummary.uniqueEmployees} />
-          <AnalyzeStat icon={Gauge} accent="amber" label="Avg Hrs / Instance" value={filteredSummary.avgHours} suffix="h" decimals={1} />
+        <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
+          <CollapsibleHeader
+            icon={FileText}
+            title="Filtered view summary"
+            sub="scoped to your current filters"
+            open={sections.expanded.filterSummary}
+            onToggle={() => sections.toggle('filterSummary')}
+          />
+          {sections.expanded.filterSummary && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 px-5 pb-4">
+              <AnalyzeStat icon={FileText} accent="blue" label="Instances (this view)" value={filteredSummary.instances} />
+              <AnalyzeStat icon={Clock4} accent="violet" label="Total OT Hours" value={filteredSummary.totalHrs} suffix="h" decimals={1} />
+              <AnalyzeStat icon={UsersRound} accent="indigo" label="Employees" value={filteredSummary.uniqueEmployees} />
+              <AnalyzeStat icon={Gauge} accent="amber" label="Avg Hrs / Instance" value={filteredSummary.avgHours} suffix="h" decimals={1} />
+            </div>
+          )}
         </div>
       )}
 
