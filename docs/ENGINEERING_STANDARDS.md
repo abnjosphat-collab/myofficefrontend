@@ -13,8 +13,10 @@ If a page does a nontrivial calculation — not just fetching and rendering,
 but computing something (totals, groupings, eligibility, matrix math) — pull
 it into a sibling `calcX.ts`, not inline in `page.tsx`.
 
-Model: `app/timesheets/calcTotals.ts`. It's the only module with this split
-today, and not by accident — every real payroll bug found this session
+Model: `app/timesheets/calcTotals.ts`. Portable Tools uses the same split
+(`app/tools/toolSelectors.ts`) for display status, filtering and
+filter/envelope guards. Timesheets remains the payroll example — every real
+payroll bug found this session
 (overtime hours double-counted into Actual, night allowance paying a flat 8h
 instead of real hours, holiday hours miscounted) lived in logic that had no
 test touching it, because it had nowhere to *put* a test — it was buried

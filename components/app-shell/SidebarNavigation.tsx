@@ -2,7 +2,7 @@
 // app/page.tsx as-is.
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -70,13 +70,28 @@ export function SidebarNavigation({
   favoriteModules: { module: Module; accent: Accent }[]; accentHex: string; onToggleFavorite: (href: string) => void;
   visibleCategories: Category[];
 }) {
-  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({ favorites: true, modules: false, activity: false, status: false, tips: false });
-  const [expandedCats, setExpandedCats] = useState<Record<string, boolean>>({});
+  const pathname = usePathname();
+  const activeCategoryId = useMemo(
+    () => visibleCategories.find(c => c.modules.some(m => pathname === m.href || (m.href !== '/' && pathname.startsWith(`${m.href}/`))))?.id,
+    [pathname, visibleCategories],
+  );
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
+    favorites: true, modules: !!activeCategoryId, activity: false, status: false, tips: false,
+  });
+  const [expandedCats, setExpandedCats] = useState<Record<string, boolean>>(() => (
+    activeCategoryId ? { [activeCategoryId]: true } : {}
+  ));
   const [hovered, setHovered] = useState(false);
   const [scrollEdge, setScrollEdge] = useState<'top' | 'bottom' | null>(null);
   const [editingFavorites, setEditingFavorites] = useState(false);
   const t = useTheme();
   const { activity, stats } = useDashboardData();
+
+  useEffect(() => {
+    if (!activeCategoryId) return;
+    setExpandedSections(prev => (prev.modules ? prev : { ...prev, modules: true }));
+    setExpandedCats(prev => (prev[activeCategoryId] ? prev : { ...prev, [activeCategoryId]: true }));
+  }, [activeCategoryId]);
 
   const visuallyCollapsed = collapsed && !hovered;
 

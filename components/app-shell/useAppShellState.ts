@@ -53,7 +53,13 @@ export function useAppShellState() {
 
   useEffect(() => {
     const defaultFavorites = visibleCategories.flatMap(c => c.modules.filter(m => m.featured).map(m => m.href));
-    setFavoriteHrefs(new Set(readJSON<string[]>(FAVORITES_KEY, defaultFavorites)));
+    const saved = readJSON<string[]>(FAVORITES_KEY, defaultFavorites);
+    // New featured modules (e.g. Tools & Equipment) should appear in the sidebar
+    // Favorites list even when the user already has a persisted set.
+    const withoutSuspendedPortableTools = saved.filter(href => href !== '/portable-tools');
+    const merged = Array.from(new Set([...withoutSuspendedPortableTools, ...defaultFavorites.filter(href => !withoutSuspendedPortableTools.includes(href) && href === '/tools')]));
+    if (merged.length !== saved.length) writeJSON(FAVORITES_KEY, merged);
+    setFavoriteHrefs(new Set(merged));
     setQuickActionHrefs(new Set(readJSON<string[]>(MANUAL_QA_KEY, [])));
     setDismissedAutoHrefs(new Set(readJSON<string[]>(AUTO_QA_DISMISSED_KEY, [])));
     setDismissedBuiltinIds(new Set(readJSON<string[]>(BUILTIN_QA_DISMISSED_KEY, [])));

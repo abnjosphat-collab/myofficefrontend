@@ -181,6 +181,15 @@ export function TopNavigation({
         )}
 
         <div className="flex items-center gap-2 shrink-0">
+          <Link
+            href="/tools"
+            className={`hidden md:flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12px] font-medium ${t.textMuted} ${t.hoverText} ${t.glassSoft} ${t.shadow} hover:shadow-[0_8px_20px_-8px_rgba(124,58,237,0.35)] transition-shadow duration-300`}
+            title="Open the focused Tools & Equipment workspace"
+          >
+            <Building className="h-3.5 w-3.5" />
+            <span>Tools &amp; Equipment</span>
+            <ArrowUpRight className="h-3.5 w-3.5 opacity-60" />
+          </Link>
           <button
             onClick={onCustomize}
             className={`hidden sm:flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-medium ${t.textMuted} ${t.hoverText} ${t.glassSoft} ${t.shadow} hover:shadow-[0_8px_20px_-8px_rgba(124,58,237,0.4)] transition-shadow duration-300`}

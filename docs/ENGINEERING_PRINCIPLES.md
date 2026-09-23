@@ -46,6 +46,12 @@ Add tests for calculations, transitions, permissions, and failure paths — not 
 - Record **specific** lessons (what broke, rule adopted, file/test to guard it).
 - No secrets in memory, rules, or docs.
 
+## Substantial features
+
+Before implementing a substantial feature, identify scope, actors, data, rules, operational needs and acceptance evidence. Keep identity, physical condition and transactional state separate. Use atomic transactions and idempotency for custody-style commands. Verify at the right level and report what actually ran.
+
+Module facts that must survive a handoff belong in this repo's `docs/`. Workspace `memory/` is local-only.
+
 ## Feature delivery skill
 
 For substantial features, use MyOffice workspace `.cursor/skills/feature-delivery/SKILL.md` checklist.

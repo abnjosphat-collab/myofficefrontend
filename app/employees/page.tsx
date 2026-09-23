@@ -1,7 +1,8 @@
 // app/employees/page.tsx
 'use client';
 
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { AppShell } from "@/components/app-shell";
@@ -1038,7 +1039,12 @@ function EmployeesPageContent() {
   const [showRosterExport, setShowRosterExport] = useState(false);
   const [showNormalize, setShowNormalize] = useState(false);
 
+  const searchParams = useSearchParams();
   const [search, setSearch] = useState('');
+  useEffect(() => {
+    const fromUrl = searchParams.get('highlight') || searchParams.get('q');
+    if (fromUrl?.trim()) setSearch(fromUrl.trim());
+  }, [searchParams]);
   const [classFilter,   setClassFilter]   = useState('all');
   const [etypeFilter,   setEtypeFilter]   = useState('all');
   const [sectionFilter, setSectionFilter] = useState('all');

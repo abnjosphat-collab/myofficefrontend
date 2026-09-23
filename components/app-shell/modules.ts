@@ -66,6 +66,7 @@ export const CATEGORIES: Category[] = [
       { icon: Users,    title: 'Personnel',  description: 'Employee profiles & team structure', href: '/employees',  tags: ['HR', 'People'], badge: '12', featured: true, metrics: [{ label: 'Active', value: '48' }, { label: 'Departments', value: '6' }] },
       { icon: FlaskConical, title: 'Personnel Preview', description: 'Polished UI sandbox — compare before rollout', href: '/employees-preview', tags: ['HR', 'Preview'], badge: 'Preview' },
       { icon: ToolCase, title: 'Equipment', description: 'Track equipment across your site',  href: '/equipment',  tags: ['Equipment'], badge: '48', metrics: [{ label: 'Total', value: '234' }, { label: 'In Use', value: '189' }] },
+      { icon: ToolCase, title: 'Tools & Equipment', description: 'Standalone tool register, custody, history and insights', href: '/tools', tags: ['Tools', 'Engineering', 'Register'], featured: true },
       { icon: Package,  title: 'Inventory',  description: 'Manage stock levels & reorder points', href: '/inventory',  tags: ['Stock'], badge: '156', metrics: [{ label: 'Items', value: '1.2k' }, { label: 'Low Stock', value: '8' }] },
       { icon: Folder,   title: 'Documents',  description: 'Centralised document repository', href: '/documents',  tags: ['Files'], badge: '234', metrics: [{ label: 'Total', value: '2.4k' }, { label: 'Recent', value: '34' }] },
       { icon: BookOpen, title: 'SOP Library', description: 'Living, versioned standard operating procedures', href: '/sop-library', tags: ['SOPs', 'Governance'] },
