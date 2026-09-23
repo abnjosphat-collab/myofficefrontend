@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyMovement, equipmentTypesForCategory, matchesTool, primaryToolImage, PEOPLE, LOCATIONS, type Movement } from './prototype';
+import { applyMovement, equipmentTypesForCategory, inferEquipmentKind, matchesTool, primaryToolImage, PEOPLE, LOCATIONS, type Movement } from './prototype';
 import { TEST_TOOLS as SEED_TOOLS } from './testFixtures';
 
 const input: Movement = { kind: 'issue', toolId: SEED_TOOLS[0].id, person: PEOPLE[0], location: LOCATIONS[1], due: '25 Sep, 16:00', job: '', condition: 'Good', notes: '' };
@@ -40,6 +40,13 @@ describe('Tools preview handovers', () => {
   it('keeps materially different sample equipment on distinct visual types', () => {
     expect(new Set(SEED_TOOLS.map(tool => tool.kind)).size).toBe(SEED_TOOLS.length);
     for (const tool of SEED_TOOLS) expect(equipmentTypesForCategory(tool.category).map(type => type.value)).toContain(tool.kind);
+  });
+  it.each([
+    ['MIG welder package', 'Welding', 'inverter-welder'],
+    ['Hilti core drill', 'Power', 'rotary-hammer'],
+    ['Hydraulic torque wrench set', 'Hand', 'torque-wrench'],
+  ])('infers a recognizable icon for imported %s records', (name, category, expected) => {
+    expect(inferEquipmentKind(name, category, 'other-equipment')).toBe(expected);
   });
   it('uses the first uploaded image as the register photograph and ignores PDFs', () => {
     const tool = { ...SEED_TOOLS[0], evidence: [

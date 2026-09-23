@@ -42,7 +42,24 @@ export const EQUIPMENT_TYPES: ReadonlyArray<{ value: EquipmentKind; label: strin
 ];
 export function equipmentTypesForCategory(category: string) { return EQUIPMENT_TYPES.filter(type => type.category === category); }
 export function defaultEquipmentKind(category: string): EquipmentKind { return equipmentTypesForCategory(category)[0]?.value ?? 'other-equipment'; }
-export const DEPARTMENTS = ['Engineering', 'Mining', 'Mine Technical Services', 'Shared Services'];
+const EQUIPMENT_KINDS = new Set<EquipmentKind>(EQUIPMENT_TYPES.map(type => type.value));
+const KIND_HINTS: ReadonlyArray<[RegExp,EquipmentKind]> = [
+  [/clamp meter/, 'clamp-meter'], [/multimeter|voltmeter/, 'digital-multimeter'],
+  [/torque wrench/, 'torque-wrench'], [/angle grinder/, 'angle-grinder'],
+  [/rotary hammer|core drill/, 'rotary-hammer'], [/cordless|impact drill|drill driver/, 'cordless-drill'],
+  [/mig welder|inverter welder/, 'inverter-welder'], [/weld/, 'welding-equipment'],
+  [/laser (distance|level)/, 'laser-level'], [/socket set/, 'socket-set'],
+  [/laptop|notebook computer/, 'laptop'], [/work lamp|portable lamp/, 'work-lamp'],
+  [/total station|survey|gnss|optical level/, 'survey-equipment'],
+  [/tool kit|toolkit/, 'tool-kit'], [/lifting|chain block|hoist/, 'lifting-equipment'],
+  [/tester|detector|instrument/, 'test-instrument'],
+];
+export function inferEquipmentKind(name: string, category: string, storedKind?: string): EquipmentKind {
+  if (storedKind && storedKind !== 'other-equipment' && EQUIPMENT_KINDS.has(storedKind as EquipmentKind)) return storedKind as EquipmentKind;
+  const description = `${name} ${category}`.toLowerCase();
+  return KIND_HINTS.find(([pattern]) => pattern.test(description))?.[1] ?? defaultEquipmentKind(category);
+}
+export const DEPARTMENTS = ['Engineering', 'Mining', 'Mine Technical Services', 'IT'];
 export const departmentOf = (tool: Tool) => tool.department || 'Engineering';
 export const primaryToolImage = (tool: Tool) => tool.evidence?.find(file => file.type.startsWith('image/'))?.url;
 export const SEED_TOOLS: Tool[] = [];
