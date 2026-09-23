@@ -3,8 +3,9 @@
 // For every real page route it: mocks all /api/** calls (so it needs no backend, no auth,
 // and is deterministic), loads the page, and fails if the page throws an uncaught
 // exception, triggers a hydration/React error, or renders blank. Plus a few targeted
-// checks for flows that regressed before (PPE matrix + dropdown width, Preferences panel,
-// homepage grid).
+// checks for flows that regressed before. The wider MyOffice routes now intentionally
+// require Supabase authentication, so deterministic CI checks exercise the public Tools
+// workspace rather than pretending an unauthenticated page can reach private controls.
 //
 // Requires the dev server running:  npm run dev   (then)   npm run test:smoke
 // No test framework needed — pure Node + the installed `playwright`. Exits non-zero on any
@@ -24,11 +25,17 @@ const CRITICAL = [
   /each child in a list should have a unique/i,
 ];
 
+// Chromium can reject Next.js' development-only performance mark while a redirect
+// replaces the page. The redirect still succeeds and no application code has failed.
+const IGNORABLE_PAGE_ERROR = /Failed to execute 'measure' on 'Performance'.*negative time stamp/i;
+
 async function checkPage(context, route) {
   const page = await context.newPage();
   const pageErrors = [];
   const criticalConsole = [];
-  page.on('pageerror', e => pageErrors.push(e.message));
+  page.on('pageerror', e => {
+    if (!IGNORABLE_PAGE_ERROR.test(e.message)) pageErrors.push(e.message);
+  });
   page.on('console', m => {
     if (m.type() !== 'error') return;
     const t = m.text();
@@ -58,7 +65,9 @@ async function targeted(context) {
   const run = async (name, fn) => {
     const page = await context.newPage();
     const errs = [];
-    page.on('pageerror', e => errs.push(e.message));
+    page.on('pageerror', e => {
+      if (!IGNORABLE_PAGE_ERROR.test(e.message)) errs.push(e.message);
+    });
     await page.route('**/api/**', mockApi);
     await page.addInitScript(() => { try { localStorage.setItem('oz_prefsSeen', '1'); } catch {} });
     try { await fn(page); results.push([name, errs.length ? `uncaught: ${errs[0]}` : null]); }
@@ -66,27 +75,30 @@ async function targeted(context) {
     await page.close();
   };
 
-  await run('homepage renders module grid', async page => {
-    await page.goto(BASE + '/', { waitUntil: 'load', timeout: 45000 });
+  await run('Tools workspace renders its primary controls', async page => {
+    await page.goto(BASE + '/tools', { waitUntil: 'load', timeout: 45000 });
     await page.waitForTimeout(1500);
-    if (await page.locator('#modules').count() === 0) throw new Error('#modules grid missing');
+    if (await page.getByRole('heading', { name: 'A place for every tool.' }).count() === 0) throw new Error('Tools heading missing');
+    if (await page.getByRole('button', { name: 'Issue a tool' }).count() === 0) throw new Error('primary action missing');
   });
 
-  await run('preferences panel opens from top bar', async page => {
-    await page.goto(BASE + '/', { waitUntil: 'load', timeout: 45000 });
+  await run('Tools customization opens from sticky top bar', async page => {
+    await page.goto(BASE + '/tools', { waitUntil: 'load', timeout: 45000 });
     await page.waitForTimeout(1500);
-    await page.locator('button[title^="Preferences"]').first().click();
+    await page.getByRole('button', { name: 'Customize workspace' }).click();
     await page.waitForTimeout(600);
-    if (await page.getByText('Appearance & layout').count() === 0) throw new Error('panel did not open');
+    if (await page.getByRole('heading', { name: 'Make it yours' }).count() === 0) throw new Error('customization dialog did not open');
   });
 
-  await run('PPE matrix modal + dropdown not clipped', async page => {
-    await page.goto(BASE + '/ppe', { waitUntil: 'load', timeout: 45000 });
+  await run('Tools filter dropdown opens inside the viewport', async page => {
+    await page.goto(BASE + '/tools', { waitUntil: 'load', timeout: 45000 });
     await page.waitForTimeout(1500);
-    await page.getByRole('button', { name: /Matrix/ }).first().click();
-    await page.waitForTimeout(600);
-    if (await page.getByText('PPE Replacement Matrix').count() === 0) throw new Error('matrix modal did not open');
-    if (await page.getByRole('button', { name: 'Recalculate' }).count() < 5) throw new Error('matrix rows missing');
+    await page.getByRole('button', { name: 'Open filter and sort controls' }).click();
+    await page.getByRole('button', { name: 'Status' }).click();
+    const option = page.getByRole('option', { name: 'All active tools' });
+    if (await option.count() === 0 || !await option.isVisible()) throw new Error('status choices did not open');
+    const bounds = await option.boundingBox();
+    if (!bounds || bounds.x < 0 || bounds.y < 0 || bounds.x + bounds.width > 1366 || bounds.y + bounds.height > 900) throw new Error('status dropdown is clipped');
   });
 
   return results;
