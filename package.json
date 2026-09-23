@@ -51,6 +51,7 @@
     "file-saver": "^2.0.5",
     "framer-motion": "^12.23.24",
     "html2canvas": "^1.4.1",
+    "iconoir-react": "^7.12.1",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.2",
     "lipstick": "^1.1.0",

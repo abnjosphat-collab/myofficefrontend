@@ -1,3 +1,4 @@
+import { fuzzyMatch } from './fuzzySearch';
 import { STATUS, departmentOf, matchesTool, type Activity, type Status, type Tool } from './prototype';
 
 export type ToolsTab = 'register' | 'loans' | 'employees' | 'activity' | 'analytics' | 'feedback';
@@ -31,6 +32,5 @@ export function selectVisibleTools(tools: Tool[], filters: ToolFilterState) {
 
 export function selectVisibleActivity(activity: Activity[], scopedTools: Tool[], search: string) {
   const toolIds = new Set(scopedTools.map(tool=>tool.id));
-  const query = search.trim().toLowerCase();
-  return activity.filter(event=>toolIds.has(event.toolId)&&`${event.title} ${event.toolId} ${event.detail}`.toLowerCase().includes(query));
+  return activity.filter(event=>toolIds.has(event.toolId)&&fuzzyMatch(search,`${event.title} ${event.toolId} ${event.detail} ${event.recordedBy || ''} ${event.time}`));
 }

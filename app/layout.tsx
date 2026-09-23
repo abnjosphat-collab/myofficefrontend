@@ -4,6 +4,7 @@ import { Montserrat, Inter, Geist_Mono, Manrope, Plus_Jakarta_Sans, Sora } from 
 import "./globals.css";
 import { Toaster } from "sonner";
 import { Providers } from "@/components/Providers";
+import { MyOfficeAccessBoundary } from "@/components/MyOfficeAccessBoundary";
 
 const montserrat = Montserrat({
   variable: "--font-heading",
@@ -90,7 +91,7 @@ export default function RootLayout({
         className={`${montserrat.variable} ${inter.variable} ${geistMono.variable} ${manrope.variable} ${plusJakarta.variable} ${sora.variable} antialiased`}
       >
         <Providers>
-          {children}
+          <MyOfficeAccessBoundary>{children}</MyOfficeAccessBoundary>
         </Providers>
         <Toaster
           position="top-right"

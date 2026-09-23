@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useId, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { createContext, useContext, useId, useRef, useState, type CSSProperties, type ReactElement, type ReactNode } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
@@ -10,7 +10,7 @@ import s from './tools.module.css';
 
 export type FontChoice = 'inter' | 'manrope' | 'jakarta';
 export type FontSizeChoice = number;
-export type EquipmentIconFamily = 'technical' | 'myoffice';
+export type EquipmentIconFamily = 'technical' | 'myoffice' | 'tabler' | 'iconoir';
 export const ToolsPreferences = createContext({ appearance: 'light', font: 'inter' as FontChoice, fontSize: 100 as FontSizeChoice, equipmentIcons: 'technical' as EquipmentIconFamily, guidance: true });
 const scaleStyle = (fontSize: number) => ({ '--font-scale': fontSize / 100 } as CSSProperties);
 export function Help({ label, children }: { label: string; children: ReactNode }) {
@@ -18,6 +18,12 @@ export function Help({ label, children }: { label: string; children: ReactNode }
   const [open, setOpen] = useState(false);
   if (!prefs.guidance) return null;
   return <Tooltip.Provider delayDuration={250}><Tooltip.Root open={open} onOpenChange={setOpen}><Tooltip.Trigger asChild><button type="button" className={s.helpButton} aria-label={`Help: ${label}`} onClick={() => setOpen(v => !v)}><Icon name="info" size={16} /></button></Tooltip.Trigger><Tooltip.Portal><Tooltip.Content sideOffset={8} className={`${s.surface} ${s.helpTip}`} data-mode={prefs.appearance} data-font={prefs.font} style={scaleStyle(prefs.fontSize)}>{children}<Tooltip.Arrow className={s.helpArrow} /></Tooltip.Content></Tooltip.Portal></Tooltip.Root></Tooltip.Provider>;
+}
+
+export function ActionHint({ label, children }: { label: ReactNode; children: ReactElement }) {
+  const prefs = useContext(ToolsPreferences);
+  if (!prefs.guidance) return children;
+  return <Tooltip.Provider delayDuration={350}><Tooltip.Root><Tooltip.Trigger asChild>{children}</Tooltip.Trigger><Tooltip.Portal><Tooltip.Content side="bottom" align="center" sideOffset={9} className={`${s.surface} ${s.helpTip} ${s.actionHelpTip}`} data-mode={prefs.appearance} data-font={prefs.font} style={scaleStyle(prefs.fontSize)}>{label}<Tooltip.Arrow className={s.helpArrow}/></Tooltip.Content></Tooltip.Portal></Tooltip.Root></Tooltip.Provider>;
 }
 
 export function AnimatedText({ children, value }: { children: ReactNode; value: string | number }) {
@@ -32,7 +38,7 @@ export function ToolsDialog({ open, onClose, title, description, wide = false, c
   return <Dialog.Root open={open} onOpenChange={value => { if (!value) onClose(); }}><Dialog.Portal><Dialog.Overlay className={s.dialogOverlay} /><Dialog.Content className={`${s.surface} ${s.dialogPanel} ${wide ? s.dialogWide : ''}`} data-mode={prefs.appearance} data-font={prefs.font} style={scaleStyle(prefs.fontSize)}
     onOpenAutoFocus={event => { event.preventDefault(); returnFocus.current = document.activeElement as HTMLElement; titleRef.current?.focus(); }}
     onCloseAutoFocus={event => { event.preventDefault(); const target = returnFocus.current?.isConnected ? returnFocus.current : document.querySelector<HTMLElement>('[aria-label="Tools design prototype"] button'); target?.focus(); }}>
-    <div className={s.dialogHeader}><div className={s.eyebrow}>TOOLS / PREVIEW</div><Dialog.Title ref={titleRef} tabIndex={-1} className={s.modalTitle}>{title}</Dialog.Title><Dialog.Description className={s.drawerSubtitle}>{description}</Dialog.Description><Dialog.Close asChild><button type="button" className={s.closeButton} aria-label="Close dialog"><Icon name="close" size={20} /></button></Dialog.Close></div>
+    <div className={s.dialogHeader}><div className={s.eyebrow}>TOOLS &amp; EQUIPMENT</div><Dialog.Title ref={titleRef} tabIndex={-1} className={s.modalTitle}>{title}</Dialog.Title><Dialog.Description className={s.drawerSubtitle}>{description}</Dialog.Description><Dialog.Close asChild><button type="button" className={s.closeButton} aria-label="Close dialog"><Icon name="close" size={20} /></button></Dialog.Close></div>
     <div className={s.dialogBody}>{children}</div>
   </Dialog.Content></Dialog.Portal></Dialog.Root>;
 }
@@ -48,7 +54,7 @@ export function EvidencePicker({ value, onChange, addFiles, toolPhoto = false }:
     setError(''); onChange([...value, ...addFiles(files)]);
   }
   return <div className={s.evidencePicker}>
-    <div className={s.fieldHeading}><span>{toolPhoto ? 'Tool photograph & records' : 'Photos & documents'} <small>Optional</small></span><Help label="Attachments">{toolPhoto ? 'The first uploaded image appears in the register. When no image is available, the equipment icon is used automatically.' : 'Add a photo of the condition or a PDF report. Files stay in this browser preview and are cleared on reload.'}</Help></div>
+    <div className={s.fieldHeading}><span>{toolPhoto ? 'Tool photograph & records' : 'Photos & documents'} <small>Optional</small></span><Help label="Attachments">{toolPhoto ? 'The first uploaded image appears in the register. When no image is available, the equipment icon is used automatically.' : 'Add a photo of the condition or a PDF report. Saved files stay with the equipment record.'}</Help></div>
     <label className={s.uploadZone} htmlFor={inputId}><Icon name={toolPhoto ? 'image' : 'upload'} size={22} /><span><strong>{toolPhoto ? 'Add a tool photograph or PDF' : 'Add photos or a PDF'}</strong><small>{toolPhoto ? 'The first image becomes the register photo · ' : ''}Up to 6 files · original-quality photos</small></span><Icon name="plus" size={18} /><input id={inputId} className={s.fileInput} aria-label="Attach photos or PDF" type="file" multiple accept="image/jpeg,image/png,image/webp,image/gif,image/avif,application/pdf" onChange={e => { receive(Array.from(e.target.files || [])); e.target.value = ''; }} /></label>
     {value.length > 0 && <div className={s.evidenceList}>{value.map(file => <div key={file.id} className={s.evidenceRow}><Icon name={file.type === 'application/pdf' ? 'pdf' : 'image'} size={20} /><span><strong>{file.name}</strong><small>{Math.max(1, Math.round(file.size / 1024))} KB</small></span><button type="button" aria-label={`Remove ${file.name}`} className={s.iconButton} onClick={() => onChange(value.filter(f => f.id !== file.id))}><Icon name="close" size={16} /></button></div>)}</div>}
     {error && <p role="alert" className={s.warning}>{error}</p>}

@@ -1,3 +1,5 @@
+import { fuzzyMatch } from './fuzzySearch';
+
 /** Local design fixtures. These records never touch the operational ledger. */
 export type Status = 'available' | 'issued' | 'overdue' | 'attention';
 export type EquipmentKind =
@@ -57,7 +59,7 @@ export function applyMovement(tool: Tool, input: Movement): Tool {
   return { ...tool, status: input.kind === 'transfer' ? tool.status : 'issued', holder: input.person, location: input.location, due: input.kind === 'transfer' ? tool.due : input.due, dueISO: input.kind === 'transfer' ? tool.dueISO : input.dueISO, originalDue: tool.originalDue || tool.due || input.due, job: input.job || tool.job, notes: input.notes, evidence };
 }
 export function matchesTool(tool: Tool, search: string) {
-  return `${tool.id} ${tool.name} ${tool.make} ${tool.serial} ${tool.holder ?? ''} ${tool.location} ${tool.job || ''} ${departmentOf(tool)}`.toLowerCase().includes(search.trim().toLowerCase());
+  return fuzzyMatch(search, `${tool.id} ${tool.name} ${tool.make} ${tool.serial} ${tool.category} ${tool.condition} ${tool.holder ?? ''} ${tool.location} ${tool.job || ''} ${tool.notes || ''} ${departmentOf(tool)} ${tool.section || ''}`);
 }
 
 export function attachmentError(file: Pick<File, 'type' | 'size'>): string | null {

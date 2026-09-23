@@ -1,6 +1,9 @@
 import type { ComponentType, SVGProps } from 'react';
-import { IconDeviceLaptop, IconHammerDrill } from '@tabler/icons-react';
-import { Briefcase, Flashlight, Gauge, HardHat, Laptop, ToolCase, Wrench, Zap } from '@/components/shared/design-system';
+import { IconBox, IconCircuitAmmeter, IconCircuitVoltmeter, IconDeviceLaptop, IconLamp, IconTool } from '@tabler/icons-react';
+import {
+  Box as IconoirBox, Lamp as IconoirLamp, Laptop as IconoirLaptop, Wrench as IconoirWrench,
+} from 'iconoir-react';
+import { Laptop, ToolCase, Wrench } from '@/components/shared/design-system';
 import type { EquipmentIconFamily } from './ToolsUI';
 import type { EquipmentKind } from './prototype';
 
@@ -30,6 +33,7 @@ function EquipmentSvg({ size = 48, children, ...props }: EquipmentGlyphProps) {
 }
 
 const CordlessDrill = (props: EquipmentGlyphProps) => <EquipmentSvg {...props}><path d="M4 7.5h10.2l2.1 2.1v3.1H9.8l-2.2-2.1H4z"/><path d="M16.3 10h2.3m0-1.3v2.6m0-1.3H21"/><path d="M8.7 12.7 10 17H8.4l.5 3H5.6l-1.3-7.3"/><path d="M6.2 17h3.4"/></EquipmentSvg>;
+const RotaryHammer = (props: EquipmentGlyphProps) => <EquipmentSvg {...props}><path d="M3 7.4h11.3l2.4 2.2v3.7H8.8L6.5 11H3z"/><path d="M16.7 10.2h2.6M19.3 9v2.4M19.3 10.2H23"/><path d="m8.1 13.3 1.4 6.2H6l-1.1-8.3M10.1 7.4V4.7m-2.2 0h4.4"/><path d="M5.9 16.9h3.2"/></EquipmentSvg>;
 const AngleGrinder = (props: EquipmentGlyphProps) => <EquipmentSvg {...props}><circle cx="17.2" cy="14.8" r="3.6"/><path d="m4 8.2 8.7 2.3 2.4 2.2-2.2 3-3.4-.9-1.2-2.1-4.8-1.3z"/><path d="m11.1 10.1 1.2-3.3 2.4.7-1.3 3.5"/><path d="M19.7 12.2 22 9.8"/></EquipmentSvg>;
 const DigitalMultimeter = (props: EquipmentGlyphProps) => <EquipmentSvg {...props}><rect x="6.2" y="2.5" width="11.6" height="18.7" rx="2"/><rect x="8.3" y="5" width="7.4" height="3.4" rx=".6"/><circle cx="12" cy="13.2" r="2.2"/><path d="m12 11.1 1.3 1.1M9 18h1m4 0h1M6.2 17.4C3.7 18.2 3.3 20 3.3 21.5m14.5-4.1c2.5.8 2.9 2.6 2.9 4.1"/></EquipmentSvg>;
 const ClampMeter = (props: EquipmentGlyphProps) => <EquipmentSvg {...props}><path d="M8.5 8.7a4.7 4.7 0 0 1-.7-2.4A4.2 4.2 0 0 1 12 2.2a4.2 4.2 0 0 1 4.2 4.1 4.7 4.7 0 0 1-.7 2.4"/><path d="M9.7 8.4V5.9a2.3 2.3 0 0 1 4.6 0v2.5"/><rect x="7" y="8.4" width="10" height="13.1" rx="2"/><rect x="9" y="10.5" width="6" height="2.6" rx=".5"/><circle cx="12" cy="17" r="1.8"/></EquipmentSvg>;
@@ -48,12 +52,12 @@ const LiftingEquipment = (props: EquipmentGlyphProps) => <EquipmentSvg {...props
 const OtherEquipment = (props: EquipmentGlyphProps) => <EquipmentSvg {...props}><path d="M5 6h14v14H5zM8 6V3h8v3M5 11h14"/><path d="M9 15h6m-3-3v6"/></EquipmentSvg>;
 
 const tabler = {
-  'rotary-hammer': IconHammerDrill,
   laptop: IconDeviceLaptop,
 } satisfies Partial<Record<EquipmentKind, ComponentType<EquipmentGlyphProps>>>;
 
 const custom = {
   'cordless-drill': CordlessDrill,
+  'rotary-hammer': RotaryHammer,
   'angle-grinder': AngleGrinder,
   'digital-multimeter': DigitalMultimeter,
   'clamp-meter': ClampMeter,
@@ -75,18 +79,41 @@ const custom = {
 const glyphs = { ...custom, ...tabler } satisfies Record<EquipmentKind, ComponentType<EquipmentGlyphProps>>;
 
 const myOfficeGlyphs = {
-  'cordless-drill': Wrench, 'rotary-hammer': Wrench, 'angle-grinder': Wrench,
-  'digital-multimeter': Gauge, 'clamp-meter': Gauge, 'torque-wrench': Wrench,
-  'inverter-welder': Zap, 'laser-level': Gauge, 'socket-set': Briefcase,
-  laptop: Laptop, 'work-lamp': Flashlight, 'survey-equipment': HardHat,
-  'tool-kit': ToolCase, 'power-tool': Wrench, 'hand-tool': Wrench,
-  'test-instrument': Gauge, 'welding-equipment': Zap,
-  'lifting-equipment': ToolCase, 'other-equipment': ToolCase,
+  'cordless-drill': CordlessDrill, 'rotary-hammer': RotaryHammer, 'angle-grinder': AngleGrinder,
+  'digital-multimeter': DigitalMultimeter, 'clamp-meter': ClampMeter, 'torque-wrench': TorqueWrench,
+  'inverter-welder': InverterWelder, 'laser-level': LaserLevel, 'socket-set': SocketSet,
+  laptop: Laptop, 'work-lamp': WorkLamp, 'survey-equipment': SurveyEquipment,
+  'tool-kit': ToolKit, 'power-tool': PowerTool, 'hand-tool': Wrench,
+  'test-instrument': TestInstrument, 'welding-equipment': WeldingEquipment,
+  'lifting-equipment': LiftingEquipment, 'other-equipment': ToolCase,
+} satisfies Record<EquipmentKind, ComponentType<EquipmentGlyphProps>>;
+
+const tablerGlyphs = {
+  'cordless-drill': CordlessDrill, 'rotary-hammer': RotaryHammer, 'angle-grinder': AngleGrinder,
+  'digital-multimeter': IconCircuitVoltmeter, 'clamp-meter': IconCircuitAmmeter, 'torque-wrench': IconTool,
+  'inverter-welder': InverterWelder, 'laser-level': LaserLevel, 'socket-set': SocketSet,
+  laptop: IconDeviceLaptop, 'work-lamp': IconLamp, 'survey-equipment': SurveyEquipment,
+  'tool-kit': ToolKit, 'power-tool': PowerTool, 'hand-tool': IconTool,
+  'test-instrument': IconCircuitVoltmeter, 'welding-equipment': WeldingEquipment,
+  'lifting-equipment': LiftingEquipment, 'other-equipment': IconBox,
+} satisfies Record<EquipmentKind, ComponentType<EquipmentGlyphProps>>;
+
+const iconoirGlyphs = {
+  'cordless-drill': CordlessDrill, 'rotary-hammer': RotaryHammer, 'angle-grinder': AngleGrinder,
+  'digital-multimeter': DigitalMultimeter, 'clamp-meter': ClampMeter, 'torque-wrench': TorqueWrench,
+  'inverter-welder': InverterWelder, 'laser-level': LaserLevel, 'socket-set': SocketSet,
+  laptop: IconoirLaptop, 'work-lamp': IconoirLamp, 'survey-equipment': SurveyEquipment,
+  'tool-kit': ToolKit, 'power-tool': PowerTool, 'hand-tool': IconoirWrench,
+  'test-instrument': TestInstrument, 'welding-equipment': WeldingEquipment,
+  'lifting-equipment': LiftingEquipment, 'other-equipment': IconoirBox,
 } satisfies Record<EquipmentKind, ComponentType<EquipmentGlyphProps>>;
 
 export function EquipmentIcon({ kind, size = 48, family = 'technical' }: { kind: EquipmentKind; size?: number; family?: EquipmentIconFamily }) {
-  const Glyph = family === 'myoffice' ? myOfficeGlyphs[kind] : glyphs[kind] ?? OtherEquipment;
-  return family === 'myoffice'
-    ? <Glyph size={size} weight="light" aria-hidden="true" focusable="false" />
-    : <Glyph size={size} strokeWidth={1.35} aria-hidden="true" focusable="false" />;
+  if (family === 'iconoir') {
+    const Glyph = iconoirGlyphs[kind];
+    return <Glyph width={size} height={size} strokeWidth={1.35} aria-hidden="true" focusable="false" />;
+  }
+  const Glyph = family === 'myoffice' ? myOfficeGlyphs[kind] : family === 'tabler' ? tablerGlyphs[kind] : glyphs[kind] ?? OtherEquipment;
+  if (family === 'myoffice') return <Glyph size={size} weight="light" aria-hidden="true" focusable="false" />;
+  return <Glyph size={size} strokeWidth={1.35} aria-hidden="true" focusable="false" />;
 }
