@@ -59,7 +59,7 @@ describe('Tools interaction controls', () => {
   it('reads the chosen native return date when issuing a tool', async () => {
     const onSave=vi.fn(); render(<MovementForm kind="issue" initialTool={SEED_TOOLS[0]} tools={SEED_TOOLS} addFiles={()=>[]} onSave={onSave} onCancel={()=>{}}/>);
     fireEvent.change(screen.getByRole('combobox',{name:'Employee'}),{target:{value:PEOPLE[0]}});
-    fireEvent.change(screen.getByRole('textbox',{name:'Current work location'}),{target:{value:LOCATIONS[1]}});
+    fireEvent.change(screen.getByRole('combobox',{name:'Current work location'}),{target:{value:LOCATIONS[1]}});
     fireEvent.change(screen.getByRole('combobox',{name:'Work order / job'}),{target:{value:JOBS[0]}});
     fireEvent.change(screen.getByLabelText('Expected return'),{target:{value:'2050-09-25T16:00'}});
     fireEvent.click(screen.getByRole('button',{name:'Issue tool'}));
@@ -69,7 +69,7 @@ describe('Tools interaction controls', () => {
   it('rejects an old return date without discarding form values', () => {
     const onSave=vi.fn(); render(<MovementForm kind="issue" initialTool={SEED_TOOLS[0]} tools={SEED_TOOLS} addFiles={()=>[]} onSave={onSave} onCancel={()=>{}}/>);
     fireEvent.change(screen.getByRole('combobox',{name:'Employee'}),{target:{value:PEOPLE[0]}});
-    fireEvent.change(screen.getByRole('textbox',{name:'Current work location'}),{target:{value:LOCATIONS[1]}});
+    fireEvent.change(screen.getByRole('combobox',{name:'Current work location'}),{target:{value:LOCATIONS[1]}});
     fireEvent.change(screen.getByRole('combobox',{name:'Work order / job'}),{target:{value:JOBS[0]}});
     fireEvent.change(screen.getByLabelText('Expected return'),{target:{value:'2000-01-01T16:00'}});
     fireEvent.click(screen.getByRole('button',{name:'Issue tool'}));

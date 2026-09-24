@@ -11,8 +11,9 @@ export type EquipmentKind =
   | 'welding-equipment' | 'lifting-equipment' | 'other-equipment';
 export type Evidence = { id: string; name: string; type: string; size: number; url: string };
 export type Employee = { id: string; backendId?: string; employeeNumber: string; name: string; department: string; jobTitle?: string; active: boolean };
-export type WorkspaceAccount = { id: string; name: string; username: string; password: string; canIssue: boolean; token?: string };
-export type Tool = { id: string; backendId?: string; name: string; make: string; serial: string; category: string; kind: EquipmentKind; status: Status; location: string; holder?: string; due?: string; dueISO?: string; originalDue?: string; job?: string; condition: string; notes?: string; department?: string; section?: string; archived?: boolean; evidence?: Evidence[]; calibration?: string; approvalRef?: string };
+export type AccountRole = 'admin' | 'issuer' | 'viewer';
+export type WorkspaceAccount = { id: string; name: string; username: string; password: string; role: AccountRole; department?: string; canIssue: boolean; token?: string };
+export type Tool = { id: string; backendId?: string; name: string; make: string; serial: string; category: string; kind: EquipmentKind; status: Status; location: string; holder?: string; due?: string; dueISO?: string; originalDue?: string; job?: string; assignedEquipment?: string[]; condition: string; notes?: string; department?: string; section?: string; archived?: boolean; evidence?: Evidence[]; calibration?: string; approvalRef?: string; specifications?: Record<string,string> };
 export type Activity = { id: string; toolId: string; title: string; detail: string; time: string; recordedBy?: string; issuedAt?: string; returnedAt?: string };
 export const STATUS: Record<Status, string> = { available: 'Ready to use', issued: 'With an employee', overdue: 'Return overdue', attention: 'Needs attention' };
 export const PEOPLE = ['Alex Morgan · EMP-014', 'Jordan Ellis · EMP-028', 'Sam Taylor · EMP-036', 'Casey Brooks · EMP-041'];
@@ -65,7 +66,7 @@ export const primaryToolImage = (tool: Tool) => tool.evidence?.find(file => file
 export const SEED_TOOLS: Tool[] = [];
 export const SEED_ACTIVITY: Activity[] = [];
 export type ActionKind = 'issue' | 'return' | 'transfer' | 'extend';
-export type Movement = { kind: ActionKind; toolId: string; person: string; location: string; due: string; job: string; condition: string; notes: string; dueISO?: string; evidence?: Evidence[]; calibration?: string; approvalRef?: string; gatePass?: string; movementScope?: string; department?: string };
+export type Movement = { kind: ActionKind; toolId: string; person: string; location: string; due: string; job: string; assignedEquipment?: string[]; condition: string; notes: string; dueISO?: string; evidence?: Evidence[]; calibration?: string; approvalRef?: string; gatePass?: string; movementScope?: string; department?: string };
 export function applyMovement(tool: Tool, input: Movement): Tool {
   if (tool.archived) throw new Error('Restore this tool before recording a movement.');
   if (input.kind === 'issue' && tool.status !== 'available') throw new Error('This tool is not available to issue.');
@@ -73,7 +74,7 @@ export function applyMovement(tool: Tool, input: Movement): Tool {
   const evidence = [...(tool.evidence || []), ...(input.evidence || [])];
   if (input.kind === 'return') return { ...tool, status: input.condition === 'Good' && !['Expired', 'Not verified'].includes(input.calibration || '') ? 'available' : 'attention', holder: undefined, due: undefined, dueISO: undefined, originalDue: undefined, job: undefined, location: input.location, condition: input.condition, notes: input.notes, evidence, calibration: input.calibration || tool.calibration };
   if (input.kind === 'extend') return { ...tool, due: input.due, dueISO: input.dueISO, originalDue: tool.originalDue || tool.due, status: 'issued', notes: input.notes, evidence };
-  return { ...tool, status: input.kind === 'transfer' ? tool.status : 'issued', holder: input.person, location: input.location, due: input.kind === 'transfer' ? tool.due : input.due, dueISO: input.kind === 'transfer' ? tool.dueISO : input.dueISO, originalDue: tool.originalDue || tool.due || input.due, job: input.job || tool.job, notes: input.notes, evidence };
+  return { ...tool, status: input.kind === 'transfer' ? tool.status : 'issued', holder: input.person, location: input.location, due: input.kind === 'transfer' ? tool.due : input.due, dueISO: input.kind === 'transfer' ? tool.dueISO : input.dueISO, originalDue: tool.originalDue || tool.due || input.due, job: input.job || tool.job, assignedEquipment: input.assignedEquipment?.length ? input.assignedEquipment : tool.assignedEquipment, notes: input.notes, evidence };
 }
 export function matchesTool(tool: Tool, search: string) {
   return fuzzyMatch(search, `${tool.id} ${tool.name} ${tool.make} ${tool.serial} ${tool.category} ${tool.condition} ${tool.holder ?? ''} ${tool.location} ${tool.job || ''} ${tool.notes || ''} ${departmentOf(tool)} ${tool.section || ''}`);

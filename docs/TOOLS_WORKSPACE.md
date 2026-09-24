@@ -8,7 +8,10 @@ The standalone `/tools` workspace is the current interface for the mine-wide por
 - The top identity and account controls remain visible while the register scrolls.
 - Filters and sorting stay folded until requested. The button uses a chevron and contextual guidance so the hidden controls remain discoverable.
 - Primary operational actions use plain language: issue, receive, transfer, extend, edit, archive and restore.
-- Viewer accounts may read registers and history. Administrator accounts manage records and custody.
+- Viewer accounts read registers and history. Administrators manage accounts, register records, feedback and cross-account analytics but cannot record custody movements. Only an **Issuer** can issue, receive, transfer or extend equipment, and every Issuer is restricted to one assigned department.
+- Employee cards open a person detail view, show current custody and provide a direct issue action for an authorized Issuer.
+- Issue forms autocomplete tools, employees, previously used locations and target equipment names while continuing to accept new location and equipment text.
+- Tool records retain flexible technical specifications as labelled values because relevant specifications differ by equipment type.
 - Notification acknowledgement is per account. Viewing an alert must not clear it for another account.
 - A notification failure must be visible but must not prevent the equipment and employee registers from loading.
 - Motion provides orientation and feedback, respects reduced-motion preferences, and must never delay the underlying action.
@@ -35,3 +38,4 @@ Precision Line remains the default because industrial equipment coverage in gene
 - Keyboard focus, touch targets, menus and dialogs remain usable at every supported text size.
 - Grid and list views expose the same actions, statuses, imagery and motion quality.
 - Empty, loading, permission and request-failure states are distinguishable.
+- Analytics and the saved-feedback inbox are visible only to administrators; captured usage covers all authenticated accounts.
