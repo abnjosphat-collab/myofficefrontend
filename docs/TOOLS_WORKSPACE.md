@@ -12,10 +12,16 @@ The standalone `/tools` workspace is the current interface for the mine-wide por
 - Employee cards open a person detail view, show current custody and provide a direct issue action for an authorized Issuer.
 - Issue forms autocomplete tools, employees, previously used locations and target equipment names while continuing to accept new location and equipment text.
 - Tool records retain flexible technical specifications as labelled values because relevant specifications differ by equipment type.
+- The first equipment detail view shows the complete saved specification record; editing remains a separate, explicit action.
+- Equipment held for attention has a named “Mark ready for use” workflow that requires the repair or inspection outcome.
+- Original PDF, spreadsheet, Word, OpenDocument and image registers are preserved in private permanent storage before staff update the live register.
+- Employee records retain a unique employee ID or number and an optional supervisor name. Cards use the shared person outline instead of generated initials.
 - Notification acknowledgement is per account. Viewing an alert must not clear it for another account.
 - A notification failure must be visible but must not prevent the equipment and employee registers from loading.
 - Motion provides orientation and feedback, respects reduced-motion preferences, and must never delay the underlying action.
 - Photographs take priority over equipment symbols when available.
+- Display preferences belong in Settings. Text size remains available beside the department scope because it is a frequent accessibility adjustment.
+- The global Undo/Redo control is intentionally absent from the interface. Use explicit edit, return, mark-ready, archive and restore actions so each operational change is clear; retain every change in history.
 
 ## Iconography standard
 
@@ -34,7 +40,7 @@ Precision Line remains the default because industrial equipment coverage in gene
 
 - No horizontal overflow at 390, 820 and 1440 pixel viewport widths.
 - Sticky controls do not cover mobile navigation or opened menus.
-- The visible and accessible heading reads “A place for every tool.”
+- The visible and accessible heading reads “Know where every tool is.”
 - Keyboard focus, touch targets, menus and dialogs remain usable at every supported text size.
 - Grid and list views expose the same actions, statuses, imagery and motion quality.
 - Empty, loading, permission and request-failure states are distinguishable.

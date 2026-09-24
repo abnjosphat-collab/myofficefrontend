@@ -10,7 +10,7 @@ export type EquipmentKind =
   | 'power-tool' | 'hand-tool' | 'test-instrument'
   | 'welding-equipment' | 'lifting-equipment' | 'other-equipment';
 export type Evidence = { id: string; name: string; type: string; size: number; url: string };
-export type Employee = { id: string; backendId?: string; employeeNumber: string; name: string; department: string; jobTitle?: string; active: boolean };
+export type Employee = { id: string; backendId?: string; employeeNumber: string; name: string; department: string; jobTitle?: string; supervisorName?: string; active: boolean };
 export type AccountRole = 'admin' | 'issuer' | 'viewer';
 export type WorkspaceAccount = { id: string; name: string; username: string; password: string; role: AccountRole; department?: string; canIssue: boolean; token?: string };
 export type Tool = { id: string; backendId?: string; name: string; make: string; serial: string; category: string; kind: EquipmentKind; status: Status; location: string; holder?: string; due?: string; dueISO?: string; originalDue?: string; job?: string; assignedEquipment?: string[]; condition: string; notes?: string; department?: string; section?: string; archived?: boolean; evidence?: Evidence[]; calibration?: string; approvalRef?: string; specifications?: Record<string,string> };

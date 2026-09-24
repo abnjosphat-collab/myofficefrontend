@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { useState } from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { SuggestField, MovementForm, ToolForm } from './ToolsForms';
+import { SuggestField, MovementForm, ToolForm, MarkReadyForm } from './ToolsForms';
 import { AnimatedSelect } from './AnimatedSelect';
 import { EvidenceGallery, EvidencePicker, ToolsDialog } from './ToolsUI';
 import { PEOPLE, LOCATIONS, JOBS } from './prototype';
@@ -100,6 +100,15 @@ describe('Tools interaction controls', () => {
     expect(equipmentType).toHaveTextContent('Inverter welder');
     fireEvent.click(equipmentType);
     expect(screen.queryByRole('option',{name:'Cordless drill / driver'})).not.toBeInTheDocument();
+  });
+  it('requires a repair or inspection note before returning equipment to service', () => {
+    const onSave=vi.fn();
+    render(<MarkReadyForm tool={{...SEED_TOOLS[0],status:'attention'}} onSave={onSave} onCancel={()=>{}}/>);
+    const submit=screen.getByRole('button',{name:'Mark ready for use'});
+    expect(submit).toBeDisabled();
+    fireEvent.change(screen.getByLabelText('Repair or inspection completed'),{target:{value:'Trigger replaced and function tested'}});
+    expect(submit).toBeEnabled(); fireEvent.click(submit);
+    expect(onSave).toHaveBeenCalledWith('Trigger replaced and function tested');
   });
   it('focuses the dialog heading and restores the invoking button on Escape', async () => {
     const user=userEvent.setup(); render(<DialogHarness/>);

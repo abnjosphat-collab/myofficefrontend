@@ -1,7 +1,7 @@
 import { fuzzyMatch } from './fuzzySearch';
 import { STATUS, departmentOf, matchesTool, type Activity, type Status, type Tool } from './prototype';
 
-export type ToolsTab = 'register' | 'loans' | 'employees' | 'activity' | 'analytics' | 'feedback';
+export type ToolsTab = 'register' | 'loans' | 'employees' | 'activity' | 'sources' | 'accounts' | 'analytics' | 'feedback';
 export type ToolFilterState = { department: string; status: Status | 'all' | 'archived'; search: string; category: string; location: string; tab: ToolsTab; sort: string };
 
 export function countTools(tools: Tool[]) {

@@ -7,7 +7,7 @@ import {
   ArrowUUpLeft, ArrowUUpRight, PencilSimple, Archive, Paperclip, ImageSquare,
   FilePdf, UploadSimple, Info, Eye, EyeSlash, ArrowUp, ArrowDown, CircleHalf,
   TreeStructure, TextAa, Bell, GearSix, DotsSixVertical, MagnifyingGlassPlus,
-  MagnifyingGlassMinus, ChartLineUp,
+  MagnifyingGlassMinus, ChartLineUp, UserGear,
 } from '@phosphor-icons/react';
 
 // A consistent thin Phosphor set gives equipment distinct, familiar silhouettes.
@@ -25,6 +25,7 @@ const icons = {
   font: TextAa, bell: Bell, settings: GearSix, grip: DotsSixVertical,
   zoomIn: MagnifyingGlassPlus, zoomOut: MagnifyingGlassMinus,
   analytics: ChartLineUp,
+  accounts: UserGear,
 } as const;
 export type IconName = keyof typeof icons;
 export function ToolsIcon({ name, size = 18, style }: { name: IconName; size?: number; style?: CSSProperties }) {
