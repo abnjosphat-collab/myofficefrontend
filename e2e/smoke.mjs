@@ -78,7 +78,7 @@ async function targeted(context) {
   await run('Tools workspace renders its primary controls', async page => {
     await page.goto(BASE + '/tools', { waitUntil: 'load', timeout: 45000 });
     await page.waitForTimeout(1500);
-    if (await page.getByRole('heading', { name: 'Know where every tool is.' }).count() === 0) throw new Error('Tools heading missing');
+    if (await page.getByRole('heading', { name: 'Tools & Equipment E-System' }).count() === 0) throw new Error('Tools heading missing');
     if (await page.getByRole('button', { name: 'Issue a tool' }).count() === 0) throw new Error('primary action missing');
   });
 
