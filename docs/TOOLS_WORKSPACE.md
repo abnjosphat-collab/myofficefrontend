@@ -21,6 +21,8 @@ The standalone `/tools` workspace is the current interface for the mine-wide por
 - Motion provides orientation and feedback, respects reduced-motion preferences, and must never delay the underlying action.
 - Photographs take priority over equipment symbols when available.
 - Display preferences belong in Settings. Text size remains available beside the department scope because it is a frequent accessibility adjustment.
+- The top-right account control is a familiar personal profile and sign-out surface. Role changes stay in the administrator-only Account access section so identity and system administration are not mixed.
+- Administrator analytics use compact semantic metrics, a daily/weekly/monthly activity trend, and a day-by-four-hour usage pattern. Trend points remain keyboard-focusable and disclose exact values.
 - The global Undo/Redo control is intentionally absent from the interface. Use explicit edit, return, mark-ready, archive and restore actions so each operational change is clear; retain every change in history.
 
 ## Iconography standard
