@@ -34,10 +34,14 @@ const plusJakarta = Plus_Jakarta_Sans({ variable: "--font-jakarta", subsets: ["l
 const sora = Sora({ variable: "--font-sora", subsets: ["latin"], display: "swap" });
 
 export const metadata: Metadata = {
-  title: "MyOffice — Business Operating Platform by Ozech",
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL || "https://myofficefrontend.vercel.app",
+  ),
+  title: "Dallaglio Portable Tools and Equipment E-System",
   description:
-    "Organise your business information elegantly. Personnel, operations, safety, analytics — all in one platform designed for African businesses.",
-  keywords: ["business management", "ERP", "workflow", "Africa", "Ozech"],
+    "Find, issue, return and account for portable tools and equipment across Dallaglio departments with searchable registers, clear custody records and a permanent history.",
+  applicationName: "Dallaglio Portable Tools and Equipment E-System",
+  keywords: ["portable tools", "equipment management", "tool register", "equipment custody", "Dallaglio"],
   manifest: "/manifest.json",
   icons: {
     icon: [
@@ -50,14 +54,35 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "MyOffice",
+    title: "Dallaglio Tools",
+  },
+  openGraph: {
+    title: "Dallaglio Portable Tools and Equipment E-System",
+    description:
+      "Find, issue, return and account for portable tools and equipment with searchable registers, clear custody records and a permanent history.",
+    siteName: "Dallaglio Portable Tools and Equipment E-System",
+    type: "website",
+    url: "/tools",
+    images: [{
+      url: "/icons/tools-share-1200x630.png",
+      width: 1200,
+      height: 630,
+      alt: "Dallaglio Portable Tools and Equipment E-System app preview",
+    }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Dallaglio Portable Tools and Equipment E-System",
+    description:
+      "Find, issue, return and account for portable tools and equipment with searchable registers, clear custody records and a permanent history.",
+    images: ["/icons/tools-share-1200x630.png"],
   },
 };
 
 // themeColor/viewport live in a separate export (not `metadata`) as of Next.js 14+ —
 // putting themeColor in `metadata` is deprecated and silently ignored.
 export const viewport: Viewport = {
-  themeColor: "#7c3aed",
+  themeColor: "#17151f",
   width: "device-width",
   initialScale: 1,
 };
