@@ -79,7 +79,7 @@ async function targeted(context) {
     await page.goto(BASE + '/tools', { waitUntil: 'load', timeout: 45000 });
     await page.waitForTimeout(1500);
     if (await page.getByRole('heading', { name: 'Tools & Equipment E-System' }).count() === 0) throw new Error('Tools heading missing');
-    if (await page.getByRole('button', { name: 'Issue a tool' }).count() === 0) throw new Error('primary action missing');
+    if (await page.getByRole('button', { name: 'Start searching' }).count() === 0) throw new Error('getting-started action missing');
   });
 
   await run('Tools settings open from sticky top bar', async page => {
