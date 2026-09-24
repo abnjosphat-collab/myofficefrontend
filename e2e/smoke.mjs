@@ -78,16 +78,16 @@ async function targeted(context) {
   await run('Tools workspace renders its primary controls', async page => {
     await page.goto(BASE + '/tools', { waitUntil: 'load', timeout: 45000 });
     await page.waitForTimeout(1500);
-    if (await page.getByRole('heading', { name: 'A place for every tool.' }).count() === 0) throw new Error('Tools heading missing');
+    if (await page.getByRole('heading', { name: 'Know where every tool is.' }).count() === 0) throw new Error('Tools heading missing');
     if (await page.getByRole('button', { name: 'Issue a tool' }).count() === 0) throw new Error('primary action missing');
   });
 
-  await run('Tools customization opens from sticky top bar', async page => {
+  await run('Tools settings open from sticky top bar', async page => {
     await page.goto(BASE + '/tools', { waitUntil: 'load', timeout: 45000 });
     await page.waitForTimeout(1500);
-    await page.getByRole('button', { name: 'Customize workspace' }).click();
+    await page.getByRole('button', { name: 'Open settings' }).click();
     await page.waitForTimeout(600);
-    if (await page.getByRole('heading', { name: 'Make it yours' }).count() === 0) throw new Error('customization dialog did not open');
+    if (await page.getByRole('heading', { name: 'Settings' }).count() === 0) throw new Error('settings dialog did not open');
   });
 
   await run('Tools filter dropdown opens inside the viewport', async page => {
