@@ -34,7 +34,7 @@ export function parseToolsPreferences(raw: string | null): ToolsStoredPreference
         fontSize: Number.isFinite(source.fontSize) ? Math.min(130, Math.max(85, Math.round(source.fontSize / 5) * 5)) : DEFAULT_OPTIONS.fontSize,
         equipmentIcons: iconFamilies.has(source.equipmentIcons) ? source.equipmentIcons : DEFAULT_OPTIONS.equipmentIcons,
         guidance: source.guidance !== false,
-        intro: source.intro !== false,
+        guide: source.guide !== false,
       },
     } as ToolsStoredPreferences;
   } catch {

@@ -15,12 +15,12 @@ export function ToolsGuideCarousel({onSearch,onIssue,onHistory,onHide}:{onSearch
   const [active,setActive]=useState(0);
   const [paused,setPaused]=useState(false);
   const reduced=useReducedMotion();
-  useEffect(()=>{if(reduced||paused)return;const timer=window.setInterval(()=>setActive(current=>(current+1)%slides.length),6000);return()=>window.clearInterval(timer);},[paused,reduced]);
+  useEffect(()=>{if(reduced||paused)return;const timer=window.setInterval(()=>setActive(current=>(current+1)%slides.length),90000);return()=>window.clearInterval(timer);},[paused,reduced]);
   const slide=slides[active];
   const actions=[onSearch,onIssue,onHistory];
   return <section className={s.guideCarousel} aria-label="Getting started" onMouseEnter={()=>setPaused(true)} onMouseLeave={()=>setPaused(false)} onFocus={()=>setPaused(true)} onBlur={event=>{if(!event.currentTarget.contains(event.relatedTarget))setPaused(false);}}>
     <div className={s.guideViewport} aria-live="off"><AnimatePresence mode="wait" initial={false}><motion.div key={slide.title} className={s.guideSlide} initial={{opacity:0,x:reduced?0:18}} animate={{opacity:1,x:0}} exit={{opacity:0,x:reduced?0:-14}} transition={{duration:reduced?0:.24}}><span className={s.guideIcon}><Icon name={slide.icon} size={22}/></span><div><strong>{slide.title}</strong><p>{slide.copy}</p></div><button type="button" className={s.guideAction} onClick={actions[active]}>{slide.action}<Icon name="arrow" size={15}/></button></motion.div></AnimatePresence></div>
     <div className={s.guideControls}>{slides.map((item,index)=><button key={item.title} type="button" aria-label={`Show guide: ${item.title}`} aria-current={index===active?'true':undefined} onClick={()=>setActive(index)}/>)}</div>
-    <button type="button" className={s.guideHide} aria-label="Hide getting-started guide" title="Hide guide. You can restore it in Settings." onClick={onHide}><Icon name="close" size={15}/></button>
+    <button type="button" className={s.guideHide} title="You can restore this guide in Settings." onClick={onHide}><span>Hide guide</span><Icon name="close" size={14}/></button>
   </section>;
 }
