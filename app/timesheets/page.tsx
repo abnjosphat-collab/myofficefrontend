@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback, useRef, ElementType } from 'react';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -11,15 +10,18 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { toast } from 'sonner';
 import { EXPORT_BRAND_ARGB, EXPORT_BRAND_RGB, excelActualSumFormula, excelColumnLetter, excelOt15Formula } from '@/lib/exportUtils';
 import {
-  ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Search, Download, Plus,
+  ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Search, Download,
   Clock, Users, User, Loader2, CheckCircle, XCircle, AlertTriangle,
   CalendarDays, RefreshCw, Zap, Moon, Trash2, FileSpreadsheet,
-  FileText, UserPlus, Briefcase, Building2, X, Check,
+  FileText, UserPlus, Briefcase, Building2, Check,
   LayoutGrid, Layers, Sun,
 } from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
 import { PredictiveInput } from '@/components/shared/PredictiveInput';
-import { useTheme, PageHero, ACCENT_HEX, useCollapseSection, EmptyState, accentText, TYPE_WEIGHT, PrimaryButton, Button as DsButton } from '@/components/shared/theme';
+import { useTheme, PageHero, ACCENT_HEX, useCollapseSection, EmptyState, accentText, TYPE_WEIGHT, PrimaryButton, Button as DsButton, IconAction } from '@/components/shared/theme';
+import { TimesheetDayCell } from './TimesheetDayCell';
+import { TimesheetEmployeeCell } from './TimesheetEmployeeCell';
+import tsGrid from './timesheet-grid.module.css';
 import { ShiftTimeRangeField } from '@/components/shared/design-system';
 import {
   DEFAULT_DAY_SHIFT_END, DEFAULT_DAY_SHIFT_START, TIMESHEET_BULK_SHIFT_PRESETS, isDefaultDayShiftTimes,
@@ -152,8 +154,17 @@ function SectionHeader({ icon: Icon, title, sub, open, onToggle, children }: {
 // ─────────────────── STATUS BADGE ───────────────────
 
 function StatusPill({ status, dark = false }: { status: StatusKey; dark?: boolean }) {
+  const t = useTheme();
   if (dark && status === 'work') return null;
   const cfg = STATUS_CFG[status] || STATUS_CFG.work;
+  if (t.design === 'dallaglio') {
+    const muted = status === 'off' || status === 'work';
+    return (
+      <span className={`inline-flex items-center text-[11px] font-medium ${muted ? t.textFaint : t.textMuted}`}>
+        {cfg.label}
+      </span>
+    );
+  }
   const { Icon } = cfg;
   const size = dark ? 'gap-0.5 px-1.5 py-0.5 text-[10px]' : 'gap-1 px-2 py-0.5 text-xs';
   return (
@@ -364,18 +375,18 @@ function TimesheetEntryDialog({ employee, date, entry, onSave, onDelete, onClose
           <div className="mx-6 mb-2 flex items-center justify-between gap-2 p-3 bg-red-500/10 rounded-lg">
             <span className={`text-sm text-red-400 ${TYPE_WEIGHT.medium}`}>Delete this entry permanently?</span>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" className={`${t.textMuted} bg-transparent`} onClick={() => setConfirmDelete(false)}>Cancel</Button>
-              <Button size="sm" className="bg-red-600 hover:bg-red-700 text-white" onClick={handleDelete} disabled={deleting}>{deleting && <Loader2 className="w-3 h-3 mr-1 animate-spin" />}Delete</Button>
+              <DsButton type="button" variant="ghost" size="xs" onClick={() => setConfirmDelete(false)}>Cancel</DsButton>
+              <DsButton type="button" variant="danger" size="xs" onClick={() => { void handleDelete(); }} disabled={deleting} submitting={deleting}>Delete</DsButton>
             </div>
           </div>
         )}
 
         <DialogFooter className="gap-2">
           {onDelete && !confirmDelete && (
-            <Button variant="outline" size="sm" className="mr-auto text-red-400 hover:bg-red-500/10 bg-transparent" onClick={() => setConfirmDelete(true)}><Trash2 className="w-3.5 h-3.5 mr-1" /> Delete entry</Button>
+            <DsButton type="button" variant="ghost" size="sm" danger icon={Trash2} className="mr-auto" onClick={() => setConfirmDelete(true)}>Delete entry</DsButton>
           )}
-          <Button variant="outline" className={`${t.textMuted} bg-transparent`} onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSave} disabled={saving} className="bg-brand-600 hover:bg-brand-700 text-white">{saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}Save</Button>
+          <DsButton type="button" variant="ghost" onClick={onClose}>Cancel</DsButton>
+          <DsButton type="button" variant="primary" onClick={() => { void handleSave(); }} disabled={saving} submitting={saving}>Save</DsButton>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -671,7 +682,7 @@ function BulkAssignDialog({
             <div className={`flex items-end gap-2 p-2.5 rounded-lg ${t.chipBg}`}>
               <div className="flex-1 min-w-0"><Label className={`text-xs ${t.textFaint}`}>From</Label><Input type="date" value={rangeFrom} min={fmtDate(period.start)} max={fmtDate(period.end)} onChange={e => setRangeFrom(e.target.value)} className={`${fieldCls} mt-1`} /></div>
               <div className="flex-1 min-w-0"><Label className={`text-xs ${t.textFaint}`}>To</Label><Input type="date" value={rangeTo} min={fmtDate(period.start)} max={fmtDate(period.end)} onChange={e => setRangeTo(e.target.value)} className={`${fieldCls} mt-1`} /></div>
-              <Button type="button" variant="outline" size="sm" className="h-8 shrink-0 text-brand-400/80 bg-transparent" onClick={() => selectRange(rangeFrom, rangeTo)}>Add Range</Button>
+              <DsButton type="button" variant="secondary" size="xs" onClick={() => selectRange(rangeFrom, rangeTo)}>Add Range</DsButton>
             </div>
           </div>
 
@@ -726,15 +737,14 @@ function BulkAssignDialog({
         </div>
 
         <div className={`shrink-0 flex items-center justify-between gap-2 pt-3 border-t ${t.border} mt-2`}>
-          <Button variant="outline" className={`${t.textMuted} bg-transparent`} onClick={onClose}>Done</Button>
+          <DsButton type="button" variant="ghost" onClick={onClose}>Done</DsButton>
           <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={handleClear} disabled={clearing || totalEntries === 0}
-              className="text-red-400 hover:bg-red-500/10 bg-transparent border-red-500/30">
-              {clearing && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}<Trash2 className="w-3.5 h-3.5 mr-1.5" />Clear {totalEntries > 0 ? `${totalEntries}` : ''}
-            </Button>
-            <Button onClick={handleApply} disabled={saving || totalEntries === 0} className="bg-brand-600 hover:bg-brand-700 text-white">
-              {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}Apply {totalEntries > 0 ? `${totalEntries} entr${totalEntries !== 1 ? 'ies' : 'y'}` : '—'}
-            </Button>
+            <DsButton type="button" variant="ghost" danger icon={Trash2} onClick={() => { void handleClear(); }} disabled={clearing || totalEntries === 0} submitting={clearing}>
+              Clear {totalEntries > 0 ? `${totalEntries}` : ''}
+            </DsButton>
+            <DsButton type="button" variant="primary" onClick={() => { void handleApply(); }} disabled={saving || totalEntries === 0} submitting={saving}>
+              Apply {totalEntries > 0 ? `${totalEntries} entr${totalEntries !== 1 ? 'ies' : 'y'}` : '—'}
+            </DsButton>
           </div>
         </div>
       </DialogContent>
@@ -800,8 +810,8 @@ function BulkAddEmployeesDialog({ allEmployees, currentIds, onAdd, onClose }: {
           ))}
         </div>
         <DialogFooter className="gap-2">
-          <Button variant="outline" className={`${t.textMuted} bg-transparent`} onClick={onClose}>Cancel</Button>
-          <Button onClick={handleAdd} disabled={selected.size === 0} className="bg-brand-600 hover:bg-brand-700 text-white">Add {selected.size > 0 ? selected.size : ''} Employee{selected.size !== 1 ? 's' : ''}</Button>
+          <DsButton type="button" variant="ghost" onClick={onClose}>Cancel</DsButton>
+          <DsButton type="button" variant="primary" onClick={handleAdd} disabled={selected.size === 0}>Add {selected.size > 0 ? selected.size : ''} Employee{selected.size !== 1 ? 's' : ''}</DsButton>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -1209,8 +1219,8 @@ function DownloadDialog({ employees, timesheets, approvedOvertime, getHourTotals
           )}
         </div>
         <DialogFooter className="gap-2">
-          <Button variant="outline" className={`${t.textMuted} bg-transparent`} onClick={onClose}>Cancel</Button>
-          <Button onClick={generate} disabled={generating} className="bg-brand-600 hover:bg-brand-700 text-white">{generating && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}Download</Button>
+          <DsButton type="button" variant="ghost" onClick={onClose}>Cancel</DsButton>
+          <DsButton type="button" variant="primary" onClick={() => { void generate(); }} disabled={generating} submitting={generating}>Download</DsButton>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -1255,7 +1265,7 @@ function TimesheetGrid({ employees, timesheets, days, getHourTotals, onCellClick
 }) {
   const t = useTheme();
   const scrollRef = useRef<HTMLDivElement>(null);
-  const getEntry = (eid: string, d: Date) => timesheets.find(ts => String(ts.employee_id) === String(eid) && ts.date === fmtDate(d));
+  const getEntry = useCallback((eid: string, d: Date) => timesheets.find(ts => String(ts.employee_id) === String(eid) && ts.date === fmtDate(d)), [timesheets]);
   const today = fmtDate(new Date());
   const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
   const [fillDrag, setFillDrag] = useState<FillDragState | null>(null);
@@ -1271,7 +1281,7 @@ function TimesheetGrid({ employees, timesheets, days, getHourTotals, onCellClick
     const targets = fillTargetDayIndices(drag.sourceDayIndex, drag.endDayIndex).map(i => days[i]);
     if (targets.length === 0) return;
     void onFillDays(emp, sourceDay, targets, getEntry(emp.id, sourceDay));
-  }, [employees, days, onFillDays, timesheets]);
+  }, [employees, days, onFillDays, getEntry]);
 
   const endFillSession = useCallback(() => {
     fillCleanupRef.current?.();
@@ -1348,14 +1358,19 @@ function TimesheetGrid({ employees, timesheets, days, getHourTotals, onCellClick
     return <EmptyState icon={Users} title="No employees on this roster" message={'Set NEC / Salaried on the Employees page, or click "Add Employees" to add someone manually'} />;
   }
 
-  const stickyBg = t.light ? 'bg-white' : 'bg-[#040c18]';
+  const quiet = t.design === 'dallaglio';
+  const stickyBg = quiet ? 'bg-[var(--d-surface)]' : (t.light ? 'bg-white' : 'bg-[#040c18]');
   // A frozen/sticky header needs to stay fully opaque no matter what — stacking a
   // second, translucent bg-* class on top of stickyBg (e.g. for a holiday tint) is a
   // real bug, not just a style choice: which one actually wins is decided by Tailwind's
   // generated stylesheet order, not by the order the classes appear in this string, so
   // it silently went transparent on holiday columns and scrolled rows showed through
   // the header. One resolved, always-solid color instead of two stacked ones.
-  const dayHeaderBg = (isHoliday: boolean) => isHoliday ? (t.light ? 'bg-violet-50' : 'bg-[#150e2b]') : stickyBg;
+  const dayHeaderBg = (isHoliday: boolean) => {
+    if (quiet) return isHoliday ? 'bg-[var(--d-soft)]' : stickyBg;
+    return isHoliday ? (t.light ? 'bg-violet-50' : 'bg-[#150e2b]') : stickyBg;
+  };
+  const totalCls = (tone: string) => quiet ? `text-center py-2 text-sm tabular-nums ${t.textPrimary}` : `text-center py-2 text-sm ${TYPE_WEIGHT.bold} ${tone}`;
 
   const fillDragHint = fillDrag && (() => {
     const emp = employees.find(e => e.id === fillDrag.empId);
@@ -1372,7 +1387,7 @@ function TimesheetGrid({ employees, timesheets, days, getHourTotals, onCellClick
       <div
         role="status"
         aria-live="polite"
-        className={`mx-3 mt-2 mb-0 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-brand-400/30 bg-brand-500/10 px-3 py-2 text-xs ${t.textMuted}`}
+        className={`mx-3 mt-2 mb-0 flex flex-wrap items-center justify-between gap-2 rounded-xl px-3 py-2 text-xs ${t.textMuted} ${t.design === 'dallaglio' ? `border ${t.border} bg-[var(--d-soft)]` : 'border border-brand-400/30 bg-brand-500/10'}`}
       >
         <span>
           <span className={`${TYPE_WEIGHT.semibold} text-brand-400`}>Fill</span>
@@ -1383,7 +1398,7 @@ function TimesheetGrid({ employees, timesheets, days, getHourTotals, onCellClick
       </div>
     )}
     {/* Sticky stacking: cell chrome (z-0) < employee column (z-20) < date/totals header (z-30) < corner (z-40) */}
-    <Table containerRef={scrollRef} containerClassName={`overflow-auto min-h-[280px] max-h-[min(72dvh,880px)] ${fillDrag ? 'select-none cursor-ew-resize' : ''}`}>
+    <Table containerRef={scrollRef} containerClassName={`${quiet ? tsGrid.wrap : ''} overflow-auto min-h-[280px] max-h-[min(72dvh,880px)] ${fillDrag ? 'select-none cursor-ew-resize' : ''}`}>
       <TableHeader>
         <TableRow className={`${t.border} hover:bg-transparent`}>
           <TableHead className={`min-w-52 sticky left-0 top-0 z-40 ${stickyBg} border-r ${t.border} shadow-[2px_0_0_0_rgba(0,0,0,0.04)] dark:shadow-[2px_0_0_0_rgba(255,255,255,0.04)] ${t.textMuted}`}>
@@ -1413,20 +1428,20 @@ function TimesheetGrid({ employees, timesheets, days, getHourTotals, onCellClick
                   className={`w-full flex flex-col items-center gap-0.5 text-[11px] py-1.5 rounded-md transition-colors hover:bg-brand-500/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/50 group/day-hdr`}
                 >
                   <span className={t.textFaint}>{d.toLocaleDateString('en-GB', { weekday: 'short' })}</span>
-                  <span className={`${TYPE_WEIGHT.bold} text-sm tabular-nums ${holiday ? accentText('violet', t.light) : ds === today ? 'text-brand-400' : isWknd ? t.textFaint : t.textMuted}`}>{d.getDate()}</span>
+                  <span className={`${quiet ? 'font-normal' : TYPE_WEIGHT.bold} text-sm tabular-nums ${holiday ? (quiet ? t.textPrimary : accentText('violet', t.light)) : ds === today ? (quiet ? t.textPrimary : 'text-brand-400') : isWknd ? t.textFaint : t.textMuted}`}>{d.getDate()}</span>
                   <span className={`hidden sm:inline ${t.textFaint}`}>{d.toLocaleDateString('en-GB', { month: 'short' })}</span>
-                  {holiday && <Sun className={`w-3 h-3 ${accentText('violet', t.light)}`} />}
-                  <Layers className="w-3 h-3 text-brand-400/80 group-hover/day-hdr:text-brand-300" aria-hidden />
+                  {holiday && <Sun className={`w-3 h-3 ${quiet ? t.textMuted : accentText('violet', t.light)}`} />}
+                  <Layers className={`${quiet ? 'w-3 h-3 opacity-0 group-hover/day-hdr:opacity-100 group-focus-visible/day-hdr:opacity-100 text-[var(--d-accent)]' : 'w-3 h-3 text-brand-400/80 group-hover/day-hdr:text-brand-300'}`} aria-hidden />
                 </button>
               </TableHead>
             );
           })}
-          <TableHead title="Uncapped normal hours for the period (leave counts as 8h). Not reduced when excess goes to overtime." className={`text-center min-w-14 text-xs ${TYPE_WEIGHT.semibold} sticky top-0 z-30 ${stickyBg} ${t.textMuted} tabular-nums`}>Actual</TableHead>
-          <TableHead title="NEC: 208 when Actual is under cap and no Absent days (Off/rest days still allow the floor)." className={`text-center min-w-14 ${accentText('emerald', t.light)} text-xs ${TYPE_WEIGHT.semibold} sticky top-0 z-30 ${stickyBg} tabular-nums`}>Reg</TableHead>
-          <TableHead title={`max(Actual − ${NEC_REG_CAP}, 0) + module 1.5× OT; Excel formula uses Actual − ${NEC_REG_CAP} + other OT.`} className={`text-center min-w-14 text-brand-400 text-xs ${TYPE_WEIGHT.semibold} sticky top-0 z-30 ${stickyBg} tabular-nums`}>1.5×</TableHead>
-          <TableHead className={`text-center min-w-14 text-sky-400 text-xs ${TYPE_WEIGHT.semibold} sticky top-0 z-30 ${stickyBg} tabular-nums`}>2.0×</TableHead>
-          <TableHead className={`text-center min-w-14 ${accentText('amber', t.light)} text-xs ${TYPE_WEIGHT.semibold} sticky top-0 z-30 ${stickyBg} tabular-nums`}>Standby</TableHead>
-          <TableHead title="Period total: 18:00–06:00 from shift times (+ module OT after shift end)." className={`text-center min-w-16 ${accentText('indigo', t.light)} text-xs ${TYPE_WEIGHT.semibold} sticky top-0 z-30 ${stickyBg} tabular-nums`}>Night</TableHead>
+          <TableHead title="Uncapped normal hours for the period (leave counts as 8h). Not reduced when excess goes to overtime." className={`text-center min-w-14 text-xs ${quiet ? 'font-medium' : TYPE_WEIGHT.semibold} sticky top-0 z-30 ${stickyBg} ${t.textMuted} tabular-nums`}>Actual</TableHead>
+          <TableHead title="NEC: 208 when Actual is under cap and no Absent days (Off/rest days still allow the floor)." className={`text-center min-w-14 ${quiet ? t.textMuted : accentText('emerald', t.light)} text-xs ${quiet ? 'font-medium' : TYPE_WEIGHT.semibold} sticky top-0 z-30 ${stickyBg} tabular-nums`}>Reg</TableHead>
+          <TableHead title={`max(Actual − ${NEC_REG_CAP}, 0) + module 1.5× OT; Excel formula uses Actual − ${NEC_REG_CAP} + other OT.`} className={`text-center min-w-14 ${quiet ? t.textMuted : 'text-brand-400'} text-xs ${quiet ? 'font-medium' : TYPE_WEIGHT.semibold} sticky top-0 z-30 ${stickyBg} tabular-nums`}>1.5×</TableHead>
+          <TableHead className={`text-center min-w-14 ${quiet ? t.textMuted : 'text-sky-400'} text-xs ${quiet ? 'font-medium' : TYPE_WEIGHT.semibold} sticky top-0 z-30 ${stickyBg} tabular-nums`}>2.0×</TableHead>
+          <TableHead className={`text-center min-w-14 ${quiet ? t.textMuted : accentText('amber', t.light)} text-xs ${quiet ? 'font-medium' : TYPE_WEIGHT.semibold} sticky top-0 z-30 ${stickyBg} tabular-nums`}>Standby</TableHead>
+          <TableHead title="Period total: 18:00–06:00 from shift times (+ module OT after shift end)." className={`text-center min-w-16 ${quiet ? t.textMuted : accentText('indigo', t.light)} text-xs ${quiet ? 'font-medium' : TYPE_WEIGHT.semibold} sticky top-0 z-30 ${stickyBg} tabular-nums`}>Night</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -1434,164 +1449,51 @@ function TimesheetGrid({ employees, timesheets, days, getHourTotals, onCellClick
           const totals = getHourTotals(emp.id);
           return (
             <TableRow key={emp.id} className={`${t.border} ${t.hoverBgSoft} group/row`}>
-              <TableCell className={`sticky left-0 z-20 ${stickyBg} border-r ${t.border} py-0 group/emp shadow-[2px_0_0_0_rgba(0,0,0,0.03)] dark:shadow-[2px_0_0_0_rgba(255,255,255,0.03)]`}>
-                <div className="relative py-2">
-                  {confirmRemoveId === emp.id ? (
-                    <div className={`absolute top-1 right-1 flex items-center gap-0.5 ${t.glass} rounded-lg px-1.5 py-1 z-20 border border-red-500/30`}>
-                      <span className="text-[9px] text-red-400 mr-0.5">Remove?</span>
-                      <button type="button" title="Confirm remove" onClick={() => { onRemoveEmployee(emp.id); setConfirmRemoveId(null); }} className="h-4 w-4 flex items-center justify-center rounded bg-red-500/20 text-red-400 hover:bg-red-500/40 transition-all"><Check className="w-2.5 h-2.5" /></button>
-                      <button type="button" title="Cancel" onClick={() => setConfirmRemoveId(null)} className={`h-4 w-4 flex items-center justify-center rounded ${t.chipBg} ${t.textFaint} ${t.hoverBg} transition-all`}><X className="w-2.5 h-2.5" /></button>
-                    </div>
-                  ) : (
-                    <button type="button" title="Remove employee from this period" aria-label={`Remove ${emp.name} from this period`}
-                      onClick={() => setConfirmRemoveId(emp.id)}
-                      className="absolute top-1.5 right-1.5 h-7 w-7 flex items-center justify-center rounded-full opacity-50 group-hover/emp:opacity-100 focus-visible:opacity-100 bg-red-500/[0.08] text-red-400/70 hover:bg-red-500/20 hover:text-red-400 transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/40">
-                      <X className="w-3 h-3" />
-                    </button>
-                  )}
-                  <div className="flex items-center gap-2 pr-5">
-                    <input
-                      type="checkbox"
-                      aria-label={`Select ${emp.name} for bulk assign`}
-                      checked={selectedEmployeeIds.has(emp.id)}
-                      onChange={() => onToggleEmployeeSelect(emp.id)}
-                      onClick={e => e.stopPropagation()}
-                      className="rounded accent-brand-500 shrink-0"
-                    />
-                    <User className="h-5 w-5 shrink-0 text-brand-400" />
-                    <div className="min-w-0 flex-1">
-                      <p className={`text-sm ${TYPE_WEIGHT.medium} truncate leading-tight ${t.textPrimary}`}>{emp.name}</p>
-                      <p className={`text-xs truncate mt-0.5 ${t.textFaint}`}>{emp.position}</p>
-                      <div className="mt-1.5 flex items-center gap-1">
-                        <button type="button" title="Bulk assign shifts for this employee" aria-label={`Assign shifts for ${emp.name}`} onClick={() => onBulkAssign(emp)}
-                          className="flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-brand-500/10 text-brand-400/80 hover:bg-brand-500/20 hover:text-brand-400 transition-all duration-150 group/bulk focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/40">
-                          <CalendarDays className="w-3 h-3 group-hover/bulk:scale-110 transition-transform shrink-0" /><span className="tracking-wide hidden lg:inline">Assign shifts</span>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </TableCell>
+              <TimesheetEmployeeCell
+                emp={emp}
+                stickyBg={stickyBg}
+                confirmRemoveId={confirmRemoveId}
+                setConfirmRemoveId={setConfirmRemoveId}
+                selected={selectedEmployeeIds.has(emp.id)}
+                onToggleSelect={onToggleEmployeeSelect}
+                onBulkAssign={onBulkAssign}
+                onRemoveEmployee={onRemoveEmployee}
+              />
               {days.map((day, dayIndex) => {
                 const ds = fmtDate(day);
                 const entry = getEntry(emp.id, day);
-                const isWknd = day.getDay() === 0 || day.getDay() === 6;
-                const isToday = ds === today;
-                const cfg = entry ? STATUS_CFG[entry.status] : null;
-                const fillPreview = isFillPreview(emp.id, dayIndex);
-                const fillSource = fillDrag?.empId === emp.id && fillDrag.sourceDayIndex === dayIndex;
-                const fillBlocked = !!entry && isFillProtectedTarget(entry);
                 return (
-                  <TableCell key={ds} className={`text-center p-0.5 ${isWknd ? t.chipBg : ''} ${fillPreview ? (fillBlocked ? 'bg-amber-500/10 ring-1 ring-amber-400/30' : 'bg-brand-500/15 ring-1 ring-brand-400/25') : ''}`}>
-                    <div
-                      className="relative group/cell"
-                      data-fill-cell
-                      data-emp-id={emp.id}
-                      data-day-index={dayIndex}
-                    >
-                      <button type="button"
-                        title={entry ? entryCellTitle(entry) : isToday ? 'Add entry for today' : 'Add entry'}
-                        style={
-                          entry && cfg && entry.status !== 'work'
-                            ? { backgroundColor: `${cfg.hex}18`, borderColor: `${cfg.hex}55`, color: cfg.hex }
-                            : undefined
-                        }
-                        className={`w-full min-h-[64px] h-auto rounded-lg text-center flex flex-col items-center justify-center transition-all text-xs border gap-0.5 py-1.5 tabular-nums ${
-                          entry && cfg
-                            ? entry.status === 'work'
-                              ? `${t.chipBg} border ${t.border} ${t.textMuted} hover:border-brand-400/35`
-                              : 'hover:brightness-110'
-                            : isToday
-                              ? 'bg-brand-500/10 border-brand-400/30 border-dashed hover:bg-brand-500/20'
-                              : `border-transparent ${t.hoverBg}`
-                        } ${isToday ? 'ring-1 ring-brand-400/30' : ''} ${fillSource ? 'ring-2 ring-brand-400/60' : ''} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/50`}
-                        onClick={() => {
-                          if (Date.now() < suppressCellClickUntil.current) return;
-                          onCellClick(emp, day, entry);
-                        }}>
-                        {entry && cfg ? (
-                          <>
-                            <StatusPill status={entry.status} dark />
-                            {!ZERO_HOUR_STATUSES.has(entry.status) && (() => {
-                              const isDT = DOUBLE_TIME_STATUSES.has(entry.status as StatusKey);
-                              const displayH = isDT ? (entry.holiday_overtime_hours || 0) : (entry.regular_hours || 0);
-                              // Plain hours worked, never multiplied — the "@2.0×" tag just names
-                              // which rate bucket they fall into; HR applies the multiplier when
-                              // running payroll, this module isn't doing that math for them.
-                              return displayH > 0 ? <span className={`${TYPE_WEIGHT.bold} ${isDT ? accentText('amber', t.light) : t.textMuted}`}>{displayH.toFixed(1)}h{isDT ? ' @ 2.0×' : ''}</span> : null;
-                            })()}
-                            {!DOUBLE_TIME_STATUSES.has(entry.status as StatusKey) && (entry.overtime_hours || 0) > 0 && <span className={`text-brand-400 ${TYPE_WEIGHT.semibold}`}>+{entry.overtime_hours!.toFixed(1)} OT</span>}
-                            {/* 2.0x overtime landed on an otherwise non-holiday/weekend day (e.g.
-                                approved weekend/holiday OT on top of a normal work day) — without
-                                this it was invisible here even though it's correctly counted in
-                                the period's 2.0× total below. */}
-                            {!DOUBLE_TIME_STATUSES.has(entry.status as StatusKey) && (entry.holiday_overtime_hours || 0) > 0 && <span className={`text-sky-400 ${TYPE_WEIGHT.semibold}`}>+{entry.holiday_overtime_hours!.toFixed(1)}h @ 2.0×</span>}
-                            {entry.standby_allowance && <span className={`${accentText('amber', t.light)} text-[10px] ${TYPE_WEIGHT.medium}`}>SB</span>}
-                          </>
-                        ) : (
-                          <span className={`text-base font-light ${isToday ? 'text-brand-400/50' : t.textFaint}`}>+</span>
-                        )}
-                      </button>
-                      {entry?._auto && (
-                        <span title="Derived from approved leave/overtime — click to confirm"
-                          className="absolute top-1 left-1 h-2 w-2 rounded-full bg-brand-400 ring-2 ring-brand-400/30 pointer-events-none" aria-hidden />
-                      )}
-                      <div
-                        role="button"
-                        tabIndex={0}
-                        title="Drag across days to fill normal hours or OFF (Excel-style). OT is not copied."
-                        aria-label={`Fill from ${ds}`}
-                        onPointerDown={e => {
-                          if (e.button !== 0) return;
-                          e.preventDefault();
-                          e.stopPropagation();
-                          if (entry && !canFillFromSource(entry)) {
-                            toast.info('Use a work day or OFF cell as the source');
-                            return;
-                          }
-                          beginFillPointer(emp.id, dayIndex, e);
-                        }}
-                        onKeyDown={e => {
-                          if (e.key !== 'Enter' && e.key !== ' ') return;
-                          e.preventDefault();
-                          e.stopPropagation();
-                          if (entry && !canFillFromSource(entry)) {
-                            toast.info('Use a work day or OFF cell as the source');
-                            return;
-                          }
-                          endFillSession();
-                          const drag = { empId: emp.id, sourceDayIndex: dayIndex, endDayIndex: dayIndex };
-                          fillKeyboardRef.current = drag;
-                          setFillDrag(drag);
-                        }}
-                        className={`absolute bottom-0 right-0 z-0 h-6 w-6 flex items-end justify-end cursor-ew-resize touch-manipulation rounded-tl-md border-l border-t border-brand-400/45 bg-brand-500/20 text-brand-300 opacity-50 group-hover/cell:opacity-100 hover:bg-brand-500/35 motion-safe:transition-opacity focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/50 ${fillSource ? 'opacity-100 ring-1 ring-brand-400 bg-brand-500/45' : ''}`}
-                      >
-                        <ChevronRight className="w-3 h-3 translate-x-px translate-y-px" aria-hidden />
-                      </div>
-                      {!entry && (
-                        <button type="button" title="Quick add: normal shift" aria-label={`Quick add shift for ${emp.name} on ${ds}`}
-                          onClick={e => { e.stopPropagation(); onQuickAdd(emp, day); }}
-                          className="absolute top-1 right-1 h-6 w-6 flex items-center justify-center rounded-full opacity-45 group-hover/cell:opacity-100 focus-visible:opacity-100 bg-emerald-500/15 text-emerald-400/80 hover:bg-emerald-500/30 hover:text-emerald-400 transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/40">
-                          <Plus className="w-3 h-3" />
-                        </button>
-                      )}
-                      {entry?.id != null && (
-                        <button type="button" title="Quick remove this entry" aria-label={`Remove entry for ${emp.name} on ${ds}`}
-                          onClick={e => { e.stopPropagation(); onQuickRemove(emp, entry); }}
-                          className="absolute top-1 right-1 h-6 w-6 flex items-center justify-center rounded-full opacity-45 group-hover/cell:opacity-100 focus-visible:opacity-100 bg-red-500/15 text-red-400/80 hover:bg-red-500/30 hover:text-red-400 transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/40">
-                          <X className="w-3 h-3" />
-                        </button>
-                      )}
-                    </div>
-                  </TableCell>
+                  <TimesheetDayCell
+                    key={ds}
+                    emp={emp}
+                    day={day}
+                    dayIndex={dayIndex}
+                    dateKey={ds}
+                    entry={entry}
+                    fillPreview={isFillPreview(emp.id, dayIndex)}
+                    fillSource={fillDrag?.empId === emp.id && fillDrag.sourceDayIndex === dayIndex}
+                    fillBlocked={!!entry && isFillProtectedTarget(entry)}
+                    today={today}
+                    onCellClick={onCellClick}
+                    onQuickAdd={onQuickAdd}
+                    onQuickRemove={onQuickRemove}
+                    beginFillPointer={beginFillPointer}
+                    endFillSession={endFillSession}
+                    setFillDrag={setFillDrag}
+                    fillKeyboardRef={fillKeyboardRef}
+                    suppressCellClickUntil={suppressCellClickUntil}
+                    StatusPill={StatusPill}
+                    entryCellTitle={entryCellTitle}
+                    STATUS_CFG={STATUS_CFG}
+                  />
                 );
               })}
               <TableCell className="text-center py-2 tabular-nums text-sm" title="Uncapped normal hours">{totals.actual.toFixed(1)}</TableCell>
               <TableCell className="text-center py-2" title={`Payable regular (cap 208)${(totals.excess || 0) > 0 ? ` — ${totals.excess!.toFixed(1)}h over cap in 1.5×` : ''}`}>
-                <span className={`text-sm ${TYPE_WEIGHT.bold} ${accentText('emerald', t.light)}`}>{totals.reg.toFixed(1)}</span>
+                <span className={quiet ? `text-sm ${t.textPrimary}` : `text-sm ${TYPE_WEIGHT.bold} ${accentText('emerald', t.light)}`}>{totals.reg.toFixed(1)}</span>
               </TableCell>
               <TableCell
-                className={`text-center py-2 text-sm ${TYPE_WEIGHT.bold} text-brand-400 cursor-help`}
+                className={`${totalCls('text-brand-400')} cursor-help`}
                 title={(() => {
                   const excess = totals.excess || 0;
                   const added = totals.ot15Module ?? Math.max(0, totals.ot15 - excess);
@@ -1605,9 +1507,9 @@ function TimesheetGrid({ employees, timesheets, days, getHourTotals, onCellClick
               >
                 {totals.ot15.toFixed(1)}
               </TableCell>
-              <TableCell className={`text-center py-2 text-sm ${TYPE_WEIGHT.bold} text-sky-400`}>{totals.ot20.toFixed(1)}</TableCell>
-              <TableCell className={`text-center py-2 text-sm ${TYPE_WEIGHT.bold} ${accentText('amber', t.light)}`}>{totals.standbyBonus.toFixed(1)}</TableCell>
-              <TableCell className={`text-center py-2 text-sm ${TYPE_WEIGHT.bold} ${accentText('indigo', t.light)}`}>{totals.nightAllowanceBonus.toFixed(1)}</TableCell>
+              <TableCell className={totalCls('text-sky-400')}>{totals.ot20.toFixed(1)}</TableCell>
+              <TableCell className={totalCls(accentText('amber', t.light))}>{totals.standbyBonus.toFixed(1)}</TableCell>
+              <TableCell className={totalCls(accentText('indigo', t.light))}>{totals.nightAllowanceBonus.toFixed(1)}</TableCell>
             </TableRow>
           );
         })}
@@ -1617,24 +1519,24 @@ function TimesheetGrid({ employees, timesheets, days, getHourTotals, onCellClick
             return { reg: acc.reg + tt.reg, ot15: acc.ot15 + tt.ot15, ot20: acc.ot20 + tt.ot20, standbyBonus: acc.standbyBonus + tt.standbyBonus, nightAllowanceBonus: acc.nightAllowanceBonus + tt.nightAllowanceBonus, actual: acc.actual + tt.actual };
           }, { reg: 0, ot15: 0, ot20: 0, standbyBonus: 0, nightAllowanceBonus: 0, actual: 0 });
           return (
-            <TableRow className={`border-t-2 ${t.border} ${t.chipBg}`}>
+            <TableRow className={`border-t-2 ${t.border} ${quiet ? '' : t.chipBg}`}>
               <TableCell className={`sticky left-0 z-20 ${stickyBg} border-r ${t.border} py-3`}>
                 <div className="flex items-center gap-2 px-1">
-                  <Users className="w-3.5 h-3.5 text-brand-400/60 shrink-0" />
-                  <div><p className={`text-xs ${TYPE_WEIGHT.bold} uppercase tracking-wider ${t.textMuted}`}>Period Totals</p><p className={`text-[10px] ${t.textFaint}`}>{employees.length} employees</p></div>
+                  <Users className={`w-3.5 h-3.5 shrink-0 ${quiet ? t.textFaint : 'text-brand-400/60'}`} />
+                  <div><p className={`text-xs ${quiet ? 'font-medium' : TYPE_WEIGHT.bold} uppercase tracking-wider ${t.textMuted}`}>Period Totals</p><p className={`text-[10px] ${t.textFaint}`}>{employees.length} employees</p></div>
                 </div>
               </TableCell>
               {days.map(day => {
                 const daySum = employees.reduce((s, emp) => { const e = timesheets.find(ts => String(ts.employee_id) === String(emp.id) && ts.date === fmtDate(day)); return s + (e?.regular_hours || 0) + (e?.overtime_hours || 0); }, 0);
                 const isWknd = day.getDay() === 0 || day.getDay() === 6;
-                return <TableCell key={fmtDate(day)} className={`text-center p-0.5 ${isWknd ? t.chipBg : ''}`}>{daySum > 0 && <span className={`text-[9px] ${TYPE_WEIGHT.medium} ${t.textFaint}`}>{daySum.toFixed(0)}</span>}</TableCell>;
+                return <TableCell key={fmtDate(day)} className={`text-center p-0.5 ${!quiet && isWknd ? t.chipBg : ''}`}>{daySum > 0 && <span className={`text-[10px] ${t.textFaint}`}>{daySum.toFixed(0)}</span>}</TableCell>;
               })}
-              <TableCell className="text-center py-3"><span className={`text-base font-extrabold ${t.textPrimary}`}>{grand.actual.toFixed(1)}</span></TableCell>
-              <TableCell className="text-center py-3"><span className={`text-sm ${TYPE_WEIGHT.bold} ${accentText('emerald', t.light)}`}>{grand.reg.toFixed(1)}</span></TableCell>
-              <TableCell className="text-center py-3"><span className={`text-sm ${TYPE_WEIGHT.bold} text-brand-400`}>{grand.ot15.toFixed(1)}</span></TableCell>
-              <TableCell className="text-center py-3"><span className={`text-sm ${TYPE_WEIGHT.bold} text-sky-400`}>{grand.ot20.toFixed(1)}</span></TableCell>
-              <TableCell className="text-center py-3"><span className={`text-sm ${TYPE_WEIGHT.bold} ${accentText('amber', t.light)}`}>{grand.standbyBonus.toFixed(1)}</span></TableCell>
-              <TableCell className="text-center py-3"><span className={`text-sm ${TYPE_WEIGHT.bold} ${accentText('indigo', t.light)}`}>{grand.nightAllowanceBonus.toFixed(1)}</span></TableCell>
+              <TableCell className="text-center py-3"><span className={`text-base ${quiet ? 'font-medium' : 'font-extrabold'} ${t.textPrimary}`}>{grand.actual.toFixed(1)}</span></TableCell>
+              <TableCell className="text-center py-3"><span className={`text-sm ${quiet ? `font-medium ${t.textPrimary}` : `${TYPE_WEIGHT.bold} ${accentText('emerald', t.light)}`}`}>{grand.reg.toFixed(1)}</span></TableCell>
+              <TableCell className="text-center py-3"><span className={`text-sm ${quiet ? `font-medium ${t.textPrimary}` : `${TYPE_WEIGHT.bold} text-brand-400`}`}>{grand.ot15.toFixed(1)}</span></TableCell>
+              <TableCell className="text-center py-3"><span className={`text-sm ${quiet ? `font-medium ${t.textPrimary}` : `${TYPE_WEIGHT.bold} text-sky-400`}`}>{grand.ot20.toFixed(1)}</span></TableCell>
+              <TableCell className="text-center py-3"><span className={`text-sm ${quiet ? `font-medium ${t.textPrimary}` : `${TYPE_WEIGHT.bold} ${accentText('amber', t.light)}`}`}>{grand.standbyBonus.toFixed(1)}</span></TableCell>
+              <TableCell className="text-center py-3"><span className={`text-sm ${quiet ? `font-medium ${t.textPrimary}` : `${TYPE_WEIGHT.bold} ${accentText('indigo', t.light)}`}`}>{grand.nightAllowanceBonus.toFixed(1)}</span></TableCell>
             </TableRow>
           );
         })()}
@@ -2114,30 +2016,31 @@ function TimesheetsContent() {
     <main className="mx-auto flex w-full max-w-[min(100%,96rem)] flex-col gap-4 p-4 sm:p-6 lg:p-8">
       <PageHero
         icon={Clock}
+        meaning="clock"
         accent="violet"
         crumbs={['Time & Attendance', 'Timesheets']}
         title="Maintenance Timesheets"
         statsOpen={sections.expanded.hero}
         actions={
           <>
-            <div className={`flex items-center gap-1 ${t.chipBg} rounded-xl p-1`}>
+            <div className={`flex items-center gap-1 ${t.design === 'dallaglio' ? '' : `${t.chipBg} rounded-xl p-1`}`}>
               {(['salaried', 'nec'] as const).map(tb => (
-                <button key={tb} type="button" onClick={() => setActiveTab(tb)} className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg ${TYPE_WEIGHT.semibold} transition-all ${activeTab === tb ? 'bg-brand-500/25 text-brand-400' : `${t.textFaint} ${t.hoverText}`}`}>
-                  {tb === 'salaried' ? <Briefcase className="w-3 h-3" /> : <Building2 className="w-3 h-3" />}{tb === 'salaried' ? 'Salaried' : 'NEC'}
-                </button>
+                t.design === 'dallaglio' ? (
+                  <DsButton key={tb} type="button" variant={activeTab === tb ? 'subtle' : 'ghost'} size="xs" icon={tb === 'salaried' ? Briefcase : Building2} onClick={() => setActiveTab(tb)}>
+                    {tb === 'salaried' ? 'Salaried' : 'NEC'}
+                  </DsButton>
+                ) : (
+                  <button key={tb} type="button" onClick={() => setActiveTab(tb)} className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg ${TYPE_WEIGHT.semibold} transition-all ${activeTab === tb ? 'bg-brand-500/25 text-brand-400' : `${t.textFaint} ${t.hoverText}`}`}>
+                    {tb === 'salaried' ? <Briefcase className="w-3 h-3" /> : <Building2 className="w-3 h-3" />}{tb === 'salaried' ? 'Salaried' : 'NEC'}
+                  </button>
+                )
               ))}
             </div>
-            <button type="button" title="Refresh timesheets" onClick={load} disabled={loading} className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textMuted} transition-all disabled:opacity-40`}>
-              <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} /><span className="hidden sm:inline">Refresh</span>
-            </button>
+            <IconAction meaning="refresh" title="Refresh timesheets" label="Refresh" onClick={() => { void load(); }} spinning={loading} disabled={loading} />
             {activeTab === 'nec' && (
-              <button type="button" title="Import scanned PDF timesheets" onClick={() => setShowNecImport(true)} className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textMuted} transition-all`}>
-                <FileSpreadsheet className="h-3.5 w-3.5" /><span className="hidden sm:inline">Import scans</span>
-              </button>
+              <IconAction meaning="documents" title="Import scanned PDF timesheets" label="Import scans" onClick={() => setShowNecImport(true)} />
             )}
-            <button type="button" title="Download timesheet" onClick={() => setShowDownload(true)} className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textMuted} transition-all`}>
-              <Download className="h-3.5 w-3.5" /><span className="hidden sm:inline">Download</span>
-            </button>
+            <IconAction meaning="download" title="Download timesheet" label="Download" onClick={() => setShowDownload(true)} />
             {/* Opens the same multi-employee, multi-date dialog as a row's "Assign shifts"
                 link — this is the page-level entry point for it (previously only reachable
                 per-employee, which made bulk entry easy to miss). Seeded with the first
@@ -2181,16 +2084,16 @@ function TimesheetsContent() {
         {showPeriod && (
           <div className="px-5 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <button type="button" title="Previous period" onClick={prevPeriod} className={`p-2 rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-all`}><ChevronLeft className="w-4 h-4" /></button>
+              <DsButton type="button" variant="icon" size="sm" icon={ChevronLeft} title="Previous period" onClick={prevPeriod} />
               <div className="text-center">
                 <div className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{fmtPeriod(activePeriod)}</div>
                 <div className={`text-xs mt-0.5 ${t.textFaint}`}>{days.length} days · {activeTab === 'salaried' ? '1st to last day of month' : '13th to 12th (NEC cycle)'}</div>
               </div>
-              <button type="button" title="Next period" onClick={nextPeriod} className={`p-2 rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-all`}><ChevronRight className="w-4 h-4" /></button>
+              <DsButton type="button" variant="icon" size="sm" icon={ChevronRight} title="Next period" onClick={nextPeriod} />
             </div>
             <div className="flex items-center gap-2">
-              <button type="button" onClick={() => setCurrentMonth(new Date())} className={`text-xs px-3 py-1.5 rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-all`}>Current Period</button>
-              <button type="button" onClick={handleCopyPreviousPeriod} className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-all`}><RefreshCw className="w-3 h-3" /> Copy Previous</button>
+              <DsButton type="button" variant="ghost" size="xs" onClick={() => setCurrentMonth(new Date())}>Current Period</DsButton>
+              <DsButton type="button" variant="ghost" size="xs" icon={RefreshCw} onClick={() => { void handleCopyPreviousPeriod(); }}>Copy Previous</DsButton>
             </div>
           </div>
         )}
@@ -2202,10 +2105,7 @@ function TimesheetsContent() {
             <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 ${t.textFaint}`} />
             <input aria-label="Search employees" placeholder="Search…" className={`${t.inputBg} rounded-lg text-sm pl-8 pr-3 py-1.5 h-9 w-full sm:w-40 outline-none focus-visible:ring-2 focus-visible:ring-brand-400/45`} value={search} onChange={e => setSearch(e.target.value)} />
           </div>
-          <button type="button" title={`Sort: ${sortBy === 'name' ? 'A–Z name' : 'Department'}`} onClick={() => setSortBy(s => s === 'name' ? 'dept' : 'name')}
-            className={`flex items-center gap-1 text-[10px] px-2 py-1 rounded-md ${t.chipBg} ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all`}>
-            {sortBy === 'name' ? 'A–Z' : 'Dept'}
-          </button>
+          <IconAction meaning="sort" title={`Sort: ${sortBy === 'name' ? 'A–Z name' : 'Department'}`} label={sortBy === 'name' ? 'A–Z' : 'Dept'} onClick={() => setSortBy(s => s === 'name' ? 'dept' : 'name')} />
         </SectionHeader>
         {showGrid && (
           loading ? (
@@ -2215,7 +2115,7 @@ function TimesheetsContent() {
               {loadError && (
                 <div className={`mx-3 mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2.5 text-sm ${t.textMuted}`} role="alert">
                   <span><span className={`${TYPE_WEIGHT.semibold} text-red-400`}>Could not load timesheets.</span> {loadError}</span>
-                  <Button type="button" size="sm" variant="outline" className="h-8" onClick={() => void load()}>Retry</Button>
+                  <DsButton type="button" variant="secondary" size="xs" onClick={() => { void load(); }}>Retry</DsButton>
                 </div>
               )}
               {gridSelectedEmpIds.size > 0 && (
@@ -2226,9 +2126,9 @@ function TimesheetsContent() {
                       {' '}employee{gridSelectedEmpIds.size !== 1 ? 's' : ''} selected
                     </span>
                     <div className="flex flex-wrap items-center gap-2">
-                      <Button type="button" size="sm" className="h-8 bg-brand-600 hover:bg-brand-700 text-white" onClick={openBulkForSelectedEmployees}>
-                        <Layers className="w-3.5 h-3.5 mr-1.5" /> Same shift for selected
-                      </Button>
+                      <DsButton type="button" variant="primary" size="xs" icon={Layers} onClick={openBulkForSelectedEmployees}>
+                        Same shift for selected
+                      </DsButton>
                       <button type="button" className={`text-xs ${t.textFaint} hover:underline`} onClick={() => setGridSelectedEmpIds(new Set())}>
                         Clear selection
                       </button>

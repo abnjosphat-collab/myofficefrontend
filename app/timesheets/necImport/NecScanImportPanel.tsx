@@ -1,9 +1,8 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Loader2, Upload, FileText, CheckCircle, AlertTriangle, RefreshCw } from '@/components/shared/theme';
-import { CenterModal, useTheme, accentText, TYPE_WEIGHT } from '@/components/shared/theme';
+import { Upload, FileText, CheckCircle, AlertTriangle, RefreshCw } from '@/components/shared/theme';
+import { CenterModal, useTheme, accentText, TYPE_WEIGHT, Button } from '@/components/shared/theme';
 import { toast } from 'sonner';
 import type { Period } from '../types';
 import * as necApi from './api';
@@ -143,8 +142,7 @@ export function NecScanImportPanel({
       {step === 'setup' && (
         <div className="space-y-4">
           <p className={`text-sm ${t.textPrimary}`}>Create an import job for this NEC cycle, then upload PDF scans and the validated review JSON.</p>
-          <Button disabled={busy} onClick={startJob} className="bg-brand-600 hover:bg-brand-700 text-white">
-            {busy && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+          <Button disabled={busy} submitting={busy} onClick={startJob}>
             Start import for this period
           </Button>
         </div>
@@ -167,8 +165,7 @@ export function NecScanImportPanel({
             </ul>
           )}
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" disabled={busy || !job.review_json_path} onClick={() => void loadPreview()}>
-              {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-1" />}
+            <Button variant="secondary" disabled={busy || !job.review_json_path} submitting={busy} icon={RefreshCw} onClick={() => void loadPreview()}>
               Preview changes
             </Button>
           </div>
@@ -212,9 +209,8 @@ export function NecScanImportPanel({
           </table>
           {exceptions.length > 80 && <p className={`text-xs ${t.textFaint}`}>Showing 80 of {exceptions.length} exceptions</p>}
           <div className="flex flex-wrap gap-2 pt-2 sticky bottom-0 bg-inherit">
-            <Button variant="outline" disabled={busy} onClick={() => void runApply(true)}>Dry-run apply</Button>
-            <Button disabled={busy} className="bg-brand-600 hover:bg-brand-700 text-white" onClick={() => void runApply(false)}>
-              {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4 mr-1" />}
+            <Button variant="secondary" disabled={busy} onClick={() => void runApply(true)}>Dry-run apply</Button>
+            <Button disabled={busy} submitting={busy} icon={CheckCircle} onClick={() => void runApply(false)}>
               Apply validated rows
             </Button>
           </div>
@@ -225,7 +221,7 @@ export function NecScanImportPanel({
         <div className={`text-sm ${t.textPrimary}`}>
           <CheckCircle className="w-5 h-5 text-emerald-400 inline mr-2" />
           Import batch saved. Reload the grid to reconcile with Leaves/Overtime overlays.
-          <Button className="mt-4" variant="outline" onClick={onClose}>Close</Button>
+          <Button className="mt-4" variant="secondary" onClick={onClose}>Close</Button>
         </div>
       )}
     </CenterModal>

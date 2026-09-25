@@ -1,0 +1,206 @@
+/* Dallaglio timesheet grid — scan-first. Classic does not import this. */
+
+.wrap {
+  --ts-line: var(--d-line, #e6e3ee);
+  --ts-ink: var(--d-ink, #292637);
+  --ts-muted: var(--d-ink-muted, #6d697c);
+  --ts-accent: var(--d-accent, #7652c5);
+  --ts-soft: var(--d-soft, #f1eef8);
+  --ts-surface: var(--d-surface, #fff);
+  border: 1px solid var(--ts-line);
+  border-radius: 13px;
+  background: var(--ts-surface);
+  overflow: hidden;
+}
+
+.wrap :global([data-slot='table']) {
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 12px;
+}
+
+.wrap :global([data-slot='table-row']) {
+  border-color: var(--ts-line);
+}
+
+.wrap :global([data-slot='table-row']:hover) {
+  background: color-mix(in srgb, var(--ts-soft) 70%, transparent);
+}
+
+.cellBtn {
+  width: 100%;
+  min-height: 40px;
+  min-width: 44px;
+  padding: 6px 4px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ts-ink);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  font: 400 13px/1.15 var(--font-active, inherit);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.cellBtn:hover {
+  background: var(--ts-soft);
+}
+
+.cellBtn:focus-visible {
+  outline: 2px solid var(--ts-accent);
+  outline-offset: 1px;
+}
+
+.hours {
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: -0.03em;
+  color: var(--ts-ink);
+}
+
+.status {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: var(--ts-muted);
+  line-height: 1.2;
+}
+
+.statusOff {
+  color: var(--ts-muted);
+}
+
+.statusAbsent {
+  color: var(--d-danger, #c73b46);
+}
+
+.statusLeave {
+  color: var(--d-accent, #7652c5);
+}
+
+.ot {
+  font-size: 10px;
+  color: var(--ts-accent);
+}
+
+.empty {
+  color: var(--ts-muted);
+  opacity: 0.35;
+  font-size: 14px;
+  font-weight: 300;
+}
+
+.today .cellBtn {
+  box-shadow: inset 0 -2px 0 var(--ts-accent);
+}
+
+.weekend {
+  background: color-mix(in srgb, var(--ts-soft) 55%, transparent);
+}
+
+.actions {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.actions > * {
+  pointer-events: auto;
+}
+
+.action,
+.fillHandle {
+  opacity: 0;
+  transition: opacity 0.16s ease, background 0.16s ease, color 0.16s ease;
+}
+
+.cell:hover .action,
+.cell:hover .fillHandle,
+.cell:focus-within .action,
+.cell:focus-within .fillHandle,
+.cell[data-fill-source='true'] .fillHandle {
+  opacity: 1;
+}
+
+.action {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  border: 0;
+  background: var(--ts-surface);
+  color: var(--ts-muted);
+}
+
+.action:hover {
+  color: var(--ts-accent);
+  background: var(--ts-soft);
+}
+
+.actionDanger:hover {
+  color: var(--d-danger, #c73b46);
+}
+
+.fillHandle {
+  position: absolute;
+  right: 1px;
+  bottom: 1px;
+  width: 14px;
+  height: 14px;
+  display: grid;
+  place-items: end;
+  cursor: ew-resize;
+  touch-action: none;
+  color: var(--ts-accent);
+  background: transparent;
+  border: 0;
+}
+
+.derived {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--ts-accent);
+}
+
+.empRemove {
+  opacity: 0;
+  transition: opacity 0.16s ease;
+}
+
+.empCell:hover .empRemove,
+.empCell:focus-within .empRemove {
+  opacity: 1;
+}
+
+@media (pointer: coarse) {
+  .action,
+  .fillHandle,
+  .empRemove {
+    opacity: 1;
+  }
+  .action,
+  .fillHandle {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .action,
+  .fillHandle,
+  .empRemove {
+    transition-duration: 0.001ms;
+  }
+}
