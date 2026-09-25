@@ -8,7 +8,7 @@ import { ShieldCheck, Plus, X, RefreshCw } from '@/components/shared/theme';
 import { useModuleData } from '@/lib/useModuleData';
 import { daysUntil } from '@/lib/dates';
 import { formatDate } from '@/lib/format';
-import { useTheme, accentText, PageHero, StatTile, StatusBadge, FormField, PrimaryButton, ACCENT_HEX, TYPE_WEIGHT } from '@/components/shared/theme';
+import { useTheme, accentText, PageHero, StatTile, StatusBadge, FormField, PrimaryButton, ACCENT_HEX, TYPE_WEIGHT, CloseButton } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
 import type { Status, ComplianceItem } from './types';
@@ -98,7 +98,7 @@ function ComplianceRegisterContent() {
         <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden p-6`}>
           <div className="flex items-center justify-between mb-4">
             <h2 className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>New Compliance Item</h2>
-            <button type="button" onClick={() => setShowAdd(false)} title="Close" aria-label="Close" className={`flex h-12 w-12 min-h-12 min-w-12 cursor-pointer items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-colors`}><X className="w-5 h-5 shrink-0 pointer-events-none" aria-hidden /></button>
+            <CloseButton onClick={() => setShowAdd(false)} />
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
             <FormField label="Equipment Name"><input placeholder="Equipment Name" value={form.equipment_name} onChange={e => setForm(f => ({ ...f, equipment_name: e.target.value }))} aria-label="Equipment Name" className={inputCls} /></FormField>

@@ -6,7 +6,7 @@ import { API_BASE } from '@/lib/config';
 import {
   RefreshCw, ChevronUp, ChevronDown, ChevronRight,
   Search, X, Loader2, Plus, Trash2, Check,
-  AlertCircle, TrendingUp, TrendingDown, useTheme,
+  AlertCircle, TrendingUp, TrendingDown, useTheme, Button, CloseButton,
 } from '@/components/shared/theme';
 import { toast } from 'sonner';
 
@@ -353,10 +353,7 @@ export function SafetyModal({
             )}
             <span className="text-sm font-semibold text-white">{title}</span>
           </div>
-          <button type="button" onClick={onClose} title="Close" aria-label="Close"
-            className="flex h-12 w-12 min-h-12 min-w-12 shrink-0 cursor-pointer items-center justify-center rounded-lg hover:bg-white/[0.08] text-white/40 hover:text-white transition-all pointer-events-auto">
-            <X className="h-5 w-5 pointer-events-none" aria-hidden />
-          </button>
+          <CloseButton onClick={onClose} />
         </div>
         {children}
       </div>
@@ -511,10 +508,7 @@ export function ActionItemsEditor({
         </div>
       ))}
       {!readOnly && (
-        <button type="button" onClick={add}
-          className="inline-flex items-center gap-1 text-[11px] text-white/35 hover:text-[#86BBD8] transition-colors">
-          <Plus className="h-3 w-3" /> Add action item
-        </button>
+        <Button type="button" variant="ghost" size="xs" icon={Plus} iconPosition="end" onClick={add}>Add action item</Button>
       )}
     </div>
   );
@@ -653,12 +647,9 @@ export function AddButton({
   label: string; onClick: () => void; icon?: React.ElementType;
 }) {
   return (
-    <button type="button" onClick={onClick}
-      className="h-10 sm:h-8 px-4 sm:px-3 flex items-center gap-1.5 text-xs rounded-xl font-semibold text-white transition-all hover:-translate-y-0.5 flex-shrink-0"
-      style={{ background: 'linear-gradient(135deg,#2A4D69,#1e3a52)', border: '1px solid rgba(134,187,216,0.3)' }}>
-      <Icon className="h-3.5 w-3.5" />
+    <Button type="button" size="sm" icon={Icon} iconPosition="end" onClick={onClick}>
       {label}
-    </button>
+    </Button>
   );
 }
 

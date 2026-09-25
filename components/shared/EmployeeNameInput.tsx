@@ -193,7 +193,7 @@ export function EmployeeNameInput({
                     i === highlight ? `${t.chipBg} ${t.textPrimary}` : `${t.textMuted} ${t.hoverBgSoft}`
                   }`}
                 >
-                  <div className="h-7 w-7 rounded-full bg-gradient-to-br from-brand-600 to-brand-400 flex items-center justify-center text-[10px] font-bold text-white shrink-0">
+                  <div className={`h-7 w-7 rounded-full flex items-center justify-center text-[10px] font-medium shrink-0 ${t.cta}`}>
                     {emp.first_name[0]}{emp.last_name[0]}
                   </div>
                   <div className="flex-1 min-w-0">

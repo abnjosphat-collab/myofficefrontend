@@ -3,10 +3,9 @@
 import { useState, useEffect, type FormEvent } from "react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useTheme, FormField, FormActions, CenterModal, Repeat2, X } from "@/components/shared/theme";
+import { useTheme, FormField, FormActions, CenterModal, Repeat2, X, Button as DsButton, Plus } from "@/components/shared/theme";
 import type { MaintenanceSchedule, WorkOrderPriority, RecurrenceType } from "../../app/maintenance/types";
 import { DOW, MON } from "../../app/maintenance/helpers";
 import { EquipmentAutocomplete, PersonAutocomplete } from "./formFields";
@@ -116,7 +115,7 @@ export function CreateScheduleModal({ isOpen, initial, onClose, onSave }: Create
             <FormField label="Specific Dates">
               <div className="flex gap-2">
                 <Input type="date" title="Add date" value={newDate} onChange={e => setNewDate(e.target.value)} className={`flex-1 h-9 ${t.inputBg}`} />
-                <Button type="button" onClick={addDate} size="sm" className="bg-brand-500/15 hover:bg-brand-500/25 text-brand-400">Add</Button>
+                <DsButton type="button" variant="subtle" size="xs" icon={Plus} iconPosition="end" onClick={addDate}>Add</DsButton>
               </div>
               {form.specific_dates.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 mt-1">

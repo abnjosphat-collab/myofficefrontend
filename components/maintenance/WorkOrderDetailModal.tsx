@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
-  useTheme, FormField, CenterModal, StatusBadge, useConfirm, InfoRow, TYPE_SCALE, RADIUS,
+  useTheme, FormField, CenterModal, StatusBadge, useConfirm, InfoRow, TYPE_SCALE, RADIUS, Button as DsButton, Plus,
 } from "@/components/shared/theme";
 import {
   FileText, HardHat, ShieldCheck, Layers, Settings2, Zap, Timer, Package, Signature, Save, Trash2, X,
@@ -291,7 +291,7 @@ export function WorkOrderDetailModal({ workOrder, onClose, onRefresh, onDelete }
                   <FormField label="Spare / Part"><SpareAutocomplete value={newSpare.name} onChange={v => setNewSpare(s => ({ ...s, name: v }))} onSelect={item => setNewSpare(s => ({ ...s, name: item.description ?? '', unit_cost: String(item.unit_price ?? 0) }))} placeholder="Search spares register or type…" /></FormField>
                   <FormField label="Qty"><input type="number" min="0.01" step="0.01" value={newSpare.quantity} onChange={e => setNewSpare(s => ({ ...s, quantity: e.target.value }))} aria-label="Quantity" className={`w-full rounded px-2 py-1.5 text-xs outline-none transition-colors ${t.inputBg}`} /></FormField>
                   <FormField label="Unit Cost (R)"><input type="number" min="0" step="0.01" value={newSpare.unit_cost} onChange={e => setNewSpare(s => ({ ...s, unit_cost: e.target.value }))} aria-label="Unit Cost (R)" className={`w-full rounded px-2 py-1.5 text-xs outline-none transition-colors ${t.inputBg}`} /></FormField>
-                  <button type="button" onClick={addArtisanSpare} className={`h-[30px] px-3 rounded text-xs font-semibold transition-colors ${light ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-sm' : 'bg-amber-500/15 hover:bg-amber-500/25 text-amber-400'}`}>Add</button>
+                  <DsButton type="button" variant="subtle" size="xs" icon={Plus} iconPosition="end" onClick={addArtisanSpare}>Add</DsButton>
                 </div>
                 {artisanSpares.length > 0 && (
                   <div className="space-y-1.5">

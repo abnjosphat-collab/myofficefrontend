@@ -1,0 +1,153 @@
+/* Paper design base — Tools-derived language for the whole MyOffice shell.
+   Activated by html[data-design=paper]. Tools keeps its own CSS module and is
+   excluded via [data-tools-workspace]. */
+
+html[data-design='paper'] {
+  --ds-canvas: #f8f7fc;
+  --ds-paper: #ffffff;
+  --ds-ink: #292637;
+  --ds-muted: #6d697c;
+  --ds-line: #e6e3ee;
+  --ds-soft: #f1eef8;
+  --ds-brand: #7652c5;
+  --ds-brand-ink: #ffffff;
+  --ds-brand-soft: #eee7fa;
+  --ds-success: #337663;
+  --ds-amber: #96651f;
+}
+
+html.dark[data-design='paper'] {
+  --ds-canvas: #09090b;
+  --ds-paper: #111113;
+  --ds-ink: #f7f7f8;
+  --ds-muted: #aaaab2;
+  --ds-line: #2d2d32;
+  --ds-soft: #1b1b1f;
+  --ds-brand: #c4b5f5;
+  --ds-brand-ink: #15111e;
+  --ds-brand-soft: #241f31;
+  --ds-success: #91d4b8;
+  --ds-amber: #efc47e;
+}
+
+html[data-design='paper']:not(:has([data-tools-workspace])) body {
+  background: var(--ds-canvas);
+  color: var(--ds-ink);
+}
+
+html[data-design='paper'] [data-ds='shell'] {
+  background: var(--ds-canvas) !important;
+}
+
+html[data-design='paper'] [data-ds='nav'] {
+  background: var(--ds-paper);
+  border-color: var(--ds-line);
+  box-shadow: 0 1px 0 var(--ds-line);
+}
+
+html[data-design='paper'] [data-ds='cta'] {
+  background-image: none;
+  background-color: var(--ds-brand);
+  color: var(--ds-brand-ink);
+  box-shadow: 0 3px 9px color-mix(in srgb, var(--ds-brand) 18%, transparent);
+}
+
+html[data-design='paper'] [data-ds='hero'] {
+  background: var(--ds-paper);
+  border: 1px solid var(--ds-line);
+  border-radius: 13px;
+  box-shadow: 0 3px 10px -7px color-mix(in srgb, var(--ds-ink) 22%, transparent);
+}
+
+html[data-design='paper'] [data-ds='hero'] h1 {
+  font-weight: 350;
+  letter-spacing: -0.04em;
+}
+
+html[data-design='paper'] [data-ds='card'],
+html[data-design='paper'] [data-ds='panel'] {
+  background: var(--ds-paper);
+  border: 1px solid var(--ds-line);
+  box-shadow: 0 3px 10px -7px color-mix(in srgb, var(--ds-ink) 22%, transparent);
+}
+
+html[data-design='paper'] [data-ds='modal'] {
+  background: var(--ds-paper);
+  border: 1px solid var(--ds-line);
+  border-radius: 18px;
+  box-shadow: 0 28px 90px #19102938;
+}
+
+html[data-design='paper'] [data-ds='popover'] {
+  background: var(--ds-paper);
+  border: 1px solid var(--ds-line);
+  border-radius: 10px;
+  box-shadow: 0 18px 42px -20px color-mix(in srgb, var(--ds-ink) 48%, transparent);
+}
+
+html[data-design='paper'] [data-ds='search'] input {
+  background: var(--ds-paper);
+  border: 1px solid var(--ds-line);
+  color: var(--ds-ink);
+  box-shadow: none;
+}
+
+html[data-design='paper'] [data-ds='search'] input:focus {
+  border-color: var(--ds-brand);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ds-brand) 9%, transparent);
+}
+
+html[data-design='paper'] [data-ds='badge'] {
+  background: transparent !important;
+  border-color: transparent !important;
+  color: var(--ds-muted) !important;
+  padding-left: 0;
+  padding-right: 0;
+  font-weight: 400;
+}
+
+html[data-design='paper'] [data-ds='toggle'] {
+  border: 1px solid var(--ds-line);
+  background: var(--ds-paper);
+  border-radius: 9px;
+}
+
+html[data-design='paper'] [data-ds='strip'] {
+  background: var(--ds-paper);
+  border: 1px solid var(--ds-line);
+  border-radius: 12px;
+  padding: 13px 16px;
+}
+
+/* Flatten leftover Studio gradient CTAs so every page inherits Paper buttons. */
+html[data-design='paper'] [class*='bg-gradient-to-br'][class*='from-brand-'] {
+  background-image: none !important;
+  background-color: var(--ds-brand);
+  color: var(--ds-brand-ink);
+  box-shadow: 0 3px 9px color-mix(in srgb, var(--ds-brand) 18%, transparent);
+}
+
+html[data-design='paper'] [data-slot='dialog-content'],
+html[data-design='paper'] [data-slot='dropdown-menu-content'],
+html[data-design='paper'] [data-slot='select-content'],
+html[data-design='paper'] [data-slot='popover-content'] {
+  background: var(--ds-paper);
+  color: var(--ds-ink);
+  border-color: var(--ds-line);
+  box-shadow: 0 18px 42px -20px color-mix(in srgb, var(--ds-ink) 48%, transparent);
+}
+
+html[data-design='paper'] [data-slot='dialog-overlay'] {
+  background: rgba(25, 16, 41, 0.38);
+  backdrop-filter: blur(6px);
+}
+
+html[data-design='paper'] input:not([type='range']):not([type='checkbox']):not([type='radio']),
+html[data-design='paper'] textarea,
+html[data-design='paper'] select {
+  accent-color: var(--ds-brand);
+}
+
+html[data-design='paper'] :focus-visible {
+  outline-color: var(--ds-brand);
+}

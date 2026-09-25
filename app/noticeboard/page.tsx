@@ -571,10 +571,7 @@ function NoticeboardContent() {
           <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-amber-500" />
           <p className={`text-sm ${TYPE_WEIGHT.semibold} ${t.textMuted} mb-1`}>Couldn&apos;t load notices</p>
           <p className={`text-xs ${t.textFaint} mb-4`}>The server may still be starting up — try again in a moment.</p>
-          <button type="button" onClick={fetchNotices}
-            className={`inline-flex items-center gap-1.5 text-xs px-4 py-2 rounded-lg ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all`}>
-            <RefreshCw className="h-3.5 w-3.5" /> Retry
-          </button>
+          <PrimaryButton icon={RefreshCw} size="md" onClick={fetchNotices}>Retry</PrimaryButton>
         </div>
       ) : data.length === 0 ? (
         <div className={`${t.glass} rounded-2xl overflow-hidden`}>

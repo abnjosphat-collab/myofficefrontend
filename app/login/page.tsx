@@ -11,7 +11,7 @@ import { Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AuthForm } from '@/components/app-shell/AuthMenu';
 import { useAuth } from '@/lib/auth-context';
-import { ArrowLeft } from '@phosphor-icons/react';
+import { useTheme, ArrowLeft } from '@/components/shared/theme';
 
 /** Only allow same-app relative paths — a full URL in ?next= would be an open redirect. */
 function safeNext(raw: string | null): string {
@@ -23,6 +23,8 @@ function LoginContent() {
   const router = useRouter();
   const next = safeNext(useSearchParams().get('next'));
   const { user, loading } = useAuth();
+  const t = useTheme();
+  const dallaglio = t.design === 'dallaglio';
 
   // Already signed in (e.g. an old tab landed here) — nothing to do, go to the target.
   useEffect(() => {
@@ -30,9 +32,9 @@ function LoginContent() {
   }, [loading, user, next, router]);
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-[#08090b] p-4">
+    <div className={`fixed inset-0 flex items-center justify-center p-4 ${dallaglio ? t.pageBg : 'bg-[#08090b]'}`}>
       <div className="w-full max-w-sm">
-        <a href="/tools" className="mb-4 inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/10 bg-white/[.04] px-4 text-sm font-medium text-white/80 transition hover:border-violet-300/35 hover:bg-violet-300/10 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-violet-300"><ArrowLeft size={17} weight="light" aria-hidden="true"/>Return to Tools &amp; Equipment</a>
+        <a href="/tools" className={`mb-4 inline-flex min-h-11 items-center gap-2 rounded-[9px] border px-4 text-[12px] font-medium transition ${dallaglio ? `${t.glass} ${t.textMuted} ${t.hoverText}` : 'border-white/10 bg-white/[.04] text-white/80 hover:border-violet-300/35 hover:bg-violet-300/10 hover:text-white'} focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-violet-300`}><ArrowLeft className="h-[17px] w-[17px]" weight={dallaglio ? 'light' : undefined} aria-hidden="true"/>Return to Tools &amp; Equipment</a>
         <AuthForm defaultMode="login" redirectTo={next} />
       </div>
     </div>

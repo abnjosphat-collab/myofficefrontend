@@ -24,7 +24,7 @@ import {
   useTheme, STATUS_TONE, Collapse, AnimatedText, PulsingIcon, CenterModal, GlowCard,
   staggerContainer, fadeUp, ACCENT, ACCENT_HEX, type Accent,
   StatusBadge, RecordCard, StatTile, ProgressBar, FormField, FormActions,
-  useCollapseSection, SelectField, AutofillInput, useConfirm, accentText, TYPE_WEIGHT,
+  useCollapseSection, SelectField, AutofillInput, useConfirm, accentText, TYPE_WEIGHT, PrimaryButton,
 } from '@/components/shared/theme';
 import type { PPETypeInfo, PPERecord, EmployeeRow, EmployeeWithPPE, EnhancedStats, FormState } from './types';
 import {
@@ -262,9 +262,7 @@ function PPEItemCard({ record, onEdit, onDelete, onView, onToggleNotRequired }: 
         <button onClick={() => onView(record)} type="button" className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg ${t.chipBg} ${t.textMuted} ${t.hoverText} text-[12px] ${TYPE_WEIGHT.semibold} transition-all`}>
           <Eye className="h-3.5 w-3.5" /> View
         </button>
-        <button onClick={() => onEdit(record)} type="button" className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 text-white text-[12px] ${TYPE_WEIGHT.semibold} hover:brightness-110 transition-all`}>
-          <Pencil className="h-3.5 w-3.5" /> Edit
-        </button>
+        <PrimaryButton icon={Pencil} fullWidth size="xs" onClick={() => onEdit(record)}>Edit</PrimaryButton>
         <button onClick={() => onDelete(record.id)} type="button" className={`px-4 flex items-center justify-center gap-1.5 py-2 rounded-lg ${t.chipBg} text-rose-500 hover:bg-rose-500/10 text-[12px] ${TYPE_WEIGHT.semibold} transition-all`}>
           <Trash2 className="h-3.5 w-3.5" /> Delete
         </button>
@@ -326,10 +324,7 @@ function EmployeePPECard({ employee, isExpanded, onToggle, onIssueNew, onEditIte
         {employee.records.length === 0 && <StatusBadge color="#94a3b8" label="No items" />}
       </>}
       headerActions={
-        <button type="button" onClick={e => { e.stopPropagation(); onIssueNew(employee); }} title="Issue new PPE"
-          className={`flex items-center gap-1.5 text-[12px] h-7 px-2.5 rounded-lg ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all`}>
-          <Plus className="h-3 w-3" /> Issue
-        </button>
+        <PrimaryButton icon={Plus} size="xs" title="Issue new PPE" onClick={e => { e.stopPropagation(); onIssueNew(employee); }}>Issue</PrimaryButton>
       }
     >
       {employee.records.length > 0 ? (
@@ -414,10 +409,7 @@ function PPEDetailModal({ item, isOpen, onClose, onEdit }: DetailModalProps) {
           className={`flex-1 py-2 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border} transition-all`}>
           Close
         </button>
-        <motion.button type="button" onClick={() => { onEdit(item); onClose(); }} whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}
-          className={`flex-1 py-2 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white transition-all bg-gradient-to-br ${ACCENT.blue.gradient} ${ACCENT.blue.solidGlow} ${ACCENT.blue.glow}`}>
-          <Pencil className="h-4 w-4 inline mr-2" />Edit Record
-        </motion.button>
+        <PrimaryButton icon={Pencil} fullWidth size="md" accent="blue" onClick={() => { onEdit(item); onClose(); }}>Edit Record</PrimaryButton>
       </div>
     </CenterModal>
   );
@@ -1441,10 +1433,7 @@ export default function PPEManagement() {
                   equivalent button (New Breakdown, Add Employee, New Work Order, ...) —
                   this one was the one outlier still on ACCENT.blue (2026-08-29 UI audit,
                   audit/07-ui-polish-findings.md). */}
-              <motion.button type="button" onClick={() => openIssueForm()} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-                className={`h-8 px-3 flex items-center gap-1.5 text-xs rounded-lg ${TYPE_WEIGHT.semibold} text-white transition-all bg-gradient-to-br ${ACCENT.violet.gradient} ${ACCENT.violet.solidGlow} ${ACCENT.violet.glow}`}>
-                <Plus className="h-3.5 w-3.5" /> Issue PPE
-              </motion.button>
+              <PrimaryButton icon={Plus} onClick={() => openIssueForm()}>Issue PPE</PrimaryButton>
             </div>
           </div>
 
@@ -1674,12 +1663,14 @@ export default function PPEManagement() {
             </button>
             {/* Collapse All / Expand All — only visible when the panel is open and cards are shown */}
             {sections.expanded.records && (filterType === 'all' || filterType === 'active') && filteredEmployees.length > 0 && (
-              <motion.button type="button" onClick={anyExpanded ? collapseAll : expandAll}
-                whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-                className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg ${TYPE_WEIGHT.semibold} transition-all shrink-0 ${anyExpanded ? `${t.glassSoft} ${t.textMuted} ${t.hoverText}` : `text-white bg-gradient-to-br ${ACCENT.violet.gradient} ${ACCENT.violet.solidGlow}`}`}>
-                {anyExpanded ? <ChevronsUp className="h-3.5 w-3.5" /> : <ChevronsDown className="h-3.5 w-3.5" />}
-                {anyExpanded ? 'Collapse All' : 'Expand All'}
-              </motion.button>
+              anyExpanded ? (
+                <button type="button" onClick={collapseAll}
+                  className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg ${TYPE_WEIGHT.semibold} transition-all shrink-0 ${t.glassSoft} ${t.textMuted} ${t.hoverText}`}>
+                  <ChevronsUp className="h-3.5 w-3.5" /> Collapse All
+                </button>
+              ) : (
+                <PrimaryButton icon={ChevronsDown} size="xs" className="shrink-0" onClick={expandAll}>Expand All</PrimaryButton>
+              )
             )}
           </div>
 
@@ -1703,10 +1694,7 @@ export default function PPEManagement() {
                   <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-amber-500" />
                   <p className={`text-sm ${TYPE_WEIGHT.semibold} ${t.textMuted} mb-1`}>Couldn&apos;t load PPE records</p>
                   <p className={`text-xs ${t.textFaint} mb-4`}>The server may still be starting up — try again in a moment.</p>
-                  <motion.button type="button" onClick={() => load()} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-                    className={`inline-flex items-center gap-1.5 text-xs px-4 py-2 rounded-lg ${TYPE_WEIGHT.semibold} text-white transition-all bg-gradient-to-br ${ACCENT.violet.gradient} ${ACCENT.violet.solidGlow}`}>
-                    <RefreshCw className="h-3.5 w-3.5" /> Retry
-                  </motion.button>
+                  <PrimaryButton icon={RefreshCw} size="md" onClick={() => load()}>Retry</PrimaryButton>
                 </div>
               ) : (filterType === 'soon-to-due' || filterType === 'due') ? (
                 <DueItemsList key={filterType} employees={sectionFilteredEmployees} filterType={filterType}
@@ -1728,10 +1716,7 @@ export default function PPEManagement() {
                     {records.length === 0 ? 'Issue PPE to an employee to get started' : 'Try adjusting the search or filter'}
                   </p>
                   {records.length === 0 && (
-                    <motion.button type="button" onClick={() => openIssueForm()} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-                      className={`mt-4 inline-flex items-center gap-1.5 text-xs px-4 py-2 rounded-lg ${TYPE_WEIGHT.semibold} text-white transition-all bg-gradient-to-br ${ACCENT.violet.gradient} ${ACCENT.violet.solidGlow}`}>
-                      <Plus className="h-3.5 w-3.5" /> Issue First PPE
-                    </motion.button>
+                    <PrimaryButton icon={Plus} size="md" className="mt-4" onClick={() => openIssueForm()}>Issue First PPE</PrimaryButton>
                   )}
                 </div>
               ) : (

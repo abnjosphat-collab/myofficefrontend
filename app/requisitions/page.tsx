@@ -14,7 +14,7 @@ import { AppShell } from '@/components/app-shell';
 import { PredictiveInput } from '@/components/shared/PredictiveInput';
 import {
   useTheme, STATUS_TONE, PageHero, StatTile, StatusBadge, SearchInput,
-  FormField, FormActions, useCollapseSection, CenterModal, ProgressBar, ACCENT_HEX, SelectField, LoadingState, AutofillInput, TYPE_WEIGHT,
+  FormField, FormActions, useCollapseSection, CenterModal, ProgressBar, ACCENT_HEX, SelectField, LoadingState, AutofillInput, TYPE_WEIGHT, PrimaryButton, Button,
 } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
@@ -236,9 +236,7 @@ function ReqModal({ open, onClose, onSave, editing }: {
         <div>
           <div className="flex items-center justify-between mb-2">
             <span className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textFaint}`}>Line Items</span>
-            <button type="button" onClick={addItem} className={`flex items-center gap-1 h-7 px-2.5 rounded-lg text-xs ${TYPE_WEIGHT.medium} bg-brand-500/15 text-brand-400 hover:bg-brand-500/25 transition-colors`}>
-              <Plus className="h-3 w-3" /> Add Item
-            </button>
+            <Button type="button" variant="subtle" size="xs" icon={Plus} iconPosition="end" onClick={addItem}>Add Item</Button>
           </div>
           <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
             {(form.items ?? []).map((it, i) => (
@@ -362,10 +360,7 @@ function ReqDetailModal({ req, onClose, onEdit }: { req: Requisition; onClose: (
 
         <div className="flex gap-2">
           <button type="button" onClick={onClose} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border} transition-all`}>Close</button>
-          <button type="button" onClick={() => { onClose(); onEdit(); }}
-            className={`flex-1 py-2.5 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all inline-flex items-center justify-center gap-2`}>
-            <Pencil className="h-4 w-4" /> Edit
-          </button>
+          <PrimaryButton icon={Pencil} size="md" fullWidth onClick={() => { onClose(); onEdit(); }}>Edit</PrimaryButton>
         </div>
       </div>
     </CenterModal>
@@ -483,10 +478,7 @@ function RequisitionsPageContent() {
                 statusColor={(_v, row) => STATUS_CONFIG[row.status as Requisition['status']]?.color.replace('#', '')}
               />
             )}
-            <button type="button" onClick={() => { setEditing(null); setFormOpen(true); }}
-              className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all`}>
-              <Plus className="h-3.5 w-3.5" /> New Requisition
-            </button>
+            <PrimaryButton icon={Plus} onClick={() => { setEditing(null); setFormOpen(true); }}>New Requisition</PrimaryButton>
           </>
         }
       >
@@ -557,20 +549,14 @@ function RequisitionsPageContent() {
         <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
           <div className={`flex items-center justify-between px-4 py-3 border-b ${t.border}`}>
             <h3 className={`text-sm ${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>Requisitions ({filtered.length})</h3>
-            <button type="button" onClick={() => { setEditing(null); setFormOpen(true); }}
-              className={`flex items-center gap-1.5 h-7 px-2.5 rounded-lg text-xs ${TYPE_WEIGHT.medium} bg-brand-500/15 text-brand-400 hover:bg-brand-500/25 transition-colors`}>
-              <Plus className="h-3 w-3" /> New Req
-            </button>
+            <Button type="button" variant="subtle" size="xs" icon={Plus} iconPosition="end" onClick={() => { setEditing(null); setFormOpen(true); }}>New Req</Button>
           </div>
           {filtered.length === 0 ? (
             <div className="p-12 text-center">
               <ShoppingCart className={`h-12 w-12 ${t.textFaint} mx-auto mb-4`} />
               <h3 className={`text-lg ${TYPE_WEIGHT.semibold} ${t.textPrimary} mb-2`}>No requisitions</h3>
               <p className={`text-sm mb-4 ${t.textFaint}`}>Adjust filters or create your first requisition.</p>
-              <button type="button" onClick={() => { setEditing(null); setFormOpen(true); }}
-                className={`inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-[13px] ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all`}>
-                <Plus className="h-3.5 w-3.5" /> New Req
-              </button>
+              <PrimaryButton icon={Plus} size="md" onClick={() => { setEditing(null); setFormOpen(true); }}>New Req</PrimaryButton>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -708,9 +694,7 @@ function RequisitionsPageContent() {
           <p className={`text-sm ${t.textMuted}`}>Delete requisition {delTarget?.requisitionNumber}? This cannot be undone.</p>
           <div className="flex gap-2">
             <button type="button" onClick={() => setDelTarget(null)} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border} transition-all`}>Cancel</button>
-            <button type="button" onClick={handleDelete} className={`flex-1 py-2.5 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-rose-500 to-rose-700 hover:brightness-110 transition-all inline-flex items-center justify-center gap-2`}>
-              <Trash2 className="h-4 w-4" /> Delete
-            </button>
+            <PrimaryButton danger size="md" fullWidth icon={Trash2} onClick={handleDelete}>Delete</PrimaryButton>
           </div>
         </div>
       </CenterModal>

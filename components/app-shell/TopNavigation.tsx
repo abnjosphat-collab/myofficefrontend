@@ -40,7 +40,9 @@ export function TopNavigation({
   // A single, clean search field — one subtle border, one soft focus ring. (The old
   // `t.inputBg` carries its own border and `type="search"` adds native inner
   // decorations, which together read as a doubled/messy edge.)
-  const searchCls = `w-full h-9 pl-9 pr-3 rounded-xl text-[13px] border transition-all duration-200 focus:outline-none ${
+  const searchCls = t.design === 'dallaglio'
+    ? `w-full h-9 pl-9 pr-3 rounded-xl text-[13px] border transition-all duration-200 focus:outline-none ${t.inputBg}`
+    : `w-full h-9 pl-9 pr-3 rounded-xl text-[13px] border transition-all duration-200 focus:outline-none ${
     t.light
       ? 'bg-gray-100/70 border-gray-200/80 text-gray-900 placeholder-gray-400 focus:bg-white focus:border-brand-400/60 focus:ring-2 focus:ring-brand-400/15'
       : 'bg-white/[0.06] border-white/10 text-white placeholder-white/40 focus:bg-white/[0.09] focus:border-brand-300/40 focus:ring-2 focus:ring-brand-300/15'
@@ -71,9 +73,12 @@ export function TopNavigation({
 
   return (
     <header
-      className={`relative sticky top-0 z-40 ${t.glass} backdrop-saturate-150 border-x-0 border-t-0`}
+      data-ds="nav"
+      className={`relative sticky top-0 z-40 ${t.glass} ${t.design === 'dallaglio' ? '' : 'backdrop-saturate-150'} border-x-0 border-t-0`}
       style={{
-        boxShadow: t.light
+        boxShadow: t.design === 'dallaglio'
+          ? '0 1px 0 var(--ds-line, #e6e3ee)'
+          : t.light
           ? `0 1px 0 rgba(255,255,255,0.7) inset, 0 14px 32px -16px ${glow}, 0 10px 24px -18px rgba(15,23,42,0.22)`
           : `0 1px 0 rgba(255,255,255,0.06) inset, 0 16px 36px -16px ${glow}, 0 10px 24px -16px rgba(0,0,0,0.55)`,
       }}
@@ -199,6 +204,16 @@ export function TopNavigation({
             <span className="hidden lg:inline">Customize</span>
           </button>
           <button
+            onClick={() => t.setDesign(t.design === 'dallaglio' ? 'classic' : 'dallaglio')}
+            className={`hidden sm:flex items-center h-8 px-2.5 rounded-lg text-[12px] font-medium ${t.glassSoft} ${t.shadow} ${t.textMuted} ${t.hoverText}`}
+            type="button"
+            title={t.design === 'dallaglio' ? 'Switch to Classic design' : 'Switch to Dallaglio design'}
+            aria-label={t.design === 'dallaglio' ? 'Switch to Classic design' : 'Switch to Dallaglio design'}
+            aria-pressed={t.design === 'dallaglio'}
+          >
+            {t.design === 'dallaglio' ? 'Dallaglio' : 'Classic'}
+          </button>
+          <button
             onClick={t.toggle}
             className={`h-11 w-11 flex items-center justify-center ${t.hoverBg} ${t.textMuted}`}
             type="button"
@@ -213,7 +228,7 @@ export function TopNavigation({
               375px screen instead of overflowing the viewport horizontally. */}
           <button
             onClick={toggleIconStyle}
-            className={`hidden sm:flex h-11 w-11 items-center justify-center ${t.hoverBg} ${t.textMuted}`}
+            className={`${t.design === 'dallaglio' ? 'hidden' : 'hidden sm:flex'} h-11 w-11 items-center justify-center ${t.hoverBg} ${t.textMuted}`}
             type="button"
             title={iconStyle === 'solid' ? 'Icons: Solid — switch to Outline' : 'Icons: Outline — switch to Solid'}
             aria-label={iconStyle === 'solid' ? 'Switch icon style to outline' : 'Switch icon style to solid'}

@@ -1,0 +1,118 @@
+/* Dallaglio design — Tools-derived semantic tokens.
+   Activated by html[data-design=dallaglio]. Tools keeps its CSS module. */
+
+html[data-design='dallaglio'] {
+  --d-canvas: #f8f7fc;
+  --d-surface: #ffffff;
+  --d-surface-elevated: #ffffff;
+  --d-ink: #292637;
+  --d-ink-muted: #6d697c;
+  --d-ink-subtle: #6d697c;
+  --d-line: #e6e3ee;
+  --d-line-strong: #d4d0de;
+  --d-soft: #f1eef8;
+  --d-accent: #7652c5;
+  --d-accent-ink: #ffffff;
+  --d-accent-soft: #eee7fa;
+  --d-success: #337663;
+  --d-warning: #96651f;
+  --d-danger: #c73b46;
+  --d-focus: color-mix(in srgb, #7652c5 9%, transparent);
+  --d-overlay: rgba(27, 22, 43, 0.38);
+  --d-shadow: 0 3px 10px -7px color-mix(in srgb, #292637 22%, transparent);
+  --d-shadow-hover: 0 28px 58px -30px color-mix(in srgb, #292637 56%, transparent),
+    0 18px 34px -24px color-mix(in srgb, #7652c5 75%, transparent);
+  --d-radius-sm: 7px;
+  --d-radius: 9px;
+  --d-radius-md: 13px;
+  --d-radius-lg: 18px;
+  --d-control: 42px;
+  --d-type: 400 13px/1.5 var(--font-active, var(--font-manrope), Inter, sans-serif);
+
+  --background: var(--d-canvas);
+  --foreground: var(--d-ink);
+  --card: var(--d-surface);
+  --card-foreground: var(--d-ink);
+  --popover: var(--d-surface);
+  --popover-foreground: var(--d-ink);
+  --muted: var(--d-soft);
+  --muted-foreground: var(--d-ink-muted);
+  --accent: var(--d-accent-soft);
+  --accent-foreground: var(--d-accent);
+  --border: var(--d-line);
+  --input: var(--d-line);
+  --sidebar: var(--d-surface);
+  --sidebar-foreground: var(--d-ink);
+  --sidebar-accent: var(--d-accent-soft);
+  --sidebar-accent-foreground: var(--d-accent);
+  --sidebar-border: var(--d-line);
+  --ring: var(--d-accent);
+}
+
+html.dark[data-design='dallaglio'] {
+  --d-canvas: #09090b;
+  --d-surface: #111113;
+  --d-surface-elevated: #111113;
+  --d-ink: #f7f7f8;
+  --d-ink-muted: #aaaab2;
+  --d-ink-subtle: #aaaab2;
+  --d-line: #2d2d32;
+  --d-line-strong: #3a3a40;
+  --d-soft: #1b1b1f;
+  --d-accent: #c4b5f5;
+  --d-accent-ink: #15111e;
+  --d-accent-soft: #241f31;
+  --d-success: #91d4b8;
+  --d-warning: #efc47e;
+  --d-danger: #e08a90;
+  --d-focus: color-mix(in srgb, #c4b5f5 12%, transparent);
+  --d-overlay: rgba(0, 0, 0, 0.55);
+  --d-shadow: 0 3px 10px -7px rgba(0, 0, 0, 0.55);
+  --d-shadow-hover: 0 28px 58px -30px rgba(0, 0, 0, 0.7),
+    0 18px 34px -24px color-mix(in srgb, #c4b5f5 40%, transparent);
+
+  --background: var(--d-canvas);
+  --foreground: var(--d-ink);
+  --card: var(--d-surface);
+  --card-foreground: var(--d-ink);
+  --popover: var(--d-surface);
+  --popover-foreground: var(--d-ink);
+  --muted: var(--d-soft);
+  --muted-foreground: var(--d-ink-muted);
+  --accent: var(--d-accent-soft);
+  --accent-foreground: var(--d-accent);
+  --border: var(--d-line);
+  --input: var(--d-line);
+  --sidebar: var(--d-surface);
+  --sidebar-foreground: var(--d-ink);
+  --sidebar-accent: var(--d-accent-soft);
+  --sidebar-accent-foreground: var(--d-accent);
+  --sidebar-border: var(--d-line);
+}
+
+html[data-design='dallaglio']:not(:has([data-tools-workspace])) body {
+  background: var(--d-canvas);
+  color: var(--d-ink);
+  font: var(--d-type);
+}
+
+html[data-design='dallaglio']:not(:has([data-tools-workspace])) h1,
+html[data-design='dallaglio']:not(:has([data-tools-workspace])) h2,
+html[data-design='dallaglio']:not(:has([data-tools-workspace])) h3,
+html[data-design='dallaglio']:not(:has([data-tools-workspace])) h4,
+html[data-design='dallaglio']:not(:has([data-tools-workspace])) h5,
+html[data-design='dallaglio']:not(:has([data-tools-workspace])) h6 {
+  font-family: inherit;
+  font-weight: 350;
+  letter-spacing: -0.04em;
+}
+
+html[data-design='dallaglio']:not(:has([data-tools-workspace])) :focus-visible {
+  outline: 2px solid var(--d-accent);
+  outline-offset: 3px;
+}
+
+html[data-design='dallaglio'] .myoffice-access-boot {
+  background: var(--d-canvas) !important;
+  color: var(--d-ink) !important;
+}

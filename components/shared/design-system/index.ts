@@ -12,4 +12,8 @@ export * from './primitives';
 export * from './components';
 export * from './confirm';
 export * from './dialog-shared';
+export * from './DsIcon';
+export * from './shared/icon-meanings';
+export { Button, type ButtonProps, type ButtonVariant, type ButtonSize } from './Button';
+export { CloseButton, type CloseButtonProps, type CloseButtonSize } from './CloseButton';
 export { ShiftTimeRangeField, type ShiftTimeRangeFieldProps } from '../ShiftTimeRangeField';

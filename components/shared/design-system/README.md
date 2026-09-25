@@ -34,7 +34,8 @@ needing to be repeated across every page that copied the pattern.**
 
 | File | Contents |
 |---|---|
-| `tokens.tsx` | `useTheme()`, `ThemeProvider`, `ACCENT`/`ACCENT_HEX`, `STATUS_TONE`, `decorativeAccentHex`, `isStatusToneHex`, `uiIconClass`, `TYPE_SCALE`, `SPACING`, `RADIUS`. Read colors from here — see [`docs/COLOR_HARMONY.md`](../../docs/COLOR_HARMONY.md). |
+| `tokens.tsx` | `useTheme()`, `ThemeProvider`, `design: 'studio' \| 'paper'`, `ACCENT`/`ACCENT_HEX`, `STATUS_TONE`, `decorativeAccentHex`, `isStatusToneHex`, `uiIconClass`, `TYPE_SCALE`, `SPACING`, `RADIUS`. Read colors from here — see [`docs/COLOR_HARMONY.md`](../../docs/COLOR_HARMONY.md). |
+| `bases/` | Named design languages. **Studio** is the default glass/glow base; **Paper** is the Tools-derived canvas base. Switching `myoffice_design` restyles every AppShell page through `themeClasses` + `[data-ds]` primitives. `/tools` stays on its own CSS module. |
 | `color.ts` | Color math helpers (`hexToRgba`, `rgbaFromHexSafe`, etc.) for turning a hex into a themed rgba string. |
 | `motion.ts` | Shared framer-motion variants (`fadeUp`, `staggerContainer`, `fadeTextVariant`, `tileIconItem`/`tileTextContainer`/`tileTextItem`). Reuse these instead of writing a new `variants={{ ... }}` object per component — that's how animation timing/easing drifts out of sync across pages. |
 | `primitives.tsx` | Low-level reusable building blocks: `GlowCard`, `CountUp`, `EmptyState`, `Collapse`, `AnimatedText`, `PulsingIcon`. |
@@ -45,7 +46,7 @@ needing to be repeated across every page that copied the pattern.**
 
 ### `useTheme()`
 
-Returns `{ light: boolean; toggle: () => void }` plus every key from
+Returns `{ light, design, setDesign, toggle, … }` plus every key from
 `themeClasses()` in `tokens.tsx` (`glass`, `glassSoft`, `shadow`,
 `textPrimary`, `textSecondary`, `textTertiary`, `textFaint`, `textMuted`,
 `border`, `divide`, `hoverBg`, `hoverBgSoft`, `hoverText`, `groupHoverText`,

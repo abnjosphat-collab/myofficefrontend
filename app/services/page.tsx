@@ -14,7 +14,7 @@ import { AppShell } from '@/components/app-shell';
 import { formatDate } from '@/lib/format';
 import {
   useTheme, accentText, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle,
-  FormField, FormActions, useCollapseSection, CenterModal, ProgressBar, ACCENT_HEX, GlowCard, SelectField, TYPE_WEIGHT,
+  FormField, FormActions, useCollapseSection, CenterModal, ProgressBar, ACCENT_HEX, GlowCard, SelectField, TYPE_WEIGHT, PrimaryButton,
 } from '@/components/shared/theme';
 import { Toaster, toast } from 'sonner';
 import type { Attachment, PaymentStage, ServiceRecord, StageData, StoresStage } from './types';
@@ -189,11 +189,9 @@ function AttachmentPanel({ serviceId }: { serviceId: string }) {
           <p className={`text-xs ${TYPE_WEIGHT.medium} ${t.textMuted}`}>Scanned hard copies &amp; supporting documents</p>
           <p className={`text-[11px] mt-0.5 ${t.textFaint}`}>Upload completion certificates, invoices, GRVs, or any other documents.</p>
         </div>
-        <button type="button" onClick={() => inputRef.current?.click()} disabled={uploading}
-          className={`inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all disabled:opacity-50`}>
-          {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
-          {uploading ? 'Uploading…' : 'Attach file'}
-        </button>
+        <PrimaryButton icon={Upload} size="xs" submitting={uploading} onClick={() => inputRef.current?.click()}>
+          Attach file
+        </PrimaryButton>
         <input ref={inputRef} type="file" title="Attach file" aria-label="Attach file" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) upload(f); e.target.value = ''; }} />
       </div>
 
@@ -231,7 +229,7 @@ function AttachmentPanel({ serviceId }: { serviceId: string }) {
           <p className={`text-sm ${t.textMuted}`}>This file will be permanently deleted.</p>
           <div className="flex gap-2">
             <button type="button" onClick={() => setDeleteId(null)} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border}`}>Cancel</button>
-            <button type="button" onClick={remove} className={`flex-1 py-2.5 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-rose-500 to-rose-700 hover:brightness-110`}>Remove</button>
+            <PrimaryButton danger size="md" fullWidth onClick={remove}>Remove</PrimaryButton>
           </div>
         </div>
       </CenterModal>
@@ -593,7 +591,7 @@ function ExcelImportModal({ onImport, onExtracted, onClose }: {
             <Upload className={`h-8 w-8 mx-auto mb-2 ${t.textFaint}`} />
             <p className={`text-sm mb-1 ${t.textMuted}`}>Choose a spreadsheet, PDF, or image</p>
             <p className={`text-[11px] mb-3 ${t.textFaint}`}>.xlsx · .xls · .csv · .pdf · .jpg · .png · .tiff · .webp</p>
-            <label htmlFor="services-import-file-input" className={`cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all`}>
+            <label htmlFor="services-import-file-input" className={`cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium ${t.cta}`}>
               <Upload className="h-4 w-4" /> Browse file
               <input id="services-import-file-input" aria-label="Browse file" type="file" accept=".xlsx,.xls,.csv,.pdf,.jpg,.jpeg,.png,.webp,.tiff,.tif,.bmp" className="hidden"
                 onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); e.currentTarget.value = ''; }} />
@@ -666,7 +664,7 @@ function OcrUploadModal({ onExtracted, onClose }: { onExtracted: (partial: Parti
           <>
             <FileDown className={`h-8 w-8 mx-auto mb-2 ${t.textFaint}`} />
             <p className={`text-sm mb-3 ${t.textMuted}`}>Choose a scanned document to extract data from</p>
-            <label htmlFor="services-ocr-file-input" className={`cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all`}>
+            <label htmlFor="services-ocr-file-input" className={`cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium ${t.cta}`}>
               <Upload className="h-4 w-4" /> Choose file
               <input id="services-ocr-file-input" aria-label="Choose file" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
             </label>
@@ -812,18 +810,12 @@ function ServicesPageContent() {
         statsOpen={sections.expanded.hero}
         actions={
           <>
-            <button type="button" onClick={() => setOcrOpen(true)} title="Scan a document to extract data"
-              className={`inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-violet-500 to-violet-700 hover:brightness-110 transition-all`}>
-              <Scan className="h-3.5 w-3.5" /> Scan
-            </button>
+            <PrimaryButton icon={Scan} title="Scan a document to extract data" onClick={() => setOcrOpen(true)}>Scan</PrimaryButton>
             <button type="button" onClick={() => setImportOpen(true)} title="Import records from Excel"
               className={`inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg ${TYPE_WEIGHT.semibold} ${t.textMuted} ${t.glassSoft} ${t.hoverText} transition-all`}>
               <FileSpreadsheet className="h-3.5 w-3.5" /> Import
             </button>
-            <button type="button" onClick={() => { setEditRecord(null); setFormOpen(true); }}
-              className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all`}>
-              <Plus className="h-3.5 w-3.5" /> New Service
-            </button>
+            <PrimaryButton icon={Plus} onClick={() => { setEditRecord(null); setFormOpen(true); }}>New Service</PrimaryButton>
           </>
         }
       >
@@ -903,9 +895,7 @@ function ServicesPageContent() {
             <h3 className={`text-lg ${TYPE_WEIGHT.semibold} ${t.textPrimary} mb-2`}>{anyFilter ? 'No records match your filters' : 'No service records yet'}</h3>
             <p className={`text-sm mb-4 ${t.textFaint}`}>{anyFilter ? 'Adjust your search or clear the filters.' : 'Click "New Service" to log the first record, or import from Excel.'}</p>
             {!anyFilter && (
-              <button type="button" onClick={() => { setEditRecord(null); setFormOpen(true); }} className={`inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-[13px] ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110`}>
-                <Plus className="h-3.5 w-3.5" /> Add Service
-              </button>
+              <PrimaryButton icon={Plus} size="md" onClick={() => { setEditRecord(null); setFormOpen(true); }}>Add Service</PrimaryButton>
             )}
           </div>
         ) : viewMode === 'grid' ? (
@@ -989,7 +979,7 @@ function ServicesPageContent() {
           <p className={`text-sm ${t.textMuted}`}>This service record and all its pipeline data will be permanently deleted.</p>
           <div className="flex gap-2">
             <button type="button" onClick={() => setDeleteId(null)} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border}`}>Cancel</button>
-            <button type="button" onClick={handleDelete} className={`flex-1 py-2.5 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-rose-500 to-rose-700 hover:brightness-110 inline-flex items-center justify-center gap-2`}><Trash2 className="h-4 w-4" /> Delete</button>
+            <PrimaryButton danger size="md" fullWidth icon={Trash2} onClick={handleDelete}>Delete</PrimaryButton>
           </div>
         </div>
       </CenterModal>

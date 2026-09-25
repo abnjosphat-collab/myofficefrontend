@@ -13,6 +13,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import { AnimatePresence, motion } from 'framer-motion';
 import { useTheme } from './tokens';
 import { AlertTriangle } from './icons';
+import { Button } from './Button';
 
 export interface ConfirmOptions {
   title: string;
@@ -87,13 +88,14 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
             aria-modal="true"
           >
             <motion.div
-              className="absolute inset-0 bg-slate-900/50 backdrop-blur-md"
+              className={`absolute inset-0 ${t.design === 'dallaglio' ? 'bg-[#191029]/38 backdrop-blur-[6px]' : 'bg-slate-900/50 backdrop-blur-md'}`}
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
               onClick={() => close(false)}
             />
             <motion.div
-              className={`relative w-full max-w-sm ${t.glass} rounded-xl ${t.shadow} p-5`}
+              data-ds="modal"
+              className={`relative w-full max-w-sm ${t.glass} ${t.design === 'dallaglio' ? 'rounded-[18px]' : 'rounded-xl'} ${t.shadow} p-5`}
               initial={{ opacity: 0, scale: 0.92, y: 16 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.94, y: 10 }}
@@ -111,25 +113,21 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
                 </div>
               </div>
               <div className="flex items-center justify-end gap-2 mt-5">
-                <button
+                <Button
                   ref={cancelRef}
                   type="button"
+                  variant="secondary"
                   onClick={() => close(false)}
-                  className={`h-8 px-3 rounded-lg text-[13px] font-medium ${t.chipBg} ${t.hoverBg} ${t.textMuted} ${t.hoverText} transition-colors`}
                 >
                   {opts.cancelLabel ?? 'Cancel'}
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
+                  variant={destructive ? 'danger' : 'primary'}
                   onClick={() => close(true)}
-                  className={`h-8 px-3.5 rounded-lg text-[13px] font-semibold text-white transition-all hover:brightness-110 ${
-                    destructive
-                      ? 'bg-gradient-to-br from-rose-500 to-rose-700'
-                      : 'bg-gradient-to-br from-brand-500 to-brand-700'
-                  }`}
                 >
                   {opts.confirmLabel ?? (destructive ? 'Delete' : 'Confirm')}
-                </button>
+                </Button>
               </div>
             </motion.div>
           </div>

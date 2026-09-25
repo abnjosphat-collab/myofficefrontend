@@ -12,7 +12,7 @@ import {
   MapPin, Wrench, Plus, Trash2, Pencil, Check, X, Loader2, AlertCircle, Lock,
 } from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
-import { useTheme, PageHero, EmptyState, useConfirm, TYPE_WEIGHT } from '@/components/shared/theme';
+import { useTheme, PageHero, EmptyState, useConfirm, TYPE_WEIGHT, PrimaryButton } from '@/components/shared/theme';
 import { useAuth } from '@/lib/auth-context';
 import { toast } from 'sonner';
 import { api } from '@/lib/apiClient';
@@ -185,10 +185,7 @@ function AdminListsContent() {
             <input value={newValue} onChange={e => setNewValue(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') handleAdd(); }}
               placeholder="Add a new value…" aria-label="New value" className={`flex-1 h-9 px-3 rounded-lg text-sm ${t.inputBg} focus:outline-none`} />
-            <button type="button" onClick={handleAdd} disabled={adding || !newValue.trim()}
-              className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 disabled:opacity-50 transition-all`}>
-              {adding ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />} Add
-            </button>
+            <PrimaryButton icon={Plus} submitting={adding} disabled={!newValue.trim()} onClick={handleAdd}>Add</PrimaryButton>
           </div>
 
           {fetching ? (

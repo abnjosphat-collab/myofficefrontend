@@ -3,7 +3,7 @@
 import { useId, useRef, useState } from 'react';
 import { API_BASE } from '@/lib/config';
 import { authFetch } from '@/lib/api';
-import { Camera, Upload, X, ZoomIn, ImageIcon } from '@/components/shared/theme';
+import { Camera, Upload, X, ZoomIn, ImageIcon, CloseButton } from '@/components/shared/theme';
 
 const API = API_BASE;
 
@@ -244,14 +244,11 @@ export function PhotoUpload({
             className="fixed inset-0 z-[200] bg-black/92 backdrop-blur-sm cursor-default"
           />
           <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 pointer-events-none">
-            <button
-              type="button"
-              title="Close"
+            <CloseButton
+              className="absolute top-4 right-4 z-20 pointer-events-auto"
               onClick={() => setLightbox(null)}
-              className="absolute top-4 right-4 z-20 flex h-12 w-12 min-h-12 min-w-12 cursor-pointer items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors pointer-events-auto"
-            >
-              <X className="h-5 w-5 shrink-0 text-white pointer-events-none" aria-hidden />
-            </button>
+              label="Close photo preview"
+            />
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={lightbox}

@@ -13,7 +13,7 @@ import {
 import {
   useTheme, STATUS_TONE, PageHero, StatTile, StatusBadge, ProgressBar,
   SearchInput, ViewToggle, useCollapseSection, ACCENT_HEX,
-  GroupSection, RecordCard, staggerContainer, fadeUp, InfoRow, SummaryItem, useConfirm, TYPE_WEIGHT,
+  GroupSection, RecordCard, staggerContainer, fadeUp, InfoRow, SummaryItem, useConfirm, TYPE_WEIGHT, PrimaryButton,
 } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
@@ -82,9 +82,7 @@ function InventoryCard({ item, onDelete }: { item: InventoryItem; onDelete: () =
         <Link href={`/inventory/view/${item.id}`} className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg ${t.chipBg} ${t.textMuted} ${t.hoverText} text-[12px] ${TYPE_WEIGHT.semibold} transition-all`}>
           <Eye className="h-3.5 w-3.5" /> View
         </Link>
-        <Link href={`/inventory/edit/${item.id}`} className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 text-white text-[12px] ${TYPE_WEIGHT.semibold} hover:brightness-110 transition-all`}>
-          <Pencil className="h-3.5 w-3.5" /> Edit
-        </Link>
+        <PrimaryButton href={`/inventory/edit/${item.id}`} icon={Pencil} fullWidth size="xs">Edit</PrimaryButton>
         <button onClick={onDelete} type="button" className={`px-4 flex items-center justify-center gap-1.5 py-2 rounded-lg ${t.chipBg} text-rose-500 hover:bg-rose-500/10 text-[12px] ${TYPE_WEIGHT.semibold} transition-all`}>
           <Trash2 className="h-3.5 w-3.5" /> Delete
         </button>
@@ -268,12 +266,7 @@ function InventoryPageContent() {
                 statusColor={(_v, row) => STATUS_COLORS[getStockStatus(row as unknown as InventoryItem)]?.replace('#', '')}
               />
             )}
-            <Link
-              href="/inventory/create"
-              className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 transition-all hover:brightness-110`}
-            >
-              <Plus className="h-3.5 w-3.5" /> New Item
-            </Link>
+            <PrimaryButton href="/inventory/create" icon={Plus}>New Item</PrimaryButton>
           </>
         }
       >
@@ -391,9 +384,7 @@ function InventoryPageContent() {
               : 'Try adjusting your search or filters.'}
           </p>
           {inventory.length === 0 && (
-            <Link href="/inventory/create" className={`inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-[13px] ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all`}>
-              <Plus className="h-3.5 w-3.5" /> Add First Item
-            </Link>
+            <PrimaryButton href="/inventory/create" icon={Plus} size="md">Add First Item</PrimaryButton>
           )}
         </div>
       ) : (

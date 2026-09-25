@@ -6,7 +6,7 @@ import { api } from '@/lib/apiClient';
 import { formatCurrency, formatCurrencyShort, nowLocal, fmtDateTime as formatDateTime, lineTotal as calcLineTotal } from '@/components/shared/utils';
 import { EXPORT_BRAND_ARGB, EXPORT_BRAND_RGB } from '@/lib/exportUtils';
 import {
-  useTheme, PageHero, StatTile, StatCard, FormField, SearchInput, PrimaryButton,
+  useTheme, PageHero, StatTile, StatCard, FormField, SearchInput, PrimaryButton, Button,
   useCollapseSection, ACCENT_HEX, Combobox, type ComboOption, TYPE_WEIGHT,
 } from '@/components/shared/theme';
 import React, { useState, useMemo, useCallback } from 'react';
@@ -637,10 +637,7 @@ function IssuesPageContent() {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <span className={`text-[11px] ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textFaint}`}>Items to Issue</span>
-                <button type="button" onClick={addItem}
-                  className={`inline-flex items-center gap-1 h-6 px-2.5 text-[11px] rounded-lg ${TYPE_WEIGHT.medium} ${t.chipBg} ${t.hoverBg} ${t.textMuted} transition-all`}>
-                  <Plus className="h-2.5 w-2.5" /> Add Item
-                </button>
+                <Button type="button" variant="subtle" size="xs" icon={Plus} iconPosition="end" onClick={addItem}>Add Item</Button>
               </div>
 
               <div className={`grid gap-2 px-1 mb-1 text-[10px] uppercase tracking-wider ${t.textFaint}`}

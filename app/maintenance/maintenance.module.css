@@ -1,0 +1,254 @@
+/* Work-order status chips and a few layout extras on top of the Tools visual language. */
+.woStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: calc(11px * var(--font-scale, 1));
+  white-space: nowrap;
+  color: var(--muted-ink);
+}
+.woStatus i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #9182b8;
+}
+.woStatus[data-status='pending'] i,
+.woStatus[data-status='on-hold'] i { background: var(--amber); }
+.woStatus[data-status='in-progress'] i { background: var(--brand); }
+.woStatus[data-status='completed'] i { background: var(--success); }
+.woStatus[data-status='cancelled'] i,
+.woStatus[data-status='postponed'] i,
+.woStatus[data-status='not-done'] i { background: var(--muted-ink); }
+.woStatus[data-status='overdue'] { color: var(--amber); }
+.woStatus[data-status='overdue'] i { background: var(--amber); }
+.woStatus + .woStatus { margin-left: 8px; }
+
+.progress {
+  height: 3px;
+  border-radius: 99px;
+  background: var(--soft);
+  overflow: hidden;
+}
+.progress > i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--brand);
+}
+
+.mark {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  flex-shrink: 0;
+  border: 1px solid color-mix(in srgb, var(--brand) 18%, var(--line));
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--brand) 8%, var(--paper));
+  color: var(--brand);
+  font-size: calc(11px * var(--font-scale, 1));
+  font-weight: 650;
+  letter-spacing: -.02em;
+}
+.miniMark {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+}
+
+.bulkBar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0 16px;
+}
+
+.danger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 8px;
+  color: #c73b46;
+  background: color-mix(in srgb, #d94b55 8%, var(--paper));
+  border: 1px solid color-mix(in srgb, #d94b55 32%, var(--line));
+  font-size: calc(11px * var(--font-scale, 1));
+}
+.danger:hover { background: color-mix(in srgb, #d94b55 13%, var(--paper)); }
+
+.errorBanner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  border: 1px solid color-mix(in srgb, var(--amber) 28%, var(--line));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--amber) 6%, var(--paper));
+}
+.errorBanner strong { display: block; font-size: calc(12px * var(--font-scale, 1)); font-weight: 550; }
+.errorBanner p { margin: 4px 0 0; font-size: calc(11px * var(--font-scale, 1)); color: var(--muted-ink); }
+
+.analyticsWrap {
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: var(--paper);
+  overflow: hidden;
+}
+
+.page {
+  background: var(--canvas);
+  min-height: 100%;
+}
+.workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  min-height: auto;
+  padding: 12px clamp(16px, 2.5vw, 40px) 36px;
+}
+
+.glance {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  padding: 13px 0;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.glance button {
+  padding: 0 16px;
+  border-right: 1px solid var(--line);
+  text-align: left;
+  background: transparent;
+}
+.glance button:last-child { border-right: 0; }
+.glance button > span {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  color: var(--muted-ink);
+  font-size: calc(11px * var(--font-scale, 1));
+}
+.glance strong {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: calc(25px * var(--font-scale, 1));
+  font-weight: 350;
+  line-height: 1.3;
+  letter-spacing: -.04em;
+  font-variant-numeric: tabular-nums;
+}
+.glance strong small {
+  font-size: max(11px, calc(10px * var(--font-scale, 1)));
+  letter-spacing: 0;
+  color: var(--muted-ink);
+}
+.glance strong > svg { opacity: 0; color: var(--brand); transition: opacity .2s; }
+.glance button:hover strong > svg,
+.glance button:focus-visible strong > svg { opacity: 1; }
+
+.picks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.picks button {
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--canvas);
+  color: var(--muted-ink);
+  font-size: calc(11px * var(--font-scale, 1));
+}
+.picks button[aria-pressed='true'] {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+
+.preview {
+  padding: 14px 18px 16px 72px;
+  background: var(--soft);
+  border-bottom: 1px solid var(--line);
+}
+.facts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px 20px;
+}
+.fact span {
+  display: block;
+  font-size: max(11px, calc(10px * var(--font-scale, 1)));
+  color: var(--muted-ink);
+}
+.fact strong {
+  display: block;
+  margin-top: 3px;
+  font-size: calc(12px * var(--font-scale, 1));
+  font-weight: 500;
+}
+.note {
+  grid-column: 1 / -1;
+}
+.note p {
+  margin: 4px 0 0;
+  font-size: calc(11px * var(--font-scale, 1));
+  color: var(--muted-ink);
+  line-height: 1.55;
+}
+.spares {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+.spares span {
+  padding: 3px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--paper);
+  color: var(--muted-ink);
+  font-size: max(11px, calc(10px * var(--font-scale, 1)));
+}
+
+.check {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid var(--line);
+  border-radius: 4px;
+  background: var(--paper);
+  flex-shrink: 0;
+}
+.check[data-on='true'] {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--brand-ink);
+}
+.check[data-mixed='true'] {
+  background: color-mix(in srgb, var(--brand) 45%, var(--paper));
+  border-color: var(--brand);
+}
+
+.selectedRow td {
+  background: color-mix(in srgb, var(--brand) 4%, var(--paper));
+}
+
+@media (max-width: 1180px) {
+  .glance { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 16px; }
+  .glance button:nth-child(3) { border-right: 0; }
+  .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+  .glance { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .glance button:nth-child(2n) { border-right: 0; }
+  .glance button:nth-child(3) { border-right: 1px solid var(--line); }
+  .preview { padding-left: 16px; }
+  .facts { grid-template-columns: 1fr; }
+}

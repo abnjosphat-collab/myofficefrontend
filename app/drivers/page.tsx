@@ -5,7 +5,7 @@ import { AppShell } from '@/components/app-shell';
 import {
   useTheme, STATUS_TONE, PageHero, StatTile, StatusBadge, FormField, FormActions,
   SearchInput, ViewToggle, CenterModal, PrimaryButton, EmptyState, useCollapseSection, SelectField,
-  GroupSection, RecordCard, ACCENT_HEX, staggerContainer, fadeUp, InfoRow, SummaryItem, LoadingState, TYPE_WEIGHT,
+  GroupSection, RecordCard, ACCENT_HEX, staggerContainer, fadeUp, InfoRow, SummaryItem, LoadingState, TYPE_WEIGHT, Button,
 } from '@/components/shared/theme';
 import { formatDate } from '@/lib/format';
 import React, { useState, useEffect, useMemo } from 'react';
@@ -167,9 +167,7 @@ function PhoneRows({ phones, onChange }: { phones: string[]; onChange: (v: strin
         </div>
       ))}
       {phones.length < 4 && (
-        <button type="button" onClick={add} className="text-[11px] text-[#86BBD8] hover:opacity-80 transition-colors flex items-center gap-1 mt-0.5">
-          <Plus className="h-3 w-3" /> Add number
-        </button>
+        <Button type="button" variant="ghost" size="xs" icon={Plus} iconPosition="end" className="mt-0.5" onClick={add}>Add number</Button>
       )}
     </div>
   );
@@ -286,9 +284,7 @@ function DriverCard({ driver, onEdit, onDelete }: { driver: Driver; onEdit: () =
         </div>
       }
       actions={<>
-        <button onClick={onEdit} type="button" className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 text-white text-[12px] ${TYPE_WEIGHT.semibold} hover:brightness-110 transition-all`}>
-          <Pencil className="h-3.5 w-3.5" /> Edit
-        </button>
+        <PrimaryButton icon={Pencil} fullWidth size="xs" onClick={onEdit}>Edit</PrimaryButton>
         <button onClick={onDelete} type="button" className={`px-4 flex items-center justify-center gap-1.5 py-2 rounded-lg ${t.chipBg} text-rose-500 hover:bg-rose-500/10 text-[12px] ${TYPE_WEIGHT.semibold} transition-all`}>
           <Trash2 className="h-3.5 w-3.5" /> Delete
         </button>

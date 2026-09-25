@@ -279,10 +279,7 @@ function AdminContent() {
         actions={
           <div className="flex items-center gap-2">
             {isAtLeast('admin') && (
-              <button type="button" onClick={() => setInviteOpen(true)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all`}>
-                <UserPlus className="h-3.5 w-3.5" /> Invite user
-              </button>
+              <PrimaryButton icon={UserPlus} onClick={() => setInviteOpen(true)}>Invite user</PrimaryButton>
             )}
             <button type="button" onClick={fetchUsers}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs ${TYPE_WEIGHT.medium} transition-all ${t.chipBg} ${t.hoverBg} ${t.textMuted} ${t.hoverText}`}>

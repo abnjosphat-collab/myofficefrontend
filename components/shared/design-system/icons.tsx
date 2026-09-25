@@ -17,6 +17,7 @@
 
 import { createContext, useContext, useState, useEffect, useMemo, type ReactNode, type ElementType } from 'react';
 import { IconContext } from '@phosphor-icons/react';
+import { useTheme } from './tokens';
 
 // Type alias for an icon component prop (was lucide's `LucideIcon`); ElementType
 // accepts any icon component (Phosphor, custom SVG) passed to an `icon={}` prop.
@@ -413,11 +414,15 @@ export { CircleHalf as IconStyleGlyph } from '@phosphor-icons/react';
 // Additional logical names used by legacy .js components (maintenance, forms, etc.).
 export {
   BatteryCharging,
+  ChartLineUp,
+  DownloadSimple,
   HouseLine,
+  IdentificationCard,
   Kanban,
   ListChecks as ListTodo,
   QrCode,
   Rocket,
+  SquaresFour,
   TextAa,
   Wrench as Tool,
 } from '@phosphor-icons/react';
@@ -440,6 +445,7 @@ export const useIconStyle = () => useContext(IconStyleContext);
  *  inside ThemeProvider is fine. Bridges the persisted preference to Phosphor's
  *  IconContext `weight`, so every Phosphor icon flips solid↔outline together. */
 export function IconStyleProvider({ children }: { children: ReactNode }) {
+  const { design } = useTheme();
   const [iconStyle, setIconStyleState] = useState<IconStyle>('solid');
   useEffect(() => {
     try {
@@ -456,13 +462,14 @@ export function IconStyleProvider({ children }: { children: ReactNode }) {
     iconStyle, setIconStyle,
     toggleIconStyle: () => setIconStyle(iconStyle === 'solid' ? 'outline' : 'solid'),
   }), [iconStyle]);
+  const weight = design === 'dallaglio' ? 'light' : iconStyle === 'solid' ? 'fill' : 'regular';
   return (
     <IconStyleContext.Provider value={value}>
       {/* size:24 (not Phosphor's '1em' default) matches lucide-react's original 24px
           default, so any icon rendered WITHOUT an explicit size class / `size` prop keeps
           its pre-migration size. Icons with Tailwind h-/w-/size-* (CSS) or an explicit
           `size` prop override this, so they're unaffected. */}
-      <IconContext.Provider value={{ color: 'currentColor', size: 24, weight: iconStyle === 'solid' ? 'fill' : 'regular', mirrored: false }}>
+      <IconContext.Provider value={{ color: 'currentColor', size: 24, weight, mirrored: false }}>
         {children}
       </IconContext.Provider>
     </IconStyleContext.Provider>

@@ -7,9 +7,8 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { ChevronDown, LogIn, LogOut, Settings, Shield, SlidersHorizontal, UserPlus } from '@/components/shared/theme';
+import { ChevronDown, LogIn, LogOut, Settings, Shield, SlidersHorizontal, UserPlus, PrimaryButton } from '@/components/shared/theme';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
@@ -86,7 +85,7 @@ export function AuthForm({ defaultMode = 'login', onClose, redirectTo }: {
     <div className={`${t.glass} ${t.shadow} rounded-2xl p-6`}>
       <div className="text-center mb-5">
         <div className="flex justify-center mb-3">
-          <div className="h-10 w-10 rounded-full bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center text-white font-bold font-heading text-sm">O</div>
+          <div className={`h-10 w-10 rounded-full flex items-center justify-center text-sm font-medium ${t.cta}`}>O</div>
         </div>
         <h2 className={`text-lg font-bold font-heading ${t.textPrimary}`}>{mode === 'login' ? 'Welcome back' : 'Create your account'}</h2>
         <p className={`text-xs mt-1 ${t.textFaint}`}>{mode === 'login' ? 'Sign in to access MyOffice' : 'Join your team on MyOffice'}</p>
@@ -124,14 +123,9 @@ export function AuthForm({ defaultMode = 'login', onClose, redirectTo }: {
           <Input type="password" placeholder="Minimum 6 characters" value={password} onChange={e => setPassword(e.target.value)} className={`text-sm ${t.inputBg}`} required minLength={6} />
         </div>
         {error && <div className="text-red-500 text-xs bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</div>}
-        <Button type="submit" disabled={loading} className="w-full bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 text-white font-semibold mt-1">
-          {loading ? (
-            <span className="flex items-center gap-2">
-              <div className="h-3.5 w-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              {mode === 'login' ? 'Signing in…' : 'Creating account…'}
-            </span>
-          ) : mode === 'login' ? 'Sign In' : 'Create Account'}
-        </Button>
+        <PrimaryButton type="submit" size="md" fullWidth submitting={loading} className="mt-1">
+          {mode === 'login' ? 'Sign In' : 'Create Account'}
+        </PrimaryButton>
         <p className={`text-center text-xs pt-1 ${t.textFaint}`}>
           {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
           <button type="button" onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError(''); }} className={`font-semibold hover:underline ${t.linkText}`}>
@@ -182,7 +176,7 @@ export function AuthMenu({ onPreferences }: { onPreferences?: () => void }) {
         </Dialog>
         <Dialog>
           <DialogTrigger asChild>
-            <button type="button" className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 transition-all hover:brightness-110">
+            <button type="button" className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-medium ${t.cta}`}>
               <UserPlus className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Get Started</span>
             </button>
           </DialogTrigger>
@@ -215,7 +209,7 @@ export function AuthMenu({ onPreferences }: { onPreferences?: () => void }) {
           <button className={`flex items-center gap-1.5 h-11 pl-2 pr-2.5 rounded-lg ${t.hoverBg} transition-colors`} type="button" title={displayName} aria-label={`Account menu — ${displayName}`}>
             <Avatar className="h-7 w-7 ring-1 ring-white/10">
               {avatarUrl && <AvatarImage src={avatarUrl} alt={displayName} />}
-              <AvatarFallback className="bg-gradient-to-br from-slate-600 to-slate-800 text-white text-[11px] font-medium">{initials}</AvatarFallback>
+              <AvatarFallback className={`text-white text-[11px] font-medium ${t.cta}`}>{initials}</AvatarFallback>
             </Avatar>
             <ChevronDown className={`h-3.5 w-3.5 ${t.textFaint} hidden lg:block`} />
           </button>
@@ -224,7 +218,7 @@ export function AuthMenu({ onPreferences }: { onPreferences?: () => void }) {
           <div className="flex items-center gap-3 px-2 py-2">
             <Avatar className="h-9 w-9 ring-1 ring-white/10">
               {avatarUrl && <AvatarImage src={avatarUrl} alt={displayName} />}
-              <AvatarFallback className="bg-gradient-to-br from-slate-600 to-slate-800 text-white text-xs font-medium">{initials}</AvatarFallback>
+              <AvatarFallback className={`text-white text-xs font-medium ${t.cta}`}>{initials}</AvatarFallback>
             </Avatar>
             <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold truncate">{displayName}</p>

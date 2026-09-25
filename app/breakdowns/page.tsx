@@ -24,7 +24,7 @@ import { exportFilename } from '@/lib/exportUtils';
 import { lineTotal } from '@/components/shared/utils';
 import {
   useTheme, PageHero, StatTile, StatusBadge, ViewToggle,
-  FormField, FormActions, useCollapseSection, CenterModal, ACCENT_HEX, GlowCard, SelectField, accentText, HintText, TYPE_WEIGHT,
+  FormField, FormActions, useCollapseSection, CenterModal, ACCENT_HEX, GlowCard, SelectField, accentText, HintText, TYPE_WEIGHT, PrimaryButton, Button,
 } from '@/components/shared/theme';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -340,8 +340,8 @@ function DetailsModal({ breakdown, isOpen, onClose, onEdit, onDelete }: {
 
         <div className="flex gap-2 pt-2">
           <button type="button" onClick={onClose} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border}`}>Close</button>
-          <button type="button" onClick={() => { onEdit(breakdown); onClose(); }} className={`flex-1 py-2.5 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-amber-500 to-amber-700 hover:brightness-110`}>Edit</button>
-          <button type="button" onClick={() => { onDelete(breakdown); onClose(); }} className={`flex-1 py-2.5 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-rose-500 to-rose-700 hover:brightness-110`}>Delete</button>
+          <PrimaryButton size="md" fullWidth accent="amber" onClick={() => { onEdit(breakdown); onClose(); }}>Edit</PrimaryButton>
+          <PrimaryButton danger size="md" fullWidth onClick={() => { onDelete(breakdown); onClose(); }}>Delete</PrimaryButton>
         </div>
       </div>
     </CenterModal>
@@ -495,7 +495,7 @@ function FormModal({ isOpen, onClose, onSubmit, initialData, mode = 'create' }: 
                 <input aria-label="Quantity" type="number" className={inputCls} placeholder="Quantity" value={String(spareForm.quantity)} onChange={e => setSpareForm(p => ({ ...p, quantity: parseInt(e.target.value) || 1 }))} />
                 <input aria-label="Unit Price" type="number" className={inputCls} placeholder="Unit Price" value={String(spareForm.unit_price)} onChange={e => setSpareForm(p => ({ ...p, unit_price: parseFloat(e.target.value) || 0 }))} />
               </div>
-              <button type="button" onClick={addSpare} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs ${TYPE_WEIGHT.semibold} bg-brand-500/15 text-brand-400 hover:bg-brand-500/25 transition-all`}><Plus className="h-3.5 w-3.5" />Add Spare</button>
+              <Button type="button" variant="subtle" size="xs" icon={Plus} iconPosition="end" onClick={addSpare}>Add Spare</Button>
               {errors.spare && <p className="mt-1 text-[11px] text-rose-500">{errors.spare}</p>}
             </div>
             {fd.spares_used.length > 0 && (
@@ -646,7 +646,7 @@ function BreakdownsPageContent() {
                 formats={['excel']}
               />
             )}
-            <button type="button" onClick={handleCreate} className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all`}><Plus className="h-3.5 w-3.5" /> New Breakdown</button>
+            <PrimaryButton icon={Plus} onClick={handleCreate}>New Breakdown</PrimaryButton>
           </>
         }
       >
@@ -716,14 +716,14 @@ function BreakdownsPageContent() {
               <div className={`mx-auto w-14 h-14 rounded-full ${t.chipBg} flex items-center justify-center mb-4`}><AlertTriangle className={`h-6 w-6 ${t.light ? 'text-rose-600/70' : 'text-rose-400/70'}`} /></div>
               <p className={`text-sm ${TYPE_WEIGHT.medium} ${t.textMuted}`}>Could not load breakdowns</p>
               <p className={`text-xs mt-1 mb-4 ${t.textFaint}`}>{loadError}</p>
-              <button type="button" onClick={() => loadBreakdowns()} className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110`}><Loader2 className="h-4 w-4" />Try again</button>
+              <PrimaryButton icon={Loader2} size="md" onClick={() => loadBreakdowns()}>Try again</PrimaryButton>
             </div>
           ) : filteredBreakdowns.length === 0 ? (
             <div className="text-center py-16">
               <div className={`mx-auto w-14 h-14 rounded-full ${t.chipBg} flex items-center justify-center mb-4`}><AlertTriangle className="h-6 w-6 text-brand-400/60" /></div>
               <p className={`text-sm ${TYPE_WEIGHT.medium} ${t.textMuted}`}>No breakdowns found</p>
               <p className={`text-xs mt-1 mb-4 ${t.textFaint}`}>Try clearing filters or log a new breakdown</p>
-              <button type="button" onClick={handleCreate} className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110`}><Plus className="h-4 w-4" />Log First Breakdown</button>
+              <PrimaryButton icon={Plus} size="md" onClick={handleCreate}>Log First Breakdown</PrimaryButton>
             </div>
           ) : viewMode === 'grid' ? (
             <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -748,7 +748,7 @@ function BreakdownsPageContent() {
           <p className={`text-sm ${t.textMuted}`}>Delete the breakdown record for &quot;{deleteTarget?.machine_name}&quot; on {deleteTarget?.breakdown_date}? This cannot be undone.</p>
           <div className="flex gap-2">
             <button type="button" onClick={() => setDeleteTarget(null)} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border}`}>Cancel</button>
-            <button type="button" onClick={confirmDelete} className={`flex-1 py-2.5 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-rose-500 to-rose-700 hover:brightness-110 inline-flex items-center justify-center gap-2`}><Trash2 className="h-4 w-4" /> Delete</button>
+            <PrimaryButton danger size="md" fullWidth icon={Trash2} onClick={confirmDelete}>Delete</PrimaryButton>
           </div>
         </div>
       </CenterModal>

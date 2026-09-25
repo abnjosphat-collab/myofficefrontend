@@ -19,7 +19,7 @@ import {
 } from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
 import { PredictiveInput } from '@/components/shared/PredictiveInput';
-import { useTheme, PageHero, ACCENT_HEX, useCollapseSection, EmptyState, accentText, TYPE_WEIGHT } from '@/components/shared/theme';
+import { useTheme, PageHero, ACCENT_HEX, useCollapseSection, EmptyState, accentText, TYPE_WEIGHT, PrimaryButton, Button as DsButton } from '@/components/shared/theme';
 import { ShiftTimeRangeField } from '@/components/shared/design-system';
 import {
   DEFAULT_DAY_SHIFT_END, DEFAULT_DAY_SHIFT_START, TIMESHEET_BULK_SHIFT_PRESETS, isDefaultDayShiftTimes,
@@ -2142,14 +2142,12 @@ function TimesheetsContent() {
                 link — this is the page-level entry point for it (previously only reachable
                 per-employee, which made bulk entry easy to miss). Seeded with the first
                 roster employee; anyone can be added or removed inside the dialog. */}
-            <button type="button" title="Bulk-enter shifts for one or many employees at once" disabled={tabEmployees.length === 0}
-              onClick={() => openBulkAssign({ anchorEmployee: tabEmployees[0] })}
-              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg text-white ${TYPE_WEIGHT.semibold} bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all disabled:opacity-40`}>
-              <Layers className="h-3.5 w-3.5" /> Bulk Entry
-            </button>
-            <button type="button" title="Add employees to this period roster" onClick={() => setShowBulkAdd(true)} className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textMuted} transition-all`}>
-              <UserPlus className="h-3.5 w-3.5" /> Add Employees
-            </button>
+            <PrimaryButton icon={Layers} disabled={tabEmployees.length === 0}
+              title="Bulk-enter shifts for one or many employees at once"
+              onClick={() => openBulkAssign({ anchorEmployee: tabEmployees[0] })}>
+              Bulk Entry
+            </PrimaryButton>
+            <DsButton type="button" variant="subtle" size="xs" icon={UserPlus} iconPosition="end" title="Add employees to this period roster" onClick={() => setShowBulkAdd(true)}>Add Employees</DsButton>
           </>
         }
       >

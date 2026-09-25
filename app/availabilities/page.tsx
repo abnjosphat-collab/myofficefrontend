@@ -14,7 +14,7 @@ import {
 import { AppShell } from '@/components/app-shell';
 import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, ProgressBar, FormField, FormActions,
-  useCollapseSection, CenterModal, ACCENT_HEX, EmptyState, PrimaryButton, SelectField, accentText, TYPE_WEIGHT,
+  useCollapseSection, CenterModal, ACCENT_HEX, EmptyState, PrimaryButton, SelectField, accentText, TYPE_WEIGHT, Button,
 } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { PillTabs } from '@/components/shared/PillTabs';
@@ -493,7 +493,7 @@ function AvailabilitiesContent() {
         <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
           <div className={`flex items-center justify-between px-5 py-3 border-b ${t.border}`}>
             <div className="flex items-center gap-2"><FileText className="h-4 w-4 text-brand-400" /><span className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>All Records ({filtered.length})</span></div>
-            <button type="button" onClick={openNew} className={`flex items-center gap-1.5 h-7 px-2.5 rounded-lg text-xs ${TYPE_WEIGHT.medium} bg-brand-500/15 hover:bg-brand-500/25 text-brand-400 transition-colors`}><Plus className="h-3.5 w-3.5" /> Log Record</button>
+            <Button type="button" variant="subtle" size="xs" icon={Plus} iconPosition="end" onClick={openNew}>Log Record</Button>
           </div>
           {filtered.length === 0 ? (
             <EmptyState icon={FileText} title="No Records" message="No availability records match the current filters." action={{ label: 'Log Record', onClick: openNew }} />
@@ -577,7 +577,7 @@ function AvailabilitiesContent() {
           <p className={`text-sm ${t.textMuted}`}>Delete the availability record for &ldquo;{deleteTarget?.equipment_name ?? `equipment #${deleteTarget?.equipment_id}`}&rdquo; on {deleteTarget?.date}? This cannot be undone.</p>
           <div className="flex gap-2">
             <button type="button" onClick={() => setDeleteTarget(null)} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border} transition-all`}>Cancel</button>
-            <button type="button" onClick={doDelete} className={`flex-1 py-2.5 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-rose-500 to-rose-700 hover:brightness-110 transition-all`}>Delete</button>
+            <PrimaryButton danger size="md" fullWidth onClick={doDelete}>Delete</PrimaryButton>
           </div>
         </div>
       </CenterModal>

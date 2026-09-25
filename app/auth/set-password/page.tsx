@@ -8,6 +8,7 @@
 import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { PrimaryButton } from '@/components/shared/theme';
 
 function SetPasswordForm() {
   const router = useRouter();
@@ -54,10 +55,9 @@ function SetPasswordForm() {
 
           {error && <p className="text-rose-400 text-xs">{error}</p>}
 
-          <button type="submit" disabled={submitting}
-            className="w-full h-11 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all disabled:opacity-50">
-            {submitting ? 'Saving…' : 'Save password & continue'}
-          </button>
+          <PrimaryButton type="submit" size="md" fullWidth submitting={submitting}>
+            Save password & continue
+          </PrimaryButton>
         </form>
       </div>
     </div>

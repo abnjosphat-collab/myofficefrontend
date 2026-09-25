@@ -1,0 +1,128 @@
+.shell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: var(--d-canvas);
+  color: var(--d-ink);
+  font: var(--d-type);
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-height: 52px;
+  padding: 8px 16px;
+  background: color-mix(in srgb, var(--d-canvas) 88%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--d-line) 72%, transparent);
+  backdrop-filter: blur(18px) saturate(145%);
+  box-shadow: none;
+}
+
+.wordmark {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 15px;
+  font-weight: 550;
+  letter-spacing: -0.03em;
+  color: var(--d-ink);
+}
+
+.wordmarkBadge {
+  display: grid;
+  place-items: center;
+  width: 31px;
+  height: 31px;
+  border-radius: 9px;
+  background: var(--d-surface);
+  border: 1px solid var(--d-line);
+  box-shadow: 0 3px 10px rgba(43, 39, 65, 0.05);
+}
+
+.chromeBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--d-line);
+  border-radius: 8px;
+  background: var(--d-surface);
+  color: var(--d-ink-muted);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.chromeBtn:hover,
+.chromeBtn[aria-pressed='true'] {
+  color: var(--d-accent);
+  border-color: color-mix(in srgb, var(--d-accent) 55%, var(--d-line));
+  background: var(--d-accent-soft);
+}
+
+.iconBtn {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--d-line);
+  border-radius: 8px;
+  background: var(--d-surface);
+  color: var(--d-ink-muted);
+}
+
+.iconBtn:hover {
+  color: var(--d-accent);
+  background: var(--d-accent-soft);
+}
+
+.sidebar {
+  background: var(--d-surface);
+  border-right: 1px solid var(--d-line);
+  box-shadow: none;
+}
+
+.sidebarLink {
+  min-height: 40px;
+  border-radius: 9px;
+  color: var(--d-ink-muted);
+  font-size: 11px;
+}
+
+.sidebarLink[data-active='true'] {
+  background: var(--d-accent-soft);
+  color: var(--d-accent);
+  font-weight: 600;
+}
+
+.bottom {
+  background: var(--d-surface);
+  border-top: 1px solid var(--d-line);
+  box-shadow: none;
+}
+
+.main {
+  background: var(--d-canvas);
+}
+
+@media (max-width: 820px) {
+  .topbar {
+    padding: 8px 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shell *,
+  .shell *::before,
+  .shell *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}

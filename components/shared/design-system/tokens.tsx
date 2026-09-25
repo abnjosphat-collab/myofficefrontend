@@ -4,6 +4,19 @@
 'use client';
 
 import { createContext, useContext, useState, useMemo, useEffect, useCallback, type ReactNode } from 'react';
+import { usePathname } from 'next/navigation';
+import {
+  type DesignLanguage,
+  DESIGN_KEY,
+  readDesignLanguage,
+  persistDesignLanguage,
+  isToolsPath,
+  applyDesignToDocument,
+} from './shared/design';
+import { dallaglioClasses } from './dallaglio/tokens';
+
+export type { DesignLanguage };
+export { DESIGN_KEY, readDesignLanguage };
 
 // ─── Glass surface classes (dark mode — frosted cards over photo/dark background) ──
 
@@ -36,7 +49,8 @@ export function usePrefersReducedMotion(): boolean {
   return reduced;
 }
 
-export function themeClasses(light: boolean) {
+export function themeClasses(light: boolean, design: DesignLanguage = 'classic') {
+  if (design === 'dallaglio') return dallaglioClasses(light);
   return {
     glass: light ? LIGHT_GLASS : GLASS,
     glassSoft: light ? LIGHT_GLASS_SOFT : GLASS_SOFT,
@@ -68,6 +82,8 @@ export function themeClasses(light: boolean) {
     linkText: light ? 'text-brand-600' : 'text-brand-300',
     linkHover: light ? 'hover:text-brand-700' : 'hover:text-brand-200',
     pageBg: light ? 'bg-stone-50' : 'bg-[#0c0c0b]',
+    cta: 'bg-gradient-to-br from-brand-500 to-brand-700 text-white hover:brightness-110',
+    ctaDanger: 'bg-gradient-to-br from-rose-500 to-rose-700 text-white hover:brightness-110',
   };
 }
 
@@ -80,6 +96,9 @@ export type Theme = {
   setPreference: (p: ThemePreference) => void;
   /** Quick override: sets explicit light or dark (leaves system mode). */
   toggle: () => void;
+  /** Classic = original Studio glass. Dallaglio = Tools-derived alternative. */
+  design: DesignLanguage;
+  setDesign: (d: DesignLanguage) => void;
 } & ReturnType<typeof themeClasses>;
 
 export const ThemeContext = createContext<Theme>({
@@ -87,7 +106,9 @@ export const ThemeContext = createContext<Theme>({
   preference: 'system',
   setPreference: () => {},
   toggle: () => {},
-  ...themeClasses(true),
+  design: 'classic',
+  setDesign: () => {},
+  ...themeClasses(true, 'classic'),
 });
 export const useTheme = () => useContext(ThemeContext);
 
@@ -111,9 +132,10 @@ export function resolveLightFromPreference(preference: ThemePreference): boolean
 }
 
 /** Keep `<html>` in sync for globals.css / shadcn `.dark` tokens (see layout pre-paint script). */
-export function applyThemeToDocument(light: boolean) {
+export function applyThemeToDocument(light: boolean, design: DesignLanguage = 'classic') {
   if (typeof document === 'undefined') return;
   document.documentElement.dataset.theme = light ? 'light' : 'dark';
+  applyDesignToDocument(design);
   document.documentElement.classList.toggle('dark', !light);
   document.documentElement.style.colorScheme = light ? 'light' : 'dark';
 }
@@ -121,42 +143,64 @@ export function applyThemeToDocument(light: boolean) {
 export function ThemeProvider({ children }: { children: ReactNode }) {
   // Server + first client paint stay light; app/layout.tsx inline script applies the
   // real mode before paint. This state catches up on mount, then stays authoritative.
+  const pathname = usePathname();
   const [preference, setPreferenceState] = useState<ThemePreference>('system');
   const [light, setLight] = useState(true);
+  const [design, setDesignState] = useState<DesignLanguage>(() => {
+    if (typeof document === 'undefined') return 'classic';
+    const stamped = document.documentElement.dataset.design;
+    if (stamped === 'dallaglio' || stamped === 'paper') return 'dallaglio';
+    return 'classic';
+  });
+  const appliedDesign: DesignLanguage = isToolsPath(pathname) ? 'classic' : design;
 
-  const syncFromPreference = useCallback((pref: ThemePreference) => {
+  const syncAppearance = useCallback((pref: ThemePreference, nextDesign: DesignLanguage) => {
     const nextLight = resolveLightFromPreference(pref);
     setLight(nextLight);
-    applyThemeToDocument(nextLight);
+    applyThemeToDocument(nextLight, nextDesign);
   }, []);
 
   useEffect(() => {
     const pref = readThemePreference();
+    const nextDesign = readDesignLanguage();
     setPreferenceState(pref);
-    syncFromPreference(pref);
-  }, [syncFromPreference]);
+    setDesignState(nextDesign);
+    syncAppearance(pref, isToolsPath(pathname) ? 'classic' : nextDesign);
+  }, [syncAppearance, pathname]);
 
   useEffect(() => {
     if (preference !== 'system') return;
     const media = window.matchMedia('(prefers-color-scheme: dark)');
-    const onChange = () => syncFromPreference('system');
+    const onChange = () => syncAppearance('system', design);
     media.addEventListener('change', onChange);
     return () => media.removeEventListener('change', onChange);
-  }, [preference, syncFromPreference]);
+  }, [preference, design, syncAppearance]);
 
   const setPreference = useCallback((pref: ThemePreference) => {
     setPreferenceState(pref);
     try { localStorage.setItem(THEME_KEY, pref); } catch { /* non-fatal */ }
-    syncFromPreference(pref);
-  }, [syncFromPreference]);
+    syncAppearance(pref, design);
+  }, [syncAppearance, design]);
+
+  const setDesign = useCallback((next: DesignLanguage) => {
+    setDesignState(next);
+    persistDesignLanguage(next);
+    applyThemeToDocument(light, isToolsPath(pathname) ? 'classic' : next);
+  }, [light, pathname]);
+
+  useEffect(() => {
+    applyThemeToDocument(light, appliedDesign);
+  }, [light, appliedDesign]);
 
   const value = useMemo(() => ({
     light,
     preference,
     setPreference,
     toggle: () => setPreference(light ? 'dark' : 'light'),
-    ...themeClasses(light),
-  }), [light, preference, setPreference]);
+    design,
+    setDesign,
+    ...themeClasses(light, appliedDesign),
+  }), [light, preference, setPreference, design, setDesign, appliedDesign]);
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }

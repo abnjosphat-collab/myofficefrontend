@@ -520,7 +520,7 @@ function LeaveDetailsModal({ leave, onClose, onEdit, onDelete, onStatusUpdate }:
             <div className="flex gap-2">
               <button type="button" onClick={() => { onEdit(leave); onClose(); }} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs ${TYPE_WEIGHT.medium} ${t.chipBg} ${t.hoverBg} ${t.textMuted} transition-all`}><Edit className="h-3.5 w-3.5" /> Edit</button>
               <div className="relative">
-                <button type="button" onClick={() => setShowStatusActions(v => !v)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all`}>Update Status <ChevronDown className="h-3.5 w-3.5" /></button>
+                <PrimaryButton size="xs" onClick={() => setShowStatusActions(v => !v)}>Update Status <ChevronDown className="h-3.5 w-3.5" /></PrimaryButton>
                 {showStatusActions && (
                   <>
                     <button type="button" aria-label="Close status menu" className="fixed inset-0 z-10 cursor-default" onClick={() => setShowStatusActions(false)} />

@@ -6,7 +6,7 @@ import { formatDate } from '@/lib/format';
 import { formatCurrency, lineTotal as calcLineTotal } from '@/components/shared/utils';
 import { api } from '@/lib/apiClient';
 import { EXPORT_BRAND_RGB } from '@/lib/exportUtils';
-import { useTheme, accentText, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle, FormField, FormActions, CenterModal, ACCENT_HEX, STATUS_TONE, GlowCard, SelectField, GroupSection, staggerContainer, fadeUp, Combobox, type ComboOption as SharedComboOption, TYPE_WEIGHT } from '@/components/shared/theme';
+import { useTheme, accentText, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle, FormField, FormActions, CenterModal, ACCENT_HEX, STATUS_TONE, GlowCard, SelectField, GroupSection, staggerContainer, fadeUp, Combobox, type ComboOption as SharedComboOption, TYPE_WEIGHT, PrimaryButton, Button, CloseButton } from '@/components/shared/theme';
 import { PredictiveInput } from '@/components/shared/PredictiveInput';
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
@@ -206,9 +206,7 @@ const SpareCard = React.memo(({ spare, isFavorite, isExpanded, onEdit, onDelete,
             <div className={`text-sm ${TYPE_WEIGHT.bold} ${t.textPrimary}`}>{formatCurrency(spare.unit_price)}<span className={`text-[10px] ml-1 ${t.textFaint}`}>/{spare.unit_of_measure || 'UN'}</span></div>
             <div className={`text-[10px] ${t.textFaint}`}>Inv: {formatCurrency(invValue)}</div>
           </div>
-          <button onClick={() => onAddToReq(spare)} className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs ${TYPE_WEIGHT.medium} text-white transition-all hover:-translate-y-0.5 bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110`}>
-            <ShoppingCart className="h-3 w-3" /> Add to Req
-          </button>
+          <PrimaryButton icon={ShoppingCart} size="xs" onClick={() => onAddToReq(spare)}>Add to Req</PrimaryButton>
         </div>
       </div>
 
@@ -402,7 +400,7 @@ const CategoryTagPicker = React.memo(({ selected, onChange }: { selected: string
       <div className="flex gap-1.5">
         <input type="text" value={inputVal} onChange={e => setInputVal(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustom(); } }}
           placeholder="Type a new category and press Enter…" aria-label="Add custom category" className={`flex-1 px-2.5 py-1.5 text-xs rounded-lg ${t.inputBg} focus:outline-none`} />
-        <button type="button" onClick={addCustom} className={`px-2.5 py-1.5 text-xs rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textMuted}`}>Add</button>
+        <Button type="button" variant="subtle" size="xs" icon={Plus} iconPosition="end" onClick={addCustom}>Add</Button>
       </div>
     </div>
   );
@@ -788,7 +786,7 @@ function SparesPageContent() {
               <ShoppingCart className="h-3.5 w-3.5" /> Requisition {reqLines.length > 0 && <span className="px-1 rounded-full bg-brand-500/30 text-[10px]">{reqLines.length}</span>}
             </button>
             <Link href="/spares/import"><button className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs ${TYPE_WEIGHT.semibold} ${t.textMuted} ${t.chipBg} ${t.hoverBg}`}><Upload className="h-3.5 w-3.5" /> Import Excel</button></Link>
-            <button onClick={() => { setEditingSpare(null); setFormOpen(true); }} className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all`}><Plus className="h-4 w-4" /> Add Spare</button>
+            <PrimaryButton icon={Plus} size="md" onClick={() => { setEditingSpare(null); setFormOpen(true); }}>Add Spare</PrimaryButton>
             <button title={showStats ? 'Hide stats' : 'Show stats'} onClick={() => setShowStats(v => !v)} className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}>{showStats ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}</button>
           </>
         }
@@ -874,8 +872,8 @@ function SparesPageContent() {
                 <button onClick={downloadRequisitionPDF} className="inline-flex items-center gap-1 h-6 px-2 text-[11px] rounded-lg bg-brand-500/20 hover:bg-brand-500/30 text-brand-400"><Download className="h-2.5 w-2.5" /> PDF</button>
                 <button onClick={() => { setReqLines([]); setReqHeader(defaultReqHeader); }} className={`h-6 px-2 text-[11px] rounded-lg ${t.chipBg} hover:bg-rose-500/15 ${t.textFaint} hover:text-rose-500`}>Clear</button>
               </>)}
-              <button onClick={() => addReqLine()} className={`inline-flex items-center gap-1 h-6 px-2 text-[11px] rounded-lg text-white ${TYPE_WEIGHT.medium} bg-brand-500/80 hover:bg-brand-500`}><Plus className="h-2.5 w-2.5" /> Add Line</button>
-              <button title="Close" aria-label="Close" onClick={() => setShowRequisition(false)} className={`flex h-12 w-12 min-h-12 min-w-12 cursor-pointer items-center justify-center rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textFaint}`}><X className="h-5 w-5 shrink-0 pointer-events-none" aria-hidden /></button>
+              <Button type="button" variant="subtle" size="xs" icon={Plus} iconPosition="end" onClick={() => addReqLine()}>Add Line</Button>
+              <CloseButton onClick={() => setShowRequisition(false)} />
             </div>
           </div>
 
@@ -991,7 +989,7 @@ function SparesPageContent() {
                 {activeFilterCount > 0 ? (
                   <button onClick={clearFilters} className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm ${t.textMuted} ${t.chipBg} ${t.hoverBg}`}><X className="h-4 w-4" /> Clear Filters</button>
                 ) : (
-                  <button onClick={() => setFormOpen(true)} className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110`}><Plus className="h-4 w-4" /> Add Spare Part</button>
+                  <PrimaryButton icon={Plus} size="md" onClick={() => setFormOpen(true)}>Add Spare Part</PrimaryButton>
                 )}
               </div>
             ) : viewMode === 'grid' ? (
@@ -1110,7 +1108,7 @@ function SparesPageContent() {
           <p className={`text-sm ${t.textMuted}`}>Delete this spare part? This cannot be undone.</p>
           <div className="flex gap-2">
             <button type="button" onClick={() => setDeleteId(null)} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border}`}>Cancel</button>
-            <button type="button" onClick={confirmDelete} className={`flex-1 py-2.5 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-rose-500 to-rose-700 hover:brightness-110 inline-flex items-center justify-center gap-2`}><Trash2 className="h-4 w-4" /> Delete</button>
+            <PrimaryButton danger size="md" fullWidth icon={Trash2} onClick={confirmDelete}>Delete</PrimaryButton>
           </div>
         </div>
       </CenterModal>

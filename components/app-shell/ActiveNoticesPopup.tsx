@@ -14,7 +14,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
-import { useTheme, TYPE_WEIGHT, StatusBadge, X, Pin } from '@/components/shared/theme';
+import { useTheme, TYPE_WEIGHT, StatusBadge, X, Pin, PrimaryButton } from '@/components/shared/theme';
 import { useNoticeAlerts } from './useNoticeAlerts';
 import { useNotifications } from './useNotifications';
 import type { Notice } from '@/app/noticeboard/types';
@@ -116,10 +116,7 @@ export function ActiveNoticesPopup() {
                   <StatusBadge color={PRIORITY_ACCENT[notice.priority] ?? '#94a3b8'} label={notice.priority} />
                 </div>
                 {notice.requires_acknowledgment && (
-                  <button type="button" onClick={e => { e.stopPropagation(); dismiss(notice.id); }}
-                    className={`shrink-0 text-[11px] ${TYPE_WEIGHT.semibold} px-2.5 py-1 rounded-lg text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all`}>
-                    Got it
-                  </button>
+                  <PrimaryButton size="xs" className="shrink-0" onClick={e => { e.stopPropagation(); dismiss(notice.id); }}>Got it</PrimaryButton>
                 )}
               </div>
             </div>

@@ -8,8 +8,8 @@
 import { useState } from 'react';
 import {
   useTheme, CenterModal, useFontStyle, FONT_OPTIONS, useFontScale, FONT_SCALE_OPTIONS,
-  Moon, Sun, Monitor, Type, LayoutGrid, List, ChevronsDownUp, Check,
-  type ThemePreference,
+  Moon, Sun, Monitor, Type, LayoutGrid, List, ChevronsDownUp, Check, Palette,
+  type ThemePreference, type DesignLanguage,
 } from '@/components/shared/theme';
 import { clearInputHistory } from '@/lib/inputHistory';
 import {
@@ -94,6 +94,21 @@ export function PreferencesPanel({
           />
         </Row>
 
+        <Row
+          icon={Palette}
+          label="Design"
+          hint="Classic is the original MyOffice glass language. Dallaglio is the Tools-derived alternative — its own tokens, components, and shell. Appearance (light/dark) is independent. Tools & Equipment keeps its own look."
+        >
+          <Segmented<DesignLanguage>
+            value={t.design}
+            options={[
+              { id: 'classic', label: 'Classic' },
+              { id: 'dallaglio', label: 'Dallaglio' },
+            ]}
+            onChange={t.setDesign}
+          />
+        </Row>
+
         <Row icon={Type} label="Font" hint="Body typeface">
           <Segmented
             value={font}
@@ -141,7 +156,7 @@ export function PreferencesPanel({
 
       <div className={`flex items-center justify-end gap-2 px-5 py-3 border-t ${t.border}`}>
         <button type="button" onClick={close}
-          className="flex items-center gap-1.5 h-8 px-3.5 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all">
+          className={`flex items-center gap-1.5 h-8 px-3.5 rounded-lg text-[13px] font-semibold transition-all ${t.cta}`}>
           {welcome ? <><Check className="h-3.5 w-3.5" /> Done</> : 'Close'}
         </button>
       </div>

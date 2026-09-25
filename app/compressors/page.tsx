@@ -20,7 +20,7 @@ import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButto
 import { exportFilename } from '@/lib/exportUtils';
 import {
   useTheme, STATUS_TONE, PageHero, StatTile, StatusBadge, ViewToggle,
-  FormField, useCollapseSection, CenterModal, ProgressBar, ACCENT_HEX, GlowCard, SelectField, accentText, TYPE_WEIGHT,
+  FormField, useCollapseSection, CenterModal, ProgressBar, ACCENT_HEX, GlowCard, SelectField, accentText, TYPE_WEIGHT, PrimaryButton,
 } from '@/components/shared/theme';
 import type {
   AddCompressorFormData, Compressor, CompressorInput, Filters,
@@ -256,10 +256,7 @@ function CompressorReadingsSystem() {
             <input type="text" aria-label="Notes" value={inp.notes || ''} disabled={saving} placeholder="Add notes…" onChange={e => setCompressorInputs(p => ({ ...p, [compressor.id]: { ...p[compressor.id], notes: e.target.value } }))} className={inputCls} />
           </FormField>
 
-          <button type="button" onClick={handleSave} disabled={saving}
-            className={`w-full py-2 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all disabled:opacity-50 flex items-center justify-center gap-2`}>
-            {saving ? <><Loader2 className="h-4 w-4 animate-spin" />Saving…</> : 'Save Entry'}
-          </button>
+          <PrimaryButton fullWidth size="md" submitting={saving} onClick={handleSave}>Save Entry</PrimaryButton>
         </div>
       </GlowCard>
     );
@@ -293,9 +290,7 @@ function CompressorReadingsSystem() {
           </div>
           <div className={`flex gap-2 pt-2 border-t ${t.border}`}>
             <button type="button" onClick={() => setShowAddCompressor(false)} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border}`}>Cancel</button>
-            <button type="submit" disabled={isSaving.type === 'add'} className={`flex-1 py-2.5 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 disabled:opacity-50 inline-flex items-center justify-center gap-2`}>
-              {isSaving.type === 'add' ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />Adding…</> : 'Add Compressor'}
-            </button>
+            <PrimaryButton type="submit" size="md" fullWidth submitting={isSaving.type === 'add'}>Add Compressor</PrimaryButton>
           </div>
         </form>
       </CenterModal>
@@ -323,10 +318,10 @@ function CompressorReadingsSystem() {
           <p className={`text-xs ${t.textFaint}`}>Current: <span className={`${TYPE_WEIGHT.semibold} ${t.textMuted}`}>{STATUS_CONFIG[statusUpdateDialog.currentStatus]?.label ?? 'Unknown'}</span></p>
           <div className="flex gap-2">
             <button type="button" onClick={() => setStatusUpdateDialog({ open: false, compressorId: null, currentStatus: '' })} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border}`}>Cancel</button>
-            <button type="button" onClick={async () => { try { await updateCompressorStatus(statusUpdateDialog.compressorId, sel); setStatusUpdateDialog({ open: false, compressorId: null, currentStatus: '' }); } catch { /* handled */ } }} disabled={isSaving.type === 'status' || sel === statusUpdateDialog.currentStatus}
-              className={`flex-1 py-2.5 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 disabled:opacity-50 inline-flex items-center justify-center gap-2`}>
-              {isSaving.type === 'status' ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />Updating…</> : 'Update Status'}
-            </button>
+            <PrimaryButton size="md" fullWidth submitting={isSaving.type === 'status'} disabled={sel === statusUpdateDialog.currentStatus}
+              onClick={async () => { try { await updateCompressorStatus(statusUpdateDialog.compressorId, sel); setStatusUpdateDialog({ open: false, compressorId: null, currentStatus: '' }); } catch { /* handled */ } }}>
+              Update Status
+            </PrimaryButton>
           </div>
         </div>
       </CenterModal>
@@ -371,9 +366,7 @@ function CompressorReadingsSystem() {
                 formats={['excel']}
               />
             )}
-            <button type="button" onClick={() => setShowAddCompressor(true)} className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all`}>
-              <Plus className="h-3.5 w-3.5" /> Add Compressor
-            </button>
+            <PrimaryButton icon={Plus} onClick={() => setShowAddCompressor(true)}>Add Compressor</PrimaryButton>
           </>
         }
       >
@@ -502,9 +495,7 @@ function CompressorReadingsSystem() {
                 <Gauge className={`h-12 w-12 ${t.textFaint} mx-auto mb-4`} />
                 <p className={`text-sm ${TYPE_WEIGHT.medium} ${t.textMuted}`}>No compressors found</p>
                 <p className={`text-xs mt-1 mb-4 ${t.textFaint}`}>Adjust filters or add a new compressor</p>
-                <button type="button" onClick={() => setShowAddCompressor(true)} className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all`}>
-                  <Plus className="h-4 w-4" />Add First Compressor
-                </button>
+                <PrimaryButton icon={Plus} size="md" onClick={() => setShowAddCompressor(true)}>Add First Compressor</PrimaryButton>
               </div>
             )}
           </div>
@@ -536,10 +527,10 @@ function CompressorReadingsSystem() {
                       <div className={`${t.chipBg} rounded-lg p-2`}><div className={`mb-0.5 ${t.textFaint}`}>Urgency</div><StatusBadge color={URGENCY_COLOR[svc.urgency] ?? URGENCY_COLOR.low} label={svc.urgency} /></div>
                     </div>
                     <ProgressBar value={(svc.current_hours / svc.next_service_hours) * 100} color={ACCENT_HEX.blue} showValue={false} />
-                    <button type="button" onClick={() => markServiceCompleted(svc.compressor_id, svc.service_interval)} disabled={isSaving.id === svc.compressor_id}
-                      className={`mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-emerald-500 to-emerald-700 hover:brightness-110 disabled:opacity-50 transition-all`}>
-                      {isSaving.id === svc.compressor_id ? <><Loader2 className="h-3 w-3 animate-spin" />Processing…</> : <><CheckCircle2 className="h-3.5 w-3.5" />Mark as Done</>}
-                    </button>
+                    <PrimaryButton icon={CheckCircle2} accent="emerald" size="xs" className="mt-3" submitting={isSaving.id === svc.compressor_id}
+                      onClick={() => markServiceCompleted(svc.compressor_id, svc.service_interval)}>
+                      Mark as Done
+                    </PrimaryButton>
                   </GlowCard>
                 ))}
                 {upcomingServices.length === 0 && (

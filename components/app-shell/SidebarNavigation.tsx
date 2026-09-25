@@ -118,9 +118,12 @@ export function SidebarNavigation({
         onMouseEnter={() => collapsed && setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         onScroll={handleScroll}
+        data-ds="panel"
         className={`fixed top-11 left-0 h-[calc(100vh-44px)] ${visuallyCollapsed ? 'lg:w-[76px]' : 'lg:w-64'} w-64 ${t.glass} border-y-0 border-l-0 z-40 transition-[transform,width,box-shadow] duration-300 overflow-y-auto overflow-x-hidden flex flex-col ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}
         style={{
-          boxShadow: t.light
+          boxShadow: t.design === 'dallaglio'
+            ? '1px 0 0 var(--ds-line, #e6e3ee)'
+            : t.light
             ? `10px 0 32px -18px rgba(15,23,42,0.28), 1px 0 0 rgba(15,23,42,0.04), 0 0 40px -20px ${rgbaFromHexSafe(accentHex, 0.35)} inset`
             : `10px 0 40px -16px rgba(0,0,0,0.55), 1px 0 0 rgba(255,255,255,0.04), 0 0 40px -20px ${rgbaFromHexSafe(accentHex, 0.4)} inset`,
         }}

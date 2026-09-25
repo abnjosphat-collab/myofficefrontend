@@ -21,7 +21,7 @@ import { AppShell } from '@/components/app-shell';
 import { formatDate } from '@/lib/format';
 import {
   useTheme, STATUS_TONE, PageHero, StatTile, StatusBadge as ThemeStatusBadge, SearchInput, ProgressBar, FormField,
-  useCollapseSection, CenterModal, ACCENT_HEX, EmptyState, PrimaryButton, GlowCard, SelectField, accentText, TYPE_WEIGHT,
+  useCollapseSection, CenterModal, ACCENT_HEX, EmptyState, PrimaryButton, GlowCard, SelectField, accentText, TYPE_WEIGHT, Button,
 } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
@@ -797,7 +797,7 @@ function ShiftAssignForm({ open, onClose, editing, employees, onSaved }: { open:
         <div className={`${t.chipBg} rounded-xl overflow-hidden`}>
           <div className={`flex items-center justify-between px-3.5 py-2.5 border-b ${t.border}`}>
             <div className="flex items-center gap-2"><Clock className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textMuted}`}>Shift Timing</span></div>
-            <button type="button" onClick={() => setForm(p => ({ ...p, shift_timing_periods: [...p.shift_timing_periods, { from: p.cycle_start_date, to: p.cycle_start_date, label: p.shift_label || '', start_time: '', end_time: '' }] }))} className="text-xs px-2 py-1 rounded-lg bg-brand-500/10 text-brand-400/80 hover:bg-brand-500/20 transition-all">+ Add Block</button>
+            <Button type="button" variant="subtle" size="xs" icon={Plus} iconPosition="end" onClick={() => setForm(p => ({ ...p, shift_timing_periods: [...p.shift_timing_periods, { from: p.cycle_start_date, to: p.cycle_start_date, label: p.shift_label || '', start_time: '', end_time: '' }] }))}>Add Block</Button>
           </div>
           <div className="px-3.5 py-3 space-y-4">
             <div>
@@ -855,7 +855,7 @@ function ShiftAssignForm({ open, onClose, editing, employees, onSaved }: { open:
           <div className="rounded-xl bg-amber-500/[0.05] overflow-hidden">
             <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-amber-500/15">
               <div className="flex items-center gap-2"><Shield className={`h-3.5 w-3.5 ${accentText('amber', t.light)}`} /><span className={`text-xs ${TYPE_WEIGHT.semibold} ${accentText('amber', t.light)} uppercase tracking-wider`}>Standby Periods</span></div>
-              <button type="button" onClick={() => setForm(p => ({ ...p, standby_periods: [...p.standby_periods, { from: p.cycle_start_date, to: p.cycle_start_date }] }))} className={`text-xs px-2 py-1 rounded-lg bg-amber-500/15 ${accentText('amber', t.light)} hover:bg-amber-500/25 transition-all flex items-center gap-1`}>+ Add Period</button>
+              <Button type="button" variant="subtle" size="xs" icon={Plus} iconPosition="end" onClick={() => setForm(p => ({ ...p, standby_periods: [...p.standby_periods, { from: p.cycle_start_date, to: p.cycle_start_date }] }))}>Add Period</Button>
             </div>
             <div className="px-3.5 py-3 space-y-2">
               {form.standby_periods.length === 0 ? (
@@ -1133,14 +1133,14 @@ function ShiftsContent() {
           <p className={`text-sm ${t.textMuted}`}>Remove shift assignment for {deleteTarget?.employee_name ?? ''}? This cannot be undone.</p>
           <div className="flex gap-2">
             <button type="button" onClick={() => setDeleteTarget(null)} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border} transition-all`}>Cancel</button>
-            <button type="button" onClick={async () => {
+            <PrimaryButton danger size="md" fullWidth onClick={async () => {
               try {
                 await deleteAssignment(deleteTarget!.id);
                 toast.success('Assignment removed');
                 setDeleteTarget(null);
                 fetchAll();
               } catch (err) { toast.error(String(err)); }
-            }} className={`flex-1 py-2.5 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-rose-500 to-rose-700 hover:brightness-110 transition-all`}>Remove</button>
+            }}>Remove</PrimaryButton>
           </div>
         </div>
       </CenterModal>

@@ -17,6 +17,8 @@
 
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "../components/shared/design-system/bases/studio.css";
+@import "../components/shared/design-system/dallaglio/palette.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -225,6 +227,47 @@ body {
   --sidebar-ring: var(--brand-400);
 
   color-scheme: dark;
+}
+
+/* Paper design language — Tools-like canvas tokens for shadcn popovers/menus/dialogs.
+   Tools & Equipment still owns its own CSS module and ignores this surface. */
+html[data-design='paper'] {
+  --background: #f8f7fc;
+  --foreground: #292637;
+  --card: #ffffff;
+  --card-foreground: #292637;
+  --popover: #ffffff;
+  --popover-foreground: #292637;
+  --muted: #f1eef8;
+  --muted-foreground: #6d697c;
+  --accent: #eee7fa;
+  --accent-foreground: #7652c5;
+  --border: #e6e3ee;
+  --input: #e6e3ee;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #292637;
+  --sidebar-accent: #eee7fa;
+  --sidebar-accent-foreground: #7652c5;
+  --sidebar-border: #e6e3ee;
+}
+html.dark[data-design='paper'] {
+  --background: #09090b;
+  --foreground: #f7f7f8;
+  --card: #111113;
+  --card-foreground: #f7f7f8;
+  --popover: #111113;
+  --popover-foreground: #f7f7f8;
+  --muted: #1b1b1f;
+  --muted-foreground: #aaaab2;
+  --accent: #241f31;
+  --accent-foreground: #c4b5f5;
+  --border: #2d2d32;
+  --input: #2d2d32;
+  --sidebar: #111113;
+  --sidebar-foreground: #f7f7f8;
+  --sidebar-accent: #241f31;
+  --sidebar-accent-foreground: #c4b5f5;
+  --sidebar-border: #2d2d32;
 }
 
 @layer base {

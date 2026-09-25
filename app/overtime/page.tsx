@@ -16,7 +16,7 @@ import {
 } from '@/components/shared/theme';
 import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, ProgressBar, FormField, FormActions,
-  useCollapseSection, CenterModal, ACCENT_HEX, ACCENT, type Accent, EmptyState, PrimaryButton, GlowCard, SelectField, accentText, CollapsibleHeader,
+  useCollapseSection, CenterModal, ACCENT_HEX, ACCENT, type Accent, EmptyState, PrimaryButton, GlowCard, SelectField, accentText, CollapsibleHeader, Button,
   CountUp, PulsingIcon, TYPE_SCALE, staggerContainer, fadeUp, HintText, TYPE_WEIGHT,
 } from '@/components/shared/theme';
 import { ShiftTimeRangeField } from '@/components/shared/design-system';
@@ -402,9 +402,7 @@ function OTFormModal({ open, onClose, onSave, editing, records }: {
               <input aria-label="Spare quantity" type="number" min={1} step={1} className={inputCls} placeholder="Quantity" value={spareDraft.quantity} onChange={e => setSpareDraft(s => ({ ...s, quantity: e.target.value }))} />
               <input aria-label="Spare unit price" type="number" min={0} step={0.01} className={inputCls} placeholder="Unit Price" value={spareDraft.unit_price} onChange={e => setSpareDraft(s => ({ ...s, unit_price: e.target.value }))} />
             </div>
-            <button type="button" onClick={addSpare} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs ${TYPE_WEIGHT.semibold} bg-brand-500/15 text-brand-400 hover:bg-brand-500/25 transition-all`}>
-              <Plus className="h-3.5 w-3.5" /> Add Spare
-            </button>
+            <Button type="button" variant="subtle" size="xs" icon={Plus} iconPosition="end" onClick={addSpare}>Add Spare</Button>
             {spares.length > 0 && (
               <div className="space-y-1.5 pt-1">
                 {spares.map((s, i) => (
@@ -1440,10 +1438,7 @@ function AnalysisEmpty({ records, error, onRefresh }: { records: OTRecord[]; err
           : 'Reads the reason text, machines mentioned, and volume/trend across the currently-filtered records — no external AI service, just aggregation and pattern rules run locally.')}
       </p>
       {records.length > 0 && (
-        <button type="button" onClick={onRefresh}
-          className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all`}>
-          <Brain className="h-4 w-4" /> Generate Analysis
-        </button>
+        <PrimaryButton icon={Brain} size="md" onClick={onRefresh}>Generate Analysis</PrimaryButton>
       )}
     </div>
   );
@@ -1954,9 +1949,7 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
           </span>
         )}
         {!invalidRange && rows.length > 0 && (
-          <button type="button" onClick={downloadExcel} disabled={downloading} className={`ml-auto flex items-center gap-1.5 h-9 px-3 rounded-lg text-xs ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 disabled:opacity-60 transition-all`}>
-            {downloading ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />} Download Excel
-          </button>
+          <PrimaryButton icon={Download} submitting={downloading} onClick={downloadExcel} className="ml-auto">Download Excel</PrimaryButton>
         )}
       </div>
 
@@ -2650,7 +2643,7 @@ function OvertimeContent() {
           <p className={`text-sm ${t.textMuted}`}>Delete overtime request for {delTarget?.employee_name}? This cannot be undone.</p>
           <div className="flex gap-2">
             <button type="button" onClick={() => setDelTarget(null)} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border} transition-all`}>Cancel</button>
-            <button type="button" onClick={handleDelete} className={`flex-1 py-2.5 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-rose-500 to-rose-700 hover:brightness-110 transition-all`}>Delete</button>
+            <PrimaryButton danger size="md" fullWidth onClick={handleDelete}>Delete</PrimaryButton>
           </div>
         </div>
       </CenterModal>

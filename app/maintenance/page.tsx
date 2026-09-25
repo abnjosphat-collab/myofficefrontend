@@ -1,46 +1,29 @@
-// frontend/app/maintenance/page.tsx
 'use client';
-import { useState, useEffect, useMemo, ElementType, useRef } from "react";
-import { AppShell } from "@/components/app-shell";
-import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { AppShell } from '@/components/app-shell';
+import { toast } from 'sonner';
+import { useTheme, useConfirm } from '@/components/shared/theme';
+import type { WorkOrder, MaintenanceSchedule, WorkOrderPriority, WorkOrderStatus } from './types';
 import {
-  useTheme, accentText, PageHero, StatusBadge, ViewToggle,
-  useCollapseSection, ProgressBar, ACCENT_HEX, GlowCard, SelectField,
-  useConfirm, SearchInput, EmptyState, LoadingState, InfoRow,
-  TYPE_SCALE, RADIUS, TYPE_WEIGHT, STATUS_TONE,
-} from '@/components/shared/theme';
-import {
-  Wrench, Plus, RefreshCw,
-  ChevronDown, ChevronUp, ChevronRight, X,
-  ClipboardCheck, Trash2,
-  CalendarClock, Pencil, Repeat2,
-  SlidersHorizontal, ArrowUpDown, BarChart2,
-  AlertTriangle, Maximize2, Minimize2,
-  List, LayoutGrid,
-} from "@/components/shared/theme";
-import type { WorkOrder, MaintenanceSchedule, WorkOrderPriority, WorkOrderStatus } from "./types";
-import {
-  getWorkOrders, createWorkOrder, updateWorkOrder, deleteWorkOrder, uploadStrandedLocalFields,
+  getWorkOrders, createWorkOrder, deleteWorkOrder, uploadStrandedLocalFields,
   fetchSchedules, createSchedule, updateSchedule, deleteSchedule, uploadStrandedSchedules,
-} from "./api";
-import { statusCfg, priorityCfg, isOverdue, calcStats, nextWONumber, recurrenceLabel } from "./helpers";
-import { CreateWorkOrderModal } from "@/components/maintenance/CreateWorkOrderModal";
-import { WorkOrderDetailModal } from "@/components/maintenance/WorkOrderDetailModal";
-import { CreateScheduleModal } from "@/components/maintenance/CreateScheduleModal";
-import { AnalyticsPanel } from "@/components/maintenance/analytics";
-import { DownloadButton, type DLColumn } from "@/components/shared/DownloadButton";
-import { exportFilename } from "@/lib/exportUtils";
-import { lineTotal } from "@/components/shared/utils";
-import { formatDate } from "@/lib/format";
+} from './api';
+import { statusCfg, priorityCfg, isOverdue, calcStats, nextWONumber, recurrenceLabel } from './helpers';
+import { CreateWorkOrderModal } from '@/components/maintenance/CreateWorkOrderModal';
+import { WorkOrderDetailModal } from '@/components/maintenance/WorkOrderDetailModal';
+import { CreateScheduleModal } from '@/components/maintenance/CreateScheduleModal';
+import { AnalyticsPanel } from '@/components/maintenance/analytics';
+import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
+import { exportFilename } from '@/lib/exportUtils';
+import { lineTotal } from '@/components/shared/utils';
+import { formatDate } from '@/lib/format';
+import { ToolsIcon as Icon } from '../tools/ToolsIcon';
+import { AnimatedText } from '../tools/ToolsUI';
+import { AnimatedSelect } from '../tools/AnimatedSelect';
+import s from '../tools/tools.module.css';
+import m from './maintenance.module.css';
 
-// Display/sort maps used only within this file's own WorkOrderCard/Row and sort logic.
-const CLASS_COLORS: Record<string, string> = {
-  breakdown: STATUS_TONE.critical,
-  planned_maintenance: STATUS_TONE.good,
-  project: STATUS_TONE.info,
-  custom: STATUS_TONE.neutral,
-};
 const CLASS_SHORT: Record<string, string> = { planned_maintenance: 'PM', project: 'Proj', breakdown: 'BKD', custom: 'Custom' };
 const PORD: Record<WorkOrderPriority, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
 const SORD: Record<WorkOrderStatus, number> = {
@@ -48,162 +31,270 @@ const SORD: Record<WorkOrderStatus, number> = {
   completed: 4, postponed: 5, cancelled: 6,
 };
 
-// ==================== WORK ORDER CARD (grid view) ====================
-function WorkOrderCard({ workOrder, onClick, onEdit }: { workOrder: WorkOrder; onClick: () => void; onEdit: () => void; }) {
-  const t = useTheme();
-  const scfg = statusCfg(workOrder.status);
-  const pcfg = priorityCfg(workOrder.priority);
+type StatusTab = 'all' | 'pending' | 'in-progress' | 'completed' | 'on-hold' | 'overdue';
+type MainTab = 'workorders' | 'schedules' | 'analytics';
+type SortBy = 'date-desc' | 'date-asc' | 'priority' | 'machine' | 'status';
+
+const MAIN_TABS: { value: MainTab; label: string; icon: 'box' | 'clock' | 'analytics' }[] = [
+  { value: 'workorders', label: 'Work orders', icon: 'box' },
+  { value: 'schedules', label: 'Schedules', icon: 'clock' },
+  { value: 'analytics', label: 'Analytics', icon: 'analytics' },
+];
+const STATUS_TABS: { key: StatusTab; label: string }[] = [
+  { key: 'all', label: 'All active' },
+  { key: 'pending', label: 'Pending' },
+  { key: 'in-progress', label: 'In Progress' },
+  { key: 'completed', label: 'Completed' },
+  { key: 'on-hold', label: 'On Hold' },
+  { key: 'overdue', label: 'Overdue' },
+];
+
+function classLabel(wo: WorkOrder) {
+  if (!wo.classification) return '';
+  if (wo.classification === 'custom') return wo.classification_custom?.trim() || 'Custom';
+  return CLASS_SHORT[wo.classification] || wo.classification;
+}
+function classMark(wo: WorkOrder) {
+  if (wo.classification === 'planned_maintenance') return 'PM';
+  if (wo.classification === 'breakdown') return 'BD';
+  if (wo.classification === 'project') return 'PR';
+  if (wo.classification === 'custom') return (wo.classification_custom?.slice(0, 2) || 'C').toUpperCase();
+  const digits = (wo.work_order_number || '').replace(/\D/g, '');
+  return digits.slice(-2) || 'WO';
+}
+function StatusLabel({ status, overdue }: { status: WorkOrderStatus; overdue?: boolean }) {
   return (
-    <GlowCard onClick={onClick} color={scfg.color} surface={`${t.glass} rounded-xl`} className="p-4 flex flex-col gap-3 group">
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className={`font-mono text-[10px] ${t.textFaint}`}>#{workOrder.work_order_number}</span>
-            {workOrder.classification && <StatusBadge color={CLASS_COLORS[workOrder.classification]} label={CLASS_SHORT[workOrder.classification]} />}
-          </div>
-          <span className="text-left mt-1 block">
-            <div className={`${TYPE_WEIGHT.semibold} text-sm leading-tight transition-colors truncate max-w-[200px] ${t.textPrimary}`}>{workOrder.equipment_info}</div>
-          </span>
+    <span>
+      <span className={m.woStatus} data-status={status}><i />{statusCfg(status).label}</span>
+      {overdue && <span className={m.woStatus} data-status="overdue"><i />Overdue</span>}
+    </span>
+  );
+}
+function padCount(n: number) {
+  return String(n).padStart(2, '0');
+}
+
+function WorkOrderCard({ workOrder, onClick, onEdit }: { workOrder: WorkOrder; onClick: () => void; onEdit: () => void }) {
+  const reduced = useReducedMotion();
+  const overdue = isOverdue(workOrder);
+  const assignee = workOrder.allocated_to || workOrder.artisan_name || 'Unassigned';
+  return (
+    <motion.article
+      className={s.card}
+      initial={{ opacity: 0, y: reduced ? 0 : 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={reduced ? undefined : { y: -7, scale: 1.009 }}
+      transition={{ type: 'spring', stiffness: 330, damping: 25, opacity: { duration: 0.22 } }}
+    >
+      <button type="button" className={s.cardMain} aria-label={`View ${workOrder.equipment_info}`} onClick={onClick}>
+        <div className={s.cardTop}>
+          <span className={s.toolCode}>#{workOrder.work_order_number}</span>
+          <Icon name="out" size={16} />
         </div>
-        <div className="flex items-center gap-1 flex-shrink-0">
-          <button type="button" onClick={e => { e.stopPropagation(); onEdit(); }} className={`p-1.5 rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-colors`} title="Edit work order"><Pencil className="h-3 w-3" /></button>
-          <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: pcfg.color }} title={pcfg.label} />
+        <div className={s.symbolArea}>
+          <span className={m.mark}>{classMark(workOrder)}</span>
+          <span className={s.category}>{classLabel(workOrder) || 'Work order'}{workOrder.discipline ? ` · ${workOrder.trade || workOrder.discipline}` : ''}</span>
         </div>
+        <div className={s.cardIdentity}>
+          <h2>{workOrder.equipment_info}</h2>
+          <p>{workOrder.job_request_details || 'No request details recorded'}</p>
+        </div>
+      </button>
+      <div className={s.cardBottom}>
+        <StatusLabel status={workOrder.status} overdue={overdue} />
+        <button type="button" className={s.quickAction} onClick={onEdit} aria-label={`Edit ${workOrder.equipment_info}`}>
+          Edit<Icon name="edit" size={15} />
+        </button>
       </div>
-      <div className={`text-xs line-clamp-2 leading-relaxed flex-1 ${t.textFaint}`}>{workOrder.job_request_details}</div>
-      <div className={`flex items-center justify-between pt-2 border-t ${t.border}`}>
-        <div className={`text-xs truncate ${t.textMuted}`}>{workOrder.allocated_to || workOrder.artisan_name || '—'}</div>
-        <StatusBadge color={scfg.color} label={scfg.label} />
+      <div className={s.cardContext}>
+        <Icon name="user" size={14} />
+        <span>{assignee}</span>
+        {workOrder.due_date && <span className={overdue ? s.late : undefined}>{workOrder.due_date}</span>}
+        <span>{priorityCfg(workOrder.priority).label}</span>
       </div>
-      <ProgressBar value={workOrder.progress} color={ACCENT_HEX.blue} showValue={false} />
-    </GlowCard>
+      <div className={m.progress} style={{ margin: '0 17px 14px' }}><i style={{ width: `${workOrder.progress ?? 0}%` }} /></div>
+    </motion.article>
   );
 }
 
-// ==================== WORK ORDER ROW ====================
-function WorkOrderRow({ workOrder, onClick, isExpanded, onToggle, onEdit }: { workOrder: WorkOrder; onClick: () => void; isExpanded: boolean; onToggle: () => void; onEdit: () => void; }) {
-  const t = useTheme();
-  const scfg = statusCfg(workOrder.status);
-  const pcfg = priorityCfg(workOrder.priority);
+function WorkOrderRow({
+  workOrder, onClick, isExpanded, onToggle, onEdit, bulkMode, selected, onSelect,
+}: {
+  workOrder: WorkOrder;
+  onClick: () => void;
+  isExpanded: boolean;
+  onToggle: () => void;
+  onEdit: () => void;
+  bulkMode: boolean;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  const overdue = isOverdue(workOrder);
   const artisanDisplay = workOrder.allocated_to || workOrder.artisan_name || '—';
   const foremanDisplay = workOrder.authorising_foreman || workOrder.foreman_name || workOrder.responsible_foreman || '—';
-  const overdue = isOverdue(workOrder);
-
   return (
-    <div className={`border-b ${t.border}`}>
-      <div className={`flex items-center gap-4 px-5 py-3 ${t.hoverBgSoft} transition-colors group`}>
-        <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: scfg.color }} />
-        <div className={`font-mono text-xs w-[5.5rem] flex-shrink-0 truncate ${t.textFaint}`}>#{workOrder.work_order_number}</div>
-        <button type="button" onClick={onClick} className="flex-1 min-w-0 text-left">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className={`${TYPE_WEIGHT.medium} text-sm truncate transition-colors ${t.textPrimary}`}>{workOrder.equipment_info}</span>
-            {workOrder.classification && <StatusBadge color={CLASS_COLORS[workOrder.classification]} label={workOrder.classification === 'custom' ? (workOrder.classification_custom?.slice(0, 6) || 'Custom') : CLASS_SHORT[workOrder.classification]} />}
-            {workOrder.discipline && <StatusBadge color={workOrder.discipline === 'Electrical' ? '#fbbf24' : ACCENT_HEX.blue} label={`${workOrder.discipline === 'Electrical' ? '⚡' : '⚙'} ${workOrder.trade || workOrder.discipline}`} />}
-            {overdue && <StatusBadge color="#e11d48" label={`Overdue · ${workOrder.due_date}`} dot />}
-          </div>
-          <div className={`text-xs truncate mt-0.5 ${t.textFaint}`}>{artisanDisplay}{workOrder.to_department ? ` · ${workOrder.to_department}` : ''}</div>
-        </button>
-        <div className="hidden md:block flex-1 min-w-0"><div className={`text-xs truncate ${t.textFaint}`}>{workOrder.job_request_details}</div></div>
-        <div className="w-16 flex-shrink-0 hidden sm:block"><ProgressBar value={workOrder.progress} color={ACCENT_HEX.blue} showValue={false} /></div>
-        <div className="flex-shrink-0"><StatusBadge color={scfg.color} label={scfg.label} /></div>
-        <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: pcfg.color }} title={pcfg.label} />
-        <div className={`text-xs flex-shrink-0 hidden lg:block w-[5.5rem] ${t.textFaint}`}>{workOrder.date_raised}</div>
-        <button type="button" onClick={e => { e.stopPropagation(); onEdit(); }} title="Edit work order" className={`p-1 rounded ${t.textFaint} ${t.hoverText} ${t.hoverBg} transition-colors flex-shrink-0 opacity-0 group-hover:opacity-100`}><Pencil className="h-3.5 w-3.5" /></button>
-        <button type="button" onClick={onToggle} title={isExpanded ? 'Collapse preview' : 'Quick preview'} className={`p-1 rounded ${t.textFaint} ${t.hoverText} ${t.hoverBg} transition-colors flex-shrink-0`}>{isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}</button>
-      </div>
-
+    <>
+      <tr className={`${s.listRow} ${selected ? m.selectedRow : ''}`}>
+        {bulkMode && (
+          <td>
+            <button type="button" aria-label={selected ? 'Deselect work order' : 'Select work order'} onClick={onSelect}>
+              <span className={m.check} data-on={selected || undefined}>
+                {selected && <Icon name="check" size={10} />}
+              </span>
+            </button>
+          </td>
+        )}
+        <td>
+          <button type="button" aria-label={`View ${workOrder.equipment_info}`} className={s.tableIdentity} onClick={onClick}>
+            <span className={`${m.mark} ${m.miniMark}`}>{classMark(workOrder)}</span>
+            <span>
+              <strong>{workOrder.equipment_info}</strong>
+              <small>#{workOrder.work_order_number}{classLabel(workOrder) ? ` · ${classLabel(workOrder)}` : ''}{workOrder.discipline ? ` · ${workOrder.trade || workOrder.discipline}` : ''}</small>
+            </span>
+          </button>
+        </td>
+        <td>
+          <StatusLabel status={workOrder.status} overdue={overdue} />
+          <small>{priorityCfg(workOrder.priority).label}</small>
+        </td>
+        <td>
+          {artisanDisplay}
+          <small>{workOrder.to_department || 'No department'}</small>
+        </td>
+        <td className={overdue ? s.late : undefined}>{workOrder.due_date || '—'}</td>
+        <td>
+          <div className={m.progress}><i style={{ width: `${workOrder.progress ?? 0}%` }} /></div>
+          <small>{workOrder.progress ?? 0}%</small>
+        </td>
+        <td>
+          <button type="button" className={s.iconButton} aria-label="Edit work order" onClick={onEdit}><Icon name="edit" size={16} /></button>
+          <button type="button" className={s.iconButton} aria-label={isExpanded ? 'Collapse preview' : 'Quick preview'} onClick={onToggle}>
+            <Icon name={isExpanded ? 'up' : 'down'} size={16} />
+          </button>
+        </td>
+      </tr>
       {isExpanded && (
-        <div className={`px-14 pb-4 pt-2 ${t.chipBg} border-t ${t.border}`}>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-2.5">
-            <InfoRow label="Artisan" value={artisanDisplay} />
-            <InfoRow label="Foreman" value={foremanDisplay} />
-            <InfoRow label="Time Worked" value={workOrder.total_time_worked} />
-            <InfoRow label="Est. Hours" value={workOrder.estimated_hours ? `${workOrder.estimated_hours}h` : undefined} />
-            <InfoRow label="Due Date" value={workOrder.due_date
-              ? <span className={overdue ? `text-rose-600 ${TYPE_WEIGHT.semibold}` : ''}>{workOrder.due_date}{overdue && ' — overdue'}</span>
-              : undefined} />
-            {(workOrder.work_done_details || workOrder.job_request_details) && (
-              <div className="col-span-2 sm:col-span-4">
-                <div className={`text-[10px] uppercase tracking-wide mb-0.5 ${t.textFaint}`}>{workOrder.work_done_details ? 'Work Done' : 'Job Request'}</div>
-                <div className={`text-xs leading-relaxed line-clamp-3 ${t.textMuted}`}>{workOrder.work_done_details || workOrder.job_request_details}</div>
-              </div>
-            )}
-            {workOrder.cause_of_failure && <div className="col-span-2 sm:col-span-4"><div className={`text-[10px] uppercase tracking-wide mb-0.5 ${t.textFaint}`}>Cause of Failure</div><div className={`text-xs line-clamp-2 ${t.textMuted}`}>{workOrder.cause_of_failure}</div></div>}
-            {workOrder.failure_mode && <InfoRow label="Failure Mode" value={workOrder.failure_mode} />}
-            {workOrder.spares_used && workOrder.spares_used.length > 0 && (
-              <div className="col-span-2 sm:col-span-4">
-                <div className={`text-[10px] uppercase tracking-wide mb-1 ${t.textFaint}`}>Spares Used</div>
-                <div className="flex flex-wrap gap-1.5">
-                  {workOrder.spares_used.map(s => <span key={s.id} className={`bg-amber-500/10 ${t.light ? 'text-amber-600/80' : 'text-amber-400/80'} text-[10px] px-2 py-0.5 rounded-full`}>{s.name} ×{s.quantity} · ${lineTotal(s.quantity, s.unit_cost).toFixed(0)}</span>)}
-                  <span className={`${t.chipBg} ${t.textFaint} text-[10px] px-2 py-0.5 rounded-full font-mono`}>Total: R {workOrder.spares_used.reduce((a, s) => a + lineTotal(s.quantity, s.unit_cost), 0).toFixed(2)}</span>
+        <tr>
+          <td colSpan={bulkMode ? 7 : 6} style={{ padding: 0 }}>
+            <div className={m.preview}>
+              <div className={m.facts}>
+                <div className={m.fact}><span>Artisan</span><strong>{artisanDisplay}</strong></div>
+                <div className={m.fact}><span>Foreman</span><strong>{foremanDisplay}</strong></div>
+                <div className={m.fact}><span>Time worked</span><strong>{workOrder.total_time_worked || '—'}</strong></div>
+                <div className={m.fact}><span>Est. hours</span><strong>{workOrder.estimated_hours ? `${workOrder.estimated_hours}h` : '—'}</strong></div>
+                <div className={m.fact}>
+                  <span>Due date</span>
+                  <strong className={overdue ? s.late : undefined}>{workOrder.due_date ? `${workOrder.due_date}${overdue ? ' — overdue' : ''}` : '—'}</strong>
                 </div>
+                <div className={m.fact}><span>Raised</span><strong>{workOrder.date_raised || '—'}</strong></div>
+                {(workOrder.work_done_details || workOrder.job_request_details) && (
+                  <div className={`${m.fact} ${m.note}`}>
+                    <span>{workOrder.work_done_details ? 'Work done' : 'Job request'}</span>
+                    <p>{workOrder.work_done_details || workOrder.job_request_details}</p>
+                  </div>
+                )}
+                {workOrder.cause_of_failure && (
+                  <div className={`${m.fact} ${m.note}`}>
+                    <span>Cause of failure</span>
+                    <p>{workOrder.cause_of_failure}</p>
+                  </div>
+                )}
+                {workOrder.failure_mode && (
+                  <div className={m.fact}><span>Failure mode</span><strong>{workOrder.failure_mode}</strong></div>
+                )}
+                {workOrder.spares_used && workOrder.spares_used.length > 0 && (
+                  <div className={`${m.fact} ${m.note}`}>
+                    <span>Spares used</span>
+                    <div className={m.spares}>
+                      {workOrder.spares_used.map(sp => (
+                        <span key={sp.id}>{sp.name} ×{sp.quantity} · ${lineTotal(sp.quantity, sp.unit_cost).toFixed(0)}</span>
+                      ))}
+                      <span>Total: R {workOrder.spares_used.reduce((a, sp) => a + lineTotal(sp.quantity, sp.unit_cost), 0).toFixed(2)}</span>
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-          <div className="mt-3 flex justify-end"><button type="button" onClick={onClick} className="text-brand-400/80 hover:text-brand-400 text-xs flex items-center gap-1.5 transition-colors">Open full details <ChevronRight className="h-3 w-3" /></button></div>
-        </div>
+              <div className={s.registerFooter}>
+                <button type="button" className={s.textButton} onClick={onClick}>Open full details<Icon name="chevron" size={14} /></button>
+              </div>
+            </div>
+          </td>
+        </tr>
       )}
-    </div>
+    </>
   );
 }
 
-// ==================== SCHEDULE ROW ====================
-function ScheduleRow({ schedule, onEdit, onDelete, onToggle, onRunNow }: { schedule: MaintenanceSchedule; onEdit: () => void; onDelete: () => void; onToggle: () => void; onRunNow: () => void; }) {
-  const t = useTheme();
-  const pcfg = priorityCfg(schedule.priority);
+function ScheduleRow({
+  schedule, onEdit, onDelete, onToggle, onRunNow,
+}: {
+  schedule: MaintenanceSchedule;
+  onEdit: () => void;
+  onDelete: () => void;
+  onToggle: () => void;
+  onRunNow: () => void;
+}) {
   return (
-    <div className={`flex items-center gap-4 px-5 py-3 border-b ${t.border} ${t.hoverBgSoft} transition-colors`}>
-      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${schedule.active ? 'bg-green-400' : `${t.chipBg}`}`} />
-      <div className="flex-1 min-w-0">
-        <div className={`${TYPE_WEIGHT.medium} text-sm truncate ${t.textPrimary}`}>{schedule.name}</div>
-        <div className={`text-xs truncate ${t.textFaint}`}>{schedule.equipment_info}{schedule.to_department ? ` · ${schedule.to_department}` : ''}{schedule.allocated_to ? ` — ${schedule.allocated_to}` : ''}</div>
-      </div>
-      <div className="text-brand-400/70 text-xs flex-shrink-0 hidden md:block w-52 truncate"><Repeat2 className="h-3 w-3 inline mr-1 opacity-60" />{recurrenceLabel(schedule)}</div>
-      <div className="flex-shrink-0 hidden sm:block text-right"><div className={`text-[10px] uppercase tracking-wide ${t.textFaint}`}>Next</div><div className={`text-xs ${t.textMuted}`}>{schedule.next_due_date || '—'}</div></div>
-      <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: pcfg.color }} title={pcfg.label} />
-      <div className="flex items-center gap-1.5 flex-shrink-0">
-        <button type="button" onClick={onRunNow} title="Create work order(s) from this schedule now" className={`text-[10px] px-2.5 py-0.5 rounded transition-colors text-brand-400 bg-brand-500/[0.10] hover:bg-brand-500/[0.20] whitespace-nowrap ${TYPE_WEIGHT.medium}`}>Create Work Order(s)</button>
-        <button type="button" onClick={onToggle} className={`text-[10px] px-2 py-0.5 rounded transition-colors ${schedule.active ? 'text-green-400 bg-green-500/10 hover:bg-green-500/20' : `${t.textFaint} ${t.chipBg} ${t.hoverBg}`}`}>{schedule.active ? 'Active' : 'Paused'}</button>
-        <button type="button" onClick={onEdit} title="Edit schedule" className={`${t.chipBg} ${t.hoverBg} rounded p-1.5 transition-colors`}><Pencil className={`h-3 w-3 ${t.textFaint}`} /></button>
-        <button type="button" onClick={onDelete} title="Delete schedule" className={`${t.chipBg} hover:bg-rose-500/[0.15] rounded p-1.5 transition-colors`}><Trash2 className={`h-3 w-3 ${t.textFaint}`} /></button>
-      </div>
+    <div className={s.journalRow}>
+      <span className={s.eventIcon}><Icon name="clock" /></span>
+      <span>
+        <strong>{schedule.name}</strong>
+        <small>
+          {schedule.equipment_info}
+          {schedule.to_department ? ` · ${schedule.to_department}` : ''}
+          {schedule.allocated_to ? ` — ${schedule.allocated_to}` : ''}
+          {` · ${recurrenceLabel(schedule)}`}
+        </small>
+      </span>
+      <time>{schedule.next_due_date || 'No next date'}</time>
+      <button type="button" className={s.quickAction} onClick={onRunNow}>Create work order(s)</button>
+      <button type="button" className={s.quickAction} onClick={onToggle}>{schedule.active ? 'Active' : 'Paused'}</button>
+      <button type="button" className={s.iconButton} aria-label="Edit schedule" onClick={onEdit}><Icon name="edit" size={16} /></button>
+      <button type="button" className={s.iconButton} aria-label="Delete schedule" onClick={onDelete}><Icon name="archive" size={16} /></button>
     </div>
   );
 }
 
-
-// ==================== STATUS TABS CONFIG ====================
-const STATUS_TABS = [
-  { key: 'all', label: 'All' }, { key: 'pending', label: 'Pending' }, { key: 'in-progress', label: 'In Progress' },
-  { key: 'completed', label: 'Completed' }, { key: 'on-hold', label: 'On Hold' },
-] as const;
-
-// ==================== MAIN PAGE ====================
 function MaintenancePageContent() {
   const t = useTheme();
   const confirm = useConfirm();
+  const reduced = useReducedMotion();
+  const duration = reduced ? 0 : 0.25;
+  const searchRef = useRef<HTMLInputElement>(null);
+  const actionsRef = useRef<HTMLDivElement>(null);
+
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
   const [loading, setLoading] = useState(true);
-  const sections = useCollapseSection({ hero: true });
-  const [panelMinimized, setPanelMinimized] = useState(false);
-  const [statusTab, setStatusTab] = useState<string>('all');
+  const [overviewOpen, setOverviewOpen] = useState(true);
+  const [statusTab, setStatusTab] = useState<StatusTab>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
-  const [mainTab, setMainTab] = useState<'workorders' | 'analytics'>('workorders');
+  const [mainTab, setMainTab] = useState<MainTab>('workorders');
   const [woViewMode, setWoViewMode] = useState<'list' | 'grid'>('list');
   const [editingWO, setEditingWO] = useState<WorkOrder | null>(null);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [actionsOpen, setActionsOpen] = useState(false);
 
   const handleEditWO = (wo: WorkOrder) => { setEditingWO(wo); setShowCreateModal(true); };
   const handleCloseCreateModal = () => { setShowCreateModal(false); setEditingWO(null); };
 
   const [expandedWOs, setExpandedWOs] = useState<Set<string>>(new Set());
-  const toggleWO = (id: string) => setExpandedWOs(prev => { const next = new Set(prev); if (next.has(String(id))) next.delete(String(id)); else next.add(String(id)); return next; });
+  const toggleWO = (id: string) => setExpandedWOs(prev => {
+    const next = new Set(prev);
+    if (next.has(String(id))) next.delete(String(id));
+    else next.add(String(id));
+    return next;
+  });
 
   const [bulkMode, setBulkMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const toggleSelect = (id: string) => setSelectedIds(prev => { const next = new Set(prev); if (next.has(String(id))) next.delete(String(id)); else next.add(String(id)); return next; });
-  const selectAll = () => setSelectedIds(new Set(filtered.map(w => String(w.id))));
+  const toggleSelect = (id: string) => setSelectedIds(prev => {
+    const next = new Set(prev);
+    if (next.has(String(id))) next.delete(String(id));
+    else next.add(String(id));
+    return next;
+  });
   const clearSelect = () => setSelectedIds(new Set());
   const exitBulk = () => { setBulkMode(false); clearSelect(); };
 
@@ -224,26 +315,15 @@ function MaintenancePageContent() {
   const [schedules, setSchedules] = useState<MaintenanceSchedule[]>([]);
   const [loadError, setLoadError] = useState('');
   const [scheduleError, setScheduleError] = useState('');
-  const [schedPanelOpen, setSchedPanelOpen] = useState(true);
   const [showCreateSched, setShowCreateSched] = useState(false);
   const [editingSched, setEditingSched] = useState<MaintenanceSchedule | null>(null);
 
-  type SortBy = 'date-desc' | 'date-asc' | 'priority' | 'machine' | 'status';
   const [sortBy, setSortBy] = useState<SortBy>('date-desc');
   const [priorityFilter, setPriorityFilter] = useState<WorkOrderPriority[]>([]);
-  const [showFilterMenu, setShowFilterMenu] = useState(false);
-  // Close the priority-filter dropdown on any click outside it — it used to stay
-  // open over the content until its own button was clicked again.
-  const filterMenuRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!showFilterMenu) return;
-    const onDown = (e: MouseEvent) => {
-      if (filterMenuRef.current && !filterMenuRef.current.contains(e.target as Node)) setShowFilterMenu(false);
-    };
-    document.addEventListener('mousedown', onDown);
-    return () => document.removeEventListener('mousedown', onDown);
-  }, [showFilterMenu]);
-  const selectedOrder = useMemo(() => selectedOrderId ? workOrders.find(w => String(w.id) === String(selectedOrderId)) ?? null : null, [workOrders, selectedOrderId]);
+  const selectedOrder = useMemo(
+    () => selectedOrderId ? workOrders.find(w => String(w.id) === String(selectedOrderId)) ?? null : null,
+    [workOrders, selectedOrderId],
+  );
 
   const load = async () => {
     setLoading(true);
@@ -252,7 +332,6 @@ function MaintenancePageContent() {
       setWorkOrders(data);
       setLoadError('');
     } catch (e) {
-      // Previously this fell back to localStorage and looked like success.
       setLoadError(e instanceof Error ? e.message : 'Could not load work orders.');
     } finally {
       setLoading(false);
@@ -279,10 +358,6 @@ function MaintenancePageContent() {
     })();
   }, []);
 
-  // Schedules come from the server, which also raises their work orders — see
-  // POST /api/schedules/generate, driven by cron. The browser used to do this
-  // on page load, which meant work orders were only raised if somebody opened
-  // the page, and two people opening it could raise the same job twice.
   useEffect(() => {
     (async () => {
       try {
@@ -298,11 +373,37 @@ function MaintenancePageContent() {
     })();
   }, []);
 
-  const stats = useMemo(() => calcStats(workOrders), [workOrders]);
+  useEffect(() => {
+    const closeOutside = (event: PointerEvent) => {
+      if (!actionsRef.current?.contains(event.target as Node)) setActionsOpen(false);
+    };
+    const closeEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') setActionsOpen(false); };
+    document.addEventListener('pointerdown', closeOutside);
+    window.addEventListener('keydown', closeEscape);
+    return () => {
+      document.removeEventListener('pointerdown', closeOutside);
+      window.removeEventListener('keydown', closeEscape);
+    };
+  }, []);
 
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement;
+      if (showCreateModal || selectedOrderId || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.isContentEditable) return;
+      if (event.key === '/') { event.preventDefault(); searchRef.current?.focus(); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [showCreateModal, selectedOrderId]);
+
+  const stats = useMemo(() => calcStats(workOrders), [workOrders]);
   const q = searchQuery.trim().toLowerCase();
   const filtered = workOrders
-    .filter(w => statusTab === 'all' || w.status === statusTab)
+    .filter(w => {
+      if (statusTab === 'all') return true;
+      if (statusTab === 'overdue') return isOverdue(w);
+      return w.status === statusTab;
+    })
     .filter(w => !q || w.work_order_number?.toLowerCase().includes(q) || w.equipment_info?.toLowerCase().includes(q) || w.allocated_to?.toLowerCase().includes(q) || w.artisan_name?.toLowerCase().includes(q) || w.to_department?.toLowerCase().includes(q) || w.job_request_details?.toLowerCase().includes(q) || w.requested_by?.toLowerCase().includes(q))
     .filter(w => priorityFilter.length === 0 || priorityFilter.includes(w.priority))
     .slice()
@@ -317,7 +418,16 @@ function MaintenancePageContent() {
       }
     });
 
-  const tabCount = (key: string) => key === 'all' ? workOrders.length : workOrders.filter(w => w.status === key).length;
+  const selectAll = () => setSelectedIds(new Set(filtered.map(w => String(w.id))));
+  const tabCount = (key: StatusTab) => {
+    if (key === 'all') return workOrders.length;
+    if (key === 'overdue') return stats.overdue;
+    return workOrders.filter(w => w.status === key).length;
+  };
+  const activeSchedules = schedules.filter(item => item.active).length;
+  const activeRefinements = Number(statusTab !== 'all') + Number(priorityFilter.length > 0) + Number(sortBy !== 'date-desc');
+  const resetRefinements = () => { setSearchQuery(''); setStatusTab('all'); setPriorityFilter([]); setSortBy('date-desc'); };
+  const filterTo = (next: StatusTab) => { setMainTab('workorders'); setStatusTab(next); setFiltersOpen(false); };
 
   const exportColumns: DLColumn[] = [
     { key: 'work_order_number', label: 'WO #', width: 14 },
@@ -340,34 +450,37 @@ function MaintenancePageContent() {
   ];
 
   const handleCreated = (savedOrder: WorkOrder) => {
-    setWorkOrders(prev => { const exists = prev.some(w => String(w.id) === String(savedOrder.id)); return exists ? prev.map(w => String(w.id) === String(savedOrder.id) ? savedOrder : w) : [savedOrder, ...prev]; });
+    setWorkOrders(prev => {
+      const exists = prev.some(w => String(w.id) === String(savedOrder.id));
+      return exists ? prev.map(w => String(w.id) === String(savedOrder.id) ? savedOrder : w) : [savedOrder, ...prev];
+    });
     load();
   };
   const handleDelete = async (id: string) => { await deleteWorkOrder(id); setSelectedOrderId(null); await load(); toast.success('Work order deleted'); };
 
   const handleRunScheduleNow = async (sched: MaintenanceSchedule) => {
     const today = new Date().toISOString().split('T')[0];
-    const machines = sched.equipment_info.split(',').map(s => s.trim()).filter(Boolean);
+    const machines = sched.equipment_info.split(',').map(item => item.trim()).filter(Boolean);
     const created: WorkOrder[] = [];
     const failedMachines: string[] = [];
     for (let i = 0; i < machines.length; i++) {
       try {
         const wo = await createWorkOrder({
-        work_order_number: nextWONumber(workOrders, created.length), equipment_info: machines[i],
-        to_department: sched.to_department, allocated_to: sched.allocated_to, authorising_foreman: sched.authorising_foreman,
-        estimated_hours: sched.estimated_hours, job_request_details: sched.job_request_details,
-        job_instructions: sched.job_instructions, priority: sched.priority,
-        to_section: '', from_department: '', from_section: '', account_number: '', user_lab_today: '',
-        date_raised: today, time_raised: new Date().toTimeString().slice(0, 5),
-        job_type: { operational: false, maintenance: true, mining: false },
-        requested_by: 'Manual — from schedule', authorising_engineer: '', responsible_foreman: sched.authorising_foreman, manpower: [],
-        work_done_details: '', cause_of_failure: '', delay_details: '',
-        artisan_name: sched.allocated_to, artisan_sign: '', artisan_date: '',
-        foreman_name: '', foreman_sign: '', foreman_date: '',
-        time_work_started: '', time_work_finished: '', total_time_worked: '',
-        overtime_start_time: '', overtime_end_time: '', overtime_hours: '',
-        delay_from_time: '', delay_to_time: '', total_delay_hours: '',
-        status: 'pending', progress: 0,
+          work_order_number: nextWONumber(workOrders, created.length), equipment_info: machines[i],
+          to_department: sched.to_department, allocated_to: sched.allocated_to, authorising_foreman: sched.authorising_foreman,
+          estimated_hours: sched.estimated_hours, job_request_details: sched.job_request_details,
+          job_instructions: sched.job_instructions, priority: sched.priority,
+          to_section: '', from_department: '', from_section: '', account_number: '', user_lab_today: '',
+          date_raised: today, time_raised: new Date().toTimeString().slice(0, 5),
+          job_type: { operational: false, maintenance: true, mining: false },
+          requested_by: 'Manual — from schedule', authorising_engineer: '', responsible_foreman: sched.authorising_foreman, manpower: [],
+          work_done_details: '', cause_of_failure: '', delay_details: '',
+          artisan_name: sched.allocated_to, artisan_sign: '', artisan_date: '',
+          foreman_name: '', foreman_sign: '', foreman_date: '',
+          time_work_started: '', time_work_finished: '', total_time_worked: '',
+          overtime_start_time: '', overtime_end_time: '', overtime_hours: '',
+          delay_from_time: '', delay_to_time: '', total_delay_hours: '',
+          status: 'pending', progress: 0,
         });
         created.push(wo);
       } catch (e) {
@@ -385,259 +498,430 @@ function MaintenancePageContent() {
     }
   };
 
+  const registerTitle = mainTab === 'schedules'
+    ? 'Recurring schedules'
+    : mainTab === 'analytics'
+      ? 'Analytics and insights'
+      : statusTab === 'overdue'
+        ? 'Overdue work orders'
+        : statusTab !== 'all'
+          ? STATUS_TABS.find(tab => tab.key === statusTab)?.label || 'Work orders'
+          : 'Work order register';
+
   return (
-    <main className="max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
-      <PageHero
-        icon={Wrench}
-        accent="violet"
-        crumbs={['Operations & Maintenance', 'Work Orders']}
-        title="Work Orders"
-        description="Maintenance management & tracking"
-        statsOpen={sections.expanded.hero}
-        actions={
-          <>
-            <button type="button" onClick={load} title="Refresh" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /></button>
-            {mainTab === 'workorders' && filtered.length > 0 && (
-              <DownloadButton
-                data={filtered as unknown as Record<string, unknown>[]}
-                columns={exportColumns}
-                filename={exportFilename('Work_Orders')}
-                title="Work Orders"
-                statusColumn="status"
-                statusColor={(_v, row) => statusCfg(row.status as WorkOrderStatus).color.replace('#', '')}
-              />
-            )}
-            {mainTab === 'workorders' && <button type="button" onClick={() => setShowCreateModal(true)} className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all`}><Plus className="h-3.5 w-3.5" /> New Work Order</button>}
-          </>
-        }
-      >
-        <div className="grid grid-cols-3 sm:grid-cols-6 gap-4">
-          {[
-            { label: 'Total', value: stats.total, color: t.textPrimary },
-            { label: 'Pending', value: stats.pending, color: 'text-yellow-400' },
-            { label: 'In Progress', value: stats.inProgress, color: 'text-brand-400' },
-            { label: 'Completed', value: stats.completed, color: 'text-green-400' },
-            { label: 'On Hold', value: stats.onHold, color: 'text-orange-400' },
-            { label: 'Overdue', value: stats.overdue, color: 'text-red-400' },
-          ].map(s => (
-            <div key={s.label} className="text-center">
-              <div className={`text-2xl ${TYPE_WEIGHT.bold} ${s.color}`}>{s.value}</div>
-              <div className={`text-xs mt-0.5 ${t.textFaint}`}>{s.label}</div>
-            </div>
-          ))}
-        </div>
-      </PageHero>
-
-      {/* Page tab bar */}
-      <div className={`flex items-center gap-0.5 ${t.glassSoft} ${RADIUS.tile} p-[3px] w-fit`}>
-        {([{ key: 'workorders', label: 'Work Orders', icon: Wrench }, { key: 'analytics', label: 'Analytics & Insights', icon: BarChart2 }] as { key: 'workorders' | 'analytics'; label: string; icon: ElementType }[]).map(tb => {
-          const active = mainTab === tb.key;
-          return (
-            <button key={tb.key} type="button" onClick={() => { setMainTab(tb.key); if (tb.key === 'workorders' && bulkMode) exitBulk(); }}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 ${RADIUS.chip} ${TYPE_SCALE.body} ${TYPE_WEIGHT.medium} tracking-tight transition-colors ${active ? 'bg-brand-500/15 text-brand-400' : `${t.textMuted} ${t.hoverText} ${t.hoverBg}`}`}>
-              <tb.icon className="h-3.5 w-3.5" />{tb.label}
+    <div className={`${s.surface} ${m.page}`} data-mode={t.light ? 'light' : 'dark'}>
+      <section className={`${s.workspace} ${m.workspace}`} aria-label="Work orders workspace">
+        <div className={s.topline}>
+          <h1 className={s.wordmark}><span><Icon name="app" size={19} /></span>Work Orders</h1>
+          <div className={s.previewControls}>
+            <button type="button" className={s.iconButton} aria-label="Refresh work orders" onClick={load}>
+              <Icon name="reset" size={16} />
             </button>
-          );
-        })}
-      </div>
-
-      {mainTab === 'workorders' && (
-        <>
-          {/* Schedules panel */}
-          <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-            <div className={`flex items-center justify-between px-5 py-3 border-b ${t.border}`}>
-              <div className="flex items-center gap-2">
-                <CalendarClock className="h-4 w-4 text-brand-400" />
-                <span className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>Recurring Schedules</span>
-                {schedules.length > 0 && <span className={`text-xs ${t.chipBg} rounded-full px-2 py-0.5 ${t.textFaint}`}>{schedules.filter(s => s.active).length} active</span>}
-              </div>
-              <div className="flex items-center gap-2">
-                <Button size="sm" onClick={() => { setEditingSched(null); setShowCreateSched(true); }} className="bg-brand-500/15 hover:bg-brand-500/25 text-brand-400 gap-1.5 h-7 text-xs"><Plus className="h-3.5 w-3.5" /> New Schedule</Button>
-                <button type="button" onClick={() => setSchedPanelOpen(o => !o)} title={schedPanelOpen ? 'Collapse schedules' : 'Expand schedules'} className={`${t.chipBg} ${t.hoverBg} ${t.textFaint} rounded-lg p-1.5 transition-colors`}>{schedPanelOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}</button>
-              </div>
-            </div>
-            {schedPanelOpen && (scheduleError ? (
-              <EmptyState
-                icon={AlertTriangle}
-                title="Could not load schedules"
-                message={scheduleError}
-              />
-            ) : schedules.length === 0 ? (
-              <EmptyState
-                icon={Repeat2}
-                title="No recurring schedules yet"
-                message="Set up schedules to auto-generate work orders — every week, month, quarter, or custom dates."
-                action={{ label: 'Create First Schedule', onClick: () => { setEditingSched(null); setShowCreateSched(true); } }}
-              />
-            ) : (
-              <div>{schedules.map(s => (
-                <ScheduleRow key={s.id} schedule={s} onEdit={() => { setEditingSched(s); setShowCreateSched(true); }} onRunNow={() => handleRunScheduleNow(s)}
-                  onDelete={async () => {
-                    if (!await confirm({ title: `Delete schedule "${s.name}"?`, message: 'This cannot be undone.', destructive: true })) return;
-                    try {
-                      await deleteSchedule(s.id);
-                      setSchedules(prev => prev.filter(x => x.id !== s.id));
-                      toast.success('Schedule deleted');
-                    } catch (e) {
-                      toast.error(e instanceof Error ? e.message : 'Could not delete schedule');
-                    }
-                  }}
-                  onToggle={async () => {
-                    const next = !s.active;
-                    setSchedules(prev => prev.map(x => x.id === s.id ? { ...x, active: next } : x));
-                    try {
-                      await updateSchedule(s.id, { active: next });
-                    } catch (e) {
-                      // Put the toggle back — the server is the truth.
-                      setSchedules(prev => prev.map(x => x.id === s.id ? { ...x, active: !next } : x));
-                      toast.error(e instanceof Error ? e.message : 'Could not update schedule');
-                    }
-                  }} />
-              ))}</div>
-            ))}
+            {mainTab === 'workorders' && (
+              <button type="button" className={s.primary} onClick={() => setShowCreateModal(true)}>
+                New work order<Icon name="plus" size={16} />
+              </button>
+            )}
+            {mainTab === 'schedules' && (
+              <button type="button" className={s.primary} onClick={() => { setEditingSched(null); setShowCreateSched(true); }}>
+                New schedule<Icon name="plus" size={16} />
+              </button>
+            )}
           </div>
+        </div>
 
-          {/* Records panel */}
-          <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-            <div className={`flex flex-col sm:flex-row sm:items-center gap-3 px-5 py-3 border-b ${t.border}`}>
-              <div className="flex items-center gap-1.5 flex-wrap">
-                {STATUS_TABS.map(tab => {
-                  const active = statusTab === tab.key;
-                  return (
-                    <button type="button" key={tab.key} onClick={() => setStatusTab(tab.key)} className={`px-2.5 py-1 ${RADIUS.chip} ${TYPE_SCALE.label} ${TYPE_WEIGHT.medium} tracking-tight transition-colors ${active ? 'bg-brand-500/15 text-brand-400' : `${t.chipBg} ${t.textMuted} ${t.hoverBg}`}`}>
-                      {tab.label}<span className={`ml-1.5 text-[10px] ${active ? '' : t.textFaint}`}>{tabCount(tab.key)}</span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div className="flex items-center gap-2 sm:ml-auto flex-wrap">
-                <div className={`flex items-center gap-1.5 ${t.chipBg} rounded-lg px-2.5 py-1.5`}>
-                  <ArrowUpDown className={`h-3 w-3 flex-shrink-0 ${t.textFaint}`} />
-                  <SelectField size="filter" title="Sort by" value={sortBy} onChange={v => setSortBy(v as SortBy)}
-                    options={[
-                      { value: 'date-desc', label: 'Newest first' },
-                      { value: 'date-asc', label: 'Oldest first' },
-                      { value: 'priority', label: 'Priority' },
-                      { value: 'status', label: 'Status' },
-                      { value: 'machine', label: 'Machine A–Z' },
-                    ]} />
-                </div>
-
-                <div className="relative" ref={filterMenuRef}>
-                  <button type="button" onClick={() => setShowFilterMenu(o => !o)} className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg transition-colors ${priorityFilter.length > 0 ? 'bg-brand-500/15 text-brand-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}>
-                    <SlidersHorizontal className="h-3.5 w-3.5" />{priorityFilter.length > 0 ? `Priority (${priorityFilter.length})` : 'Filter'}
-                  </button>
-                  {showFilterMenu && (
-                    <div className={`absolute right-0 top-full mt-1.5 z-20 w-44 ${t.glass} ${t.shadow} rounded-xl p-3`}>
-                      <div className={`text-[10px] uppercase tracking-wide mb-2 ${t.textFaint}`}>Priority</div>
-                      {(['urgent', 'high', 'medium', 'low'] as WorkOrderPriority[]).map(p => {
-                        const pcfg = priorityCfg(p);
-                        const active = priorityFilter.includes(p);
-                        return (
-                          <button key={p} type="button" onClick={() => setPriorityFilter(prev => active ? prev.filter(x => x !== p) : [...prev, p])} className={`w-full flex items-center gap-2.5 py-1.5 text-left transition-colors ${t.hoverText}`}>
-                            <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center transition-colors ${active ? 'bg-brand-500 border-brand-500' : `border ${t.border}`}`}>{active && <div className="w-1.5 h-1.5 rounded-sm bg-white" />}</div>
-                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: pcfg.color }} />
-                            <span className={`text-xs capitalize ${t.textMuted}`}>{p}</span>
-                          </button>
-                        );
-                      })}
-                      {priorityFilter.length > 0 && <button type="button" onClick={() => setPriorityFilter([])} className={`mt-2 pt-2 border-t ${t.border} w-full text-center text-[10px] ${t.textFaint} ${t.hoverText}`}>Clear filter</button>}
-                    </div>
-                  )}
-                </div>
-
-                <SearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search machine, artisan, WO#…" className="w-52" />
-
-                {!panelMinimized && <ViewToggle value={woViewMode} onChange={setWoViewMode} options={[{ value: 'list', icon: List, label: 'List view' }, { value: 'grid', icon: LayoutGrid, label: 'Grid view' }]} />}
-
-                {filtered.length > 0 && !panelMinimized && !bulkMode && woViewMode === 'list' && (
-                  <div className="flex items-center gap-1">
-                    <button type="button" onClick={() => setExpandedWOs(new Set(filtered.map(w => String(w.id))))} title="Expand all" className={`${t.chipBg} ${t.hoverBg} rounded-lg px-2 py-1.5 ${t.textFaint} ${t.hoverText} text-[10px] transition-colors flex items-center gap-1`}><Maximize2 className="h-3 w-3" /> All</button>
-                    <button type="button" onClick={() => setExpandedWOs(new Set())} title="Collapse all" className={`${t.chipBg} ${t.hoverBg} rounded-lg px-2 py-1.5 ${t.textFaint} ${t.hoverText} text-[10px] transition-colors flex items-center gap-1`}><Minimize2 className="h-3 w-3" /></button>
-                  </div>
-                )}
-
-                {!panelMinimized && filtered.length > 0 && !bulkMode && <button type="button" onClick={() => setBulkMode(true)} className={`flex items-center gap-1.5 text-[10px] px-2.5 py-1.5 rounded-lg transition-colors ${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText}`}><ClipboardCheck className="h-3.5 w-3.5" /> Select</button>}
-
-                <button type="button" onClick={() => setPanelMinimized(m => !m)} title={panelMinimized ? 'Expand panel' : 'Minimize panel'} className={`${t.chipBg} ${t.hoverBg} ${t.textFaint} rounded-lg p-1.5 transition-colors`}>{panelMinimized ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}</button>
-              </div>
-            </div>
-
-            {bulkMode && !panelMinimized && (
-              <div className={`flex items-center gap-3 px-5 py-2.5 bg-brand-500/[0.06] border-b ${t.border}`}>
-                <button type="button" onClick={() => selectedIds.size === filtered.length ? clearSelect() : selectAll()} className={`flex items-center gap-2 text-xs ${t.textMuted} ${t.hoverText} transition-colors`}>
-                  <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors flex-shrink-0 ${selectedIds.size === filtered.length && filtered.length > 0 ? 'bg-brand-500 border-brand-500' : selectedIds.size > 0 ? 'bg-brand-500/40 border-brand-500' : `border ${t.border} bg-transparent`}`}>
-                    {selectedIds.size > 0 && <div className="w-2 h-0.5 bg-white rounded-full" />}
-                  </div>
-                  {selectedIds.size === 0 ? 'Select all' : `${selectedIds.size} selected`}
+        <div>
+          <div className={s.sectionCaption}>
+            <button type="button" className={s.sectionToggle} aria-expanded={overviewOpen} aria-controls="maintenance-overview" onClick={() => setOverviewOpen(open => !open)}>
+              <span>At a glance</span>
+              <motion.span animate={{ rotate: overviewOpen ? 180 : 0 }} transition={{ duration }}><Icon name="down" size={13} /></motion.span>
+            </button>
+          </div>
+          <AnimatePresence initial={false}>
+            {overviewOpen && (
+              <motion.div
+                id="maintenance-overview"
+                className={m.glance}
+                initial={{ height: 0, opacity: 0, y: reduced ? 0 : -4 }}
+                animate={{ height: 'auto', opacity: 1, y: 0 }}
+                exit={{ height: 0, opacity: 0, y: reduced ? 0 : -4 }}
+                transition={{ duration }}
+              >
+                <button type="button" onClick={() => filterTo('all')}>
+                  <span>In the register</span>
+                  <strong><AnimatedText value={stats.total}>{padCount(stats.total)}</AnimatedText><small>orders</small></strong>
                 </button>
-                <div className="flex-1" />
-                {selectedIds.size > 0 && <button type="button" onClick={handleBulkDelete} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs ${TYPE_WEIGHT.medium} bg-rose-500/15 hover:bg-rose-500/25 text-rose-500 transition-colors`}><Trash2 className="h-3.5 w-3.5" />Delete {selectedIds.size} work order{selectedIds.size !== 1 ? 's' : ''}</button>}
-                <button type="button" onClick={exitBulk} className={`flex items-center gap-1 text-xs ${t.textFaint} ${t.hoverText} transition-colors px-2 py-1.5`}><X className="h-3.5 w-3.5" /> Cancel</button>
-              </div>
+                <button type="button" onClick={() => filterTo('pending')}>
+                  <span><i className={s.amberDot} />Pending</span>
+                  <strong><AnimatedText value={stats.pending}>{padCount(stats.pending)}</AnimatedText><Icon name="out" size={17} /></strong>
+                </button>
+                <button type="button" onClick={() => filterTo('in-progress')}>
+                  <span>In progress</span>
+                  <strong><AnimatedText value={stats.inProgress}>{padCount(stats.inProgress)}</AnimatedText><Icon name="out" size={17} /></strong>
+                </button>
+                <button type="button" onClick={() => filterTo('completed')}>
+                  <span><i className={s.greenDot} />Completed</span>
+                  <strong><AnimatedText value={stats.completed}>{padCount(stats.completed)}</AnimatedText><Icon name="out" size={17} /></strong>
+                </button>
+                <button type="button" onClick={() => filterTo('on-hold')}>
+                  <span>On hold</span>
+                  <strong><AnimatedText value={stats.onHold}>{padCount(stats.onHold)}</AnimatedText><Icon name="out" size={17} /></strong>
+                </button>
+                <button type="button" onClick={() => filterTo('overdue')}>
+                  <span><i className={s.amberDot} />Overdue</span>
+                  <strong><AnimatedText value={stats.overdue}>{padCount(stats.overdue)}</AnimatedText><Icon name="out" size={17} /></strong>
+                </button>
+              </motion.div>
             )}
+          </AnimatePresence>
+        </div>
 
-            {!panelMinimized && (
-              <div>
-                {loading ? (
-                  <LoadingState label="Loading work orders…" />
-                ) : loadError ? (
-                  // The page used to fall back to localStorage here and show
-                  // stale browser data as though it were live.
-                  <EmptyState
-                    icon={AlertTriangle}
-                    title="Could not load work orders"
-                    message={loadError}
-                    action={{ label: 'Try again', onClick: load }}
-                  />
-                ) : filtered.length === 0 ? (
-                  <EmptyState
-                    icon={Wrench}
-                    title={searchQuery || statusTab !== 'all' ? 'No matching work orders' : 'No work orders yet'}
-                    message={searchQuery || statusTab !== 'all' ? 'Try clearing the search or filter' : 'Create the first one with "New Work Order"'}
-                    action={!searchQuery && statusTab === 'all' ? { label: 'New Work Order', onClick: () => setShowCreateModal(true) } : undefined}
-                  />
-                ) : woViewMode === 'grid' ? (
-                  <div className="p-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                      {filtered.map(wo => <WorkOrderCard key={wo.id} workOrder={wo} onClick={() => setSelectedOrderId(wo.id)} onEdit={() => handleEditWO(wo)} />)}
-                    </div>
-                    <div className={`mt-3 pt-2 border-t ${t.border} text-xs ${t.textFaint}`}>{filtered.length} of {workOrders.length} work orders</div>
+        <div>
+          <div className={s.navigation}>
+            <div className={s.tabs} role="tablist" aria-label="Maintenance sections">
+              {MAIN_TABS.map((item, index) => (
+                <button
+                  key={item.value}
+                  type="button"
+                  role="tab"
+                  id={`maintenance-tab-${item.value}`}
+                  tabIndex={mainTab === item.value ? 0 : -1}
+                  aria-selected={mainTab === item.value}
+                  aria-controls="maintenance-panel"
+                  onClick={() => { setMainTab(item.value); if (item.value !== 'workorders' && bulkMode) exitBulk(); setFiltersOpen(false); setActionsOpen(false); }}
+                  onKeyDown={event => {
+                    if (!['ArrowRight', 'ArrowLeft', 'Home', 'End'].includes(event.key)) return;
+                    event.preventDefault();
+                    const next = event.key === 'Home' ? 0 : event.key === 'End' ? MAIN_TABS.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : MAIN_TABS.length - 1)) % MAIN_TABS.length;
+                    setMainTab(MAIN_TABS[next].value);
+                    document.getElementById(`maintenance-tab-${MAIN_TABS[next].value}`)?.focus();
+                  }}
+                >
+                  <Icon name={item.icon} size={18} />
+                  {item.label}
+                  {item.value === 'schedules' && activeSchedules > 0 && <span className={s.tabCount}>{activeSchedules}</span>}
+                  {mainTab === item.value && <motion.span layoutId="maintenance-tab-indicator" transition={{ duration }} className={s.tabLine} />}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {mainTab !== 'analytics' && (
+            <div className={s.toolbar}>
+              <label className={s.search}>
+                <Icon name="search" />
+                <input
+                  ref={searchRef}
+                  aria-label={mainTab === 'schedules' ? 'Search schedules' : 'Search work orders'}
+                  value={searchQuery}
+                  onChange={event => setSearchQuery(event.target.value)}
+                  placeholder={mainTab === 'schedules' ? 'Search schedule, equipment…' : 'Search machine, artisan, WO#…'}
+                />
+                <kbd>/</kbd>
+              </label>
+              {mainTab === 'workorders' && (
+                <>
+                  <div className={s.filterCluster}>
+                    <button
+                      type="button"
+                      className={s.secondary}
+                      aria-label="Open filter and sort controls"
+                      aria-expanded={filtersOpen}
+                      aria-controls="maintenance-filters"
+                      onClick={() => { setFiltersOpen(open => !open); setActionsOpen(false); }}
+                    >
+                      <Icon name="filter" />Filter &amp; sort
+                      {activeRefinements > 0 && <span className={s.filterCount}>{activeRefinements}</span>}
+                      <motion.span animate={{ rotate: filtersOpen ? 180 : 0 }} transition={{ duration }}><Icon name="down" size={13} /></motion.span>
+                    </button>
                   </div>
-                ) : (
+                  <div className={s.viewToggle} aria-label="View options">
+                    <button type="button" aria-label="Grid view" aria-pressed={woViewMode === 'grid'} onClick={() => setWoViewMode('grid')}><Icon name="grid" size={18} /></button>
+                    <button type="button" aria-label="List view" aria-pressed={woViewMode === 'list'} onClick={() => setWoViewMode('list')}><Icon name="list" size={18} /></button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          <AnimatePresence initial={false}>
+            {filtersOpen && mainTab === 'workorders' && (
+              <motion.div
+                id="maintenance-filters"
+                className={s.filterReveal}
+                initial={{ height: 0, opacity: 0, overflow: 'hidden' }}
+                animate={{ height: 'auto', opacity: 1, transitionEnd: { overflow: 'visible' } }}
+                exit={{ height: 0, opacity: 0, overflow: 'hidden' }}
+                transition={{ duration }}
+              >
+                <div className={s.filters}>
                   <div>
-                    {filtered.map(wo => (
-                      <div key={wo.id} className={`flex items-stretch transition-colors ${bulkMode && selectedIds.has(String(wo.id)) ? 'bg-brand-500/[0.05]' : ''}`}>
-                        {bulkMode && (
-                          <div className={`flex items-center px-4 border-r ${t.border}`}>
-                            <button type="button" onClick={() => toggleSelect(wo.id)} className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors flex-shrink-0 ${selectedIds.has(String(wo.id)) ? 'bg-brand-500 border-brand-500' : `border ${t.border} bg-transparent`}`}>
-                              {selectedIds.has(String(wo.id)) && <svg viewBox="0 0 10 8" className="w-2.5 h-2 fill-none stroke-white stroke-2"><polyline points="1,4 4,7 9,1" strokeLinecap="round" strokeLinejoin="round" /></svg>}
-                            </button>
-                          </div>
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <WorkOrderRow workOrder={wo} onClick={bulkMode ? () => toggleSelect(wo.id) : () => setSelectedOrderId(wo.id)} isExpanded={!bulkMode && expandedWOs.has(String(wo.id))} onToggle={() => { if (!bulkMode) toggleWO(wo.id); }} onEdit={() => handleEditWO(wo)} />
-                        </div>
-                      </div>
-                    ))}
-                    <div className={`px-5 py-2.5 border-t ${t.border} flex items-center justify-between`}>
-                      <span className={`text-xs ${t.textFaint}`}>{filtered.length} of {workOrders.length} work orders</span>
-                      {bulkMode && selectedIds.size > 0 && <span className="text-brand-400/70 text-xs">{selectedIds.size} selected</span>}
+                    <span>Status</span>
+                    <AnimatedSelect
+                      ariaLabel="Status"
+                      value={statusTab}
+                      onChange={value => setStatusTab(value as StatusTab)}
+                      options={STATUS_TABS.map(tab => ({ value: tab.key, label: `${tab.label} (${tabCount(tab.key)})` }))}
+                    />
+                  </div>
+                  <div>
+                    <span>Priority</span>
+                    <div className={m.picks}>
+                      {(['urgent', 'high', 'medium', 'low'] as WorkOrderPriority[]).map(priority => (
+                        <button
+                          key={priority}
+                          type="button"
+                          aria-pressed={priorityFilter.includes(priority)}
+                          onClick={() => setPriorityFilter(prev => prev.includes(priority) ? prev.filter(item => item !== priority) : [...prev, priority])}
+                        >
+                          {priorityCfg(priority).label}
+                        </button>
+                      ))}
                     </div>
                   </div>
-                )}
+                  <div>
+                    <span>Sort</span>
+                    <AnimatedSelect
+                      ariaLabel="Sort work orders"
+                      value={sortBy}
+                      onChange={value => setSortBy(value as SortBy)}
+                      options={[
+                        { value: 'date-desc', label: 'Newest first' },
+                        { value: 'date-asc', label: 'Oldest first' },
+                        { value: 'priority', label: 'Priority' },
+                        { value: 'status', label: 'Status' },
+                        { value: 'machine', label: 'Machine A–Z' },
+                      ]}
+                    />
+                  </div>
+                  <button type="button" className={s.textButton} onClick={resetRefinements}><Icon name="reset" size={15} />Reset</button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <div className={s.resultsHeader}>
+            <div className={s.resultLabel}>
+              <strong><AnimatedText value={`${mainTab}-${statusTab}`}>{registerTitle}</AnimatedText></strong>
+              <span role="status" aria-live="polite">
+                <AnimatedText value={mainTab === 'schedules' ? `schedules-${schedules.length}` : mainTab === 'analytics' ? `analytics-${stats.total}` : `orders-${filtered.length}`}>
+                  {mainTab === 'schedules'
+                    ? `${schedules.length} ${schedules.length === 1 ? 'schedule' : 'schedules'}`
+                    : mainTab === 'analytics'
+                      ? `${stats.total} ${stats.total === 1 ? 'order' : 'orders'} in view`
+                      : `${filtered.length} ${filtered.length === 1 ? 'order' : 'orders'}`}
+                </AnimatedText>
+              </span>
+              {mainTab === 'workorders' && (activeRefinements > 0 || searchQuery) && (
+                <button type="button" className={s.textButton} onClick={resetRefinements}>Clear search &amp; refinements</button>
+              )}
+            </div>
+            {mainTab === 'workorders' && (
+              <div className={s.actionCluster} ref={actionsRef}>
+                <AnimatePresence initial={false}>
+                  {actionsOpen && (
+                    <motion.div
+                      id="maintenance-actions"
+                      className={s.actionReveal}
+                      initial={{ width: 0, opacity: 0 }}
+                      animate={{ width: 'auto', opacity: 1 }}
+                      exit={{ width: 0, opacity: 0 }}
+                      transition={{ duration: reduced ? 0 : 0.3 }}
+                    >
+                      <div className={s.secondaryActions}>
+                        {woViewMode === 'list' && filtered.length > 0 && (
+                          <>
+                            <button type="button" onClick={() => { setExpandedWOs(new Set(filtered.map(w => String(w.id)))); setActionsOpen(false); }}>Expand all</button>
+                            <button type="button" onClick={() => { setExpandedWOs(new Set()); setActionsOpen(false); }}>Collapse all</button>
+                          </>
+                        )}
+                        {filtered.length > 0 && !bulkMode && (
+                          <button type="button" onClick={() => { setBulkMode(true); setActionsOpen(false); }}>Select</button>
+                        )}
+                        {filtered.length > 0 && (
+                          <DownloadButton
+                            data={filtered as unknown as Record<string, unknown>[]}
+                            columns={exportColumns}
+                            filename={exportFilename('Work_Orders')}
+                            title="Work Orders"
+                            statusColumn="status"
+                            statusColor={(_v, row) => statusCfg(row.status as WorkOrderStatus).color.replace('#', '')}
+                          />
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                <button
+                  type="button"
+                  className={s.actionsAnchor}
+                  aria-label="Actions"
+                  aria-controls="maintenance-actions"
+                  aria-expanded={actionsOpen}
+                  onClick={() => { setActionsOpen(open => !open); setFiltersOpen(false); }}
+                >
+                  <Icon name="more" />Actions
+                  <motion.span animate={{ rotate: actionsOpen ? 180 : 0 }} transition={{ duration }}><Icon name="down" size={13} /></motion.span>
+                </button>
               </div>
             )}
           </div>
-        </>
-      )}
 
-      {mainTab === 'analytics' && <AnalyticsPanel stats={stats} standalone rawOrders={workOrders} />}
+          <div id="maintenance-panel" role="tabpanel" aria-labelledby={`maintenance-tab-${mainTab}`}>
+            {mainTab === 'analytics' && (
+              <div className={m.analyticsWrap}>
+                <AnalyticsPanel stats={stats} standalone rawOrders={workOrders} />
+              </div>
+            )}
+
+            {mainTab === 'schedules' && (
+              scheduleError ? (
+                <div className={m.errorBanner}>
+                  <Icon name="alert" />
+                  <div><strong>Could not load schedules</strong><p>{scheduleError}</p></div>
+                </div>
+              ) : schedules.length === 0 ? (
+                <div className={s.empty}>
+                  <Icon name="clock" size={32} />
+                  <h2>No recurring schedules yet</h2>
+                  <p>Set up schedules to auto-generate work orders — every week, month, quarter, or custom dates.</p>
+                  <button type="button" className={s.primary} onClick={() => { setEditingSched(null); setShowCreateSched(true); }}>Create first schedule</button>
+                </div>
+              ) : (
+                <div className={s.journal}>
+                  {schedules
+                    .filter(item => {
+                      const query = searchQuery.trim().toLowerCase();
+                      if (!query) return true;
+                      return item.name.toLowerCase().includes(query) || item.equipment_info.toLowerCase().includes(query) || (item.allocated_to || '').toLowerCase().includes(query);
+                    })
+                    .map(item => (
+                      <ScheduleRow
+                        key={item.id}
+                        schedule={item}
+                        onEdit={() => { setEditingSched(item); setShowCreateSched(true); }}
+                        onRunNow={() => handleRunScheduleNow(item)}
+                        onDelete={async () => {
+                          if (!await confirm({ title: `Delete schedule "${item.name}"?`, message: 'This cannot be undone.', destructive: true })) return;
+                          try {
+                            await deleteSchedule(item.id);
+                            setSchedules(prev => prev.filter(x => x.id !== item.id));
+                            toast.success('Schedule deleted');
+                          } catch (e) {
+                            toast.error(e instanceof Error ? e.message : 'Could not delete schedule');
+                          }
+                        }}
+                        onToggle={async () => {
+                          const next = !item.active;
+                          setSchedules(prev => prev.map(x => x.id === item.id ? { ...x, active: next } : x));
+                          try {
+                            await updateSchedule(item.id, { active: next });
+                          } catch (e) {
+                            setSchedules(prev => prev.map(x => x.id === item.id ? { ...x, active: !next } : x));
+                            toast.error(e instanceof Error ? e.message : 'Could not update schedule');
+                          }
+                        }}
+                      />
+                    ))}
+                </div>
+              )
+            )}
+
+            {mainTab === 'workorders' && (
+              <>
+                {bulkMode && (
+                  <div className={m.bulkBar}>
+                    <button type="button" className={s.textButton} onClick={() => selectedIds.size === filtered.length ? clearSelect() : selectAll()}>
+                      <span className={m.check} data-on={selectedIds.size === filtered.length && filtered.length > 0 || undefined} data-mixed={selectedIds.size > 0 && selectedIds.size < filtered.length || undefined}>
+                        {selectedIds.size > 0 && <Icon name="check" size={10} />}
+                      </span>
+                      {selectedIds.size === 0 ? 'Select all' : `${selectedIds.size} selected`}
+                    </button>
+                    {selectedIds.size > 0 && (
+                      <button type="button" className={m.danger} onClick={handleBulkDelete}>
+                        Delete {selectedIds.size} work order{selectedIds.size !== 1 ? 's' : ''}
+                      </button>
+                    )}
+                    <button type="button" className={s.textButton} onClick={exitBulk}><Icon name="close" size={14} />Cancel</button>
+                  </div>
+                )}
+
+                {loading ? (
+                  <div className={s.empty}><h2>Loading work orders…</h2><p>Fetching the live register from the server.</p></div>
+                ) : loadError ? (
+                  <div className={s.empty}>
+                    <Icon name="alert" size={32} />
+                    <h2>Could not load work orders</h2>
+                    <p>{loadError}</p>
+                    <button type="button" className={s.primary} onClick={load}>Try again</button>
+                  </div>
+                ) : filtered.length === 0 ? (
+                  <div className={s.empty}>
+                    <Icon name={workOrders.length ? 'search' : 'box'} size={32} />
+                    <h2>{workOrders.length ? 'No matching work orders' : 'No work orders yet'}</h2>
+                    <p>{workOrders.length ? 'Try fewer filters or a different search.' : 'Create the first one with New work order.'}</p>
+                    <button type="button" className={s.primary} onClick={workOrders.length ? resetRefinements : () => setShowCreateModal(true)}>
+                      {workOrders.length ? 'Clear search & filters' : 'New work order'}
+                    </button>
+                  </div>
+                ) : woViewMode === 'grid' ? (
+                  <AnimatePresence initial={false} mode="wait">
+                    <motion.div key="grid" className={s.grid} initial={{ opacity: 0, y: reduced ? 0 : 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration }}>
+                      {filtered.map(wo => (
+                        <WorkOrderCard key={wo.id} workOrder={wo} onClick={() => setSelectedOrderId(wo.id)} onEdit={() => handleEditWO(wo)} />
+                      ))}
+                    </motion.div>
+                  </AnimatePresence>
+                ) : (
+                  <div className={s.tableWrap}>
+                    <table className={s.table}>
+                      <thead>
+                        <tr>
+                          {bulkMode && <th><span className={s.srOnly}>Select</span></th>}
+                          <th>Work order</th>
+                          <th>Status</th>
+                          <th>Assigned</th>
+                          <th>Due</th>
+                          <th>Progress</th>
+                          <th><span className={s.srOnly}>Actions</span></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filtered.map(wo => (
+                          <WorkOrderRow
+                            key={wo.id}
+                            workOrder={wo}
+                            onClick={bulkMode ? () => toggleSelect(wo.id) : () => setSelectedOrderId(wo.id)}
+                            isExpanded={!bulkMode && expandedWOs.has(String(wo.id))}
+                            onToggle={() => { if (!bulkMode) toggleWO(wo.id); }}
+                            onEdit={() => handleEditWO(wo)}
+                            bulkMode={bulkMode}
+                            selected={selectedIds.has(String(wo.id))}
+                            onSelect={() => toggleSelect(wo.id)}
+                          />
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                {!loading && !loadError && filtered.length > 0 && (
+                  <div className={s.registerFooter}>
+                    <span>{filtered.length} of {workOrders.length} work orders</span>
+                    {bulkMode && selectedIds.size > 0 && <span>{selectedIds.size} selected</span>}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      </section>
 
       <CreateWorkOrderModal isOpen={showCreateModal} onClose={handleCloseCreateModal} onCreated={handleCreated} editingOrder={editingWO ?? undefined} allOrders={workOrders} />
       {selectedOrder && <WorkOrderDetailModal workOrder={selectedOrder} onClose={() => setSelectedOrderId(null)} onRefresh={load} onDelete={handleDelete} />}
-      <CreateScheduleModal isOpen={showCreateSched} initial={editingSched} onClose={() => { setShowCreateSched(false); setEditingSched(null); }}
+      <CreateScheduleModal
+        isOpen={showCreateSched}
+        initial={editingSched}
+        onClose={() => { setShowCreateSched(false); setEditingSched(null); }}
         onSave={async schedule => {
           try {
             if (editingSched) {
@@ -645,7 +929,6 @@ function MaintenancePageContent() {
               setSchedules(prev => prev.map(x => x.id === schedule.id ? { ...x, ...saved } : x));
               toast.success('Schedule updated');
             } else {
-              // Drop the browser-generated id; the server assigns the real one.
               const { id: _id, created_at: _c, ...rest } = schedule;
               const saved = await createSchedule(rest);
               setSchedules(prev => [saved, ...prev]);
@@ -656,8 +939,9 @@ function MaintenancePageContent() {
           } catch (e) {
             toast.error(e instanceof Error ? e.message : 'Could not save schedule');
           }
-        }} />
-    </main>
+        }}
+      />
+    </div>
   );
 }
 

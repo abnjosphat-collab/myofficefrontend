@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { AppShell } from '@/components/app-shell';
 import { PredictiveInput } from '@/components/shared/PredictiveInput';
 import { Radar, Plus, X, RefreshCw } from '@/components/shared/theme';
-import { useTheme, PageHero, StatTile, StatusBadge, FormField, PrimaryButton, ACCENT_HEX, SelectField, TYPE_WEIGHT } from '@/components/shared/theme';
+import { useTheme, PageHero, StatTile, StatusBadge, FormField, PrimaryButton, ACCENT_HEX, SelectField, TYPE_WEIGHT, CloseButton } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
 import { formatDate } from '@/lib/format';
@@ -87,7 +87,7 @@ function ConditionMonitoringContent() {
         <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden p-6`}>
           <div className="flex items-center justify-between mb-4">
             <h2 className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>New Reading</h2>
-            <button type="button" onClick={() => setShowAdd(false)} title="Close" aria-label="Close" className={`flex h-12 w-12 min-h-12 min-w-12 cursor-pointer items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}><X className="w-5 h-5 shrink-0 pointer-events-none" aria-hidden /></button>
+            <CloseButton onClick={() => setShowAdd(false)} />
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
             <FormField label="Equipment"><PredictiveInput historyKey="cm_equipment" placeholder="Equipment" value={form.equipment} onChange={v => setForm(f => ({ ...f, equipment: v }))} inputClassName={inputCls} /></FormField>

@@ -14,7 +14,7 @@ import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButto
 import { exportFilename } from '@/lib/exportUtils';
 import { PillTabs } from '@/components/shared/PillTabs';
 import {
-  useTheme, PageHero, StatTile, StatusBadge, SearchInput, ProgressBar, useCollapseSection, ACCENT_HEX, SelectField, accentText, TYPE_WEIGHT,
+  useTheme, PageHero, StatTile, StatusBadge, SearchInput, ProgressBar, useCollapseSection, ACCENT_HEX, SelectField, accentText, TYPE_WEIGHT, PrimaryButton,
 } from '@/components/shared/theme';
 import type { Equipment } from './types';
 import { useAvailabilityData } from './useAvailabilityData';
@@ -323,7 +323,7 @@ function AvailabilityContent() {
 
       <div className="flex justify-end gap-2">
         <Link href="/equipment" className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.medium} ${t.chipBg} ${t.textMuted} ${t.hoverBg}`}><ToolCase className="h-3.5 w-3.5" /> Manage Equipment</Link>
-        <Link href="/breakdowns/new" className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all`}><Plus className="h-3.5 w-3.5" /> Report Breakdown</Link>
+        <PrimaryButton href="/breakdowns/new" icon={Plus}>Report Breakdown</PrimaryButton>
         <Link href="/reports/availability" className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.medium} ${t.chipBg} ${t.textMuted} ${t.hoverBg}`}><BarChart3 className="h-3.5 w-3.5" /> Generate Report</Link>
       </div>
     </main>

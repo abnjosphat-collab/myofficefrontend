@@ -142,7 +142,6 @@ export const CATEGORIES: Category[] = [
     id: 'analytics', title: 'Analytics & Insights', description: 'Turn data into intelligence',
     icon: LineChart, accent: 'cyan', growth: '+22%',
     modules: [
-      { icon: Eye,       title: 'Visualization', description: 'Interactive dashboards', href: '/visualization', tags: ['Charts'], badge: '15', featured: true },
       { icon: Megaphone, title: 'Notice Board',  description: 'Company announcements', href: '/noticeboard',   tags: ['Comms'], badge: '3' },
       { icon: LayoutDashboard, title: 'Engineering Dashboard', description: 'Live engineering KPIs', href: '/engineering-dashboard', tags: ['Dashboard'] },
       { icon: FileBarChart,    title: 'Engineering Report',    description: 'Monthly engineering report', href: '/engineering_report', tags: ['Reports'] },

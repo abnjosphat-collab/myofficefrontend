@@ -13,7 +13,7 @@ import { UnderlineTabs } from '@/components/shared/UnderlineTabs';
 import { toast } from "sonner";
 import {
   useTheme, STATUS_TONE, PageHero, StatTile, StatusBadge, SearchInput, FormField, FormActions,
-  useCollapseSection, CenterModal, PrimaryButton, EmptyState, ProgressBar, ACCENT_HEX, GlowCard, SelectField, accentText, TYPE_WEIGHT,
+  useCollapseSection, CenterModal, PrimaryButton, EmptyState, ProgressBar, ACCENT_HEX, GlowCard, SelectField, accentText, TYPE_WEIGHT, Button,
 } from '@/components/shared/theme';
 import { PredictiveInput } from '@/components/shared/PredictiveInput';
 import { EmployeeNameInput } from '@/components/shared/EmployeeNameInput';
@@ -224,7 +224,7 @@ function VFLDetailModal({ report, open, onClose, onEdit, onDelete, onStatusChang
       <div className={`flex gap-2 px-5 py-4 border-t ${t.border}`}>
         <button type="button" onClick={() => { onClose(); onDelete(report.id); }} className={`bg-red-500/15 hover:bg-red-500/25 rounded-xl px-4 py-2.5 text-red-400 text-sm ${TYPE_WEIGHT.semibold} transition-colors`}>Delete</button>
         <button type="button" onClick={onClose} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border} transition-all`}>Close</button>
-        <button type="button" onClick={() => { onClose(); onEdit(report); }} className={`flex-1 py-2.5 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all`}>Edit</button>
+        <PrimaryButton size="md" fullWidth onClick={() => { onClose(); onEdit(report); }}>Edit</PrimaryButton>
       </div>
     </CenterModal>
   );
@@ -313,10 +313,10 @@ function VFLFormModal({ open, editing, onClose, onSave, saving }: { open: boolea
           <div>
             <div className="flex justify-between items-center mb-3.5">
               <div><div className={`${TYPE_WEIGHT.bold} text-sm ${t.textPrimary}`}>Actions to Rectify / Reinforce</div><div className={`text-[11px] mt-0.5 ${t.textFaint}`}>Define actions to address or reinforce behaviours.</div></div>
-              <button type="button" onClick={addAction} className={`flex items-center gap-1.5 bg-emerald-500/15 hover:bg-emerald-500/25 rounded-lg px-3 py-1.5 ${accentText('emerald', t.light)} text-sm ${TYPE_WEIGHT.semibold} transition-colors`}><Plus className="h-3.5 w-3.5" /> Add Action</button>
+              <Button type="button" variant="subtle" size="xs" icon={Plus} iconPosition="end" onClick={addAction}>Add Action</Button>
             </div>
             {(form.actions || []).length === 0 ? (
-              <div className={`text-center py-8 ${t.textFaint}`}><Target className="h-9 w-9 mx-auto mb-2" /><div className="text-sm">No actions added yet.</div><button type="button" onClick={addAction} className={`mt-2.5 ${t.chipBg} ${t.hoverBg} rounded-lg px-3.5 py-1.5 text-xs transition-colors ${t.textMuted}`}>+ Add First Action</button></div>
+              <div className={`text-center py-8 ${t.textFaint}`}><Target className="h-9 w-9 mx-auto mb-2" /><div className="text-sm">No actions added yet.</div><Button type="button" variant="subtle" size="xs" icon={Plus} iconPosition="end" className="mt-2.5" onClick={addAction}>Add First Action</Button></div>
             ) : (
               <div className="flex flex-col gap-2.5">{(form.actions || []).map((item, idx) => <ActionItemCard key={item.id} item={item} index={idx} onChange={updateAction} onRemove={removeAction} />)}</div>
             )}
@@ -537,7 +537,7 @@ function VFLObservationContent() {
           <div className={`flex items-center gap-3 text-sm ${t.textMuted}`}><AlertTriangle className="h-5 w-5 text-red-400 flex-shrink-0" /> Are you sure you want to delete this VFL observation?</div>
           <div className="flex gap-2">
             <button type="button" onClick={() => setDeleteTarget(null)} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border} transition-all`}>Cancel</button>
-            <button type="button" onClick={() => deleteTarget && handleDelete(deleteTarget)} className={`flex-1 py-2.5 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-rose-500 to-rose-700 hover:brightness-110 transition-all`}>Delete</button>
+            <PrimaryButton danger size="md" fullWidth onClick={() => deleteTarget && handleDelete(deleteTarget)}>Delete</PrimaryButton>
           </div>
         </div>
       </CenterModal>

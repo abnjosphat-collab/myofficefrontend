@@ -6,7 +6,7 @@
 // not the default).
 'use client';
 
-import { useState, useRef, useEffect, useCallback, useId, type ReactNode, type ElementType, type CSSProperties } from 'react';
+import { useState, useRef, useEffect, useCallback, useId, type ReactNode, type ElementType, type CSSProperties, type MouseEvent } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
@@ -19,7 +19,14 @@ import { blendRgb, hexToRgbTuple, rgbString, rgbaString, isValidHex, DEFAULT_BG_
 import { getInputSuggestions, recordInput } from '@/lib/inputHistory';
 import { getDefaultExpanded } from '@/lib/prefs';
 import { GlowCard, PulsingIcon, AnimatedText, Collapse, CountUp, useScrollEdgeFlash, ScrollEdgeGlow, usePortaledListWheelScroll } from './primitives';
+import {
+  DallaglioStatusBadge, DallaglioSearchInput,
+  DallaglioViewToggle, DallaglioPageHero, DallaglioStatStrip, dallaglioInfoCardStyle,
+} from './dallaglio/ui';
+import { Button } from './Button';
 import { tileIconItem, tileTextContainer, tileTextItem, staggerContainer, fadeUp } from './motion';
+import { DsIcon } from './DsIcon';
+import { meaningFromStatLabel, meaningFromViewValue, type IconMeaning } from './shared/icon-meanings';
 
 // ─── useCollapseSection — drop-in replacement for the legacy usePageCollapse ────
 // Same shape (`sections.expanded.key`, `sections.toggle('key')`) so call sites
@@ -80,11 +87,13 @@ export function LoadingState({ label = 'Loading…', className = '' }: { label?:
 // takes an arbitrary hex, not one of the app's named accent tokens.
 export function StatusBadge({ color, label, dot = false }: { color: string; label: string; dot?: boolean }) {
   const t = useTheme();
+  if (t.design === 'dallaglio') return <DallaglioStatusBadge color={color} label={label} dot={dot} />;
   const rgb = hexToRgbTuple(isValidHex(color) ? color : DEFAULT_BG_ACCENT);
   const textRgb = t.light ? blendRgb(rgb, 'black', 0.12) : blendRgb(rgb, 'white', 0.18);
   const textColor = rgbString(textRgb);
   return (
     <span
+      data-ds="badge"
       className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full"
       style={{ color: textColor, background: rgbaString(rgb, t.light ? 0.10 : 0.14), border: `1px solid ${rgbaString(rgb, t.light ? 0.22 : 0.30)}` }}
     >
@@ -188,15 +197,14 @@ export function CardIconButton({
       whileHover={disableLift ? undefined : { y: -1.5 }}
       whileTap={{ scale: 0.88 }}
       transition={{ type: 'spring', stiffness: 420, damping: 26 }}
-      className={`${dim} flex items-center justify-center rounded-lg border backdrop-blur-md transition-colors duration-200 ${
-        active ? '' : `${t.glassSoft} ${t.border} ${t.textFaint} ${t.hoverText}`
+      className={`${dim} flex items-center justify-center rounded-lg border transition-colors duration-200 ${
+        t.design === 'dallaglio'
+          ? `${t.glass} ${t.border} ${t.textFaint} ${t.hoverText}`
+          : `backdrop-blur-md ${active ? '' : `${t.glassSoft} ${t.border} ${t.textFaint} ${t.hoverText}`}`
       }`}
       style={active ? { color: hex, background: `${hex}1f`, borderColor: `${hex}55` } : undefined}
     >
-      {/* Phosphor icons are solid-path glyphs (unlike lucide's stroke paths) — forcing
-         fill="none" makes them render invisible. Use `weight="fill"` instead to get a
-         filled look, and leave the rest to the global solid/outline icon-style toggle. */}
-      <Icon className={iconDim} weight={filled ? 'fill' : undefined} />
+      <Icon className={iconDim} weight={t.design === 'dallaglio' ? 'light' : filled ? 'fill' : undefined} />
     </motion.button>
   );
 }
@@ -206,9 +214,11 @@ export function CardIconButton({
 // page's hero stats share that "living dashboard" feel; string values (e.g. "4.2h",
 // "✓", "87%") render as-is.
 export function StatTile({
-  icon: Icon, color, value, label, onClick, iconTone = 'neutral',
+  icon: Icon, color, value, label, onClick, iconTone = 'neutral', meaning,
 }: {
-  icon: React.ElementType;
+  icon?: React.ElementType;
+  /** Semantic meaning — Dallaglio picks glyph/weight/colour from the registry. */
+  meaning?: IconMeaning;
   /** Decorative hue (light mode) or `STATUS_TONE` when `iconTone="semantic"` (both themes). */
   color?: string;
   value: string | number;
@@ -217,9 +227,31 @@ export function StatTile({
   iconTone?: 'neutral' | 'semantic';
 }) {
   const t = useTheme();
+  const resolvedMeaning = meaning ?? meaningFromStatLabel(label);
+  if (t.design === 'dallaglio') {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={!onClick}
+        className={`flex items-center gap-2 px-2.5 py-1.5 rounded-[9px] ${t.hoverBg} transition-colors disabled:cursor-default`}
+      >
+        {resolvedMeaning ? (
+          <DsIcon name={resolvedMeaning} className={t.textFaint} />
+        ) : Icon ? (
+          <Icon className={`h-4 w-4 ${t.textFaint}`} weight="light" />
+        ) : null}
+        <span className={`text-[17px] font-normal tracking-[-0.03em] tabular-nums ${t.textPrimary}`}>
+          {typeof value === 'number' ? <CountUp value={value} /> : value}
+        </span>
+        <span className={`text-[11px] ${t.textFaint}`}>{label}</span>
+      </button>
+    );
+  }
   const iconHex = iconTone === 'semantic'
     ? decorativeAccentHex(t.light, color, { semantic: true })
     : decorativeAccentHex(t.light, color);
+  const ClassicIcon = Icon;
   return (
     <button
       type="button"
@@ -227,10 +259,12 @@ export function StatTile({
       disabled={!onClick}
       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg ${t.hoverBg} transition-all disabled:cursor-default group`}
     >
-      <Icon
-        className={`w-3.5 h-3.5 ${iconHex ? '' : uiIconClass('neutral', t.light)}`}
-        style={iconHex ? { color: iconHex } : undefined}
-      />
+      {ClassicIcon && (
+        <ClassicIcon
+          className={`w-3.5 h-3.5 ${iconHex ? '' : uiIconClass('neutral', t.light)}`}
+          style={iconHex ? { color: iconHex } : undefined}
+        />
+      )}
       <span className={`text-base font-bold ${t.textPrimary} tabular-nums`}>
         {typeof value === 'number' ? <CountUp value={value} /> : value}
       </span>
@@ -370,13 +404,12 @@ export function FormActions({
   const t = useTheme();
   return (
     <div className={`flex gap-2 px-5 py-4 border-t ${t.border}`}>
-      <button type="button" onClick={onCancel}
-        className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border} transition-all`}>
+      <Button type="button" variant="secondary" size="md" fullWidth onClick={onCancel}>
         Cancel
-      </button>
-      <PrimaryButton type="submit" size="md" fullWidth accent={accent} submitting={submitting} icon={Check}>
+      </Button>
+      <Button type="submit" size="md" fullWidth accent={accent} submitting={submitting} icon={Check}>
         {submitLabel}
-      </PrimaryButton>
+      </Button>
     </div>
   );
 }
@@ -385,25 +418,30 @@ export function FormActions({
 // page's "New X" / "Add Y" header action and every modal's submit button should use
 // this instead of hand-rolling the gradient class string per page.
 export function PrimaryButton({
-  icon: Icon, children, onClick, type = 'button', disabled, submitting, accent = 'violet', size = 'sm', fullWidth = false, className = '',
+  icon, children, onClick, type = 'button', disabled, submitting, accent = 'violet', size = 'sm', fullWidth = false, className = '',
+  href, danger = false, title,
 }: {
-  icon?: ElementType; children: ReactNode; onClick?: () => void; type?: 'button' | 'submit';
-  disabled?: boolean; submitting?: boolean; accent?: Accent; size?: 'sm' | 'md'; fullWidth?: boolean; className?: string;
+  icon?: ElementType; children: ReactNode; onClick?: (e: MouseEvent<HTMLElement>) => void; type?: 'button' | 'submit';
+  disabled?: boolean; submitting?: boolean; accent?: Accent; size?: 'sm' | 'md' | 'xs'; fullWidth?: boolean; className?: string;
+  href?: string; danger?: boolean; title?: string;
 }) {
-  const a = ACCENT[accent];
-  // `md` needs explicit horizontal padding — without it, a non-fullWidth button's
-  // inline-flex content (icon/spinner + label) butts against the pill's rounded
-  // edges and longer labels visually overflow/overlap the button shape.
-  const sizeCls = size === 'md' ? 'py-2.5 px-5 rounded-xl text-sm' : 'h-8 px-3 rounded-lg text-[13px]';
   return (
-    <motion.button
-      type={type} onClick={onClick} disabled={disabled || submitting}
-      whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}
-      className={`${fullWidth ? 'flex-1' : ''} inline-flex items-center justify-center gap-1.5 ${sizeCls} font-semibold text-white bg-gradient-to-br ${a.gradient} ${a.solidGlow} hover:brightness-110 transition-all disabled:opacity-50 ${className}`}
+    <Button
+      variant={danger ? 'danger' : 'primary'}
+      icon={icon}
+      onClick={onClick}
+      type={type}
+      disabled={disabled}
+      submitting={submitting}
+      accent={accent}
+      size={size}
+      fullWidth={fullWidth}
+      className={className}
+      href={href}
+      title={title}
     >
-      {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : Icon ? <Icon className="h-3.5 w-3.5" /> : null}
       {children}
-    </motion.button>
+    </Button>
   );
 }
 
@@ -468,7 +506,7 @@ export function GroupSection({
     semantic: accentHex != null && isStatusToneHex(accentHex),
   });
   return (
-    <motion.div variants={fadeUp} className={`${t.glass} rounded-2xl ${t.shadow} scroll-mt-24 overflow-hidden`}>
+    <motion.div data-ds="panel" variants={fadeUp} className={`${t.glass} rounded-2xl ${t.shadow} scroll-mt-24 overflow-hidden`}>
       <button
         onClick={onToggle}
         className={`w-full flex items-center gap-3 px-4 py-3 ${t.hoverBgSoft} text-left group transition-colors`}
@@ -773,8 +811,9 @@ export function StatStrip({
   className?: string;
 }) {
   const t = useTheme();
+  if (t.design === 'dallaglio') return <DallaglioStatStrip items={items} className={className} />;
   return (
-    <div className={`flex flex-wrap items-center gap-x-8 gap-y-3 ${className}`}>
+    <div data-ds="strip" className={`flex flex-wrap items-center gap-x-8 gap-y-3 ${className}`}>
       {items.map((stat, i) => {
         const valueEl = (
           <span className={`text-[20px] font-semibold ${t.textPrimary} tracking-tight tabular-nums`}>
@@ -815,8 +854,9 @@ export function SearchInput({
   value: string; onChange: (v: string) => void; placeholder?: string; className?: string;
 }) {
   const t = useTheme();
+  if (t.design === 'dallaglio') return <DallaglioSearchInput value={value} onChange={onChange} placeholder={placeholder} className={className} />;
   return (
-    <div className={`relative ${className}`}>
+    <div data-ds="search" className={`relative ${className}`}>
       <SearchIcon className={`absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 ${t.textFaint}`} />
       <input
         type="search"
@@ -934,7 +974,7 @@ export function SelectField({
           else if (e.key === 'ArrowUp') { e.preventDefault(); setActive(a => Math.max(a - 1, 0)); }
           else if (e.key === 'Enter') { e.preventDefault(); if (opts[active]) commit(opts[active].value); }
         }}
-        className={`w-full flex items-center text-left outline-none cursor-pointer transition-all duration-300 hover:shadow-[0_8px_18px_-10px_rgba(37,99,235,0.45)] hover:-translate-y-px disabled:hover:translate-y-0 disabled:hover:shadow-none ${sizeCls} ${t.inputBg} disabled:opacity-50 disabled:cursor-default`}
+        className={`w-full flex items-center text-left outline-none cursor-pointer transition-all duration-300 ${t.design === 'dallaglio' ? '' : 'hover:shadow-[0_8px_18px_-10px_rgba(37,99,235,0.45)] hover:-translate-y-px'} disabled:hover:translate-y-0 disabled:hover:shadow-none ${sizeCls} ${t.inputBg} disabled:opacity-50 disabled:cursor-default`}
       >
         <span className={`truncate ${selected ? '' : t.textFaint}`}>{selected ? selected.label : (placeholder ?? '')}</span>
       </button>
@@ -976,6 +1016,7 @@ export function SelectField({
             // issue forms — any SelectField inside any modal was affected, not one field).
             // Trackpad scroll: usePortaledListWheelScroll — RemoveScroll blocks native wheel.
             className={`pointer-events-auto rounded-lg overflow-x-hidden overflow-y-auto overscroll-contain ${t.glassPopover} ${t.shadow} max-h-60 py-1`}
+            data-ds="popover"
             onScroll={onListScroll}
           >
             {scrollEdge === 'top' && <ScrollEdgeGlow edge="top" />}
@@ -1102,7 +1143,7 @@ export function Combobox({
         aria-controls={listboxId}
         aria-autocomplete="list"
         aria-activedescendant={showPanel && options[active] ? optionId(active) : undefined}
-        className={`w-full outline-none transition-all duration-300 hover:shadow-[0_8px_18px_-10px_rgba(37,99,235,0.45)] hover:-translate-y-px focus:shadow-[0_8px_18px_-10px_rgba(37,99,235,0.45)] focus:-translate-y-px disabled:hover:translate-y-0 disabled:hover:shadow-none ${sizeCls} ${t.inputBg} ${inputClassName}`}
+        className={`w-full outline-none transition-all duration-300 ${t.design === 'dallaglio' ? '' : 'hover:shadow-[0_8px_18px_-10px_rgba(37,99,235,0.45)] hover:-translate-y-px focus:shadow-[0_8px_18px_-10px_rgba(37,99,235,0.45)] focus:-translate-y-px'} disabled:hover:translate-y-0 disabled:hover:shadow-none ${sizeCls} ${t.inputBg} ${inputClassName}`}
         onChange={e => { onChange(e.target.value); setOpen(true); }}
         onFocus={() => { onFocusLoad?.(); setOpen(true); }}
         onBlur={() => { setTimeout(() => setOpen(false), 160); onBlurCommit?.(); }}
@@ -1142,6 +1183,7 @@ export function Combobox({
           // <body> while open, which this portaled-to-body panel would otherwise
           // silently inherit, making every option unclickable from inside a modal.
           className={`pointer-events-auto rounded-xl overflow-x-hidden overflow-y-auto overscroll-contain ${t.glassPopover} ${t.shadow} max-h-60`}
+          data-ds="popover"
           onMouseDown={e => e.preventDefault()}
           onScroll={onListScroll}
         >
@@ -1179,11 +1221,23 @@ export function Combobox({
 export function ViewToggle<T extends string>({
   value, onChange, options,
 }: {
-  value: T; onChange: (v: T) => void; options: { value: T; icon: React.ElementType; label: string }[];
+  value: T; onChange: (v: T) => void; options: { value: T; icon?: React.ElementType; meaning?: IconMeaning; label: string }[];
 }) {
   const t = useTheme();
+  if (t.design === 'dallaglio') {
+    return (
+      <DallaglioViewToggle
+        value={value}
+        onChange={onChange}
+        options={options.map(opt => ({
+          ...opt,
+          meaning: opt.meaning ?? meaningFromViewValue(String(opt.value)),
+        }))}
+      />
+    );
+  }
   return (
-    <div className={`flex items-center ${t.glassSoft} rounded-lg p-0.5`}>
+    <div data-ds="toggle" className={`flex items-center ${t.glassSoft} rounded-lg p-0.5`}>
       {options.map(opt => (
         <button
           key={opt.value}
@@ -1195,10 +1249,48 @@ export function ViewToggle<T extends string>({
             value === opt.value ? `${ACCENT.violet.chip} ${ACCENT.violet.text}` : `${t.textFaint} ${t.hoverText}`
           }`}
         >
-          <opt.icon className="h-3.5 w-3.5" />
+          {opt.meaning ? <DsIcon name={opt.meaning} /> : opt.icon ? <opt.icon className="h-3.5 w-3.5" /> : null}
         </button>
       ))}
     </div>
+  );
+}
+
+export function IconAction({
+  meaning, title, label, onClick, active = false, spinning = false, badge, disabled,
+}: {
+  meaning: IconMeaning;
+  title: string;
+  label?: string;
+  onClick: () => void;
+  active?: boolean;
+  spinning?: boolean;
+  badge?: ReactNode;
+  disabled?: boolean;
+}) {
+  const t = useTheme();
+  const dallaglio = t.design === 'dallaglio';
+  return (
+    <button
+      type="button"
+      title={title}
+      aria-label={title}
+      disabled={disabled}
+      onClick={onClick}
+      className={dallaglio
+        ? `inline-flex items-center gap-1.5 min-h-8 px-2.5 rounded-[9px] text-[12px] font-medium transition-colors disabled:opacity-38 ${
+            active ? `${t.chipBg} ${t.linkText}` : `${t.textFaint} ${t.hoverText} ${t.hoverBg}`
+          }`
+        : `inline-flex items-center gap-1.5 h-8 ${label ? 'px-3' : 'w-8 justify-center'} rounded-lg text-[13px] font-medium transition-colors disabled:opacity-40 ${
+            active ? 'bg-brand-500/15 text-brand-400' : `${t.textMuted} ${t.hoverText} ${t.hoverBg}`
+          }`}
+    >
+      <span className={spinning ? 'animate-spin' : undefined}>
+        <DsIcon name={meaning} />
+      </span>
+      {label}
+      {badge}
+    </button>
   );
 }
 
@@ -1269,9 +1361,9 @@ export function ListItemCard({
 
 // ─── PageHero — generalizes PPE's hero block ────────────────────────────────────
 export function PageHero({
-  icon: Icon, accent = 'violet', iconTone = 'neutral', crumbs, title, description, actions, statsOpen, children,
+  icon: Icon, meaning, accent = 'violet', iconTone = 'neutral', crumbs, title, description, actions, statsOpen, children,
 }: {
-  icon: React.ElementType; accent?: Accent;
+  icon: React.ElementType; meaning?: IconMeaning; accent?: Accent;
   /** Neutral stone icons by default (COLOR_HARMONY); `accent` tints the hero icon for deliberate category heroes. */
   iconTone?: UiIconTone | 'accent';
   crumbs?: string[]; title: string; description?: string;
@@ -1279,12 +1371,20 @@ export function PageHero({
   statsOpen?: boolean; children?: ReactNode;
 }) {
   const t = useTheme();
+  if (t.design === 'dallaglio') {
+    return (
+      <DallaglioPageHero icon={Icon} meaning={meaning} accent={accent} iconTone={iconTone} crumbs={crumbs} title={title} description={description} actions={actions} statsOpen={statsOpen}>
+        {children}
+      </DallaglioPageHero>
+    );
+  }
   const a = ACCENT[accent];
   const showAccentHero = iconTone === 'accent' && t.light;
   const heroIconClass = showAccentHero ? a.icon : uiIconClass(iconTone === 'brand' ? 'brand' : 'neutral', t.light);
   const heroIconWrap = showAccentHero ? `${a.chip} border ${t.border}` : `${t.chipBg} border ${t.border}`;
   return (
     <motion.div
+      data-ds="hero"
       initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
       className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}
     >
@@ -1304,7 +1404,7 @@ export function PageHero({
                 ))}
               </nav>
             )}
-            <h1 className={`text-xl font-bold ${t.textPrimary} font-heading tracking-tight`}>{title}</h1>
+            <h1 className={`text-xl font-bold tracking-tight ${t.textPrimary} font-heading`}>{title}</h1>
             {description && (
               <AnimatedText as="p" trigger="mount" text={description} className={`text-xs ${t.textFaint} mt-0.5`} />
             )}
@@ -1472,8 +1572,12 @@ export function InfoCard({
   // tint, giving the plain field TILE_SURFACE documents. Caller `style` spreads last
   // so a tile that genuinely needs a different surface can still say so.
   const tileStyle: CSSProperties = {
-    backgroundColor: t.light ? TILE_SURFACE.light : TILE_SURFACE.dark,
-    borderColor: t.light ? TILE_BORDER.light : TILE_BORDER.dark,
+    ...(t.design === 'dallaglio'
+      ? dallaglioInfoCardStyle(t.light)
+      : {
+        backgroundColor: t.light ? TILE_SURFACE.light : TILE_SURFACE.dark,
+        borderColor: t.light ? TILE_BORDER.light : TILE_BORDER.dark,
+      }),
     ...style,
   };
 

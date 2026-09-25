@@ -16,7 +16,7 @@ import {
 import { Toaster, toast } from 'sonner';
 import {
   useTheme, accentText, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle,
-  FormField, FormActions, useCollapseSection, CenterModal, ProgressBar, ACCENT_HEX, GlowCard, SelectField, TYPE_WEIGHT,
+  FormField, FormActions, useCollapseSection, CenterModal, ProgressBar, ACCENT_HEX, GlowCard, SelectField, TYPE_WEIGHT, PrimaryButton, CloseButton,
 } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
@@ -516,10 +516,7 @@ function DocumentsPageContent() {
               className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.medium} ${t.textMuted} ${t.glassSoft} ${t.hoverText} transition-colors`}>
               <FolderPlus className="h-3.5 w-3.5" /> New Folder
             </button>
-            <button type="button" onClick={() => setIsUploadOpen(true)}
-              className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all`}>
-              <Upload className="h-3.5 w-3.5" /> Upload
-            </button>
+            <PrimaryButton icon={Upload} onClick={() => setIsUploadOpen(true)}>Upload</PrimaryButton>
           </div>
         </div>
         {all.length === 0 ? (
@@ -527,10 +524,7 @@ function DocumentsPageContent() {
             <FolderOpen className={`h-12 w-12 mx-auto ${t.textFaint} mb-4`} />
             <h3 className={`text-lg ${TYPE_WEIGHT.semibold} ${t.textPrimary} mb-2`}>No folders yet</h3>
             <p className={`text-sm mb-4 ${t.textFaint}`}>Create your first folder to start organising documents</p>
-            <button type="button" onClick={() => setIsCreateFolderOpen(true)}
-              className={`inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-[13px] ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all`}>
-              <FolderPlus className="h-3.5 w-3.5" /> Create Folder
-            </button>
+            <PrimaryButton icon={FolderPlus} size="md" onClick={() => setIsCreateFolderOpen(true)}>Create Folder</PrimaryButton>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
@@ -664,16 +658,10 @@ function DocumentsPageContent() {
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {selectedItems.size > 0 && (
-            <button type="button" onClick={handleBulkDelete}
-              className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.medium} text-white bg-gradient-to-br from-rose-500 to-rose-700 hover:brightness-110 transition-all`}>
-              <TrashIcon className="h-3.5 w-3.5" /> Delete ({selectedItems.size})
-            </button>
+            <PrimaryButton danger icon={TrashIcon} onClick={handleBulkDelete}>Delete ({selectedItems.size})</PrimaryButton>
           )}
           <ViewToggle value={viewMode} onChange={setViewMode} options={[{ value: 'grid', icon: Grid2X2, label: 'Grid view' }, { value: 'table', icon: ListTree, label: 'Table view' }]} />
-          <button type="button" onClick={() => setIsUploadOpen(true)}
-            className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all`}>
-            <Upload className="h-3.5 w-3.5" /> Upload
-          </button>
+          <PrimaryButton icon={Upload} onClick={() => setIsUploadOpen(true)}>Upload</PrimaryButton>
         </div>
       </div>
 
@@ -742,9 +730,7 @@ function DocumentsPageContent() {
           <h3 className={`text-lg ${TYPE_WEIGHT.semibold} ${t.textPrimary} mb-2`}>No files found</h3>
           <p className={`text-sm mb-4 ${t.textFaint}`}>{hasActiveFilters ? 'Try adjusting your search or filters' : 'Upload your first document'}</p>
           {!hasActiveFilters && (
-            <button type="button" onClick={() => setIsUploadOpen(true)} className={`inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-[13px] ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all`}>
-              <Upload className="h-3.5 w-3.5" /> Upload Files
-            </button>
+            <PrimaryButton icon={Upload} size="md" onClick={() => setIsUploadOpen(true)}>Upload Files</PrimaryButton>
           )}
           {hasActiveFilters && (
             <button type="button" onClick={clearAllFilters} className={`inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-[13px] ${TYPE_WEIGHT.medium} ${t.textMuted} ${t.glassSoft} ${t.hoverText} transition-all`}>
@@ -803,7 +789,7 @@ function DocumentsPageContent() {
           <div className={`fixed left-0 top-0 h-full w-64 ${t.glass} z-50 ${t.shadow} p-4`}>
             <div className="flex justify-between items-center mb-4">
               <h2 className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>Categories</h2>
-              <button type="button" onClick={() => setMobileMenuOpen(false)} title="Close" aria-label="Close" className={`flex h-12 w-12 min-h-12 min-w-12 cursor-pointer items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint}`}><X className="h-5 w-5 shrink-0 pointer-events-none" aria-hidden /></button>
+              <CloseButton onClick={() => setMobileMenuOpen(false)} />
             </div>
             <div className="space-y-1">
               {BASE_CATEGORIES.map(cat => {
@@ -974,10 +960,7 @@ function DocumentsPageContent() {
               className={`flex-1 py-2.5 rounded-xl text-sm ${TYPE_WEIGHT.medium} ${t.textMuted} ${t.glassSoft} ${t.hoverText} transition-all inline-flex items-center justify-center gap-2`}>
               <Download className="h-4 w-4" /> Download
             </button>
-            <button type="button" onClick={() => { handleDeleteClick(selectedFile ? { ...selectedFile } : null); setIsFilePreviewOpen(false); }}
-              className={`flex-1 py-2.5 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-rose-500 to-rose-700 hover:brightness-110 transition-all inline-flex items-center justify-center gap-2`}>
-              <TrashIcon className="h-4 w-4" /> Delete
-            </button>
+            <PrimaryButton danger size="md" fullWidth icon={TrashIcon} onClick={() => { handleDeleteClick(selectedFile ? { ...selectedFile } : null); setIsFilePreviewOpen(false); }}>Delete</PrimaryButton>
           </div>
         </div>
       </CenterModal>
@@ -995,10 +978,7 @@ function DocumentsPageContent() {
           </div>
           <div className="flex gap-2">
             <button type="button" onClick={() => setIsDeleteDialogOpen(false)} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border} transition-all`}>Cancel</button>
-            <button type="button" onClick={handleDeleteConfirm}
-              className={`flex-1 py-2.5 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-rose-500 to-rose-700 hover:brightness-110 transition-all inline-flex items-center justify-center gap-2`}>
-              <TrashIcon className="h-4 w-4" /> Delete
-            </button>
+            <PrimaryButton danger size="md" fullWidth icon={TrashIcon} onClick={handleDeleteConfirm}>Delete</PrimaryButton>
           </div>
         </div>
       </CenterModal>

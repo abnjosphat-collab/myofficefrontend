@@ -12,7 +12,7 @@ import { AppShell } from '@/components/app-shell';
 import { toast } from 'sonner';
 import {
   useTheme, accentText, PageHero, StatTile, StatusBadge, SearchInput, FormField, FormActions,
-  useCollapseSection, CenterModal, PrimaryButton, EmptyState, ProgressBar, ACCENT_HEX, GlowCard, SelectField, useConfirm, TYPE_WEIGHT,
+  useCollapseSection, CenterModal, PrimaryButton, EmptyState, ProgressBar, ACCENT_HEX, GlowCard, SelectField, useConfirm, TYPE_WEIGHT, Button,
 } from '@/components/shared/theme';
 import { PredictiveInput } from '@/components/shared/PredictiveInput';
 import { EmployeeNameInput } from '@/components/shared/EmployeeNameInput';
@@ -174,12 +174,12 @@ function ReportFormModal({ open, onClose, onSave, report }: {
                 <div className={`text-center py-10 ${t.textFaint}`}>
                   <Target className="h-10 w-10 mx-auto mb-3 opacity-40" />
                   <p className="text-sm">No corrective actions added yet</p>
-                  <button type="button" onClick={addAction} className={`mt-3 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all`}><Plus className="h-3.5 w-3.5" /> Add First Action</button>
+                  <PrimaryButton icon={Plus} size="md" className="mt-3" onClick={addAction}>Add First Action</PrimaryButton>
                 </div>
               ) : (
                 <>
                   {actions.map((a, i) => <CorrectiveActionCard key={a.id} action={a} index={i} onChange={updateAction} onRemove={removeAction} />)}
-                  <button type="button" onClick={addAction} className={`w-full py-2 rounded-xl text-xs border border-dashed ${t.border} ${t.textFaint} hover:text-brand-400 transition-all inline-flex items-center justify-center gap-1.5`}><Plus className="h-3 w-3" /> Add Another Action</button>
+                  <Button type="button" variant="ghost" size="xs" fullWidth icon={Plus} iconPosition="end" onClick={addAction}>Add Another Action</Button>
                 </>
               )}
             </div>
@@ -282,7 +282,7 @@ function ReportDetailModal({ report, open, onClose, onEdit }: {
       </div>
       <div className={`px-5 py-4 border-t ${t.border} flex justify-end gap-2`}>
         <button type="button" onClick={onClose} className={`px-4 py-2 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border} transition-all`}>Close</button>
-        <button type="button" onClick={() => { onClose(); onEdit(report); }} className={`px-4 py-2 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 inline-flex items-center gap-2 transition-all`}><Pencil className="h-3.5 w-3.5" /> Edit</button>
+        <PrimaryButton icon={Pencil} size="md" onClick={() => { onClose(); onEdit(report); }}>Edit</PrimaryButton>
       </div>
     </CenterModal>
   );

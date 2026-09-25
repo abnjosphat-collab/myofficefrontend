@@ -11,7 +11,7 @@ import {
 import { toast } from 'sonner';
 import {
   useTheme, accentText, PageHero, StatTile, StatusBadge, SearchInput, FormField, FormActions,
-  useCollapseSection, CenterModal, PrimaryButton, EmptyState, ACCENT_HEX, ViewToggle, GlowCard, SelectField, useConfirm, TYPE_WEIGHT,
+  useCollapseSection, CenterModal, PrimaryButton, EmptyState, ACCENT_HEX, ViewToggle, GlowCard, SelectField, useConfirm, TYPE_WEIGHT, Button,
 } from '@/components/shared/theme';
 import { PhotoUpload } from '@/components/shared/PhotoUpload';
 import { AppShell } from '@/components/app-shell';
@@ -255,10 +255,7 @@ function InspectionFormModal({
                   {form.findings?.map((f, i) => (
                     <FindingFormCard key={f.id} finding={f} index={i} onChange={updateFinding} onRemove={removeFinding} />
                   ))}
-                  <button type="button" onClick={addFinding}
-                    className={`w-full py-2 rounded-xl text-xs ${t.textFaint} hover:text-brand-400 border border-dashed ${t.border} hover:border-brand-400/30 transition-all inline-flex items-center justify-center gap-1.5`}>
-                    <Plus className="h-3 w-3" /> Add Another Finding
-                  </button>
+                  <Button type="button" variant="ghost" size="xs" fullWidth icon={Plus} iconPosition="end" onClick={addFinding}>Add Another Finding</Button>
                 </>
               )}
             </div>

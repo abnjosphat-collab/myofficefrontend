@@ -9,16 +9,17 @@ import { AppShell } from "@/components/app-shell";
 // All icons + components come from the shared design-system barrel (icons are
 // Phosphor-backed and respond to the global solid/outline toggle).
 import {
-  Users, RefreshCw, UserCheck, ArrowUpDown, Hash,
+  Users, Hash,
   FilterX, ChevronsDownUp, ChevronsUpDown, ChevronDown, ChevronUp,
   Clock, AlertCircle, Trash2, X, Pencil, Mail, Briefcase,
   GraduationCap, Sparkles, UserRound, BriefcaseBusiness,
-  List, LayoutGrid, MapPin, Filter, Award, Plus, Phone, Archive,
-  FileSpreadsheet, FileText, HardHat,
+  MapPin, Award, Plus, Phone, Archive,
+  FileSpreadsheet, FileText,
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle,
   FormField, FormActions, useCollapseSection, CenterModal, ACCENT_HEX, STATUS_TONE, SelectField, Combobox, type ComboOption, TYPE_SCALE, TYPE_WEIGHT, RADIUS,
   GroupSection, RecordCard, staggerContainer, fadeUp,
   Subsection, InfoRow, SummaryItem, LoadingState, AutofillInput, useConfirm, accentText, uiIconClass, decorativeAccentHex,
+  PrimaryButton, IconAction, Button,
 } from '@/components/shared/theme';
 import { formatDate } from '@/lib/format';
 import { exportFilename, EXPORT_BRAND_ARGB, EXPORT_BRAND_RGB, styleExcelHeaderRow } from '@/lib/exportUtils';
@@ -550,10 +551,9 @@ function EmployeeForm({ initialData, allEmployees, onSubmit, onCancel, isSubmitt
           onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addItem(f, temps[k], k))}
           className={inputCls}
         />
-        <button type="button" onClick={() => addItem(f, temps[k], k)}
-          className={`px-3 h-9 rounded-lg bg-brand-500/15 hover:bg-brand-500/25 text-brand-400 text-sm ${TYPE_WEIGHT.medium} transition-all whitespace-nowrap`}>
+        <Button type="button" variant="subtle" size="xs" icon={Plus} iconPosition="end" onClick={() => addItem(f, temps[k], k)}>
           Add
-        </button>
+        </Button>
       </div>
       <div className="flex flex-wrap gap-1.5">
         {(form[f] as string[]).map((item, i) => (
@@ -993,9 +993,7 @@ function EmployeeCard({ employee, onEdit, onDelete }: {
         </div>
       }
       actions={<>
-        <button onClick={() => onEdit(employee)} type="button" className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 text-white text-[12px] ${TYPE_WEIGHT.semibold} hover:brightness-110 transition-all`}>
-          <Pencil className="h-3.5 w-3.5" /> Edit
-        </button>
+        <PrimaryButton icon={Pencil} fullWidth size="xs" onClick={() => onEdit(employee)}>Edit</PrimaryButton>
         <button onClick={() => onDelete(employee)} type="button" className={`px-4 flex items-center justify-center gap-1.5 py-2 rounded-lg ${t.chipBg} text-rose-500 hover:bg-rose-500/10 text-[12px] ${TYPE_WEIGHT.semibold} transition-all`}>
           <Trash2 className="h-3.5 w-3.5" /> Delete
         </button>
@@ -1176,6 +1174,7 @@ function EmployeesPageContent() {
     <main className="max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
       <PageHero
         icon={Users}
+        meaning="employees"
         accent="violet"
         crumbs={['Core Management', 'Personnel']}
         title="Personnel Registry"
@@ -1183,42 +1182,24 @@ function EmployeesPageContent() {
         statsOpen={sections.expanded.hero}
         actions={
           <>
-            <button type="button" onClick={reload} title="Refresh" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-colors`}>
-              <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-            </button>
+            <IconAction meaning="refresh" title="Refresh" onClick={reload} spinning={isLoading} />
             {activeEmployees.length > 0 && (
-              <button
-                type="button"
-                title="Download Personnel Registry (Excel, grouped by designation)"
-                onClick={downloadPersonnelRegistry}
-                className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.semibold} border border-emerald-500/30 bg-emerald-500/15 ${accentText('emerald', t.light)} hover:bg-emerald-500/25 transition-all hover:brightness-110`}
-              >
-                <FileSpreadsheet className="h-4 w-4" />
-                Download
-              </button>
+              <IconAction meaning="download" label="Download" title="Download Personnel Registry (Excel, grouped by designation)" onClick={downloadPersonnelRegistry} />
             )}
-            <button type="button" onClick={() => setShowRosterExport(true)} disabled={activeEmployees.length === 0} title="Download organized by section or profession"
-              className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-colors disabled:opacity-40`}>
-              <Award className="h-4 w-4" />
-            </button>
+            <IconAction meaning="export-roster" title="Download organized by section or profession" onClick={() => setShowRosterExport(true)} disabled={activeEmployees.length === 0} />
             {canManageRoster && activeEmployees.length > 0 && (
-              <button type="button" onClick={() => setShowNormalize(true)} title="Normalize designations, sections, and phone numbers across the roster"
-                className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-colors`}>
-                <Sparkles className="h-4 w-4" />
-              </button>
+              <IconAction meaning="normalize" title="Normalize designations, sections, and phone numbers across the roster" onClick={() => setShowNormalize(true)} />
             )}
-            <button type="button" onClick={openAdd} className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 transition-all hover:brightness-110`}>
-              <Plus className="h-3.5 w-3.5" /> Add Employee
-            </button>
+            <PrimaryButton icon={Plus} onClick={openAdd}>Add Employee</PrimaryButton>
           </>
         }
       >
         <div className="flex flex-wrap gap-1">
-          <StatTile icon={Users} color={ACCENT_HEX.blue} value={stats.total} label="Total Staff" onClick={showAllStaff} />
-          <StatTile icon={HardHat} color="#f97316" value={stats.artisans} label="Artisans" onClick={showArtisansOnly} />
-          <StatTile icon={BriefcaseBusiness} color={ACCENT_HEX.indigo} value={stats.nec} label="NEC" onClick={() => setEtypeFilter('NEC')} />
-          <StatTile icon={BriefcaseBusiness} color="#14b8a6" value={stats.salaried} label="Salaried" onClick={() => setEtypeFilter('SALARIED')} />
-          <StatTile icon={UserCheck} color={ACCENT_HEX.amber} value={stats.permanent} label="Permanent" onClick={() => setClassFilter('Permanent')} />
+          <StatTile meaning="employees" value={stats.total} label="Total Staff" onClick={showAllStaff} />
+          <StatTile meaning="artisans" value={stats.artisans} label="Artisans" onClick={showArtisansOnly} />
+          <StatTile meaning="nec-staff" value={stats.nec} label="NEC" onClick={() => setEtypeFilter('NEC')} />
+          <StatTile meaning="salaried-staff" value={stats.salaried} label="Salaried" onClick={() => setEtypeFilter('SALARIED')} />
+          <StatTile meaning="permanent-staff" value={stats.permanent} label="Permanent" onClick={() => setClassFilter('Permanent')} />
         </div>
       </PageHero>
 
@@ -1241,23 +1222,9 @@ function EmployeesPageContent() {
               className="flex-1 min-w-0"
             />
             <div className="flex flex-wrap items-center gap-2 shrink-0">
-              <button
-                type="button"
-                title="Show Class 1 trades and winder technicians only"
-                onClick={toggleArtisansOnly}
-                className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.medium} transition-colors ${
-                  artisansOnly
-                    ? 'bg-orange-500/15 text-orange-400 ring-1 ring-orange-500/30'
-                    : `${t.textMuted} ${t.hoverText} ${t.glassSoft}`
-                }`}
-              >
-                <HardHat className="h-3.5 w-3.5" /> Artisans only
-              </button>
-              <button type="button" onClick={() => setShowFilters(v => !v)}
-                className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.medium} transition-colors ${showFilters || activeFilterCount > 0 ? 'bg-brand-500/15 text-brand-400' : `${t.textMuted} ${t.hoverText} ${t.glassSoft}`}`}>
-                <Filter className="h-3.5 w-3.5" /> Filters
-                {activeFilterCount > 0 && <span className={`ml-0.5 px-1.5 py-0.5 ${t.chipBg} rounded text-[10px]`}>{activeFilterCount}</span>}
-              </button>
+              <IconAction meaning="artisans" label="Artisans only" title="Show Class 1 trades and winder technicians only" onClick={toggleArtisansOnly} active={artisansOnly} />
+              <IconAction meaning="filter" label="Filters" title="Filters" onClick={() => setShowFilters(v => !v)} active={showFilters || activeFilterCount > 0}
+                badge={activeFilterCount > 0 ? <span className={`ml-0.5 px-1.5 py-0.5 ${t.chipBg} rounded text-[10px]`}>{activeFilterCount}</span> : undefined} />
               {(activeFilterCount > 0 || search) && (
                 <button type="button" onClick={clearFilters}
                   className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.medium} ${t.textFaint} ${t.hoverText} ${t.hoverBg} transition-colors`}>
@@ -1272,11 +1239,8 @@ function EmployeesPageContent() {
                   { value: 'section', label: 'Section' },
                   { value: 'date_of_engagement', label: 'Engagement date' },
                 ]} />
-              <button type="button" title="Toggle sort direction" onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}
-                className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all`}>
-                <ArrowUpDown className="h-3.5 w-3.5" />
-              </button>
-              <ViewToggle value={viewMode} onChange={setViewMode} options={[{ value: 'grid', icon: LayoutGrid, label: 'Card view' }, { value: 'list', icon: List, label: 'List view' }]} />
+              <IconAction meaning="sort" title="Toggle sort direction" onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')} />
+              <ViewToggle value={viewMode} onChange={setViewMode} options={[{ value: 'grid', meaning: 'grid-view', label: 'Card view' }, { value: 'list', meaning: 'list-view', label: 'List view' }]} />
             </div>
           </div>
 
@@ -1337,9 +1301,7 @@ function EmployeesPageContent() {
                 <Users className={`h-12 w-12 ${t.textFaint} mx-auto mb-4`} />
                 <h3 className={`text-lg ${TYPE_WEIGHT.semibold} ${t.textPrimary} mb-2`}>No employees yet</h3>
                 <p className={`${TYPE_SCALE.body} mb-4 ${t.textFaint}`}>Add your first employee to get started.</p>
-                <button type="button" onClick={openAdd} className={`inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-[13px] ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all`}>
-                  <Plus className="h-3.5 w-3.5" /> Add Employee
-                </button>
+                <PrimaryButton icon={Plus} size="md" onClick={openAdd}>Add Employee</PrimaryButton>
               </>
             ) : (
               <>

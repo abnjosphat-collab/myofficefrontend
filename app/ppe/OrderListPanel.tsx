@@ -8,7 +8,7 @@ import {
 } from '@/components/shared/theme';
 import {
   useTheme, Collapse, GlowCard, SelectField, StatusBadge,
-  staggerContainer, fadeUp, ACCENT_HEX, TYPE_WEIGHT, useConfirm,
+  staggerContainer, fadeUp, ACCENT_HEX, TYPE_WEIGHT, useConfirm, PrimaryButton,
 } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { formatDate } from '@/lib/format';
@@ -87,7 +87,7 @@ export function OrderListPanel({
       <button type="button" onClick={onToggleExpanded}
         className={`w-full flex items-center justify-between px-5 py-3.5 ${t.hoverBgSoft} transition-all`}>
         <div className="flex items-center gap-2.5">
-          <div className="p-1.5 rounded-lg bg-gradient-to-br from-brand-500/20 to-violet-500/20 border border-brand-500/20">
+          <div className={`p-1.5 rounded-lg ${t.chipBg}`}>
             <ClipboardList className="h-4 w-4 text-brand-400" />
           </div>
           <div className="text-left">
@@ -236,11 +236,7 @@ export function OrderListPanel({
                           )}
                         </div>
                         <div className="flex items-center gap-2 mt-3">
-                          <motion.button type="button" onClick={() => onIssue(entry)}
-                            whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-                            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[11px] ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all`}>
-                            <Plus className="h-3 w-3" /> Issue
-                          </motion.button>
+                          <PrimaryButton icon={Plus} fullWidth size="xs" onClick={() => onIssue(entry)}>Issue</PrimaryButton>
                           <button type="button" title="Remove from order list" onClick={() => onRemove(entry.record_id)}
                             className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.chipBg} ${t.textFaint} hover:text-rose-500 hover:bg-rose-500/10 transition-all`}>
                             <X className="h-3.5 w-3.5" />

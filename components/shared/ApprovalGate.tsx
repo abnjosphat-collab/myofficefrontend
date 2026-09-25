@@ -2,7 +2,7 @@
 // Full approval flow: auth check → role check → signature capture → confirm
 'use client';
 import { useState } from 'react';
-import { Lock, ShieldAlert, LogIn, CheckCircle2, XCircle, Loader2, useTheme, accentText } from '@/components/shared/theme';
+import { Lock, ShieldAlert, LogIn, CheckCircle2, XCircle, Loader2, useTheme, accentText, PrimaryButton } from '@/components/shared/theme';
 import { useAuth } from '@/lib/auth-context';
 import { SignaturePad, type SignatureResult } from './SignaturePad';
 import type { UserRole } from '@/lib/auth-context';
@@ -97,10 +97,7 @@ export function ApprovalGate({
                   You must be signed in as a <span className="text-brand-500 font-medium">{ROLE_LABELS[requiredRole]}</span> or above to {actionLabel.toLowerCase().replace('sign & ', '')}.
                 </p>
               </div>
-              <button type="button" onClick={onCancel}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-white font-semibold text-sm transition-all bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110">
-                <LogIn className="h-4 w-4" /> Sign in to continue
-              </button>
+              <PrimaryButton icon={LogIn} size="md" onClick={onCancel}>Sign in to continue</PrimaryButton>
             </div>
           )}
 

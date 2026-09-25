@@ -214,12 +214,11 @@ function DetailsModal({ item, open, onClose, onEdit, onDelete, onToggle }: {
 
         <div className="flex gap-2 pt-2">
           <button type="button" onClick={onClose} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border}`}>Close</button>
-          <button type="button" onClick={() => { onToggle(item); onClose(); }}
-            className={`flex-1 py-2.5 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br hover:brightness-110 ${item.status === 'completed' ? 'from-slate-500 to-slate-700' : 'from-emerald-500 to-emerald-700'}`}>
+          <PrimaryButton size="md" fullWidth accent="emerald" onClick={() => { onToggle(item); onClose(); }}>
             {item.status === 'completed' ? 'Reopen' : 'Mark Complete'}
-          </button>
-          <button type="button" onClick={() => { onEdit(item); onClose(); }} className={`flex-1 py-2.5 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-amber-500 to-amber-700 hover:brightness-110`}>Edit</button>
-          <button type="button" onClick={() => { onDelete(item); onClose(); }} className={`flex-1 py-2.5 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-rose-500 to-rose-700 hover:brightness-110`}>Delete</button>
+          </PrimaryButton>
+          <PrimaryButton size="md" fullWidth accent="amber" onClick={() => { onEdit(item); onClose(); }}>Edit</PrimaryButton>
+          <PrimaryButton danger size="md" fullWidth onClick={() => { onDelete(item); onClose(); }}>Delete</PrimaryButton>
         </div>
       </div>
     </CenterModal>

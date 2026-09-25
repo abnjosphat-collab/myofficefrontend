@@ -1,0 +1,126 @@
+/** Semantic icon meanings. Pages request a meaning; each design maps it to a glyph. */
+
+export const ICON_MEANINGS = [
+  'employees', 'artisans', 'nec-staff', 'salaried-staff', 'permanent-staff',
+  'grid-view', 'list-view', 'table-view', 'sheet-view',
+  'search', 'filter', 'sort', 'edit', 'archive', 'analytics',
+  'refresh', 'download', 'plus', 'close', 'warning', 'success', 'danger',
+  'clock', 'calendar', 'check', 'pending', 'active', 'inactive',
+  'equipment', 'maintenance', 'breakdown', 'availability',
+  'documents', 'storage', 'starred',
+  'spares', 'value', 'out-of-stock', 'low-stock', 'categories',
+  'drivers', 'departments',
+  'requisition', 'cost', 'critical',
+  'notice', 'pinned', 'expired',
+  'training', 'compliance', 'valid', 'due-soon',
+  'issues', 'recipients',
+  'care', 'submitted', 'reviewed', 'closed',
+  'compressor', 'efficiency', 'service',
+  'task', 'overdue',
+  'ppe', 'contractor',
+  'admin-role',
+  'eye', 'target', 'flag', 'cart', 'package',
+  'gauge', 'activity', 'settings', 'percent',
+  'wrench', 'zap', 'building',
+  'normalize', 'export-roster',
+  'today', 'week', 'month',
+  'draft', 'safe', 'unsafe',
+  'high-risk', 'mechanical', 'electrical', 'general',
+  'operational',
+] as const;
+
+export type IconMeaning = (typeof ICON_MEANINGS)[number];
+
+const LABEL_ALIASES: Record<string, IconMeaning> = {
+  'total staff': 'employees',
+  'total': 'employees',
+  'total records': 'issues',
+  'artisans': 'artisans',
+  nec: 'nec-staff',
+  salaried: 'salaried-staff',
+  permanent: 'permanent-staff',
+  'total equipment': 'equipment',
+  equipment: 'equipment',
+  operational: 'operational',
+  maintenance: 'maintenance',
+  breakdown: 'breakdown',
+  availability: 'availability',
+  'avg availability': 'availability',
+  'total files': 'documents',
+  'storage used': 'storage',
+  starred: 'starred',
+  'total items': 'spares',
+  'total value': 'value',
+  'out of stock': 'out-of-stock',
+  'low stock': 'low-stock',
+  categories: 'categories',
+  'safety stock': 'spares',
+  'total drivers': 'drivers',
+  departments: 'departments',
+  pending: 'pending',
+  approved: 'success',
+  critical: 'critical',
+  'total notices': 'notice',
+  active: 'active',
+  pinned: 'pinned',
+  expired: 'expired',
+  certifications: 'training',
+  compliance: 'compliance',
+  valid: 'valid',
+  'due soon': 'due-soon',
+  today: 'today',
+  'this week': 'week',
+  recipients: 'recipients',
+  'total cost': 'cost',
+  'total care': 'care',
+  draft: 'draft',
+  submitted: 'submitted',
+  reviewed: 'reviewed',
+  closed: 'closed',
+  'total units': 'compressor',
+  'running hours': 'activity',
+  'avg efficiency': 'efficiency',
+  'upcoming services': 'service',
+  'urgent alerts': 'warning',
+  'total readings': 'activity',
+  caution: 'warning',
+  normal: 'success',
+  current: 'valid',
+  overdue: 'overdue',
+  'total reports': 'notice',
+  'in progress': 'pending',
+  completed: 'success',
+  mechanical: 'mechanical',
+  electrical: 'electrical',
+  general: 'general',
+  unsafe: 'unsafe',
+  safe: 'safe',
+  actions: 'target',
+  'high risk': 'high-risk',
+  'below 90%': 'warning',
+  'total downtime': 'clock',
+  'records (period)': 'activity',
+  'total requests': 'clock',
+  'total hours': 'clock',
+  'inactive / suspended': 'inactive',
+  'current jobs': 'contractor',
+  inactive: 'inactive',
+  'not started': 'pending',
+  'this month': 'month',
+  'total assessed': 'training',
+};
+
+export function meaningFromStatLabel(label: string): IconMeaning | undefined {
+  const key = label.trim().toLowerCase();
+  if (key in LABEL_ALIASES) return LABEL_ALIASES[key];
+  if (key.includes('artisan')) return 'artisans';
+  if (key === 'nec' || key.includes('nec staff')) return 'nec-staff';
+  return undefined;
+}
+
+export function meaningFromViewValue(value: string): IconMeaning {
+  if (value === 'grid' || value === 'card') return 'grid-view';
+  if (value === 'table') return 'table-view';
+  if (value === 'sheet') return 'sheet-view';
+  return 'list-view';
+}

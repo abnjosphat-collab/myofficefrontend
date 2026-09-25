@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import * as DialogPrimitive from "@radix-ui/react-dialog"
-import { XIcon, useTheme } from "@/components/shared/theme"
+import { useTheme, CloseButton } from "@/components/shared/theme"
 import { handleModalEscapeKeyDown, DIALOG_LAYER_Z } from "@/components/shared/design-system/dialog-shared"
 
 import { cn } from "@/lib/utils"
@@ -35,11 +35,14 @@ function DialogOverlay({
   className,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Overlay>) {
+  const t = useTheme()
   return (
     <DialogPrimitive.Overlay
       data-slot="dialog-overlay"
       className={cn(
-        "fixed inset-0 bg-slate-900/50 backdrop-blur-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+        t.design === 'dallaglio'
+          ? "fixed inset-0 bg-[#191029]/38 backdrop-blur-[6px] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"
+          : "fixed inset-0 bg-slate-900/50 backdrop-blur-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
         className
       )}
       style={{ zIndex: DIALOG_LAYER_Z }}
@@ -72,14 +75,8 @@ function DialogContent({
       >
         {children}
         {showCloseButton && (
-          <DialogPrimitive.Close
-            data-slot="dialog-close"
-            className={cn(
-              `absolute top-1 right-1 z-20 flex h-12 w-12 min-h-12 min-w-12 cursor-pointer items-center justify-center rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-colors pointer-events-auto focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500/50`
-            )}
-          >
-            <XIcon className="size-5 shrink-0 pointer-events-none" aria-hidden />
-            <span className="sr-only">Close</span>
+          <DialogPrimitive.Close asChild>
+            <CloseButton className="absolute top-1 right-1 z-20" />
           </DialogPrimitive.Close>
         )}
       </DialogPrimitive.Content>

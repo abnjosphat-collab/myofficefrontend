@@ -14,7 +14,7 @@ import { UnderlineTabs } from '@/components/shared/UnderlineTabs';
 import { toast } from "sonner";
 import {
   useTheme, accentText, STATUS_TONE, PageHero, StatTile, StatusBadge, SearchInput, ProgressBar, FormField, FormActions,
-  useCollapseSection, CenterModal, ACCENT_HEX, EmptyState, PrimaryButton, GlowCard, SelectField, TYPE_WEIGHT,
+  useCollapseSection, CenterModal, ACCENT_HEX, EmptyState, PrimaryButton, GlowCard, SelectField, TYPE_WEIGHT, Button,
 } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
@@ -467,13 +467,13 @@ function PTOFormModal({ open, editing, onClose, onSave, saving }: { open: boolea
           <div>
             <div className="flex justify-between items-center mb-3.5">
               <div><div className={`${TYPE_WEIGHT.bold} text-sm ${t.textPrimary}`}>Action Plan</div><div className={`text-[11px] mt-0.5 ${t.textFaint}`}>Define corrective or improvement actions.</div></div>
-              <button type="button" onClick={addAction} className={`flex items-center gap-1.5 bg-brand-500/15 hover:bg-brand-500/25 rounded-lg px-3 py-1.5 text-brand-400 text-sm ${TYPE_WEIGHT.semibold} transition-colors`}><Plus className="h-3.5 w-3.5" /> Add Action</button>
+              <Button type="button" variant="subtle" size="xs" icon={Plus} iconPosition="end" onClick={addAction}>Add Action</Button>
             </div>
             {(form.actionPlan || []).length === 0 ? (
               <div className={`text-center py-8 ${t.textFaint}`}>
                 <Target className="h-9 w-9 mx-auto mb-2" />
                 <div className="text-sm">No actions defined yet.</div>
-                <button type="button" onClick={addAction} className={`mt-2.5 ${t.chipBg} ${t.hoverBg} rounded-lg px-3.5 py-1.5 text-xs transition-colors ${t.textMuted}`}>+ Add First Action</button>
+                <Button type="button" variant="subtle" size="xs" icon={Plus} iconPosition="end" className="mt-2.5" onClick={addAction}>Add First Action</Button>
               </div>
             ) : (
               <div className="flex flex-col gap-2.5">
@@ -738,7 +738,7 @@ function PTOPageContent() {
           <div className={`flex items-center gap-3 text-sm ${t.textMuted}`}><AlertTriangle className="h-5 w-5 text-red-400 flex-shrink-0" /> Are you sure you want to delete this PTO report?</div>
           <div className="flex gap-2">
             <button type="button" onClick={() => setDeleteTarget(null)} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border} transition-all`}>Cancel</button>
-            <button type="button" onClick={() => deleteTarget && handleDelete(deleteTarget)} className={`flex-1 py-2.5 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-rose-500 to-rose-700 hover:brightness-110 transition-all`}>Delete</button>
+            <PrimaryButton danger size="md" fullWidth onClick={() => deleteTarget && handleDelete(deleteTarget)}>Delete</PrimaryButton>
           </div>
         </div>
       </CenterModal>

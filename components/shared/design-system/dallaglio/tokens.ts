@@ -1,0 +1,63 @@
+/** Dallaglio semantic tokens — Tools language, independent of Classic glass. */
+
+export const DALLAGLIO_LIGHT = {
+  glass: 'bg-[var(--d-surface,#fff)] border border-[var(--d-line,#e6e3ee)]',
+  glassSoft: 'bg-[var(--d-surface,#fff)] border border-[var(--d-line,#e6e3ee)]',
+  glassPopover: 'bg-[var(--d-surface,#fff)] border border-[var(--d-line,#e6e3ee)]',
+  shadow: 'shadow-[0_3px_10px_-7px_rgba(41,38,55,0.22)]',
+  textPrimary: 'text-[var(--d-ink,#292637)]',
+  textSecondary: 'text-[var(--d-ink-muted,#6d697c)]',
+  textTertiary: 'text-[var(--d-ink-muted,#6d697c)]',
+  textFaint: 'text-[var(--d-ink-subtle,#6d697c)]',
+  textMuted: 'text-[var(--d-ink-muted,#6d697c)]',
+  border: 'border-[var(--d-line,#e6e3ee)]',
+  divide: 'divide-[var(--d-line,#e6e3ee)]',
+  hoverBg: 'hover:bg-[var(--d-soft,#f1eef8)]',
+  hoverBgSoft: 'hover:bg-[var(--d-canvas,#f8f7fc)]',
+  hoverText: 'hover:text-[var(--d-accent,#7652c5)]',
+  groupHoverText: 'group-hover:text-[var(--d-accent,#7652c5)]',
+  chipBg: 'bg-[var(--d-soft,#f1eef8)]',
+  inputBg: 'bg-[var(--d-canvas,#f8f7fc)] border border-[var(--d-line,#e6e3ee)] text-[var(--d-ink,#292637)] placeholder-[var(--d-ink-muted,#6d697c)] focus:bg-[var(--d-surface,#fff)] focus:border-[var(--d-accent,#7652c5)]',
+  trendUp: 'text-[var(--d-success,#337663)]',
+  trendDown: 'text-[var(--d-danger,#c73b46)]',
+  ring: 'ring-[var(--d-accent-soft,#eee7fa)]',
+  scrim: 'bg-[rgba(27,22,43,0.38)]',
+  linkText: 'text-[var(--d-accent,#7652c5)]',
+  linkHover: 'hover:text-[#5d3fa8]',
+  pageBg: 'bg-[var(--d-canvas,#f8f7fc)]',
+  cta: 'bg-[var(--d-accent,#7652c5)] text-[var(--d-accent-ink,#fff)] hover:brightness-105 shadow-[0_3px_9px_rgba(118,82,197,0.18)]',
+  ctaDanger: 'bg-[var(--d-danger,#c73b46)] text-white hover:brightness-105',
+} as const;
+
+export const DALLAGLIO_DARK = {
+  glass: 'bg-[var(--d-surface,#111113)] border border-[var(--d-line,#2d2d32)]',
+  glassSoft: 'bg-[var(--d-surface,#111113)] border border-[var(--d-line,#2d2d32)]',
+  glassPopover: 'bg-[var(--d-surface,#111113)] border border-[var(--d-line,#2d2d32)]',
+  shadow: 'shadow-[0_3px_10px_-7px_rgba(0,0,0,0.55)]',
+  textPrimary: 'text-[var(--d-ink,#f7f7f8)]',
+  textSecondary: 'text-[var(--d-ink-muted,#aaaab2)]',
+  textTertiary: 'text-[var(--d-ink-muted,#aaaab2)]',
+  textFaint: 'text-[var(--d-ink-subtle,#aaaab2)]',
+  textMuted: 'text-[var(--d-ink-muted,#aaaab2)]',
+  border: 'border-[var(--d-line,#2d2d32)]',
+  divide: 'divide-[var(--d-line,#2d2d32)]',
+  hoverBg: 'hover:bg-[var(--d-soft,#1b1b1f)]',
+  hoverBgSoft: 'hover:bg-[var(--d-soft,#1b1b1f)]',
+  hoverText: 'hover:text-[var(--d-accent,#c4b5f5)]',
+  groupHoverText: 'group-hover:text-[var(--d-accent,#c4b5f5)]',
+  chipBg: 'bg-[var(--d-soft,#1b1b1f)]',
+  inputBg: 'bg-[var(--d-canvas,#09090b)] border border-[var(--d-line,#2d2d32)] text-[var(--d-ink,#f7f7f8)] placeholder-[var(--d-ink-muted,#aaaab2)] focus:bg-[var(--d-surface,#111113)] focus:border-[var(--d-accent,#c4b5f5)]',
+  trendUp: 'text-[var(--d-success,#91d4b8)]',
+  trendDown: 'text-[var(--d-danger,#e08a90)]',
+  ring: 'ring-[var(--d-accent-soft,#241f31)]',
+  scrim: 'bg-black/55',
+  linkText: 'text-[var(--d-accent,#c4b5f5)]',
+  linkHover: 'hover:text-[#ddd4fb]',
+  pageBg: 'bg-[var(--d-canvas,#09090b)]',
+  cta: 'bg-[var(--d-accent,#c4b5f5)] text-[var(--d-accent-ink,#15111e)] hover:brightness-105 shadow-[0_3px_9px_rgba(196,181,245,0.18)]',
+  ctaDanger: 'bg-[var(--d-danger,#c73b46)] text-white hover:brightness-105',
+} as const;
+
+export function dallaglioClasses(light: boolean) {
+  return light ? { ...DALLAGLIO_LIGHT } : { ...DALLAGLIO_DARK };
+}

@@ -19,6 +19,7 @@ import { PreferencesPanel } from './PreferencesPanel';
 import { QuickActionsManagePanel } from './QuickActionsManagePanel';
 import { ActiveNoticesPopup } from './ActiveNoticesPopup';
 import { hasSeenPrefs } from '@/lib/prefs';
+import ds from '@/components/shared/design-system/dallaglio/shell.module.css';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const t = useTheme();
@@ -57,8 +58,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <UsageTracker />
     <ServiceWorkerRegistrar />
     <div
-      className="relative flex h-screen flex-col"
-      style={{ background: t.light ? bgLayers.light : bgLayers.darkWash }}
+      data-ds="shell"
+      className={t.design === 'dallaglio' ? ds.shell : 'relative flex h-screen flex-col'}
+      style={t.design === 'dallaglio' ? undefined : { background: t.light ? bgLayers.light : bgLayers.darkWash }}
     >
       <TopNavigation
         onMenuToggle={() => s.setSidebarOpen(!s.sidebarOpen)}
@@ -84,7 +86,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           visibleCategories={s.visibleCategories}
         />
 
-        <main className={`flex-1 overflow-y-auto transition-[margin] duration-300 ${s.sidebarCollapsed ? 'lg:ml-[76px]' : 'lg:ml-64'} pb-9`}>
+        <main className={`flex-1 overflow-y-auto transition-[margin] duration-300 ${s.sidebarCollapsed ? 'lg:ml-[76px]' : 'lg:ml-64'} pb-9 ${t.design === 'dallaglio' ? ds.main : ''}`}>
           {children}
         </main>
       </div>

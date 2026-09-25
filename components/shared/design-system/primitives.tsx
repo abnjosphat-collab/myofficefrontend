@@ -6,9 +6,12 @@
 import { useState, useRef, useEffect, useCallback, type ReactNode, type ElementType, type CSSProperties } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as Dialog from '@radix-ui/react-dialog';
-import { X, Plus } from './icons';
+import { Plus } from './icons';
 import { useTheme, usePrefersReducedMotion, ACCENT, ACCENT_RGBA, type Accent } from './tokens';
 import { handleModalEscapeKeyDown } from './dialog-shared';
+import { DallaglioCard, DallaglioEmptyState, DallaglioCenterModal } from './dallaglio/ui';
+import { Button } from './Button';
+import { CloseButton } from './CloseButton';
 import { hexToRgba } from './color';
 import { fadeTextVariant, iconPop } from './motion';
 
@@ -200,6 +203,9 @@ export function GlowCard({
 }) {
   const t = useTheme();
   const reduced = usePrefersReducedMotion();
+  if (t.design === 'dallaglio') {
+    return <DallaglioCard {...{ color, className, surface, onClick, onHoverStart, onHoverEnd, forceGlow, elevated, style, children }} />;
+  }
   return (
     <motion.div
       onClick={onClick}
@@ -246,6 +252,7 @@ export function GlowCard({
         },
       }}
       transition={{ duration: 0.25 }}
+      data-ds="card"
       className={`${surface ?? `${t.glassSoft} rounded-lg`} ${onClick ? 'cursor-pointer' : ''} ${className}`}
     >
       {children}
@@ -281,22 +288,22 @@ export function CountUp({ value, suffix = '', delay = 0, duration = 1 }: { value
 // ─── EmptyState — the "nothing here yet" block every records panel across the app
 // was hand-rolling (icon in a chip, title, message, optional CTA). One definition.
 export function EmptyState({
-  icon: Icon, title, message, action,
+  icon: Icon, meaning, title, message, action,
 }: {
-  icon: ElementType; title: string; message?: string;
+  icon: ElementType; meaning?: import('./shared/icon-meanings').IconMeaning; title: string; message?: string;
   action?: { label: string; onClick: () => void };
 }) {
   const t = useTheme();
+  if (t.design === 'dallaglio') return <DallaglioEmptyState icon={Icon} meaning={meaning} title={title} message={message} action={action} />;
   return (
     <div className="flex flex-col items-center justify-center py-14 text-center">
       <div className={`${t.chipBg} p-4 rounded-2xl mb-3`}><Icon className={`h-7 w-7 ${t.textFaint}`} /></div>
       <div className={`text-sm font-medium ${t.textMuted}`}>{title}</div>
       {message && <div className={`text-xs mt-1 mb-4 max-w-xs ${t.textFaint}`}>{message}</div>}
       {action && (
-        <button type="button" onClick={action.onClick}
-          className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all">
-          <Plus className="h-3.5 w-3.5" /> {action.label}
-        </button>
+        <Button type="button" size="sm" icon={Plus} onClick={action.onClick}>
+          {action.label}
+        </Button>
       )}
     </div>
   );
@@ -320,6 +327,9 @@ export function CenterModal({
   const a = ACCENT[accent];
   const t = useTheme();
   const reduced = usePrefersReducedMotion();
+  if (t.design === 'dallaglio') {
+    return <DallaglioCenterModal open={open} onClose={onClose} title={title} subtitle={subtitle} accent={accent} width={width}>{children}</DallaglioCenterModal>;
+  }
   return (
     <Dialog.Root open={open} onOpenChange={o => { if (!o) onClose(); }}>
       <AnimatePresence>
@@ -345,6 +355,7 @@ export function CenterModal({
                 onEscapeKeyDown={handleModalEscapeKeyDown}
               >
                 <motion.div
+                  data-ds="modal"
                   className={`relative w-full ${width} max-h-[85vh] ${t.glass} rounded-xl ${t.shadow} flex flex-col overflow-hidden focus:outline-none`}
                   style={{ boxShadow: `0 24px 60px -20px ${ACCENT_RGBA[accent]}, 0 8px 24px -10px rgba(0,0,0,0.3)` }}
                   initial={reduced ? false : { opacity: 0, scale: 0.92, y: 16 }}
@@ -354,7 +365,7 @@ export function CenterModal({
                 >
                   <div className={`relative px-5 py-4 border-b ${t.border} shrink-0 overflow-visible`}>
                     <div
-                      className={`pointer-events-none absolute inset-0 overflow-hidden rounded-t-xl`}
+                      className="pointer-events-none absolute inset-0 overflow-hidden rounded-t-xl"
                       aria-hidden
                     >
                       <div
@@ -362,17 +373,10 @@ export function CenterModal({
                       />
                     </div>
                     <Dialog.Close asChild>
-                      <button
-                        className={`absolute top-1 right-1 z-20 flex h-12 w-12 min-h-12 min-w-12 cursor-pointer items-center justify-center rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-colors pointer-events-auto`}
-                        type="button"
-                        aria-label="Close"
-                        title="Close"
-                      >
-                        <X className="h-5 w-5 shrink-0 pointer-events-none" aria-hidden />
-                      </button>
+                      <CloseButton className="absolute top-1 right-1 z-20" />
                     </Dialog.Close>
                     <Dialog.Title asChild>
-                      <h2 className={`relative font-semibold ${t.textPrimary} text-[13px] tracking-tight pr-14`}>{title}</h2>
+                      <h2 className={`relative ${t.textPrimary} pr-14 font-semibold text-[13px] tracking-tight`}>{title}</h2>
                     </Dialog.Title>
                     {subtitle && (
                       <AnimatedText

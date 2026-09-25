@@ -6,7 +6,7 @@ import { AppShell } from '@/components/app-shell';
 import { PredictiveInput } from '@/components/shared/PredictiveInput';
 import { ClipboardList, ChevronDown, ChevronUp, Plus, X, Moon, Sun, Clock, RefreshCw } from '@/components/shared/theme';
 import { useModuleData } from '@/lib/useModuleData';
-import { useTheme, PageHero, StatTile, StatusBadge, FormField, PrimaryButton, SelectField, TYPE_WEIGHT } from '@/components/shared/theme';
+import { useTheme, PageHero, StatTile, StatusBadge, FormField, PrimaryButton, SelectField, TYPE_WEIGHT, Button } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
 import { formatDate } from '@/lib/format';
@@ -126,7 +126,7 @@ function HandoverContent() {
                 <button type="button" title="Remove equipment" onClick={() => removeEq(i)} className={`${t.textFaint} hover:text-rose-500 transition-colors px-1`}><X className="w-4 h-4" /></button>
               </div>
             ))}
-            <button type="button" onClick={addEq} className="text-brand-500 text-xs hover:opacity-80 transition-colors flex items-center gap-1"><Plus className="w-3 h-3" /> Add Equipment</button>
+            <Button type="button" variant="ghost" size="xs" icon={Plus} iconPosition="end" onClick={addEq}>Add Equipment</Button>
           </div>
           <PrimaryButton accent="violet" size="md" onClick={submit}>Submit Handover</PrimaryButton>
         </div>

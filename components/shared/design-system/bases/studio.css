@@ -1,0 +1,8 @@
+/* Studio design base — default MyOffice glass/glow language.
+   Surfaces, type, and CTAs come from themeClasses('studio') plus the
+   :root / .dark tokens in globals.css. This file names that language so
+   Studio and Paper are a pair of bases, not a one-off remap. */
+
+html[data-design='studio'] {
+  --ds-name: studio;
+}

@@ -16,7 +16,7 @@ import {
 import {
   useTheme, accentText, STATUS_TONE, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle,
   useCollapseSection, CenterModal, ACCENT_HEX, SelectField,
-  GroupSection, RecordCard, staggerContainer, fadeUp, InfoRow, SummaryItem, LoadingState, TYPE_WEIGHT,
+  GroupSection, RecordCard, staggerContainer, fadeUp, InfoRow, SummaryItem, LoadingState, TYPE_WEIGHT, PrimaryButton,
 } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
@@ -133,9 +133,7 @@ function EquipmentCard({ eq, onEdit, onDelete }: { eq: EquipmentItem; onEdit: ()
         </div>
       }
       actions={<>
-        <button onClick={onEdit} type="button" className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 text-white text-[12px] ${TYPE_WEIGHT.semibold} hover:brightness-110 transition-all`}>
-          <Pencil className="h-3.5 w-3.5" /> Edit
-        </button>
+        <PrimaryButton icon={Pencil} fullWidth size="xs" onClick={onEdit}>Edit</PrimaryButton>
         <button onClick={onDelete} type="button" className={`px-4 flex items-center justify-center gap-1.5 py-2 rounded-lg ${t.chipBg} text-rose-500 hover:bg-rose-500/10 text-[12px] ${TYPE_WEIGHT.semibold} transition-all`}>
           <Trash2 className="h-3.5 w-3.5" /> Delete
         </button>
@@ -410,13 +408,7 @@ function EquipmentPageContent() {
                 title="Equipment Register"
               />
             )}
-            <button
-              type="button"
-              onClick={() => { setEditingEq(null); setIsFormOpen(true); }}
-              className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 transition-all hover:brightness-110`}
-            >
-              <Plus className="h-3.5 w-3.5" /> Add Equipment
-            </button>
+            <PrimaryButton icon={Plus} onClick={() => { setEditingEq(null); setIsFormOpen(true); }}>Add Equipment</PrimaryButton>
           </>
         }
       >
@@ -488,9 +480,7 @@ function EquipmentPageContent() {
             {equipment.length === 0 ? 'Add your first equipment asset to get started.' : 'Try adjusting your search or filters.'}
           </p>
           {equipment.length === 0 && (
-            <button type="button" onClick={() => { setEditingEq(null); setIsFormOpen(true); }} className={`inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-[13px] ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:brightness-110 transition-all`}>
-              <Plus className="h-3.5 w-3.5" /> Add Equipment
-            </button>
+            <PrimaryButton icon={Plus} size="md" onClick={() => { setEditingEq(null); setIsFormOpen(true); }}>Add Equipment</PrimaryButton>
           )}
         </div>
       ) : (
@@ -559,13 +549,7 @@ function EquipmentPageContent() {
           <p className={`text-sm ${t.textMuted}`}>Are you sure you want to delete this equipment?</p>
           <div className="flex gap-2">
             <button type="button" onClick={() => setDeleteConfirm(null)} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border} transition-all`}>Cancel</button>
-            <button
-              type="button"
-              onClick={() => deleteConfirm !== null && handleDelete(deleteConfirm)}
-              className={`flex-1 py-2.5 rounded-xl text-sm ${TYPE_WEIGHT.semibold} text-white bg-gradient-to-br from-rose-500 to-rose-700 hover:brightness-110 transition-all inline-flex items-center justify-center gap-2`}
-            >
-              <Trash2 className="h-4 w-4" /> Delete
-            </button>
+            <PrimaryButton danger size="md" fullWidth icon={Trash2} onClick={() => deleteConfirm !== null && handleDelete(deleteConfirm)}>Delete</PrimaryButton>
           </div>
         </div>
       </CenterModal>

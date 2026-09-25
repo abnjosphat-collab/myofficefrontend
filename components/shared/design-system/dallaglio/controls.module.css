@@ -1,0 +1,185 @@
+/* Tools-derived control language. Classic does not import this file. */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  border: 1px solid transparent;
+  transition: background 0.2s, box-shadow 0.2s, transform 0.2s, filter 0.2s, border-color 0.2s, color 0.2s;
+}
+.btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+.btn:focus-visible {
+  outline: 2px solid var(--d-accent);
+  outline-offset: 2px;
+}
+.btn:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+}
+
+.sizeMd {
+  min-height: 40px;
+  padding: 0 15px;
+}
+.sizeSm {
+  min-height: 36px;
+  padding: 0 13px;
+}
+.sizeXs {
+  min-height: 32px;
+  padding: 0 11px;
+}
+
+.primary {
+  color: var(--d-accent-ink);
+  background: var(--d-accent);
+  border-color: var(--d-accent);
+  box-shadow: 0 3px 9px color-mix(in srgb, var(--d-accent) 14%, transparent);
+}
+.primary:hover:not(:disabled) {
+  filter: brightness(1.06);
+  box-shadow: 0 5px 14px color-mix(in srgb, var(--d-accent) 23%, transparent);
+}
+
+.secondary {
+  color: var(--d-ink);
+  background: var(--d-surface);
+  border-color: var(--d-line);
+}
+.secondary:hover:not(:disabled) {
+  background: var(--d-soft);
+  border-color: color-mix(in srgb, var(--d-accent) 35%, var(--d-line));
+}
+
+.subtle {
+  color: var(--d-accent);
+  background: var(--d-accent-soft);
+  border-color: color-mix(in srgb, var(--d-accent) 18%, transparent);
+}
+.subtle:hover:not(:disabled) {
+  filter: brightness(1.03);
+  box-shadow: 0 3px 9px color-mix(in srgb, var(--d-accent) 16%, transparent);
+}
+
+.ghost {
+  color: var(--d-ink-muted);
+  background: transparent;
+}
+.ghost:hover:not(:disabled) {
+  color: var(--d-accent);
+  background: var(--d-soft);
+}
+
+.danger {
+  color: #fff;
+  background: var(--d-danger);
+  border-color: var(--d-danger);
+}
+.danger:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+
+.icon {
+  width: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  padding: 0;
+  color: var(--d-ink-muted);
+  background: transparent;
+  border-color: transparent;
+}
+.icon:hover:not(:disabled) {
+  color: var(--d-accent);
+  background: var(--d-soft);
+  border-color: var(--d-line);
+}
+.icon.sizeXs {
+  width: 32px;
+  min-width: 32px;
+  min-height: 32px;
+}
+.icon.sizeMd {
+  width: 40px;
+  min-width: 40px;
+  min-height: 40px;
+}
+
+.close {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  min-width: 38px;
+  min-height: 38px;
+  border: 1px solid var(--d-line);
+  border-radius: 50%;
+  background: var(--d-canvas);
+  color: var(--d-ink-muted);
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, box-shadow 0.2s, transform 0.2s;
+}
+.close > svg {
+  transition: transform 0.25s;
+  pointer-events: none;
+}
+.close:hover:not(:disabled) {
+  background: var(--d-accent-soft);
+  color: var(--d-accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--d-accent) 5%, transparent);
+}
+.close:hover:not(:disabled) > svg {
+  transform: rotate(90deg);
+}
+.close:active:not(:disabled) {
+  transform: scale(0.96);
+}
+.close:focus-visible {
+  outline: 2px solid var(--d-accent);
+  outline-offset: 2px;
+}
+.closeSm {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
+}
+.closeLg {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn,
+  .btn:active:not(:disabled),
+  .close,
+  .close > svg {
+    transition-duration: 0.001ms !important;
+  }
+  .btn:active:not(:disabled),
+  .close:active:not(:disabled) {
+    transform: none;
+  }
+  .close:hover:not(:disabled) > svg {
+    transform: none;
+  }
+}
+
+@media (pointer: coarse) {
+  .close,
+  .closeSm,
+  .icon,
+  .icon.sizeXs {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}

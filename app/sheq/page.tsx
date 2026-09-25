@@ -10,7 +10,7 @@ import {
 } from '@/components/shared/theme';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { useTheme, useCollapseSection } from '@/components/shared/theme';
+import { useTheme, useCollapseSection, Button, Plus } from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
 
 // ─── PALETTE ─────────────────────────────────────────────────────────────────
@@ -424,7 +424,7 @@ function CommentsSection({ open, onToggle, P }: { open: boolean; onToggle: () =>
             <input value={text} onChange={e => setText(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); add(); } }}
               placeholder="Add a safety observation or note… (Enter to submit)" style={{ ...inputCls, flex: 1 }} title="Note" aria-label="Note" />
-            <button type="button" onClick={add} style={{ background: 'rgba(96,165,250,0.18)', border: '1px solid rgba(96,165,250,0.35)', borderRadius: 9, padding: '0 16px', color: '#60a5fa', cursor: 'pointer', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>Add</button>
+            <Button type="button" variant="subtle" size="xs" icon={Plus} iconPosition="end" onClick={add}>Add</Button>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 260, overflowY: 'auto' }}>
             {comments.length === 0 ? (

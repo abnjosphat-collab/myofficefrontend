@@ -14,7 +14,7 @@ import {
 } from '@/components/shared/theme';
 import {
   useTheme, Collapse, AnimatedText, PulsingIcon, CenterModal, InfoCard, EmptyState, StatStrip,
-  CardIconButton, ViewToggle, staggerContainer, fadeUp, ACCENT, ACCENT_RGBA, ACCENT_HEX, BRAND_GLOW_HEX, uiIconClass, rgbaFromHexSafe, SPACING, type Accent, TYPE_WEIGHT,
+  CardIconButton, ViewToggle, staggerContainer, fadeUp, ACCENT, ACCENT_RGBA, ACCENT_HEX, BRAND_GLOW_HEX, uiIconClass, rgbaFromHexSafe, SPACING, type Accent, TYPE_WEIGHT, PrimaryButton,
 } from '@/components/shared/theme';
 import {
   AppShell, useAppShell, trackModuleUsage, useDashboardData, INTRO_SLIDES_HIDDEN_KEY,
@@ -342,7 +342,6 @@ function CategorySection({
 
 function ModuleQuickView({ module }: { module: Module; accent: Accent }) {
   const t = useTheme();
-  const brand = ACCENT.violet;
   return (
     <motion.div variants={staggerContainer} initial="hidden" animate="show" className={`${SPACING.cardPad} space-y-4`}>
       <InfoCard
@@ -378,13 +377,9 @@ function ModuleQuickView({ module }: { module: Module; accent: Accent }) {
       )}
 
       <motion.div variants={fadeUp} whileHover={{ scale: 1.015 }} whileTap={{ scale: 0.985 }}>
-        <Link
-          href={module.href}
-          onClick={() => trackModuleUsage(module.href)}
-          className={`flex items-center justify-center gap-1.5 w-full py-2 rounded-lg bg-gradient-to-br ${brand.gradient} text-white text-[11.5px] ${TYPE_WEIGHT.semibold} ${brand.solidGlow} hover:brightness-110 transition-all duration-300 ease-out`}
-        >
+        <PrimaryButton href={module.href} fullWidth size="xs" onClick={() => trackModuleUsage(module.href)}>
           Open module <ArrowRight className="h-3 w-3" />
-        </Link>
+        </PrimaryButton>
       </motion.div>
     </motion.div>
   );
@@ -810,14 +805,9 @@ function DashboardContent() {
             >
               Cancel
             </button>
-            <button
-              onClick={confirmAddSelectedToFavorites}
-              disabled={selectedHrefs.size === 0}
-              className={`flex items-center gap-1.5 text-[12.5px] ${TYPE_WEIGHT.semibold} text-white rounded-lg px-3 py-1.5 bg-gradient-to-br ${ACCENT.blue.gradient} ${ACCENT.blue.solidGlow} hover:brightness-110 transition-all disabled:opacity-40`}
-              type="button"
-            >
-              <Bookmark className="h-3.5 w-3.5" /> Add to Favorites
-            </button>
+            <PrimaryButton icon={Bookmark} accent="blue" disabled={selectedHrefs.size === 0} onClick={confirmAddSelectedToFavorites}>
+              Add to Favorites
+            </PrimaryButton>
           </motion.div>
         )}
       </AnimatePresence>
