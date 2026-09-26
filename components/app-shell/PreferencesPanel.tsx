@@ -17,18 +17,19 @@ import {
   type ModuleView,
 } from '@/lib/prefs';
 import { toast } from 'sonner';
+import ds from '@/components/shared/design-system/dallaglio/shell.module.css';
 
 function Segmented<T extends string>({
   value, options, onChange,
 }: { value: T; options: { id: T; label: string }[]; onChange: (v: T) => void }) {
   const t = useTheme();
   return (
-    <div className={`inline-flex items-center gap-0.5 ${t.glassSoft} rounded-lg p-[3px]`}>
+    <div className={t.design === 'dallaglio' ? ds.segmented : `inline-flex items-center gap-0.5 ${t.glassSoft} rounded-lg p-[3px]`}>
       {options.map(o => {
         const active = o.id === value;
         return (
-          <button key={o.id} type="button" onClick={() => onChange(o.id)}
-            className={`px-2.5 py-1 rounded-md text-[12.5px] font-medium tracking-tight transition-colors ${
+          <button key={o.id} type="button" aria-pressed={active} onClick={() => onChange(o.id)}
+            className={t.design === 'dallaglio' ? `${ds.segment} ${active ? ds.segmentActive : ''}` : `px-2.5 py-1 rounded-md text-[12.5px] font-medium tracking-tight transition-colors ${
               active ? 'bg-brand-500/15 text-brand-400' : `${t.textMuted} ${t.hoverText} ${t.hoverBg}`
             }`}>
             {o.label}

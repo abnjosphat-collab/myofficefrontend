@@ -1265,7 +1265,10 @@ function TimesheetGrid({ employees, timesheets, days, getHourTotals, onCellClick
   onToggleAllEmployeeSelect: () => void;
 }) {
   const t = useTheme();
+  const quiet = t.design === 'dallaglio';
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [scrollEdges, setScrollEdges] = useState({ start: true, end: false });
+  const firstDayKey = days[0] ? fmtDate(days[0]) : '';
   const getEntry = useCallback((eid: string, d: Date) => timesheets.find(ts => String(ts.employee_id) === String(eid) && ts.date === fmtDate(d)), [timesheets]);
   const today = fmtDate(new Date());
   const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
@@ -1317,6 +1320,28 @@ function TimesheetGrid({ employees, timesheets, days, getHourTotals, onCellClick
   useEffect(() => () => { fillCleanupRef.current?.(); }, []);
 
   useEffect(() => {
+    if (!quiet) return;
+    const el = scrollRef.current;
+    if (!el) return;
+    const update = () => {
+      const start = el.scrollLeft <= 1;
+      const end = el.scrollLeft + el.clientWidth >= el.scrollWidth - 1;
+      setScrollEdges(previous => previous.start === start && previous.end === end ? previous : { start, end });
+    };
+    update();
+    el.addEventListener('scroll', update, { passive: true });
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    const table = el.querySelector('table');
+    if (table) observer.observe(table);
+    return () => { el.removeEventListener('scroll', update); observer.disconnect(); };
+  }, [quiet, days.length, employees.length]);
+
+  useEffect(() => {
+    if (quiet && scrollRef.current) scrollRef.current.scrollLeft = 0;
+  }, [quiet, firstDayKey]);
+
+  useEffect(() => {
     if (!fillDrag || fillCleanupRef.current) return;
     fillKeyboardRef.current = fillDrag;
     const onKeyDown = (e: KeyboardEvent) => {
@@ -1359,7 +1384,6 @@ function TimesheetGrid({ employees, timesheets, days, getHourTotals, onCellClick
     return <EmptyState icon={Users} title="No employees on this roster" message={'Set NEC / Salaried on the Employees page, or click "Add Employees" to add someone manually'} />;
   }
 
-  const quiet = t.design === 'dallaglio';
   const stickyBg = quiet ? 'bg-[var(--d-surface)]' : (t.light ? 'bg-white' : 'bg-[#040c18]');
   // A frozen/sticky header needs to stay fully opaque no matter what — stacking a
   // second, translucent bg-* class on top of stickyBg (e.g. for a holiday tint) is a
@@ -1398,11 +1422,20 @@ function TimesheetGrid({ employees, timesheets, days, getHourTotals, onCellClick
         </span>
       </div>
     )}
+    {quiet && (
+      <div className={tsGrid.gridNavigation}>
+        <span>Move through dates</span>
+        <div>
+          <button type="button" aria-label="Show earlier dates" title="Earlier dates" disabled={scrollEdges.start} onClick={() => scrollRef.current?.scrollBy({ left: -Math.max(360, scrollRef.current.clientWidth * .65), behavior: 'smooth' })}><ChevronLeft aria-hidden="true" />Earlier</button>
+          <button type="button" aria-label="Show later dates" title="Later dates" disabled={scrollEdges.end} onClick={() => scrollRef.current?.scrollBy({ left: Math.max(360, scrollRef.current.clientWidth * .65), behavior: 'smooth' })}>Later<ChevronRight aria-hidden="true" /></button>
+        </div>
+      </div>
+    )}
     {/* Sticky stacking: cell chrome (z-0) < employee column (z-20) < date/totals header (z-30) < corner (z-40) */}
     <Table containerRef={scrollRef} containerClassName={`${quiet ? tsGrid.wrap : ''} overflow-auto min-h-[280px] max-h-[min(72dvh,880px)] ${fillDrag ? 'select-none cursor-ew-resize' : ''}`}>
       <TableHeader>
         <TableRow className={`${t.border} hover:bg-transparent`}>
-          <TableHead className={`${quiet ? tsGrid.employeeHeader : 'min-w-52'} sticky left-0 top-0 z-40 ${stickyBg} border-r ${t.border} shadow-[2px_0_0_0_rgba(0,0,0,0.04)] dark:shadow-[2px_0_0_0_rgba(255,255,255,0.04)] ${t.textMuted}`}>
+          <TableHead className={`${quiet ? tsGrid.employeeHeader : 'min-w-52'} sticky left-0 top-0 z-40 ${stickyBg} border-r ${t.border} ${quiet ? '' : 'shadow-[2px_0_0_0_rgba(0,0,0,0.04)] dark:shadow-[2px_0_0_0_rgba(255,255,255,0.04)]'} ${t.textMuted}`}>
             <div className="flex items-center gap-2 py-1">
               <input
                 type="checkbox"
@@ -1420,7 +1453,7 @@ function TimesheetGrid({ employees, timesheets, days, getHourTotals, onCellClick
             const isWknd = d.getDay() === 0 || d.getDay() === 6;
             const holiday = zimHolidayName(ds);
             return (
-              <TableHead key={ds} className={`text-center ${quiet ? tsGrid.dateHead : 'min-w-[76px] px-0.5'} sticky top-0 z-30 ${dayHeaderBg(!!holiday)} shadow-[0_2px_0_0_rgba(0,0,0,0.04)] dark:shadow-[0_2px_0_0_rgba(255,255,255,0.04)]`}>
+              <TableHead key={ds} className={`text-center ${quiet ? tsGrid.dateHead : 'min-w-[76px] px-0.5'} sticky top-0 z-30 ${dayHeaderBg(!!holiday)} ${quiet ? '' : 'shadow-[0_2px_0_0_rgba(0,0,0,0.04)] dark:shadow-[0_2px_0_0_rgba(255,255,255,0.04)]'}`}>
                 <button
                   type="button"
                   aria-label={holiday ? `Bulk assign ${holiday}, ${ds}` : `Bulk assign all employees on ${ds}`}
@@ -2046,16 +2079,15 @@ function TimesheetsContent() {
                 link — this is the page-level entry point for it (previously only reachable
                 per-employee, which made bulk entry easy to miss). Seeded with the first
                 roster employee; anyone can be added or removed inside the dialog. */}
-            <PrimaryButton icon={Layers} disabled={tabEmployees.length === 0}
+            <PrimaryButton icon={Layers} size={t.design === 'dallaglio' ? 'xs' : 'sm'} disabled={tabEmployees.length === 0}
               title="Bulk-enter shifts for one or many employees at once"
               onClick={() => openBulkAssign({ anchorEmployee: tabEmployees[0] })}>
               Bulk Entry
             </PrimaryButton>
-            <DsButton type="button" variant="subtle" size="xs" icon={UserPlus} iconPosition="end" title="Add employees to this period roster" onClick={() => setShowBulkAdd(true)}>Add Employees</DsButton>
           </>
         }
       >
-        <div className="flex flex-wrap items-center gap-x-1 gap-y-2">
+        <div className={t.design === 'dallaglio' ? tsGrid.summaryStrip : 'flex flex-wrap items-center gap-x-1 gap-y-2'}>
           {[
             { icon: Users, val: `${tabEmployees.length}`, label: 'employees', color: 'text-brand-400' },
             { icon: Clock, val: `${summary.reg.toFixed(0)}h`, label: 'regular', color: accentText('emerald', t.light) },
@@ -2068,12 +2100,12 @@ function TimesheetsContent() {
             const it = item as { icon: ElementType; val: string; label: string; color: string };
             return (
               <React.Fragment key={i}>
-                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg">
-                  <it.icon className={`w-3.5 h-3.5 ${it.color}`} />
-                  <span className={`text-base ${TYPE_WEIGHT.bold} ${t.textPrimary}`}>{it.val}</span>
-                  <span className={`text-xs ${t.textFaint}`}>{it.label}</span>
+                <div className={t.design === 'dallaglio' ? tsGrid.summaryMetric : 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg'}>
+                  <it.icon className={`w-3.5 h-3.5 ${t.design === 'dallaglio' ? tsGrid.summaryIcon : it.color}`} />
+                  <span className={t.design === 'dallaglio' ? tsGrid.summaryValue : `text-base ${TYPE_WEIGHT.bold} ${t.textPrimary}`}>{it.val}</span>
+                  <span className={t.design === 'dallaglio' ? tsGrid.summaryLabel : `text-xs ${t.textFaint}`}>{it.label}</span>
                 </div>
-                {i < arr.length - 1 && <span className={`hidden sm:block select-none ${t.textFaint}`}>|</span>}
+                {t.design !== 'dallaglio' && i < arr.length - 1 && <span className={`hidden sm:block select-none ${t.textFaint}`}>|</span>}
               </React.Fragment>
             );
           })}
@@ -2104,9 +2136,10 @@ function TimesheetsContent() {
         <SectionHeader icon={LayoutGrid} title={`${activeTab === 'salaried' ? 'Salaried' : 'NEC'} Timesheet Grid`} sub={`${tabEmployees.length} employees · ${fmtPeriod(activePeriod)}`} open={showGrid} onToggle={() => setShowGrid(v => !v)}>
           <div className="relative min-w-[8rem] max-w-[14rem] flex-1 sm:flex-none">
             <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 ${t.textFaint}`} />
-            <input aria-label="Search employees" placeholder="Search…" className={`${t.inputBg} rounded-lg text-sm pl-8 pr-3 py-1.5 h-9 w-full sm:w-40 outline-none focus-visible:ring-2 focus-visible:ring-brand-400/45`} value={search} onChange={e => setSearch(e.target.value)} />
+            <input aria-label="Search employees" placeholder="Search…" className={`${t.inputBg} rounded-lg text-sm pl-8 pr-3 py-1.5 h-9 w-full sm:w-40 outline-none focus-visible:ring-2 focus-visible:ring-brand-400/45 ${t.design === 'dallaglio' ? tsGrid.sectionSearch : ''}`} value={search} onChange={e => setSearch(e.target.value)} />
           </div>
           <IconAction meaning="sort" title={`Sort: ${sortBy === 'name' ? 'A–Z name' : 'Department'}`} label={sortBy === 'name' ? 'A–Z' : 'Dept'} onClick={() => setSortBy(s => s === 'name' ? 'dept' : 'name')} />
+          <DsButton type="button" variant="secondary" size="xs" icon={UserPlus} title="Add employees to this period roster" onClick={() => setShowBulkAdd(true)}>Add employees</DsButton>
         </SectionHeader>
         {showGrid && (
           loading ? (

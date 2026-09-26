@@ -207,18 +207,18 @@ export function AuthMenu({ onPreferences }: { onPreferences?: () => void }) {
               admin/security/sign-out icon buttons, which were `hidden sm:flex` and simply
               disappeared on mobile with no other way to reach them. */}
           <button className={`flex items-center gap-1.5 h-11 pl-2 pr-2.5 rounded-lg ${t.hoverBg} transition-colors`} type="button" title={displayName} aria-label={`Account menu — ${displayName}`}>
-            <Avatar className="h-7 w-7 ring-1 ring-white/10">
+            <Avatar className={`h-7 w-7 ring-1 ${t.design === 'dallaglio' ? 'ring-[var(--d-line)]' : 'ring-white/10'}`}>
               {avatarUrl && <AvatarImage src={avatarUrl} alt={displayName} />}
-              <AvatarFallback className={`text-white text-[11px] font-medium ${t.cta}`}>{initials}</AvatarFallback>
+              <AvatarFallback className={`text-[11px] font-medium ${t.cta}`}>{initials}</AvatarFallback>
             </Avatar>
             <ChevronDown className={`h-3.5 w-3.5 ${t.textFaint} hidden lg:block`} />
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-64">
           <div className="flex items-center gap-3 px-2 py-2">
-            <Avatar className="h-9 w-9 ring-1 ring-white/10">
+            <Avatar className={`h-9 w-9 ring-1 ${t.design === 'dallaglio' ? 'ring-[var(--d-line)]' : 'ring-white/10'}`}>
               {avatarUrl && <AvatarImage src={avatarUrl} alt={displayName} />}
-              <AvatarFallback className={`text-white text-xs font-medium ${t.cta}`}>{initials}</AvatarFallback>
+              <AvatarFallback className={`text-xs font-medium ${t.cta}`}>{initials}</AvatarFallback>
             </Avatar>
             <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold truncate">{displayName}</p>

@@ -83,6 +83,40 @@
   background: var(--d-accent-soft);
 }
 
+.iconBtn:focus-visible {
+  outline: none !important;
+  border-color: var(--d-ink-muted);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--d-ink-muted) 12%, transparent);
+}
+
+.segmented {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--d-line);
+  border-radius: 9px;
+  background: var(--d-canvas);
+}
+
+.segment {
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 6px;
+  color: var(--d-ink-muted);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background .16s ease, color .16s ease;
+}
+
+.segment:hover { color: var(--d-ink); background: var(--d-soft); }
+.segmentActive { color: var(--d-ink); background: var(--d-surface); box-shadow: var(--d-shadow); }
+html[data-design='dallaglio'] .segment:focus-visible {
+  outline: none !important;
+  box-shadow: inset 0 0 0 2px var(--d-ink-muted);
+}
+
 .sidebar {
   background: var(--d-surface);
   border-right: 1px solid var(--d-line);

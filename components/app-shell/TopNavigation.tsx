@@ -13,6 +13,7 @@ import { useTheme, useIconStyle, rgbaFromHexSafe, ACCENT_HEX, AccentIcon } from 
 import type { Category } from './modules';
 import { AuthMenu } from './AuthMenu';
 import { useNotifications } from './useNotifications';
+import ds from '@/components/shared/design-system/dallaglio/shell.module.css';
 import { trackSearch, getSearchHistory, clearSearchHistory } from '@/lib/usage';
 
 export function TopNavigation({
@@ -77,7 +78,7 @@ export function TopNavigation({
       className={`relative sticky top-0 z-40 ${t.glass} ${t.design === 'dallaglio' ? '' : 'backdrop-saturate-150'} border-x-0 border-t-0`}
       style={{
         boxShadow: t.design === 'dallaglio'
-          ? '0 1px 0 var(--ds-line, #e6e3ee)'
+          ? 'none'
           : t.light
           ? `0 1px 0 rgba(255,255,255,0.7) inset, 0 14px 32px -16px ${glow}, 0 10px 24px -18px rgba(15,23,42,0.22)`
           : `0 1px 0 rgba(255,255,255,0.06) inset, 0 16px 36px -16px ${glow}, 0 10px 24px -16px rgba(0,0,0,0.55)`,
@@ -215,9 +216,10 @@ export function TopNavigation({
           </button>
           <button
             onClick={t.toggle}
-            className={`h-11 w-11 flex items-center justify-center ${t.hoverBg} ${t.textMuted}`}
+            className={t.design === 'dallaglio' ? `${ds.iconBtn} shrink-0` : `h-11 w-11 flex items-center justify-center ${t.hoverBg} ${t.textMuted}`}
             type="button"
             title={t.light ? 'Use dark mode' : 'Use light mode'}
+            aria-label={t.light ? 'Switch to dark mode' : 'Switch to light mode'}
           >
             {t.light ? <Moon className="h-[18px] w-[18px]" /> : <Sun className="h-[18px] w-[18px]" />}
           </button>
@@ -260,7 +262,7 @@ export function TopNavigation({
                 if (!notifOpen) markAllRead();
                 setNotifOpen(v => !v);
               }}
-              className={`relative h-11 w-11 flex items-center justify-center ${t.hoverBg} ${t.textMuted}`}
+              className={t.design === 'dallaglio' ? `${ds.iconBtn} relative shrink-0` : `relative h-11 w-11 flex items-center justify-center ${t.hoverBg} ${t.textMuted}`}
               type="button" title="Notifications"
               aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'}
               aria-expanded={notifOpen}
@@ -307,7 +309,7 @@ export function TopNavigation({
               )}
             </AnimatePresence>
           </div>
-          <button onClick={onCustomize} className={`h-11 w-11 flex items-center justify-center ${t.hoverBg} ${t.textMuted}`} type="button" title="Settings" aria-label="Customize appearance">
+          <button onClick={onCustomize} className={t.design === 'dallaglio' ? `${ds.iconBtn} shrink-0` : `h-11 w-11 flex items-center justify-center ${t.hoverBg} ${t.textMuted}`} type="button" title="Settings" aria-label="Customize appearance">
             <Settings className="h-[18px] w-[18px]" />
           </button>
           <AuthMenu onPreferences={onPreferences} />
