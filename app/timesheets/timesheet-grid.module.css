@@ -1,11 +1,45 @@
 /* Dallaglio timesheet grid — scan-first. Classic does not import this. */
 
+.sectionHeader {
+  min-height: 58px;
+  background: var(--d-surface, #fff);
+}
+
+.sectionIcon {
+  width: 16px;
+  height: 16px;
+  color: var(--d-accent, #7652c5);
+}
+
+.sectionTitle {
+  color: var(--d-ink, #292637);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.sectionSub {
+  color: var(--d-ink-muted, #6d697c);
+  font-size: 12px;
+}
+
+.sectionCollapse {
+  border: 1px solid var(--d-line, #e6e3ee);
+  border-radius: 8px;
+  background: var(--d-surface, #fff);
+}
+
+.sectionCollapse:hover {
+  border-color: var(--d-accent, #7652c5);
+  color: var(--d-accent, #7652c5);
+}
+
 .wrap {
-  --ts-line: var(--d-line, #e6e3ee);
+  --ts-line: color-mix(in srgb, var(--d-line, #e6e3ee) 72%, transparent);
   --ts-ink: var(--d-ink, #292637);
   --ts-muted: var(--d-ink-muted, #6d697c);
   --ts-accent: var(--d-accent, #7652c5);
-  --ts-soft: var(--d-soft, #f1eef8);
+  --ts-soft: color-mix(in srgb, var(--d-accent, #7652c5) 5%, var(--d-surface, #fff));
   --ts-surface: var(--d-surface, #fff);
   border: 1px solid var(--ts-line);
   border-radius: 13px;
@@ -17,21 +51,188 @@
   border-collapse: separate;
   border-spacing: 0;
   font-size: 12px;
+  width: max-content;
+  min-width: 100%;
 }
 
 .wrap :global([data-slot='table-row']) {
   border-color: var(--ts-line);
 }
 
-.wrap :global([data-slot='table-row']:hover) {
-  background: color-mix(in srgb, var(--ts-soft) 70%, transparent);
+.wrap :global(tbody [data-slot='table-row']) {
+  --ts-row-bg: var(--ts-surface);
+  background: var(--ts-row-bg) !important;
+}
+
+.wrap :global(tbody [data-slot='table-row']:nth-child(even)) {
+  --ts-row-bg: color-mix(in srgb, var(--ts-ink) 1.5%, var(--ts-surface));
+}
+
+.wrap :global(tbody [data-slot='table-row']:hover) {
+  --ts-row-bg: var(--ts-soft);
+}
+
+.wrap :global([data-slot='table-head']) {
+  height: 66px;
+  padding: 6px 9px;
+  background: var(--ts-surface);
+  border-bottom: 1px solid var(--ts-line);
+}
+
+.wrap :global([data-slot='table-cell']) {
+  border-bottom: 1px solid var(--ts-line);
+}
+
+.employeeHeader,
+.employeeSticky {
+  width: 252px;
+  min-width: 252px;
+  max-width: 252px;
+}
+
+.employeeSticky {
+  background: var(--ts-row-bg, var(--ts-surface)) !important;
+  border-right: 1px solid var(--ts-line);
+}
+
+.employeeCell {
+  min-height: 62px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 10px;
+}
+
+.employeeCheckbox {
+  flex: none;
+  accent-color: var(--ts-accent);
+}
+
+.employeeIcon {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  color: var(--ts-muted);
+}
+
+.employeeIdentity {
+  min-width: 0;
+  flex: 1;
+  line-height: 1.3;
+}
+
+.employeeIdentity strong,
+.employeeIdentity small {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.employeeIdentity strong {
+  font-size: 12px;
+  font-weight: 560;
+  color: var(--ts-ink);
+}
+
+.employeeIdentity small {
+  margin-top: 3px;
+  font-size: 10px;
+  color: var(--ts-muted);
+}
+
+.employeeActions,
+.employeeConfirm {
+  display: flex;
+  align-items: center;
+  flex: none;
+  gap: 2px;
+}
+
+.employeeActions {
+  opacity: 0;
+  transition: opacity .14s ease;
+}
+
+.employeeCell:hover .employeeActions,
+.employeeCell:focus-within .employeeActions {
+  opacity: 1;
+}
+
+.employeeActions button {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  color: var(--ts-muted);
+}
+
+.employeeActions button:hover,
+.employeeActions button:focus-visible {
+  background: var(--ts-soft);
+  color: var(--ts-accent);
+}
+
+.employeeActions button:focus-visible {
+  outline: 2px solid var(--ts-accent);
+  outline-offset: 1px;
+}
+
+.employeeActions svg {
+  width: 15px;
+  height: 15px;
+}
+
+.employeeConfirm span {
+  font-size: 10px;
+  color: var(--ts-muted);
+}
+
+.dateHead {
+  width: 72px;
+  min-width: 72px;
+  max-width: 72px;
+  padding: 4px 2px !important;
+}
+
+.dateButton {
+  position: relative;
+  min-height: 58px;
+  gap: 0;
+}
+
+.dateButton > span:first-child {
+  font-size: 10px;
+  line-height: 1.2;
+}
+
+.dateButton > span:nth-child(2) {
+  font-size: 17px;
+  line-height: 1.2;
+  font-weight: 550;
+  color: var(--ts-ink);
+}
+
+.dateMonth {
+  min-height: 12px;
+  font-size: 9px;
+  line-height: 1.2;
+}
+
+.dateButton > svg:last-child {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 11px;
+  height: 11px;
 }
 
 .cellBtn {
   width: 100%;
-  min-height: 40px;
+  min-height: 61px;
   min-width: 44px;
-  padding: 6px 4px;
+  padding: 7px 3px;
   border: 1px solid transparent;
   border-radius: 7px;
   background: transparent;
@@ -56,10 +257,17 @@
 }
 
 .hours {
-  font-size: 13px;
-  font-weight: 400;
+  font-size: 14px;
+  font-weight: 550;
   letter-spacing: -0.03em;
   color: var(--ts-ink);
+}
+
+.hourUnit {
+  margin-left: 1px;
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--ts-muted);
 }
 
 .status {
@@ -99,7 +307,7 @@
 }
 
 .weekend {
-  background: color-mix(in srgb, var(--ts-soft) 55%, transparent);
+  background: color-mix(in srgb, var(--ts-ink) 2.5%, var(--ts-row-bg, var(--ts-surface)));
 }
 
 .actions {
@@ -194,6 +402,9 @@
   .fillHandle {
     min-width: 44px;
     min-height: 44px;
+  }
+  .employeeActions {
+    opacity: 1;
   }
 }
 

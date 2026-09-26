@@ -128,12 +128,13 @@ function SectionHeader({ icon: Icon, title, sub, open, onToggle, children }: {
   icon: ElementType; title: string; sub?: string; open: boolean; onToggle: () => void; children?: React.ReactNode;
 }) {
   const t = useTheme();
+  const quiet = t.design === 'dallaglio';
   return (
-    <div className={`flex flex-wrap items-center justify-between gap-2 px-5 py-3 border-b ${t.border}`}>
+    <div className={`flex flex-wrap items-center justify-between gap-2 px-5 py-3 border-b ${t.border} ${quiet ? tsGrid.sectionHeader : ''}`}>
       <div className="flex min-w-0 flex-1 items-center gap-2 flex-wrap">
-        <Icon className="h-3.5 w-3.5 text-brand-400 shrink-0" />
-        <span className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textMuted}`}>{title}</span>
-        {sub && <span className={`text-[11px] ${t.textFaint}`}>{sub}</span>}
+        <Icon className={`h-3.5 w-3.5 text-brand-400 shrink-0 ${quiet ? tsGrid.sectionIcon : ''}`} />
+        <span className={quiet ? tsGrid.sectionTitle : `text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textMuted}`}>{title}</span>
+        {sub && <span className={quiet ? tsGrid.sectionSub : `text-[11px] ${t.textFaint}`}>{sub}</span>}
       </div>
       <div className="flex items-center gap-1.5">
         {children}
@@ -142,7 +143,7 @@ function SectionHeader({ icon: Icon, title, sub, open, onToggle, children }: {
           onClick={onToggle}
           aria-expanded={open}
           aria-label={open ? `Collapse ${title}` : `Expand ${title}`}
-          className={`h-8 w-8 flex items-center justify-center rounded-md ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/50`}
+          className={`h-8 w-8 flex items-center justify-center rounded-md ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/50 ${quiet ? tsGrid.sectionCollapse : ''}`}
         >
           {open ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
         </button>
@@ -1401,7 +1402,7 @@ function TimesheetGrid({ employees, timesheets, days, getHourTotals, onCellClick
     <Table containerRef={scrollRef} containerClassName={`${quiet ? tsGrid.wrap : ''} overflow-auto min-h-[280px] max-h-[min(72dvh,880px)] ${fillDrag ? 'select-none cursor-ew-resize' : ''}`}>
       <TableHeader>
         <TableRow className={`${t.border} hover:bg-transparent`}>
-          <TableHead className={`min-w-52 sticky left-0 top-0 z-40 ${stickyBg} border-r ${t.border} shadow-[2px_0_0_0_rgba(0,0,0,0.04)] dark:shadow-[2px_0_0_0_rgba(255,255,255,0.04)] ${t.textMuted}`}>
+          <TableHead className={`${quiet ? tsGrid.employeeHeader : 'min-w-52'} sticky left-0 top-0 z-40 ${stickyBg} border-r ${t.border} shadow-[2px_0_0_0_rgba(0,0,0,0.04)] dark:shadow-[2px_0_0_0_rgba(255,255,255,0.04)] ${t.textMuted}`}>
             <div className="flex items-center gap-2 py-1">
               <input
                 type="checkbox"
@@ -1419,17 +1420,17 @@ function TimesheetGrid({ employees, timesheets, days, getHourTotals, onCellClick
             const isWknd = d.getDay() === 0 || d.getDay() === 6;
             const holiday = zimHolidayName(ds);
             return (
-              <TableHead key={ds} className={`text-center min-w-[76px] px-0.5 sticky top-0 z-30 ${dayHeaderBg(!!holiday)} shadow-[0_2px_0_0_rgba(0,0,0,0.04)] dark:shadow-[0_2px_0_0_rgba(255,255,255,0.04)]`}>
+              <TableHead key={ds} className={`text-center ${quiet ? tsGrid.dateHead : 'min-w-[76px] px-0.5'} sticky top-0 z-30 ${dayHeaderBg(!!holiday)} shadow-[0_2px_0_0_rgba(0,0,0,0.04)] dark:shadow-[0_2px_0_0_rgba(255,255,255,0.04)]`}>
                 <button
                   type="button"
                   aria-label={holiday ? `Bulk assign ${holiday}, ${ds}` : `Bulk assign all employees on ${ds}`}
                   title={holiday ? `${holiday} — bulk assign this day` : 'Bulk assign this day for all employees'}
                   onClick={() => onBulkDay(d)}
-                  className={`w-full flex flex-col items-center gap-0.5 text-[11px] py-1.5 rounded-md transition-colors hover:bg-brand-500/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/50 group/day-hdr`}
+                  className={`w-full flex flex-col items-center gap-0.5 text-[11px] py-1.5 rounded-md transition-colors hover:bg-brand-500/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/50 group/day-hdr ${quiet ? tsGrid.dateButton : ''}`}
                 >
                   <span className={t.textFaint}>{d.toLocaleDateString('en-GB', { weekday: 'short' })}</span>
                   <span className={`${quiet ? 'font-normal' : TYPE_WEIGHT.bold} text-sm tabular-nums ${holiday ? (quiet ? t.textPrimary : accentText('violet', t.light)) : ds === today ? (quiet ? t.textPrimary : 'text-brand-400') : isWknd ? t.textFaint : t.textMuted}`}>{d.getDate()}</span>
-                  <span className={`hidden sm:inline ${t.textFaint}`}>{d.toLocaleDateString('en-GB', { month: 'short' })}</span>
+                  <span className={`${quiet ? tsGrid.dateMonth : 'hidden sm:inline'} ${t.textFaint}`}>{!quiet || d.getDate() === 1 || ds === fmtDate(days[0]) ? d.toLocaleDateString('en-GB', { month: 'short' }) : '\u00a0'}</span>
                   {holiday && <Sun className={`w-3 h-3 ${quiet ? t.textMuted : accentText('violet', t.light)}`} />}
                   <Layers className={`${quiet ? 'w-3 h-3 opacity-0 group-hover/day-hdr:opacity-100 group-focus-visible/day-hdr:opacity-100 text-[var(--d-accent)]' : 'w-3 h-3 text-brand-400/80 group-hover/day-hdr:text-brand-300'}`} aria-hidden />
                 </button>

@@ -21,6 +21,42 @@ export function TimesheetEmployeeCell({
   const t = useTheme();
   const quiet = t.design === 'dallaglio';
 
+  if (quiet) {
+    return (
+      <TableCell className={`sticky left-0 z-20 p-0 ${s.employeeSticky}`}>
+        <div className={s.employeeCell}>
+          <input
+            type="checkbox"
+            aria-label={`Select ${emp.name} for bulk assign`}
+            checked={selected}
+            onChange={() => onToggleSelect(emp.id)}
+            onClick={event => event.stopPropagation()}
+            className={s.employeeCheckbox}
+          />
+          <User className={s.employeeIcon} weight="light" aria-hidden="true" />
+          <div className={s.employeeIdentity}>
+            <strong title={emp.name}>{emp.name}</strong>
+            <small title={emp.position}>{emp.position}</small>
+          </div>
+          <div className={s.employeeActions}>
+            {confirmRemoveId === emp.id ? (
+              <div className={s.employeeConfirm}>
+                <span>Remove?</span>
+                <button type="button" aria-label={`Confirm removing ${emp.name} from this period`} title="Remove from period" onClick={() => { onRemoveEmployee(emp.id); setConfirmRemoveId(null); }}><Check aria-hidden="true" /></button>
+                <button type="button" aria-label="Cancel removal" title="Cancel" onClick={() => setConfirmRemoveId(null)}><X aria-hidden="true" /></button>
+              </div>
+            ) : (
+              <>
+                <button type="button" aria-label={`Assign shifts for ${emp.name}`} title="Assign shifts" onClick={() => onBulkAssign(emp)}><CalendarDays aria-hidden="true" /></button>
+                <button type="button" aria-label={`Remove ${emp.name} from this period`} title="Remove from period" onClick={() => setConfirmRemoveId(emp.id)}><X aria-hidden="true" /></button>
+              </>
+            )}
+          </div>
+        </div>
+      </TableCell>
+    );
+  }
+
   return (
     <TableCell className={`sticky left-0 z-20 ${stickyBg} border-r ${t.border} py-0 group/emp shadow-[2px_0_0_0_rgba(0,0,0,0.03)] dark:shadow-[2px_0_0_0_rgba(255,255,255,0.03)]`}>
       <div className={`relative py-2 ${quiet ? s.empCell : ''}`}>

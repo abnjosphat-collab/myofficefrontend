@@ -169,7 +169,7 @@ export function TimesheetDayCell({
           {entry ? (
             <>
               {shown ? (
-                <span className={s.hours}>{formatCellHours(shown.hours)}</span>
+                <span className={s.hours}>{formatCellHours(shown.hours)}<span className={s.hourUnit}>h</span></span>
               ) : entry.status === 'off' ? (
                 <span className={`${s.status} ${s.statusOff}`}>Off</span>
               ) : (

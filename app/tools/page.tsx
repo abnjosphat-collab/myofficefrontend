@@ -34,6 +34,14 @@ import s from './tools.module.css';
 
 type Modal = { kind: ActionKind; tool?: Tool; employee?: Employee } | { kind: 'new'|'employee'|'auth'|'feedback'|'customize'|'import'|'export'|'source-register' } | { kind: 'edit'|'attachments'|'ready'; tool: Tool } | null;
 const TOOLS_SESSION_KEY = 'myoffice.tools.session.v1';
+const TEMP_SCENE_KEY = 'myoffice.tools.tempScene';
+type TempScene = 'default' | 'nature' | 'grey' | 'black';
+const TEMP_SCENES: { value: TempScene; label: string }[] = [
+  { value: 'default', label: 'Default' },
+  { value: 'nature', label: 'Nature' },
+  { value: 'grey', label: 'Grey' },
+  { value: 'black', label: 'Black' },
+];
 const tabs = [{ value: 'register', label: 'Equipment', icon: 'box' }, { value: 'loans', label: 'In use', icon: 'out' }, { value: 'employees', label: 'Employees', icon: 'user' }, { value: 'activity', label: 'History', icon: 'history' }, { value: 'sources', label: 'Source registers', icon: 'upload', signedInOnly: true }, { value: 'accounts', label: 'Account access', icon: 'accounts', adminOnly: true }, { value: 'analytics', label: 'Analytics', icon: 'analytics', adminOnly: true }, { value: 'feedback', label: 'Feedback', icon: 'edit', adminOnly: true }] as const;
 function AttachmentForm({ tool, addFiles, onSave }: { tool: Tool; addFiles: AddEvidence; onSave: (files: Evidence[]) => void }) {
   const [files, setFiles] = useState(tool.evidence || []);
@@ -47,6 +55,7 @@ const fromServerTool = (row:ServerTool):Tool => ({ id:row.register_number,backen
 
 export default function ToolsPage() {
   const [appearance, setAppearance] = useState<'light' | 'dark'>('light');
+  const [tempScene, setTempScene] = useState<TempScene>('default');
   const [options, setOptions] = useState(DEFAULT_OPTIONS);
   const [history, dispatch] = useReducer(historyReducer, { past: [], present: { tools: SEED_TOOLS, activity: SEED_ACTIVITY }, future: [] });
   const { tools, activity } = history.present;
@@ -92,7 +101,13 @@ export default function ToolsPage() {
       setOverviewOpen(saved.overviewOpen);
     }
     setPreferencesReady(true);
+    const scene = window.sessionStorage.getItem(TEMP_SCENE_KEY);
+    if (scene === 'nature' || scene === 'grey' || scene === 'black') setTempScene(scene);
   }, []);
+  useEffect(() => {
+    if (tempScene === 'default') window.sessionStorage.removeItem(TEMP_SCENE_KEY);
+    else window.sessionStorage.setItem(TEMP_SCENE_KEY, tempScene);
+  }, [tempScene]);
   useEffect(() => {
     if (!preferencesReady) return;
     saveToolsPreferences({ appearance, options, view, sidebarCollapsed, overviewOpen });
@@ -320,10 +335,10 @@ export default function ToolsPage() {
     </div>
   </div>;
   const blocks: Record<SectionName,ReactNode> = { overview, register };
-  return <ToolsPreferences.Provider value={{appearance,font:options.font,fontSize:options.fontSize,equipmentIcons:options.equipmentIcons,guidance:options.guidance}}><main className={`${s.surface} ${s.standalone}`} data-tools-workspace="" data-mode={appearance} data-font={options.font} data-sidebar={sidebarCollapsed?'collapsed':'open'} style={{'--font-scale':options.fontSize/100} as CSSProperties}><aside className={s.moduleSidebar} aria-label="Tools navigation"><div className={s.sidebarBrand}><span><Icon name="app" size={19}/></span>{!sidebarCollapsed&&<strong>Tools</strong>}<button aria-label={sidebarCollapsed?'Expand sidebar':'Collapse sidebar'} onClick={()=>setSidebarCollapsed(value=>!value)}><motion.span animate={{rotate:sidebarCollapsed?0:180}}><Icon name="chevron" size={15}/></motion.span></button></div><nav>{visibleTabs.map(item=><button key={item.value} aria-current={tab===item.value?'page':undefined} data-label={item.label} onClick={()=>{setTab(item.value);setSearch('');track('opened section',item.label);}}><Icon name={item.icon} size={18}/>{!sidebarCollapsed&&<span>{item.label}</span>}</button>)}</nav></aside><section className={s.workspace} aria-label="Tools and Equipment workspace">
+  return <ToolsPreferences.Provider value={{appearance,font:options.font,fontSize:options.fontSize,equipmentIcons:options.equipmentIcons,guidance:options.guidance}}><main className={`${s.surface} ${s.standalone}`} data-tools-workspace="" data-mode={appearance} data-scene={tempScene} data-font={options.font} data-sidebar={sidebarCollapsed?'collapsed':'open'} style={{'--font-scale':options.fontSize/100} as CSSProperties}><aside className={s.moduleSidebar} aria-label="Tools navigation"><div className={s.sidebarBrand}><span><Icon name="app" size={19}/></span>{!sidebarCollapsed&&<strong>Tools</strong>}<button aria-label={sidebarCollapsed?'Expand sidebar':'Collapse sidebar'} onClick={()=>setSidebarCollapsed(value=>!value)}><motion.span animate={{rotate:sidebarCollapsed?0:180}}><Icon name="chevron" size={15}/></motion.span></button></div><nav>{visibleTabs.map(item=><button key={item.value} aria-current={tab===item.value?'page':undefined} data-label={item.label} onClick={()=>{setTab(item.value);setSearch('');track('opened section',item.label);}}><Icon name={item.icon} size={18}/>{!sidebarCollapsed&&<span>{item.label}</span>}</button>)}</nav></aside><section className={s.workspace} aria-label="Tools and Equipment workspace">
     <div className={s.topline}><h1 className={s.wordmark}><span><Icon name="app" size={19}/></span>Tools &amp; Equipment E-System</h1><div className={s.previewControls}><ActionHint label="Share an idea, report a problem, or record audio feedback."><button className={s.feedbackButton} aria-label="Give feedback" onClick={()=>{setModal({kind:'feedback'});track('opened feedback');}}><Icon name="edit" size={16}/><span>Feedback</span></button></ActionHint><ToolsNotifications counts={counts} unread={unreadNotifications} open={notificationsOpen} onOpenChange={setNotificationsOpen} onViewed={markNotificationsViewed} duration={duration} onShowOverdue={()=>{filterTo('overdue','loans');setNotificationsOpen(false);}} onShowInspection={()=>{filterTo('attention');setNotificationsOpen(false);}}/><ActionHint label={`Use the ${appearance==='light'?'dark':'light'} appearance. Your choice is saved on this device.`}><button className={s.themeButton} aria-label={`Switch to ${appearance === 'light' ? 'dark' : 'light'} theme`} onClick={()=>{const next=appearance==='light'?'dark':'light';setAppearance(next);track('theme changed',next==='dark'?'Dark':'Light');}}><Icon name="appearance" size={17}/><span>{appearance==='light'?'Light':'Dark'}</span><small>Switch to {appearance==='light'?'dark':'light'}</small></button></ActionHint><ActionHint label="Adjust the layout, text size, typeface, equipment icons, and helpful hints."><button className={s.customizeButton} aria-label="Open settings" onClick={()=>setModal({kind:'customize'})}><Icon name="settings" size={17}/><span>Settings</span></button></ActionHint><ActionHint label={currentAccount?'View your account, role or sign out.':'Sign in to save records.'}><button className={s.accountButton} aria-label={currentAccount?`Account: ${currentAccount.name}`:'Sign in'} onClick={()=>setModal({kind:'auth'})}><Icon name="user" size={16}/><span>{currentAccount?.name||'Sign in'}</span>{currentAccount&&<i data-issuer={currentAccount.role==='issuer'}>{currentAccount.role==='admin'?'Admin':currentAccount.role==='issuer'?`Issuer · ${currentAccount.department}`:'Viewer'}</i>}</button></ActionHint></div></div>
 
-    <div className={s.workspaceBar}><div className={s.departmentSelect}><Icon name="department" size={17}/><AnimatedSelect ariaLabel="Department" value={department} onOpenChange={open=>{if(open){setFiltersOpen(false);setActionsOpen(false);setNotificationsOpen(false);}}} onChange={value=>{setDepartment(value);clearFilters();}} options={[{value:'all',label:'All departments'},...departments.map(value=>({value,label:value}))]}/></div><label className={s.quickTextSize}><Icon name="font" size={16}/><span>Text size</span><input aria-label="Text size" type="range" min="85" max="125" step="5" value={options.fontSize} onChange={event=>setOptions(current=>({...current,fontSize:Number(event.target.value)}))}/><strong>{options.fontSize}%</strong></label></div>
+    <div className={s.workspaceBar}><div className={s.departmentSelect}><Icon name="department" size={17}/><AnimatedSelect ariaLabel="Department" value={department} onOpenChange={open=>{if(open){setFiltersOpen(false);setActionsOpen(false);setNotificationsOpen(false);}}} onChange={value=>{setDepartment(value);clearFilters();}} options={[{value:'all',label:'All departments'},...departments.map(value=>({value,label:value}))]}/></div><label className={s.quickTextSize}><Icon name="font" size={16}/><span>Text size</span><input aria-label="Text size" type="range" min="85" max="125" step="5" value={options.fontSize} onChange={event=>setOptions(current=>({...current,fontSize:Number(event.target.value)}))}/><strong>{options.fontSize}%</strong></label><div className={s.sceneSwitch} role="group" aria-label="Temporary background experiment"><span>Background preview</span>{TEMP_SCENES.map(scene=><button key={scene.value} type="button" aria-pressed={tempScene===scene.value} onClick={()=>setTempScene(scene.value)}>{scene.label}</button>)}</div></div>
     <div className={s.liveFeedback} role="status" aria-live="polite"><AnimatedText value={feedback}>{feedback}</AnimatedText></div>
     <div className={s.workspaceSections}><AnimatePresence initial={false}>{options.order.filter(section=>!options.hidden.includes(section)).map(section=><motion.section key={section} aria-label={`${section} section`} layout={!reduced} initial={{opacity:0,height:0}} animate={{opacity:1,height:'auto'}} exit={{opacity:0,height:0}} transition={{duration}}>{blocks[section]}</motion.section>)}</AnimatePresence></div>
 
