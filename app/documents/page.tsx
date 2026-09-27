@@ -4,20 +4,22 @@
 import { AppShell } from '@/components/app-shell';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
-  Folder, FileText, Upload, Search, Trash2, X, HardDrive, Archive,
+  Folder, FileText, Upload, Search, X, HardDrive, Archive,
   Download, Eye, File, Filter, FolderPlus, Grid2X2, ListTree, MoreVertical,
-  Star, ChevronRight, Loader2, FileSpreadsheet, Menu,
+  Star, ChevronRight, Loader2, FileSpreadsheet, Clock,
   Image as ImageIcon, Video, Music, Archive as ArchiveIcon, Building, Users,
   Target, HelpCircle, Settings, Zap, AlertTriangle, TrendingUp, FolderOpen,
   SortAsc, SortDesc, FilterX,
-  Check, Edit3, Trash as TrashIcon,
+  Edit3, Trash as TrashIcon,
   MessageSquare,
 } from '@/components/shared/theme';
 import { Toaster, toast } from 'sonner';
 import {
   useTheme, accentText, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle,
   FormField, FormActions, useCollapseSection, CenterModal, ProgressBar, ACCENT_HEX, GlowCard, SelectField, TYPE_WEIGHT, PrimaryButton, CloseButton,
+  Button, IconAction,
 } from '@/components/shared/theme';
+import { PillTabs } from '@/components/shared/PillTabs';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
 import { formatDate } from '@/lib/format';
@@ -114,16 +116,12 @@ function FileActionsMenu({ doc, onPreview, onDownload, onRename, onDelete, onTog
   const [open, setOpen] = useState(false);
   return (
     <div className="relative">
-      <button type="button" onClick={e => { e.stopPropagation(); setOpen(v => !v); }}
-        className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-colors`}
-        title="More actions">
-        <MoreVertical className="h-3.5 w-3.5" />
-      </button>
+      <Button variant="icon" icon={MoreVertical} onClick={e => { e.stopPropagation(); setOpen(v => !v); }} title={`More actions for ${doc.name}`} />
       {open && (
         <>
           <button type="button" aria-label="Close menu" onClick={() => setOpen(false)}
             className="fixed inset-0 z-10 cursor-default border-0 bg-transparent p-0" />
-          <div className={`absolute right-0 top-8 ${t.glass} rounded-xl ${t.shadow} z-20 w-44 py-1 overflow-hidden`}>
+          <div className={`absolute right-0 top-10 ${t.glass} rounded-xl ${t.shadow} z-20 w-44 py-1 overflow-hidden`}>
             <button type="button" onClick={e => { e.stopPropagation(); setOpen(false); onPreview(doc); }}
               className={`w-full flex items-center gap-2 px-3 py-2 text-xs ${t.textMuted} ${t.hoverBgSoft} transition-colors`}><Eye className="h-3.5 w-3.5" />Preview</button>
             <button type="button" onClick={e => { e.stopPropagation(); setOpen(false); onDownload(doc); }}
@@ -152,12 +150,13 @@ function DocumentsPageContent() {
   const [viewMode,         setViewMode]         = useState<'grid' | 'table'>('grid');
   const [currentCategory,  setCurrentCategory]  = useState<Category | null>(null);
   const [currentFolder,    setCurrentFolder]    = useState<string | null>(null);
-  const { documents, setDocuments, isLoading, refresh: loadFiles } = useDocumentsData(currentCategory, currentFolder);
+  const { documents, setDocuments, isLoading, error: filesError, refresh: loadFiles } = useDocumentsData(currentCategory, currentFolder);
   const { folders, setFolders } = useFolders(currentCategory);
   const [searchQuery,      setSearchQuery]      = useState('');
   const [homeSearchQuery,  setHomeSearchQuery]  = useState('');
   const [homeSearchResults, setHomeSearchResults] = useState<DocumentFile[]>([]);
   const [homeSearching,    setHomeSearching]    = useState(false);
+  const [homeSearchError,  setHomeSearchError]  = useState('');
   const [path,             setPath]             = useState<PathItem[]>([]);
   const [activeTab,        setActiveTab]        = useState<'all' | 'starred' | 'recent'>('all');
   const [mobileMenuOpen,   setMobileMenuOpen]   = useState(false);
@@ -187,16 +186,18 @@ function DocumentsPageContent() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (!homeSearchQuery.trim()) { setHomeSearchResults([]); return; }
+    if (!homeSearchQuery.trim()) { setHomeSearchResults([]); setHomeSearchError(''); setHomeSearching(false); return; }
     const q = homeSearchQuery;
+    let active = true;
     setHomeSearching(true);
+    setHomeSearchError('');
     const t = setTimeout(() => {
       searchDocuments(q)
-        .then(setHomeSearchResults)
-        .catch(e => toast.error(`Search failed: ${e}`))
-        .finally(() => setHomeSearching(false));
+        .then(results => { if (active) setHomeSearchResults(results); })
+        .catch(e => { if (active) { setHomeSearchResults([]); setHomeSearchError(e instanceof Error ? e.message : String(e)); } })
+        .finally(() => { if (active) setHomeSearching(false); });
     }, 300);
-    return () => clearTimeout(t);
+    return () => { active = false; clearTimeout(t); };
   }, [homeSearchQuery]);
 
   async function uploadFilesToApi() {
@@ -377,7 +378,7 @@ function DocumentsPageContent() {
   }
 
   function toggleSelectItem(id: string) {
-    setSelectedItems(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+    setSelectedItems(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   }
 
   function clearAllFilters() { setSearchQuery(''); setFileTypeFilter('all'); setDateFilter('all'); setSizeFilter('all'); setActiveTab('all'); }
@@ -456,9 +457,15 @@ function DocumentsPageContent() {
       {homeSearchQuery.trim() ? (
         <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden max-w-2xl mx-auto`}>
           <div className={`px-4 py-2.5 border-b ${t.border} text-xs ${t.textFaint}`}>
-            {homeSearching ? 'Searching…' : `${homeSearchResults.length} result${homeSearchResults.length === 1 ? '' : 's'}`}
+            {homeSearching ? 'Searching…' : homeSearchError ? 'Search unavailable' : `${homeSearchResults.length} result${homeSearchResults.length === 1 ? '' : 's'}`}
           </div>
-          {!homeSearching && homeSearchResults.length === 0 ? (
+          {!homeSearching && homeSearchError ? (
+            <div role="alert" className="p-8 text-center">
+              <AlertTriangle className={`h-7 w-7 mx-auto mb-2 ${t.textFaint}`} />
+              <p className={`text-sm ${t.textMuted}`}>Could not search documents</p>
+              <p className={`text-xs mt-1 ${t.textFaint}`}>{homeSearchError}</p>
+            </div>
+          ) : !homeSearching && homeSearchResults.length === 0 ? (
             <div className="p-8 text-center">
               <Search className={`h-8 w-8 mx-auto ${t.textFaint} mb-2`} />
               <p className={`text-sm ${t.textFaint}`}>No documents match &ldquo;{homeSearchQuery}&rdquo;</p>
@@ -487,10 +494,10 @@ function DocumentsPageContent() {
         {BASE_CATEGORIES.map(cat => {
           const Icon = cat.icon;
           return (
-            <GlowCard key={cat.id} onClick={() => handleCategoryClick(cat)} color={cat.color}
+            <GlowCard key={cat.id} onClick={() => handleCategoryClick(cat)} color={t.design === 'dallaglio' ? ACCENT_HEX.violet : cat.color}
               surface={`${t.glass} rounded-2xl`} className="p-5 text-left group">
-              <div className="p-2.5 rounded-xl mb-3 w-fit" style={{ background: `${cat.color}22` }}>
-                <Icon className="h-5 w-5" style={{ color: cat.color }} />
+              <div className={`p-2.5 rounded-xl mb-3 w-fit ${t.design === 'dallaglio' ? `${t.glassSoft} ${t.textFaint}` : ''}`} style={t.design === 'dallaglio' ? undefined : { background: `${cat.color}22` }}>
+                <Icon className="h-5 w-5" style={t.design === 'dallaglio' ? undefined : { color: cat.color }} />
               </div>
               <h3 className={`${TYPE_WEIGHT.semibold} mb-1 ${t.textPrimary} group-hover:text-brand-400 transition-colors`}>{cat.name}</h3>
               <p className={`text-xs line-clamp-2 ${t.textFaint}`}>{cat.description}</p>
@@ -512,10 +519,7 @@ function DocumentsPageContent() {
             <p className={`text-xs ${t.textFaint}`}>{currentCategory?.description}</p>
           </div>
           <div className="flex gap-2">
-            <button type="button" onClick={() => setIsCreateFolderOpen(true)}
-              className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.medium} ${t.textMuted} ${t.glassSoft} ${t.hoverText} transition-colors`}>
-              <FolderPlus className="h-3.5 w-3.5" /> New Folder
-            </button>
+            <Button variant="secondary" icon={FolderPlus} onClick={() => setIsCreateFolderOpen(true)}>New Folder</Button>
             <PrimaryButton icon={Upload} onClick={() => setIsUploadOpen(true)}>Upload</PrimaryButton>
           </div>
         </div>
@@ -533,21 +537,15 @@ function DocumentsPageContent() {
                 <GlowCard key={name} onClick={() => handleSubfolderClick(name)} color={ACCENT_HEX.blue}
                   surface={`${t.glass} rounded-2xl`} className="p-4 group flex items-center justify-between gap-2">
                   <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <div className="p-2 rounded-lg bg-brand-500/15 shrink-0">
-                      <Folder className="h-4 w-4 text-brand-400" />
+                    <div className={`p-2 rounded-lg shrink-0 ${t.design === 'dallaglio' ? `${t.glassSoft} ${t.textFaint}` : 'bg-brand-500/15 text-brand-400'}`}>
+                      <Folder className="h-4 w-4" weight={t.design === 'dallaglio' ? 'light' : undefined} />
                     </div>
                     <span className={`${TYPE_WEIGHT.medium} text-sm truncate ${t.textPrimary}`}>{name}</span>
                   </div>
                   {!isDefault && (
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                      <button type="button" title="Rename" className={`h-6 w-6 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-colors`}
-                        onClick={e => { e.stopPropagation(); setItemToRename({ name, id, type: 'folder' }); setNewName(name); setIsRenameDialogOpen(true); }}>
-                        <Edit3 className="h-3 w-3" />
-                      </button>
-                      <button type="button" title="Delete" className={`h-6 w-6 flex items-center justify-center rounded ${t.hoverBg} text-rose-500 hover:${t.light ? 'text-rose-600' : 'text-rose-400'} transition-colors`}
-                        onClick={e => { e.stopPropagation(); setItemToDelete({ name, id, type: 'folder' }); setIsDeleteDialogOpen(true); }}>
-                        <TrashIcon className="h-3 w-3" />
-                      </button>
+                    <div className="flex gap-1 shrink-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity">
+                      <IconAction meaning="edit" title={`Rename ${name}`} onClick={e => { e.stopPropagation(); setItemToRename({ name, id, type: 'folder' }); setNewName(name); setIsRenameDialogOpen(true); }} />
+                      <IconAction meaning="danger" title={`Delete ${name}`} onClick={e => { e.stopPropagation(); setItemToDelete({ name, id, type: 'folder' }); setIsDeleteDialogOpen(true); }} />
                     </div>
                   )}
                   <ChevronRight className={`h-3.5 w-3.5 shrink-0 ${t.textFaint}`} />
@@ -578,11 +576,8 @@ function DocumentsPageContent() {
                   <p className={`text-xs ${t.textFaint}`}>{formatFileSize(doc.file_size)}</p>
                 </div>
               </div>
-              <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
-                <button type="button" onClick={e => { e.stopPropagation(); handleToggleStar(doc); }} title={doc.starred ? 'Unstar' : 'Star'}
-                  className={`h-6 w-6 flex items-center justify-center rounded ${t.hoverBg} transition-colors`}>
-                  <Star className={`h-3.5 w-3.5 ${doc.starred ? `fill-amber-400 ${accentText('amber', t.light)}` : t.textFaint}`} />
-                </button>
+              <div className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity flex items-center gap-1">
+                <IconAction meaning="starred" title={doc.starred ? `Unstar ${doc.name}` : `Star ${doc.name}`} active={doc.starred} onClick={e => { e.stopPropagation(); handleToggleStar(doc); }} />
                 <FileActionsMenu doc={doc} onPreview={handlePreview} onDownload={handleDownload} onRename={handleRenameClick} onDelete={handleDeleteClick} onToggleStar={handleToggleStar} />
               </div>
             </div>
@@ -634,10 +629,8 @@ function DocumentsPageContent() {
                 <td className={`p-3 ${t.textMuted}`}>{formatFileSize(doc.file_size)}</td>
                 <td className={`p-3 text-xs whitespace-nowrap ${t.textMuted}`}>{formatDateTime(doc.created_at)}</td>
                 <td className="p-3" onClick={e => e.stopPropagation()}>
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button type="button" onClick={() => handleToggleStar(doc)} title={doc.starred ? 'Unstar' : 'Star'} className={`h-6 w-6 flex items-center justify-center rounded ${t.hoverBg} transition-colors`}>
-                      <Star className={`h-3 w-3 ${doc.starred ? `fill-amber-400 ${accentText('amber', t.light)}` : t.textFaint}`} />
-                    </button>
+                  <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity">
+                    <IconAction meaning="starred" title={doc.starred ? `Unstar ${doc.name}` : `Star ${doc.name}`} active={doc.starred} onClick={() => handleToggleStar(doc)} />
                     <FileActionsMenu doc={doc} onPreview={handlePreview} onDownload={handleDownload} onRename={handleRenameClick} onDelete={handleDeleteClick} onToggleStar={handleToggleStar} />
                   </div>
                 </td>
@@ -668,22 +661,16 @@ function DocumentsPageContent() {
       <div className={`${t.glass} rounded-2xl ${t.shadow} p-4 space-y-4`}>
         <div className="flex items-center gap-3 flex-wrap">
           <SearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search name or comments…" className="flex-1 min-w-[200px]" />
-          <div className={`flex ${t.glassSoft} rounded-lg p-0.5`}>
-            {(['all', 'starred', 'recent'] as const).map(tab => (
-              <button key={tab} type="button" onClick={() => setActiveTab(tab)}
-                className={`h-7 px-3 text-xs rounded-md transition-colors capitalize ${TYPE_WEIGHT.medium} ${activeTab === tab ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} ${t.hoverText}`}`}>
-                {tab}
-              </button>
-            ))}
-          </div>
-          <button type="button" onClick={() => setShowFilters(v => !v)}
-            className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.medium} transition-colors ${showFilters ? 'bg-brand-500/15 text-brand-400' : `${t.textMuted} ${t.glassSoft} ${t.hoverText}`}`}>
-            <Filter className="h-3.5 w-3.5" /> Filters {hasActiveFilters && <span className={`ml-1 px-1.5 py-0.5 ${t.chipBg} rounded text-[10px]`}>!</span>}
-          </button>
+          <PillTabs tabs={[
+            { key: 'all', label: 'All', icon: FileText, meaning: 'documents' },
+            { key: 'starred', label: 'Starred', icon: Star, meaning: 'starred' },
+            { key: 'recent', label: 'Recent', icon: Clock, meaning: 'clock' },
+          ]} value={activeTab} onChange={setActiveTab} wrap="scroll" />
+          <Button variant={showFilters ? 'subtle' : 'secondary'} icon={Filter} onClick={() => setShowFilters(v => !v)}>
+            Filters{hasActiveFilters ? ' · Active' : ''}
+          </Button>
           {hasActiveFilters && (
-            <button type="button" onClick={clearAllFilters} className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.medium} ${t.textFaint} ${t.hoverText} ${t.hoverBg} transition-colors`}>
-              <FilterX className="h-3.5 w-3.5" /> Clear
-            </button>
+            <Button variant="ghost" icon={FilterX} onClick={clearAllFilters}>Clear</Button>
           )}
         </div>
         {showFilters && (
@@ -704,26 +691,24 @@ function DocumentsPageContent() {
               <div className="flex gap-2">
                 <SelectField size="filter" title="Sort by" value={sortBy} onChange={setSortBy} className="flex-1"
                   options={[{ value: 'name', label: 'Name' }, { value: 'date', label: 'Date' }, { value: 'size', label: 'Size' }, { value: 'type', label: 'Type' }]} />
-                <button type="button" onClick={() => setSortOrder(v => v === 'asc' ? 'desc' : 'asc')} title={sortOrder}
-                  className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all`}>
-                  {sortOrder === 'asc' ? <SortAsc className="h-4 w-4" /> : <SortDesc className="h-4 w-4" />}
-                </button>
+                <Button variant="icon" icon={sortOrder === 'asc' ? SortAsc : SortDesc} title={`Sort ${sortOrder === 'asc' ? 'ascending' : 'descending'}`} onClick={() => setSortOrder(v => v === 'asc' ? 'desc' : 'asc')} />
               </div>
             </FormField>
           </div>
         )}
       </div>
 
-      <div className="flex flex-wrap gap-1">
-        <StatTile icon={FileText} color={ACCENT_HEX.violet} value={stats.totalFiles} label="Total Files" />
-        <StatTile icon={HardDrive} color={ACCENT_HEX.blue} value={formatFileSize(stats.totalSize)} label="Storage Used" />
-        <StatTile icon={Star} color={ACCENT_HEX.amber} value={stats.starred} label="Starred" onClick={() => setActiveTab('starred')} />
-      </div>
-
-      <p className={`text-sm ${t.textFaint}`}>Found <span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{filteredDocuments.length}</span> files</p>
+      {!filesError && <p className={`text-sm ${t.textFaint}`}>Found <span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{filteredDocuments.length}</span> files</p>}
 
       {isLoading ? (
         <div className="space-y-3">{[1, 2].map(i => <div key={i} className={`${t.glass} rounded-2xl h-24 animate-pulse`} />)}</div>
+      ) : filesError ? (
+        <div role="alert" className={`${t.glass} rounded-2xl p-8 text-center`}>
+          <AlertTriangle className={`h-8 w-8 mx-auto mb-3 ${t.textFaint}`} />
+          <h3 className={`text-sm ${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>Could not load files</h3>
+          <p className={`text-xs mt-1 mb-4 ${t.textFaint}`}>{filesError}</p>
+          <Button variant="secondary" icon={Loader2} onClick={() => loadFiles()}>Try again</Button>
+        </div>
       ) : filteredDocuments.length === 0 ? (
         <div className={`${t.glass} rounded-2xl p-12 text-center`}>
           <Archive className={`h-12 w-12 mx-auto ${t.textFaint} mb-4`} />
@@ -733,9 +718,7 @@ function DocumentsPageContent() {
             <PrimaryButton icon={Upload} size="md" onClick={() => setIsUploadOpen(true)}>Upload Files</PrimaryButton>
           )}
           {hasActiveFilters && (
-            <button type="button" onClick={clearAllFilters} className={`inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-[13px] ${TYPE_WEIGHT.medium} ${t.textMuted} ${t.glassSoft} ${t.hoverText} transition-all`}>
-              <FilterX className="h-3.5 w-3.5" /> Clear Filters
-            </button>
+            <Button variant="secondary" icon={FilterX} onClick={clearAllFilters}>Clear Filters</Button>
           )}
         </div>
       ) : viewMode === 'grid' ? renderGridView() : renderTableView()}
@@ -769,17 +752,15 @@ function DocumentsPageContent() {
                 formats={['excel']}
               />
             )}
-            <button type="button" className="lg:hidden h-8 w-8 flex items-center justify-center rounded-lg hover:bg-white/10" onClick={() => setMobileMenuOpen(!mobileMenuOpen)} title="Menu">
-              <Menu className="h-4 w-4" />
-            </button>
+            <span className="lg:hidden"><IconAction meaning="categories" title="Browse document categories" onClick={() => setMobileMenuOpen(!mobileMenuOpen)} /></span>
           </>
         }
       >
-        <div className="flex flex-wrap gap-1">
-          <StatTile icon={FileText} color={ACCENT_HEX.violet} value={stats.totalFiles} label="Total Files" />
-          <StatTile icon={HardDrive} color={ACCENT_HEX.blue} value={formatFileSize(stats.totalSize)} label="Storage Used" />
-          <StatTile icon={Star} color={ACCENT_HEX.amber} value={stats.starred} label="Starred" />
-        </div>
+        {currentFolder && <div className="flex flex-wrap gap-1">
+          <StatTile icon={FileText} color={ACCENT_HEX.violet} value={isLoading || filesError ? '—' : stats.totalFiles} label="Total Files" />
+          <StatTile icon={HardDrive} color={ACCENT_HEX.blue} value={isLoading || filesError ? '—' : formatFileSize(stats.totalSize)} label="Storage Used" />
+          <StatTile icon={Star} color={ACCENT_HEX.amber} value={isLoading || filesError ? '—' : stats.starred} label="Starred" />
+        </div>}
       </PageHero>
 
       {mobileMenuOpen && (

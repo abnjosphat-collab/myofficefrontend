@@ -11,6 +11,7 @@ import { render, screen, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import ExcelJS from 'exceljs';
 import { DownloadButton, type DLColumn } from './DownloadButton';
+import { ThemeContext, themeClasses } from './theme';
 
 let savedBlob: Blob | null = null;
 vi.mock('file-saver', () => ({ saveAs: (blob: Blob) => { savedBlob = blob; } }));
@@ -37,6 +38,21 @@ async function downloadAndParse(props: Partial<Parameters<typeof DownloadButton>
 }
 
 describe('DownloadButton Excel export', () => {
+  it('opens the Dallaglio export menu and exposes both formats', async () => {
+    const user = userEvent.setup();
+    render(
+      <ThemeContext.Provider value={{
+        ...themeClasses(true, 'dallaglio'), light: true, preference: 'light',
+        setPreference: () => {}, toggle: () => {}, design: 'dallaglio', setDesign: () => {},
+      }}>
+        <DownloadButton data={data} columns={columns} filename="test" />
+      </ThemeContext.Provider>,
+    );
+    await user.click(screen.getByRole('button', { name: 'Download' }));
+    expect(screen.getByRole('menuitem', { name: 'Export Excel' })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'Export PDF' })).toBeInTheDocument();
+  });
+
   it('writes the correct distinct header row with no title (headers at row 1)', async () => {
     const ws = await downloadAndParse();
     const headerRow = ws.getRow(1).values as unknown[];

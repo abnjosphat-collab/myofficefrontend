@@ -11,6 +11,11 @@ describe('design-aware Button and CloseButton', () => {
     expect(html).toMatch(/data-ds="(button|cta)"/);
   });
 
+  it('exposes the selected state for choice buttons', () => {
+    const html = renderToStaticMarkup(createElement(Button, { variant: 'subtle', pressed: true }, 'User'));
+    expect(html).toContain('aria-pressed="true"');
+  });
+
   it('keeps an accessible name on CloseButton', () => {
     const html = renderToStaticMarkup(createElement(CloseButton, { label: 'Close dialog' }));
     expect(html).toContain('aria-label="Close dialog"');

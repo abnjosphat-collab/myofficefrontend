@@ -10,7 +10,7 @@ import {
   HeartHandshake, LayoutGrid, Layers, List, Package, Percent, Pin, Plus,
   RefreshCw, SearchIcon, Settings, ShieldCheck, ShoppingCart, Sparkles,
   Star, Table2, Target, Trash2, TrendingUp, UserCheck, Users, Wrench, Zap,
-  Pencil, CalendarDays, Hash, Send, CheckSquare, XCircle,
+  Pencil, CalendarDays, Hash, Send, CheckSquare, XCircle, Mail, Phone,
 } from '../icons';
 
 export const CLASSIC_ICONS: Record<IconMeaning, ElementType> = {
@@ -27,6 +27,8 @@ export const CLASSIC_ICONS: Record<IconMeaning, ElementType> = {
   filter: Filter,
   sort: ArrowUpDown,
   edit: Pencil,
+  mail: Mail,
+  phone: Phone,
   archive: Archive,
   analytics: BarChart3,
   refresh: RefreshCw,

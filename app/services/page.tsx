@@ -14,7 +14,7 @@ import { AppShell } from '@/components/app-shell';
 import { formatDate } from '@/lib/format';
 import {
   useTheme, accentText, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle,
-  FormField, FormActions, useCollapseSection, CenterModal, ProgressBar, ACCENT_HEX, GlowCard, SelectField, TYPE_WEIGHT, PrimaryButton,
+  FormField, FormActions, useCollapseSection, CenterModal, ProgressBar, ACCENT_HEX, GlowCard, SelectField, TYPE_WEIGHT, PrimaryButton, Button,
 } from '@/components/shared/theme';
 import { Toaster, toast } from 'sonner';
 import type { Attachment, PaymentStage, ServiceRecord, StageData, StoresStage } from './types';
@@ -811,20 +811,17 @@ function ServicesPageContent() {
         actions={
           <>
             <PrimaryButton icon={Scan} title="Scan a document to extract data" onClick={() => setOcrOpen(true)}>Scan</PrimaryButton>
-            <button type="button" onClick={() => setImportOpen(true)} title="Import records from Excel"
-              className={`inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg ${TYPE_WEIGHT.semibold} ${t.textMuted} ${t.glassSoft} ${t.hoverText} transition-all`}>
-              <FileSpreadsheet className="h-3.5 w-3.5" /> Import
-            </button>
+            <Button variant="secondary" icon={FileSpreadsheet} onClick={() => setImportOpen(true)} title="Import records from Excel">Import</Button>
             <PrimaryButton icon={Plus} onClick={() => { setEditRecord(null); setFormOpen(true); }}>New Service</PrimaryButton>
           </>
         }
       >
         <div className="flex flex-wrap gap-1">
-          <StatTile icon={Wrench} color={ACCENT_HEX.blue} value={total} label="Total" />
-          <StatTile icon={Loader2} color="#f59e0b" value={inProg} label="In Progress" />
-          <StatTile icon={CheckCircle2} color="#34d399" value={completed} label="Completed" />
-          <StatTile icon={Circle} color="#94a3b8" value={notStarted} label="Not Started" />
-          <StatTile icon={Calendar} color={ACCENT_HEX.violet} value={monthCount} label="This Month" />
+          <StatTile icon={Wrench} color={ACCENT_HEX.blue} value={apiError ? '—' : total} label="Total" />
+          <StatTile icon={Loader2} color="#f59e0b" value={apiError ? '—' : inProg} label="In Progress" />
+          <StatTile icon={CheckCircle2} color="#34d399" value={apiError ? '—' : completed} label="Completed" />
+          <StatTile icon={Circle} color="#94a3b8" value={apiError ? '—' : notStarted} label="Not Started" />
+          <StatTile icon={Calendar} color={ACCENT_HEX.violet} value={apiError ? '—' : monthCount} label="This Month" />
         </div>
       </PageHero>
 
@@ -838,13 +835,10 @@ function ServicesPageContent() {
       {/* Filters */}
       <div className={`${t.glass} rounded-2xl ${t.shadow} p-4 space-y-4`}>
         <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-          <SearchInput value={search} onChange={setSearch} placeholder="Search description, supplier, REQ, INV, GRV…" className="flex-1" />
+          <SearchInput value={search} onChange={setSearch} placeholder="Search description, supplier, REQ, INV, GRV…" className="w-full sm:flex-1" />
           <div className="flex gap-2 flex-wrap items-center">
-            <button type="button" onClick={() => setShowFilters(v => !v)}
-              className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.medium} transition-colors ${showFilters ? 'bg-brand-500/15 text-brand-400' : `${t.textMuted} ${t.glassSoft} ${t.hoverText}`}`}>
-              <Filter className="h-3.5 w-3.5" /> Filters
-            </button>
-            {anyFilter && <button type="button" onClick={clearFilters} className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.medium} ${t.textFaint} ${t.hoverText} ${t.hoverBg}`}><X className="h-3.5 w-3.5" /> Clear</button>}
+            <Button variant={showFilters ? 'subtle' : 'secondary'} icon={Filter} onClick={() => setShowFilters(v => !v)}>Filters</Button>
+            {anyFilter && <Button variant="ghost" icon={X} onClick={clearFilters}>Clear</Button>}
             <ViewToggle value={viewMode} onChange={setViewMode} options={[{ value: 'grid', icon: LayoutGrid, label: 'Grid view' }, { value: 'table', icon: Table2, label: 'Table view' }, { value: 'sheet', icon: FileSpreadsheet, label: 'Sheet view — everything at once, like the Excel tracker' }]} />
           </div>
         </div>
@@ -867,7 +861,7 @@ function ServicesPageContent() {
       {/* Records */}
       <div className="space-y-3">
         <div className="flex items-center justify-between flex-wrap gap-2">
-          <p className={`text-sm ${t.textFaint}`}>Showing <span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{processed.length}</span> of {total}</p>
+          <p className={`text-sm ${t.textFaint}`}>{apiError ? 'Records unavailable' : <>Showing <span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{processed.length}</span> of {total}</>}</p>
           <div className="flex items-center gap-2">
             <SelectField size="filter" title="Sort by" value={sortBy} onChange={setSortBy}
               options={[
@@ -879,17 +873,16 @@ function ServicesPageContent() {
                 { value: 'progress_desc', label: 'Most progress' },
               ]} />
             {viewMode === 'grid' && processed.length > 0 && (
-              <button type="button" onClick={allExpanded ? collapseAll : expandAll} title={allExpanded ? 'Collapse all' : 'Expand all'}
-                className={`h-8 px-2 text-xs flex items-center gap-1 rounded-lg ${t.glassSoft} ${t.textFaint} ${t.hoverText}`}>
-                {allExpanded ? <><ChevronsUp className="h-3 w-3" /> Collapse all</> : <><ChevronsDown className="h-3 w-3" /> Expand all</>}
-              </button>
+              <Button variant="secondary" icon={allExpanded ? ChevronsUp : ChevronsDown} onClick={allExpanded ? collapseAll : expandAll}>
+                {allExpanded ? 'Collapse all' : 'Expand all'}
+              </Button>
             )}
           </div>
         </div>
 
         {loading ? (
           <div className={`${t.glass} rounded-2xl p-16 text-center flex items-center justify-center gap-2 ${t.textFaint}`}><Loader2 className="h-5 w-5 animate-spin" /> Loading services…</div>
-        ) : processed.length === 0 ? (
+        ) : apiError ? null : processed.length === 0 ? (
           <div className={`${t.glass} rounded-2xl p-12 text-center`}>
             <Wrench className={`h-12 w-12 ${t.textFaint} mx-auto mb-4`} />
             <h3 className={`text-lg ${TYPE_WEIGHT.semibold} ${t.textPrimary} mb-2`}>{anyFilter ? 'No records match your filters' : 'No service records yet'}</h3>

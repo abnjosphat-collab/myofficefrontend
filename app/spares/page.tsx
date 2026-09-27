@@ -6,7 +6,7 @@ import { formatDate } from '@/lib/format';
 import { formatCurrency, lineTotal as calcLineTotal } from '@/components/shared/utils';
 import { api } from '@/lib/apiClient';
 import { EXPORT_BRAND_RGB } from '@/lib/exportUtils';
-import { useTheme, accentText, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle, FormField, FormActions, CenterModal, ACCENT_HEX, STATUS_TONE, GlowCard, SelectField, GroupSection, staggerContainer, fadeUp, Combobox, type ComboOption as SharedComboOption, TYPE_WEIGHT, PrimaryButton, Button, CloseButton } from '@/components/shared/theme';
+import { useTheme, accentText, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle, FormField, FormActions, CenterModal, ACCENT_HEX, STATUS_TONE, GlowCard, SelectField, GroupSection, staggerContainer, fadeUp, Combobox, type ComboOption as SharedComboOption, TYPE_WEIGHT, PrimaryButton, Button, CloseButton, IconAction, DisclosureButton } from '@/components/shared/theme';
 import { PredictiveInput } from '@/components/shared/PredictiveInput';
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
@@ -149,7 +149,7 @@ const SpareCard = React.memo(({ spare, isFavorite, isExpanded, onEdit, onDelete,
   const pc = PRIORITY_COLOR[spare.priority] || ACCENT_HEX.blue;
 
   return (
-    <GlowCard color={pc} surface={`${t.glass} rounded-xl`} className="group relative overflow-hidden">
+    <GlowCard color={t.design === 'dallaglio' ? ACCENT_HEX.violet : pc} surface={`${t.glass} rounded-xl`} className="group relative overflow-hidden">
       <div className="p-4">
         <div className="flex items-start justify-between mb-2">
           <div className="flex-1 min-w-0 pr-2">
@@ -162,15 +162,15 @@ const SpareCard = React.memo(({ spare, isFavorite, isExpanded, onEdit, onDelete,
             {spare.notes && <div className={`text-[11px] line-clamp-1 mt-0.5 italic ${t.textFaint}`}>{spare.notes}</div>}
           </div>
           <div className="flex items-center gap-0.5 flex-shrink-0">
-            <button title={isFavorite ? 'Unfavourite' : 'Favourite'} onClick={() => onFavorite(spare.id)} className={`h-6 w-6 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:${t.light ? 'text-amber-600' : 'text-amber-400'} transition-all`}>
+            {t.design === 'dallaglio' ? <IconAction meaning="starred" title={isFavorite ? 'Remove favourite' : 'Add favourite'} active={isFavorite} onClick={() => onFavorite(spare.id)} /> : <button title={isFavorite ? 'Unfavourite' : 'Favourite'} onClick={() => onFavorite(spare.id)} className={`h-6 w-6 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:${t.light ? 'text-amber-600' : 'text-amber-400'} transition-all`}>
               <Star className={`h-3 w-3 ${isFavorite ? `fill-amber-400 ${accentText('amber', t.light)}` : ''}`} />
-            </button>
-            <button title={isExpanded ? 'Collapse' : 'Expand'} onClick={onToggleExpand} className={`h-6 w-6 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} transition-all`}>
+            </button>}
+            {t.design === 'dallaglio' ? <DisclosureButton open={isExpanded} onClick={onToggleExpand} label={`${spare.stock_code} details`} /> : <button title={isExpanded ? 'Collapse' : 'Expand'} onClick={onToggleExpand} className={`h-6 w-6 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} transition-all`}>
               {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-            </button>
+            </button>}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button title="More options" className={`h-6 w-6 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} transition-all`}><MoreVertical className="h-3 w-3" /></button>
+                {t.design === 'dallaglio' ? <Button variant="icon" size="sm" icon={MoreVertical} title="More options" /> : <button title="More options" className={`h-6 w-6 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} transition-all`}><MoreVertical className="h-3 w-3" /></button>}
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={() => onEdit(spare)}><Pencil className="h-4 w-4 mr-2" /> Edit</DropdownMenuItem>
@@ -206,7 +206,7 @@ const SpareCard = React.memo(({ spare, isFavorite, isExpanded, onEdit, onDelete,
             <div className={`text-sm ${TYPE_WEIGHT.bold} ${t.textPrimary}`}>{formatCurrency(spare.unit_price)}<span className={`text-[10px] ml-1 ${t.textFaint}`}>/{spare.unit_of_measure || 'UN'}</span></div>
             <div className={`text-[10px] ${t.textFaint}`}>Inv: {formatCurrency(invValue)}</div>
           </div>
-          <PrimaryButton icon={ShoppingCart} size="xs" onClick={() => onAddToReq(spare)}>Add to Req</PrimaryButton>
+          {t.design === 'dallaglio' ? <Button variant="secondary" size="sm" icon={ShoppingCart} onClick={() => onAddToReq(spare)}>Add to requisition</Button> : <PrimaryButton icon={ShoppingCart} size="xs" onClick={() => onAddToReq(spare)}>Add to Req</PrimaryButton>}
         </div>
       </div>
 
@@ -264,8 +264,9 @@ function RequisitionLineRow({ line, allSpares, onUpdate, onRemove }: {
   const pick = (spare: Spare) => onUpdate(line.id, { spare, searchValue: spare.stock_code, dropdownOpen: false });
 
   return (
-    <div className={`grid gap-1.5 items-center p-2 rounded-xl ${t.chipBg}`} style={{ gridTemplateColumns: '180px 1fr 48px 96px 80px 90px 28px' }}>
-      <div className="relative">
+    <div className={`grid grid-cols-2 gap-2 items-center p-3 rounded-xl ${t.chipBg} lg:grid-cols-[180px_minmax(0,1fr)_48px_96px_80px_90px_36px]`}>
+      <div className="relative col-span-2 lg:col-span-1">
+        <span className={`lg:hidden block mb-1 text-[11px] ${t.textFaint}`}>Stock code</span>
         <input type="text" value={line.searchValue} placeholder="Stock code…" aria-label="Search stock code"
           onChange={e => onUpdate(line.id, { searchValue: e.target.value, spare: null, dropdownOpen: true })}
           onFocus={() => onUpdate(line.id, { dropdownOpen: true })}
@@ -282,17 +283,18 @@ function RequisitionLineRow({ line, allSpares, onUpdate, onRemove }: {
           </div>
         )}
       </div>
-      <div className={`text-[11px] truncate px-1 ${t.textMuted}`}>{line.spare?.description ?? <span className={`italic ${t.textFaint}`}>—</span>}</div>
-      <div className={`text-[11px] text-center ${t.textFaint}`}>{line.spare?.unit_of_measure ?? '—'}</div>
-      <div className="flex items-center gap-0.5">
-        <button onClick={() => onUpdate(line.id, { qty: Math.max(1, line.qty - 1) })} className={`h-6 w-5 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} text-sm leading-none transition-all`}>−</button>
+      <div className={`col-span-2 lg:col-span-1 min-w-0 text-[11px] truncate px-1 ${t.textMuted}`}>{line.spare?.description ?? <span className={`italic ${t.textFaint}`}>Select a spare</span>}</div>
+      <div className={`col-span-2 lg:col-span-1 text-[11px] lg:text-center ${t.textFaint}`}><span className="lg:hidden">Unit: </span>{line.spare?.unit_of_measure ?? '—'}</div>
+      <div className="col-span-2 lg:col-span-1 flex items-center gap-1">
+        <span className={`lg:hidden mr-1 text-[11px] ${t.textFaint}`}>Quantity</span>
+        <button type="button" aria-label="Decrease quantity" onClick={() => onUpdate(line.id, { qty: Math.max(1, line.qty - 1) })} className={`h-9 w-9 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} text-sm leading-none transition-all`}>−</button>
         <input type="number" min={1} value={line.qty} onChange={e => onUpdate(line.id, { qty: Math.max(1, Number(e.target.value) || 1) })} title="Quantity" aria-label="Quantity"
-          className={`w-10 text-center text-xs rounded-md ${t.inputBg} py-1`} />
-        <button onClick={() => onUpdate(line.id, { qty: line.qty + 1 })} className={`h-6 w-5 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} text-sm leading-none transition-all`}>+</button>
+          className={`w-12 text-center text-xs rounded-md ${t.inputBg} py-2`} />
+        <button type="button" aria-label="Increase quantity" onClick={() => onUpdate(line.id, { qty: line.qty + 1 })} className={`h-9 w-9 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} text-sm leading-none transition-all`}>+</button>
       </div>
-      <div className={`text-xs text-right pr-1 ${t.textMuted}`}>{line.spare ? formatCurrency(line.spare.unit_price) : '—'}</div>
-      <div className={`text-xs ${TYPE_WEIGHT.bold} text-right pr-1 ${t.textPrimary}`}>{line.spare ? formatCurrency(lineTotal) : '—'}</div>
-      <button title="Remove line" onClick={() => onRemove(line.id)} className={`h-6 w-6 flex items-center justify-center rounded hover:bg-rose-500/15 ${t.textFaint} hover:text-rose-500 transition-all`}><X className="h-3 w-3" /></button>
+      <div className={`text-xs lg:text-right pr-1 ${t.textMuted}`}><span className="lg:hidden block text-[11px]">Unit price</span>{line.spare ? formatCurrency(line.spare.unit_price) : '—'}</div>
+      <div className={`text-xs ${TYPE_WEIGHT.bold} lg:text-right pr-1 ${t.textPrimary}`}><span className={`lg:hidden block text-[11px] ${t.textFaint}`}>Line total</span>{line.spare ? formatCurrency(lineTotal) : '—'}</div>
+      <button type="button" title="Remove line" aria-label="Remove line" onClick={() => onRemove(line.id)} className={`h-9 w-9 col-span-2 lg:col-span-1 justify-self-end flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all`}><X className="h-4 w-4" /></button>
     </div>
   );
 }
@@ -781,13 +783,13 @@ function SparesPageContent() {
         statsOpen={showStats}
         actions={
           <>
-            <button onClick={() => loadData(true)} disabled={refreshing} title="Refresh" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} disabled:opacity-40`}><RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} /></button>
-            <button onClick={() => setShowRequisition(v => !v)} className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs ${TYPE_WEIGHT.semibold} transition-all ${showRequisition ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textMuted} ${t.hoverBg}`}`}>
+            {t.design === 'dallaglio' ? <IconAction meaning="refresh" title="Refresh" spinning={refreshing} disabled={refreshing} onClick={() => loadData(true)} /> : <button onClick={() => loadData(true)} disabled={refreshing} title="Refresh" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} disabled:opacity-40`}><RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} /></button>}
+            {t.design === 'dallaglio' ? <Button variant="secondary" size="sm" icon={ShoppingCart} onClick={() => setShowRequisition(v => !v)}>Requisition{reqLines.length > 0 ? ` (${reqLines.length})` : ''}</Button> : <button onClick={() => setShowRequisition(v => !v)} className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs ${TYPE_WEIGHT.semibold} transition-all ${showRequisition ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textMuted} ${t.hoverBg}`}`}>
               <ShoppingCart className="h-3.5 w-3.5" /> Requisition {reqLines.length > 0 && <span className="px-1 rounded-full bg-brand-500/30 text-[10px]">{reqLines.length}</span>}
-            </button>
-            <Link href="/spares/import"><button className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs ${TYPE_WEIGHT.semibold} ${t.textMuted} ${t.chipBg} ${t.hoverBg}`}><Upload className="h-3.5 w-3.5" /> Import Excel</button></Link>
-            <PrimaryButton icon={Plus} size="md" onClick={() => { setEditingSpare(null); setFormOpen(true); }}>Add Spare</PrimaryButton>
-            <button title={showStats ? 'Hide stats' : 'Show stats'} onClick={() => setShowStats(v => !v)} className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}>{showStats ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}</button>
+            </button>}
+            {t.design === 'dallaglio' ? <Button variant="secondary" size="sm" icon={Upload} href="/spares/import">Import Excel</Button> : <Link href="/spares/import"><button className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs ${TYPE_WEIGHT.semibold} ${t.textMuted} ${t.chipBg} ${t.hoverBg}`}><Upload className="h-3.5 w-3.5" /> Import Excel</button></Link>}
+            {t.design === 'dallaglio' ? <Button variant="primary" size="sm" icon={Plus} onClick={() => { setEditingSpare(null); setFormOpen(true); }}>Add spare</Button> : <PrimaryButton icon={Plus} size="md" onClick={() => { setEditingSpare(null); setFormOpen(true); }}>Add Spare</PrimaryButton>}
+            {t.design === 'dallaglio' ? <DisclosureButton open={showStats} onClick={() => setShowStats(v => !v)} label="summary" /> : <button title={showStats ? 'Hide stats' : 'Show stats'} onClick={() => setShowStats(v => !v)} className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}>{showStats ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}</button>}
           </>
         }
       >
@@ -811,7 +813,7 @@ function SparesPageContent() {
               <span className={`text-[11px] ${t.textFaint}`}>{categoryBreakdown.length} categories — click to filter</span>
               {categoryFilter !== 'all' && <button onClick={() => setCategoryFilter('all')} className="text-[11px] px-1.5 py-0.5 rounded bg-brand-500/15 text-brand-400">{categoryFilter} ×</button>}
             </div>
-            <button title={showCategoryBreakdown ? 'Hide categories' : 'Show categories'} onClick={() => setShowCategoryBreakdown(v => !v)} className={`h-6 w-6 flex items-center justify-center rounded-md ${t.chipBg} ${t.hoverBg} ${t.textFaint}`}>{showCategoryBreakdown ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}</button>
+            {t.design === 'dallaglio' ? <DisclosureButton open={showCategoryBreakdown} onClick={() => setShowCategoryBreakdown(v => !v)} label="categories" /> : <button title={showCategoryBreakdown ? 'Hide categories' : 'Show categories'} onClick={() => setShowCategoryBreakdown(v => !v)} className={`h-6 w-6 flex items-center justify-center rounded-md ${t.chipBg} ${t.hoverBg} ${t.textFaint}`}>{showCategoryBreakdown ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}</button>}
           </div>
           {showCategoryBreakdown && (
             <div className="p-4 space-y-3">
@@ -854,25 +856,25 @@ function SparesPageContent() {
         <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
           <div className={`flex items-center justify-between px-5 py-3 border-b ${t.border} flex-wrap gap-2`}>
             <div className="flex items-center gap-2">
-              <ShoppingCart className="h-3.5 w-3.5 text-brand-400" />
+              <ShoppingCart className={`h-3.5 w-3.5 ${t.design === 'dallaglio' ? t.textFaint : 'text-brand-400'}`} />
               <span className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textMuted}`}>Requisition / Price Builder</span>
               {reqLines.length > 0 && <span className={`text-[11px] ${t.textFaint}`}>{reqLines.length} line{reqLines.length !== 1 ? 's' : ''} · {formatCurrency(reqGrandTotal)}</span>}
             </div>
             <div className="flex items-center gap-1.5 flex-wrap justify-end">
-              <button onClick={() => setShowSavedReqs(v => !v)} className={`inline-flex items-center gap-1 h-6 px-2 text-[11px] rounded-lg transition-all ${showSavedReqs ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textMuted} ${t.hoverBg}`}`}><ClipboardList className="h-2.5 w-2.5" /> Saved {savedReqs.length > 0 && `(${savedReqs.length})`}</button>
+              {t.design === 'dallaglio' ? <Button variant={showSavedReqs ? 'subtle' : 'secondary'} size="sm" icon={ClipboardList} onClick={() => setShowSavedReqs(v => !v)}>Saved{savedReqs.length > 0 ? ` (${savedReqs.length})` : ''}</Button> : <button onClick={() => setShowSavedReqs(v => !v)} className={`inline-flex items-center gap-1 h-6 px-2 text-[11px] rounded-lg transition-all ${showSavedReqs ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textMuted} ${t.hoverBg}`}`}><ClipboardList className="h-2.5 w-2.5" /> Saved {savedReqs.length > 0 && `(${savedReqs.length})`}</button>}
               {reqLines.length > 0 && (<>
                 {showSavePrompt ? (
                   <div className="flex items-center gap-1">
-                    <input value={saveReqName} onChange={e => setSaveReqName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') saveCurrentRequisition(); if (e.key === 'Escape') setShowSavePrompt(false); }} placeholder="Requisition name…" aria-label="Requisition name" className={`h-6 px-2 text-[11px] rounded-lg w-36 ${t.inputBg} focus:outline-none`} />
-                    <button onClick={saveCurrentRequisition} className="h-6 px-2 text-[11px] rounded-lg bg-brand-500/20 text-brand-400 hover:bg-brand-500/30">Save</button>
-                    <button type="button" title="Cancel" onClick={() => setShowSavePrompt(false)} className={`h-6 w-6 flex items-center justify-center rounded ${t.textFaint} ${t.hoverText}`}><X className="h-3 w-3" /></button>
+                    <input value={saveReqName} onChange={e => setSaveReqName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') saveCurrentRequisition(); if (e.key === 'Escape') setShowSavePrompt(false); }} placeholder="Requisition name…" aria-label="Requisition name" className={`${t.design === 'dallaglio' ? 'h-9' : 'h-6'} px-2 text-[11px] rounded-lg w-36 ${t.inputBg} focus:outline-none`} />
+                    {t.design === 'dallaglio' ? <Button variant="primary" size="sm" onClick={saveCurrentRequisition}>Save</Button> : <button onClick={saveCurrentRequisition} className="h-6 px-2 text-[11px] rounded-lg bg-brand-500/20 text-brand-400 hover:bg-brand-500/30">Save</button>}
+                    {t.design === 'dallaglio' ? <Button variant="icon" size="sm" icon={X} title="Cancel" onClick={() => setShowSavePrompt(false)} /> : <button type="button" title="Cancel" onClick={() => setShowSavePrompt(false)} className={`h-6 w-6 flex items-center justify-center rounded ${t.textFaint} ${t.hoverText}`}><X className="h-3 w-3" /></button>}
                   </div>
-                ) : <button onClick={() => setShowSavePrompt(true)} className={`inline-flex items-center gap-1 h-6 px-2 text-[11px] rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textMuted}`}><Database className="h-2.5 w-2.5" /> Save</button>}
-                <button onClick={copyRequisition} className={`inline-flex items-center gap-1 h-6 px-2 text-[11px] rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textMuted}`}><Copy className="h-2.5 w-2.5" /> Copy</button>
-                <button onClick={downloadRequisitionPDF} className="inline-flex items-center gap-1 h-6 px-2 text-[11px] rounded-lg bg-brand-500/20 hover:bg-brand-500/30 text-brand-400"><Download className="h-2.5 w-2.5" /> PDF</button>
-                <button onClick={() => { setReqLines([]); setReqHeader(defaultReqHeader); }} className={`h-6 px-2 text-[11px] rounded-lg ${t.chipBg} hover:bg-rose-500/15 ${t.textFaint} hover:text-rose-500`}>Clear</button>
+                ) : t.design === 'dallaglio' ? <Button variant="secondary" size="sm" icon={Database} onClick={() => setShowSavePrompt(true)}>Save</Button> : <button onClick={() => setShowSavePrompt(true)} className={`inline-flex items-center gap-1 h-6 px-2 text-[11px] rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textMuted}`}><Database className="h-2.5 w-2.5" /> Save</button>}
+                {t.design === 'dallaglio' ? <Button variant="secondary" size="sm" icon={Copy} onClick={copyRequisition}>Copy</Button> : <button onClick={copyRequisition} className={`inline-flex items-center gap-1 h-6 px-2 text-[11px] rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textMuted}`}><Copy className="h-2.5 w-2.5" /> Copy</button>}
+                {t.design === 'dallaglio' ? <Button variant="secondary" size="sm" icon={Download} onClick={downloadRequisitionPDF}>PDF</Button> : <button onClick={downloadRequisitionPDF} className="inline-flex items-center gap-1 h-6 px-2 text-[11px] rounded-lg bg-brand-500/20 hover:bg-brand-500/30 text-brand-400"><Download className="h-2.5 w-2.5" /> PDF</button>}
+                {t.design === 'dallaglio' ? <Button variant="ghost" size="sm" onClick={() => { setReqLines([]); setReqHeader(defaultReqHeader); }}>Clear</Button> : <button onClick={() => { setReqLines([]); setReqHeader(defaultReqHeader); }} className={`h-6 px-2 text-[11px] rounded-lg ${t.chipBg} hover:bg-rose-500/15 ${t.textFaint} hover:text-rose-500`}>Clear</button>}
               </>)}
-              <Button type="button" variant="subtle" size="xs" icon={Plus} iconPosition="end" onClick={() => addReqLine()}>Add Line</Button>
+              <Button type="button" variant="subtle" size={t.design === 'dallaglio' ? 'sm' : 'xs'} icon={Plus} iconPosition="end" onClick={() => addReqLine()}>Add line</Button>
               <CloseButton onClick={() => setShowRequisition(false)} />
             </div>
           </div>
@@ -897,8 +899,8 @@ function SparesPageContent() {
                     </div>
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0 ml-3">
-                    <button onClick={() => loadSavedRequisition(req)} className="h-6 px-2.5 text-[11px] rounded-lg bg-brand-500/15 text-brand-400 hover:bg-brand-500/25">Load</button>
-                    <button title="Delete" onClick={() => deleteSavedReq(req.id)} className={`h-6 w-6 flex items-center justify-center rounded-lg opacity-0 group-hover:opacity-100 hover:bg-rose-500/15 ${t.textFaint} hover:text-rose-500`}><X className="h-3 w-3" /></button>
+                    {t.design === 'dallaglio' ? <Button variant="secondary" size="sm" onClick={() => loadSavedRequisition(req)}>Load</Button> : <button onClick={() => loadSavedRequisition(req)} className="h-6 px-2.5 text-[11px] rounded-lg bg-brand-500/15 text-brand-400 hover:bg-brand-500/25">Load</button>}
+                    {t.design === 'dallaglio' ? <Button variant="icon" size="sm" icon={Trash2} title="Delete saved requisition" onClick={() => deleteSavedReq(req.id)} /> : <button title="Delete" onClick={() => deleteSavedReq(req.id)} className={`h-6 w-6 flex items-center justify-center rounded-lg opacity-0 group-hover:opacity-100 hover:bg-rose-500/15 ${t.textFaint} hover:text-rose-500`}><X className="h-3 w-3" /></button>}
                   </div>
                 </div>
               ))}
@@ -919,13 +921,13 @@ function SparesPageContent() {
             {reqLines.length === 0 ? (
               <div className={`text-center py-6 text-sm ${t.textFaint}`}>Click <strong className={t.textMuted}>+ Add Line</strong> or <strong className={t.textMuted}>Add to Req</strong> on any spare card to build a price list.</div>
             ) : (<>
-              <div className={`grid text-[10px] ${TYPE_WEIGHT.semibold} uppercase tracking-wider px-2 pb-1 ${t.textFaint}`} style={{ gridTemplateColumns: '180px 1fr 48px 96px 80px 90px 28px' }}>
+              <div className={`hidden lg:grid grid-cols-[180px_minmax(0,1fr)_48px_96px_80px_90px_36px] text-[10px] ${TYPE_WEIGHT.semibold} uppercase tracking-wider px-2 pb-1 ${t.textFaint}`}>
                 <div>Stock Code</div><div>Description</div><div className="text-center">UoM</div><div className="text-center">Qty</div><div className="text-right">Unit Price</div><div className="text-right">Total</div><div />
               </div>
               {reqLines.map(line => <RequisitionLineRow key={line.id} line={line} allSpares={spares} onUpdate={updateReqLine} onRemove={removeReqLine} />)}
-              <div className={`grid items-center pt-2 border-t ${t.border} mt-2`} style={{ gridTemplateColumns: '180px 1fr 48px 96px 80px 90px 28px' }}>
-                <div className={`col-span-5 text-right pr-1 text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textFaint}`}>Grand Total</div>
-                <div className={`text-right pr-1 text-base ${TYPE_WEIGHT.bold} ${t.textPrimary}`}>{formatCurrency(reqGrandTotal)}</div><div />
+              <div className={`flex items-center justify-end gap-4 pt-3 border-t ${t.border} mt-2`}>
+                <div className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textFaint}`}>Grand total</div>
+                <div className={`text-base ${TYPE_WEIGHT.bold} ${t.textPrimary}`}>{formatCurrency(reqGrandTotal)}</div>
               </div>
             </>)}
           </div>
@@ -942,7 +944,7 @@ function SparesPageContent() {
           </div>
           <div className="flex items-center gap-1">
             {activeFilterCount > 0 && <button onClick={clearFilters} className={`h-6 px-2 flex items-center gap-1 rounded-md ${t.chipBg} ${t.hoverBg} ${t.textFaint} text-[11px]`}><X className="h-2.5 w-2.5" /> Clear</button>}
-            <button title={filterPanelMinimized ? 'Expand filters' : 'Collapse filters'} onClick={() => setFilterPanelMinimized(v => !v)} className={`h-6 w-6 flex items-center justify-center rounded-md ${t.chipBg} ${t.hoverBg} ${t.textFaint}`}>{filterPanelMinimized ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />}</button>
+            {t.design === 'dallaglio' ? <DisclosureButton open={!filterPanelMinimized} onClick={() => setFilterPanelMinimized(v => !v)} label="filters" /> : <button title={filterPanelMinimized ? 'Expand filters' : 'Collapse filters'} onClick={() => setFilterPanelMinimized(v => !v)} className={`h-6 w-6 flex items-center justify-center rounded-md ${t.chipBg} ${t.hoverBg} ${t.textFaint}`}>{filterPanelMinimized ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />}</button>}
           </div>
         </div>
         {!filterPanelMinimized && (
@@ -971,9 +973,9 @@ function SparesPageContent() {
           <div className="flex items-center gap-2 flex-shrink-0"><Package className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textMuted}`}>Records</span><span className={`text-[11px] ${t.textFaint}`}>{filteredSpares.length} of {spares.length}</span></div>
           <div className="flex-1 min-w-0 max-w-xs"><SearchInput value={search} onChange={setSearch} placeholder="Search spares…" /></div>
           <div className="flex items-center gap-1.5 flex-shrink-0 ml-auto">
-            {viewMode === 'grid' && <button onClick={handleToggleExpandAll} title={expandAllCards ? 'Collapse all' : 'Expand all'} className={`h-7 px-2 inline-flex items-center gap-1 text-[11px] rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textFaint}`}>{expandAllCards ? <ChevronsUp className="h-3 w-3" /> : <ChevronsDown className="h-3 w-3" />}{expandAllCards ? 'Collapse' : 'Expand'}</button>}
+            {viewMode === 'grid' && (t.design === 'dallaglio' ? <Button variant="secondary" size="sm" icon={expandAllCards ? ChevronsUp : ChevronsDown} onClick={handleToggleExpandAll}>{expandAllCards ? 'Collapse all' : 'Expand all'}</Button> : <button onClick={handleToggleExpandAll} title={expandAllCards ? 'Collapse all' : 'Expand all'} className={`h-7 px-2 inline-flex items-center gap-1 text-[11px] rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textFaint}`}>{expandAllCards ? <ChevronsUp className="h-3 w-3" /> : <ChevronsDown className="h-3 w-3" />}{expandAllCards ? 'Collapse' : 'Expand'}</button>)}
             <ViewToggle value={viewMode} onChange={setViewMode} options={[{ value: 'grid', icon: Grid3x3, label: 'Grid view' }, { value: 'table', icon: List, label: 'Table view' }]} />
-            <button title={recordsPanelMinimized ? 'Expand records' : 'Collapse records'} onClick={() => setRecordsPanelMinimized(v => !v)} className={`h-6 w-6 flex items-center justify-center rounded-md ${t.chipBg} ${t.hoverBg} ${t.textFaint}`}>{recordsPanelMinimized ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />}</button>
+            {t.design === 'dallaglio' ? <DisclosureButton open={!recordsPanelMinimized} onClick={() => setRecordsPanelMinimized(v => !v)} label="records" /> : <button title={recordsPanelMinimized ? 'Expand records' : 'Collapse records'} onClick={() => setRecordsPanelMinimized(v => !v)} className={`h-6 w-6 flex items-center justify-center rounded-md ${t.chipBg} ${t.hoverBg} ${t.textFaint}`}>{recordsPanelMinimized ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />}</button>}
           </div>
         </div>
 
@@ -1048,12 +1050,18 @@ function SparesPageContent() {
                             <td className={`p-3 text-xs ${t.textFaint}`}>{formatCurrency(invVal)}</td>
                             <td className="p-3"><StatusBadge color={st.color} label={st.label} /></td>
                             <td className="p-3"><StatusBadge color={pc2} label={spare.priority} /></td>
-                            <td className="p-3" onClick={e => e.stopPropagation()}><button title={rowExpanded ? 'Collapse' : 'Expand'} onClick={toggleTableRow} className={`h-6 w-6 flex items-center justify-center rounded ${t.textFaint} ${t.hoverText}`}>{rowExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}</button></td>
+                            <td className="p-3" onClick={e => e.stopPropagation()}>{t.design === 'dallaglio' ? <DisclosureButton open={rowExpanded} onClick={toggleTableRow} label={`${spare.stock_code} details`} /> : <button title={rowExpanded ? 'Collapse' : 'Expand'} onClick={toggleTableRow} className={`h-6 w-6 flex items-center justify-center rounded ${t.textFaint} ${t.hoverText}`}>{rowExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}</button>}</td>
                             <td className="p-3 text-right" onClick={e => e.stopPropagation()}>
                               <div className="flex items-center justify-end gap-1">
-                                <button title="Add to requisition" aria-label={`Add ${spare.stock_code} to requisition`} className={`h-7 w-7 inline-flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} hover:text-brand-400`} onClick={() => addToReq(spare)}><ShoppingCart className="h-3.5 w-3.5" /></button>
-                                <button title="Edit" aria-label={`Edit ${spare.stock_code}`} className={`h-7 w-7 inline-flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint}`} onClick={() => { setEditingSpare(spare); setFormOpen(true); }}><Pencil className="h-3.5 w-3.5" /></button>
-                                <button title="Delete" aria-label={`Delete ${spare.stock_code}`} className={`h-7 w-7 inline-flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} hover:text-rose-500`} onClick={() => setDeleteId(spare.id)}><Trash2 className="h-3.5 w-3.5" /></button>
+                                {t.design === 'dallaglio' ? <>
+                                  <Button variant="icon" size="sm" icon={ShoppingCart} title={`Add ${spare.stock_code} to requisition`} onClick={() => addToReq(spare)} />
+                                  <Button variant="icon" size="sm" icon={Pencil} title={`Edit ${spare.stock_code}`} onClick={() => { setEditingSpare(spare); setFormOpen(true); }} />
+                                  <Button variant="icon" size="sm" icon={Trash2} title={`Delete ${spare.stock_code}`} onClick={() => setDeleteId(spare.id)} />
+                                </> : <>
+                                  <button title="Add to requisition" aria-label={`Add ${spare.stock_code} to requisition`} className={`h-7 w-7 inline-flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} hover:text-brand-400`} onClick={() => addToReq(spare)}><ShoppingCart className="h-3.5 w-3.5" /></button>
+                                  <button title="Edit" aria-label={`Edit ${spare.stock_code}`} className={`h-7 w-7 inline-flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint}`} onClick={() => { setEditingSpare(spare); setFormOpen(true); }}><Pencil className="h-3.5 w-3.5" /></button>
+                                  <button title="Delete" aria-label={`Delete ${spare.stock_code}`} className={`h-7 w-7 inline-flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} hover:text-rose-500`} onClick={() => setDeleteId(spare.id)}><Trash2 className="h-3.5 w-3.5" /></button>
+                                </>}
                               </div>
                             </td>
                           </tr>

@@ -2,6 +2,18 @@
    Activated by html[data-design=dallaglio]. Tools keeps its CSS module. */
 
 html[data-design='dallaglio'] {
+  /* Shared Tailwind brand utilities in older pages now resolve through this
+     surface as well. Classic keeps its original saturated scale. */
+  --brand-50: #f7f4fc;
+  --brand-100: #eee7fa;
+  --brand-200: #e0d4f3;
+  --brand-300: #c9b4e9;
+  --brand-400: #a986d9;
+  --brand-500: #7652c5;
+  --brand-600: #7652c5;
+  --brand-700: #6342ad;
+  --brand-800: #52358f;
+  --brand-900: #382660;
   --d-canvas: #f8f7fc;
   --d-surface: #ffffff;
   --d-surface-elevated: #ffffff;
@@ -50,6 +62,16 @@ html[data-design='dallaglio'] {
 }
 
 html.dark[data-design='dallaglio'] {
+  --brand-50: #16131d;
+  --brand-100: #211b2b;
+  --brand-200: #2c233a;
+  --brand-300: #50436d;
+  --brand-400: #c4b5f5;
+  --brand-500: #b5a4eb;
+  --brand-600: #a795dd;
+  --brand-700: #917dc8;
+  --brand-800: #73649e;
+  --brand-900: #51476c;
   --d-canvas: #09090b;
   --d-surface: #111113;
   --d-surface-elevated: #111113;
@@ -115,4 +137,8 @@ html[data-design='dallaglio']:not(:has([data-tools-workspace])) :focus-visible {
 html[data-design='dallaglio'] .myoffice-access-boot {
   background: var(--d-canvas) !important;
   color: var(--d-ink) !important;
+}
+
+html[data-design='dallaglio'] .myoffice-access-boot svg {
+  color: var(--d-accent);
 }

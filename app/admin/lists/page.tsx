@@ -7,12 +7,13 @@
 // deleting and re-adding a record, or a value gets removed outright.
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  MapPin, Wrench, Plus, Trash2, Pencil, Check, X, Loader2, AlertCircle, Lock,
+  MapPin, Wrench, Plus, Loader2, AlertCircle, Lock,
 } from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
-import { useTheme, PageHero, EmptyState, useConfirm, TYPE_WEIGHT, PrimaryButton } from '@/components/shared/theme';
+import { useTheme, PageHero, EmptyState, useConfirm, Button, IconAction } from '@/components/shared/theme';
+import { PillTabs } from '@/components/shared/PillTabs';
 import { useAuth } from '@/lib/auth-context';
 import { toast } from 'sonner';
 import { api } from '@/lib/apiClient';
@@ -27,7 +28,7 @@ const KNOWN_LISTS: { key: string; label: string; icon: typeof MapPin }[] = [
   { key: 'breakdown_nature', label: 'Nature of Breakdown', icon: Wrench },
 ];
 
-function ListRow({ item, onRename, onDelete }: { item: LookupValue; onRename: (id: number, value: string) => Promise<void>; onDelete: (id: number) => Promise<void> }) {
+function ListRow({ item, onRename, onDelete }: { item: LookupValue; onRename: (id: number, value: string) => Promise<boolean>; onDelete: (id: number) => Promise<void> }) {
   const t = useTheme();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(item.value);
@@ -37,7 +38,7 @@ function ListRow({ item, onRename, onDelete }: { item: LookupValue; onRename: (i
     const v = draft.trim();
     if (!v || v === item.value) { setEditing(false); setDraft(item.value); return; }
     setSaving(true);
-    try { await onRename(item.id, v); setEditing(false); }
+    try { if (await onRename(item.id, v)) setEditing(false); }
     finally { setSaving(false); }
   };
 
@@ -47,23 +48,15 @@ function ListRow({ item, onRename, onDelete }: { item: LookupValue; onRename: (i
         <>
           <input aria-label="Rename value" value={draft} onChange={e => setDraft(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') save(); if (e.key === 'Escape') { setEditing(false); setDraft(item.value); } }}
-            className={`flex-1 h-8 px-2 rounded-md text-sm ${t.inputBg} focus:outline-none`} />
-          <button type="button" title="Save" onClick={save} disabled={saving} className="h-7 w-7 flex items-center justify-center rounded-md bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/25 disabled:opacity-50">
-            {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
-          </button>
-          <button type="button" title="Cancel" onClick={() => { setEditing(false); setDraft(item.value); }} className={`h-7 w-7 flex items-center justify-center rounded-md ${t.hoverBg} ${t.textFaint}`}>
-            <X className="h-3.5 w-3.5" />
-          </button>
+            className={`min-w-0 flex-1 h-9 px-2 rounded-md text-sm ${t.inputBg} focus:outline-none`} />
+          <IconAction meaning="check" title={`Save ${item.value}`} onClick={save} disabled={saving} spinning={saving} tone="success" />
+          <IconAction meaning="close" title={`Cancel renaming ${item.value}`} onClick={() => { setEditing(false); setDraft(item.value); }} />
         </>
       ) : (
         <>
-          <span className={`flex-1 text-sm ${t.textMuted}`}>{item.value}</span>
-          <button type="button" title="Rename" onClick={() => setEditing(true)} className={`h-7 w-7 flex items-center justify-center rounded-md ${t.hoverBg} ${t.textFaint} hover:text-brand-400`}>
-            <Pencil className="h-3.5 w-3.5" />
-          </button>
-          <button type="button" title="Delete" onClick={() => onDelete(item.id)} className={`h-7 w-7 flex items-center justify-center rounded-md ${t.hoverBg} ${t.textFaint} hover:text-rose-500`}>
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
+          <span className={`min-w-0 flex-1 break-words text-sm ${t.textMuted}`}>{item.value}</span>
+          <IconAction meaning="edit" title={`Rename ${item.value}`} onClick={() => setEditing(true)} />
+          <IconAction meaning="danger" title={`Delete ${item.value}`} onClick={() => onDelete(item.id)} tone="danger" />
         </>
       )}
     </div>
@@ -82,18 +75,22 @@ function AdminListsContent() {
   const [error, setError] = useState('');
   const [newValue, setNewValue] = useState('');
   const [adding, setAdding] = useState(false);
+  const requestId = useRef(0);
+  const activeListRef = useRef(activeList);
 
   useEffect(() => { if (!loading && profile && !isAtLeast('manager')) router.replace('/'); }, [loading, profile, isAtLeast, router]);
 
   const fetchValues = useCallback(async (listName: string) => {
+    const currentRequest = ++requestId.current;
     setFetching(true);
     setError('');
     try {
-      setValues(await api.get<LookupValue[]>(`/api/lookup-lists/${listName}`));
+      const next = await api.get<LookupValue[]>(`/api/lookup-lists/${listName}`);
+      if (currentRequest === requestId.current) setValues(next);
     } catch (e) {
-      setError((e as Error).message);
+      if (currentRequest === requestId.current) setError((e as Error).message);
     }
-    setFetching(false);
+    if (currentRequest === requestId.current) setFetching(false);
   }, []);
 
   useEffect(() => { if (!loading && profile && isAtLeast('manager')) fetchValues(activeList); }, [loading, profile, isAtLeast, activeList, fetchValues]);
@@ -101,11 +98,14 @@ function AdminListsContent() {
   const handleAdd = async () => {
     const v = newValue.trim();
     if (!v) return;
+    const listName = activeList;
     setAdding(true);
     try {
-      await api.post(`/api/lookup-lists/${activeList}`, { value: v });
-      setNewValue('');
-      await fetchValues(activeList);
+      await api.post(`/api/lookup-lists/${listName}`, { value: v });
+      if (activeListRef.current === listName) {
+        setNewValue('');
+        await fetchValues(listName);
+      }
       toast.success('Added');
     } catch (e) {
       toast.error(`Failed: ${(e as Error).message}`);
@@ -114,16 +114,20 @@ function AdminListsContent() {
   };
 
   const handleRename = async (id: number, value: string) => {
+    const listName = activeList;
     try {
-      await api.patch(`/api/lookup-lists/${activeList}/${id}`, { value });
-      setValues(prev => prev.map(v => v.id === id ? { ...v, value } : v));
+      await api.patch(`/api/lookup-lists/${listName}/${id}`, { value });
+      if (activeListRef.current === listName) setValues(prev => prev.map(v => v.id === id ? { ...v, value } : v));
       toast.success('Renamed');
+      return true;
     } catch (e) {
       toast.error(`Failed: ${(e as Error).message}`);
+      return false;
     }
   };
 
   const handleDelete = async (id: number) => {
+    const listName = activeList;
     const item = values.find(v => v.id === id);
     const ok = await confirm({
       title: 'Delete this entry?',
@@ -132,8 +136,8 @@ function AdminListsContent() {
     });
     if (!ok) return;
     try {
-      await api.delete(`/api/lookup-lists/${activeList}/${id}`);
-      setValues(prev => prev.filter(v => v.id !== id));
+      await api.delete(`/api/lookup-lists/${listName}/${id}`);
+      if (activeListRef.current === listName) setValues(prev => prev.filter(v => v.id !== id));
       toast.success('Deleted');
     } catch (e) {
       toast.error(`Failed: ${(e as Error).message}`);
@@ -171,27 +175,23 @@ function AdminListsContent() {
       />
 
       <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-        <div className={`flex gap-1 p-2 border-b ${t.border}`}>
-          {KNOWN_LISTS.map(l => (
-            <button key={l.key} type="button" onClick={() => setActiveList(l.key)}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs ${TYPE_WEIGHT.semibold} transition-all ${activeList === l.key ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} ${t.hoverText} ${t.hoverBg}`}`}>
-              <l.icon className="h-3.5 w-3.5" />{l.label}
-            </button>
-          ))}
+        <div className={`p-3 border-b ${t.border}`}>
+          <PillTabs tabs={KNOWN_LISTS.map(l => ({ key: l.key, label: l.label, icon: l.icon, meaning: l.key === 'location' ? 'departments' as const : 'breakdown' as const }))}
+            value={activeList} onChange={key => { ++requestId.current; activeListRef.current = key; setActiveList(key); setNewValue(''); }} wrap="scroll" />
         </div>
 
         <div className="p-4 space-y-3">
           <div className="flex gap-2">
             <input value={newValue} onChange={e => setNewValue(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') handleAdd(); }}
-              placeholder="Add a new value…" aria-label="New value" className={`flex-1 h-9 px-3 rounded-lg text-sm ${t.inputBg} focus:outline-none`} />
-            <PrimaryButton icon={Plus} submitting={adding} disabled={!newValue.trim()} onClick={handleAdd}>Add</PrimaryButton>
+              placeholder="Add a new value…" aria-label="New value" className={`min-w-0 flex-1 h-9 px-3 rounded-lg text-sm ${t.inputBg} focus:outline-none`} />
+            <Button icon={Plus} submitting={adding} disabled={!newValue.trim()} onClick={handleAdd}>Add</Button>
           </div>
 
           {fetching ? (
             <div className={`flex items-center justify-center py-10 gap-2 ${t.textFaint}`}><Loader2 className="h-5 w-5 animate-spin" /><span className="text-sm">Loading…</span></div>
           ) : error ? (
-            <div className="flex items-center gap-2 py-6 text-rose-500 text-sm"><AlertCircle className="h-4 w-4" />{error}</div>
+            <div className="flex flex-wrap items-center gap-2 py-6 text-rose-500 text-sm"><AlertCircle className="h-4 w-4" />{error}<Button variant="secondary" size="xs" onClick={() => fetchValues(activeList)}>Retry</Button></div>
           ) : values.length === 0 ? (
             <EmptyState icon={MapPin} title="No entries yet" message="Values are added automatically as people type them into the forms that use this list, or add one above." />
           ) : (

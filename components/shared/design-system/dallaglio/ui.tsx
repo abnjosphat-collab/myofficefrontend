@@ -124,11 +124,11 @@ export function DallaglioCenterModal({
   );
 }
 
-export function DallaglioStatusBadge({ color, label }: { color: string; label: string; dot?: boolean }) {
+export function DallaglioStatusBadge({ color, label, kind = 'status' }: { color: string; label: string; dot?: boolean; kind?: 'status' | 'category' }) {
   const t = useTheme();
   return (
     <span data-ds="badge" className={`inline-flex items-center gap-1.5 text-[11px] font-normal ${t.textSecondary}`}>
-      <span className="h-[5px] w-[5px] rounded-full shrink-0" style={{ background: color }} />
+      <span className="h-[5px] w-[5px] rounded-full shrink-0" style={{ background: kind === 'category' ? 'var(--d-muted)' : color }} />
       {label}
     </span>
   );
@@ -257,11 +257,3 @@ export function DallaglioStatStrip({
     </div>
   );
 }
-
-export function dallaglioInfoCardStyle(light: boolean): CSSProperties {
-  return {
-    backgroundColor: light ? '#ffffff' : '#111113',
-    borderColor: light ? '#e6e3ee' : '#2d2d32',
-  };
-}
-

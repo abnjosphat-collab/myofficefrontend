@@ -5,7 +5,7 @@ import { AppShell } from '@/components/app-shell';
 import {
   useTheme, STATUS_TONE, PageHero, StatTile, StatusBadge, FormField, FormActions,
   SearchInput, ViewToggle, CenterModal, PrimaryButton, EmptyState, useCollapseSection, SelectField,
-  GroupSection, RecordCard, ACCENT_HEX, staggerContainer, fadeUp, InfoRow, SummaryItem, LoadingState, TYPE_WEIGHT, Button,
+  GroupSection, RecordCard, RecordActions, ACCENT_HEX, staggerContainer, fadeUp, InfoRow, SummaryItem, LoadingState, TYPE_WEIGHT, Button,
 } from '@/components/shared/theme';
 import { formatDate } from '@/lib/format';
 import React, { useState, useEffect, useMemo } from 'react';
@@ -283,7 +283,7 @@ function DriverCard({ driver, onEdit, onDelete }: { driver: Driver; onEdit: () =
           )}
         </div>
       }
-      actions={<>
+      actions={t.design === 'dallaglio' ? <RecordActions onEdit={onEdit} onDelete={onDelete} /> : <>
         <PrimaryButton icon={Pencil} fullWidth size="xs" onClick={onEdit}>Edit</PrimaryButton>
         <button onClick={onDelete} type="button" className={`px-4 flex items-center justify-center gap-1.5 py-2 rounded-lg ${t.chipBg} text-rose-500 hover:bg-rose-500/10 text-[12px] ${TYPE_WEIGHT.semibold} transition-all`}>
           <Trash2 className="h-3.5 w-3.5" /> Delete

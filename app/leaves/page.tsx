@@ -19,6 +19,7 @@ import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButto
 import {
   useTheme, PageHero, StatusBadge, ACCENT_HEX, CenterModal, FormField, accentText,
   useCollapseSection, EmptyState, PrimaryButton, GlowCard, SelectField, useConfirm, TYPE_WEIGHT,
+  StatTile, ViewToggle, IconAction, Button, DisclosureButton, RecordActions,
 } from '@/components/shared/theme';
 import type { Leave, Stats } from './types';
 import {
@@ -111,19 +112,19 @@ function LeaveCard({ leave, onView, onEdit, onDelete }: { leave: Leave; onView: 
   };
 
   return (
-    <GlowCard color={leaveType.color} surface={`${t.glass} rounded-xl`} className="group relative overflow-hidden cursor-pointer" onClick={() => onView(leave)}>
+    <GlowCard color={t.design === 'dallaglio' ? ACCENT_HEX.violet : leaveType.color} surface={`${t.glass} rounded-xl`} className="group relative overflow-hidden cursor-pointer" onClick={() => onView(leave)}>
       <div className="p-4">
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center gap-3 flex-1 min-w-0">
             <div className={`p-2 rounded-xl ${t.chipBg} group-hover:scale-110 transition-transform flex-shrink-0`}>
-              <Icon className="h-4 w-4" style={{ color: leaveType.color }} />
+              <Icon className={`h-4 w-4 ${t.design === 'dallaglio' ? t.textFaint : ''}`} style={t.design === 'dallaglio' ? undefined : { color: leaveType.color }} />
             </div>
             <div className="flex-1 min-w-0">
               <div className={`text-base ${TYPE_WEIGHT.semibold} truncate ${t.textPrimary}`}>{leave.employee_name}</div>
               <div className={`text-xs truncate ${t.textFaint}`}>{leave.position} • {leave.employee_id}</div>
             </div>
           </div>
-          <div className="relative flex-shrink-0">
+          {t.design !== 'dallaglio' && <div className="relative flex-shrink-0">
             <button type="button" title="More options" aria-label="More options" onClick={e => { e.stopPropagation(); setMenuOpen(v => !v); }} className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-all`}><MoreVertical className="h-3.5 w-3.5" /></button>
             {menuOpen && (
               <>
@@ -138,11 +139,11 @@ function LeaveCard({ leave, onView, onEdit, onDelete }: { leave: Leave; onView: 
                 </div>
               </>
             )}
-          </div>
+          </div>}
         </div>
 
         <div className="flex items-center gap-2 mb-3">
-          <StatusBadge color={leaveType.color} label={leaveType.shortName} />
+          <StatusBadge kind="category" color={leaveType.color} label={leaveType.shortName} />
           <LeaveStatusBadge status={leave.status} />
         </div>
         <div className="space-y-1.5 text-sm">
@@ -154,9 +155,9 @@ function LeaveCard({ leave, onView, onEdit, onDelete }: { leave: Leave; onView: 
         {leave.reason && <div className={`mt-3 rounded-lg ${t.chipBg} p-2 text-xs line-clamp-2 ${t.textFaint}`}>{leave.reason}</div>}
       </div>
       <div className={`px-4 py-2.5 ${t.chipBg} border-t ${t.border}`}>
-        <button type="button" className={`w-full inline-flex items-center justify-center gap-2 text-xs ${t.textFaint} ${t.hoverText} transition-colors`} onClick={e => { e.stopPropagation(); onView(leave); }}>
+        {t.design === 'dallaglio' ? <div className="flex items-center justify-end gap-2"><RecordActions onView={() => onView(leave)} onEdit={() => onEdit(leave)} onDelete={() => { void handleDelete(); }} /></div> : <button type="button" className={`w-full inline-flex items-center justify-center gap-2 text-xs ${t.textFaint} ${t.hoverText} transition-colors`} onClick={e => { e.stopPropagation(); onView(leave); }}>
           <Eye className="h-3.5 w-3.5" /> View Details
-        </button>
+        </button>}
       </div>
     </GlowCard>
   );
@@ -676,8 +677,8 @@ function LeaveManagementContent() {
         statsOpen={sections.expanded.hero}
         actions={
           <>
-            <button type="button" onClick={fetchAllData} title="Refresh" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}><RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} /></button>
-            <PrimaryButton icon={Plus} onClick={() => setShowForm(true)}>New Leave Request</PrimaryButton>
+            {t.design === 'dallaglio' ? <IconAction meaning="refresh" title="Refresh" spinning={loading} onClick={fetchAllData} /> : <button type="button" onClick={fetchAllData} title="Refresh" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}><RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} /></button>}
+            {t.design === 'dallaglio' ? <Button variant="primary" icon={Plus} onClick={() => setShowForm(true)}>New leave request</Button> : <PrimaryButton icon={Plus} onClick={() => setShowForm(true)}>New Leave Request</PrimaryButton>}
           </>
         }
       >
@@ -689,12 +690,13 @@ function LeaveManagementContent() {
             { label: 'Approved', value: stats.approved, textClass: accentText('emerald', t.light), onClick: () => setFilter('approved') },
             { label: 'On Leave Now', value: stats.on_leave_now, textClass: 'text-brand-400', onClick: undefined },
             { label: 'Approval Rate', value: `${stats.approvalRate}%`, textClass: 'text-brand-400', onClick: undefined },
-          ].map(stat => (
-            <button type="button" key={stat.label} onClick={stat.onClick} className={`rounded-xl p-3 text-left ${t.chipBg} transition-all ${stat.onClick ? `${t.hoverBg} cursor-pointer` : 'cursor-default'}`}>
+          ].map(stat => t.design === 'dallaglio' ?
+            <div key={stat.label} className={`rounded-xl border ${t.border} ${t.glass} flex items-center px-2`}><StatTile label={stat.label} value={stat.value} onClick={stat.onClick} /></div>
+            : <button type="button" key={stat.label} onClick={stat.onClick} className={`rounded-xl p-3 text-left ${t.chipBg} transition-all ${stat.onClick ? `${t.hoverBg} cursor-pointer` : 'cursor-default'}`}>
               <div className={`text-2xl ${TYPE_WEIGHT.bold} ${stat.textClass}`}>{stat.value}</div>
               <div className={`text-xs mt-0.5 ${t.textFaint}`}>{stat.label}</div>
             </button>
-          ))}
+          )}
         </div>
       </PageHero>
 
@@ -710,13 +712,13 @@ function LeaveManagementContent() {
                 const Icon = type.icon;
                 const isActive = typeFilter === key;
                 return (
-                  <GlowCard key={key} onClick={() => setTypeFilter(isActive ? 'all' : key)} color={type.color}
-                    surface="rounded-xl overflow-hidden p-4"
+                  <GlowCard key={key} onClick={() => setTypeFilter(isActive ? 'all' : key)} color={t.design === 'dallaglio' ? ACCENT_HEX.violet : type.color}
+                    surface={t.design === 'dallaglio' ? `${t.glass} rounded-xl overflow-hidden p-4 border ${t.border}` : 'rounded-xl overflow-hidden p-4'}
                     className={`group text-left cursor-pointer ${isActive ? `${t.chipBg} ring-1 ring-brand-400/40` : `${t.chipBg} ${t.hoverBg}`}`}>
-                    <div className="flex items-center justify-between mb-2"><Icon className="h-4 w-4" style={{ color: type.color }} /><span className={`text-xs ${TYPE_WEIGHT.bold} ${t.textPrimary}`}>{count}</span></div>
+                    <div className="flex items-center justify-between mb-2"><Icon className={`h-4 w-4 ${t.design === 'dallaglio' ? t.textFaint : ''}`} style={t.design === 'dallaglio' ? undefined : { color: type.color }} /><span className={`text-xs ${TYPE_WEIGHT.bold} ${t.textPrimary}`}>{count}</span></div>
                     <div className={`text-xs ${TYPE_WEIGHT.semibold} mb-0.5 ${t.textMuted}`}>{type.shortName}</div>
                     <div className={`text-[11px] ${t.textFaint}`}>{totalDays}d total</div>
-                    <div className={`mt-2 h-1 rounded-full ${t.chipBg} overflow-hidden`}><div className="h-full rounded-full transition-all" style={{ width: `${percentage}%`, backgroundColor: type.color }} /></div>
+                    <div className={`mt-2 h-1 rounded-full ${t.chipBg} overflow-hidden`}><div className="h-full rounded-full transition-all" style={{ width: `${percentage}%`, backgroundColor: t.design === 'dallaglio' ? ACCENT_HEX.violet : type.color }} /></div>
                   </GlowCard>
                 );
               })}
@@ -831,11 +833,11 @@ function LeaveManagementContent() {
                 { value: 'name-asc', label: 'Name A→Z' },
                 { value: 'name-desc', label: 'Name Z→A' },
               ]} />
-            <div className={`flex rounded-lg border ${t.border} overflow-hidden`}>
+            {t.design === 'dallaglio' ? <ViewToggle value={viewMode} onChange={setViewMode} options={[{ value: 'grid', label: 'Grid view', icon: LayoutGrid }, { value: 'table', label: 'Table view', icon: List }]} /> : <div className={`flex rounded-lg border ${t.border} overflow-hidden`}>
               <button type="button" title="Grid view" onClick={() => setViewMode('grid')} className={`h-7 w-7 flex items-center justify-center transition-all ${viewMode === 'grid' ? 'bg-brand-500/25 text-brand-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}><LayoutGrid className="h-3 w-3" /></button>
               <button type="button" title="Table view" onClick={() => setViewMode('table')} className={`h-7 w-7 flex items-center justify-center border-l ${t.border} transition-all ${viewMode === 'table' ? 'bg-brand-500/25 text-brand-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}><List className="h-3 w-3" /></button>
-            </div>
-            <button type="button" title={recordsPanelMinimized ? 'Expand records' : 'Collapse records'} onClick={() => setRecordsPanelMinimized(v => !v)} className={`h-6 w-6 flex items-center justify-center rounded-md ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-all`}>{recordsPanelMinimized ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />}</button>
+            </div>}
+            {t.design === 'dallaglio' ? <DisclosureButton open={!recordsPanelMinimized} onClick={() => setRecordsPanelMinimized(v => !v)} label="records" /> : <button type="button" title={recordsPanelMinimized ? 'Expand records' : 'Collapse records'} onClick={() => setRecordsPanelMinimized(v => !v)} className={`h-6 w-6 flex items-center justify-center rounded-md ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-all`}>{recordsPanelMinimized ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />}</button>}
           </div>
         </div>
         {!recordsPanelMinimized && (
@@ -878,7 +880,7 @@ function LeaveManagementContent() {
                           {leave.status === 'pending' && <input type="checkbox" checked={selectedIds.has(leave.id)} onChange={() => toggleSelect(leave.id)} aria-label={`Select leave request for ${leave.employee_name}`} className="rounded" />}
                         </td>
                         <td className="px-4 py-3"><div className={`${TYPE_WEIGHT.medium} ${t.textPrimary}`}>{leave.employee_name}</div><div className={`text-xs ${t.textFaint}`}>{leave.employee_id}</div></td>
-                        <td className="px-4 py-3"><StatusBadge color={LEAVE_TYPES[leave.leave_type]?.color ?? ACCENT_HEX.blue} label={LEAVE_TYPES[leave.leave_type]?.shortName || leave.leave_type} /></td>
+                        <td className="px-4 py-3"><StatusBadge kind="category" color={LEAVE_TYPES[leave.leave_type]?.color ?? ACCENT_HEX.blue} label={LEAVE_TYPES[leave.leave_type]?.shortName || leave.leave_type} /></td>
                         <td className={`px-4 py-3 whitespace-nowrap ${t.textMuted}`}>{fmtDate(leave.start_date)} – {fmtDate(leave.end_date)}</td>
                         <td className={`px-4 py-3 ${t.textMuted}`}>{formatDays(leave.total_days)}</td>
                         <td className="px-4 py-3"><LeaveStatusBadge status={leave.status} /></td>

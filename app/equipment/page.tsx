@@ -16,7 +16,7 @@ import {
 import {
   useTheme, accentText, STATUS_TONE, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle,
   useCollapseSection, CenterModal, ACCENT_HEX, SelectField,
-  GroupSection, RecordCard, staggerContainer, fadeUp, InfoRow, SummaryItem, LoadingState, TYPE_WEIGHT, PrimaryButton,
+  GroupSection, RecordCard, RecordActions, DisclosureButton, IconAction, staggerContainer, fadeUp, InfoRow, SummaryItem, LoadingState, TYPE_WEIGHT, PrimaryButton,
 } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
@@ -132,7 +132,7 @@ function EquipmentCard({ eq, onEdit, onDelete }: { eq: EquipmentItem; onEdit: ()
           <SummaryItem icon={Truck} label="Supplier" value={eq.supplier} color={statusColor} />
         </div>
       }
-      actions={<>
+      actions={t.design === 'dallaglio' ? <RecordActions onEdit={onEdit} onDelete={onDelete} /> : <>
         <PrimaryButton icon={Pencil} fullWidth size="xs" onClick={onEdit}>Edit</PrimaryButton>
         <button onClick={onDelete} type="button" className={`px-4 flex items-center justify-center gap-1.5 py-2 rounded-lg ${t.chipBg} text-rose-500 hover:bg-rose-500/10 text-[12px] ${TYPE_WEIGHT.semibold} transition-all`}>
           <Trash2 className="h-3.5 w-3.5" /> Delete
@@ -190,7 +190,12 @@ function EquipmentRow({ eq, onEdit, onDelete }: { eq: EquipmentItem; onEdit: () 
           {eq.location && <span className={`hidden md:flex items-center gap-1 text-[11px] ${t.textFaint}`}><MapPin className="h-3 w-3" style={{ color: statusColor }} />{eq.location}</span>}
         </div>
 
-        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className={`flex items-center gap-0.5 ${t.design === 'dallaglio' ? '' : 'opacity-0 group-hover:opacity-100 transition-opacity'}`}>
+          {t.design === 'dallaglio' ? <>
+            <IconAction meaning="edit" title="Edit equipment" onClick={onEdit} />
+            <IconAction meaning="danger" title="Delete equipment" onClick={onDelete} tone="danger" />
+            <DisclosureButton open={expanded} onClick={() => setExpanded(o => !o)} />
+          </> : <>
           <button type="button" title="Edit equipment" onClick={onEdit}
             className="h-7 w-7 flex items-center justify-center rounded-lg bg-brand-500/10 hover:bg-brand-500/20 text-brand-400 transition-all">
             <Pencil className="h-3.5 w-3.5" />
@@ -203,6 +208,7 @@ function EquipmentRow({ eq, onEdit, onDelete }: { eq: EquipmentItem; onEdit: () 
             className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all`}>
             {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
           </button>
+          </>}
         </div>
       </div>
 

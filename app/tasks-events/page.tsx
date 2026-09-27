@@ -14,7 +14,7 @@ import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
 import {
   useTheme, AccentText, AccentIcon, STATUS_TONE, PageHero, StatTile, GlowCard, ProgressBar, ACCENT_HEX,
-  PrimaryButton, CenterModal, FormField, SelectField, SearchInput, StatusBadge, EmptyState, useConfirm, TYPE_WEIGHT,
+  PrimaryButton, CenterModal, FormField, SelectField, SearchInput, StatusBadge, EmptyState, useConfirm, TYPE_WEIGHT, DetailActions,
 } from '@/components/shared/theme';
 import {
   ListTodo, Plus, Trash2, CalendarClock, Check, RotateCcw, Clock, Pencil, AlertTriangle, Lock,
@@ -212,14 +212,14 @@ function DetailsModal({ item, open, onClose, onEdit, onDelete, onToggle }: {
           </div>
         </div>
 
-        <div className="flex gap-2 pt-2">
+        {t.design === 'dallaglio' ? <DetailActions onClose={onClose} primaryAction={{ label: item.status === 'completed' ? 'Reopen' : 'Mark complete', onClick: () => { onToggle(item); onClose(); } }} onEdit={() => { onEdit(item); onClose(); }} onDelete={() => { onDelete(item); onClose(); }} /> : <div className="flex gap-2 pt-2">
           <button type="button" onClick={onClose} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border}`}>Close</button>
           <PrimaryButton size="md" fullWidth accent="emerald" onClick={() => { onToggle(item); onClose(); }}>
             {item.status === 'completed' ? 'Reopen' : 'Mark Complete'}
           </PrimaryButton>
           <PrimaryButton size="md" fullWidth accent="amber" onClick={() => { onEdit(item); onClose(); }}>Edit</PrimaryButton>
           <PrimaryButton danger size="md" fullWidth onClick={() => { onDelete(item); onClose(); }}>Delete</PrimaryButton>
-        </div>
+        </div>}
       </div>
     </CenterModal>
   );

@@ -15,7 +15,9 @@ export function MyOfficeAccessBoundary({ children }: { children: React.ReactNode
 
   if (isPublicWorkspacePath(pathname)) return <>{children}</>;
 
-  if (loading) return <div className={`myoffice-access-boot fixed inset-0 grid place-items-center ${dallaglio ? t.pageBg : 'bg-[#08090b] text-white'}`} role="status" aria-label="Checking MyOffice access"><Loader2 className={`h-6 w-6 animate-spin ${dallaglio ? t.linkText : 'text-violet-300'}`} aria-hidden="true"/></div>;
+  // The first server and client render must match; the document design attribute
+  // supplies the Dallaglio appearance through CSS before hydration completes.
+  if (loading) return <div className="myoffice-access-boot fixed inset-0 grid place-items-center bg-[#08090b] text-white" role="status" aria-label="Checking MyOffice access"><Loader2 className="h-6 w-6 animate-spin text-violet-300" weight="regular" aria-hidden="true"/></div>;
 
   if (!user && dallaglio) return <main className={`min-h-dvh px-4 py-8 ${t.pageBg} ${t.textPrimary}`}>
     <div className="mx-auto flex min-h-[calc(100dvh-4rem)] w-full max-w-5xl items-center justify-center">

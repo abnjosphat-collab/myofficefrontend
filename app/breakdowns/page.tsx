@@ -20,19 +20,21 @@ import {
 import { toast } from 'sonner';
 import { format } from "date-fns";
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
+import { PillTabs, type PillTab } from '@/components/shared/PillTabs';
 import { exportFilename } from '@/lib/exportUtils';
 import { lineTotal } from '@/components/shared/utils';
 import {
   useTheme, PageHero, StatTile, StatusBadge, ViewToggle,
-  FormField, FormActions, useCollapseSection, CenterModal, ACCENT_HEX, GlowCard, SelectField, accentText, HintText, TYPE_WEIGHT, PrimaryButton, Button,
+  FormField, FormActions, useCollapseSection, CenterModal, ACCENT_HEX, GlowCard, SelectField, accentText, HintText, TYPE_WEIGHT, PrimaryButton, Button, DetailActions,
+  RecordActions, DisclosureButton, IconAction,
 } from '@/components/shared/theme';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart as RePieChart, Pie, Cell, AreaChart as ReAreaChart, Area,
   Line, ComposedChart,
 } from 'recharts';
-import type { Breakdown, BreakdownFormData, Filters, HeatmapData, SparePart, SpareUsed } from './types';
-import { createBreakdown, deleteBreakdown, fetchBreakdownAnalytics, updateBreakdown, useBreakdownsData } from './useBreakdownsData';
+import type { Breakdown, BreakdownFormData, Filters, SparePart, SpareUsed } from './types';
+import { createBreakdown, deleteBreakdown, updateBreakdown, useBreakdownAnalytics, useBreakdownsData } from './useBreakdownsData';
 import { calcDowntime, minutesToDisplay, sparesTotalCost, timeToMinutes } from './calcBreakdowns';
 
 // ─── ANALYTICS TYPES / HELPERS ────────────────────────────────────────────────
@@ -81,6 +83,20 @@ const TYPE_META: Record<string, { name: string; icon: React.ElementType; color: 
   electronic: { name: 'Electronic', icon: Shield,   color: ACCENT_HEX.violet },
   other:      { name: 'Other',      icon: Wrench,   color: '#94a3b8' },
 };
+
+const BREAKDOWN_VIEW_TABS: PillTab<'records' | 'analytics'>[] = [
+  { key: 'records', label: 'Records', icon: TableIcon, meaning: 'table-view' },
+  { key: 'analytics', label: 'Analytics', icon: Activity, meaning: 'analytics' },
+];
+
+type AnalyticsTab = 'overview' | 'heatmap' | 'machines' | 'artisans' | 'spares';
+const ANALYTICS_TABS: PillTab<AnalyticsTab>[] = [
+  { key: 'overview', label: 'Overview', icon: Layers, meaning: 'activity' },
+  { key: 'heatmap', label: 'Heatmap', icon: Activity, meaning: 'analytics' },
+  { key: 'machines', label: 'Machines', icon: Wrench, meaning: 'breakdown' },
+  { key: 'artisans', label: 'Artisans', icon: Users, meaning: 'artisans' },
+  { key: 'spares', label: 'Spares', icon: Package, meaning: 'spares' },
+];
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 
 // timeToMinutes/minutesToDisplay/calcDowntime/sparesTotalCost now live in
@@ -105,22 +121,22 @@ function BreakdownCard({ breakdown, onView, onEdit, onDelete, isExpanded, onTogg
       <div className="p-4">
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="p-1.5 rounded-lg shrink-0" style={{ background: `${tm.color}22`, color: tm.color }}><TypeIcon className="h-3.5 w-3.5" /></div>
+            <div className={`p-1.5 rounded-lg shrink-0 ${t.design === 'dallaglio' ? `${t.glassSoft} ${t.textFaint}` : ''}`} style={t.design === 'dallaglio' ? undefined : { background: `${tm.color}22`, color: tm.color }}><TypeIcon className="h-3.5 w-3.5" weight={t.design === 'dallaglio' ? 'light' : undefined} /></div>
             <div className="min-w-0">
               <h4 className={`text-sm ${TYPE_WEIGHT.semibold} truncate ${t.textPrimary}`}>{breakdown.machine_name}</h4>
               <p className={`text-xs ${t.textFaint}`}>ID: {breakdown.machine_id}</p>
             </div>
           </div>
-          <button type="button" onClick={onToggleExpand} className={`h-7 w-7 flex items-center justify-center rounded-md ${t.chipBg} ${t.textFaint} ${t.hoverText} shrink-0`}>
+          {t.design === 'dallaglio' ? <DisclosureButton open={isExpanded} onClick={onToggleExpand} label={`${breakdown.machine_name} details`} /> : <button type="button" onClick={onToggleExpand} className={`h-7 w-7 flex items-center justify-center rounded-md ${t.chipBg} ${t.textFaint} ${t.hoverText} shrink-0`}>
             {isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-          </button>
+          </button>}
         </div>
 
         <p className={`text-xs line-clamp-2 mb-3 leading-relaxed ${t.textMuted}`}>{breakdown.breakdown_description || 'No description available'}</p>
 
         <div className="flex flex-wrap gap-1.5 mb-3">
           <StatusBadge color={(PRIORITY_META[breakdown.priority] ?? PRIORITY_META.medium).color} label={(PRIORITY_META[breakdown.priority] ?? PRIORITY_META.medium).name} />
-          <StatusBadge color={tm.color} label={tm.name} />
+          <StatusBadge color={tm.color} label={tm.name} kind="category" />
           <StatusBadge color={(STATUS_META[breakdown.status] ?? STATUS_META.logged).color} label={(STATUS_META[breakdown.status] ?? STATUS_META.logged).name} dot />
         </div>
 
@@ -151,10 +167,12 @@ function BreakdownCard({ breakdown, onView, onEdit, onDelete, isExpanded, onTogg
 
         <div className={`flex items-center justify-between pt-3 border-t ${t.border}`}>
           <div className={`flex items-center gap-1 text-xs ${t.textFaint}`}><Calendar className="h-3 w-3" />{formatDate(breakdown.breakdown_date)}</div>
-          <div className="flex items-center gap-1">
-            <button type="button" title="View" onClick={() => onView(breakdown)} className={`h-7 w-7 flex items-center justify-center rounded-md ${t.chipBg} ${t.textFaint} hover:text-brand-400`}><Eye className="h-3.5 w-3.5" /></button>
-            <button type="button" title="Edit" onClick={() => onEdit(breakdown)} className={`h-7 w-7 flex items-center justify-center rounded-md ${t.chipBg} ${t.textFaint} hover:${t.light ? 'text-amber-600' : 'text-amber-400'}`}><Edit className="h-3.5 w-3.5" /></button>
-            <button type="button" title="Delete" onClick={() => onDelete(breakdown)} className={`h-7 w-7 flex items-center justify-center rounded-md ${t.chipBg} ${t.textFaint} hover:text-rose-500`}><Trash2 className="h-3.5 w-3.5" /></button>
+          <div className="flex flex-wrap items-center justify-end gap-1">
+            {t.design === 'dallaglio' ? <RecordActions onView={() => onView(breakdown)} onEdit={() => onEdit(breakdown)} onDelete={() => onDelete(breakdown)} /> : <>
+              <button type="button" title="View" aria-label="View breakdown" onClick={() => onView(breakdown)} className={`h-7 w-7 flex items-center justify-center rounded-md ${t.chipBg} ${t.textFaint} hover:text-brand-400`}><Eye className="h-3.5 w-3.5" /></button>
+              <button type="button" title="Edit" aria-label="Edit breakdown" onClick={() => onEdit(breakdown)} className={`h-7 w-7 flex items-center justify-center rounded-md ${t.chipBg} ${t.textFaint} hover:${t.light ? 'text-amber-600' : 'text-amber-400'}`}><Edit className="h-3.5 w-3.5" /></button>
+              <button type="button" title="Delete" aria-label="Delete breakdown" onClick={() => onDelete(breakdown)} className={`h-7 w-7 flex items-center justify-center rounded-md ${t.chipBg} ${t.textFaint} hover:text-rose-500`}><Trash2 className="h-3.5 w-3.5" /></button>
+            </>}
           </div>
         </div>
       </div>
@@ -219,23 +237,29 @@ function BreakdownTable({ breakdowns, onView, onEdit, onDelete, sortField, sortD
               <Fragment key={rowId}>
                 <tr className={`border-b ${t.border} ${t.hoverBgSoft} transition-colors`}>
                   <td className="py-2.5 px-3">
-                    <button type="button" onClick={() => onToggleExpand(rowId)} className={`h-6 w-6 flex items-center justify-center rounded ${t.textFaint} ${t.hoverText}`}>
+                    {t.design === 'dallaglio' ? <DisclosureButton open={isExp} onClick={() => onToggleExpand(rowId)} label={`${bd.machine_name} details`} /> : <button type="button" onClick={() => onToggleExpand(rowId)} className={`h-6 w-6 flex items-center justify-center rounded ${t.textFaint} ${t.hoverText}`}>
                       {isExp ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-                    </button>
+                    </button>}
                   </td>
                   <td className="py-2.5 px-3"><div className={`${TYPE_WEIGHT.medium} truncate max-w-[140px] ${t.textMuted}`}>{bd.machine_name}</div><div className={`text-xs truncate ${t.textFaint}`}>{bd.machine_id}</div></td>
                   <td className={`py-2.5 px-3 whitespace-nowrap ${t.textMuted}`}>{formatDate(bd.breakdown_date)}</td>
                   <td className="py-2.5 px-3"><StatusBadge color={sMeta.color} label={sMeta.name} dot /></td>
                   <td className="py-2.5 px-3"><StatusBadge color={pMeta.color} label={pMeta.name} /></td>
-                  <td className="py-2.5 px-3"><StatusBadge color={tMeta.color} label={tMeta.name} /></td>
+                  <td className="py-2.5 px-3"><StatusBadge color={tMeta.color} label={tMeta.name} kind="category" /></td>
                   <td className={`py-2.5 px-3 whitespace-nowrap ${t.textMuted}`}>{bd.artisan_name || '—'}</td>
                   <td className="py-2.5 px-3"><span className={`flex items-center gap-1 text-brand-400 ${TYPE_WEIGHT.medium}`}><Clock className="h-3 w-3" />{downtime}</span></td>
                   <td className={`py-2.5 px-3 ${accentText('emerald', t.light)} ${TYPE_WEIGHT.medium}`}>${cost.toFixed(0)}</td>
                   <td className="py-2.5 px-3">
                     <div className="flex items-center justify-end gap-1">
-                      <button type="button" title="View" aria-label="View breakdown" onClick={() => onView(bd)} className={`h-6 w-6 flex items-center justify-center rounded ${t.textFaint} hover:text-brand-400`}><Eye className="h-3.5 w-3.5" /></button>
-                      <button type="button" title="Edit" aria-label="Edit breakdown" onClick={() => onEdit(bd)} className={`h-6 w-6 flex items-center justify-center rounded ${t.textFaint} hover:${t.light ? 'text-amber-600' : 'text-amber-400'}`}><Edit className="h-3.5 w-3.5" /></button>
-                      <button type="button" title="Delete" aria-label="Delete breakdown" onClick={() => onDelete(bd)} className={`h-6 w-6 flex items-center justify-center rounded ${t.textFaint} hover:text-rose-500`}><Trash2 className="h-3.5 w-3.5" /></button>
+                      {t.design === 'dallaglio' ? <>
+                        <IconAction meaning="eye" title="View breakdown" onClick={() => onView(bd)} />
+                        <IconAction meaning="edit" title="Edit breakdown" onClick={() => onEdit(bd)} />
+                        <IconAction meaning="danger" title="Delete breakdown" tone="danger" onClick={() => onDelete(bd)} />
+                      </> : <>
+                        <button type="button" title="View" aria-label="View breakdown" onClick={() => onView(bd)} className={`h-6 w-6 flex items-center justify-center rounded ${t.textFaint} hover:text-brand-400`}><Eye className="h-3.5 w-3.5" /></button>
+                        <button type="button" title="Edit" aria-label="Edit breakdown" onClick={() => onEdit(bd)} className={`h-6 w-6 flex items-center justify-center rounded ${t.textFaint} hover:${t.light ? 'text-amber-600' : 'text-amber-400'}`}><Edit className="h-3.5 w-3.5" /></button>
+                        <button type="button" title="Delete" aria-label="Delete breakdown" onClick={() => onDelete(bd)} className={`h-6 w-6 flex items-center justify-center rounded ${t.textFaint} hover:text-rose-500`}><Trash2 className="h-3.5 w-3.5" /></button>
+                      </>}
                     </div>
                   </td>
                 </tr>
@@ -338,11 +362,11 @@ function DetailsModal({ breakdown, isOpen, onClose, onEdit, onDelete }: {
           </div>
         )}
 
-        <div className="flex gap-2 pt-2">
+        {t.design === 'dallaglio' ? <DetailActions onClose={onClose} onEdit={() => { onEdit(breakdown); onClose(); }} onDelete={() => { onDelete(breakdown); onClose(); }} /> : <div className="flex gap-2 pt-2">
           <button type="button" onClick={onClose} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border}`}>Close</button>
           <PrimaryButton size="md" fullWidth accent="amber" onClick={() => { onEdit(breakdown); onClose(); }}>Edit</PrimaryButton>
           <PrimaryButton danger size="md" fullWidth onClick={() => { onDelete(breakdown); onClose(); }}>Delete</PrimaryButton>
-        </div>
+        </div>}
       </div>
     </CenterModal>
   );
@@ -506,7 +530,7 @@ function FormModal({ isOpen, onClose, onSubmit, initialData, mode = 'create' }: 
                     <div><span className={`${TYPE_WEIGHT.medium} ${t.textMuted}`}>{s.name}</span>{s.part_number && <span className={`ml-2 text-xs ${t.textFaint}`}>({s.part_number})</span>}<span className={`ml-2 text-xs ${t.textFaint}`}>{s.quantity} × ${s.unit_price}</span></div>
                     <div className="flex items-center gap-2">
                       <span className={`${accentText('emerald', t.light)} ${TYPE_WEIGHT.semibold}`}>${lineTotal(s.quantity, s.unit_price).toFixed(2)}</span>
-                      <button type="button" title="Remove spare part" onClick={() => removeSpare(i)} className="h-6 w-6 flex items-center justify-center rounded text-rose-500/60 hover:text-rose-500"><Trash2 className="h-3 w-3" /></button>
+                      {t.design === 'dallaglio' ? <IconAction meaning="danger" title={`Remove ${s.name}`} tone="danger" onClick={() => removeSpare(i)} /> : <button type="button" title="Remove spare part" onClick={() => removeSpare(i)} className="h-6 w-6 flex items-center justify-center rounded text-rose-500/60 hover:text-rose-500"><Trash2 className="h-3 w-3" /></button>}
                     </div>
                   </div>
                 ))}
@@ -587,9 +611,9 @@ function BreakdownsPageContent() {
     let c = 0;
     if (filters.status !== 'all') c++; if (filters.breakdown_type !== 'all') c++; if (filters.priority !== 'all') c++;
     if (filters.department !== 'all') c++; if (filters.location !== 'all' && filters.location !== '') c++;
-    if (searchTerm) c++; if (showDateRange) c++;
+    if (activeView === 'records' && searchTerm) c++; if (showDateRange) c++;
     return c;
-  }, [filters, searchTerm, showDateRange]);
+  }, [filters, searchTerm, showDateRange, activeView]);
 
   const clearFilters = () => { setFilters({ status: 'all', breakdown_type: 'all', priority: 'all', department: 'all', location: 'all' }); setSearchTerm(''); setShowDateRange(false); };
   const handleSort = (field: string) => { if (sortField === field) setSortDirection(p => p === 'asc' ? 'desc' : 'asc'); else { setSortField(field); setSortDirection('desc'); } };
@@ -637,7 +661,7 @@ function BreakdownsPageContent() {
         statsOpen={sections.expanded.hero}
         actions={
           <>
-            {filteredBreakdowns.length > 0 && (
+            {!loading && !loadError && filteredBreakdowns.length > 0 && (
               <DownloadButton
                 data={filteredBreakdowns as unknown as Record<string, unknown>[]}
                 columns={exportColumns}
@@ -651,25 +675,29 @@ function BreakdownsPageContent() {
         }
       >
         <div className="flex flex-wrap gap-1">
-          <StatTile icon={Wrench} color={ACCENT_HEX.blue} value={metrics.total} label="Total" />
-          <StatTile icon={Activity} color="#f59e0b" value={metrics.active} label="Active" />
-          <StatTile icon={AlertTriangle} color="#f43f5e" value={metrics.critical} label="Critical" />
-          <StatTile icon={TrendingUp} color="#34d399" value={`${metrics.avgRes}h`} label="Avg Resolution" />
+          <StatTile icon={Wrench} color={ACCENT_HEX.blue} value={loading || loadError ? '—' : metrics.total} label="Total" />
+          <StatTile icon={Activity} color="#f59e0b" value={loading || loadError ? '—' : metrics.active} label="Active" />
+          <StatTile icon={AlertTriangle} color="#f43f5e" value={loading || loadError ? '—' : metrics.critical} label="Critical" />
+          <StatTile icon={TrendingUp} color="#34d399" value={loading || loadError ? '—' : `${metrics.avgRes}h`} label="Avg Resolution" />
         </div>
       </PageHero>
 
       {/* Filters */}
       <div className={`${t.glass} rounded-2xl ${t.shadow} p-4 space-y-4`}>
         <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-          <div className="relative flex-1 min-w-[200px]">
-            <Search className={`absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none ${t.textFaint}`} />
-            <input type="text" aria-label="Search breakdowns" placeholder="Search machine, artisan, location…" value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
-              className={`w-full h-9 pl-9 pr-3 rounded-xl text-sm ${t.inputBg} focus:outline-none`} />
-          </div>
+          {activeView === 'records' ? (
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className={`absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none ${t.textFaint}`} />
+              <input type="text" aria-label="Search breakdowns" placeholder="Search records by machine, artisan, location…" value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
+                className={`w-full h-9 pl-9 pr-3 rounded-xl text-sm ${t.inputBg} focus:outline-none`} />
+            </div>
+          ) : (
+            <p className={`flex-1 text-xs leading-5 ${t.textFaint}`}>Analytics uses the structured filters below. Free-text search applies to Records only.</p>
+          )}
           <div className="flex gap-2 flex-wrap items-center">
-            <button type="button" onClick={() => setShowDateRange(p => !p)} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs ${TYPE_WEIGHT.semibold} transition-all ${showDateRange ? 'bg-brand-500/15 text-brand-400' : `${t.chipBg} ${t.textMuted} ${t.hoverBg}`}`}><Calendar className="h-3.5 w-3.5" />Date Range</button>
-            <button type="button" onClick={() => setShowFilters(v => !v)} className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.medium} transition-colors ${showFilters ? 'bg-brand-500/15 text-brand-400' : `${t.textMuted} ${t.glassSoft} ${t.hoverText}`}`}><Filter className="h-3.5 w-3.5" /> Filters {activeFilterCount > 0 && <span className={`ml-1 px-1.5 py-0.5 ${t.chipBg} rounded text-[10px]`}>{activeFilterCount}</span>}</button>
-            {activeFilterCount > 0 && <button type="button" onClick={clearFilters} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs ${TYPE_WEIGHT.semibold} ${t.textFaint} ${t.chipBg} ${t.hoverText}`}><FilterX className="h-3.5 w-3.5" />Clear</button>}
+            <Button variant={showDateRange ? 'subtle' : 'secondary'} size="sm" icon={Calendar} pressed={showDateRange} onClick={() => setShowDateRange(p => !p)}>Date Range</Button>
+            <Button variant={showFilters ? 'subtle' : 'secondary'} size="sm" icon={Filter} pressed={showFilters} onClick={() => setShowFilters(v => !v)}>Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}</Button>
+            {activeFilterCount > 0 && <Button variant="ghost" size="sm" icon={FilterX} onClick={clearFilters}>Clear</Button>}
           </div>
         </div>
 
@@ -678,27 +706,24 @@ function BreakdownsPageContent() {
             <FormField label="Start Date"><input type="date" title="Start date" aria-label="Start date" value={startDate} onChange={e => setStartDate(e.target.value)} className={`h-9 px-3 rounded-lg text-sm ${t.inputBg} focus:outline-none`} /></FormField>
             <FormField label="End Date"><input type="date" title="End date" aria-label="End date" value={endDate} onChange={e => setEndDate(e.target.value)} className={`h-9 px-3 rounded-lg text-sm ${t.inputBg} focus:outline-none`} /></FormField>
             <div className="self-end">
-              <button type="button" onClick={() => { const now = new Date(), m = new Date(); m.setDate(now.getDate() - 30); setStartDate(m.toISOString().split('T')[0]); setEndDate(now.toISOString().split('T')[0]); }}
-                className={`px-3 py-1.5 rounded-xl text-xs ${TYPE_WEIGHT.semibold} ${t.textMuted} ${t.glassSoft} ${t.hoverText}`}>Last 30 days</button>
+              <Button variant="secondary" size="sm" onClick={() => { const now = new Date(), m = new Date(); m.setDate(now.getDate() - 30); setStartDate(m.toISOString().split('T')[0]); setEndDate(now.toISOString().split('T')[0]); }}>Last 30 days</Button>
             </div>
           </div>
         )}
 
         {showFilters && (
-          <div className={`pt-4 border-t ${t.border} grid grid-cols-2 sm:grid-cols-4 gap-3`}>
-            <FormField label="Status"><SelectField size="filter" title="Status" value={filters.status} onChange={v => setFilters(p => ({ ...p, status: v }))} options={[{ value: 'all', label: 'All Status' }, ...Object.entries(STATUS_META).map(([k, v]) => ({ value: k, label: v.name }))]} /></FormField>
-            <FormField label="Type"><SelectField size="filter" title="Type" value={filters.breakdown_type} onChange={v => setFilters(p => ({ ...p, breakdown_type: v }))} options={[{ value: 'all', label: 'All Types' }, ...Object.entries(TYPE_META).map(([k, v]) => ({ value: k, label: v.name }))]} /></FormField>
-            <FormField label="Priority"><SelectField size="filter" title="Priority" value={filters.priority} onChange={v => setFilters(p => ({ ...p, priority: v }))} options={[{ value: 'all', label: 'All Priorities' }, ...Object.entries(PRIORITY_META).map(([k, v]) => ({ value: k, label: v.name }))]} /></FormField>
-            <FormField label="Location"><input type="text" aria-label="Filter by location" placeholder="Location…" value={filters.location !== 'all' ? filters.location : ''} onChange={e => setFilters(p => ({ ...p, location: e.target.value || 'all' }))} className={`w-full h-8 px-2 rounded text-[13px] ${t.inputBg} focus:outline-none`} /></FormField>
+          <div className={`pt-4 border-t ${t.border} grid grid-cols-2 sm:grid-cols-5 gap-3`}>
+            <FormField label="Status"><SelectField size={t.design === 'dallaglio' ? 'form' : 'filter'} title="Status" value={filters.status} onChange={v => setFilters(p => ({ ...p, status: v }))} options={[{ value: 'all', label: 'All Status' }, ...Object.entries(STATUS_META).map(([k, v]) => ({ value: k, label: v.name }))]} /></FormField>
+            <FormField label="Type"><SelectField size={t.design === 'dallaglio' ? 'form' : 'filter'} title="Type" value={filters.breakdown_type} onChange={v => setFilters(p => ({ ...p, breakdown_type: v }))} options={[{ value: 'all', label: 'All Types' }, ...Object.entries(TYPE_META).map(([k, v]) => ({ value: k, label: v.name }))]} /></FormField>
+            <FormField label="Priority"><SelectField size={t.design === 'dallaglio' ? 'form' : 'filter'} title="Priority" value={filters.priority} onChange={v => setFilters(p => ({ ...p, priority: v }))} options={[{ value: 'all', label: 'All Priorities' }, ...Object.entries(PRIORITY_META).map(([k, v]) => ({ value: k, label: v.name }))]} /></FormField>
+            <FormField label="Department"><input type="text" aria-label="Filter by department" placeholder="Department…" value={filters.department !== 'all' ? filters.department : ''} onChange={e => setFilters(p => ({ ...p, department: e.target.value || 'all' }))} className={`w-full ${t.design === 'dallaglio' ? 'h-9' : 'h-8'} px-2 rounded text-[13px] ${t.inputBg} focus:outline-none`} /></FormField>
+            <FormField label="Location"><input type="text" aria-label="Filter by location" placeholder="Location…" value={filters.location !== 'all' ? filters.location : ''} onChange={e => setFilters(p => ({ ...p, location: e.target.value || 'all' }))} className={`w-full ${t.design === 'dallaglio' ? 'h-9' : 'h-8'} px-2 rounded text-[13px] ${t.inputBg} focus:outline-none`} /></FormField>
           </div>
         )}
       </div>
 
       {/* View toggle tabs */}
-      <div className={`flex items-center gap-1 p-1 ${t.glassSoft} rounded-xl w-fit`}>
-        <button type="button" onClick={() => setActiveView('records')} className={`px-4 py-1.5 rounded-lg text-xs ${TYPE_WEIGHT.semibold} transition-all ${activeView === 'records' ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} ${t.hoverText}`}`}><TableIcon className="h-3.5 w-3.5 inline mr-1.5" />Records</button>
-        <button type="button" onClick={() => setActiveView('analytics')} className={`px-4 py-1.5 rounded-lg text-xs ${TYPE_WEIGHT.semibold} transition-all ${activeView === 'analytics' ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} ${t.hoverText}`}`}><Activity className="h-3.5 w-3.5 inline mr-1.5" />Analytics</button>
-      </div>
+      <PillTabs tabs={BREAKDOWN_VIEW_TABS} value={activeView} onChange={setActiveView} />
 
       {activeView === 'records' && (
         <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
@@ -738,7 +763,7 @@ function BreakdownsPageContent() {
         </div>
       )}
 
-      {activeView === 'analytics' && <AnalyticsView filters={filters} startDate={startDate} endDate={endDate} />}
+      {activeView === 'analytics' && <AnalyticsView filters={filters} startDate={showDateRange ? startDate : ''} endDate={showDateRange ? endDate : ''} />}
 
       <DetailsModal breakdown={selectedBd} isOpen={detailsOpen} onClose={() => setDetailsOpen(false)} onEdit={handleEdit} onDelete={handleDelete} />
       <FormModal isOpen={formOpen} onClose={() => setFormOpen(false)} onSubmit={handleFormSubmit} initialData={selectedBd} mode={formMode} />
@@ -747,7 +772,7 @@ function BreakdownsPageContent() {
         <div className="p-5 space-y-4">
           <p className={`text-sm ${t.textMuted}`}>Delete the breakdown record for &quot;{deleteTarget?.machine_name}&quot; on {deleteTarget?.breakdown_date}? This cannot be undone.</p>
           <div className="flex gap-2">
-            <button type="button" onClick={() => setDeleteTarget(null)} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border}`}>Cancel</button>
+            <Button variant="secondary" size="md" fullWidth onClick={() => setDeleteTarget(null)}>Cancel</Button>
             <PrimaryButton danger size="md" fullWidth icon={Trash2} onClick={confirmDelete}>Delete</PrimaryButton>
           </div>
         </div>
@@ -758,66 +783,33 @@ function BreakdownsPageContent() {
 
 // ─── ANALYTICS VIEW ───────────────────────────────────────────────────────────
 
+function BreakdownChartTooltip({ active, payload, label }: { active?: boolean; payload?: { name: string; value: number }[]; label?: string }) {
+  const t = useTheme();
+  if (!active || !payload?.length) return null;
+  return (
+    <div className={`${t.glass} rounded-lg px-3 py-2 text-xs ${t.shadow}`}>
+      <p className={`mb-1 ${t.textFaint}`}>{label}</p>
+      {payload.map((entry, idx) => <p key={idx} className={`${TYPE_WEIGHT.medium} ${t.textPrimary}`}>{entry.name}: {entry.value.toLocaleString()}</p>)}
+    </div>
+  );
+}
+
 function AnalyticsView({ filters, startDate, endDate }: { filters: Filters; startDate: string; endDate: string; }) {
   const t = useTheme();
-  const [data, setData] = useState<HeatmapData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('overview');
+  const { data, loading, error, retry } = useBreakdownAnalytics(filters, startDate, endDate);
+  const [activeTab, setActiveTab] = useState<AnalyticsTab>('overview');
 
   const maxHeatmapValue = data ? Math.max(...data.heatmap.hour_day.flat(), 1) : 1;
   const axisColor = t.light ? 'rgba(15,23,42,0.45)' : 'rgba(255,255,255,0.4)';
   const gridColor = t.light ? 'rgba(15,23,42,0.08)' : 'rgba(255,255,255,0.05)';
 
-  useEffect(() => {
-    (async () => {
-      try {
-        setLoading(true);
-        const params = new URLSearchParams();
-        if (startDate) params.append('date_from', startDate);
-        if (endDate) params.append('date_to', endDate);
-        if (filters.department && filters.department !== 'all') params.append('department', filters.department);
-        if (filters.status && filters.status !== 'all') params.append('status', filters.status);
-        if (filters.breakdown_type && filters.breakdown_type !== 'all') params.append('breakdown_type', filters.breakdown_type);
-        if (filters.priority && filters.priority !== 'all') params.append('priority', filters.priority);
-        if (filters.location && filters.location !== 'all') params.append('location', filters.location);
-        const json = await fetchBreakdownAnalytics(params);
-        if (json.success) setData(json);
-      } catch (e) { toast.error(e instanceof Error ? e.message : 'Failed to load analytics'); }
-      finally { setLoading(false); }
-    })();
-  }, [startDate, endDate, filters.department, filters.status, filters.breakdown_type, filters.priority, filters.location]);
-
-  const tabs = [
-    { key: 'overview', label: 'Overview', icon: Layers },
-    { key: 'heatmap', label: 'Heatmap', icon: Activity },
-    { key: 'machines', label: 'Machines', icon: Wrench },
-    { key: 'artisans', label: 'Artisans', icon: Users },
-    { key: 'spares', label: 'Spares', icon: Package },
-  ];
-
   if (loading) return <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-brand-400" /></div>;
+  if (error) return <div className={`${t.glass} rounded-2xl py-16 px-4 text-center`} role="alert"><AlertTriangle className="h-10 w-10 text-rose-500 mx-auto mb-3" /><p className={`${t.textPrimary} text-sm ${TYPE_WEIGHT.semibold}`}>Could not load breakdown analytics</p><p className={`${t.textMuted} text-xs mt-1 mb-4`}>{error}</p><Button variant="secondary" size="md" icon={Loader2} onClick={retry}>Try again</Button></div>;
   if (!data) return <div className={`${t.glass} rounded-2xl py-20 text-center`}><AlertTriangle className={`h-12 w-12 ${t.textFaint} mx-auto mb-4`} /><p className={t.textFaint}>No analytics data available</p></div>;
-
-  const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: { name: string; value: number }[]; label?: string }) => {
-    if (!active || !payload?.length) return null;
-    return (
-      <div className={`${t.glass} rounded-lg px-3 py-2 text-xs ${t.shadow}`}>
-        <p className={`mb-1 ${t.textFaint}`}>{label}</p>
-        {payload.map((entry, idx) => <p key={idx} className={`${TYPE_WEIGHT.medium} ${t.textPrimary}`}>{entry.name}: {entry.value.toLocaleString()}</p>)}
-      </div>
-    );
-  };
 
   return (
     <div className="space-y-4">
-      <div className={`flex gap-1 p-1 ${t.glassSoft} rounded-xl w-full overflow-x-auto flex-nowrap`}>
-        {tabs.map(tb => (
-          <button key={tb.key} type="button" onClick={() => setActiveTab(tb.key)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs ${TYPE_WEIGHT.semibold} whitespace-nowrap transition-all ${activeTab === tb.key ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} ${t.hoverText}`}`}>
-            <tb.icon className="h-3.5 w-3.5" /> {tb.label}
-          </button>
-        ))}
-      </div>
+      <PillTabs tabs={ANALYTICS_TABS} value={activeTab} onChange={setActiveTab} wrap="scroll" />
 
       {activeTab === 'overview' && (
         <div className="space-y-4">
@@ -830,7 +822,7 @@ function AnalyticsView({ filters, startDate, endDate }: { filters: Filters; star
                   <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
                   <XAxis dataKey="month" tick={{ fill: axisColor, fontSize: 11 }} />
                   <YAxis tick={{ fill: axisColor, fontSize: 11 }} />
-                  <Tooltip content={<CustomTooltip />} />
+                  <Tooltip content={<BreakdownChartTooltip />} />
                   <Area type="monotone" dataKey="count" name="Breakdowns" stroke="#10b981" fill="url(#monthlyGradient)" strokeWidth={2} />
                 </ReAreaChart>
               </ResponsiveContainer>
@@ -846,7 +838,7 @@ function AnalyticsView({ filters, startDate, endDate }: { filters: Filters; star
                     <XAxis dataKey="department" tick={{ fill: axisColor, fontSize: 10 }} />
                     <YAxis yAxisId="left" tick={{ fill: axisColor, fontSize: 10 }} />
                     <YAxis yAxisId="right" orientation="right" tick={{ fill: axisColor, fontSize: 10 }} />
-                    <Tooltip content={<CustomTooltip />} />
+                    <Tooltip content={<BreakdownChartTooltip />} />
                     <Bar yAxisId="left" dataKey="count" name="Breakdowns" fill="#3b82f6" radius={[4, 4, 0, 0]} />
                     <Line yAxisId="right" type="monotone" dataKey="downtime" name="Downtime (min)" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} />
                   </ComposedChart>
@@ -862,7 +854,7 @@ function AnalyticsView({ filters, startDate, endDate }: { filters: Filters; star
                       label={(props: { type?: string; percent?: number }) => `${props.type} (${((props.percent ?? 0) * 100).toFixed(0)}%)`} labelLine={{ stroke: gridColor }}>
                       {data.breakdown_type_distribution.map((_, idx) => <Cell key={idx} fill={PIE_COLORS[idx % PIE_COLORS.length]} />)}
                     </Pie>
-                    <Tooltip content={<CustomTooltip />} />
+                    <Tooltip content={<BreakdownChartTooltip />} />
                   </RePieChart>
                 </ResponsiveContainer>
               ) : <p className={`text-xs text-center py-8 ${t.textFaint}`}>No data</p>}

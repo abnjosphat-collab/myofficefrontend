@@ -9,7 +9,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Bell, Loader2, Menu, Search, Settings, SlidersHorizontal, Sun, Moon, X, Clock, ArrowUpRight, Building, IconStyleGlyph, Palette } from '@/components/shared/theme';
-import { useTheme, useIconStyle, rgbaFromHexSafe, ACCENT_HEX, AccentIcon } from '@/components/shared/theme';
+import { useTheme, useIconStyle, rgbaFromHexSafe, ACCENT_HEX, AccentIcon, Button } from '@/components/shared/theme';
 import type { Category } from './modules';
 import { AuthMenu } from './AuthMenu';
 import { useNotifications } from './useNotifications';
@@ -90,18 +90,17 @@ export function TopNavigation({
         </button>
 
         <Link href="/" className={`group flex items-center gap-2 shrink-0 h-11 px-2 rounded-lg ${t.hoverBgSoft} transition-colors`} title="Home">
-          {/* An office building, not a house — it's literally the "Office" in MyOffice,
-             reads as a considered brand mark rather than a generic dashboard glyph.
-             Violet/indigo gradient badge, not blue. Inset highlight + soft glow gives it
-             dimension without a gimmick hover animation. */}
+          {/* The two design languages keep distinct marks, while sharing one home link. */}
           <span
-            className="relative h-[30px] w-[30px] shrink-0 rounded-[10px] flex items-center justify-center transition-transform duration-300 group-hover:scale-105"
-            style={{
+            className={t.design === 'dallaglio'
+              ? `relative h-[30px] w-[30px] shrink-0 rounded-[9px] border ${t.border} ${t.chipBg} ${t.linkText} flex items-center justify-center transition-colors group-hover:bg-[var(--d-accent-soft)]`
+              : 'relative h-[30px] w-[30px] shrink-0 rounded-[10px] flex items-center justify-center transition-transform duration-300 group-hover:scale-105'}
+            style={t.design === 'dallaglio' ? undefined : {
               background: 'linear-gradient(155deg, #a78bfa 0%, #7c3aed 55%, #5b21b6 100%)',
               boxShadow: `inset 0 1px 0 rgba(255,255,255,0.45), inset 0 -6px 10px -6px rgba(0,0,0,0.35), 0 6px 16px -6px ${ACCENT_HEX.violet}80`,
             }}
           >
-            <Building weight="fill" className="h-4 w-4 text-white [filter:drop-shadow(0_1px_1px_rgba(0,0,0,0.2))]" />
+            <Building weight={t.design === 'dallaglio' ? 'light' : 'fill'} className={t.design === 'dallaglio' ? 'h-[17px] w-[17px]' : 'h-4 w-4 text-white [filter:drop-shadow(0_1px_1px_rgba(0,0,0,0.2))]'} />
           </span>
           <span className={`hidden sm:inline ${t.textPrimary} text-[14px] font-semibold tracking-tight`}>MyOffice</span>
         </Link>
@@ -187,6 +186,10 @@ export function TopNavigation({
         )}
 
         <div className="flex items-center gap-2 shrink-0">
+          {t.design === 'dallaglio' ? <>
+            <span className="hidden md:inline-flex"><Button href="/tools" variant="secondary" size="sm" icon={Building} title="Open Tools & Equipment">Tools &amp; Equipment</Button></span>
+            <span className="hidden sm:inline-flex"><Button variant="secondary" size="sm" onClick={() => t.setDesign('classic')} title="Switch to Classic design">Dallaglio</Button></span>
+          </> : <>
           <Link
             href="/tools"
             className={`hidden md:flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12px] font-medium ${t.textMuted} ${t.hoverText} ${t.glassSoft} ${t.shadow} hover:shadow-[0_8px_20px_-8px_rgba(124,58,237,0.35)] transition-shadow duration-300`}
@@ -205,15 +208,16 @@ export function TopNavigation({
             <span className="hidden lg:inline">Customize</span>
           </button>
           <button
-            onClick={() => t.setDesign(t.design === 'dallaglio' ? 'classic' : 'dallaglio')}
+            onClick={() => t.setDesign('dallaglio')}
             className={`hidden sm:flex items-center h-8 px-2.5 rounded-lg text-[12px] font-medium ${t.glassSoft} ${t.shadow} ${t.textMuted} ${t.hoverText}`}
             type="button"
-            title={t.design === 'dallaglio' ? 'Switch to Classic design' : 'Switch to Dallaglio design'}
-            aria-label={t.design === 'dallaglio' ? 'Switch to Classic design' : 'Switch to Dallaglio design'}
-            aria-pressed={t.design === 'dallaglio'}
+            title="Switch to Dallaglio design"
+            aria-label="Switch to Dallaglio design"
+            aria-pressed={false}
           >
-            {t.design === 'dallaglio' ? 'Dallaglio' : 'Classic'}
+            Classic
           </button>
+          </>}
           <button
             onClick={t.toggle}
             className={t.design === 'dallaglio' ? `${ds.iconBtn} shrink-0` : `h-11 w-11 flex items-center justify-center ${t.hoverBg} ${t.textMuted}`}
@@ -238,7 +242,7 @@ export function TopNavigation({
             {/* half-filled circle reads as a fill-style control; itself flips solid/outline with the setting */}
             <IconStyleGlyph className="h-[18px] w-[18px]" />
           </button>
-          <button
+          {t.design !== 'dallaglio' && <button
             onClick={onPreferences}
             className={`hidden sm:flex h-11 w-11 items-center justify-center ${t.hoverBg} ${t.textMuted}`}
             type="button"
@@ -246,7 +250,7 @@ export function TopNavigation({
             aria-label="Preferences"
           >
             <Palette className="h-[18px] w-[18px]" />
-          </button>
+          </button>}
           <button
             onClick={() => setMobileSearchOpen(!mobileSearchOpen)}
             className={`h-11 w-11 flex items-center justify-center ${t.hoverBg} ${t.textMuted} md:hidden`}

@@ -6,7 +6,7 @@
 // re-fires whenever it changes — timesheets are period-scoped, not a flat global record set.
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api as apiClient } from '@/lib/apiClient';
 import { toast } from 'sonner';
 import { toLocalISODate } from '@/lib/dates';
@@ -73,8 +73,10 @@ export function useTimesheetsData(activePeriod: Period) {
   const [shiftAssignments, setShiftAssignments] = useState<ShiftAssignment[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const requestId = useRef(0);
 
   const load = useCallback(async () => {
+    const currentRequest = ++requestId.current;
     setLoading(true);
     setLoadError(null);
     try {
@@ -82,20 +84,31 @@ export function useTimesheetsData(activePeriod: Period) {
         api.employees(), api.timesheets(toLocalISODate(activePeriod.start), toLocalISODate(activePeriod.end)),
         api.moduleLeaves(activePeriod), api.moduleOvertime(activePeriod), api.shiftAssignments(),
       ]);
+      if (currentRequest !== requestId.current) return;
       setAllEmployees(emps);
       setTimesheets(sheets);
       setApprovedLeaves(leaves);
       setApprovedOvertime(ot);
       setShiftAssignments(shifts);
     } catch (e) {
+      if (currentRequest !== requestId.current) return;
       const msg = (e as Error).message || 'Unknown error';
+      setAllEmployees([]);
+      setTimesheets([]);
+      setApprovedLeaves([]);
+      setApprovedOvertime([]);
+      setShiftAssignments([]);
       setLoadError(msg);
       toast.error('Failed to load: ' + msg);
     }
-    finally { setLoading(false); }
+    finally { if (currentRequest === requestId.current) setLoading(false); }
   }, [activePeriod]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const activeRequest = requestId;
+    void load();
+    return () => { ++activeRequest.current; };
+  }, [load]);
 
   return {
     allEmployees, timesheets, setTimesheets, approvedLeaves, approvedOvertime, shiftAssignments,

@@ -37,7 +37,7 @@ export const ROLE_BADGE: Record<UserRole, string> = {
 /** Icon + hex + description per role (for the admin panel's richer rows). */
 export const ROLE_META: Record<UserRole, { icon: ElementType; hex: string; desc: string }> = {
   super_admin: { icon: Crown, hex: '#f43f5e', desc: 'Full system access including role management' },
-  admin: { icon: Star, hex: '#f59e0b', desc: 'Edit access to all modules, cannot manage roles' },
+  admin: { icon: Star, hex: '#f59e0b', desc: 'Manage accounts and roles below Super Admin; cannot edit their own role' },
   manager: { icon: Briefcase, hex: '#3b82f6', desc: 'Approval rights for HR & operations' },
   user: { icon: UserCheck, hex: '#94a3b8', desc: 'Standard user — view + limited edit via permissions' },
   viewer: { icon: Eye, hex: '#64748b', desc: 'Read-only access across the platform' },

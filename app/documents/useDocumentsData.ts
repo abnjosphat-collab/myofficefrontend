@@ -6,7 +6,7 @@
 // never renders it), matching the original's guarded loadFiles exactly.
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/apiClient';
 import { toast } from 'sonner';
 import type { Category, DocumentFile, Folder } from './types';
@@ -91,23 +91,28 @@ export async function searchDocuments(q: string): Promise<DocumentFile[]> {
 export function useDocumentsData(currentCategory: Category | null, currentFolder: string | null) {
   const [documents, setDocuments] = useState<DocumentFile[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const requestId = useRef(0);
 
   const refresh = useCallback(async () => {
-    if (!currentCategory) return;
+    const id = ++requestId.current;
+    if (!currentCategory) { setDocuments([]); setError(''); setIsLoading(false); return; }
     setIsLoading(true);
+    setError('');
+    setDocuments([]);
     try {
       const params = new URLSearchParams({ category_id: currentCategory.id });
       if (currentFolder) params.set('folder_id', currentFolder);
       const data = await api.get<Record<string, unknown>[]>(`/api/documents?${params}`);
-      setDocuments(data.map(fromDb));
+      if (id === requestId.current) setDocuments(data.map(fromDb));
     } catch (e) {
-      toast.error(`Failed to load files: ${e}`);
+      if (id === requestId.current) setError(e instanceof Error ? e.message : String(e));
     } finally {
-      setIsLoading(false);
+      if (id === requestId.current) setIsLoading(false);
     }
   }, [currentCategory, currentFolder]);
 
   useEffect(() => { refresh(); }, [refresh]);
 
-  return { documents, setDocuments, isLoading, refresh };
+  return { documents, setDocuments, isLoading, error, refresh };
 }

@@ -2,7 +2,7 @@
 // Full approval flow: auth check → role check → signature capture → confirm
 'use client';
 import { useState } from 'react';
-import { Lock, ShieldAlert, LogIn, CheckCircle2, XCircle, Loader2, useTheme, accentText, PrimaryButton } from '@/components/shared/theme';
+import { Lock, ShieldAlert, LogIn, CheckCircle2, XCircle, Loader2, useTheme, accentText, PrimaryButton, Button } from '@/components/shared/theme';
 import { useAuth } from '@/lib/auth-context';
 import { SignaturePad, type SignatureResult } from './SignaturePad';
 import type { UserRole } from '@/lib/auth-context';
@@ -71,7 +71,7 @@ export function ApprovalGate({
     <div className="fixed inset-0 z-[400] flex items-center justify-center p-4">
       <button type="button" aria-label="Dismiss approval dialog" onClick={onCancel} className={`absolute inset-0 ${t.scrim} backdrop-blur-sm cursor-default`} />
       <div className={`relative ${t.glass} ${t.shadow} rounded-2xl w-full max-w-md z-10 overflow-hidden border ${t.border}`}>
-        <div className={`px-6 py-4 border-b ${t.border} ${accentClass}`}>
+        <div className={`px-6 py-4 border-b ${t.border} ${t.design === 'dallaglio' ? 'bg-[var(--d-surface)]' : accentClass}`}>
           <div className="flex items-center gap-3">
             {variant === 'reject'
               ? <XCircle className={`h-5 w-5 shrink-0 ${accentText('rose', t.light)}`} />
@@ -79,7 +79,7 @@ export function ApprovalGate({
               ? <CheckCircle2 className="h-5 w-5 shrink-0 text-brand-500" />
               : <CheckCircle2 className={`h-5 w-5 shrink-0 ${accentText('emerald', t.light)}`} />}
             <div>
-              <h3 className={`text-base font-bold ${t.textPrimary}`}>{title}</h3>
+              <h3 className={`text-base ${t.design === 'dallaglio' ? 'font-semibold tracking-[-0.025em]' : 'font-bold'} ${t.textPrimary}`}>{title}</h3>
               {description && <p className={`text-xs mt-0.5 ${t.textMuted}`}>{description}</p>}
             </div>
           </div>
@@ -113,10 +113,12 @@ export function ApprovalGate({
                   A <span className="text-brand-500 font-medium">{ROLE_LABELS[requiredRole]}</span> or above is required.
                 </p>
               </div>
-              <button type="button" onClick={onCancel}
-                className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${t.chipBg} ${t.textMuted} ${t.hoverText} border ${t.border}`}>
-                Close
-              </button>
+              {t.design === 'dallaglio'
+                ? <Button variant="secondary" size="sm" onClick={onCancel}>Close</Button>
+                : <button type="button" onClick={onCancel}
+                    className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${t.chipBg} ${t.textMuted} ${t.hoverText} border ${t.border}`}>
+                    Close
+                  </button>}
             </div>
           )}
 

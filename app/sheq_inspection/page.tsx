@@ -10,9 +10,11 @@ import {
 } from '@/components/shared/theme';
 import { toast } from 'sonner';
 import {
-  useTheme, accentText, PageHero, StatTile, StatusBadge, SearchInput, FormField, FormActions,
+  useTheme, PageHero, StatTile, StatusBadge, SearchInput, FormField, FormActions,
   useCollapseSection, CenterModal, PrimaryButton, EmptyState, ACCENT_HEX, ViewToggle, GlowCard, SelectField, useConfirm, TYPE_WEIGHT, Button,
+  IconAction, DisclosureButton, RecordActions, DetailActions,
 } from '@/components/shared/theme';
+import { PillTabs } from '@/components/shared/PillTabs';
 import { PhotoUpload } from '@/components/shared/PhotoUpload';
 import { AppShell } from '@/components/app-shell';
 import { PredictiveInput } from '@/components/shared/PredictiveInput';
@@ -66,10 +68,12 @@ function FindingFormCard({
     <div className={`rounded-xl p-4 ${t.chipBg} border ${t.border} space-y-3`}>
       <div className="flex items-center justify-between">
         <span className={`text-[10px] ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textFaint}`}>Finding #{index + 1}</span>
-        <button type="button" title="Remove finding" onClick={() => onRemove(finding.id)}
-          className={`h-5 w-5 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-rose-500 transition-all`}>
-          <Trash2 className="h-3 w-3" />
-        </button>
+        {t.design === 'dallaglio'
+          ? <IconAction meaning="danger" title="Remove finding" tone="danger" onClick={() => onRemove(finding.id)} />
+          : <button type="button" title="Remove finding" onClick={() => onRemove(finding.id)}
+              className={`h-5 w-5 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-rose-500 transition-all`}>
+              <Trash2 className="h-3 w-3" />
+            </button>}
       </div>
       <FormField label="Finding Description" required>
         <textarea aria-label="Finding Description" value={finding.finding} rows={2} placeholder="Describe the issue or finding…"
@@ -124,10 +128,10 @@ function FindingFormCard({
 // ─── INSPECTION FORM MODAL ──────────────────────────────────────────────────────
 
 const TABS = [
-  { id: 'basic', label: 'Basic Info' },
-  { id: 'findings', label: 'Findings' },
-  { id: 'photos', label: 'Photos' },
-  { id: 'signoff', label: 'Sign-off' },
+  { id: 'basic', label: 'Basic Info', icon: FileText },
+  { id: 'findings', label: 'Findings', icon: ClipboardCheck },
+  { id: 'photos', label: 'Photos', icon: Eye },
+  { id: 'signoff', label: 'Sign-off', icon: UserCircle },
 ] as const;
 
 function InspectionFormModal({
@@ -183,16 +187,29 @@ function InspectionFormModal({
   return (
     <CenterModal open={open} onClose={onClose} title={inspection ? 'Edit Inspection' : 'New Inspection'} width="max-w-3xl">
       <form onSubmit={handleSubmit}>
-        <div className={`px-5 pt-1 pb-3 border-b ${t.border} flex gap-1.5 flex-wrap`}>
-          {TABS.map(tb => (
-            <button key={tb.id} type="button" onClick={() => setTab(tb.id)}
-              className={`px-3 py-1.5 rounded-lg text-xs ${TYPE_WEIGHT.medium} transition-all ${
-                tab === tb.id ? `${ACCENT_HEX.blue ? 'bg-brand-500/20 text-brand-400' : ''}` : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`
-              }`}>
-              {tb.label}{tb.id === 'findings' && findingCount > 0 && ` (${findingCount})`}
-              {tb.id === 'photos' && photoCount > 0 && ` (${photoCount})`}
-            </button>
-          ))}
+        <div className={`px-5 pt-1 pb-3 border-b ${t.border}`}>
+          {t.design === 'dallaglio'
+            ? <PillTabs
+                tabs={TABS.map(tb => ({
+                  key: tb.id,
+                  label: `${tb.label}${tb.id === 'findings' && findingCount > 0 ? ` (${findingCount})` : ''}${tb.id === 'photos' && photoCount > 0 ? ` (${photoCount})` : ''}`,
+                  icon: tb.icon,
+                }))}
+                value={tab}
+                onChange={setTab}
+                wrap="wrap"
+              />
+            : <div className="flex gap-1.5 flex-wrap">
+                {TABS.map(tb => (
+                  <button key={tb.id} type="button" onClick={() => setTab(tb.id)}
+                    className={`px-3 py-1.5 rounded-lg text-xs ${TYPE_WEIGHT.medium} transition-all ${
+                      tab === tb.id ? `${ACCENT_HEX.blue ? 'bg-brand-500/20 text-brand-400' : ''}` : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`
+                    }`}>
+                    {tb.label}{tb.id === 'findings' && findingCount > 0 && ` (${findingCount})`}
+                    {tb.id === 'photos' && photoCount > 0 && ` (${photoCount})`}
+                  </button>
+                ))}
+              </div>}
         </div>
 
         <div className="px-5 py-4 space-y-4 max-h-[60vh] overflow-y-auto">
@@ -321,7 +338,7 @@ function InspectionDetailModal({
           ))}
           <div>
             <p className={`text-[10px] uppercase tracking-wider mb-0.5 ${t.textFaint}`}>Section</p>
-            <StatusBadge color={inspection.section === 'electrical' ? '#f59e0b' : ACCENT} label={SECTION_LABELS[inspection.section]} />
+            <StatusBadge color={t.design === 'dallaglio' ? '#94a3b8' : inspection.section === 'electrical' ? '#f59e0b' : ACCENT} label={SECTION_LABELS[inspection.section]} />
           </div>
           <div>
             <p className={`text-[10px] uppercase tracking-wider mb-0.5 ${t.textFaint}`}>Status</p>
@@ -396,11 +413,15 @@ function InspectionDetailModal({
       </div>
 
       <div className={`px-5 py-4 border-t ${t.border} flex justify-end gap-2`}>
-        <button type="button" onClick={onClose}
-          className={`px-4 py-2 rounded-xl text-sm ${t.textFaint} ${t.hoverText} border ${t.border} transition-all`}>
-          Close
-        </button>
-        <PrimaryButton icon={Pencil} accent="violet" size="md" onClick={() => { onClose(); onEdit(inspection); }}>Edit</PrimaryButton>
+        {t.design === 'dallaglio'
+          ? <DetailActions onClose={onClose} onEdit={() => { onClose(); onEdit(inspection); }} />
+          : <>
+              <button type="button" onClick={onClose}
+                className={`px-4 py-2 rounded-xl text-sm ${t.textFaint} ${t.hoverText} border ${t.border} transition-all`}>
+                Close
+              </button>
+              <PrimaryButton icon={Pencil} accent="violet" size="md" onClick={() => { onClose(); onEdit(inspection); }}>Edit</PrimaryButton>
+            </>}
       </div>
     </CenterModal>
   );
@@ -417,7 +438,7 @@ function InspectionCard({
   const t = useTheme();
   const isElec = inspection.section === 'electrical';
   const SectionIcon = isElec ? Zap : Wrench;
-  const sectionColor = isElec ? '#f59e0b' : ACCENT;
+  const sectionColor = t.design === 'dallaglio' ? 'var(--d-ink-muted)' : isElec ? '#f59e0b' : ACCENT;
 
   const openCount = inspection.findings?.filter(f => f.status !== 'closed').length || 0;
   const closedCount = inspection.findings?.filter(f => f.status === 'closed').length || 0;
@@ -436,20 +457,22 @@ function InspectionCard({
         </div>
         <div className="flex items-center gap-1.5 flex-shrink-0">
           <StatusBadge color={INSPECTION_STATUS_HEX[inspection.status]} label={inspection.status} />
-          <button type="button" title={expanded ? 'Collapse' : 'Expand'} onClick={e => { e.stopPropagation(); onToggle(); }}
-            className={`h-6 w-6 flex items-center justify-center rounded ${t.textFaint} ${t.hoverText} transition-all`}>
-            {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-          </button>
+          {t.design === 'dallaglio'
+            ? <DisclosureButton open={expanded} label="inspection details" onClick={e => { e.stopPropagation(); onToggle(); }} />
+            : <button type="button" title={expanded ? 'Collapse' : 'Expand'} onClick={e => { e.stopPropagation(); onToggle(); }}
+                className={`h-6 w-6 flex items-center justify-center rounded ${t.textFaint} ${t.hoverText} transition-all`}>
+                {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+              </button>}
         </div>
       </div>
 
       <div className={`px-4 py-2 grid grid-cols-5 gap-1 border-b ${t.border}`}>
         {[
-          { label: 'Total', value: inspection.findings?.length || 0, color: ACCENT },
+          { label: 'Total', value: inspection.findings?.length || 0, color: t.design === 'dallaglio' ? 'var(--d-ink-muted)' : ACCENT },
           { label: 'Open', value: openCount, color: '#f59e0b' },
           { label: 'Closed', value: closedCount, color: '#34d399' },
           { label: 'Critical', value: criticalCount, color: '#f43f5e' },
-          { label: 'Photos', value: photoCount, color: '#a78bfa' },
+          { label: 'Photos', value: photoCount, color: t.design === 'dallaglio' ? 'var(--d-ink-muted)' : '#a78bfa' },
         ].map(s => (
           <div key={s.label} className="text-center">
             <div className={`text-base ${TYPE_WEIGHT.bold} leading-none`} style={{ color: s.color }}>{s.value}</div>
@@ -498,17 +521,19 @@ function InspectionCard({
           </div>
 
           <div className="flex gap-1.5 pt-1">
-            {[
-              { label: 'View', icon: Eye, fn: onView, color: ACCENT },
-              { label: 'Edit', icon: Pencil, fn: onEdit, color: ACCENT },
-              { label: 'Delete', icon: Trash2, fn: onDelete, color: '#f43f5e' },
-            ].map(({ label, icon: Icon, fn, color }) => (
-              <button key={label} type="button" onClick={e => { e.stopPropagation(); fn(); }}
-                className={`flex-1 py-1.5 rounded-lg text-[11px] ${TYPE_WEIGHT.medium} border transition-all hover:-translate-y-0.5 inline-flex items-center justify-center gap-1`}
-                style={{ color, borderColor: `${color}25`, background: `${color}10` }}>
-                <Icon className="h-3 w-3" /> {label}
-              </button>
-            ))}
+            {t.design === 'dallaglio'
+              ? <RecordActions onView={onView} onEdit={onEdit} onDelete={onDelete} />
+              : [
+                  { label: 'View', icon: Eye, fn: onView, color: ACCENT },
+                  { label: 'Edit', icon: Pencil, fn: onEdit, color: ACCENT },
+                  { label: 'Delete', icon: Trash2, fn: onDelete, color: '#f43f5e' },
+                ].map(({ label, icon: Icon, fn, color }) => (
+                  <button key={label} type="button" onClick={e => { e.stopPropagation(); fn(); }}
+                    className={`flex-1 py-1.5 rounded-lg text-[11px] ${TYPE_WEIGHT.medium} border transition-all hover:-translate-y-0.5 inline-flex items-center justify-center gap-1`}
+                    style={{ color, borderColor: `${color}25`, background: `${color}10` }}>
+                    <Icon className="h-3 w-3" /> {label}
+                  </button>
+                ))}
           </div>
         </div>
       )}
@@ -522,7 +547,7 @@ function SHEQInspectionContent() {
   const t = useTheme();
   const confirm = useConfirm();
   const sections = useCollapseSection({ hero: true, records: true });
-  const { inspections, setInspections, loading, refreshing, load } = useSheqInspectionData();
+  const { inspections, setInspections, loading, refreshing, loadError, load } = useSheqInspectionData();
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [selectedInspection, setSelectedInspection] = useState<SHEQFormData | null>(null);
@@ -563,6 +588,7 @@ function SHEQInspectionContent() {
   }), [inspections, search, sectionFilter, statusFilter, dateFrom, dateTo]);
 
   const hasFilters = !!(search || sectionFilter !== 'all' || statusFilter !== 'all' || dateFrom || dateTo);
+  const registerUnavailable = t.design === 'dallaglio' && (loading || (!!loadError && inspections.length === 0));
 
   const exportColumns: DLColumn[] = [
     { key: 'title', label: 'Title', width: 26 },
@@ -629,10 +655,12 @@ function SHEQInspectionContent() {
         statsOpen={sections.expanded.hero}
         actions={
           <>
-            <button type="button" onClick={() => load(true)} title="Refresh"
-              className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}>
-              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-            </button>
+            {t.design === 'dallaglio'
+              ? <IconAction meaning="refresh" title="Refresh" onClick={() => load(true)} disabled={refreshing} spinning={refreshing} />
+              : <button type="button" onClick={() => load(true)} title="Refresh"
+                  className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}>
+                  <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+                </button>}
             <ViewToggle value={viewMode} onChange={setViewMode}
               options={[{ value: 'grid', icon: LayoutGrid, label: 'Grid view' }, { value: 'table', icon: TableIcon, label: 'Table view' }]} />
             {filtered.length > 0 && (
@@ -645,47 +673,67 @@ function SHEQInspectionContent() {
                 statusColor={(_v, row) => INSPECTION_STATUS_HEX[row.status as InspectionStatus]?.replace('#', '')}
               />
             )}
-            <PrimaryButton icon={Plus} accent="violet" onClick={() => { setEditingInspection(null); setFormOpen(true); }}>New Inspection</PrimaryButton>
+            <PrimaryButton icon={Plus} accent="violet" disabled={registerUnavailable} onClick={() => { setEditingInspection(null); setFormOpen(true); }}>New Inspection</PrimaryButton>
           </>
         }
       >
         <div className="grid grid-cols-4 sm:grid-cols-8 gap-3">
-          <StatTile icon={ClipboardCheck} color={ACCENT} label="Total" value={stats.total} />
-          <StatTile icon={AlertTriangle} color="#f59e0b" label="Open" value={stats.open} />
-          <StatTile icon={Loader2} color="#60a5fa" label="In Progress" value={stats.inProgress} />
-          <StatTile icon={Target} color="#34d399" label="Closed" value={stats.closed} />
-          <StatTile icon={XCircle} color="#f43f5e" label="Overdue" value={stats.overdue} />
-          <StatTile icon={AlertTriangle} color="#f43f5e" label="Critical" value={stats.critical} />
-          <StatTile icon={Wrench} color={ACCENT} label="Mechanical" value={stats.mechanical} />
-          <StatTile icon={Zap} color="#f59e0b" label="Electrical" value={stats.electrical} />
+          <StatTile icon={ClipboardCheck} color={ACCENT} label="Total" value={registerUnavailable ? '—' : stats.total} />
+          <StatTile icon={AlertTriangle} color="#f59e0b" label="Open" value={registerUnavailable ? '—' : stats.open} />
+          <StatTile icon={Loader2} color="#60a5fa" label="In Progress" value={registerUnavailable ? '—' : stats.inProgress} />
+          <StatTile icon={Target} color="#34d399" label="Closed" value={registerUnavailable ? '—' : stats.closed} />
+          <StatTile icon={XCircle} color="#f43f5e" label="Overdue" value={registerUnavailable ? '—' : stats.overdue} />
+          <StatTile icon={AlertTriangle} color="#f43f5e" label="Critical" value={registerUnavailable ? '—' : stats.critical} />
+          <StatTile icon={Wrench} color={ACCENT} label="Mechanical" value={registerUnavailable ? '—' : stats.mechanical} />
+          <StatTile icon={Zap} color="#f59e0b" label="Electrical" value={registerUnavailable ? '—' : stats.electrical} />
         </div>
       </PageHero>
+
+      {t.design === 'dallaglio' && loadError && (
+        <div role="alert" className={`${t.glass} ${t.shadow} rounded-2xl border ${t.border} px-5 py-4 flex flex-wrap items-center gap-4`}>
+          <AlertTriangle className="h-5 w-5 shrink-0 text-rose-500" />
+          <div className="min-w-0 flex-1">
+            <p className={`text-sm ${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>Could not load SHEQ inspections</p>
+            <p className={`mt-0.5 text-xs ${t.textFaint}`}>{loadError}</p>
+          </div>
+          <Button variant="secondary" size="sm" onClick={() => load()}>Try again</Button>
+        </div>
+      )}
 
       {sections.expanded.records && <>
         <div className={`${t.glass} rounded-2xl overflow-hidden`}>
           <div className="p-4 flex flex-wrap items-center gap-2">
             <SearchInput value={search} onChange={setSearch} placeholder="Search by title, inspector, location…" className="w-64" />
-            <SelectField size="filter" value={sectionFilter} onChange={setSectionFilter} title="Section filter"
+            <SelectField size={t.design === 'dallaglio' ? 'form' : 'filter'} value={sectionFilter} onChange={setSectionFilter} title="Section filter"
               options={[{ value: 'all', label: 'All Sections' }, ...SECTIONS.map(s => ({ value: s, label: SECTION_LABELS[s] }))]} />
-            <SelectField size="filter" value={statusFilter} onChange={setStatusFilter} title="Status filter"
+            <SelectField size={t.design === 'dallaglio' ? 'form' : 'filter'} value={statusFilter} onChange={setStatusFilter} title="Status filter"
               options={[{ value: 'all', label: 'All Status' }, ...(['draft', 'submitted', 'approved', 'rejected'] as InspectionStatus[]).map(s => ({ value: s, label: s.charAt(0).toUpperCase() + s.slice(1) }))]} />
             <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} title="From date" aria-label="From date" className={selCls} />
             <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} title="To date" aria-label="To date" className={selCls} />
             {hasFilters && (
-              <button type="button" onClick={() => { setSearch(''); setSectionFilter('all'); setStatusFilter('all'); setDateFrom(''); setDateTo(''); }}
-                title="Clear filters" className={`h-7 px-2.5 flex items-center gap-1 text-[11px] rounded-lg ${t.chipBg} ${t.textFaint} ${t.hoverText} transition-all`}>
-                <X className="h-3 w-3" /> Clear
-              </button>
+              t.design === 'dallaglio'
+                ? <Button variant="ghost" size="sm" icon={X} title="Clear filters" onClick={() => { setSearch(''); setSectionFilter('all'); setStatusFilter('all'); setDateFrom(''); setDateTo(''); }}>Clear</Button>
+                : <button type="button" onClick={() => { setSearch(''); setSectionFilter('all'); setStatusFilter('all'); setDateFrom(''); setDateTo(''); }}
+                    title="Clear filters" className={`h-7 px-2.5 flex items-center gap-1 text-[11px] rounded-lg ${t.chipBg} ${t.textFaint} ${t.hoverText} transition-all`}>
+                    <X className="h-3 w-3" /> Clear
+                  </button>
             )}
             <div className="ml-auto flex items-center gap-1.5">
-              <button type="button" title="Expand all" onClick={() => setExpandedIds(new Set(inspections.map(i => i.id)))}
-                className={`h-7 px-2.5 flex items-center gap-1 text-[11px] rounded-lg ${t.chipBg} ${t.textFaint} ${t.hoverText} transition-all`}>
-                <Maximize2 className="h-3 w-3" /> Expand all
-              </button>
-              <button type="button" title="Collapse all" onClick={() => setExpandedIds(new Set())}
-                className={`h-7 px-2.5 flex items-center gap-1 text-[11px] rounded-lg ${t.chipBg} ${t.textFaint} ${t.hoverText} transition-all`}>
-                <Minimize2 className="h-3 w-3" /> Collapse all
-              </button>
+              {t.design === 'dallaglio'
+                ? <>
+                    <Button variant="secondary" size="sm" icon={Maximize2} title="Expand all" onClick={() => setExpandedIds(new Set(inspections.map(i => i.id)))}>Expand all</Button>
+                    <Button variant="ghost" size="sm" icon={Minimize2} title="Collapse all" onClick={() => setExpandedIds(new Set())}>Collapse all</Button>
+                  </>
+                : <>
+                    <button type="button" title="Expand all" onClick={() => setExpandedIds(new Set(inspections.map(i => i.id)))}
+                      className={`h-7 px-2.5 flex items-center gap-1 text-[11px] rounded-lg ${t.chipBg} ${t.textFaint} ${t.hoverText} transition-all`}>
+                      <Maximize2 className="h-3 w-3" /> Expand all
+                    </button>
+                    <button type="button" title="Collapse all" onClick={() => setExpandedIds(new Set())}
+                      className={`h-7 px-2.5 flex items-center gap-1 text-[11px] rounded-lg ${t.chipBg} ${t.textFaint} ${t.hoverText} transition-all`}>
+                      <Minimize2 className="h-3 w-3" /> Collapse all
+                    </button>
+                  </>}
             </div>
           </div>
         </div>
@@ -694,7 +742,7 @@ function SHEQInspectionContent() {
           <div className="flex items-center justify-center py-16">
             <Loader2 className={`h-6 w-6 animate-spin ${t.textFaint}`} />
           </div>
-        ) : filtered.length === 0 ? (
+        ) : t.design === 'dallaglio' && loadError && inspections.length === 0 ? null : filtered.length === 0 ? (
           <div className={`${t.glass} rounded-2xl overflow-hidden`}>
             <EmptyState icon={ClipboardCheck}
               title={hasFilters ? 'No inspections match your filters' : 'No inspections yet'}
@@ -732,15 +780,17 @@ function SHEQInspectionContent() {
                       <tr className={`border-b ${t.border} ${t.hoverBg} cursor-pointer transition-colors`}
                         onClick={() => { setSelectedInspection(inspection); setDetailOpen(true); }}>
                         <td className="pl-3 pr-1 py-3 w-6">
-                          <button type="button" title={expandedIds.has(inspection.id) ? 'Collapse' : 'Expand'}
-                            onClick={e => { e.stopPropagation(); toggle(inspection.id); }}
-                            className={`h-5 w-5 flex items-center justify-center ${t.textFaint} ${t.hoverText} transition-all`}>
-                            {expandedIds.has(inspection.id) ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-                          </button>
+                          {t.design === 'dallaglio'
+                            ? <DisclosureButton open={expandedIds.has(inspection.id)} label="inspection findings" onClick={e => { e.stopPropagation(); toggle(inspection.id); }} />
+                            : <button type="button" title={expandedIds.has(inspection.id) ? 'Collapse' : 'Expand'}
+                                onClick={e => { e.stopPropagation(); toggle(inspection.id); }}
+                                className={`h-5 w-5 flex items-center justify-center ${t.textFaint} ${t.hoverText} transition-all`}>
+                                {expandedIds.has(inspection.id) ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                              </button>}
                         </td>
                         <td className={`px-3 py-3 text-sm ${TYPE_WEIGHT.medium} max-w-[180px] truncate ${t.textPrimary}`}>{inspection.title}</td>
                         <td className={`px-3 py-3 text-xs max-w-[140px] truncate ${t.textMuted}`}>{inspection.inspectors}</td>
-                        <td className="px-3 py-3"><StatusBadge color={inspection.section === 'electrical' ? '#f59e0b' : ACCENT} label={SECTION_LABELS[inspection.section]} /></td>
+                        <td className="px-3 py-3"><StatusBadge color={t.design === 'dallaglio' ? '#94a3b8' : inspection.section === 'electrical' ? '#f59e0b' : ACCENT} label={SECTION_LABELS[inspection.section]} /></td>
                         <td className={`px-3 py-3 text-xs max-w-[120px] truncate ${t.textMuted}`}>{inspection.place}</td>
                         <td className={`px-3 py-3 text-xs whitespace-nowrap ${t.textMuted}`}>{fmtDate(inspection.date)}</td>
                         <td className="px-3 py-3 text-xs">
@@ -750,10 +800,14 @@ function SHEQInspectionContent() {
                         <td className="px-3 py-3"><StatusBadge color={INSPECTION_STATUS_HEX[inspection.status]} label={inspection.status} /></td>
                         <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
                           <div className="flex justify-end gap-1">
-                            <button type="button" title="Edit" aria-label="Edit inspection" onClick={() => { setEditingInspection(inspection); setFormOpen(true); }}
-                              className={`h-7 w-7 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-brand-400`}><Pencil className="h-3.5 w-3.5" /></button>
-                            <button type="button" title="Delete" aria-label="Delete inspection" onClick={() => handleDelete(inspection.id)}
-                              className={`h-7 w-7 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:${t.light ? 'text-rose-600' : 'text-rose-400'}`}><Trash2 className="h-3.5 w-3.5" /></button>
+                            {t.design === 'dallaglio'
+                              ? <RecordActions onEdit={() => { setEditingInspection(inspection); setFormOpen(true); }} onDelete={() => handleDelete(inspection.id)} />
+                              : <>
+                                  <button type="button" title="Edit" aria-label="Edit inspection" onClick={() => { setEditingInspection(inspection); setFormOpen(true); }}
+                                    className={`h-7 w-7 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-brand-400`}><Pencil className="h-3.5 w-3.5" /></button>
+                                  <button type="button" title="Delete" aria-label="Delete inspection" onClick={() => handleDelete(inspection.id)}
+                                    className={`h-7 w-7 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:${t.light ? 'text-rose-600' : 'text-rose-400'}`}><Trash2 className="h-3.5 w-3.5" /></button>
+                                </>}
                           </div>
                         </td>
                       </tr>

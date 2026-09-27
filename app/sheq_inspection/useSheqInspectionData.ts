@@ -4,7 +4,7 @@
 // touch" convention. One resource, one load cycle — closest precedent is employees.tsx.
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { api } from '@/lib/apiClient';
 import { toast } from 'sonner';
 import type { SHEQFormData } from './types';
@@ -29,13 +29,30 @@ export function useSheqInspectionData() {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [inspections, setInspections] = useState<SHEQFormData[]>([]);
+  const [loadError, setLoadError] = useState('');
+  const requestRef = useRef(0);
 
   const load = async (quiet = false) => {
+    const requestId = ++requestRef.current;
     if (!quiet) setLoading(true); else setRefreshing(true);
-    try { setInspections(await getInspections()); }
-    catch { toast.error('Failed to load inspections'); }
-    finally { setLoading(false); setRefreshing(false); }
+    setLoadError('');
+    try {
+      const nextInspections = await getInspections();
+      if (requestId !== requestRef.current) return;
+      setInspections(nextInspections);
+    }
+    catch (error) {
+      if (requestId !== requestRef.current) return;
+      setLoadError(error instanceof Error ? error.message : 'Could not load SHEQ inspections.');
+      toast.error('Failed to load inspections');
+    }
+    finally {
+      if (requestId === requestRef.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    }
   };
 
-  return { inspections, setInspections, loading, refreshing, load };
+  return { inspections, setInspections, loading, refreshing, loadError, load };
 }

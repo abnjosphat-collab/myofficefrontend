@@ -7,22 +7,25 @@ import { formatCurrency, formatCurrencyShort, nowLocal, fmtDateTime as formatDat
 import { EXPORT_BRAND_ARGB, EXPORT_BRAND_RGB } from '@/lib/exportUtils';
 import {
   useTheme, PageHero, StatTile, StatCard, FormField, SearchInput, PrimaryButton, Button,
-  useCollapseSection, ACCENT_HEX, Combobox, type ComboOption, TYPE_WEIGHT,
+  useCollapseSection, Combobox, type ComboOption, TYPE_WEIGHT,
+  DisclosureButton, IconAction,
 } from '@/components/shared/theme';
+import { PillTabs } from '@/components/shared/PillTabs';
 import React, { useState, useMemo, useCallback } from 'react';
 import {
-  PackageMinus, Search, Plus, Trash2, RefreshCw,
+  PackageMinus, Plus, Trash2, RefreshCw,
   ChevronDown, ChevronUp, Loader2, Check, X,
   ClipboardList, Package, BarChart3, TrendingUp, TrendingDown,
-  Activity, Users, DollarSign, Download, FileSpreadsheet, FileDown,
+  Activity, Users, DollarSign, Download, FileSpreadsheet, FileDown, Calendar,
   Hash, Target, Layers, Gauge, useConfirm,
+  AlertTriangle,
 } from '@/components/shared/theme';
 import { toast } from 'sonner';
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis,
   CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell,
 } from 'recharts';
-import type { DescStats, IssueItemRow, Period, PeriodPoint, Spare, Stats, StockIssue } from './types';
+import type { DescStats, IssueItemRow, Period, PeriodPoint, Spare, StockIssue } from './types';
 import { apiCreateIssue, apiDeleteIssue, useIssuesData } from './useIssuesData';
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
@@ -297,7 +300,10 @@ function IssuesPageContent() {
   const confirm = useConfirm();
   const { tooltipStyle, axisProps, gridProps } = useChartStyle();
   const sections = useCollapseSection({ stats: false, records: true });
-  const { issues, serverStats, spares, loading, refreshing, refresh: loadData } = useIssuesData();
+  const {
+    issues, serverStats, spares, loading, refreshing,
+    loadError, statsError, sparesError, refresh: loadData,
+  } = useIssuesData();
   const [submitting, setSubmitting] = useState(false);
 
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
@@ -412,6 +418,8 @@ function IssuesPageContent() {
   const topItems = useMemo(() => topBy(issues, 'description', 8), [issues]);
   const totalCostTracked = useMemo(() => issues.reduce((s, i) => s + issueCost(i), 0), [issues]);
   const periodPeak = useMemo(() => timeSeries.reduce((best, pt) => pt.cost > best.cost ? pt : best, { cost: 0, label: '—' } as any), [timeSeries]);
+  const registerUnavailable = t.design === 'dallaglio' && (loading || (!!loadError && issues.length === 0));
+  const statsUnavailable = t.design === 'dallaglio' && (loading || serverStats === null);
 
   const BAR_COLORS = ['#86BBD8', '#a78bfa', '#34d399', '#f59e0b', '#60a5fa', '#f43f5e', '#fb923c', '#2dd4bf'];
 
@@ -550,7 +558,7 @@ function IssuesPageContent() {
   );
 
   const inputCls = `w-full h-9 px-3 rounded-lg text-sm outline-none transition-colors ${t.inputBg}`;
-  const rowInputCls = `w-full px-2.5 py-1.5 text-xs rounded-lg outline-none transition-colors ${t.inputBg}`;
+  const rowInputCls = `w-full ${t.design === 'dallaglio' ? 'h-9' : ''} px-2.5 py-1.5 text-xs rounded-lg outline-none transition-colors ${t.inputBg}`;
 
   return (
     <main className="max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
@@ -563,15 +571,19 @@ function IssuesPageContent() {
         statsOpen={sections.expanded.stats}
         actions={
           <>
-            <button type="button" onClick={() => loadData(true)} disabled={refreshing} title="Refresh"
-              className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all disabled:opacity-40`}>
-              <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
-            </button>
+            {t.design === 'dallaglio'
+              ? <IconAction meaning="refresh" title="Refresh" onClick={() => loadData(true)} disabled={refreshing} spinning={refreshing} />
+              : <button type="button" onClick={() => loadData(true)} disabled={refreshing} title="Refresh"
+                  className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all disabled:opacity-40`}>
+                  <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+                </button>}
             <div className="relative">
-              <button type="button" onClick={() => setShowDlMenu(p => !p)} disabled={issues.length === 0}
-                className={`h-8 px-3 flex items-center gap-1.5 text-xs rounded-lg ${TYPE_WEIGHT.semibold} ${t.chipBg} ${t.hoverBg} ${t.textMuted} ${t.hoverText} transition-all disabled:opacity-40`}>
-                <Download className="h-3.5 w-3.5" /> Download
-              </button>
+              {t.design === 'dallaglio'
+                ? <Button variant="secondary" size="sm" icon={Download} onClick={() => setShowDlMenu(p => !p)} disabled={issues.length === 0}>Download</Button>
+                : <button type="button" onClick={() => setShowDlMenu(p => !p)} disabled={issues.length === 0}
+                    className={`h-8 px-3 flex items-center gap-1.5 text-xs rounded-lg ${TYPE_WEIGHT.semibold} ${t.chipBg} ${t.hoverBg} ${t.textMuted} ${t.hoverText} transition-all disabled:opacity-40`}>
+                    <Download className="h-3.5 w-3.5" /> Download
+                  </button>}
               {showDlMenu && (
                 <>
                   <button type="button" tabIndex={-1} aria-label="Close download menu"
@@ -589,21 +601,44 @@ function IssuesPageContent() {
                 </>
               )}
             </div>
-            <button type="button" title={sections.expanded.stats ? 'Hide stats' : 'Show stats'} onClick={() => sections.toggle('stats')}
-              className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all`}>
-              {sections.expanded.stats ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-            </button>
+            {t.design === 'dallaglio'
+              ? <DisclosureButton open={sections.expanded.stats} label="statistics" onClick={() => sections.toggle('stats')} />
+              : <button type="button" title={sections.expanded.stats ? 'Hide stats' : 'Show stats'} onClick={() => sections.toggle('stats')}
+                  className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all`}>
+                  {sections.expanded.stats ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                </button>}
           </>
         }
       >
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-          <StatTile icon={Hash} color="#86BBD8" label="Total Records" value={serverStats.total} />
-          <StatTile icon={Activity} color="#34d399" label="Today" value={serverStats.today} />
-          <StatTile icon={Layers} color="#a78bfa" label="This Week" value={serverStats.this_week} />
-          <StatTile icon={Users} color="#f59e0b" label="Recipients" value={serverStats.unique_recipients} />
-          <StatTile icon={DollarSign} color="#60a5fa" label="Total Cost" value={formatCurrencyShort(totalCostTracked)} />
+          <StatTile icon={Hash} color="#86BBD8" label="Total Records" value={statsUnavailable ? '—' : serverStats?.total ?? 0} />
+          <StatTile icon={Activity} color="#34d399" label="Today" value={statsUnavailable ? '—' : serverStats?.today ?? 0} />
+          <StatTile icon={Layers} color="#a78bfa" label="This Week" value={statsUnavailable ? '—' : serverStats?.this_week ?? 0} />
+          <StatTile icon={Users} color="#f59e0b" label="Recipients" value={statsUnavailable ? '—' : serverStats?.unique_recipients ?? 0} />
+          <StatTile icon={DollarSign} color="#60a5fa" label="Total Cost" value={registerUnavailable ? '—' : formatCurrencyShort(totalCostTracked)} />
         </div>
       </PageHero>
+
+      {t.design === 'dallaglio' && loadError && (
+        <div role="alert" className={`${t.glass} ${t.shadow} rounded-2xl border ${t.border} px-5 py-4 flex flex-wrap items-center gap-4`}>
+          <AlertTriangle className="h-5 w-5 shrink-0 text-rose-500" />
+          <div className="min-w-0 flex-1">
+            <p className={`text-sm ${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>Could not load stock issues</p>
+            <p className={`mt-0.5 text-xs ${t.textFaint}`}>{loadError}</p>
+          </div>
+          <Button variant="secondary" size="sm" onClick={() => loadData()}>Try again</Button>
+        </div>
+      )}
+
+      {t.design === 'dallaglio' && (statsError || sparesError) && (
+        <div role="status" className={`${t.glass} rounded-2xl border ${t.border} px-5 py-3 flex flex-wrap items-center gap-3`}>
+          <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500" />
+          <p className={`min-w-0 flex-1 text-xs ${t.textMuted}`}>
+            {[statsError && 'Issue statistics are unavailable.', sparesError && 'Spare catalogue search is unavailable; manual item entry remains available.'].filter(Boolean).join(' ')}
+          </p>
+          <Button variant="ghost" size="sm" onClick={() => loadData(true)}>Retry data</Button>
+        </div>
+      )}
 
       {sections.expanded.records && <>
         {/* Record new issue */}
@@ -640,35 +675,59 @@ function IssuesPageContent() {
                 <Button type="button" variant="subtle" size="xs" icon={Plus} iconPosition="end" onClick={addItem}>Add Item</Button>
               </div>
 
-              <div className={`grid gap-2 px-1 mb-1 text-[10px] uppercase tracking-wider ${t.textFaint}`}
-                style={{ gridTemplateColumns: '160px 1fr 88px 72px 88px 28px' }}>
-                <div>Stock Code</div><div>Description</div>
-                <div className="text-right">Qty</div><div className="text-center">Unit</div>
-                <div className="text-right">Unit Cost</div><div />
-              </div>
+              {t.design === 'dallaglio'
+                ? <div className={`hidden sm:grid sm:grid-cols-[160px_minmax(0,1fr)_88px_72px_88px_36px] gap-2 px-1 mb-1 text-[10px] uppercase tracking-wider ${t.textFaint}`}>
+                    <div>Stock Code</div><div>Description</div>
+                    <div className="text-right">Qty</div><div className="text-center">Unit</div>
+                    <div className="text-right">Unit Cost</div><div />
+                  </div>
+                : <div className={`grid gap-2 px-1 mb-1 text-[10px] uppercase tracking-wider ${t.textFaint}`}
+                    style={{ gridTemplateColumns: '160px 1fr 88px 72px 88px 28px' }}>
+                    <div>Stock Code</div><div>Description</div>
+                    <div className="text-right">Qty</div><div className="text-center">Unit</div>
+                    <div className="text-right">Unit Cost</div><div />
+                  </div>}
 
               <div className="space-y-1.5">
-                {items.map(item => (
-                  <div key={item.id}
-                    className={`grid gap-2 items-center rounded-xl p-2 ${t.chipBg} border ${t.border} transition-all`}
+                {items.map(item => t.design === 'dallaglio' ? (
+                  <div key={item.id} className={`grid grid-cols-2 sm:grid-cols-[160px_minmax(0,1fr)_88px_72px_88px_36px] gap-2 items-end sm:items-center rounded-xl p-2 ${t.chipBg} border ${t.border} transition-all`}>
+                    <div className="col-span-2 sm:col-span-1 min-w-0">
+                      <span className={`sm:hidden block mb-1 text-[10px] uppercase tracking-wider ${t.textFaint}`}>Stock Code</span>
+                      <SparePicker spares={spares} value={item.stockCode} onSelect={(s, text) => handleSpareSelect(item.id, s, text)} placeholder="Code or search…" />
+                    </div>
+                    <label className="col-span-2 sm:col-span-1 min-w-0">
+                      <span className={`sm:hidden block mb-1 text-[10px] uppercase tracking-wider ${t.textFaint}`}>Description</span>
+                      <input type="text" value={item.description} onChange={e => updateItem(item.id, { description: e.target.value })} placeholder="Description…" aria-label="Description" className={rowInputCls} />
+                    </label>
+                    <label className="min-w-0">
+                      <span className={`sm:hidden block mb-1 text-[10px] uppercase tracking-wider ${t.textFaint}`}>Qty</span>
+                      <input type="number" min="0.01" step="any" value={item.qty} title="Quantity" aria-label="Quantity" onChange={e => updateItem(item.id, { qty: Math.max(0.01, parseFloat(e.target.value) || 1) })} className={`${rowInputCls} text-right`} />
+                    </label>
+                    <label className="min-w-0">
+                      <span className={`sm:hidden block mb-1 text-[10px] uppercase tracking-wider ${t.textFaint}`}>Unit</span>
+                      <input type="text" value={item.unit} title="Unit" aria-label="Unit" onChange={e => updateItem(item.id, { unit: e.target.value })} placeholder="UN" className={`${rowInputCls} text-center`} />
+                    </label>
+                    <label className="min-w-0">
+                      <span className={`sm:hidden block mb-1 text-[10px] uppercase tracking-wider ${t.textFaint}`}>Unit Cost</span>
+                      <span className="relative block">
+                        <span className={`absolute left-2 top-1/2 -translate-y-1/2 text-[10px] ${t.textFaint}`}>$</span>
+                        <input type="number" min="0" step="0.01" value={item.unit_price} title="Unit price" aria-label="Unit price" onChange={e => updateItem(item.id, { unit_price: parseFloat(e.target.value) || 0 })} className={`${rowInputCls} pl-5 text-right`} />
+                      </span>
+                    </label>
+                    <div className="flex justify-end sm:block">
+                      <IconAction meaning="close" title="Remove item" tone="danger" onClick={() => removeItem(item.id)} disabled={items.length === 1} />
+                    </div>
+                  </div>
+                ) : (
+                  <div key={item.id} className={`grid gap-2 items-center rounded-xl p-2 ${t.chipBg} border ${t.border} transition-all`}
                     style={{ gridTemplateColumns: '160px 1fr 88px 72px 88px 28px' }}>
-                    <SparePicker spares={spares} value={item.stockCode}
-                      onSelect={(s, text) => handleSpareSelect(item.id, s, text)}
-                      placeholder="Code or search…" />
-                    <input type="text" value={item.description}
-                      onChange={e => updateItem(item.id, { description: e.target.value })}
-                      placeholder="Description…" aria-label="Description" className={rowInputCls} />
-                    <input type="number" min="0.01" step="any" value={item.qty} title="Quantity" aria-label="Quantity"
-                      onChange={e => updateItem(item.id, { qty: Math.max(0.01, parseFloat(e.target.value) || 1) })}
-                      className={`${rowInputCls} text-right`} />
-                    <input type="text" value={item.unit} title="Unit" aria-label="Unit"
-                      onChange={e => updateItem(item.id, { unit: e.target.value })}
-                      placeholder="UN" className={`${rowInputCls} text-center`} />
+                    <SparePicker spares={spares} value={item.stockCode} onSelect={(s, text) => handleSpareSelect(item.id, s, text)} placeholder="Code or search…" />
+                    <input type="text" value={item.description} onChange={e => updateItem(item.id, { description: e.target.value })} placeholder="Description…" aria-label="Description" className={rowInputCls} />
+                    <input type="number" min="0.01" step="any" value={item.qty} title="Quantity" aria-label="Quantity" onChange={e => updateItem(item.id, { qty: Math.max(0.01, parseFloat(e.target.value) || 1) })} className={`${rowInputCls} text-right`} />
+                    <input type="text" value={item.unit} title="Unit" aria-label="Unit" onChange={e => updateItem(item.id, { unit: e.target.value })} placeholder="UN" className={`${rowInputCls} text-center`} />
                     <div className="relative">
                       <span className={`absolute left-2 top-1/2 -translate-y-1/2 text-[10px] ${t.textFaint}`}>$</span>
-                      <input type="number" min="0" step="0.01" value={item.unit_price} title="Unit price" aria-label="Unit price"
-                        onChange={e => updateItem(item.id, { unit_price: parseFloat(e.target.value) || 0 })}
-                        className={`${rowInputCls} pl-5 text-right`} />
+                      <input type="number" min="0" step="0.01" value={item.unit_price} title="Unit price" aria-label="Unit price" onChange={e => updateItem(item.id, { unit_price: parseFloat(e.target.value) || 0 })} className={`${rowInputCls} pl-5 text-right`} />
                     </div>
                     <button type="button" title="Remove item" onClick={() => removeItem(item.id)} disabled={items.length === 1}
                       className={`h-6 w-6 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-rose-500 disabled:opacity-20 disabled:cursor-not-allowed transition-all`}>
@@ -694,7 +753,7 @@ function IssuesPageContent() {
                 {items.filter(i => i.description.trim() || i.stockCode.trim()).length} item{items.filter(i => i.description.trim() || i.stockCode.trim()).length !== 1 ? 's' : ''} to{' '}
                 <span className={t.textMuted}>{recipient || '—'}</span>
               </div>
-              <PrimaryButton icon={submitting ? undefined : Check} accent="violet" onClick={handleSubmit} disabled={submitting} submitting={submitting}>
+              <PrimaryButton icon={submitting ? undefined : Check} accent="violet" onClick={handleSubmit} disabled={submitting || registerUnavailable} submitting={submitting}>
                 Record Issue
               </PrimaryButton>
             </div>
@@ -704,30 +763,41 @@ function IssuesPageContent() {
         {/* Log / analytics */}
         <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
           <div className={`px-5 py-3 border-b ${t.border} flex items-center justify-between gap-3 flex-wrap`}>
-            <div className="flex items-center gap-1">
-              {([
-                { id: 'log', label: 'Issue Log', icon: Package },
-                { id: 'analytics', label: 'Analytics', icon: BarChart3 },
-              ] as const).map(tab => (
-                <button key={tab.id} type="button" onClick={() => setLogTab(tab.id)}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs ${TYPE_WEIGHT.medium} rounded-lg transition-all ${logTab === tab.id ? 'bg-brand-500/15 text-brand-500' : `${t.textFaint} ${t.hoverBg} ${t.hoverText}`}`}>
-                  <tab.icon className="h-3 w-3" />
-                  {tab.label}
-                </button>
-              ))}
-            </div>
+            {t.design === 'dallaglio'
+              ? <PillTabs tabs={[
+                  { key: 'log', label: 'Issue Log', icon: Package, meaning: 'issues' },
+                  { key: 'analytics', label: 'Analytics', icon: BarChart3, meaning: 'analytics' },
+                ]} value={logTab} onChange={setLogTab} />
+              : <div className="flex items-center gap-1">
+                  {([
+                    { id: 'log', label: 'Issue Log', icon: Package },
+                    { id: 'analytics', label: 'Analytics', icon: BarChart3 },
+                  ] as const).map(tab => (
+                    <button key={tab.id} type="button" onClick={() => setLogTab(tab.id)}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs ${TYPE_WEIGHT.medium} rounded-lg transition-all ${logTab === tab.id ? 'bg-brand-500/15 text-brand-500' : `${t.textFaint} ${t.hoverBg} ${t.hoverText}`}`}>
+                      <tab.icon className="h-3 w-3" />
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>}
             {logTab === 'log' && (
               <span className={`text-[11px] ${t.textFaint}`}>{filteredIssues.length} record{filteredIssues.length !== 1 ? 's' : ''}</span>
             )}
             {logTab === 'analytics' && (
-              <div className="flex items-center gap-1">
-                {(['day', 'week', 'month'] as const).map(p => (
-                  <button key={p} type="button" onClick={() => setPeriod(p)}
-                    className={`h-6 px-2.5 text-[11px] rounded-lg capitalize transition-all ${period === p ? 'bg-brand-500/15 text-brand-500' : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}>
-                    {p === 'day' ? 'Daily' : p === 'week' ? 'Weekly' : 'Monthly'}
-                  </button>
-                ))}
-              </div>
+              t.design === 'dallaglio'
+                ? <PillTabs tabs={[
+                    { key: 'day', label: 'Daily', icon: Activity, meaning: 'today' },
+                    { key: 'week', label: 'Weekly', icon: Layers, meaning: 'week' },
+                    { key: 'month', label: 'Monthly', icon: Calendar, meaning: 'month' },
+                  ]} value={period} onChange={setPeriod} />
+                : <div className="flex items-center gap-1">
+                    {(['day', 'week', 'month'] as const).map(p => (
+                      <button key={p} type="button" onClick={() => setPeriod(p)}
+                        className={`h-6 px-2.5 text-[11px] rounded-lg capitalize transition-all ${period === p ? 'bg-brand-500/15 text-brand-500' : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}>
+                        {p === 'day' ? 'Daily' : p === 'week' ? 'Weekly' : 'Monthly'}
+                      </button>
+                    ))}
+                  </div>
             )}
           </div>
 
@@ -736,15 +806,17 @@ function IssuesPageContent() {
               <div className={`px-5 py-3 border-b ${t.border} grid grid-cols-1 sm:grid-cols-3 gap-2`}>
                 <SearchInput value={search} onChange={setSearch} placeholder="Search recipient, item, notes…" />
                 <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} title="From date" aria-label="From date"
-                  className={`px-3 py-1.5 text-xs rounded-lg outline-none transition-colors ${t.inputBg}`} />
+                  className={`${t.design === 'dallaglio' ? 'h-9' : ''} px-3 py-1.5 text-xs rounded-lg outline-none transition-colors ${t.inputBg}`} />
                 <div className="flex gap-2">
                   <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} title="To date" aria-label="To date"
-                    className={`flex-1 px-3 py-1.5 text-xs rounded-lg outline-none transition-colors ${t.inputBg}`} />
+                    className={`flex-1 ${t.design === 'dallaglio' ? 'h-9' : ''} px-3 py-1.5 text-xs rounded-lg outline-none transition-colors ${t.inputBg}`} />
                   {(search || dateFrom || dateTo) && (
-                    <button type="button" onClick={() => { setSearch(''); setDateFrom(''); setDateTo(''); }}
-                      className={`h-7 px-2.5 rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textFaint} text-xs transition-all flex items-center gap-1`}>
-                      <X className="h-3 w-3" /> Clear
-                    </button>
+                    t.design === 'dallaglio'
+                      ? <Button variant="ghost" size="sm" icon={X} onClick={() => { setSearch(''); setDateFrom(''); setDateTo(''); }}>Clear</Button>
+                      : <button type="button" onClick={() => { setSearch(''); setDateFrom(''); setDateTo(''); }}
+                          className={`h-7 px-2.5 rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textFaint} text-xs transition-all flex items-center gap-1`}>
+                          <X className="h-3 w-3" /> Clear
+                        </button>
                   )}
                 </div>
               </div>
@@ -753,7 +825,7 @@ function IssuesPageContent() {
                 <div className={`flex items-center justify-center py-20 ${t.textFaint} gap-2`}>
                   <Loader2 className="h-5 w-5 animate-spin" /> Loading…
                 </div>
-              ) : filteredIssues.length === 0 ? (
+              ) : t.design === 'dallaglio' && loadError && issues.length === 0 ? null : filteredIssues.length === 0 ? (
                 <div className={`text-center py-20 ${t.textFaint}`}>
                   <PackageMinus className="h-12 w-12 mx-auto mb-4 opacity-20" />
                   <div className={`text-sm ${TYPE_WEIGHT.medium} ${t.textMuted}`}>No issue records</div>
@@ -811,16 +883,23 @@ function IssuesPageContent() {
                               <td className={`px-3 py-3 text-xs ${t.textFaint} max-w-[160px]`}><div className="truncate">{issue.notes || '—'}</div></td>
                               <td className="px-3 py-3" data-row-actions aria-label="Row actions">
                                 <div className="flex items-center justify-end gap-1">
-                                  <button type="button" title={expanded ? 'Collapse' : 'Expand'}
-                                    onClick={e => { e.stopPropagation(); toggleRow(issue.id); }}
-                                    className={`h-6 w-6 flex items-center justify-center rounded ${t.textFaint} ${t.hoverText} transition-all`}>
-                                    {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-                                  </button>
-                                  <button type="button" title="Delete record"
-                                    onClick={e => { e.stopPropagation(); handleDelete(issue.id); }}
-                                    className={`h-6 w-6 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-rose-500 transition-all`}>
-                                    <Trash2 className="h-3 w-3" />
-                                  </button>
+                                  {t.design === 'dallaglio'
+                                    ? <>
+                                        <DisclosureButton open={expanded} label="issue details" onClick={e => { e.stopPropagation(); toggleRow(issue.id); }} />
+                                        <IconAction meaning="danger" title="Delete record" tone="danger" onClick={e => { e.stopPropagation(); void handleDelete(issue.id); }} />
+                                      </>
+                                    : <>
+                                        <button type="button" title={expanded ? 'Collapse' : 'Expand'}
+                                          onClick={e => { e.stopPropagation(); toggleRow(issue.id); }}
+                                          className={`h-6 w-6 flex items-center justify-center rounded ${t.textFaint} ${t.hoverText} transition-all`}>
+                                          {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                                        </button>
+                                        <button type="button" title="Delete record"
+                                          onClick={e => { e.stopPropagation(); handleDelete(issue.id); }}
+                                          className={`h-6 w-6 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-rose-500 transition-all`}>
+                                          <Trash2 className="h-3 w-3" />
+                                        </button>
+                                      </>}
                                 </div>
                               </td>
                             </tr>
@@ -863,7 +942,7 @@ function IssuesPageContent() {
 
           {logTab === 'analytics' && (
             <div className="p-5 space-y-6">
-              {issues.length === 0 ? (
+              {t.design === 'dallaglio' && loadError && issues.length === 0 ? null : issues.length === 0 ? (
                 <div className={`text-center py-16 ${t.textFaint}`}>
                   <Activity className="h-12 w-12 mx-auto mb-4 opacity-20" />
                   <div className="text-sm">No data to analyse yet</div>

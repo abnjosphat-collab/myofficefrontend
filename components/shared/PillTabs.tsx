@@ -9,11 +9,14 @@
 import { ElementType } from 'react';
 import * as Tabs from '@radix-ui/react-tabs';
 import { useTheme } from '@/components/shared/theme';
+import { DsIcon } from '@/components/shared/design-system/DsIcon';
+import type { IconMeaning } from '@/components/shared/design-system/shared/icon-meanings';
 
 export interface PillTab<T extends string> {
   key: T;
   label: string;
   icon: ElementType;
+  meaning?: IconMeaning;
   count?: number;
 }
 
@@ -29,8 +32,10 @@ export function PillTabs<T extends string>({
   wrap?: 'none' | 'scroll' | 'wrap';
 }) {
   const t = useTheme();
-  const containerCls = `flex items-center gap-1 ${t.glassSoft} rounded-xl p-1 w-fit${
-    wrap === 'scroll' ? ' overflow-x-auto' : wrap === 'wrap' ? ' flex-wrap' : ''
+  const dallaglio = t.design === 'dallaglio';
+  const effectiveWrap = dallaglio && wrap === 'none' ? 'scroll' : wrap;
+  const containerCls = `flex items-center ${dallaglio ? `gap-5 border-b ${t.border} bg-transparent p-0 rounded-none` : `gap-1 ${t.glassSoft} rounded-xl p-1 w-fit`} max-w-full${
+    effectiveWrap === 'scroll' ? ' overflow-x-auto' : effectiveWrap === 'wrap' ? ' flex-wrap' : ''
   }`;
 
   // Real ARIA tabs pattern (role="tablist"/"tab", arrow-key roving tabindex) via
@@ -47,11 +52,11 @@ export function PillTabs<T extends string>({
           <Tabs.Trigger
             key={tb.key}
             value={tb.key}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap outline-none ${
-              value === tb.key ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} ${t.hoverText} ${t.hoverBg}`
-            }`}
+            className={dallaglio
+              ? `relative inline-flex min-h-11 items-center gap-2 border-b-2 px-1 py-2 text-[13px] font-medium whitespace-nowrap outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--d-focus)] ${value === tb.key ? 'border-[var(--d-accent)] text-[var(--d-ink)]' : 'border-transparent text-[var(--d-ink-muted)] hover:text-[var(--d-ink)]'}`
+              : `flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap outline-none ${value === tb.key ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} ${t.hoverText} ${t.hoverBg}`}`}
           >
-            <tb.icon className="h-4 w-4" />
+            {dallaglio && tb.meaning ? <DsIcon name={tb.meaning} size={17} /> : <tb.icon className="h-4 w-4" weight={dallaglio ? 'light' : undefined} />}
             {tb.label}
             {tb.count !== undefined && <span className={`text-[10px] ${value === tb.key ? '' : t.textFaint}`}>{tb.count}</span>}
           </Tabs.Trigger>

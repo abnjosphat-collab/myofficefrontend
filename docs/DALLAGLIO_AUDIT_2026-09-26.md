@@ -1,0 +1,242 @@
+# Dallaglio design audit — 26 September 2026
+
+## Follow-up: system-wide consistency pass
+
+The route scanner now covers all 56 page files after the requested route
+retirements recorded at the end of this document. Its local-button and color
+counts are review leads, not proof that every occurrence is a defect: some
+colors represent real states and some controls are specialist. Across the
+shared UI, the recurring defects were duplicated action styling, category
+colors used as if they were warnings, inconsistent chevron targets, and
+full-width purple Edit buttons inside otherwise quiet detail views.
+
+The shared design system now owns `RecordActions`, `DetailActions`, and
+`DisclosureButton`. Personnel, Equipment, Drivers, Inventory, PPE,
+Breakdowns, PTO, VFL, Requisitions, and Events & Tasks use these where the
+same actions occur. The shared record-card footer aligns compact actions on
+the right; summary icons and Dallaglio category badges are neutral, while
+operational state keeps its semantic color. Personnel row email, phone,
+edit, delete, and expand icons now use the shared meanings and 36px targets.
+The Dallaglio top bar has one Settings control rather than two appearance
+controls, and its Tools/design switch uses the shared Button.
+
+Live light and dark browser checks confirmed the Personnel and Equipment
+registers load with data and the compact Equipment Edit/Delete footer renders.
+This is not yet a visual certification of all 56 routes: Spares, Shifts,
+Pachedu, Leaves, Training, and specialist tables still contain local
+controls requiring case-by-case review in both themes and responsive widths.
+
+The signed-in Pachedu page subsequently loaded all eight records in the
+browser. Its Dallaglio category badges, section icons, view switch, new-record
+action, progress color, and detail footer now follow shared components or
+tokens. Shift-pattern tiles now use neutral icons and one brand progress tone
+in Dallaglio. Shifts' Records grid/table switch, disclosure, Schedule button,
+and pattern filters now use the shared Dallaglio controls; pattern filter
+selection uses the brand tone rather than a separate color for every cycle.
+The empty Shifts view and filters/Records toolbar were checked in the signed-in
+dark-mode browser at desktop and 390px widths; the body measured exactly 390px
+at phone width. Assignment cards and the edit flow were not exercised in that
+empty session. The final 65-route production build passed; focused ESLint on
+the four edited UI files returned zero errors and existing warnings. These are
+focused corrections, not a completed route-wide visual
+certification; Pachedu's local menus and the remaining specialist controls
+still need a measured pass. TypeScript, 20 shift-calculation tests, and the
+65-route production build passed after these changes.
+
+Leaves loaded 255 records in the signed-in browser. Its Dallaglio hero numbers,
+leave-type tiles, grid/table switch, disclosure target, and record actions now
+use shared patterns with neutral category iconography; approval status retains
+semantic color. Light and dark viewport checks passed. Training's empty state
+was inspected in dark mode, but it has no certification records to validate
+record-level controls. Spares subsequently loaded 3,807 records in the
+signed-in dark-mode browser; its header, summary, grouping and first record
+were inspected, while its record-level actions and lighter theme remain to be
+checked. TypeScript and the
+65-route production build passed after the Leaves edits.
+
+Spares now uses shared Dallaglio buttons for its header, requisition builder,
+item requisition, saved-requisition, and table-row actions, plus shared favourite
+and disclosure controls. The signed-in dark-mode browser loaded 3,807 items;
+category and item disclosures opened. The requisition builder was opened and an
+unsaved line rendered at desktop and 390px widths. At phone width its fields
+stack with visible labels and the quantity controls have larger touch targets.
+The shared header had a real 581px overflow at 390px: responsive `hidden`
+classes on design-system Buttons lost to the Button stylesheet's display rule.
+Wrapping those two optional controls in responsive containers removed the
+overflow; the browser then measured both body and header at 390px. TypeScript
+and focused ESLint passed (zero errors; six pre-existing Spares warnings).
+Spares menus, table interactions, light mode, and saved-requisition behavior
+still need deeper review.
+
+PPE's compact record actions and replacement-matrix buttons now use the shared
+Dallaglio controls. Type/category icons in list rows, item details, summaries,
+and matrix rows are neutral in Dallaglio; expiry, condition, and reorder states
+retain their semantic colors. This pass preserves the Classic styling. A 390px
+browser check exposed clipped names and buttons in the matrix; its rows now
+stack the item name above controls on small screens. The corrected matrix was
+visually checked in dark and light modes with no body or modal horizontal
+overflow. The local PPE API returned `Failed to fetch`, so record-level actions
+could not be visually exercised against loaded data in this session. The final
+65-route production build passed after the PPE and mobile-header changes.
+
+This records the current, unfinished migration of MyOffice's Dallaglio design. Classic remains separate. The Tools workspace is the visual reference and keeps its own interface.
+
+## Operations pages checked after Spares
+
+- `/maintenance`: The Tools-derived specialist workspace was inspected at desktop and 390px in Dallaglio dark mode. Its layout fits the phone viewport without horizontal overflow. This route still imports Tools-specific CSS and controls directly; consolidating that ownership into the shared design system needs a deliberate refactor. The local work-order API returned `Failed to fetch`, so populated records and schedules remain unverified.
+- `/compressors`: Replaced page-local main tabs with shared `PillTabs`, and the date, refresh, and filter actions with shared `Button` controls. The four tabs now use semantic stroke icons and keyboard-accessible tab behavior. Removed the technical API URL/footer from the user-facing page. A failed compressors request now shows a retryable error rather than an empty register, and a failed services request no longer claims that every compressor is up to date; interval counts show `Unavailable` when the register cannot load. Checked the rendered page at desktop and 390px in dark and light modes, including the Services tab. The local compressor API failed, so populated cards and service workflows remain unverified. TypeScript and focused ESLint passed with zero errors (five existing page warnings).
+- `/standby`: Navigates to `/shifts`; it is the same Shifts interface, not a separate page design.
+- `/services`: Replaced page-local Import, Filters, Clear, and Expand/Collapse actions with shared Buttons. A backend failure now leaves summary metrics and record count unavailable rather than showing zero records and inviting creation as if the register were empty. The phone-width search uses the full available width. Checked dark desktop and 390px UI with the local backend unavailable; record cards and approval interactions remain unverified.
+
+The final TypeScript check, focused ESLint (zero errors), `git diff --check`, and 65-route production build passed after the Compressors and Third Party Services edits. The temporary browser tab and local frontend process used for this review were closed.
+
+## Verified in the signed-in browser
+
+- `/overtime`: Dallaglio dark list, filters and shell. The original list rendered over 5,500 buttons for 1,724 records. Records now render 50 at a time, with 25/50/100 choices and page navigation. Search, summary, insights, exports and the underlying data still use the full set. The live DOM fell to about 310 buttons. Bulk “select all pending” now selects the current page and does not clear selections on other pages.
+- `/timesheets`: Dallaglio dark NEC grid with 46 employees and 31 dates loaded. The employee and date panes, quieter day cells, and shared controls render. Light, touch, keyboard, drag-fill and every leave/OT state still need a visual interaction pass.
+- `/employees`: Dallaglio dark register loaded with live records. Shared stat icons, view toggle and Add Employee control render. Dialogs and light mode still need a visual pass.
+- `/ppe`: Dallaglio dark header renders; card action and live-record verification is still pending.
+- Reloading with Dallaglio exposed a server/client mismatch in the access spinner. The boot markup and icon weight are now stable, and no new hydration warning appeared on the next reload.
+
+## Shared changes in this pass
+
+- Palette, tabs, collapsible/group headers, list cards, information cards, export menu, approval/signature/photo surfaces, and charts now have Dallaglio-specific tokens or shared controls.
+- Overtime Records and charts, Timesheets toolbar/grid, PPE card/header actions, and the MyOffice shell mark were migrated where inspected. Classic branches remain available.
+- `node scripts/audit-dallaglio.mjs` scans 61 route files. Its 681 local button matches and 560 non-brand-color matches are **review leads**, not a defect count: many are Classic branches or meaningful status colors. `/spares`, `/shifts`, `/ppe`, `/pachedu`, `/leaves`, and safety routes still need route-level review.
+
+## Verification and limits
+
+- TypeScript, production build (65 routes), focused Overtime/Timesheets/design-system/DownloadButton/PPE tests, and backend leaves tests passed during this pass. ESLint on changed frontend files returned no errors; large page files retain warnings, including max-lines.
+- Backend leaves GET now pages through all Supabase rows with stable ordering. The regression test covers 1,001 records. Overtime already had backend pagination. Timesheets merges the approved/relevant period records, not all historical leave/overtime. Live database completeness has not been independently reconciled.
+- Browser tests are visual smoke checks, not a full accessibility, breakpoint or data correctness audit. Do not describe the whole 56-route Dallaglio migration as complete. Continue by opening each high-traffic route and its dialogs in both themes, converting repeated controls to the shared design system without changing business rules.
+
+## Training and router verification
+
+- `/training` now uses the shared tab, action, link, and mobile record-card patterns. Its certification rows, Edit/Delete confirmation, and certificate links were inspected with five sample records in Dallaglio dark at 390px. The page fits the phone viewport without horizontal overflow. The Add Certification dialog was opened at phone width and closed without saving. The delete confirmation was opened to verify the record label, then cancelled. Light mode, actual file download, and successful save/delete were not exercised.
+- Training's three requests now resolve independently. A failed register, compliance report, or refresher report shows an unavailable state and retry guidance rather than a misleading zero, empty list, or “nothing overdue” message. Two focused hook tests cover partial failures. The duplicate statistics strip was removed; the remaining hero metrics preserve semantic status colors. The register uses cards on phones and its existing table on wider screens.
+- The FastAPI router setup had mounted Training, Inventory, and Reports below a second `/api/<name>` prefix, so canonical frontend URLs returned 404. The registration now respects those routers' internal prefixes. OpenAPI regression coverage asserts canonical paths and rejects doubled paths. Focused backend tests: 72 passed.
+- **Data limitation:** `app/routers/training.py` seeds five in-memory certification records, and `app/routers/inventory.py` also seeds an in-memory sample register. Their additions and edits do not survive a backend restart. These views are not evidence of production data persistence; migration to durable storage remains separate backend work.
+
+## Documents pass
+
+- `/documents` home and one category/folder were inspected in Dallaglio dark at desktop and 390px. Category tiles now use neutral strokes/surfaces in Dallaglio, while Classic retains its original colors. New Folder, category-menu, star, file-menu trigger, filter, clear, and sort controls use shared buttons or icon actions; the All/Starred/Recent switch uses shared tabs. Folder actions are visible on touch devices and remain available by keyboard focus on desktop. The file-menu contents still use local row styling.
+- The hub previously displayed zero file totals before a category or folder had loaded, and repeated the totals inside a folder. Totals now appear once, for the active folder, with unavailable markers while loading or after a failed request. Folder load failures show a persistent error and retry control rather than an empty register. Global search similarly distinguishes a failed request from no matches.
+- The document data hook discards late responses from a folder the user has left. Two focused hook tests cover request failure and out-of-order folder navigation. The phone folder/filter layout measured 390px body width at a 390px viewport. Upload, preview, destructive confirmation, populated records, light mode, and live storage operations were not exercised in this pass.
+- After the Documents changes, TypeScript, the four Training/Documents data-hook tests, focused ESLint (zero errors; three existing page warnings), `git diff --check`, and the 65-route production build passed.
+
+## Notice Board pass
+
+- `/noticeboard` loaded six records in the signed-in browser. The Dallaglio dark page, one populated notice card, its details dialog, and its edit dialog were checked at 390px with no horizontal overflow. The light-mode dropdowns were also checked after the transition settled; they used light surfaces. The theme was restored to dark. Both dialogs were closed without saving.
+- Card and table Edit/Delete controls, attachment download links, details-dialog actions, filter actions, and Quick Actions now use shared buttons, icon actions, or icon links. Destructive operations were not invoked. Header totals now show unavailable marks during loading or an initial failure rather than four misleading zeros.
+- Remaining Notice Board review: the edit form has its own scroll container inside the shared modal scroll area; its footer stays visible, but the nested scrollbar should be considered in a later dialog-layout pass. The notice data hook still has its original duplicate initial request and no stale-response guard. File upload, archive/unpin, destructive flows, attachment download, and desktop light-mode details were not exercised.
+- After the Notice Board controls changed, TypeScript, focused ESLint (zero errors; one existing form-state warning), `git diff --check`, and the 65-route production build passed.
+
+## Admin panel pass
+
+- `/admin` loaded three accounts in the signed-in Dallaglio browser. At 390px, the account list, role guide, and Invite user dialog fit the viewport; the desktop layout also rendered after resetting the viewport. The dialog was closed without sending an invitation. No roles, passwords, or account states were changed.
+- Role filters, role choices, account actions, invitation controls, and the account disclosure now use shared design-system buttons. Dallaglio's role tiles, badges, avatars, and guide use the restrained surface/accent palette; Classic retains its existing role metadata. The shared Button now exposes `aria-pressed` for selected choices.
+- A failed role PATCH previously still produced a “Saved” state. The row now only shows success after the API resolves and displays the failure message otherwise. Loading or failed account totals show an unavailable marker rather than zero. The role guide now describes Admin's actual backend permission, and non-Super Admins cannot select Admin or Super Admin in the invite dialog, matching the invite endpoint.
+- Invite delivery, role changes, deactivation/reactivation, password reset, and permission edge cases were not exercised through the live UI. The account register is sensitive; these need a controlled test environment and backend verification. The existing avatar `<img>` warning remains.
+- After this pass, TypeScript, the focused shared Button tests (3 passed), ESLint (zero errors; one existing image warning), and `git diff --check` passed. The first Vitest invocation stalled during import and was interrupted; a one-worker rerun passed.
+
+## Shared lists pass
+
+- `/admin/lists` loaded 17 location choices and the empty Nature of Breakdown list in the signed-in browser. Switching between both lists, opening an inline rename, and cancelling it were verified without saving or deleting. The Dallaglio dark page fit a 390px viewport exactly, with no horizontal body overflow.
+- List selection now uses shared accessible tabs. Add, rename, save, cancel, and delete actions use the same shared Button/IconAction family and 36px targets as other migrated pages. Long values can wrap rather than push row controls off screen. Errors offer Retry. A rename that fails now leaves the inline editor open, and delayed responses from a previous list are ignored so they cannot replace the currently selected list.
+- Actual additions, renames, and deletions were not exercised on the live data. TypeScript and focused ESLint passed; ESLint retains one existing effect-state warning.
+
+## Timesheets follow-up
+
+- A live reload briefly failed sign-in verification and exposed contradictory Timesheets states: an error alongside “No employees on this roster” and zero summary values. The all-or-nothing data hook now clears stale records on failure and ignores out-of-order period requests; the page shows unavailable summary values, a retry error, and no false empty-roster grid. Add/import/export actions are disabled while the source data is unavailable.
+- When the backend recovered, 46 employees and 31 dates loaded. The summary reported **130% filled (1,317/1,012)** because the numerator counted weekend entries while the denominator counted weekdays. A small `countPeriodCompletion` function now counts the same weekday cells on both sides, excluding duplicate records and employees outside the current roster. The new regression test covers this case. The loaded grid was checked in Dallaglio dark and light at desktop and 390px; body width stayed 390px at phone size. The original dark preference was restored.
+- TypeScript and the two focused Timesheets tests passed. Focused ESLint had zero errors; the large Timesheets page still has seven existing warnings. The period's actual save, drag-fill, touch editing, and payroll export were not exercised.
+- The final 65-route production build and `git diff --check` passed after all three route passes. The temporary browser tab was closed; the user's existing frontend process was left running.
+
+## Breakdowns source pass
+
+- `/breakdowns` still had 24–28px page-local View/Edit/Delete and disclosure controls in both the card and table registers. Its filter/date actions and both the Records/Analytics switch and analytics subsection switch also duplicated shared controls. The Dallaglio branches now use `RecordActions`, `IconAction`, `DisclosureButton`, `Button`, and `PillTabs`; Classic branches keep their existing appearance. The new shared controls preserve the existing handlers and do not change breakdown CRUD, filters, calculations, or exports.
+- Breakdown type is categorical rather than a severity. Its Dallaglio badge and card icon are now neutral, while priority and workflow status retain semantic color. The scanner lead for this route fell from 20 to 12 local buttons and now reports two shared tab groups. Remaining button matches include Classic branches, sortable column headings, and the specialist breakdown form tabs; they were not mechanically replaced.
+- Verification: `npx tsc --noEmit --pretty false` passed; `npx vitest run app/breakdowns/calcBreakdowns.test.ts --maxWorkers=1` passed all 12 tests; focused ESLint reported zero errors and four existing warnings; `git diff --check` passed. The sandboxed production build could not fetch Google Fonts; the unrestricted rerun compiled and generated all 65 routes successfully.
+- Render limitation: no frontend server was listening on ports 3000 or 3001, the browser-audit CLI was unavailable, and no controllable browser session was exposed. Populated records, both themes, dialogs, and phone-width behavior remain visually unverified and must not be described as certified.
+
+## Breakdowns resilience follow-up — 27 September 2026
+
+- Analytics now has a persistent, retryable failure state. A failed HTTP request or unsuccessful payload does not render as “No analytics data available.” The data hook clears the previous filter result while loading and ignores late responses, including late failures, after the filters or dates change. Focused hook tests cover failure/retry and both stale-response directions.
+- The register now requests every 1,000-row API page before calculating its hero totals, search results, and export. Its old default API request returned only 100 rows. The backend list endpoint now applies the page's priority, location, and date filters before pagination, includes those filters in its cache key, and uses an ID tie-breaker for stable ordering. The register hook ignores late responses from an older filter. Hero totals show unavailable marks during loading or failure rather than false zeros; export is hidden until the register has loaded successfully.
+- The backend analytics query now reads all PostgREST pages rather than stopping at the first 1,000 rows. A regression test covers 1,001 rows. The paged register and analytics reads run off the async event loop. Analytics now applies the date range only when the page's Date Range control is active, matching the register. These changes preserve existing breakdown statuses, CRUD payloads, calculations, exports, and Classic-specific UI branches.
+- Source verification: 17 focused frontend Breakdowns tests passed; the broader backend Breakdowns suite passed 78 tests. `npx tsc --noEmit --pretty false`, focused ESLint (zero errors), and `git diff --check` in both repos passed. The final `npx next build` generated all 65 static routes. These checks do not establish visual correctness or live-data completeness.
+- Signed-in rendered verification is now **complete**. Because the IDE webview was not exposed to computer-use, a separate visible Edge session was opened with a local CDP port and retained the signed-in MyOffice session. The live register returned 12 records. The first development-mode load hit a transient Supabase free-tier auth failure after an earlier `200`; the page showed the persistent retry state and a manual retry returned `200` and rendered all 12 records. The user confirmed free-tier wake-up can take one to two minutes, so this was treated as expected service latency rather than a visual defect.
+- Live read-only checks covered the Dallaglio light and dark desktop register, 390px table and card modes, row disclosure, details, edit, and delete-confirmation dialogs (edit/delete were cancelled), plus a Classic dark smoke pass. The document never overflowed horizontally; the 390px table kept its 1,005px width inside a 339px horizontal scroller, the grid rendered all 12 live cards, and the phone-width dialog fit within the viewport. Every app API request other than `GET` was blocked during automation, so usage logging and record mutations were not written.
+- All six structured filters were exercised against a matching live record: status, type, priority, department, location, and date range each returned `200` and the combined result narrowed to one record. The live analytics endpoint returned `200`; Overview, Heatmap, Machines, Artisans, and Spares all rendered. Temporary read-only response fixtures were also used to make theme/viewport and empty/populated-state checks deterministic without changing live records.
+- Three rendered issues were fixed in `app/breakdowns/page.tsx`: Department now has a visible filter control; Dallaglio filter dropdowns and text inputs use the route's 36px control height while Classic retains its existing 32px compact controls; and free-text search is explicitly Records-only. Analytics now hides that input, shows a scope note, and does not count a hidden search term in its active-filter badge.
+- Post-fix verification: the 12 calculation tests and 5 data-hook tests passed when run separately. The initial combined Vitest invocation timed out during startup before producing test results; neither isolated command hung. `npx tsc --noEmit --pretty false` passed, focused ESLint finished with zero errors and six existing warnings, and `git diff --check` passed. The Breakdowns visual gate is closed; safety-route review can proceed.
+
+## Work Stoppage safety-route pass — 27 September 2026
+
+- `/work_stoppage` loaded two live reports in the signed-in browser. The Dallaglio light desktop grid, details dialog, edit dialog, delete confirmation, list view, and row disclosure were exercised; edit and delete were cancelled. Dallaglio dark at 390px had zero document overflow, and a Classic light desktop smoke check rendered both records with zero document overflow. The page was restored to Dallaglio light afterward.
+- A simulated `503` reproduced a real resilience defect: the route previously presented a failed initial request as “No work stoppages issued,” with no persistent recovery action. The data hook now exposes the failure, preserves existing records after a failed quiet refresh, and clears the error on a successful retry. The page shows unavailable hero values and a persistent message with **Try again** instead of the false empty state. The scripted retry then received live HTTP `200` and restored the two records.
+- Dallaglio now uses shared `IconAction`, `Button`, `ViewToggle`, `DisclosureButton`, `RecordActions`, and `DetailActions` controls while Classic keeps its existing branches. The search field is 288px on desktop rather than clipping its placeholder; section, status, date, refresh, expand/collapse, and disclosure controls measured 36px. The shared view toggle retains its intentional 33px inner segments inside the bordered group.
+- `scripts/verify-work-stoppage.mjs` makes the rendered pass reproducible through the local Edge CDP session. It waits up to 130 seconds for each live Work Stoppage response, matching the acknowledged Supabase free-tier wake-up delay, blocks every non-`GET` app API request, and restores Dallaglio light. The final run completed successfully in 103 seconds; four background non-`GET` requests were blocked and no live records were changed.
+- Verification: `npx vitest run app/work_stoppage/useWorkStoppageData.test.tsx --reporter=verbose` passed both failure/retry and stale-data-preservation tests. `npx tsc --noEmit --pretty false` passed. Focused ESLint reported zero errors and two existing page warnings; the broader shared-component file retains its existing warnings. `git diff --check` passed. An earlier completed browser run printed the same successful result but the shell timed out because the CDP connection kept Node alive; the script now exits explicitly and the rerun finished normally.
+
+## Requested route retirements — 27 September 2026
+
+- The user explicitly retired Lubrication, Failure Modes, Equipment Status, Schedules, Production, and Shift Handover. Their six module cards were removed from `components/app-shell/modules.ts`, so they no longer appear in the dashboard, sidebar, global module search, or resolved favourites.
+- The standalone route sources under `app/lubrication`, `app/failure-modes`, `app/equipment-status`, `app/production`, and `app/handover` were removed. `app/schedules/page.tsx.disabled` was already not an active Next route and its dormant source was removed as well. The Dallaglio scanner therefore fell from 61 to 56 active page files: five active routes were removed and Schedules was already excluded.
+- The underlying `/api/production` and `/api/lubrication` reads remain because Engineering Report consumes them. The `/api/schedules` client remains inside Maintenance because that route owns preventive-maintenance schedules. No backend routers or live records were changed.
+- Direct HTTP verification against the restarted local Next server returned `404` with the standard not-found page for all six old URLs. The rendered home response contained none of the six paths. The signed-in Edge CDP browser stopped accepting new automation sessions after an earlier timed-out navigation, so this retirement check used direct local HTTP responses rather than claiming a new interactive browser pass.
+- Validation: `npx next typegen` regenerated route types; one stale generated `.next/dev/types/validator.ts` from the stopped dev process was removed before restarting Next. `npx tsc --noEmit --pretty false`, focused ESLint on the module registry, and `git diff --check` passed. The scanner reports 56 routes and no retired route entry. A production build was not run while the replacement dev server remained active.
+
+## VFL safety-route pass — 27 September 2026
+
+- `/vfl` loaded one live signed-in observation. Dallaglio light desktop checks covered the populated card, all six filters (search, section, status, behaviour, from date, and to date), details, edit, delete confirmation, and table mode; edit and delete were cancelled. Dallaglio dark at 390px and Classic light desktop both rendered the live record with zero document overflow. The page was restored to Dallaglio light.
+- A simulated initial `503` now shows unavailable hero metrics, disables **New VFL**, avoids the false empty-state invitation, and provides a persistent **Try again** action. A failed quiet refresh keeps the already-loaded observation visible under the error banner. Both recovery paths subsequently received live HTTP `200`. The data hook also ignores an older response after a newer request completes, preventing development-mode or manual-refresh races from replacing current data.
+- Dallaglio now uses shared `IconAction`, `Button`, `ViewToggle`, `RecordActions`, and `DetailActions` controls while Classic retains its existing compact branches. Search widened from 224px to 288px. Filters, date inputs, refresh, card actions, detail actions/status, delete-confirmation actions, and table actions measured 36px; the shared view toggle retains its intentional 33px inner segments. Section and coaching badges/icons are categorical and neutral in Dallaglio, while safe/unsafe, observation, action, and workflow states retain semantic color.
+- `scripts/verify-vfl.mjs` reproduces the signed-in pass, allows up to three minutes for Supabase cold-start recovery, blocks every non-`GET` app API request, and restores Dallaglio light. The completed run recorded five blocked background writes and no live mutation. One earlier run reached the correct live response but asserted the record before the cold-start render completed; the longer rerun passed in 102 seconds.
+- Verification: `npx vitest run app/vfl/useVFLData.test.tsx --reporter=verbose` passed all three focused tests. `npx tsc --noEmit --pretty false` passed. Focused ESLint reported zero errors and two existing hook warnings. `git diff --check` passed. The scanner now reports one shared view toggle; its remaining 13 local-button matches include Classic branches and specialist form/dialog controls rather than a defect count.
+
+## Stock Issues safety-route pass — 27 September 2026
+
+- `/issues` loaded 75 live signed-in stock-issue records and a server summary of 75 total records and 49 recipients. The pre-correction Dallaglio baseline had 32px hero actions, 24px row actions, and a 234px horizontal overflow inside the item editor at a 390px viewport. A failed issues request was silently rendered as **No issue records**, invited the user to record the first issue, left the write action enabled, and showed `$0`; failed statistics and spare-catalogue requests were independently converted into plausible zero or empty data.
+- The three resources now resolve independently with explicit register, statistics, and catalogue errors. Initial register failure shows a persistent retry state, marks derived cost unavailable, disables **Record Issue**, and does not render a false empty invitation. Quiet refresh failure preserves the 75 loaded records. Statistics or catalogue failure leaves the register usable, marks server statistics unavailable, explains that manual item entry remains available, and provides a separate retry. Older three-resource responses cannot replace a newer completed load.
+- Dallaglio uses shared `IconAction`, `DisclosureButton`, `Button`, and two `PillTabs` groups for refresh, statistics disclosure, download, item removal, row disclosure/delete, Issue Log/Analytics, and Daily/Weekly/Monthly controls. Equivalent controls measured 36px or more; tab targets measured 44px. The item editor now stacks at phone width with visible field labels and zero form, main, or document overflow. These layout and control changes are isolated behind the Dallaglio branch; after the clarified hard scope, Classic was treated as read-only and was not included in the final browser QA.
+- Signed-in Dallaglio light desktop checks covered the live register, filters and clear action, statistics disclosure, download menu without exporting, Analytics and Monthly tabs, row details, and delete confirmation with cancellation. Dallaglio dark at 390px covered the responsive issue form and visible mobile labels. `scripts/verify-issues.mjs` simulates initial, stale-refresh, statistics, and catalogue `503` responses, blocks every non-`GET` app API request, retries real free-tier auth cold starts at 30-second intervals, and restores Dallaglio light. The passing 271-second run blocked seven background usage-event writes and performed no live mutation.
+- Supabase authentication also returned real temporary `503` responses during earlier reruns. The page presented **Sign-in verification is temporarily unavailable. Please retry.** rather than empty data, and the retry loop subsequently restored all 75 records. This was treated as expected free-tier recovery behavior, not as an empty register.
+- Verification: `npx vitest run app/issues/useIssuesData.test.tsx --reporter=verbose` passed all four focused tests. `npx tsc --noEmit --pretty false` passed. Focused ESLint reported zero errors and existing page/hook warnings only. `git diff --check` passed. The scanner still reports 12 local-button matches for `/issues`; it now detects two shared tab groups, and the remaining button matches are legacy Classic branches, export-menu items, or specialist controls rather than a defect count.
+
+## SHEQ Inspections safety-route pass — 27 September 2026
+
+- `/sheq_inspection` loaded four live signed-in inspections: six open findings, one critical finding, and two records in each Mechanical and Electrical. The pre-correction Dallaglio baseline used 32px refresh/filter controls, 28px expand/collapse actions, and 24px record disclosures. A simulated initial `503` rendered all-zero hero metrics, **No inspections yet**, and two enabled **New Inspection** invitations with no persistent retry action.
+- The data hook now exposes a retryable error, preserves the four records after a quiet-refresh failure, and ignores an older response after a newer load completes. Initial failure renders unavailable hero metrics, disables the header creation action, suppresses the false empty state, and provides **Try again**. Both simulated recovery paths returned live HTTP `200` and restored all four records.
+- Dallaglio now uses shared `IconAction`, `DisclosureButton`, `Button`, `RecordActions`, `DetailActions`, `ViewToggle`, and `PillTabs` for register, card, table, detail, and form-modal interactions. Equivalent actions and filters measured 36px, form tabs measured 44px, and the view toggle retained its intentional 33px inner segments. Mechanical/Electrical icon and badge treatment is neutral in Dallaglio; inspection, finding, priority, overdue, critical, and completion states retain semantic color. All changes remain behind Dallaglio branches; Classic was left read-only.
+- Signed-in Dallaglio light desktop checks covered all five filters, Clear, Expand all/Collapse all, card details, View, Edit, delete confirmation with cancellation, the four form tabs, and table mode with disclosure/Edit/Delete actions. Dallaglio dark at 390px covered the New Inspection form, a locally added unsaved finding, and Remove finding. The first phone screenshot exposed a clipped **Photos** tab; changing the Dallaglio modal tabs to wrap made all four labels fully visible in two measured rows. The final page, main region, and modal each had zero horizontal overflow.
+- `scripts/verify-sheq-inspection.mjs` reproduces the signed-in pass, allows free-tier recovery retries, blocks every non-`GET` app API request, and restores Dallaglio light. The passing 79-second run recorded eight successful live reads, three simulated `503` responses, four blocked background usage-event writes, and no live mutation.
+- Verification: `npx vitest run app/sheq_inspection/useSheqInspectionData.test.tsx --reporter=verbose` passed all three focused tests. `npx tsc --noEmit --pretty false` passed. Focused ESLint reported zero errors and four existing warnings. `git diff --check` passed. The scanner still reports 12 local-button matches, now detects one shared tab group and one shared view toggle, and should continue to be treated as a review lead rather than a defect count.
+
+## Safety Complaints safety-route pass — 27 September 2026
+
+- `/safety_complaints` returned live HTTP `200` with a genuinely empty signed-in register. The Dallaglio light desktop page truthfully showed **0 of 0**, **No safety complaints have been logged yet**, and **Log First Complaint**. Before correction, a simulated initial `503` produced the same empty invitation, kept **New Complaint** enabled, showed six plausible zero metrics, and offered no persistent recovery action.
+- The data hook now exposes a retryable load error, preserves a previously loaded register after a failed quiet refresh, and ignores an older response after a newer load completes. An initial failure shows unavailable hero values, disables **New Complaint**, suppresses both false empty invitations and misleading analytics, and provides **Try again**. A successful retry clears the error and restores the register.
+- Dallaglio now uses shared `IconAction`, `PillTabs`, `Button`, `DisclosureButton`, `RecordActions`, and `DetailActions` controls for refresh, Records/Analytics, filter clearing, row disclosure, row actions, and detail actions. Filters and actions measured 36px; tabs measured 44px. Complaint category, supervisor, and section groupings use neutral Dallaglio treatment while priority, workflow status, closure, and overdue states retain semantic color. Every visual change is isolated to Dallaglio; Classic remains read-only.
+- Because the live register is empty, populated-state browser coverage used one clearly labelled, read-only mocked GET response. It exercised search plus status, section, priority, category, responsible-person, location, and date filters; row expansion; details; edit; delete confirmation with cancellation; and Analytics. Dallaglio dark at 390px covered the New Complaint form. Document, main, and modal horizontal overflow were all zero. The browser was restored to the live empty register in Dallaglio light.
+- `scripts/verify-safety-complaints.mjs` blocks every non-`GET` app API request. The passing 46-second run recorded live empty `200` responses, simulated initial and quiet-refresh `503` responses, fixture retry `200`, four blocked usage-event POSTs, and no live mutation. Three earlier runs reached the expected UI but stopped on verifier-only locator/animation assertions; the final script scopes custom-select options to the open listbox and waits for confirmation-dialog animation before measuring.
+- Verification: `npx vitest run app/safety_complaints/useSafetyComplaintsData.test.tsx --reporter=verbose --maxWorkers=1` passed all three focused tests. `npx tsc --noEmit --pretty false` passed. Focused ESLint reported zero errors and two existing warnings. `git diff --check` passed. The scanner reports nine local-button matches and one shared tab group; remaining matches are Classic branches or specialist form controls rather than a defect count.
+
+## Near Miss safety-route pass — 27 September 2026
+
+- `/near_miss` loaded seven live signed-in reports: six Mechanical, one Electrical, and seven named reporters. Before correction, Dallaglio used a 32px refresh and Section filter plus small page-local text glyphs for disclosure, edit, and delete. A failed quiet refresh replaced all seven visible rows with an error state. Initial failure kept **New Report** enabled and showed five plausible zero metrics even though the register was unavailable.
+- The data hook now exposes the same error without discarding loaded reports, clears it on retry, and ignores an older response after a newer load completes. Initial failure shows unavailable hero values, disables **New Report**, suppresses the false first-report invitation, and provides a persistent **Try again** action. Both simulated recovery paths returned live HTTP `200` and restored all seven records.
+- Dallaglio now uses shared `IconAction`, `Button`, `DisclosureButton`, `RecordActions`, and `DetailActions`. Refresh, filters, dates, disclosure, row actions, detail actions, filter clearing, and delete-confirmation actions measured 36px. Section and reporter groupings use neutral Dallaglio treatment; the near-miss total retains warning emphasis. Classic branches remain unchanged.
+- Signed-in Dallaglio light desktop checks covered search, Section, date range, Clear, row disclosure, details, edit, and delete confirmation with cancellation. Dallaglio dark at 390px covered the New Near Miss form; both two-column form groups stacked into one column, and the form modal and route main had zero horizontal overflow. Replacing the original glyph actions with measured shared actions exposed a 155px document overflow from the wide table's intrinsic width. The root fix is Dallaglio-only: `shell.module.css` now gives the shell/content flex boundary a zero minimum width and clips document-level horizontal overflow while preserving each table's internal horizontal scroller. The final document overflow measured zero.
+- `scripts/verify-near-miss.mjs` reproduces the pass, blocks all non-`GET` app API requests, waits through free-tier recovery, and restores Dallaglio light. The passing 83-second run recorded eight successful reads, three simulated `503` responses, four blocked usage-event POSTs, and no live mutation. Earlier runs identified verifier-only duplicate-title/animation timing issues and one trailing-slash response wait; one resumed run timed out after 180 seconds even though the page had already recovered to seven records. Endpoint matching is now slash-normalized and the final run passed.
+- Verification: `npx vitest run app/near_miss/useNearMissData.test.tsx --reporter=verbose --maxWorkers=1` passed all three focused tests. `npx tsc --noEmit --pretty false` passed. Focused ESLint reported zero errors and one existing page warning; the CSS file is outside the ESLint configuration. `git diff --check` passed. The scanner reports eight local-button matches; remaining matches are Classic branches or specialist form controls rather than a defect count.
+
+## SHEQ overview safety-route pass — 27 September 2026
+
+- `/sheq` loaded 23 live signed-in reports across all six source modules. The visible hero counts included seven Near Miss reports, two Work Stoppages, one VFL observation, one PTO report, and four Inspections; the dashboard also loaded Pachedu and rendered six module cards. The existing copy incorrectly described five modules and omitted Inspections and Pachedu, so the hero and total-report caption now describe all six aggregated modules.
+- The dashboard previously used `Promise.allSettled` and converted any rejected or malformed source into an empty array. A partial outage could therefore produce plausible zero cards and a perfect safety score. The hook now requires all six sources to succeed with array payloads, exposes a retryable error, preserves the last complete dashboard after a quiet refresh failure, and ignores older six-request cycles after a newer load completes. Initial failure shows no report cards, refreshed timestamp, or synthetic `100 / 100` score; a successful retry restores the complete dashboard.
+- Dallaglio now uses shared `Button` and `IconAction` controls for module links, expand/collapse, auto-refresh, manual refresh, date ranges, target editing, module-card links, analysis, and note actions. Hero/range actions, module links, target controls and inputs, analysis, and note controls measured 36px or more. Classic alternatives remain in their existing branches and were not included in the final browser QA. The verifier did not run AI analysis, save targets, add notes, or invoke any other state-changing action.
+- The first full phone-width run exposed 471px of internal main-content overflow even though the Dallaglio shell clipped document overflow. The cause was the hero action group's desktop `flex-shrink: 0`, not the shell. A Dallaglio-only responsive constraint now lets that group wrap within the card. Weekly target rows, safety-score and analytics grids, five-module trend tiles, notes fields, and custom dates also reflow at 390px. The final Dallaglio dark run measured zero document and main overflow, contained every weekly-row child, stacked the score and analytics grids, used two trend columns, and stacked the note inputs.
+- `scripts/verify-sheq.mjs` reproduces the signed-in light/dark and desktop/390px pass through the existing Edge CDP tab. It simulates complete six-source initial and quiet-refresh failures, waits through free-tier recovery, blocks every non-`GET` app API request, and restores Dallaglio light. The final 104-second run observed all six live endpoint paths, 51 successful reads, 24 simulated `503` responses, four blocked usage-event POSTs, and no live mutation. Three earlier runs stopped on verifier-only ambiguous text/alert/control locators; a later complete run both exposed the real responsive overflow and confirmed all other checks before the layout correction.
+- Focused verification: four SHEQ hook tests pass, including malformed-response and stale-cycle coverage. The combined safety regression run passed 27 tests across Breakdowns, Work Stoppage, VFL, Issues, SHEQ Inspections, Safety Complaints, Near Miss, and SHEQ. TypeScript passed. Focused SHEQ ESLint reported zero errors and 33 existing warnings. The scanner remains at 56 active routes and reports 11 local-button review leads for `/sheq`; these include retained Classic branches and specialist section controls.
+- Final repository validation on the exact recorded code: 52 focused backend tests passed with two environment/deprecation warnings, both frontend and backend `git diff --check` passed, and the Next.js 16.3.3 production build compiled, type-checked, and generated all 60 static pages representing the 56 audited app routes plus framework/support pages. No commit, push, deployment, or live-data change was made.

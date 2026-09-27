@@ -30,13 +30,19 @@ export function useWorkStoppageData() {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [reports, setReports] = useState<WorkStoppageReport[]>([]);
+  const [loadError, setLoadError] = useState('');
 
   const load = async (quiet = false) => {
     if (!quiet) setLoading(true); else setRefreshing(true);
+    setLoadError('');
     try { setReports(await getReports()); }
-    catch { toast.error('Failed to load reports'); }
+    catch (error) {
+      const message = error instanceof Error ? error.message : 'Could not load work stoppages.';
+      setLoadError(message);
+      toast.error('Failed to load reports');
+    }
     finally { setLoading(false); setRefreshing(false); }
   };
 
-  return { reports, setReports, loading, refreshing, load };
+  return { reports, setReports, loading, refreshing, loadError, load };
 }

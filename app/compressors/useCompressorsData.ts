@@ -44,6 +44,8 @@ export function useCompressorsData(currentDate: Date) {
   const [compressors, setCompressors] = useState<Compressor[]>([]);
   const [previousReadings, setPreviousReadings] = useState<Record<number, PreviousReading>>({});
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [servicesError, setServicesError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState<{ type?: string; id?: number | string }>({});
   const [stats, setStats] = useState<CompressorStats | null>(null);
   const [upcomingServices, setUpcomingServices] = useState<UpcomingService[]>([]);
@@ -57,6 +59,7 @@ export function useCompressorsData(currentDate: Date) {
   const fetchCompressors = async () => {
     const data = (await enhancedFetch(`${API_BASE_URL}/api/compressors/compressors`)) as Compressor[];
     setCompressors(data || []);
+    setLoadError(null);
     const prevData: Record<number, PreviousReading> = {};
     const curStr = currentDate.toISOString().split('T')[0];
     for (const c of data || []) {
@@ -73,7 +76,7 @@ export function useCompressorsData(currentDate: Date) {
   };
 
   const fetchStats = async () => { try { setStats((await enhancedFetch(`${API_BASE_URL}/api/compressors/stats`)) as CompressorStats); } catch (e: unknown) { setStats(null); toast.error(`Stats failed to load: ${(e as Error).message}`); } };
-  const fetchUpcomingServices = async () => { try { setUpcomingServices(((await enhancedFetch(`${API_BASE_URL}/api/compressors/service-due`)) as UpcomingService[]) || []); } catch (e: unknown) { setUpcomingServices([]); toast.error(`Upcoming services failed to load: ${(e as Error).message}`); } };
+  const fetchUpcomingServices = async () => { try { setUpcomingServices(((await enhancedFetch(`${API_BASE_URL}/api/compressors/service-due`)) as UpcomingService[]) || []); setServicesError(null); } catch (e: unknown) { setUpcomingServices([]); setServicesError((e as Error).message); toast.error(`Upcoming services failed to load: ${(e as Error).message}`); } };
   const fetchPerformanceMetrics = async (days = 30) => {
     try {
       const data = ((await enhancedFetch(`${API_BASE_URL}/api/compressors/analytics/performance-metrics?period_days=${days}`)) as PerformanceMetric[]) || [];
@@ -101,8 +104,9 @@ export function useCompressorsData(currentDate: Date) {
 
   const loadAllData = async () => {
     setIsLoading(true);
+    setLoadError(null);
     try { await Promise.all([fetchCompressors(), fetchStats(), fetchUpcomingServices(), fetchPerformanceMetrics(), fetchTrendAnalysis(), fetchComparisonAnalytics(), fetchManagementSummary()]); }
-    catch (e: unknown) { toast.error((e as Error).message || 'Failed to load data'); }
+    catch (e: unknown) { setLoadError((e as Error).message || 'Failed to load compressors'); toast.error((e as Error).message || 'Failed to load data'); }
     finally { setIsLoading(false); }
   };
 
@@ -182,7 +186,7 @@ export function useCompressorsData(currentDate: Date) {
   };
 
   return {
-    compressors, previousReadings, isLoading, isSaving,
+    compressors, previousReadings, isLoading, isSaving, loadError, servicesError,
     stats, upcomingServices, analyticsData, managementData,
     refresh: loadAllData,
     fetchPerformanceMetrics, fetchTrendAnalysis, fetchComparisonAnalytics,

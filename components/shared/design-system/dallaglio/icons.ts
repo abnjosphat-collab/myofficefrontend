@@ -10,7 +10,7 @@ import {
   Medal, Package, Percent, PencilSimple, Plus, ShoppingCart, SlidersHorizontal,
   Pulse, Sparkle, SquaresFour, Star, Table, Target, Trash, TrendUp, UserCheck, Users,
   Warning, WarningOctagon, Wrench, Buildings, Car, CalendarBlank,
-  HardDrives, MapPin, PaperPlaneTilt, CheckSquare, X, CirclesFour, Rows,
+  HardDrives, MapPin, PaperPlaneTilt, CheckSquare, X, CirclesFour, Rows, EnvelopeSimple, Phone,
 } from '@phosphor-icons/react';
 
 export const DALLAGLIO_ICONS: Record<IconMeaning, ElementType> = {
@@ -27,6 +27,8 @@ export const DALLAGLIO_ICONS: Record<IconMeaning, ElementType> = {
   filter: SlidersHorizontal,
   sort: ArrowsDownUp,
   edit: PencilSimple,
+  mail: EnvelopeSimple,
+  phone: Phone,
   archive: Archive,
   analytics: ChartLineUp,
   refresh: ArrowClockwise,

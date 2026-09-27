@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { toast } from 'sonner';
-import { Download, FileSpreadsheet, FileDown } from '@/components/shared/theme';
+import { Download, FileSpreadsheet, FileDown, useTheme, Button } from '@/components/shared/theme';
+import controls from '@/components/shared/design-system/dallaglio/controls.module.css';
 import { EXPORT_BRAND_ARGB, EXPORT_BRAND_RGB } from '@/lib/exportUtils';
 
 export interface DLColumn {
@@ -59,6 +60,11 @@ export function DownloadButton({
 }: DownloadButtonProps) {
   const pdfCols = pdfColumns ?? columns;
   const [open, setOpen] = useState(false);
+  const theme = useTheme();
+  const dallaglio = theme.design === 'dallaglio';
+  const menuItemClass = dallaglio
+    ? 'flex min-h-10 w-full items-center gap-2.5 px-3.5 text-left text-[13px] text-[var(--d-ink)] outline-none transition-colors hover:bg-[var(--d-soft)] focus:bg-[var(--d-soft)]'
+    : 'flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-white/80 hover:bg-white/[0.08] hover:text-white transition-colors text-left outline-none';
 
   const downloadExcel = async () => {
     setOpen(false);
@@ -235,6 +241,7 @@ export function DownloadButton({
   if (formats.length === 1) {
     const onlyFormat = formats[0];
     const Icon = onlyFormat === 'excel' ? FileSpreadsheet : FileDown;
+    if (dallaglio) return <Button variant="secondary" size="sm" icon={Icon} onClick={onlyFormat === 'excel' ? downloadExcel : downloadPDF} className={className}>Download</Button>;
     return (
       <button
         type="button"
@@ -256,36 +263,36 @@ export function DownloadButton({
   return (
     <DropdownMenu.Root open={open} onOpenChange={setOpen}>
       <DropdownMenu.Trigger asChild>
-        <button
+        {dallaglio ? <button type="button" data-ds="button" data-variant="secondary" className={`${controls.btn} ${controls.secondary} ${controls.sizeSm} ${className}`}><Download className="h-3.5 w-3.5" weight="light" />Download</button> : <button
           type="button"
           className={`inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-semibold border border-emerald-500/30 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/25 transition-all hover:-translate-y-0.5 ${className}`}
         >
           <Download className="h-3.5 w-3.5" />
           Download
-        </button>
+        </button>}
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         <DropdownMenu.Content
           align="end"
           sideOffset={6}
-          className="z-50 min-w-[160px] rounded-xl border border-white/[0.12] bg-[#0d1f33]/95 backdrop-blur-xl shadow-2xl overflow-hidden outline-none"
+          className={dallaglio ? 'z-50 min-w-[172px] overflow-hidden rounded-[var(--d-radius-md)] border border-[var(--d-line)] bg-[var(--d-surface)] p-1 shadow-[var(--d-shadow-hover)] outline-none' : 'z-50 min-w-[160px] rounded-xl border border-white/[0.12] bg-[#0d1f33]/95 backdrop-blur-xl shadow-2xl overflow-hidden outline-none'}
         >
           <DropdownMenu.Item asChild onSelect={downloadExcel}>
             <button
               type="button"
-              className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-white/80 hover:bg-white/[0.08] hover:text-white transition-colors text-left outline-none"
+              className={menuItemClass}
             >
-              <FileSpreadsheet className="h-4 w-4 text-emerald-400 shrink-0" />
+              <FileSpreadsheet className={`h-4 w-4 shrink-0 ${dallaglio ? 'text-[var(--d-ink-muted)]' : 'text-emerald-400'}`} />
               Export Excel
             </button>
           </DropdownMenu.Item>
-          <DropdownMenu.Separator className="h-px bg-white/[0.07]" />
+          <DropdownMenu.Separator className={dallaglio ? 'mx-2 my-1 h-px bg-[var(--d-line)]' : 'h-px bg-white/[0.07]'} />
           <DropdownMenu.Item asChild onSelect={downloadPDF}>
             <button
               type="button"
-              className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-white/80 hover:bg-white/[0.08] hover:text-white transition-colors text-left outline-none"
+              className={menuItemClass}
             >
-              <FileDown className="h-4 w-4 text-rose-400 shrink-0" />
+              <FileDown className={`h-4 w-4 shrink-0 ${dallaglio ? 'text-[var(--d-ink-muted)]' : 'text-rose-400'}`} />
               Export PDF
             </button>
           </DropdownMenu.Item>

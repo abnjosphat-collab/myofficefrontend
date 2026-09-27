@@ -14,7 +14,7 @@ import { AppShell } from '@/components/app-shell';
 import { PredictiveInput } from '@/components/shared/PredictiveInput';
 import {
   useTheme, STATUS_TONE, PageHero, StatTile, StatusBadge, SearchInput,
-  FormField, FormActions, useCollapseSection, CenterModal, ProgressBar, ACCENT_HEX, SelectField, LoadingState, AutofillInput, TYPE_WEIGHT, PrimaryButton, Button,
+  FormField, FormActions, useCollapseSection, CenterModal, ProgressBar, ACCENT_HEX, SelectField, LoadingState, AutofillInput, TYPE_WEIGHT, PrimaryButton, Button, DetailActions,
 } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
@@ -358,10 +358,10 @@ function ReqDetailModal({ req, onClose, onEdit }: { req: Requisition; onClose: (
           </div>
         )}
 
-        <div className="flex gap-2">
+        {t.design === 'dallaglio' ? <DetailActions onClose={onClose} onEdit={() => { onClose(); onEdit(); }} /> : <div className="flex gap-2">
           <button type="button" onClick={onClose} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border} transition-all`}>Close</button>
           <PrimaryButton icon={Pencil} size="md" fullWidth onClick={() => { onClose(); onEdit(); }}>Edit</PrimaryButton>
-        </div>
+        </div>}
       </div>
     </CenterModal>
   );

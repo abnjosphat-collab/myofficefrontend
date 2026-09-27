@@ -17,7 +17,7 @@ import {
 import {
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, ProgressBar, FormField, FormActions,
   useCollapseSection, CenterModal, ACCENT_HEX, ACCENT, type Accent, EmptyState, PrimaryButton, GlowCard, SelectField, accentText, CollapsibleHeader, Button,
-  CountUp, PulsingIcon, TYPE_SCALE, staggerContainer, fadeUp, HintText, TYPE_WEIGHT,
+  CountUp, PulsingIcon, TYPE_SCALE, staggerContainer, fadeUp, HintText, TYPE_WEIGHT, ViewToggle, IconAction, chartTheme,
 } from '@/components/shared/theme';
 import { ShiftTimeRangeField } from '@/components/shared/design-system';
 import { defaultDayShiftTimes } from '@/lib/shiftTimePresets';
@@ -105,9 +105,11 @@ function blankForm(): OTForm {
 // type is invalid" (found live during the 2026-08-29 UI audit, mocked-data
 // triggered but a real, unguarded code path — audit/07-ui-polish-findings.md).
 function TypeBadge({ type }: { type: OTType }) {
+  const t = useTheme();
   const Icon = TYPE_ICONS[type] ?? Clock4;
   const hex = TYPE_HEX[type] ?? '#94a3b8';
   const label = TYPE_LABELS[type] ?? String(type);
+  if (t.design === 'dallaglio') return <span className="inline-flex min-h-6 items-center gap-1.5 rounded-[7px] bg-[var(--d-soft)] px-2 text-[11px] font-medium text-[var(--d-ink-muted)]"><Icon className="h-3.5 w-3.5" weight="light" />{label}</span>;
   return (
     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] ${TYPE_WEIGHT.semibold}`} style={{ backgroundColor: `${hex}22`, color: hex }}>
       <Icon className="h-2.5 w-2.5" />{label}
@@ -118,12 +120,14 @@ function TypeBadge({ type }: { type: OTType }) {
 // Renders nothing for an unclassified record (null/undefined) — absence is signal
 // enough; a third "Unclassified" badge everywhere would just be visual noise.
 function PlanningBadge({ status }: { status?: PlanningStatus | null }) {
+  const t = useTheme();
   if (!status) return null;
   // Same defensive-fallback fix as TypeBadge above — an unrecognized status value
   // made Icon undefined and crashed the page.
   const Icon = PLANNING_ICONS[status] ?? Calendar;
   const hex = PLANNING_HEX[status] ?? '#94a3b8';
   const label = PLANNING_LABELS[status] ?? String(status);
+  if (t.design === 'dallaglio') return <span className="inline-flex min-h-6 items-center gap-1.5 rounded-[7px] border border-[var(--d-line)] px-2 text-[11px] text-[var(--d-ink-muted)]"><Icon className="h-3.5 w-3.5" weight="light" />{label}</span>;
   return (
     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] ${TYPE_WEIGHT.semibold}`} style={{ backgroundColor: `${hex}22`, color: hex }}>
       <Icon className="h-2.5 w-2.5" />{label}
@@ -135,8 +139,10 @@ function PlanningBadge({ status }: { status?: PlanningStatus | null }) {
 // getting paid"). 'cash' is the unremarkable default and unclassified has nothing
 // to say, so both render nothing, same reasoning as PlanningBadge above.
 function PayoutBadge({ method }: { method?: PayoutMethod | null }) {
+  const t = useTheme();
   if (method !== 'lieu') return null;
   const Icon = PAYOUT_ICONS.lieu;
+  if (t.design === 'dallaglio') return <span className="inline-flex min-h-6 items-center gap-1.5 rounded-[7px] border border-[var(--d-line)] px-2 text-[11px] text-[var(--d-ink-muted)]"><Icon className="h-3.5 w-3.5" weight="light" />{PAYOUT_LABELS.lieu}</span>;
   return (
     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] ${TYPE_WEIGHT.semibold}`} style={{ backgroundColor: `${PAYOUT_HEX.lieu}22`, color: PAYOUT_HEX.lieu }}>
       <Icon className="h-2.5 w-2.5" />{PAYOUT_LABELS.lieu}
@@ -148,8 +154,9 @@ function PayoutBadge({ method }: { method?: PayoutMethod | null }) {
 // convention; replaced the old initials-in-a-circle avatar). `name` kept in the
 // signature only for call-site compatibility.
 function Avatar({ size = 'sm' }: { name?: string; size?: 'sm' | 'lg' }) {
+  const t = useTheme();
   const dims = size === 'lg' ? 'h-7 w-7' : 'h-5 w-5';
-  return <User className={`${dims} text-brand-400 shrink-0`} />;
+  return <User className={`${dims} ${t.design === 'dallaglio' ? t.textFaint : 'text-brand-400'} shrink-0`} weight={t.design === 'dallaglio' ? 'light' : undefined} />;
 }
 
 // Employee autocomplete now lives in components/shared/EmployeeAutocomplete.tsx
@@ -775,6 +782,19 @@ function AnalyzeStat({ icon: Icon, accent, label, value, suffix = '', decimals =
 }) {
   const t = useTheme();
   const a = ACCENT[accent];
+  if (t.design === 'dallaglio') {
+    return (
+      <div className="min-w-0 rounded-[13px] border border-[var(--d-line)] bg-[var(--d-surface)] px-4 py-4 shadow-[var(--d-shadow)]">
+        <div className="mb-3 flex items-center gap-2 text-[var(--d-ink-muted)]">
+          <Icon className="h-[17px] w-[17px] shrink-0" weight="light" />
+          <span className="truncate text-[11px] font-medium tracking-[0.01em]">{label}</span>
+        </div>
+        <p className="tabular-nums text-[26px] font-normal leading-none tracking-[-0.045em] text-[var(--d-ink)]">
+          <CountUp value={value} suffix={suffix} duration={decimals ? 1.2 : 0.9} />
+        </p>
+      </div>
+    );
+  }
   return (
     <GlowCard color={ACCENT_HEX[accent]} className="p-3.5">
       <div className="flex items-center gap-1.5 mb-3">
@@ -1044,6 +1064,7 @@ function ArtisanBarRow({ a, maxHours, active, onToggle }: {
   maxHours: number; active: boolean; onToggle: () => void;
 }) {
   const t = useTheme();
+  const chart = chartTheme(t.design, t.light);
   return (
     <button type="button" onClick={onToggle} title={`Click to ${active ? 'remove' : 'filter by'} ${a.employee_name}`}
       className={`w-full text-left rounded-lg px-2 -mx-2 py-1.5 transition-colors ${active ? 'bg-brand-500/10' : t.hoverBgSoft}`}>
@@ -1051,7 +1072,7 @@ function ArtisanBarRow({ a, maxHours, active, onToggle }: {
         <span className={`${TYPE_WEIGHT.medium} ${active ? accentText('violet', t.light) : t.textPrimary}`}>{a.employee_name}{a.position ? <span className={t.textFaint}> · {a.position}</span> : null}</span>
         <span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{a.hours}h</span>
       </div>
-      <ProgressBar value={(a.hours / maxHours) * 100} color={active ? ACCENT_HEX.violet : ACCENT_HEX.blue} showValue={false} />
+      <ProgressBar value={(a.hours / maxHours) * 100} color={t.design === 'dallaglio' ? chart.accent : active ? ACCENT_HEX.violet : ACCENT_HEX.blue} showValue={false} />
     </button>
   );
 }
@@ -1065,8 +1086,9 @@ function OverviewSubTab({ filtered, richStats, byArtisan, maxArtisanHours, resul
   employeePicks: PickedEmployee[]; onToggleArtisan: (employee_id: string, employee_name: string) => void;
 }) {
   const t = useTheme();
-  const axisColor = t.light ? 'rgba(15,23,42,0.4)' : 'rgba(255,255,255,0.4)';
-  const gridColor = t.light ? 'rgba(15,23,42,0.06)' : 'rgba(255,255,255,0.06)';
+  const chart = chartTheme(t.design, t.light);
+  const axisColor = chart.axis;
+  const gridColor = chart.grid;
 
   return (
     <motion.div initial="hidden" animate="show" variants={staggerContainer} className="space-y-4">
@@ -1075,19 +1097,19 @@ function OverviewSubTab({ filtered, richStats, byArtisan, maxArtisanHours, resul
         <AnalyzeStat icon={FileText} accent="blue" label="Instances" value={filtered.length} />
         <AnalyzeStat icon={UsersRound} accent="indigo" label="Employees Involved" value={richStats.uniqueEmployees} />
         <AnalyzeStat icon={Gauge} accent="amber" label="Avg Hrs / Instance" value={richStats.avgHours} suffix="h" decimals={1} />
-        <GlowCard color={ACCENT_HEX.cyan} className="p-3.5">
-          <div className="flex items-center gap-1.5 mb-2"><TrendingUp className={`h-3.5 w-3.5 ${accentText('cyan', t.light)}`} /><span className={`${TYPE_SCALE.label} ${TYPE_WEIGHT.medium} uppercase tracking-wide ${t.textSecondary}`}>Busiest Day</span></div>
+        <GlowCard color={t.design === 'dallaglio' ? chart.accent : ACCENT_HEX.cyan} className="p-3.5">
+          <div className="flex items-center gap-1.5 mb-2"><TrendingUp className={`h-3.5 w-3.5 ${t.design === 'dallaglio' ? t.textMuted : accentText('cyan', t.light)}`} /><span className={`${TYPE_SCALE.label} ${TYPE_WEIGHT.medium} uppercase tracking-wide ${t.textSecondary}`}>Busiest Day</span></div>
           <p className={`${TYPE_SCALE.statLarge} leading-none ${TYPE_WEIGHT.bold} ${t.textPrimary}`}>{richStats.busiestDay}</p>
         </GlowCard>
-        <GlowCard color={ACCENT_HEX.emerald} className="p-3.5">
-          <div className="flex items-center gap-1.5 mb-2"><Lightbulb className={`h-3.5 w-3.5 ${accentText('emerald', t.light)}`} /><span className={`${TYPE_SCALE.label} ${TYPE_WEIGHT.medium} uppercase tracking-wide ${t.textSecondary}`}>Most Common Reason</span></div>
+        <GlowCard color={t.design === 'dallaglio' ? chart.accent : ACCENT_HEX.emerald} className="p-3.5">
+          <div className="flex items-center gap-1.5 mb-2"><Lightbulb className={`h-3.5 w-3.5 ${t.design === 'dallaglio' ? t.textMuted : accentText('emerald', t.light)}`} /><span className={`${TYPE_SCALE.label} ${TYPE_WEIGHT.medium} uppercase tracking-wide ${t.textSecondary}`}>Most Common Reason</span></div>
           <p className={`${TYPE_SCALE.stat} leading-tight ${TYPE_WEIGHT.bold} ${t.textPrimary} truncate`} title={result?.top_reasons[0]?.phrase || undefined}>
             {loading && !result ? '…' : result?.top_reasons[0] ? `“${result.top_reasons[0].phrase}”` : '—'}
           </p>
         </GlowCard>
         <AnalyzeStat icon={Wrench} accent="violet" label="Machines Involved" value={result?.top_machines.length ?? 0} />
-        <GlowCard color={ACCENT_HEX.blue} className="p-3.5">
-          <div className="flex items-center gap-1.5 mb-2"><Wallet className={`h-3.5 w-3.5 ${accentText('blue', t.light)}`} /><span className={`${TYPE_SCALE.label} ${TYPE_WEIGHT.medium} uppercase tracking-wide ${t.textSecondary}`}>Spares Cost</span></div>
+        <GlowCard color={t.design === 'dallaglio' ? chart.accent : ACCENT_HEX.blue} className="p-3.5">
+          <div className="flex items-center gap-1.5 mb-2"><Wallet className={`h-3.5 w-3.5 ${t.design === 'dallaglio' ? t.textMuted : accentText('blue', t.light)}`} /><span className={`${TYPE_SCALE.label} ${TYPE_WEIGHT.medium} uppercase tracking-wide ${t.textSecondary}`}>Spares Cost</span></div>
           <p className={`${TYPE_SCALE.statLarge} leading-none ${TYPE_WEIGHT.bold} ${t.textPrimary}`}>{formatCurrencyShort(richStats.spareCost)}</p>
         </GlowCard>
       </motion.div>
@@ -1105,15 +1127,15 @@ function OverviewSubTab({ filtered, richStats, byArtisan, maxArtisanHours, resul
                 <AreaChart data={result.weekly_series}>
                   <defs>
                     <linearGradient id="otOverviewTrendGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={ACCENT_HEX.blue} stopOpacity={0.45} />
-                      <stop offset="95%" stopColor={ACCENT_HEX.blue} stopOpacity={0} />
+                      <stop offset="5%" stopColor={chart.accent} stopOpacity={t.design === 'dallaglio' ? 0.22 : 0.45} />
+                      <stop offset="95%" stopColor={chart.accent} stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
                   <XAxis dataKey="week" tick={{ fill: axisColor, fontSize: 10 }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fill: axisColor, fontSize: 10 }} axisLine={false} tickLine={false} />
-                  <Tooltip contentStyle={{ backgroundColor: t.light ? '#fff' : '#0f1e2e', border: `1px solid ${t.light ? 'rgba(15,23,42,0.1)' : 'rgba(134,187,216,0.2)'}`, borderRadius: 12, color: t.light ? '#0f172a' : '#fff', fontSize: 12 }} formatter={(v: number) => [`${v}h`, 'Hours']} />
-                  <Area type="monotone" dataKey="hours" stroke={ACCENT_HEX.blue} strokeWidth={2} fill="url(#otOverviewTrendGrad)" animationDuration={700} animationEasing="ease-out" />
+                  <Tooltip contentStyle={chart.tooltip} formatter={(v: number) => [`${v}h`, 'Hours']} />
+                  <Area type="monotone" dataKey="hours" stroke={chart.accent} strokeWidth={t.design === 'dallaglio' ? 1.8 : 2} fill="url(#otOverviewTrendGrad)" animationDuration={700} animationEasing="ease-out" />
                 </AreaChart>
               </ResponsiveContainer>
             )}
@@ -1148,13 +1170,14 @@ function AnalyticsSubTab({ filtered, byType, byStatus, bySection, byArtisan, max
   employeePicks: PickedEmployee[]; onToggleArtisan: (employee_id: string, employee_name: string) => void;
 }) {
   const t = useTheme();
-  const axisColor = t.light ? 'rgba(15,23,42,0.4)' : 'rgba(255,255,255,0.4)';
-  const gridColor = t.light ? 'rgba(15,23,42,0.06)' : 'rgba(255,255,255,0.06)';
-  const TYPE_BAR_COLORS = Object.values(TYPE_HEX);
+  const chart = chartTheme(t.design, t.light);
+  const axisColor = chart.axis;
+  const gridColor = chart.grid;
+  const TYPE_BAR_COLORS = t.design === 'dallaglio' ? chart.series : Object.values(TYPE_HEX);
   const STATUS_COLORS = byStatus.map(s => STATUS_HEX[s.status.toLowerCase() as OTStatus] ?? '#94a3b8');
   const typeTotal = byType.reduce((s, x) => s + x.count, 0);
   const statusTotal = byStatus.reduce((s, x) => s + x.count, 0);
-  const tooltipStyle = { backgroundColor: t.light ? '#fff' : '#0f1e2e', border: `1px solid ${t.light ? 'rgba(15,23,42,0.1)' : 'rgba(134,187,216,0.2)'}`, borderRadius: 12, color: t.light ? '#0f172a' : '#fff', fontSize: 12 };
+  const tooltipStyle = chart.tooltip;
 
   return (
     <div className="space-y-4">
@@ -1227,7 +1250,7 @@ function AnalyticsSubTab({ filtered, byType, byStatus, bySection, byArtisan, max
                 <YAxis tick={{ fill: axisColor, fontSize: 10 }} axisLine={false} tickLine={false} />
                 <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => [`${v}h`, 'Hours']} />
                 <Bar dataKey="hours" name="Hours" radius={[6, 6, 0, 0]} animationDuration={700} animationEasing="ease-out">
-                  {bySection.map((d, i) => <Cell key={i} fill={SECTION_HEX[d.section] ?? '#94a3b8'} fillOpacity={0.8} />)}
+                  {bySection.map((d, i) => <Cell key={i} fill={t.design === 'dallaglio' ? chart.series[i % chart.series.length] : SECTION_HEX[d.section] ?? '#94a3b8'} fillOpacity={0.8} />)}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
@@ -1257,7 +1280,7 @@ function AnalyticsSubTab({ filtered, byType, byStatus, bySection, byArtisan, max
               <XAxis dataKey="day" tick={{ fill: axisColor, fontSize: 10 }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fill: axisColor, fontSize: 10 }} axisLine={false} tickLine={false} />
               <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => [`${v}h`, 'Hours']} />
-              <Bar dataKey="hours" name="Hours" radius={[6, 6, 0, 0]} fill={ACCENT_HEX.indigo} fillOpacity={0.8} animationDuration={700} animationEasing="ease-out" />
+              <Bar dataKey="hours" name="Hours" radius={[6, 6, 0, 0]} fill={t.design === 'dallaglio' ? chart.accent : ACCENT_HEX.indigo} fillOpacity={0.8} animationDuration={700} animationEasing="ease-out" />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -1310,6 +1333,7 @@ function SortHeader({ label, sortKey, active, dir, onClick, className }: {
 
 function CategoryDetailTable({ categories }: { categories: OTCategoryDetail[] }) {
   const t = useTheme();
+  const chart = chartTheme(t.design, t.light);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [sort, setSort] = useState<{ key: CategorySortKey; dir: 'asc' | 'desc' }>({ key: 'hours', dir: 'desc' });
   if (categories.length === 0) return null;
@@ -1338,9 +1362,9 @@ function CategoryDetailTable({ categories }: { categories: OTCategoryDetail[] })
                   that denominator excludes every uncategorized record, which silently
                   inflated the pie's percentage above what the table showed. */}
               <Pie data={categories.map(c => ({ category: c.category, hours: c.hours, instances: c.instances, pct: c.pct_of_total }))} dataKey="hours" nameKey="category" innerRadius={50} outerRadius={80} paddingAngle={2} animationDuration={700} animationEasing="ease-out">
-                {categories.map((_, i) => <Cell key={i} fill={CATEGORY_COLORS[i % CATEGORY_COLORS.length]} fillOpacity={0.85} />)}
+                {categories.map((_, i) => <Cell key={i} fill={t.design === 'dallaglio' ? chart.series[i % chart.series.length] : CATEGORY_COLORS[i % CATEGORY_COLORS.length]} fillOpacity={0.85} />)}
               </Pie>
-              <Tooltip contentStyle={{ backgroundColor: t.light ? '#fff' : '#0f1e2e', border: `1px solid ${t.light ? 'rgba(15,23,42,0.1)' : 'rgba(134,187,216,0.2)'}`, borderRadius: 12, color: t.light ? '#0f172a' : '#fff', fontSize: 12 }}
+              <Tooltip contentStyle={chart.tooltip}
                 formatter={(v: number, n: string, entry) => [`${v}h (${entry.payload.instances}×, ${entry.payload.pct}%)`, n]} />
               <Legend content={<DonutLegend />} />
             </RePieChart>
@@ -1464,9 +1488,10 @@ type AnalysisSubTabProps = { records: OTRecord[]; result: OTAnalysisResult | nul
 
 function PatternsSubTab({ records, result, loading, updating, error, onRefresh }: AnalysisSubTabProps) {
   const t = useTheme();
-  const axisColor = t.light ? 'rgba(15,23,42,0.4)' : 'rgba(255,255,255,0.4)';
-  const gridColor = t.light ? 'rgba(15,23,42,0.06)' : 'rgba(255,255,255,0.06)';
-  const tooltipStyle = { backgroundColor: t.light ? '#fff' : '#0f1e2e', border: `1px solid ${t.light ? 'rgba(15,23,42,0.1)' : 'rgba(134,187,216,0.2)'}`, borderRadius: 12, color: t.light ? '#0f172a' : '#fff', fontSize: 12 };
+  const chart = chartTheme(t.design, t.light);
+  const axisColor = chart.axis;
+  const gridColor = chart.grid;
+  const tooltipStyle = chart.tooltip;
 
   if (loading) return <AnalysisLoading />;
   if (!result) return <AnalysisEmpty records={records} error={error} onRefresh={onRefresh} />;
@@ -1502,7 +1527,7 @@ function PatternsSubTab({ records, result, loading, updating, error, onRefresh }
                 <Tooltip contentStyle={tooltipStyle} labelFormatter={(label: string) => `"${label}"`}
                   formatter={(v: number, _n: string, entry) => [`${v}h · ${entry.payload.count}×`, 'Hours']} />
                 <Bar dataKey="hours" radius={[6, 6, 0, 0]} animationDuration={700} animationEasing="ease-out">
-                  {result.top_reasons.map((_, i) => <Cell key={i} fill={CATEGORY_COLORS[i % CATEGORY_COLORS.length]} fillOpacity={0.85} />)}
+                  {result.top_reasons.map((_, i) => <Cell key={i} fill={t.design === 'dallaglio' ? chart.series[i % chart.series.length] : CATEGORY_COLORS[i % CATEGORY_COLORS.length]} fillOpacity={0.85} />)}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
@@ -1522,7 +1547,7 @@ function PatternsSubTab({ records, result, loading, updating, error, onRefresh }
                     <span className={`${TYPE_WEIGHT.medium} ${t.textPrimary} truncate`}>{m.name}</span>
                     <span className={`shrink-0 ml-2 ${t.textFaint}`}>{m.count}× · {m.hours}h</span>
                   </div>
-                  <ProgressBar value={(m.hours / maxHours) * 100} color={ACCENT_HEX.cyan} showValue={false} />
+                  <ProgressBar value={(m.hours / maxHours) * 100} color={t.design === 'dallaglio' ? chart.accent : ACCENT_HEX.cyan} showValue={false} />
                 </div>
               ));
             })()}
@@ -1542,15 +1567,15 @@ function PatternsSubTab({ records, result, loading, updating, error, onRefresh }
               <AreaChart data={result.weekly_series}>
                 <defs>
                   <linearGradient id="otWeeklyGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={ACCENT_HEX.blue} stopOpacity={0.45} />
-                    <stop offset="95%" stopColor={ACCENT_HEX.blue} stopOpacity={0} />
+                    <stop offset="5%" stopColor={chart.accent} stopOpacity={t.design === 'dallaglio' ? 0.22 : 0.45} />
+                    <stop offset="95%" stopColor={chart.accent} stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
                 <XAxis dataKey="week" tick={{ fill: axisColor, fontSize: 10 }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fill: axisColor, fontSize: 10 }} axisLine={false} tickLine={false} />
                 <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => [`${v}h`, 'Hours']} />
-                <Area type="monotone" dataKey="hours" stroke={ACCENT_HEX.blue} strokeWidth={2} fill="url(#otWeeklyGrad)" animationDuration={700} animationEasing="ease-out" />
+                <Area type="monotone" dataKey="hours" stroke={chart.accent} strokeWidth={t.design === 'dallaglio' ? 1.8 : 2} fill="url(#otWeeklyGrad)" animationDuration={700} animationEasing="ease-out" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -1652,6 +1677,7 @@ function CausesSubTab({ records, result, loading, updating, error, onRefresh }: 
 
 function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employees: EmployeeLookup[] }) {
   const t = useTheme();
+  const chart = chartTheme(t.design, t.light);
   // The weekly report opened Monday morning is for the week that just finished, not the
   // one that just started an hour ago — so the default range is last Monday through last
   // Sunday (the most recently COMPLETED Mon-Sun cycle), computed by stepping back one full
@@ -1730,7 +1756,7 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
     mainCause: groupSimilarReasons(emp.instances)[0] ?? null,
   })), [employeeInstances]);
 
-  const stickyBg = t.light ? 'bg-white' : 'bg-[#040c18]';
+  const stickyBg = t.design === 'dallaglio' ? 'bg-[var(--d-surface)]' : t.light ? 'bg-white' : 'bg-[#040c18]';
   const today = toISODate(new Date());
   const invalidRange = from > to;
 
@@ -1927,7 +1953,7 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
         <input type="date" title="From date" aria-label="From date" value={from} onChange={e => setFrom(e.target.value)} className={`h-9 rounded-lg px-2.5 text-xs outline-none transition-colors ${t.inputBg}`} />
         <span className={t.textFaint}>to</span>
         <input type="date" title="To date" aria-label="To date" value={to} onChange={e => setTo(e.target.value)} className={`h-9 rounded-lg px-2.5 text-xs outline-none transition-colors ${t.inputBg}`} />
-        <button type="button" onClick={() => { setFrom(defaultFrom); setTo(defaultTo); }} title="Last completed Monday-Sunday week" className={`h-9 px-3 rounded-lg text-xs ${TYPE_WEIGHT.medium} transition-colors ${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText}`}>Last Week</button>
+        <Button variant="secondary" size="sm" onClick={() => { setFrom(defaultFrom); setTo(defaultTo); }} title="Last completed Monday-Sunday week">Last week</Button>
         <div className="flex items-center gap-1.5">
           <TrendingUp className={`h-3.5 w-3.5 ${t.textFaint}`} />
           <SelectField size="filter" title="Sort order" value={sortMode} onChange={v => setSortMode(v as typeof sortMode)}
@@ -1996,7 +2022,7 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
                     <span className={`${TYPE_WEIGHT.semibold} truncate ${t.textPrimary}`}>{emp.employee_name}{emp.position ? <span className={`font-normal ${t.textFaint}`}> · {emp.position}</span> : null}</span>
                     <span className={`shrink-0 ${TYPE_WEIGHT.bold} ${accentText('blue', t.light)}`}>{emp.total.toFixed(1)}h</span>
                   </div>
-                  <ProgressBar value={(emp.total / maxEmployeeHours) * 100} color={ACCENT_HEX.blue} showValue={false} />
+                  <ProgressBar value={(emp.total / maxEmployeeHours) * 100} color={t.design === 'dallaglio' ? chart.accent : ACCENT_HEX.blue} showValue={false} />
                 </div>
                 <div className={`pl-3 border-l-2 ${t.border} space-y-1`}>
                   {emp.instances.length === 0 ? (
@@ -2099,7 +2125,7 @@ function OvertimeContent() {
   const t = useTheme();
   const sections = useCollapseSection({ hero: true, quickStats: true, filters: true, filterSummary: true });
 
-  const { records, setRecords, loading, refreshing, refresh: load } = useOvertimeData();
+  const { records, setRecords, loading, refreshing, error: loadError, refresh: load } = useOvertimeData();
   // Joined live against employee master data (not stored on the OT record) so
   // section analytics always reflect the current roster, not a snapshot that
   // might predate the employee's section being set.
@@ -2114,6 +2140,8 @@ function OvertimeContent() {
   const [view, setView] = useState<'table' | 'grid'>('table');
   const [dateSort, setDateSort] = useState<'desc' | 'asc'>('desc');
   const [mainTab, setMainTab] = useState<'records' | 'insights' | 'weekly-summary'>('records');
+  const [recordsPage, setRecordsPage] = useState(1);
+  const [recordsPageSize, setRecordsPageSize] = useState(50);
 
   const [formOpen, setFormOpen] = useState(false);
   const [bulkFormOpen, setBulkFormOpen] = useState(false);
@@ -2140,6 +2168,14 @@ function OvertimeContent() {
     return true;
   }).sort((a, b) => dateSort === 'asc' ? a.date.localeCompare(b.date) : b.date.localeCompare(a.date)),
   [records, status, type, dateFrom, dateTo, employeeIds, search, dateSort]);
+  const recordsPageCount = Math.max(1, Math.ceil(filtered.length / recordsPageSize));
+  const visiblePage = Math.min(recordsPage, recordsPageCount);
+  const pageRecords = useMemo(
+    () => filtered.slice((visiblePage - 1) * recordsPageSize, visiblePage * recordsPageSize),
+    [filtered, visiblePage, recordsPageSize],
+  );
+  const pageStart = filtered.length === 0 ? 0 : (visiblePage - 1) * recordsPageSize + 1;
+  const pageEnd = Math.min(visiblePage * recordsPageSize, filtered.length);
 
   // Month quick-filter — reads off `records` (not `filtered`), so the chip list itself
   // doesn't shrink as the user filters by other criteria. Newest first, capped so a
@@ -2255,9 +2291,13 @@ function OvertimeContent() {
   // Only pending records are selectable — approve/reject is the only bulk action, and a
   // stale selection (e.g. someone else approved one mid-session) is filtered out again
   // at submit time rather than trusted.
-  const pendingInView = useMemo(() => filtered.filter(r => r.status === 'pending'), [filtered]);
+  const pendingInView = useMemo(() => pageRecords.filter(r => r.status === 'pending'), [pageRecords]);
   const allPendingSelected = pendingInView.length > 0 && pendingInView.every(r => selectedIds.has(String(r.id)));
-  const toggleSelectAll = () => setSelectedIds(allPendingSelected ? new Set() : new Set(pendingInView.map(r => String(r.id))));
+  const toggleSelectAll = () => setSelectedIds(prev => {
+    const next = new Set(prev);
+    pendingInView.forEach(r => { if (allPendingSelected) next.delete(String(r.id)); else next.add(String(r.id)); });
+    return next;
+  });
   const toggleSelect = (id: string) => setSelectedIds(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const selectedRecords = useMemo(() => records.filter(r => r.status === 'pending' && selectedIds.has(String(r.id))), [records, selectedIds]);
 
@@ -2315,7 +2355,7 @@ function OvertimeContent() {
   const GridCard = ({ r }: { r: OTRecord }) => {
     const hours = calcHours(r.start_time, r.end_time);
     return (
-      <GlowCard onClick={() => setViewing(r)} color={STATUS_HEX[r.status]} surface={`${t.glass} rounded-xl`} className="p-4">
+      <GlowCard onClick={() => setViewing(r)} color={t.design === 'dallaglio' ? 'var(--d-accent)' : STATUS_HEX[r.status]} surface={`${t.glass} rounded-xl`} className="p-4">
         <div className="flex items-start justify-between mb-2">
           <div className="flex items-center gap-2">
             <Avatar name={r.employee_name} />
@@ -2332,7 +2372,15 @@ function OvertimeContent() {
           <p>{fmtDate(r.date)} · {r.start_time}–{r.end_time} {hours > 0 && <span className={`text-brand-400 ${TYPE_WEIGHT.semibold}`}>({hours.toFixed(1)}h)</span>}</p>
           <p className="truncate">{r.reason}</p>
         </div>
-        <div className="flex gap-1 mt-3">
+        {t.design === 'dallaglio' ? <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-[var(--d-line)] pt-3">
+          {r.status === 'pending' && <>
+            <Button variant="secondary" size="xs" icon={CheckCircle2} onClick={e => { e.stopPropagation(); setApproving(r); }}>Approve</Button>
+            <Button variant="ghost" size="xs" onClick={e => { e.stopPropagation(); setRejecting(r); }}>Reject</Button>
+          </>}
+          <span className="ml-auto" />
+          <IconAction meaning="edit" title="Edit request" onClick={e => { e.stopPropagation(); setEditing(r); setFormOpen(true); }} />
+          <IconAction meaning="danger" tone="danger" title="Delete request" onClick={e => { e.stopPropagation(); setDelTarget(r); }} />
+        </div> : <div className="flex gap-1 mt-3">
           {r.status === 'pending' && (
             <>
               <button type="button" onClick={e => { e.stopPropagation(); setApproving(r); }} className={`flex-1 py-1 text-[10px] ${TYPE_WEIGHT.semibold} rounded-lg bg-emerald-500/15 ${accentText('emerald', t.light)} hover:bg-emerald-500/25 transition-all`}>Approve</button>
@@ -2341,7 +2389,7 @@ function OvertimeContent() {
           )}
           <button type="button" title="Edit" onClick={e => { e.stopPropagation(); setEditing(r); setFormOpen(true); }} className={`h-6 w-6 flex items-center justify-center rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-all`}><Edit className="h-3 w-3" /></button>
           <button type="button" title="Delete" onClick={e => { e.stopPropagation(); setDelTarget(r); }} className={`h-6 w-6 flex items-center justify-center rounded-lg ${t.chipBg} hover:bg-rose-500/20 ${t.textFaint} hover:${t.light ? 'text-rose-600' : 'text-rose-400'} transition-all`}><Trash2 className="h-3 w-3" /></button>
-        </div>
+        </div>}
       </GlowCard>
     );
   };
@@ -2357,13 +2405,8 @@ function OvertimeContent() {
         statsOpen={sections.expanded.hero}
         actions={
           <>
-            <button type="button" onClick={() => load(true)} title="Refresh" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}>
-              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-            </button>
-            <button type="button" title={sections.expanded.hero ? 'Hide hero stats' : 'Show hero stats'} onClick={() => sections.toggle('hero')}
-              className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all`}>
-              {sections.expanded.hero ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-            </button>
+            {t.design === 'dallaglio' ? <IconAction meaning="refresh" title="Refresh records" onClick={() => load(true)} spinning={refreshing} /> : <button type="button" onClick={() => load(true)} title="Refresh" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}><RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} /></button>}
+            {t.design === 'dallaglio' ? <IconAction meaning="eye" title={sections.expanded.hero ? 'Hide overview' : 'Show overview'} onClick={() => sections.toggle('hero')} active={sections.expanded.hero} /> : <button type="button" title={sections.expanded.hero ? 'Hide hero stats' : 'Show hero stats'} onClick={() => sections.toggle('hero')} className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all`}>{sections.expanded.hero ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}</button>}
             {records.length > 0 && (
               <DownloadButton
                 data={records as unknown as Record<string, unknown>[]}
@@ -2373,22 +2416,22 @@ function OvertimeContent() {
                 formats={['excel']}
               />
             )}
-            <PrimaryButton icon={UsersRound} accent="indigo" onClick={() => setBulkFormOpen(true)}>
+            <Button variant="secondary" icon={UsersRound} onClick={() => setBulkFormOpen(true)}>
               Bulk Entry
-            </PrimaryButton>
+            </Button>
             <PrimaryButton icon={Plus} onClick={() => { setEditing(null); setFormOpen(true); }}>New Request</PrimaryButton>
           </>
         }
       >
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <StatTile icon={Clock4} color={ACCENT_HEX.blue} label="Total Requests" value={stats.total} />
-          <StatTile icon={Clock4} color="#fbbf24" label="Pending" value={stats.pending} onClick={() => setStatus('pending')} />
-          <StatTile icon={CheckCircle2} color="#34d399" label="Approved" value={stats.approved} onClick={() => setStatus('approved')} />
-          <StatTile icon={Calendar} color={ACCENT_HEX.blue} label="Total Hours" value={`${stats.totalHrs}h`} />
+          <StatTile icon={Clock4} color={ACCENT_HEX.blue} label="Total Requests" value={loading || (loadError && !records.length) ? '—' : stats.total} />
+          <StatTile icon={Clock4} color="#fbbf24" label="Pending" value={loading || (loadError && !records.length) ? '—' : stats.pending} onClick={() => setStatus('pending')} />
+          <StatTile icon={CheckCircle2} color="#34d399" label="Approved" value={loading || (loadError && !records.length) ? '—' : stats.approved} onClick={() => setStatus('approved')} />
+          <StatTile icon={Calendar} color={ACCENT_HEX.blue} label="Total Hours" value={loading || (loadError && !records.length) ? '—' : `${stats.totalHrs}h`} />
         </div>
       </PageHero>
 
-      <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
+      {t.design !== 'dallaglio' && <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
         <CollapsibleHeader
           icon={Gauge}
           title="Quick stats"
@@ -2404,13 +2447,13 @@ function OvertimeContent() {
             <div className={`${t.chipBg} rounded-xl p-4`}><div className="flex items-center gap-1.5 mb-1"><Calendar className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs ${t.textFaint}`}>OT Hours</span></div><div className={`text-xl ${TYPE_WEIGHT.bold} text-brand-400`}>{stats.totalHrs}h</div></div>
           </div>
         )}
-      </div>
+      </div>}
 
       <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
         <CollapsibleHeader
           icon={Search}
           title="Filters"
-          sub={hasActiveFilter ? `${filtered.length} of ${records.length} shown` : `${records.length} records`}
+          sub={loadError && !records.length ? 'Records unavailable' : hasActiveFilter ? `${filtered.length} of ${records.length} shown` : `${records.length} records`}
           open={sections.expanded.filters}
           onToggle={() => sections.toggle('filters')}
         />
@@ -2436,7 +2479,10 @@ function OvertimeContent() {
               <div className="flex gap-1.5 overflow-x-auto pb-0.5">
                 {monthOptions.map(m => (
                   <button key={m.key} type="button" onClick={() => toggleMonthFilter(m)}
-                    className={`shrink-0 px-2.5 py-1 rounded-full text-xs ${TYPE_WEIGHT.medium} whitespace-nowrap transition-colors ${activeMonth === m.key ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText}`}`}>
+                    aria-pressed={activeMonth === m.key}
+                    className={t.design === 'dallaglio'
+                      ? `shrink-0 rounded-[var(--d-radius-sm)] border px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors ${activeMonth === m.key ? 'border-[var(--d-accent)] bg-[var(--d-accent-soft)] text-[var(--d-accent)]' : 'border-[var(--d-line)] bg-[var(--d-surface)] text-[var(--d-ink-muted)] hover:border-[var(--d-line-strong)] hover:text-[var(--d-ink)]'}`
+                      : `shrink-0 px-2.5 py-1 rounded-full text-xs ${TYPE_WEIGHT.medium} whitespace-nowrap transition-colors ${activeMonth === m.key ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText}`}`}>
                     {m.label}
                   </button>
                 ))}
@@ -2460,11 +2506,8 @@ function OvertimeContent() {
               className={`flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg transition-colors ${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText}`}>
               {dateSort === 'asc' ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />} Date
             </button>
-            <div className="ml-auto flex gap-1">
-              <button type="button" title="Table view" onClick={() => setView('table')} className={`h-7 w-7 flex items-center justify-center rounded-lg transition-all ${view === 'table' ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}><List className="h-3.5 w-3.5" /></button>
-              <button type="button" title="Grid view" onClick={() => setView('grid')} className={`h-7 w-7 flex items-center justify-center rounded-lg transition-all ${view === 'grid' ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}><LayoutGrid className="h-3.5 w-3.5" /></button>
-            </div>
-            <span className={`text-xs ${t.textFaint}`}>{filtered.length} of {records.length}</span>
+            <div className="ml-auto"><ViewToggle value={view} onChange={setView} options={[{ value: 'table', meaning: 'list-view', icon: List, label: 'List view' }, { value: 'grid', meaning: 'grid-view', icon: LayoutGrid, label: 'Grid view' }]} /></div>
+            <span className={`text-xs ${t.textFaint}`}>{loading ? 'Loading…' : loadError && !records.length ? 'Unavailable' : `${filtered.length} of ${records.length}`}</span>
           </div>
         </div>
         )}
@@ -2490,8 +2533,18 @@ function OvertimeContent() {
         </div>
       )}
 
+      {loadError && (
+        <div role="alert" className={`${t.glass} flex flex-wrap items-center gap-3 rounded-2xl border border-rose-500/30 px-4 py-3`}>
+          <AlertCircle className="h-5 w-5 shrink-0 text-rose-500" aria-hidden="true" />
+          <p className={`min-w-0 flex-1 text-sm ${t.textPrimary}`}>
+            {records.length > 0 ? `Could not refresh overtime records. Showing the last loaded list. ${loadError}` : loadError}
+          </p>
+          <Button variant="secondary" size="xs" icon={RefreshCw} onClick={() => load(records.length > 0)} disabled={refreshing}>Retry</Button>
+        </div>
+      )}
+
       <PillTabs
-        tabs={[{ key: 'records', label: 'Records', icon: FileText }, { key: 'insights', label: 'Overtime Insights', icon: Lightbulb }, { key: 'weekly-summary', label: 'Weekly Summary', icon: CalendarRange }]}
+        tabs={[{ key: 'records', label: 'Records', icon: FileText, meaning: 'documents' }, { key: 'insights', label: 'Overtime Insights', icon: Lightbulb, meaning: 'analytics' }, { key: 'weekly-summary', label: 'Weekly Summary', icon: CalendarRange, meaning: 'week' }]}
         value={mainTab}
         onChange={setMainTab}
       />
@@ -2501,6 +2554,11 @@ function OvertimeContent() {
       ) : mainTab === 'records' ? (
         loading ? (
           <div className="flex items-center justify-center py-16"><RefreshCw className={`h-6 w-6 animate-spin ${t.textFaint}`} /></div>
+        ) : loadError && records.length === 0 ? (
+          <div className={`${t.glass} rounded-2xl ${t.shadow} px-5 py-12 text-center`}>
+            <AlertCircle className={`mx-auto mb-3 h-8 w-8 ${t.textFaint}`} aria-hidden="true" />
+            <p className={`${t.textPrimary}`}>Your overtime records are temporarily unavailable.</p>
+          </div>
         ) : filtered.length === 0 ? (
           <div className={`${t.glass} rounded-2xl ${t.shadow}`}>
             <EmptyState icon={Clock4} title="No overtime requests" message="No records match your filters."
@@ -2508,16 +2566,22 @@ function OvertimeContent() {
           </div>
         ) : view === 'grid' ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {filtered.map(r => <GridCard key={String(r.id)} r={r} />)}
+            {pageRecords.map(r => <GridCard key={String(r.id)} r={r} />)}
           </div>
         ) : (
           <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
             {selectedIds.size > 0 && (
-              <div className={`flex items-center gap-2 px-5 py-2.5 border-b ${t.border} bg-brand-500/[0.06]`}>
+              <div className={`flex flex-wrap items-center gap-2 px-5 py-2.5 border-b ${t.border} ${t.design === 'dallaglio' ? 'bg-[var(--d-soft)]' : 'bg-brand-500/[0.06]'}`}>
                 <span className={`text-xs ${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{selectedIds.size} selected</span>
-                <button type="button" onClick={() => setBulkAction('approve')} className={`flex items-center gap-1 text-[11px] ${TYPE_WEIGHT.semibold} px-2.5 py-1 rounded-lg bg-emerald-500/15 ${accentText('emerald', t.light)} hover:bg-emerald-500/25 transition-all`}><CheckCircle2 className="h-3 w-3" /> Approve</button>
-                <button type="button" onClick={() => setBulkAction('reject')} className={`flex items-center gap-1 text-[11px] ${TYPE_WEIGHT.semibold} px-2.5 py-1 rounded-lg bg-rose-500/15 ${accentText('rose', t.light)} hover:bg-rose-500/25 transition-all`}><XCircle className="h-3 w-3" /> Reject</button>
-                <button type="button" onClick={() => setSelectedIds(new Set())} className={`ml-auto text-[11px] ${t.textFaint} ${t.hoverText} transition-colors`}>Clear</button>
+                {t.design === 'dallaglio' ? <>
+                  <Button variant="secondary" size="xs" icon={CheckCircle2} onClick={() => setBulkAction('approve')}>Approve</Button>
+                  <Button variant="danger" size="xs" icon={XCircle} onClick={() => setBulkAction('reject')}>Reject</Button>
+                  <Button variant="ghost" size="xs" onClick={() => setSelectedIds(new Set())} className="ml-auto">Clear selection</Button>
+                </> : <>
+                  <button type="button" onClick={() => setBulkAction('approve')} className={`flex items-center gap-1 text-[11px] ${TYPE_WEIGHT.semibold} px-2.5 py-1 rounded-lg bg-emerald-500/15 ${accentText('emerald', t.light)} hover:bg-emerald-500/25 transition-all`}><CheckCircle2 className="h-3 w-3" /> Approve</button>
+                  <button type="button" onClick={() => setBulkAction('reject')} className={`flex items-center gap-1 text-[11px] ${TYPE_WEIGHT.semibold} px-2.5 py-1 rounded-lg bg-rose-500/15 ${accentText('rose', t.light)} hover:bg-rose-500/25 transition-all`}><XCircle className="h-3 w-3" /> Reject</button>
+                  <button type="button" onClick={() => setSelectedIds(new Set())} className={`ml-auto text-[11px] ${t.textFaint} ${t.hoverText} transition-colors`}>Clear</button>
+                </>}
               </div>
             )}
             <div className="overflow-x-auto">
@@ -2525,7 +2589,7 @@ function OvertimeContent() {
                 <thead className={`border-b ${t.border}`}>
                   <tr>
                     <th className={`${thCls} w-8`}>
-                      {pendingInView.length > 0 && <input type="checkbox" checked={allPendingSelected} onChange={toggleSelectAll} title="Select all pending" aria-label="Select all pending" className="rounded" />}
+                      {pendingInView.length > 0 && <input type="checkbox" checked={allPendingSelected} onChange={toggleSelectAll} title="Select pending on this page" aria-label="Select pending on this page" className="rounded" />}
                     </th>
                     <th className={thCls}>Employee</th><th className={thCls}>Type</th>
                     <th className={thCls}>
@@ -2537,7 +2601,7 @@ function OvertimeContent() {
                     <th className={thCls}>Hours</th><th className={thCls}>Reason</th><th className={thCls}>Status</th><th className={thCls} aria-label="Actions"></th></tr>
                 </thead>
                 <tbody>
-                  {filtered.map(r => {
+                  {pageRecords.map(r => {
                     const h = calcHours(r.start_time, r.end_time);
                     return (
                       <tr key={r.id} onClick={() => setViewing(r)} className={`border-b ${t.border} ${t.hoverBgSoft} transition-colors cursor-pointer`}>
@@ -2557,6 +2621,17 @@ function OvertimeContent() {
                         <td className={tdCls}><StatusBadge color={STATUS_HEX[r.status]} label={r.status} /></td>
                         <td className={tdCls}>
                           <div className="flex items-center gap-1">
+                            {t.design === 'dallaglio' ? (
+                              <>
+                                <IconAction meaning="eye" title="View request" onClick={e => { e.stopPropagation(); setViewing(r); }} />
+                                <IconAction meaning="edit" title="Edit request" onClick={e => { e.stopPropagation(); setEditing(r); setFormOpen(true); }} />
+                                {r.status === 'pending' && <>
+                                  <IconAction meaning="check" tone="success" title="Approve request" onClick={e => { e.stopPropagation(); setApproving(r); }} />
+                                  <IconAction meaning="close" tone="danger" title="Reject request" onClick={e => { e.stopPropagation(); setRejecting(r); }} />
+                                </>}
+                                <IconAction meaning="danger" tone="danger" title="Delete request" onClick={e => { e.stopPropagation(); setDelTarget(r); }} />
+                              </>
+                            ) : <>
                             <button type="button" title="View" onClick={e => { e.stopPropagation(); setViewing(r); }} className={`h-6 w-6 flex items-center justify-center rounded-md ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-all`}><Eye className="h-3 w-3" /></button>
                             <button type="button" title="Edit" onClick={e => { e.stopPropagation(); setEditing(r); setFormOpen(true); }} className={`h-6 w-6 flex items-center justify-center rounded-md ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-all`}><Edit className="h-3 w-3" /></button>
                             {r.status === 'pending' && (
@@ -2566,6 +2641,7 @@ function OvertimeContent() {
                               </>
                             )}
                             <button type="button" title="Delete" onClick={e => { e.stopPropagation(); setDelTarget(r); }} className={`h-6 w-6 flex items-center justify-center rounded-md ${t.chipBg} hover:bg-rose-500/20 ${t.textFaint} hover:${t.light ? 'text-rose-600' : 'text-rose-400'} transition-all`}><Trash2 className="h-3 w-3" /></button>
+                            </>}
                           </div>
                         </td>
                       </tr>
@@ -2578,6 +2654,21 @@ function OvertimeContent() {
         )
       ) : (
         <OvertimeInsightsView filtered={filtered} employees={employees} employeePicks={employeePicks} onToggleArtisan={toggleArtisanFilter} />
+      )}
+
+      {mainTab === 'records' && filtered.length > 0 && !loading && (
+        <nav aria-label="Overtime records pages" className={`flex flex-wrap items-center gap-2 rounded-2xl px-4 py-3 ${t.glass} ${t.shadow}`}>
+          <span className={`mr-auto text-sm ${t.textMuted}`}>Showing {pageStart}–{pageEnd} of {filtered.length} records</span>
+          <label className={`flex items-center gap-2 text-xs ${t.textMuted}`}>
+            Per page
+            <select aria-label="Records per page" value={recordsPageSize} onChange={e => { setRecordsPageSize(Number(e.target.value)); setRecordsPage(1); }} className={`h-9 rounded-lg px-2 ${t.inputBg}`}>
+              <option value={25}>25</option><option value={50}>50</option><option value={100}>100</option>
+            </select>
+          </label>
+          <Button variant="secondary" size="xs" onClick={() => setRecordsPage(p => Math.max(1, p - 1))} disabled={visiblePage === 1}>Previous</Button>
+          <span className={`min-w-16 text-center text-xs ${t.textMuted}`} aria-live="polite">{visiblePage} / {recordsPageCount}</span>
+          <Button variant="secondary" size="xs" onClick={() => setRecordsPage(p => Math.min(recordsPageCount, p + 1))} disabled={visiblePage === recordsPageCount}>Next</Button>
+        </nav>
       )}
 
       <OTFormModal open={formOpen} onClose={() => { setFormOpen(false); setEditing(null); }} onSave={handleSave} editing={editing} records={records} />

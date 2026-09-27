@@ -4,7 +4,7 @@
 // convention, same load(quiet) shape as sheq_inspection/pto/vfl/work_stoppage.
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/apiClient';
 import { toast } from 'sonner';
 import type { NearMissReport } from './types';
@@ -35,16 +35,28 @@ export function useNearMissData() {
   const [loadError, setLoadError] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const [reports, setReports] = useState<NearMissReport[]>([]);
+  const requestRef = useRef(0);
 
   const loadReports = async (quiet = false) => {
-    if (!quiet) setLoading(true);
-    setRefreshing(true);
-    try { setReports(await getReports()); setLoadError(''); }
+    const requestId = ++requestRef.current;
+    if (!quiet) setLoading(true); else setRefreshing(true);
+    setLoadError('');
+    try {
+      const nextReports = await getReports();
+      if (requestId !== requestRef.current) return;
+      setReports(nextReports);
+    }
     catch (e) {
+      if (requestId !== requestRef.current) return;
       setLoadError(e instanceof Error ? e.message : 'Could not load reports.');
       toast.error('Failed to load reports');
     }
-    finally { setLoading(false); setRefreshing(false); }
+    finally {
+      if (requestId === requestRef.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    }
   };
 
   useEffect(() => { loadReports(); }, []);

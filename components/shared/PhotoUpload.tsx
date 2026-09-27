@@ -3,7 +3,7 @@
 import { useId, useRef, useState } from 'react';
 import { API_BASE } from '@/lib/config';
 import { authFetch } from '@/lib/api';
-import { Camera, Upload, X, ZoomIn, ImageIcon, CloseButton } from '@/components/shared/theme';
+import { Camera, Upload, X, ZoomIn, ImageIcon, CloseButton, useTheme } from '@/components/shared/theme';
 
 const API = API_BASE;
 
@@ -33,6 +33,8 @@ export function PhotoUpload({
   disabled = false,
   accentColor = '#86BBD8',
 }: PhotoUploadProps) {
+  const theme = useTheme();
+  const dallaglio = theme.design === 'dallaglio';
   const uid = useId();
   const fileInputId = `photo-upload-file-${uid}`;
   const cameraInputId = `photo-upload-camera-${uid}`;
@@ -93,13 +95,13 @@ export function PhotoUpload({
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5">
-          <ImageIcon className="h-3.5 w-3.5" style={{ color: accentColor }} />
-          <p className="text-xs font-semibold text-white/75">{label}</p>
+          <ImageIcon className={`h-3.5 w-3.5 ${dallaglio ? theme.textFaint : ''}`} style={dallaglio ? undefined : { color: accentColor }} />
+          <p className={`text-xs font-semibold ${dallaglio ? theme.textPrimary : 'text-white/75'}`}>{label}</p>
           {description && (
-            <span className="text-[10px] text-white/35 ml-1">— {description}</span>
+            <span className={`text-[10px] ml-1 ${dallaglio ? theme.textFaint : 'text-white/35'}`}>— {description}</span>
           )}
         </div>
-        <span className="text-[10px] text-white/30 tabular-nums">
+        <span className={`text-[10px] tabular-nums ${dallaglio ? theme.textFaint : 'text-white/30'}`}>
           {photos.length}&thinsp;/&thinsp;{maxPhotos}
         </span>
       </div>
@@ -110,8 +112,8 @@ export function PhotoUpload({
           {photos.map((url, idx) => (
             <div
               key={idx}
-              className="relative group aspect-square rounded-xl overflow-hidden bg-white/[0.04]"
-              style={{ border: '1px solid rgba(255,255,255,0.10)' }}
+              className={`relative group aspect-square rounded-xl overflow-hidden ${dallaglio ? `${theme.chipBg} border ${theme.border}` : 'bg-white/[0.04]'}`}
+              style={dallaglio ? undefined : { border: '1px solid rgba(255,255,255,0.10)' }}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
@@ -152,14 +154,14 @@ export function PhotoUpload({
       {/* Upload progress */}
       {uploading && (
         <div className="space-y-1">
-          <div className="flex justify-between text-[10px] text-white/40">
+          <div className={`flex justify-between text-[10px] ${dallaglio ? theme.textFaint : 'text-white/40'}`}>
             <span>Uploading…</span>
             <span>{progress}%</span>
           </div>
-          <div className="h-1 rounded-full bg-white/10 overflow-hidden">
+          <div className={`h-1 rounded-full overflow-hidden ${dallaglio ? theme.chipBg : 'bg-white/10'}`}>
             <div
               className="h-full rounded-full transition-all duration-300"
-              style={{ width: `${progress}%`, background: accentColor }}
+              style={{ width: `${progress}%`, background: dallaglio ? 'var(--d-accent)' : accentColor }}
             />
           </div>
         </div>
@@ -167,7 +169,7 @@ export function PhotoUpload({
 
       {/* Error */}
       {uploadErr && (
-        <p className="text-[10px] text-red-400 flex items-center gap-1">
+        <p className={`text-[10px] flex items-center gap-1 ${dallaglio ? 'text-[var(--d-danger)]' : 'text-red-400'}`}>
           <X className="h-3 w-3 shrink-0" />
           {uploadErr}
           <button type="button" onClick={() => setUploadErr('')} className="underline ml-auto">
@@ -182,8 +184,10 @@ export function PhotoUpload({
           {/* File upload */}
           <label
             htmlFor={fileInputId}
-            className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl cursor-pointer transition-all text-xs text-white/45 hover:text-white/75 border-[1.5px] border-dashed border-white/15 bg-white/[0.03] hover:border-[var(--photo-upload-accent)]"
-            style={{ '--photo-upload-accent': `${accentColor}50` } as React.CSSProperties}
+            className={dallaglio
+              ? 'flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-[9px] cursor-pointer transition-colors text-xs text-[var(--d-ink-muted)] hover:text-[var(--d-accent)] border border-dashed border-[var(--d-line)] bg-[var(--d-surface)] hover:border-[var(--d-accent)]'
+              : 'flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl cursor-pointer transition-all text-xs text-white/45 hover:text-white/75 border-[1.5px] border-dashed border-white/15 bg-white/[0.03] hover:border-[var(--photo-upload-accent)]'}
+            style={dallaglio ? undefined : { '--photo-upload-accent': `${accentColor}50` } as React.CSSProperties}
           >
             <Upload className="h-3.5 w-3.5 shrink-0" />
             <span>Upload photo{maxPhotos - photos.length > 1 ? 's' : ''}</span>
@@ -202,9 +206,11 @@ export function PhotoUpload({
           {/* Camera capture */}
           <label
             htmlFor={cameraInputId}
-            className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl cursor-pointer transition-all text-xs text-white/45 hover:text-white/75 border border-white/[0.12] bg-white/[0.03] hover:border-[var(--photo-upload-accent)]"
+            className={dallaglio
+              ? 'flex items-center gap-1.5 px-3 py-2.5 rounded-[9px] cursor-pointer transition-colors text-xs text-[var(--d-ink-muted)] hover:text-[var(--d-accent)] border border-[var(--d-line)] bg-[var(--d-surface)] hover:border-[var(--d-accent)]'
+              : 'flex items-center gap-1.5 px-3 py-2.5 rounded-xl cursor-pointer transition-all text-xs text-white/45 hover:text-white/75 border border-white/[0.12] bg-white/[0.03] hover:border-[var(--photo-upload-accent)]'}
             title="Take a photo with camera"
-            style={{ '--photo-upload-accent': `${accentColor}40` } as React.CSSProperties}
+            style={dallaglio ? undefined : { '--photo-upload-accent': `${accentColor}40` } as React.CSSProperties}
           >
             <Camera className="h-3.5 w-3.5 shrink-0" />
             <span className="hidden sm:inline">Camera</span>
@@ -223,7 +229,7 @@ export function PhotoUpload({
       )}
 
       {photos.length >= maxPhotos && !disabled && (
-        <p className="text-[10px] text-white/30 text-center py-1">
+        <p className={`text-[10px] text-center py-1 ${dallaglio ? theme.textFaint : 'text-white/30'}`}>
           Maximum {maxPhotos} photos reached
         </p>
       )}

@@ -2,7 +2,10 @@
   position: relative;
   display: flex;
   flex-direction: column;
+  width: 100%;
+  max-width: 100vw;
   height: 100vh;
+  overflow-x: clip;
   background: var(--d-canvas);
   color: var(--d-ink);
   font: var(--d-type);
@@ -50,10 +53,10 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  height: 34px;
+  height: 36px;
   padding: 0 10px;
   border: 1px solid var(--d-line);
-  border-radius: 8px;
+  border-radius: 9px;
   background: var(--d-surface);
   color: var(--d-ink-muted);
   font-size: 11px;
@@ -70,10 +73,10 @@
 .iconBtn {
   display: grid;
   place-items: center;
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   border: 1px solid var(--d-line);
-  border-radius: 8px;
+  border-radius: 9px;
   background: var(--d-surface);
   color: var(--d-ink-muted);
 }
@@ -143,6 +146,9 @@ html[data-design='dallaglio'] .segment:focus-visible {
 }
 
 .main {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
   background: var(--d-canvas);
 }
 

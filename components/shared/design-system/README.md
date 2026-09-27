@@ -1,5 +1,43 @@
 # Shared Design System
 
+## Dallaglio migration (current)
+
+`html[data-design='dallaglio']` selects the Tools-derived canvas, type, line,
+accent, and status tokens in `dallaglio/palette.css`. Keep Classic's styles in
+their own branches. Shared controls (`Button`, `IconAction`, `RecordActions`,
+`DetailActions`, `DisclosureButton`, `CloseButton`,
+`PillTabs`, `UnderlineTabs`, `ViewToggle`, `CollapsibleHeader`, `InfoCard`) own
+the Dallaglio appearance; pages provide meaning and behavior. Give view and
+section icons semantic names through `DsIcon` where possible. Use neutral
+iconography for categories; reserve success, warning and danger colors for
+actual record states. `chartTheme()` supplies the chart series, axes, grid and
+tooltip colors for both themes. `DownloadButton` owns the export trigger/menu.
+Do not add a per-page Dallaglio copy of a shared control.
+
+Run `node scripts/audit-dallaglio.mjs` to inventory page-local controls and
+literal non-brand colors across every route. Its counts are review leads:
+status colors and specialist interactions may be intentional. A visual review
+in both themes and at desktop/tablet/phone widths is still required.
+The initial scan covers 61 route files. Of these, 55 call a shared button,
+header, card or view toggle. The remaining routes are `/maintenance`,
+`/standby`, `/employees-preview`, `/tools`, `/login`, and `/auth/callback`;
+some use specialist surfaces or no application controls. Page-local controls
+still need review against their purpose.
+
+### Measured Dallaglio control contract
+
+The same function uses the same component across modules. `Button` owns labelled
+actions, `IconAction` owns icon-only actions, `DisclosureButton` owns record
+expansion, `RecordActions` owns View/Edit/Delete on register cards, and
+`DetailActions` owns the corresponding detail-dialog footer. The Dallaglio
+controls use a 36px standard target, 9px corners, 1px surface border, and
+light-weight stroke icons. Category labels and structure are neutral. Purple
+identifies the active choice or main task; green, amber, and red report actual
+states. Delete stays visually quiet until the confirmation step. These
+measurements are implemented in the shared components and Dallaglio CSS,
+rather than copied into pages. Any deliberate exception needs a reason tied
+to the control's purpose.
+
 This directory (`components/shared/design-system/`) is the **single source of
 truth** for styling, theming, and reusable UI primitives across every page of
 the ERP. `components/shared/theme.tsx` is a thin re-export shim kept only so
@@ -34,8 +72,8 @@ needing to be repeated across every page that copied the pattern.**
 
 | File | Contents |
 |---|---|
-| `tokens.tsx` | `useTheme()`, `ThemeProvider`, `design: 'studio' \| 'paper'`, `ACCENT`/`ACCENT_HEX`, `STATUS_TONE`, `decorativeAccentHex`, `isStatusToneHex`, `uiIconClass`, `TYPE_SCALE`, `SPACING`, `RADIUS`. Read colors from here — see [`docs/COLOR_HARMONY.md`](../../docs/COLOR_HARMONY.md). |
-| `bases/` | Named design languages. **Studio** is the default glass/glow base; **Paper** is the Tools-derived canvas base. Switching `myoffice_design` restyles every AppShell page through `themeClasses` + `[data-ds]` primitives. `/tools` stays on its own CSS module. |
+| `tokens.tsx` | `useTheme()`, `ThemeProvider`, `design: 'classic' \| 'dallaglio'`, `ACCENT`/`ACCENT_HEX`, `STATUS_TONE`, `decorativeAccentHex`, `isStatusToneHex`, `uiIconClass`, `TYPE_SCALE`, `SPACING`, `RADIUS`. Read colors from here — see [`docs/COLOR_HARMONY.md`](../../docs/COLOR_HARMONY.md). |
+| `dallaglio/` | Tools-derived canvas, controls, icons, and shell styles. Switching `myoffice_design` restyles AppShell routes through `themeClasses` and shared components. `/tools` keeps its own CSS module. |
 | `color.ts` | Color math helpers (`hexToRgba`, `rgbaFromHexSafe`, etc.) for turning a hex into a themed rgba string. |
 | `motion.ts` | Shared framer-motion variants (`fadeUp`, `staggerContainer`, `fadeTextVariant`, `tileIconItem`/`tileTextContainer`/`tileTextItem`). Reuse these instead of writing a new `variants={{ ... }}` object per component — that's how animation timing/easing drifts out of sync across pages. |
 | `primitives.tsx` | Low-level reusable building blocks: `GlowCard`, `CountUp`, `EmptyState`, `Collapse`, `AnimatedText`, `PulsingIcon`. |

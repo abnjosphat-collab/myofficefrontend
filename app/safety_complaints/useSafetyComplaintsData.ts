@@ -5,7 +5,7 @@
 // cycle — same shape as sheq_inspection.
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { api as apiClient } from '@/lib/apiClient';
 import { toast } from 'sonner';
 import type { Complaint } from './types';
@@ -42,14 +42,30 @@ export function useSafetyComplaintsData() {
   const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const requestRef = useRef(0);
 
   const load = async (quiet = false) => {
-    if (!quiet) setLoading(true);
-    setRefreshing(true);
-    try { setComplaints(await api.list()); }
-    catch { toast.error('Failed to load complaints'); }
-    finally { setLoading(false); setRefreshing(false); }
+    const requestId = ++requestRef.current;
+    if (!quiet) setLoading(true); else setRefreshing(true);
+    setLoadError('');
+    try {
+      const nextComplaints = await api.list();
+      if (requestId !== requestRef.current) return;
+      setComplaints(Array.isArray(nextComplaints) ? nextComplaints : []);
+    }
+    catch (error) {
+      if (requestId !== requestRef.current) return;
+      setLoadError(error instanceof Error ? error.message : 'Could not load safety complaints.');
+      toast.error('Failed to load complaints');
+    }
+    finally {
+      if (requestId === requestRef.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    }
   };
 
-  return { complaints, setComplaints, loading, refreshing, load };
+  return { complaints, setComplaints, loading, refreshing, loadError, load };
 }

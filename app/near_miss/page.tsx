@@ -6,12 +6,12 @@ import {
   AlertTriangle, RefreshCw, Users, X,
 } from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
-import { api } from '@/lib/apiClient';
 import { formatDate } from '@/lib/format';
 import { toast } from 'sonner';
 import {
   useTheme, accentText, PageHero, StatTile, StatusBadge, SearchInput, FormField, FormActions,
   useCollapseSection, CenterModal, PrimaryButton, EmptyState, ACCENT_HEX, SelectField, useConfirm, TYPE_WEIGHT,
+  Button, IconAction, DisclosureButton, RecordActions, DetailActions,
 } from '@/components/shared/theme';
 import { PredictiveInput } from '@/components/shared/PredictiveInput';
 import { EmployeeNameInput } from '@/components/shared/EmployeeNameInput';
@@ -90,7 +90,7 @@ function ReportFormModal({ open, onClose, onSave, report }: {
     <CenterModal open={open} onClose={onClose} title={report ? 'Edit Near Miss Report' : 'New Near Miss Report'} accent="amber" width="max-w-2xl">
       <form onSubmit={handleSubmit}>
         <div className="p-5 space-y-4">
-          <div className="grid grid-cols-2 gap-3">
+          <div className={`grid gap-3 ${t.design === 'dallaglio' ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-2'}`}>
             <FormField label="Department" required>
               <PredictiveInput historyKey="nm_department" value={form.department || ''} onChange={v => set('department', v)}
                 placeholder="e.g. Engineering" hints={['Engineering', 'Mechanical', 'Electrical', 'Mining', 'Processing', 'Safety', 'Maintenance', 'Operations', 'HR', 'Administration']} />
@@ -110,7 +110,7 @@ function ReportFormModal({ open, onClose, onSave, report }: {
             <FormField label="Time" required>
               <input type="time" value={form.time || ''} onChange={e => set('time', e.target.value)} title="Incident time" aria-label="Incident time" className={inputCls} />
             </FormField>
-            <div className="col-span-2">
+            <div className={t.design === 'dallaglio' ? 'sm:col-span-2' : 'col-span-2'}>
               <FormField label="Location" required>
                 <ListAutocomplete listName="location" value={form.location || ''} onChange={v => set('location', v)} placeholder="Specific location details" />
               </FormField>
@@ -120,7 +120,7 @@ function ReportFormModal({ open, onClose, onSave, report }: {
             <PredictiveInput historyKey="nm_description" value={form.description || ''} onChange={v => set('description', v)} multiline rows={4}
               placeholder="Describe what happened, as it occurred…" hints={['While operating equipment', 'During routine maintenance', 'While working at height', 'Near moving machinery', 'Slipped on wet surface', 'Electrical flash observed']} />
           </FormField>
-          <div className="grid grid-cols-2 gap-3">
+          <div className={`grid gap-3 ${t.design === 'dallaglio' ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-2'}`}>
             <FormField label="Witness Details">
               <PredictiveInput historyKey="nm_witness" value={form.witnessDetails || ''} onChange={v => set('witnessDetails', v)} placeholder="Names and contact info" />
             </FormField>
@@ -145,7 +145,7 @@ function ReportDetailModal({ report, open, onClose, onEdit, onDelete }: {
   if (!report) return null;
   const fields = [
     { label: 'Department', value: report.department },
-    { label: 'Section', value: <StatusBadge color={SECTION_HEX[report.section]} label={report.section} /> },
+    { label: 'Section', value: <StatusBadge color={t.design === 'dallaglio' ? '#94a3b8' : SECTION_HEX[report.section]} label={report.section} /> },
     { label: 'Date', value: fmtDate(report.date) },
     { label: 'Time', value: fmtTime(report.time) },
     { label: 'Location', value: report.location, full: true },
@@ -154,7 +154,7 @@ function ReportDetailModal({ report, open, onClose, onEdit, onDelete }: {
   return (
     <CenterModal open={open} onClose={onClose} title="Near Miss Report Details" accent="amber" width="max-w-2xl">
       <div className="p-5 space-y-4">
-        <div className="grid grid-cols-2 gap-3 text-sm">
+        <div className={`grid gap-3 text-sm ${t.design === 'dallaglio' ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-2'}`}>
           {fields.map(f => (
             <div key={f.label} className={f.full ? 'col-span-2' : ''}>
               <div className={`text-[10px] uppercase tracking-wide mb-0.5 ${t.textFaint}`}>{f.label}</div>
@@ -173,11 +173,13 @@ function ReportDetailModal({ report, open, onClose, onEdit, onDelete }: {
           </div>
         )}
       </div>
-      <div className={`flex gap-2 px-5 py-4 border-t ${t.border}`}>
-        <button type="button" onClick={onClose} className={`flex-1 py-2 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border} transition-all`}>Close</button>
-        <button type="button" onClick={() => { onClose(); onEdit(report); }} className={`flex-1 py-2 rounded-xl text-sm ${TYPE_WEIGHT.medium} text-brand-400 hover:text-brand-300 border border-brand-400/25 transition-all`}>Edit</button>
-        <button type="button" onClick={() => { onClose(); onDelete(report.id); }} className={`flex-1 py-2 rounded-xl text-sm ${TYPE_WEIGHT.medium} ${accentText('rose', t.light)} hover:bg-rose-500/20 border border-rose-500/25 transition-all`}>Delete</button>
-      </div>
+      {t.design === 'dallaglio'
+        ? <div className={`px-5 py-4 border-t ${t.border}`}><DetailActions onClose={onClose} onEdit={() => { onClose(); onEdit(report); }} onDelete={() => { onClose(); onDelete(report.id); }} /></div>
+        : <div className={`flex gap-2 px-5 py-4 border-t ${t.border}`}>
+            <button type="button" onClick={onClose} className={`flex-1 py-2 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border} transition-all`}>Close</button>
+            <button type="button" onClick={() => { onClose(); onEdit(report); }} className={`flex-1 py-2 rounded-xl text-sm ${TYPE_WEIGHT.medium} text-brand-400 hover:text-brand-300 border border-brand-400/25 transition-all`}>Edit</button>
+            <button type="button" onClick={() => { onClose(); onDelete(report.id); }} className={`flex-1 py-2 rounded-xl text-sm ${TYPE_WEIGHT.medium} ${accentText('rose', t.light)} hover:bg-rose-500/20 border border-rose-500/25 transition-all`}>Delete</button>
+          </div>}
     </CenterModal>
   );
 }
@@ -238,6 +240,7 @@ function NearMissContent() {
   const toggleRow = (id: string) => setExpandedRows(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const clearFilters = () => { setSearch(''); setSectionFilter('all'); setDateFrom(''); setDateTo(''); };
   const hasFilters = !!(search || sectionFilter !== 'all' || dateFrom || dateTo);
+  const registerUnavailable = t.design === 'dallaglio' && (loading || (!!loadError && reports.length === 0));
 
   const selCls = `h-9 rounded-lg px-2.5 text-xs outline-none transition-colors ${t.inputBg}`;
   const thCls = `text-left px-3 py-2 text-[10px] uppercase tracking-wide ${TYPE_WEIGHT.medium} ${t.textFaint}`;
@@ -264,7 +267,9 @@ function NearMissContent() {
         statsOpen={sections.expanded.hero}
         actions={
           <>
-            <button type="button" onClick={() => loadReports(true)} title="Refresh" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}><RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} /></button>
+            {t.design === 'dallaglio'
+              ? <IconAction meaning="refresh" title="Refresh" onClick={() => loadReports(true)} disabled={refreshing} spinning={refreshing} />
+              : <button type="button" onClick={() => loadReports(true)} title="Refresh" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}><RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} /></button>}
             {filteredReports.length > 0 && (
               <DownloadButton
                 data={filteredReports as unknown as Record<string, unknown>[]}
@@ -275,28 +280,41 @@ function NearMissContent() {
                 statusColor={(_v, row) => SECTION_HEX[row.section as NearMissReport['section']]?.replace('#', '')}
               />
             )}
-            <PrimaryButton icon={AlertTriangle} accent="amber" onClick={() => { setEditingReport(null); setFormOpen(true); }}>New Report</PrimaryButton>
+            <PrimaryButton icon={AlertTriangle} accent="amber" disabled={registerUnavailable} onClick={() => { setEditingReport(null); setFormOpen(true); }}>New Report</PrimaryButton>
           </>
         }
       >
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-          <StatTile icon={AlertTriangle} color="#fbbf24" label="Total Reports" value={stats.total} />
-          <StatTile icon={AlertTriangle} color={ACCENT_HEX.blue} label="Mechanical" value={stats.bySection.Mechanical || 0} />
-          <StatTile icon={AlertTriangle} color="#fbbf24" label="Electrical" value={stats.bySection.Electrical || 0} />
-          <StatTile icon={AlertTriangle} color="#a78bfa" label="General" value={stats.bySection.General || 0} />
-          <StatTile icon={Users} color="#34d399" label="Unique Reporters" value={Object.keys(stats.byReporter).length} />
+          <StatTile icon={AlertTriangle} color="#fbbf24" label="Total Reports" value={registerUnavailable ? '—' : stats.total} />
+          <StatTile icon={AlertTriangle} color={t.design === 'dallaglio' ? '#94a3b8' : ACCENT_HEX.blue} label="Mechanical" value={registerUnavailable ? '—' : stats.bySection.Mechanical || 0} />
+          <StatTile icon={AlertTriangle} color={t.design === 'dallaglio' ? '#94a3b8' : '#fbbf24'} label="Electrical" value={registerUnavailable ? '—' : stats.bySection.Electrical || 0} />
+          <StatTile icon={AlertTriangle} color={t.design === 'dallaglio' ? '#94a3b8' : '#a78bfa'} label="General" value={registerUnavailable ? '—' : stats.bySection.General || 0} />
+          <StatTile icon={Users} color={t.design === 'dallaglio' ? '#94a3b8' : '#34d399'} label="Unique Reporters" value={registerUnavailable ? '—' : Object.keys(stats.byReporter).length} />
         </div>
       </PageHero>
+
+      {t.design === 'dallaglio' && loadError && (
+        <div role="alert" className={`${t.glass} ${t.shadow} rounded-2xl border ${t.border} px-5 py-4 flex flex-wrap items-center gap-4`}>
+          <AlertTriangle className="h-5 w-5 shrink-0 text-rose-500" />
+          <div className="min-w-0 flex-1">
+            <p className={`text-sm ${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>Could not load near miss reports</p>
+            <p className={`mt-0.5 text-xs ${t.textFaint}`}>{loadError}</p>
+          </div>
+          <Button variant="secondary" size="sm" onClick={() => loadReports()}>Try again</Button>
+        </div>
+      )}
 
       {sections.expanded.records && <>
         <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
           <div className="px-5 py-3 flex flex-wrap items-center gap-2">
-            <SearchInput value={search} onChange={setSearch} placeholder="Search department, reporter, location…" className="w-56" />
-            <SelectField size="filter" title="Section" value={sectionFilter} onChange={setSectionFilter}
+            <SearchInput value={search} onChange={setSearch} placeholder="Search department, reporter, location…" className={t.design === 'dallaglio' ? 'w-72 max-w-full' : 'w-56'} />
+            <SelectField size={t.design === 'dallaglio' ? 'form' : 'filter'} title="Section" value={sectionFilter} onChange={setSectionFilter}
               options={[{ value: 'all', label: 'All Sections' }, { value: 'Mechanical', label: 'Mechanical' }, { value: 'Electrical', label: 'Electrical' }, { value: 'General', label: 'General' }]} />
             <input type="date" title="From date" aria-label="From date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className={selCls} />
             <input type="date" title="To date" aria-label="To date" value={dateTo} onChange={e => setDateTo(e.target.value)} className={selCls} />
-            {hasFilters && <button type="button" onClick={clearFilters} className={`flex items-center gap-1 text-xs px-2 py-1.5 rounded-lg transition-colors ${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText}`}><X className="h-3 w-3" /> Clear</button>}
+            {hasFilters && (t.design === 'dallaglio'
+              ? <Button variant="ghost" size="sm" icon={X} title="Clear filters" onClick={clearFilters}>Clear</Button>
+              : <button type="button" onClick={clearFilters} className={`flex items-center gap-1 text-xs px-2 py-1.5 rounded-lg transition-colors ${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText}`}><X className="h-3 w-3" /> Clear</button>)}
             <span className={`text-[11px] ml-auto ${t.textFaint}`}>{filteredReports.length} of {reports.length}</span>
           </div>
         </div>
@@ -314,7 +332,7 @@ function NearMissContent() {
           <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><AlertTriangle className={`h-4 w-4 ${accentText('amber', t.light)}`} /><span className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>Near Miss Reports</span><span className={`ml-auto text-xs ${t.textFaint}`}>{filteredReports.length}</span></div>
           {loading ? (
             <div className="flex items-center justify-center py-16"><RefreshCw className={`h-6 w-6 animate-spin ${t.textFaint}`} /></div>
-          ) : loadError ? (
+          ) : t.design === 'dallaglio' && loadError && reports.length === 0 ? null : t.design !== 'dallaglio' && loadError ? (
             // Never show the friendly "no reports yet" state over a failed load.
             <EmptyState icon={AlertTriangle} title="Could not load reports"
               message={loadError}
@@ -337,14 +355,19 @@ function NearMissContent() {
                         <tr className={`border-b ${t.border} cursor-pointer transition-colors ${expanded ? t.chipBg : t.hoverBgSoft}`} onClick={() => { setSelectedReport(report); setDetailOpen(true); }}>
                           <td className="px-3 py-3 whitespace-nowrap"><div className={`text-xs ${t.textMuted}`}>{fmtDate(report.date)}</div><div className={`text-[10px] mt-0.5 ${t.textFaint}`}>{fmtTime(report.time)}</div></td>
                           <td className={`px-3 py-3 text-sm ${TYPE_WEIGHT.medium} ${t.textPrimary}`}>{report.department}</td>
-                          <td className="px-3 py-3"><StatusBadge color={SECTION_HEX[report.section]} label={report.section} /></td>
+                          <td className="px-3 py-3"><StatusBadge color={t.design === 'dallaglio' ? '#94a3b8' : SECTION_HEX[report.section]} label={report.section} /></td>
                           <td className={`px-3 py-3 text-xs max-w-[160px] truncate ${t.textFaint}`}>{report.location}</td>
                           <td className={`px-3 py-3 text-xs ${t.textFaint}`}>{report.reporterName || <span className="italic opacity-60">Anonymous</span>}</td>
                           <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
                             <div className="flex gap-1 justify-end">
-                              <button type="button" title={expanded ? 'Collapse' : 'Expand'} aria-label={expanded ? 'Collapse report details' : 'Expand report details'} onClick={() => toggleRow(report.id)} className={`p-1.5 rounded ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-colors`}>{expanded ? '−' : '+'}</button>
-                              <button type="button" title="Edit" aria-label="Edit near miss report" onClick={() => { setEditingReport(report); setFormOpen(true); }} className={`p-1.5 rounded ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-colors`}>✎</button>
-                              <button type="button" title="Delete" aria-label="Delete near miss report" onClick={() => handleDelete(report.id)} className={`p-1.5 rounded ${t.chipBg} hover:bg-rose-500/15 ${t.textFaint} hover:${t.light ? 'text-rose-600' : 'text-rose-400'} transition-colors`}>×</button>
+                              {t.design === 'dallaglio' ? <>
+                                <DisclosureButton open={expanded} label="report details" onClick={() => toggleRow(report.id)} />
+                                <RecordActions onEdit={() => { setEditingReport(report); setFormOpen(true); }} onDelete={() => handleDelete(report.id)} />
+                              </> : <>
+                                <button type="button" title={expanded ? 'Collapse' : 'Expand'} aria-label={expanded ? 'Collapse report details' : 'Expand report details'} onClick={() => toggleRow(report.id)} className={`p-1.5 rounded ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-colors`}>{expanded ? '−' : '+'}</button>
+                                <button type="button" title="Edit" aria-label="Edit near miss report" onClick={() => { setEditingReport(report); setFormOpen(true); }} className={`p-1.5 rounded ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-colors`}>✎</button>
+                                <button type="button" title="Delete" aria-label="Delete near miss report" onClick={() => handleDelete(report.id)} className={`p-1.5 rounded ${t.chipBg} hover:bg-rose-500/15 ${t.textFaint} hover:${t.light ? 'text-rose-600' : 'text-rose-400'} transition-colors`}>×</button>
+                              </>}
                             </div>
                           </td>
                         </tr>

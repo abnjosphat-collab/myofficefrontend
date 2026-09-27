@@ -2,7 +2,6 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { API_BASE } from '@/lib/config';
 import { toast } from 'sonner';
 import {
   Calendar, Download, ChevronLeft, ChevronRight, Settings, Search,
@@ -17,9 +16,10 @@ import { ListAutocomplete } from '@/components/shared/ListAutocomplete';
 import { useLookupList } from '@/hooks/useLookups';
 import { formatDate } from '@/lib/format';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
+import { PillTabs } from '@/components/shared/PillTabs';
 import { exportFilename } from '@/lib/exportUtils';
 import {
-  useTheme, STATUS_TONE, PageHero, StatTile, StatusBadge, ViewToggle,
+  useTheme, STATUS_TONE, PageHero, StatTile, StatusBadge, ViewToggle, Button,
   FormField, useCollapseSection, CenterModal, ProgressBar, ACCENT_HEX, GlowCard, SelectField, accentText, TYPE_WEIGHT, PrimaryButton,
 } from '@/components/shared/theme';
 import type {
@@ -54,7 +54,7 @@ function CompressorReadingsSystem() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   const {
-    compressors, previousReadings, isLoading, isSaving,
+    compressors, previousReadings, isLoading, isSaving, loadError, servicesError,
     stats, upcomingServices, analyticsData, managementData,
     refresh: loadAllData,
     fetchPerformanceMetrics, fetchTrendAnalysis, fetchComparisonAnalytics,
@@ -339,10 +339,10 @@ function CompressorReadingsSystem() {
   ];
 
   const tabs = [
-    { key: 'daily', label: 'Daily View', icon: Calendar },
-    { key: 'services', label: 'Services', icon: Wrench },
-    { key: 'analytics', label: 'Analytics', icon: BarChart3 },
-    { key: 'management', label: 'Management', icon: Settings },
+    { key: 'daily', label: 'Daily View', icon: Calendar, meaning: 'calendar' as const },
+    { key: 'services', label: 'Services', icon: Wrench, meaning: 'service' as const },
+    { key: 'analytics', label: 'Analytics', icon: BarChart3, meaning: 'analytics' as const },
+    { key: 'management', label: 'Management', icon: Settings, meaning: 'settings' as const },
   ];
 
   return (
@@ -356,7 +356,7 @@ function CompressorReadingsSystem() {
         statsOpen={sections.expanded.hero}
         actions={
           <>
-            <button type="button" onClick={loadAllData} title="Refresh" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}><RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} /></button>
+            <Button variant="icon" icon={RefreshCw} title="Refresh compressors" submitting={isLoading} onClick={loadAllData} />
             {compressors.length > 0 && (
               <DownloadButton
                 data={compressors as unknown as Record<string, unknown>[]}
@@ -386,24 +386,17 @@ function CompressorReadingsSystem() {
       </PageHero>
 
       <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-        <div className={`flex gap-1 p-2 border-b ${t.border}`}>
-          {tabs.map(tb => (
-            <button key={tb.key} type="button" onClick={() => setActiveTab(tb.key)}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs ${TYPE_WEIGHT.semibold} transition-all ${activeTab === tb.key ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} ${t.hoverText} ${t.hoverBg}`}`}>
-              <tb.icon className="h-3.5 w-3.5" />{tb.label}
-            </button>
-          ))}
-        </div>
+        <div className="px-4 pt-3"><PillTabs tabs={tabs} value={activeTab} onChange={setActiveTab} wrap="scroll" /></div>
 
         {/* ── DAILY VIEW ── */}
         {activeTab === 'daily' && (
           <div className="p-4 space-y-4">
             <div className="flex flex-col lg:flex-row lg:items-center gap-3">
               <div className="flex items-center gap-2">
-                <button type="button" onClick={previousDay} title="Previous day" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.glassSoft} ${t.textFaint} ${t.hoverText}`}><ChevronLeft className="h-4 w-4" /></button>
+                <Button variant="icon" icon={ChevronLeft} title="Previous day" onClick={previousDay} />
                 <span className={`text-sm ${TYPE_WEIGHT.semibold} min-w-[110px] text-center ${t.textPrimary}`}>{mounted ? formatDate(currentDate) : ''}</span>
-                <button type="button" onClick={nextDay} title="Next day" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.glassSoft} ${t.textFaint} ${t.hoverText}`}><ChevronRight className="h-4 w-4" /></button>
-                <button type="button" onClick={goToToday} className={`px-2.5 py-1 rounded-lg text-xs ${TYPE_WEIGHT.semibold} ${t.textMuted} ${t.glassSoft} ${t.hoverText}`}>Today</button>
+                <Button variant="icon" icon={ChevronRight} title="Next day" onClick={nextDay} />
+                <Button variant="secondary" size="xs" onClick={goToToday}>Today</Button>
               </div>
 
               <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
@@ -425,11 +418,9 @@ function CompressorReadingsSystem() {
                 { label: 'Daily Hours', val: showDailyHours, set: setShowDailyHours },
                 { label: 'Urgent Only', val: filters.showMaintenance, set: (v: boolean) => setFilters(p => ({ ...p, showMaintenance: v })) },
               ].map(({ label, val, set }) => (
-                <button key={label} type="button" onClick={() => set(!val)}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs ${TYPE_WEIGHT.semibold} transition-all ${val ? 'bg-brand-500/15 text-brand-400' : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}>
-                  <div className={`w-3 h-3 rounded-full border transition-all ${val ? 'bg-brand-400 border-brand-400' : `border ${t.border}`}`} />
+                <Button key={label} variant={val ? 'subtle' : 'secondary'} size="sm" onClick={() => set(!val)}>
                   {label}
-                </button>
+                </Button>
               ))}
             </div>
 
@@ -490,7 +481,15 @@ function CompressorReadingsSystem() {
               </div>
             )}
 
-            {!isLoading && filteredCompressors.length === 0 && (
+            {!isLoading && loadError && (
+              <div role="alert" className={`text-center py-12 ${t.textMuted}`}>
+                <AlertTriangle className="h-8 w-8 mx-auto mb-3" />
+                <p className="text-sm">Could not load compressors</p>
+                <p className={`text-xs mt-1 mb-4 ${t.textFaint}`}>{loadError}</p>
+                <Button variant="secondary" icon={RefreshCw} onClick={loadAllData}>Try again</Button>
+              </div>
+            )}
+            {!isLoading && !loadError && filteredCompressors.length === 0 && (
               <div className="text-center py-12">
                 <Gauge className={`h-12 w-12 ${t.textFaint} mx-auto mb-4`} />
                 <p className={`text-sm ${TYPE_WEIGHT.medium} ${t.textMuted}`}>No compressors found</p>
@@ -533,7 +532,14 @@ function CompressorReadingsSystem() {
                     </PrimaryButton>
                   </GlowCard>
                 ))}
-                {upcomingServices.length === 0 && (
+                {servicesError && (
+                  <div role="alert" className={`text-center py-10 ${t.textMuted}`}>
+                    <AlertTriangle className="h-8 w-8 mx-auto mb-3" />
+                    <p className="text-sm">Could not load upcoming services</p>
+                    <p className={`text-xs mt-1 ${t.textFaint}`}>{servicesError}</p>
+                  </div>
+                )}
+                {!servicesError && upcomingServices.length === 0 && (
                   <div className="text-center py-10"><CheckCheck className={`h-10 w-10 ${t.light ? 'text-emerald-600/50' : 'text-emerald-400/50'} mx-auto mb-3`} /><p className={`text-sm ${TYPE_WEIGHT.medium} ${t.textFaint}`}>All compressors up to date</p></div>
                 )}
               </div>
@@ -545,7 +551,7 @@ function CompressorReadingsSystem() {
                     {SERVICE_INTERVALS.map(iv => (
                       <div key={iv} className={`flex items-center justify-between px-3 py-2 ${t.chipBg} rounded-xl`}>
                         <div className="flex items-center gap-2"><Timer className="h-3.5 w-3.5 text-brand-400" /><span className={`text-sm ${TYPE_WEIGHT.semibold} ${t.textMuted}`}>{iv}h</span></div>
-                        <span className={`text-xs ${t.textFaint}`}>{compressors.filter(c => calculateNextService(c.total_running_hours)?.interval === iv).length} due</span>
+                        <span className={`text-xs ${t.textFaint}`}>{loadError ? 'Unavailable' : `${compressors.filter(c => calculateNextService(c.total_running_hours)?.interval === iv).length} due`}</span>
                       </div>
                     ))}
                   </div>
@@ -788,9 +794,6 @@ function CompressorReadingsSystem() {
         )}
       </div>
 
-      <p className={`text-center text-xs ${t.textFaint}`}>
-        Connected to {API_BASE} · {compressors.length} compressors{mounted ? ` · Last updated ${new Date().toLocaleTimeString('en-GB')}` : ''}
-      </p>
 
       <AddCompressorForm />
       <StatusUpdateModal />

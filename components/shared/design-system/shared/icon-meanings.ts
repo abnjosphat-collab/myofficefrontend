@@ -3,7 +3,7 @@
 export const ICON_MEANINGS = [
   'employees', 'artisans', 'nec-staff', 'salaried-staff', 'permanent-staff',
   'grid-view', 'list-view', 'table-view', 'sheet-view',
-  'search', 'filter', 'sort', 'edit', 'archive', 'analytics',
+  'search', 'filter', 'sort', 'edit', 'mail', 'phone', 'archive', 'analytics',
   'refresh', 'download', 'plus', 'close', 'warning', 'success', 'danger',
   'clock', 'calendar', 'check', 'pending', 'active', 'inactive',
   'equipment', 'maintenance', 'breakdown', 'availability',

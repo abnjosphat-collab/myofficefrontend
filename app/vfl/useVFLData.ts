@@ -4,7 +4,7 @@
 // shape as pto/pachedu.
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { api } from '@/lib/apiClient';
 import { toast } from 'sonner';
 import type { VFLReport } from './types';
@@ -22,17 +22,31 @@ export async function deleteVFLReport(id: string): Promise<void> { return api.de
 export function useVFLData() {
   const [reports, setReports] = useState<VFLReport[]>([]);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [loadError, setLoadError] = useState('');
+  const requestRef = useRef(0);
 
-  const loadData = async () => {
-    setLoading(true);
-    try { setReports(await getVFLReports()); setLoadError(''); }
+  const loadData = async (quiet = false) => {
+    const requestId = ++requestRef.current;
+    if (quiet) setRefreshing(true); else setLoading(true);
+    setLoadError('');
+    try {
+      const nextReports = await getVFLReports();
+      if (requestId !== requestRef.current) return;
+      setReports(nextReports);
+    }
     catch (e) {
+      if (requestId !== requestRef.current) return;
       setLoadError(e instanceof Error ? e.message : 'Could not load VFL reports.');
       toast.error('Failed to load VFL reports');
     }
-    finally { setLoading(false); }
+    finally {
+      if (requestId === requestRef.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    }
   };
 
-  return { reports, setReports, loading, loadError, loadData };
+  return { reports, setReports, loading, refreshing, loadError, loadData };
 }

@@ -15,7 +15,9 @@ import { ListAutocomplete } from '@/components/shared/ListAutocomplete';
 import {
   useTheme, accentText, PageHero, StatTile, StatusBadge, SearchInput, FormField, FormActions,
   useCollapseSection, CenterModal, PrimaryButton, EmptyState, ACCENT_HEX, SelectField, useConfirm, TYPE_WEIGHT,
+  Button, IconAction, DisclosureButton, RecordActions, DetailActions,
 } from '@/components/shared/theme';
+import { PillTabs } from '@/components/shared/PillTabs';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
 import { formatDate } from '@/lib/format';
@@ -194,7 +196,7 @@ function DetailModal({ complaint, onClose, onEdit }: {
         <div className="flex flex-wrap gap-2">
           <StatusBadge color={STATUS_HEX[complaint.status] ?? ACCENT_HEX.blue} label={complaint.status} />
           <StatusBadge color={PRIORITY_HEX[complaint.priority] ?? ACCENT_HEX.blue} label={complaint.priority} />
-          <StatusBadge color={ACCENT_HEX.blue} label={complaint.category} />
+          <StatusBadge color={t.design === 'dallaglio' ? '#94a3b8' : ACCENT_HEX.blue} label={complaint.category} />
         </div>
 
         <div className="grid grid-cols-2 gap-x-6 gap-y-3">
@@ -211,10 +213,12 @@ function DetailModal({ complaint, onClose, onEdit }: {
           <DetailRow label="Date Closed" value={complaint.dateClosed || undefined} />
         </div>
       </div>
-      <div className={`flex gap-2 px-5 py-4 border-t ${t.border}`}>
-        <button type="button" onClick={onClose} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border} transition-all`}>Close</button>
-        <button type="button" onClick={() => { onClose(); onEdit(complaint); }} className={`flex-1 py-2.5 rounded-xl text-sm ${TYPE_WEIGHT.medium} text-brand-400 hover:text-brand-300 border border-brand-400/25 transition-all`}>Edit</button>
-      </div>
+      {t.design === 'dallaglio'
+        ? <div className={`px-5 py-4 border-t ${t.border}`}><DetailActions onClose={onClose} onEdit={() => { onClose(); onEdit(complaint); }} /></div>
+        : <div className={`flex gap-2 px-5 py-4 border-t ${t.border}`}>
+            <button type="button" onClick={onClose} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border} transition-all`}>Close</button>
+            <button type="button" onClick={() => { onClose(); onEdit(complaint); }} className={`flex-1 py-2.5 rounded-xl text-sm ${TYPE_WEIGHT.medium} text-brand-400 hover:text-brand-300 border border-brand-400/25 transition-all`}>Edit</button>
+          </div>}
     </CenterModal>
   );
 }
@@ -303,7 +307,7 @@ function AnalyticsTab({ stats }: { stats: Stats }) {
   const sectionData = Object.entries(stats.bySection).map(([key, value]) => ({ key, value })).sort((a, b) => b.value - a.value);
 
   const kpis: { label: string; value: string | number; color: string; icon: ElementType }[] = [
-    { label: 'Total Complaints', value: stats.total, color: ACCENT_HEX.blue, icon: ClipboardList },
+    { label: 'Total Complaints', value: stats.total, color: t.design === 'dallaglio' ? '#94a3b8' : ACCENT_HEX.blue, icon: ClipboardList },
     { label: 'Open', value: stats.open, color: '#f43f5e', icon: AlertTriangle },
     { label: 'In Progress', value: stats.inProgress, color: '#fbbf24', icon: Clock },
     { label: 'Closed', value: stats.closed, color: '#34d399', icon: CheckCircle2 },
@@ -338,7 +342,7 @@ function AnalyticsTab({ stats }: { stats: Stats }) {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className={`${t.glass} rounded-2xl p-5`}><BarChartList data={categoryData} color="#86BBD8" label="Issues by Category" /></div>
+        <div className={`${t.glass} rounded-2xl p-5`}><BarChartList data={categoryData} color={t.design === 'dallaglio' ? '#94a3b8' : '#86BBD8'} label="Issues by Category" /></div>
         <div className={`${t.glass} rounded-2xl p-5`}>
           <p className={`text-[10px] ${TYPE_WEIGHT.semibold} uppercase tracking-wider mb-3 ${t.textFaint}`}>Issues by Priority</p>
           {priorityData.length === 0 ? <p className={`text-xs py-6 text-center ${t.textFaint}`}>No data</p> : (
@@ -360,8 +364,8 @@ function AnalyticsTab({ stats }: { stats: Stats }) {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className={`${t.glass} rounded-2xl p-5`}><BarChartList data={supervisorData} color="#a78bfa" label="Issues by Supervisor / Foreman" /></div>
-        <div className={`${t.glass} rounded-2xl p-5`}><BarChartList data={sectionData} color="#34d399" label="Issues by Section" /></div>
+        <div className={`${t.glass} rounded-2xl p-5`}><BarChartList data={supervisorData} color={t.design === 'dallaglio' ? '#94a3b8' : '#a78bfa'} label="Issues by Supervisor / Foreman" /></div>
+        <div className={`${t.glass} rounded-2xl p-5`}><BarChartList data={sectionData} color={t.design === 'dallaglio' ? '#94a3b8' : '#34d399'} label="Issues by Section" /></div>
       </div>
     </div>
   );
@@ -374,7 +378,7 @@ function SafetyComplaintsContent() {
   const confirm = useConfirm();
   const sections = useCollapseSection({ hero: true, records: true });
   const [tab, setTab] = useState<Tab>('records');
-  const { complaints, setComplaints, loading, refreshing, load } = useSafetyComplaintsData();
+  const { complaints, setComplaints, loading, refreshing, loadError, load } = useSafetyComplaintsData();
 
   const [search, setSearch] = useState('');
   const [statusF, setStatusF] = useState('all');
@@ -454,6 +458,7 @@ function SafetyComplaintsContent() {
 
   const clearFilters = () => { setSearch(''); setStatusF('all'); setSectionF('all'); setPriorityF('all'); setCategoryF('all'); setByWhoF('all'); setLocationF('all'); setDateFrom(''); setDateTo(''); };
   const hasFilters = !!(search || statusF !== 'all' || sectionF !== 'all' || priorityF !== 'all' || categoryF !== 'all' || byWhoF !== 'all' || locationF !== 'all' || dateFrom || dateTo);
+  const registerUnavailable = t.design === 'dallaglio' && (loading || (!!loadError && complaints.length === 0));
 
   const toggleRow = (id: string) => setExpandedRows(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
@@ -471,7 +476,9 @@ function SafetyComplaintsContent() {
         statsOpen={sections.expanded.hero}
         actions={
           <>
-            <button type="button" onClick={() => load(true)} title="Refresh" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}><RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} /></button>
+            {t.design === 'dallaglio'
+              ? <IconAction meaning="refresh" title="Refresh" onClick={() => load(true)} disabled={refreshing} spinning={refreshing} />
+              : <button type="button" onClick={() => load(true)} title="Refresh" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}><RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} /></button>}
             {filtered.length > 0 && (
               <DownloadButton
                 data={filtered as unknown as Record<string, unknown>[]}
@@ -482,38 +489,53 @@ function SafetyComplaintsContent() {
                 statusColor={(_v, row) => STATUS_HEX[row.status as string]?.replace('#', '')}
               />
             )}
-            <div className={`flex rounded-lg overflow-hidden ${t.chipBg} text-xs`}>
-              <button type="button" onClick={() => setTab('records')} className={`px-3 py-1.5 transition-colors ${tab === 'records' ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} ${t.hoverText}`}`}>Records</button>
-              <button type="button" onClick={() => setTab('analytics')} className={`px-3 py-1.5 transition-colors flex items-center gap-1 ${tab === 'analytics' ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} ${t.hoverText}`}`}><BarChart3 className="h-3 w-3" /> Analytics</button>
-            </div>
-            <PrimaryButton icon={Plus} accent="amber" onClick={() => { setEditing(null); setFormOpen(true); }}>New Complaint</PrimaryButton>
+            {t.design === 'dallaglio'
+              ? <PillTabs tabs={[{ key: 'records', label: 'Records', icon: ClipboardList }, { key: 'analytics', label: 'Analytics', icon: BarChart3 }]} value={tab} onChange={setTab} />
+              : <div className={`flex rounded-lg overflow-hidden ${t.chipBg} text-xs`}>
+                  <button type="button" onClick={() => setTab('records')} className={`px-3 py-1.5 transition-colors ${tab === 'records' ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} ${t.hoverText}`}`}>Records</button>
+                  <button type="button" onClick={() => setTab('analytics')} className={`px-3 py-1.5 transition-colors flex items-center gap-1 ${tab === 'analytics' ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} ${t.hoverText}`}`}><BarChart3 className="h-3 w-3" /> Analytics</button>
+                </div>}
+            <PrimaryButton icon={Plus} accent="amber" disabled={registerUnavailable} onClick={() => { setEditing(null); setFormOpen(true); }}>New Complaint</PrimaryButton>
           </>
         }
       >
         <div className="grid grid-cols-2 sm:grid-cols-6 gap-4">
-          <StatTile icon={MessageSquareWarning} color={ACCENT_HEX.blue} label="Total" value={stats.total} />
-          <StatTile icon={AlertTriangle} color="#f43f5e" label="Open" value={stats.open} />
-          <StatTile icon={Clock} color="#fbbf24" label="In Progress" value={stats.inProgress} />
-          <StatTile icon={CheckCircle2} color="#34d399" label="Closed" value={stats.closed} />
-          <StatTile icon={TrendingDown} color="#fb923c" label="Overdue" value={stats.overdue} />
-          <StatTile icon={TrendingUp} color={stats.closureRate >= 80 ? '#34d399' : '#fbbf24'} label="Closure %" value={`${stats.closureRate}%`} />
+          <StatTile icon={MessageSquareWarning} color={ACCENT_HEX.blue} label="Total" value={registerUnavailable ? '—' : stats.total} />
+          <StatTile icon={AlertTriangle} color="#f43f5e" label="Open" value={registerUnavailable ? '—' : stats.open} />
+          <StatTile icon={Clock} color="#fbbf24" label="In Progress" value={registerUnavailable ? '—' : stats.inProgress} />
+          <StatTile icon={CheckCircle2} color="#34d399" label="Closed" value={registerUnavailable ? '—' : stats.closed} />
+          <StatTile icon={TrendingDown} color="#fb923c" label="Overdue" value={registerUnavailable ? '—' : stats.overdue} />
+          <StatTile icon={TrendingUp} color={stats.closureRate >= 80 ? '#34d399' : '#fbbf24'} label="Closure %" value={registerUnavailable ? '—' : `${stats.closureRate}%`} />
         </div>
       </PageHero>
+
+      {t.design === 'dallaglio' && loadError && (
+        <div role="alert" className={`${t.glass} ${t.shadow} rounded-2xl border ${t.border} px-5 py-4 flex flex-wrap items-center gap-4`}>
+          <AlertTriangle className="h-5 w-5 shrink-0 text-rose-500" />
+          <div className="min-w-0 flex-1">
+            <p className={`text-sm ${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>Could not load safety complaints</p>
+            <p className={`mt-0.5 text-xs ${t.textFaint}`}>{loadError}</p>
+          </div>
+          <Button variant="secondary" size="sm" onClick={() => load()}>Try again</Button>
+        </div>
+      )}
 
       {tab === 'records' && sections.expanded.records && (
         <>
           <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
             <div className="px-5 py-3 flex flex-wrap items-center gap-2">
               <SearchInput value={search} onChange={setSearch} placeholder="Search complaints…" className="w-56" />
-              <SelectField size="filter" title="Status" value={statusF} onChange={setStatusF} options={[{ value: 'all', label: 'All Status' }, ...STATUSES.map(s => ({ value: s, label: s }))]} />
-              <SelectField size="filter" title="Section" value={sectionF} onChange={setSectionF} options={[{ value: 'all', label: 'All Sections' }, ...SECTIONS.map(s => ({ value: s, label: s }))]} />
-              <SelectField size="filter" title="Priority" value={priorityF} onChange={setPriorityF} options={[{ value: 'all', label: 'All Priority' }, ...PRIORITIES.map(p => ({ value: p, label: p }))]} />
-              <SelectField size="filter" title="Category" value={categoryF} onChange={setCategoryF} options={[{ value: 'all', label: 'All Categories' }, ...CATEGORIES.map(c => ({ value: c, label: c }))]} />
-              {byWhoOptions.length > 0 && <SelectField size="filter" title="Responsible" value={byWhoF} onChange={setByWhoF} options={[{ value: 'all', label: 'All Responsible' }, ...byWhoOptions.map(v => ({ value: v, label: v }))]} />}
-              {locationOptions.length > 0 && <SelectField size="filter" title="Location" value={locationF} onChange={setLocationF} options={[{ value: 'all', label: 'All Locations' }, ...locationOptions.map(v => ({ value: v, label: v }))]} />}
+              <SelectField size={t.design === 'dallaglio' ? 'form' : 'filter'} title="Status" value={statusF} onChange={setStatusF} options={[{ value: 'all', label: 'All Status' }, ...STATUSES.map(s => ({ value: s, label: s }))]} />
+              <SelectField size={t.design === 'dallaglio' ? 'form' : 'filter'} title="Section" value={sectionF} onChange={setSectionF} options={[{ value: 'all', label: 'All Sections' }, ...SECTIONS.map(s => ({ value: s, label: s }))]} />
+              <SelectField size={t.design === 'dallaglio' ? 'form' : 'filter'} title="Priority" value={priorityF} onChange={setPriorityF} options={[{ value: 'all', label: 'All Priority' }, ...PRIORITIES.map(p => ({ value: p, label: p }))]} />
+              <SelectField size={t.design === 'dallaglio' ? 'form' : 'filter'} title="Category" value={categoryF} onChange={setCategoryF} options={[{ value: 'all', label: 'All Categories' }, ...CATEGORIES.map(c => ({ value: c, label: c }))]} />
+              {byWhoOptions.length > 0 && <SelectField size={t.design === 'dallaglio' ? 'form' : 'filter'} title="Responsible" value={byWhoF} onChange={setByWhoF} options={[{ value: 'all', label: 'All Responsible' }, ...byWhoOptions.map(v => ({ value: v, label: v }))]} />}
+              {locationOptions.length > 0 && <SelectField size={t.design === 'dallaglio' ? 'form' : 'filter'} title="Location" value={locationF} onChange={setLocationF} options={[{ value: 'all', label: 'All Locations' }, ...locationOptions.map(v => ({ value: v, label: v }))]} />}
               <input type="date" title="From date" aria-label="From date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className={selCls} />
               <input type="date" title="To date" aria-label="To date" value={dateTo} onChange={e => setDateTo(e.target.value)} className={selCls} />
-              {hasFilters && <button type="button" onClick={clearFilters} className={`flex items-center gap-1 text-xs px-2 py-1.5 rounded-lg transition-colors ${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText}`}><X className="h-3 w-3" /> Clear</button>}
+              {hasFilters && (t.design === 'dallaglio'
+                ? <Button variant="ghost" size="sm" icon={X} title="Clear filters" onClick={clearFilters}>Clear</Button>
+                : <button type="button" onClick={clearFilters} className={`flex items-center gap-1 text-xs px-2 py-1.5 rounded-lg transition-colors ${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText}`}><X className="h-3 w-3" /> Clear</button>)}
               <span className={`text-[11px] ml-auto ${t.textFaint}`}>{filtered.length} of {complaints.length}</span>
             </div>
           </div>
@@ -522,7 +544,7 @@ function SafetyComplaintsContent() {
             <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><MessageSquareWarning className={`h-4 w-4 ${accentText('amber', t.light)}`} /><span className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>Complaints Register</span><span className={`ml-auto text-xs ${t.textFaint}`}>{filtered.length}</span></div>
             {loading ? (
               <div className="flex items-center justify-center py-16"><RefreshCw className={`h-6 w-6 animate-spin ${t.textFaint}`} /></div>
-            ) : filtered.length === 0 ? (
+            ) : t.design === 'dallaglio' && loadError && complaints.length === 0 ? null : filtered.length === 0 ? (
               <EmptyState icon={MessageSquareWarning} title="No complaints found"
                 message={hasFilters ? 'Try adjusting your filters.' : 'No safety complaints have been logged yet.'}
                 action={{ label: 'Log First Complaint', onClick: () => { setEditing(null); setFormOpen(true); } }} />
@@ -553,9 +575,14 @@ function SafetyComplaintsContent() {
                             <td className="px-3 py-3"><StatusBadge color={STATUS_HEX[c.status] ?? ACCENT_HEX.blue} label={c.status} /></td>
                             <td className="px-3 py-3">
                               <div className="flex items-center justify-end gap-0.5">
-                                <button type="button" title="Expand" aria-label={isExpanded ? 'Collapse complaint details' : 'Expand complaint details'} onClick={e => { e.stopPropagation(); toggleRow(c.id); }} className={`h-7 w-7 flex items-center justify-center rounded ${t.textFaint} ${t.hoverText} transition-all`}>{isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}</button>
-                                <button type="button" title="Edit" aria-label="Edit complaint" onClick={e => { e.stopPropagation(); setEditing(c); setFormOpen(true); }} className={`h-7 w-7 flex items-center justify-center rounded hover:bg-brand-500/15 ${t.textFaint} hover:text-brand-400 transition-all`}><Pencil className="h-3 w-3" /></button>
-                                <button type="button" title="Delete" aria-label="Delete complaint" onClick={e => { e.stopPropagation(); handleDelete(c.id); }} className={`h-7 w-7 flex items-center justify-center rounded hover:bg-rose-500/20 ${t.textFaint} hover:${t.light ? 'text-rose-600' : 'text-rose-400'} transition-all`}><Trash2 className="h-3 w-3" /></button>
+                                {t.design === 'dallaglio' ? <>
+                                  <DisclosureButton open={isExpanded} label="complaint details" onClick={e => { e.stopPropagation(); toggleRow(c.id); }} />
+                                  <RecordActions onEdit={() => { setEditing(c); setFormOpen(true); }} onDelete={() => handleDelete(c.id)} />
+                                </> : <>
+                                  <button type="button" title="Expand" aria-label={isExpanded ? 'Collapse complaint details' : 'Expand complaint details'} onClick={e => { e.stopPropagation(); toggleRow(c.id); }} className={`h-7 w-7 flex items-center justify-center rounded ${t.textFaint} ${t.hoverText} transition-all`}>{isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}</button>
+                                  <button type="button" title="Edit" aria-label="Edit complaint" onClick={e => { e.stopPropagation(); setEditing(c); setFormOpen(true); }} className={`h-7 w-7 flex items-center justify-center rounded hover:bg-brand-500/15 ${t.textFaint} hover:text-brand-400 transition-all`}><Pencil className="h-3 w-3" /></button>
+                                  <button type="button" title="Delete" aria-label="Delete complaint" onClick={e => { e.stopPropagation(); handleDelete(c.id); }} className={`h-7 w-7 flex items-center justify-center rounded hover:bg-rose-500/20 ${t.textFaint} hover:${t.light ? 'text-rose-600' : 'text-rose-400'} transition-all`}><Trash2 className="h-3 w-3" /></button>
+                                </>}
                               </div>
                             </td>
                           </tr>
@@ -584,7 +611,7 @@ function SafetyComplaintsContent() {
         </>
       )}
 
-      {tab === 'analytics' && <AnalyticsTab stats={stats} />}
+      {tab === 'analytics' && !(t.design === 'dallaglio' && loadError && complaints.length === 0) && <AnalyticsTab stats={stats} />}
 
       <ComplaintForm open={formOpen} onClose={() => { setFormOpen(false); setEditing(null); }} initial={editing ?? undefined} onSave={handleSave} />
       <DetailModal complaint={detail} onClose={() => setDetail(null)} onEdit={c => { setEditing(c); setFormOpen(true); }} />

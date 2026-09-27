@@ -14,7 +14,7 @@ import { UnderlineTabs } from '@/components/shared/UnderlineTabs';
 import { toast } from "sonner";
 import {
   useTheme, accentText, STATUS_TONE, PageHero, StatTile, StatusBadge, SearchInput, ProgressBar, FormField, FormActions,
-  useCollapseSection, CenterModal, ACCENT_HEX, EmptyState, PrimaryButton, GlowCard, SelectField, TYPE_WEIGHT, Button,
+  useCollapseSection, CenterModal, ACCENT_HEX, EmptyState, PrimaryButton, GlowCard, SelectField, TYPE_WEIGHT, Button, DetailActions,
 } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
@@ -318,11 +318,11 @@ function PTODetailModal({ report, open, onClose, onEdit, onDelete, onStatusChang
         )}
       </div>
 
-      <div className={`flex gap-2 px-5 py-4 border-t ${t.border}`}>
+      {t.design === 'dallaglio' ? <div className={`px-5 py-4 border-t ${t.border}`}><DetailActions onClose={onClose} onEdit={() => { onClose(); onEdit(report); }} onDelete={() => { onClose(); onDelete(report.id); }} /></div> : <div className={`flex gap-2 px-5 py-4 border-t ${t.border}`}>
         <button type="button" onClick={() => { onClose(); onDelete(report.id); }} className={`bg-red-500/15 hover:bg-red-500/25 rounded-xl px-4 py-2.5 text-red-400 text-sm ${TYPE_WEIGHT.semibold} transition-colors`}>Delete</button>
         <button type="button" onClick={onClose} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border} transition-all`}>Close</button>
         <PrimaryButton size="md" fullWidth onClick={() => { onClose(); onEdit(report); }}>Edit</PrimaryButton>
-      </div>
+      </div>}
     </CenterModal>
   );
 }

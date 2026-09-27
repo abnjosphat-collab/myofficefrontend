@@ -10,7 +10,7 @@ import {
 } from '@/components/shared/theme';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { useTheme, useCollapseSection, Button, Plus } from '@/components/shared/theme';
+import { useTheme, useCollapseSection, Button, Plus, IconAction } from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
 
 // ─── PALETTE ─────────────────────────────────────────────────────────────────
@@ -351,6 +351,7 @@ function ModuleCard({ label, href, icon, color, total, donutSegments, miniStats,
   donutSegments: DonutSegment[]; miniStats: { label: string; value: number; color: string }[];
   legend: { label: string; value: number; color: string }[]; P: ReturnType<typeof usePalette>;
 }) {
+  const t = useTheme();
   const [hovered, setHovered] = useState(false);
   // role="presentation" below — the mouse enter/leave pair is a purely decorative hover
   // highlight (background/border/shadow tint), not a functional interaction; every piece
@@ -367,7 +368,9 @@ function ModuleCard({ label, href, icon, color, total, donutSegments, miniStats,
             <div style={{ fontSize: 28, fontWeight: 800, color, lineHeight: 1.1 }}>{total}</div>
           </div>
         </div>
-        <Link href={href} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color, background: color + '18', padding: '5px 10px', borderRadius: 8, textDecoration: 'none', fontWeight: 700, border: `1px solid ${color}30` }}>Open <ExternalLink size={9} /></Link>
+        {t.design === 'dallaglio'
+          ? <Button href={href} variant="secondary" size="sm" icon={ExternalLink} iconPosition="end">Open</Button>
+          : <Link href={href} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color, background: color + '18', padding: '5px 10px', borderRadius: 8, textDecoration: 'none', fontWeight: 700, border: `1px solid ${color}30` }}>Open <ExternalLink size={9} /></Link>}
       </div>
       <div style={{ display: 'flex', justifyContent: 'center' }}><DonutChart segments={donutSegments} size={88} strokeWidth={14} trackColor={P.trackBg} textColor={P.textPrimary} subColor={P.textFaint} /></div>
       <div style={{ display: 'grid', gridTemplateColumns: `repeat(${miniStats.length}, 1fr)`, gap: 5 }}>
@@ -392,6 +395,7 @@ function ModuleCard({ label, href, icon, color, total, donutSegments, miniStats,
 }
 
 function CommentsSection({ open, onToggle, P }: { open: boolean; onToggle: () => void; P: ReturnType<typeof usePalette> }) {
+  const t = useTheme();
   const [comments, setComments] = useState<Comment[]>([]);
   const [text, setText] = useState('');
   const [author, setAuthor] = useState('');
@@ -419,12 +423,12 @@ function CommentsSection({ open, onToggle, P }: { open: boolean; onToggle: () =>
       </button>
       {open && (
         <div style={{ padding: '20px 24px' }}>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+          <div className={t.design === 'dallaglio' ? 'sheq-notes-form' : undefined} style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
             <input value={author} onChange={e => setAuthor(e.target.value)} placeholder="Your name (optional)" style={{ ...inputCls, width: 170 }} title="Your name" aria-label="Your name" />
             <input value={text} onChange={e => setText(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); add(); } }}
               placeholder="Add a safety observation or note… (Enter to submit)" style={{ ...inputCls, flex: 1 }} title="Note" aria-label="Note" />
-            <Button type="button" variant="subtle" size="xs" icon={Plus} iconPosition="end" onClick={add}>Add</Button>
+            <Button type="button" variant="subtle" size={t.design === 'dallaglio' ? 'sm' : 'xs'} icon={Plus} iconPosition="end" onClick={add}>Add</Button>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 260, overflowY: 'auto' }}>
             {comments.length === 0 ? (
@@ -435,7 +439,9 @@ function CommentsSection({ open, onToggle, P }: { open: boolean; onToggle: () =>
                   <div style={{ fontSize: 13, color: P.textPrimary, lineHeight: 1.55 }}>{c.text}</div>
                   <div style={{ fontSize: 10, color: P.textFaintest, marginTop: 4 }}>{c.author} · {formatDateTime(c.ts)}</div>
                 </div>
-                <button type="button" onClick={() => persist(comments.filter(x => x.id !== c.id))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: P.textFaintest, fontSize: 17, padding: '0 4px', lineHeight: 1, flexShrink: 0 }}>×</button>
+                {t.design === 'dallaglio'
+                  ? <IconAction meaning="danger" title={`Delete note by ${c.author}`} tone="danger" onClick={() => persist(comments.filter(x => x.id !== c.id))} />
+                  : <button type="button" onClick={() => persist(comments.filter(x => x.id !== c.id))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: P.textFaintest, fontSize: 17, padding: '0 4px', lineHeight: 1, flexShrink: 0 }}>×</button>}
               </div>
             ))}
           </div>
@@ -453,9 +459,10 @@ const QUICK_OPTIONS: { key: QuickRange | 'custom'; label: string }[] = [
 
 // ─── MAIN PAGE ────────────────────────────────────────────────────────────────
 function SHEQDashboardContent() {
+  const t = useTheme();
   const P = usePalette();
   const sections = useCollapseSection({ weekly: false, score: false, modules: false, analytics: false, actions: false, notes: false, ai: false });
-  const { raw, loading, lastUpdated, refresh: load } = useSheqDashboardData();
+  const { raw, loading, refreshing, loadError, lastUpdated, refresh: load } = useSheqDashboardData();
   const [autoRefresh, setAutoRefresh] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -549,14 +556,14 @@ function SHEQDashboardContent() {
               <span>Home</span><ChevronRight size={11} /><span style={{ color: P.textSecondary, fontWeight: 600 }}>SHEQ Dashboard</span>
             </nav>
             <h1 style={{ fontSize: 26, fontWeight: 800, color: P.textPrimary, fontFamily: 'Montserrat, sans-serif', letterSpacing: -0.5, marginBottom: 4 }}>SHEQ Safety Dashboard</h1>
-            <p style={{ fontSize: 13, color: P.textMuted }}>Live overview across Near Miss, Work Stoppage, VFL &amp; PTO modules</p>
+            <p style={{ fontSize: 13, color: P.textMuted }}>Live overview across Near Miss, Work Stoppage, VFL, PTO, Inspections &amp; Pachedu</p>
             {lastUpdated && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: P.textFaintest, marginTop: 6 }}>
                 <Clock size={10} /> Refreshed {lastUpdated.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
               </div>
             )}
           </div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', flexShrink: 0 }}>
+          <div className={t.design === 'dallaglio' ? 'sheq-hero-actions' : undefined} style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', flexShrink: 0 }}>
             {([
               { href: '/near_miss', label: 'Near Miss', color: C.nm },
               { href: '/work_stoppage', label: 'Work Stop.', color: C.ws },
@@ -564,40 +571,61 @@ function SHEQDashboardContent() {
               { href: '/pto', label: 'PTO', color: C.pto },
               { href: '/sheq_inspection', label: 'Inspections', color: C.insp },
             ] as const).map(({ href, label, color }) => (
-              <Link key={href} href={href} style={{ fontSize: 11, color, background: color + '18', padding: '6px 11px', borderRadius: 9, textDecoration: 'none', fontWeight: 700, border: `1px solid ${color}30`, display: 'flex', alignItems: 'center', gap: 4 }}>{label} <ExternalLink size={9} /></Link>
+              t.design === 'dallaglio'
+                ? <Button key={href} href={href} variant="secondary" size="sm" icon={ExternalLink} iconPosition="end">{label}</Button>
+                : <Link key={href} href={href} style={{ fontSize: 11, color, background: color + '18', padding: '6px 11px', borderRadius: 9, textDecoration: 'none', fontWeight: 700, border: `1px solid ${color}30`, display: 'flex', alignItems: 'center', gap: 4 }}>{label} <ExternalLink size={9} /></Link>
             ))}
-            <button type="button" onClick={sections.toggleAll} title={allOpen ? 'Collapse all sections' : 'Expand all sections'}
-              style={{ display: 'flex', alignItems: 'center', gap: 5, background: P.chipTrack, border: `1px solid ${P.divider}`, borderRadius: 9, padding: '7px 12px', cursor: 'pointer', color: P.textMuted, fontSize: 11, fontWeight: 600 }}>
-              {allOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />} {allOpen ? 'Collapse All' : 'Expand All'}
-            </button>
-            <button type="button" onClick={() => setAutoRefresh(a => !a)}
-              style={{ display: 'flex', alignItems: 'center', gap: 5, background: autoRefresh ? '#10b98118' : P.chipTrack, border: `1px solid ${autoRefresh ? '#10b98144' : P.divider}`, borderRadius: 9, padding: '7px 12px', cursor: 'pointer', color: autoRefresh ? '#10b981' : P.textMuted, fontSize: 11, fontWeight: 600 }}>
-              <Zap size={12} /> {autoRefresh ? 'Auto ON' : 'Auto OFF'}
-            </button>
-            <button type="button" onClick={load} disabled={loading}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, background: P.chipTrack, border: `1px solid ${P.divider}`, borderRadius: 9, padding: '8px 14px', cursor: loading ? 'not-allowed' : 'pointer', color: P.textSecondary, fontSize: 12, fontWeight: 600 }}>
-              <RefreshCw size={13} style={{ animation: loading ? 'spin 0.8s linear infinite' : 'none' }} /> {loading ? 'Loading…' : 'Refresh'}
-            </button>
+            {t.design === 'dallaglio' ? <>
+              <Button variant="secondary" size="sm" icon={allOpen ? ChevronUp : ChevronDown} title={allOpen ? 'Collapse all sections' : 'Expand all sections'} onClick={sections.toggleAll}>{allOpen ? 'Collapse All' : 'Expand All'}</Button>
+              <Button variant={autoRefresh ? 'primary' : 'secondary'} size="sm" icon={Zap} pressed={autoRefresh} onClick={() => setAutoRefresh(a => !a)}>{autoRefresh ? 'Auto ON' : 'Auto OFF'}</Button>
+              <IconAction meaning="refresh" title="Refresh" label={refreshing ? 'Refreshing…' : 'Refresh'} spinning={refreshing} disabled={loading || refreshing} onClick={load} />
+            </> : <>
+              <button type="button" onClick={sections.toggleAll} title={allOpen ? 'Collapse all sections' : 'Expand all sections'}
+                style={{ display: 'flex', alignItems: 'center', gap: 5, background: P.chipTrack, border: `1px solid ${P.divider}`, borderRadius: 9, padding: '7px 12px', cursor: 'pointer', color: P.textMuted, fontSize: 11, fontWeight: 600 }}>
+                {allOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />} {allOpen ? 'Collapse All' : 'Expand All'}
+              </button>
+              <button type="button" onClick={() => setAutoRefresh(a => !a)}
+                style={{ display: 'flex', alignItems: 'center', gap: 5, background: autoRefresh ? '#10b98118' : P.chipTrack, border: `1px solid ${autoRefresh ? '#10b98144' : P.divider}`, borderRadius: 9, padding: '7px 12px', cursor: 'pointer', color: autoRefresh ? '#10b981' : P.textMuted, fontSize: 11, fontWeight: 600 }}>
+                <Zap size={12} /> {autoRefresh ? 'Auto ON' : 'Auto OFF'}
+              </button>
+              <button type="button" onClick={load} disabled={loading}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, background: P.chipTrack, border: `1px solid ${P.divider}`, borderRadius: 9, padding: '8px 14px', cursor: loading ? 'not-allowed' : 'pointer', color: P.textSecondary, fontSize: 12, fontWeight: 600 }}>
+                <RefreshCw size={13} style={{ animation: loading ? 'spin 0.8s linear infinite' : 'none' }} /> {loading ? 'Loading…' : 'Refresh'}
+              </button>
+            </>}
           </div>
         </div>
 
         <div style={{ marginTop: 18, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: P.textFaint }}><Calendar size={12} /> Filter:</div>
           {QUICK_OPTIONS.map(({ key, label }) => (
-            <button key={key} type="button" onClick={() => selectRange(key)}
-              style={{ padding: '5px 12px', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer', border: quickRange === key ? '1px solid #60a5fa66' : `1px solid ${P.divider}`, background: quickRange === key ? 'rgba(96,165,250,0.18)' : P.chipTrack, color: quickRange === key ? '#60a5fa' : P.textFaint, transition: 'all 0.15s' }}>
-              {label}
-            </button>
+            t.design === 'dallaglio'
+              ? <Button key={key} variant={quickRange === key ? 'primary' : 'secondary'} size="sm" pressed={quickRange === key} onClick={() => selectRange(key)}>{label}</Button>
+              : <button key={key} type="button" onClick={() => selectRange(key)}
+                  style={{ padding: '5px 12px', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer', border: quickRange === key ? '1px solid #60a5fa66' : `1px solid ${P.divider}`, background: quickRange === key ? 'rgba(96,165,250,0.18)' : P.chipTrack, color: quickRange === key ? '#60a5fa' : P.textFaint, transition: 'all 0.15s' }}>
+                  {label}
+                </button>
           ))}
           {showCustom && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 4 }}>
-              <input type="date" value={customFrom} onChange={e => setCustomFrom(e.target.value)} style={{ ...inputCls, width: 138 }} title="From date" aria-label="From date" />
+            <div className={t.design === 'dallaglio' ? 'sheq-custom-range' : undefined} style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 4 }}>
+              <input type="date" value={customFrom} onChange={e => setCustomFrom(e.target.value)} style={{ ...inputCls, width: 138, ...(t.design === 'dallaglio' ? { minHeight: 36 } : {}) }} title="From date" aria-label="From date" />
               <span style={{ fontSize: 11, color: P.textFaintest }}>to</span>
-              <input type="date" value={customTo} onChange={e => setCustomTo(e.target.value)} style={{ ...inputCls, width: 138 }} title="To date" aria-label="To date" />
+              <input type="date" value={customTo} onChange={e => setCustomTo(e.target.value)} style={{ ...inputCls, width: 138, ...(t.design === 'dallaglio' ? { minHeight: 36 } : {}) }} title="To date" aria-label="To date" />
             </div>
           )}
         </div>
       </Glass>
+
+      {t.design === 'dallaglio' && loadError && (
+        <div role="alert" className="rounded-2xl border border-[var(--d-line)] bg-[var(--d-surface)] px-5 py-4 shadow-[var(--d-shadow)] flex flex-wrap items-center gap-4">
+          <AlertTriangle className="h-5 w-5 shrink-0 text-rose-500" />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-[var(--d-ink)]">Could not load the complete SHEQ dashboard</p>
+            <p className="mt-0.5 text-xs text-[var(--d-ink-subtle)]">{loadError}</p>
+          </div>
+          <Button variant="secondary" size="sm" onClick={load}>Try again</Button>
+        </div>
+      )}
 
       {loading && (
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '80px 0' }}>
@@ -608,7 +636,7 @@ function SHEQDashboardContent() {
         </div>
       )}
 
-      {!loading && (
+      {lastUpdated && (
         <>
           {alerts.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -622,7 +650,7 @@ function SHEQDashboardContent() {
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(155px, 1fr))', gap: 12 }}>
             {[
-              { label: 'Total Reports', value: totals.totalReports, color: '#60a5fa', icon: <FileSearch size={18} />, sub: 'All 5 modules' },
+              { label: 'Total Reports', value: totals.totalReports, color: '#60a5fa', icon: <FileSearch size={18} />, sub: 'All 6 modules' },
               { label: 'Near Miss', value: stats.nm.total, color: C.nm, icon: <AlertTriangle size={18} />, sub: `${stats.nm.open || stats.nm.total} active` },
               { label: 'Work Stoppages', value: stats.ws.total, color: C.ws, icon: <Ban size={18} />, sub: `${stats.ws.actPend} actions pending` },
               { label: 'VFL Observations', value: stats.vfl.total, color: C.vfl, icon: <Eye size={18} />, sub: `${stats.vfl.safe} safe, ${stats.vfl.unsafe} unsafe` },
@@ -646,11 +674,18 @@ function SHEQDashboardContent() {
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 14, gap: 8 }}>
               {editingTargets ? (
                 <>
-                  <button type="button" onClick={() => setEditingTargets(false)} style={{ fontSize: 11, padding: '5px 12px', borderRadius: 8, background: P.chipTrack, border: `1px solid ${P.divider}`, color: P.textMuted, cursor: 'pointer' }}>Cancel</button>
-                  <button type="button" onClick={saveTargets} style={{ fontSize: 11, padding: '5px 14px', borderRadius: 8, background: '#a855f7', border: '1px solid rgba(168,85,247,0.5)', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>Save Targets</button>
+                  {t.design === 'dallaglio' ? <>
+                    <Button variant="secondary" size="sm" onClick={() => setEditingTargets(false)}>Cancel</Button>
+                    <Button size="sm" onClick={saveTargets}>Save Targets</Button>
+                  </> : <>
+                    <button type="button" onClick={() => setEditingTargets(false)} style={{ fontSize: 11, padding: '5px 12px', borderRadius: 8, background: P.chipTrack, border: `1px solid ${P.divider}`, color: P.textMuted, cursor: 'pointer' }}>Cancel</button>
+                    <button type="button" onClick={saveTargets} style={{ fontSize: 11, padding: '5px 14px', borderRadius: 8, background: '#a855f7', border: '1px solid rgba(168,85,247,0.5)', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>Save Targets</button>
+                  </>}
                 </>
               ) : (
-                <button type="button" onClick={() => { setTargetDraft({ ...weeklyTargets }); setEditingTargets(true); }} style={{ fontSize: 11, padding: '5px 12px', borderRadius: 8, background: 'rgba(168,85,247,0.12)', border: '1px solid rgba(168,85,247,0.28)', color: '#a855f7', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>✎ Edit Targets</button>
+                t.design === 'dallaglio'
+                  ? <Button variant="secondary" size="sm" onClick={() => { setTargetDraft({ ...weeklyTargets }); setEditingTargets(true); }}>Edit Targets</Button>
+                  : <button type="button" onClick={() => { setTargetDraft({ ...weeklyTargets }); setEditingTargets(true); }} style={{ fontSize: 11, padding: '5px 12px', borderRadius: 8, background: 'rgba(168,85,247,0.12)', border: '1px solid rgba(168,85,247,0.28)', color: '#a855f7', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>✎ Edit Targets</button>
               )}
             </div>
 
@@ -670,7 +705,7 @@ function SHEQDashboardContent() {
               const statusColor = overflow || pct >= 100 ? C.safe : pct >= 80 ? '#60a5fa' : pct >= 50 ? C.nm : C.high;
 
               return (
-                <div key={key} style={{ display: 'grid', gridTemplateColumns: '28px 1fr 80px 90px 80px', alignItems: 'center', gap: 14, padding: '12px 0', borderBottom: `1px solid ${P.divider}` }}>
+                <div key={key} className={t.design === 'dallaglio' ? 'sheq-weekly-row' : undefined} style={{ display: 'grid', gridTemplateColumns: '28px 1fr 80px 90px 80px', alignItems: 'center', gap: 14, padding: '12px 0', borderBottom: `1px solid ${P.divider}` }}>
                   <div style={{ color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{icon}</div>
                   <div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
@@ -687,7 +722,7 @@ function SHEQDashboardContent() {
                         <span style={{ fontSize: 11, color: P.textFaintest }}>/</span>
                         <input type="number" min={1} max={999} title={`${label} target`} aria-label={`${label} target`} value={targetDraft[key]}
                           onChange={e => setTargetDraft(p => ({ ...p, [key]: Math.max(1, parseInt(e.target.value) || 1) }))}
-                          style={{ width: 44, textAlign: 'center', background: 'rgba(168,85,247,0.15)', border: '1px solid rgba(168,85,247,0.45)', borderRadius: 7, color: '#a855f7', fontSize: 13, fontWeight: 800, padding: '2px 4px', outline: 'none' }} />
+                          style={{ width: 44, minHeight: t.design === 'dallaglio' ? 36 : undefined, textAlign: 'center', background: 'rgba(168,85,247,0.15)', border: '1px solid rgba(168,85,247,0.45)', borderRadius: 7, color: '#a855f7', fontSize: 13, fontWeight: 800, padding: '2px 4px', outline: 'none' }} />
                       </div>
                     ) : (
                       <div><div style={{ fontSize: 16, fontWeight: 800, color }}>{actual}</div><div style={{ fontSize: 10, color: P.textFaintest }}>of {target}</div></div>
@@ -727,7 +762,7 @@ function SHEQDashboardContent() {
           </CollapsibleSection>
 
           <CollapsibleSection title="Safety Score &amp; Trends" icon={<Shield size={15} />} sub="Weighted safety score across all modules + monthly activity trend" accent={sc} open={sections.expanded.score} onToggle={() => sections.toggle('score')} P={P}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 20 }}>
+            <div className={t.design === 'dallaglio' ? 'sheq-score-grid' : undefined} style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 20 }}>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                 <DonutChart segments={[{ value: score, color: sc }, { value: 100 - score, color: P.trackBg }]} size={155} strokeWidth={22} label={score} sublabel="/ 100" trackColor={P.trackBg} textColor={P.textPrimary} subColor={P.textFaint} />
                 <div style={{ marginTop: 12, textAlign: 'center' }}>
@@ -761,7 +796,7 @@ function SHEQDashboardContent() {
                   })()}
                 </div>
                 <TrendLineChart data={trendData} labels={trendLabels} color="#60a5fa" height={140} gridColor={P.divider} subColor={P.textFaint} />
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10, marginTop: 16 }}>
+                <div className={t.design === 'dallaglio' ? 'sheq-five-grid' : undefined} style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10, marginTop: 16 }}>
                   {([
                     { key: 'nm' as const, label: 'Near Miss', color: C.nm },
                     { key: 'ws' as const, label: 'Work Stop.', color: C.ws },
@@ -824,7 +859,7 @@ function SHEQDashboardContent() {
           </CollapsibleSection>
 
           <CollapsibleSection title="Analytics &amp; Visualisations" icon={<Activity size={15} />} sub="Reports by module, action status breakdown and behaviour analysis" accent={C.prog} open={sections.expanded.analytics} onToggle={() => sections.toggle('analytics')} P={P}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18, marginBottom: 18 }}>
+            <div className={t.design === 'dallaglio' ? 'sheq-two-col' : undefined} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18, marginBottom: 18 }}>
               <div style={{ background: P.chipTrack, borderRadius: 12, padding: '16px 18px' }}>
                 <SectionHeader icon={<BarChart3 size={13} />} title="Reports by Module" sub="Total count per category" color={P.textFaint} textColor={P.textPrimary} subColor={P.textFaint} />
                 <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 8 }}>
@@ -853,7 +888,7 @@ function SHEQDashboardContent() {
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
+            <div className={t.design === 'dallaglio' ? 'sheq-two-col' : undefined} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
               <div style={{ background: P.chipTrack, borderRadius: 12, padding: '16px 18px' }}>
                 <SectionHeader icon={<Eye size={13} />} title="VFL Behaviour Breakdown" sub="Safe vs Unsafe observations" color={P.textFaint} textColor={P.textPrimary} subColor={P.textFaint} />
                 {stats.vfl.total === 0 ? <EmptyViz subColor={P.textFaint} /> : (
@@ -918,10 +953,12 @@ function SHEQDashboardContent() {
 
           <CollapsibleSection title="Safety Analysis &amp; Recommendations" icon={<Shield size={15} />} sub="Hotspot detection · trend direction · risk scoring · prioritised recommendations across all safety modules" accent="#a855f7" open={sections.expanded.ai} onToggle={() => sections.toggle('ai')} P={P}>
             <div style={{ marginBottom: 18, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-              <button type="button" disabled={aiLoading || loading} onClick={runAiAnalysis}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '9px 20px', borderRadius: 10, fontSize: 13, fontWeight: 700, background: aiLoading ? 'rgba(168,85,247,0.15)' : 'linear-gradient(135deg,#6d28d9,#a855f7)', color: '#fff', border: '1px solid rgba(168,85,247,0.45)', cursor: aiLoading ? 'not-allowed' : 'pointer', transition: 'all 0.2s', boxShadow: aiLoading ? 'none' : '0 4px 16px rgba(168,85,247,0.3)' }}>
-                {aiLoading ? <><span style={{ display: 'inline-block', animation: 'spin 1s linear infinite', marginRight: 4, fontSize: 14 }}>⟳</span> Analysing…</> : <><span style={{ fontSize: 16 }}>✦</span> {aiResult ? 'Re-analyse' : 'Analyse'}</>}
-              </button>
+              {t.design === 'dallaglio'
+                ? <Button icon={Shield} size="sm" submitting={aiLoading} disabled={loading || refreshing} onClick={runAiAnalysis}>{aiLoading ? 'Analysing…' : aiResult ? 'Re-analyse' : 'Analyse'}</Button>
+                : <button type="button" disabled={aiLoading || loading} onClick={runAiAnalysis}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '9px 20px', borderRadius: 10, fontSize: 13, fontWeight: 700, background: aiLoading ? 'rgba(168,85,247,0.15)' : 'linear-gradient(135deg,#6d28d9,#a855f7)', color: '#fff', border: '1px solid rgba(168,85,247,0.45)', cursor: aiLoading ? 'not-allowed' : 'pointer', transition: 'all 0.2s', boxShadow: aiLoading ? 'none' : '0 4px 16px rgba(168,85,247,0.3)' }}>
+                    {aiLoading ? <><span style={{ display: 'inline-block', animation: 'spin 1s linear infinite', marginRight: 4, fontSize: 14 }}>⟳</span> Analysing…</> : <><span style={{ fontSize: 16 }}>✦</span> {aiResult ? 'Re-analyse' : 'Analyse'}</>}
+                  </button>}
               {aiResult && <span style={{ fontSize: 11, color: P.textFaint }}>{aiResult._records_analysed} records analysed across all modules</span>}
               {aiError && <span style={{ fontSize: 11, color: '#f87171', background: 'rgba(248,113,113,0.10)', padding: '4px 10px', borderRadius: 8 }}>{aiError}</span>}
             </div>
@@ -992,7 +1029,7 @@ function SHEQDashboardContent() {
                     </div>
                   )}
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                  <div className={t.design === 'dallaglio' ? 'sheq-two-col' : undefined} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                     {(aiResult.trends ?? []).length > 0 && (
                       <div style={{ background: P.chipTrack, borderRadius: 10, padding: '14px 16px' }}>
                         <div style={{ fontSize: 11, fontWeight: 700, color: P.textFaint, marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.8 }}>Trends</div>
@@ -1039,7 +1076,20 @@ function SHEQDashboardContent() {
         </>
       )}
 
-      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+      <style>{`
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @media (max-width: 640px) {
+          .sheq-weekly-row { grid-template-columns: 28px minmax(0, 1fr) !important; gap: 10px !important; }
+          .sheq-weekly-row > :nth-child(n + 3) { grid-column: 2; text-align: left !important; }
+          .sheq-hero-actions { width: 100%; max-width: 100%; flex-shrink: 1 !important; }
+          .sheq-score-grid, .sheq-two-col { grid-template-columns: minmax(0, 1fr) !important; }
+          .sheq-five-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+          .sheq-notes-form { flex-direction: column !important; }
+          .sheq-notes-form input { width: 100% !important; min-width: 0; }
+          .sheq-custom-range { width: 100%; margin-left: 0 !important; flex-wrap: wrap; }
+          .sheq-custom-range input { flex: 1; min-width: 120px; width: auto !important; }
+        }
+      `}</style>
     </main>
   );
 }

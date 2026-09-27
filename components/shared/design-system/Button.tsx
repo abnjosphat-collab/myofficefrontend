@@ -18,6 +18,7 @@ export interface ButtonProps {
   size?: ButtonSize;
   type?: 'button' | 'submit';
   disabled?: boolean;
+  pressed?: boolean;
   submitting?: boolean;
   fullWidth?: boolean;
   href?: string;
@@ -56,7 +57,7 @@ function classicClasses(
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button({
   children, icon: Icon, iconPosition = 'start', variant = 'primary', size = 'sm',
-  type = 'button', disabled, submitting, fullWidth = false, href, title, className = '',
+  type = 'button', disabled, pressed, submitting, fullWidth = false, href, title, className = '',
   accent = 'violet', danger = false, onClick,
 }, ref) {
   const t = useTheme();
@@ -91,6 +92,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
         type={type}
         onClick={onClick}
         disabled={disabled || submitting}
+        aria-pressed={pressed}
         title={title}
         data-ds="button"
         data-variant={resolved}
@@ -111,6 +113,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       type={type}
       onClick={onClick}
       disabled={disabled || submitting}
+      aria-pressed={pressed}
       title={title}
       whileHover={{ scale: 1.01 }}
       whileTap={{ scale: 0.99 }}

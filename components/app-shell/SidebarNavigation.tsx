@@ -180,8 +180,8 @@ export function SidebarNavigation({
                 ) : (
                   favoriteModules.map(({ module }) => (
                     <div key={module.href} className="relative flex items-center">
-                      <Link href={module.href} onClick={() => trackModuleUsage(module.href)} className={`flex-1 flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-[13px] ${t.textMuted} ${t.hoverBg} ${t.hoverText} transition-colors ${editingFavorites ? 'pr-8' : ''}`}>
-                        <Bookmark className={`h-3.5 w-3.5 shrink-0 ${t.light ? 'text-brand-600' : 'text-brand-400'}`} weight="fill" />
+                      <Link href={module.href} onClick={() => trackModuleUsage(module.href)} className={`flex-1 flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-[13px] transition-colors ${t.design === 'dallaglio' ? `${pathname === module.href ? 'bg-[var(--d-soft)] text-[var(--d-ink)]' : 'text-[var(--d-ink-muted)]'} hover:bg-[var(--d-soft)] hover:text-[var(--d-ink)]` : `${t.textMuted} ${t.hoverBg} ${t.hoverText}`} ${editingFavorites ? 'pr-8' : ''}`}>
+                        {t.design === 'dallaglio' ? <module.icon className="h-[17px] w-[17px] shrink-0" weight="light" aria-hidden="true" /> : <Bookmark className={`h-3.5 w-3.5 shrink-0 ${t.light ? 'text-brand-600' : 'text-brand-400'}`} weight="fill" />}
                         <span className="truncate">{module.title}</span>
                       </Link>
                       {editingFavorites && (
@@ -313,9 +313,9 @@ export function SidebarNavigation({
                   key={module.href}
                   href={module.href}
                   title={module.title}
-                  className={`p-2 rounded-lg ${t.hoverBg} ${t.hoverText} transition-colors`}
+                  className={t.design === 'dallaglio' ? 'grid h-9 w-9 place-items-center rounded-[9px] text-[var(--d-ink-muted)] hover:bg-[var(--d-soft)] hover:text-[var(--d-ink)] transition-colors' : `p-2 rounded-lg ${t.hoverBg} ${t.hoverText} transition-colors`}
                 >
-                  <Bookmark className={`h-4 w-4 ${t.light ? 'text-brand-600' : 'text-brand-400'}`} strokeWidth={1.75} />
+                  {t.design === 'dallaglio' ? <module.icon className="h-[18px] w-[18px]" weight="light" aria-hidden="true" /> : <Bookmark className={`h-4 w-4 ${t.light ? 'text-brand-600' : 'text-brand-400'}`} strokeWidth={1.75} />}
                 </Link>
               ))}
             </div>

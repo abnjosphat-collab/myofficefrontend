@@ -13,7 +13,12 @@
 | **Hero stat chips** | `StatTile` in page heroes | Decorative `color` tints icons in **light only**; dark uses neutral icons. `iconTone="semantic"` + `STATUS_TONE` in both themes when the count is a status signal |
 | **Categorical** | Charts, training categories, record-type chips | Deliberate accent — use `iconTone="accent"` or page-local maps |
 
-Categorical `ACCENT.*` remains for intentional use — not default icon coloring on every tile.
+Categorical `ACCENT.*` remains for intentional charts and clear category
+comparisons, not default icon coloring on every tile. In Dallaglio, category
+badges pass `kind="category"` to `StatusBadge`, keeping their dot neutral;
+status badges keep their semantic hue. `SummaryItem` icons are neutral, even
+when a page passes its Classic category color. This keeps the information
+hierarchy consistent between light and dark themes.
 
 ## Implementation map
 

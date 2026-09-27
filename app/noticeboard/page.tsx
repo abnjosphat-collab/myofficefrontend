@@ -7,16 +7,16 @@ import { fmtDate as formatDate, fmtDateTime as formatDateTime } from '@/componen
 import {
   useTheme, PageHero, StatTile, StatusBadge, ProgressBar, FormField, FormActions,
   SearchInput, ViewToggle, CenterModal, PrimaryButton, EmptyState, useCollapseSection,
-  GlowCard, ACCENT_HEX, SelectField, TYPE_WEIGHT,
+  GlowCard, ACCENT_HEX, SelectField, TYPE_WEIGHT, Button, IconAction, IconLink,
 } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
 import { toast } from 'sonner';
 import {
-  Bell, Plus, Search, Trash2, Edit, FileText, AlertTriangle, RefreshCw,
-  Calendar, Tag, Paperclip, Download, AlertCircle, CheckCircle,
-  Eye, ChevronDown, ChevronUp, X, User, Building, LayoutGrid, Table as TableIcon,
-  Save, Upload, Link as LinkIcon, Clock, Share2, Copy, BarChart3, Pin, PinOff, Clock4, Archive, EyeOff,
+  Bell, Plus, Trash2, Edit, FileText, AlertTriangle, RefreshCw,
+  Calendar, Paperclip, CheckCircle,
+  X, User, Building, LayoutGrid, Table as TableIcon,
+  Upload, Share2, Copy, BarChart3, Pin, PinOff, Clock4, Archive, EyeOff,
   Video, Music, FileSpreadsheet,
   useConfirm,
 } from '@/components/shared/theme';
@@ -81,7 +81,7 @@ function AttachmentThumb({ attachment, size = 'sm' }: { attachment: Attachment; 
   const Icon = ATTACHMENT_KIND_ICON[attachmentKind(attachment.name)];
   return (
     <div className={`${dim} rounded-lg flex items-center justify-center shrink-0 ${t.chipBg}`}>
-      <Icon className="h-4 w-4 text-brand-500" />
+      <Icon className={`h-4 w-4 ${t.design === 'dallaglio' ? t.textFaint : 'text-brand-500'}`} weight={t.design === 'dallaglio' ? 'light' : undefined} />
     </div>
   );
 }
@@ -154,10 +154,7 @@ function NoticeDetailsModal({ isOpen, onClose, notice, onDelete, onEdit, onToggl
                   </div>
                 </div>
                 {a.url && (
-                  <a href={a.url} target="_blank" rel="noopener noreferrer" title="Download attachment"
-                    className={`h-8 w-8 flex items-center justify-center rounded-lg shrink-0 ${t.hoverBg} ${t.textFaint} hover:text-brand-500`}>
-                    <Download className="h-4 w-4" />
-                  </a>
+                  <IconLink meaning="download" href={a.url} title={`Download ${a.name || 'attachment'}`} />
                 )}
               </div>
             ))}
@@ -165,17 +162,14 @@ function NoticeDetailsModal({ isOpen, onClose, notice, onDelete, onEdit, onToggl
         )}
 
         <div className={`flex flex-wrap gap-1.5 pt-2 border-t ${t.border}`}>
-          <button type="button" onClick={handleShare} className={`px-3 py-1.5 rounded-lg text-xs ${t.chipBg} ${t.hoverBg} ${t.textMuted} inline-flex items-center gap-1.5`}><Share2 className="h-3.5 w-3.5" /> Share</button>
-          <button type="button" onClick={() => { navigator.clipboard.writeText(`${notice.title}\n\n${notice.content}`); toast.success('Copied'); }} className={`px-3 py-1.5 rounded-lg text-xs ${t.chipBg} ${t.hoverBg} ${t.textMuted} inline-flex items-center gap-1.5`}><Copy className="h-3.5 w-3.5" /> Copy</button>
-          <button type="button" onClick={handleTogglePin} className={`px-3 py-1.5 rounded-lg text-xs ${t.chipBg} ${t.hoverBg} ${t.textMuted} inline-flex items-center gap-1.5`}>
-            {notice.is_pinned ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />} {notice.is_pinned ? 'Unpin' : 'Pin'}
-          </button>
-          <button type="button" onClick={async () => { if (await confirm({ title: 'Delete this notice?', destructive: true })) { onDelete(notice.id); onClose(); } }}
-            className="px-3 py-1.5 rounded-lg text-xs bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 inline-flex items-center gap-1.5 ml-auto"><Trash2 className="h-3.5 w-3.5" /> Delete</button>
+          <Button variant="secondary" icon={Share2} onClick={handleShare}>Share</Button>
+          <Button variant="secondary" icon={Copy} onClick={() => { navigator.clipboard.writeText(`${notice.title}\n\n${notice.content}`); toast.success('Copied'); }}>Copy</Button>
+          <Button variant="secondary" icon={notice.is_pinned ? PinOff : Pin} onClick={handleTogglePin}>{notice.is_pinned ? 'Unpin' : 'Pin'}</Button>
+          <span className="ml-auto"><Button variant="danger" icon={Trash2} onClick={async () => { if (await confirm({ title: 'Delete this notice?', destructive: true })) { onDelete(notice.id); onClose(); } }}>Delete</Button></span>
         </div>
       </div>
       <div className={`px-5 py-4 border-t ${t.border} flex justify-end gap-2`}>
-        <button type="button" onClick={onClose} className={`px-4 py-2 rounded-xl text-sm ${t.textFaint} ${t.hoverText} border ${t.border}`}>Close</button>
+        <Button variant="secondary" onClick={onClose}>Close</Button>
         <PrimaryButton icon={Edit} accent="violet" size="md" onClick={() => { onEdit(notice); onClose(); }}>Edit Notice</PrimaryButton>
       </div>
     </CenterModal>
@@ -226,8 +220,8 @@ function NoticeCard({ notice, onView, onEdit, onDelete }: {
           <StatusBadge color={STATUS_HEX[notice.status] ?? '#94a3b8'} label={notice.status} />
         </div>
         <div className="flex items-center gap-1">
-          <button type="button" title="Edit" aria-label="Edit notice" onClick={e => { e.stopPropagation(); onEdit(notice); }} className={`h-7 w-7 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-brand-500`}><Edit className="h-3.5 w-3.5" /></button>
-          <button type="button" title="Delete" aria-label="Delete notice" onClick={async e => { e.stopPropagation(); if (await confirm({ title: 'Delete this notice?', destructive: true })) onDelete(notice.id); }} className={`h-7 w-7 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-rose-500`}><Trash2 className="h-3.5 w-3.5" /></button>
+          <IconAction meaning="edit" title={`Edit ${notice.title}`} onClick={e => { e.stopPropagation(); onEdit(notice); }} />
+          <IconAction meaning="danger" title={`Delete ${notice.title}`} onClick={async e => { e.stopPropagation(); if (await confirm({ title: 'Delete this notice?', destructive: true })) onDelete(notice.id); }} />
         </div>
       </div>
     </GlowCard>
@@ -443,7 +437,7 @@ function NoticeboardContent() {
   const displayNotices = hideExpired ? data.filter(n => !expiredNotices.includes(n)) : data;
   const pinnedNotices = displayNotices.filter(n => n.is_pinned);
   const regularNotices = displayNotices.filter(n => !n.is_pinned);
-  const selectCls = `h-9 px-3 rounded-lg text-xs outline-none transition-colors ${t.inputBg}`;
+  const metricsUnavailable = isLoading || (loadError && data.length === 0);
   const hasFilters = search || Object.values(filters).some(f => f !== 'all' && f !== null);
 
   // Both previously rendered with no onClick at all — clicking them did nothing.
@@ -506,10 +500,10 @@ function NoticeboardContent() {
         }
       >
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <StatTile icon={FileText} color="#60a5fa" label="Total Notices" value={data.length} />
-          <StatTile icon={CheckCircle} color="#34d399" label="Active" value={data.filter(n => n.status === 'Active').length} />
-          <StatTile icon={Pin} color="#f59e0b" label="Pinned" value={pinnedNotices.length} />
-          <StatTile icon={Clock4} color="#f43f5e" label="Expired" value={expiredNotices.length} />
+          <StatTile icon={FileText} color="#60a5fa" label="Total Notices" value={metricsUnavailable ? '—' : data.length} />
+          <StatTile icon={CheckCircle} color="#34d399" label="Active" value={metricsUnavailable ? '—' : data.filter(n => n.status === 'Active').length} />
+          <StatTile icon={Pin} color="#f59e0b" label="Pinned" value={metricsUnavailable ? '—' : pinnedNotices.length} />
+          <StatTile icon={Clock4} color="#f43f5e" label="Expired" value={metricsUnavailable ? '—' : expiredNotices.length} />
         </div>
       </PageHero>
 
@@ -552,9 +546,8 @@ function NoticeboardContent() {
         </div>
         {hasFilters && (
           <div className="flex gap-2">
-            <button type="button" onClick={() => { setFilters({ category: 'all', priority: 'all', status: 'all', department: 'all', is_pinned: null }); setSearch(''); }}
-              className={`h-7 px-2.5 flex items-center gap-1 text-[11px] rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textFaint}`}><X className="h-3 w-3" /> Clear Filters</button>
-            <button type="button" onClick={fetchNotices} className={`h-7 px-2.5 flex items-center gap-1 text-[11px] rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textFaint}`}><RefreshCw className="h-3 w-3" /> Refresh</button>
+            <Button variant="ghost" icon={X} onClick={() => { setFilters({ category: 'all', priority: 'all', status: 'all', department: 'all', is_pinned: null }); setSearch(''); }}>Clear Filters</Button>
+            <Button variant="ghost" icon={RefreshCw} onClick={fetchNotices}>Refresh</Button>
           </div>
         )}
       </div>
@@ -602,8 +595,8 @@ function NoticeboardContent() {
                   <td className={`px-3 py-2.5 text-xs ${t.textMuted}`}>{formatDate(notice.date)}</td>
                   <td className="px-3 py-2.5">
                     <div className="flex items-center justify-end gap-1">
-                      <button type="button" title="Edit" aria-label="Edit notice" onClick={e => { e.stopPropagation(); setEditingNotice(notice); setIsModalOpen(true); }} className={`h-7 w-7 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-brand-500`}><Edit className="h-3.5 w-3.5" /></button>
-                      <button type="button" title="Delete" aria-label="Delete notice" onClick={async e => { e.stopPropagation(); if (await confirm({ title: 'Delete this notice?', destructive: true })) handleDeleteNotice(notice.id); }} className={`h-7 w-7 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-rose-500`}><Trash2 className="h-3.5 w-3.5" /></button>
+                      <IconAction meaning="edit" title={`Edit ${notice.title}`} onClick={e => { e.stopPropagation(); setEditingNotice(notice); setIsModalOpen(true); }} />
+                      <IconAction meaning="danger" title={`Delete ${notice.title}`} onClick={async e => { e.stopPropagation(); if (await confirm({ title: 'Delete this notice?', destructive: true })) handleDeleteNotice(notice.id); }} />
                     </div>
                   </td>
                 </tr>
@@ -633,22 +626,13 @@ function NoticeboardContent() {
       <div className={`${t.glass} rounded-2xl ${t.shadow} p-5`}>
         <h3 className={`text-sm ${TYPE_WEIGHT.semibold} mb-3 ${t.textPrimary}`}>Quick Actions</h3>
         <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={handleArchiveAllExpired}
-            title={`${expiredNotices.filter(n => n.status !== 'Archived').length} expired, not yet archived`}
-            className={`px-3 py-1.5 rounded-lg text-xs ${t.chipBg} ${t.hoverBg} ${t.textMuted} inline-flex items-center gap-1.5`}>
-            <Archive className="h-3.5 w-3.5" /> Archive All Expired
-          </button>
-          <button type="button" onClick={() => setHideExpired(v => !v)}
-            className={`px-3 py-1.5 rounded-lg text-xs inline-flex items-center gap-1.5 transition-all ${
-              hideExpired ? 'bg-brand-500/15 text-brand-500' : `${t.chipBg} ${t.hoverBg} ${t.textMuted}`
-            }`}>
-            <EyeOff className="h-3.5 w-3.5" /> {hideExpired ? 'Showing Non-Expired Only' : 'Hide Expired Notices'}
-          </button>
-          <button type="button" onClick={handleUnpinAll}
-            title={`${pinnedNotices.length} currently pinned`}
-            className={`px-3 py-1.5 rounded-lg text-xs ${t.chipBg} ${t.hoverBg} ${t.textMuted} inline-flex items-center gap-1.5`}>
-            <PinOff className="h-3.5 w-3.5" /> Unpin All
-          </button>
+          <Button variant="secondary" icon={Archive} onClick={handleArchiveAllExpired}
+            title={`${expiredNotices.filter(n => n.status !== 'Archived').length} expired, not yet archived`}>Archive All Expired</Button>
+          <Button variant={hideExpired ? 'subtle' : 'secondary'} icon={EyeOff} onClick={() => setHideExpired(v => !v)}>
+            {hideExpired ? 'Showing Non-Expired Only' : 'Hide Expired Notices'}
+          </Button>
+          <Button variant="secondary" icon={PinOff} onClick={handleUnpinAll}
+            title={`${pinnedNotices.length} currently pinned`}>Unpin All</Button>
         </div>
       </div>
 

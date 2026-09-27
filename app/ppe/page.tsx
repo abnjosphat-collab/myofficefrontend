@@ -22,9 +22,9 @@ import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButto
 import { exportFilename } from '@/lib/exportUtils';
 import {
   useTheme, STATUS_TONE, Collapse, AnimatedText, PulsingIcon, CenterModal, GlowCard,
-  staggerContainer, fadeUp, ACCENT, ACCENT_HEX, type Accent,
-  StatusBadge, RecordCard, StatTile, ProgressBar, FormField, FormActions,
-  useCollapseSection, SelectField, AutofillInput, useConfirm, accentText, TYPE_WEIGHT, PrimaryButton,
+  staggerContainer, fadeUp, ACCENT, ACCENT_HEX,
+  StatusBadge, RecordCard, RecordActions, StatTile, ProgressBar, FormField, FormActions,
+  useCollapseSection, SelectField, AutofillInput, useConfirm, accentText, TYPE_WEIGHT, PrimaryButton, Button, IconAction, DetailActions,
 } from '@/components/shared/theme';
 import type { PPETypeInfo, PPERecord, EmployeeRow, EmployeeWithPPE, EnhancedStats, FormState } from './types';
 import {
@@ -237,7 +237,6 @@ function PPEItemCard({ record, onEdit, onDelete, onView, onToggleNotRequired }: 
   const notRequired = record.status === 'not_required';
   const expiring = !notRequired && isExpiringSoon(record.expiry_date);
   const expired  = !notRequired && isExpired(record.expiry_date);
-  const glowColor = notRequired ? '#94a3b8' : expired ? '#f43f5e' : expiring ? '#f59e0b' : ACCENT_HEX.blue;
 
   return (
     <RecordCard
@@ -258,7 +257,9 @@ function PPEItemCard({ record, onEdit, onDelete, onView, onToggleNotRequired }: 
           {record.size && <span>Size: {record.size}</span>}
         </div>
       }
-      actions={<>
+      actions={t.design === 'dallaglio' ? <>
+        <RecordActions onView={() => onView(record)} onEdit={() => onEdit(record)} onDelete={() => onDelete(record.id)} />
+      </> : <>
         <button onClick={() => onView(record)} type="button" className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg ${t.chipBg} ${t.textMuted} ${t.hoverText} text-[12px] ${TYPE_WEIGHT.semibold} transition-all`}>
           <Eye className="h-3.5 w-3.5" /> View
         </button>
@@ -275,10 +276,11 @@ function PPEItemCard({ record, onEdit, onDelete, onView, onToggleNotRequired }: 
         {/* Mark an overdue item as intentionally not-needed (drops it from Overdue counts),
             or restore a not-required item to active. */}
         {(expired || notRequired) && (
-          <button type="button" onClick={() => onToggleNotRequired(record)}
-            className={`text-[11px] ${TYPE_WEIGHT.medium} px-2 py-1 rounded-md ${t.chipBg} ${t.hoverBg} ${t.textMuted} ${t.hoverText} transition-colors shrink-0`}>
-            {notRequired ? 'Mark as active' : 'Not required'}
-          </button>
+          t.design === 'dallaglio' ? <Button variant="ghost" size="xs" onClick={() => onToggleNotRequired(record)}>{notRequired ? 'Mark as active' : 'Not required'}</Button>
+            : <button type="button" onClick={() => onToggleNotRequired(record)}
+              className={`text-[11px] ${TYPE_WEIGHT.medium} px-2 py-1 rounded-md ${t.chipBg} ${t.hoverBg} ${t.textMuted} ${t.hoverText} transition-colors shrink-0`}>
+              {notRequired ? 'Mark as active' : 'Not required'}
+            </button>
         )}
       </div>
     </RecordCard>
@@ -380,7 +382,7 @@ function PPEDetailModal({ item, isOpen, onClose, onEdit }: DetailModalProps) {
       <motion.div variants={staggerContainer} initial="hidden" animate="show" className="p-5 space-y-4">
         <motion.div variants={fadeUp} className="flex items-center gap-3">
           <PulsingIcon className={`h-12 w-12 rounded-xl flex items-center justify-center shrink-0 ${t.chipBg}`}>
-            <Icon className="h-5 w-5" style={{ color: ppeType.color }} />
+            <Icon className={`h-5 w-5 ${t.design === 'dallaglio' ? t.textMuted : ''}`} style={t.design === 'dallaglio' ? undefined : { color: ppeType.color }} />
           </PulsingIcon>
           <div>
             <h3 className={`${TYPE_WEIGHT.semibold} ${t.textPrimary} text-base tracking-tight`}>{item.item_name}</h3>
@@ -404,13 +406,13 @@ function PPEDetailModal({ item, isOpen, onClose, onEdit }: DetailModalProps) {
           </motion.div>
         )}
       </motion.div>
-      <div className={`flex gap-2 px-5 py-4 border-t ${t.border}`}>
+      {t.design === 'dallaglio' ? <div className={`px-5 py-4 border-t ${t.border}`}><DetailActions onClose={onClose} onEdit={() => { onEdit(item); onClose(); }} editLabel="Edit record" /></div> : <div className={`flex gap-2 px-5 py-4 border-t ${t.border}`}>
         <button type="button" onClick={onClose}
           className={`flex-1 py-2 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border} transition-all`}>
           Close
         </button>
         <PrimaryButton icon={Pencil} fullWidth size="md" accent="blue" onClick={() => { onEdit(item); onClose(); }}>Edit Record</PrimaryButton>
-      </div>
+      </div>}
     </CenterModal>
   );
 }
@@ -875,7 +877,7 @@ function DueItemsList({ employees, filterType, sectionFilterActive = false, onEd
                 <GlowCard color={glowColor} onClick={() => onViewItem(item)} className="p-3.5 flex items-center gap-3">
                   <input type="checkbox" checked={selectedIds.has(String(item.id))} onChange={() => toggleSelect(String(item.id))}
                     onClick={e => e.stopPropagation()} aria-label={`Select ${item.employee_name}'s ${item.item_name}`} className="rounded shrink-0" />
-                  <div className={`p-2 rounded-lg shrink-0 ${t.chipBg}`}><Icon className="h-4 w-4" style={{ color: ppeType.color }} /></div>
+                  <div className={`p-2 rounded-lg shrink-0 ${t.chipBg}`}><Icon className={`h-4 w-4 ${t.design === 'dallaglio' ? t.textMuted : ''}`} style={t.design === 'dallaglio' ? undefined : { color: ppeType.color }} /></div>
 
                   <div className="min-w-0 flex-1 grid grid-cols-2 sm:grid-cols-4 gap-x-3 gap-y-1 items-center">
                     <div className="min-w-0">
@@ -898,12 +900,15 @@ function DueItemsList({ employees, filterType, sectionFilterActive = false, onEd
 
                   <div className="flex items-center gap-1 shrink-0">
                     {filterType === 'due' && (
-                      <button type="button" title="Mark as not required" onClick={e => { e.stopPropagation(); onToggleNotRequired(item); }}
+                      t.design === 'dallaglio' ? <Button variant="ghost" size="sm" title="Mark as not required" onClick={e => { e.stopPropagation(); onToggleNotRequired(item); }}>Not required</Button> : <button type="button" title="Mark as not required" onClick={e => { e.stopPropagation(); onToggleNotRequired(item); }}
                         className={`h-7 px-2 flex items-center justify-center rounded-lg text-[11px] ${TYPE_WEIGHT.medium} ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all`}>
                         Not required
                       </button>
                     )}
-                    <button type="button"
+                    {t.design === 'dallaglio' ? <Button variant="icon" size="sm" icon={ShoppingCart}
+                      title={isOnOrderList(String(item.id)) ? 'Already on the order list' : 'Add to order list'}
+                      disabled={isOnOrderList(String(item.id))}
+                      onClick={e => { e.stopPropagation(); onAddToOrderList([toOrderEntry(item)]); toast.success('Added to the order list'); }} /> : <button type="button"
                       title={isOnOrderList(String(item.id)) ? 'Already on the order list' : 'Add to order list'}
                       disabled={isOnOrderList(String(item.id))}
                       onClick={e => { e.stopPropagation(); onAddToOrderList([toOrderEntry(item)]); toast.success('Added to the order list'); }}
@@ -911,15 +916,15 @@ function DueItemsList({ employees, filterType, sectionFilterActive = false, onEd
                         isOnOrderList(String(item.id)) ? `${accentClasses.text} cursor-default` : `${t.hoverBg} ${t.textFaint} ${t.hoverText}`
                       }`}>
                       <ShoppingCart className="h-3.5 w-3.5" />
-                    </button>
-                    <button type="button" title="Edit" onClick={e => { e.stopPropagation(); onEditItem(item); }}
+                    </button>}
+                    {t.design === 'dallaglio' ? <Button variant="icon" size="sm" icon={Pencil} title="Edit" onClick={e => { e.stopPropagation(); onEditItem(item); }} /> : <button type="button" title="Edit" onClick={e => { e.stopPropagation(); onEditItem(item); }}
                       className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} hover:text-brand-500 transition-all`}>
                       <Pencil className="h-3.5 w-3.5" />
-                    </button>
-                    <button type="button" title="Delete" onClick={e => { e.stopPropagation(); onDeleteItem(item.id); }}
+                    </button>}
+                    {t.design === 'dallaglio' ? <Button variant="icon" size="sm" icon={Trash2} title="Delete" onClick={e => { e.stopPropagation(); onDeleteItem(item.id); }} /> : <button type="button" title="Delete" onClick={e => { e.stopPropagation(); onDeleteItem(item.id); }}
                       className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} hover:text-rose-500 transition-all`}>
                       <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+                    </button>}
                   </div>
                 </GlowCard>
               </div>
@@ -950,11 +955,11 @@ function PPEMatrixModal({ isOpen, onClose, matrix, records, onSetInterval, onRec
     <CenterModal open={isOpen} onClose={onClose} title="PPE Replacement Matrix"
       subtitle="Set how long each item lasts — saving an interval recalculates every existing item of that type" accent="violet" width="max-w-2xl">
       <div className="px-5 pt-3 flex justify-end">
-        <button type="button" onClick={onRecalculateAll}
+        {t.design === 'dallaglio' ? <Button variant="secondary" size="sm" onClick={onRecalculateAll} title="Recalculate expiry for every active record against the current matrix">Recalculate all types</Button> : <button type="button" onClick={onRecalculateAll}
           title="Recalculate expiry for every active record of every type against the current matrix — fixes anything left stale by a past interval change"
           className={`h-8 px-3 rounded-lg text-[12px] ${TYPE_WEIGHT.medium} ${t.chipBg} ${t.hoverBg} ${t.textMuted} ${t.hoverText} transition-colors`}>
           Recalculate all types
-        </button>
+        </button>}
       </div>
       <div className="px-5 py-3 space-y-1.5 max-h-[65vh] overflow-y-auto">
         {Object.entries(PPE_TYPES).map(([key, info]) => {
@@ -962,23 +967,25 @@ function PPEMatrixModal({ isOpen, onClose, matrix, records, onSetInterval, onRec
           const activeCount = records.filter(r => r.ppe_type === key && r.status === 'active').length;
           const months = matrix[key] ?? 0;
           return (
-            <div key={key} className={`flex items-center gap-3 px-3 py-2 rounded-lg ${t.hoverBgSoft}`}>
-              <div className={`p-1.5 rounded-lg ${t.chipBg} shrink-0`}><Icon className="h-4 w-4" style={{ color: info.color }} /></div>
-              <div className="min-w-0 flex-1">
-                <div className={`text-[13px] ${TYPE_WEIGHT.medium} ${t.textPrimary} truncate`}>{info.name}</div>
-                <div className={`text-[11px] ${t.textFaint}`}>{activeCount} active item{activeCount === 1 ? '' : 's'}</div>
+            <div key={key} className={`flex flex-col gap-2.5 px-3 py-3 rounded-lg sm:flex-row sm:items-center sm:gap-3 ${t.hoverBgSoft}`}>
+              <div className="flex min-w-0 items-center gap-3 flex-1">
+                <div className={`p-1.5 rounded-lg ${t.chipBg} shrink-0`}><Icon className={`h-4 w-4 ${t.design === 'dallaglio' ? t.textMuted : ''}`} style={t.design === 'dallaglio' ? undefined : { color: info.color }} /></div>
+                <div className="min-w-0">
+                  <div className={`text-[13px] ${TYPE_WEIGHT.medium} ${t.textPrimary} truncate`}>{info.name}</div>
+                  <div className={`text-[11px] ${t.textFaint}`}>{activeCount} active item{activeCount === 1 ? '' : 's'}</div>
+                </div>
               </div>
-              <div className="flex items-center gap-1.5 shrink-0">
+              <div className="flex items-center gap-1.5 sm:shrink-0">
                 <input type="number" min={0} max={120} value={months}
                   onChange={e => onSetInterval(key, Math.max(0, Math.min(120, parseInt(e.target.value) || 0)))}
                   title={`${info.name} — months until expiry (0 = no expiry)`}
                   aria-label={`${info.name} — months until expiry`}
                   className={`w-16 h-8 px-2 rounded-lg text-sm text-center ${t.inputBg} focus:outline-none`} />
-                <span className={`text-[11px] ${t.textFaint} w-16`}>{months === 0 ? 'no expiry' : 'mo'}</span>
-                <button type="button" onClick={() => onRecalculate(key)} disabled={activeCount === 0}
+                <span className={`text-[11px] ${t.textFaint} min-w-12`}>{months === 0 ? 'no expiry' : 'mo'}</span>
+                {t.design === 'dallaglio' ? <Button variant="secondary" size="sm" onClick={() => onRecalculate(key)} disabled={activeCount === 0}>Recalculate</Button> : <button type="button" onClick={() => onRecalculate(key)} disabled={activeCount === 0}
                   className={`h-8 px-2.5 rounded-lg text-[12px] ${TYPE_WEIGHT.medium} transition-colors ${activeCount === 0 ? `${t.chipBg} ${t.textFaint} opacity-50` : `${t.chipBg} ${t.hoverBg} ${t.textMuted} ${t.hoverText}`}`}>
                   Recalculate
-                </button>
+                </button>}
               </div>
             </div>
           );
@@ -1381,6 +1388,12 @@ export default function PPEManagement() {
               </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
+              {t.design === 'dallaglio' ? <>
+                <Button variant="ghost" size="xs" icon={sections.allOpen ? ChevronsUp : ChevronsDown} onClick={sections.toggleAll}>{sections.allOpen ? 'Collapse all' : 'Expand all'}</Button>
+                <IconAction meaning="eye" title={sections.expanded.heroStats ? 'Hide overview' : 'Show overview'} onClick={() => sections.toggle('heroStats')} active={sections.expanded.heroStats} />
+                <Button variant="secondary" size="xs" icon={HardHat} onClick={() => setShowMatrix(true)} title="PPE replacement matrix">Matrix</Button>
+                <IconAction meaning="refresh" title="Refresh PPE records" onClick={() => load(true)} disabled={refreshing} spinning={refreshing} />
+              </> : <>
               <button type="button" onClick={sections.toggleAll} title={sections.allOpen ? 'Collapse all sections' : 'Expand all sections'}
                 className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.glassSoft} ${t.hoverBg} ${t.textMuted} transition-all`}>
                 {sections.allOpen ? <ChevronsUp className="h-3.5 w-3.5" /> : <ChevronsDown className="h-3.5 w-3.5" />}
@@ -1397,6 +1410,7 @@ export default function PPEManagement() {
                 className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.glassSoft} ${t.hoverBg} ${t.textMuted} transition-all disabled:opacity-40`}>
                 <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
               </button>
+              </>}
 
               {records.length > 0 && (
                 <div className="flex items-center gap-1.5">
@@ -1467,7 +1481,7 @@ export default function PPEManagement() {
                     const Icon = info.icon;
                     return (
                       <span key={type} className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] ${TYPE_WEIGHT.semibold} ${t.chipBg} ${t.textMuted}`}>
-                        <Icon className="h-3 w-3" style={{ color: info.color }} />{info.shortName} <span className={t.textPrimary}>{count}</span>
+                        <Icon className="h-3 w-3" style={t.design === 'dallaglio' ? undefined : { color: info.color }} />{info.shortName} <span className={t.textPrimary}>{count}</span>
                       </span>
                     );
                   })}
@@ -1560,7 +1574,7 @@ export default function PPEManagement() {
                     <div key={type} className={`rounded-xl ${t.glassSoft} p-3`}>
                       <div className="flex items-center justify-between gap-2 mb-2">
                         <div className="flex items-center gap-2 min-w-0">
-                          <div className={`p-1.5 rounded-lg ${t.chipBg}`}><Icon className="h-3.5 w-3.5" style={{ color: info.color }} /></div>
+                          <div className={`p-1.5 rounded-lg ${t.chipBg}`}><Icon className={`h-3.5 w-3.5 ${t.design === 'dallaglio' ? t.textMuted : ''}`} style={t.design === 'dallaglio' ? undefined : { color: info.color }} /></div>
                           <span className={`text-sm ${TYPE_WEIGHT.semibold} ${t.textPrimary} truncate`}>{info.shortName}</span>
                         </div>
                         {reorderTotal > 0 && <StatusBadge color="#f43f5e" label={`${reorderTotal} to reorder`} />}

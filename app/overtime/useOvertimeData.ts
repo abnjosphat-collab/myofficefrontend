@@ -4,14 +4,40 @@
 // on touch" convention. One resource, one load(quiet) cycle — same shape as sheq_inspection.
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/apiClient';
 import { toast } from 'sonner';
 import type { OTRecord, OTForm } from './types';
 
-export async function fetchOT(): Promise<OTRecord[]> {
-  const data = await api.get<OTRecord[]>('/api/overtime');
-  return (Array.isArray(data) ? data : []) as OTRecord[];
+export async function fetchOT(timeoutMs = 20_000): Promise<OTRecord[]> {
+  const requestOnce = async () => {
+    const controller = new AbortController();
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const data = await Promise.race([
+        api.get<OTRecord[]>('/api/overtime', { signal: controller.signal }),
+        new Promise<never>((_, reject) => {
+          timeout = setTimeout(() => {
+            controller.abort();
+            reject(new Error('Overtime records are taking too long to load. Please retry.'));
+          }, timeoutMs);
+        }),
+      ]);
+      if (!Array.isArray(data)) throw new Error('The overtime response was invalid. Please retry.');
+      return data;
+    } finally {
+      if (timeout) clearTimeout(timeout);
+    }
+  };
+
+  try {
+    return await requestOnce();
+  } catch (error) {
+    const status = error && typeof error === 'object' && 'status' in error ? Number(error.status) : 0;
+    const timedOut = error instanceof Error && error.message.includes('taking too long');
+    if (status < 500 && !(error instanceof TypeError) && !timedOut) throw error;
+    return requestOnce();
+  }
 }
 
 /** `useHours`: send `hours` and omit start/end (the fast path); otherwise send
@@ -68,15 +94,28 @@ export function useOvertimeData() {
   const [records, setRecords] = useState<OTRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const latestLoad = useRef(0);
 
   const load = useCallback(async (quiet = false) => {
+    const loadId = ++latestLoad.current;
     if (!quiet) setLoading(true); else setRefreshing(true);
-    try { setRecords(await fetchOT()); }
-    catch (e) { toast.error(`Load failed: ${(e as Error).message}`); }
-    finally { setLoading(false); setRefreshing(false); }
+    setError(null);
+    try {
+      const rows = await fetchOT();
+      if (loadId === latestLoad.current) setRecords(rows);
+    } catch (e) {
+      if (loadId === latestLoad.current) {
+        const message = e instanceof Error ? e.message : 'Could not load overtime records';
+        setError(message);
+        toast.error(`Load failed: ${message}`);
+      }
+    } finally {
+      if (loadId === latestLoad.current) { setLoading(false); setRefreshing(false); }
+    }
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
-  return { records, setRecords, loading, refreshing, refresh: load };
+  return { records, setRecords, loading, refreshing, error, refresh: load };
 }

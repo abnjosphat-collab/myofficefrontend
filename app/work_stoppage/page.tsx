@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import {
   useTheme, accentText, PageHero, StatTile, StatusBadge, SearchInput, FormField, FormActions,
   useCollapseSection, CenterModal, PrimaryButton, EmptyState, ProgressBar, ACCENT_HEX, GlowCard, SelectField, useConfirm, TYPE_WEIGHT, Button,
+  IconAction, ViewToggle, DisclosureButton, RecordActions, DetailActions,
 } from '@/components/shared/theme';
 import { PredictiveInput } from '@/components/shared/PredictiveInput';
 import { EmployeeNameInput } from '@/components/shared/EmployeeNameInput';
@@ -57,10 +58,12 @@ function CorrectiveActionCard({ action, index, onChange, onRemove }: {
         <div className="flex items-center justify-between">
           <span className={`text-[10px] ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textFaint}`}>Action #{index + 1}</span>
           <div className="flex items-center gap-2">
-            <SelectField size="filter" value={action.status} title="Action status"
+            <SelectField size={t.design === 'dallaglio' ? 'form' : 'filter'} value={action.status} title="Action status"
               onChange={v => onChange(action.id, { status: v as ActionStatus, ...(v === 'Completed' && !action.completedDate ? { completedDate: new Date().toISOString().split('T')[0] } : {}) })}
               options={ACTION_STATUSES.map(s => ({ value: s, label: s }))} />
-            <button type="button" title="Remove action" onClick={() => onRemove(action.id)} className={`h-5 w-5 flex items-center justify-center rounded hover:bg-rose-500/20 ${t.textFaint} hover:${t.light ? 'text-rose-600' : 'text-rose-400'} transition-all`}><Trash2 className="h-3 w-3" /></button>
+            {t.design === 'dallaglio'
+              ? <IconAction meaning="danger" title="Remove action" tone="danger" onClick={() => onRemove(action.id)} />
+              : <button type="button" title="Remove action" onClick={() => onRemove(action.id)} className={`h-5 w-5 flex items-center justify-center rounded hover:bg-rose-500/20 ${t.textFaint} hover:${t.light ? 'text-rose-600' : 'text-rose-400'} transition-all`}><Trash2 className="h-3 w-3" /></button>}
           </div>
         </div>
         <FormField label="Finding / Issue" required><textarea value={action.finding} rows={2} placeholder="Describe the finding or unsafe condition…" onChange={e => onChange(action.id, { finding: e.target.value })} aria-label="Finding / Issue" className={`${inputCls} resize-none`} /></FormField>
@@ -281,8 +284,12 @@ function ReportDetailModal({ report, open, onClose, onEdit }: {
         )}
       </div>
       <div className={`px-5 py-4 border-t ${t.border} flex justify-end gap-2`}>
-        <button type="button" onClick={onClose} className={`px-4 py-2 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border} transition-all`}>Close</button>
-        <PrimaryButton icon={Pencil} size="md" onClick={() => { onClose(); onEdit(report); }}>Edit</PrimaryButton>
+        {t.design === 'dallaglio'
+          ? <DetailActions onClose={onClose} onEdit={() => { onClose(); onEdit(report); }} />
+          : <>
+              <button type="button" onClick={onClose} className={`px-4 py-2 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border} transition-all`}>Close</button>
+              <PrimaryButton icon={Pencil} size="md" onClick={() => { onClose(); onEdit(report); }}>Edit</PrimaryButton>
+            </>}
       </div>
     </CenterModal>
   );
@@ -313,7 +320,9 @@ function ReportCard({ report, expanded, onToggle, onView, onEdit, onDelete }: {
           <div className="min-w-0"><p className={`text-[10px] ${t.textFaint}`}>{report.section} • {fmtDate(report.date)}</p><p className={`text-sm ${TYPE_WEIGHT.semibold} truncate ${t.textPrimary}`}>{report.department}</p></div>
         </div>
         <div className="flex items-center gap-1.5 flex-shrink-0">
-          <button type="button" title={expanded ? 'Collapse' : 'Expand'} onClick={e => { e.stopPropagation(); onToggle(); }} className={`h-6 w-6 flex items-center justify-center rounded ${t.textFaint} ${t.hoverText} transition-all`}>{expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}</button>
+          {t.design === 'dallaglio'
+            ? <DisclosureButton open={expanded} onClick={event => { event.stopPropagation(); onToggle(); }} label="work stoppage details" />
+            : <button type="button" title={expanded ? 'Collapse' : 'Expand'} onClick={e => { e.stopPropagation(); onToggle(); }} className={`h-6 w-6 flex items-center justify-center rounded ${t.textFaint} ${t.hoverText} transition-all`}>{expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}</button>}
         </div>
       </div>
 
@@ -349,9 +358,13 @@ function ReportCard({ report, expanded, onToggle, onView, onEdit, onDelete }: {
             <div><p className={`text-[10px] ${t.textFaint}`}>SHEQ Checked</p><p className={t.textFaint}>{report.sheqCheckedBy || 'Not specified'}</p></div>
           </div>
           <div className="flex gap-1.5 pt-1">
-            <button type="button" title="View" onClick={e => { e.stopPropagation(); onView(); }} className={`flex-1 py-1.5 rounded-lg text-[11px] ${TYPE_WEIGHT.medium} bg-brand-500/10 text-brand-400 transition-all hover:-translate-y-0.5 inline-flex items-center justify-center gap-1`}><Eye className="h-3 w-3" /> View</button>
-            <button type="button" title="Edit" onClick={e => { e.stopPropagation(); onEdit(); }} className={`flex-1 py-1.5 rounded-lg text-[11px] ${TYPE_WEIGHT.medium} bg-brand-500/10 text-brand-400 transition-all hover:-translate-y-0.5 inline-flex items-center justify-center gap-1`}><Pencil className="h-3 w-3" /> Edit</button>
-            <button type="button" title="Delete" onClick={e => { e.stopPropagation(); onDelete(); }} className={`flex-1 py-1.5 rounded-lg text-[11px] ${TYPE_WEIGHT.medium} bg-rose-500/10 ${accentText('rose', t.light)} transition-all hover:-translate-y-0.5 inline-flex items-center justify-center gap-1`}><Trash2 className="h-3 w-3" /> Delete</button>
+            {t.design === 'dallaglio'
+              ? <RecordActions onView={onView} onEdit={onEdit} onDelete={onDelete} />
+              : <>
+                  <button type="button" title="View" onClick={e => { e.stopPropagation(); onView(); }} className={`flex-1 py-1.5 rounded-lg text-[11px] ${TYPE_WEIGHT.medium} bg-brand-500/10 text-brand-400 transition-all hover:-translate-y-0.5 inline-flex items-center justify-center gap-1`}><Eye className="h-3 w-3" /> View</button>
+                  <button type="button" title="Edit" onClick={e => { e.stopPropagation(); onEdit(); }} className={`flex-1 py-1.5 rounded-lg text-[11px] ${TYPE_WEIGHT.medium} bg-brand-500/10 text-brand-400 transition-all hover:-translate-y-0.5 inline-flex items-center justify-center gap-1`}><Pencil className="h-3 w-3" /> Edit</button>
+                  <button type="button" title="Delete" onClick={e => { e.stopPropagation(); onDelete(); }} className={`flex-1 py-1.5 rounded-lg text-[11px] ${TYPE_WEIGHT.medium} bg-rose-500/10 ${accentText('rose', t.light)} transition-all hover:-translate-y-0.5 inline-flex items-center justify-center gap-1`}><Trash2 className="h-3 w-3" /> Delete</button>
+                </>}
           </div>
         </div>
       )}
@@ -365,7 +378,7 @@ function WorkStoppageContent() {
   const t = useTheme();
   const confirm = useConfirm();
   const sections = useCollapseSection({ hero: true, records: true });
-  const { reports, setReports, loading, refreshing, load } = useWorkStoppageData();
+  const { reports, setReports, loading, refreshing, loadError, load } = useWorkStoppageData();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [selectedReport, setSelectedReport] = useState<WorkStoppageReport | null>(null);
@@ -416,6 +429,7 @@ function WorkStoppageContent() {
   }, [reports, search, sectionFilter, statusFilter, dateFrom, dateTo]);
 
   const hasFilters = !!(search || sectionFilter !== 'all' || statusFilter !== 'all' || dateFrom || dateTo);
+  const statsUnavailable = loading || (!!loadError && reports.length === 0);
   const toggle = (id: string) => setExpandedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
   const exportColumns: DLColumn[] = [
@@ -473,7 +487,9 @@ function WorkStoppageContent() {
         statsOpen={sections.expanded.hero}
         actions={
           <>
-            <button type="button" onClick={() => load(true)} title="Refresh" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}><RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} /></button>
+            {t.design === 'dallaglio'
+              ? <IconAction meaning="refresh" title="Refresh" spinning={refreshing} onClick={() => load(true)} />
+              : <button type="button" onClick={() => load(true)} title="Refresh" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}><RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} /></button>}
             {filtered.length > 0 && (
               <DownloadButton
                 data={filtered as unknown as Record<string, unknown>[]}
@@ -489,38 +505,57 @@ function WorkStoppageContent() {
         }
       >
         <div className="grid grid-cols-4 sm:grid-cols-8 gap-3">
-          <StatTile icon={Octagon} color="#fb7185" label="Total Reports" value={stats.total} />
-          <StatTile icon={Octagon} color="#f59e0b" label="Pending" value={stats.pending} />
-          <StatTile icon={Octagon} color="#60a5fa" label="In Progress" value={stats.inProgress} />
-          <StatTile icon={Octagon} color="#34d399" label="Completed" value={stats.completed} />
-          <StatTile icon={Octagon} color="#f43f5e" label="Overdue" value={stats.overdue} />
-          <StatTile icon={Wrench} color={ACCENT_HEX.blue} label="Mechanical" value={stats.mechanical} />
-          <StatTile icon={Zap} color="#f59e0b" label="Electrical" value={stats.electrical} />
-          <StatTile icon={Building2} color="#a78bfa" label="General" value={stats.general} />
+          <StatTile icon={Octagon} color="#fb7185" label="Total Reports" value={statsUnavailable ? '—' : stats.total} />
+          <StatTile icon={Octagon} color="#f59e0b" label="Pending" value={statsUnavailable ? '—' : stats.pending} />
+          <StatTile icon={Octagon} color="#60a5fa" label="In Progress" value={statsUnavailable ? '—' : stats.inProgress} />
+          <StatTile icon={Octagon} color="#34d399" label="Completed" value={statsUnavailable ? '—' : stats.completed} />
+          <StatTile icon={Octagon} color="#f43f5e" label="Overdue" value={statsUnavailable ? '—' : stats.overdue} />
+          <StatTile icon={Wrench} color={ACCENT_HEX.blue} label="Mechanical" value={statsUnavailable ? '—' : stats.mechanical} />
+          <StatTile icon={Zap} color="#f59e0b" label="Electrical" value={statsUnavailable ? '—' : stats.electrical} />
+          <StatTile icon={Building2} color="#a78bfa" label="General" value={statsUnavailable ? '—' : stats.general} />
         </div>
       </PageHero>
+
+      {loadError && (
+        <div role="alert" className={`${t.glass} ${t.shadow} rounded-2xl border ${t.border} px-5 py-4 flex flex-wrap items-center gap-4`}>
+          <AlertTriangle className={`h-5 w-5 shrink-0 ${accentText('rose', t.light)}`} />
+          <div className="min-w-0 flex-1">
+            <p className={`text-sm ${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>Could not load work stoppages</p>
+            <p className={`mt-0.5 text-xs ${t.textFaint}`}>{loadError}</p>
+          </div>
+          <Button variant="secondary" size="sm" onClick={() => load()}>Try again</Button>
+        </div>
+      )}
 
       {sections.expanded.records && <>
         <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
           <div className="px-5 py-3 flex flex-wrap items-center gap-2">
-            <SearchInput value={search} onChange={setSearch} placeholder="Search by department, description, issued by…" className="w-56" />
-            <SelectField size="filter" title="Section" value={sectionFilter} onChange={setSectionFilter} options={[{ value: 'all', label: 'All Sections' }, ...SECTIONS.map(s => ({ value: s, label: s }))]} />
-            <SelectField size="filter" title="Status" value={statusFilter} onChange={setStatusFilter} options={[{ value: 'all', label: 'All Status' }, { value: 'pending', label: 'Pending' }, { value: 'in-progress', label: 'In Progress' }, { value: 'completed', label: 'Completed' }, { value: 'overdue', label: 'Overdue' }]} />
+            <SearchInput value={search} onChange={setSearch} placeholder="Search by department, description, issued by…" className="w-full sm:w-72" />
+            <SelectField size={t.design === 'dallaglio' ? 'form' : 'filter'} title="Section" value={sectionFilter} onChange={setSectionFilter} options={[{ value: 'all', label: 'All Sections' }, ...SECTIONS.map(s => ({ value: s, label: s }))]} />
+            <SelectField size={t.design === 'dallaglio' ? 'form' : 'filter'} title="Status" value={statusFilter} onChange={setStatusFilter} options={[{ value: 'all', label: 'All Status' }, { value: 'pending', label: 'Pending' }, { value: 'in-progress', label: 'In Progress' }, { value: 'completed', label: 'Completed' }, { value: 'overdue', label: 'Overdue' }]} />
             <input type="date" title="From date" aria-label="From date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className={selCls} />
             <input type="date" title="To date" aria-label="To date" value={dateTo} onChange={e => setDateTo(e.target.value)} className={selCls} />
-            {hasFilters && <button type="button" onClick={() => { setSearch(''); setSectionFilter('all'); setStatusFilter('all'); setDateFrom(''); setDateTo(''); }} className={`flex items-center gap-1 text-xs px-2 py-1.5 rounded-lg transition-colors ${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText}`}><X className="h-3 w-3" /> Clear</button>}
+            {hasFilters && (t.design === 'dallaglio'
+              ? <Button variant="ghost" size="sm" icon={X} onClick={() => { setSearch(''); setSectionFilter('all'); setStatusFilter('all'); setDateFrom(''); setDateTo(''); }}>Clear</Button>
+              : <button type="button" onClick={() => { setSearch(''); setSectionFilter('all'); setStatusFilter('all'); setDateFrom(''); setDateTo(''); }} className={`flex items-center gap-1 text-xs px-2 py-1.5 rounded-lg transition-colors ${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText}`}><X className="h-3 w-3" /> Clear</button>)}
             <div className="ml-auto flex items-center gap-1.5">
-              <button type="button" title="Expand all" onClick={() => setExpandedIds(new Set(reports.map(r => r.id)))} className={`h-8 px-2.5 flex items-center gap-1 text-[11px] rounded-lg ${t.chipBg} ${t.textFaint} ${t.hoverText} transition-all`}><Maximize2 className="h-3 w-3" /> Expand all</button>
-              <button type="button" title="Collapse all" onClick={() => setExpandedIds(new Set())} className={`h-8 px-2.5 flex items-center gap-1 text-[11px] rounded-lg ${t.chipBg} ${t.textFaint} ${t.hoverText} transition-all`}><Minimize2 className="h-3 w-3" /></button>
-              <button type="button" title="Grid view" onClick={() => setViewMode('grid')} className={`h-8 w-8 flex items-center justify-center rounded-lg transition-all ${viewMode === 'grid' ? `bg-rose-500/20 ${accentText('rose', t.light)}` : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}><LayoutGrid className="h-3.5 w-3.5" /></button>
-              <button type="button" title="List view" onClick={() => setViewMode('list')} className={`h-8 w-8 flex items-center justify-center rounded-lg transition-all ${viewMode === 'list' ? `bg-rose-500/20 ${accentText('rose', t.light)}` : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}><TableIcon className="h-3.5 w-3.5" /></button>
+              {t.design === 'dallaglio' ? <>
+                <Button variant="ghost" size="sm" icon={Maximize2} onClick={() => setExpandedIds(new Set(reports.map(r => r.id)))}>Expand all</Button>
+                <Button variant="ghost" size="sm" icon={Minimize2} title="Collapse all" onClick={() => setExpandedIds(new Set())}>Collapse all</Button>
+                <ViewToggle value={viewMode} onChange={setViewMode} options={[{ value: 'grid', icon: LayoutGrid, label: 'Grid view' }, { value: 'list', icon: TableIcon, label: 'List view' }]} />
+              </> : <>
+                <button type="button" title="Expand all" onClick={() => setExpandedIds(new Set(reports.map(r => r.id)))} className={`h-8 px-2.5 flex items-center gap-1 text-[11px] rounded-lg ${t.chipBg} ${t.textFaint} ${t.hoverText} transition-all`}><Maximize2 className="h-3 w-3" /> Expand all</button>
+                <button type="button" title="Collapse all" onClick={() => setExpandedIds(new Set())} className={`h-8 px-2.5 flex items-center gap-1 text-[11px] rounded-lg ${t.chipBg} ${t.textFaint} ${t.hoverText} transition-all`}><Minimize2 className="h-3 w-3" /></button>
+                <button type="button" title="Grid view" onClick={() => setViewMode('grid')} className={`h-8 w-8 flex items-center justify-center rounded-lg transition-all ${viewMode === 'grid' ? `bg-rose-500/20 ${accentText('rose', t.light)}` : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}><LayoutGrid className="h-3.5 w-3.5" /></button>
+                <button type="button" title="List view" onClick={() => setViewMode('list')} className={`h-8 w-8 flex items-center justify-center rounded-lg transition-all ${viewMode === 'list' ? `bg-rose-500/20 ${accentText('rose', t.light)}` : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}><TableIcon className="h-3.5 w-3.5" /></button>
+              </>}
             </div>
           </div>
         </div>
 
         {loading ? (
           <div className="flex items-center justify-center py-16"><RefreshCw className={`h-6 w-6 animate-spin ${t.textFaint}`} /></div>
-        ) : filtered.length === 0 ? (
+        ) : loadError && reports.length === 0 ? null : filtered.length === 0 ? (
           <div className={`${t.glass} rounded-2xl ${t.shadow}`}>
             <EmptyState icon={Octagon} title={hasFilters ? 'No reports match your filters' : 'No work stoppages issued'}
               message={hasFilters ? 'Try adjusting your filters' : 'Issue a work stoppage to document unsafe acts or practices'}
@@ -545,7 +580,11 @@ function WorkStoppageContent() {
                     return (
                       <React.Fragment key={report.id}>
                         <tr className={`border-b ${t.border} ${t.hoverBgSoft} cursor-pointer transition-colors`} onClick={() => { setSelectedReport(report); setDetailOpen(true); }}>
-                          <td className="pl-3 pr-1 py-3 w-6"><button type="button" title="Toggle" onClick={e => { e.stopPropagation(); toggle(report.id); }} className={`h-5 w-5 flex items-center justify-center ${t.textFaint} ${t.hoverText} transition-all`}>{expandedIds.has(report.id) ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}</button></td>
+                          <td className="pl-3 pr-1 py-3 w-6">
+                            {t.design === 'dallaglio'
+                              ? <DisclosureButton open={expandedIds.has(report.id)} onClick={event => { event.stopPropagation(); toggle(report.id); }} label={`${report.department} report details`} />
+                              : <button type="button" title="Toggle" onClick={e => { e.stopPropagation(); toggle(report.id); }} className={`h-5 w-5 flex items-center justify-center ${t.textFaint} ${t.hoverText} transition-all`}>{expandedIds.has(report.id) ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}</button>}
+                          </td>
                           <td className={`px-3 py-3 text-sm ${TYPE_WEIGHT.medium} max-w-[160px] truncate ${t.textPrimary}`}>{report.department}</td>
                           <td className="px-3 py-3"><StatusBadge color={SECTION_HEX[report.section]} label={report.section} /></td>
                           <td className={`px-3 py-3 text-xs max-w-[140px] truncate ${t.textMuted}`}>{report.stoppageBy}</td>
@@ -553,8 +592,13 @@ function WorkStoppageContent() {
                           <td className="px-3 py-3 text-xs"><span className={`${TYPE_WEIGHT.semibold} ${t.textMuted}`}>{actions.length}</span><span className={`ml-1 ${t.textFaint}`}>({completedCount} done)</span></td>
                           <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
                             <div className="flex gap-1 justify-end">
-                              <button type="button" title="Edit" aria-label={`Edit ${report.department} report`} onClick={() => { setEditingReport(report); setFormOpen(true); }} className={`p-1.5 rounded ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-colors`}><Pencil className="h-3 w-3" /></button>
-                              <button type="button" title="Delete" aria-label={`Delete ${report.department} report`} onClick={() => handleDelete(report.id)} className={`p-1.5 rounded ${t.chipBg} hover:bg-rose-500/15 ${t.textFaint} hover:${t.light ? 'text-rose-600' : 'text-rose-400'} transition-colors`}><Trash2 className="h-3 w-3" /></button>
+                              {t.design === 'dallaglio' ? <>
+                                <IconAction meaning="edit" title={`Edit ${report.department} report`} onClick={() => { setEditingReport(report); setFormOpen(true); }} />
+                                <IconAction meaning="danger" title={`Delete ${report.department} report`} tone="danger" onClick={() => handleDelete(report.id)} />
+                              </> : <>
+                                <button type="button" title="Edit" aria-label={`Edit ${report.department} report`} onClick={() => { setEditingReport(report); setFormOpen(true); }} className={`p-1.5 rounded ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-colors`}><Pencil className="h-3 w-3" /></button>
+                                <button type="button" title="Delete" aria-label={`Delete ${report.department} report`} onClick={() => handleDelete(report.id)} className={`p-1.5 rounded ${t.chipBg} hover:bg-rose-500/15 ${t.textFaint} hover:${t.light ? 'text-rose-600' : 'text-rose-400'} transition-colors`}><Trash2 className="h-3 w-3" /></button>
+                              </>}
                             </div>
                           </td>
                         </tr>

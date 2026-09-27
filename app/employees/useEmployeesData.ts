@@ -4,12 +4,12 @@
 // one loading flag — the simplest shape of the "unified load cycle" the rule calls for.
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/apiClient';
 import { API_BASE } from '@/lib/config';
 import { toast } from 'sonner';
 import { invalidateEmployeesCache } from '@/hooks/useLookups';
-import { normalizeDesignation, normalizeEmployeeRoleFields, resolveDriverLicense } from '@/lib/employeeCatalog';
+import { normalizeEmployeeRoleFields, resolveDriverLicense } from '@/lib/employeeCatalog';
 import { normalizePhoneField } from '@/lib/phone';
 import {
   normalizedEmployeeFields, type NormalizationPlan,
@@ -24,7 +24,23 @@ export interface BulkNormalizeResult {
   errors?: string[];
 }
 
-export async function loadEmployees() { return api.get<Employee[]>(EMPLOYEES_API); }
+export async function loadEmployees(timeoutMs = 20_000) {
+  const controller = new AbortController();
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      api.get<Employee[]>(EMPLOYEES_API, { signal: controller.signal }),
+      new Promise<never>((_, reject) => {
+        timeout = setTimeout(() => {
+          controller.abort();
+          reject(new Error('Personnel records are taking too long to load. Please retry.'));
+        }, timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
+}
 export async function saveEmployee(data: EmployeeFormData, id?: number) {
   const role = normalizeEmployeeRoleFields(data.designation, data.section, data.first_name, data.last_name);
   const payload = {
@@ -74,12 +90,22 @@ export function useEmployeesData() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const latestLoad = useRef(0);
 
   const reload = useCallback(async () => {
+    const loadId = ++latestLoad.current;
     setIsLoading(true); setError(null);
-    try { setEmployees(await loadEmployees()); }
-    catch (e) { const m = e instanceof Error ? e.message : 'Failed to load'; setError(m); toast.error(m); }
-    finally { setIsLoading(false); }
+    try {
+      const rows = await loadEmployees();
+      if (loadId === latestLoad.current) setEmployees(rows);
+    } catch (e) {
+      if (loadId === latestLoad.current) {
+        const m = e instanceof Error ? e.message : 'Failed to load';
+        setError(m); toast.error(m);
+      }
+    } finally {
+      if (loadId === latestLoad.current) setIsLoading(false);
+    }
   }, []);
 
   useEffect(() => { reload(); }, [reload]);

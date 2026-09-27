@@ -6,7 +6,7 @@
 import { useMemo, useEffect, useState } from 'react';
 import { Bookmark, X } from '@/components/shared/theme';
 import {
-  useTheme, CenterModal, DEFAULT_BG_ACCENT, bgLayersFromHex, AccentIcon,
+  useTheme, CenterModal, DEFAULT_BG_ACCENT, bgLayersFromHex, AccentIcon, IconAction,
 } from '@/components/shared/theme';
 import { TopNavigation } from './TopNavigation';
 import { SidebarNavigation } from './SidebarNavigation';
@@ -113,19 +113,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           ) : (
             <div className="p-5 space-y-1">
               {s.favoriteModules.map(({ module }) => (
-                <div key={module.href} className={`flex items-center justify-between gap-2 px-3 py-2 rounded-lg ${t.hoverBgSoft}`}>
+                <div key={module.href} className={t.design === 'dallaglio' ? 'flex items-center justify-between gap-2 rounded-[9px] border border-[var(--d-line)] bg-[var(--d-surface)] px-3 py-2' : `flex items-center justify-between gap-2 px-3 py-2 rounded-lg ${t.hoverBgSoft}`}>
                   <span className="flex items-center gap-2 min-w-0">
-                    <AccentIcon icon={Bookmark} accent="brand" className="h-3.5 w-3.5 shrink-0" weight="fill" />
+                    {t.design === 'dallaglio' ? <module.icon className="h-[18px] w-[18px] shrink-0 text-[var(--d-ink-muted)]" weight="light" aria-hidden="true" /> : <AccentIcon icon={Bookmark} accent="brand" className="h-3.5 w-3.5 shrink-0" weight="fill" />}
                     <span className={`text-[13px] ${t.textMuted} truncate`}>{module.title}</span>
                   </span>
-                  <button
+                  {t.design === 'dallaglio' ? <IconAction meaning="close" title={`Remove ${module.title} from favorites`} onClick={() => s.toggleFavorite(module.href)} /> : <button
                     onClick={() => s.toggleFavorite(module.href)}
                     type="button"
                     title="Remove from favorites"
                     className={`p-1 rounded ${t.hoverBg} text-rose-500 ${t.light ? 'hover:text-rose-600' : 'hover:text-rose-400'} transition-colors shrink-0`}
                   >
                     <X className="h-3.5 w-3.5" />
-                  </button>
+                  </button>}
                 </div>
               ))}
             </div>

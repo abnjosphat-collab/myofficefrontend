@@ -13,7 +13,8 @@ import { UnderlineTabs } from '@/components/shared/UnderlineTabs';
 import { toast } from "sonner";
 import {
   useTheme, STATUS_TONE, PageHero, StatTile, StatusBadge, SearchInput, FormField, FormActions,
-  useCollapseSection, CenterModal, PrimaryButton, EmptyState, ProgressBar, ACCENT_HEX, GlowCard, SelectField, accentText, TYPE_WEIGHT, Button,
+  useCollapseSection, CenterModal, PrimaryButton, EmptyState, ProgressBar, ACCENT_HEX, GlowCard, SelectField, accentText, TYPE_WEIGHT, Button, DetailActions,
+  IconAction, ViewToggle, RecordActions,
 } from '@/components/shared/theme';
 import { PredictiveInput } from '@/components/shared/PredictiveInput';
 import { EmployeeNameInput } from '@/components/shared/EmployeeNameInput';
@@ -77,7 +78,9 @@ function ActionItemCard({ item, index, onChange, onRemove }: { item: ActionItem;
     <div className={`${t.chipBg} rounded-xl p-3.5`}>
       <div className="flex justify-between items-center mb-2.5">
         <span className={`text-[11px] ${TYPE_WEIGHT.bold} ${accentText('emerald', t.light)} uppercase tracking-wide`}>Action #{index + 1}</span>
-        <button type="button" onClick={() => onRemove(item.id)} title="Remove action" className="text-red-400 hover:text-red-300 transition-colors"><Trash2 className="h-3.5 w-3.5" /></button>
+        {t.design === 'dallaglio'
+          ? <IconAction meaning="danger" title="Remove action" tone="danger" onClick={() => onRemove(item.id)} />
+          : <button type="button" onClick={() => onRemove(item.id)} title="Remove action" className="text-red-400 hover:text-red-300 transition-colors"><Trash2 className="h-3.5 w-3.5" /></button>}
       </div>
       <div className="grid grid-cols-2 gap-2">
         <div className="col-span-2"><FormField label="Action Description" required><input className={inputCls} value={item.action} placeholder="Describe the action..." aria-label="Action description" onChange={e => onChange(item.id, 'action', e.target.value)} /></FormField></div>
@@ -104,17 +107,18 @@ function VFLCard({ report, index, onView, onEdit, onDelete }: { report: VFLRepor
   const SectionIcon = SECTION_ICONS[report.sectionChoice] ?? HardHat;
   const bColor = BEHAVIOUR_HEX[report.behaviourCategory] ?? STATUS_TONE.neutral;
   const sColor = SECTION_HEX[report.sectionChoice] ?? STATUS_TONE.neutral;
+  const cardColor = t.design === 'dallaglio' ? STATUS_TONE.neutral : sColor;
   const progress = summarizeActions(report.actions);
 
   return (
-    <GlowCard onClick={() => onView(report)} color={sColor} surface={`${t.glass} rounded-2xl`} className="overflow-hidden">
+    <GlowCard onClick={() => onView(report)} color={cardColor} surface={`${t.glass} rounded-2xl`} className="overflow-hidden">
       <div className="px-4 pt-3.5 pb-3">
         <div className="flex justify-between items-start mb-2.5">
           <div className="flex items-center gap-2.5">
-            <SectionIcon className="h-5 w-5 shrink-0" style={{ color: sColor }} />
+            <SectionIcon className={`h-5 w-5 shrink-0 ${t.design === 'dallaglio' ? t.textFaint : ''}`} style={t.design === 'dallaglio' ? undefined : { color: sColor }} />
             <div><div className={`text-[11px] mb-0.5 ${t.textFaint}`}>VFL #{index + 1}</div><div className={`${TYPE_WEIGHT.bold} text-[15px] ${t.textPrimary}`}>{report.observerName}</div></div>
           </div>
-          <div className="flex flex-col gap-1 items-end"><StatusBadge color={sColor} label={report.sectionChoice} /><StatusBadge color={bColor} label={report.behaviourCategory} /></div>
+          <div className="flex flex-col gap-1 items-end"><StatusBadge color={sColor} label={report.sectionChoice} kind="category" /><StatusBadge color={bColor} label={report.behaviourCategory} /></div>
         </div>
 
         <div className="grid grid-cols-2 gap-1.5 mb-2.5">
@@ -134,14 +138,18 @@ function VFLCard({ report, index, onView, onEdit, onDelete }: { report: VFLRepor
         )}
 
         <div className={`flex justify-between items-center border-t ${t.border} pt-2.5`}>
-          <StatusBadge color="#a78bfa" label={coachingLabel(report.coachingTechnique)} />
+          <StatusBadge color="#a78bfa" label={coachingLabel(report.coachingTechnique)} kind="category" />
           <StatusBadge color={STATUS_HEX[report.status] ?? STATUS_TONE.neutral} label={report.status.charAt(0).toUpperCase() + report.status.slice(1)} />
         </div>
 
         <div className="flex justify-end gap-1.5 mt-2.5">
-          <button type="button" onClick={e => { e.stopPropagation(); onView(report); }} title="View" className={`${t.chipBg} ${t.hoverBg} rounded-md px-2 py-1 text-xs flex items-center gap-1 transition-colors ${t.textFaint}`}><Eye className="h-3 w-3" /> View</button>
-          <button type="button" onClick={e => { e.stopPropagation(); onEdit(report); }} title="Edit" className={`${t.chipBg} ${t.hoverBg} rounded-md px-2 py-1 text-xs flex items-center gap-1 transition-colors text-brand-400`}><PenTool className="h-3 w-3" /> Edit</button>
-          <button type="button" onClick={e => { e.stopPropagation(); onDelete(report.id); }} title="Delete" className={`${t.chipBg} ${t.hoverBg} rounded-md px-2 py-1 text-xs flex items-center gap-1 transition-colors text-red-400`}><Trash2 className="h-3 w-3" /> Delete</button>
+          {t.design === 'dallaglio'
+            ? <RecordActions onView={() => onView(report)} onEdit={() => onEdit(report)} onDelete={() => onDelete(report.id)} />
+            : <>
+                <button type="button" onClick={e => { e.stopPropagation(); onView(report); }} title="View" className={`${t.chipBg} ${t.hoverBg} rounded-md px-2 py-1 text-xs flex items-center gap-1 transition-colors ${t.textFaint}`}><Eye className="h-3 w-3" /> View</button>
+                <button type="button" onClick={e => { e.stopPropagation(); onEdit(report); }} title="Edit" className={`${t.chipBg} ${t.hoverBg} rounded-md px-2 py-1 text-xs flex items-center gap-1 transition-colors text-brand-400`}><PenTool className="h-3 w-3" /> Edit</button>
+                <button type="button" onClick={e => { e.stopPropagation(); onDelete(report.id); }} title="Delete" className={`${t.chipBg} ${t.hoverBg} rounded-md px-2 py-1 text-xs flex items-center gap-1 transition-colors text-red-400`}><Trash2 className="h-3 w-3" /> Delete</button>
+              </>}
         </div>
       </div>
     </GlowCard>
@@ -170,12 +178,12 @@ function VFLDetailModal({ report, open, onClose, onEdit, onDelete, onStatusChang
       <div className="px-5 py-4 space-y-4">
         <div className={`flex justify-between items-center ${t.chipBg} rounded-xl px-3.5 py-2.5`}>
           <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg" style={{ background: `${sColor}22` }}><SectionIcon className="h-4 w-4" style={{ color: sColor }} /></div>
+            <div className="p-1.5 rounded-lg" style={t.design === 'dallaglio' ? undefined : { background: `${sColor}22` }}><SectionIcon className={`h-4 w-4 ${t.design === 'dallaglio' ? t.textFaint : ''}`} style={t.design === 'dallaglio' ? undefined : { color: sColor }} /></div>
             <span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{report.sectionChoice}</span>
           </div>
           <div className="flex gap-2 items-center">
             <StatusBadge color={bColor} label={report.behaviourCategory} />
-            <SelectField size="filter" title="Change status" value={report.status} onChange={v => onStatusChange(report.id, v as VFLStatus)}
+            <SelectField size={t.design === 'dallaglio' ? 'form' : 'filter'} title="Change status" value={report.status} onChange={v => onStatusChange(report.id, v as VFLStatus)}
               options={[{ value: 'draft', label: 'Draft' }, { value: 'submitted', label: 'Submitted' }, { value: 'reviewed', label: 'Reviewed' }, { value: 'closed', label: 'Closed' }]} />
           </div>
         </div>
@@ -198,7 +206,7 @@ function VFLDetailModal({ report, open, onClose, onEdit, onDelete, onStatusChang
 
         <div className={`${t.chipBg} rounded-xl px-3.5 py-3.5`}>
           <div className={`${TYPE_WEIGHT.bold} text-xs uppercase tracking-wide mb-2.5 ${t.textFaint}`}>Observation Details</div>
-          <div className="flex gap-2 mb-2.5 flex-wrap"><StatusBadge color={oColor} label={report.observationType} /><StatusBadge color="#a78bfa" label={coachingLabel(report.coachingTechnique)} /></div>
+          <div className="flex gap-2 mb-2.5 flex-wrap"><StatusBadge color={oColor} label={report.observationType} /><StatusBadge color="#a78bfa" label={coachingLabel(report.coachingTechnique)} kind="category" /></div>
           <div className={`text-sm leading-relaxed whitespace-pre-wrap ${t.textMuted}`}>{report.description}</div>
         </div>
 
@@ -221,11 +229,11 @@ function VFLDetailModal({ report, open, onClose, onEdit, onDelete, onStatusChang
           </div>
         )}
       </div>
-      <div className={`flex gap-2 px-5 py-4 border-t ${t.border}`}>
+      {t.design === 'dallaglio' ? <div className={`px-5 py-4 border-t ${t.border}`}><DetailActions onClose={onClose} onEdit={() => { onClose(); onEdit(report); }} onDelete={() => { onClose(); onDelete(report.id); }} /></div> : <div className={`flex gap-2 px-5 py-4 border-t ${t.border}`}>
         <button type="button" onClick={() => { onClose(); onDelete(report.id); }} className={`bg-red-500/15 hover:bg-red-500/25 rounded-xl px-4 py-2.5 text-red-400 text-sm ${TYPE_WEIGHT.semibold} transition-colors`}>Delete</button>
         <button type="button" onClick={onClose} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border} transition-all`}>Close</button>
         <PrimaryButton size="md" fullWidth onClick={() => { onClose(); onEdit(report); }}>Edit</PrimaryButton>
-      </div>
+      </div>}
     </CenterModal>
   );
 }
@@ -334,7 +342,7 @@ function VFLFormModal({ open, editing, onClose, onSave, saving }: { open: boolea
 function VFLObservationContent() {
   const t = useTheme();
   const sections = useCollapseSection({ hero: true, records: true });
-  const { reports, setReports, loading, loadError, loadData } = useVFLData();
+  const { reports, setReports, loading, refreshing, loadError, loadData } = useVFLData();
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
 
   const [selectedReport, setSelectedReport] = useState<VFLReport | null>(null);
@@ -422,6 +430,7 @@ function VFLObservationContent() {
   const totalActions = reports.reduce((acc, r) => acc + (r.actions?.length || 0), 0);
 
   const hasFilters = !!(search || sectionFilter !== 'all' || statusFilter !== 'all' || behaviourFilter !== 'all' || dateFrom || dateTo);
+  const registerUnavailable = loading || (!!loadError && reports.length === 0);
   const selCls = `h-9 rounded-lg px-2.5 text-xs outline-none transition-colors ${t.inputBg}`;
   const thCls = `text-left px-3 py-2 text-[10px] uppercase tracking-wide ${TYPE_WEIGHT.medium} ${t.textFaint}`;
 
@@ -436,7 +445,9 @@ function VFLObservationContent() {
         statsOpen={sections.expanded.hero}
         actions={
           <>
-            <button type="button" onClick={loadData} title="Refresh" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /></button>
+            {t.design === 'dallaglio'
+              ? <IconAction meaning="refresh" title="Refresh" spinning={refreshing} onClick={() => loadData(true)} />
+              : <button type="button" onClick={() => loadData(true)} title="Refresh" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}><RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} /></button>}
             {filtered.length > 0 && (
               <DownloadButton
                 data={filtered as unknown as Record<string, unknown>[]}
@@ -447,48 +458,58 @@ function VFLObservationContent() {
                 statusColor={(_v, row) => STATUS_HEX[row.status as VFLStatus]?.replace('#', '')}
               />
             )}
-            <button type="button" onClick={() => setViewMode('grid')} title="Grid view" className={`h-8 w-8 flex items-center justify-center rounded-lg transition-all ${viewMode === 'grid' ? `bg-emerald-500/20 ${accentText('emerald', t.light)}` : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}><LayoutGrid className="h-3.5 w-3.5" /></button>
-            <button type="button" onClick={() => setViewMode('table')} title="Table view" className={`h-8 w-8 flex items-center justify-center rounded-lg transition-all ${viewMode === 'table' ? `bg-emerald-500/20 ${accentText('emerald', t.light)}` : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}><TableIcon className="h-3.5 w-3.5" /></button>
-            <PrimaryButton icon={Plus} accent="emerald" onClick={() => { setEditing(null); setFormOpen(true); }}>New VFL</PrimaryButton>
+            {t.design === 'dallaglio'
+              ? <ViewToggle value={viewMode} onChange={setViewMode} options={[{ value: 'grid', icon: LayoutGrid, label: 'Grid view' }, { value: 'table', icon: TableIcon, label: 'Table view' }]} />
+              : <>
+                  <button type="button" onClick={() => setViewMode('grid')} title="Grid view" className={`h-8 w-8 flex items-center justify-center rounded-lg transition-all ${viewMode === 'grid' ? `bg-emerald-500/20 ${accentText('emerald', t.light)}` : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}><LayoutGrid className="h-3.5 w-3.5" /></button>
+                  <button type="button" onClick={() => setViewMode('table')} title="Table view" className={`h-8 w-8 flex items-center justify-center rounded-lg transition-all ${viewMode === 'table' ? `bg-emerald-500/20 ${accentText('emerald', t.light)}` : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}><TableIcon className="h-3.5 w-3.5" /></button>
+                </>}
+            <PrimaryButton icon={Plus} accent="emerald" disabled={registerUnavailable} onClick={() => { setEditing(null); setFormOpen(true); }}>New VFL</PrimaryButton>
           </>
         }
       >
         <div className="grid grid-cols-4 sm:grid-cols-8 gap-3">
-          <StatTile icon={Eye} color="#10b981" label="Total" value={total} />
-          <StatTile icon={Eye} color="#94a3b8" label="Draft" value={drafts} />
-          <StatTile icon={Eye} color={ACCENT_HEX.blue} label="Submitted" value={submitted} />
-          <StatTile icon={Eye} color="#a78bfa" label="Reviewed" value={reviewed} />
-          <StatTile icon={Eye} color="#10b981" label="Closed" value={closed} />
-          <StatTile icon={AlertTriangle} color="#ef4444" label="Unsafe" value={unsafe} />
-          <StatTile icon={Eye} color="#34d399" label="Safe" value={safe} />
-          <StatTile icon={Target} color="#60a5fa" label="Actions" value={totalActions} />
+          <StatTile icon={Eye} color="#10b981" label="Total" value={registerUnavailable ? '—' : total} />
+          <StatTile icon={Eye} color="#94a3b8" label="Draft" value={registerUnavailable ? '—' : drafts} />
+          <StatTile icon={Eye} color={ACCENT_HEX.blue} label="Submitted" value={registerUnavailable ? '—' : submitted} />
+          <StatTile icon={Eye} color="#a78bfa" label="Reviewed" value={registerUnavailable ? '—' : reviewed} />
+          <StatTile icon={Eye} color="#10b981" label="Closed" value={registerUnavailable ? '—' : closed} />
+          <StatTile icon={AlertTriangle} color="#ef4444" label="Unsafe" value={registerUnavailable ? '—' : unsafe} />
+          <StatTile icon={Eye} color="#34d399" label="Safe" value={registerUnavailable ? '—' : safe} />
+          <StatTile icon={Target} color="#60a5fa" label="Actions" value={registerUnavailable ? '—' : totalActions} />
         </div>
       </PageHero>
+
+      {loadError && (
+        <div role="alert" className={`${t.glass} ${t.shadow} rounded-2xl border ${t.border} px-5 py-4 flex flex-wrap items-center gap-4`}>
+          <AlertTriangle className={`h-5 w-5 shrink-0 ${accentText('rose', t.light)}`} />
+          <div className="min-w-0 flex-1">
+            <p className={`text-sm ${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>Could not load VFL reports</p>
+            <p className={`mt-0.5 text-xs ${t.textFaint}`}>{loadError}</p>
+          </div>
+          <Button variant="secondary" size="sm" onClick={() => loadData()}>Try again</Button>
+        </div>
+      )}
 
       {sections.expanded.records && <>
         <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
           <div className="px-5 py-3 flex flex-wrap items-center gap-2">
-            <SearchInput value={search} onChange={setSearch} placeholder="Search by observer, description, actions..." className="w-56" />
-            <SelectField size="filter" title="Section" value={sectionFilter} onChange={setSectionFilter} options={[{ value: 'all', label: 'All Sections' }, { value: 'Mechanical', label: 'Mechanical' }, { value: 'Electrical', label: 'Electrical' }]} />
-            <SelectField size="filter" title="Status" value={statusFilter} onChange={setStatusFilter} options={[{ value: 'all', label: 'All Status' }, { value: 'draft', label: 'Draft' }, { value: 'submitted', label: 'Submitted' }, { value: 'reviewed', label: 'Reviewed' }, { value: 'closed', label: 'Closed' }]} />
-            <SelectField size="filter" title="Behaviour" value={behaviourFilter} onChange={setBehaviourFilter} options={[{ value: 'all', label: 'All Behaviour' }, { value: 'Safe Behaviour', label: 'Safe' }, { value: 'Unsafe Behaviour', label: 'Unsafe' }]} />
+            <SearchInput value={search} onChange={setSearch} placeholder="Search by observer, description, actions..." className="w-full sm:w-72" />
+            <SelectField size={t.design === 'dallaglio' ? 'form' : 'filter'} title="Section" value={sectionFilter} onChange={setSectionFilter} options={[{ value: 'all', label: 'All Sections' }, { value: 'Mechanical', label: 'Mechanical' }, { value: 'Electrical', label: 'Electrical' }]} />
+            <SelectField size={t.design === 'dallaglio' ? 'form' : 'filter'} title="Status" value={statusFilter} onChange={setStatusFilter} options={[{ value: 'all', label: 'All Status' }, { value: 'draft', label: 'Draft' }, { value: 'submitted', label: 'Submitted' }, { value: 'reviewed', label: 'Reviewed' }, { value: 'closed', label: 'Closed' }]} />
+            <SelectField size={t.design === 'dallaglio' ? 'form' : 'filter'} title="Behaviour" value={behaviourFilter} onChange={setBehaviourFilter} options={[{ value: 'all', label: 'All Behaviour' }, { value: 'Safe Behaviour', label: 'Safe' }, { value: 'Unsafe Behaviour', label: 'Unsafe' }]} />
             <input type="date" title="From date" aria-label="From date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className={selCls} />
             <input type="date" title="To date" aria-label="To date" value={dateTo} onChange={e => setDateTo(e.target.value)} className={selCls} />
-            {hasFilters && <button type="button" onClick={clearFilters} className={`flex items-center gap-1 text-xs px-2 py-1.5 rounded-lg transition-colors ${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText}`}><X className="h-3 w-3" /> Clear</button>}
-            <span className={`text-[11px] ml-auto ${t.textFaint}`}>{filtered.length} of {total}</span>
+            {hasFilters && (t.design === 'dallaglio'
+              ? <Button variant="ghost" size="sm" icon={X} onClick={clearFilters}>Clear</Button>
+              : <button type="button" onClick={clearFilters} className={`flex items-center gap-1 text-xs px-2 py-1.5 rounded-lg transition-colors ${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText}`}><X className="h-3 w-3" /> Clear</button>)}
+            <span className={`text-[11px] ml-auto ${t.textFaint}`}>{registerUnavailable ? '—' : `${filtered.length} of ${total}`}</span>
           </div>
         </div>
 
         {loading ? (
           <div className="flex items-center justify-center py-16"><RefreshCw className={`h-6 w-6 animate-spin ${t.textFaint}`} /></div>
-        ) : loadError ? (
-          // Never invite the user to "record their first observation" over data
-          // that merely failed to load.
-          <div className={`${t.glass} rounded-2xl ${t.shadow}`}>
-            <EmptyState icon={Eye} title="Could not load VFL reports" message={loadError}
-              action={{ label: 'Try again', onClick: () => loadData() }} />
-          </div>
-        ) : filtered.length === 0 ? (
+        ) : loadError && reports.length === 0 ? null : filtered.length === 0 ? (
           <div className={`${t.glass} rounded-2xl ${t.shadow}`}>
             <EmptyState icon={Eye} title="No VFL observations found" message={total === 0 ? 'Start by recording your first VFL observation.' : 'Try adjusting your filters.'}
               action={{ label: total === 0 ? 'Create First VFL' : 'Clear Filters', onClick: total === 0 ? () => { setEditing(null); setFormOpen(true); } : clearFilters }} />
@@ -514,8 +535,13 @@ function VFLObservationContent() {
                       <td className="px-3 py-2.5"><StatusBadge color={STATUS_HEX[r.status] ?? STATUS_TONE.neutral} label={r.status.charAt(0).toUpperCase() + r.status.slice(1)} /></td>
                       <td className="px-3 py-2.5">
                         <div className="flex gap-1 justify-end">
-                          <button type="button" title="Edit" aria-label={`Edit VFL observation for ${r.observerName}`} onClick={e => { e.stopPropagation(); handleEdit(r); }} className={`p-1.5 rounded ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-colors`}><PenTool className="h-3 w-3" /></button>
-                          <button type="button" title="Delete" aria-label={`Delete VFL observation for ${r.observerName}`} onClick={e => { e.stopPropagation(); setDeleteTarget(r.id); }} className={`p-1.5 rounded ${t.chipBg} hover:bg-rose-500/15 ${t.textFaint} hover:${t.light ? 'text-rose-600' : 'text-rose-400'} transition-colors`}><Trash2 className="h-3 w-3" /></button>
+                          {t.design === 'dallaglio' ? <>
+                            <IconAction meaning="edit" title={`Edit VFL observation for ${r.observerName}`} onClick={e => { e.stopPropagation(); handleEdit(r); }} />
+                            <IconAction meaning="danger" title={`Delete VFL observation for ${r.observerName}`} tone="danger" onClick={e => { e.stopPropagation(); setDeleteTarget(r.id); }} />
+                          </> : <>
+                            <button type="button" title="Edit" aria-label={`Edit VFL observation for ${r.observerName}`} onClick={e => { e.stopPropagation(); handleEdit(r); }} className={`p-1.5 rounded ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-colors`}><PenTool className="h-3 w-3" /></button>
+                            <button type="button" title="Delete" aria-label={`Delete VFL observation for ${r.observerName}`} onClick={e => { e.stopPropagation(); setDeleteTarget(r.id); }} className={`p-1.5 rounded ${t.chipBg} hover:bg-rose-500/15 ${t.textFaint} hover:${t.light ? 'text-rose-600' : 'text-rose-400'} transition-colors`}><Trash2 className="h-3 w-3" /></button>
+                          </>}
                         </div>
                       </td>
                     </tr>
@@ -535,10 +561,13 @@ function VFLObservationContent() {
       <CenterModal open={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Confirm Deletion" accent="amber" width="max-w-sm">
         <div className="p-5 space-y-4">
           <div className={`flex items-center gap-3 text-sm ${t.textMuted}`}><AlertTriangle className="h-5 w-5 text-red-400 flex-shrink-0" /> Are you sure you want to delete this VFL observation?</div>
-          <div className="flex gap-2">
+          {t.design === 'dallaglio' ? <div className="flex justify-end gap-2">
+            <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(null)}>Cancel</Button>
+            <Button variant="danger" size="sm" onClick={() => deleteTarget && handleDelete(deleteTarget)}>Delete</Button>
+          </div> : <div className="flex gap-2">
             <button type="button" onClick={() => setDeleteTarget(null)} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border} transition-all`}>Cancel</button>
             <PrimaryButton danger size="md" fullWidth onClick={() => deleteTarget && handleDelete(deleteTarget)}>Delete</PrimaryButton>
-          </div>
+          </div>}
         </div>
       </CenterModal>
     </main>

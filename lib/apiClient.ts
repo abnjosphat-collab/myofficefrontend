@@ -79,8 +79,8 @@ function buildInit(method: string, body?: unknown): RequestInit {
   return init;
 }
 
-async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
-  const res = await authFetch(resolve(path), buildInit(method, body));
+async function request<T>(method: string, path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
+  const res = await authFetch(resolve(path), { ...buildInit(method, body), signal });
   if (!res.ok) {
     if (res.status === 401) offerSignIn();
     throw new ApiError(await extractError(res), res.status);
@@ -103,7 +103,7 @@ async function requestBlob(method: string, path: string, body?: unknown): Promis
 /** The shared API client. Use `api.get('/api/employees')`, `api.post('/api/x', body)`, etc.
  *  Pass a FormData body to post/put for file uploads; use api.blob() for downloads. */
 export const api = {
-  get:   <T = unknown>(path: string) => request<T>('GET', path),
+  get:   <T = unknown>(path: string, options?: { signal?: AbortSignal }) => request<T>('GET', path, undefined, options?.signal),
   post:  <T = unknown>(path: string, body?: unknown) => request<T>('POST', path, body ?? {}),
   put:   <T = unknown>(path: string, body?: unknown) => request<T>('PUT', path, body ?? {}),
   patch: <T = unknown>(path: string, body?: unknown) => request<T>('PATCH', path, body ?? {}),

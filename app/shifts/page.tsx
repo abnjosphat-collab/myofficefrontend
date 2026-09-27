@@ -21,7 +21,7 @@ import { AppShell } from '@/components/app-shell';
 import { formatDate } from '@/lib/format';
 import {
   useTheme, STATUS_TONE, PageHero, StatTile, StatusBadge as ThemeStatusBadge, SearchInput, ProgressBar, FormField,
-  useCollapseSection, CenterModal, ACCENT_HEX, EmptyState, PrimaryButton, GlowCard, SelectField, accentText, TYPE_WEIGHT, Button,
+  useCollapseSection, CenterModal, ACCENT_HEX, EmptyState, PrimaryButton, GlowCard, SelectField, accentText, TYPE_WEIGHT, Button, ViewToggle, DisclosureButton,
 } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
@@ -151,8 +151,9 @@ const WD = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 // Person identity marker — a bare accent person icon (app-wide convention;
 // replaced the old initials-in-a-circle avatar). `name` kept for call compatibility.
 function Avatar({ size = 'sm' }: { name?: string; size?: 'xs' | 'sm' | 'md' | 'lg' }) {
+  const t = useTheme();
   const dims = { xs: 'h-4 w-4', sm: 'h-5 w-5', md: 'h-5 w-5', lg: 'h-7 w-7' }[size];
-  return <User className={`${dims} text-brand-400 shrink-0`} />;
+  return <User className={`${dims} ${t.design === 'dallaglio' ? t.textFaint : 'text-brand-400'} shrink-0`} weight={t.design === 'dallaglio' ? 'light' : undefined} />;
 }
 
 function DayStatusBadge({ status }: { status: DayStatus }) {
@@ -162,7 +163,7 @@ function DayStatusBadge({ status }: { status: DayStatus }) {
 
 function ShiftTypeBadge({ type }: { type: ShiftType }) {
   const p = getShiftPattern(type);
-  return <ThemeStatusBadge color={p.color} label={p.label} />;
+  return <ThemeStatusBadge color={p.color} label={p.label} kind="category" />;
 }
 
 function InfoField({ label, value }: { label: string; value?: string | number | null }) {
@@ -520,7 +521,7 @@ function ShiftCard({ assignment, onView, onEdit, onDelete }: { assignment: Shift
   const nextOn = daysUntilNextOn(assignment);
 
   return (
-    <GlowCard color={pattern.color} surface={`${t.glass} rounded-xl`} className="overflow-hidden cursor-pointer" onClick={() => onView(assignment)}>
+    <GlowCard color={t.design === 'dallaglio' ? ACCENT_HEX.violet : pattern.color} surface={`${t.glass} rounded-xl`} className="overflow-hidden cursor-pointer" onClick={() => onView(assignment)}>
       <div className="p-4">
         <div className="flex items-start justify-between gap-2 mb-3">
           <div className="flex items-center gap-2.5 min-w-0">
@@ -553,7 +554,7 @@ function ShiftCard({ assignment, onView, onEdit, onDelete }: { assignment: Shift
 
         <div className="mb-2">
           <div className={`flex justify-between text-[10px] mb-1 ${t.textFaint}`}><span>Cycle position</span><span>{progress}%</span></div>
-          <ProgressBar value={progress} color={pattern.color} showValue={false} />
+          <ProgressBar value={progress} color={t.design === 'dallaglio' ? ACCENT_HEX.violet : pattern.color} showValue={false} />
         </div>
 
         <div className={`flex items-center gap-3 text-[11px] ${t.textFaint}`}>
@@ -609,7 +610,7 @@ function ShiftDetailModal({ assignment, open, onClose, onEdit, onDelete }: { ass
             <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}><Activity className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textMuted}`}>Cycle Position</span></div>
             <div className="px-3.5 py-3">
               <div className={`flex justify-between text-xs mb-2 ${t.textFaint}`}><span>Progress through current cycle</span><span className={`${TYPE_WEIGHT.semibold} ${t.textMuted}`}>{progress}%</span></div>
-              <ProgressBar value={progress} color={pattern.color} showValue={false} />
+              <ProgressBar value={progress} color={t.design === 'dallaglio' ? ACCENT_HEX.violet : pattern.color} showValue={false} />
               <div className={`flex justify-between text-[10px] mt-1.5 ${t.textFaint}`}><span>Day 1</span><span>Day {assignment.on_days + assignment.off_days}</span></div>
             </div>
           </div>
@@ -1008,12 +1009,12 @@ function ShiftsContent() {
               const isActive = filterType === type;
               const Icon = p.icon;
               return (
-                <GlowCard key={type} onClick={() => setFilterType(isActive ? 'all' : type)} color={p.color}
-                  surface="rounded-xl p-4"
-                  className={`group text-left cursor-pointer ${isActive ? `${t.chipBg} ring-1 ring-brand-400/40` : `${t.chipBg} ${t.hoverBg}`}`}>
-                  <div className="flex items-center justify-between mb-2"><Icon className="h-4 w-4" style={{ color: p.color }} /><span className={`text-xs ${TYPE_WEIGHT.bold} ${t.textPrimary}`}>{count}</span></div>
+                <GlowCard key={type} onClick={() => setFilterType(isActive ? 'all' : type)} color={t.design === 'dallaglio' ? ACCENT_HEX.violet : p.color}
+                  surface={t.design === 'dallaglio' ? `${t.glass} rounded-xl p-4 border ${t.border}` : 'rounded-xl p-4'}
+                  className={`group text-left cursor-pointer ${isActive ? `${t.chipBg} ring-1 ring-brand-400/40` : t.design === 'dallaglio' ? t.hoverBg : `${t.chipBg} ${t.hoverBg}`}`}>
+                  <div className="flex items-center justify-between mb-2"><Icon className={`h-4 w-4 ${t.design === 'dallaglio' ? t.textFaint : ''}`} weight={t.design === 'dallaglio' ? 'light' : undefined} style={t.design === 'dallaglio' ? undefined : { color: p.color }} /><span className={`text-xs ${TYPE_WEIGHT.bold} ${t.textPrimary}`}>{count}</span></div>
                   <div className={`text-xs ${TYPE_WEIGHT.semibold} mb-0.5 ${t.textMuted}`}>{p.label}</div>
-                  <div className={`mt-2 h-1 rounded-full ${t.chipBg} overflow-hidden`}><ProgressBar value={percentage} color={p.color} showValue={false} /></div>
+                  <div className={`mt-2 h-1 rounded-full ${t.chipBg} overflow-hidden`}><ProgressBar value={percentage} color={t.design === 'dallaglio' ? ACCENT_HEX.violet : p.color} showValue={false} /></div>
                 </GlowCard>
               );
             })}
@@ -1031,7 +1032,7 @@ function ShiftsContent() {
                     <Avatar name={a.employee_name} />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1"><span className={`text-sm ${TYPE_WEIGHT.medium} truncate ${t.textPrimary}`}>{a.employee_name}</span><DayStatusBadge status={s} /></div>
-                      <ProgressBar value={cycleProgress(a)} color={getShiftPattern(a.shift_type).color} showValue={false} />
+                      <ProgressBar value={cycleProgress(a)} color={t.design === 'dallaglio' ? ACCENT_HEX.violet : getShiftPattern(a.shift_type).color} showValue={false} />
                     </div>
                     <ShiftTypeBadge type={a.shift_type} />
                   </button>
@@ -1044,22 +1045,26 @@ function ShiftsContent() {
 
       <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
         <div className={`flex items-center justify-between px-5 py-3 border-b ${t.border}`}>
-          <div className="flex items-center gap-2"><Layers className="h-4 w-4 text-brand-400" /><span className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>Filters</span>{hasFilters() && <ThemeStatusBadge color={ACCENT_HEX.blue} label="Active" />}</div>
-          {hasFilters() && <button type="button" onClick={clearFilters} className={`text-xs ${t.textFaint} ${t.hoverText} flex items-center gap-1 transition-colors`}><X className="h-3 w-3" /> Clear</button>}
+          <div className="flex items-center gap-2"><Layers className={`h-4 w-4 ${t.design === 'dallaglio' ? t.textMuted : 'text-brand-400'}`} /><span className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>Filters</span>{hasFilters() && <ThemeStatusBadge color={ACCENT_HEX.blue} label="Active" />}</div>
+          {hasFilters() && (t.design === 'dallaglio' ? <Button variant="ghost" size="sm" icon={X} onClick={clearFilters}>Clear</Button> : <button type="button" onClick={clearFilters} className={`text-xs ${t.textFaint} ${t.hoverText} flex items-center gap-1 transition-colors`}><X className="h-3 w-3" /> Clear</button>)}
         </div>
         <div className="px-5 py-4 space-y-3">
           <div>
             <div className={`text-xs ${TYPE_WEIGHT.medium} mb-1.5 ${t.textFaint}`}>Pattern</div>
             <div className="flex flex-wrap gap-1.5">
-              <button type="button" onClick={() => setFilterType('all')} className={`px-3 py-1.5 rounded-lg text-xs ${TYPE_WEIGHT.medium} transition-all ${filterType === 'all' ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}>All Patterns</button>
-              {Object.entries(SHIFT_PATTERNS).map(([k, v]) => <button key={k} type="button" onClick={() => setFilterType(filterType === k ? 'all' : k as ShiftType)} className={`px-3 py-1.5 rounded-lg text-xs ${TYPE_WEIGHT.medium} transition-all ${filterType === k ? '' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`} style={filterType === k ? { backgroundColor: `${v.color}22`, color: v.color } : undefined}>{v.label}</button>)}
+              {t.design === 'dallaglio' ? <Button variant={filterType === 'all' ? 'subtle' : 'secondary'} size="sm" onClick={() => setFilterType('all')}>All Patterns</Button> : <button type="button" onClick={() => setFilterType('all')} className={`px-3 py-1.5 rounded-lg text-xs ${TYPE_WEIGHT.medium} transition-all ${filterType === 'all' ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}>All Patterns</button>}
+              {Object.entries(SHIFT_PATTERNS).map(([k, v]) => t.design === 'dallaglio'
+                ? <Button key={k} variant={filterType === k ? 'subtle' : 'secondary'} size="sm" onClick={() => setFilterType(filterType === k ? 'all' : k as ShiftType)}>{v.label}</Button>
+                : <button key={k} type="button" onClick={() => setFilterType(filterType === k ? 'all' : k as ShiftType)} className={`px-3 py-1.5 rounded-lg text-xs ${TYPE_WEIGHT.medium} transition-all ${filterType === k ? '' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`} style={filterType === k ? { backgroundColor: `${v.color}22`, color: v.color } : undefined}>{v.label}</button>)}
             </div>
           </div>
           <div>
             <div className={`text-xs ${TYPE_WEIGHT.medium} mb-1.5 ${t.textFaint}`}>Today&apos;s Status</div>
             <div className="flex flex-wrap gap-1.5">
-              <button type="button" onClick={() => setFilterStatus('all')} className={`px-3 py-1.5 rounded-lg text-xs ${TYPE_WEIGHT.medium} transition-all ${filterStatus === 'all' ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}>All Statuses</button>
-              {(['on', 'on+standby', 'off', 'standby'] as DayStatus[]).map(s => <button key={s} type="button" onClick={() => setFilterStatus(filterStatus === s ? 'all' : s)} className={`px-3 py-1.5 rounded-lg text-xs ${TYPE_WEIGHT.medium} transition-all`} style={filterStatus === s ? { backgroundColor: `${STATUS_COLORS[s].hex}22`, color: STATUS_COLORS[s].hex } : undefined}>{STATUS_COLORS[s].label}</button>)}
+              {t.design === 'dallaglio' ? <Button variant={filterStatus === 'all' ? 'subtle' : 'secondary'} size="sm" onClick={() => setFilterStatus('all')}>All Statuses</Button> : <button type="button" onClick={() => setFilterStatus('all')} className={`px-3 py-1.5 rounded-lg text-xs ${TYPE_WEIGHT.medium} transition-all ${filterStatus === 'all' ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}>All Statuses</button>}
+              {(['on', 'on+standby', 'off', 'standby'] as DayStatus[]).map(s => t.design === 'dallaglio'
+                ? <Button key={s} variant={filterStatus === s ? 'subtle' : 'secondary'} size="sm" onClick={() => setFilterStatus(filterStatus === s ? 'all' : s)}>{STATUS_COLORS[s].label}</Button>
+                : <button key={s} type="button" onClick={() => setFilterStatus(filterStatus === s ? 'all' : s)} className={`px-3 py-1.5 rounded-lg text-xs ${TYPE_WEIGHT.medium} transition-all`} style={filterStatus === s ? { backgroundColor: `${STATUS_COLORS[s].hex}22`, color: STATUS_COLORS[s].hex } : undefined}>{STATUS_COLORS[s].label}</button>)}
             </div>
           </div>
         </div>
@@ -1072,14 +1077,22 @@ function ShiftsContent() {
           <SearchInput value={search} onChange={setSearch} placeholder="Search employees…" className="w-52" />
           <SelectField size="filter" value={sortKey} onChange={v => setSortKey(v as SortKey)} title="Sort by"
             options={SORT_OPTIONS.map(o => ({ value: o.value, label: o.label }))} />
-          <button type="button" title="Schedule view — see everyone's shifts for the next 4 weeks" onClick={() => setViewMode(v => v === 'schedule' ? 'grid' : 'schedule')}
+          {t.design === 'dallaglio' ? <Button variant={viewMode === 'schedule' ? 'subtle' : 'secondary'} size="sm" icon={Calendar} title="Schedule view — see everyone's shifts for the next 4 weeks" onClick={() => setViewMode(v => v === 'schedule' ? 'grid' : 'schedule')}>Schedule</Button> : <button type="button" title="Schedule view — see everyone's shifts for the next 4 weeks" onClick={() => setViewMode(v => v === 'schedule' ? 'grid' : 'schedule')}
             className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg transition-all ${viewMode === 'schedule' ? `bg-brand-500/20 text-brand-400 ${TYPE_WEIGHT.semibold}` : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}>
             <Calendar className="w-3 h-3" /> Schedule
-          </button>
+          </button>}
           <div className="ml-auto flex items-center gap-1.5">
+            {t.design === 'dallaglio' ? <>
+              <ViewToggle value={viewMode} onChange={setViewMode} options={[
+                { value: 'grid', label: 'Grid view', meaning: 'grid-view' },
+                { value: 'table', label: 'Table view', meaning: 'table-view' },
+              ]} />
+              <DisclosureButton open={showRecords} onClick={() => setShowRecords(v => !v)} label="records" />
+            </> : <>
             <button type="button" title="Grid view" onClick={() => setViewMode('grid')} className={`h-8 w-8 flex items-center justify-center rounded-lg transition-all ${viewMode === 'grid' ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}><LayoutGrid className="h-3.5 w-3.5" /></button>
             <button type="button" title="Table view" onClick={() => setViewMode('table')} className={`h-8 w-8 flex items-center justify-center rounded-lg transition-all ${viewMode === 'table' ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}><List className="h-3.5 w-3.5" /></button>
             <button type="button" title={showRecords ? 'Collapse' : 'Expand'} onClick={() => setShowRecords(v => !v)} className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textFaint}`}>{showRecords ? '−' : '+'}</button>
+            </>}
           </div>
         </div>
 

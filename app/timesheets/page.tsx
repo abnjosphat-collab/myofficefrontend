@@ -18,7 +18,7 @@ import {
 } from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
 import { PredictiveInput } from '@/components/shared/PredictiveInput';
-import { useTheme, PageHero, ACCENT_HEX, useCollapseSection, EmptyState, accentText, TYPE_WEIGHT, PrimaryButton, Button as DsButton, IconAction } from '@/components/shared/theme';
+import { useTheme, PageHero, ACCENT_HEX, useCollapseSection, EmptyState, accentText, TYPE_WEIGHT, PrimaryButton, Button as DsButton, IconAction, CollapsibleHeader } from '@/components/shared/theme';
 import { TimesheetDayCell } from './TimesheetDayCell';
 import { TimesheetEmployeeCell } from './TimesheetEmployeeCell';
 import tsGrid from './timesheet-grid.module.css';
@@ -35,6 +35,7 @@ import type {
 } from './types';
 import { normalizeTimesheetEmployeeCode } from './employeeCode';
 import { mergeEffectiveTimesheets } from './mergeEffectiveTimesheets';
+import { countPeriodCompletion } from './completion';
 import { api, useTimesheetsData } from './useTimesheetsData';
 import {
   LEAVE_STATUSES, DOUBLE_TIME_STATUSES, ZERO_HOUR_STATUSES, NEC_REG_CAP, calcEmployeeTotals, moduleOt15FormulaAddends,
@@ -129,12 +130,13 @@ function SectionHeader({ icon: Icon, title, sub, open, onToggle, children }: {
 }) {
   const t = useTheme();
   const quiet = t.design === 'dallaglio';
+  if (quiet) return <CollapsibleHeader icon={Icon} title={title} sub={sub} open={open} onToggle={onToggle}>{children}</CollapsibleHeader>;
   return (
-    <div className={`flex flex-wrap items-center justify-between gap-2 px-5 py-3 border-b ${t.border} ${quiet ? tsGrid.sectionHeader : ''}`}>
+    <div className={`flex flex-wrap items-center justify-between gap-2 px-5 py-3 border-b ${t.border}`}>
       <div className="flex min-w-0 flex-1 items-center gap-2 flex-wrap">
-        <Icon className={`h-3.5 w-3.5 text-brand-400 shrink-0 ${quiet ? tsGrid.sectionIcon : ''}`} />
-        <span className={quiet ? tsGrid.sectionTitle : `text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textMuted}`}>{title}</span>
-        {sub && <span className={quiet ? tsGrid.sectionSub : `text-[11px] ${t.textFaint}`}>{sub}</span>}
+        <Icon className="h-3.5 w-3.5 text-brand-400 shrink-0" />
+        <span className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textMuted}`}>{title}</span>
+        {sub && <span className={`text-[11px] ${t.textFaint}`}>{sub}</span>}
       </div>
       <div className="flex items-center gap-1.5">
         {children}
@@ -143,7 +145,7 @@ function SectionHeader({ icon: Icon, title, sub, open, onToggle, children }: {
           onClick={onToggle}
           aria-expanded={open}
           aria-label={open ? `Collapse ${title}` : `Expand ${title}`}
-          className={`h-8 w-8 flex items-center justify-center rounded-md ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/50 ${quiet ? tsGrid.sectionCollapse : ''}`}
+          className={`h-8 w-8 flex items-center justify-center rounded-md ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/50`}
         >
           {open ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
         </button>
@@ -1459,12 +1461,12 @@ function TimesheetGrid({ employees, timesheets, days, getHourTotals, onCellClick
                   aria-label={holiday ? `Bulk assign ${holiday}, ${ds}` : `Bulk assign all employees on ${ds}`}
                   title={holiday ? `${holiday} — bulk assign this day` : 'Bulk assign this day for all employees'}
                   onClick={() => onBulkDay(d)}
-                  className={`w-full flex flex-col items-center gap-0.5 text-[11px] py-1.5 rounded-md transition-colors hover:bg-brand-500/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/50 group/day-hdr ${quiet ? tsGrid.dateButton : ''}`}
+                  className={`w-full flex flex-col items-center gap-0.5 text-[11px] py-1.5 rounded-md transition-colors focus:outline-none group/day-hdr ${quiet ? `${tsGrid.dateButton} hover:bg-[var(--d-soft)] focus-visible:ring-2 focus-visible:ring-[var(--d-accent)]` : 'hover:bg-brand-500/15 focus-visible:ring-2 focus-visible:ring-brand-400/50'}`}
                 >
                   <span className={t.textFaint}>{d.toLocaleDateString('en-GB', { weekday: 'short' })}</span>
-                  <span className={`${quiet ? 'font-normal' : TYPE_WEIGHT.bold} text-sm tabular-nums ${holiday ? (quiet ? t.textPrimary : accentText('violet', t.light)) : ds === today ? (quiet ? t.textPrimary : 'text-brand-400') : isWknd ? t.textFaint : t.textMuted}`}>{d.getDate()}</span>
-                  <span className={`${quiet ? tsGrid.dateMonth : 'hidden sm:inline'} ${t.textFaint}`}>{!quiet || d.getDate() === 1 || ds === fmtDate(days[0]) ? d.toLocaleDateString('en-GB', { month: 'short' }) : '\u00a0'}</span>
-                  {holiday && <Sun className={`w-3 h-3 ${quiet ? t.textMuted : accentText('violet', t.light)}`} />}
+                  <span className={`${quiet ? 'font-normal' : TYPE_WEIGHT.bold} text-sm tabular-nums ${holiday ? (quiet ? t.textPrimary : accentText('violet', t.light)) : ds === today ? (quiet ? t.textPrimary : 'text-brand-400') : isWknd ? t.textFaint : t.textMuted}`}>{quiet ? `${d.getDate()} ${d.toLocaleDateString('en-GB', { month: 'short' })}` : d.getDate()}</span>
+                  {!quiet && <span className={`hidden sm:inline ${t.textFaint}`}>{d.toLocaleDateString('en-GB', { month: 'short' })}</span>}
+                  {holiday && !quiet && <Sun className={`w-3 h-3 ${accentText('violet', t.light)}`} />}
                   <Layers className={`${quiet ? 'w-3 h-3 opacity-0 group-hover/day-hdr:opacity-100 group-focus-visible/day-hdr:opacity-100 text-[var(--d-accent)]' : 'w-3 h-3 text-brand-400/80 group-hover/day-hdr:text-brand-300'}`} aria-hidden />
                 </button>
               </TableHead>
@@ -1603,6 +1605,7 @@ const EXCLUDED_EMPLOYEE_IDS = new Set<string>(['PP288']);
 
 function TimesheetsContent() {
   const t = useTheme();
+  const quiet = t.design === 'dallaglio';
   const sections = useCollapseSection({ hero: false });
   const [activeTab, setActiveTab] = useState<'salaried' | 'nec'>('nec');
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -1784,9 +1787,7 @@ function TimesheetsContent() {
         nightAllow: acc.nightAllow + tt.nightAllowanceBonus, standbyBonus: acc.standbyBonus + tt.standbyBonus,
       };
     }, { reg: 0, ot15: 0, ot20: 0, nightAllow: 0, standbyBonus: 0 });
-    const filled = new Set(effectiveTimesheets.filter(ts => tabIds.includes(String(ts.employee_id))).map(ts => `${ts.employee_id}:${ts.date}`)).size;
-    const workingDays = days.filter(d => d.getDay() !== 0 && d.getDay() !== 6).length;
-    const possible = tabEmployees.length * workingDays;
+    const { filled, possible } = countPeriodCompletion(tabIds, days, effectiveTimesheets);
     return { ...tot, filled, possible };
   }, [getHourTotals, tabEmployees, tabIds, days, effectiveTimesheets]);
 
@@ -2046,6 +2047,8 @@ function TimesheetsContent() {
     return { count: selected.length, roll };
   }, [tabEmployees, gridSelectedEmpIds, getHourTotals]);
 
+  const dataUnavailable = loading || Boolean(loadError);
+
   return (
     <main className="mx-auto flex w-full max-w-[min(100%,96rem)] flex-col gap-4 p-4 sm:p-6 lg:p-8">
       <PageHero
@@ -2072,14 +2075,14 @@ function TimesheetsContent() {
             </div>
             <IconAction meaning="refresh" title="Refresh timesheets" label="Refresh" onClick={() => { void load(); }} spinning={loading} disabled={loading} />
             {activeTab === 'nec' && (
-              <IconAction meaning="documents" title="Import scanned PDF timesheets" label="Import scans" onClick={() => setShowNecImport(true)} />
+              <IconAction meaning="documents" title="Import scanned PDF timesheets" label="Import scans" onClick={() => setShowNecImport(true)} disabled={dataUnavailable} />
             )}
-            <IconAction meaning="download" title="Download timesheet" label="Download" onClick={() => setShowDownload(true)} />
+            <IconAction meaning="download" title="Download timesheet" label="Download" onClick={() => setShowDownload(true)} disabled={dataUnavailable} />
             {/* Opens the same multi-employee, multi-date dialog as a row's "Assign shifts"
                 link — this is the page-level entry point for it (previously only reachable
                 per-employee, which made bulk entry easy to miss). Seeded with the first
                 roster employee; anyone can be added or removed inside the dialog. */}
-            <PrimaryButton icon={Layers} size={t.design === 'dallaglio' ? 'xs' : 'sm'} disabled={tabEmployees.length === 0}
+            <PrimaryButton icon={Layers} size={t.design === 'dallaglio' ? 'xs' : 'sm'} disabled={dataUnavailable || tabEmployees.length === 0}
               title="Bulk-enter shifts for one or many employees at once"
               onClick={() => openBulkAssign({ anchorEmployee: tabEmployees[0] })}>
               Bulk Entry
@@ -2089,19 +2092,19 @@ function TimesheetsContent() {
       >
         <div className={t.design === 'dallaglio' ? tsGrid.summaryStrip : 'flex flex-wrap items-center gap-x-1 gap-y-2'}>
           {[
-            { icon: Users, val: `${tabEmployees.length}`, label: 'employees', color: 'text-brand-400' },
-            { icon: Clock, val: `${summary.reg.toFixed(0)}h`, label: 'regular', color: accentText('emerald', t.light) },
-            { icon: Zap, val: `${summary.ot15.toFixed(0)}h`, label: 'OT 1.5×', color: 'text-brand-400' },
-            { icon: Zap, val: `${summary.ot20.toFixed(0)}h`, label: 'OT 2.0×', color: 'text-sky-400' },
-            { icon: Moon, val: `${summary.nightAllow.toFixed(0)}h`, label: 'night allow.', color: accentText('indigo', t.light) },
-            summary.standbyBonus > 0 ? { icon: LayoutGrid, val: `${summary.standbyBonus}h`, label: 'standby allowance', color: accentText('amber', t.light) } : null,
-            { icon: CalendarDays, val: `${completion}%`, label: `filled (${summary.filled}/${summary.possible})`, color: completion === 100 ? accentText('emerald', t.light) : t.textMuted },
+            { icon: Users, val: dataUnavailable ? '—' : `${tabEmployees.length}`, label: 'employees', color: 'text-brand-400' },
+            { icon: Clock, val: dataUnavailable ? '—' : `${summary.reg.toFixed(0)}h`, label: 'regular', color: accentText('emerald', t.light) },
+            { icon: Zap, val: dataUnavailable ? '—' : `${summary.ot15.toFixed(0)}h`, label: 'OT 1.5×', color: 'text-brand-400' },
+            { icon: Zap, val: dataUnavailable ? '—' : `${summary.ot20.toFixed(0)}h`, label: 'OT 2.0×', color: 'text-sky-400' },
+            { icon: Moon, val: dataUnavailable ? '—' : `${summary.nightAllow.toFixed(0)}h`, label: 'night allow.', color: accentText('indigo', t.light) },
+            !dataUnavailable && summary.standbyBonus > 0 ? { icon: LayoutGrid, val: `${summary.standbyBonus}h`, label: 'standby allowance', color: accentText('amber', t.light) } : null,
+            { icon: CalendarDays, val: dataUnavailable ? '—' : `${completion}%`, label: dataUnavailable ? 'filled' : `filled (${summary.filled}/${summary.possible})`, color: completion === 100 ? accentText('emerald', t.light) : t.textMuted },
           ].filter(Boolean).map((item, i, arr) => {
             const it = item as { icon: ElementType; val: string; label: string; color: string };
             return (
               <React.Fragment key={i}>
                 <div className={t.design === 'dallaglio' ? tsGrid.summaryMetric : 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg'}>
-                  <it.icon className={`w-3.5 h-3.5 ${t.design === 'dallaglio' ? tsGrid.summaryIcon : it.color}`} />
+                  <it.icon className={`w-3.5 h-3.5 ${t.design === 'dallaglio' ? tsGrid.summaryIcon : it.color}`} weight={t.design === 'dallaglio' ? 'light' : undefined} />
                   <span className={t.design === 'dallaglio' ? tsGrid.summaryValue : `text-base ${TYPE_WEIGHT.bold} ${t.textPrimary}`}>{it.val}</span>
                   <span className={t.design === 'dallaglio' ? tsGrid.summaryLabel : `text-xs ${t.textFaint}`}>{it.label}</span>
                 </div>
@@ -2133,13 +2136,13 @@ function TimesheetsContent() {
       </div>
 
       <div className={`${t.glass} rounded-2xl [overflow:clip]`}>
-        <SectionHeader icon={LayoutGrid} title={`${activeTab === 'salaried' ? 'Salaried' : 'NEC'} Timesheet Grid`} sub={`${tabEmployees.length} employees · ${fmtPeriod(activePeriod)}`} open={showGrid} onToggle={() => setShowGrid(v => !v)}>
+        <SectionHeader icon={LayoutGrid} title={`${activeTab === 'salaried' ? 'Salaried' : 'NEC'} Timesheet Grid`} sub={`${dataUnavailable ? 'Roster unavailable' : `${tabEmployees.length} employees`} · ${fmtPeriod(activePeriod)}`} open={showGrid} onToggle={() => setShowGrid(v => !v)}>
           <div className="relative min-w-[8rem] max-w-[14rem] flex-1 sm:flex-none">
             <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 ${t.textFaint}`} />
             <input aria-label="Search employees" placeholder="Search…" className={`${t.inputBg} rounded-lg text-sm pl-8 pr-3 py-1.5 h-9 w-full sm:w-40 outline-none focus-visible:ring-2 focus-visible:ring-brand-400/45 ${t.design === 'dallaglio' ? tsGrid.sectionSearch : ''}`} value={search} onChange={e => setSearch(e.target.value)} />
           </div>
           <IconAction meaning="sort" title={`Sort: ${sortBy === 'name' ? 'A–Z name' : 'Department'}`} label={sortBy === 'name' ? 'A–Z' : 'Dept'} onClick={() => setSortBy(s => s === 'name' ? 'dept' : 'name')} />
-          <DsButton type="button" variant="secondary" size="xs" icon={UserPlus} title="Add employees to this period roster" onClick={() => setShowBulkAdd(true)}>Add employees</DsButton>
+          <DsButton type="button" variant="secondary" size="xs" icon={UserPlus} title="Add employees to this period roster" disabled={dataUnavailable} onClick={() => setShowBulkAdd(true)}>Add employees</DsButton>
         </SectionHeader>
         {showGrid && (
           loading ? (
@@ -2153,33 +2156,31 @@ function TimesheetsContent() {
                 </div>
               )}
               {gridSelectedEmpIds.size > 0 && (
-                <div className={`mx-3 mt-3 mb-1 flex flex-col gap-2 rounded-xl border border-brand-400/25 bg-brand-500/10 px-3 py-2.5 text-xs ${t.textMuted}`}>
+                <div className={`mx-3 mt-3 mb-1 flex flex-col gap-2 rounded-xl border px-3 py-2.5 text-xs ${t.textMuted} ${quiet ? 'border-[var(--d-line)] bg-[var(--d-soft)]' : 'border-brand-400/25 bg-brand-500/10'}`}>
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span>
-                      <span className={`${TYPE_WEIGHT.semibold} text-brand-400`}>{gridSelectedEmpIds.size}</span>
+                      <span className={`${TYPE_WEIGHT.semibold} ${quiet ? t.textPrimary : 'text-brand-400'}`}>{gridSelectedEmpIds.size}</span>
                       {' '}employee{gridSelectedEmpIds.size !== 1 ? 's' : ''} selected
                     </span>
                     <div className="flex flex-wrap items-center gap-2">
                       <DsButton type="button" variant="primary" size="xs" icon={Layers} onClick={openBulkForSelectedEmployees}>
                         Same shift for selected
                       </DsButton>
-                      <button type="button" className={`text-xs ${t.textFaint} hover:underline`} onClick={() => setGridSelectedEmpIds(new Set())}>
-                        Clear selection
-                      </button>
+                      <DsButton type="button" variant="ghost" size="xs" onClick={() => setGridSelectedEmpIds(new Set())}>Clear selection</DsButton>
                     </div>
                   </div>
                   {selectedTotalsSummary && (
-                    <div className={`flex flex-wrap items-center gap-x-4 gap-y-1 text-sm tabular-nums border-t border-brand-400/15 pt-2 ${t.textMuted}`}>
+                    <div className={`flex flex-wrap items-center gap-x-4 gap-y-1 text-sm tabular-nums border-t pt-2 ${t.textMuted} ${quiet ? t.border : 'border-brand-400/15'}`}>
                       <span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>Period totals (selected)</span>
                       <span>Actual <span className={TYPE_WEIGHT.semibold}>{selectedTotalsSummary.roll.actual.toFixed(1)}</span></span>
-                      <span className={accentText('emerald', t.light)}>Reg <span className={TYPE_WEIGHT.semibold}>{selectedTotalsSummary.roll.reg.toFixed(1)}</span></span>
-                      <span className="text-brand-400">1.5× <span className={TYPE_WEIGHT.semibold}>{selectedTotalsSummary.roll.ot15.toFixed(1)}</span></span>
-                      <span className="text-sky-400">2.0× <span className={TYPE_WEIGHT.semibold}>{selectedTotalsSummary.roll.ot20.toFixed(1)}</span></span>
+                      <span className={quiet ? t.textMuted : accentText('emerald', t.light)}>Reg <span className={TYPE_WEIGHT.semibold}>{selectedTotalsSummary.roll.reg.toFixed(1)}</span></span>
+                      <span className={quiet ? t.textMuted : 'text-brand-400'}>1.5× <span className={TYPE_WEIGHT.semibold}>{selectedTotalsSummary.roll.ot15.toFixed(1)}</span></span>
+                      <span className={quiet ? t.textMuted : 'text-sky-400'}>2.0× <span className={TYPE_WEIGHT.semibold}>{selectedTotalsSummary.roll.ot20.toFixed(1)}</span></span>
                     </div>
                   )}
                 </div>
               )}
-              <TimesheetGrid
+              {!loadError && <TimesheetGrid
                 employees={tabEmployees} timesheets={effectiveTimesheets} days={days} getHourTotals={getHourTotals}
                 onCellClick={(emp, day, entry) => setEditCell({ employee: emp, date: day, entry })}
                 onQuickAdd={handleQuickAdd} onQuickRemove={handleQuickRemove}
@@ -2190,7 +2191,7 @@ function TimesheetsContent() {
                 selectedEmployeeIds={gridSelectedEmpIds}
                 onToggleEmployeeSelect={toggleGridEmployeeSelect}
                 onToggleAllEmployeeSelect={toggleAllGridEmployees}
-              />
+              />}
             </>
           )
         )}

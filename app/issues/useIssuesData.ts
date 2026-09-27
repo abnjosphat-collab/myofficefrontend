@@ -5,7 +5,7 @@
 // as app/ppe's usePPEData.
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/apiClient';
 import { toast } from 'sonner';
 import type { Spare, Stats, StockIssue } from './types';
@@ -23,40 +23,77 @@ export async function apiDeleteIssue(id: number): Promise<void> {
 }
 
 export async function apiGetStats(): Promise<Stats> {
-  try {
-    return await api.get<Stats>('/api/issues/stats/summary');
-  } catch { return { total: 0, today: 0, this_week: 0, unique_recipients: 0 }; }
+  return api.get<Stats>('/api/issues/stats/summary');
 }
 
 export async function apiGetSpares(): Promise<Spare[]> {
-  return api.get<Spare[]>('/api/spares?limit=5000').catch(() => []);
+  return api.get<Spare[]>('/api/spares?limit=5000');
 }
+
+const errorMessage = (result: PromiseRejectedResult, fallback: string) =>
+  result.reason instanceof Error ? result.reason.message : fallback;
 
 export function useIssuesData() {
   const [issues, setIssues] = useState<StockIssue[]>([]);
-  const [serverStats, setServerStats] = useState<Stats>({ total: 0, today: 0, this_week: 0, unique_recipients: 0 });
+  const [serverStats, setServerStats] = useState<Stats | null>(null);
   const [spares, setSpares] = useState<Spare[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const [statsError, setStatsError] = useState('');
+  const [sparesError, setSparesError] = useState('');
+  const requestRef = useRef(0);
 
   const loadData = useCallback(async (quiet = false) => {
-    if (!quiet) setLoading(true);
-    setRefreshing(true);
-    try {
-      const [issueData, statsData, spareData] = await Promise.all([
+    const requestId = ++requestRef.current;
+    if (quiet) setRefreshing(true); else setLoading(true);
+    const [issueResult, statsResult, spareResult] = await Promise.allSettled([
         apiGetIssues(),
         apiGetStats(),
         apiGetSpares(),
-      ]);
-      setIssues(Array.isArray(issueData) ? issueData : []);
-      setServerStats(statsData);
-      setSpares(Array.isArray(spareData) ? spareData : []);
-    } catch (e: any) {
-      toast.error(`Failed to load: ${e.message}`);
-    } finally { setLoading(false); setRefreshing(false); }
+    ]);
+    if (requestId !== requestRef.current) return;
+
+    if (issueResult.status === 'fulfilled') {
+      setIssues(Array.isArray(issueResult.value) ? issueResult.value : []);
+      setLoadError('');
+    } else {
+      setLoadError(errorMessage(issueResult, 'Could not load stock issues.'));
+      if (!quiet) setIssues([]);
+      toast.error('Failed to load stock issues');
+    }
+
+    if (statsResult.status === 'fulfilled') {
+      setServerStats(statsResult.value);
+      setStatsError('');
+    } else {
+      setStatsError(errorMessage(statsResult, 'Could not load issue statistics.'));
+      if (!quiet) setServerStats(null);
+    }
+
+    if (spareResult.status === 'fulfilled') {
+      setSpares(Array.isArray(spareResult.value) ? spareResult.value : []);
+      setSparesError('');
+    } else {
+      setSparesError(errorMessage(spareResult, 'Could not load the spare catalogue.'));
+      if (!quiet) setSpares([]);
+    }
+
+    setLoading(false);
+    setRefreshing(false);
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  return { issues, serverStats, spares, loading, refreshing, refresh: loadData };
+  return {
+    issues,
+    serverStats,
+    spares,
+    loading,
+    refreshing,
+    loadError,
+    statsError,
+    sparesError,
+    refresh: loadData,
+  };
 }

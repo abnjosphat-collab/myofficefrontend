@@ -2,7 +2,7 @@
 // Canvas signature capture — draw, clear, confirm.
 'use client';
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
-import { PenLine, RefreshCw, Lock, CheckCircle2, Upload, useTheme } from '@/components/shared/theme';
+import { PenLine, RefreshCw, Lock, CheckCircle2, Upload, useTheme, Button } from '@/components/shared/theme';
 import { api } from '@/lib/apiClient';
 
 export interface SignatureResult {
@@ -144,6 +144,7 @@ export function SignaturePad({
   reuseSignatures = [],
 }: SignaturePadProps) {
   const theme = useTheme();
+  const dallaglio = theme.design === 'dallaglio';
   const saveCheckboxId = useId();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawing = useRef(false);
@@ -357,7 +358,7 @@ export function SignaturePad({
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm">
-          <PenLine className="h-4 w-4 text-[#86BBD8]" />
+          <PenLine className={`h-4 w-4 ${dallaglio ? theme.textFaint : 'text-[#86BBD8]'}`} />
           <span className={theme.textFaint}>Signing as</span>
           <span className={`font-semibold ${theme.textPrimary}`}>{signerName}</span>
         </div>
@@ -400,12 +401,12 @@ export function SignaturePad({
 
       {/* Mode switch — only when a saved signature actually exists on the account */}
       {allowSaved && saved.has_signature && (
-        <div className="flex gap-1 rounded-xl border border-white/10 bg-white/[0.04] p-1">
+        <div className={`flex gap-1 rounded-xl border p-1 ${dallaglio ? `${theme.border} ${theme.chipBg}` : 'border-white/10 bg-white/[0.04]'}`}>
           <button
             type="button"
             onClick={() => { setMode('draw'); setUnlockErr(''); }}
             className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
-              mode === 'draw' ? 'bg-[#2A4D69]/70 text-white' : 'text-white/50 hover:text-white'
+              dallaglio ? (mode === 'draw' ? `${theme.glass} ${theme.textPrimary}` : `${theme.textMuted} ${theme.hoverText}`) : mode === 'draw' ? 'bg-[#2A4D69]/70 text-white' : 'text-white/50 hover:text-white'
             }`}
           >
             Draw now
@@ -414,7 +415,7 @@ export function SignaturePad({
             type="button"
             onClick={() => { setMode('unlock'); setUnlockErr(''); }}
             className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
-              mode === 'unlock' ? 'bg-[#2A4D69]/70 text-white' : 'text-white/50 hover:text-white'
+              dallaglio ? (mode === 'unlock' ? `${theme.glass} ${theme.textPrimary}` : `${theme.textMuted} ${theme.hoverText}`) : mode === 'unlock' ? 'bg-[#2A4D69]/70 text-white' : 'text-white/50 hover:text-white'
             }`}
           >
             Use saved signature
@@ -468,7 +469,7 @@ export function SignaturePad({
                 checked={saveForNextTime}
                 onChange={e => setSaveForNextTime(e.target.checked)}
                 aria-label={saved.has_signature ? 'Replace my saved signature with this one' : 'Save this signature for next time'}
-                className="h-3.5 w-3.5 accent-[#86BBD8]"
+                className={dallaglio ? 'h-3.5 w-3.5 accent-[var(--d-accent)]' : 'h-3.5 w-3.5 accent-[#86BBD8]'}
               />
               {saved.has_signature ? 'Replace my saved signature with this one' : 'Save this signature for next time'}
             </label>
@@ -476,14 +477,14 @@ export function SignaturePad({
         </>
       ) : (
         <form
-          className="flex flex-col gap-3 rounded-xl border border-white/15 bg-white/[0.04] p-4"
+          className={`flex flex-col gap-3 rounded-xl border p-4 ${dallaglio ? `${theme.border} ${theme.chipBg}` : 'border-white/15 bg-white/[0.04]'}`}
           onSubmit={e => { e.preventDefault(); if (password && !unlocking && !submitting) unlockAndSign(); }}
         >
-          <div className="flex items-center gap-2 text-xs text-white/50">
+          <div className={`flex items-center gap-2 text-xs ${dallaglio ? theme.textMuted : 'text-white/50'}`}>
             <CheckCircle2 className="h-4 w-4 text-emerald-400" />
             Signature on file{saved.source === 'scanned' ? ' (scanned)' : ''}
           </div>
-          <p className="text-xs text-white/40">
+          <p className={`text-xs ${dallaglio ? theme.textFaint : 'text-white/40'}`}>
             Enter your account password to apply it. This password is what attributes the approval to you.
           </p>
           {/* Paired with the password field below purely for the browser's password
@@ -494,7 +495,7 @@ export function SignaturePad({
               ignore fields hidden that way. */}
           <input type="email" name="username" autoComplete="username" value={userEmail || signerName} readOnly className="sr-only" tabIndex={-1} aria-hidden="true" />
           <div className="relative">
-            <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
+            <Lock className={`absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 ${dallaglio ? theme.textFaint : 'text-white/30'}`} />
             <input
               type="password"
               value={password}
@@ -502,7 +503,7 @@ export function SignaturePad({
               onChange={e => { setPassword(e.target.value); setUnlockErr(''); }}
               placeholder="Account password"
               aria-label="Account password"
-              className="w-full rounded-lg border border-white/15 bg-white/[0.06] py-2.5 pl-9 pr-3 text-sm text-white placeholder:text-white/30 focus:border-[#86BBD8]/50 focus:outline-none"
+              className={`w-full rounded-lg py-2.5 pl-9 pr-3 text-sm focus:outline-none ${dallaglio ? theme.inputBg : 'border border-white/15 bg-white/[0.06] text-white placeholder:text-white/30 focus:border-[#86BBD8]/50'}`}
             />
           </div>
           {unlockErr && <p className="text-xs text-rose-400">{unlockErr}</p>}
@@ -510,22 +511,21 @@ export function SignaturePad({
       )}
 
       <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={onCancel}
-          disabled={submitting}
-          className="flex-1 rounded-xl border border-white/15 bg-white/[0.07] px-4 py-2.5 text-sm font-medium text-white/70 transition-all hover:bg-white/[0.14] hover:text-white disabled:pointer-events-none disabled:opacity-40"
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          onClick={mode === 'draw' ? confirm : unlockAndSign}
-          disabled={submitting || (mode === 'draw' ? !hasInk : !password || unlocking)}
-          className="flex-1 rounded-xl border border-[#86BBD8]/35 bg-[#2A4D69]/60 px-4 py-2.5 text-sm font-semibold text-white transition-all hover:bg-[#2A4D69]/80 disabled:pointer-events-none disabled:opacity-40"
-        >
-          {submitting && !unlocking ? 'Processing…' : unlocking ? 'Unlocking…' : actionLabel}
-        </button>
+        {dallaglio ? <>
+          <Button variant="secondary" size="md" fullWidth onClick={onCancel} disabled={submitting}>Cancel</Button>
+          <Button variant="primary" size="md" fullWidth onClick={mode === 'draw' ? confirm : unlockAndSign}
+            disabled={submitting || (mode === 'draw' ? !hasInk : !password || unlocking)}>
+            {submitting && !unlocking ? 'Processing…' : unlocking ? 'Unlocking…' : actionLabel}
+          </Button>
+        </> : <>
+          <button type="button" onClick={onCancel} disabled={submitting}
+            className="flex-1 rounded-xl border border-white/15 bg-white/[0.07] px-4 py-2.5 text-sm font-medium text-white/70 transition-all hover:bg-white/[0.14] hover:text-white disabled:pointer-events-none disabled:opacity-40">Cancel</button>
+          <button type="button" onClick={mode === 'draw' ? confirm : unlockAndSign}
+            disabled={submitting || (mode === 'draw' ? !hasInk : !password || unlocking)}
+            className="flex-1 rounded-xl border border-[#86BBD8]/35 bg-[#2A4D69]/60 px-4 py-2.5 text-sm font-semibold text-white transition-all hover:bg-[#2A4D69]/80 disabled:pointer-events-none disabled:opacity-40">
+            {submitting && !unlocking ? 'Processing…' : unlocking ? 'Unlocking…' : actionLabel}
+          </button>
+        </>}
       </div>
     </div>
   );

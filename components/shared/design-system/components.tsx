@@ -13,7 +13,7 @@ import { motion } from 'framer-motion';
 // Icons come from the shared icon module (Phosphor-backed, solid/outline toggle-aware) —
 // not directly from lucide — so shared components render in the same icon family/style
 // as the rest of the app.
-import { ChevronRight, ChevronDown, Loader2, Check, SearchIcon, Pencil, Trash2, ArrowUpRight, ArrowDownRight, Info } from './icons';
+import { ChevronRight, ChevronDown, Loader2, Check, SearchIcon, Pencil, Trash2, Eye, ArrowUpRight, ArrowDownRight, Info } from './icons';
 import { useTheme, ACCENT, ACCENT_HEX, ACCENT_TEXT, accentText, SPACING, RADIUS, TILE_SURFACE, TILE_BORDER, TILE_ASPECT, TILE_COMPACT_BAR, TYPE_SCALE, uiIconClass, decorativeAccentHex, isStatusToneHex, BRAND_GLOW_HEX, type Accent, type UiIconTone } from './tokens';
 import { blendRgb, hexToRgbTuple, rgbString, rgbaString, isValidHex, DEFAULT_BG_ACCENT } from './color';
 import { getInputSuggestions, recordInput } from '@/lib/inputHistory';
@@ -21,11 +21,12 @@ import { getDefaultExpanded } from '@/lib/prefs';
 import { GlowCard, PulsingIcon, AnimatedText, Collapse, CountUp, useScrollEdgeFlash, ScrollEdgeGlow, usePortaledListWheelScroll } from './primitives';
 import {
   DallaglioStatusBadge, DallaglioSearchInput,
-  DallaglioViewToggle, DallaglioPageHero, DallaglioStatStrip, dallaglioInfoCardStyle,
+  DallaglioViewToggle, DallaglioPageHero, DallaglioStatStrip,
 } from './dallaglio/ui';
 import { Button } from './Button';
 import { tileIconItem, tileTextContainer, tileTextItem, staggerContainer, fadeUp } from './motion';
 import { DsIcon } from './DsIcon';
+import { chartTheme } from './charts';
 import { meaningFromStatLabel, meaningFromViewValue, type IconMeaning } from './shared/icon-meanings';
 
 // ─── useCollapseSection — drop-in replacement for the legacy usePageCollapse ────
@@ -85,9 +86,9 @@ export function LoadingState({ label = 'Loading…', className = '' }: { label?:
 // badges (each an independently-chosen hue) sit in one card. Softens the same way
 // accentText() does for plain text/icons, just via RGB blending since this component
 // takes an arbitrary hex, not one of the app's named accent tokens.
-export function StatusBadge({ color, label, dot = false }: { color: string; label: string; dot?: boolean }) {
+export function StatusBadge({ color, label, dot = false, kind = 'status' }: { color: string; label: string; dot?: boolean; kind?: 'status' | 'category' }) {
   const t = useTheme();
-  if (t.design === 'dallaglio') return <DallaglioStatusBadge color={color} label={label} dot={dot} />;
+  if (t.design === 'dallaglio') return <DallaglioStatusBadge color={color} label={label} dot={dot} kind={kind} />;
   const rgb = hexToRgbTuple(isValidHex(color) ? color : DEFAULT_BG_ACCENT);
   const textRgb = t.light ? blendRgb(rgb, 'black', 0.12) : blendRgb(rgb, 'white', 0.18);
   const textColor = rgbString(textRgb);
@@ -454,6 +455,26 @@ export function CollapsibleHeader({
   icon: ElementType; title: string; sub?: string; open: boolean; onToggle: () => void; children?: ReactNode;
 }) {
   const t = useTheme();
+  if (t.design === 'dallaglio') {
+    return (
+      <div className={`flex min-h-[62px] flex-wrap items-center justify-between gap-3 border-b px-5 py-3 ${t.border}`}>
+        <div className="flex min-w-0 items-center gap-3">
+          <Icon className={`h-[17px] w-[17px] shrink-0 ${t.textFaint}`} weight="light" />
+          <div className="min-w-0">
+            <div className={`text-[14px] font-medium tracking-[-0.025em] ${t.textPrimary}`}>{title}</div>
+            {sub && <div className={`mt-0.5 text-[11px] ${t.textFaint}`}>{sub}</div>}
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {children}
+          <button type="button" onClick={onToggle} aria-expanded={open} aria-label={`${open ? 'Hide' : 'Show'} ${title}`} title={open ? `Hide ${title}` : `Show ${title}`}
+            className={`grid h-9 w-9 place-items-center rounded-[9px] border ${t.border} ${t.glass} ${t.textFaint} transition-colors hover:bg-[var(--d-soft)] hover:text-[var(--d-ink)]`}>
+            <ChevronDown className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} weight="light" />
+          </button>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className={`flex items-center justify-between px-5 py-3 border-b ${t.border} flex-wrap gap-2`}>
       <div className="flex items-center gap-2 flex-wrap min-w-0">
@@ -502,7 +523,7 @@ export function GroupSection({
   children: ReactNode;
 }) {
   const t = useTheme();
-  const groupHex = decorativeAccentHex(t.light, accentHex, {
+  const groupHex = t.design === 'dallaglio' ? undefined : decorativeAccentHex(t.light, accentHex, {
     semantic: accentHex != null && isStatusToneHex(accentHex),
   });
   return (
@@ -518,7 +539,8 @@ export function GroupSection({
           }`}
             style={groupHex ? { background: `${groupHex}1a` } : undefined}>
             <Icon
-              className={`h-5 w-5 ${groupHex ? '' : uiIconClass('neutral', t.light)}`}
+              className={`h-5 w-5 ${groupHex ? '' : t.design === 'dallaglio' ? t.textFaint : uiIconClass('neutral', t.light)}`}
+              weight={t.design === 'dallaglio' ? 'light' : undefined}
               style={groupHex ? { color: groupHex } : undefined}
             />
           </div>
@@ -582,7 +604,7 @@ export function Subsection({
         className={`w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-left ${t.hoverBgSoft} transition-colors group`}>
         <span
           className={`h-1.5 w-1.5 rounded-full shrink-0 ${t.light ? '' : t.textFaint}`}
-          style={t.light ? { background: color } : { background: 'currentColor', opacity: 0.55 }}
+          style={t.design === 'dallaglio' ? { background: 'currentColor', opacity: 0.55 } : t.light ? { background: color } : { background: 'currentColor', opacity: 0.55 }}
         />
         <span className={`text-[12.5px] font-semibold ${t.textSecondary} tracking-tight`}>{label}</span>
         <span className={`text-[11px] ${t.textTertiary} tabular-nums`}>{count}{countLabel ? ` ${countLabel}` : ''}</span>
@@ -631,7 +653,7 @@ export function SummaryItem({ icon: Icon, label, value, color, strokeWidth, icon
 }) {
   const t = useTheme();
   if (!value) return null;
-  const iconHex = decorativeAccentHex(t.light, color);
+  const iconHex = t.design === 'dallaglio' ? undefined : decorativeAccentHex(t.light, color);
   return (
     <span className="flex items-start gap-1.5 min-w-0">
       <Icon
@@ -642,6 +664,48 @@ export function SummaryItem({ icon: Icon, label, value, color, strokeWidth, icon
       <span className="min-w-0 truncate"><span className={t.textFaint}>{label}: </span>{value}</span>
     </span>
   );
+}
+
+/** One measured action set for expandable records across registers. */
+export function RecordActions({ onEdit, onDelete, editHref, viewHref, onView }: {
+  onEdit?: () => void;
+  onDelete?: () => void;
+  editHref?: string;
+  viewHref?: string;
+  onView?: () => void;
+}) {
+  return <>
+    {(viewHref || onView) && <Button variant="secondary" size="sm" icon={Eye} href={viewHref} onClick={onView ? event => { event.stopPropagation(); onView(); } : undefined}>View</Button>}
+    {(editHref || onEdit) && <Button variant="secondary" size="sm" icon={Pencil} href={editHref} onClick={onEdit ? event => { event.stopPropagation(); onEdit(); } : undefined}>Edit</Button>}
+    {onDelete && <Button variant="ghost" size="sm" icon={Trash2} onClick={event => { event.stopPropagation(); onDelete(); }}>Delete</Button>}
+  </>;
+}
+
+/** Detail-dialog footer: quiet dismissal and edits, explicit destructive action. */
+export function DetailActions({ onClose, onEdit, onDelete, editLabel = 'Edit', primaryAction }: {
+  onClose: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
+  editLabel?: string;
+  primaryAction?: { label: string; onClick: () => void };
+}) {
+  return <div className="flex flex-wrap items-center justify-end gap-2">
+    <Button variant="ghost" size="sm" onClick={onClose}>Close</Button>
+    {primaryAction && <Button variant="primary" size="sm" onClick={primaryAction.onClick}>{primaryAction.label}</Button>}
+    {onEdit && <Button variant="secondary" size="sm" icon={Pencil} onClick={onEdit}>{editLabel}</Button>}
+    {onDelete && <Button variant="ghost" size="sm" icon={Trash2} onClick={onDelete}>Delete</Button>}
+  </div>;
+}
+
+/** Consistent 36px disclosure target, glyph and focus treatment for lists and cards. */
+export function DisclosureButton({ open, onClick, label = 'details' }: { open: boolean; onClick: (event: MouseEvent<HTMLButtonElement>) => void; label?: string }) {
+  const t = useTheme();
+  return <button type="button" aria-expanded={open} aria-label={`${open ? 'Hide' : 'Show'} ${label}`} title={`${open ? 'Hide' : 'Show'} ${label}`}
+    onClick={onClick}
+    className={t.design === 'dallaglio'
+      ? `grid h-9 w-9 shrink-0 place-items-center rounded-[9px] border ${t.border} ${t.glass} ${t.textFaint} transition-colors hover:bg-[var(--d-soft)] hover:text-[var(--d-ink)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--d-accent)]`
+      : `grid h-8 w-8 shrink-0 place-items-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-colors`}
+  ><ChevronDown className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} weight={t.design === 'dallaglio' ? 'light' : undefined} /></button>;
 }
 
 // ─── RecordCard — THE universal "list record" card. Carries the exact same visual
@@ -683,9 +747,9 @@ export function RecordCard({
   onToggle?: () => void;
 }) {
   const t = useTheme();
-  const cardAccent = decorativeAccentHex(t.light, accentHex, {
-    semantic: accentHex != null && isStatusToneHex(accentHex),
-  });
+  const cardAccent = t.design === 'dallaglio' && !isStatusToneHex(accentHex)
+    ? undefined
+    : decorativeAccentHex(t.light, accentHex, { semantic: accentHex != null && isStatusToneHex(accentHex) });
   const glowHex = cardAccent ?? BRAND_GLOW_HEX;
   const [internalOpen, setInternalOpen] = useState(defaultOpen);
   const isControlled = controlledOpen !== undefined && onToggle !== undefined;
@@ -720,10 +784,7 @@ export function RecordCard({
                 region so handleHeaderActivate above skips clicks/keypresses on it. */}
             {headerActions && <span data-card-actions style={{ display: 'contents' }}>{headerActions}</span>}
             {expandable && (
-              <button type="button" onClick={e => { e.stopPropagation(); toggle(); }} title={open ? 'Show less' : 'Expand details'}
-                className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all`}>
-                <ChevronDown className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} />
-              </button>
+              <span data-card-actions><DisclosureButton open={open} onClick={toggle} /></span>
             )}
           </div>
         )}
@@ -757,7 +818,7 @@ export function RecordCard({
         <Collapse open={open}>
           <div className={`px-4 pb-4 border-t ${t.border} pt-3 space-y-3`}>
             {children}
-            {actions && <div className="flex gap-2 pt-1">{actions}</div>}
+            {actions && <div className={`flex gap-2 pt-1 ${t.design === 'dallaglio' ? 'justify-end' : ''}`}>{actions}</div>}
           </div>
         </Collapse>
       )}
@@ -1256,20 +1317,30 @@ export function ViewToggle<T extends string>({
   );
 }
 
+function iconActionClasses(t: ReturnType<typeof useTheme>, active: boolean, tone: 'neutral' | 'success' | 'danger', hasLabel: boolean) {
+  return t.design === 'dallaglio'
+    ? `inline-flex items-center justify-center gap-2 min-h-9 min-w-9 px-2.5 rounded-[9px] border text-[12px] font-medium transition-[background,color,border-color] disabled:opacity-40 ${t.border} ${t.glass} ${
+      tone === 'danger' ? 'text-[var(--d-danger)] hover:bg-[var(--d-soft)]' : tone === 'success' ? 'text-[var(--d-success)] hover:bg-[var(--d-soft)]' : active ? `${t.chipBg} ${t.linkText}` : `${t.textFaint} ${t.hoverText} hover:bg-[var(--d-soft)]`
+    }`
+    : `inline-flex items-center gap-1.5 h-8 ${hasLabel ? 'px-3' : 'w-8 justify-center'} rounded-lg text-[13px] font-medium transition-colors disabled:opacity-40 ${
+      active ? 'bg-brand-500/15 text-brand-400' : `${t.textMuted} ${t.hoverText} ${t.hoverBg}`
+    }`;
+}
+
 export function IconAction({
-  meaning, title, label, onClick, active = false, spinning = false, badge, disabled,
+  meaning, title, label, onClick, active = false, spinning = false, badge, disabled, tone = 'neutral',
 }: {
   meaning: IconMeaning;
   title: string;
   label?: string;
-  onClick: () => void;
+  onClick: (event: MouseEvent<HTMLButtonElement>) => void;
   active?: boolean;
   spinning?: boolean;
   badge?: ReactNode;
   disabled?: boolean;
+  tone?: 'neutral' | 'success' | 'danger';
 }) {
   const t = useTheme();
-  const dallaglio = t.design === 'dallaglio';
   return (
     <button
       type="button"
@@ -1277,13 +1348,7 @@ export function IconAction({
       aria-label={title}
       disabled={disabled}
       onClick={onClick}
-      className={dallaglio
-        ? `inline-flex items-center gap-1.5 min-h-8 px-2.5 rounded-[9px] text-[12px] font-medium transition-colors disabled:opacity-38 ${
-            active ? `${t.chipBg} ${t.linkText}` : `${t.textFaint} ${t.hoverText} ${t.hoverBg}`
-          }`
-        : `inline-flex items-center gap-1.5 h-8 ${label ? 'px-3' : 'w-8 justify-center'} rounded-lg text-[13px] font-medium transition-colors disabled:opacity-40 ${
-            active ? 'bg-brand-500/15 text-brand-400' : `${t.textMuted} ${t.hoverText} ${t.hoverBg}`
-          }`}
+      className={iconActionClasses(t, active, tone, !!label)}
     >
       <span className={spinning ? 'animate-spin' : undefined}>
         <DsIcon name={meaning} />
@@ -1291,6 +1356,18 @@ export function IconAction({
       {label}
       {badge}
     </button>
+  );
+}
+
+export function IconLink({ meaning, title, href, label, target = '_blank' }: {
+  meaning: IconMeaning; title: string; href: string; label?: string; target?: '_blank' | '_self';
+}) {
+  const t = useTheme();
+  return (
+    <a href={href} target={target} rel={target === '_blank' ? 'noopener noreferrer' : undefined}
+      title={title} aria-label={title} className={iconActionClasses(t, false, 'neutral', !!label)}>
+      <DsIcon name={meaning} />{label}
+    </a>
   );
 }
 
@@ -1314,7 +1391,7 @@ export function ListItemCard({
             variants={{ rest: { scale: 1 }, hover: { scale: 1.08, transition: { duration: 0.25 } } }}
             className={`p-2 rounded-lg shrink-0 ${t.chipBg}`}
           >
-            <Icon className="h-3.5 w-3.5" style={{ color: iconColor ?? color }} />
+            <Icon className={`h-3.5 w-3.5 ${t.design === 'dallaglio' ? t.textFaint : ''}`} weight={t.design === 'dallaglio' ? 'light' : undefined} style={t.design === 'dallaglio' ? undefined : { color: iconColor ?? color }} />
           </motion.div>
           <div className="min-w-0">
             <p className={`text-sm font-semibold ${t.textPrimary} leading-tight truncate`}>{title}</p>
@@ -1324,18 +1401,12 @@ export function ListItemCard({
         {(onEdit || onDelete) && (
           // stopPropagation lives on each button below (not this wrapper) so the wrapper
           // itself doesn't need its own click handler — it isn't an interactive control.
-          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+          <div className="flex gap-1 shrink-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity">
             {onEdit && (
-              <button type="button" title="Edit" onClick={e => { e.stopPropagation(); onEdit(); }}
-                className={`h-6 w-6 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-brand-500 transition-all`}>
-                <Pencil className="h-3 w-3" />
-              </button>
+              <IconAction meaning="edit" title={`Edit ${title}`} onClick={e => { e.stopPropagation(); onEdit(); }} />
             )}
             {onDelete && (
-              <button type="button" title="Delete" onClick={e => { e.stopPropagation(); onDelete(); }}
-                className={`h-6 w-6 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-rose-500 transition-all`}>
-                <Trash2 className="h-3 w-3" />
-              </button>
+              <IconAction meaning="danger" title={`Delete ${title}`} onClick={e => { e.stopPropagation(); onDelete(); }} />
             )}
           </div>
         )}
@@ -1463,6 +1534,39 @@ export function InfoCard({
   style?: CSSProperties;
 }) {
   const t = useTheme();
+  if (t.design === 'dallaglio') {
+    const semanticColor = iconColor && isStatusToneHex(iconColor) ? iconColor : undefined;
+    const iconNode = <Icon className="h-[18px] w-[18px] shrink-0" weight="light" style={semanticColor ? { color: semanticColor } : undefined} />;
+    if (variant === 'header') return (
+      <div className={`flex min-w-0 items-center gap-3 ${className}`}>
+        <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-[9px] border ${t.border} ${t.glass} ${semanticColor ? '' : t.textFaint}`}>{iconNode}</span>
+        <div className="min-w-0"><h3 className={`truncate text-[13px] font-medium ${t.textPrimary}`}>{title}</h3>{description && <p className={`mt-0.5 truncate text-[11px] ${t.textFaint}`}>{description}</p>}</div>
+        {badge}
+      </div>
+    );
+    const inner = (
+      <>
+        {cornerActions && <div className="absolute right-2 top-2 z-10" onClick={e => { e.preventDefault(); e.stopPropagation(); }}>{cornerActions}</div>}
+        <div className="flex items-start justify-between gap-3">
+          <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-[9px] border ${t.border} ${t.textFaint}`}>{iconNode}</span>
+          {badge}
+        </div>
+        <div className="min-w-0">
+          {metricValue !== undefined && <p className={`tabular-nums text-[24px] font-normal leading-tight tracking-[-0.04em] ${t.textPrimary}`}>{metricValue}{metricLabel && <span className={`ml-1 text-[11px] tracking-normal ${t.textFaint}`}>{metricLabel}</span>}</p>}
+          <h4 className={`text-[13px] font-medium tracking-[-0.02em] ${t.textPrimary}`}>{title}</h4>
+          {description && <p className={`mt-1 line-clamp-2 text-[11px] leading-relaxed ${t.textFaint}`}>{description}</p>}
+        </div>
+        {children}
+      </>
+    );
+    const cardClass = `group/tile relative flex min-w-0 flex-col justify-between gap-5 rounded-[13px] border ${t.border} ${t.glass} ${density === 'compact' ? 'min-h-[104px]' : 'min-h-[148px]'} p-4 ${className}`;
+    const card = href
+      ? <Link href={href} onClick={onClick} className={cardClass} style={style}>{inner}</Link>
+      : onClick
+        ? <div role="button" tabIndex={0} onClick={onClick} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } }} className={cardClass} style={style}>{inner}</div>
+        : <div className={cardClass} style={style}>{inner}</div>;
+    return <GlowCard color={semanticColor ?? chartTheme(t.design, t.light).accent} surface="rounded-[13px]" elevated={elevated}>{card}</GlowCard>;
+  }
   const compact = density === 'compact';
   const tileAccent = iconTone === 'accent'
     ? decorativeAccentHex(t.light, accentColor)
@@ -1572,12 +1676,8 @@ export function InfoCard({
   // tint, giving the plain field TILE_SURFACE documents. Caller `style` spreads last
   // so a tile that genuinely needs a different surface can still say so.
   const tileStyle: CSSProperties = {
-    ...(t.design === 'dallaglio'
-      ? dallaglioInfoCardStyle(t.light)
-      : {
-        backgroundColor: t.light ? TILE_SURFACE.light : TILE_SURFACE.dark,
-        borderColor: t.light ? TILE_BORDER.light : TILE_BORDER.dark,
-      }),
+    backgroundColor: t.light ? TILE_SURFACE.light : TILE_SURFACE.dark,
+    borderColor: t.light ? TILE_BORDER.light : TILE_BORDER.dark,
     ...style,
   };
 

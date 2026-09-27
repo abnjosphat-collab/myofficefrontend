@@ -8,22 +8,34 @@
 // of this load cycle.
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/apiClient';
 import { toast } from 'sonner';
 import type { RawData } from './types';
 
 export async function fetchAllModules(): Promise<RawData> {
-  const settled = await Promise.allSettled([
-    api.get<any[]>('/api/nearmiss/'),
-    api.get<any[]>('/api/work-stoppage/'),
-    api.get<any[]>('/api/vfl/'),
-    api.get<any[]>('/api/pto/'),
-    api.get<any[]>('/api/sheq/'),
-    api.get<any[]>('/api/pachedu/'),
+  const [nm, ws, vfl, pto, insp, pach] = await Promise.all([
+    api.get<unknown>('/api/nearmiss/'),
+    api.get<unknown>('/api/work-stoppage/'),
+    api.get<unknown>('/api/vfl/'),
+    api.get<unknown>('/api/pto/'),
+    api.get<unknown>('/api/sheq/'),
+    api.get<unknown>('/api/pachedu/'),
   ]);
-  const [nm, ws, vfl, pto, insp, pach] = settled.map(r => (r.status === 'fulfilled' && Array.isArray(r.value) ? r.value : []));
-  return { nm, ws, vfl, pto, insp, pach };
+
+  const rows = (value: unknown, label: string) => {
+    if (!Array.isArray(value)) throw new Error(`${label} returned an invalid response.`);
+    return value;
+  };
+
+  return {
+    nm: rows(nm, 'Near Miss'),
+    ws: rows(ws, 'Work Stoppage'),
+    vfl: rows(vfl, 'VFL'),
+    pto: rows(pto, 'PTO'),
+    insp: rows(insp, 'SHEQ Inspections'),
+    pach: rows(pach, 'Pachedu'),
+  };
 }
 
 export async function postSafetyAnalysis(payload: Record<string, unknown>): Promise<Record<string, any>> {
@@ -33,16 +45,37 @@ export async function postSafetyAnalysis(payload: Record<string, unknown>): Prom
 export function useSheqDashboardData() {
   const [raw, setRaw] = useState<RawData>({ nm: [], ws: [], vfl: [], pto: [], insp: [], pach: [] });
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState('');
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const requestRef = useRef(0);
+  const hasLoadedRef = useRef(false);
 
   const refresh = useCallback(async () => {
-    setLoading(true);
-    try { setRaw(await fetchAllModules()); setLastUpdated(new Date()); }
-    catch { toast.error('Failed to load dashboard data'); }
-    finally { setLoading(false); }
+    const requestId = ++requestRef.current;
+    if (hasLoadedRef.current) setRefreshing(true); else setLoading(true);
+    setLoadError('');
+    try {
+      const nextRaw = await fetchAllModules();
+      if (requestId !== requestRef.current) return;
+      setRaw(nextRaw);
+      setLastUpdated(new Date());
+      hasLoadedRef.current = true;
+    }
+    catch (error) {
+      if (requestId !== requestRef.current) return;
+      setLoadError(error instanceof Error ? error.message : 'Could not load SHEQ dashboard data.');
+      toast.error('Failed to load dashboard data');
+    }
+    finally {
+      if (requestId === requestRef.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    }
   }, []);
 
   useEffect(() => { refresh(); }, [refresh]);
 
-  return { raw, loading, lastUpdated, refresh };
+  return { raw, loading, refreshing, loadError, lastUpdated, refresh };
 }

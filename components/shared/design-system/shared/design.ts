@@ -8,10 +8,10 @@ export function readDesignLanguage(): DesignLanguage {
   if (typeof window === 'undefined') return 'classic';
   try {
     const stored = localStorage.getItem(DESIGN_KEY);
-    if (stored === 'dallaglio' || stored === 'paper') return 'dallaglio';
-    return 'classic';
+    if (stored === 'classic' || stored === 'studio') return 'classic';
+    return 'dallaglio';
   } catch {
-    return 'classic';
+    return 'dallaglio';
   }
 }
 

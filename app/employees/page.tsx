@@ -17,7 +17,7 @@ import {
   FileSpreadsheet, FileText,
   useTheme, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle,
   FormField, FormActions, useCollapseSection, CenterModal, ACCENT_HEX, STATUS_TONE, SelectField, Combobox, type ComboOption, TYPE_SCALE, TYPE_WEIGHT, RADIUS,
-  GroupSection, RecordCard, staggerContainer, fadeUp,
+  GroupSection, RecordCard, RecordActions, DisclosureButton, staggerContainer, fadeUp,
   Subsection, InfoRow, SummaryItem, LoadingState, AutofillInput, useConfirm, accentText, uiIconClass, decorativeAccentHex,
   PrimaryButton, IconAction, Button,
 } from '@/components/shared/theme';
@@ -741,7 +741,7 @@ function DetailPanel({
   suffix?: React.ReactNode;
 }) {
   const t = useTheme();
-  const panelIconHex = decorativeAccentHex(t.light, accent);
+  const panelIconHex = t.design === 'dallaglio' ? undefined : decorativeAccentHex(t.light, accent);
   return (
     <div className={`${t.chipBg} rounded-xl overflow-hidden border ${t.border}`}>
       <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${t.border}`}>
@@ -771,6 +771,13 @@ function EmployeeRowActions({
   const secColor = sectionColor(employee.section);
   return (
     <div className={`flex items-center justify-end gap-0.5 ${className}`}>
+      {t.design === 'dallaglio' ? <>
+        {employee.email && <IconAction meaning="mail" title="Send email" onClick={() => window.open(`mailto:${employee.email}`, '_blank')} />}
+        {employee.phone && telHref(employee.phone) && <IconAction meaning="phone" title="Call" onClick={() => window.open(telHref(employee.phone), '_self')} />}
+        <IconAction meaning="edit" title="Edit employee" onClick={() => onEdit(employee)} />
+        <IconAction meaning="danger" title="Delete employee" onClick={() => onDelete(employee)} tone="danger" />
+        <DisclosureButton open={expanded} onClick={onToggle} />
+      </> : <>
       {employee.email && (
         <button type="button" title="Send email" onClick={() => window.open(`mailto:${employee.email}`, '_blank')}
           className="h-7 w-7 flex items-center justify-center rounded-lg transition-all"
@@ -799,6 +806,7 @@ function EmployeeRowActions({
         className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all`}>
         {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" style={{ color: secColor }} />}
       </button>
+      </>}
     </div>
   );
 }
@@ -823,14 +831,14 @@ function EmployeeRow({ employee, onEdit, onDelete, defaultExpanded = false }: Em
   return (
     <div
       className={`border-b last:border-b-0 ${t.border} ${expanded ? t.chipBg : t.hoverBgSoft} transition-colors`}
-      style={{ borderLeftWidth: 3, borderLeftColor: expanded ? secColor : 'transparent' }}
+      style={t.design === 'dallaglio' ? undefined : { borderLeftWidth: 3, borderLeftColor: expanded ? secColor : 'transparent' }}
     >
       <div className={`${LIST_ROW_GRID} px-4 py-3 group max-lg:flex max-lg:flex-wrap max-lg:items-center max-lg:gap-3`}>
         <div
           className="h-8 w-8 rounded-full flex items-center justify-center shrink-0 max-lg:order-1"
-          style={{ backgroundColor: `${secColor}18` }}
+          style={t.design === 'dallaglio' ? undefined : { backgroundColor: `${secColor}18` }}
         >
-          <UserRound className="h-4 w-4" style={{ color: secColor }} />
+          <UserRound className={`h-4 w-4 ${t.design === 'dallaglio' ? t.textFaint : ''}`} weight={t.design === 'dallaglio' ? 'light' : undefined} style={t.design === 'dallaglio' ? undefined : { color: secColor }} />
         </div>
 
         <button type="button" onClick={toggle} className="min-w-0 text-left max-lg:order-2 max-lg:flex-1">
@@ -839,11 +847,11 @@ function EmployeeRow({ employee, onEdit, onDelete, defaultExpanded = false }: Em
             <span className={`text-xs font-mono ${t.textFaint}`}>{employee.employee_id}</span>
             {designation && <span className={`text-xs ${t.textFaint} xl:hidden truncate max-w-[12rem]`}>· {designation}</span>}
             <span className={`hidden lg:flex items-center gap-1 text-[11px] ${t.textFaint}`}>
-              <Clock className="h-3 w-3" style={{ color: secColor }} />{ten}
+              <Clock className="h-3 w-3" style={t.design === 'dallaglio' ? undefined : { color: secColor }} />{ten}
             </span>
             {quals > 0 && (
               <span className={`hidden lg:flex items-center gap-1 text-[11px] ${t.textFaint}`}>
-                <GraduationCap className="h-3 w-3" style={{ color: secColor }} />{quals}
+                <GraduationCap className="h-3 w-3" style={t.design === 'dallaglio' ? undefined : { color: secColor }} />{quals}
               </span>
             )}
           </div>
@@ -855,13 +863,13 @@ function EmployeeRow({ employee, onEdit, onDelete, defaultExpanded = false }: Em
 
         <div className="hidden md:flex justify-center">
           {sectionLabel
-            ? <StatusBadge color={secColor} label={sectionLabel} />
+            ? <StatusBadge color={secColor} label={sectionLabel} kind="category" />
             : <span className={`text-xs ${t.textFaint}`}>—</span>}
         </div>
 
         <div className="hidden sm:flex justify-center">
           {employee.employment_type
-            ? <StatusBadge color={ETYPE_COLORS[employee.employment_type] ?? NEUTRAL_BADGE} label={employee.employment_type} />
+            ? <StatusBadge color={ETYPE_COLORS[employee.employment_type] ?? NEUTRAL_BADGE} label={employee.employment_type} kind="category" />
             : <span className={`text-xs ${t.textFaint}`}>—</span>}
         </div>
 
@@ -869,6 +877,7 @@ function EmployeeRow({ employee, onEdit, onDelete, defaultExpanded = false }: Em
           <StatusBadge
             color={CLASS_COLORS[employee.employee_class || ''] ?? NEUTRAL_BADGE}
             label={employee.employee_class || 'Unclassified'}
+            kind="category"
           />
         </div>
 
@@ -944,7 +953,8 @@ function EmployeeRow({ employee, onEdit, onDelete, defaultExpanded = false }: Em
             </div>
           )}
 
-          <div className="flex items-center gap-2 pt-1">
+          <div className={`flex items-center gap-2 pt-1 ${t.design === 'dallaglio' ? 'justify-end' : ''}`}>
+            {t.design === 'dallaglio' ? <RecordActions onEdit={() => onEdit(employee)} onDelete={() => onDelete(employee)} /> : <>
             <button type="button" onClick={() => onEdit(employee)}
               className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition-all ${TYPE_WEIGHT.medium}`}
               style={{ backgroundColor: `${ACCENT_HEX.violet}18`, color: ACCENT_HEX.violet }}>
@@ -955,6 +965,7 @@ function EmployeeRow({ employee, onEdit, onDelete, defaultExpanded = false }: Em
               style={{ backgroundColor: `${STATUS_TONE.critical}14`, color: STATUS_TONE.critical }}>
               <Trash2 className="h-3 w-3" /> Delete
             </button>
+            </>}
           </div>
         </div>
       )}
@@ -981,9 +992,9 @@ function EmployeeCard({ employee, onEdit, onDelete }: {
       title={`${employee.first_name} ${employee.last_name}`}
       subtitle={normalizeDesignation(employee.designation) || 'No role'}
       badges={<>
-        {employee.section && <StatusBadge color={t.light ? secColor : NEUTRAL_BADGE} label={normalizeSection(employee.section)} />}
-        {employee.employment_type && <StatusBadge color={ETYPE_COLORS[employee.employment_type] ?? NEUTRAL_BADGE} label={employee.employment_type} />}
-        {employee.employee_class && <StatusBadge color={CLASS_COLORS[employee.employee_class] ?? NEUTRAL_BADGE} label={employee.employee_class} />}
+        {employee.section && <StatusBadge color={t.light ? secColor : NEUTRAL_BADGE} label={normalizeSection(employee.section)} kind="category" />}
+        {employee.employment_type && <StatusBadge color={ETYPE_COLORS[employee.employment_type] ?? NEUTRAL_BADGE} label={employee.employment_type} kind="category" />}
+        {employee.employee_class && <StatusBadge color={CLASS_COLORS[employee.employee_class] ?? NEUTRAL_BADGE} label={employee.employee_class} kind="category" />}
       </>}
       summary={
         <div className={`grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs ${t.textMuted}`}>
@@ -992,7 +1003,7 @@ function EmployeeCard({ employee, onEdit, onDelete }: {
           {employee.address && <div className="col-span-2"><SummaryItem icon={MapPin} label="Address" value={employee.address} color={secColor} /></div>}
         </div>
       }
-      actions={<>
+      actions={t.design === 'dallaglio' ? <RecordActions onEdit={() => onEdit(employee)} onDelete={() => onDelete(employee)} /> : <>
         <PrimaryButton icon={Pencil} fullWidth size="xs" onClick={() => onEdit(employee)}>Edit</PrimaryButton>
         <button onClick={() => onDelete(employee)} type="button" className={`px-4 flex items-center justify-center gap-1.5 py-2 rounded-lg ${t.chipBg} text-rose-500 hover:bg-rose-500/10 text-[12px] ${TYPE_WEIGHT.semibold} transition-all`}>
           <Trash2 className="h-3.5 w-3.5" /> Delete
@@ -1195,11 +1206,11 @@ function EmployeesPageContent() {
         }
       >
         <div className="flex flex-wrap gap-1">
-          <StatTile meaning="employees" value={stats.total} label="Total Staff" onClick={showAllStaff} />
-          <StatTile meaning="artisans" value={stats.artisans} label="Artisans" onClick={showArtisansOnly} />
-          <StatTile meaning="nec-staff" value={stats.nec} label="NEC" onClick={() => setEtypeFilter('NEC')} />
-          <StatTile meaning="salaried-staff" value={stats.salaried} label="Salaried" onClick={() => setEtypeFilter('SALARIED')} />
-          <StatTile meaning="permanent-staff" value={stats.permanent} label="Permanent" onClick={() => setClassFilter('Permanent')} />
+          <StatTile meaning="employees" value={isLoading || (error && !employees.length) ? '—' : stats.total} label="Total Staff" onClick={showAllStaff} />
+          <StatTile meaning="artisans" value={isLoading || (error && !employees.length) ? '—' : stats.artisans} label="Artisans" onClick={showArtisansOnly} />
+          <StatTile meaning="nec-staff" value={isLoading || (error && !employees.length) ? '—' : stats.nec} label="NEC" onClick={() => setEtypeFilter('NEC')} />
+          <StatTile meaning="salaried-staff" value={isLoading || (error && !employees.length) ? '—' : stats.salaried} label="Salaried" onClick={() => setEtypeFilter('SALARIED')} />
+          <StatTile meaning="permanent-staff" value={isLoading || (error && !employees.length) ? '—' : stats.permanent} label="Permanent" onClick={() => setClassFilter('Permanent')} />
         </div>
       </PageHero>
 
@@ -1207,7 +1218,8 @@ function EmployeesPageContent() {
         <div className={`${t.glass} rounded-2xl p-4 flex items-center gap-3 border border-rose-500/30`}>
           <AlertCircle className={`h-5 w-5 ${accentText('rose', t.light)} shrink-0`} />
           <p className={`text-sm ${accentText('rose', t.light)} flex-1`}>{error}</p>
-          <button type="button" onClick={() => setError(null)} className={`${t.textFaint} ${t.hoverText}`}><X className="h-4 w-4" /></button>
+          <Button variant="secondary" size="xs" onClick={reload}>Retry</Button>
+          {employees.length > 0 && <button type="button" onClick={() => setError(null)} className={`${t.textFaint} ${t.hoverText}`} aria-label="Dismiss error"><X className="h-4 w-4" /></button>}
         </div>
       )}
 
@@ -1266,7 +1278,11 @@ function EmployeesPageContent() {
 
         <div className={`px-4 py-3 flex items-center justify-between flex-wrap gap-2 border-b ${t.border} ${t.chipBg}`}>
           <p className={`${TYPE_SCALE.body} ${t.textFaint}`}>
-            {isSearchActive ? (
+            {isLoading ? (
+              <>Loading personnel records…</>
+            ) : error && employees.length === 0 ? (
+              <>Personnel records unavailable</>
+            ) : isSearchActive ? (
               <>
                 <span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{filtered.length}</span>
                 {' '}result{filtered.length === 1 ? '' : 's'} for &ldquo;{search.trim()}&rdquo;
@@ -1281,7 +1297,9 @@ function EmployeesPageContent() {
             )}
           </p>
           {!isSearchActive && grouped.length > 1 && (
-            <button type="button" onClick={toggleAllGroups}
+            t.design === 'dallaglio' ? <Button variant="secondary" size="xs" icon={allGroupsOpen ? ChevronsDownUp : ChevronsUpDown} onClick={toggleAllGroups}>
+              {allGroupsOpen ? 'Collapse all' : 'Expand all'}
+            </Button> : <button type="button" onClick={toggleAllGroups}
               className={`flex items-center gap-1.5 text-[12px] ${TYPE_WEIGHT.medium} ${t.textMuted} ${t.hoverText} transition-colors`}>
               {allGroupsOpen ? <ChevronsDownUp className="h-3.5 w-3.5" /> : <ChevronsUpDown className="h-3.5 w-3.5" />}
               {allGroupsOpen ? 'Collapse all' : 'Expand all'}
@@ -1293,6 +1311,11 @@ function EmployeesPageContent() {
         {isLoading ? (
           <div className="py-16 text-center">
             <LoadingState />
+          </div>
+        ) : error && employees.length === 0 ? (
+          <div className="py-12 text-center">
+            <AlertCircle className={`h-10 w-10 ${t.textFaint} mx-auto mb-3`} />
+            <h3 className={`text-lg ${TYPE_WEIGHT.semibold} ${t.textPrimary} mb-2`}>Personnel records could not load</h3>
           </div>
         ) : filtered.length === 0 ? (
           <div className="py-12 text-center">

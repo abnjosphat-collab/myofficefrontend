@@ -13,7 +13,7 @@ import {
 import {
   useTheme, STATUS_TONE, PageHero, StatTile, StatusBadge, ProgressBar,
   SearchInput, ViewToggle, useCollapseSection, ACCENT_HEX,
-  GroupSection, RecordCard, staggerContainer, fadeUp, InfoRow, SummaryItem, useConfirm, TYPE_WEIGHT, PrimaryButton,
+  GroupSection, RecordCard, RecordActions, staggerContainer, fadeUp, InfoRow, SummaryItem, useConfirm, TYPE_WEIGHT, PrimaryButton,
 } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
@@ -78,7 +78,7 @@ function InventoryCard({ item, onDelete }: { item: InventoryItem; onDelete: () =
           <SummaryItem icon={Truck} label="Supplier" value={item.supplier} color={statusColor} />
         </div>
       }
-      actions={<>
+      actions={t.design === 'dallaglio' ? <RecordActions viewHref={`/inventory/view/${item.id}`} editHref={`/inventory/edit/${item.id}`} onDelete={onDelete} /> : <>
         <Link href={`/inventory/view/${item.id}`} className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg ${t.chipBg} ${t.textMuted} ${t.hoverText} text-[12px] ${TYPE_WEIGHT.semibold} transition-all`}>
           <Eye className="h-3.5 w-3.5" /> View
         </Link>

@@ -24,6 +24,7 @@ import { exportFilename } from '@/lib/exportUtils';
 import {
   useTheme, StatusBadge, ProgressBar, StatTile, FormField, CenterModal,
   PrimaryButton, EmptyState, useCollapseSection, GlowCard, SelectField, TYPE_WEIGHT,
+  ViewToggle, DetailActions, Button,
 } from '@/components/shared/theme';
 import { toast } from "sonner";
 import type { SectionType, BehaviourType, PacheduStatus, PacheduReport, PacheduStats } from './types';
@@ -100,8 +101,8 @@ const TableRowItem: React.FC<TableRowItemProps> = ({ report, onView, onEdit, onD
       <td className={`px-4 py-3 text-xs ${TYPE_WEIGHT.medium} ${t.textPrimary}`}>{report.observerName || 'Anonymous'}</td>
       <td className={`px-4 py-3 text-xs ${t.textMuted}`}>{report.location}</td>
       <td className={`px-4 py-3 text-xs ${t.textMuted} max-w-[180px] truncate`}>{report.activityObserved}</td>
-      <td className="px-4 py-3"><StatusBadge color={SECTION_META[report.sectionChoice].hex} label={report.sectionChoice} /></td>
-      <td className="px-4 py-3"><StatusBadge color={BEHAVIOUR_META[report.behaviourType].hex} label={report.behaviourType} /></td>
+      <td className="px-4 py-3"><StatusBadge kind="category" color={SECTION_META[report.sectionChoice].hex} label={report.sectionChoice} /></td>
+      <td className="px-4 py-3"><StatusBadge kind="category" color={BEHAVIOUR_META[report.behaviourType].hex} label={report.behaviourType} /></td>
       <td className="px-4 py-3"><StatusBadge color={STATUS_META[report.status].hex} label={STATUS_META[report.status].label} /></td>
       <td className="px-4 py-3 text-right">
         {/* No row-level onClick exists on this <tr> today, so there's nothing for a
@@ -158,18 +159,18 @@ const PacheduCard: React.FC<PacheduCardProps> = ({ report, index, onView, onEdit
     // homepage module tiles included).
     <GlowCard
       onClick={() => onView(report)}
-      color={hasRisks ? '#f43f5e' : '#f59e0b'}
+      color={t.design === 'dallaglio' ? '#7651c8' : hasRisks ? '#f43f5e' : '#f59e0b'}
       surface={`${t.glass} rounded-2xl`}
       className="group relative overflow-hidden"
     >
       <div className={`p-4 border-b ${t.border}`}>
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-3 min-w-0">
-            <HeartHandshake className="h-5 w-5 shrink-0" style={{ color: hasRisks ? '#f43f5e' : '#f59e0b' }} />
+            <HeartHandshake className={`h-5 w-5 shrink-0 ${t.design === 'dallaglio' ? t.textFaint : ''}`} style={t.design === 'dallaglio' ? undefined : { color: hasRisks ? '#f43f5e' : '#f59e0b' }} />
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-1.5 mb-1">
-                <StatusBadge color={SECTION_META[report.sectionChoice].hex} label={report.sectionChoice} />
-                <StatusBadge color={behaviourMeta.hex} label={report.behaviourType} />
+                <StatusBadge kind="category" color={SECTION_META[report.sectionChoice].hex} label={report.sectionChoice} />
+                <StatusBadge kind="category" color={behaviourMeta.hex} label={report.behaviourType} />
                 {hasRisks && <StatusBadge color="#f43f5e" label="High Risk" />}
               </div>
               <p className={`text-[10px] ${t.textFaint}`}>Care #{index + 1}</p>
@@ -230,7 +231,7 @@ const PacheduCard: React.FC<PacheduCardProps> = ({ report, index, onView, onEdit
           <p className={`text-[10px] mb-0.5 ${t.textFaint}`}>Activity Observed</p>
           <p className={`text-xs line-clamp-2 ${t.textMuted}`}>{report.activityObserved || 'N/A'}</p>
         </div>
-        {report.dept && <StatusBadge color="#94a3b8" label={`Dept: ${report.dept}`} />}
+        {report.dept && <StatusBadge kind="category" color="#94a3b8" label={`Dept: ${report.dept}`} />}
       </div>
     </GlowCard>
   );
@@ -260,11 +261,11 @@ const PacheduDetailModal: React.FC<PacheduDetailModalProps> = ({ report, open, o
       <div className="px-5 py-4 space-y-5 max-h-[68vh] overflow-y-auto">
         <div className={`flex flex-wrap items-center justify-between gap-3 p-4 rounded-xl ${t.chipBg} border ${t.border}`}>
           <div className="flex items-center gap-3">
-            <div className={`p-2 rounded-lg ${t.chipBg}`}><SectionIcon className="h-5 w-5" style={{ color: SECTION_META[report.sectionChoice].hex }} /></div>
+            <div className={`p-2 rounded-lg ${t.chipBg}`}><SectionIcon className={`h-5 w-5 ${t.design === 'dallaglio' ? t.textFaint : ''}`} style={t.design === 'dallaglio' ? undefined : { color: SECTION_META[report.sectionChoice].hex }} /></div>
             <div><p className={`text-sm ${TYPE_WEIGHT.medium} ${t.textMuted}`}>{report.sectionChoice}</p><p className={`text-[10px] ${t.textFaint}`}>Section</p></div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <StatusBadge color={behaviourMeta.hex} label={report.behaviourType} />
+            <StatusBadge kind="category" color={behaviourMeta.hex} label={report.behaviourType} />
             <StatusBadge color={STATUS_META[report.status].hex} label={STATUS_META[report.status].label} />
             <span className={`text-[10px] px-2 py-1 rounded ${t.chipBg} font-mono ${t.textFaint}`}>ID: {report.id.slice(0, 8)}</span>
           </div>
@@ -346,11 +347,13 @@ const PacheduDetailModal: React.FC<PacheduDetailModalProps> = ({ report, open, o
             </>
           )}
         </div>
-        <PrimaryButton icon={Pencil} accent="violet" size="md" onClick={() => { onClose(); onEdit(report); }}>Edit</PrimaryButton>
-        <button type="button" onClick={() => { onClose(); onDelete(report.id); }}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-rose-500/10 text-rose-500 text-sm hover:bg-rose-500/20 transition-colors">
-          <Trash2 className="h-3.5 w-3.5" /> Delete
-        </button>
+        {t.design === 'dallaglio' ? <DetailActions onClose={onClose} onEdit={() => { onClose(); onEdit(report); }} onDelete={() => { onClose(); onDelete(report.id); }} /> : <>
+          <PrimaryButton icon={Pencil} accent="violet" size="md" onClick={() => { onClose(); onEdit(report); }}>Edit</PrimaryButton>
+          <button type="button" onClick={() => { onClose(); onDelete(report.id); }}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-rose-500/10 text-rose-500 text-sm hover:bg-rose-500/20 transition-colors">
+            <Trash2 className="h-3.5 w-3.5" /> Delete
+          </button>
+        </>}
       </div>
     </CenterModal>
   );
@@ -495,22 +498,22 @@ function PacheduContent() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <nav className={`flex items-center gap-1.5 text-xs mb-2 ${t.textFaint}`}>
-            <span>Home</span><ChevronRight className="h-3 w-3" /><span className={`text-[#86BBD8] ${TYPE_WEIGHT.medium}`}>Pachedu</span>
+            <span>Home</span><ChevronRight className="h-3 w-3" /><span className={`${t.design === 'dallaglio' ? t.textMuted : 'text-[#86BBD8]'} ${TYPE_WEIGHT.medium}`}>Pachedu</span>
           </nav>
           <h1 className={`text-2xl ${TYPE_WEIGHT.bold} font-heading tracking-tight flex items-center gap-2 ${t.textPrimary}`}>
-            <HeartHandshake className="h-6 w-6 text-amber-500" /> Pachedu — Care Observations
+            <HeartHandshake className={`h-6 w-6 ${t.design === 'dallaglio' ? t.textFaint : 'text-amber-500'}`} /> Pachedu — Care Observations
           </h1>
           <p className={`text-sm mt-1 ${t.textFaint}`}>Be Your Brother&apos;s Keeper — track care observations and supportive actions.</p>
         </div>
         <div className="flex items-center gap-2 self-start">
-          <button type="button" title="Grid View" onClick={() => setViewMode('grid')}
+          {t.design === 'dallaglio' ? <ViewToggle value={viewMode} onChange={setViewMode} options={[{ value: 'grid', label: 'Grid view', icon: LayoutGrid }, { value: 'table', label: 'Table view', icon: TableIcon }]} /> : <><button type="button" title="Grid View" onClick={() => setViewMode('grid')}
             className={`p-2 rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-amber-500/15 text-amber-500' : `${t.textFaint} ${t.hoverText} ${t.hoverBg}`}`}>
             <LayoutGrid className="h-4 w-4" />
           </button>
           <button type="button" title="Table View" onClick={() => setViewMode('table')}
             className={`p-2 rounded-lg transition-colors ${viewMode === 'table' ? 'bg-amber-500/15 text-amber-500' : `${t.textFaint} ${t.hoverText} ${t.hoverBg}`}`}>
             <TableIcon className="h-4 w-4" />
-          </button>
+          </button></>}
           {filteredReports.length > 0 && (
             <DownloadButton
               data={filteredReports as unknown as Record<string, unknown>[]}
@@ -521,7 +524,7 @@ function PacheduContent() {
               statusColor={(_v, row) => SECTION_META[row.sectionChoice as SectionType]?.hex.replace('#', '')}
             />
           )}
-          <PrimaryButton icon={Plus} accent="amber" onClick={openNewForm}>New Care Observation</PrimaryButton>
+          {t.design === 'dallaglio' ? <Button variant="primary" icon={Plus} onClick={openNewForm}>New care observation</Button> : <PrimaryButton icon={Plus} accent="amber" onClick={openNewForm}>New Care Observation</PrimaryButton>}
         </div>
       </div>
 
@@ -529,7 +532,7 @@ function PacheduContent() {
         <div className={`rounded-2xl ${t.glass} overflow-hidden`}>
           <button type="button" onClick={() => sections.toggle('stats')} className={`w-full flex items-center justify-between px-5 py-3 ${t.hoverBg} transition-all`}>
             <div className="flex items-center gap-2">
-              <HeartHandshake className="h-3.5 w-3.5 text-amber-500" />
+              <HeartHandshake className={`h-3.5 w-3.5 ${t.design === 'dallaglio' ? t.textFaint : 'text-amber-500'}`} />
               <span className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textMuted}`}>Overview</span>
               <span className={`text-xs ${t.textFaint}`}>{stats.total} observations total</span>
             </div>
@@ -537,7 +540,7 @@ function PacheduContent() {
           </button>
           {sections.expanded.stats && (
             <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 px-5 pb-5">
-              <StatTile icon={HeartHandshake} color="#f59e0b" label="Total Care" value={stats.total} />
+              <StatTile icon={HeartHandshake} color={t.design === 'dallaglio' ? '#7651c8' : '#f59e0b'} label="Total Care" value={stats.total} />
               <StatTile icon={FileText} color="#94a3b8" label="Draft" value={stats.draftCount} />
               <StatTile icon={Send} color="#60a5fa" label="Submitted" value={stats.submittedCount} />
               <StatTile icon={CheckCircle} color="#a78bfa" label="Reviewed" value={stats.reviewedCount} />
@@ -564,10 +567,10 @@ function PacheduContent() {
                 return (
                   <div key={section} className="flex-1">
                     <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2"><Icon className="h-4 w-4" style={{ color: meta.hex }} /><span className={`text-sm ${TYPE_WEIGHT.medium} ${t.textMuted}`}>{section}</span></div>
+                      <div className="flex items-center gap-2"><Icon className={`h-4 w-4 ${t.design === 'dallaglio' ? t.textFaint : ''}`} style={t.design === 'dallaglio' ? undefined : { color: meta.hex }} /><span className={`text-sm ${TYPE_WEIGHT.medium} ${t.textMuted}`}>{section}</span></div>
                       <span className={`text-xs ${t.textFaint}`}>{count} ({pct}%)</span>
                     </div>
-                    <ProgressBar value={pct} color={meta.hex} showValue={false} />
+                    <ProgressBar value={pct} color={t.design === 'dallaglio' ? '#7651c8' : meta.hex} showValue={false} />
                   </div>
                 );
               })}
@@ -609,7 +612,7 @@ function PacheduContent() {
       <div className={`rounded-2xl ${t.glass} overflow-hidden`}>
         <button type="button" onClick={() => sections.toggle('records')} className={`w-full flex items-center justify-between px-5 py-3 ${t.hoverBg} transition-all`}>
           <div className="flex items-center gap-2">
-            <FileText className="h-3.5 w-3.5 text-[#86BBD8]" />
+            <FileText className={`h-3.5 w-3.5 ${t.design === 'dallaglio' ? t.textFaint : 'text-[#86BBD8]'}`} />
             <span className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textMuted}`}>Records</span>
             <span className={`text-xs ${t.textFaint}`}>{filteredReports.length} of {reports.length} observations</span>
           </div>
