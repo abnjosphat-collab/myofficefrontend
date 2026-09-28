@@ -475,7 +475,7 @@ function NoticeboardContent() {
   ];
 
   return (
-    <main className="max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+    <main className="w-full p-4 sm:p-6 lg:p-8 space-y-6">
       <PageHero
         icon={Bell}
         accent="violet"

@@ -546,7 +546,7 @@ function SHEQDashboardContent() {
   const inputCls: React.CSSProperties = { background: P.inputBg, border: P.inputBorder, borderRadius: 9, padding: '8px 12px', color: P.inputText, fontSize: 13, outline: 'none' };
 
   return (
-    <main className="container mx-auto px-4 py-6" style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+    <main className="w-full px-4 py-6" style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
 
       {/* ── HERO ── */}
       <Glass style={{ padding: '20px 26px' }} P={P}>

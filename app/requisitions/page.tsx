@@ -458,7 +458,7 @@ function RequisitionsPageContent() {
   const hasFilters = search !== '' || status !== 'all' || priority !== 'all' || section !== 'all' || !!dateFrom || !!dateTo;
 
   return (
-    <main className="max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+    <main className="w-full p-4 sm:p-6 lg:p-8 space-y-6">
       <PageHero
         icon={ShoppingCart}
         accent="violet"

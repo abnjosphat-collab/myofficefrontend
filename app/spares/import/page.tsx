@@ -253,7 +253,7 @@ function SpareImportContent() {
 
   // ─────────────────────────────────────────────────────────────────────────
   return (
-    <main className="max-w-6xl mx-auto p-4 sm:p-6 space-y-5">
+    <main className="w-full p-4 sm:p-6 space-y-5">
 
       <PageHero
         icon={FileSpreadsheet}

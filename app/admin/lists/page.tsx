@@ -165,7 +165,7 @@ function AdminListsContent() {
   if (!isAtLeast('manager')) return null;
 
   return (
-    <main className="max-w-3xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+    <main className="w-full p-4 sm:p-6 lg:p-8 space-y-6">
       <PageHero
         icon={MapPin}
         accent="violet"

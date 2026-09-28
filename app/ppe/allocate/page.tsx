@@ -66,7 +66,7 @@ function CreateAllocationContent() {
   const inputCls = `w-full h-9 px-3 rounded-lg text-sm outline-none transition-colors ${t.inputBg}`;
 
   return (
-    <main className="max-w-2xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+    <main className="w-full p-4 sm:p-6 lg:p-8 space-y-6">
       <PageHero
         icon={Shield}
         accent="violet"
@@ -87,7 +87,7 @@ function CreateAllocationContent() {
         </div>
         <form onSubmit={handleSubmit}>
           <div className="p-5 space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
               <FormField label="Employee" required>
                 <SelectField size="form" value={formData.employeeId} title="Employee" onChange={v => set('employeeId', v)}
                   placeholder="Select employee…" options={employees.map(emp => ({ value: emp.id, label: emp.name }))} />

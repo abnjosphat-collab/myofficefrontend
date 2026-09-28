@@ -24,9 +24,10 @@ const rows = pages.map(path => {
     nonBrandColors: count(source, /(?:bg|text|border)-(?:blue|cyan|indigo|violet|purple|emerald|green|amber|yellow|rose|red|sky)-\d{2,3}/g),
     sharedTabs: count(source, /<(?:PillTabs|UnderlineTabs)\b/g),
     sharedViewToggles: count(source, /<ViewToggle\b/g),
+    cappedPageShells: count(source, /<main\s+className=["'`][^"'`]*(?:max-w-|\bcontainer\b)[^"'`]*(?:mx-auto\b)?[^"'`]*["'`]/g),
   };
 }).sort((a, b) => (b.localButtons + b.localSelects + b.nonBrandColors) - (a.localButtons + a.localSelects + a.nonBrandColors));
 console.log(JSON.stringify({ routes: rows.length, totals: rows.reduce((acc, row) => {
-  for (const key of ['localButtons', 'localSelects', 'nonBrandColors', 'sharedTabs', 'sharedViewToggles']) acc[key] = (acc[key] || 0) + row[key];
+  for (const key of ['localButtons', 'localSelects', 'nonBrandColors', 'sharedTabs', 'sharedViewToggles', 'cappedPageShells']) acc[key] = (acc[key] || 0) + row[key];
   return acc;
 }, {}), rows }, null, 2));

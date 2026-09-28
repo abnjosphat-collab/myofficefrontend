@@ -423,7 +423,7 @@ function EquipmentAvailabilityContent() {
 
   if (!isClient || isLoading) {
     return (
-      <main className="max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8">
+    <main className="w-full p-4 sm:p-6 lg:p-8">
         <div className={`flex items-center justify-center py-24 ${t.textFaint} gap-2`}>
           <RefreshCw className="h-5 w-5 animate-spin" /> Loading Equipment Availability System…
         </div>
@@ -432,7 +432,7 @@ function EquipmentAvailabilityContent() {
   }
 
   return (
-    <main className="max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+    <main className="w-full p-4 sm:p-6 lg:p-8 space-y-6">
       <PageHero
         icon={Factory}
         accent="violet"

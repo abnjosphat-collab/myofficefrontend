@@ -65,7 +65,7 @@ function CompetencyContent() {
   };
 
   return (
-    <main className="max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+    <main className="w-full p-4 sm:p-6 lg:p-8 space-y-6">
       {popover && (
         <>
           <button type="button" aria-label="Dismiss skill level picker" onClick={() => setPopover(null)}

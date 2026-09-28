@@ -469,7 +469,7 @@ function DriversContent() {
   const filterLabel = [deptFilter !== 'all' ? deptFilter : null, statusFilter !== 'all' ? statusFilter : null, search ? `"${search}"` : null].filter(Boolean).join(', ') || 'All departments';
 
   return (
-    <main className="max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+    <main className="w-full p-4 sm:p-6 lg:p-8 space-y-6">
       <PageHero
         icon={Car}
         accent="violet"

@@ -561,7 +561,7 @@ function IssuesPageContent() {
   const rowInputCls = `w-full ${t.design === 'dallaglio' ? 'h-9' : ''} px-2.5 py-1.5 text-xs rounded-lg outline-none transition-colors ${t.inputBg}`;
 
   return (
-    <main className="max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+    <main className="w-full p-4 sm:p-6 lg:p-8 space-y-6">
       <PageHero
         icon={PackageMinus}
         accent="violet"

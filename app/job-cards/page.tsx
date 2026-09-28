@@ -175,7 +175,7 @@ function JobCardsContent() {
   ];
 
   if (loading) return (
-    <main className="max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8">
+    <main className="w-full p-4 sm:p-6 lg:p-8">
       <div className={`flex flex-col items-center justify-center py-32 gap-3 ${t.textFaint}`}>
         <RefreshCw className="h-5 w-5 animate-spin" /><span className="text-sm">Loading…</span>
       </div>
@@ -183,13 +183,13 @@ function JobCardsContent() {
   );
 
   if (error) return (
-    <main className="max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8">
+    <main className="w-full p-4 sm:p-6 lg:p-8">
       <div className="rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-500 px-5 py-4 text-sm">{error}</div>
     </main>
   );
 
   return (
-    <main className="max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+    <main className="w-full p-4 sm:p-6 lg:p-8 space-y-6">
       <PageHero
         icon={ClipboardCheck}
         accent="violet"

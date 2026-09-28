@@ -1435,7 +1435,7 @@ export default function PPEManagement() {
 
   return (
     <AppShell>
-      <main className="container mx-auto px-4 py-8 space-y-4">
+      <main className="w-full px-4 py-8 space-y-4">
 
         {/* ── HERO ── */}
         <motion.div
