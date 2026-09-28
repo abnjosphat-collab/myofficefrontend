@@ -8,9 +8,12 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
     "test:smoke": "node e2e/smoke.mjs",
-    "test:visual": "playwright test"
+    "test:a11y": "playwright test e2e/accessibility.spec.ts",
+    "test:browser-quality": "playwright test e2e/accessibility.spec.ts e2e/tools-autofill.spec.ts",
+    "test:visual": "playwright test e2e/visual.spec.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
@@ -41,7 +44,7 @@
     "@supabase/supabase-js": "^2.106.2",
     "@tabler/icons-react": "^3.47.0",
     "@tanstack/react-table": "^8.21.3",
-    "baseline-browser-mapping": "^2.9.7",
+    "baseline-browser-mapping": "^2.11.26",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
@@ -60,7 +63,7 @@
     "next-themes": "^0.4.6",
     "pdf-lib": "^1.17.1",
     "pdf-parse": "^2.4.5",
-    "plotly.js": "^3.3.1",
+    "plotly.js": "^4.1.1",
     "radix-ui": "^1.4.3",
     "react": "^19.2.0",
     "react-day-picker": "^9.13.0",
@@ -78,9 +81,14 @@
     "zod": "^4.3.5"
   },
   "overrides": {
+    "@humanfs/node": "^0.17.0",
+    "@xmldom/xmldom": "^0.9.12",
+    "browserslist": "^4.29.1",
+    "fflate": "^0.8.3",
     "uuid": "^11.1.1"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@playwright/test": "^1.61.1",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^7.0.1",

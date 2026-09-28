@@ -66,6 +66,22 @@ describe('Tools interaction controls', () => {
     expect(onSave).toHaveBeenCalledOnce();
     expect(onSave.mock.calls[0][0]).toMatchObject({toolId:SEED_TOOLS[0].id,person:PEOPLE[0],dueISO:new Date('2050-09-25T16:00').toISOString()});
   });
+  it('autofills saved employee details when an employee is selected', async () => {
+    const user=userEvent.setup();
+    const onSave=vi.fn();
+    const employees=[{id:'employee-1',employeeNumber:'C1042',name:'Mina Dube',department:'Mining',jobTitle:'Electrician',supervisorName:'T. Moyo',active:true}];
+    render(<MovementForm kind="issue" initialTool={SEED_TOOLS[0]} tools={SEED_TOOLS} employees={employees} locationSuggestions={LOCATIONS} addFiles={()=>[]} onSave={onSave} onCancel={()=>{}}/>);
+    const employee=screen.getByRole('combobox',{name:'Employee'});
+    await user.type(employee,'Mina');
+    await user.keyboard('{Enter}');
+    expect(employee).toHaveValue('Mina Dube · C1042');
+    expect(screen.getByLabelText('Selected employee details')).toHaveTextContent('Electrician · Mining · Supervisor: T. Moyo');
+    fireEvent.change(screen.getByRole('combobox',{name:'Current work location'}),{target:{value:LOCATIONS[0]}});
+    fireEvent.change(screen.getByRole('combobox',{name:'Work order / job'}),{target:{value:JOBS[0]}});
+    fireEvent.change(screen.getByLabelText('Expected return'),{target:{value:'2050-09-25T16:00'}});
+    await user.click(screen.getByRole('button',{name:'Issue tool'}));
+    expect(onSave.mock.calls[0][0]).toMatchObject({person:'Mina Dube · C1042',department:'Mining'});
+  });
   it('rejects an old return date without discarding form values', () => {
     const onSave=vi.fn(); render(<MovementForm kind="issue" initialTool={SEED_TOOLS[0]} tools={SEED_TOOLS} addFiles={()=>[]} onSave={onSave} onCancel={()=>{}}/>);
     fireEvent.change(screen.getByRole('combobox',{name:'Employee'}),{target:{value:PEOPLE[0]}});

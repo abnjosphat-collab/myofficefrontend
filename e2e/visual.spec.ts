@@ -32,6 +32,7 @@ async function preparePage(page: Page, theme: 'light' | 'dark') {
     try {
       localStorage.setItem('oz_prefsSeen', '1');
       localStorage.setItem('myoffice_theme', t);
+      localStorage.setItem('myoffice_design', 'dallaglio');
     } catch { /* ignore */ }
   }, theme);
   await page.route('**/api/**', mockApi);

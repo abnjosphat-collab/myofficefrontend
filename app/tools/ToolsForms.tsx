@@ -10,7 +10,7 @@ import { announceToolsPopover, TOOLS_POPOVER_EVENT } from './toolsPopover';
 import { EvidencePicker, Help, type AddEvidence } from './ToolsUI';
 import s from './tools.module.css';
 
-export function SuggestField({ label, options, value, onChange, required = true, hint, disabled = false }: { label: string; options: string[]; value: string; onChange: (value: string) => void; required?: boolean; hint?: string; disabled?: boolean }) {
+export function SuggestField({ label, options, value, onChange, onSelect, required = true, hint, disabled = false }: { label: string; options: string[]; value: string; onChange: (value: string) => void; onSelect?: (value: string) => void; required?: boolean; hint?: string; disabled?: boolean }) {
   const id = useId();
   const popoverId = `suggest-${id}`;
   const root = useRef<HTMLDivElement>(null);
@@ -22,7 +22,7 @@ export function SuggestField({ label, options, value, onChange, required = true,
   const [placement, setPlacement] = useState<'down' | 'up'>('down');
   const [floatingStyle, setFloatingStyle] = useState<CSSProperties & Record<string, string | number | undefined>>({});
   const matches = options.filter(option => option.toLowerCase().includes(value.toLowerCase())).slice(0, 8);
-  const choose = (option: string) => { onChange(option); setOpen(false); setActive(0); };
+  const choose = (option: string) => { onChange(option); onSelect?.(option); setOpen(false); setActive(0); };
   const show = () => {
     announceToolsPopover(popoverId);
     const rect = input.current?.getBoundingClientRect();
@@ -120,6 +120,11 @@ export function MovementForm({ kind, initialTool, initialEmployee, tools, employ
   const [error, setError] = useState('');
   const tool = candidates.find(t => `${t.id} · ${t.name}` === toolLabel);
   const employeeOptions = employees.filter(employee=>employee.active&&(!issuerDepartment||employee.department===issuerDepartment)).map(employee=>`${employee.name} · ${employee.employeeNumber}`);
+  const selectedEmployee = employees.find(employee=>`${employee.name} · ${employee.employeeNumber}`===person);
+  const selectEmployee = (label:string) => {
+    const employee=employees.find(item=>`${item.name} · ${item.employeeNumber}`===label);
+    if (employee?.department) setDepartment(employee.department);
+  };
   const needsCalibration = !!tool && ['digital-multimeter', 'clamp-meter', 'torque-wrench', 'test-instrument'].includes(tool.kind);
   const notesRequired = kind === 'extend' || (kind === 'return' && condition !== 'Good');
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -140,11 +145,12 @@ export function MovementForm({ kind, initialTool, initialEmployee, tools, employ
     <SuggestField label="Tool" options={candidates.map(t => `${t.id} · ${t.name}`)} value={toolLabel} onChange={setToolLabel} hint="Search by tool name or ID. Only tools eligible for this action appear." />
     {tool && <div className={s.formContext}><Icon name={tool.holder ? 'user' : 'department'} /><span>{tool.holder ? <>With <strong>{tool.holder.split(' · ')[0]}</strong></> : departmentOf(tool)}<small>{tool.holder ? `Expected ${tool.due}` : `${tool.location} · ${tool.condition}`}</small></span></div>}
     <div className={s.formColumns}>
-      {['issue', 'transfer'].includes(kind) && <SuggestField label="Employee" options={employeeOptions} value={person} onChange={setPerson} hint="Select a person from this standalone employee register. Employee numbers keep similar names distinct." />}
+      {['issue', 'transfer'].includes(kind) && <SuggestField label="Employee" options={employeeOptions} value={person} onChange={setPerson} onSelect={selectEmployee} hint="Select a person from this standalone employee register. Their employee number, role and department are filled from the saved record." />}
       {kind !== 'extend' && <SuggestField label={kind==='return'?'Return location':'Current work location'} options={locationSuggestions} value={location} onChange={setLocation} hint="Start typing to reuse a known location, or enter the exact place freely because teams and tools move frequently."/>}
       {['issue', 'transfer'].includes(kind) && <SuggestField label="Work order / job" options={JOBS} value={job} onChange={setJob} hint="Select a suggested work order or enter the job reference from the paper record." />}
       {['issue', 'extend'].includes(kind) && <div className={s.field}><div className={s.fieldHeading}><label htmlFor="tools-due">Expected return</label><Help label="Expected return">Enter local date and time. Overdue notifications will be delivered by the backend in the operational system.</Help></div><input aria-label="Expected return" id="tools-due" name="due" type="datetime-local" required /></div>}
     </div>
+    {['issue','transfer'].includes(kind)&&selectedEmployee&&<div className={s.formContext} aria-label="Selected employee details"><Icon name="user" size={19}/><span><strong>{selectedEmployee.name} · {selectedEmployee.employeeNumber}</strong><small>{[selectedEmployee.jobTitle,selectedEmployee.department,selectedEmployee.supervisorName&&`Supervisor: ${selectedEmployee.supervisorName}`].filter(Boolean).join(' · ')}</small></span></div>}
     {['issue','transfer'].includes(kind)&&<MultiSuggestField label="Equipment being worked on" options={equipmentSuggestions} value={assignedEquipment} onChange={setAssignedEquipment} hint="Add one or more machines or fixed assets this portable tool will be used on. Type a new name or choose a previous entry."/>}
     {kind === 'transfer' && <div className={s.formSection}>
       <div className={s.fieldHeading}><strong>Movement references</strong><Help label="Movement references">Record an existing approval; this form does not grant approval. Internal movement requires HOS approval and external movement requires GM approval.</Help></div>

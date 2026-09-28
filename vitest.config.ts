@@ -14,10 +14,6 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./vitest.setup.ts'],
     include: ['lib/**/*.test.ts', 'lib/**/*.test.tsx', 'app/**/*.test.ts', 'app/**/*.test.tsx', 'components/**/*.test.ts', 'components/**/*.test.tsx'],
-    // Report-only for now (no threshold) — the point right now is making coverage
-    // visible instead of guessed, not gating on it. `include` above scopes what
-    // actually gets *run*; this scopes what shows up in the coverage report, so a
-    // real % is measured against the app's source rather than just the tested files.
     coverage: {
       provider: 'v8',
       // Explicit extensions, not a blanket `app/**` — this tree also holds a couple
@@ -26,6 +22,12 @@ export default defineConfig({
       // coverage parser if swept in.
       include: ['lib/**/*.{ts,tsx}', 'app/**/*.{ts,tsx}', 'components/**/*.{ts,tsx}', 'hooks/**/*.{ts,tsx}'],
       exclude: ['**/*.test.ts', '**/*.test.tsx', '**/types.ts'],
+      thresholds: {
+        statements: 14,
+        branches: 10,
+        functions: 8,
+        lines: 15,
+      },
     },
   },
 });

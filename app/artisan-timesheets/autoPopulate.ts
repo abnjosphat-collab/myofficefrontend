@@ -79,7 +79,7 @@ export function autoPopulateMonthRows(
       row.sb_15 === 0 && row.sb_20 === 0 && row.night_shift === 0;
     if (!opts.overwrite && row._auto !== true && !isBlank) return row;
 
-    let next: ArtisanTimesheetDayRow = {
+    const next: ArtisanTimesheetDayRow = {
       ...row,
       _auto: true,
       on_standby: isOnStandby(assignment, row.date),

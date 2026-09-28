@@ -69,12 +69,15 @@ over raw `authFetch` (`lib/api.ts`) or the older generic hook
 `lib/useModuleData.ts` for new code — neither of those enforces surfacing
 what they catch.
 
-## 4. Coverage is visible now — use it, don't chase a number
+## 4. Coverage has a regression floor — improve it deliberately
 
-`npx vitest run --coverage` (also what CI runs) shows a real percentage
-against `lib/**`, `app/**`, `components/**`, `hooks/**`. It's report-only, no
-threshold gate. Extracting logic into a `calcX.ts` (rule 1) is still the
-first move for anything computational — a render test is for behavior that
+`npm run test:coverage` (also what CI runs) measures `lib/**`, `app/**`,
+`components/**`, and `hooks/**`. CI enforces the established global baseline:
+14% statements, 10% branches, 8% functions, and 15% lines. These are
+regression floors, not target quality levels; lower coverage must fail, while
+new work should raise the floor when it adds meaningful tests. Extracting logic
+into a `calcX.ts` (rule 1) is still the first move for anything computational —
+a render test is for behavior that
 only exists once JSX is actually mounted (focus management, what a click or
 keypress does, what ends up in the accessible tree), not a substitute for
 pulling out logic that doesn't need a DOM at all.

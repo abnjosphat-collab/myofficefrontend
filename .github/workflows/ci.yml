@@ -58,16 +58,13 @@ jobs:
         run: npx tsc --noEmit
 
       - name: Lint
-        # continue-on-error: TEMPORARY, until the remaining 34 react-hooks/set-state-in-effect
-        # errors are worked through deliberately (each needs a per-site read, not a blind
-        # fix — see the 2026-08-30 remediation plan). Everything else eslint flags as an
-        # error is already clean as of that pass. Remove this line once that's done, so a
-        # real regression actually fails the build instead of just annotating it.
-        continue-on-error: true
         run: npx eslint . --ext .ts,.tsx
 
-      - name: Unit tests
-        run: npx vitest run
+      - name: Unit tests and coverage floor
+        run: npm run test:coverage
+
+      - name: Audit dependencies
+        run: npm audit --audit-level=high
 
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
@@ -93,6 +90,11 @@ jobs:
       - name: Smoke suite
         run: npm run test:smoke || (echo "Retrying once — see comment above on transient first-request flakiness" && npm run test:smoke)
 
+      - name: Browser quality suite
+        env:
+          SMOKE_BASE: http://localhost:3000
+        run: npm run test:browser-quality
+
       - name: Visual regression suite
         id: visual
         # continue-on-error: TEMPORARY, until a first baseline is committed (see the
@@ -102,7 +104,7 @@ jobs:
         continue-on-error: true
         env:
           SMOKE_BASE: http://localhost:3000
-        run: npx playwright test
+        run: npm run test:visual
 
       - name: Upload visual diff/report on failure
         if: steps.visual.outcome == 'failure'
