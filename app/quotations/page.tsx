@@ -299,7 +299,7 @@ const QuotationGeneratorContent = () => {
 
   if (!isClient) {
     return (
-    <main className="w-full p-4 sm:p-6 lg:p-8">
+      <main className={`${t.design === 'dallaglio' ? 'w-full' : 'max-w-[1400px] mx-auto'} p-4 sm:p-6 lg:p-8`}>
         <div className={`flex items-center justify-center h-96 ${t.textFaint}`}>
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#86BBD8] mx-auto mb-4" />
@@ -635,7 +635,7 @@ const QuotationGeneratorContent = () => {
   );
 
   return (
-    <main className="w-full p-4 sm:p-6 lg:p-8 space-y-6">
+    <main className={`${t.design === 'dallaglio' ? 'w-full' : 'max-w-[1400px] mx-auto'} p-4 sm:p-6 lg:p-8 space-y-6`}>
       <PageHero
         icon={FileText}
         accent="violet"

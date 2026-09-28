@@ -2051,7 +2051,7 @@ function TimesheetsContent() {
   const dataUnavailable = loading || initialUnavailable;
 
   return (
-    <main className="flex w-full flex-col gap-4 p-4 sm:p-6 lg:p-8">
+    <main className={`${t.design === 'dallaglio' ? '' : 'mx-auto max-w-[min(100%,96rem)]'} flex w-full flex-col gap-4 p-4 sm:p-6 lg:p-8`}>
       <PageHero
         icon={Clock}
         meaning="clock"

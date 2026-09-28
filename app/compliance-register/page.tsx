@@ -56,13 +56,13 @@ function ComplianceRegisterContent() {
   );
 
   if (error) return (
-    <main className="w-full p-4 sm:p-6 lg:p-8">
+      <main className={`${t.design === 'dallaglio' ? 'w-full' : 'max-w-[1400px] mx-auto'} p-4 sm:p-6 lg:p-8`}>
       <div className={`rounded-xl bg-rose-500/15 ${accentText('rose', t.light)} px-5 py-4 text-sm`}>{error}</div>
     </main>
   );
 
   return (
-    <main className="w-full p-4 sm:p-6 lg:p-8 space-y-6">
+    <main className={`${t.design === 'dallaglio' ? 'w-full' : 'max-w-[1400px] mx-auto'} p-4 sm:p-6 lg:p-8 space-y-6`}>
       <PageHero
         icon={ShieldCheck}
         accent="violet"

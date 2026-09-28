@@ -141,7 +141,7 @@ function TrainingContent() {
   const inputCls = `w-full h-9 px-3 rounded-lg text-sm outline-none transition-colors ${t.inputBg}`;
 
   return (
-    <main className="w-full p-4 sm:p-6 lg:p-8 space-y-6">
+    <main className={`${t.design === 'dallaglio' ? 'w-full' : 'max-w-[1400px] mx-auto'} p-4 sm:p-6 lg:p-8 space-y-6`}>
       <PageHero
         icon={Award}
         accent="violet"

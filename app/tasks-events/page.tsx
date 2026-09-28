@@ -337,7 +337,7 @@ function TasksEventsContent() {
   };
 
   return (
-    <main className="w-full p-4 sm:p-6 lg:p-8 space-y-6">
+    <main className={`${t.design === 'dallaglio' ? 'w-full' : 'max-w-[1100px] mx-auto'} p-4 sm:p-6 lg:p-8 space-y-6`}>
       <PageHero
         icon={ListTodo}
         accent="violet"

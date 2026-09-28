@@ -668,7 +668,7 @@ function LeaveManagementContent() {
   const pillCls = (active: boolean) => `px-3 py-1.5 rounded-lg text-xs ${TYPE_WEIGHT.medium} transition-all ${active ? `bg-brand-500/25 text-brand-400 ${TYPE_WEIGHT.semibold}` : `${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText}`}`;
 
   return (
-    <main className="w-full p-4 sm:p-6 lg:p-8 space-y-6">
+    <main className={`${t.design === 'dallaglio' ? 'w-full' : 'max-w-[1400px] mx-auto'} p-4 sm:p-6 lg:p-8 space-y-6`}>
       <PageHero
         icon={CalendarDays}
         accent="violet"

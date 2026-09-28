@@ -974,7 +974,7 @@ function ShiftsContent() {
   ];
 
   return (
-    <main className="w-full px-4 sm:px-6 py-6 space-y-4">
+    <main className={`${t.design === 'dallaglio' ? 'w-full' : 'max-w-7xl mx-auto'} px-4 sm:px-6 py-6 space-y-4`}>
       <PageHero
         icon={Clock}
         accent="violet"

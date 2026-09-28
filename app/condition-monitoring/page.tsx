@@ -50,7 +50,7 @@ function ConditionMonitoringContent() {
   const inputCls = `w-full rounded-xl px-3 py-2 text-sm outline-none transition-colors ${t.inputBg}`;
 
   return (
-    <main className="w-full p-4 sm:p-6 lg:p-8 space-y-6">
+    <main className={`${t.design === 'dallaglio' ? 'w-full' : 'max-w-[1400px] mx-auto'} p-4 sm:p-6 lg:p-8 space-y-6`}>
       <PageHero
         icon={Radar}
         accent="violet"
