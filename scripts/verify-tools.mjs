@@ -16,6 +16,7 @@ const blockedWrites=[];
 const responses=[];
 const consoleErrors=[];
 let failHistory=false;
+let slowHistory=false;
 let failTools=false;
 let failNotifications=false;
 let failAnalytics=false;
@@ -46,6 +47,7 @@ await page.route('**/api/**',async route=>{
     return;
   }
   const simulated=(failHistory&&pathname==='/api/tools-workspace/history')||(failTools&&pathname==='/api/tools-workspace/tools')||(failNotifications&&pathname==='/api/tools-workspace/notifications')||(failAnalytics&&pathname==='/api/tools-workspace/analytics');
+  if(slowHistory&&pathname==='/api/tools-workspace/history') await new Promise(resolve=>setTimeout(resolve,3000));
   if(wakeTools&&pathname==='/api/tools-workspace/tools'){
     await route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({detail:'Service unavailable while Supabase wakes up'})});
     return;
@@ -103,6 +105,16 @@ try{
   check(!liveText.includes('Equipment register unavailable'),'The live equipment register did not load.');
   const live={session,items:Number((liveText.match(/(\d+) items?/)||[])[1]||0),employees:Number((liveText.match(/(\d+) employees?/)||[])[1]||0)};
 
+  phase('checking progressive equipment delivery');
+  slowHistory=true;
+  await page.reload({waitUntil:'domcontentloaded',timeout:120_000});
+  await page.getByRole('button',{name:'View Torque wrench',exact:true}).first().waitFor({state:'visible',timeout:2000});
+  await page.getByRole('button',{name:'History',exact:true}).first().click();
+  const progressiveDelivery={equipmentVisible:true,historyStillLoading:(await bodyText()).includes('Loading issue and return history')};
+  slowHistory=false;
+  await waitForSettled();
+  await page.getByRole('button',{name:'Equipment',exact:true}).first().click();
+
   phase('checking independent initial history failure');
   failHistory=true;
   await page.reload({waitUntil:'domcontentloaded',timeout:120_000});
@@ -144,6 +156,7 @@ try{
   await wakingReload;
   await waitForText('Loading equipment register');
   const wakeStayedLoading=!(await bodyText()).includes('Equipment register unavailable');
+  const equipmentLoaderCount=await page.getByText('Loading equipment register',{exact:true}).count();
   wakeTools=false;
   await waitForSettled();
 
@@ -186,13 +199,15 @@ try{
   await waitForSettled();
   await page.evaluate(({preferencesKey,preferences,sessionKey,session})=>{if(preferences===null)localStorage.removeItem(preferencesKey);else localStorage.setItem(preferencesKey,preferences);if(session===null)localStorage.removeItem(sessionKey);else localStorage.setItem(sessionKey,session);},{preferencesKey,preferences:originalPreferences,sessionKey,session:originalSession});
 
-  const evidence={fixtureMode,live,initialFailure,quietFailure,notificationFailure,adminFailure,wakeStayedLoading,complianceVisible,gatePassesVisible,detailOpened,mobile,blockedWrites,consoleErrors,responses:{total:responses.length,successful:responses.filter(item=>item.status===200).length,simulatedFailures:responses.filter(item=>item.status>=500).length,paths:[...new Set(responses.map(item=>item.pathname))]},restoredPreferences:await page.evaluate(key=>localStorage.getItem(key),preferencesKey),restoredSession:await page.evaluate(key=>localStorage.getItem(key),sessionKey)};
+  const evidence={fixtureMode,live,progressiveDelivery,initialFailure,quietFailure,notificationFailure,adminFailure,wakeStayedLoading,equipmentLoaderCount,complianceVisible,gatePassesVisible,detailOpened,mobile,blockedWrites,consoleErrors,responses:{total:responses.length,successful:responses.filter(item=>item.status===200).length,simulatedFailures:responses.filter(item=>item.status>=500).length,paths:[...new Set(responses.map(item=>item.pathname))]},restoredPreferences:await page.evaluate(key=>localStorage.getItem(key),preferencesKey),restoredSession:await page.evaluate(key=>localStorage.getItem(key),sessionKey)};
   fs.writeSync(1,`${JSON.stringify(evidence,null,2)}\n`);
   check(initialFailure.errorVisible&&!initialFailure.falseEmpty,'History failure looked like a genuine empty history.');
+  check(progressiveDelivery.equipmentVisible&&progressiveDelivery.historyStillLoading,'Equipment waited for the delayed history source.');
   check(quietFailure.staleWarning&&!quietFailure.falseEmpty&&quietFailure.itemsPreserved,'Quiet equipment failure discarded or misrepresented loaded data.');
   check(notificationFailure,'Notification failure was not visible.');
   check(adminFailure!==false,'Administrator analytics failure was not visible.');
   check(wakeStayedLoading,'Transient Supabase wake-up rendered an unavailable state.');
+  check(equipmentLoaderCount===1,'The equipment loading state was rendered more than once.');
   check(complianceVisible&&gatePassesVisible,'Compliance or Gate passes did not render.');
   check(mobile.documentOverflow===0&&mobile.mainOverflow===0,'The Tools workspace overflowed at 390px.');
   check(evidence.restoredPreferences===originalPreferences,'Tools appearance preferences were not restored.');

@@ -22,6 +22,14 @@ describe('Preview recovery', () => {
     expect(historyReducer(initial,{type:'undo'})).toBe(initial);
     expect(historyReducer(initial,{type:'redo'})).toBe(initial);
   });
+  it('merges progressively loaded tools and activity using register numbers', () => {
+    const activity={id:'event',toolId:'backend-tool-1',title:'Issued',detail:'WO-1',time:'Now'};
+    const tools=[{...SEED_TOOLS[0],id:'PP-UG-ENG-TW-01',backendId:'backend-tool-1'}];
+    const toolsFirst=historyReducer(initial,{type:'replace-tools',tools});
+    expect(historyReducer(toolsFirst,{type:'replace-activity',activity:[activity]}).present.activity[0].toolId).toBe('PP-UG-ENG-TW-01');
+    const activityFirst=historyReducer({...initial,present:{...initial.present,activity:[activity]}},{type:'replace-tools',tools});
+    expect(activityFirst.present.activity[0].toolId).toBe('PP-UG-ENG-TW-01');
+  });
   it('keeps records with unverified calibration unavailable', () => {
     const returned = applyMovement(SEED_TOOLS[1], {kind:'return',toolId:SEED_TOOLS[1].id,person:'',location:'Workshop',due:'',job:'',condition:'Good',notes:'',calibration:'Not verified'});
     expect(returned.status).toBe('attention');

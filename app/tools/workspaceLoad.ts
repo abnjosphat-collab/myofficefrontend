@@ -31,6 +31,9 @@ export type WorkspaceLoadResult = {
   errors: Partial<Record<WorkspaceSource,string>>;
   requested: WorkspaceSource[];
 };
+export type WorkspaceSourceResult = {
+  [Source in WorkspaceSource]: {source:Source;value?:WorkspaceLoadValues[Source];error?:string}
+}[WorkspaceSource];
 
 type ToolsGet = <T>(path:string,token:string,signal?:AbortSignal)=>Promise<T>;
 const WAKE_RETRY_DELAYS_MS=[2000,4000,8000,12000,15000,20000,25000,30000];
@@ -80,10 +83,20 @@ function validateSource(source:WorkspaceSource,value:unknown):unknown {
   return value;
 }
 
-export async function loadToolsWorkspace(token:string,role:WorkspaceAccount['role'],get:ToolsGet=toolsApi.get,signal?:AbortSignal):Promise<WorkspaceLoadResult> {
+export async function loadToolsWorkspace(token:string,role:WorkspaceAccount['role'],get:ToolsGet=toolsApi.get,signal?:AbortSignal,onSourceSettled?:(result:WorkspaceSourceResult)=>void):Promise<WorkspaceLoadResult> {
   const requests=sourceRequests(role);
   const retryTransient=get===toolsApi.get;
-  const results=await Promise.allSettled(requests.map(([source,path])=>getAfterWake<unknown>(path,token,get,retryTransient,signal).then(value=>validateSource(source,value))));
+  const results=await Promise.allSettled(requests.map(async([source,path])=>{
+    try {
+      const value=validateSource(source,await getAfterWake<unknown>(path,token,get,retryTransient,signal)) as WorkspaceLoadValues[WorkspaceSource];
+      onSourceSettled?.({source,value} as WorkspaceSourceResult);
+      return value;
+    } catch(error) {
+      if(signal?.aborted) throw error;
+      onSourceSettled?.({source,error:error instanceof Error?error.message:'This information is temporarily unavailable.'} as WorkspaceSourceResult);
+      throw error;
+    }
+  }));
   if(signal?.aborted) throw new DOMException('The request was cancelled.','AbortError');
   const values:Partial<WorkspaceLoadValues>={};
   const errors:Partial<Record<WorkspaceSource,string>>={};

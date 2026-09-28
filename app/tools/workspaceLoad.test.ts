@@ -61,4 +61,20 @@ describe('loadToolsWorkspace',()=>{
       vi.useRealTimers();
     }
   });
+
+  it('delivers equipment as soon as that source settles',async()=>{
+    const controller=new AbortController();
+    const updates:string[]=[];
+    const get=async<T>(path:string,_token:string,signal?:AbortSignal)=>{
+      if(path==='/history') return new Promise<T>((_resolve,reject)=>signal?.addEventListener('abort',()=>reject(new DOMException('The request was cancelled.','AbortError')),{once:true}));
+      if(path==='/notifications') return {alerts:[],unread_count:0} as T;
+      if(path==='/compliance') return {competencies:[],inspections:[],incidents:[],gate_passes:[]} as T;
+      return [] as T;
+    };
+    const loading=loadToolsWorkspace('token','viewer',get,controller.signal,result=>updates.push(result.source));
+    await vi.waitFor(()=>expect(updates).toContain('tools'));
+    expect(updates).not.toContain('history');
+    controller.abort();
+    await expect(loading).rejects.toMatchObject({name:'AbortError'});
+  });
 });
