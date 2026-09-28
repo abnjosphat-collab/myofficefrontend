@@ -8,7 +8,7 @@
 // (ExcelImportModal and OcrUploadModal both posted to the same endpoint identically).
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/apiClient';
 import type { Attachment, PaymentStage, ServiceRecord, StageData, StoresStage } from './types';
 
@@ -77,6 +77,7 @@ export function emptyRecord(): ServiceRecord {
 
 export async function fetchServices(): Promise<ServiceRecord[]> {
   const data = await api.get<Record<string, unknown>[]>('/api/services');
+  if (!Array.isArray(data)) throw new Error('The services register returned an invalid response.');
   return data.map(fromApi);
 }
 export async function createService(r: ServiceRecord): Promise<ServiceRecord> {
@@ -110,12 +111,34 @@ export function useServicesData() {
   const [records, setRecords] = useState<ServiceRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState('');
+  const [recordsLoaded, setRecordsLoaded] = useState(false);
+  const loadedRef = useRef(false);
+  const requestIdRef = useRef(0);
 
-  useEffect(() => {
-    fetchServices()
-      .then(data => { setRecords(data); setLoading(false); })
-      .catch(e => { setApiError(`Could not connect to backend: ${e.message}`); setLoading(false); });
+  const refresh = useCallback(async (preserve = loadedRef.current) => {
+    const requestId = ++requestIdRef.current;
+    setLoading(true);
+    try {
+      const data = await fetchServices();
+      if (requestId !== requestIdRef.current) return;
+      setRecords(data);
+      loadedRef.current = true;
+      setRecordsLoaded(true);
+      setApiError('');
+    } catch (error) {
+      if (requestId !== requestIdRef.current) return;
+      if (!preserve) {
+        setRecords([]);
+        loadedRef.current = false;
+        setRecordsLoaded(false);
+      }
+      setApiError(error instanceof Error ? error.message : 'Could not load services.');
+    } finally {
+      if (requestId === requestIdRef.current) setLoading(false);
+    }
   }, []);
 
-  return { records, setRecords, loading, apiError };
+  useEffect(() => { void refresh(false); }, [refresh]);
+
+  return { records, setRecords, loading, apiError, recordsLoaded, refresh };
 }

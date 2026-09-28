@@ -8,7 +8,7 @@ import {
   Trash2, Edit2, ChevronDown, ChevronUp, CheckCircle2, Circle,
   Filter, ArrowRight, Paperclip, Upload, X, FileDown, Download,
   ChevronsDown, ChevronsUp, Table2, LayoutGrid, FileSpreadsheet,
-  Eye, AlertCircle, Loader2, Plus, Scan,
+  Eye, AlertCircle, Loader2, Plus, Scan, RefreshCw,
 } from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
 import { formatDate } from '@/lib/format';
@@ -684,7 +684,7 @@ function OcrUploadModal({ onExtracted, onClose }: { onExtracted: (partial: Parti
 function ServicesPageContent() {
   const t = useTheme();
   const sections = useCollapseSection({ hero: true });
-  const { records, setRecords, loading, apiError } = useServicesData();
+  const { records, setRecords, loading, apiError, recordsLoaded, refresh } = useServicesData();
   const [search, setSearch] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -810,25 +810,27 @@ function ServicesPageContent() {
         statsOpen={sections.expanded.hero}
         actions={
           <>
-            <PrimaryButton icon={Scan} title="Scan a document to extract data" onClick={() => setOcrOpen(true)}>Scan</PrimaryButton>
-            <Button variant="secondary" icon={FileSpreadsheet} onClick={() => setImportOpen(true)} title="Import records from Excel">Import</Button>
-            <PrimaryButton icon={Plus} onClick={() => { setEditRecord(null); setFormOpen(true); }}>New Service</PrimaryButton>
+            <Button variant="secondary" icon={RefreshCw} onClick={() => void refresh()} disabled={loading} submitting={loading}>Refresh</Button>
+            <PrimaryButton icon={Scan} title="Scan a document to extract data" disabled={!recordsLoaded} onClick={() => setOcrOpen(true)}>Scan</PrimaryButton>
+            <Button variant="secondary" icon={FileSpreadsheet} disabled={!recordsLoaded} onClick={() => setImportOpen(true)} title="Import records from Excel">Import</Button>
+            <PrimaryButton icon={Plus} disabled={!recordsLoaded} onClick={() => { setEditRecord(null); setFormOpen(true); }}>New Service</PrimaryButton>
           </>
         }
       >
         <div className="flex flex-wrap gap-1">
-          <StatTile icon={Wrench} color={ACCENT_HEX.blue} value={apiError ? '—' : total} label="Total" />
-          <StatTile icon={Loader2} color="#f59e0b" value={apiError ? '—' : inProg} label="In Progress" />
-          <StatTile icon={CheckCircle2} color="#34d399" value={apiError ? '—' : completed} label="Completed" />
-          <StatTile icon={Circle} color="#94a3b8" value={apiError ? '—' : notStarted} label="Not Started" />
-          <StatTile icon={Calendar} color={ACCENT_HEX.violet} value={apiError ? '—' : monthCount} label="This Month" />
+          <StatTile icon={Wrench} color={ACCENT_HEX.blue} value={recordsLoaded ? total : '—'} label="Total" />
+          <StatTile icon={Loader2} color="#f59e0b" value={recordsLoaded ? inProg : '—'} label="In Progress" />
+          <StatTile icon={CheckCircle2} color="#34d399" value={recordsLoaded ? completed : '—'} label="Completed" />
+          <StatTile icon={Circle} color="#94a3b8" value={recordsLoaded ? notStarted : '—'} label="Not Started" />
+          <StatTile icon={Calendar} color={ACCENT_HEX.violet} value={recordsLoaded ? monthCount : '—'} label="This Month" />
         </div>
       </PageHero>
 
       {apiError && (
         <div className={`flex items-start gap-3 p-4 rounded-2xl bg-rose-500/10 ${accentText('rose', t.light)} text-sm`}>
           <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-          <div><p className={`${TYPE_WEIGHT.semibold}`}>Backend not reachable</p><p className="text-xs opacity-80 mt-0.5">{apiError} — Make sure the backend is running.</p></div>
+          <div className="flex-1"><p className={`${TYPE_WEIGHT.semibold}`}>{recordsLoaded ? 'Services may be out of date' : 'Services register unavailable'}</p><p className="text-xs opacity-80 mt-0.5">{apiError}</p></div>
+          <Button variant="secondary" size="xs" onClick={() => void refresh()}>Try again</Button>
         </div>
       )}
 
@@ -861,7 +863,7 @@ function ServicesPageContent() {
       {/* Records */}
       <div className="space-y-3">
         <div className="flex items-center justify-between flex-wrap gap-2">
-          <p className={`text-sm ${t.textFaint}`}>{apiError ? 'Records unavailable' : <>Showing <span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{processed.length}</span> of {total}</>}</p>
+          <p className={`text-sm ${t.textFaint}`}>{recordsLoaded ? <>Showing <span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{processed.length}</span> of {total}</> : 'Records unavailable'}</p>
           <div className="flex items-center gap-2">
             <SelectField size="filter" title="Sort by" value={sortBy} onChange={setSortBy}
               options={[
@@ -880,9 +882,9 @@ function ServicesPageContent() {
           </div>
         </div>
 
-        {loading ? (
+        {loading && !recordsLoaded ? (
           <div className={`${t.glass} rounded-2xl p-16 text-center flex items-center justify-center gap-2 ${t.textFaint}`}><Loader2 className="h-5 w-5 animate-spin" /> Loading services…</div>
-        ) : apiError ? null : processed.length === 0 ? (
+        ) : apiError && !recordsLoaded ? null : processed.length === 0 ? (
           <div className={`${t.glass} rounded-2xl p-12 text-center`}>
             <Wrench className={`h-12 w-12 ${t.textFaint} mx-auto mb-4`} />
             <h3 className={`text-lg ${TYPE_WEIGHT.semibold} ${t.textPrimary} mb-2`}>{anyFilter ? 'No records match your filters' : 'No service records yet'}</h3>

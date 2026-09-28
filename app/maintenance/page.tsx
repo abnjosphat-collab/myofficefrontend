@@ -265,6 +265,7 @@ function MaintenancePageContent() {
 
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
   const [loading, setLoading] = useState(true);
+  const [workOrdersLoaded, setWorkOrdersLoaded] = useState(false);
   const [overviewOpen, setOverviewOpen] = useState(true);
   const [statusTab, setStatusTab] = useState<StatusTab>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -315,6 +316,8 @@ function MaintenancePageContent() {
   const [schedules, setSchedules] = useState<MaintenanceSchedule[]>([]);
   const [loadError, setLoadError] = useState('');
   const [scheduleError, setScheduleError] = useState('');
+  const [scheduleLoading, setScheduleLoading] = useState(true);
+  const [schedulesLoaded, setSchedulesLoaded] = useState(false);
   const [showCreateSched, setShowCreateSched] = useState(false);
   const [editingSched, setEditingSched] = useState<MaintenanceSchedule | null>(null);
 
@@ -330,6 +333,7 @@ function MaintenancePageContent() {
     try {
       const data = await getWorkOrders();
       setWorkOrders(data);
+      setWorkOrdersLoaded(true);
       setLoadError('');
     } catch (e) {
       setLoadError(e instanceof Error ? e.message : 'Could not load work orders.');
@@ -344,6 +348,7 @@ function MaintenancePageContent() {
       try {
         const data = await getWorkOrders();
         setWorkOrders(data);
+        setWorkOrdersLoaded(true);
         setLoadError('');
         const rescued = await uploadStrandedLocalFields(data);
         if (rescued > 0) {
@@ -358,19 +363,25 @@ function MaintenancePageContent() {
     })();
   }, []);
 
-  useEffect(() => {
-    (async () => {
-      try {
+  const loadSchedules = async (rescue = false) => {
+    setScheduleLoading(true);
+    try {
+      if (rescue) {
         const rescued = await uploadStrandedSchedules();
-        if (rescued > 0) {
-          toast.success(`Moved ${rescued} schedule${rescued === 1 ? '' : 's'} from this browser to the server`);
-        }
-        setSchedules(await fetchSchedules());
-        setScheduleError('');
-      } catch (e) {
-        setScheduleError(e instanceof Error ? e.message : 'Could not load schedules.');
+        if (rescued > 0) toast.success(`Moved ${rescued} schedule${rescued === 1 ? '' : 's'} from this browser to the server`);
       }
-    })();
+      setSchedules(await fetchSchedules());
+      setSchedulesLoaded(true);
+      setScheduleError('');
+    } catch (e) {
+      setScheduleError(e instanceof Error ? e.message : 'Could not load schedules.');
+    } finally {
+      setScheduleLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadSchedules(true);
   }, []);
 
   useEffect(() => {
@@ -514,16 +525,16 @@ function MaintenancePageContent() {
         <div className={s.topline}>
           <h1 className={s.wordmark}><span><Icon name="app" size={19} /></span>Work Orders</h1>
           <div className={s.previewControls}>
-            <button type="button" className={s.iconButton} aria-label="Refresh work orders" onClick={load}>
+            <button type="button" className={s.iconButton} aria-label={mainTab === 'schedules' ? 'Refresh schedules' : 'Refresh work orders'} onClick={() => void (mainTab === 'schedules' ? loadSchedules() : load())}>
               <Icon name="reset" size={16} />
             </button>
             {mainTab === 'workorders' && (
-              <button type="button" className={s.primary} onClick={() => setShowCreateModal(true)}>
+              <button type="button" className={s.primary} disabled={!workOrdersLoaded} onClick={() => setShowCreateModal(true)}>
                 New work order<Icon name="plus" size={16} />
               </button>
             )}
             {mainTab === 'schedules' && (
-              <button type="button" className={s.primary} onClick={() => { setEditingSched(null); setShowCreateSched(true); }}>
+              <button type="button" className={s.primary} disabled={!schedulesLoaded} onClick={() => { setEditingSched(null); setShowCreateSched(true); }}>
                 New schedule<Icon name="plus" size={16} />
               </button>
             )}
@@ -549,27 +560,27 @@ function MaintenancePageContent() {
               >
                 <button type="button" onClick={() => filterTo('all')}>
                   <span>In the register</span>
-                  <strong><AnimatedText value={stats.total}>{padCount(stats.total)}</AnimatedText><small>orders</small></strong>
+                  <strong><AnimatedText value={workOrdersLoaded ? stats.total : 'unavailable'}>{workOrdersLoaded ? padCount(stats.total) : '—'}</AnimatedText><small>orders</small></strong>
                 </button>
                 <button type="button" onClick={() => filterTo('pending')}>
                   <span><i className={s.amberDot} />Pending</span>
-                  <strong><AnimatedText value={stats.pending}>{padCount(stats.pending)}</AnimatedText><Icon name="out" size={17} /></strong>
+                  <strong><AnimatedText value={workOrdersLoaded ? stats.pending : 'unavailable'}>{workOrdersLoaded ? padCount(stats.pending) : '—'}</AnimatedText><Icon name="out" size={17} /></strong>
                 </button>
                 <button type="button" onClick={() => filterTo('in-progress')}>
                   <span>In progress</span>
-                  <strong><AnimatedText value={stats.inProgress}>{padCount(stats.inProgress)}</AnimatedText><Icon name="out" size={17} /></strong>
+                  <strong><AnimatedText value={workOrdersLoaded ? stats.inProgress : 'unavailable'}>{workOrdersLoaded ? padCount(stats.inProgress) : '—'}</AnimatedText><Icon name="out" size={17} /></strong>
                 </button>
                 <button type="button" onClick={() => filterTo('completed')}>
                   <span><i className={s.greenDot} />Completed</span>
-                  <strong><AnimatedText value={stats.completed}>{padCount(stats.completed)}</AnimatedText><Icon name="out" size={17} /></strong>
+                  <strong><AnimatedText value={workOrdersLoaded ? stats.completed : 'unavailable'}>{workOrdersLoaded ? padCount(stats.completed) : '—'}</AnimatedText><Icon name="out" size={17} /></strong>
                 </button>
                 <button type="button" onClick={() => filterTo('on-hold')}>
                   <span>On hold</span>
-                  <strong><AnimatedText value={stats.onHold}>{padCount(stats.onHold)}</AnimatedText><Icon name="out" size={17} /></strong>
+                  <strong><AnimatedText value={workOrdersLoaded ? stats.onHold : 'unavailable'}>{workOrdersLoaded ? padCount(stats.onHold) : '—'}</AnimatedText><Icon name="out" size={17} /></strong>
                 </button>
                 <button type="button" onClick={() => filterTo('overdue')}>
                   <span><i className={s.amberDot} />Overdue</span>
-                  <strong><AnimatedText value={stats.overdue}>{padCount(stats.overdue)}</AnimatedText><Icon name="out" size={17} /></strong>
+                  <strong><AnimatedText value={workOrdersLoaded ? stats.overdue : 'unavailable'}>{workOrdersLoaded ? padCount(stats.overdue) : '—'}</AnimatedText><Icon name="out" size={17} /></strong>
                 </button>
               </motion.div>
             )}
@@ -704,13 +715,15 @@ function MaintenancePageContent() {
             <div className={s.resultLabel}>
               <strong><AnimatedText value={`${mainTab}-${statusTab}`}>{registerTitle}</AnimatedText></strong>
               <span role="status" aria-live="polite">
-                <AnimatedText value={mainTab === 'schedules' ? `schedules-${schedules.length}` : mainTab === 'analytics' ? `analytics-${stats.total}` : `orders-${filtered.length}`}>
-                  {mainTab === 'schedules'
-                    ? `${schedules.length} ${schedules.length === 1 ? 'schedule' : 'schedules'}`
-                    : mainTab === 'analytics'
-                      ? `${stats.total} ${stats.total === 1 ? 'order' : 'orders'} in view`
-                      : `${filtered.length} ${filtered.length === 1 ? 'order' : 'orders'}`}
-                </AnimatedText>
+                {mainTab === 'schedules' && !schedulesLoaded ? 'Schedules unavailable'
+                  : mainTab !== 'schedules' && !workOrdersLoaded ? `${mainTab === 'analytics' ? 'Analytics' : 'Work orders'} unavailable`
+                    : <AnimatedText value={mainTab === 'schedules' ? `schedules-${schedules.length}` : mainTab === 'analytics' ? `analytics-${stats.total}` : `orders-${filtered.length}`}>
+                      {mainTab === 'schedules'
+                        ? `${schedules.length} ${schedules.length === 1 ? 'schedule' : 'schedules'}`
+                        : mainTab === 'analytics'
+                          ? `${stats.total} ${stats.total === 1 ? 'order' : 'orders'} in view`
+                          : `${filtered.length} ${filtered.length === 1 ? 'order' : 'orders'}`}
+                    </AnimatedText>}
               </span>
               {mainTab === 'workorders' && (activeRefinements > 0 || searchQuery) && (
                 <button type="button" className={s.textButton} onClick={resetRefinements}>Clear search &amp; refinements</button>
@@ -770,17 +783,33 @@ function MaintenancePageContent() {
           <div id="maintenance-panel" role="tabpanel" aria-labelledby={`maintenance-tab-${mainTab}`}>
             {mainTab === 'analytics' && (
               <div className={m.analyticsWrap}>
-                <AnalyticsPanel stats={stats} standalone rawOrders={workOrders} />
+                {loading && !workOrdersLoaded ? (
+                  <div className={s.empty}><h2>Loading analytics…</h2><p>Fetching the work-order register.</p></div>
+                ) : loadError && !workOrdersLoaded ? (
+                  <div className={s.empty}>
+                    <Icon name="alert" size={32} />
+                    <h2>Analytics unavailable</h2>
+                    <p>{loadError}</p>
+                    <button type="button" className={s.primary} onClick={load}>Try again</button>
+                  </div>
+                ) : (
+                  <>
+                    {loadError && <div className={m.errorBanner}><Icon name="alert" /><div><strong>Analytics may be out of date</strong><p>{loadError}</p></div><button type="button" className={s.secondary} onClick={() => void load()}>Try again</button></div>}
+                    <AnalyticsPanel stats={stats} standalone rawOrders={workOrders} />
+                  </>
+                )}
               </div>
             )}
 
             {mainTab === 'schedules' && (
-              scheduleError ? (
+              scheduleLoading && !schedulesLoaded ? (
+                <div className={s.empty}><h2>Loading schedules…</h2><p>Fetching the recurring maintenance plan.</p></div>
+              ) : scheduleError && !schedulesLoaded ? (
                 <div className={m.errorBanner}>
                   <Icon name="alert" />
-                  <div><strong>Could not load schedules</strong><p>{scheduleError}</p></div>
+                  <div><strong>Could not load schedules</strong><p>{scheduleError}</p></div><button type="button" className={s.secondary} onClick={() => void loadSchedules()}>Try again</button>
                 </div>
-              ) : schedules.length === 0 ? (
+              ) : <>{scheduleError && <div className={m.errorBanner}><Icon name="alert" /><div><strong>Schedules may be out of date</strong><p>{scheduleError}</p></div><button type="button" className={s.secondary} onClick={() => void loadSchedules()}>Try again</button></div>}{schedules.length === 0 ? (
                 <div className={s.empty}>
                   <Icon name="clock" size={32} />
                   <h2>No recurring schedules yet</h2>
@@ -824,7 +853,7 @@ function MaintenancePageContent() {
                       />
                     ))}
                 </div>
-              )
+              )}</>
             )}
 
             {mainTab === 'workorders' && (
@@ -846,16 +875,16 @@ function MaintenancePageContent() {
                   </div>
                 )}
 
-                {loading ? (
+                {loading && !workOrdersLoaded ? (
                   <div className={s.empty}><h2>Loading work orders…</h2><p>Fetching the live register from the server.</p></div>
-                ) : loadError ? (
+                ) : loadError && !workOrdersLoaded ? (
                   <div className={s.empty}>
                     <Icon name="alert" size={32} />
                     <h2>Could not load work orders</h2>
                     <p>{loadError}</p>
                     <button type="button" className={s.primary} onClick={load}>Try again</button>
                   </div>
-                ) : filtered.length === 0 ? (
+                ) : <>{loadError && <div className={m.errorBanner}><Icon name="alert" /><div><strong>Work orders may be out of date</strong><p>{loadError}</p></div><button type="button" className={s.secondary} onClick={() => void load()}>Try again</button></div>}{filtered.length === 0 ? (
                   <div className={s.empty}>
                     <Icon name={workOrders.length ? 'search' : 'box'} size={32} />
                     <h2>{workOrders.length ? 'No matching work orders' : 'No work orders yet'}</h2>
@@ -903,8 +932,8 @@ function MaintenancePageContent() {
                       </tbody>
                     </table>
                   </div>
-                )}
-                {!loading && !loadError && filtered.length > 0 && (
+                )}</>}
+                {!loading && workOrdersLoaded && filtered.length > 0 && (
                   <div className={s.registerFooter}>
                     <span>{filtered.length} of {workOrders.length} work orders</span>
                     {bulkMode && selectedIds.size > 0 && <span>{selectedIds.size} selected</span>}

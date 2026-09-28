@@ -9,7 +9,7 @@
 // state, matching exactly how page.tsx called them before extraction.
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { API_BASE } from '@/lib/config';
 import { authFetch } from '@/lib/api';
 import { api } from '@/lib/apiClient';
@@ -45,6 +45,9 @@ export function useCompressorsData(currentDate: Date) {
   const [previousReadings, setPreviousReadings] = useState<Record<number, PreviousReading>>({});
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [compressorsLoaded, setCompressorsLoaded] = useState(false);
+  const compressorsLoadedRef = useRef(false);
+  const loadRequestIdRef = useRef(0);
   const [servicesError, setServicesError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState<{ type?: string; id?: number | string }>({});
   const [stats, setStats] = useState<CompressorStats | null>(null);
@@ -56,10 +59,9 @@ export function useCompressorsData(currentDate: Date) {
   });
   const [managementData, setManagementData] = useState<ManagementData>({ summary: null, alerts: [], services: [] });
 
-  const fetchCompressors = async () => {
+  const fetchCompressors = async (requestId?: number) => {
     const data = (await enhancedFetch(`${API_BASE_URL}/api/compressors/compressors`)) as Compressor[];
-    setCompressors(data || []);
-    setLoadError(null);
+    if (!Array.isArray(data)) throw new Error('The compressor register returned an invalid response.');
     const prevData: Record<number, PreviousReading> = {};
     const curStr = currentDate.toISOString().split('T')[0];
     for (const c of data || []) {
@@ -72,7 +74,12 @@ export function useCompressorsData(currentDate: Date) {
         }
       } catch { /* ignore per-compressor errors */ }
     }
+    if (requestId !== undefined && requestId !== loadRequestIdRef.current) return;
+    setCompressors(data);
     setPreviousReadings(prevData);
+    compressorsLoadedRef.current = true;
+    setCompressorsLoaded(true);
+    setLoadError(null);
   };
 
   const fetchStats = async () => { try { setStats((await enhancedFetch(`${API_BASE_URL}/api/compressors/stats`)) as CompressorStats); } catch (e: unknown) { setStats(null); toast.error(`Stats failed to load: ${(e as Error).message}`); } };
@@ -103,11 +110,21 @@ export function useCompressorsData(currentDate: Date) {
   };
 
   const loadAllData = async () => {
+    const requestId = ++loadRequestIdRef.current;
     setIsLoading(true);
     setLoadError(null);
-    try { await Promise.all([fetchCompressors(), fetchStats(), fetchUpcomingServices(), fetchPerformanceMetrics(), fetchTrendAnalysis(), fetchComparisonAnalytics(), fetchManagementSummary()]); }
-    catch (e: unknown) { setLoadError((e as Error).message || 'Failed to load compressors'); toast.error((e as Error).message || 'Failed to load data'); }
-    finally { setIsLoading(false); }
+    try { await Promise.all([fetchCompressors(requestId), fetchStats(), fetchUpcomingServices(), fetchPerformanceMetrics(), fetchTrendAnalysis(), fetchComparisonAnalytics(), fetchManagementSummary()]); }
+    catch (e: unknown) {
+      if (requestId !== loadRequestIdRef.current) return;
+      if (!compressorsLoadedRef.current) {
+        setCompressors([]);
+        setPreviousReadings({});
+        setCompressorsLoaded(false);
+      }
+      setLoadError((e as Error).message || 'Failed to load compressors');
+      toast.error((e as Error).message || 'Failed to load data');
+    }
+    finally { if (requestId === loadRequestIdRef.current) setIsLoading(false); }
   };
 
   useEffect(() => { loadAllData(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -186,7 +203,7 @@ export function useCompressorsData(currentDate: Date) {
   };
 
   return {
-    compressors, previousReadings, isLoading, isSaving, loadError, servicesError,
+    compressors, previousReadings, isLoading, isSaving, loadError, servicesError, compressorsLoaded,
     stats, upcomingServices, analyticsData, managementData,
     refresh: loadAllData,
     fetchPerformanceMetrics, fetchTrendAnalysis, fetchComparisonAnalytics,

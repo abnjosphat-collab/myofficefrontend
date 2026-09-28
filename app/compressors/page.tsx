@@ -54,7 +54,7 @@ function CompressorReadingsSystem() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   const {
-    compressors, previousReadings, isLoading, isSaving, loadError, servicesError,
+    compressors, previousReadings, isLoading, isSaving, loadError, servicesError, compressorsLoaded,
     stats, upcomingServices, analyticsData, managementData,
     refresh: loadAllData,
     fetchPerformanceMetrics, fetchTrendAnalysis, fetchComparisonAnalytics,
@@ -366,7 +366,7 @@ function CompressorReadingsSystem() {
                 formats={['excel']}
               />
             )}
-            <PrimaryButton icon={Plus} onClick={() => setShowAddCompressor(true)}>Add Compressor</PrimaryButton>
+            <PrimaryButton icon={Plus} disabled={!compressorsLoaded} onClick={() => setShowAddCompressor(true)}>Add Compressor</PrimaryButton>
           </>
         }
       >
@@ -424,9 +424,9 @@ function CompressorReadingsSystem() {
               ))}
             </div>
 
-            {isLoading ? (
+            {isLoading && !compressorsLoaded ? (
               <div className={`flex items-center justify-center py-12 gap-2 ${t.textFaint}`}><Loader2 className="h-5 w-5 animate-spin" /><span className="text-sm">Loading compressors…</span></div>
-            ) : viewMode === 'card' ? (
+            ) : loadError && !compressorsLoaded ? null : viewMode === 'card' ? (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 {filteredCompressors.map(c => <CompressorCard key={c.id} compressor={c} />)}
               </div>
@@ -482,14 +482,16 @@ function CompressorReadingsSystem() {
             )}
 
             {!isLoading && loadError && (
-              <div role="alert" className={`text-center py-12 ${t.textMuted}`}>
+              <div role="alert" className={`${compressorsLoaded ? `flex items-start gap-3 rounded-xl p-4 bg-amber-500/10 ${accentText('amber', t.light)}` : `text-center py-12 ${t.textMuted}`}`}>
                 <AlertTriangle className="h-8 w-8 mx-auto mb-3" />
-                <p className="text-sm">Could not load compressors</p>
-                <p className={`text-xs mt-1 mb-4 ${t.textFaint}`}>{loadError}</p>
+                <div className={compressorsLoaded ? 'flex-1' : ''}>
+                  <p className="text-sm">{compressorsLoaded ? 'Compressor register may be out of date' : 'Could not load compressors'}</p>
+                  <p className={`text-xs mt-1 ${compressorsLoaded ? '' : 'mb-4'} ${t.textFaint}`}>{loadError}</p>
+                </div>
                 <Button variant="secondary" icon={RefreshCw} onClick={loadAllData}>Try again</Button>
               </div>
             )}
-            {!isLoading && !loadError && filteredCompressors.length === 0 && (
+            {!isLoading && compressorsLoaded && !loadError && filteredCompressors.length === 0 && (
               <div className="text-center py-12">
                 <Gauge className={`h-12 w-12 ${t.textFaint} mx-auto mb-4`} />
                 <p className={`text-sm ${TYPE_WEIGHT.medium} ${t.textMuted}`}>No compressors found</p>

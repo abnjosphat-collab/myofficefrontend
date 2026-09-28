@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { ToolsApiError } from './toolsApi';
+import { describe, expect, it, vi } from 'vitest';
+import { toolsApi, ToolsApiError } from './toolsApi';
 import { loadToolsWorkspace } from './workspaceLoad';
 
 describe('loadToolsWorkspace',()=>{
@@ -38,5 +38,27 @@ describe('loadToolsWorkspace',()=>{
     const result=await loadToolsWorkspace('token','viewer',get);
     expect(result.values.tools).toBeUndefined();
     expect(result.errors.tools).toBe('tools returned an unexpected response.');
+  });
+
+  it('keeps retrying transient wake failures beyond the former two-minute limit',async()=>{
+    vi.useFakeTimers();
+    let toolAttempts=0;
+    const get=vi.spyOn(toolsApi,'get').mockImplementation(async <T>(path:string)=>{
+      if(path==='/tools'&&++toolAttempts<10) throw new TypeError('Failed to fetch');
+      if(path==='/notifications') return {alerts:[],unread_count:0} as T;
+      if(path==='/compliance') return {competencies:[],inspections:[],incidents:[],gate_passes:[]} as T;
+      return [] as T;
+    });
+    try {
+      const loading=loadToolsWorkspace('token','viewer');
+      await vi.advanceTimersByTimeAsync(147_000);
+      const result=await loading;
+      expect(toolAttempts).toBe(10);
+      expect(result.values.tools).toEqual([]);
+      expect(result.errors.tools).toBeUndefined();
+    } finally {
+      get.mockRestore();
+      vi.useRealTimers();
+    }
   });
 });

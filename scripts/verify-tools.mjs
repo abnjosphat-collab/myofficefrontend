@@ -4,8 +4,11 @@ import path from 'node:path';
 import process from 'node:process';
 import { chromium } from 'playwright';
 
-const browser=await chromium.connectOverCDP(process.env.TOOLS_CDP_URL||'http://127.0.0.1:9223',{timeout:120_000});
-const context=browser.contexts()[0];
+let ownsBrowser=false;
+let browser;
+try{browser=await chromium.connectOverCDP(process.env.TOOLS_CDP_URL||'http://127.0.0.1:9223',{timeout:10_000});}
+catch{browser=await chromium.launch({headless:true});ownsBrowser=true;}
+const context=browser.contexts()[0]||await browser.newContext();
 let page=context.pages().find(candidate=>candidate.url().startsWith('http://localhost:3000'));
 if(!page) page=await context.newPage();
 
@@ -16,6 +19,7 @@ let failHistory=false;
 let failTools=false;
 let failNotifications=false;
 let failAnalytics=false;
+let wakeTools=false;
 const preferencesKey='myoffice.tools.preferences.v1';
 const sessionKey='myoffice.tools.session.v1';
 let originalPreferences=null;
@@ -24,10 +28,11 @@ let fixtureMode=false;
 const fixtureResponses=new Map([
   ['/api/tools-workspace/auth/me',{id:'audit-admin',name:'Audit Admin',username:'audit-admin',role:'admin',department:null,can_issue:false}],
   ['/api/tools-workspace/employees',[{id:'employee-1',employee_number:'E-001',name:'Tariro Moyo',department:'Engineering',job_title:'Fitter',active:true}]],
-  ['/api/tools-workspace/tools',[{id:'tool-1',register_number:'ENG-001',name:'Torque wrench',make_model:'Gedore 40-200 Nm',serial_number:'TW-001',category:'Hand tools',equipment_kind:'hand-tool',storage_location:'Main workshop',department:'Engineering',status:'available',condition:'Good',specifications:{Range:'40-200 Nm'},archived:false,custody:null,evidence:[]},{id:'tool-2',register_number:'ENG-002',name:'Clamp meter',make_model:'Fluke 376',serial_number:'CM-002',category:'Measurement',equipment_kind:'measurement',storage_location:'Plant 4',department:'Engineering',status:'issued',condition:'Good',archived:false,custody:{employee_name:'Tariro Moyo',expected_return_at:'2026-09-20T08:00:00Z',original_due_at:'2026-09-20T08:00:00Z',job_reference:'WO-100'},evidence:[]}]],
+  ['/api/tools-workspace/tools',[{id:'tool-1',register_number:'PP-UG-ENG-TW-01',name:'Torque wrench',make_model:'Gedore 40-200 Nm',serial_number:'TW-001',category:'Hand tools',equipment_kind:'torque-wrench',storage_location:'Main workshop',home_storage_location:'Locked torque-tool rack',storage_conditions:'Dry and secured',maintenance_requirements:'Inspect and calibrate annually',department:'Engineering',status:'available',condition:'Good',specifications:{Range:'40-200 Nm'},required_ppe:['Safety glasses'],ownership_type:'company',eligible_employees:[{id:'employee-1',employee_number:'E-001',name:'Tariro Moyo',department:'Engineering',job_title:'Fitter'}],inspection_due:[],latest_inspections:{quarterly:{outcome:'passed',inspected_at:'2026-07-01T08:00:00Z',next_due_at:'2026-10-01T08:00:00Z',colour_code:'Yellow'}},archived:false,custody:null,evidence:[]},{id:'tool-2',register_number:'PP-UG-ENG-CM-01',name:'Clamp meter',make_model:'Fluke 376',serial_number:'CM-002',category:'Measurement',equipment_kind:'clamp-meter',storage_location:'Plant 4',home_storage_location:'Electrical instrument cabinet',storage_conditions:'Dry and secured',maintenance_requirements:'Calibrate annually',department:'Engineering',status:'issued',condition:'Good',ownership_type:'company',eligible_employees:[],inspection_due:[],latest_inspections:{},archived:false,custody:{employee_name:'Tariro Moyo',expected_return_at:'2026-09-20T08:00:00Z',original_due_at:'2026-09-20T08:00:00Z',job_reference:'WO-100'},evidence:[]}]],
   ['/api/tools-workspace/history',[{id:'history-1',tool_id:'tool-2',tool_name:'Clamp meter',action:'issue',detail:'Issued for WO-100',actor_name:'Audit Issuer',employee_name:'Tariro Moyo',event_at:'2026-09-20T07:00:00Z'}]],
   ['/api/tools-workspace/source-registers',[{id:'source-1',department:'Engineering',original_name:'engineering-tools.xlsx',content_type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',size_bytes:2048,uploaded_by:'Audit Admin',uploaded_at:'2026-09-19T10:00:00Z'}]],
   ['/api/tools-workspace/notifications',{alerts:[{key:'overdue:tool-2:audit',kind:'overdue',tool_id:'tool-2',tool_name:'Clamp meter',department:'Engineering',read:false}],unread_count:1}],
+  ['/api/tools-workspace/compliance',{competencies:[{id:'competency-1',employee_id:'employee-1',tool_id:'tool-1',trained:true,qualified:true,authorized:true,authorized_by:'Audit Admin',updated_at:'2026-09-20T08:00:00Z'}],inspections:[{id:'inspection-1',tool_id:'tool-1',inspection_type:'quarterly',outcome:'passed',inspected_at:'2026-07-01T08:00:00Z',inspector_name:'Audit Admin',colour_code:'Yellow'}],incidents:[],gate_passes:[]}],
   ['/api/tools-workspace/analytics',{usage:[{id:'usage-1',event:'opened equipment',detail:'Equipment',created_at:'2026-09-20T08:00:00Z',account_name:'Audit Admin'}],errors:[],feedback:[]}],
   ['/api/tools-workspace/accounts',[{id:'audit-admin',name:'Audit Admin',username:'audit-admin',role:'admin',can_issue:false}]],
 ]);
@@ -41,8 +46,12 @@ await page.route('**/api/**',async route=>{
     return;
   }
   const simulated=(failHistory&&pathname==='/api/tools-workspace/history')||(failTools&&pathname==='/api/tools-workspace/tools')||(failNotifications&&pathname==='/api/tools-workspace/notifications')||(failAnalytics&&pathname==='/api/tools-workspace/analytics');
-  if(simulated){
+  if(wakeTools&&pathname==='/api/tools-workspace/tools'){
     await route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({detail:'Service unavailable while Supabase wakes up'})});
+    return;
+  }
+  if(simulated){
+    await route.fulfill({status:500,contentType:'application/json',body:JSON.stringify({detail:'Simulated permanent read failure'})});
     return;
   }
   if(fixtureMode&&fixtureResponses.has(pathname)){
@@ -129,9 +138,16 @@ try{
   }
   const adminFailure=session.role==='admin'?await page.getByText('Analytics may be out of date',{exact:true}).isVisible():null;
 
+  phase('checking transient Supabase wake recovery');
+  failTools=false;failNotifications=false;failAnalytics=false;wakeTools=true;
+  const wakingReload=page.reload({waitUntil:'domcontentloaded',timeout:120_000});
+  await wakingReload;
+  await waitForText('Loading equipment register');
+  const wakeStayedLoading=!(await bodyText()).includes('Equipment register unavailable');
+  wakeTools=false;
+  await waitForSettled();
+
   phase('checking recovery and read-only interactions');
-  failTools=false;failNotifications=false;failAnalytics=false;
-  await retry();
   await page.getByRole('button',{name:'Equipment',exact:true}).first().click();
   await page.getByRole('button',{name:'List view'}).click();
   await page.getByRole('button',{name:'Grid view'}).click();
@@ -148,6 +164,13 @@ try{
     detailOpened=await page.getByRole('dialog').isVisible().catch(()=>false);
     if(detailOpened) await page.getByRole('dialog').getByRole('button',{name:/Close/i}).first().click();
   }
+  await page.getByRole('button',{name:'Compliance',exact:true}).click();
+  await waitForText('Inspection and maintenance control');
+  const complianceVisible=await page.getByText('Current competency register',{exact:true}).isVisible();
+  await page.getByRole('button',{name:'Gate passes',exact:true}).click();
+  await waitForText('Gate pass control');
+  const gatePassesVisible=await page.getByText('Gate pass control',{exact:true}).isVisible();
+  await page.getByRole('button',{name:'Equipment',exact:true}).first().click();
 
   phase('checking dark mobile layout');
   await page.setViewportSize({width:390,height:844});
@@ -161,19 +184,24 @@ try{
   await page.setViewportSize({width:1440,height:1000});
   await page.reload({waitUntil:'domcontentloaded',timeout:120_000});
   await waitForSettled();
+  await page.evaluate(({preferencesKey,preferences,sessionKey,session})=>{if(preferences===null)localStorage.removeItem(preferencesKey);else localStorage.setItem(preferencesKey,preferences);if(session===null)localStorage.removeItem(sessionKey);else localStorage.setItem(sessionKey,session);},{preferencesKey,preferences:originalPreferences,sessionKey,session:originalSession});
 
-  const evidence={fixtureMode,live,initialFailure,quietFailure,notificationFailure,adminFailure,detailOpened,mobile,blockedWrites,consoleErrors,responses:{total:responses.length,successful:responses.filter(item=>item.status===200).length,simulatedFailures:responses.filter(item=>item.status===503).length,paths:[...new Set(responses.map(item=>item.pathname))]},restoredPreferences:await page.evaluate(key=>localStorage.getItem(key),preferencesKey),restoredSession:await page.evaluate(key=>localStorage.getItem(key),sessionKey)};
+  const evidence={fixtureMode,live,initialFailure,quietFailure,notificationFailure,adminFailure,wakeStayedLoading,complianceVisible,gatePassesVisible,detailOpened,mobile,blockedWrites,consoleErrors,responses:{total:responses.length,successful:responses.filter(item=>item.status===200).length,simulatedFailures:responses.filter(item=>item.status>=500).length,paths:[...new Set(responses.map(item=>item.pathname))]},restoredPreferences:await page.evaluate(key=>localStorage.getItem(key),preferencesKey),restoredSession:await page.evaluate(key=>localStorage.getItem(key),sessionKey)};
   fs.writeSync(1,`${JSON.stringify(evidence,null,2)}\n`);
   check(initialFailure.errorVisible&&!initialFailure.falseEmpty,'History failure looked like a genuine empty history.');
   check(quietFailure.staleWarning&&!quietFailure.falseEmpty&&quietFailure.itemsPreserved,'Quiet equipment failure discarded or misrepresented loaded data.');
   check(notificationFailure,'Notification failure was not visible.');
   check(adminFailure!==false,'Administrator analytics failure was not visible.');
+  check(wakeStayedLoading,'Transient Supabase wake-up rendered an unavailable state.');
+  check(complianceVisible&&gatePassesVisible,'Compliance or Gate passes did not render.');
   check(mobile.documentOverflow===0&&mobile.mainOverflow===0,'The Tools workspace overflowed at 390px.');
   check(evidence.restoredPreferences===originalPreferences,'Tools appearance preferences were not restored.');
   check(evidence.restoredSession===originalSession,'Tools session storage was not restored.');
+  if(ownsBrowser) await browser.close();
 }catch(error){
   if(page) await page.evaluate(({preferencesKey,preferences,sessionKey,session})=>{if(preferences===null)localStorage.removeItem(preferencesKey);else localStorage.setItem(preferencesKey,preferences);if(session===null)localStorage.removeItem(sessionKey);else localStorage.setItem(sessionKey,session);},{preferencesKey,preferences:originalPreferences,sessionKey,session:originalSession}).catch(()=>{});
   fs.writeSync(2,`${error instanceof Error?error.stack||error.message:String(error)}\n`);
+  if(ownsBrowser) await browser.close().catch(()=>{});
   process.exit(1);
 }
 process.exit(0);

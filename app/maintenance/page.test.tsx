@@ -86,6 +86,7 @@ import MaintenancePage from './page';
 
 describe('Maintenance page chrome', () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     getWorkOrders.mockResolvedValue([sample]);
     fetchSchedules.mockResolvedValue([]);
   });
@@ -109,5 +110,57 @@ describe('Maintenance page chrome', () => {
 
     await user.click(screen.getByRole('tab', { name: 'Schedules' }));
     expect(await screen.findByText('No recurring schedules yet')).toBeInTheDocument();
+  });
+
+  it('shows unavailable work-order state instead of a false empty register', async () => {
+    getWorkOrders.mockRejectedValue(new Error('Service waking up'));
+
+    render(<MaintenancePage />);
+
+    expect(await screen.findByRole('heading', { name: 'Could not load work orders' })).toBeInTheDocument();
+    expect(screen.getByText('Work orders unavailable')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'New work order' })).toBeDisabled();
+    expect(screen.queryByRole('heading', { name: 'No work orders yet' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+  });
+
+  it('preserves loaded work orders when a refresh fails', async () => {
+    const user = userEvent.setup();
+    getWorkOrders.mockResolvedValueOnce([sample]).mockRejectedValueOnce(new Error('Temporary outage'));
+
+    render(<MaintenancePage />);
+    expect(await screen.findByText('Pump A')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Refresh work orders' }));
+
+    expect(await screen.findByText('Work orders may be out of date')).toBeInTheDocument();
+    expect(screen.getByText('Pump A')).toBeInTheDocument();
+    expect(screen.getByText('1 of 1 work orders')).toBeInTheDocument();
+  });
+
+  it('shows unavailable schedule state rather than a false empty plan', async () => {
+    const user = userEvent.setup();
+    fetchSchedules.mockRejectedValue(new Error('Schedule service unavailable'));
+
+    render(<MaintenancePage />);
+    await screen.findByText('Pump A');
+    await user.click(screen.getByRole('tab', { name: 'Schedules' }));
+
+    expect(await screen.findByText('Could not load schedules')).toBeInTheDocument();
+    expect(screen.getByText('Schedules unavailable')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'New schedule' })).toBeDisabled();
+    expect(screen.queryByRole('heading', { name: 'No recurring schedules yet' })).not.toBeInTheDocument();
+  });
+
+  it('does not render false analytics when work orders are unavailable', async () => {
+    const user = userEvent.setup();
+    getWorkOrders.mockRejectedValue(new Error('Service unavailable'));
+
+    render(<MaintenancePage />);
+    expect(await screen.findByRole('heading', { name: 'Could not load work orders' })).toBeInTheDocument();
+    await user.click(screen.getByRole('tab', { name: 'Analytics' }));
+
+    expect(screen.getByRole('heading', { name: 'Analytics unavailable' })).toBeInTheDocument();
+    expect(screen.queryByText('Analytics panel')).not.toBeInTheDocument();
   });
 });
