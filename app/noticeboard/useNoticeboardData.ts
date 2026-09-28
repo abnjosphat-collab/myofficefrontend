@@ -9,7 +9,7 @@
 // introduced here).
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/apiClient';
 import { toast } from 'sonner';
 import type { Notice, NoticeFilters, NoticeFormData, Attachment } from './types';
@@ -20,7 +20,8 @@ export async function getAllNotices(filters: Record<string, string | boolean | u
     if (v !== undefined && v !== null && v !== 'all') params.append(k, String(v));
   });
   const data = await api.get<unknown>(`/api/notices${params.toString() ? `?${params.toString()}` : ''}`);
-  return Array.isArray(data) ? data as Notice[] : [];
+  if (!Array.isArray(data)) throw new Error('Notices returned an unexpected response.');
+  return data as Notice[];
 }
 export async function createNotice(data: NoticeFormData) {
   return api.post('/api/notices', data);
@@ -52,32 +53,42 @@ export async function uploadNoticeAttachment(file: File): Promise<Attachment> {
 export function useNoticeboardData(filters: NoticeFilters, search: string) {
   const [data, setData] = useState<Notice[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   // A failed fetch used to fall through to setData([]) — indistinguishable from a
   // genuinely empty noticeboard (the empty state reads "Get started by creating your
   // first notice" either way). Kept separate from isLoading so the page can tell
   // "still loading" apart from "loading failed" and show something real instead of
   // silently pretending there are no notices.
-  const [loadError, setLoadError] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const requestId = useRef(0);
+  const mounted = useRef(false);
 
-  const fetchNotices = async () => {
-    setIsLoading(true);
+  const fetchNotices = useCallback(async (quiet = false) => {
+    const id = ++requestId.current;
+    if (quiet) setRefreshing(true); else setIsLoading(true);
+    setLoadError('');
     try {
       const notices = await getAllNotices({ ...filters, search: search || undefined, is_pinned: filters.is_pinned ?? undefined });
-      setData(Array.isArray(notices) ? notices : []);
-      setLoadError(false);
+      if (id !== requestId.current) return;
+      setData(notices);
     } catch (err) {
       // Keep whatever's already on screen (a transient failure shouldn't wipe out
       // data the user can already see) — the error flag is what lets the page show
       // a real "couldn't load" state instead of a false empty one. Still toast so a
       // failed *refresh* (stale data already visible) isn't silent either.
-      setLoadError(true);
-      toast.error(err instanceof Error ? `Failed to load notices: ${err.message}` : 'Failed to load notices');
+      if (id !== requestId.current) return;
+      const message = err instanceof Error ? err.message : 'Failed to load notices';
+      setLoadError(message);
+      toast.error(`Failed to load notices: ${message}`);
     }
-    finally { setIsLoading(false); }
-  };
+    finally { if (id === requestId.current) { setIsLoading(false); setRefreshing(false); } }
+  }, [filters, search]);
 
-  useEffect(() => { fetchNotices(); }, []);
-  useEffect(() => { const timer = setTimeout(fetchNotices, 300); return () => clearTimeout(timer); }, [filters, search]);
+  useEffect(() => {
+    const timer = setTimeout(() => { void fetchNotices(); }, mounted.current ? 300 : 0);
+    mounted.current = true;
+    return () => clearTimeout(timer);
+  }, [fetchNotices]);
 
-  return { data, setData, isLoading, setIsLoading, loadError, refresh: fetchNotices };
+  return { data, setData, isLoading, refreshing, loadError, refresh: fetchNotices };
 }

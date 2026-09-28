@@ -5,9 +5,8 @@
 // as app/ppe's usePPEData.
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/apiClient';
-import { toast } from 'sonner';
 import type { Employee, LeaveRecord, ShiftAssignment } from './types';
 
 export async function createAssignment(payload: Record<string, unknown>) {
@@ -25,29 +24,38 @@ export function useShiftsData() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [leaves, setLeaves] = useState<LeaveRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const [employeeError, setEmployeeError] = useState('');
+  const [leaveError, setLeaveError] = useState('');
+  const requestRef = useRef(0);
 
-  const fetchAll = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [aRes, eRes, lRes] = await Promise.all([
-        api.get<any[]>('/api/standby').catch(() => null),
-        api.get<Record<string, unknown>[]>('/api/employees').catch(() => null),
-        api.get<any[]>('/api/leaves').catch(() => null),
-      ]);
-      if (aRes) setAssignments(aRes);
-      if (eRes) {
+  const fetchAll = useCallback(async (quiet = false) => {
+    const requestId=++requestRef.current;
+    if(quiet)setRefreshing(true);else setLoading(true);
+    setLoadError('');setEmployeeError('');setLeaveError('');
+    const [assignmentsResult,employeesResult,leavesResult]=await Promise.allSettled([
+      api.get<ShiftAssignment[]>('/api/standby'),
+      api.get<Record<string, unknown>[]>('/api/employees'),
+      api.get<LeaveRecord[]>('/api/leaves'),
+    ]);
+    if(requestId!==requestRef.current)return;
+    if(assignmentsResult.status==='fulfilled'&&Array.isArray(assignmentsResult.value))setAssignments(assignmentsResult.value);
+    else setLoadError(assignmentsResult.status==='rejected'&&assignmentsResult.reason instanceof Error?assignmentsResult.reason.message:'Shift assignments returned an unexpected response.');
+    if(employeesResult.status==='fulfilled'&&Array.isArray(employeesResult.value)) {
+        const eRes=employeesResult.value;
         setEmployees(eRes.map(e => ({
           id: String(e.id), name: (`${e.first_name || ''} ${e.last_name || ''}`).trim() || String(e.employee_id || 'Employee'),
           designation: (e.designation || e.position || '') as string, department: (e.department || '') as string,
           section: (e.section || '') as string, phone: (e.phone || '') as string,
         })));
-      }
-      if (lRes) setLeaves(lRes);
-    } catch { toast.error('Failed to load shifts data'); }
-    finally { setLoading(false); }
+    } else setEmployeeError(employeesResult.status==='rejected'&&employeesResult.reason instanceof Error?employeesResult.reason.message:'Employee options returned an unexpected response.');
+    if(leavesResult.status==='fulfilled'&&Array.isArray(leavesResult.value))setLeaves(leavesResult.value);
+    else setLeaveError(leavesResult.status==='rejected'&&leavesResult.reason instanceof Error?leavesResult.reason.message:'Leave records returned an unexpected response.');
+    if(requestId===requestRef.current){setLoading(false);setRefreshing(false);}
   }, []);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  return { assignments, setAssignments, employees, leaves, loading, refresh: fetchAll };
+  return { assignments, setAssignments, employees, leaves, loading, refreshing, loadError, employeeError, leaveError, refresh: fetchAll };
 }

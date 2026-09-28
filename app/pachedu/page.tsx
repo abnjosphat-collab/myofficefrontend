@@ -372,7 +372,7 @@ function PacheduContent() {
   const t = useTheme();
   const sections = useCollapseSection({ stats: false, distribution: false, records: true });
 
-  const { reports, setReports, stats, setStats, loading, setLoading, error, refresh: loadData } = usePacheduData();
+  const { reports, setReports, stats, setStats, loading, setLoading, refreshing, error, statsError, refresh: loadData } = usePacheduData();
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
 
   const [selectedReport, setSelectedReport] = useState<PacheduReport | null>(null);
@@ -475,6 +475,7 @@ function PacheduContent() {
   const clearFilters = () => { setSearchTerm(''); setSelectedSection('all'); setSelectedDept('all'); setSelectedStatus('all'); setDateFrom(''); setDateTo(''); };
   const uniqueDepts = useMemo(() => stats ? Object.keys(stats.byDept) : [], [stats]);
   const hasActiveFilters = searchTerm || selectedSection !== 'all' || selectedDept !== 'all' || selectedStatus !== 'all' || dateFrom || dateTo;
+  const initialUnavailable=!!error&&!reports.length;
 
   const openNewForm = () => { setEditingReport(null); setFormData(defaultForm); setIsFormModalOpen(true); };
   const selectCls = `h-9 px-3 rounded-lg text-xs outline-none transition-colors ${t.inputBg}`;
@@ -505,7 +506,8 @@ function PacheduContent() {
           </h1>
           <p className={`text-sm mt-1 ${t.textFaint}`}>Be Your Brother&apos;s Keeper — track care observations and supportive actions.</p>
         </div>
-        <div className="flex items-center gap-2 self-start">
+        <div className="flex max-w-full flex-wrap items-center gap-2 self-start">
+          {t.design === 'dallaglio' ? <Button variant="secondary" size="sm" icon={RefreshCw} disabled={refreshing} onClick={() => loadData(true)}>Refresh</Button> : <button type="button" onClick={() => loadData(true)} title="Refresh" aria-label="Refresh Pachedu reports" disabled={refreshing} className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} disabled:opacity-40`}><RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} /></button>}
           {t.design === 'dallaglio' ? <ViewToggle value={viewMode} onChange={setViewMode} options={[{ value: 'grid', label: 'Grid view', icon: LayoutGrid }, { value: 'table', label: 'Table view', icon: TableIcon }]} /> : <><button type="button" title="Grid View" onClick={() => setViewMode('grid')}
             className={`p-2 rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-amber-500/15 text-amber-500' : `${t.textFaint} ${t.hoverText} ${t.hoverBg}`}`}>
             <LayoutGrid className="h-4 w-4" />
@@ -524,9 +526,12 @@ function PacheduContent() {
               statusColor={(_v, row) => SECTION_META[row.sectionChoice as SectionType]?.hex.replace('#', '')}
             />
           )}
-          {t.design === 'dallaglio' ? <Button variant="primary" icon={Plus} onClick={openNewForm}>New care observation</Button> : <PrimaryButton icon={Plus} accent="amber" onClick={openNewForm}>New Care Observation</PrimaryButton>}
+          {t.design === 'dallaglio' ? <Button variant="primary" icon={Plus} disabled={initialUnavailable} onClick={openNewForm}>New care observation</Button> : <PrimaryButton icon={Plus} accent="amber" disabled={initialUnavailable} onClick={openNewForm}>New Care Observation</PrimaryButton>}
         </div>
       </div>
+
+      {error&&<div role="alert" className="rounded-2xl bg-rose-500/10 border border-rose-500/20 p-5 flex flex-wrap items-center gap-3"><AlertTriangle className="h-5 w-5 text-rose-500 shrink-0"/><div className="flex-1 min-w-52"><p className={`text-sm ${TYPE_WEIGHT.medium} text-rose-500`}>{initialUnavailable?'Pachedu reports unavailable':'Pachedu reports may be out of date'}</p><p className="text-xs text-rose-500/70 mt-0.5">{error}</p></div><Button variant="secondary" size="sm" icon={RefreshCw} disabled={loading||refreshing} onClick={()=>loadData(!!reports.length)}>Try again</Button></div>}
+      {statsError&&<div role="alert" className={`rounded-xl border px-4 py-3 ${t.glass} ${t.border}`}><p className={`text-xs ${t.textMuted}`}>Pachedu statistics are unavailable. The report register remains usable. {statsError}</p></div>}
 
       {stats && (
         <div className={`rounded-2xl ${t.glass} overflow-hidden`}>
@@ -622,23 +627,15 @@ function PacheduContent() {
           <div className="px-5 pb-5 pt-1">
             {loading && <div className="flex justify-center items-center py-16"><Loader2 className="h-8 w-8 animate-spin text-amber-500" /></div>}
 
-            {error && !loading && (
-              <div className="rounded-2xl bg-rose-500/10 border border-rose-500/20 p-5 flex items-center gap-3">
-                <AlertTriangle className="h-5 w-5 text-rose-500 shrink-0" />
-                <div className="flex-1"><p className={`text-sm ${TYPE_WEIGHT.medium} text-rose-500`}>Error Loading Data</p><p className="text-xs text-rose-500/70 mt-0.5">{error}</p></div>
-                <button type="button" onClick={loadData} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-500/10 text-rose-500 text-xs hover:bg-rose-500/20 transition-colors">
-                  <RefreshCw className="h-3.5 w-3.5" /> Retry
-                </button>
-              </div>
-            )}
+            {!loading && initialUnavailable && <div className={`py-12 text-center text-sm ${t.textFaint}`}>The care-observation register could not be loaded. Use Try again above.</div>}
 
-            {!loading && !error && filteredReports.length === 0 && (
+            {!loading && !initialUnavailable && filteredReports.length === 0 && (
               <EmptyState icon={HeartHandshake} title="No care observations found"
                 message={reports.length === 0 ? "Be the first to record a Pachedu observation." : "Try adjusting your filters to see more results."}
                 action={{ label: reports.length === 0 ? 'Create First Observation' : 'Clear Filters', onClick: reports.length === 0 ? openNewForm : clearFilters }} />
             )}
 
-            {!loading && !error && filteredReports.length > 0 && (
+            {!loading && !initialUnavailable && filteredReports.length > 0 && (
               viewMode === 'grid' ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                   {filteredReports.map((report, index) => (

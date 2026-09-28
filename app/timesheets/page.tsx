@@ -683,8 +683,8 @@ function BulkAssignDialog({
               ))}
             </div>
             <div className={`flex items-end gap-2 p-2.5 rounded-lg ${t.chipBg}`}>
-              <div className="flex-1 min-w-0"><Label className={`text-xs ${t.textFaint}`}>From</Label><Input type="date" value={rangeFrom} min={fmtDate(period.start)} max={fmtDate(period.end)} onChange={e => setRangeFrom(e.target.value)} className={`${fieldCls} mt-1`} /></div>
-              <div className="flex-1 min-w-0"><Label className={`text-xs ${t.textFaint}`}>To</Label><Input type="date" value={rangeTo} min={fmtDate(period.start)} max={fmtDate(period.end)} onChange={e => setRangeTo(e.target.value)} className={`${fieldCls} mt-1`} /></div>
+              <div className="flex-1 min-w-0"><Label className={`text-xs ${t.textFaint}`}>From</Label><Input type="date" aria-label="Range start date" value={rangeFrom} min={fmtDate(period.start)} max={fmtDate(period.end)} onChange={e => setRangeFrom(e.target.value)} className={`${fieldCls} mt-1`} /></div>
+              <div className="flex-1 min-w-0"><Label className={`text-xs ${t.textFaint}`}>To</Label><Input type="date" aria-label="Range end date" value={rangeTo} min={fmtDate(period.start)} max={fmtDate(period.end)} onChange={e => setRangeTo(e.target.value)} className={`${fieldCls} mt-1`} /></div>
               <DsButton type="button" variant="secondary" size="xs" onClick={() => selectRange(rangeFrom, rangeTo)}>Add Range</DsButton>
             </div>
           </div>
@@ -1617,7 +1617,7 @@ function TimesheetsContent() {
 
   const {
     allEmployees, timesheets, setTimesheets, approvedLeaves, approvedOvertime, shiftAssignments,
-    loading, loadError, refresh: load,
+    loading, refreshing, loadError, refresh: load,
   } = useTimesheetsData(activePeriod);
 
   const [salariedExtra, setSalariedExtra] = useState<string[]>(() => readLS(LS_SALARIED_EXTRA));
@@ -2047,7 +2047,8 @@ function TimesheetsContent() {
     return { count: selected.length, roll };
   }, [tabEmployees, gridSelectedEmpIds, getHourTotals]);
 
-  const dataUnavailable = loading || Boolean(loadError);
+  const initialUnavailable = Boolean(loadError) && allEmployees.length === 0;
+  const dataUnavailable = loading || initialUnavailable;
 
   return (
     <main className="mx-auto flex w-full max-w-[min(100%,96rem)] flex-col gap-4 p-4 sm:p-6 lg:p-8">
@@ -2073,7 +2074,7 @@ function TimesheetsContent() {
                 )
               ))}
             </div>
-            <IconAction meaning="refresh" title="Refresh timesheets" label="Refresh" onClick={() => { void load(); }} spinning={loading} disabled={loading} />
+            <IconAction meaning="refresh" title="Refresh timesheets" label="Refresh" onClick={() => { void load(true); }} spinning={loading || refreshing} disabled={loading || refreshing} />
             {activeTab === 'nec' && (
               <IconAction meaning="documents" title="Import scanned PDF timesheets" label="Import scans" onClick={() => setShowNecImport(true)} disabled={dataUnavailable} />
             )}
@@ -2152,7 +2153,7 @@ function TimesheetsContent() {
               {loadError && (
                 <div className={`mx-3 mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2.5 text-sm ${t.textMuted}`} role="alert">
                   <span><span className={`${TYPE_WEIGHT.semibold} text-red-400`}>Could not load timesheets.</span> {loadError}</span>
-                  <DsButton type="button" variant="secondary" size="xs" onClick={() => { void load(); }}>Retry</DsButton>
+                  <DsButton type="button" variant="secondary" size="xs" disabled={refreshing} onClick={() => { void load(allEmployees.length > 0); }}>Retry</DsButton>
                 </div>
               )}
               {gridSelectedEmpIds.size > 0 && (
@@ -2180,7 +2181,7 @@ function TimesheetsContent() {
                   )}
                 </div>
               )}
-              {!loadError && <TimesheetGrid
+              {!initialUnavailable && <TimesheetGrid
                 employees={tabEmployees} timesheets={effectiveTimesheets} days={days} getHourTotals={getHourTotals}
                 onCellClick={(emp, day, entry) => setEditCell({ employee: emp, date: day, entry })}
                 onQuickAdd={handleQuickAdd} onQuickRemove={handleQuickRemove}
@@ -2243,7 +2244,7 @@ function TimesheetsContent() {
           open={showNecImport}
           period={activePeriod}
           onClose={() => setShowNecImport(false)}
-          onApplied={() => { void load(); setShowNecImport(false); }}
+          onApplied={() => { void load(true); setShowNecImport(false); }}
         />
       )}
     </main>

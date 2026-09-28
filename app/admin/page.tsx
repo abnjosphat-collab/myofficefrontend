@@ -1,7 +1,7 @@
 // app/admin/page.tsx — admin panel: user list + role & permission management
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Shield, Users, Save, RefreshCw, AlertCircle, Check, UserPlus, Power, Key, MapPin, Lock,
 } from '@/components/shared/theme';
@@ -160,21 +160,26 @@ function AdminContent() {
 
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [fetching, setFetching] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<UserRole | 'all'>('all');
   const [error, setError] = useState('');
+  const requestId = useRef(0);
 
   useEffect(() => { if (!loading && profile && !isAtLeast('admin')) router.replace('/'); }, [loading, profile, isAtLeast, router]);
 
-  const fetchUsers = useCallback(async () => {
-    setFetching(true);
+  const fetchUsers = useCallback(async (quiet = false) => {
+    const id = ++requestId.current;
+    if (quiet) setRefreshing(true); else setFetching(true);
     setError('');
     try {
-      setUsers(await api.get<UserProfile[]>('/api/admin/users'));
+      const rows = await api.get<unknown>('/api/admin/users');
+      if (!Array.isArray(rows)) throw new Error('User accounts returned an unexpected response.');
+      if (id === requestId.current) setUsers(rows as UserProfile[]);
     } catch (e) {
-      setError((e as Error).message);
+      if (id === requestId.current) setError(e instanceof Error ? e.message : 'Could not load user accounts.');
     }
-    setFetching(false);
+    if (id === requestId.current) { setFetching(false); setRefreshing(false); }
   }, []);
 
   useEffect(() => { if (!loading && profile && isAtLeast('admin')) fetchUsers(); }, [loading, profile, isAtLeast, fetchUsers]);
@@ -223,7 +228,7 @@ function AdminContent() {
       setInviteOpen(false);
       setInviteEmail('');
       setInviteRole('user');
-      fetchUsers();
+      void fetchUsers(true);
     } catch (e) {
       toast.error(`Failed: ${(e as Error).message}`);
     } finally {
@@ -238,6 +243,7 @@ function AdminContent() {
   });
 
   const roleCounts = ROLE_ORDER.reduce<Record<string, number>>((acc, r) => { acc[r] = users.filter(u => u.role === r).length; return acc; }, {});
+  const initialUnavailable = Boolean(error) && users.length === 0;
 
   // loading resolves to false whether or not a session was found — "still
   // checking" and "checked, nobody's signed in" are genuinely different
@@ -272,15 +278,15 @@ function AdminContent() {
         statsOpen
         actions={
           <div className="flex items-center gap-2">
-            <Button icon={UserPlus} onClick={() => setInviteOpen(true)}>Invite user</Button>
-            <Button variant="secondary" icon={RefreshCw} onClick={fetchUsers} disabled={fetching} submitting={fetching}>Refresh</Button>
+            <Button icon={UserPlus} disabled={initialUnavailable} onClick={() => setInviteOpen(true)}>Invite user</Button>
+            <Button variant="secondary" icon={RefreshCw} onClick={() => fetchUsers(true)} disabled={fetching || refreshing} submitting={fetching || refreshing}>Refresh</Button>
             <Button variant="secondary" icon={MapPin} href="/admin/lists">Manage shared lists</Button>
           </div>
         }
       >
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           {(ROLE_ORDER as UserRole[]).map(r => (
-            <StatTile key={r} icon={ROLE_META[r].icon} color={t.design === 'dallaglio' ? 'var(--d-accent)' : ROLE_META[r].hex} label={ROLE_LABELS[r]} value={fetching || error ? '—' : roleCounts[r] ?? 0} />
+            <StatTile key={r} icon={ROLE_META[r].icon} color={t.design === 'dallaglio' ? 'var(--d-accent)' : ROLE_META[r].hex} label={ROLE_LABELS[r]} value={fetching || initialUnavailable ? '—' : roleCounts[r] ?? 0} />
           ))}
         </div>
       </PageHero>
@@ -289,7 +295,7 @@ function AdminContent() {
         <div className={`flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-5 py-3.5 border-b ${t.border}`}>
           <div className="flex items-center gap-2">
             <Users className="h-4 w-4 text-brand-500" />
-            <span className={`text-sm ${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{filtered.length} {filtered.length === 1 ? 'user' : 'users'}</span>
+            <span className={`text-sm ${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{initialUnavailable ? 'Users unavailable' : `${filtered.length} ${filtered.length === 1 ? 'user' : 'users'}`}</span>
           </div>
           <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
             <div className="flex items-center gap-1 flex-wrap">
@@ -310,14 +316,14 @@ function AdminContent() {
         </div>
 
         {error && (
-          <div className="flex items-center gap-2 mx-5 my-3 px-4 py-3 rounded-xl bg-rose-500/10 border border-rose-500/25 text-rose-500 text-sm">
-            <AlertCircle className="h-4 w-4 shrink-0" />{error}
+          <div role="alert" className="flex flex-wrap items-center gap-2 mx-5 my-3 px-4 py-3 rounded-xl bg-rose-500/10 border border-rose-500/25 text-rose-500 text-sm">
+            <AlertCircle className="h-4 w-4 shrink-0" /><span className="flex-1">{users.length ? `Accounts may be out of date. ${error}` : error}</span><Button variant="secondary" size="xs" onClick={() => fetchUsers(Boolean(users.length))}>Try again</Button>
           </div>
         )}
 
         {fetching ? (
           <div className={`flex items-center justify-center py-16 gap-3 ${t.textFaint} text-sm`}><RefreshCw className="h-5 w-5 animate-spin" /> Loading users…</div>
-        ) : error ? (
+        ) : initialUnavailable ? (
           <EmptyState icon={Users} title="Users unavailable" message="Refresh to try loading accounts again." />
         ) : filtered.length === 0 ? (
           <EmptyState icon={Users} title={users.length ? 'No matching users' : 'No users found'} />

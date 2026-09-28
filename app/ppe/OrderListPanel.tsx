@@ -9,6 +9,7 @@ import {
 import {
   useTheme, Collapse, GlowCard, SelectField, StatusBadge,
   staggerContainer, fadeUp, ACCENT_HEX, TYPE_WEIGHT, useConfirm, PrimaryButton,
+  Button, IconAction, SearchInput, ViewToggle,
 } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { formatDate } from '@/lib/format';
@@ -105,7 +106,7 @@ export function OrderListPanel({
       <Collapse open={expanded}>
         <div className={`px-4 pb-4 pt-3 border-t ${t.border} space-y-4`}>
           <div className="flex flex-wrap items-center gap-2">
-            <div className="relative flex-1 min-w-[140px] max-w-52">
+            {t.design === 'dallaglio' ? <SearchInput value={search} onChange={setSearch} placeholder="Search order list…" className="flex-1 min-w-[180px] max-w-64" /> : <div className="relative flex-1 min-w-[140px] max-w-52">
               <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 ${t.textFaint}`} />
               <input type="text" placeholder="Search…" aria-label="Search order list" value={search}
                 onChange={e => setSearch(e.target.value)}
@@ -116,7 +117,7 @@ export function OrderListPanel({
                   <X className="h-3 w-3" />
                 </button>
               )}
-            </div>
+            </div>}
             <SelectField size="filter" value={typeFilter} onChange={setTypeFilter} title="PPE type"
               options={[{ value: 'all', label: 'All Types' }, ...Object.entries(ppeTypes).map(([k, pt]) => ({ value: k, label: pt.name }))]}
               className="w-36" />
@@ -139,11 +140,14 @@ export function OrderListPanel({
                 { value: 'added', label: 'Date added' },
               ]}
               className="w-32" />
-            <button type="button" title="Toggle sort direction" onClick={toggleSortDir}
+            {t.design === 'dallaglio' ? <IconAction meaning="sort" title="Toggle sort direction" active={sortDir === 'desc'} onClick={toggleSortDir} /> : <button type="button" title="Toggle sort direction" onClick={toggleSortDir}
               className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.glassSoft} ${t.textMuted} ${t.hoverBg} transition-all`}>
               <ArrowUpDown className={`h-3.5 w-3.5 transition-transform ${sortDir === 'desc' ? 'rotate-180' : ''}`} />
-            </button>
-            <div className={`flex items-center ${t.glassSoft} rounded-lg p-0.5`}>
+            </button>}
+            {t.design === 'dallaglio' ? <ViewToggle value={viewMode} onChange={setViewMode} options={[
+              { value: 'cards', icon: LayoutGrid, label: 'Card view' },
+              { value: 'grouped', icon: List, label: 'PO summary' },
+            ]} /> : <div className={`flex items-center ${t.glassSoft} rounded-lg p-0.5`}>
               {([
                 { mode: 'cards' as const, icon: LayoutGrid, label: 'Card view' },
                 { mode: 'grouped' as const, icon: List, label: 'PO summary' },
@@ -156,12 +160,18 @@ export function OrderListPanel({
                   <Icon className="h-3.5 w-3.5" />
                 </button>
               ))}
-            </div>
+            </div>}
             <div className="flex items-center gap-2 ml-auto">
               <DownloadButton data={orderGroups as unknown as Record<string, unknown>[]} columns={orderListColumns}
                 filename={exportFilename('PPE_Order_List')} title="PPE Order List"
                 subtitle={`${sorted.length} item${sorted.length !== 1 ? 's' : ''} to order`} />
-              <button type="button"
+              {t.design === 'dallaglio' ? <Button variant="ghost" size="sm" onClick={async () => {
+                if (await confirm({
+                  title: 'Clear the order list?',
+                  message: 'This removes every item you’ve added — it does not affect the actual PPE records.',
+                  destructive: true, confirmLabel: 'Clear',
+                })) onClear();
+              }}>Clear</Button> : <button type="button"
                 onClick={async () => {
                   if (await confirm({
                     title: 'Clear the order list?',
@@ -171,7 +181,7 @@ export function OrderListPanel({
                 }}
                 className={`text-[11px] ${TYPE_WEIGHT.semibold} px-2.5 py-1.5 rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all`}>
                 Clear
-              </button>
+              </button>}
             </div>
           </div>
 
@@ -236,11 +246,11 @@ export function OrderListPanel({
                           )}
                         </div>
                         <div className="flex items-center gap-2 mt-3">
-                          <PrimaryButton icon={Plus} fullWidth size="xs" onClick={() => onIssue(entry)}>Issue</PrimaryButton>
-                          <button type="button" title="Remove from order list" onClick={() => onRemove(entry.record_id)}
+                          <PrimaryButton icon={Plus} fullWidth size={t.design === 'dallaglio' ? 'sm' : 'xs'} onClick={() => onIssue(entry)}>Issue</PrimaryButton>
+                          {t.design === 'dallaglio' ? <IconAction meaning="close" title="Remove from order list" onClick={() => onRemove(entry.record_id)} /> : <button type="button" title="Remove from order list" onClick={() => onRemove(entry.record_id)}
                             className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.chipBg} ${t.textFaint} hover:text-rose-500 hover:bg-rose-500/10 transition-all`}>
                             <X className="h-3.5 w-3.5" />
-                          </button>
+                          </button>}
                         </div>
                       </GlowCard>
                     </motion.div>

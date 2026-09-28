@@ -512,6 +512,8 @@ function SparesPageContent() {
   const [spares, setSpares] = useState<Spare[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadError,setLoadError]=useState('');
+  const loadRequestRef=useRef(0);
   const [showStats, setShowStats] = useState(true);
   const [showCategoryBreakdown, setShowCategoryBreakdown] = useState(false);
   const [showRequisition, setShowRequisition] = useState(false);
@@ -546,23 +548,27 @@ function SparesPageContent() {
   const [saveReqName, setSaveReqName] = useState('');
   const [showSavePrompt, setShowSavePrompt] = useState(false);
   const [savedReqsLoaded, setSavedReqsLoaded] = useState(false);
+  const [savedReqsError,setSavedReqsError]=useState('');
   const setReqH = useCallback(<K extends keyof ReqHeader>(k: K, v: ReqHeader[K]) => setReqHeader(p => ({ ...p, [k]: v })), []);
 
   const loadData = useCallback(async (quiet = false) => {
+    const requestId=++loadRequestRef.current;
     if (!quiet) setLoading(true);
     setRefreshing(true);
+    setLoadError('');
     try {
       const data = await apiFetchAll();
+      if(requestId!==loadRequestRef.current)return;
       setSpares(data.map(s => ({ ...s, current_quantity: Number(s.current_quantity ?? 0), min_quantity: Number(s.min_quantity ?? 1), max_quantity: Number(s.max_quantity ?? 5), unit_price: Number(s.unit_price ?? 0), safety_stock: Boolean(s.safety_stock) })));
-    } catch (e) { toast.error(`Failed to load: ${(e as Error).message}`); }
-    finally { setLoading(false); setRefreshing(false); }
+    } catch (e) { if(requestId===loadRequestRef.current){const message=e instanceof Error?e.message:'The spares register could not be loaded.';setLoadError(message);toast.error(`Failed to load: ${message}`);} }
+    finally { if(requestId===loadRequestRef.current){setLoading(false);setRefreshing(false);} }
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
   useEffect(() => {
     if (savedReqsLoaded) return;
     setSavedReqsLoaded(true);
-    apiGetSavedReqs().then(serverReqs => { if (serverReqs.length > 0) { setSavedReqs(serverReqs); persistSavedReqs(serverReqs); } });
+    apiGetSavedReqs().then(serverReqs => { setSavedReqsError('');setSavedReqs(serverReqs);persistSavedReqs(serverReqs); }).catch(error=>setSavedReqsError(error instanceof Error?error.message:'Saved requisitions are unavailable.'));
   }, [savedReqsLoaded]);
 
   const categories = useMemo(() => { const set = new Set<string>(); spares.forEach(s => { if (s.category) set.add(s.category); (s.categories || []).forEach(c => set.add(c)); }); return [...set].sort(); }, [spares]);
@@ -627,6 +633,7 @@ function SparesPageContent() {
   const safeCurrentPage = Math.min(currentPage, totalPages);
   const paginatedSpares = useMemo(() => filteredSpares.slice((safeCurrentPage - 1) * PAGE_SIZE, safeCurrentPage * PAGE_SIZE), [filteredSpares, safeCurrentPage]);
   const clearFilters = () => { setSearch(''); setStockFilter('all'); setCategoryFilter('all'); setPriorityFilter('all'); setShowFavOnly(false); };
+  const initialUnavailable=!!loadError&&!spares.length;
 
   // Group the current page's grid-view cards by (primary) category — alphabetically,
   // "Uncategorized" last. Table view is left flat (sortable columns already group work).
@@ -690,10 +697,9 @@ function SparesPageContent() {
     };
     const withoutSameName = savedReqs.filter(r => r.name !== saveReqName.trim());
     const optimistic = [localReq, ...withoutSameName];
-    setSavedReqs(optimistic); persistSavedReqs(optimistic); setSaveReqName(''); setShowSavePrompt(false);
-    toast.success('Requisition saved');
-    const serverReq = await apiCreateSavedReq(localReq);
-    if (serverReq) { setSavedReqs(prev => [serverReq, ...prev.filter(r => r.id !== localReq.id && r.name !== serverReq.name)]); persistSavedReqs([serverReq, ...withoutSameName]); }
+    setSavedReqs(optimistic);persistSavedReqs(optimistic);setSaveReqName('');setShowSavePrompt(false);
+    try{const serverReq=await apiCreateSavedReq(localReq);const saved=[serverReq,...withoutSameName];setSavedReqs(saved);persistSavedReqs(saved);setSavedReqsError('');toast.success('Requisition saved');}
+    catch(error){setSavedReqs(savedReqs);persistSavedReqs(savedReqs);const message=error instanceof Error?error.message:'The requisition could not be saved.';setSavedReqsError(message);toast.error(message);}
   };
 
   const loadSavedRequisition = (req: SavedRequisition) => {
@@ -707,7 +713,7 @@ function SparesPageContent() {
     toast.success(`Loaded: ${req.name}`);
   };
 
-  const deleteSavedReq = (id: string) => { const updated = savedReqs.filter(r => r.id !== id); setSavedReqs(updated); persistSavedReqs(updated); apiDeleteSavedReq(id); };
+  const deleteSavedReq = async (id: string) => { const previous=savedReqs;const updated=savedReqs.filter(r=>r.id!==id);setSavedReqs(updated);persistSavedReqs(updated);try{await apiDeleteSavedReq(id);setSavedReqsError('');}catch(error){setSavedReqs(previous);persistSavedReqs(previous);const message=error instanceof Error?error.message:'The saved requisition could not be deleted.';setSavedReqsError(message);toast.error(message);} };
 
   const downloadRequisitionPDF = async () => {
     const { default: jsPDF } = await import('jspdf');
@@ -784,24 +790,26 @@ function SparesPageContent() {
         actions={
           <>
             {t.design === 'dallaglio' ? <IconAction meaning="refresh" title="Refresh" spinning={refreshing} disabled={refreshing} onClick={() => loadData(true)} /> : <button onClick={() => loadData(true)} disabled={refreshing} title="Refresh" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} disabled:opacity-40`}><RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} /></button>}
-            {t.design === 'dallaglio' ? <Button variant="secondary" size="sm" icon={ShoppingCart} onClick={() => setShowRequisition(v => !v)}>Requisition{reqLines.length > 0 ? ` (${reqLines.length})` : ''}</Button> : <button onClick={() => setShowRequisition(v => !v)} className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs ${TYPE_WEIGHT.semibold} transition-all ${showRequisition ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textMuted} ${t.hoverBg}`}`}>
+            {t.design === 'dallaglio' ? <Button variant="secondary" size="sm" icon={ShoppingCart} disabled={initialUnavailable} onClick={() => setShowRequisition(v => !v)}>Requisition{reqLines.length > 0 ? ` (${reqLines.length})` : ''}</Button> : <button disabled={initialUnavailable} onClick={() => setShowRequisition(v => !v)} className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs ${TYPE_WEIGHT.semibold} transition-all ${showRequisition ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textMuted} ${t.hoverBg}`}`}>
               <ShoppingCart className="h-3.5 w-3.5" /> Requisition {reqLines.length > 0 && <span className="px-1 rounded-full bg-brand-500/30 text-[10px]">{reqLines.length}</span>}
             </button>}
-            {t.design === 'dallaglio' ? <Button variant="secondary" size="sm" icon={Upload} href="/spares/import">Import Excel</Button> : <Link href="/spares/import"><button className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs ${TYPE_WEIGHT.semibold} ${t.textMuted} ${t.chipBg} ${t.hoverBg}`}><Upload className="h-3.5 w-3.5" /> Import Excel</button></Link>}
-            {t.design === 'dallaglio' ? <Button variant="primary" size="sm" icon={Plus} onClick={() => { setEditingSpare(null); setFormOpen(true); }}>Add spare</Button> : <PrimaryButton icon={Plus} size="md" onClick={() => { setEditingSpare(null); setFormOpen(true); }}>Add Spare</PrimaryButton>}
+            {t.design === 'dallaglio' ? <Button variant="secondary" size="sm" icon={Upload} href="/spares/import" disabled={initialUnavailable}>Import Excel</Button> : <Link href="/spares/import" aria-disabled={initialUnavailable} onClick={event=>{if(initialUnavailable)event.preventDefault();}}><button disabled={initialUnavailable} className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs ${TYPE_WEIGHT.semibold} ${t.textMuted} ${t.chipBg} ${t.hoverBg}`}><Upload className="h-3.5 w-3.5" /> Import Excel</button></Link>}
+            {t.design === 'dallaglio' ? <Button variant="primary" size="sm" icon={Plus} disabled={initialUnavailable} onClick={() => { setEditingSpare(null); setFormOpen(true); }}>Add spare</Button> : <PrimaryButton icon={Plus} size="md" disabled={initialUnavailable} onClick={() => { setEditingSpare(null); setFormOpen(true); }}>Add Spare</PrimaryButton>}
             {t.design === 'dallaglio' ? <DisclosureButton open={showStats} onClick={() => setShowStats(v => !v)} label="summary" /> : <button title={showStats ? 'Hide stats' : 'Show stats'} onClick={() => setShowStats(v => !v)} className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}>{showStats ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}</button>}
           </>
         }
       >
         <div className="flex flex-wrap gap-1">
-          <StatTile icon={Package} color={ACCENT_HEX.blue} value={stats.total} label="Total Items" onClick={clearFilters} />
-          <StatTile icon={Database} color={ACCENT_HEX.violet} value={formatCurrency(stats.totalValue)} label="Total Value" />
-          <StatTile icon={AlertOctagon} color="#f43f5e" value={stats.outOfStock} label="Out of Stock" onClick={() => setStockFilter('out')} />
-          <StatTile icon={AlertTriangle} color="#f59e0b" value={stats.lowStock} label="Low Stock" onClick={() => setStockFilter('low')} />
-          <StatTile icon={BarChart3} color={STATUS_TONE.good} value={stats.categories} label="Categories" />
-          <StatTile icon={Check} color="#60a5fa" value={stats.safetyCount} label="Safety Stock" />
+          <StatTile icon={Package} color={ACCENT_HEX.blue} value={initialUnavailable?'Unavailable':stats.total} label="Total Items" onClick={initialUnavailable?undefined:clearFilters} />
+          <StatTile icon={Database} color={ACCENT_HEX.violet} value={initialUnavailable?'Unavailable':formatCurrency(stats.totalValue)} label="Total Value" />
+          <StatTile icon={AlertOctagon} color="#f43f5e" value={initialUnavailable?'Unavailable':stats.outOfStock} label="Out of Stock" onClick={initialUnavailable?undefined:()=>setStockFilter('out')} />
+          <StatTile icon={AlertTriangle} color="#f59e0b" value={initialUnavailable?'Unavailable':stats.lowStock} label="Low Stock" onClick={initialUnavailable?undefined:()=>setStockFilter('low')} />
+          <StatTile icon={BarChart3} color={STATUS_TONE.good} value={initialUnavailable?'Unavailable':stats.categories} label="Categories" />
+          <StatTile icon={Check} color="#60a5fa" value={initialUnavailable?'Unavailable':stats.safetyCount} label="Safety Stock" />
         </div>
       </PageHero>
+
+      {loadError&&<div role="alert" className={`rounded-2xl border p-4 flex flex-wrap items-center gap-3 ${t.glass} ${t.border}`}><AlertTriangle className="h-5 w-5 text-rose-500"/><div className="flex-1 min-w-52"><p className={`text-sm ${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{initialUnavailable?'Spares register unavailable':'Spares register may be out of date'}</p><p className={`text-xs mt-1 ${t.textFaint}`}>{loadError}</p></div><Button variant="secondary" size="sm" icon={RefreshCw} disabled={loading||refreshing} onClick={()=>loadData(!!spares.length)}>Try again</Button></div>}
 
       {/* Category Breakdown */}
       {categoryBreakdown.length > 0 && (
@@ -881,6 +889,7 @@ function SparesPageContent() {
 
           {showSavedReqs && (
             <div className={`px-5 py-3 border-b ${t.border} space-y-1.5`}>
+              {savedReqsError&&<div role="alert" className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-xs text-rose-500">Saved requisitions may be out of date. {savedReqsError}</div>}
               <div className="flex items-center justify-between mb-2"><span className={`text-[10px] uppercase tracking-wide ${t.textFaint}`}>Saved Requisitions</span><span className={`text-[10px] ${t.textFaint}`}>{savedReqs.length} saved · synced to server</span></div>
               {savedReqs.length === 0 && <div className={`text-center py-4 text-xs ${t.textFaint}`}>No saved requisitions yet</div>}
               {savedReqs.map(req => (
@@ -983,6 +992,8 @@ function SparesPageContent() {
           <div className="p-4">
             {loading ? (
               <div className="flex justify-center py-16"><Loader2 className={`h-8 w-8 animate-spin ${t.textFaint}`} /></div>
+            ) : initialUnavailable ? (
+              <div className={`py-16 text-center text-sm ${t.textFaint}`}>The spares register could not be loaded. Use Try again above.</div>
             ) : filteredSpares.length === 0 ? (
               <div className="text-center py-16">
                 <Package className={`h-12 w-12 mx-auto mb-4 ${t.textFaint}`} />

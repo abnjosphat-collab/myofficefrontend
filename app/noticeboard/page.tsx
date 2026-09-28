@@ -397,25 +397,24 @@ function NoticeboardContent() {
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
   const [filters, setFilters] = useState<NoticeFilters>({ category: 'all', priority: 'all', status: 'all', department: 'all', is_pinned: null });
+  const [isSubmitting, setIsSubmitting] = useState(false);
   // View-only — filters the grid/table below without touching the hero KPI tiles or
   // Quick Actions counts, which stay true totals (same convention as every other
   // filter on this page not touching the stats up top).
   const [hideExpired, setHideExpired] = useState(false);
-  const { data, setData, isLoading, setIsLoading, loadError, refresh: fetchNotices } = useNoticeboardData(filters, search);
+  const { data, setData, isLoading, refreshing, loadError, refresh: fetchNotices } = useNoticeboardData(filters, search);
 
-  // isLoading deliberately doubles as this modal's `submitting` flag (see the
-  // EditNoticeModal render below) — preserved from the original, not a new coupling.
   const handleSaveNotice = async (noticeData: NoticeFormData) => {
-    setIsLoading(true);
+    setIsSubmitting(true);
     try {
       if (editingNotice) await updateNotice(editingNotice.id, noticeData);
       else await createNotice(noticeData);
-      await fetchNotices();
+      await fetchNotices(true);
       setIsModalOpen(false); setEditingNotice(null);
       toast.success(`Notice ${editingNotice ? 'updated' : 'created'} successfully`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to save notice');
-    } finally { setIsLoading(false); }
+    } finally { setIsSubmitting(false); }
   };
 
   const handleDeleteNotice = async (id: string) => {
@@ -437,7 +436,8 @@ function NoticeboardContent() {
   const displayNotices = hideExpired ? data.filter(n => !expiredNotices.includes(n)) : data;
   const pinnedNotices = displayNotices.filter(n => n.is_pinned);
   const regularNotices = displayNotices.filter(n => !n.is_pinned);
-  const metricsUnavailable = isLoading || (loadError && data.length === 0);
+  const initialUnavailable = Boolean(loadError) && data.length === 0;
+  const metricsUnavailable = isLoading || initialUnavailable;
   const hasFilters = search || Object.values(filters).some(f => f !== 'all' && f !== null);
 
   // Both previously rendered with no onClick at all — clicking them did nothing.
@@ -449,7 +449,7 @@ function NoticeboardContent() {
     const fail = results.length - ok;
     if (ok > 0) toast.success(`Archived ${ok} expired notice${ok !== 1 ? 's' : ''}`);
     if (fail > 0) toast.warning(`${fail} failed to archive`);
-    await fetchNotices();
+    await fetchNotices(true);
   };
 
   const handleUnpinAll = async () => {
@@ -460,7 +460,7 @@ function NoticeboardContent() {
     const fail = results.length - ok;
     if (ok > 0) toast.success(`Unpinned ${ok} notice${ok !== 1 ? 's' : ''}`);
     if (fail > 0) toast.warning(`${fail} failed to unpin`);
-    await fetchNotices();
+    await fetchNotices(true);
   };
 
   const exportColumns: DLColumn[] = [
@@ -485,6 +485,7 @@ function NoticeboardContent() {
         statsOpen={sections.expanded.records}
         actions={
           <>
+            <IconAction meaning="refresh" title="Refresh notices" spinning={refreshing} disabled={isLoading || refreshing} onClick={() => fetchNotices(true)} />
             {data.length > 0 && (
               <DownloadButton
                 data={data as unknown as Record<string, unknown>[]}
@@ -495,7 +496,7 @@ function NoticeboardContent() {
                 statusColor={(_v, row) => PRIORITY_HEX[row.priority as string]?.replace('#', '')}
               />
             )}
-            <PrimaryButton icon={Plus} accent="violet" onClick={() => { setEditingNotice(null); setIsModalOpen(true); }}>Create Notice</PrimaryButton>
+            <PrimaryButton icon={Plus} accent="violet" disabled={initialUnavailable} onClick={() => { setEditingNotice(null); setIsModalOpen(true); }}>Create Notice</PrimaryButton>
           </>
         }
       >
@@ -547,10 +548,18 @@ function NoticeboardContent() {
         {hasFilters && (
           <div className="flex gap-2">
             <Button variant="ghost" icon={X} onClick={() => { setFilters({ category: 'all', priority: 'all', status: 'all', department: 'all', is_pinned: null }); setSearch(''); }}>Clear Filters</Button>
-            <Button variant="ghost" icon={RefreshCw} onClick={fetchNotices}>Refresh</Button>
+            <Button variant="ghost" icon={RefreshCw} disabled={refreshing} onClick={() => fetchNotices(true)}>Refresh</Button>
           </div>
         )}
       </div>
+
+      {loadError && data.length > 0 && (
+        <div role="alert" className={`${t.glass} rounded-2xl border border-amber-500/30 p-4 flex flex-wrap items-center gap-3`}>
+          <AlertTriangle className="h-5 w-5 text-amber-500" />
+          <p className={`text-sm flex-1 ${t.textMuted}`}>Notices may be out of date. {loadError}</p>
+          <Button variant="secondary" size="xs" icon={RefreshCw} disabled={refreshing} onClick={() => fetchNotices(true)}>Try again</Button>
+        </div>
+      )}
 
       {isLoading ? (
         <div className={`flex items-center justify-center py-16 ${t.textFaint}`}><RefreshCw className="h-5 w-5 animate-spin mr-2" /> Loading notices…</div>
@@ -564,12 +573,12 @@ function NoticeboardContent() {
           <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-amber-500" />
           <p className={`text-sm ${TYPE_WEIGHT.semibold} ${t.textMuted} mb-1`}>Couldn&apos;t load notices</p>
           <p className={`text-xs ${t.textFaint} mb-4`}>The server may still be starting up — try again in a moment.</p>
-          <PrimaryButton icon={RefreshCw} size="md" onClick={fetchNotices}>Retry</PrimaryButton>
+          <PrimaryButton icon={RefreshCw} size="md" onClick={() => fetchNotices()}>Retry</PrimaryButton>
         </div>
       ) : data.length === 0 ? (
         <div className={`${t.glass} rounded-2xl overflow-hidden`}>
           <EmptyState icon={FileText} title="No notices found" message={hasFilters ? 'Try adjusting your search or filters' : 'Get started by creating your first notice'}
-            action={!hasFilters ? { label: 'Create Your First Notice', onClick: () => { setEditingNotice(null); setIsModalOpen(true); } } : undefined} />
+            action={!hasFilters && !initialUnavailable ? { label: 'Create Your First Notice', onClick: () => { setEditingNotice(null); setIsModalOpen(true); } } : undefined} />
         </div>
       ) : viewMode === 'table' ? (
         <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden overflow-x-auto`}>
@@ -636,7 +645,7 @@ function NoticeboardContent() {
         </div>
       </div>
 
-      <EditNoticeModal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); setEditingNotice(null); }} notice={editingNotice} onSave={handleSaveNotice} isLoading={isLoading} />
+      <EditNoticeModal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); setEditingNotice(null); }} notice={editingNotice} onSave={handleSaveNotice} isLoading={isSubmitting} />
       <NoticeDetailsModal isOpen={isDetailsModalOpen} onClose={() => { setIsDetailsModalOpen(false); setSelectedNotice(null); }} notice={selectedNotice}
         onDelete={handleDeleteNotice} onEdit={n => { setIsDetailsModalOpen(false); setEditingNotice(n); setIsModalOpen(true); }} onTogglePin={handleTogglePin} />
     </main>

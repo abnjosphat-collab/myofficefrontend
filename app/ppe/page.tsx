@@ -24,7 +24,7 @@ import {
   useTheme, STATUS_TONE, Collapse, AnimatedText, PulsingIcon, CenterModal, GlowCard,
   staggerContainer, fadeUp, ACCENT, ACCENT_HEX,
   StatusBadge, RecordCard, RecordActions, StatTile, ProgressBar, FormField, FormActions,
-  useCollapseSection, SelectField, AutofillInput, useConfirm, accentText, TYPE_WEIGHT, PrimaryButton, Button, IconAction, DetailActions,
+  useCollapseSection, SelectField, AutofillInput, SearchInput, useConfirm, accentText, TYPE_WEIGHT, PrimaryButton, Button, IconAction, DetailActions,
 } from '@/components/shared/theme';
 import type { PPETypeInfo, PPERecord, EmployeeRow, EmployeeWithPPE, EnhancedStats, FormState } from './types';
 import {
@@ -35,6 +35,7 @@ import { isExpiringSoon, isExpired, computeComplianceRate, computeSizeBreakdown,
 import { useOrderList } from './useOrderList';
 import { OrderListPanel } from './OrderListPanel';
 import { SECTION_ORDER, normalizeSection, sectionColor } from '@/lib/sections';
+import { PillTabs } from '@/components/shared/PillTabs';
 
 // Data-model types (PPERecord, EmployeeRow, PPEStats, etc.) now live in ./types —
 // imported above. Component prop interfaces below stay page-local.
@@ -94,6 +95,8 @@ const fmtDate = (s?: string | null) => (s ? formatDate(s) : 'Not specified');
 
 // ─── EMPLOYEE AUTOCOMPLETE ────────────────────────────────────────────────────
 
+const normalizeSearchText = (value?: string) => (value ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+
 interface EmployeeAutocompleteProps {
   value: string;
   onChange: (v: string) => void;
@@ -115,10 +118,13 @@ function EmployeeAutocomplete({ value, onChange, options, placeholder, onSelect,
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setQ(value || ''); }, [value]);
 
-  const filtered = useMemo(() => options.filter(o =>
-    o.employee_id?.toLowerCase().includes(q.toLowerCase()) ||
-    o.employee_name?.toLowerCase().includes(q.toLowerCase())
-  ).slice(0, 10), [options, q]);
+  const filtered = useMemo(() => {
+    const searchValue = normalizeSearchText(q);
+    return options.filter(o =>
+      normalizeSearchText(o.employee_id).includes(searchValue) ||
+      normalizeSearchText(o.employee_name).includes(searchValue)
+    ).slice(0, 10);
+  }, [options, q]);
 
   const pick = (opt: EmployeeRow) => {
     setQ(display === 'name' ? opt.employee_name : opt.employee_id);
@@ -182,13 +188,16 @@ function IssuedByInput({ value, onChange, employees }: IssuedByInputProps) {
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setQ(value || ''); }, [value]);
 
-  const filtered = useMemo(() => (q.length > 0
-    ? employees.filter(e =>
-        e.employee_name?.toLowerCase().includes(q.toLowerCase()) ||
-        e.employee_id?.toLowerCase().includes(q.toLowerCase()) ||
-        e.position?.toLowerCase().includes(q.toLowerCase()))
-    : employees
-  ).slice(0, 10), [employees, q]);
+  const filtered = useMemo(() => {
+    const searchValue = normalizeSearchText(q);
+    return (searchValue
+      ? employees.filter(e =>
+          normalizeSearchText(e.employee_name).includes(searchValue) ||
+          normalizeSearchText(e.employee_id).includes(searchValue) ||
+          normalizeSearchText(e.position).includes(searchValue))
+      : employees
+    ).slice(0, 10);
+  }, [employees, q]);
 
   return (
     <div className="relative">
@@ -276,7 +285,7 @@ function PPEItemCard({ record, onEdit, onDelete, onView, onToggleNotRequired }: 
         {/* Mark an overdue item as intentionally not-needed (drops it from Overdue counts),
             or restore a not-required item to active. */}
         {(expired || notRequired) && (
-          t.design === 'dallaglio' ? <Button variant="ghost" size="xs" onClick={() => onToggleNotRequired(record)}>{notRequired ? 'Mark as active' : 'Not required'}</Button>
+          t.design === 'dallaglio' ? <Button variant="ghost" size="sm" onClick={() => onToggleNotRequired(record)}>{notRequired ? 'Mark as active' : 'Not required'}</Button>
             : <button type="button" onClick={() => onToggleNotRequired(record)}
               className={`text-[11px] ${TYPE_WEIGHT.medium} px-2 py-1 rounded-md ${t.chipBg} ${t.hoverBg} ${t.textMuted} ${t.hoverText} transition-colors shrink-0`}>
               {notRequired ? 'Mark as active' : 'Not required'}
@@ -318,6 +327,7 @@ function EmployeePPECard({ employee, isExpanded, onToggle, onIssueNew, onEditIte
       subtitle={`${employee.position} · ${employee.employee_id}`}
       open={isExpanded}
       onToggle={onToggle}
+      unmountOnCollapse
       badges={<>
         <StatusBadge color={sectionColor(employee.section)} label={normalizeSection(employee.section)} />
         <StatusBadge color="#10b981" label={`${active.length} Active`} dot />
@@ -326,7 +336,7 @@ function EmployeePPECard({ employee, isExpanded, onToggle, onIssueNew, onEditIte
         {employee.records.length === 0 && <StatusBadge color="#94a3b8" label="No items" />}
       </>}
       headerActions={
-        <PrimaryButton icon={Plus} size="xs" title="Issue new PPE" onClick={e => { e.stopPropagation(); onIssueNew(employee); }}>Issue</PrimaryButton>
+        <PrimaryButton icon={Plus} size={t.design === 'dallaglio' ? 'sm' : 'xs'} title="Issue new PPE" onClick={e => { e.stopPropagation(); onIssueNew(employee); }}>Issue</PrimaryButton>
       }
     >
       {employee.records.length > 0 ? (
@@ -684,8 +694,8 @@ function DueItemsList({ employees, filterType, sectionFilterActive = false, onEd
         if (dateFrom && (!rec.expiry_date || rec.expiry_date < dateFrom)) return;
         if (dateTo   && (!rec.expiry_date || rec.expiry_date > dateTo))   return;
         if (search) {
-          const q = search.toLowerCase();
-          if (!emp.employee_name?.toLowerCase().includes(q) && !rec.item_name?.toLowerCase().includes(q)) return;
+          const searchValue = normalizeSearchText(search);
+          if (!normalizeSearchText(emp.employee_name).includes(searchValue) && !normalizeSearchText(rec.item_name).includes(searchValue)) return;
         }
         out.push({ ...rec, employee_name: emp.employee_name, employee_id: emp.employee_id });
       });
@@ -779,30 +789,32 @@ function DueItemsList({ employees, filterType, sectionFilterActive = false, onEd
       {items.length === 0 && localFiltersActive && (
         <div className={`flex flex-wrap items-center justify-between gap-2 rounded-xl px-4 py-3 ${t.chipBg}`}>
           <p className={`text-sm ${t.textMuted}`}>No items match the active filters.</p>
-          <button type="button" onClick={clearLocalFilters}
+          {t.design === 'dallaglio' ? <Button variant="secondary" size="sm" onClick={clearLocalFilters}>Clear filters</Button> : <button type="button" onClick={clearLocalFilters}
             className={`text-xs px-3 py-1.5 rounded-lg ${TYPE_WEIGHT.semibold} ${accentClasses.chip} ${accentClasses.text}`}>
             Clear filters
-          </button>
+          </button>}
         </div>
       )}
       <div className="flex flex-wrap items-center gap-2">
-        <div className="relative flex-1 max-w-56">
+        {t.design === 'dallaglio' ? <SearchInput value={search} onChange={setSearch} placeholder="Search employee or item…" className="flex-1 min-w-[180px] max-w-64" /> : <div className="relative flex-1 max-w-56">
           <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 ${t.textFaint}`} />
           <input type="text" placeholder="Search employee or item…" aria-label="Search employee or item" value={search}
             onChange={e => setSearch(e.target.value)}
             className={`pl-7 pr-3 py-1.5 w-full text-xs rounded-lg ${t.inputBg} transition-all`} />
-        </div>
+        </div>}
         <SelectField size="filter" value={typeFilter} onChange={setTypeFilter} title="PPE Type filter"
           options={[{ value: 'all', label: 'All Types' }, ...Object.entries(PPE_TYPES).map(([k, pt]) => ({ value: k, label: pt.name }))]} />
         <SelectField size="filter" value={sizeFilter} onChange={setSizeFilter} title="Size filter"
           options={[{ value: 'all', label: 'All Sizes' }, ...sizeCounts.map(([size]) => ({ value: size, label: size }))]} />
-        <button type="button" onClick={() => setShowDateRange(p => !p)}
+        {t.design === 'dallaglio' ? <Button variant="secondary" size="sm" icon={CalendarRange} pressed={showDateRange || dateRangeActive} onClick={() => setShowDateRange(p => !p)}>
+          Date Range{dateRangeActive && <span className={`w-1.5 h-1.5 rounded-full ${filterType === 'due' ? 'bg-rose-500' : 'bg-amber-500'}`} />}
+        </Button> : <button type="button" onClick={() => setShowDateRange(p => !p)}
           className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border ${TYPE_WEIGHT.medium} transition-all ${
             showDateRange || dateRangeActive ? `${accentClasses.chip} ${accentClasses.text}` : `${t.glassSoft} ${t.textMuted} ${t.hoverBg} ${t.hoverText} border-transparent`
           }`}>
           <CalendarRange className="h-3.5 w-3.5" /> Date Range
           {dateRangeActive && <span className={`w-1.5 h-1.5 rounded-full ${filterType === 'due' ? 'bg-rose-500' : 'bg-amber-500'}`} />}
-        </button>
+        </button>}
         {items.length > 0 && (
           <label htmlFor="ppe-due-select-all" className={`flex items-center gap-1.5 text-xs ${t.textFaint} cursor-pointer ml-auto`}>
             <input id="ppe-due-select-all" type="checkbox" checked={allSelected} onChange={toggleSelectAll} aria-label="Select all" className="rounded" /> Select all
@@ -818,10 +830,11 @@ function DueItemsList({ employees, filterType, sectionFilterActive = false, onEd
             onChange={e => setDateFrom(e.target.value)} className={`h-9 px-3 rounded-lg text-sm ${t.inputBg} focus:outline-none`} /></FormField>
           <FormField label="To"><input type="date" title="To date" aria-label="To date" value={dateTo}
             onChange={e => setDateTo(e.target.value)} className={`h-9 px-3 rounded-lg text-sm ${t.inputBg} focus:outline-none`} /></FormField>
-          <button type="button" onClick={() => { const { from, to } = thisWeekRange(); setDateFrom(from); setDateTo(to); }}
+          {t.design === 'dallaglio' ? <Button variant="secondary" size="sm" onClick={() => { const { from, to } = thisWeekRange(); setDateFrom(from); setDateTo(to); }}>This Week</Button> : <button type="button" onClick={() => { const { from, to } = thisWeekRange(); setDateFrom(from); setDateTo(to); }}
             className={`h-9 px-3 rounded-lg text-xs ${TYPE_WEIGHT.semibold} ${t.textMuted} ${t.glassSoft} ${t.hoverText}`}>This Week</button>
+          }
           {dateRangeActive && (
-            <button type="button" onClick={() => { setDateFrom(''); setDateTo(''); }}
+            t.design === 'dallaglio' ? <Button variant="ghost" size="sm" icon={X} onClick={() => { setDateFrom(''); setDateTo(''); }}>Clear</Button> : <button type="button" onClick={() => { setDateFrom(''); setDateTo(''); }}
               className={`h-9 px-3 rounded-lg text-xs ${TYPE_WEIGHT.semibold} ${t.textFaint} ${t.hoverText} flex items-center gap-1`}>
               <X className="h-3 w-3" /> Clear
             </button>
@@ -839,7 +852,7 @@ function DueItemsList({ employees, filterType, sectionFilterActive = false, onEd
             <button key={size} type="button"
               onClick={() => setSizeFilter(prev => prev === size ? 'all' : size)}
               title={`${count} ${filterType === 'due' ? 'overdue' : 'expiring soon'} — size ${size}`}
-              className={`flex items-center gap-1 text-[11px] px-2 py-1 rounded-lg border ${TYPE_WEIGHT.medium} transition-all ${
+              className={`flex items-center gap-1 text-[11px] px-2 py-1 rounded-lg border ${TYPE_WEIGHT.medium} transition-all ${t.design === 'dallaglio' ? 'min-h-9' : ''} ${
                 sizeFilter === size ? `${accentClasses.chip} ${accentClasses.text}` : `${t.glassSoft} ${t.textMuted} ${t.hoverBg} ${t.hoverText} border-transparent`
               }`}>
               {size}
@@ -851,17 +864,17 @@ function DueItemsList({ employees, filterType, sectionFilterActive = false, onEd
       {selectedIds.size > 0 && (
         <div className={`flex items-center gap-2 px-3 py-2 rounded-lg ${t.chipBg}`}>
           <span className={`text-xs ${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{selectedIds.size} selected</span>
-          <button type="button" onClick={handleBulkAddToOrderList}
+          {t.design === 'dallaglio' ? <Button variant="secondary" size="sm" icon={ShoppingCart} className="ml-auto" onClick={handleBulkAddToOrderList}>Add {selectedIds.size} to order list</Button> : <button type="button" onClick={handleBulkAddToOrderList}
             className={`ml-auto text-[11px] ${TYPE_WEIGHT.semibold} px-2.5 py-1 rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all flex items-center gap-1`}>
             <ShoppingCart className="h-3 w-3" /> Add {selectedIds.size} to order list
-          </button>
+          </button>}
           {filterType === 'due' && (
-            <button type="button" onClick={handleBulkMarkNotRequired}
+            t.design === 'dallaglio' ? <Button variant="secondary" size="sm" onClick={handleBulkMarkNotRequired}>Mark {selectedIds.size} as not required</Button> : <button type="button" onClick={handleBulkMarkNotRequired}
               className={`text-[11px] ${TYPE_WEIGHT.semibold} px-2.5 py-1 rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all`}>
               Mark {selectedIds.size} as not required
             </button>
           )}
-          <button type="button" onClick={() => setSelectedIds(new Set())} className={`text-[11px] ${t.textFaint} ${t.hoverText} transition-colors`}>Clear</button>
+          {t.design === 'dallaglio' ? <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())}>Clear</Button> : <button type="button" onClick={() => setSelectedIds(new Set())} className={`text-[11px] ${t.textFaint} ${t.hoverText} transition-colors`}>Clear</button>}
         </div>
       )}
       {items.length === 0 ? (
@@ -941,21 +954,60 @@ function DueItemsList({ employees, filterType, sectionFilterActive = false, onEd
 // saves it (shared); "Recalculate" resets every active item of that type to
 // issue_date + interval, so you never edit cards one by one.
 
-function PPEMatrixModal({ isOpen, onClose, matrix, records, onSetInterval, onRecalculate, onRecalculateAll }: {
+function PPEMatrixModal({ isOpen, onClose, matrix, records, matrixLoading, matrixError, onRetryMatrix, onSetInterval, onRecalculate, onRecalculateAll }: {
   isOpen: boolean;
   onClose: () => void;
   matrix: Record<string, number>;
   records: PPERecord[];
-  onSetInterval: (ppeType: string, months: number) => void;
+  matrixLoading: boolean;
+  matrixError: string;
+  onRetryMatrix: () => void;
+  onSetInterval: (ppeType: string, months: number) => Promise<boolean>;
   onRecalculate: (ppeType: string) => void;
   onRecalculateAll: () => void;
 }) {
   const t = useTheme();
+  const [draft, setDraft] = useState<Record<string, number>>({});
+  const [savingType, setSavingType] = useState<string | null>(null);
+
+  const setDraftInterval = (ppeType: string, months: number) => {
+    setDraft(current => ({ ...current, [ppeType]: months }));
+  };
+
+  const saveInterval = async (ppeType: string) => {
+    setSavingType(ppeType);
+    const saved = await onSetInterval(ppeType, draft[ppeType] ?? matrix[ppeType] ?? 0);
+    if (saved) setDraft(current => {
+      const next = { ...current };
+      delete next[ppeType];
+      return next;
+    });
+    setSavingType(null);
+  };
+
+  const closeModal = () => {
+    setDraft({});
+    setSavingType(null);
+    onClose();
+  };
+
+  const matrixUnavailable = matrixLoading || Boolean(matrixError);
   return (
-    <CenterModal open={isOpen} onClose={onClose} title="PPE Replacement Matrix"
+    <CenterModal open={isOpen} onClose={closeModal} title="PPE Replacement Matrix"
       subtitle="Set how long each item lasts — saving an interval recalculates every existing item of that type" accent="violet" width="max-w-2xl">
+      {(matrixLoading || matrixError) && (
+        <div className={`mx-5 mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3 ${t.border} ${t.glassSoft}`} role={matrixError ? 'alert' : 'status'} data-ppe-state={matrixError ? 'matrix-error' : 'matrix-loading'}>
+          <span className={`flex items-center gap-2 text-sm ${matrixError ? accentText('rose', t.light) : t.textMuted}`}>
+            {matrixLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <AlertTriangle className="h-4 w-4" />}
+            {matrixLoading ? 'Loading the saved replacement matrix…' : 'The saved replacement matrix is unavailable. Editing and recalculation are disabled.'}
+          </span>
+          {matrixError && (t.design === 'dallaglio'
+            ? <Button variant="secondary" size="sm" icon={RefreshCw} onClick={onRetryMatrix}>Try again</Button>
+            : <button type="button" onClick={onRetryMatrix} className={`h-8 px-3 rounded-lg text-xs ${TYPE_WEIGHT.semibold} ${t.chipBg} ${t.hoverBg} ${t.textMuted}`}>Try again</button>)}
+        </div>
+      )}
       <div className="px-5 pt-3 flex justify-end">
-        {t.design === 'dallaglio' ? <Button variant="secondary" size="sm" onClick={onRecalculateAll} title="Recalculate expiry for every active record against the current matrix">Recalculate all types</Button> : <button type="button" onClick={onRecalculateAll}
+        {t.design === 'dallaglio' ? <Button variant="secondary" size="sm" onClick={onRecalculateAll} disabled={matrixUnavailable} title="Recalculate expiry for every active record against the current matrix">Recalculate all types</Button> : <button type="button" onClick={onRecalculateAll} disabled={matrixUnavailable}
           title="Recalculate expiry for every active record of every type against the current matrix — fixes anything left stale by a past interval change"
           className={`h-8 px-3 rounded-lg text-[12px] ${TYPE_WEIGHT.medium} ${t.chipBg} ${t.hoverBg} ${t.textMuted} ${t.hoverText} transition-colors`}>
           Recalculate all types
@@ -965,7 +1017,8 @@ function PPEMatrixModal({ isOpen, onClose, matrix, records, onSetInterval, onRec
         {Object.entries(PPE_TYPES).map(([key, info]) => {
           const Icon = info.icon;
           const activeCount = records.filter(r => r.ppe_type === key && r.status === 'active').length;
-          const months = matrix[key] ?? 0;
+          const months = t.design === 'dallaglio' ? draft[key] ?? matrix[key] ?? 0 : matrix[key] ?? 0;
+          const changed = Object.prototype.hasOwnProperty.call(draft, key) && months !== (matrix[key] ?? 0);
           return (
             <div key={key} className={`flex flex-col gap-2.5 px-3 py-3 rounded-lg sm:flex-row sm:items-center sm:gap-3 ${t.hoverBgSoft}`}>
               <div className="flex min-w-0 items-center gap-3 flex-1">
@@ -975,14 +1028,21 @@ function PPEMatrixModal({ isOpen, onClose, matrix, records, onSetInterval, onRec
                   <div className={`text-[11px] ${t.textFaint}`}>{activeCount} active item{activeCount === 1 ? '' : 's'}</div>
                 </div>
               </div>
-              <div className="flex items-center gap-1.5 sm:shrink-0">
-                <input type="number" min={0} max={120} value={months}
-                  onChange={e => onSetInterval(key, Math.max(0, Math.min(120, parseInt(e.target.value) || 0)))}
+              <div className={t.design === 'dallaglio'
+                ? 'grid grid-cols-[4rem_minmax(0,1fr)_auto] items-center gap-1.5 sm:flex sm:shrink-0'
+                : 'flex items-center gap-1.5 sm:shrink-0'}>
+                <input type="number" min={0} max={120} value={months} disabled={matrixUnavailable || savingType === key}
+                  onChange={e => {
+                    const next = Math.max(0, Math.min(120, parseInt(e.target.value) || 0));
+                    if (t.design === 'dallaglio') setDraftInterval(key, next);
+                    else void onSetInterval(key, next);
+                  }}
                   title={`${info.name} — months until expiry (0 = no expiry)`}
                   aria-label={`${info.name} — months until expiry`}
-                  className={`w-16 h-8 px-2 rounded-lg text-sm text-center ${t.inputBg} focus:outline-none`} />
+                  className={`w-16 ${t.design === 'dallaglio' ? 'h-9' : 'h-8'} px-2 rounded-lg text-sm text-center ${t.inputBg} focus:outline-none disabled:opacity-50`} />
                 <span className={`text-[11px] ${t.textFaint} min-w-12`}>{months === 0 ? 'no expiry' : 'mo'}</span>
-                {t.design === 'dallaglio' ? <Button variant="secondary" size="sm" onClick={() => onRecalculate(key)} disabled={activeCount === 0}>Recalculate</Button> : <button type="button" onClick={() => onRecalculate(key)} disabled={activeCount === 0}
+                {t.design === 'dallaglio' && <Button size="sm" onClick={() => void saveInterval(key)} disabled={matrixUnavailable || !changed || savingType === key} submitting={savingType === key}>Save</Button>}
+                {t.design === 'dallaglio' ? <Button variant="secondary" size="sm" className="col-span-3 justify-self-end sm:col-auto" onClick={() => onRecalculate(key)} disabled={matrixUnavailable || activeCount === 0 || changed}>Recalculate</Button> : <button type="button" onClick={() => onRecalculate(key)} disabled={matrixUnavailable || activeCount === 0}
                   className={`h-8 px-2.5 rounded-lg text-[12px] ${TYPE_WEIGHT.medium} transition-colors ${activeCount === 0 ? `${t.chipBg} ${t.textFaint} opacity-50` : `${t.chipBg} ${t.hoverBg} ${t.textMuted} ${t.hoverText}`}`}>
                   Recalculate
                 </button>}
@@ -1003,7 +1063,10 @@ export default function PPEManagement() {
   // records/apiEmployees/stats/loading/refreshing/matrix + the load cycle now live in
   // usePPEData (./usePPEData) — `refresh` is aliased back to `load` since every call
   // site below already calls load()/load(true).
-  const { records, setRecords, apiEmployees, stats, statsError, recordsError, loading, refreshing, matrix, setMatrix, refresh: load } = usePPEData();
+  const {
+    records, setRecords, apiEmployees, stats, statsError, employeesError, recordsError,
+    loading, refreshing, matrix, setMatrix, matrixLoading, matrixError, refreshMatrix, refresh: load,
+  } = usePPEData();
   const orderList = useOrderList();
 
   // PPE records snapshot employee_name at issue time — overlay the live personnel
@@ -1105,11 +1168,11 @@ export default function PPEManagement() {
     if (filterType === 'soon-to-due') list = list.filter(e => e.records.some(r => isExpiringSoon(r.expiry_date) && r.status === 'active'));
     if (filterType === 'due')         list = list.filter(e => e.records.some(r => isExpired(r.expiry_date) && r.status === 'active'));
     if (searchTerm) {
-      const t = searchTerm.toLowerCase();
+      const searchValue = normalizeSearchText(searchTerm);
       list = list.filter(e =>
-        e.employee_name?.toLowerCase().includes(t) ||
-        e.employee_id?.toLowerCase().includes(t) ||
-        e.position?.toLowerCase().includes(t));
+        normalizeSearchText(e.employee_name).includes(searchValue) ||
+        normalizeSearchText(e.employee_id).includes(searchValue) ||
+        normalizeSearchText(e.position).includes(searchValue));
     }
     return list;
   }, [sectionFilteredEmployees, filterType, searchTerm]);
@@ -1243,11 +1306,18 @@ export default function PPEManagement() {
   // every existing active record of that type as part of the same save, so stored data
   // never drifts from the matrix (no separate "apply" step required).
   const handleSetInterval = async (ppeType: string, months: number) => {
+    const previous = matrix[ppeType] ?? 0;
     setMatrix(m => ({ ...m, [ppeType]: months }));   // optimistic
     try {
       const res = await api.put<{ updated: number }>('/api/ppe/matrix', { ppe_type: ppeType, interval_months: months });
-      if (res?.updated) { toast.success(`Interval saved — recalculated ${res.updated} existing item(s)`); load(true); }
-    } catch { toast.error('Interval not saved — the ppe_matrix table may not exist yet (see migration).'); }
+      toast.success(res?.updated ? `Interval saved — recalculated ${res.updated} existing item(s)` : 'Interval saved');
+      if (res?.updated) load(true);
+      return true;
+    } catch {
+      setMatrix(current => ({ ...current, [ppeType]: previous }));
+      toast.error('Interval not saved — the ppe_matrix table may not exist yet (see migration).');
+      return false;
+    }
   };
   const handleRecalculate = async (ppeType: string) => {
     const label = PPE_TYPES[ppeType]?.name || ppeType;
@@ -1354,6 +1424,13 @@ export default function PPEManagement() {
     { key: 'issued_by', label: 'Issued By' },
   ];
 
+  const recordsUnavailable = Boolean(recordsError && records.length === 0);
+  const loadWarnings = [
+    recordsError && records.length > 0 ? 'The PPE register could not be refreshed. Showing the last loaded records.' : '',
+    statsError ? 'PPE statistics are unavailable.' : '',
+    employeesError ? 'Personnel details are unavailable. Names and roles may use the PPE register snapshot.' : '',
+  ].filter(Boolean);
+
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
@@ -1389,9 +1466,9 @@ export default function PPEManagement() {
             </div>
             <div className="flex items-center gap-2 shrink-0">
               {t.design === 'dallaglio' ? <>
-                <Button variant="ghost" size="xs" icon={sections.allOpen ? ChevronsUp : ChevronsDown} onClick={sections.toggleAll}>{sections.allOpen ? 'Collapse all' : 'Expand all'}</Button>
+                <Button variant="ghost" size="sm" icon={sections.allOpen ? ChevronsUp : ChevronsDown} onClick={sections.toggleAll}>{sections.allOpen ? 'Collapse all' : 'Expand all'}</Button>
                 <IconAction meaning="eye" title={sections.expanded.heroStats ? 'Hide overview' : 'Show overview'} onClick={() => sections.toggle('heroStats')} active={sections.expanded.heroStats} />
-                <Button variant="secondary" size="xs" icon={HardHat} onClick={() => setShowMatrix(true)} title="PPE replacement matrix">Matrix</Button>
+                <Button variant="secondary" size="sm" icon={HardHat} onClick={() => setShowMatrix(true)} title="PPE replacement matrix">Matrix</Button>
                 <IconAction meaning="refresh" title="Refresh PPE records" onClick={() => load(true)} disabled={refreshing} spinning={refreshing} />
               </> : <>
               <button type="button" onClick={sections.toggleAll} title={sections.allOpen ? 'Collapse all sections' : 'Expand all sections'}
@@ -1447,7 +1524,7 @@ export default function PPEManagement() {
                   equivalent button (New Breakdown, Add Employee, New Work Order, ...) —
                   this one was the one outlier still on ACCENT.blue (2026-08-29 UI audit,
                   audit/07-ui-polish-findings.md). */}
-              <PrimaryButton icon={Plus} onClick={() => openIssueForm()}>Issue PPE</PrimaryButton>
+              <PrimaryButton icon={Plus} onClick={() => openIssueForm()} disabled={recordsUnavailable} title={recordsUnavailable ? 'Retry the PPE register before issuing equipment' : undefined}>Issue PPE</PrimaryButton>
             </div>
           </div>
 
@@ -1489,17 +1566,21 @@ export default function PPEManagement() {
               )}
             </div>
           )}
-          {sections.expanded.heroStats && !enhancedStats && statsError && !loading && (
-            <div className={`border-t ${t.border} px-6 py-4 flex items-center justify-between gap-3`}>
-              <span className={`flex items-center gap-2 text-sm ${accentText('rose', t.light)}`}>
-                <AlertTriangle className="h-4 w-4" /> Couldn&apos;t load stats
-              </span>
-              <button type="button" onClick={() => load(true)} className={`text-xs ${TYPE_WEIGHT.semibold} ${t.textMuted} ${t.hoverText} transition-colors`}>
-                Retry
-              </button>
-            </div>
-          )}
         </motion.div>
+
+        {loadWarnings.length > 0 && (
+          <div className={`flex flex-wrap items-start justify-between gap-3 rounded-2xl border px-4 py-3 ${t.border} ${t.glass}`} role="alert" data-ppe-state="supporting-data-error">
+            <div className="flex min-w-0 gap-2">
+              <AlertTriangle className={`mt-0.5 h-4 w-4 shrink-0 ${accentText('rose', t.light)}`} />
+              <div className="space-y-0.5">
+                {loadWarnings.map(message => <p key={message} className={`text-sm ${t.textMuted}`}>{message}</p>)}
+              </div>
+            </div>
+            {t.design === 'dallaglio'
+              ? <Button variant="secondary" size="sm" icon={RefreshCw} onClick={() => load(true)} disabled={refreshing}>Try again</Button>
+              : <button type="button" onClick={() => load(true)} disabled={refreshing} className={`h-8 px-3 rounded-lg text-xs ${TYPE_WEIGHT.semibold} ${t.chipBg} ${t.hoverBg} ${t.textMuted}`}>Try again</button>}
+          </div>
+        )}
 
         {/* ── PPE TYPE BREAKDOWN (collapsed by default) ── */}
         {records.length > 0 && (
@@ -1614,24 +1695,33 @@ export default function PPEManagement() {
         <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
           <div className="px-5 py-3 flex flex-wrap items-center gap-2 justify-between">
             {/* Filter pills */}
-            <div className="flex flex-wrap gap-1.5">
-              {([
-                { value: 'all',         label: 'All Employees', count: employeesWithPPE.length },
-                { value: 'active',      label: 'Has Active',    count: employeesWithPPE.filter(e => e.records.some(r => r.status === 'active')).length },
-                { value: 'soon-to-due', label: 'Expiring Soon', count: enhancedStats?.employeesWithExpiring ?? 0 },
-                { value: 'due',         label: 'Overdue',       count: enhancedStats?.employeesWithExpired  ?? 0 },
-              ] as const).map(({ value, label, count }) => (
-                <button key={value} type="button" onClick={() => setFilterType(value)}
-                  className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border ${TYPE_WEIGHT.medium} transition-all ${
-                    filterType === value
-                      ? `${ACCENT.blue.chip} ${ACCENT.blue.text}`
-                      : `${t.glassSoft} ${t.textMuted} ${t.hoverBg} ${t.hoverText}`
-                  }`}>
-                  {label}
-                  <span className={`px-1.5 py-0.5 rounded text-[10px] ${TYPE_WEIGHT.bold} ${filterType === value ? 'bg-white/20' : t.chipBg} ${filterType === value ? '' : t.textFaint}`}>{count}</span>
-                </button>
-              ))}
-            </div>
+            {t.design === 'dallaglio' ? (
+              <PillTabs tabs={[
+                { key: 'all' as const, label: 'All Employees', icon: Users, count: employeesWithPPE.length },
+                { key: 'active' as const, label: 'Has Active', icon: CheckCircle2, count: employeesWithPPE.filter(e => e.records.some(r => r.status === 'active')).length },
+                { key: 'soon-to-due' as const, label: 'Expiring Soon', icon: AlertTriangle, count: enhancedStats?.employeesWithExpiring ?? 0 },
+                { key: 'due' as const, label: 'Overdue', icon: XCircle, count: enhancedStats?.employeesWithExpired ?? 0 },
+              ]} value={filterType} onChange={setFilterType} wrap="scroll" />
+            ) : (
+              <div className="flex flex-wrap gap-1.5">
+                {([
+                  { value: 'all',         label: 'All Employees', count: employeesWithPPE.length },
+                  { value: 'active',      label: 'Has Active',    count: employeesWithPPE.filter(e => e.records.some(r => r.status === 'active')).length },
+                  { value: 'soon-to-due', label: 'Expiring Soon', count: enhancedStats?.employeesWithExpiring ?? 0 },
+                  { value: 'due',         label: 'Overdue',       count: enhancedStats?.employeesWithExpired  ?? 0 },
+                ] as const).map(({ value, label, count }) => (
+                  <button key={value} type="button" onClick={() => setFilterType(value)}
+                    className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border ${TYPE_WEIGHT.medium} transition-all ${
+                      filterType === value
+                        ? `${ACCENT.blue.chip} ${ACCENT.blue.text}`
+                        : `${t.glassSoft} ${t.textMuted} ${t.hoverBg} ${t.hoverText}`
+                    }`}>
+                    {label}
+                    <span className={`px-1.5 py-0.5 rounded text-[10px] ${TYPE_WEIGHT.bold} ${filterType === value ? 'bg-white/20' : t.chipBg} ${filterType === value ? '' : t.textFaint}`}>{count}</span>
+                  </button>
+                ))}
+              </div>
+            )}
             <div className="flex items-center gap-2">
               {/* Mechanical/Electrical/Civil/Instrumentation — same categorization as
                   app/employees/page.tsx (lib/sections.ts). Governs every view below,
@@ -1647,7 +1737,7 @@ export default function PPEManagement() {
                 <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 ${t.textFaint}`} />
                 <input type="text" placeholder="Search employee…" aria-label="Search employee" value={searchTerm}
                   onChange={e => setSearchTerm(e.target.value)}
-                  className={`pl-7 pr-8 py-1.5 text-xs w-44 rounded-lg ${t.inputBg} transition-all`} />
+                  className={`pl-7 pr-8 text-xs w-44 rounded-lg ${t.inputBg} transition-all ${t.design === 'dallaglio' ? 'h-9' : 'py-1.5'}`} />
                 {searchTerm && (
                   <button type="button" onClick={() => setSearchTerm('')}
                     className={`absolute right-2 top-1/2 -translate-y-1/2 ${t.textFaint} ${t.hoverText} transition-colors`}>
@@ -1678,12 +1768,12 @@ export default function PPEManagement() {
             {/* Collapse All / Expand All — only visible when the panel is open and cards are shown */}
             {sections.expanded.records && (filterType === 'all' || filterType === 'active') && filteredEmployees.length > 0 && (
               anyExpanded ? (
-                <button type="button" onClick={collapseAll}
+                t.design === 'dallaglio' ? <Button variant="secondary" size="sm" icon={ChevronsUp} onClick={collapseAll}>Collapse All</Button> : <button type="button" onClick={collapseAll}
                   className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg ${TYPE_WEIGHT.semibold} transition-all shrink-0 ${t.glassSoft} ${t.textMuted} ${t.hoverText}`}>
                   <ChevronsUp className="h-3.5 w-3.5" /> Collapse All
                 </button>
               ) : (
-                <PrimaryButton icon={ChevronsDown} size="xs" className="shrink-0" onClick={expandAll}>Expand All</PrimaryButton>
+                <PrimaryButton icon={ChevronsDown} size={t.design === 'dallaglio' ? 'sm' : 'xs'} className="shrink-0" onClick={expandAll}>Expand All</PrimaryButton>
               )
             )}
           </div>
@@ -1699,7 +1789,7 @@ export default function PPEManagement() {
                 <div className={`flex items-center justify-center py-16 gap-2 ${t.textFaint}`}>
                   <RefreshCw className="h-5 w-5 animate-spin" /> Loading PPE records…
                 </div>
-              ) : recordsError && records.length === 0 ? (
+              ) : recordsUnavailable ? (
                 // Distinct from the genuinely-empty-table state below: records stays at
                 // its [] default on a failed fetch (a Render cold-start timeout, a
                 // dropped connection, anything), which used to render the identical
@@ -1761,7 +1851,7 @@ export default function PPEManagement() {
         allEmployees={allEmployeesForForm} matrix={matrix} />
 
       <PPEMatrixModal isOpen={showMatrix} onClose={() => setShowMatrix(false)}
-        matrix={matrix} records={records}
+        matrix={matrix} records={records} matrixLoading={matrixLoading} matrixError={matrixError} onRetryMatrix={() => void refreshMatrix()}
         onSetInterval={handleSetInterval} onRecalculate={handleRecalculate} onRecalculateAll={handleRecalculateAll} />
 
       <PPEDetailModal item={detailItem} isOpen={showDetail}

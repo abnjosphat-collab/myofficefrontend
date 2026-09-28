@@ -24,19 +24,32 @@ export const PPE_MATRIX_DEFAULTS: Record<string, number> = {
   gloves: 0, overall: 6,
 };
 
-export const fetchPPERecords = async () => api.get<PPERecord[]>('/api/ppe');
-export const fetchPPEStats = async () => { try { return await api.get<PPEStats>('/api/ppe/stats/summary'); } catch { return null; } };
+const errorMessage = (error: unknown, fallback: string) => error instanceof Error ? error.message : fallback;
+
+export const fetchPPERecords = async () => {
+  const data = await api.get<unknown>('/api/ppe');
+  if (!Array.isArray(data)) throw new Error('PPE records returned an invalid response.');
+  return data as PPERecord[];
+};
+export const fetchPPEStats = async () => {
+  const data = await api.get<unknown>('/api/ppe/stats/summary');
+  if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('PPE statistics returned an invalid response.');
+  return data as PPEStats;
+};
 export const fetchAllEmployees = async (): Promise<EmployeeRow[]> => {
-  try {
-    const data = await api.get<any[]>('/api/employees/');
-    return data.map(e => ({
-      employee_id: e.employee_id,
-      employee_name: sanitizeDisplayName(`${e.first_name || ''} ${e.last_name || ''}`.trim()),
-      position: normalizeDesignation(e.designation) || e.designation || '',
-      department: e.department || '',
-      section: e.section || '',
-    }));
-  } catch { return []; }
+  const data = await api.get<unknown>('/api/employees/');
+  if (!Array.isArray(data)) throw new Error('Personnel returned an invalid response.');
+  return data.map((value: unknown) => {
+    const employee = value && typeof value === 'object' ? value as Record<string, unknown> : {};
+    const designation = typeof employee.designation === 'string' ? employee.designation : '';
+    return {
+      employee_id: typeof employee.employee_id === 'string' ? employee.employee_id : '',
+      employee_name: sanitizeDisplayName(`${employee.first_name || ''} ${employee.last_name || ''}`.trim()),
+      position: normalizeDesignation(designation) || designation,
+      department: typeof employee.department === 'string' ? employee.department : '',
+      section: typeof employee.section === 'string' ? employee.section : '',
+    };
+  });
 };
 export const createPPERecord = async (data: Partial<FormState>) => {
   if (!data.employee_id?.trim()) throw new Error('Employee ID is required');
@@ -51,11 +64,8 @@ export function usePPEData() {
   const [records, setRecords] = useState<PPERecord[]>([]);
   const [apiEmployees, setApiEmployees] = useState<EmployeeRow[]>([]);
   const [stats, setStats] = useState<PPEStats | null>(null);
-  // fetchPPEStats swallows its own error and resolves to null either way — this tracks
-  // specifically "the stats fetch failed" as distinct from "stats just hasn't loaded
-  // yet," so the hero-stats section can show a real error instead of silently
-  // rendering nothing (which read exactly like the user having collapsed it).
-  const [statsError, setStatsError] = useState(false);
+  const [statsError, setStatsError] = useState('');
+  const [employeesError, setEmployeesError] = useState('');
   // Same gap, but worse: `records` starts at [] and fetchPPERecords doesn't swallow
   // its own errors, so a failed load (a Render cold-start timeout, a dropped
   // connection, anything) leaves records at its default empty array — indistinguishable
@@ -64,58 +74,93 @@ export function usePPEData() {
   // transient fetch failure (found live, 2026-08-29, reported as "database fetching
   // failing" — root cause was a Render free-tier cold start, but the empty-state copy
   // would have hidden ANY fetch failure the same way).
-  const [recordsError, setRecordsError] = useState(false);
+  const [recordsError, setRecordsError] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const hasLoadedOnce = useRef(false);
+  const requestRef = useRef(0);
   // Effective PPE replacement matrix (company defaults, overridden by the backend once
   // the ppe_matrix table exists). Drives expiry auto-calc + the Recalculate control.
   const [matrix, setMatrix] = useState<Record<string, number>>(PPE_MATRIX_DEFAULTS);
+  const [matrixLoading, setMatrixLoading] = useState(true);
+  const [matrixError, setMatrixError] = useState('');
+  const matrixRequestRef = useRef(0);
 
   const load = useCallback(async (quiet = false) => {
+    const requestId = ++requestRef.current;
     // Only block the Records panel with a full spinner on the very first load.
     // Quiet refreshes (and later reloads) keep existing rows visible so tabs
     // don't flash blank while data is re-fetched.
     if (!quiet && !hasLoadedOnce.current) setLoading(true);
     setRefreshing(true);
+    setRecordsError('');
+    setStatsError('');
+    setEmployeesError('');
     try {
-      const [rec, st, emp] = await Promise.all([fetchPPERecords(), fetchPPEStats(), fetchAllEmployees()]);
-      setRecords(rec);
-      setRecordsError(false);
-      setStats(st);
-      setStatsError(st === null);
-      if (st === null) toast.error('Failed to load PPE stats');
-      if (emp.length > 0) setApiEmployees(emp);
-      hasLoadedOnce.current = true;
-    } catch (err: any) {
-      // fetchPPERecords threw, so Promise.all never reached setRecords — records
-      // stays whatever it was (the [] default on first load, or the last-good list
-      // on a failed refresh, which is the right call: a transient failure shouldn't
-      // wipe out data already on screen). This flag is what lets the page tell the
-      // difference from a genuinely empty table.
-      setRecordsError(true);
-      toast.error(`Failed to load: ${err.message}`);
+      const [recordsResult, statsResult, employeesResult] = await Promise.allSettled([
+        fetchPPERecords(), fetchPPEStats(), fetchAllEmployees(),
+      ]);
+      if (requestId !== requestRef.current) return;
+
+      if (recordsResult.status === 'fulfilled') {
+        setRecords(recordsResult.value);
+        hasLoadedOnce.current = true;
+      } else {
+        const message = errorMessage(recordsResult.reason, 'Could not load PPE records.');
+        setRecordsError(message);
+        toast.error(`Failed to load PPE records: ${message}`);
+      }
+
+      if (statsResult.status === 'fulfilled') setStats(statsResult.value);
+      else {
+        const message = errorMessage(statsResult.reason, 'Could not load PPE statistics.');
+        setStatsError(message);
+        toast.error(`Failed to load PPE statistics: ${message}`);
+      }
+
+      if (employeesResult.status === 'fulfilled') setApiEmployees(employeesResult.value);
+      else {
+        const message = errorMessage(employeesResult.reason, 'Could not load personnel.');
+        setEmployeesError(message);
+        toast.error(`Failed to load personnel: ${message}`);
+      }
     }
-    finally { setLoading(false); setRefreshing(false); }
+    finally {
+      if (requestId === requestRef.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    }
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
-  // Load the shared PPE matrix (defaults merged with backend overrides). Falls back to
-  // the code defaults already in state if the endpoint/table isn't available.
-  useEffect(() => {
-    api.get<Record<string, number>>('/api/ppe/matrix')
-      .then(m => { if (m && typeof m === 'object') setMatrix({ ...PPE_MATRIX_DEFAULTS, ...m }); })
-      .catch(() => { /* keep defaults */ });
+  const refreshMatrix = useCallback(async () => {
+    const requestId = ++matrixRequestRef.current;
+    setMatrixLoading(true);
+    setMatrixError('');
+    try {
+      const data = await api.get<unknown>('/api/ppe/matrix');
+      if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('PPE replacement matrix returned an invalid response.');
+      if (requestId !== matrixRequestRef.current) return;
+      setMatrix({ ...PPE_MATRIX_DEFAULTS, ...data as Record<string, number> });
+    } catch (error) {
+      if (requestId !== matrixRequestRef.current) return;
+      setMatrixError(errorMessage(error, 'Could not load the saved PPE replacement matrix.'));
+    } finally {
+      if (requestId === matrixRequestRef.current) setMatrixLoading(false);
+    }
   }, []);
+
+  useEffect(() => { void refreshMatrix(); }, [refreshMatrix]);
 
   return {
     records, setRecords,
     apiEmployees,
-    stats, statsError,
+    stats, statsError, employeesError,
     recordsError,
     loading, refreshing,
-    matrix, setMatrix,
+    matrix, setMatrix, matrixLoading, matrixError, refreshMatrix,
     refresh: load,
   };
 }

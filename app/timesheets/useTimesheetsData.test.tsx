@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { api, useTimesheetsData } from './useTimesheetsData';
 import type { Employee, Period } from './types';
@@ -30,5 +30,21 @@ describe('timesheet data loading', () => {
     expect(result.current.allEmployees).toEqual([]);
     expect(result.current.timesheets).toEqual([]);
     expect(result.current.loading).toBe(false);
+  });
+
+  it('preserves the current period after a failed quiet refresh', async () => {
+    vi.spyOn(api, 'employees').mockResolvedValueOnce([employee]).mockRejectedValueOnce(new Error('Offline'));
+    vi.spyOn(api, 'timesheets').mockResolvedValue([]);
+    vi.spyOn(api, 'moduleLeaves').mockResolvedValue([]);
+    vi.spyOn(api, 'moduleOvertime').mockResolvedValue([]);
+    vi.spyOn(api, 'shiftAssignments').mockResolvedValue([]);
+
+    const { result } = renderHook(() => useTimesheetsData(august));
+    await waitFor(() => expect(result.current.allEmployees).toHaveLength(1));
+    await act(async () => { await result.current.refresh(true); });
+
+    expect(result.current.allEmployees).toHaveLength(1);
+    expect(result.current.loadError).toBe('Offline');
+    expect(result.current.refreshing).toBe(false);
   });
 });

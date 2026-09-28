@@ -890,7 +890,7 @@ function ShiftAssignForm({ open, onClose, editing, employees, onSaved }: { open:
 function ShiftsContent() {
   const t = useTheme();
   const sections = useCollapseSection({ hero: true, shiftPatterns: true, roster: true, filters: true });
-  const { assignments, setAssignments, employees, leaves, loading, refresh: fetchAll } = useShiftsData();
+  const { assignments, setAssignments, employees, leaves, loading, refreshing, loadError, employeeError, leaveError, refresh: fetchAll } = useShiftsData();
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [search, setSearch] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('created_at');
@@ -956,6 +956,7 @@ function ShiftsContent() {
   function openDelete(a: ShiftAssignment) { setDeleteTarget(a); }
   function hasFilters() { return filterType !== 'all' || filterStatus !== 'all' || search !== ''; }
   function clearFilters() { setFilterType('all'); setFilterStatus('all'); setSearch(''); }
+  const initialUnavailable=!!loadError&&!assignments.length;
 
   const selCls = `h-8 rounded-lg px-2.5 text-xs outline-none transition-colors ${t.inputBg}`;
   const thCls = `text-left px-3 py-2 text-[10px] uppercase tracking-wide ${TYPE_WEIGHT.medium} ${t.textFaint}`;
@@ -982,7 +983,7 @@ function ShiftsContent() {
         statsOpen={sections.expanded.hero}
         actions={
           <>
-            <button type="button" onClick={fetchAll} title="Refresh" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /></button>
+            <button type="button" onClick={()=>fetchAll(true)} title="Refresh" aria-label="Refresh shifts" disabled={loading||refreshing} className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}><RefreshCw className={`h-4 w-4 ${loading||refreshing ? 'animate-spin' : ''}`} /></button>
             {filtered.length > 0 && (
               <DownloadButton
                 data={filtered as unknown as Record<string, unknown>[]}
@@ -991,14 +992,17 @@ function ShiftsContent() {
                 title="Shifts"
               />
             )}
-            <PrimaryButton icon={Plus} onClick={openCreate}>Assign Shift</PrimaryButton>
+            <PrimaryButton icon={Plus} onClick={openCreate} disabled={initialUnavailable}>Assign Shift</PrimaryButton>
           </>
         }
       >
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-4">
-          {heroStats.map(s => <StatTile key={s.label} icon={Clock} color={s.hex} label={s.label} value={s.value} />)}
+          {heroStats.map(s => <StatTile key={s.label} icon={Clock} color={s.hex} label={s.label} value={initialUnavailable?'Unavailable':s.value} />)}
         </div>
       </PageHero>
+
+      {loadError&&<div role="alert" className={`rounded-2xl border p-4 flex flex-wrap items-center gap-3 ${t.glass} ${t.border}`}><AlertCircle className="h-5 w-5 text-rose-500"/><div className="flex-1 min-w-52"><p className={`text-sm ${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{initialUnavailable?'Shift roster unavailable':'Shift roster may be out of date'}</p><p className={`text-xs mt-1 ${t.textFaint}`}>{loadError}</p></div><Button variant="secondary" size="sm" icon={RefreshCw} disabled={loading||refreshing} onClick={()=>fetchAll(!!assignments.length)}>Try again</Button></div>}
+      {(employeeError||leaveError)&&<div role="alert" className={`rounded-xl border px-4 py-3 ${t.glass} ${t.border}`}><p className={`text-xs ${t.textMuted}`}>{employeeError&&'Employee choices are unavailable; assigning a shift is temporarily limited.'}{employeeError&&leaveError?' ':''}{leaveError&&'Leave context is unavailable; on-leave indicators may be incomplete.'}</p></div>}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
@@ -1025,7 +1029,7 @@ function ShiftsContent() {
           <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><Users className="h-4 w-4 text-brand-400" /><span className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>Roster</span><span className={`ml-auto text-xs ${t.textFaint}`}>{assignments.length} assigned</span></div>
           <ScrollArea className="h-[220px]">
             <div className="space-y-1 p-4">
-              {assignments.length === 0 ? <p className={`py-8 text-center text-sm ${t.textFaint}`}>No assignments yet</p> : assignments.slice(0, 20).map(a => {
+              {initialUnavailable ? <p className={`py-8 text-center text-sm ${t.textFaint}`}>Shift roster unavailable</p> : assignments.length === 0 ? <p className={`py-8 text-center text-sm ${t.textFaint}`}>No assignments yet</p> : assignments.slice(0, 20).map(a => {
                 const s = todayStatus(a);
                 return (
                   <button type="button" key={a.id} className={`w-full flex items-center gap-3 p-3 rounded-lg text-left ${t.hoverBgSoft} cursor-pointer transition-all`} onClick={() => openView(a)}>
@@ -1099,6 +1103,8 @@ function ShiftsContent() {
         {showRecords && (
           loading ? (
             <div className="flex items-center justify-center py-16"><RefreshCw className={`h-6 w-6 animate-spin ${t.textFaint}`} /></div>
+          ) : initialUnavailable ? (
+            <div className={`py-12 text-center text-sm ${t.textFaint}`}>The shift register could not be loaded. Use Try again above.</div>
           ) : filtered.length === 0 && viewMode !== 'schedule' ? (
             <EmptyState icon={Clock} title="No shift assignments found"
               action={{ label: hasFilters() ? 'Clear filters' : 'Assign first shift', onClick: hasFilters() ? clearFilters : openCreate }} />

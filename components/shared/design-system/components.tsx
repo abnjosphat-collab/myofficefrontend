@@ -729,7 +729,7 @@ export function DisclosureButton({ open, onClick, label = 'details' }: { open: b
 //                   twitchy on the PPE page and was removed).
 export function RecordCard({
   icon: Icon, accentHex = BRAND_GLOW_HEX, iconTone = 'neutral', title, subtitle, badges, summary, actions, headerActions, children,
-  defaultOpen = false, open: controlledOpen, onToggle,
+  defaultOpen = false, open: controlledOpen, onToggle, unmountOnCollapse = false,
 }: {
   icon: ElementType;
   /** Hover glow tint — defaults to brand; pass a STATUS_TONE hex for semantic record cards. */
@@ -745,6 +745,8 @@ export function RecordCard({
   defaultOpen?: boolean;
   open?: boolean;
   onToggle?: () => void;
+  /** Opt-in for large card collections whose hidden details are expensive to keep mounted. */
+  unmountOnCollapse?: boolean;
 }) {
   const t = useTheme();
   const cardAccent = t.design === 'dallaglio' && !isStatusToneHex(accentHex)
@@ -817,7 +819,7 @@ export function RecordCard({
       {expandable && (
         <Collapse open={open}>
           <div className={`px-4 pb-4 border-t ${t.border} pt-3 space-y-3`}>
-            {children}
+            {unmountOnCollapse && !open ? null : children}
             {actions && <div className={`flex gap-2 pt-1 ${t.design === 'dallaglio' ? 'justify-end' : ''}`}>{actions}</div>}
           </div>
         </Collapse>
@@ -950,7 +952,7 @@ export function SearchInput({
 // (Enter/Space/↓ to open, ↑/↓ to move, Enter to pick, Esc to close).
 //
 // Two sizes ONLY, chosen by role — never hand-pick a third:
-//   • `filter` — compact, for filter/sort bars (matches SearchInput's h-8 / text-[13px]).
+//   • `filter` — compact, for filter/sort bars (36px in Dallaglio, 32px in Classic).
 //   • `form`   — comfortable, for add/edit modal fields (h-9 / text-sm).
 //
 // `options` accepts either `string[]` (value === label) or `{value,label}[]`.
@@ -1004,7 +1006,9 @@ export function SelectField({
 
   const commit = (v: string) => { onChange(v); setOpen(false); btnRef.current?.focus(); };
 
-  const sizeCls = size === 'filter' ? 'h-8 pl-2.5 pr-8 text-[13px] rounded-lg' : 'h-9 pl-3 pr-8 text-sm rounded-lg';
+  const sizeCls = size === 'filter'
+    ? `${t.design === 'dallaglio' ? 'h-9' : 'h-8'} pl-2.5 pr-8 text-[13px] rounded-lg`
+    : 'h-9 pl-3 pr-8 text-sm rounded-lg';
 
   return (
     <div className={`relative ${className}`}>

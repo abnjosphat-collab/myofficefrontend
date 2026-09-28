@@ -14,10 +14,15 @@ import type { ShiftAssignment } from '@/app/shifts/types';
 import type { ApprovedLeaveRecord, ApprovedOvertimeRecord, Employee, Period, TimesheetEntry } from './types';
 import { periodUsesUnsignedModuleRecords } from './necModuleBatch';
 
+function requireArray<T>(value: unknown, label: string): T[] {
+  if (!Array.isArray(value)) throw new Error(`${label} returned an unexpected response.`);
+  return value as T[];
+}
+
 export const api = {
   async employees(): Promise<Employee[]> {
-    const data = await apiClient.get<Record<string, unknown>[]>('/api/employees');
-    return (data || []).map(d => ({
+    const data = requireArray<Record<string, unknown>>(await apiClient.get<unknown>('/api/employees'), 'Personnel records');
+    return data.map(d => ({
       id: String(d.id || Math.random().toString(36).slice(2)),
       employeeId: (() => { const v = String(d.employee_id || '').trim(); return (v === '' || v.toUpperCase() === 'TBA') ? '' : v; })(),
       name: (`${d.first_name || ''} ${d.last_name || ''}`).trim() || 'Employee',
@@ -32,7 +37,7 @@ export const api = {
   // outage indistinguishable from "nobody logged time this period".
   async timesheets(startDate: string, endDate: string): Promise<TimesheetEntry[]> {
     const p = new URLSearchParams({ start_date: startDate, end_date: endDate });
-    return (await apiClient.get<TimesheetEntry[]>(`/api/timesheets?${p}`)) || [];
+    return requireArray<TimesheetEntry>(await apiClient.get<unknown>(`/api/timesheets?${p}`), 'Timesheets');
   },
   async create(data: Omit<TimesheetEntry, 'id'>): Promise<TimesheetEntry> {
     const res = await apiClient.post<{ action?: string; data?: TimesheetEntry } | TimesheetEntry>('/api/timesheets', data);
@@ -48,20 +53,20 @@ export const api = {
   },
   /** Leaves for grid merge — approved only, except the scoped NEC Aug–Sep 2026 batch. */
   async moduleLeaves(period: Period): Promise<ApprovedLeaveRecord[]> {
-    const all = periodUsesUnsignedModuleRecords(period)
-      ? ((await apiClient.get<ApprovedLeaveRecord[]>('/api/leaves')) || [])
-      : ((await apiClient.get<ApprovedLeaveRecord[]>('/api/leaves?status=approved')) || []);
+    const all = requireArray<ApprovedLeaveRecord>(periodUsesUnsignedModuleRecords(period)
+      ? await apiClient.get<unknown>('/api/leaves')
+      : await apiClient.get<unknown>('/api/leaves?status=approved'), 'Leave records');
     return all.filter(l => l.status !== 'rejected');
   },
   /** Overtime for grid merge — approved only, except the scoped NEC Aug–Sep 2026 batch. */
   async moduleOvertime(period: Period): Promise<ApprovedOvertimeRecord[]> {
-    const all = periodUsesUnsignedModuleRecords(period)
-      ? ((await apiClient.get<ApprovedOvertimeRecord[]>('/api/overtime')) || [])
-      : ((await apiClient.get<ApprovedOvertimeRecord[]>('/api/overtime?status=approved')) || []);
+    const all = requireArray<ApprovedOvertimeRecord>(periodUsesUnsignedModuleRecords(period)
+      ? await apiClient.get<unknown>('/api/overtime')
+      : await apiClient.get<unknown>('/api/overtime?status=approved'), 'Overtime records');
     return all.filter(o => o.status !== 'rejected');
   },
   async shiftAssignments(): Promise<ShiftAssignment[]> {
-    return (await apiClient.get<ShiftAssignment[]>('/api/standby')) || [];
+    return requireArray<ShiftAssignment>(await apiClient.get<unknown>('/api/standby'), 'Shift assignments');
   },
 };
 
@@ -72,12 +77,13 @@ export function useTimesheetsData(activePeriod: Period) {
   const [approvedOvertime, setApprovedOvertime] = useState<ApprovedOvertimeRecord[]>([]);
   const [shiftAssignments, setShiftAssignments] = useState<ShiftAssignment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const requestId = useRef(0);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (quiet = false) => {
     const currentRequest = ++requestId.current;
-    setLoading(true);
+    if (quiet) setRefreshing(true); else setLoading(true);
     setLoadError(null);
     try {
       const [emps, sheets, leaves, ot, shifts] = await Promise.all([
@@ -93,15 +99,17 @@ export function useTimesheetsData(activePeriod: Period) {
     } catch (e) {
       if (currentRequest !== requestId.current) return;
       const msg = (e as Error).message || 'Unknown error';
-      setAllEmployees([]);
-      setTimesheets([]);
-      setApprovedLeaves([]);
-      setApprovedOvertime([]);
-      setShiftAssignments([]);
+      if (!quiet) {
+        setAllEmployees([]);
+        setTimesheets([]);
+        setApprovedLeaves([]);
+        setApprovedOvertime([]);
+        setShiftAssignments([]);
+      }
       setLoadError(msg);
       toast.error('Failed to load: ' + msg);
     }
-    finally { if (currentRequest === requestId.current) setLoading(false); }
+    finally { if (currentRequest === requestId.current) { setLoading(false); setRefreshing(false); } }
   }, [activePeriod]);
 
   useEffect(() => {
@@ -112,6 +120,6 @@ export function useTimesheetsData(activePeriod: Period) {
 
   return {
     allEmployees, timesheets, setTimesheets, approvedLeaves, approvedOvertime, shiftAssignments,
-    loading, loadError, refresh: load,
+    loading, refreshing, loadError, refresh: load,
   };
 }

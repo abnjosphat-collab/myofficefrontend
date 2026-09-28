@@ -130,7 +130,7 @@ export default function EmployeesPreviewPage() {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={reload}
+              onClick={() => reload(true)}
               title="Refresh"
               className={`h-9 w-9 flex items-center justify-center rounded-lg border ${t.border} ${t.hoverBg} ${t.textFaint}`}
             >

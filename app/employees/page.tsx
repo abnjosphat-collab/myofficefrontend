@@ -1041,7 +1041,8 @@ function EmployeesPageContent() {
   const confirm = useConfirm();
   const { isAtLeast } = useAuth();
   const canManageRoster = isAtLeast('manager');
-  const { employees, isLoading, error, setError, reload } = useEmployeesData();
+  const { employees, isLoading, refreshing, error, setError, reload } = useEmployeesData();
+  const initialUnavailable = Boolean(error) && employees.length === 0;
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -1158,7 +1159,7 @@ function EmployeesPageContent() {
   const openEdit = (e: Employee) => { setSelectedEmployee(e); setShowForm(true); };
   const onDelete = async (e: Employee) => {
     if (!await confirm({ title: `Delete ${e.first_name} ${e.last_name}?`, message: 'This cannot be undone.', destructive: true })) return;
-    try { await removeEmployee(e.id); await reload(); toast.success(`${e.first_name} ${e.last_name} deleted`); }
+    try { await removeEmployee(e.id); await reload(true); toast.success(`${e.first_name} ${e.last_name} deleted`); }
     catch (err) { toast.error(err instanceof Error ? err.message : 'Delete failed'); }
   };
   const onSubmit = async (data: EmployeeFormData) => {
@@ -1166,7 +1167,7 @@ function EmployeesPageContent() {
     try {
       await saveEmployee(data, selectedEmployee?.id);
       toast.success(selectedEmployee ? 'Employee updated' : 'Employee added');
-      await reload(); setShowForm(false); setSelectedEmployee(null);
+      await reload(true); setShowForm(false); setSelectedEmployee(null);
     } catch (err) {
       const m = err instanceof Error ? err.message : 'Save failed'; setError(m); toast.error(m);
     } finally { setIsSubmitting(false); }
@@ -1193,7 +1194,7 @@ function EmployeesPageContent() {
         statsOpen={sections.expanded.hero}
         actions={
           <>
-            <IconAction meaning="refresh" title="Refresh" onClick={reload} spinning={isLoading} />
+            <IconAction meaning="refresh" title="Refresh" onClick={() => reload(true)} spinning={isLoading || refreshing} disabled={isLoading || refreshing} />
             {activeEmployees.length > 0 && (
               <IconAction meaning="download" label="Download" title="Download Personnel Registry (Excel, grouped by designation)" onClick={downloadPersonnelRegistry} />
             )}
@@ -1201,7 +1202,7 @@ function EmployeesPageContent() {
             {canManageRoster && activeEmployees.length > 0 && (
               <IconAction meaning="normalize" title="Normalize designations, sections, and phone numbers across the roster" onClick={() => setShowNormalize(true)} />
             )}
-            <PrimaryButton icon={Plus} onClick={openAdd}>Add Employee</PrimaryButton>
+            <PrimaryButton icon={Plus} disabled={initialUnavailable} onClick={openAdd}>Add Employee</PrimaryButton>
           </>
         }
       >
@@ -1218,7 +1219,7 @@ function EmployeesPageContent() {
         <div className={`${t.glass} rounded-2xl p-4 flex items-center gap-3 border border-rose-500/30`}>
           <AlertCircle className={`h-5 w-5 ${accentText('rose', t.light)} shrink-0`} />
           <p className={`text-sm ${accentText('rose', t.light)} flex-1`}>{error}</p>
-          <Button variant="secondary" size="xs" onClick={reload}>Retry</Button>
+          <Button variant="secondary" size="xs" onClick={() => reload(Boolean(employees.length))}>Retry</Button>
           {employees.length > 0 && <button type="button" onClick={() => setError(null)} className={`${t.textFaint} ${t.hoverText}`} aria-label="Dismiss error"><X className="h-4 w-4" /></button>}
         </div>
       )}

@@ -150,8 +150,9 @@ function DocumentsPageContent() {
   const [viewMode,         setViewMode]         = useState<'grid' | 'table'>('grid');
   const [currentCategory,  setCurrentCategory]  = useState<Category | null>(null);
   const [currentFolder,    setCurrentFolder]    = useState<string | null>(null);
-  const { documents, setDocuments, isLoading, error: filesError, refresh: loadFiles } = useDocumentsData(currentCategory, currentFolder);
-  const { folders, setFolders } = useFolders(currentCategory);
+  const { documents, setDocuments, isLoading, refreshing, error: filesError, refresh: loadFiles } = useDocumentsData(currentCategory, currentFolder);
+  const { folders, setFolders, isLoading: foldersLoading, error: foldersError, refresh: loadFolders } = useFolders(currentCategory);
+  const initialFilesUnavailable = Boolean(filesError) && documents.length === 0;
   const [searchQuery,      setSearchQuery]      = useState('');
   const [homeSearchQuery,  setHomeSearchQuery]  = useState('');
   const [homeSearchResults, setHomeSearchResults] = useState<DocumentFile[]>([]);
@@ -519,10 +520,11 @@ function DocumentsPageContent() {
             <p className={`text-xs ${t.textFaint}`}>{currentCategory?.description}</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="secondary" icon={FolderPlus} onClick={() => setIsCreateFolderOpen(true)}>New Folder</Button>
+            <Button variant="secondary" icon={FolderPlus} disabled={foldersLoading || Boolean(foldersError)} onClick={() => setIsCreateFolderOpen(true)}>New Folder</Button>
             <PrimaryButton icon={Upload} onClick={() => setIsUploadOpen(true)}>Upload</PrimaryButton>
           </div>
         </div>
+        {foldersError && <div role="alert" className={`${t.glass} rounded-xl border border-amber-500/30 p-4 flex flex-wrap items-center gap-3`}><AlertTriangle className="h-5 w-5 text-amber-500"/><p className={`text-sm flex-1 ${t.textMuted}`}>Custom folders are unavailable. {foldersError}</p><Button variant="secondary" size="xs" icon={Loader2} onClick={loadFolders}>Try again</Button></div>}
         {all.length === 0 ? (
           <div className={`${t.glass} rounded-2xl p-12 text-center`}>
             <FolderOpen className={`h-12 w-12 mx-auto ${t.textFaint} mb-4`} />
@@ -650,11 +652,12 @@ function DocumentsPageContent() {
           <p className={`text-xs ${t.textFaint}`}>in {currentCategory?.name}</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          <IconAction meaning="refresh" title="Refresh documents" spinning={refreshing} disabled={isLoading || refreshing} onClick={() => loadFiles(true)} />
           {selectedItems.size > 0 && (
             <PrimaryButton danger icon={TrashIcon} onClick={handleBulkDelete}>Delete ({selectedItems.size})</PrimaryButton>
           )}
           <ViewToggle value={viewMode} onChange={setViewMode} options={[{ value: 'grid', icon: Grid2X2, label: 'Grid view' }, { value: 'table', icon: ListTree, label: 'Table view' }]} />
-          <PrimaryButton icon={Upload} onClick={() => setIsUploadOpen(true)}>Upload</PrimaryButton>
+          <PrimaryButton icon={Upload} disabled={initialFilesUnavailable} onClick={() => setIsUploadOpen(true)}>Upload</PrimaryButton>
         </div>
       </div>
 
@@ -698,11 +701,13 @@ function DocumentsPageContent() {
         )}
       </div>
 
-      {!filesError && <p className={`text-sm ${t.textFaint}`}>Found <span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{filteredDocuments.length}</span> files</p>}
+      {!initialFilesUnavailable && <p className={`text-sm ${t.textFaint}`}>Found <span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{filteredDocuments.length}</span> files</p>}
+
+      {filesError && documents.length > 0 && <div role="alert" className={`${t.glass} rounded-xl border border-amber-500/30 p-4 flex flex-wrap items-center gap-3`}><AlertTriangle className="h-5 w-5 text-amber-500"/><p className={`text-sm flex-1 ${t.textMuted}`}>Documents may be out of date. {filesError}</p><Button variant="secondary" size="xs" icon={Loader2} disabled={refreshing} onClick={() => loadFiles(true)}>Try again</Button></div>}
 
       {isLoading ? (
         <div className="space-y-3">{[1, 2].map(i => <div key={i} className={`${t.glass} rounded-2xl h-24 animate-pulse`} />)}</div>
-      ) : filesError ? (
+      ) : initialFilesUnavailable ? (
         <div role="alert" className={`${t.glass} rounded-2xl p-8 text-center`}>
           <AlertTriangle className={`h-8 w-8 mx-auto mb-3 ${t.textFaint}`} />
           <h3 className={`text-sm ${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>Could not load files</h3>
@@ -715,7 +720,7 @@ function DocumentsPageContent() {
           <h3 className={`text-lg ${TYPE_WEIGHT.semibold} ${t.textPrimary} mb-2`}>No files found</h3>
           <p className={`text-sm mb-4 ${t.textFaint}`}>{hasActiveFilters ? 'Try adjusting your search or filters' : 'Upload your first document'}</p>
           {!hasActiveFilters && (
-            <PrimaryButton icon={Upload} size="md" onClick={() => setIsUploadOpen(true)}>Upload Files</PrimaryButton>
+            <PrimaryButton icon={Upload} size="md" disabled={initialFilesUnavailable} onClick={() => setIsUploadOpen(true)}>Upload Files</PrimaryButton>
           )}
           {hasActiveFilters && (
             <Button variant="secondary" icon={FilterX} onClick={clearAllFilters}>Clear Filters</Button>
@@ -757,9 +762,9 @@ function DocumentsPageContent() {
         }
       >
         {currentFolder && <div className="flex flex-wrap gap-1">
-          <StatTile icon={FileText} color={ACCENT_HEX.violet} value={isLoading || filesError ? '—' : stats.totalFiles} label="Total Files" />
-          <StatTile icon={HardDrive} color={ACCENT_HEX.blue} value={isLoading || filesError ? '—' : formatFileSize(stats.totalSize)} label="Storage Used" />
-          <StatTile icon={Star} color={ACCENT_HEX.amber} value={isLoading || filesError ? '—' : stats.starred} label="Starred" />
+          <StatTile icon={FileText} color={ACCENT_HEX.violet} value={isLoading || initialFilesUnavailable ? '—' : stats.totalFiles} label="Total Files" />
+          <StatTile icon={HardDrive} color={ACCENT_HEX.blue} value={isLoading || initialFilesUnavailable ? '—' : formatFileSize(stats.totalSize)} label="Storage Used" />
+          <StatTile icon={Star} color={ACCENT_HEX.amber} value={isLoading || initialFilesUnavailable ? '—' : stats.starred} label="Starred" />
         </div>}
       </PageHero>
 

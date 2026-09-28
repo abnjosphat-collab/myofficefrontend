@@ -28,8 +28,8 @@ export async function loadEmployees(timeoutMs = 20_000) {
   const controller = new AbortController();
   let timeout: ReturnType<typeof setTimeout> | undefined;
   try {
-    return await Promise.race([
-      api.get<Employee[]>(EMPLOYEES_API, { signal: controller.signal }),
+    const rows = await Promise.race([
+      api.get<unknown>(EMPLOYEES_API, { signal: controller.signal }),
       new Promise<never>((_, reject) => {
         timeout = setTimeout(() => {
           controller.abort();
@@ -37,6 +37,8 @@ export async function loadEmployees(timeoutMs = 20_000) {
         }, timeoutMs);
       }),
     ]);
+    if (!Array.isArray(rows)) throw new Error('Personnel records returned an unexpected response.');
+    return rows as Employee[];
   } finally {
     if (timeout) clearTimeout(timeout);
   }
@@ -89,12 +91,14 @@ export async function removeEmployee(id: number) {
 export function useEmployeesData() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const latestLoad = useRef(0);
 
-  const reload = useCallback(async () => {
+  const reload = useCallback(async (quiet = false) => {
     const loadId = ++latestLoad.current;
-    setIsLoading(true); setError(null);
+    if (quiet) setRefreshing(true); else setIsLoading(true);
+    setError(null);
     try {
       const rows = await loadEmployees();
       if (loadId === latestLoad.current) setEmployees(rows);
@@ -104,11 +108,11 @@ export function useEmployeesData() {
         setError(m); toast.error(m);
       }
     } finally {
-      if (loadId === latestLoad.current) setIsLoading(false);
+      if (loadId === latestLoad.current) { setIsLoading(false); setRefreshing(false); }
     }
   }, []);
 
   useEffect(() => { reload(); }, [reload]);
 
-  return { employees, setEmployees, isLoading, error, setError, reload };
+  return { employees, setEmployees, isLoading, refreshing, error, setError, reload };
 }

@@ -38,8 +38,12 @@ export interface EmployeeWithPPE {
 }
 
 export interface PPEStats {
-  total: number; active: number; expired: number;
-  unique_employees: number; expiring_soon: number;
+  total_records: number;
+  unique_employees: number;
+  status_breakdown: Record<string, number>;
+  condition_breakdown: Record<string, number>;
+  expiring_soon: number;
+  expired: number;
 }
 
 export interface EnhancedStats extends PPEStats {

@@ -47,8 +47,9 @@ export async function updateDocument(id: string, updates: Partial<DocumentFile>)
 // ─── Folders (backend-persisted custom subfolders) ───────────────────────────
 
 export async function fetchFolders(categoryId: string): Promise<Folder[]> {
-  const data = await api.get<Folder[]>(`/api/documents/folders?category_id=${encodeURIComponent(categoryId)}`);
-  return Array.isArray(data) ? data : [];
+  const data = await api.get<unknown>(`/api/documents/folders?category_id=${encodeURIComponent(categoryId)}`);
+  if (!Array.isArray(data)) throw new Error('Document folders returned an unexpected response.');
+  return data as Folder[];
 }
 
 export async function createFolder(categoryId: string, categoryName: string, name: string): Promise<Folder> {
@@ -66,53 +67,68 @@ export async function deleteFolder(id: string): Promise<void> {
 export function useFolders(currentCategory: Category | null) {
   const [folders, setFolders] = useState<Folder[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const requestId = useRef(0);
 
   const refresh = useCallback(async () => {
-    if (!currentCategory) { setFolders([]); return; }
+    const id = ++requestId.current;
+    if (!currentCategory) { setFolders([]); setError(''); return; }
     setIsLoading(true);
-    try { setFolders(await fetchFolders(currentCategory.id)); }
-    catch (e) { toast.error(`Failed to load folders: ${e}`); }
-    finally { setIsLoading(false); }
+    setError('');
+    try {
+      const rows = await fetchFolders(currentCategory.id);
+      if (id === requestId.current) setFolders(rows);
+    } catch (e) {
+      if (id === requestId.current) {
+        const message = e instanceof Error ? e.message : String(e);
+        setError(message); toast.error(`Failed to load folders: ${message}`);
+      }
+    } finally { if (id === requestId.current) setIsLoading(false); }
   }, [currentCategory]);
 
   useEffect(() => { refresh(); }, [refresh]);
 
-  return { folders, setFolders, isLoading, refresh };
+  return { folders, setFolders, isLoading, error, refresh };
 }
 
 // ─── Global search (across every category/folder) ────────────────────────────
 
 export async function searchDocuments(q: string): Promise<DocumentFile[]> {
   if (!q.trim()) return [];
-  const data = await api.get<Record<string, unknown>[]>(`/api/documents/search?q=${encodeURIComponent(q)}`);
-  return (Array.isArray(data) ? data : []).map(fromDb);
+  const data = await api.get<unknown>(`/api/documents/search?q=${encodeURIComponent(q)}`);
+  if (!Array.isArray(data)) throw new Error('Document search returned an unexpected response.');
+  return data.map(row => fromDb(row as Record<string, unknown>));
 }
 
 export function useDocumentsData(currentCategory: Category | null, currentFolder: string | null) {
   const [documents, setDocuments] = useState<DocumentFile[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const requestId = useRef(0);
+  const scope = useRef('');
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (quiet = false) => {
     const id = ++requestId.current;
     if (!currentCategory) { setDocuments([]); setError(''); setIsLoading(false); return; }
-    setIsLoading(true);
+    const nextScope = `${currentCategory.id}:${currentFolder ?? ''}`;
+    if (scope.current !== nextScope) { scope.current = nextScope; setDocuments([]); quiet = false; }
+    if (quiet) setRefreshing(true); else setIsLoading(true);
     setError('');
-    setDocuments([]);
     try {
       const params = new URLSearchParams({ category_id: currentCategory.id });
       if (currentFolder) params.set('folder_id', currentFolder);
-      const data = await api.get<Record<string, unknown>[]>(`/api/documents?${params}`);
-      if (id === requestId.current) setDocuments(data.map(fromDb));
+      const data = await api.get<unknown>(`/api/documents?${params}`);
+      if (!Array.isArray(data)) throw new Error('Documents returned an unexpected response.');
+      if (id === requestId.current) setDocuments(data.map(row => fromDb(row as Record<string, unknown>)));
     } catch (e) {
       if (id === requestId.current) setError(e instanceof Error ? e.message : String(e));
     } finally {
-      if (id === requestId.current) setIsLoading(false);
+      if (id === requestId.current) { setIsLoading(false); setRefreshing(false); }
     }
   }, [currentCategory, currentFolder]);
 
   useEffect(() => { refresh(); }, [refresh]);
 
-  return { documents, setDocuments, isLoading, error, refresh };
+  return { documents, setDocuments, isLoading, refreshing, error, refresh };
 }

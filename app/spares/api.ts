@@ -9,7 +9,9 @@ import type { SavedRequisition, Spare, SpareFormData } from './types';
 
 export async function apiFetchAll(): Promise<Spare[]> {
   const d = await api.get<any>('/api/spares');
-  return Array.isArray(d) ? d : d?.items ?? d?.data ?? [];
+  const records=Array.isArray(d)?d:Array.isArray(d?.items)?d.items:Array.isArray(d?.data)?d.data:null;
+  if(!records)throw new Error('Spares returned an unexpected response.');
+  return records;
 }
 export async function apiCreate(data: Partial<SpareFormData>): Promise<Spare> {
   return api.post<Spare>('/api/spares', data);
@@ -40,9 +42,11 @@ const reqToDbPayload = (req: SavedRequisition) => ({
 });
 
 export const apiGetSavedReqs = async (): Promise<SavedRequisition[]> => {
-  try { const data = await api.get<any[]>('/api/spares/saved-requisitions'); return (Array.isArray(data) ? data : []).map(dbRowToReq); } catch { return []; }
+  const data=await api.get<any[]>('/api/spares/saved-requisitions');
+  if(!Array.isArray(data))throw new Error('Saved requisitions returned an unexpected response.');
+  return data.map(dbRowToReq);
 };
-export const apiCreateSavedReq = async (req: SavedRequisition): Promise<SavedRequisition | null> => {
-  try { return dbRowToReq(await api.post('/api/spares/saved-requisitions', reqToDbPayload(req))); } catch { return null; }
+export const apiCreateSavedReq = async (req: SavedRequisition): Promise<SavedRequisition> => {
+  return dbRowToReq(await api.post('/api/spares/saved-requisitions', reqToDbPayload(req)));
 };
-export const apiDeleteSavedReq = async (id: string): Promise<boolean> => { try { await api.delete(`/api/spares/saved-requisitions/${id}`); return true; } catch { return false; } };
+export const apiDeleteSavedReq = async (id: string): Promise<void> => { await api.delete(`/api/spares/saved-requisitions/${id}`); };

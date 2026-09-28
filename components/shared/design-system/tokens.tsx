@@ -146,12 +146,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [preference, setPreferenceState] = useState<ThemePreference>('system');
   const [light, setLight] = useState(true);
-  const [design, setDesignState] = useState<DesignLanguage>(() => {
-    if (typeof document === 'undefined') return 'classic';
-    const stamped = document.documentElement.dataset.design;
-    if (stamped === 'dallaglio' || stamped === 'paper') return 'dallaglio';
-    return 'classic';
-  });
+  const [design, setDesignState] = useState<DesignLanguage>('classic');
   const appliedDesign: DesignLanguage = isToolsPath(pathname) ? 'classic' : design;
 
   const syncAppearance = useCallback((pref: ThemePreference, nextDesign: DesignLanguage) => {
