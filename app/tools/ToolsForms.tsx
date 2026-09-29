@@ -6,11 +6,12 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { CATEGORIES, DEPARTMENTS, JOBS, PEOPLE, defaultEquipmentKind, departmentOf, equipmentTypesForCategory, type ActionKind, type Employee, type EquipmentKind, type Movement, type Tool, type Evidence } from './prototype';
 import { ToolsIcon as Icon } from './ToolsIcon';
 import { AnimatedSelect } from './AnimatedSelect';
+import { ToolsDateInput } from './ToolsDateInput';
 import { announceToolsPopover, TOOLS_POPOVER_EVENT } from './toolsPopover';
 import { EvidencePicker, Help, type AddEvidence } from './ToolsUI';
 import s from './tools.module.css';
 
-export function SuggestField({ label, options, value, onChange, onSelect, required = true, hint, disabled = false }: { label: string; options: string[]; value: string; onChange: (value: string) => void; onSelect?: (value: string) => void; required?: boolean; hint?: string; disabled?: boolean }) {
+export function SuggestField({ label, options, value, onChange, onSelect, required = true, hint, disabled = false, emptyMessage = 'No suggestions for this text.' }: { label: string; options: string[]; value: string; onChange: (value: string) => void; onSelect?: (value: string) => void; required?: boolean; hint?: string; disabled?: boolean; emptyMessage?: string }) {
   const id = useId();
   const popoverId = `suggest-${id}`;
   const root = useRef<HTMLDivElement>(null);
@@ -49,6 +50,7 @@ export function SuggestField({ label, options, value, onChange, onSelect, requir
         fontFamily: computed?.fontFamily,
         fontSize: computed?.fontSize,
         colorScheme: computed?.colorScheme,
+        pointerEvents: 'auto',
       });
     }
     setOpen(true);
@@ -73,7 +75,7 @@ export function SuggestField({ label, options, value, onChange, onSelect, requir
   }, [popoverId]);
   const suggestions = typeof document !== 'undefined' ? createPortal(
     <AnimatePresence>{open && <motion.div ref={panel} className={`${s.suggestions} ${s.suggestionsPortal}`} style={floatingStyle} data-placement={placement} id={`${id}-options`} role="listbox" aria-label={`${label} suggestions`} initial={{height:0,opacity:0,y:reduced?0:placement === 'down' ? -4 : 4}} animate={{height:'auto',opacity:1,y:0}} exit={{height:0,opacity:0,y:reduced?0:placement === 'down' ? -4 : 4}} transition={{duration:reduced?0:.2,ease:[.2,.8,.2,1]}}>
-      {matches.length ? matches.map((option, i) => <button key={option} id={`${id}-${i}`} tabIndex={-1} type="button" role="option" aria-selected={active === i} data-active={active === i} onMouseDown={e => e.preventDefault()} onClick={() => choose(option)}>{option}{value === option && <Icon name="check" size={14} />}</button>) : <p>No suggestions for this text.</p>}
+      {matches.length ? <>{matches.map((option, i) => <button key={option} id={`${id}-${i}`} tabIndex={-1} type="button" role="option" aria-selected={active === i} data-active={active === i} onPointerDown={event => { event.preventDefault(); choose(option); input.current?.focus(); }} onPointerEnter={() => setActive(i)}>{option}{value === option && <Icon name="check" size={14} />}</button>)}<div className={s.suggestionHint}>Click, Enter or Tab to select · ↑↓ navigate</div></> : <p>{emptyMessage}</p>}
     </motion.div>}</AnimatePresence>,
     document.body,
   ) : null;
@@ -86,6 +88,7 @@ export function SuggestField({ label, options, value, onChange, onSelect, requir
           if (e.key === 'ArrowDown') { e.preventDefault(); if (!open) show(); setActive(a => open ? Math.min(a + 1, Math.max(0, matches.length - 1)) : 0); }
           if (e.key === 'ArrowUp') { e.preventDefault(); setActive(a => Math.max(a - 1, 0)); }
           if (e.key === 'Enter' && open && matches[active]) { e.preventDefault(); choose(matches[active]); }
+          if (e.key === 'Tab' && open && matches[active]) { e.preventDefault(); choose(matches[active]); }
           if (e.key === 'Escape' && open) { e.preventDefault(); e.stopPropagation(); setOpen(false); }
         }} />
       <Icon name="down" size={14} />
@@ -121,7 +124,11 @@ export function MovementForm({ kind, initialTool, initialEmployee, tools, employ
   const [error, setError] = useState('');
   const tool = candidates.find(t => `${t.id} · ${t.name}` === toolLabel);
   const eligibleIds=new Set((tool?.eligibleEmployees||[]).flatMap(employee=>[employee.id,employee.employeeNumber]));
-  const employeeOptions = employees.filter(employee=>employee.active&&(!issuerDepartment||employee.department===issuerDepartment)&&(!tool||tool.eligibleEmployees===undefined||eligibleIds.has(employee.backendId||'')||eligibleIds.has(employee.employeeNumber))).map(employee=>`${employee.name} · ${employee.employeeNumber}`);
+  const departmentEmployees=employees.filter(employee=>employee.active&&(!issuerDepartment||employee.department===issuerDepartment));
+  const employeeOptions = departmentEmployees.filter(employee=>!tool||tool.eligibleEmployees===undefined||eligibleIds.has(employee.backendId||'')||eligibleIds.has(employee.employeeNumber)).map(employee=>`${employee.name} · ${employee.employeeNumber}`);
+  const employeeEmptyMessage=tool&&departmentEmployees.length
+    ? `No employee is currently trained, qualified and authorized for ${tool.name}. Update Compliance before issue.`
+    : `No active employee is available${issuerDepartment?` in ${issuerDepartment}`:''}.`;
   const selectedEmployee = employees.find(employee=>`${employee.name} · ${employee.employeeNumber}`===person);
   const selectEmployee = (label:string) => {
     const employee=employees.find(item=>`${item.name} · ${item.employeeNumber}`===label);
@@ -147,11 +154,12 @@ export function MovementForm({ kind, initialTool, initialEmployee, tools, employ
   return <form onSubmit={handleSubmit} className={s.form}>
     <SuggestField label="Tool" options={candidates.map(t => `${t.id} · ${t.name}`)} value={toolLabel} onChange={setToolLabel} hint="Search by tool name or ID. Only tools eligible for this action appear." />
     {tool && <div className={s.formContext}><Icon name={tool.holder ? 'user' : 'department'} /><span>{tool.holder ? <>With <strong>{tool.holder.split(' · ')[0]}</strong></> : departmentOf(tool)}<small>{tool.holder ? `Expected ${tool.due}` : `${tool.location} · ${tool.condition}`}</small></span></div>}
+    {['issue','transfer'].includes(kind)&&tool&&!employeeOptions.length&&<div className={`${s.formContext} ${s.formContextWarning}`} role="status"><Icon name="alert"/><span><strong>No eligible employee for this equipment</strong><small>{departmentEmployees.length} active {issuerDepartment||departmentOf(tool)} {departmentEmployees.length===1?'employee exists':'employees exist'}, but none has current training, qualification and authorization for {tool.name}. Update the Compliance register first.</small></span></div>}
     <div className={s.formColumns}>
-      {['issue', 'transfer'].includes(kind) && <SuggestField label="Employee" options={employeeOptions} value={person} onChange={setPerson} onSelect={selectEmployee} hint="Select a person from this standalone employee register. Their employee number, role and department are filled from the saved record." />}
+      {['issue', 'transfer'].includes(kind) && <SuggestField label="Employee" options={employeeOptions} value={person} onChange={setPerson} onSelect={selectEmployee} emptyMessage={employeeEmptyMessage} hint="Only active employees with current training, qualification and authorization for the selected equipment can be chosen. Their saved details fill automatically." />}
       {kind !== 'extend' && <SuggestField label={kind==='return'?'Return location':'Current work location'} options={locationSuggestions} value={location} onChange={setLocation} hint="Start typing to reuse a known location, or enter the exact place freely because teams and tools move frequently."/>}
       {['issue', 'transfer'].includes(kind) && <SuggestField label="Work order / job" options={JOBS} value={job} onChange={setJob} hint="Select a suggested work order or enter the job reference from the paper record." />}
-      {['issue', 'extend'].includes(kind) && <div className={s.field}><div className={s.fieldHeading}><label htmlFor="tools-due">Expected return</label><Help label="Expected return">Enter local date and time. Overdue notifications will be delivered by the backend in the operational system.</Help></div><input aria-label="Expected return" id="tools-due" name="due" type="datetime-local" required /></div>}
+      {['issue', 'extend'].includes(kind) && <div className={s.field}><div className={s.fieldHeading}><label htmlFor="tools-due">Expected return</label><Help label="Expected return">Choose the local date and time. Clicking anywhere in the field opens the picker.</Help></div><ToolsDateInput aria-label="Expected return" id="tools-due" name="due" type="datetime-local" required /></div>}
     </div>
     {['issue','transfer'].includes(kind)&&selectedEmployee&&<div className={s.formContext} aria-label="Selected employee details"><Icon name="user" size={19}/><span><strong>{selectedEmployee.name} · {selectedEmployee.employeeNumber}</strong><small>{[selectedEmployee.jobTitle,selectedEmployee.department,selectedEmployee.supervisorName&&`Supervisor: ${selectedEmployee.supervisorName}`].filter(Boolean).join(' · ')}</small></span></div>}
     {kind==='issue'&&tool?.preUseCheckRequired===true&&<label className={s.checkRow}><input type="checkbox" checked={preUseCheckCompleted} onChange={event=>setPreUseCheckCompleted(event.target.checked)}/><span><strong>Pre-use inspection completed</strong><small>The employee checked the tool before use and found it fit for the intended job.</small></span></label>}

@@ -5,6 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { SuggestField, MovementForm, ToolForm, MarkReadyForm } from './ToolsForms';
 import { AnimatedSelect } from './AnimatedSelect';
 import { EvidenceGallery, EvidencePicker, ToolsDialog } from './ToolsUI';
+import { ToolsDateInput } from './ToolsDateInput';
 import { PEOPLE, LOCATIONS, JOBS } from './prototype';
 import { TEST_TOOLS as SEED_TOOLS } from './testFixtures';
 vi.mock('./ToolsIcon', () => ({ ToolsIcon: () => <span aria-hidden="true" /> }));
@@ -12,6 +13,10 @@ vi.mock('./ToolsIcon', () => ({ ToolsIcon: () => <span aria-hidden="true" /> }))
 function SearchHarness() {
   const [value,setValue] = useState('');
   return <SuggestField label="Employee" options={PEOPLE} value={value} onChange={setValue} />;
+}
+function SearchDialogHarness() {
+  const [value,setValue] = useState('');
+  return <ToolsDialog open onClose={()=>{}} title="Issue tool" description="Select an employee"><SuggestField label="Employee" options={PEOPLE} value={value} onChange={setValue} /></ToolsDialog>;
 }
 function DialogHarness() {
   const [open,setOpen] = useState(false);
@@ -43,6 +48,20 @@ describe('Tools interaction controls', () => {
     await user.type(input,'Sam'); await user.keyboard('{Enter}');
     expect(input).toHaveValue(PEOPLE[2]); expect(input).toHaveAttribute('aria-expanded','false');
   });
+  it('accepts the highlighted suggestion with Tab', async () => {
+    const user=userEvent.setup(); render(<SearchHarness/>);
+    const input=screen.getByRole('combobox',{name:'Employee'});
+    await user.type(input,'Sam'); await user.keyboard('{Tab}');
+    expect(input).toHaveValue(PEOPLE[2]); expect(input).toHaveAttribute('aria-expanded','false');
+  });
+  it('commits a clicked suggestion inside the modal portal', async () => {
+    const user=userEvent.setup(); render(<SearchDialogHarness/>);
+    const input=screen.getByRole('combobox',{name:'Employee'});
+    await user.type(input,'Sam');
+    await user.click(screen.getByRole('option',{name:PEOPLE[2]}));
+    expect(input).toHaveValue(PEOPLE[2]);
+    await waitFor(()=>expect(screen.queryByRole('listbox',{name:'Employee suggestions'})).not.toBeInTheDocument());
+  });
   it('renders autocomplete suggestions outside clipping form containers', async () => {
     const user=userEvent.setup(); render(<SearchHarness/>);
     const input=screen.getByRole('combobox',{name:'Employee'});
@@ -65,6 +84,23 @@ describe('Tools interaction controls', () => {
     fireEvent.click(screen.getByRole('button',{name:'Issue tool'}));
     expect(onSave).toHaveBeenCalledOnce();
     expect(onSave.mock.calls[0][0]).toMatchObject({toolId:SEED_TOOLS[0].id,person:PEOPLE[0],dueISO:new Date('2050-09-25T16:00').toISOString()});
+  });
+  it('opens the native picker when any date field area is clicked', async () => {
+    const user=userEvent.setup(); render(<ToolsDateInput aria-label="Inspection date"/>);
+    const input=screen.getByLabelText('Inspection date') as HTMLInputElement;
+    const showPicker=vi.fn();
+    Object.defineProperty(input,'showPicker',{value:showPicker});
+    await user.click(input);
+    expect(showPicker).toHaveBeenCalledOnce();
+  });
+  it('explains when safety eligibility removes every employee option', async () => {
+    const user=userEvent.setup();
+    const employees=[{id:'employee-1',backendId:'employee-1',employeeNumber:'C1042',name:'Mina Dube',department:'Engineering',active:true}];
+    const ineligibleTool={...SEED_TOOLS[0],eligibleEmployees:[]};
+    render(<MovementForm kind="issue" initialTool={ineligibleTool} tools={[ineligibleTool,...SEED_TOOLS.slice(1)]} employees={employees} issuerDepartment="Engineering" locationSuggestions={LOCATIONS} addFiles={()=>[]} onSave={()=>{}} onCancel={()=>{}}/>);
+    expect(screen.getByRole('status')).toHaveTextContent('No eligible employee for this equipment');
+    await user.click(screen.getByRole('combobox',{name:'Employee'}));
+    expect(screen.getByRole('listbox',{name:'Employee suggestions'})).toHaveTextContent('No employee is currently trained, qualified and authorized');
   });
   it('autofills saved employee details when an employee is selected', async () => {
     const user=userEvent.setup();

@@ -188,6 +188,41 @@ try{
     detailOpened=await page.getByRole('dialog').isVisible().catch(()=>false);
     if(detailOpened) await page.getByRole('dialog').getByRole('button',{name:/Close/i}).first().click();
   }
+
+  phase('checking issue-form autocomplete and date picker');
+  const activeSession=await page.evaluate(key=>localStorage.getItem(key),sessionKey);
+  const previousFixtureMode=fixtureMode;
+  const previousAuthResponse=fixtureResponses.get('/api/tools-workspace/auth/me');
+  fixtureMode=true;
+  fixtureResponses.set('/api/tools-workspace/auth/me',{id:'audit-issuer',name:'Audit Issuer',username:'audit-issuer',role:'issuer',department:'Engineering',can_issue:true});
+  await page.evaluate(key=>localStorage.setItem(key,JSON.stringify({id:'audit-issuer',name:'Audit Issuer',username:'audit-issuer',password:'',role:'issuer',department:'Engineering',canIssue:true,token:'audit-read-only-token'})),sessionKey);
+  await page.reload({waitUntil:'domcontentloaded',timeout:120_000});
+  await waitForSettled();
+  await page.getByRole('button',{name:'View Torque wrench',exact:true}).first().click();
+  const toolDialog=page.getByRole('dialog');
+  await toolDialog.getByRole('button',{name:'Issue tool',exact:true}).click();
+  const issueDialog=page.getByRole('dialog');
+  const employeeInput=issueDialog.getByRole('combobox',{name:'Employee'});
+  await employeeInput.click();
+  const employeeOption=page.getByRole('option',{name:'Tariro Moyo · E-001',exact:true});
+  await employeeOption.waitFor({state:'visible'});
+  const suggestionPointerEvents=await employeeOption.evaluate(element=>getComputedStyle(element).pointerEvents);
+  await employeeOption.click();
+  const employeeSelected=await employeeInput.inputValue();
+  const returnInput=issueDialog.locator('input#tools-due');
+  await returnInput.evaluate(input=>{Object.defineProperty(input,'showPicker',{configurable:true,value(){input.dataset.pickerOpened='true';}});});
+  await returnInput.click({position:{x:12,y:12}});
+  const pickerOpened=await returnInput.getAttribute('data-picker-opened');
+  await page.screenshot({path:path.join(os.tmpdir(),'myoffice-tools-issue-form.png')});
+  const issueForm={employeeSelected,suggestionPointerEvents,pickerOpened:pickerOpened==='true'};
+  await issueDialog.getByRole('button',{name:'Cancel',exact:true}).click();
+  fixtureMode=previousFixtureMode;
+  if(previousAuthResponse)fixtureResponses.set('/api/tools-workspace/auth/me',previousAuthResponse);
+  if(activeSession===null)await page.evaluate(key=>localStorage.removeItem(key),sessionKey);
+  else await page.evaluate(({key,value})=>localStorage.setItem(key,value),{key:sessionKey,value:activeSession});
+  await page.reload({waitUntil:'domcontentloaded',timeout:120_000});
+  await waitForSettled();
+
   await page.getByRole('button',{name:'Compliance',exact:true}).click();
   await waitForText('Inspection and maintenance control');
   const complianceVisible=await page.getByText('Current competency register',{exact:true}).isVisible();
@@ -216,7 +251,7 @@ try{
   await waitForSettled();
   await page.evaluate(({preferencesKey,preferences,sessionKey,session})=>{if(preferences===null)localStorage.removeItem(preferencesKey);else localStorage.setItem(preferencesKey,preferences);if(session===null)localStorage.removeItem(sessionKey);else localStorage.setItem(sessionKey,session);},{preferencesKey,preferences:originalPreferences,sessionKey,session:originalSession});
 
-  const evidence={fixtureMode,live,progressiveDelivery,initialFailure,quietFailure,notificationFailure,adminFailure,wakeStayedLoading,vendorLoadingCopyAbsent,equipmentLoaderCount,complianceVisible,gatePassesVisible,analyticsVisualsVisible,detailOpened,mobile,blockedWrites,consoleErrors,responses:{total:responses.length,successful:responses.filter(item=>item.status===200).length,simulatedFailures:responses.filter(item=>item.status>=500).length,paths:[...new Set(responses.map(item=>item.pathname))]},restoredPreferences:await page.evaluate(key=>localStorage.getItem(key),preferencesKey),restoredSession:await page.evaluate(key=>localStorage.getItem(key),sessionKey)};
+  const evidence={fixtureMode,live,progressiveDelivery,initialFailure,quietFailure,notificationFailure,adminFailure,wakeStayedLoading,vendorLoadingCopyAbsent,equipmentLoaderCount,issueForm,complianceVisible,gatePassesVisible,analyticsVisualsVisible,detailOpened,mobile,blockedWrites,consoleErrors,responses:{total:responses.length,successful:responses.filter(item=>item.status===200).length,simulatedFailures:responses.filter(item=>item.status>=500).length,paths:[...new Set(responses.map(item=>item.pathname))]},restoredPreferences:await page.evaluate(key=>localStorage.getItem(key),preferencesKey),restoredSession:await page.evaluate(key=>localStorage.getItem(key),sessionKey)};
   fs.writeSync(1,`${JSON.stringify(evidence,null,2)}\n`);
   check(initialFailure.errorVisible&&!initialFailure.falseEmpty,'History failure looked like a genuine empty history.');
   check(progressiveDelivery.equipmentVisible&&progressiveDelivery.historyStillLoading,'Equipment waited for the delayed history source.');
@@ -226,6 +261,8 @@ try{
   check(wakeStayedLoading,'Transient Supabase wake-up rendered an unavailable state.');
   check(vendorLoadingCopyAbsent,'The loading state exposed the removed Supabase wake-up message.');
   check(equipmentLoaderCount===1,'The equipment loading state was rendered more than once.');
+  check(issueForm.employeeSelected==='Tariro Moyo · E-001'&&issueForm.suggestionPointerEvents==='auto','The issue-form employee suggestion was not directly clickable.');
+  check(issueForm.pickerOpened,'Clicking the expected-return field did not invoke the native picker.');
   check(complianceVisible&&gatePassesVisible,'Compliance or Gate passes did not render.');
   check(analyticsVisualsVisible!==false,'The polished Analytics visualizations did not render.');
   check(mobile.documentOverflow===0&&mobile.mainOverflow===0,'The Tools workspace overflowed at 390px.');
