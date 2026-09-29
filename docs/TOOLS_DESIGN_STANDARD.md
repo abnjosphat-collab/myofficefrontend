@@ -31,6 +31,7 @@ This standard adapts Apple’s published design principles to an operational min
 - Nonessential animation respects `prefers-reduced-motion`; contrast increases with `prefers-contrast`.
 - Dark appearance uses black and near-black surfaces, white text, neutral borders and a restrained violet accent. Semantic red, amber and green remain reserved for operational meaning.
 - User layout, typography, icon, theme, sidebar, overview and view choices persist on the device.
+- Analytics use the shared Dallaglio chart palette, restrained gradients, readable axes, exact-value tooltips, meaningful summaries and responsive detail views. Raw SVG sketches, unexplained decorative charts and monochrome placeholder visualizations are not acceptable production surfaces.
 
 ## Engineering rules
 
@@ -61,4 +62,3 @@ Before merging a Tools change, verify:
 - Apple Human Interface Guidelines — Layout: https://developer.apple.com/design/human-interface-guidelines/layout
 - Apple Human Interface Guidelines — Toolbars: https://developer.apple.com/design/human-interface-guidelines/toolbars
 - Apple accessibility — Accessible appearance: https://developer.apple.com/documentation/swiftui/accessible-appearance
-

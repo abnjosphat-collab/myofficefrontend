@@ -20,7 +20,7 @@ The standalone `/tools` workspace is the current interface for the mine-wide por
 - A notification failure must be visible but must not prevent the equipment and employee registers from loading.
 - Motion provides orientation and feedback, respects reduced-motion preferences, and must never delay the underlying action.
 - Photographs take priority over equipment symbols when available.
-- Display preferences belong in Settings. Text size remains available beside the department scope because it is a frequent accessibility adjustment.
+- Display preferences, including text size, belong in Settings so the operational header stays focused on identity, department scope and primary account controls.
 - The product heading is “Tools & Equipment E-System”. The optional getting-started carousel is retained in the codebase but hidden until its design is revisited.
 - The top-right account control is a familiar personal profile and sign-out surface. Role changes stay in the administrator-only Account access section so identity and system administration are not mixed.
 - Administrator analytics use compact semantic metrics, a daily/weekly/monthly activity trend, and a day-by-four-hour usage pattern. Trend points remain keyboard-focusable and disclose exact values.

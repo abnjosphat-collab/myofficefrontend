@@ -9,7 +9,8 @@ let browser;
 try{browser=await chromium.connectOverCDP(process.env.TOOLS_CDP_URL||'http://127.0.0.1:9223',{timeout:10_000});}
 catch{browser=await chromium.launch({headless:true});ownsBrowser=true;}
 const context=browser.contexts()[0]||await browser.newContext();
-let page=context.pages().find(candidate=>candidate.url().startsWith('http://localhost:3000'));
+const baseUrl=process.env.TOOLS_BASE_URL||'http://localhost:3000';
+let page=context.pages().find(candidate=>candidate.url().startsWith(baseUrl));
 if(!page) page=await context.newPage();
 
 const blockedWrites=[];
@@ -26,6 +27,14 @@ const sessionKey='myoffice.tools.session.v1';
 let originalPreferences=null;
 let originalSession=null;
 let fixtureMode=false;
+const fixtureUsage=Array.from({length:36},(_,index)=>({
+  id:`usage-${index+1}`,
+  event:['opened equipment','searched register','opened compliance','created gate pass','viewed employee'][index%5],
+  detail:index%7===0?(index%14===0?'Dark':'Light'):undefined,
+  created_at:new Date(Date.UTC(2026,8,29-(index%14),6+(index*3)%18,0,0)).toISOString(),
+  account_name:index%4===0?'Audit Issuer':'Audit Admin',
+}));
+fixtureUsage.push({id:'theme-dark',event:'theme changed',detail:'Dark',created_at:'2026-09-28T18:00:00Z',account_name:'Audit Admin'},{id:'theme-light',event:'theme changed',detail:'Light',created_at:'2026-09-27T08:00:00Z',account_name:'Audit Issuer'});
 const fixtureResponses=new Map([
   ['/api/tools-workspace/auth/me',{id:'audit-admin',name:'Audit Admin',username:'audit-admin',role:'admin',department:null,can_issue:false}],
   ['/api/tools-workspace/employees',[{id:'employee-1',employee_number:'E-001',name:'Tariro Moyo',department:'Engineering',job_title:'Fitter',active:true}]],
@@ -34,7 +43,7 @@ const fixtureResponses=new Map([
   ['/api/tools-workspace/source-registers',[{id:'source-1',department:'Engineering',original_name:'engineering-tools.xlsx',content_type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',size_bytes:2048,uploaded_by:'Audit Admin',uploaded_at:'2026-09-19T10:00:00Z'}]],
   ['/api/tools-workspace/notifications',{alerts:[{key:'overdue:tool-2:audit',kind:'overdue',tool_id:'tool-2',tool_name:'Clamp meter',department:'Engineering',read:false}],unread_count:1}],
   ['/api/tools-workspace/compliance',{competencies:[{id:'competency-1',employee_id:'employee-1',tool_id:'tool-1',trained:true,qualified:true,authorized:true,authorized_by:'Audit Admin',updated_at:'2026-09-20T08:00:00Z'}],inspections:[{id:'inspection-1',tool_id:'tool-1',inspection_type:'quarterly',outcome:'passed',inspected_at:'2026-07-01T08:00:00Z',inspector_name:'Audit Admin',colour_code:'Yellow'}],incidents:[],gate_passes:[]}],
-  ['/api/tools-workspace/analytics',{usage:[{id:'usage-1',event:'opened equipment',detail:'Equipment',created_at:'2026-09-20T08:00:00Z',account_name:'Audit Admin'}],errors:[],feedback:[]}],
+  ['/api/tools-workspace/analytics',{usage:fixtureUsage,errors:[],feedback:[]}],
   ['/api/tools-workspace/accounts',[{id:'audit-admin',name:'Audit Admin',username:'audit-admin',role:'admin',can_issue:false}]],
 ]);
 
@@ -47,7 +56,7 @@ await page.route('**/api/**',async route=>{
     return;
   }
   const simulated=(failHistory&&pathname==='/api/tools-workspace/history')||(failTools&&pathname==='/api/tools-workspace/tools')||(failNotifications&&pathname==='/api/tools-workspace/notifications')||(failAnalytics&&pathname==='/api/tools-workspace/analytics');
-  if(slowHistory&&pathname==='/api/tools-workspace/history') await new Promise(resolve=>setTimeout(resolve,3000));
+  if(slowHistory&&pathname==='/api/tools-workspace/history') await new Promise(resolve=>setTimeout(resolve,6000));
   if(wakeTools&&pathname==='/api/tools-workspace/tools'){
     await route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({detail:'Service unavailable while Supabase wakes up'})});
     return;
@@ -85,14 +94,14 @@ const retry=async()=>{
 try{
   phase('opening signed-in workspace');
   await page.setViewportSize({width:1440,height:1000});
-  if(!page.url().startsWith('http://localhost:3000')) await page.goto('http://localhost:3000/tools',{waitUntil:'domcontentloaded',timeout:120_000});
+  if(!page.url().startsWith(baseUrl)) await page.goto(`${baseUrl}/tools`,{waitUntil:'domcontentloaded',timeout:120_000});
   originalPreferences=await page.evaluate(key=>localStorage.getItem(key),preferencesKey);
   originalSession=await page.evaluate(key=>localStorage.getItem(key),sessionKey);
   if(!originalSession){
     fixtureMode=true;
     await page.evaluate(key=>localStorage.setItem(key,JSON.stringify({id:'audit-admin',name:'Audit Admin',username:'audit-admin',password:'',role:'admin',canIssue:false,token:'audit-read-only-token'})),sessionKey);
   }
-  await page.goto('http://localhost:3000/tools',{waitUntil:'domcontentloaded',timeout:120_000});
+  await page.goto(`${baseUrl}/tools`,{waitUntil:'domcontentloaded',timeout:120_000});
   const session=await page.evaluate(()=>{
     const raw=localStorage.getItem('myoffice.tools.session.v1');
     if(!raw)return null;
@@ -108,7 +117,7 @@ try{
   phase('checking progressive equipment delivery');
   slowHistory=true;
   await page.reload({waitUntil:'domcontentloaded',timeout:120_000});
-  await page.getByRole('button',{name:'View Torque wrench',exact:true}).first().waitFor({state:'visible',timeout:2000});
+  await page.getByRole('button',{name:'View Torque wrench',exact:true}).first().waitFor({state:'visible',timeout:4000});
   await page.getByRole('button',{name:'History',exact:true}).first().click();
   const progressiveDelivery={equipmentVisible:true,historyStillLoading:(await bodyText()).includes('Loading issue and return history')};
   slowHistory=false;
@@ -155,7 +164,9 @@ try{
   const wakingReload=page.reload({waitUntil:'domcontentloaded',timeout:120_000});
   await wakingReload;
   await waitForText('Loading equipment register');
-  const wakeStayedLoading=!(await bodyText()).includes('Equipment register unavailable');
+  const wakingText=await bodyText();
+  const wakeStayedLoading=!wakingText.includes('Equipment register unavailable');
+  const vendorLoadingCopyAbsent=!wakingText.includes('Supabase may');
   const equipmentLoaderCount=await page.getByText('Loading equipment register',{exact:true}).count();
   wakeTools=false;
   await waitForSettled();
@@ -183,7 +194,13 @@ try{
   await page.getByRole('button',{name:'Gate passes',exact:true}).click();
   await waitForText('Gate pass control');
   const gatePassesVisible=await page.getByText('Gate pass control',{exact:true}).isVisible();
-  await page.getByRole('button',{name:'Equipment',exact:true}).first().click();
+  let analyticsVisualsVisible=null;
+  if(session.role==='admin'){
+    await page.getByRole('button',{name:'Analytics',exact:true}).first().click();
+    await waitForText('Usage trend');
+    analyticsVisualsVisible=await page.getByRole('img',{name:'daily Tools usage trend'}).isVisible()&&await page.getByRole('img',{name:'Most frequently used Tools features'}).isVisible();
+    await page.screenshot({path:path.join(os.tmpdir(),'myoffice-tools-analytics-light.png'),fullPage:true});
+  } else await page.getByRole('button',{name:'Equipment',exact:true}).first().click();
 
   phase('checking dark mobile layout');
   await page.setViewportSize({width:390,height:844});
@@ -199,7 +216,7 @@ try{
   await waitForSettled();
   await page.evaluate(({preferencesKey,preferences,sessionKey,session})=>{if(preferences===null)localStorage.removeItem(preferencesKey);else localStorage.setItem(preferencesKey,preferences);if(session===null)localStorage.removeItem(sessionKey);else localStorage.setItem(sessionKey,session);},{preferencesKey,preferences:originalPreferences,sessionKey,session:originalSession});
 
-  const evidence={fixtureMode,live,progressiveDelivery,initialFailure,quietFailure,notificationFailure,adminFailure,wakeStayedLoading,equipmentLoaderCount,complianceVisible,gatePassesVisible,detailOpened,mobile,blockedWrites,consoleErrors,responses:{total:responses.length,successful:responses.filter(item=>item.status===200).length,simulatedFailures:responses.filter(item=>item.status>=500).length,paths:[...new Set(responses.map(item=>item.pathname))]},restoredPreferences:await page.evaluate(key=>localStorage.getItem(key),preferencesKey),restoredSession:await page.evaluate(key=>localStorage.getItem(key),sessionKey)};
+  const evidence={fixtureMode,live,progressiveDelivery,initialFailure,quietFailure,notificationFailure,adminFailure,wakeStayedLoading,vendorLoadingCopyAbsent,equipmentLoaderCount,complianceVisible,gatePassesVisible,analyticsVisualsVisible,detailOpened,mobile,blockedWrites,consoleErrors,responses:{total:responses.length,successful:responses.filter(item=>item.status===200).length,simulatedFailures:responses.filter(item=>item.status>=500).length,paths:[...new Set(responses.map(item=>item.pathname))]},restoredPreferences:await page.evaluate(key=>localStorage.getItem(key),preferencesKey),restoredSession:await page.evaluate(key=>localStorage.getItem(key),sessionKey)};
   fs.writeSync(1,`${JSON.stringify(evidence,null,2)}\n`);
   check(initialFailure.errorVisible&&!initialFailure.falseEmpty,'History failure looked like a genuine empty history.');
   check(progressiveDelivery.equipmentVisible&&progressiveDelivery.historyStillLoading,'Equipment waited for the delayed history source.');
@@ -207,8 +224,10 @@ try{
   check(notificationFailure,'Notification failure was not visible.');
   check(adminFailure!==false,'Administrator analytics failure was not visible.');
   check(wakeStayedLoading,'Transient Supabase wake-up rendered an unavailable state.');
+  check(vendorLoadingCopyAbsent,'The loading state exposed the removed Supabase wake-up message.');
   check(equipmentLoaderCount===1,'The equipment loading state was rendered more than once.');
   check(complianceVisible&&gatePassesVisible,'Compliance or Gate passes did not render.');
+  check(analyticsVisualsVisible!==false,'The polished Analytics visualizations did not render.');
   check(mobile.documentOverflow===0&&mobile.mainOverflow===0,'The Tools workspace overflowed at 390px.');
   check(evidence.restoredPreferences===originalPreferences,'Tools appearance preferences were not restored.');
   check(evidence.restoredSession===originalSession,'Tools session storage was not restored.');
