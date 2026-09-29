@@ -13,7 +13,9 @@
     "test:smoke": "node e2e/smoke.mjs",
     "test:a11y": "playwright test e2e/accessibility.spec.ts",
     "test:browser-quality": "playwright test e2e/accessibility.spec.ts e2e/tools-autofill.spec.ts",
-    "test:visual": "playwright test e2e/visual.spec.ts"
+    "test:visual": "playwright test e2e/visual.spec.ts",
+    "docs:check": "typedoc --options typedoc.json --emit none",
+    "docs:api": "typedoc --options typedoc.json"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
@@ -108,6 +110,7 @@
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.17",
     "tw-animate-css": "^1.4.0",
+    "typedoc": "^0.28.15",
     "typescript": "^5",
     "vitest": "^4.1.10"
   }

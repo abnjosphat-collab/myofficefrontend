@@ -61,3 +61,14 @@ npm run test:smoke     # Playwright smoke suite — needs `npm run dev` running 
 The smoke suite (`e2e/smoke.mjs`) navigates every route and a few targeted
 interaction flows, mocking all `/api/**` calls — it catches "page doesn't
 render/crashes on load," not real-data correctness.
+
+## Documentation
+
+Start with [`docs/README.md`](docs/README.md). Architecture and operating rules
+stay in Markdown; exported TypeScript contracts use JSDoc so IDE hover text and
+the generated reference share one source.
+
+```bash
+npm run docs:check   # validate documented public entry points
+npm run docs:api     # generate docs/_generated/api/index.html
+```

@@ -431,7 +431,8 @@ export {
 export type IconStyle = 'solid' | 'outline';
 const ICON_STYLE_KEY = 'oz_iconStyle';
 
-type IconStyleContextValue = {
+/** Current icon-family preference and controls exposed by `useIconStyle()`. */
+export type IconStyleContextValue = {
   iconStyle: IconStyle;
   setIconStyle: (s: IconStyle) => void;
   toggleIconStyle: () => void;

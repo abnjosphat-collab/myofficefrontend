@@ -24,7 +24,8 @@ export interface ConfirmOptions {
   destructive?: boolean;
 }
 
-type ConfirmFn = (opts: ConfirmOptions) => Promise<boolean>;
+/** Opens the shared confirmation dialog and resolves with the user's choice. */
+export type ConfirmFn = (opts: ConfirmOptions) => Promise<boolean>;
 
 const ConfirmContext = createContext<ConfirmFn | null>(null);
 

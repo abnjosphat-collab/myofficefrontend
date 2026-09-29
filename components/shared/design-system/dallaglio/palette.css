@@ -62,16 +62,20 @@ html[data-design='dallaglio'] {
 }
 
 html.dark[data-design='dallaglio'] {
-  --brand-50: #16131d;
-  --brand-100: #211b2b;
-  --brand-200: #2c233a;
-  --brand-300: #50436d;
-  --brand-400: #c4b5f5;
-  --brand-500: #b5a4eb;
-  --brand-600: #a795dd;
-  --brand-700: #917dc8;
-  --brand-800: #73649e;
-  --brand-900: #51476c;
+  /* Dark structure is deliberately achromatic. The brand scale remains the
+     compatibility bridge for older Tailwind utilities, but resolves to a
+     graphite-to-white interaction ramp instead of tinting every control.
+     Charts keep their independent categorical palette in charts.ts. */
+  --brand-50: #141416;
+  --brand-100: #1b1b1f;
+  --brand-200: #25252a;
+  --brand-300: #3a3a40;
+  --brand-400: #c9c9cf;
+  --brand-500: #dedee3;
+  --brand-600: #f0f0f2;
+  --brand-700: #f7f7f8;
+  --brand-800: #ffffff;
+  --brand-900: #ffffff;
   --d-canvas: #09090b;
   --d-surface: #111113;
   --d-surface-elevated: #111113;
@@ -81,17 +85,17 @@ html.dark[data-design='dallaglio'] {
   --d-line: #2d2d32;
   --d-line-strong: #3a3a40;
   --d-soft: #1b1b1f;
-  --d-accent: #c4b5f5;
-  --d-accent-ink: #15111e;
-  --d-accent-soft: #241f31;
+  --d-accent: #f7f7f8;
+  --d-accent-ink: #111113;
+  --d-accent-soft: #202024;
   --d-success: #91d4b8;
   --d-warning: #efc47e;
   --d-danger: #e08a90;
-  --d-focus: color-mix(in srgb, #c4b5f5 12%, transparent);
+  --d-focus: color-mix(in srgb, #f7f7f8 12%, transparent);
   --d-overlay: rgba(0, 0, 0, 0.55);
   --d-shadow: 0 3px 10px -7px rgba(0, 0, 0, 0.55);
-  --d-shadow-hover: 0 28px 58px -30px rgba(0, 0, 0, 0.7),
-    0 18px 34px -24px color-mix(in srgb, #c4b5f5 40%, transparent);
+  --d-shadow-hover: 0 28px 58px -30px rgba(0, 0, 0, 0.74),
+    0 18px 34px -24px rgba(255, 255, 255, 0.16);
 
   --background: var(--d-canvas);
   --foreground: var(--d-ink);

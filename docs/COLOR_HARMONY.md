@@ -7,7 +7,7 @@
 | Layer | Role | Color |
 |--------|------|--------|
 | **Structure** | Navigation, module/category/row icons, labels | Neutral foreground (`uiIconClass('neutral')`) |
-| **Brand** | Primary CTAs, hover glow, active route, pinned favorites | **brand/violet** scale (`BRAND_GLOW_HEX`, `text-brand-*`) |
+| **Brand / interaction** | Primary CTAs, hover glow, active route, pinned favorites | Violet in light mode; achromatic white/graphite ramp in Dallaglio dark mode |
 | **Semantic** | Health, priority, errors, trends, operational status | **`STATUS_TONE` only** |
 | **Data** | KPI values, metrics | Primary text — not hue-coded unless semantic |
 | **Hero stat chips** | `StatTile` in page heroes | Decorative `color` tints icons in **light only**; dark uses neutral icons. `iconTone="semantic"` + `STATUS_TONE` in both themes when the count is a status signal |
@@ -19,6 +19,11 @@ badges pass `kind="category"` to `StatusBadge`, keeping their dot neutral;
 status badges keep their semantic hue. `SummaryItem` icons are neutral, even
 when a page passes its Classic category color. This keeps the information
 hierarchy consistent between light and dark themes.
+
+The chart palette is independent from interaction color. Use `chartTheme()`;
+do not derive chart series from `--primary`, `--d-accent`, or a route's button
+color. This preserves colorful, distinguishable visualizations while dark UI
+structure remains monochrome.
 
 ## Implementation map
 
@@ -50,5 +55,5 @@ hierarchy consistent between light and dark themes.
 ## Verification
 
 - **Light:** categorical hero/group/card accents OK on stone canvas.
-- **Dark:** no rainbow module grids or hero strips — neutral structure, brand on hover/CTA/active; status screens keep semantic rose/amber/emerald meaning.
+- **Dark:** no rainbow module grids, hero strips, or violet-washed controls — neutral structure and interaction; status screens keep semantic rose/amber/emerald meaning and charts keep categorical color.
 - `prefers-reduced-motion`: GlowCard lift, AnimatedText emerge, PulsingIcon pulse, modal motion respect reduced preference.

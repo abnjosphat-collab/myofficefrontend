@@ -3,7 +3,7 @@
 ## Dallaglio migration (current)
 
 `html[data-design='dallaglio']` selects the Tools-derived canvas, type, line,
-accent, and status tokens in `dallaglio/palette.css`. Keep Classic's styles in
+interaction, and status tokens in `dallaglio/palette.css`. Keep Classic's styles in
 their own branches. Shared controls (`Button`, `IconAction`, `RecordActions`,
 `DetailActions`, `DisclosureButton`, `CloseButton`,
 `PillTabs`, `UnderlineTabs`, `ViewToggle`, `CollapsibleHeader`, `InfoCard`) own
@@ -11,7 +11,9 @@ the Dallaglio appearance; pages provide meaning and behavior. Give view and
 section icons semantic names through `DsIcon` where possible. Use neutral
 iconography for categories; reserve success, warning and danger colors for
 actual record states. `chartTheme()` supplies the chart series, axes, grid and
-tooltip colors for both themes. `DownloadButton` owns the export trigger/menu.
+tooltip colors for both themes. In dark mode, structural interaction tokens are
+black, white, and graphite; chart and semantic colors remain separate channels.
+`DownloadButton` owns the export trigger/menu.
 Do not add a per-page Dallaglio copy of a shared control.
 
 Run `node scripts/audit-dallaglio.mjs` to inventory page-local controls and
@@ -31,9 +33,10 @@ actions, `IconAction` owns icon-only actions, `DisclosureButton` owns record
 expansion, `RecordActions` owns View/Edit/Delete on register cards, and
 `DetailActions` owns the corresponding detail-dialog footer. The Dallaglio
 controls use a 36px standard target, 9px corners, 1px surface border, and
-light-weight stroke icons. Category labels and structure are neutral. Purple
-identifies the active choice or main task; green, amber, and red report actual
-states. Delete stays visually quiet until the confirmation step. These
+light-weight stroke icons. Category labels and structure are neutral. In light
+mode violet may identify the active choice or main task; in dark mode those
+interactions are achromatic. Green, amber, and red report actual states, while
+categorical color belongs to charts. Delete stays visually quiet until the confirmation step. These
 measurements are implemented in the shared components and Dallaglio CSS,
 rather than copied into pages. Any deliberate exception needs a reason tied
 to the control's purpose.

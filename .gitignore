@@ -25,6 +25,7 @@ e2e/**/*-snapshots/*-darwin.png
 # next.js
 /.next/
 /out/
+/docs/_generated/
 
 # production
 /build
@@ -38,6 +39,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+.codex-next.*.log
 
 # env files (can opt-in for committing if needed) — *.example files are meant
 # to be committed (no secrets, just documenting the shape), so exempt those.

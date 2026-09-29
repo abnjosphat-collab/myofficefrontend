@@ -13,4 +13,5 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - **Product / quality brief:** workspace `docs/PRODUCT.md` (parent `myoffice/` folder) or [docs/PRODUCT.md](./docs/PRODUCT.md).
 - **Frontend wiring rules:** [docs/ENGINEERING_STANDARDS.md](./docs/ENGINEERING_STANDARDS.md).
 - **UI system:** [components/shared/design-system/README.md](./components/shared/design-system/README.md).
+- **Documentation map:** [docs/README.md](./docs/README.md). Public contracts use JSDoc and are validated with `npm run docs:check`.
 - **Cursor:** `.cursor/rules/myoffice-core.mdc` at workspace root; skill `.claude/skills/myoffice-conventions/`.

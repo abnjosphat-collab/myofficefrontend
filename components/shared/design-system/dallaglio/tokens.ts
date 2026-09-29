@@ -43,21 +43,22 @@ export const DALLAGLIO_DARK = {
   divide: 'divide-[var(--d-line,#2d2d32)]',
   hoverBg: 'hover:bg-[var(--d-soft,#1b1b1f)]',
   hoverBgSoft: 'hover:bg-[var(--d-soft,#1b1b1f)]',
-  hoverText: 'hover:text-[var(--d-accent,#c4b5f5)]',
-  groupHoverText: 'group-hover:text-[var(--d-accent,#c4b5f5)]',
+  hoverText: 'hover:text-[var(--d-accent,#f7f7f8)]',
+  groupHoverText: 'group-hover:text-[var(--d-accent,#f7f7f8)]',
   chipBg: 'bg-[var(--d-soft,#1b1b1f)]',
-  inputBg: 'bg-[var(--d-canvas,#09090b)] border border-[var(--d-line,#2d2d32)] text-[var(--d-ink,#f7f7f8)] placeholder-[var(--d-ink-muted,#aaaab2)] focus:bg-[var(--d-surface,#111113)] focus:border-[var(--d-accent,#c4b5f5)]',
+  inputBg: 'bg-[var(--d-canvas,#09090b)] border border-[var(--d-line,#2d2d32)] text-[var(--d-ink,#f7f7f8)] placeholder-[var(--d-ink-muted,#aaaab2)] focus:bg-[var(--d-surface,#111113)] focus:border-[var(--d-accent,#f7f7f8)]',
   trendUp: 'text-[var(--d-success,#91d4b8)]',
   trendDown: 'text-[var(--d-danger,#e08a90)]',
-  ring: 'ring-[var(--d-accent-soft,#241f31)]',
+  ring: 'ring-[var(--d-accent-soft,#202024)]',
   scrim: 'bg-black/55',
-  linkText: 'text-[var(--d-accent,#c4b5f5)]',
-  linkHover: 'hover:text-[#ddd4fb]',
+  linkText: 'text-[var(--d-accent,#f7f7f8)]',
+  linkHover: 'hover:text-white',
   pageBg: 'bg-[var(--d-canvas,#09090b)]',
-  cta: 'bg-[var(--d-accent,#c4b5f5)] text-[var(--d-accent-ink,#15111e)] hover:brightness-105 shadow-[0_3px_9px_rgba(196,181,245,0.18)]',
+  cta: 'bg-[var(--d-accent,#f7f7f8)] text-[var(--d-accent-ink,#111113)] hover:bg-white shadow-[0_3px_9px_rgba(255,255,255,0.12)]',
   ctaDanger: 'bg-[var(--d-danger,#c73b46)] text-white hover:brightness-105',
 } as const;
 
+/** Returns semantic utility classes for the active Dallaglio color scheme. */
 export function dallaglioClasses(light: boolean) {
   return light ? { ...DALLAGLIO_LIGHT } : { ...DALLAGLIO_DARK };
 }

@@ -223,7 +223,8 @@ export const FONT_OPTIONS: { id: FontChoice; label: string; cssVar: string | nul
 // then swapping). Still fully user-overridable via the Settings > Typography switcher.
 const DEFAULT_FONT: FontChoice = 'manrope';
 
-type FontStyleContextValue = { font: FontChoice; setFont: (f: FontChoice) => void };
+/** Current interface typeface preference and its persistent setter. */
+export type FontStyleContextValue = { font: FontChoice; setFont: (f: FontChoice) => void };
 const FontStyleContext = createContext<FontStyleContextValue>({ font: DEFAULT_FONT, setFont: () => {} });
 export const useFontStyle = () => useContext(FontStyleContext);
 
@@ -274,7 +275,8 @@ export const FONT_SCALE_OPTIONS: { id: FontScale; label: string; value: number }
   { id: 'xlarge',  label: 'Extra large', value: 1.15 },
 ];
 
-type FontScaleContextValue = { scale: FontScale; setScale: (s: FontScale) => void };
+/** Current interface text-scale preference and its persistent setter. */
+export type FontScaleContextValue = { scale: FontScale; setScale: (s: FontScale) => void };
 const FontScaleContext = createContext<FontScaleContextValue>({ scale: 'default', setScale: () => {} });
 export const useFontScale = () => useContext(FontScaleContext);
 

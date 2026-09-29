@@ -1,5 +1,9 @@
-/** Chart colors follow the active design language. Use these in charts rather
- * than picking a new palette or tooltip surface in each page. */
+/**
+ * Returns the shared categorical chart palette for a design and color scheme.
+ *
+ * Structural UI color is intentionally separate from this palette: dark-mode
+ * controls stay monochrome while charts retain distinguishable data series.
+ */
 export function chartTheme(design: string, light: boolean) {
   if (design === 'dallaglio') {
     return {

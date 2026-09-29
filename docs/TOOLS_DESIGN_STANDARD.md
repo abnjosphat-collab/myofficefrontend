@@ -15,7 +15,7 @@ This standard adapts Apple’s published design principles to an operational min
 | Familiarity | Use recognised terms, icons, navigation and interaction patterns. | Equipment, Employees, History and Analytics navigation; thin outline icons; standard search, tabs, dialogs and notifications. |
 | Flexibility | Work across roles, departments, devices and individual needs. | Responsive layout, department scope, grid/list views, text scale, font and icon choices, light/dark appearance. |
 | Simplicity | Use plain language, progressive disclosure and the fewest safe steps. | Filters, secondary actions, hints and customization stay folded until requested. |
-| Craft | Treat type, icons, spacing, color, motion, focus, loading and edge cases as product quality. | Harmonised black/white dark appearance, restrained violet accent, readable microcopy, fluid reduced-motion-aware animation. |
+| Craft | Treat type, icons, spacing, color, motion, focus, loading and edge cases as product quality. | Harmonised black/white dark appearance, semantic status color, a separate visualization palette, readable microcopy, fluid reduced-motion-aware animation. |
 | Delight | Feedback should feel immediate and calm without distracting from work. | Short transitions, animated status changes, tactile upright card lift, recording feedback and clear success messages. |
 | Consistency | A control with the same purpose behaves and looks the same everywhere. | Shared icon, dialog, select, help, status and motion components. |
 | Clear design | Hierarchy, labels, grouping, contrast and feedback must communicate what happens next. | One primary page action, labelled controls, grouped toolbar, visible selected states and direct search destinations. |
@@ -29,7 +29,7 @@ This standard adapts Apple’s published design principles to an operational min
 - Meaning never depends on color alone. Statuses pair color with text or an icon.
 - Focus is visible. Keyboard users can reach, operate and dismiss every control and dialog.
 - Nonessential animation respects `prefers-reduced-motion`; contrast increases with `prefers-contrast`.
-- Dark appearance uses black and near-black surfaces, white text, neutral borders and a restrained violet accent. Semantic red, amber and green remain reserved for operational meaning.
+- Dark appearance uses black and near-black surfaces, white text, and neutral borders and controls. Color is reserved for operational meaning, notifications, and data visualization.
 - User layout, typography, icon, theme, sidebar, overview and view choices persist on the device.
 - Analytics use the shared Dallaglio chart palette, restrained gradients, readable axes, exact-value tooltips, meaningful summaries and responsive detail views. Raw SVG sketches, unexplained decorative charts and monochrome placeholder visualizations are not acceptable production surfaces.
 

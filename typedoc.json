@@ -1,0 +1,16 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": [
+    "components/shared/design-system/index.ts",
+    "lib/apiClient.ts",
+    "lib/config.ts"
+  ],
+  "out": "docs/_generated/api",
+  "readme": "docs/DOCUMENTATION_STANDARD.md",
+  "exclude": ["**/*.test.ts", "**/*.test.tsx"],
+  "excludeExternals": true,
+  "excludePrivate": true,
+  "excludeProtected": true,
+  "categorizeByGroup": true,
+  "skipErrorChecking": true
+}
