@@ -39,11 +39,14 @@ import {
   BarChart, Bar, AreaChart, Area, PieChart as RePieChart, Pie, Legend,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts';
-import { OT_TYPES, SELECTABLE_OT_TYPES, STATUSES, type OTType, type OTStatus, type OTRecord, type OTForm, type SpareUsedEntry, type PlanningStatus, type PayoutMethod } from './types';
+import {
+  COST_CENTRE_SUGGESTIONS, ENGINEERING_COST_CENTRE, OT_TYPES, SELECTABLE_OT_TYPES, STATUSES,
+  type OTType, type OTStatus, type OTRecord, type OTForm, type SpareUsedEntry, type PlanningStatus, type PayoutMethod,
+} from './types';
 import { useOvertimeData, buildOvertimePayload, createOT, updateOT, deleteOT, bulkUpdateOTStatus, postOvertimeAnalysis } from './useOvertimeData';
 import {
   calcHours, mondayOf, toISODate, addDays, buildWeeklyRows, cleanReasonText, groupSimilarReasons,
-  overtimeDefaultsForPublicHoliday,
+  overtimeDefaultsForPublicHoliday, overtimeCostCentre, recordsForEngineeringCostCentreExport,
 } from './calcOvertime';
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
@@ -83,7 +86,7 @@ const fmtDate = (v?: string): string => (v ? formatDate(v) : '');
 
 function blankForm(): OTForm {
   return {
-    employee_name: '', employee_id: '', position: '', department: '',
+    employee_name: '', employee_id: '', position: '', department: '', cost_centre: ENGINEERING_COST_CENTRE,
     overtime_type: 'regular',
     // New entries always get a real value — 'planned' is the default; 'unplanned'
     // is a deliberate switch for overtime that came up reactively.
@@ -201,7 +204,7 @@ function OTFormModal({ open, onClose, onSave, editing, records }: {
       if (editing) {
         setForm({
           employee_name: editing.employee_name, employee_id: editing.employee_id, position: editing.position,
-          department: editing.department || '', overtime_type: editing.overtime_type,
+          department: editing.department || '', cost_centre: overtimeCostCentre(editing), overtime_type: editing.overtime_type,
           // Preserve 'unclassified' (null) as a real, sticky state on an existing legacy
           // record — must NOT default to 'unplanned'/'cash' here, or saving an unrelated
           // edit (e.g. fixing a typo in reason) would silently stamp a guessed value on it.
@@ -319,6 +322,18 @@ function OTFormModal({ open, onClose, onSave, editing, records }: {
           </FormField>
           <FormField label="Date" required><input aria-label="Date" type="date" className={inputCls} value={form.date} onChange={e => handleDateChange(e.target.value)} /></FormField>
         </div>
+
+        <PredictiveInput
+          historyKey="overtime_cost_centre"
+          label="Cost centre"
+          required
+          value={form.cost_centre}
+          onChange={value => set('cost_centre', value)}
+          hints={[...COST_CENTRE_SUGGESTIONS]}
+          placeholder="Type or choose the department carrying this cost…"
+          inputClassName={`h-9 ${t.inputBg}`}
+        />
+        <HintText className="-mt-3">This controls which department pays for the overtime; it does not change the employee&apos;s home department.</HintText>
 
         <FormField label="Planned or Unplanned?" required>
           <PillTabs<PlanningStatus | 'unclassified'>
@@ -569,6 +584,17 @@ function OTBulkFormModal({ open, onClose, onSubmit, employees, records, initialP
           <PillTabs tabs={payoutTabs} value={form.payout_method ?? 'unclassified'} onChange={v => setForm(f => ({ ...f, payout_method: v === 'unclassified' ? null : v }))} />
         </FormField>
 
+        <PredictiveInput
+          historyKey="overtime_cost_centre"
+          label="Cost centre"
+          required
+          value={form.cost_centre}
+          onChange={value => set('cost_centre', value)}
+          hints={[...COST_CENTRE_SUGGESTIONS]}
+          placeholder="Type or choose the department carrying this cost…"
+          inputClassName={`h-9 ${t.inputBg}`}
+        />
+
         <label htmlFor="overtime-bulk-use-hours" className="flex items-center gap-2 text-xs cursor-pointer select-none">
           <input id="overtime-bulk-use-hours" type="checkbox" checked={useHours} onChange={e => setUseHours(e.target.checked)} className="accent-brand-500" />
           <span className={t.textMuted}>Enter hours only (same for everyone)</span>
@@ -638,6 +664,7 @@ function OTDetailModal({ record, onClose, onEdit, onApprove, onReject }: {
     { l: 'Employee ID', v: record.employee_id },
     { l: 'Position', v: record.position },
     { l: 'Department', v: record.department },
+    { l: 'Cost centre', v: overtimeCostCentre(record) },
     { l: 'Date', v: fmtDate(record.date) },
     { l: 'Time', v: record.start_time && record.end_time ? `${record.start_time} – ${record.end_time}` : undefined },
     { l: 'Duration', v: hours > 0 ? `${hours.toFixed(1)} hours` : '—' },
@@ -713,6 +740,7 @@ const overtimeExportColumns: DLColumn[] = [
   { key: 'employee_name', label: 'Employee', width: 20 },
   { key: 'employee_id', label: 'ID', width: 20 },
   { key: 'position', label: 'Position', width: 20 },
+  { key: 'cost_centre', label: 'Cost Centre', width: 24, format: (_value, row) => overtimeCostCentre(row as unknown as OTRecord) },
   { key: 'overtime_type', label: 'Type', width: 20, format: v => TYPE_LABELS[v as OTType] },
   { key: 'date', label: 'Date', width: 20, format: v => fmtDate(v as string) },
   { key: 'start_time', label: 'Start', width: 20 },
@@ -1690,8 +1718,10 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
   const [from, setFrom] = useState(defaultFrom);
   const [to, setTo] = useState(defaultTo);
   const [sortMode, setSortMode] = useState<'name' | 'total' | 'mineNumber'>('total');
+  const engineeringRecords = useMemo(() => recordsForEngineeringCostCentreExport(records), [records]);
+  const excludedCostCentreCount = records.length - engineeringRecords.length;
 
-  const { rows: rowsByName, days } = useMemo(() => buildWeeklyRows(records, from, to, employees), [records, from, to, employees]);
+  const { rows: rowsByName, days } = useMemo(() => buildWeeklyRows(engineeringRecords, from, to, employees), [engineeringRecords, from, to, employees]);
   // buildWeeklyRows already returns alphabetical order — re-sort on top of that
   // (not inside it) so the chosen order stays a view preference, not a change to
   // the underlying data shape everything else here relies on.
@@ -1728,7 +1758,7 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
   // left off. `topEmployeeShare` keeps its name: it's still literally the top (first)
   // employee's share of the grand total, that meaning didn't change when the list below
   // it stopped being capped.
-  const weekRecords = useMemo(() => records.filter(r => r.date >= from && r.date <= to), [records, from, to]);
+  const weekRecords = useMemo(() => engineeringRecords.filter(r => r.date >= from && r.date <= to), [engineeringRecords, from, to]);
   const activeEmployees = useMemo(() => [...rowsByName].filter(r => r.total > 0).sort((a, b) => b.total - a.total), [rowsByName]);
   const maxEmployeeHours = Math.max(1, ...activeEmployees.map(r => r.total));
   const topEmployeeShare = grandTotal > 0 && activeEmployees[0] ? Math.round((activeEmployees[0].total / grandTotal) * 100) : 0;
@@ -1978,6 +2008,11 @@ function WeeklySummaryView({ records, employees }: { records: OTRecord[]; employ
           <PrimaryButton icon={Download} submitting={downloading} onClick={downloadExcel} className="ml-auto">Download Excel</PrimaryButton>
         )}
       </div>
+      {excludedCostCentreCount > 0 && (
+        <div className={`${t.glass} rounded-xl px-4 py-3 text-xs ${t.textMuted}`}>
+          This Engineering cost-centre report excludes {excludedCostCentreCount} overtime record{excludedCostCentreCount !== 1 ? 's' : ''} charged to another department.
+        </div>
+      )}
 
       {/* Quick per-person "why" — one line each, ahead of the full instance-by-instance
           breakdown below. Reuses groupSimilarReasons scoped to one person's own records
@@ -2163,7 +2198,7 @@ function OvertimeContent() {
     if (employeeIds.size > 0 && !employeeIds.has(r.employee_id)) return false;
     if (search) {
       const q = search.toLowerCase();
-      if (!r.employee_name.toLowerCase().includes(q) && !r.employee_id.toLowerCase().includes(q) && !(r.reason || '').toLowerCase().includes(q) && !r.position.toLowerCase().includes(q)) return false;
+      if (!r.employee_name.toLowerCase().includes(q) && !r.employee_id.toLowerCase().includes(q) && !(r.reason || '').toLowerCase().includes(q) && !r.position.toLowerCase().includes(q) && !overtimeCostCentre(r).toLowerCase().includes(q)) return false;
     }
     return true;
   }).sort((a, b) => dateSort === 'asc' ? a.date.localeCompare(b.date) : b.date.localeCompare(a.date)),
@@ -2176,6 +2211,7 @@ function OvertimeContent() {
   );
   const pageStart = filtered.length === 0 ? 0 : (visiblePage - 1) * recordsPageSize + 1;
   const pageEnd = Math.min(visiblePage * recordsPageSize, filtered.length);
+  const engineeringExportRecords = useMemo(() => recordsForEngineeringCostCentreExport(records), [records]);
 
   // Month quick-filter — reads off `records` (not `filtered`), so the chip list itself
   // doesn't shrink as the user filters by other criteria. Newest first, capped so a
@@ -2367,6 +2403,7 @@ function OvertimeContent() {
           <TypeBadge type={r.overtime_type} />
           <PlanningBadge status={r.planning_status} />
           <PayoutBadge method={r.payout_method} />
+          <span className={`rounded-full px-2 py-1 text-[10px] ${TYPE_WEIGHT.medium} ${t.chipBg} ${t.textFaint}`}>Cost: {overtimeCostCentre(r)}</span>
         </div>
         <div className={`mt-2 space-y-0.5 text-[11px] ${t.textFaint}`}>
           <p>{fmtDate(r.date)} · {r.start_time}–{r.end_time} {hours > 0 && <span className={`text-brand-400 ${TYPE_WEIGHT.semibold}`}>({hours.toFixed(1)}h)</span>}</p>
@@ -2407,12 +2444,13 @@ function OvertimeContent() {
           <>
             {t.design === 'dallaglio' ? <IconAction meaning="refresh" title="Refresh records" onClick={() => load(true)} spinning={refreshing} /> : <button type="button" onClick={() => load(true)} title="Refresh" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}><RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} /></button>}
             {t.design === 'dallaglio' ? <IconAction meaning="eye" title={sections.expanded.hero ? 'Hide overview' : 'Show overview'} onClick={() => sections.toggle('hero')} active={sections.expanded.hero} /> : <button type="button" title={sections.expanded.hero ? 'Hide hero stats' : 'Show hero stats'} onClick={() => sections.toggle('hero')} className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all`}>{sections.expanded.hero ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}</button>}
-            {records.length > 0 && (
+            {engineeringExportRecords.length > 0 && (
               <DownloadButton
-                data={records as unknown as Record<string, unknown>[]}
+                data={engineeringExportRecords as unknown as Record<string, unknown>[]}
                 columns={overtimeExportColumns}
                 filename={exportFilename('overtime_records')}
-                title="Overtime Records"
+                title="Engineering Cost Centre Overtime Records"
+                subtitle="Overtime charged to other departments is excluded."
                 formats={['excel']}
               />
             )}
@@ -2591,7 +2629,7 @@ function OvertimeContent() {
                     <th className={`${thCls} w-8`}>
                       {pendingInView.length > 0 && <input type="checkbox" checked={allPendingSelected} onChange={toggleSelectAll} title="Select pending on this page" aria-label="Select pending on this page" className="rounded" />}
                     </th>
-                    <th className={thCls}>Employee</th><th className={thCls}>Type</th>
+                    <th className={thCls}>Employee</th><th className={thCls}>Type</th><th className={thCls}>Cost centre</th>
                     <th className={thCls}>
                       <button type="button" onClick={() => setDateSort(d => d === 'asc' ? 'desc' : 'asc')}
                         className={`flex items-center gap-0.5 ${t.hoverText} transition-colors`} title="Sort by date">
@@ -2615,6 +2653,7 @@ function OvertimeContent() {
                           </div>
                         </td>
                         <td className={tdCls}><div className="flex items-center gap-1.5 flex-wrap"><TypeBadge type={r.overtime_type} /><PlanningBadge status={r.planning_status} /><PayoutBadge method={r.payout_method} /></div></td>
+                        <td className={tdCls}><span className={`text-xs ${TYPE_WEIGHT.medium} ${t.textFaint}`}>{overtimeCostCentre(r)}</span></td>
                         <td className={tdCls}><p className="text-xs">{fmtDate(r.date)}</p><p className={`text-[10px] ${t.textFaint}`}>{r.start_time} – {r.end_time}</p></td>
                         <td className={tdCls}><span className={`text-xs ${TYPE_WEIGHT.semibold} text-brand-400`}>{h > 0 ? `${h.toFixed(1)}h` : '—'}</span></td>
                         <td className={tdCls}><span className={`text-xs max-w-[200px] truncate block ${t.textFaint}`}>{r.reason}</span></td>

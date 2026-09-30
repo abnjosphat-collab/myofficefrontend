@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SuggestField, MovementForm, ToolForm, MarkReadyForm } from './ToolsForms';
+import { ToolsCustomize, DEFAULT_OPTIONS } from './ToolsCustomize';
 import { AnimatedSelect } from './AnimatedSelect';
 import { EvidenceGallery, EvidencePicker, ToolsDialog } from './ToolsUI';
 import { ToolsDateInput } from './ToolsDateInput';
@@ -22,10 +23,17 @@ function DialogHarness() {
   const [open,setOpen] = useState(false);
   return <><button onClick={()=>setOpen(true)}>Open tool</button><ToolsDialog open={open} onClose={()=>setOpen(false)} title="Tool details" description="Current condition"><button>Sample action</button></ToolsDialog></>;
 }
+function RequiredAuthDialogHarness({onClose}:{onClose:()=>void}) {
+  return <ToolsDialog open dismissible={false} onClose={onClose} title="Sign in or sign up" description="Use your workspace account or create one to continue."><button>Sign in</button></ToolsDialog>;
+}
 function SelectHarness() {
   const [status,setStatus]=useState('all');
   const [sort,setSort]=useState('register');
   return <><AnimatedSelect ariaLabel="Status" value={status} onChange={setStatus} options={[{value:'all',label:'All tools'},{value:'ready',label:'Ready'}]}/><AnimatedSelect ariaLabel="Sort" value={sort} onChange={setSort} options={[{value:'register',label:'Register order'},{value:'name',label:'Name'}]}/></>;
+}
+function CustomizeHarness() {
+  const [options,setOptions]=useState(DEFAULT_OPTIONS);
+  return <ToolsCustomize options={options} setOptions={setOptions}/>;
 }
 describe('Tools interaction controls', () => {
   it('keeps only one animated dropdown open and supports keyboard selection', async () => {
@@ -93,6 +101,21 @@ describe('Tools interaction controls', () => {
     await user.click(input);
     expect(showPicker).toHaveBeenCalledOnce();
   });
+  it('changes the equipment icon family with a mouse click', async () => {
+    const user=userEvent.setup(); render(<CustomizeHarness/>);
+    await user.click(screen.getByRole('radio',{name:/Tabler Outline/i}));
+    expect(screen.getByRole('radio',{name:/Tabler Outline/i})).toHaveAttribute('aria-checked','true');
+    expect(screen.getByRole('radio',{name:/Precision Line/i})).toHaveAttribute('aria-checked','false');
+  });
+  it('does not let signed-out visitors dismiss the required authentication dialog', async () => {
+    const user=userEvent.setup();
+    const onClose=vi.fn();
+    render(<RequiredAuthDialogHarness onClose={onClose}/>);
+    expect(screen.queryByRole('button',{name:'Close dialog'})).not.toBeInTheDocument();
+    await user.keyboard('{Escape}');
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog',{name:'Sign in or sign up'})).toBeVisible();
+  });
   it('explains when safety eligibility removes every employee option', async () => {
     const user=userEvent.setup();
     const employees=[{id:'employee-1',backendId:'employee-1',employeeNumber:'C1042',name:'Mina Dube',department:'Engineering',active:true}];
@@ -101,6 +124,17 @@ describe('Tools interaction controls', () => {
     expect(screen.getByRole('status')).toHaveTextContent('No eligible employee for this equipment');
     await user.click(screen.getByRole('combobox',{name:'Employee'}));
     expect(screen.getByRole('listbox',{name:'Employee suggestions'})).toHaveTextContent('No employee is currently trained, qualified and authorized');
+  });
+  it('shows only approved equipment when issue starts from an employee', async () => {
+    const user=userEvent.setup();
+    const employee={id:'employee-1',backendId:'employee-1',employeeNumber:'C1042',name:'Mina Dube',department:'Engineering',active:true};
+    const approved={...SEED_TOOLS[0],id:'APPROVED',backendId:'approved',eligibleEmployees:[{id:'employee-1',employeeNumber:'C1042',name:'Mina Dube',department:'Engineering'}]};
+    const restricted={...SEED_TOOLS[1],id:'RESTRICTED',backendId:'restricted',status:'available' as const,eligibleEmployees:[]};
+    render(<MovementForm kind="issue" initialEmployee={employee} tools={[approved,restricted]} employees={[employee]} issuerDepartment="Engineering" addFiles={()=>[]} onSave={()=>{}} onCancel={()=>{}}/>);
+    await user.click(screen.getByRole('combobox',{name:'Tool'}));
+    const suggestions=screen.getByRole('listbox',{name:'Tool suggestions'});
+    expect(suggestions).toHaveTextContent('APPROVED');
+    expect(suggestions).not.toHaveTextContent('RESTRICTED');
   });
   it('autofills saved employee details when an employee is selected', async () => {
     const user=userEvent.setup();

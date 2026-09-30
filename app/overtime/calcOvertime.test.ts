@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
   rateFor, calcHours, mondayOf, toISODate, addDays, buildWeeklyRows, isExcludedFromWeeklyRoster,
   cleanReasonText, significantTokens, levenshtein, tokensMatch, reasonSimilarity, groupSimilarReasons,
-  overtimeDefaultsForPublicHoliday, PUBLIC_HOLIDAY_OT_REASON,
+  overtimeDefaultsForPublicHoliday, PUBLIC_HOLIDAY_OT_REASON, overtimeCostCentre,
+  recordsForEngineeringCostCentreExport,
 } from './calcOvertime';
 import type { OTRecord } from './types';
 import type { EmployeeLookup } from '@/hooks/useLookups';
@@ -14,6 +15,24 @@ function rec(over: Partial<OTRecord> = {}): OTRecord {
     status: 'pending', ...over,
   };
 }
+
+describe('Engineering cost-centre exports', () => {
+  it('keeps legacy blank records in Engineering reports', () => {
+    expect(overtimeCostCentre(rec())).toBe('Engineering');
+    expect(overtimeCostCentre(rec({ cost_centre: '   ' }))).toBe('Engineering');
+  });
+
+  it('excludes overtime charged to another department', () => {
+    const engineering = rec({ id: 1, cost_centre: 'Engineering' });
+    const legacy = rec({ id: 2, cost_centre: undefined });
+    const projects = rec({ id: 3, cost_centre: 'Projects' });
+    expect(recordsForEngineeringCostCentreExport([engineering, legacy, projects]).map(record => record.id)).toEqual([1, 2]);
+  });
+
+  it('matches Engineering without case or surrounding-space sensitivity', () => {
+    expect(recordsForEngineeringCostCentreExport([rec({ cost_centre: ' engineering ' })])).toHaveLength(1);
+  });
+});
 
 describe('overtimeDefaultsForPublicHoliday', () => {
   it('returns holiday type and Public Holiday reason on a ZW public holiday', () => {

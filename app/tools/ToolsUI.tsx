@@ -31,14 +31,17 @@ export function AnimatedText({ children, value }: { children: ReactNode; value: 
   return <AnimatePresence initial={false} mode="wait"><motion.span key={value} initial={{ opacity: 0, y: reduced ? 0 : 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: reduced ? 0 : -4 }} transition={{ duration: reduced ? 0 : .16 }} className={s.animatedText}>{children}</motion.span></AnimatePresence>;
 }
 
-export function ToolsDialog({ open, onClose, title, description, wide = false, children }: { open: boolean; onClose: () => void; title: string; description: string; wide?: boolean; children: ReactNode }) {
+export function ToolsDialog({ open, onClose, title, description, wide = false, dismissible = true, children }: { open: boolean; onClose: () => void; title: string; description: string; wide?: boolean; dismissible?: boolean; children: ReactNode }) {
   const prefs = useContext(ToolsPreferences);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const returnFocus = useRef<HTMLElement | null>(null);
-  return <Dialog.Root open={open} onOpenChange={value => { if (!value) onClose(); }}><Dialog.Portal><Dialog.Overlay className={s.dialogOverlay} /><Dialog.Content className={`${s.surface} ${s.dialogPanel} ${wide ? s.dialogWide : ''}`} data-mode={prefs.appearance} data-font={prefs.font} style={scaleStyle(prefs.fontSize)}
+  return <Dialog.Root open={open} onOpenChange={value => { if (!value && dismissible) onClose(); }}><Dialog.Portal><Dialog.Overlay className={s.dialogOverlay} /><Dialog.Content className={`${s.surface} ${s.dialogPanel} ${wide ? s.dialogWide : ''}`} data-mode={prefs.appearance} data-font={prefs.font} style={scaleStyle(prefs.fontSize)}
+    onEscapeKeyDown={event => { if (!dismissible) event.preventDefault(); }}
+    onPointerDownOutside={event => { if (!dismissible) event.preventDefault(); }}
+    onInteractOutside={event => { if (!dismissible) event.preventDefault(); }}
     onOpenAutoFocus={event => { event.preventDefault(); returnFocus.current = document.activeElement as HTMLElement; titleRef.current?.focus(); }}
     onCloseAutoFocus={event => { event.preventDefault(); const target = returnFocus.current?.isConnected ? returnFocus.current : document.querySelector<HTMLElement>('[aria-label="Tools design prototype"] button'); target?.focus(); }}>
-    <div className={s.dialogHeader}><div className={s.eyebrow}>TOOLS &amp; EQUIPMENT</div><Dialog.Title ref={titleRef} tabIndex={-1} className={s.modalTitle}>{title}</Dialog.Title><Dialog.Description className={s.drawerSubtitle}>{description}</Dialog.Description><Dialog.Close asChild><button type="button" className={s.closeButton} aria-label="Close dialog"><Icon name="close" size={20} /></button></Dialog.Close></div>
+    <div className={s.dialogHeader}><div className={s.eyebrow}>TOOLS &amp; EQUIPMENT</div><Dialog.Title ref={titleRef} tabIndex={-1} className={s.modalTitle}>{title}</Dialog.Title><Dialog.Description className={s.drawerSubtitle}>{description}</Dialog.Description>{dismissible&&<Dialog.Close asChild><button type="button" className={s.closeButton} aria-label="Close dialog"><Icon name="close" size={20} /></button></Dialog.Close>}</div>
     <div className={s.dialogBody}>{children}</div>
   </Dialog.Content></Dialog.Portal></Dialog.Root>;
 }

@@ -5,9 +5,19 @@
 import type { EmployeeLookup } from '@/hooks/useLookups';
 import { defaultDayShiftTimes } from '@/lib/shiftTimePresets';
 import { zimHolidayName } from '@/lib/zimHolidays';
-import type { OTRecord, OTType } from './types';
+import { ENGINEERING_COST_CENTRE, type OTRecord, type OTType } from './types';
 
 export const PUBLIC_HOLIDAY_OT_REASON = 'Public Holiday';
+
+/** Legacy records predate cost-centre allocation and therefore belong to Engineering. */
+export function overtimeCostCentre(record: Pick<OTRecord, 'cost_centre'>): string {
+  return record.cost_centre?.trim() || ENGINEERING_COST_CENTRE;
+}
+
+/** Records included in Engineering's overtime Excel reports. */
+export function recordsForEngineeringCostCentreExport(records: OTRecord[]): OTRecord[] {
+  return records.filter(record => overtimeCostCentre(record).toLocaleLowerCase() === ENGINEERING_COST_CENTRE.toLocaleLowerCase());
+}
 
 export type PublicHolidayOvertimeDefaults = {
   overtime_type: 'holiday';

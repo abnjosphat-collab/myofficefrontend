@@ -223,6 +223,19 @@ try{
   await page.reload({waitUntil:'domcontentloaded',timeout:120_000});
   await waitForSettled();
 
+  await page.getByRole('button',{name:'Employees',exact:true}).click();
+  await waitForText('Engineering');
+  const departmentGrouped=await page.getByRole('heading',{name:'Engineering',exact:true}).isVisible();
+  await page.getByRole('button',{name:'View Tariro Moyo',exact:true}).click();
+  const employeeDialog=page.getByRole('dialog',{name:'Tariro Moyo'});
+  const torqueCompetency=employeeDialog.getByLabel('Torque wrench competency requirements');
+  const eligibilityMatrixVisible=await employeeDialog.getByText('Tool eligibility',{exact:true}).isVisible()
+    &&await employeeDialog.getByText('PP-UG-ENG-TW-01 · Torque wrench',{exact:true}).isVisible()
+    &&await torqueCompetency.getByRole('checkbox',{name:'Trained'}).isChecked()
+    &&await torqueCompetency.getByRole('checkbox',{name:'Qualified'}).isChecked()
+    &&await torqueCompetency.getByRole('checkbox',{name:'Authorized'}).isChecked();
+  await page.screenshot({path:path.join(os.tmpdir(),'myoffice-tools-employee-eligibility.png')});
+  await employeeDialog.getByRole('button',{name:'Close',exact:true}).click();
   await page.getByRole('button',{name:'Compliance',exact:true}).click();
   await waitForText('Inspection and maintenance control');
   const complianceVisible=await page.getByText('Current competency register',{exact:true}).isVisible();
@@ -251,7 +264,7 @@ try{
   await waitForSettled();
   await page.evaluate(({preferencesKey,preferences,sessionKey,session})=>{if(preferences===null)localStorage.removeItem(preferencesKey);else localStorage.setItem(preferencesKey,preferences);if(session===null)localStorage.removeItem(sessionKey);else localStorage.setItem(sessionKey,session);},{preferencesKey,preferences:originalPreferences,sessionKey,session:originalSession});
 
-  const evidence={fixtureMode,live,progressiveDelivery,initialFailure,quietFailure,notificationFailure,adminFailure,wakeStayedLoading,vendorLoadingCopyAbsent,equipmentLoaderCount,issueForm,complianceVisible,gatePassesVisible,analyticsVisualsVisible,detailOpened,mobile,blockedWrites,consoleErrors,responses:{total:responses.length,successful:responses.filter(item=>item.status===200).length,simulatedFailures:responses.filter(item=>item.status>=500).length,paths:[...new Set(responses.map(item=>item.pathname))]},restoredPreferences:await page.evaluate(key=>localStorage.getItem(key),preferencesKey),restoredSession:await page.evaluate(key=>localStorage.getItem(key),sessionKey)};
+  const evidence={fixtureMode,live,progressiveDelivery,initialFailure,quietFailure,notificationFailure,adminFailure,wakeStayedLoading,vendorLoadingCopyAbsent,equipmentLoaderCount,issueForm,departmentGrouped,eligibilityMatrixVisible,complianceVisible,gatePassesVisible,analyticsVisualsVisible,detailOpened,mobile,blockedWrites,consoleErrors,responses:{total:responses.length,successful:responses.filter(item=>item.status===200).length,simulatedFailures:responses.filter(item=>item.status>=500).length,paths:[...new Set(responses.map(item=>item.pathname))]},restoredPreferences:await page.evaluate(key=>localStorage.getItem(key),preferencesKey),restoredSession:await page.evaluate(key=>localStorage.getItem(key),sessionKey)};
   fs.writeSync(1,`${JSON.stringify(evidence,null,2)}\n`);
   check(initialFailure.errorVisible&&!initialFailure.falseEmpty,'History failure looked like a genuine empty history.');
   check(progressiveDelivery.equipmentVisible&&progressiveDelivery.historyStillLoading,'Equipment waited for the delayed history source.');
@@ -263,6 +276,7 @@ try{
   check(equipmentLoaderCount===1,'The equipment loading state was rendered more than once.');
   check(issueForm.employeeSelected==='Tariro Moyo · E-001'&&issueForm.suggestionPointerEvents==='auto','The issue-form employee suggestion was not directly clickable.');
   check(issueForm.pickerOpened,'Clicking the expected-return field did not invoke the native picker.');
+  check(departmentGrouped&&eligibilityMatrixVisible,'The department-grouped employee eligibility register did not render correctly.');
   check(complianceVisible&&gatePassesVisible,'Compliance or Gate passes did not render.');
   check(analyticsVisualsVisible!==false,'The polished Analytics visualizations did not render.');
   check(mobile.documentOverflow===0&&mobile.mainOverflow===0,'The Tools workspace overflowed at 390px.');

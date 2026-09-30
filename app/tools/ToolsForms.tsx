@@ -106,7 +106,12 @@ export const TITLES: Record<ActionKind, string> = { issue: 'Issue tool', return:
 function isFuture(value: string) { const time = Date.parse(value); return Number.isFinite(time) && time > Date.now(); }
 
 export function MovementForm({ kind, initialTool, initialEmployee, tools, employees = PEOPLE.map((label,index)=>({id:String(index),employeeNumber:label.split(' · ')[1],name:label.split(' · ')[0],department:'Engineering',active:true})), locationSuggestions=[], equipmentSuggestions=[], issuerDepartment, addFiles, onSave, onCancel }: { kind: ActionKind; initialTool?: Tool; initialEmployee?:Employee; tools: Tool[]; employees?: Employee[]; locationSuggestions?:string[]; equipmentSuggestions?:string[]; issuerDepartment?:string; addFiles: AddEvidence; onSave: (input: Movement) => void; onCancel: () => void }) {
-  const candidates = tools.filter(t => (!issuerDepartment||departmentOf(t)===issuerDepartment) && !t.archived && (kind === 'issue' ? t.status === 'available' : ['issued', 'overdue'].includes(t.status)));
+  const initialEmployeeIds = new Set(initialEmployee ? [initialEmployee.backendId,initialEmployee.employeeNumber].filter(Boolean) : []);
+  const candidates = tools.filter(t => {
+    const availableForAction = kind === 'issue' ? t.status === 'available' : ['issued', 'overdue'].includes(t.status);
+    const approvedForEmployee = !initialEmployee || !['issue','transfer'].includes(kind) || t.eligibleEmployees === undefined || t.eligibleEmployees.some(employee=>initialEmployeeIds.has(employee.id)||initialEmployeeIds.has(employee.employeeNumber));
+    return (!issuerDepartment||departmentOf(t)===issuerDepartment) && !t.archived && availableForAction && approvedForEmployee;
+  });
   const [toolLabel, setToolLabel] = useState(initialTool ? `${initialTool.id} · ${initialTool.name}` : '');
   const [person, setPerson] = useState(initialEmployee?`${initialEmployee.name} · ${initialEmployee.employeeNumber}`:'');
   const [location, setLocation] = useState('');

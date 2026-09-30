@@ -31,6 +31,17 @@ export type PlanningStatus = typeof PLANNING_STATUSES[number];
 export const PAYOUT_METHODS = ['cash', 'lieu'] as const;
 export type PayoutMethod = typeof PAYOUT_METHODS[number];
 
+export const ENGINEERING_COST_CENTRE = 'Engineering';
+export const COST_CENTRE_SUGGESTIONS = [
+  ENGINEERING_COST_CENTRE,
+  'Projects',
+  'Mining Technical Services (MTS)',
+  'Mining',
+  'Stores',
+  'Human Resources',
+  'Shared Services',
+] as const;
+
 /** One line of the "Spares Used" log — a reference/cost record only, same scope as
  *  breakdowns/work_orders' spares_used: it never touches Spares-module stock
  *  (`current_quantity`), which stays a Stores-department function. `unit_price`
@@ -49,6 +60,8 @@ export interface OTRecord {
   employee_id: string;
   position: string;
   department?: string;
+  /** Department whose budget carries this overtime; distinct from the employee's home department. */
+  cost_centre?: string;
   overtime_type: OTType;
   planning_status?: PlanningStatus | null;
   payout_method?: PayoutMethod | null;
@@ -70,6 +83,7 @@ export interface OTForm {
   employee_id: string;
   position: string;
   department: string;
+  cost_centre: string;
   overtime_type: OTType;
   planning_status: PlanningStatus | null;
   payout_method: PayoutMethod | null;
