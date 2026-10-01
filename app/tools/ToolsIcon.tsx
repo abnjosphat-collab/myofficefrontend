@@ -6,7 +6,7 @@ import {
   DotsThree, WarningCircle,
   ArrowUUpLeft, ArrowUUpRight, PencilSimple, Archive, Paperclip, ImageSquare,
   FilePdf, UploadSimple, Info, Eye, EyeSlash, ArrowUp, ArrowDown,
-  TreeStructure, TextAa, Bell, GearSix, DotsSixVertical, MagnifyingGlassPlus,
+  TreeStructure, TextAa, Bell, Wrench, House, ChatCircleText, DotsSixVertical, MagnifyingGlassPlus,
   MagnifyingGlassMinus, ChartLineUp, UserGear, Toolbox, CalendarBlank,
 } from '@phosphor-icons/react';
 
@@ -22,7 +22,7 @@ const icons = {
   edit: PencilSimple, archive: Archive, attachment: Paperclip, image: ImageSquare,
   pdf: FilePdf, upload: UploadSimple, info: Info, show: Eye, hide: EyeSlash,
   up: ArrowUp, moveDown: ArrowDown, department: TreeStructure,
-  font: TextAa, bell: Bell, settings: GearSix, grip: DotsSixVertical,
+  font: TextAa, bell: Bell, settings: Wrench, home: House, chat: ChatCircleText, grip: DotsSixVertical,
   zoomIn: MagnifyingGlassPlus, zoomOut: MagnifyingGlassMinus,
   analytics: ChartLineUp,
   accounts: UserGear,
@@ -30,8 +30,8 @@ const icons = {
   calendar: CalendarBlank,
 } as const;
 export type IconName = keyof typeof icons;
-export function ToolsIcon({ name, size = 18, style }: { name: IconName; size?: number; style?: CSSProperties }) {
+export function ToolsIcon({ name, size = 18, style, weight = 'light' }: { name: IconName; size?: number; style?: CSSProperties; weight?: 'thin' | 'light' | 'regular' | 'bold' | 'fill' | 'duotone' }) {
   const Glyph = icons[name];
-  return <Glyph size={size} weight="light" aria-hidden="true" style={style} />;
+  return <Glyph size={size} weight={weight} aria-hidden="true" style={style} />;
 }
 

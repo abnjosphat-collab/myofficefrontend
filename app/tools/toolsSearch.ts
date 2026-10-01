@@ -20,6 +20,7 @@ export type WorkspaceSearchResult = {
 };
 
 const fixedResults: WorkspaceSearchResult[] = [
+  { id: 'page-home', kind: 'Page', title: 'Homepage', subtitle: 'Overview, attention list and recent movements', keywords: 'home overview dashboard start summary attention', icon: 'home', target: { type: 'tab', tab: 'homepage' } },
   { id: 'page-equipment', kind: 'Page', title: 'Equipment register', subtitle: 'Browse every active and archived item', keywords: 'tools assets register inventory equipment', icon: 'box', target: { type: 'tab', tab: 'register' } },
   { id: 'page-loans', kind: 'Page', title: 'Equipment in use', subtitle: 'See current custody and overdue returns', keywords: 'issued borrowed loan handover custody overdue', icon: 'out', target: { type: 'tab', tab: 'loans' } },
   { id: 'page-employees', kind: 'Page', title: 'Employee register', subtitle: 'Find people who can receive equipment', keywords: 'staff personnel workers people employees', icon: 'user', target: { type: 'tab', tab: 'employees' } },
@@ -35,7 +36,7 @@ const fixedResults: WorkspaceSearchResult[] = [
   { id: 'action-export', kind: 'Action', title: 'Download or export', subtitle: 'Create PDF, Word or Excel output', keywords: 'report pdf docx word xlsx excel export', icon: 'download', target: { type: 'modal', modal: 'export' } },
   { id: 'action-feedback', kind: 'Action', title: 'Send feedback', subtitle: 'Write or record a suggestion', keywords: 'suggestion audio voice comment help', icon: 'edit', target: { type: 'modal', modal: 'feedback' } },
   { id: 'setting-customize', kind: 'Setting', title: 'Settings', subtitle: 'Layout, type and guidance', keywords: 'customize preferences rearrange hide restore font help hints', icon: 'settings', target: { type: 'modal', modal: 'customize' } },
-  { id: 'setting-font', kind: 'Setting', title: 'Typography and text size', subtitle: 'Choose a font and adjust readability', keywords: 'font text size inter manrope jakarta accessibility larger smaller', icon: 'font', target: { type: 'modal', modal: 'customize' } },
+  { id: 'setting-font', kind: 'Setting', title: 'Body typeface and text size', subtitle: 'Choose a body font and adjust readability', keywords: 'font text size inter manrope jakarta typography accessibility larger smaller', icon: 'font', target: { type: 'modal', modal: 'customize' } },
 ];
 
 export function buildWorkspaceSearchIndex(tools: Tool[], employees: Employee[], activity: Activity[], sourceRegisters:SourceRegisterRecord[] = []) {

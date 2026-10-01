@@ -10,13 +10,14 @@ import s from './tools.module.css';
 export type SelectOption = { value: string; label: string };
 type FloatingStyle = CSSProperties & Record<string, string | number | undefined>;
 
-export function AnimatedSelect({ value, options, onChange, ariaLabel, id, onOpenChange }: {
+export function AnimatedSelect({ value, options, onChange, ariaLabel, id, onOpenChange, shortLabels }: {
   value: string;
   options: SelectOption[];
   onChange: (value: string) => void;
   ariaLabel: string;
   id?: string;
   onOpenChange?: (open: boolean) => void;
+  shortLabels?: Record<string, string>;
 }) {
   const generatedId = useId();
   const popoverId = `select-${generatedId}`;
@@ -137,8 +138,8 @@ export function AnimatedSelect({ value, options, onChange, ariaLabel, id, onOpen
   ) : null;
 
   return <div ref={root} className={s.animatedSelect} data-placement={placement}>
-    <button ref={trigger} id={id} type="button" aria-label={ariaLabel} aria-haspopup="listbox" aria-expanded={open} aria-controls={open ? `${popoverId}-options` : undefined} onClick={() => changeOpen(!open)} onKeyDown={handleKey}>
-      <span>{options[selected]?.label || value}</span>
+    <button ref={trigger} id={id} type="button" aria-label={ariaLabel} title={shortLabels ? (options[selected]?.label || value) : undefined} aria-haspopup="listbox" aria-expanded={open} aria-controls={open ? `${popoverId}-options` : undefined} onClick={() => changeOpen(!open)} onKeyDown={handleKey}>
+      <span>{shortLabels?.[value] ?? options[selected]?.label ?? value}</span>
       <motion.span animate={{ rotate: open ? 180 : 0 }} transition={{ duration: reduced ? 0 : .18 }}><Icon name="down" size={13}/></motion.span>
     </button>
     {floatingPanel}

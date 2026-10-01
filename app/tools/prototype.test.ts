@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyMovement, equipmentTypesForCategory, inferEquipmentKind, matchesTool, primaryToolImage, PEOPLE, LOCATIONS, type Movement } from './prototype';
+import { abbreviateDepartment, applyMovement, equipmentTypesForCategory, inferEquipmentKind, matchesTool, primaryToolImage, PEOPLE, LOCATIONS, type Movement } from './prototype';
 import { TEST_TOOLS as SEED_TOOLS } from './testFixtures';
 
 const input: Movement = { kind: 'issue', toolId: SEED_TOOLS[0].id, person: PEOPLE[0], location: LOCATIONS[1], due: '25 Sep, 16:00', job: '', condition: 'Good', notes: '' };
@@ -55,5 +55,15 @@ describe('Tools preview handovers', () => {
     ] };
     expect(primaryToolImage(tool)).toBe('blob:photo');
     expect(primaryToolImage(SEED_TOOLS[0])).toBeUndefined();
+  });
+});
+
+describe('Department abbreviations', () => {
+  it.each([['All departments','ALL'],['Engineering','ENG'],['Mining','MIN'],['Mine Technical Services','MTS'],['IT','IT']])('shortens %s to %s', (name, short) => {
+    expect(abbreviateDepartment(name)).toBe(short);
+  });
+  it('falls back to initials for unknown departments', () => {
+    expect(abbreviateDepartment('Health and Safety')).toBe('HS');
+    expect(abbreviateDepartment('Procurement')).toBe('PRO');
   });
 });

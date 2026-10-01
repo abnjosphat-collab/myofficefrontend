@@ -1,4 +1,4 @@
-/* Tools owns its visual tokens; MyOffice is only the temporary hosting shell. */
+/* MuseOffice owns its visual tokens; this module is the portable Tools theme contract. */
 .surface {
   --canvas:#f4f6f5; --paper:#fbfcfb; --surface-raised:#f7f9f8; --surface-muted:#e8eeeb; --surface-interactive:#dce6e1; --surface-interactive-hover:#cfddd6; --surface-strong:#182620;
   --ink:#1b2923; --muted-ink:#5b6d64; --line:#ccd7d1; --line-strong:#6f887c; --soft:#e2e9e5;
@@ -42,7 +42,7 @@
 .registerFooter{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding-top:17px;font-size:max(11px,calc(10px * var(--font-scale)));color:var(--muted-ink);}.sort{display:flex;gap:6px;align-items:center;}.sort select{background:transparent;color:var(--ink);font-size:calc(11px * var(--font-scale));padding:4px;}.attentionStrip{display:flex;gap:15px;align-items:center;padding:17px 19px;border:1px solid var(--line);border-radius:12px;background:color-mix(in srgb,var(--brand) 3%,var(--paper));}.attentionIcon{display:grid;place-items:center;color:var(--brand);width:37px;height:37px;border-radius:11px;background:var(--brand-soft);flex-shrink:0;}.attentionStrip strong{font-size:calc(12px * var(--font-scale));font-weight:500;}.attentionStrip p{font-size:calc(11px * var(--font-scale));color:var(--muted-ink);margin-top:3px;}.attentionActions{margin-left:auto;display:flex;gap:12px;align-items:center;}.attentionActions>button{display:inline-flex;gap:6px;align-items:center;font-size:calc(11px * var(--font-scale));white-space:nowrap;color:var(--brand);}.footer{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;padding-top:25px;font-size:max(11px,calc(10px * var(--font-scale)));color:var(--muted-ink);}.footer>span,.footer>div,.footer button{display:flex;align-items:center;gap:6px;}.footer>div{gap:18px;flex-wrap:wrap;}.footer button{padding:6px 0;}.footer button:hover{color:var(--brand);}.footerDot{width:4px;height:4px;border-radius:50%;background:var(--muted-ink);}
 .dialogOverlay{position:fixed;inset:0;z-index:100000;background:rgba(27,22,43,.38);backdrop-filter:blur(6px);animation:tools-fade-in .2s ease-out;}.dialogOverlay[data-state=closed]{animation:tools-fade-out .16s ease-in;}.dialogPanel{position:fixed;top:50%;left:50%;z-index:100001;width:min(620px,calc(100vw - 32px));max-height:min(88dvh,850px);display:flex;flex-direction:column;background:var(--paper);border:1px solid var(--line);border-radius:18px;box-shadow:0 28px 90px #19102938;transform:translate(-50%,-50%);animation:tools-modal-in .25s cubic-bezier(.16,1,.3,1);overflow:hidden;}.dialogPanel[data-state=closed]{animation:tools-modal-out .16s ease-in;}.dialogWide{width:min(790px,calc(100vw - 32px));}.dialogHeader{padding:26px 30px 21px;position:relative;flex-shrink:0;border-bottom:1px solid var(--line);}.modalTitle{font-family:var(--tools-font);font-size:calc(28px * var(--font-scale));font-weight:350;line-height:1.25;letter-spacing:-.045em;margin:7px 44px 6px 0;outline:none;}.drawerSubtitle{font-size:calc(12px * var(--font-scale));color:var(--muted-ink);line-height:1.6;padding-right:20px;}.closeButton{position:absolute;top:18px;right:18px;display:grid;place-items:center;width:38px;height:38px;border:1px solid var(--line);border-radius:50%;background:var(--canvas);color:var(--muted-ink);transition:background .2s,color .2s,box-shadow .2s;}.closeButton>svg{transition:transform .25s;}.closeButton:hover{background:var(--brand-soft);color:var(--brand);box-shadow:0 0 0 4px color-mix(in srgb,var(--brand) 5%,transparent);}.closeButton:hover>svg{transform:rotate(90deg);}.dialogBody{padding:24px 30px 26px;overflow-y:auto;overscroll-behavior:contain;min-height:0;}.detailLead{display:flex;gap:15px;align-items:center;margin-bottom:22px;}.detailLead .toolSymbol{width:68px;height:68px;border-radius:17px;}.detailLead p{font-size:calc(11px * var(--font-scale));color:var(--muted-ink);margin-top:6px;}.detailLead>.helpButton{margin-left:auto;}.detailColumns{display:grid;grid-template-columns:1fr 1fr;gap:27px;}.facts{margin:0;}.facts>div{display:flex;justify-content:space-between;gap:18px;padding:10px 0;border-bottom:1px solid var(--line);font-size:calc(11px * var(--font-scale));}.facts dt{flex-shrink:0;color:var(--muted-ink);}.facts dd{text-align:right;overflow-wrap:anywhere;}.notice{display:flex;gap:9px;padding:12px;background:color-mix(in srgb,var(--amber) 6%,var(--paper));border:1px solid color-mix(in srgb,var(--amber) 18%,var(--line));border-radius:8px;margin-top:15px;}.notice>svg{color:var(--amber);}.notice strong{font-size:calc(12px * var(--font-scale));font-weight:500;}.notice p,.detailNote{font-size:calc(11px * var(--font-scale));color:var(--muted-ink);margin-top:5px;}.detailHistory h3{font-size:calc(12px * var(--font-scale));font-weight:500;}.detailHistory>.fieldHeading{margin-bottom:18px;}.detailHistory>div:not(.fieldHeading){display:flex;gap:10px;padding-bottom:15px;}.detailHistory>div:not(.fieldHeading)>span{width:6px;height:6px;border-radius:50%;background:var(--brand);margin-top:6px;flex-shrink:0;opacity:.6;}.detailHistory strong{font-size:calc(11px * var(--font-scale));font-weight:500;display:block;}.detailHistory small,.detailHistory time{font-size:max(11px,calc(10px * var(--font-scale)));color:var(--muted-ink);display:block;margin-top:5px;overflow-wrap:anywhere;}.detailEvidence{margin-top:23px;padding:17px 0;border-top:1px solid var(--line);}.detailActions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:7px;padding-top:18px;border-top:1px solid var(--line);}.detailActions>.textButton{margin-left:auto;}
 .form{display:flex;flex-direction:column;gap:17px;}.formColumns{display:grid;grid-template-columns:1fr 1fr;gap:17px 15px;}.field{display:flex;flex-direction:column;gap:7px;min-width:0;}.field>label,.fieldHeading{font-size:calc(11px * var(--font-scale));font-weight:500;}.fieldHeading{display:flex;align-items:center;justify-content:space-between;gap:8px;}.fieldHeading strong{font-weight:500;}.fieldHeading small,.field>label small{font-size:max(11px,calc(10px * var(--font-scale)));font-weight:400;color:var(--muted-ink);margin-left:6px;}.field input,.field textarea{width:100%;min-width:0;border:1px solid var(--line);border-radius:8px;padding:10px 12px;min-height:42px;background:var(--canvas);color:var(--ink);font-size:calc(12px * var(--font-scale));}.field input:disabled{opacity:.65;}.field textarea{resize:vertical;}.field input::placeholder,.field textarea::placeholder{color:var(--muted-ink);}.suggest{position:relative;}.suggest>input{padding-right:30px;}.suggest>svg{position:absolute;right:12px;top:14px;color:var(--muted-ink);pointer-events:none;}.suggestions{position:absolute;top:calc(100% + 5px);left:0;right:0;z-index:8;border:1px solid var(--line);border-radius:9px;padding:5px;background:var(--paper);max-height:200px;overflow-y:auto;box-shadow:0 10px 30px #19102918;}.suggestions button{display:flex;align-items:center;justify-content:space-between;width:100%;padding:10px;text-align:left;border-radius:6px;font-size:calc(11px * var(--font-scale));}.suggestions button[aria-selected=true],.suggestions button:hover{background:var(--brand-soft);color:var(--brand);}.suggestions p{font-size:calc(11px * var(--font-scale));color:var(--muted-ink);padding:10px;}.formContext{display:flex;gap:9px;padding:12px;background:var(--soft);border-radius:8px;color:var(--muted-ink);font-size:calc(11px * var(--font-scale));}.formContext strong{color:var(--ink);font-weight:500;}.formContext small{display:block;margin-top:3px;}.formSection{border:1px solid var(--line);border-radius:10px;padding:15px;}.formSection>.fieldHeading{margin-bottom:13px;}.formHint{font-size:calc(11px * var(--font-scale));color:var(--muted-ink);margin-top:7px;}.condition{display:flex;gap:7px;flex-wrap:wrap;}.condition legend{font-size:calc(11px * var(--font-scale));font-weight:500;margin-bottom:10px;}.condition label{display:flex;align-items:center;gap:6px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-size:calc(11px * var(--font-scale));cursor:pointer;}.condition label[data-selected=true]{border-color:var(--brand);background:var(--brand-soft);color:var(--brand);}.condition input{accent-color:var(--brand);}.formFooter{display:flex;justify-content:flex-end;gap:9px;border-top:1px solid var(--line);padding-top:18px;margin-top:3px;}.demoNote{text-align:center;font-size:max(11px,calc(10px * var(--font-scale)));color:var(--muted-ink);}.warning{display:flex;align-items:center;gap:8px;font-size:calc(11px * var(--font-scale));color:var(--amber);}.disclosure{border:1px solid var(--line);border-radius:9px;}.disclosure summary{display:flex;align-items:center;gap:8px;padding:13px 14px;cursor:pointer;font-size:calc(11px * var(--font-scale));list-style:none;color:var(--muted-ink);}.disclosure summary::-webkit-details-marker{display:none;}.disclosure summary>span{font-size:max(11px,calc(10px * var(--font-scale)));margin-left:auto;}.disclosure summary>svg:last-child{margin-left:auto;transition:transform .2s;}.disclosure[open] summary>svg:last-child{transform:rotate(180deg);}.disclosureBody{display:flex;flex-direction:column;gap:17px;padding:0 14px 15px;animation:tools-fade-in .22s ease-out;}
-.helpButton{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;color:var(--muted-ink);background:none;flex-shrink:0;}.helpButton:hover,.helpButton:focus-visible{color:var(--brand);background:var(--brand-soft);}.helpTip{z-index:100010;max-width:min(280px,calc(100vw - 32px));padding:11px 13px;border:1px solid var(--line);border-radius:9px;background:var(--paper);color:var(--ink);font-size:calc(11px * var(--font-scale));line-height:1.65;box-shadow:0 8px 24px #19102920;animation:tools-fade-in .15s ease-out;}.helpArrow{fill:var(--paper);}
+.helpButton{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;color:var(--muted-ink);background:none;flex-shrink:0;}.helpButton:hover,.helpButton:focus-visible{color:var(--brand);background:var(--brand-soft);}.helpTip{z-index:100010;max-width:min(280px,calc(100vw - 32px));padding:11px 13px;border:1px solid var(--line);border-radius:9px;background:var(--paper);color:var(--ink);font-size:calc(11px * var(--font-scale));line-height:1.65;box-shadow:0 8px 24px #19102920;animation:tools-fade-in .15s ease-out;pointer-events:none;}.helpArrow{fill:var(--paper);}[data-radix-popper-content-wrapper]:has(>.helpTip){pointer-events:none;}
 .actionHelpTip{max-width:min(250px,calc(100vw - 32px));text-align:center;box-shadow:0 14px 36px -18px color-mix(in srgb,var(--ink) 55%,transparent)}
 .evidencePicker{display:flex;flex-direction:column;gap:10px;}.uploadZone{position:relative;display:flex;align-items:center;gap:12px;padding:16px;border:1px dashed color-mix(in srgb,var(--brand) 38%,var(--line));border-radius:10px;background:color-mix(in srgb,var(--brand) 3%,var(--paper));color:var(--brand);cursor:pointer;}.uploadZone:focus-within{outline:2px solid var(--brand);outline-offset:3px;}.uploadZone>span{flex:1;}.uploadZone strong{font-size:calc(12px * var(--font-scale));font-weight:500;display:block;}.uploadZone small{font-size:max(11px,calc(10px * var(--font-scale)));color:var(--muted-ink);display:block;margin-top:4px;}.fileInput{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;}.evidenceList{display:grid;gap:6px;}.evidenceRow{display:flex;align-items:center;gap:9px;border:1px solid var(--line);border-radius:8px;padding:8px 10px;}.evidenceRow>svg{color:var(--brand);}.evidenceRow>span{flex:1;min-width:0;}.evidenceRow strong{display:block;overflow-wrap:anywhere;font-size:calc(11px * var(--font-scale));font-weight:400;}.evidenceRow small{display:block;font-size:max(11px,calc(10px * var(--font-scale)));color:var(--muted-ink);}.evidenceGallery{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:12px;}.evidenceLink{display:flex;align-items:center;gap:7px;min-width:0;padding:9px;border:1px solid var(--line);border-radius:8px;color:var(--brand);text-align:left;}.evidenceLink:hover{border-color:color-mix(in srgb,var(--brand) 34%,var(--line));background:var(--soft);}.evidenceLink img{display:block;width:42px;height:42px;object-fit:cover;object-position:center;border:0;border-radius:5px;}.evidenceLink span{font-size:max(11px,calc(10px * var(--font-scale)));overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}.evidenceLink>svg:last-child{margin-left:auto;}.imageViewerOverlay{position:fixed;inset:0;z-index:100010;background:rgba(18,15,27,.72);backdrop-filter:blur(10px);animation:tools-fade-in .18s ease-out;}.imageViewer{position:fixed;inset:4dvh 4vw;z-index:100011;display:grid;grid-template-rows:auto minmax(0,1fr) auto;overflow:hidden;background:var(--paper);border:1px solid color-mix(in srgb,var(--line) 80%,transparent);border-radius:16px;box-shadow:0 32px 100px #100b1b66;animation:tools-modal-in .2s cubic-bezier(.16,1,.3,1);}.imageViewerHeader{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:14px 16px;border-bottom:1px solid var(--line);}.imageViewerHeader>div{min-width:0;}.imageViewerHeader h2{font-size:calc(13px * var(--font-scale));font-weight:550;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}.imageViewerHeader p{font-size:max(11px,calc(10px * var(--font-scale)));color:var(--muted-ink);margin-top:2px;}.imageViewerClose,.imageViewerControls button{display:grid;place-items:center;width:36px;height:36px;border:1px solid var(--line);border-radius:9px;color:var(--muted-ink);background:var(--canvas);}.imageViewerClose:hover,.imageViewerControls button:hover:not(:disabled){color:var(--brand);border-color:color-mix(in srgb,var(--brand) 32%,var(--line));background:var(--brand-soft);}.imageStage{display:block;min-height:0;overflow:auto;padding:20px;background:color-mix(in srgb,var(--canvas) 75%,#111 25%);}.imageZoomSurface{display:grid;place-items:center;min-width:100%;min-height:100%;transition:width .18s cubic-bezier(.16,1,.3,1),height .18s cubic-bezier(.16,1,.3,1);}.imageZoomSurface img{display:block;width:100%;height:100%;object-fit:contain;object-position:center;border:0;user-select:none;}.imageStage[data-zoomed=true]{cursor:zoom-out;}.imageViewerControls{display:flex;align-items:center;justify-content:center;gap:8px;padding:11px 16px;border-top:1px solid var(--line);}.imageViewerControls button:disabled{opacity:.35;}.imageViewerControls .zoomValue{display:flex;width:64px;font-size:calc(11px * var(--font-scale));}.imageViewerControls>span{margin-left:8px;color:var(--muted-ink);font-size:max(11px,calc(10px * var(--font-scale)));}
 .customize{display:flex;flex-direction:column;gap:22px;}.fontChoices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px;margin-top:12px;}.fontChoices button{position:relative;padding:16px;text-align:left;border:1px solid var(--line);border-radius:11px;background:var(--canvas);}.fontChoices button[aria-pressed=true]{border-color:var(--brand);background:var(--brand-soft);}.fontChoices button>span{display:block;font:350 27px/1.4 var(--tools-font);letter-spacing:-.04em;margin-bottom:7px;color:var(--brand);}.fontChoices strong{display:block;font-size:calc(11px * var(--font-scale));font-weight:500;}.fontChoices small{display:block;color:var(--muted-ink);font-size:max(11px,calc(10px * var(--font-scale)));margin-top:4px;}.fontChoices svg{position:absolute;right:12px;top:13px;color:var(--brand);}.layoutRows{border:1px solid var(--line);border-radius:10px;margin-top:13px;overflow:hidden;}.layoutRow{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line);}.layoutRow:last-child{border-bottom:0;}.layoutRow>svg{color:var(--muted-ink);}.layoutRow>span{flex:1;font-size:calc(12px * var(--font-scale));}.layoutRow small{display:block;font-size:max(11px,calc(10px * var(--font-scale)));color:var(--muted-ink);margin-top:2px;}.toggleRow{display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;}.toggleRow strong{font-size:calc(12px * var(--font-scale));font-weight:500;}.toggleRow small{display:block;font-size:calc(11px * var(--font-scale));color:var(--muted-ink);margin-top:3px;}.toggleRow input{width:17px;height:17px;accent-color:var(--brand);}.customize>.secondary{align-self:flex-start;}
@@ -139,7 +139,7 @@
 
 @media(max-width:900px){.topline{flex-wrap:wrap}.workspaceIdentity{flex:1 1 auto}.previewControls{margin-left:auto}}
 @media(max-width:640px){.workspaceIdentity{width:100%;justify-content:space-between;gap:8px}.wordmark{font-size:calc(13px * var(--font-scale))}.departmentLabel{display:none}.departmentSelect .animatedSelect{width:148px}.departmentSelect .animatedSelect>button{min-height:34px;padding:0 9px}}
-@media(max-width:430px){.wordmark{font-size:0}.wordmark>span{width:34px;height:34px}.departmentSelect .animatedSelect{width:142px}}
+@media(max-width:430px){.wordmark{font-size:calc(12px * var(--font-scale));gap:7px}.departmentSelect .animatedSelect{width:118px}.departmentSelect .animatedSelect>button{min-height:34px;padding:0 9px}}
 
 /* Compact visual onboarding replaces the former marketing-style hero. */
 .guideCarousel{position:relative;margin:15px 0 14px;border:1px solid var(--line);border-radius:var(--radius);background:linear-gradient(105deg,color-mix(in srgb,var(--brand) 7%,var(--paper)),var(--paper) 58%);overflow:hidden}.guideViewport{min-height:92px}.guideSlide{display:grid;grid-template-columns:42px minmax(0,1fr) auto;align-items:center;gap:13px;min-height:92px;padding:14px 54px 14px 17px}.guideIcon{display:grid;place-items:center;width:42px;height:42px;border:1px solid color-mix(in srgb,var(--brand) 22%,var(--line));border-radius:var(--radius);background:var(--brand-soft);color:var(--brand)}.guideSlide strong{display:block;font-size:calc(13px * var(--font-scale));font-weight:640;letter-spacing:-.015em}.guideSlide p{margin-top:3px;color:var(--muted-ink);font-size:calc(10px * var(--font-scale));line-height:1.45}.guideAction{display:flex;align-items:center;gap:7px;min-height:35px;padding:0 11px;border:1px solid color-mix(in srgb,var(--brand) 27%,var(--line));border-radius:var(--radius);background:var(--paper);color:var(--brand);font-size:calc(10px * var(--font-scale));font-weight:580;white-space:nowrap;transition:box-shadow .18s ease,background .18s ease,border-color .18s ease}.guideAction:hover,.guideAction:focus-visible{background:var(--surface-muted);border-color:var(--focus);box-shadow:0 0 0 3px color-mix(in srgb,var(--focus) 12%,transparent)}.guideControls{position:absolute;left:72px;bottom:8px;display:flex;gap:5px}.guideControls button{width:16px;height:3px;border-radius:3px;background:color-mix(in srgb,var(--muted-ink) 28%,transparent);transition:width .18s ease,background .18s ease}.guideControls button[aria-current=true]{width:26px;background:var(--brand)}.guideHide{position:absolute;right:10px;top:9px;display:flex;align-items:center;gap:5px;min-height:28px;padding:0 7px;border-radius:var(--radius);color:var(--muted-ink);font-size:max(10px,calc(8px * var(--font-scale)))}.guideHide:hover{background:var(--soft);color:var(--brand)}
@@ -152,7 +152,7 @@
 .heatCell{height:18px;border:1px solid color-mix(in srgb,var(--data-accent) 9%,var(--line));border-radius:var(--radius);background:color-mix(in srgb,var(--data-accent) var(--heat-strength),var(--soft));box-shadow:inset 0 1px 0 color-mix(in srgb,var(--highlight) 15%,transparent);transition:background-color .18s ease,box-shadow .18s ease,border-color .18s ease}.heatCell:hover,.heatCell:focus-visible{z-index:1;border-color:var(--data-accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--data-accent) 16%,transparent)}.heatLegend i{background:color-mix(in srgb,var(--data-accent) var(--heat-strength),var(--soft));opacity:1}
 
 /* Soft monochrome tonal hierarchy. Keep this block as the portable Tools theme contract. */
-.surface :where(button,input,select,textarea,kbd,summary,.topline,.card,.summary,.tableWrap,.journal,.attentionStrip,.dataState,.dialogPanel,.helpTip,.notificationPanel,.analyticsSummary,.analyticsPanel,.guideCarousel,.gatePassCard,.profileIdentity,.profileDetails,.formSection,.disclosure,.uploadZone,.evidenceRow,.imageViewer,.animatedSelect>button,.selectPanel,.workspaceSearchPanel){border-radius:var(--radius)}
+.surface :where(button,input,select,textarea,kbd,summary,.topline,.card,.summary,.tableWrap,.journal,.attentionStrip,.dataState,.dialogPanel,.helpTip,.notificationPanel,.analyticsSummary,.analyticsPanel,.guideCarousel,.gatePassCard,.profileIdentity,.profileDetails,.formSection,.disclosure,.uploadZone,.evidenceRow,.imageViewer,.animatedSelect>button,.selectPanel,.workspaceSearchPanel,.accountPanel){border-radius:var(--radius)}
 .topline{margin-top:-10px;padding:10px 12px;background:color-mix(in srgb,var(--paper) 94%,transparent);color:var(--muted-ink);border:1px solid var(--line);box-shadow:0 10px 30px -28px var(--ink);backdrop-filter:blur(18px) saturate(120%)}
 .topline .wordmark{color:var(--ink)}
 .topline .wordmark>span,.topline :is(.feedbackButton,.customizeButton,.notificationButton,.accountButton){background:var(--surface-raised);border-color:var(--line);color:var(--ink);box-shadow:none}
@@ -169,7 +169,7 @@
 .summary,.tableWrap,.journal,.attentionStrip,.dataState,.analyticsSummary,.analyticsPanel,.guideCarousel{background:var(--paper);border-radius:var(--radius)}
 .surface :is(.feedbackButton,.accountButton,.customizeButton,.actionsAnchor,.secondaryActions button,.animatedSelect>button,.personCard,.exportChoices button,.guideAction,.heatCell,.surface select):hover,.surface :is(.feedbackButton,.accountButton,.customizeButton,.actionsAnchor,.secondaryActions button,.animatedSelect>button,.personCard,.exportChoices button,.guideAction,.heatCell,.surface select):focus-visible{transform:none!important}
 .surface :is(.feedbackButton,.accountButton,.customizeButton,.actionsAnchor,.secondaryActions button,.animatedSelect>button,.personCard,.exportChoices button,.guideAction,.heatCell,.chartLegend p,.surface select){transition-duration:.18s}
-.surface :is(.personCard,.exportChoices button,.guideAction,.animatedSelect>button):hover,.surface :is(.personCard,.exportChoices button,.guideAction,.animatedSelect>button):focus-visible{background:var(--surface-muted);border-color:var(--focus);box-shadow:0 0 0 3px color-mix(in srgb,var(--focus) 13%,transparent)}
+.surface :is(.personCard,.exportChoices button,.guideAction,.animatedSelect>button):hover{background:var(--surface-muted);border-color:var(--focus);box-shadow:none}.surface :is(.personCard,.exportChoices button,.guideAction,.animatedSelect>button):focus-visible{background:var(--surface-muted);border-color:var(--focus);box-shadow:0 0 0 3px color-mix(in srgb,var(--focus) 13%,transparent)}
 
 /* Precision interaction layer: one continuous focus edge plus aligned elevation. */
 .surface.surface button:focus-visible,.surface.surface input:focus-visible,.surface.surface select:focus-visible,.surface.surface textarea:focus-visible,.surface.surface summary:focus-visible,.surface.surface a:focus-visible{outline:none;outline-offset:0;border-color:var(--focus);box-shadow:var(--focus-shadow)}
@@ -178,3 +178,222 @@
 .card:focus-within{background:var(--surface-muted);border-color:var(--line);box-shadow:none}.card:hover,.card:has(.cardMain:focus-visible){background:var(--surface-interactive-hover);border-color:var(--focus);box-shadow:var(--tile-shadow)}
 .quickAction:hover{box-shadow:none}.dateInput>input:focus,.analyticsPanel[role=button]:focus-visible,.heatCell:focus-visible{border-color:var(--focus);box-shadow:var(--focus-shadow)}
 @media(max-width:680px){.analyticsTrendPanel{padding-left:12px;padding-right:12px}.polishedChart{margin-left:-7px;width:calc(100% + 10px)}.themeVisualization{grid-template-columns:1fr;gap:6px}.themePie{max-width:230px;margin:auto}.chartLegend{grid-template-columns:1fr 1fr}.heatCell{height:20px}}
+
+/* UI polish (MuseOffice): stacked label/value columns, muted record note, aligned compliance actions. */
+.accountAccessRow>div>small,.accountAccessRow>div>strong{display:block}
+.accountAccessRow>div>small{color:var(--muted-ink);font-size:max(11px,calc(9px * var(--font-scale)))}
+.accountAccessRow>div>small+strong{margin-top:2px}
+.detailRecordNote{color:var(--muted-ink);font-weight:400;font-size:max(11px,calc(10px * var(--font-scale)))}
+.complianceForms .formFooter{margin-top:auto}
+
+/* MuseOffice elevation layer: precision-instrument hierarchy, rhythm and component craft.
+   Same tonal family, same workflows, no markup changes. Focus-halo and tile-hover
+   end-states are pinned by scripts/verify.mjs and intentionally untouched below. */
+
+/* Tabular figures on every numeric surface. */
+.surface :is(.table,.accountAccessSummary,.analyticsSummary,.registerFooter,.importSummary,.notificationBadge,.heatLegend,.trendCurrent,.trendRanges){font-variant-numeric:tabular-nums}
+
+/* Sidebar: readable nav with a precise active mark. */
+.moduleSidebar nav button{font-size:calc(12px * var(--font-scale));font-weight:500;letter-spacing:-.005em}
+.moduleSidebar nav button[aria-current=page]{position:relative}
+.moduleSidebar nav button[aria-current=page]::before{content:"";position:absolute;left:-8px;top:10px;bottom:10px;width:3px;border-radius:3px;background:var(--brand)}
+.standalone[data-sidebar=collapsed] .moduleSidebar nav button[aria-current=page]::before{display:none}
+.sidebarBrand strong{font-size:calc(14px * var(--font-scale));letter-spacing:-.02em}
+
+/* Summary strip: confident numerals, honest action affordance. */
+.summary{overflow:hidden}
+.summary button{border-radius:0;transition:background-color .16s ease}
+.summary button:hover{background:color-mix(in srgb,var(--brand) 4%,var(--paper))}
+.summary button:first-child{border-top-left-radius:var(--radius);border-bottom-left-radius:var(--radius)}
+.summary button:last-child{border-top-right-radius:var(--radius);border-bottom-right-radius:var(--radius)}
+.summary strong{font-weight:450;letter-spacing:-.03em}
+.summary button>span{font-weight:500}
+
+/* Tiles: sharper identity, scannable status, real action affordance. */
+.cardTop{gap:8px}
+.toolCode{background:var(--soft);border:1px solid var(--line);border-radius:6px;padding:2px 7px}
+.cardIdentity h2{font-size:calc(17px * var(--font-scale));font-weight:550;letter-spacing:-.02em}
+.status{border-radius:999px;padding:3px 10px 3px 8px;background:color-mix(in srgb,var(--ink) 6%,transparent);font-weight:550}
+.status[data-status=available]{background:color-mix(in srgb,var(--success) 10%,transparent);color:var(--success)}
+.status[data-status=overdue]{background:color-mix(in srgb,var(--amber) 13%,transparent)}
+.status[data-status=attention]{background:color-mix(in srgb,var(--danger) 9%,transparent);color:var(--danger)}
+.card .quickAction{min-height:36px;padding:0 13px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-weight:550;white-space:nowrap}
+.card .quickAction:hover{border-color:var(--line-strong)}
+
+/* Buttons: crisper primary, assured secondary. */
+.primary{font-weight:600;letter-spacing:-.01em;box-shadow:0 1px 2px color-mix(in srgb,var(--brand) 28%,transparent),0 6px 14px -8px color-mix(in srgb,var(--brand) 45%,transparent)}
+.secondary{font-weight:550}
+
+/* Tables and section headings: steadier hierarchy. */
+.table th{font-weight:550;letter-spacing:.01em}
+.accountAccessHeader h2,.sourceRegistersHeader h2{font-weight:500}
+.modalTitle{font-weight:400;letter-spacing:-.04em}
+.complianceTags span{font-weight:550}
+
+/* Empty states: comfortable reading measure. */
+.empty{max-width:560px;margin-left:auto;margin-right:auto}
+
+/* Quiet scrollbars inside panels and menus. */
+.surface :is(.dialogBody,.selectPanel,.eligibilityList,.importPreview,.workspaceSearchPanel,.notificationItems){scrollbar-width:thin;scrollbar-color:color-mix(in srgb,var(--line-strong) 60%,transparent) transparent}
+.surface :is(.dialogBody,.selectPanel,.eligibilityList,.importPreview,.workspaceSearchPanel,.notificationItems)::-webkit-scrollbar{width:10px;height:10px}
+.surface :is(.dialogBody,.selectPanel,.eligibilityList,.importPreview,.workspaceSearchPanel,.notificationItems)::-webkit-scrollbar-thumb{background:color-mix(in srgb,var(--line-strong) 55%,transparent);border-radius:8px;border:3px solid transparent;background-clip:content-box}
+.surface :is(.dialogBody,.selectPanel,.eligibilityList,.importPreview,.workspaceSearchPanel,.notificationItems)::-webkit-scrollbar-track{background:transparent}
+
+@media(max-width:820px){.moduleSidebar nav button[aria-current=page]::before{display:none}}
+
+/* MuseOffice pairing + bolder tiles: Jakarta display face with user-chosen body;
+   paper tiles, roomier rhythm, full-width state-aware actions. Pinned focus/hover
+   end-states intentionally untouched. */
+
+/* --- Typeface pairing: Jakarta display, body follows Settings --- */
+.modalTitle,.cardIdentity h2,.accountAccessHeader h2,.sourceRegistersHeader h2,.hero h1,.empty h2,.analyticsPanel h2{font-family:var(--font-jakarta),Inter,sans-serif}
+.modalTitle{font-weight:600}
+.cardIdentity h2{font-size:calc(19px * var(--font-scale));font-weight:650}
+
+/* --- Bolder tiles --- */
+.card{background:var(--paper);border-radius:12px}
+.surface .card:focus-within{background:var(--paper);border-color:var(--line);box-shadow:none}
+.surface .card:hover,.surface .card:has(.cardMain:focus-visible){background:var(--surface-muted)}
+.cardMain{padding:20px}
+.cardBottom{flex-direction:column;align-items:stretch;gap:10px;margin:0 20px;padding:12px 0}
+.cardBottom .status{align-self:flex-start}
+.card .quickAction{justify-content:center;min-height:40px;font-size:calc(12px * var(--font-scale))}
+.card:has(.status[data-status=available]) .quickAction{background:var(--brand);border-color:var(--brand);color:var(--brand-ink);font-weight:600}
+.card:has(.status[data-status=available]) .quickAction:hover{background:var(--brand);border-color:var(--brand);color:var(--brand-ink);filter:brightness(1.07)}
+.card:has(.status[data-status=attention]) .quickAction,.card:has(.status[data-status=archived]) .quickAction{background:transparent;border-color:transparent;color:var(--muted-ink)}
+.card:has(.status[data-status=attention]) .quickAction:hover,.card:has(.status[data-status=archived]) .quickAction:hover{background:var(--soft);border-color:var(--line);color:var(--brand)}
+.cardContext{padding:0 20px 18px}
+
+/* MuseOffice airy register + confident header: two-column tiles with room to
+   breathe; wordmark joins the display pairing; tighter header bar. */
+
+@media(min-width:641px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.topline{padding:11px 16px;gap:12px}
+.topline .wordmark{font-family:var(--font-jakarta),Inter,sans-serif;font-size:calc(16px * var(--font-scale));font-weight:600}
+@media(max-width:640px){.topline .wordmark{font-size:calc(13px * var(--font-scale))}}
+@media(max-width:430px){.topline .wordmark{font-size:calc(12px * var(--font-scale));gap:7px}.wordmark>span{width:30px;height:30px}}
+
+/* Tile hover: one uniform subtle wash, no edge darkening, no shadow spill. */
+.surface .card:hover,.surface .card:has(.cardMain:focus-visible){background:color-mix(in srgb,var(--focus) 6%,var(--paper));box-shadow:none}
+
+/* Inside-only hover language: header actions and person cards keep feedback within the border. */
+.topline :is(.feedbackButton,.customizeButton,.notificationButton,.accountButton):hover{box-shadow:none}
+.personCard:hover{box-shadow:none}
+
+/* Detail activity disclosure: full-width specs with history one tap away. */
+.detailActivity{border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);margin-top:16px}
+.detailActivity summary{display:flex;align-items:center;gap:9px;list-style:none;cursor:pointer;padding:13px 15px}
+.detailActivity summary::-webkit-details-marker{display:none}
+.DetailActivity summary>span{font-size:calc(12px * var(--font-scale));font-weight:600;letter-spacing:-.01em}
+.detailActivity summary>small{font-size:max(11px,calc(10px * var(--font-scale)));font-weight:600;color:var(--muted-ink);background:var(--soft);border:1px solid var(--line);border-radius:999px;padding:1px 8px;font-variant-numeric:tabular-nums}
+.detailActivity summary svg{color:var(--muted-ink);transition:transform .18s ease;flex-shrink:0}
+.detailActivity[open] summary svg{transform:rotate(90deg)}
+.DetailActivity .DetailHistory{background:transparent;border:0;border-radius:0;padding:2px 15px 4px}
+.detailActivityFooter{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0 12px;border-top:1px solid var(--line);margin-top:10px}
+
+
+/* Header hairlines, glowing department trigger, compact search, feedback FAB. */
+.topline{background:color-mix(in srgb,var(--canvas) 88%,transparent);border:0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);border-radius:0;padding:11px 4px}
+.departmentSelect .animatedSelect{width:auto;min-width:0}
+.departmentSelect .animatedSelect>button{border-color:transparent;background:color-mix(in srgb,var(--paper) 70%,transparent);box-shadow:0 0 14px -3px color-mix(in srgb,var(--focus) 30%,transparent);gap:7px}
+.departmentSelect .animatedSelect>button:hover,.departmentSelect .animatedSelect>button[aria-expanded=true]{border-color:transparent;background:color-mix(in srgb,var(--paper) 85%,transparent);box-shadow:0 0 18px -3px color-mix(in srgb,var(--focus) 42%,transparent)}
+@media(min-width:641px){.workspaceSearch{flex:0 1 430px;min-width:0}.filterCluster{margin-left:auto}}
+.feedbackFab{position:fixed;right:22px;bottom:22px;z-index:50;display:flex;flex-direction:column;align-items:flex-end;gap:10px}
+.feedbackFab>button{width:52px;height:52px;border-radius:50%;background:var(--brand);color:var(--brand-ink);display:grid;place-items:center;border:1px solid var(--brand);box-shadow:0 10px 24px -10px color-mix(in srgb,var(--ink) 60%,transparent);transition:filter .18s ease,transform .18s ease}
+.feedbackFab>button:hover{filter:brightness(1.08)}
+.feedbackFab>button:focus-visible{outline:none;box-shadow:var(--focus-shadow)}
+.feedbackPanel{width:min(380px,calc(100vw - 44px));max-height:min(72dvh,660px);overflow:auto;background:var(--paper);border:1px solid var(--line);border-radius:12px;box-shadow:0 24px 60px -24px color-mix(in srgb,var(--ink) 45%,transparent);padding:18px}
+.feedbackPanelHeader{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
+.feedbackPanelHeader strong{font-family:var(--font-jakarta),Inter,sans-serif;font-size:calc(15px * var(--font-scale));font-weight:600;letter-spacing:-.02em}
+.feedbackPanelHeader button{display:grid;place-items:center;width:32px;height:32px;border-radius:50%;color:var(--muted-ink)}
+.feedbackPanelHeader button:hover{background:var(--soft);color:var(--brand)}
+
+/* Sidebar pill with spotlight header and collapsible icon list. */
+.moduleSidebar nav{border:1px solid var(--line);border-radius:18px;background:var(--paper);padding:8px;margin-top:15px}
+.iconsToggle{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:32px;margin-top:4px;border-top:1px solid var(--line);border-radius:0 0 10px 10px;color:var(--muted-ink);font-size:max(11px,calc(10px * var(--font-scale)));font-weight:550}
+.iconsToggle:hover{color:var(--brand);background:var(--soft)}
+.standalone[data-sidebar=collapsed] .moduleSidebar nav{border-radius:16px;padding:6px}
+.standalone[data-sidebar=collapsed] .iconsToggle span{display:none}
+@media(max-width:820px){.moduleSidebar nav{border:0;background:transparent;border-radius:0;padding:0;margin-top:0}.iconsToggle{border:0;border-radius:9px;width:auto;padding:0 10px;margin:0}.iconsToggle span{display:none}}
+
+/* Homepage: overview dashboard in the established panel language. */
+.homepage{display:flex;flex-direction:column;gap:16px}
+.homeHeader h2{font-family:var(--font-jakarta),Inter,sans-serif;font-size:calc(22px * var(--font-scale));font-weight:600;letter-spacing:-.03em}
+.homeHeader p{color:var(--muted-ink);font-size:calc(12px * var(--font-scale));margin-top:4px}
+.homeStats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.homeStat{display:flex;align-items:center;gap:12px;text-align:left;background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:14px 15px;transition:background-color .16s ease,border-color .16s ease}
+button.homeStat:hover{background:color-mix(in srgb,var(--focus) 6%,var(--paper));border-color:var(--focus)}
+.homeStatIcon{display:grid;place-items:center;width:36px;height:36px;border-radius:9px;background:var(--soft);color:var(--brand);flex-shrink:0}
+.homeStat[data-tone=amber] .homeStatIcon{background:color-mix(in srgb,var(--amber) 13%,transparent);color:var(--amber)}
+.homeStat[data-tone=red] .homeStatIcon{background:color-mix(in srgb,var(--danger) 10%,transparent);color:var(--danger)}
+.homeStat>div{display:flex;flex-direction:column;gap:1px;min-width:0}
+.homeStat strong{font-size:calc(22px * var(--font-scale));font-weight:550;letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1.1}
+.homeStat span{font-size:max(11px,calc(10px * var(--font-scale)));color:var(--muted-ink);font-weight:500}
+.homeStat>svg:last-child{margin-left:auto;color:var(--muted-ink);flex-shrink:0}
+.homeStat[data-unavailable=true]{opacity:.75;cursor:default}
+.homeStat[data-unavailable=true] small{font-size:max(11px,calc(10px * var(--font-scale)));color:var(--amber-ink);font-weight:600}
+.homeColumns{display:grid;grid-template-columns:1.05fr .95fr;gap:12px;align-items:start}
+.homePanel{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:16px 16px 12px}
+.homePanelHeader{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+.homePanelHeader h3{font-size:calc(13px * var(--font-scale));font-weight:600;letter-spacing:-.01em}
+.homePanelHeader small{font-size:max(11px,calc(10px * var(--font-scale)));font-weight:600;color:var(--muted-ink);background:var(--soft);border:1px solid var(--line);border-radius:999px;padding:1px 8px;font-variant-numeric:tabular-nums}
+.homeAttention,.homeMoves{display:flex;flex-direction:column}
+.homeAttention button,.homeMoves button{display:flex;align-items:center;gap:11px;width:100%;text-align:left;padding:10px 8px;border-radius:7px}
+.homeAttention button:hover,.homeMoves button:hover{background:var(--soft)}
+.homeAttention button+button,.homeMoves button+button{border-top:1px solid var(--line)}
+.homeAttention i{width:8px;height:8px;border-radius:50%;background:var(--amber);flex-shrink:0}
+.homeAttention button[data-tone=red] i{background:var(--danger)}
+.homeAttention span,.homeMoves span{display:flex;flex-direction:column;gap:1px;min-width:0}
+.homeAttention strong,.homeMoves strong{font-size:calc(12px * var(--font-scale));font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.homeAttention small,.homeMoves small{font-size:max(11px,calc(10px * var(--font-scale)));color:var(--muted-ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.homeAttention svg{margin-left:auto;color:var(--muted-ink);flex-shrink:0}
+.homeMoves time{margin-left:auto;font-size:max(11px,calc(10px * var(--font-scale)));color:var(--muted-ink);white-space:nowrap;font-variant-numeric:tabular-nums}
+.homeEmpty{display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding:14px 8px;color:var(--muted-ink)}
+.homeEmpty p{font-size:calc(12px * var(--font-scale))}
+@media(max-width:1100px){.homeStats{grid-template-columns:repeat(2,minmax(0,1fr))}.homeColumns{grid-template-columns:1fr}}
+
+/* Spotlight: the current section as a re-selectable button; wins over the legacy .sidebarBrand button rules. */
+.sidebarBrand .spotlightTab{display:flex;align-items:center;gap:9px;width:auto;height:auto;min-height:38px;margin:0;padding:4px 10px 4px 4px;border:1px solid transparent;border-radius:9px;background:none;color:var(--ink);text-align:left;transition:background-color .16s ease,border-color .16s ease}
+.sidebarBrand .spotlightTab:hover{background:var(--soft);border-color:var(--line)}
+.sidebarBrand .spotlightTab>span{display:grid;place-items:center;width:30px;height:30px;border-radius:9px;background:var(--paper);color:var(--ink);border:1px solid var(--line);box-shadow:0 3px 10px rgba(43,39,65,.05);flex:none}
+.standalone[data-sidebar=collapsed] .sidebarBrand .spotlightTab{position:static;margin:0;padding:4px;background:none;border-color:transparent}
+@media(max-width:820px){.sidebarBrand .spotlightTab{display:flex;padding:2px 8px 2px 2px}}
+
+/* Header polish: one 36px control height, divider, profile panel, expandable search. */
+.previewControls .notificationButton,.previewControls .customizeButton,.previewControls .accountButton{width:36px;height:36px;padding:0}
+.headerDivider{width:1px;height:20px;background:var(--line);margin:0 3px;flex:none}
+.accountShell{position:relative}
+.accountPanel{position:absolute;top:44px;right:0;width:min(320px,calc(100vw - 36px));overflow:hidden;border:1px solid var(--line);border-radius:13px;background:var(--paper);box-shadow:0 18px 55px -20px color-mix(in srgb,var(--ink) 42%,transparent);transform-origin:top right;z-index:30}
+.profilePanelBody{display:grid;gap:12px;padding:14px}
+.profileIdentity .profileAvatar{font-family:var(--font-jakarta),Inter,sans-serif;font-size:calc(15px * var(--font-scale));font-weight:650;letter-spacing:.02em}
+.profileSignout{width:100%}
+.viewToggle button{width:34px;height:34px}
+.workspaceSearch{transition:max-width .22s ease}
+.workspaceSearch[data-expanded=false]{flex:none;min-width:0;width:42px;max-width:42px}
+.workspaceSearch[data-expanded=true]{max-width:1200px}
+.workspaceSearch .search{overflow:hidden;transition:padding .22s ease}
+.workspaceSearch[data-expanded=false] .search{justify-content:center;gap:0;padding:0}
+.workspaceSearch .search input,.workspaceSearch .search kbd{transition:opacity .16s ease}
+.workspaceSearch[data-expanded=false] .search input{width:0;min-width:0;opacity:0;pointer-events:none}
+.workspaceSearch[data-expanded=false] .search kbd{display:none}
+.searchExpand{position:absolute;inset:0;z-index:2;display:grid;place-items:center;background:transparent;border:1px solid transparent;border-radius:7px;color:var(--muted-ink)}
+.searchExpand:hover{color:var(--brand)}
+@media(pointer:coarse){.customizeButton,.accountButton{min-width:44px;min-height:44px}}
+
+/* Round 2: hover feedback stays inside the border everywhere; the 3px ring is focus-only. */
+.surface .actionsAnchor:hover,.surface .secondaryActions button:hover,.surface .personCard:hover,.surface .exportChoices button:hover,.surface .guideAction:hover,.surface .animatedSelect>button:hover,.surface .closeButton:hover,.surface .filters select:hover,.surface .field select:hover,.surface .filters input:hover,.surface .table .listRow:hover td{box-shadow:none}
+.departmentSelect .animatedSelect>button:hover{box-shadow:0 0 18px -3px color-mix(in srgb,var(--focus) 42%,transparent)}
+/* Spotlight: solid green current-section chip. */
+.sidebarBrand .spotlightTab>span{background:var(--brand);border-color:var(--brand);color:var(--brand-ink);box-shadow:none}
+/* Nav icon cells: glyphs center optically, labels share one x. */
+.moduleSidebar nav button .navIcon{display:grid;place-items:center;width:22px;height:22px;flex:none}
+/* Homepage: scope line + section nav grid. */
+.homeHeader .homeScope{color:var(--muted-ink);font-size:max(11px,calc(10px * var(--font-scale)));margin-top:6px}
+.homeSections{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.homeSection{display:flex;align-items:center;gap:12px;text-align:left;background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:13px 15px;transition:background-color .16s ease,border-color .16s ease}
+.homeSection:hover{background:color-mix(in srgb,var(--focus) 6%,var(--paper));border-color:var(--focus)}
+.homeSection>span:nth-child(2){display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+.homeSection strong{font-size:calc(13px * var(--font-scale));font-weight:600;letter-spacing:-.01em}
+.homeSection small{font-size:max(11px,calc(10px * var(--font-scale)));color:var(--muted-ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.homeSection>svg:last-child{color:var(--muted-ink);flex-shrink:0}
+@media(max-width:700px){.homeSections{grid-template-columns:1fr}}

@@ -9,7 +9,7 @@ let browser;
 try{browser=await chromium.connectOverCDP(process.env.TOOLS_CDP_URL||'http://127.0.0.1:9223',{timeout:10_000});}
 catch{browser=await chromium.launch({headless:true});ownsBrowser=true;}
 const context=browser.contexts()[0]||await browser.newContext();
-const baseUrl=process.env.TOOLS_BASE_URL||'http://localhost:3000';
+const baseUrl=process.env.TOOLS_BASE_URL||'http://localhost:3000/tools';
 let page=context.pages().find(candidate=>candidate.url().startsWith(baseUrl));
 if(!page) page=await context.newPage();
 
@@ -24,8 +24,12 @@ let failAnalytics=false;
 let wakeTools=false;
 const preferencesKey='myoffice.tools.preferences.v1';
 const sessionKey='myoffice.tools.session.v1';
+const sessionKeyV2='myoffice.tools.session.v2';
+const browserKey='myoffice.tools.browser.v1';
 let originalPreferences=null;
 let originalSession=null;
+let originalSessionV2=null;
+let originalBrowser=null;
 let fixtureMode=false;
 const fixtureUsage=Array.from({length:36},(_,index)=>({
   id:`usage-${index+1}`,
@@ -81,7 +85,7 @@ page.on('console',message=>{if(message.type()==='error') consoleErrors.push(mess
 const phase=message=>fs.writeSync(2,`[tools] ${message}\n`);
 const check=(condition,message)=>{if(!condition) throw new Error(message);};
 const bodyText=()=>page.locator('body').innerText();
-const waitForSettled=()=>page.waitForFunction(()=>!document.body.innerText.includes('Loading tools workspace')&&!document.body.innerText.includes('Loading equipment register'),undefined,{timeout:360_000});
+const waitForSettled=()=>page.waitForFunction(()=>!document.body.innerText.includes('Loading tools workspace')&&!document.body.innerText.includes('Loading equipment register')&&!document.body.innerText.includes('Loading homepage'),undefined,{timeout:360_000});
 const waitForText=text=>page.getByText(text,{exact:false}).first().waitFor({state:'visible',timeout:360_000});
 const overflow=locator=>locator.evaluate(element=>element.scrollWidth-element.clientWidth);
 const retry=async()=>{
@@ -94,21 +98,32 @@ const retry=async()=>{
 try{
   phase('opening signed-in workspace');
   await page.setViewportSize({width:1440,height:1000});
-  if(!page.url().startsWith(baseUrl)) await page.goto(`${baseUrl}/tools`,{waitUntil:'domcontentloaded',timeout:120_000});
+  if(!page.url().startsWith(baseUrl)) await page.goto(`${baseUrl}/`,{waitUntil:'domcontentloaded',timeout:120_000});
   originalPreferences=await page.evaluate(key=>localStorage.getItem(key),preferencesKey);
   originalSession=await page.evaluate(key=>localStorage.getItem(key),sessionKey);
-  if(!originalSession){
+  originalSessionV2=await page.evaluate(key=>localStorage.getItem(key),sessionKeyV2);
+  originalBrowser=await page.evaluate(key=>localStorage.getItem(key),browserKey);
+  if(!originalSession&&!originalSessionV2){
     fixtureMode=true;
     await page.evaluate(key=>localStorage.setItem(key,JSON.stringify({id:'audit-admin',name:'Audit Admin',username:'audit-admin',password:'',role:'admin',canIssue:false,token:'audit-read-only-token'})),sessionKey);
   }
-  await page.goto(`${baseUrl}/tools`,{waitUntil:'domcontentloaded',timeout:120_000});
+  await page.goto(`${baseUrl}/`,{waitUntil:'domcontentloaded',timeout:120_000});
+  await waitForSettled();
   const session=await page.evaluate(()=>{
+    const envelope=localStorage.getItem('myoffice.tools.session.v2');
+    if(envelope){
+      try{
+        const value=JSON.parse(envelope).account;
+        if(value?.token) return {name:value.name,role:value.role,department:value.department,hasToken:true,migrated:localStorage.getItem('myoffice.tools.session.v1')===null};
+      }catch{/* fall through to legacy read */}
+    }
     const raw=localStorage.getItem('myoffice.tools.session.v1');
     if(!raw)return null;
     const value=JSON.parse(raw);
-    return {name:value.name,role:value.role,department:value.department,hasToken:Boolean(value.token)};
+    return {name:value.name,role:value.role,department:value.department,hasToken:Boolean(value.token),migrated:false};
   });
   check(session?.hasToken,'The isolated browser profile could not establish a read-only Tools session.');
+  await page.getByRole('button',{name:'Equipment',exact:true}).first().click();
   await waitForSettled();
   const liveText=await bodyText();
   check(!liveText.includes('Equipment register unavailable'),'The live equipment register did not load.');
@@ -117,6 +132,8 @@ try{
   phase('checking progressive equipment delivery');
   slowHistory=true;
   await page.reload({waitUntil:'domcontentloaded',timeout:120_000});
+  await waitForText('Loading homepage');
+  await page.getByRole('button',{name:'Equipment',exact:true}).first().click();
   await page.getByRole('button',{name:'View Torque wrench',exact:true}).first().waitFor({state:'visible',timeout:4000});
   await page.getByRole('button',{name:'History',exact:true}).first().click();
   const progressiveDelivery={equipmentVisible:true,historyStillLoading:(await bodyText()).includes('Loading issue and return history')};
@@ -163,6 +180,8 @@ try{
   failTools=false;failNotifications=false;failAnalytics=false;wakeTools=true;
   const wakingReload=page.reload({waitUntil:'domcontentloaded',timeout:120_000});
   await wakingReload;
+  await waitForText('Loading homepage');
+  await page.getByRole('button',{name:'Equipment',exact:true}).first().click();
   await waitForText('Loading equipment register');
   const wakingText=await bodyText();
   const wakeStayedLoading=!wakingText.includes('Equipment register unavailable');
@@ -176,12 +195,33 @@ try{
   const settingsButton=page.getByRole('button',{name:'Open settings',exact:true}).first();
   await page.getByRole('button',{name:/tool notifications/i}).first().focus();
   await page.keyboard.press('Tab');
+  await page.waitForTimeout(450);
   const focusStyle=await settingsButton.evaluate(element=>{
     const style=getComputedStyle(element);
     return {outlineStyle:style.outlineStyle,outlineWidth:style.outlineWidth,boxShadow:style.boxShadow,borderColor:style.borderColor};
   });
+  const measureRow=async locators=>{const boxes=[];for(const locator of locators)boxes.push(await locator.boundingBox());return boxes;};
+  const headerBoxes=await measureRow([page.getByRole('button',{name:/tool notifications/i}).first(),page.getByRole('button',{name:'Open settings',exact:true}).first(),page.getByRole('button',{name:/Account:/}).first(),page.getByRole('button',{name:'Department'}).first()]);
+  const headerAligned=headerBoxes.every(box=>box&&Math.round(box.height)===36)&&new Set(headerBoxes.map(box=>Math.round(box.y))).size===1;
+  const toolbarSearchBox=await page.getByRole('button',{name:'Expand search',exact:true}).locator('xpath=following-sibling::div').boundingBox();
+  const toolbarBoxes=[toolbarSearchBox,await page.getByRole('button',{name:'Open filter and sort controls'}).boundingBox(),await page.locator('div[aria-label="View options"]').boundingBox()];
+  const toolbarAligned=toolbarBoxes.every(box=>box&&Math.round(box.height)===42)&&new Set(toolbarBoxes.map(box=>Math.round(box.y))).size===1;
+  await page.getByRole('button',{name:/Account:/}).first().click();
+  const profileVisible=await page.getByRole('dialog',{name:'Your profile'}).isVisible();
+  await page.screenshot({path:path.join(os.tmpdir(),'myoffice-tools-profile.png'),fullPage:false});
+  await page.keyboard.press('Escape');
+  await page.getByRole('button',{name:'Homepage',exact:true}).first().click();
+  await page.getByRole('button',{name:'Open Employees'}).click();
+  const sectionNavigated=await page.locator('aside button[aria-current="page"]').getAttribute('aria-label')==='Employees';
+  await page.getByRole('button',{name:'Equipment',exact:true}).first().click();
   const hoveredTool=page.getByRole('button',{name:'View Torque wrench',exact:true}).first();
+  const cardRestStyle=await hoveredTool.evaluate(element=>{
+    const card=element.closest('article');
+    if(!card)return null;
+    return {backgroundColor:getComputedStyle(card).backgroundColor};
+  });
   await hoveredTool.hover();
+  await page.waitForTimeout(450);
   const cardHoverStyle=await hoveredTool.evaluate(element=>{
     const card=element.closest('article');
     if(!card)return null;
@@ -193,6 +233,8 @@ try{
   await page.getByRole('button',{name:'Grid view'}).click();
   const search=page.getByRole('textbox',{name:/Search tools/i});
   if(await search.count()){
+    const expandSearch=page.getByRole('button',{name:'Expand search',exact:true});
+    if(await expandSearch.count()) await expandSearch.click();
     await search.fill('zzzz-no-live-match');
     await waitForText('No matching equipment');
     await search.fill('');
@@ -206,7 +248,8 @@ try{
   }
 
   phase('checking issue-form autocomplete and date picker');
-  const activeSession=await page.evaluate(key=>localStorage.getItem(key),sessionKey);
+  const activeSessionV1=await page.evaluate(key=>localStorage.getItem(key),sessionKey);
+  const activeSessionV2=await page.evaluate(key=>localStorage.getItem(key),sessionKeyV2);
   const previousFixtureMode=fixtureMode;
   const previousAuthResponse=fixtureResponses.get('/api/tools-workspace/auth/me');
   fixtureMode=true;
@@ -214,6 +257,7 @@ try{
   await page.evaluate(key=>localStorage.setItem(key,JSON.stringify({id:'audit-issuer',name:'Audit Issuer',username:'audit-issuer',password:'',role:'issuer',department:'Engineering',canIssue:true,token:'audit-read-only-token'})),sessionKey);
   await page.reload({waitUntil:'domcontentloaded',timeout:120_000});
   await waitForSettled();
+  await page.getByRole('button',{name:'Equipment',exact:true}).first().click();
   await page.getByRole('button',{name:'View Torque wrench',exact:true}).first().click();
   const toolDialog=page.getByRole('dialog');
   await toolDialog.getByRole('button',{name:'Issue tool',exact:true}).click();
@@ -234,8 +278,7 @@ try{
   await issueDialog.getByRole('button',{name:'Cancel',exact:true}).click();
   fixtureMode=previousFixtureMode;
   if(previousAuthResponse)fixtureResponses.set('/api/tools-workspace/auth/me',previousAuthResponse);
-  if(activeSession===null)await page.evaluate(key=>localStorage.removeItem(key),sessionKey);
-  else await page.evaluate(({key,value})=>localStorage.setItem(key,value),{key:sessionKey,value:activeSession});
+  await page.evaluate(({v1,v2})=>{localStorage.removeItem('myoffice.tools.session.v1');localStorage.removeItem('myoffice.tools.session.v2');if(v1!==null)localStorage.setItem('myoffice.tools.session.v1',v1);if(v2!==null)localStorage.setItem('myoffice.tools.session.v2',v2);},{v1:activeSessionV1,v2:activeSessionV2});
   await page.reload({waitUntil:'domcontentloaded',timeout:120_000});
   await waitForSettled();
 
@@ -273,13 +316,13 @@ try{
   await page.getByText('Failed to fetch',{exact:true}).waitFor({state:'hidden',timeout:10_000}).catch(()=>{});
   await page.screenshot({path:path.join(os.tmpdir(),'myoffice-tools-tonal-mobile.png'),fullPage:true});
 
-  await page.evaluate(({preferencesKey,preferences,sessionKey,session})=>{if(preferences===null)localStorage.removeItem(preferencesKey);else localStorage.setItem(preferencesKey,preferences);if(session===null)localStorage.removeItem(sessionKey);else localStorage.setItem(sessionKey,session);},{preferencesKey,preferences:originalPreferences,sessionKey,session:originalSession});
+  await page.evaluate(({preferencesKey,preferences,sessionKey,session,sessionKeyV2,sessionV2,browserKey,browser})=>{if(preferences===null)localStorage.removeItem(preferencesKey);else localStorage.setItem(preferencesKey,preferences);if(session===null)localStorage.removeItem(sessionKey);else localStorage.setItem(sessionKey,session);if(sessionV2===null)localStorage.removeItem(sessionKeyV2);else localStorage.setItem(sessionKeyV2,sessionV2);if(browser===null)localStorage.removeItem(browserKey);else localStorage.setItem(browserKey,browser);},{preferencesKey,preferences:originalPreferences,sessionKey,session:originalSession,sessionKeyV2,sessionV2:originalSessionV2,browserKey,browser:originalBrowser});
   await page.setViewportSize({width:1440,height:1000});
   await page.reload({waitUntil:'domcontentloaded',timeout:120_000});
   await waitForSettled();
-  await page.evaluate(({preferencesKey,preferences,sessionKey,session})=>{if(preferences===null)localStorage.removeItem(preferencesKey);else localStorage.setItem(preferencesKey,preferences);if(session===null)localStorage.removeItem(sessionKey);else localStorage.setItem(sessionKey,session);},{preferencesKey,preferences:originalPreferences,sessionKey,session:originalSession});
+  await page.evaluate(({preferencesKey,preferences,sessionKey,session,sessionKeyV2,sessionV2,browserKey,browser})=>{if(preferences===null)localStorage.removeItem(preferencesKey);else localStorage.setItem(preferencesKey,preferences);if(session===null)localStorage.removeItem(sessionKey);else localStorage.setItem(sessionKey,session);if(sessionV2===null)localStorage.removeItem(sessionKeyV2);else localStorage.setItem(sessionKeyV2,sessionV2);if(browser===null)localStorage.removeItem(browserKey);else localStorage.setItem(browserKey,browser);},{preferencesKey,preferences:originalPreferences,sessionKey,session:originalSession,sessionKeyV2,sessionV2:originalSessionV2,browserKey,browser:originalBrowser});
 
-  const evidence={fixtureMode,live,progressiveDelivery,initialFailure,quietFailure,notificationFailure,adminFailure,wakeStayedLoading,vendorLoadingCopyAbsent,equipmentLoaderCount,focusStyle,cardHoverStyle,issueForm,departmentGrouped,eligibilityMatrixVisible,complianceVisible,gatePassesVisible,analyticsVisualsVisible,detailOpened,mobile,blockedWrites,consoleErrors,responses:{total:responses.length,successful:responses.filter(item=>item.status===200).length,simulatedFailures:responses.filter(item=>item.status>=500).length,paths:[...new Set(responses.map(item=>item.pathname))]},restoredPreferences:await page.evaluate(key=>localStorage.getItem(key),preferencesKey),restoredSession:await page.evaluate(key=>localStorage.getItem(key),sessionKey)};
+  const evidence={fixtureMode,live,progressiveDelivery,initialFailure,quietFailure,notificationFailure,adminFailure,wakeStayedLoading,vendorLoadingCopyAbsent,equipmentLoaderCount,focusStyle,cardHoverStyle,headerAligned,toolbarAligned,profileVisible,sectionNavigated,issueForm,departmentGrouped,eligibilityMatrixVisible,complianceVisible,gatePassesVisible,analyticsVisualsVisible,detailOpened,mobile,blockedWrites,consoleErrors,responses:{total:responses.length,successful:responses.filter(item=>item.status===200).length,simulatedFailures:responses.filter(item=>item.status>=500).length,paths:[...new Set(responses.map(item=>item.pathname))]},restoredPreferences:await page.evaluate(key=>localStorage.getItem(key),preferencesKey),restoredSession:await page.evaluate(key=>localStorage.getItem(key),sessionKey),restoredSessionV2:await page.evaluate(key=>localStorage.getItem(key),sessionKeyV2),restoredBrowser:await page.evaluate(key=>localStorage.getItem(key),browserKey)};
   fs.writeSync(1,`${JSON.stringify(evidence,null,2)}\n`);
   check(initialFailure.errorVisible&&!initialFailure.falseEmpty,'History failure looked like a genuine empty history.');
   check(progressiveDelivery.equipmentVisible&&progressiveDelivery.historyStillLoading,'Equipment waited for the delayed history source.');
@@ -289,8 +332,12 @@ try{
   check(wakeStayedLoading,'Transient Supabase wake-up rendered an unavailable state.');
   check(vendorLoadingCopyAbsent,'The loading state exposed the removed Supabase wake-up message.');
   check(equipmentLoaderCount===1,'The equipment loading state was rendered more than once.');
-  check(focusStyle.outlineStyle==='none'&&focusStyle.boxShadow!=='none','Header focus styling still uses a stacked outline or has no visible halo.');
-  check(cardHoverStyle&&cardHoverStyle.transform==='none'&&cardHoverStyle.boxShadow!=='none','Equipment hover still lifts the tile or has no visible glow.');
+  check(focusStyle.outlineStyle==='none'&&focusStyle.borderColor==='rgb(79, 128, 106)'&&focusStyle.boxShadow.includes('3px'),'Header focus styling still uses a stacked outline or has no visible halo.');
+  check(cardHoverStyle&&cardRestStyle&&cardHoverStyle.transform==='none'&&cardHoverStyle.boxShadow==='none'&&cardHoverStyle.backgroundColor!==cardRestStyle.backgroundColor,'Equipment hover still lifts the tile, spills shadow outside it, or has no visible feedback.');
+  check(headerAligned,'Header controls do not share one 36px height and baseline.');
+  check(toolbarAligned,'Toolbar controls do not share one 42px height and baseline.');
+  check(profileVisible,'The account button did not reveal the profile panel.');
+  check(sectionNavigated,'The homepage section card did not navigate to Employees.');
   check(issueForm.employeeSelected==='Tariro Moyo · E-001'&&issueForm.suggestionPointerEvents==='auto','The issue-form employee suggestion was not directly clickable.');
   check(issueForm.pickerOpened,'Clicking the expected-return field did not invoke the native picker.');
   check(departmentGrouped&&eligibilityMatrixVisible,'The department-grouped employee eligibility register did not render correctly.');
@@ -299,11 +346,15 @@ try{
   check(mobile.documentOverflow===0&&mobile.mainOverflow===0,'The Tools workspace overflowed at 390px.');
   check(evidence.restoredPreferences===originalPreferences,'Tools appearance preferences were not restored.');
   check(evidence.restoredSession===originalSession,'Tools session storage was not restored.');
+  check(evidence.restoredSessionV2===originalSessionV2,'Tools v2 session storage was not restored.');
+  check(evidence.restoredBrowser===originalBrowser,'Tools browser identity was not restored.');
+  check(session.migrated!==false,'The legacy v1 session was not migrated to the v2 envelope.');
   if(ownsBrowser) await browser.close();
 }catch(error){
-  if(page) await page.evaluate(({preferencesKey,preferences,sessionKey,session})=>{if(preferences===null)localStorage.removeItem(preferencesKey);else localStorage.setItem(preferencesKey,preferences);if(session===null)localStorage.removeItem(sessionKey);else localStorage.setItem(sessionKey,session);},{preferencesKey,preferences:originalPreferences,sessionKey,session:originalSession}).catch(()=>{});
+  if(page) await page.evaluate(({preferencesKey,preferences,sessionKey,session,sessionKeyV2,sessionV2,browserKey,browser})=>{if(preferences===null)localStorage.removeItem(preferencesKey);else localStorage.setItem(preferencesKey,preferences);if(session===null)localStorage.removeItem(sessionKey);else localStorage.setItem(sessionKey,session);if(sessionV2===null)localStorage.removeItem(sessionKeyV2);else localStorage.setItem(sessionKeyV2,sessionV2);if(browser===null)localStorage.removeItem(browserKey);else localStorage.setItem(browserKey,browser);},{preferencesKey,preferences:originalPreferences,sessionKey,session:originalSession,sessionKeyV2,sessionV2:originalSessionV2,browserKey,browser:originalBrowser}).catch(()=>{});
   fs.writeSync(2,`${error instanceof Error?error.stack||error.message:String(error)}\n`);
   if(ownsBrowser) await browser.close().catch(()=>{});
   process.exit(1);
 }
 process.exit(0);
+

@@ -3,13 +3,14 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import { AnimatedSelect } from './AnimatedSelect';
 import { ToolsIcon as Icon } from './ToolsIcon';
+import { AnimatedText } from './ToolsUI';
 import { ToolsDateInput } from './ToolsDateInput';
 import type { CompetencyRecord, IncidentRecord, InspectionRecord, InspectionType } from './complianceTypes';
 import type { Employee, Tool } from './prototype';
 import s from './tools.module.css';
 
 const INSPECTION_LABELS:Record<InspectionType,string>={pre_use:'Pre-use check',weekly:'Weekly check',monthly:'Monthly inspection',quarterly:'Quarterly colour inspection',calibration:'Calibration',maintenance:'Maintenance',storage_audit:'Storage audit',repair:'Repair verification'};
-const INCIDENT_LABELS:Record<IncidentRecord['incident_type'],string>={lost:'Lost equipment',damaged:'Damage',stolen:'Suspected theft',missing_components:'Missing components',late_return:'Late return'};
+export const INCIDENT_LABELS:Record<IncidentRecord['incident_type'],string>={lost:'Lost equipment',damaged:'Damage',stolen:'Suspected theft',missing_components:'Missing components',late_return:'Late return'};
 
 type InspectionInput={inspection_type:InspectionType;outcome:'passed'|'conditional'|'failed';next_due_at?:string;condition?:string;defects?:string;notes?:string;repair_quote?:number;new_equipment_price?:number};
 type IncidentInput={incident_type:IncidentRecord['incident_type'];occurred_at:string;employee_id?:string;explanation:string};
@@ -91,7 +92,7 @@ export function ToolsCompliance({tools,employees,competencies,inspections,incide
 
   return <div className={s.complianceGrid}>
     <section className={`${s.accountAccess} ${s.accountAccessDashboard}`}>
-      <div className={s.accountAccessHeader}><div><h2>Inspection and maintenance control</h2><p>Required weekly, monthly, quarterly, calibration and maintenance work stays visible until completed.</p></div><div className={s.accountAccessSummary}><span><strong>{dueTools.length}</strong>Items due</span><span><strong>{inspections.length}</strong>Records</span><span><strong>{eligibleCount}</strong>Competencies</span><span><strong>{openIncidents.length}</strong>Open incidents</span></div></div>
+      <div className={s.accountAccessHeader}><div><h2>Inspection and maintenance control</h2><p>Required weekly, monthly, quarterly, calibration and maintenance work stays visible until completed.</p></div><div className={s.accountAccessSummary}><span><strong><AnimatedText value={dueTools.length}>{dueTools.length}</AnimatedText></strong>{dueTools.length===1?'Item due':'Items due'}</span><span><strong><AnimatedText value={inspections.length}>{inspections.length}</AnimatedText></strong>{inspections.length===1?'Record':'Records'}</span><span><strong><AnimatedText value={eligibleCount}>{eligibleCount}</AnimatedText></strong>{eligibleCount===1?'Competency':'Competencies'}</span><span><strong><AnimatedText value={openIncidents.length}>{openIncidents.length}</AnimatedText></strong>{openIncidents.length===1?'Open incident':'Open incidents'}</span></div></div>
       {dueTools.length?<div className={s.complianceCards}>{dueTools.map(tool=><article key={tool.id} className={s.complianceCard} data-severity="due"><div><strong>{tool.id} · {tool.name}</strong><small>{tool.location}</small></div><div className={s.complianceTags}>{tool.inspectionDue?.map(item=><span key={item}>{item.replaceAll('_',' ')}</span>)}</div></article>)}</div>:<div className={s.formContext}><Icon name="check"/><span><strong>No scheduled checks are overdue</strong><small>Current requirements are derived from each equipment record.</small></span></div>}
       <div className={s.complianceCards}>{activeTools.map(tool=>{const quarterly=tool.latestInspections?.quarterly;return <article key={tool.id} className={s.complianceCard}><div><strong>{tool.id}</strong><small>{tool.name}</small></div><div className={s.inspectionColour} data-colour={(quarterly?.colour_code||'none').toLowerCase()}><i/>{quarterly?`${quarterly.colour_code} · ${new Date(quarterly.inspected_at).toLocaleDateString()}`:'Quarterly inspection not recorded'}</div><small>{tool.maintenanceRequirements||'Maintenance requirements not recorded'}</small></article>;})}</div>
     </section>

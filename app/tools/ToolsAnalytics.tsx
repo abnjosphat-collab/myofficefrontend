@@ -3,7 +3,7 @@
 import { useId, useMemo, useState, type CSSProperties } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { chartTheme } from '@/components/shared/design-system/charts';
+import { toolsChartTheme } from '@/lib/charts';
 import { ToolsIcon as Icon, type IconName } from './ToolsIcon';
 import { AnimatedText, ToolsDialog } from './ToolsUI';
 import s from './tools.module.css';
@@ -44,7 +44,7 @@ export function summarizeUsageTrend(points:TrendPoint[]):TrendSummary{
 
 function UsageTrendChart({points,range,expanded=false}:{points:TrendPoint[];range:TrendRange;expanded?:boolean}){
   const reduced=useReducedMotion();
-  const colors=chartTheme('dallaglio',true);
+  const colors=toolsChartTheme();
   const gradientId=`tools-usage-${useId().replace(/:/g,'')}`;
   return <div className={s.polishedChart} role="img" aria-label={`${range} Tools usage trend`}>
     <ResponsiveContainer width="100%" height={expanded?320:238}>
@@ -62,7 +62,7 @@ function UsageTrendChart({points,range,expanded=false}:{points:TrendPoint[];rang
 
 function FeatureUseChart({features}:{features:Array<[string,number]>}){
   const reduced=useReducedMotion();
-  const colors=chartTheme('dallaglio',true);
+  const colors=toolsChartTheme();
   const data=features.slice(0,8).map(([name,count])=>({name:readableAction(name),count}));
   return <div className={s.featureChart} role="img" aria-label="Most frequently used Tools features"><ResponsiveContainer width="100%" height={Math.max(210,data.length*38)}><BarChart data={data} layout="vertical" margin={{top:8,right:18,bottom:2,left:2}} accessibilityLayer>
     <CartesianGrid strokeDasharray="4 5" stroke={colors.grid} horizontal={false}/>
@@ -107,3 +107,4 @@ export function ToolsAnalytics({usage,errors,feedback}:{usage:UsageEvent[];error
     <motion.section className={s.analyticsPanel} {...panelMotion}><div className={s.fieldHeading}><h2>Latest feedback</h2><span>Text and audio</span></div>{feedback.length?feedbackList:<div className={s.analyticsEmpty}><Icon name="edit" size={25}/><p>No suggestions have been sent yet.</p></div>}<button type="button" className={s.openDetail} onClick={()=>setDetail('feedback')}>Open details <Icon name="chevron" size={13}/></button></motion.section>
   </div><ToolsDialog open={!!detail} onClose={()=>setDetail(null)} title={detail==='features'?'Feature use details':detail==='errors'?'Captured errors':detail==='feedback'?'Latest feedback':detail==='trend'?`${trendPeriod} usage`:'Weekly usage pattern'} description="Activity across all Tools & Equipment accounts." wide>{detail==='features'&&(features.length?<FeatureUseChart features={features}/>:<p className={s.formHint}>No feature activity has been recorded yet.</p>)}{detail==='errors'&&(errors.length?errorsList:<p className={s.formHint}>No errors have been captured.</p>)}{detail==='feedback'&&(feedback.length?feedbackList:<p className={s.formHint}>No feedback has been saved.</p>)}{detail==='trend'&&<><div className={s.dialogTrendRanges}>{ranges}</div><UsageTrendChart points={trendPoints} range={trendRange} expanded/></>}{detail==='heatmap'&&heatmap}</ToolsDialog></>;
 }
+

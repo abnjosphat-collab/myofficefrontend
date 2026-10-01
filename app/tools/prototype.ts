@@ -61,6 +61,16 @@ export function inferEquipmentKind(name: string, category: string, storedKind?: 
   return KIND_HINTS.find(([pattern]) => pattern.test(description))?.[1] ?? defaultEquipmentKind(category);
 }
 export const DEPARTMENTS = ['Engineering', 'Mining', 'Mine Technical Services', 'IT'];
+const DEPARTMENT_SHORT: Record<string, string> = { 'All departments': 'ALL', 'Engineering': 'ENG', 'Mining': 'MIN', 'Mine Technical Services': 'MTS', 'IT': 'IT' };
+const SHORT_SKIP_WORDS = new Set(['and', 'of', 'for', 'the', '&']);
+export function abbreviateDepartment(name: string): string {
+  const known = DEPARTMENT_SHORT[name];
+  if (known) return known;
+  const words = name.split(/\s+/).filter(word => word && !SHORT_SKIP_WORDS.has(word.toLowerCase()));
+  if (!words.length) return 'ALL';
+  if (words.length === 1) return words[0].slice(0, 3).toUpperCase();
+  return words.map(word => word[0]).join('').toUpperCase();
+}
 export const departmentOf = (tool: Tool) => tool.department || 'Engineering';
 export const primaryToolImage = (tool: Tool) => tool.evidence?.find(file => file.type.startsWith('image/'))?.url;
 export const SEED_TOOLS: Tool[] = [];

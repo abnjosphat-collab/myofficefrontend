@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from 'react';
 import { ToolsIcon as Icon } from './ToolsIcon';
+import { AnimatedText } from './ToolsUI';
 import { AnimatedSelect } from './AnimatedSelect';
 import type { ApprovalRole } from './complianceTypes';
 import type { AccountRole, WorkspaceAccount } from './prototype';
@@ -17,7 +18,7 @@ function AccountAccessRow({account,departments,onUpdate}:{account:WorkspaceAccou
 
 export function ToolsAccountAccess({accounts,departments,onUpdateRole}:{accounts:WorkspaceAccount[];departments:string[];onUpdateRole:(id:string,role:AccountRole,department?:string,approvalRoles?:ApprovalRole[])=>void|Promise<void>}) {
   const admins=accounts.filter(account=>account.role==='admin').length;const issuers=accounts.filter(account=>account.role==='issuer').length;const viewers=accounts.filter(account=>account.role==='viewer').length;
-  return <section className={`${s.accountAccess} ${s.accountAccessDashboard}`}><div className={s.accountAccessHeader}><div><h2>Account access</h2><p>Grant register access, assign departments, and authorize gate-pass signing roles.</p></div><div className={s.accountAccessSummary}><span><strong>{accounts.length}</strong>Accounts</span><span><strong>{admins}</strong>Admins</span><span><strong>{issuers}</strong>Issuers</span><span><strong>{viewers}</strong>Viewers</span></div></div><p className={s.formHint}>Non-admin accounts see only their assigned department. Approval roles do not grant register editing; they only permit the named person to sign that exact gate-pass step after password or PIN verification.</p><div className={s.accountAccessList}>{accounts.map(account=><AccountAccessRow key={account.id} account={account} departments={departments} onUpdate={onUpdateRole}/>)}</div></section>;
+  return <section className={`${s.accountAccess} ${s.accountAccessDashboard}`}><div className={s.accountAccessHeader}><div><h2>Account access</h2><p>Grant register access, assign departments, and authorize gate-pass signing roles.</p></div><div className={s.accountAccessSummary}><span><strong><AnimatedText value={accounts.length}>{accounts.length}</AnimatedText></strong>{accounts.length===1?'Account':'Accounts'}</span><span><strong><AnimatedText value={admins}>{admins}</AnimatedText></strong>{admins===1?'Admin':'Admins'}</span><span><strong><AnimatedText value={issuers}>{issuers}</AnimatedText></strong>{issuers===1?'Issuer':'Issuers'}</span><span><strong><AnimatedText value={viewers}>{viewers}</AnimatedText></strong>{viewers===1?'Viewer':'Viewers'}</span></div></div><p className={s.formHint}>Non-admin accounts see only their assigned department. Approval roles do not grant register editing; they only permit the named person to sign that exact gate-pass step after password or PIN verification.</p><div className={s.accountAccessList}>{accounts.map(account=><AccountAccessRow key={account.id} account={account} departments={departments} onUpdate={onUpdateRole}/>)}</div></section>;
 }
 
 export function ToolsAuth({ accounts, currentAccount, onCreate, onLogin, onLogout, onCancel, allowCancel = true }: { accounts: WorkspaceAccount[]; currentAccount: WorkspaceAccount | null; onCreate: (account: WorkspaceAccount) => void | Promise<void>; onLogin: (username: string, password: string) => boolean | Promise<boolean>; onLogout: () => void; onCancel: () => void; allowCancel?: boolean }) {

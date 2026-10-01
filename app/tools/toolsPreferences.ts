@@ -4,7 +4,7 @@ export const TOOLS_PREFERENCES_KEY = 'myoffice.tools.preferences.v1';
 export type ToolsStoredPreferences = {
   view: 'grid' | 'list';
   sidebarCollapsed: boolean;
-  overviewOpen: boolean;
+
   options: WorkspaceOptions;
 };
 
@@ -16,17 +16,17 @@ export function parseToolsPreferences(raw: string | null): ToolsStoredPreference
     const value = JSON.parse(raw) as Partial<ToolsStoredPreferences>;
     const source = value.options ?? DEFAULT_OPTIONS;
     const order = Array.isArray(source.order) && source.order.includes('register')
-      ? source.order.filter(item => item === 'overview' || item === 'register')
+      ? source.order.filter(item => item === 'register')
       : [...DEFAULT_OPTIONS.order];
     const uniqueOrder = [...new Set(order)];
     for (const required of DEFAULT_OPTIONS.order) if (!uniqueOrder.includes(required)) uniqueOrder.push(required);
     return {
       view: value.view === 'list' ? 'list' : 'grid',
       sidebarCollapsed: value.sidebarCollapsed === true,
-      overviewOpen: value.overviewOpen !== false,
+
       options: {
         order: uniqueOrder,
-        hidden: Array.isArray(source.hidden) ? source.hidden.filter(item => item === 'overview') : [],
+        hidden: [],
         font: fonts.has(source.font) ? source.font : DEFAULT_OPTIONS.font,
         fontSize: Number.isFinite(source.fontSize) ? Math.min(130, Math.max(85, Math.round(source.fontSize / 5) * 5)) : DEFAULT_OPTIONS.fontSize,
         guidance: source.guidance !== false,
