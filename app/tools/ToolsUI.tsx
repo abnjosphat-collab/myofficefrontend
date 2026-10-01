@@ -10,20 +10,19 @@ import s from './tools.module.css';
 
 export type FontChoice = 'inter' | 'manrope' | 'jakarta';
 export type FontSizeChoice = number;
-export type EquipmentIconFamily = 'technical' | 'myoffice' | 'tabler' | 'iconoir';
-export const ToolsPreferences = createContext({ appearance: 'light', font: 'inter' as FontChoice, fontSize: 100 as FontSizeChoice, equipmentIcons: 'technical' as EquipmentIconFamily, guidance: true });
+export const ToolsPreferences = createContext({ font: 'inter' as FontChoice, fontSize: 100 as FontSizeChoice, guidance: true });
 const scaleStyle = (fontSize: number) => ({ '--font-scale': fontSize / 100 } as CSSProperties);
 export function Help({ label, children }: { label: string; children: ReactNode }) {
   const prefs = useContext(ToolsPreferences);
   const [open, setOpen] = useState(false);
   if (!prefs.guidance) return null;
-  return <Tooltip.Provider delayDuration={250}><Tooltip.Root open={open} onOpenChange={setOpen}><Tooltip.Trigger asChild><button type="button" className={s.helpButton} aria-label={`Help: ${label}`} onClick={() => setOpen(v => !v)}><Icon name="info" size={16} /></button></Tooltip.Trigger><Tooltip.Portal><Tooltip.Content sideOffset={8} className={`${s.surface} ${s.helpTip}`} data-mode={prefs.appearance} data-font={prefs.font} style={scaleStyle(prefs.fontSize)}>{children}<Tooltip.Arrow className={s.helpArrow} /></Tooltip.Content></Tooltip.Portal></Tooltip.Root></Tooltip.Provider>;
+  return <Tooltip.Provider delayDuration={250}><Tooltip.Root open={open} onOpenChange={setOpen}><Tooltip.Trigger asChild><button type="button" className={s.helpButton} aria-label={`Help: ${label}`} onClick={() => setOpen(v => !v)}><Icon name="info" size={16} /></button></Tooltip.Trigger><Tooltip.Portal><Tooltip.Content sideOffset={8} className={`${s.surface} ${s.helpTip}`} data-font={prefs.font} style={scaleStyle(prefs.fontSize)}>{children}<Tooltip.Arrow className={s.helpArrow} /></Tooltip.Content></Tooltip.Portal></Tooltip.Root></Tooltip.Provider>;
 }
 
 export function ActionHint({ label, children }: { label: ReactNode; children: ReactElement }) {
   const prefs = useContext(ToolsPreferences);
   if (!prefs.guidance) return children;
-  return <Tooltip.Provider delayDuration={350}><Tooltip.Root><Tooltip.Trigger asChild>{children}</Tooltip.Trigger><Tooltip.Portal><Tooltip.Content side="bottom" align="center" sideOffset={9} className={`${s.surface} ${s.helpTip} ${s.actionHelpTip}`} data-mode={prefs.appearance} data-font={prefs.font} style={scaleStyle(prefs.fontSize)}>{label}<Tooltip.Arrow className={s.helpArrow}/></Tooltip.Content></Tooltip.Portal></Tooltip.Root></Tooltip.Provider>;
+  return <Tooltip.Provider delayDuration={350}><Tooltip.Root><Tooltip.Trigger asChild>{children}</Tooltip.Trigger><Tooltip.Portal><Tooltip.Content side="bottom" align="center" sideOffset={9} className={`${s.surface} ${s.helpTip} ${s.actionHelpTip}`} data-font={prefs.font} style={scaleStyle(prefs.fontSize)}>{label}<Tooltip.Arrow className={s.helpArrow}/></Tooltip.Content></Tooltip.Portal></Tooltip.Root></Tooltip.Provider>;
 }
 
 export function AnimatedText({ children, value }: { children: ReactNode; value: string | number }) {
@@ -35,7 +34,7 @@ export function ToolsDialog({ open, onClose, title, description, wide = false, d
   const prefs = useContext(ToolsPreferences);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const returnFocus = useRef<HTMLElement | null>(null);
-  return <Dialog.Root open={open} onOpenChange={value => { if (!value && dismissible) onClose(); }}><Dialog.Portal><Dialog.Overlay className={s.dialogOverlay} /><Dialog.Content className={`${s.surface} ${s.dialogPanel} ${wide ? s.dialogWide : ''}`} data-mode={prefs.appearance} data-font={prefs.font} style={scaleStyle(prefs.fontSize)}
+  return <Dialog.Root open={open} onOpenChange={value => { if (!value && dismissible) onClose(); }}><Dialog.Portal><Dialog.Overlay className={s.dialogOverlay} /><Dialog.Content className={`${s.surface} ${s.dialogPanel} ${wide ? s.dialogWide : ''}`} data-font={prefs.font} style={scaleStyle(prefs.fontSize)}
     onEscapeKeyDown={event => { if (!dismissible) event.preventDefault(); }}
     onPointerDownOutside={event => { if (!dismissible) event.preventDefault(); }}
     onInteractOutside={event => { if (!dismissible) event.preventDefault(); }}
@@ -57,7 +56,7 @@ export function EvidencePicker({ value, onChange, addFiles, toolPhoto = false }:
     setError(''); onChange([...value, ...addFiles(files)]);
   }
   return <div className={s.evidencePicker}>
-    <div className={s.fieldHeading}><span>{toolPhoto ? 'Tool photograph & records' : 'Photos & documents'} <small>Optional</small></span><Help label="Attachments">{toolPhoto ? 'The first uploaded image appears in the register. When no image is available, the equipment icon is used automatically.' : 'Add a photo of the condition or a PDF report. Saved files stay with the equipment record.'}</Help></div>
+    <div className={s.fieldHeading}><span>{toolPhoto ? 'Tool photograph & records' : 'Photos & documents'} <small>Optional</small></span><Help label="Attachments">{toolPhoto ? 'The first uploaded image remains attached to the equipment record.' : 'Add a photo of the condition or a PDF report. Saved files stay with the equipment record.'}</Help></div>
     <label className={s.uploadZone} htmlFor={inputId}><Icon name={toolPhoto ? 'image' : 'upload'} size={22} /><span><strong>{toolPhoto ? 'Add a tool photograph or PDF' : 'Add photos or a PDF'}</strong><small>{toolPhoto ? 'The first image becomes the register photo · ' : ''}Up to 6 files · original-quality photos</small></span><Icon name="plus" size={18} /><input id={inputId} className={s.fileInput} aria-label="Attach photos or PDF" type="file" multiple accept="image/jpeg,image/png,image/webp,image/gif,image/avif,application/pdf" onChange={e => { receive(Array.from(e.target.files || [])); e.target.value = ''; }} /></label>
     {value.length > 0 && <div className={s.evidenceList}>{value.map(file => <div key={file.id} className={s.evidenceRow}><Icon name={file.type === 'application/pdf' ? 'pdf' : 'image'} size={20} /><span><strong>{file.name}</strong><small>{Math.max(1, Math.round(file.size / 1024))} KB</small></span><button type="button" aria-label={`Remove ${file.name}`} className={s.iconButton} onClick={() => onChange(value.filter(f => f.id !== file.id))}><Icon name="close" size={16} /></button></div>)}</div>}
     {error && <p role="alert" className={s.warning}>{error}</p>}
@@ -79,7 +78,7 @@ export function EvidenceGallery({ files }: { files: Evidence[] }) {
     <Dialog.Root open={!!preview} onOpenChange={open => { if (!open) { setPreview(null); setZoom(1); } }}>
       <Dialog.Portal>
         <Dialog.Overlay className={s.imageViewerOverlay} />
-        <Dialog.Content className={`${s.surface} ${s.imageViewer}`} data-mode={prefs.appearance} data-font={prefs.font} style={scaleStyle(prefs.fontSize)}>
+        <Dialog.Content className={`${s.surface} ${s.imageViewer}`} data-font={prefs.font} style={scaleStyle(prefs.fontSize)}>
           <div className={s.imageViewerHeader}><div><Dialog.Title>{preview?.name || 'Photograph'}</Dialog.Title><Dialog.Description>Attached photograph preview</Dialog.Description></div><Dialog.Close asChild><button type="button" className={s.imageViewerClose} aria-label="Close image viewer"><Icon name="close" size={19}/></button></Dialog.Close></div>
           <div className={s.imageStage} data-zoomed={zoom > 1} role="button" tabIndex={0} aria-label="Image zoom area. Double-click or press Enter to zoom." onWheel={event => { event.preventDefault(); changeZoom(event.deltaY < 0 ? .25 : -.25); }} onDoubleClick={() => setZoom(current => current === 1 ? 2 : 1)} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setZoom(current => current === 1 ? 2 : 1); } if (event.key === '+' || event.key === '=') changeZoom(.25); if (event.key === '-') changeZoom(-.25); if (event.key === '0') setZoom(1); }}>
             <div className={s.imageZoomSurface} style={{ width: `${zoom * 100}%`, height: `${zoom * 100}%` }}>

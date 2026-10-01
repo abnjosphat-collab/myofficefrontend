@@ -13,6 +13,8 @@ agents.
 | Shared component contracts | [`../components/shared/design-system/README.md`](../components/shared/design-system/README.md) |
 | Retired Classic principles and migration checklist | [`CLASSIC_DESIGN_SYSTEM_ARCHIVE_2026-09-29.md`](./CLASSIC_DESIGN_SYSTEM_ARCHIVE_2026-09-29.md) |
 | Tools requirements and architecture | [`TOOLS_SYSTEM_SPECIFICATION.md`](./TOOLS_SYSTEM_SPECIFICATION.md) |
+| Current Claude takeover handoff | [`CLAUDE_HANDOFF_2026-09-30.md`](./CLAUDE_HANDOFF_2026-09-30.md) |
+| Paste-ready Claude continuation prompts | [`CLAUDE_PROMPTS_2026-09-30.md`](./CLAUDE_PROMPTS_2026-09-30.md) |
 | Test commands and scope | [`TESTING.md`](./TESTING.md) |
 
 Generated TypeScript API documentation is intentionally not committed. Run

@@ -40,7 +40,8 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts';
 import {
-  COST_CENTRE_SUGGESTIONS, ENGINEERING_COST_CENTRE, OT_TYPES, SELECTABLE_OT_TYPES, STATUSES,
+  ENGINEERING_COST_CENTRE, OT_TYPES, SELECTABLE_OT_TYPES, STATUSES,
+  overtimeCostCentreOptions,
   type OTType, type OTStatus, type OTRecord, type OTForm, type SpareUsedEntry, type PlanningStatus, type PayoutMethod,
 } from './types';
 import { useOvertimeData, buildOvertimePayload, createOT, updateOT, deleteOT, bulkUpdateOTStatus, postOvertimeAnalysis } from './useOvertimeData';
@@ -323,16 +324,15 @@ function OTFormModal({ open, onClose, onSave, editing, records }: {
           <FormField label="Date" required><input aria-label="Date" type="date" className={inputCls} value={form.date} onChange={e => handleDateChange(e.target.value)} /></FormField>
         </div>
 
-        <PredictiveInput
-          historyKey="overtime_cost_centre"
-          label="Cost centre"
-          required
-          value={form.cost_centre}
-          onChange={value => set('cost_centre', value)}
-          hints={[...COST_CENTRE_SUGGESTIONS]}
-          placeholder="Type or choose the department carrying this cost…"
-          inputClassName={`h-9 ${t.inputBg}`}
-        />
+        <FormField label="Cost centre" required>
+          <SelectField
+            size="form"
+            title="Cost centre"
+            value={form.cost_centre}
+            onChange={value => set('cost_centre', value)}
+            options={overtimeCostCentreOptions(form.cost_centre)}
+          />
+        </FormField>
         <HintText className="-mt-3">This controls which department pays for the overtime; it does not change the employee&apos;s home department.</HintText>
 
         <FormField label="Planned or Unplanned?" required>
@@ -584,16 +584,15 @@ function OTBulkFormModal({ open, onClose, onSubmit, employees, records, initialP
           <PillTabs tabs={payoutTabs} value={form.payout_method ?? 'unclassified'} onChange={v => setForm(f => ({ ...f, payout_method: v === 'unclassified' ? null : v }))} />
         </FormField>
 
-        <PredictiveInput
-          historyKey="overtime_cost_centre"
-          label="Cost centre"
-          required
-          value={form.cost_centre}
-          onChange={value => set('cost_centre', value)}
-          hints={[...COST_CENTRE_SUGGESTIONS]}
-          placeholder="Type or choose the department carrying this cost…"
-          inputClassName={`h-9 ${t.inputBg}`}
-        />
+        <FormField label="Cost centre" required>
+          <SelectField
+            size="form"
+            title="Cost centre"
+            value={form.cost_centre}
+            onChange={value => set('cost_centre', value)}
+            options={overtimeCostCentreOptions(form.cost_centre)}
+          />
+        </FormField>
 
         <label htmlFor="overtime-bulk-use-hours" className="flex items-center gap-2 text-xs cursor-pointer select-none">
           <input id="overtime-bulk-use-hours" type="checkbox" checked={useHours} onChange={e => setUseHours(e.target.checked)} className="accent-brand-500" />

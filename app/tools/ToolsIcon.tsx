@@ -5,7 +5,7 @@ import {
   Check, Cube, User, ArrowsLeftRight, DownloadSimple, ArrowCounterClockwise,
   DotsThree, WarningCircle,
   ArrowUUpLeft, ArrowUUpRight, PencilSimple, Archive, Paperclip, ImageSquare,
-  FilePdf, UploadSimple, Info, Eye, EyeSlash, ArrowUp, ArrowDown, CircleHalf,
+  FilePdf, UploadSimple, Info, Eye, EyeSlash, ArrowUp, ArrowDown,
   TreeStructure, TextAa, Bell, GearSix, DotsSixVertical, MagnifyingGlassPlus,
   MagnifyingGlassMinus, ChartLineUp, UserGear, Toolbox, CalendarBlank,
 } from '@phosphor-icons/react';
@@ -21,7 +21,7 @@ const icons = {
   undo: ArrowUUpLeft, redo: ArrowUUpRight,
   edit: PencilSimple, archive: Archive, attachment: Paperclip, image: ImageSquare,
   pdf: FilePdf, upload: UploadSimple, info: Info, show: Eye, hide: EyeSlash,
-  up: ArrowUp, moveDown: ArrowDown, appearance: CircleHalf, department: TreeStructure,
+  up: ArrowUp, moveDown: ArrowDown, department: TreeStructure,
   font: TextAa, bell: Bell, settings: GearSix, grip: DotsSixVertical,
   zoomIn: MagnifyingGlassPlus, zoomOut: MagnifyingGlassMinus,
   analytics: ChartLineUp,

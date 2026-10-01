@@ -44,7 +44,7 @@ export function AnimatedSelect({ value, options, onChange, ariaLabel, id, onOpen
         const source = root.current;
         const computed = source ? window.getComputedStyle(source) : null;
         const theme: FloatingStyle = {};
-        for (const property of ['--paper','--canvas','--ink','--muted-ink','--brand','--brand-soft','--line','--soft','--font-scale','--tools-font']) {
+        for (const property of ['--paper','--canvas','--ink','--muted-ink','--brand','--brand-soft','--line','--soft','--radius','--font-scale','--tools-font']) {
           const computedValue = computed?.getPropertyValue(property);
           if (computedValue) theme[property] = computedValue;
         }

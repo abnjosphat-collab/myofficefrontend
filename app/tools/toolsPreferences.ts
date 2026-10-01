@@ -2,7 +2,6 @@ import { DEFAULT_OPTIONS, type WorkspaceOptions } from './ToolsCustomize';
 
 export const TOOLS_PREFERENCES_KEY = 'myoffice.tools.preferences.v1';
 export type ToolsStoredPreferences = {
-  appearance: 'light' | 'dark';
   view: 'grid' | 'list';
   sidebarCollapsed: boolean;
   overviewOpen: boolean;
@@ -10,7 +9,6 @@ export type ToolsStoredPreferences = {
 };
 
 const fonts = new Set(['inter', 'manrope', 'jakarta']);
-const iconFamilies = new Set(['technical', 'myoffice', 'tabler', 'iconoir']);
 
 export function parseToolsPreferences(raw: string | null): ToolsStoredPreferences | null {
   if (!raw) return null;
@@ -23,7 +21,6 @@ export function parseToolsPreferences(raw: string | null): ToolsStoredPreference
     const uniqueOrder = [...new Set(order)];
     for (const required of DEFAULT_OPTIONS.order) if (!uniqueOrder.includes(required)) uniqueOrder.push(required);
     return {
-      appearance: value.appearance === 'dark' ? 'dark' : 'light',
       view: value.view === 'list' ? 'list' : 'grid',
       sidebarCollapsed: value.sidebarCollapsed === true,
       overviewOpen: value.overviewOpen !== false,
@@ -32,7 +29,6 @@ export function parseToolsPreferences(raw: string | null): ToolsStoredPreference
         hidden: Array.isArray(source.hidden) ? source.hidden.filter(item => item === 'overview') : [],
         font: fonts.has(source.font) ? source.font : DEFAULT_OPTIONS.font,
         fontSize: Number.isFinite(source.fontSize) ? Math.min(130, Math.max(85, Math.round(source.fontSize / 5) * 5)) : DEFAULT_OPTIONS.fontSize,
-        equipmentIcons: iconFamilies.has(source.equipmentIcons) ? source.equipmentIcons : DEFAULT_OPTIONS.equipmentIcons,
         guidance: source.guidance !== false,
         guide: source.guide !== false,
       },

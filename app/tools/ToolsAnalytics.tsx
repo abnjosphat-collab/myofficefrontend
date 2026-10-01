@@ -1,17 +1,17 @@
 'use client';
 
-import { useContext, useId, useMemo, useState, type CSSProperties } from 'react';
+import { useId, useMemo, useState, type CSSProperties } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { chartTheme } from '@/components/shared/design-system/charts';
 import { ToolsIcon as Icon, type IconName } from './ToolsIcon';
-import { AnimatedText, ToolsDialog, ToolsPreferences } from './ToolsUI';
+import { AnimatedText, ToolsDialog } from './ToolsUI';
 import s from './tools.module.css';
 
 export type UsageEvent={id:string;name:string;detail?:string;at:string;by?:string};
 export type ClientError={id:string;message:string;at:string};
 export type FeedbackRecord={id:string;text?:string;audioName?:string;audioUrl?:string;at:string;by:string};
-type Panel='features'|'theme'|'errors'|'feedback'|'trend'|'heatmap';
+type Panel='features'|'errors'|'feedback'|'trend'|'heatmap';
 export type TrendRange='daily'|'weekly'|'monthly';
 export type TrendPoint={key:string;label:string;count:number};
 export type TrendSummary={direction:'increasing'|'decreasing'|'stable';deltaPercent:number|null;total:number;peak:TrendPoint};
@@ -43,28 +43,26 @@ export function summarizeUsageTrend(points:TrendPoint[]):TrendSummary{
 }
 
 function UsageTrendChart({points,range,expanded=false}:{points:TrendPoint[];range:TrendRange;expanded?:boolean}){
-  const preferences=useContext(ToolsPreferences);
   const reduced=useReducedMotion();
-  const colors=chartTheme('dallaglio',preferences.appearance==='light');
+  const colors=chartTheme('dallaglio',true);
   const gradientId=`tools-usage-${useId().replace(/:/g,'')}`;
   return <div className={s.polishedChart} role="img" aria-label={`${range} Tools usage trend`}>
     <ResponsiveContainer width="100%" height={expanded?320:238}>
       <AreaChart data={points} margin={{top:12,right:12,bottom:2,left:-6}} accessibilityLayer>
-        <defs><linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1"><stop offset="4%" stopColor={colors.accent} stopOpacity={preferences.appearance==='light'?.3:.38}/><stop offset="96%" stopColor={colors.accent} stopOpacity={0}/></linearGradient></defs>
+        <defs><linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1"><stop offset="4%" stopColor={colors.accent} stopOpacity={.3}/><stop offset="96%" stopColor={colors.accent} stopOpacity={0}/></linearGradient></defs>
         <CartesianGrid strokeDasharray="4 5" stroke={colors.grid} vertical={false}/>
         <XAxis dataKey="label" tick={{fill:colors.axis,fontSize:10}} axisLine={false} tickLine={false} minTickGap={24}/>
         <YAxis tick={{fill:colors.axis,fontSize:10}} axisLine={false} tickLine={false} allowDecimals={false} width={34}/>
         <Tooltip contentStyle={colors.tooltip} cursor={{stroke:colors.accent,strokeOpacity:.22,strokeWidth:1}} formatter={(value:number)=>[`${value} action${value===1?'':'s'}`,'Activity']}/>
-        <Area type="monotone" dataKey="count" stroke={colors.accent} strokeWidth={2.5} fill={`url(#${gradientId})`} dot={{r:2.8,fill:preferences.appearance==='light'?'#fff':'#111113',stroke:colors.accent,strokeWidth:2}} activeDot={{r:5.5,fill:colors.accent,stroke:preferences.appearance==='light'?'#fff':'#111113',strokeWidth:3}} isAnimationActive={!reduced} animationDuration={700} animationEasing="ease-out"/>
+        <Area type="monotone" dataKey="count" stroke={colors.accent} strokeWidth={2.5} fill={`url(#${gradientId})`} dot={{r:2.8,fill:'var(--paper)',stroke:colors.accent,strokeWidth:2}} activeDot={{r:5.5,fill:colors.accent,stroke:'var(--paper)',strokeWidth:3}} isAnimationActive={!reduced} animationDuration={700} animationEasing="ease-out"/>
       </AreaChart>
     </ResponsiveContainer>
   </div>;
 }
 
 function FeatureUseChart({features}:{features:Array<[string,number]>}){
-  const preferences=useContext(ToolsPreferences);
   const reduced=useReducedMotion();
-  const colors=chartTheme('dallaglio',preferences.appearance==='light');
+  const colors=chartTheme('dallaglio',true);
   const data=features.slice(0,8).map(([name,count])=>({name:readableAction(name),count}));
   return <div className={s.featureChart} role="img" aria-label="Most frequently used Tools features"><ResponsiveContainer width="100%" height={Math.max(210,data.length*38)}><BarChart data={data} layout="vertical" margin={{top:8,right:18,bottom:2,left:2}} accessibilityLayer>
     <CartesianGrid strokeDasharray="4 5" stroke={colors.grid} horizontal={false}/>
@@ -75,24 +73,12 @@ function FeatureUseChart({features}:{features:Array<[string,number]>}){
   </BarChart></ResponsiveContainer></div>;
 }
 
-function ThemePreferenceChart({dark,light}:{dark:number;light:number}){
-  const preferences=useContext(ToolsPreferences);
-  const colors=chartTheme('dallaglio',preferences.appearance==='light');
-  const total=dark+light;
-  const darkPercent=total?Math.round(dark/total*100):0;
-  const palette=[colors.series[0],colors.series[3]];
-  const ring=total?`conic-gradient(${palette[0]} 0 ${darkPercent}%,${palette[1]} ${darkPercent}% 100%)`:colors.grid;
-  return <div className={s.themeVisualization}><div className={s.themePie} role="img" aria-label={`Appearance preference: ${dark} dark and ${light} light changes`} style={{background:ring}}><span><strong>{total}</strong><small>changes</small></span></div><div className={s.chartLegend}><p><i style={{background:palette[0]}}/>Dark<strong>{dark}</strong></p><p><i style={{background:palette[1]}}/>Light<strong>{light}</strong></p></div></div>;
-}
-
 export function ToolsAnalytics({usage,errors,feedback}:{usage:UsageEvent[];errors:ClientError[];feedback:FeedbackRecord[]}) {
   const [detail,setDetail]=useState<Panel|null>(null);
   const [trendRange,setTrendRange]=useState<TrendRange>('daily');
   const reduced=useReducedMotion();
   const counts=useMemo(()=>usage.reduce<Record<string,number>>((out,event)=>({...out,[event.name]:(out[event.name]||0)+1}),{}),[usage]);
   const features=Object.entries(counts).filter(([name])=>name!=='theme changed').sort((a,b)=>b[1]-a[1]);
-  const light=usage.filter(item=>item.name==='theme changed'&&item.detail==='Light').length;
-  const dark=usage.filter(item=>item.name==='theme changed'&&item.detail==='Dark').length;
   const accounts=new Set(usage.map(event=>event.by).filter(Boolean)).size;
   const trendPoints=useMemo(()=>buildUsageTrend(usage,trendRange),[usage,trendRange]);
   const trendSummary=useMemo(()=>summarizeUsageTrend(trendPoints),[trendPoints]);
@@ -105,7 +91,7 @@ export function ToolsAnalytics({usage,errors,feedback}:{usage:UsageEvent[];error
     {label:'Captured errors',value:errors.length,hint:'Reported automatically',icon:'alert',tone:'danger'},
     {label:'Feedback received',value:feedback.length,hint:'Suggestions and recordings',icon:'edit',tone:'warm'},
   ];
-  const panelMotion={initial:{opacity:0,y:reduced?0:12},animate:{opacity:1,y:0},whileHover:reduced?undefined:{y:-2,boxShadow:'0 16px 34px rgba(59,35,120,.08)'}};
+  const panelMotion={initial:{opacity:0,y:reduced?0:12},animate:{opacity:1,y:0}};
   const errorsList=<div className={s.errorList}>{errors.map(error=><div key={error.id}><Icon name="alert" size={16}/><span><strong>{error.message}</strong><small>{new Date(error.at).toLocaleString()}</small></span></div>)}</div>;
   const feedbackList=<div className={s.errorList}>{feedback.map(item=><div key={item.id}><Icon name={item.audioName?'attachment':'edit'} size={16}/><span><strong>{item.text||item.audioName}</strong><small>{item.by} · {new Date(item.at).toLocaleString()}</small></span></div>)}</div>;
   const ranges=<div className={s.trendRanges} aria-label="Usage trend period">{(['daily','weekly','monthly'] as TrendRange[]).map(value=><button key={value} type="button" aria-pressed={trendRange===value} onClick={()=>setTrendRange(value)}>{value[0].toUpperCase()+value.slice(1)}</button>)}</div>;
@@ -117,8 +103,7 @@ export function ToolsAnalytics({usage,errors,feedback}:{usage:UsageEvent[];error
     <motion.section className={`${s.analyticsPanel} ${s.analyticsWide} ${s.analyticsTrendPanel}`} {...panelMotion}><div className={`${s.fieldHeading} ${s.trendHeading}`}><div><div className={s.chartTitle}><span className={s.chartIcon}><Icon name="analytics" size={16}/></span><h2>Usage trend</h2><i data-direction={trendSummary.direction}>{trendSummary.direction}</i></div><span>{trendPeriod} · {trendInsight} · Peak {trendSummary.peak.label}</span></div>{ranges}</div><UsageTrendChart points={trendPoints} range={trendRange}/><button type="button" className={s.openDetail} onClick={()=>setDetail('trend')}>Explore trend <Icon name="chevron" size={13}/></button></motion.section>
     <motion.section className={`${s.analyticsPanel} ${s.heatmapPanel}`} {...panelMotion}><div className={s.fieldHeading}><div className={s.chartTitle}><span className={s.chartIcon}><Icon name="history" size={16}/></span><h2>Usage pattern</h2></div><span>{peak.count?`Peak: ${DAYS[peak.day]} ${TIME_BLOCKS[peak.block]}`:'Waiting for activity'}</span></div>{heatmap}<button type="button" className={s.openDetail} onClick={()=>setDetail('heatmap')}>Explore pattern <Icon name="chevron" size={13}/></button></motion.section>
     <motion.section className={s.analyticsPanel} {...panelMotion}><div className={s.fieldHeading}><div className={s.chartTitle}><span className={s.chartIcon}><Icon name="analytics" size={16}/></span><h2>Feature use</h2></div><span>Most frequent actions</span></div>{features.length?<FeatureUseChart features={features}/>:<div className={s.analyticsEmpty}><Icon name="history" size={25}/><p>Usage will appear as people work in the module.</p></div>}<button type="button" className={s.openDetail} onClick={()=>setDetail('features')}>Explore features <Icon name="chevron" size={13}/></button></motion.section>
-    <motion.section className={s.analyticsPanel} {...panelMotion}><div className={s.fieldHeading}><div className={s.chartTitle}><span className={s.chartIcon}><Icon name="appearance" size={16}/></span><h2>Appearance preference</h2></div><span>Light and dark choices</span></div><ThemePreferenceChart dark={dark} light={light}/><button type="button" className={s.openDetail} onClick={()=>setDetail('theme')}>Explore preference <Icon name="chevron" size={13}/></button></motion.section>
     <motion.section className={s.analyticsPanel} {...panelMotion}><div className={s.fieldHeading}><h2>Errors</h2><span>Automatically captured</span></div>{errors.length?errorsList:<div className={s.analyticsEmpty}><Icon name="check" size={25}/><p>No errors captured.</p></div>}<button type="button" className={s.openDetail} onClick={()=>setDetail('errors')}>Open details <Icon name="chevron" size={13}/></button></motion.section>
     <motion.section className={s.analyticsPanel} {...panelMotion}><div className={s.fieldHeading}><h2>Latest feedback</h2><span>Text and audio</span></div>{feedback.length?feedbackList:<div className={s.analyticsEmpty}><Icon name="edit" size={25}/><p>No suggestions have been sent yet.</p></div>}<button type="button" className={s.openDetail} onClick={()=>setDetail('feedback')}>Open details <Icon name="chevron" size={13}/></button></motion.section>
-  </div><ToolsDialog open={!!detail} onClose={()=>setDetail(null)} title={detail==='features'?'Feature use details':detail==='theme'?'Appearance preference':detail==='errors'?'Captured errors':detail==='feedback'?'Latest feedback':detail==='trend'?`${trendPeriod} usage`:'Weekly usage pattern'} description="Activity across all Tools & Equipment accounts." wide>{detail==='features'&&(features.length?<FeatureUseChart features={features}/>:<p className={s.formHint}>No feature activity has been recorded yet.</p>)}{detail==='theme'&&<ThemePreferenceChart dark={dark} light={light}/>} {detail==='errors'&&(errors.length?errorsList:<p className={s.formHint}>No errors have been captured.</p>)}{detail==='feedback'&&(feedback.length?feedbackList:<p className={s.formHint}>No feedback has been saved.</p>)}{detail==='trend'&&<><div className={s.dialogTrendRanges}>{ranges}</div><UsageTrendChart points={trendPoints} range={trendRange} expanded/></>}{detail==='heatmap'&&heatmap}</ToolsDialog></>;
+  </div><ToolsDialog open={!!detail} onClose={()=>setDetail(null)} title={detail==='features'?'Feature use details':detail==='errors'?'Captured errors':detail==='feedback'?'Latest feedback':detail==='trend'?`${trendPeriod} usage`:'Weekly usage pattern'} description="Activity across all Tools & Equipment accounts." wide>{detail==='features'&&(features.length?<FeatureUseChart features={features}/>:<p className={s.formHint}>No feature activity has been recorded yet.</p>)}{detail==='errors'&&(errors.length?errorsList:<p className={s.formHint}>No errors have been captured.</p>)}{detail==='feedback'&&(feedback.length?feedbackList:<p className={s.formHint}>No feedback has been saved.</p>)}{detail==='trend'&&<><div className={s.dialogTrendRanges}>{ranges}</div><UsageTrendChart points={trendPoints} range={trendRange} expanded/></>}{detail==='heatmap'&&heatmap}</ToolsDialog></>;
 }

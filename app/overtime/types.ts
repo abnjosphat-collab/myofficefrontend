@@ -42,6 +42,18 @@ export const COST_CENTRE_SUGGESTIONS = [
   'Shared Services',
 ] as const;
 
+/**
+ * Returns the approved cost-centre choices while retaining a legacy value during
+ * edits so opening an old record never silently changes its allocation.
+ */
+export function overtimeCostCentreOptions(currentValue?: string): string[] {
+  const legacyValue = currentValue?.trim();
+  if (legacyValue && !COST_CENTRE_SUGGESTIONS.some(option => option === legacyValue)) {
+    return [legacyValue, ...COST_CENTRE_SUGGESTIONS];
+  }
+  return [...COST_CENTRE_SUGGESTIONS];
+}
+
 /** One line of the "Spares Used" log — a reference/cost record only, same scope as
  *  breakdowns/work_orders' spares_used: it never touches Spares-module stock
  *  (`current_quantity`), which stays a Stores-department function. `unit_price`

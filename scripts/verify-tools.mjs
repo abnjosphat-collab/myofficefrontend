@@ -173,6 +173,22 @@ try{
 
   phase('checking recovery and read-only interactions');
   await page.getByRole('button',{name:'Equipment',exact:true}).first().click();
+  const settingsButton=page.getByRole('button',{name:'Open settings',exact:true}).first();
+  await page.getByRole('button',{name:/tool notifications/i}).first().focus();
+  await page.keyboard.press('Tab');
+  const focusStyle=await settingsButton.evaluate(element=>{
+    const style=getComputedStyle(element);
+    return {outlineStyle:style.outlineStyle,outlineWidth:style.outlineWidth,boxShadow:style.boxShadow,borderColor:style.borderColor};
+  });
+  const hoveredTool=page.getByRole('button',{name:'View Torque wrench',exact:true}).first();
+  await hoveredTool.hover();
+  const cardHoverStyle=await hoveredTool.evaluate(element=>{
+    const card=element.closest('article');
+    if(!card)return null;
+    const style=getComputedStyle(card);
+    return {boxShadow:style.boxShadow,transform:style.transform,borderColor:style.borderColor,backgroundColor:style.backgroundColor};
+  });
+  await page.screenshot({path:path.join(os.tmpdir(),'myoffice-tools-tonal-desktop.png'),fullPage:false});
   await page.getByRole('button',{name:'List view'}).click();
   await page.getByRole('button',{name:'Grid view'}).click();
   const search=page.getByRole('textbox',{name:/Search tools/i});
@@ -250,13 +266,12 @@ try{
     await page.screenshot({path:path.join(os.tmpdir(),'myoffice-tools-analytics-light.png'),fullPage:true});
   } else await page.getByRole('button',{name:'Equipment',exact:true}).first().click();
 
-  phase('checking dark mobile layout');
+  phase('checking tonal mobile layout');
   await page.setViewportSize({width:390,height:844});
-  await page.getByRole('button',{name:/Switch to dark theme/i}).click();
   await page.waitForTimeout(400);
   const mobile={documentOverflow:await page.evaluate(()=>document.documentElement.scrollWidth-document.documentElement.clientWidth),mainOverflow:await overflow(page.locator('main'))};
   await page.getByText('Failed to fetch',{exact:true}).waitFor({state:'hidden',timeout:10_000}).catch(()=>{});
-  await page.screenshot({path:path.join(os.tmpdir(),'myoffice-tools-dark-mobile.png'),fullPage:true});
+  await page.screenshot({path:path.join(os.tmpdir(),'myoffice-tools-tonal-mobile.png'),fullPage:true});
 
   await page.evaluate(({preferencesKey,preferences,sessionKey,session})=>{if(preferences===null)localStorage.removeItem(preferencesKey);else localStorage.setItem(preferencesKey,preferences);if(session===null)localStorage.removeItem(sessionKey);else localStorage.setItem(sessionKey,session);},{preferencesKey,preferences:originalPreferences,sessionKey,session:originalSession});
   await page.setViewportSize({width:1440,height:1000});
@@ -264,7 +279,7 @@ try{
   await waitForSettled();
   await page.evaluate(({preferencesKey,preferences,sessionKey,session})=>{if(preferences===null)localStorage.removeItem(preferencesKey);else localStorage.setItem(preferencesKey,preferences);if(session===null)localStorage.removeItem(sessionKey);else localStorage.setItem(sessionKey,session);},{preferencesKey,preferences:originalPreferences,sessionKey,session:originalSession});
 
-  const evidence={fixtureMode,live,progressiveDelivery,initialFailure,quietFailure,notificationFailure,adminFailure,wakeStayedLoading,vendorLoadingCopyAbsent,equipmentLoaderCount,issueForm,departmentGrouped,eligibilityMatrixVisible,complianceVisible,gatePassesVisible,analyticsVisualsVisible,detailOpened,mobile,blockedWrites,consoleErrors,responses:{total:responses.length,successful:responses.filter(item=>item.status===200).length,simulatedFailures:responses.filter(item=>item.status>=500).length,paths:[...new Set(responses.map(item=>item.pathname))]},restoredPreferences:await page.evaluate(key=>localStorage.getItem(key),preferencesKey),restoredSession:await page.evaluate(key=>localStorage.getItem(key),sessionKey)};
+  const evidence={fixtureMode,live,progressiveDelivery,initialFailure,quietFailure,notificationFailure,adminFailure,wakeStayedLoading,vendorLoadingCopyAbsent,equipmentLoaderCount,focusStyle,cardHoverStyle,issueForm,departmentGrouped,eligibilityMatrixVisible,complianceVisible,gatePassesVisible,analyticsVisualsVisible,detailOpened,mobile,blockedWrites,consoleErrors,responses:{total:responses.length,successful:responses.filter(item=>item.status===200).length,simulatedFailures:responses.filter(item=>item.status>=500).length,paths:[...new Set(responses.map(item=>item.pathname))]},restoredPreferences:await page.evaluate(key=>localStorage.getItem(key),preferencesKey),restoredSession:await page.evaluate(key=>localStorage.getItem(key),sessionKey)};
   fs.writeSync(1,`${JSON.stringify(evidence,null,2)}\n`);
   check(initialFailure.errorVisible&&!initialFailure.falseEmpty,'History failure looked like a genuine empty history.');
   check(progressiveDelivery.equipmentVisible&&progressiveDelivery.historyStillLoading,'Equipment waited for the delayed history source.');
@@ -274,6 +289,8 @@ try{
   check(wakeStayedLoading,'Transient Supabase wake-up rendered an unavailable state.');
   check(vendorLoadingCopyAbsent,'The loading state exposed the removed Supabase wake-up message.');
   check(equipmentLoaderCount===1,'The equipment loading state was rendered more than once.');
+  check(focusStyle.outlineStyle==='none'&&focusStyle.boxShadow!=='none','Header focus styling still uses a stacked outline or has no visible halo.');
+  check(cardHoverStyle&&cardHoverStyle.transform==='none'&&cardHoverStyle.boxShadow!=='none','Equipment hover still lifts the tile or has no visible glow.');
   check(issueForm.employeeSelected==='Tariro Moyo · E-001'&&issueForm.suggestionPointerEvents==='auto','The issue-form employee suggestion was not directly clickable.');
   check(issueForm.pickerOpened,'Clicking the expected-return field did not invoke the native picker.');
   check(departmentGrouped&&eligibilityMatrixVisible,'The department-grouped employee eligibility register did not render correctly.');

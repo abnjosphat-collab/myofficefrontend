@@ -26,6 +26,7 @@ import { ToolsGatePasses } from './ToolsGatePasses';
 import type { ApprovalRole, ComplianceData, GatePass, InspectionType } from './complianceTypes';
 import { AnimatedSelect } from './AnimatedSelect';
 import { announceToolsPopover, TOOLS_POPOVER_EVENT } from './toolsPopover';
+import { clearToolsSession, readToolsSession, saveToolsSession } from './toolsSession';
 import type { ExportTable } from './toolsExports';
 import { historyReducer } from './history';
 import { ToolsApiError, toolsApi } from './toolsApi';
@@ -37,7 +38,6 @@ import { loadToolsWorkspace, mapAnalytics, type ServerTool, type ToolNotificatio
 import s from './tools.module.css';
 
 type Modal = { kind: ActionKind; tool?: Tool; employee?: Employee } | { kind: 'new'|'employee'|'auth'|'feedback'|'customize'|'import'|'export'|'source-register' } | { kind: 'edit'|'attachments'|'ready'; tool: Tool } | null;
-const TOOLS_SESSION_KEY = 'myoffice.tools.session.v1';
 const tabs = [{ value: 'register', label: 'Equipment', icon: 'box' }, { value: 'loans', label: 'In use', icon: 'out' }, { value: 'employees', label: 'Employees', icon: 'user' }, { value: 'compliance', label: 'Compliance', icon: 'check', signedInOnly:true }, { value: 'gate-passes', label: 'Gate passes', icon: 'pdf', signedInOnly:true }, { value: 'activity', label: 'History', icon: 'history' }, { value: 'sources', label: 'Source registers', icon: 'upload', signedInOnly: true }, { value: 'accounts', label: 'Account access', icon: 'accounts', adminOnly: true }, { value: 'analytics', label: 'Analytics', icon: 'analytics', adminOnly: true }, { value: 'feedback', label: 'Feedback', icon: 'edit', adminOnly: true }] as const;
 function AttachmentForm({ tool, addFiles, onSave }: { tool: Tool; addFiles: AddEvidence; onSave: (files: Evidence[]) => void }) {
   const [files, setFiles] = useState(tool.evidence || []);
@@ -50,14 +50,16 @@ const fromServerTool = (row:ServerTool):Tool => ({ id:row.register_number,backen
 type SourceState={loaded:boolean;loading:boolean;error?:string};
 const emptySourceState=():Record<WorkspaceSource,SourceState>=>({employees:{loaded:false,loading:false},tools:{loaded:false,loading:false},history:{loaded:false,loading:false},sources:{loaded:false,loading:false},notifications:{loaded:false,loading:false},compliance:{loaded:false,loading:false},analytics:{loaded:false,loading:false},accounts:{loaded:false,loading:false}});
 function ToolsDataState({title,state,onRetry,compact=false}:{title:string;state:SourceState;onRetry:()=>void;compact?:boolean}) {
-  if(state.loading&&!state.loaded) return <div className={`${s.dataState} ${compact?s.dataStateCompact:''}`} role="status"><span className={s.dataSpinner}/><div><strong>Loading {title.toLowerCase()}</strong></div></div>;
+  if(state.loading&&!state.loaded) return <div className={`${s.dataState} ${s.dataStateLoading} ${compact?s.dataStateCompact:''}`} role="status">
+    <div className={s.loadingHeading}><span className={s.loadingSignal} aria-hidden="true"><i/><i/><i/></span><div><strong>Loading {title.toLowerCase()}</strong><p>Preparing the latest records.</p></div></div>
+    {!compact&&<div className={s.loadingSkeleton} aria-hidden="true">{[0,1,2].map(item=><span key={item}><i/><i/><i/></span>)}</div>}
+  </div>;
   if(state.error) return <div className={`${s.dataState} ${s.dataStateError} ${compact?s.dataStateCompact:''}`} role="alert"><Icon name="alert" size={20}/><div><strong>{state.loaded?`${title} may be out of date`:`${title} unavailable`}</strong><p>{state.error}</p></div><button className={s.secondary} onClick={onRetry}>{state.loading?'Retrying…':'Retry'}</button></div>;
-  if(state.loading&&state.loaded) return <div className={`${s.dataState} ${s.dataStateCompact}`} role="status"><span className={s.dataSpinner}/><div><strong>Refreshing {title.toLowerCase()}</strong><p>Current records remain visible.</p></div></div>;
+  if(state.loading&&state.loaded) return <div className={`${s.dataState} ${s.dataStateCompact} ${s.dataStateRefreshing}`} role="status"><span className={s.loadingSignal} aria-hidden="true"><i/><i/><i/></span><div><strong>Refreshing {title.toLowerCase()}</strong><p>Current records remain visible.</p></div></div>;
   return null;
 }
 
 export default function ToolsPage() {
-  const [appearance, setAppearance] = useState<'light' | 'dark'>('light');
   const [options, setOptions] = useState(DEFAULT_OPTIONS);
   const [history, dispatch] = useReducer(historyReducer, { past: [], present: { tools: SEED_TOOLS, activity: SEED_ACTIVITY }, future: [] });
   const { tools, activity } = history.present;
@@ -101,7 +103,6 @@ export default function ToolsPage() {
   useEffect(() => {
     const saved = parseToolsPreferences(window.localStorage.getItem(TOOLS_PREFERENCES_KEY));
     if (saved) {
-      setAppearance(saved.appearance);
       setOptions(saved.options);
       setView(saved.view);
       setSidebarCollapsed(saved.sidebarCollapsed);
@@ -111,26 +112,25 @@ export default function ToolsPage() {
   }, []);
   useEffect(() => {
     if (!preferencesReady) return;
-    saveToolsPreferences({ appearance, options, view, sidebarCollapsed, overviewOpen });
-  }, [appearance, options, view, sidebarCollapsed, overviewOpen, preferencesReady]);
+    saveToolsPreferences({ options, view, sidebarCollapsed, overviewOpen });
+  }, [options, view, sidebarCollapsed, overviewOpen, preferencesReady]);
   useEffect(() => {
     void (async()=>{try {
-      const stored = window.localStorage.getItem(TOOLS_SESSION_KEY);
-      if (!stored) return;
-      const account = JSON.parse(stored) as WorkspaceAccount;
+      const account = readToolsSession(window.localStorage);
+      if (!account) return;
       if (account.id && account.name && account.username && account.token) {
         try {
           const fresh=await toolsApi.get<{id:string;name:string;username:string;role:WorkspaceAccount['role'];department?:string;can_issue:boolean;approval_roles?:ApprovalRole[];signing_pin_configured?:boolean}>('/auth/me',account.token);
           const updated:WorkspaceAccount={id:fresh.id,name:fresh.name,username:fresh.username,password:'',role:fresh.role,department:fresh.department,canIssue:fresh.can_issue,approvalRoles:fresh.approval_roles||[],signingPinConfigured:fresh.signing_pin_configured,token:account.token};
-          window.localStorage.setItem(TOOLS_SESSION_KEY,JSON.stringify(updated));setCurrentAccount(updated);
+          saveToolsSession(window.localStorage,updated);setCurrentAccount(updated);
         } catch(error) {
-          window.localStorage.removeItem(TOOLS_SESSION_KEY);
+          clearToolsSession(window.localStorage);
           if(error instanceof ToolsApiError&&error.status===401) toast.error('Your saved Tools session expired. Please sign in again.');
           else toast.error('Your saved Tools session could not be checked.',{description:error instanceof Error?error.message:undefined});
         }
       }
-      else window.localStorage.removeItem(TOOLS_SESSION_KEY);
-    } catch { window.localStorage.removeItem(TOOLS_SESSION_KEY); }
+      else clearToolsSession(window.localStorage);
+    } catch { clearToolsSession(window.localStorage); }
     finally { setSessionChecking(false); }})();
   }, []);
   useEffect(() => {
@@ -286,14 +286,14 @@ export default function ToolsPage() {
     catch(error) { toast.error(error instanceof Error?error.message:'The employee could not be saved.'); }
   }
   async function createAccount(account:WorkspaceAccount) {
-    try { const data=await toolsApi.anonymousPost<{token:string;account:{id:string;name:string;username:string;role:WorkspaceAccount['role'];department?:string;can_issue:boolean;approval_roles?:ApprovalRole[];signing_pin_configured?:boolean}}>('/auth/register',{name:account.name,username:account.username,password:account.password}); const saved:WorkspaceAccount={...account,id:data.account.id,password:'',role:data.account.role,department:data.account.department,canIssue:data.account.can_issue,approvalRoles:data.account.approval_roles||[],signingPinConfigured:data.account.signing_pin_configured,token:data.token}; window.localStorage.setItem(TOOLS_SESSION_KEY,JSON.stringify(saved)); setCurrentAccount(saved); setModal(null); toast.success(`Welcome, ${saved.name}`); }
+    try { const data=await toolsApi.anonymousPost<{token:string;account:{id:string;name:string;username:string;role:WorkspaceAccount['role'];department?:string;can_issue:boolean;approval_roles?:ApprovalRole[];signing_pin_configured?:boolean}}>('/auth/register',{name:account.name,username:account.username,password:account.password}); const saved:WorkspaceAccount={...account,id:data.account.id,password:'',role:data.account.role,department:data.account.department,canIssue:data.account.can_issue,approvalRoles:data.account.approval_roles||[],signingPinConfigured:data.account.signing_pin_configured,token:data.token}; saveToolsSession(window.localStorage,saved); setCurrentAccount(saved); setModal(null); toast.success(`Welcome, ${saved.name}`); }
     catch(error) { toast.error(error instanceof Error?error.message:'The account could not be created.'); }
   }
   async function login(username:string,password:string) {
-    try { const data=await toolsApi.anonymousPost<{token:string;account:{id:string;name:string;username:string;role:WorkspaceAccount['role'];department?:string;can_issue:boolean;approval_roles?:ApprovalRole[];signing_pin_configured?:boolean}}>('/auth/login',{username,password}); const account:WorkspaceAccount={id:data.account.id,name:data.account.name,username:data.account.username,password:'',role:data.account.role,department:data.account.department,canIssue:data.account.can_issue,approvalRoles:data.account.approval_roles||[],signingPinConfigured:data.account.signing_pin_configured,token:data.token}; window.localStorage.setItem(TOOLS_SESSION_KEY,JSON.stringify(account)); setCurrentAccount(account); setModal(null); toast.success(`Signed in as ${account.name}`); return true; }
+    try { const data=await toolsApi.anonymousPost<{token:string;account:{id:string;name:string;username:string;role:WorkspaceAccount['role'];department?:string;can_issue:boolean;approval_roles?:ApprovalRole[];signing_pin_configured?:boolean}}>('/auth/login',{username,password}); const account:WorkspaceAccount={id:data.account.id,name:data.account.name,username:data.account.username,password:'',role:data.account.role,department:data.account.department,canIssue:data.account.can_issue,approvalRoles:data.account.approval_roles||[],signingPinConfigured:data.account.signing_pin_configured,token:data.token}; saveToolsSession(window.localStorage,account); setCurrentAccount(account); setModal(null); toast.success(`Signed in as ${account.name}`); return true; }
     catch { return false; }
   }
-  function signOut(showToast=true) { loadAbortRef.current?.abort();loadRequestId.current+=1;window.localStorage.removeItem(TOOLS_SESSION_KEY);setCurrentAccount(null);setSourceState(emptySourceState());setEmployees([]);setSourceRegisters([]);setUsage([]);setClientErrors([]);setFeedbackRecords([]);setNotificationAlerts([]);setComplianceData({competencies:[],inspections:[],incidents:[],gate_passes:[]});dispatch({type:'reset',snapshot:{tools:SEED_TOOLS,activity:SEED_ACTIVITY}});setModal(null);if(showToast)toast.success('Signed out'); }
+  function signOut(showToast=true) { loadAbortRef.current?.abort();loadRequestId.current+=1;clearToolsSession(window.localStorage);setCurrentAccount(null);setSourceState(emptySourceState());setEmployees([]);setSourceRegisters([]);setUsage([]);setClientErrors([]);setFeedbackRecords([]);setNotificationAlerts([]);setComplianceData({competencies:[],inspections:[],incidents:[],gate_passes:[]});dispatch({type:'reset',snapshot:{tools:SEED_TOOLS,activity:SEED_ACTIVITY}});setModal({kind:'auth'});if(showToast)toast.success('Signed out'); }
   function track(name:string,detail?:string) { const event={id:crypto.randomUUID(),name,detail,at:new Date().toISOString()}; setUsage(current=>[event,...current]); if(currentAccount?.token)void toolsApi.post('/analytics/usage',currentAccount.token,{event:name,detail}).catch(()=>{}); }
   async function updateAccountRole(accountId:string,role:WorkspaceAccount['role'],assignedDepartment?:string,approvalRoles:ApprovalRole[]=[] ) {
     try { await toolsApi.patch(`/accounts/${accountId}`,requireToken(),{role,department:assignedDepartment,approval_roles:approvalRoles}); await reloadWorkspace(); toast.success(role==='issuer'?`Issuer access granted for ${assignedDepartment}`:'Account access updated'); }
@@ -324,7 +324,7 @@ export default function ToolsPage() {
     catch(error){toast.error(error instanceof Error?error.message:'The gate pass decision could not be saved.');}
   }
   async function setSigningPin(password:string,pin:string) {
-    try { await toolsApi.put('/auth/signing-pin',requireToken(),{password,pin});const updated={...currentAccount!,signingPinConfigured:true};setCurrentAccount(updated);window.localStorage.setItem(TOOLS_SESSION_KEY,JSON.stringify(updated));toast.success('Signing PIN configured'); }
+    try { await toolsApi.put('/auth/signing-pin',requireToken(),{password,pin});const updated={...currentAccount!,signingPinConfigured:true};setCurrentAccount(updated);saveToolsSession(window.localStorage,updated);toast.success('Signing PIN configured'); }
     catch(error){toast.error(error instanceof Error?error.message:'The signing PIN could not be set.');}
   }
   async function downloadGatePass(gatePass:GatePass) {
@@ -343,8 +343,7 @@ export default function ToolsPage() {
       }
       setTab(target.tab);setStatus('all');setSearch(target.query||'');return;
     }
-    if(target.type==='modal'){setSearch('');if(target.modal==='source-register')openSourceRegister();else setModal({kind:target.modal});return;}
-    setAppearance(target.appearance);setSearch('');track('theme changed',target.appearance==='dark'?'Dark':'Light');
+    if(target.type==='modal'){setSearch('');if(target.modal==='source-register')openSourceRegister();else setModal({kind:target.modal});}
   }
   async function submitFeedback(text:string,audio?:Blob) {
     try { const body=new FormData(); body.append('text',text); if(audio){const extension=audio.type==='audio/mp4'?'m4a':audio.type==='audio/ogg'?'ogg':audio.type==='audio/mpeg'?'mp3':audio.type.includes('wav')?'wav':'webm';body.append('audio',audio,`feedback.${extension}`);} await toolsApi.post('/feedback',requireToken(),body); await reloadWorkspace(); setModal(null); toast.success('Thank you — feedback saved.'); }
@@ -386,8 +385,8 @@ export default function ToolsPage() {
     </div>
   </div>;
   const blocks: Record<SectionName,ReactNode> = { overview, register };
-  return <ToolsPreferences.Provider value={{appearance,font:options.font,fontSize:options.fontSize,equipmentIcons:options.equipmentIcons,guidance:options.guidance}}><main className={`${s.surface} ${s.standalone}`} data-tools-workspace="" data-mode={appearance} data-font={options.font} data-sidebar={sidebarCollapsed?'collapsed':'open'} style={{'--font-scale':options.fontSize/100} as CSSProperties}><aside className={s.moduleSidebar} aria-label="Tools navigation"><div className={s.sidebarBrand}><span><Icon name="app" size={19}/></span>{!sidebarCollapsed&&<strong>Tools</strong>}<button aria-label={sidebarCollapsed?'Expand sidebar':'Collapse sidebar'} onClick={()=>setSidebarCollapsed(value=>!value)}><motion.span animate={{rotate:sidebarCollapsed?0:180}}><Icon name="chevron" size={15}/></motion.span></button></div><nav>{visibleTabs.map(item=><button key={item.value} aria-current={tab===item.value?'page':undefined} data-label={item.label} onClick={()=>{setTab(item.value);setSearch('');track('opened section',item.label);}}><Icon name={item.icon} size={18}/>{!sidebarCollapsed&&<span>{item.label}</span>}</button>)}</nav></aside><section className={s.workspace} aria-label="Tools and Equipment workspace">
-    <div className={s.topline}><div className={s.workspaceIdentity}><h1 className={s.wordmark}><span><Icon name="app" size={19}/></span>Tools &amp; Equipment E-System</h1><div className={s.departmentSelect}><Icon name="department" size={15}/><AnimatedSelect ariaLabel="Department" value={departmentOptions.some(option=>option.value===department)?department:departmentOptions[0]?.value||'all'} onOpenChange={open=>{if(open){setFiltersOpen(false);setActionsOpen(false);setNotificationsOpen(false);}}} onChange={value=>{setDepartment(value);clearFilters();}} options={departmentOptions}/></div></div><div className={s.previewControls}><ActionHint label="Share an idea, report a problem, or record audio feedback."><button className={s.feedbackButton} aria-label="Give feedback" onClick={()=>{setModal({kind:'feedback'});track('opened feedback');}}><Icon name="edit" size={16}/><span>Feedback</span></button></ActionHint><ToolsNotifications counts={counts} unread={unreadNotifications} open={notificationsOpen} unavailable={sourceState.notifications.error} loading={sourceState.notifications.loading} onRetry={retryWorkspace} onOpenChange={setNotificationsOpen} onViewed={markNotificationsViewed} duration={duration} onShowOverdue={()=>{filterTo('overdue','loans');setNotificationsOpen(false);}} onShowInspection={()=>{setTab('compliance');setNotificationsOpen(false);}}/><ActionHint label={`Use the ${appearance==='light'?'dark':'light'} appearance. Your choice is saved on this device.`}><button className={s.themeButton} aria-label={`Switch to ${appearance === 'light' ? 'dark' : 'light'} theme`} onClick={()=>{const next=appearance==='light'?'dark':'light';setAppearance(next);track('theme changed',next==='dark'?'Dark':'Light');}}><Icon name="appearance" size={17}/><span>{appearance==='light'?'Light':'Dark'}</span><small>Switch to {appearance==='light'?'dark':'light'}</small></button></ActionHint><ActionHint label="Adjust the layout, text size, typeface, equipment icons, and helpful hints."><button className={s.customizeButton} aria-label="Open settings" onClick={()=>setModal({kind:'customize'})}><Icon name="settings" size={17}/><span>Settings</span></button></ActionHint><ActionHint label={currentAccount?'View your account, role or sign out.':'Sign in to save records.'}><button className={s.accountButton} aria-label={currentAccount?`Account: ${currentAccount.name}`:'Sign in'} onClick={()=>setModal({kind:'auth'})}><Icon name="user" size={16}/><span>{currentAccount?.name||'Sign in'}</span>{currentAccount&&<i data-issuer={currentAccount.role==='issuer'}>{currentAccount.role==='admin'?'Admin':currentAccount.role==='issuer'?`Issuer · ${currentAccount.department}`:'Viewer'}</i>}</button></ActionHint></div></div>
+  return <ToolsPreferences.Provider value={{font:options.font,fontSize:options.fontSize,guidance:options.guidance}}><main className={`${s.surface} ${s.standalone}`} data-tools-workspace="" data-font={options.font} data-sidebar={sidebarCollapsed?'collapsed':'open'} style={{'--font-scale':options.fontSize/100} as CSSProperties}><aside className={s.moduleSidebar} aria-label="Tools navigation"><div className={s.sidebarBrand}><span><Icon name="app" size={19}/></span>{!sidebarCollapsed&&<strong>Tools</strong>}<button aria-label={sidebarCollapsed?'Expand sidebar':'Collapse sidebar'} onClick={()=>setSidebarCollapsed(value=>!value)}><motion.span animate={{rotate:sidebarCollapsed?0:180}}><Icon name="chevron" size={15}/></motion.span></button></div><nav>{visibleTabs.map(item=><button key={item.value} aria-current={tab===item.value?'page':undefined} data-label={item.label} onClick={()=>{setTab(item.value);setSearch('');track('opened section',item.label);}}><Icon name={item.icon} size={18}/>{!sidebarCollapsed&&<span>{item.label}</span>}</button>)}</nav></aside><section className={s.workspace} aria-label="Tools and Equipment workspace">
+    <div className={s.topline}><div className={s.workspaceIdentity}><h1 className={s.wordmark}><span><Icon name="app" size={19}/></span>Tools &amp; Equipment E-System</h1><div className={s.departmentSelect}><span className={s.departmentLabel}>Department</span><AnimatedSelect ariaLabel="Department" value={departmentOptions.some(option=>option.value===department)?department:departmentOptions[0]?.value||'all'} onOpenChange={open=>{if(open){setFiltersOpen(false);setActionsOpen(false);setNotificationsOpen(false);}}} onChange={value=>{setDepartment(value);clearFilters();}} options={departmentOptions}/></div></div><div className={s.previewControls}><ActionHint label="Share an idea, report a problem, or record audio feedback."><button className={s.feedbackButton} aria-label="Give feedback" onClick={()=>{setModal({kind:'feedback'});track('opened feedback');}}><Icon name="edit" size={16}/><span>Feedback</span></button></ActionHint><ToolsNotifications counts={counts} unread={unreadNotifications} open={notificationsOpen} unavailable={sourceState.notifications.error} loading={sourceState.notifications.loading} onRetry={retryWorkspace} onOpenChange={setNotificationsOpen} onViewed={markNotificationsViewed} duration={duration} onShowOverdue={()=>{filterTo('overdue','loans');setNotificationsOpen(false);}} onShowInspection={()=>{setTab('compliance');setNotificationsOpen(false);}}/><ActionHint label="Adjust the layout, text size, typeface, and helpful hints."><button className={s.customizeButton} aria-label="Open settings" onClick={()=>setModal({kind:'customize'})}><Icon name="settings" size={17}/><span>Settings</span></button></ActionHint><ActionHint label={currentAccount?'View your account, role or sign out.':'Sign in to save records.'}><button className={s.accountButton} aria-label={currentAccount?`Account: ${currentAccount.name}`:'Sign in'} onClick={()=>setModal({kind:'auth'})}><Icon name="user" size={16}/><span>{currentAccount?.name||'Sign in'}</span>{currentAccount&&<i data-issuer={currentAccount.role==='issuer'}>{currentAccount.role==='admin'?'Admin':currentAccount.role==='issuer'?`Issuer · ${currentAccount.department}`:'Viewer'}</i>}</button></ActionHint></div></div>
     <div className={s.liveFeedback} role="status" aria-live="polite"><AnimatedText value={feedback}>{feedback}</AnimatedText></div>
     <div className={s.workspaceSections}><AnimatePresence initial={false}>{options.order.filter(section=>!options.hidden.includes(section)).map(section=><motion.section key={section} aria-label={`${section} section`} layout={!reduced} initial={{opacity:0,height:0}} animate={{opacity:1,height:'auto'}} exit={{opacity:0,height:0}} transition={{duration}}>{blocks[section]}</motion.section>)}</AnimatePresence></div>
 

@@ -5,6 +5,7 @@ import {
   overtimeDefaultsForPublicHoliday, PUBLIC_HOLIDAY_OT_REASON, overtimeCostCentre,
   recordsForEngineeringCostCentreExport,
 } from './calcOvertime';
+import { COST_CENTRE_SUGGESTIONS, overtimeCostCentreOptions } from './types';
 import type { OTRecord } from './types';
 import type { EmployeeLookup } from '@/hooks/useLookups';
 
@@ -17,6 +18,25 @@ function rec(over: Partial<OTRecord> = {}): OTRecord {
 }
 
 describe('Engineering cost-centre exports', () => {
+  it('offers the approved cost centres in the required order', () => {
+    expect(COST_CENTRE_SUGGESTIONS).toEqual([
+      'Engineering',
+      'Projects',
+      'Mining Technical Services (MTS)',
+      'Mining',
+      'Stores',
+      'Human Resources',
+      'Shared Services',
+    ]);
+  });
+
+  it('preserves an existing legacy allocation while editing', () => {
+    expect(overtimeCostCentreOptions('Legacy Cost Centre')).toEqual([
+      'Legacy Cost Centre',
+      ...COST_CENTRE_SUGGESTIONS,
+    ]);
+  });
+
   it('keeps legacy blank records in Engineering reports', () => {
     expect(overtimeCostCentre(rec())).toBe('Engineering');
     expect(overtimeCostCentre(rec({ cost_centre: '   ' }))).toBe('Engineering');

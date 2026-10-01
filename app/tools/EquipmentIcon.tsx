@@ -4,7 +4,7 @@ import {
   Box as IconoirBox, Lamp as IconoirLamp, Laptop as IconoirLaptop, Wrench as IconoirWrench,
 } from 'iconoir-react';
 import { Laptop, ToolCase, Wrench } from '@/components/shared/design-system';
-import type { EquipmentIconFamily } from './ToolsUI';
+type EquipmentIconFamily = 'technical' | 'myoffice' | 'tabler' | 'iconoir';
 import type { EquipmentKind } from './prototype';
 
 type EquipmentGlyphProps = SVGProps<SVGSVGElement> & {

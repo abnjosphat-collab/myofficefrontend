@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SuggestField, MovementForm, ToolForm, MarkReadyForm } from './ToolsForms';
-import { ToolsCustomize, DEFAULT_OPTIONS } from './ToolsCustomize';
 import { AnimatedSelect } from './AnimatedSelect';
 import { EvidenceGallery, EvidencePicker, ToolsDialog } from './ToolsUI';
 import { ToolsDateInput } from './ToolsDateInput';
@@ -30,10 +29,6 @@ function SelectHarness() {
   const [status,setStatus]=useState('all');
   const [sort,setSort]=useState('register');
   return <><AnimatedSelect ariaLabel="Status" value={status} onChange={setStatus} options={[{value:'all',label:'All tools'},{value:'ready',label:'Ready'}]}/><AnimatedSelect ariaLabel="Sort" value={sort} onChange={setSort} options={[{value:'register',label:'Register order'},{value:'name',label:'Name'}]}/></>;
-}
-function CustomizeHarness() {
-  const [options,setOptions]=useState(DEFAULT_OPTIONS);
-  return <ToolsCustomize options={options} setOptions={setOptions}/>;
 }
 describe('Tools interaction controls', () => {
   it('keeps only one animated dropdown open and supports keyboard selection', async () => {
@@ -100,12 +95,6 @@ describe('Tools interaction controls', () => {
     Object.defineProperty(input,'showPicker',{value:showPicker});
     await user.click(input);
     expect(showPicker).toHaveBeenCalledOnce();
-  });
-  it('changes the equipment icon family with a mouse click', async () => {
-    const user=userEvent.setup(); render(<CustomizeHarness/>);
-    await user.click(screen.getByRole('radio',{name:/Tabler Outline/i}));
-    expect(screen.getByRole('radio',{name:/Tabler Outline/i})).toHaveAttribute('aria-checked','true');
-    expect(screen.getByRole('radio',{name:/Precision Line/i})).toHaveAttribute('aria-checked','false');
   });
   it('does not let signed-out visitors dismiss the required authentication dialog', async () => {
     const user=userEvent.setup();
