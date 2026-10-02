@@ -1,0 +1,23 @@
+{
+  "cellDisplay": "grid",
+  "cellBox": {
+    "x": 68,
+    "y": 15,
+    "width": 26,
+    "height": 26,
+    "top": 15,
+    "right": 94,
+    "bottom": 41,
+    "left": 68
+  },
+  "btnBox": {
+    "x": 58,
+    "y": 10,
+    "width": 46,
+    "height": 36,
+    "top": 10,
+    "right": 104,
+    "bottom": 46,
+    "left": 58
+  }
+}

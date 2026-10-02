@@ -1,0 +1,35 @@
+{
+  "panel": {
+    "l": 542.5,
+    "r": 882.5,
+    "t": 622.69,
+    "b": 708.28,
+    "w": 340
+  },
+  "rows": [
+    {
+      "row": {
+        "l": 548.5,
+        "r": 876.5,
+        "t": 628.69,
+        "b": 665.48,
+        "w": 328
+      },
+      "textRight": 1047,
+      "textOverflowsRow": true,
+      "textOverflowsPanel": true
+    },
+    {
+      "row": {
+        "l": 548.5,
+        "r": 876.5,
+        "t": 665.48,
+        "b": 702.28,
+        "w": 328
+      },
+      "textRight": 866.5,
+      "textOverflowsRow": false,
+      "textOverflowsPanel": false
+    }
+  ]
+}

@@ -45,7 +45,7 @@ export function AnimatedSelect({ value, options, onChange, ariaLabel, id, onOpen
         const source = root.current;
         const computed = source ? window.getComputedStyle(source) : null;
         const theme: FloatingStyle = {};
-        for (const property of ['--paper','--canvas','--ink','--muted-ink','--brand','--brand-soft','--line','--soft','--radius','--font-scale','--tools-font']) {
+        for (const property of ['--paper','--canvas','--ink','--muted-ink','--brand','--brand-soft','--line','--soft','--radius','--focus','--font-scale','--tools-font']) {
           const computedValue = computed?.getPropertyValue(property);
           if (computedValue) theme[property] = computedValue;
         }
@@ -53,7 +53,9 @@ export function AnimatedSelect({ value, options, onChange, ariaLabel, id, onOpen
         setFloatingStyle({
           ...theme,
           left,
-          width,
+          width: 'max-content',
+          minWidth: width,
+          maxWidth: Math.min(340, window.innerWidth - 28),
           maxHeight: Math.max(120, Math.min(286, nextPlacement === 'down' ? roomBelow - 12 : rect.top - 12)),
           top: nextPlacement === 'down' ? rect.bottom + 6 : undefined,
           bottom: nextPlacement === 'up' ? window.innerHeight - rect.top + 6 : undefined,
@@ -89,6 +91,17 @@ export function AnimatedSelect({ value, options, onChange, ariaLabel, id, onOpen
       window.removeEventListener('scroll', onViewportChange, true);
     };
   });
+
+  useEffect(() => {
+    if (!open || typeof window === 'undefined') return;
+    const frame = window.requestAnimationFrame(() => {
+      const element = panel.current;
+      if (!element) return;
+      const overflow = element.getBoundingClientRect().right - (window.innerWidth - 14);
+      if (overflow > 0) setFloatingStyle(current => ({ ...current, left: Math.max(14, (typeof current.left === 'number' ? current.left : 14) - overflow) }));
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [open]);
 
   function choose(index: number) {
     const option = options[index];
@@ -132,7 +145,7 @@ export function AnimatedSelect({ value, options, onChange, ariaLabel, id, onOpen
 
   const floatingPanel = typeof document !== 'undefined' ? createPortal(
     <AnimatePresence>{open && <motion.div ref={panel} id={`${popoverId}-options`} role="listbox" aria-label={`${ariaLabel} options`} className={`${s.selectPanel} ${s.selectPanelPortal}`} data-placement={placement} style={floatingStyle} initial={{ height: 0, opacity: 0, y: reduced ? 0 : placement === 'down' ? -4 : 4 }} animate={{ height: 'auto', opacity: 1, y: 0 }} exit={{ height: 0, opacity: 0, y: reduced ? 0 : placement === 'down' ? -4 : 4 }} transition={{ duration: reduced ? 0 : .2, ease: [.2,.8,.2,1] }}>
-      {options.map((option, index) => <button id={`${popoverId}-option-${index}`} type="button" role="option" aria-selected={option.value === value} data-active={active === index} key={option.value} onPointerEnter={() => setActive(index)} onClick={() => choose(index)}>{option.label}{option.value === value && <Icon name="check" size={14}/>}</button>)}
+      {options.map((option, index) => <button id={`${popoverId}-option-${index}`} type="button" role="option" aria-selected={option.value === value} data-active={active === index} key={option.value} title={option.label} onPointerEnter={() => setActive(index)} onClick={() => choose(index)}><span className={s.selectOptionLabel}>{option.label}</span>{option.value === value && <Icon name="check" size={14}/>}</button>)}
     </motion.div>}</AnimatePresence>,
     document.body,
   ) : null;

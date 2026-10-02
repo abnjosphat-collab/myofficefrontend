@@ -1,5 +1,10 @@
 # Muse Code handoff — Classic / Dallaglio + Timesheets
 
+> **Historical only — superseded 1 October 2026.** Do not resume from this file
+> alone. Use `MUSE_HANDOFF_2026-10-01.md` and
+> `MUSE_PROMPTS_2026-10-01.md`, then reconcile them with the current Git state
+> and `DALLAGLIO_AUDIT_2026-09-26.md`.
+
 Written 25 Sep 2026 so the next agent can resume without re-discovering the architecture. **A module is complete only after rendered inspection.** This document is candid about what was source-fixed vs actually seen in a browser.
 
 ## 1. Objective and principles

@@ -1,0 +1,257 @@
+{
+  "rows": [
+    {
+      "label": "Equipment",
+      "button": {
+        "x": 21,
+        "y": 98,
+        "w": 173,
+        "h": 40
+      },
+      "cell": {
+        "x": 32,
+        "y": 105,
+        "w": 26,
+        "h": 26
+      },
+      "svg": {
+        "x": 36,
+        "y": 109,
+        "w": 18,
+        "h": 18
+      },
+      "cellDisplay": "grid"
+    },
+    {
+      "label": "In use",
+      "button": {
+        "x": 21,
+        "y": 142,
+        "w": 173,
+        "h": 40
+      },
+      "cell": {
+        "x": 32,
+        "y": 149,
+        "w": 26,
+        "h": 26
+      },
+      "svg": {
+        "x": 36,
+        "y": 153,
+        "w": 18,
+        "h": 18
+      },
+      "cellDisplay": "grid"
+    },
+    {
+      "label": "Employees",
+      "button": {
+        "x": 21,
+        "y": 186,
+        "w": 173,
+        "h": 40
+      },
+      "cell": {
+        "x": 32,
+        "y": 193,
+        "w": 26,
+        "h": 26
+      },
+      "svg": {
+        "x": 36,
+        "y": 197,
+        "w": 18,
+        "h": 18
+      },
+      "cellDisplay": "grid"
+    },
+    {
+      "label": "Compliance",
+      "button": {
+        "x": 21,
+        "y": 230,
+        "w": 173,
+        "h": 40
+      },
+      "cell": {
+        "x": 32,
+        "y": 237,
+        "w": 26,
+        "h": 26
+      },
+      "svg": {
+        "x": 36,
+        "y": 241,
+        "w": 18,
+        "h": 18
+      },
+      "cellDisplay": "grid"
+    },
+    {
+      "label": "Gate passes",
+      "button": {
+        "x": 21,
+        "y": 274,
+        "w": 173,
+        "h": 40
+      },
+      "cell": {
+        "x": 32,
+        "y": 281,
+        "w": 26,
+        "h": 26
+      },
+      "svg": {
+        "x": 36,
+        "y": 285,
+        "w": 18,
+        "h": 18
+      },
+      "cellDisplay": "grid"
+    },
+    {
+      "label": "History",
+      "button": {
+        "x": 21,
+        "y": 318,
+        "w": 173,
+        "h": 40
+      },
+      "cell": {
+        "x": 32,
+        "y": 325,
+        "w": 26,
+        "h": 26
+      },
+      "svg": {
+        "x": 36,
+        "y": 329,
+        "w": 18,
+        "h": 18
+      },
+      "cellDisplay": "grid"
+    },
+    {
+      "label": "Source registers",
+      "button": {
+        "x": 21,
+        "y": 362,
+        "w": 173,
+        "h": 40
+      },
+      "cell": {
+        "x": 32,
+        "y": 369,
+        "w": 26,
+        "h": 26
+      },
+      "svg": {
+        "x": 36,
+        "y": 373,
+        "w": 18,
+        "h": 18
+      },
+      "cellDisplay": "grid"
+    },
+    {
+      "label": "Account access",
+      "button": {
+        "x": 21,
+        "y": 406,
+        "w": 173,
+        "h": 40
+      },
+      "cell": {
+        "x": 32,
+        "y": 413,
+        "w": 26,
+        "h": 26
+      },
+      "svg": {
+        "x": 36,
+        "y": 417,
+        "w": 18,
+        "h": 18
+      },
+      "cellDisplay": "grid"
+    },
+    {
+      "label": "Analytics",
+      "button": {
+        "x": 21,
+        "y": 450,
+        "w": 173,
+        "h": 40
+      },
+      "cell": {
+        "x": 32,
+        "y": 457,
+        "w": 26,
+        "h": 26
+      },
+      "svg": {
+        "x": 36,
+        "y": 461,
+        "w": 18,
+        "h": 18
+      },
+      "cellDisplay": "grid"
+    },
+    {
+      "label": "Feedback",
+      "button": {
+        "x": 21,
+        "y": 494,
+        "w": 173,
+        "h": 40
+      },
+      "cell": {
+        "x": 32,
+        "y": 501,
+        "w": 26,
+        "h": 26
+      },
+      "svg": {
+        "x": 36,
+        "y": 505,
+        "w": 18,
+        "h": 18
+      },
+      "cellDisplay": "grid"
+    },
+    {
+      "label": "Hide section icons",
+      "button": {
+        "x": 21,
+        "y": 542,
+        "w": 173,
+        "h": 32
+      },
+      "cell": null,
+      "svg": null,
+      "cellDisplay": null
+    }
+  ],
+  "spotlight": {
+    "button": {
+      "x": 18,
+      "y": 18,
+      "w": 113.72,
+      "h": 40
+    },
+    "chip": {
+      "x": 23,
+      "y": 25,
+      "w": 26,
+      "h": 26
+    },
+    "svg": {
+      "x": 27,
+      "y": 29,
+      "w": 18,
+      "h": 18
+    },
+    "chipBg": "rgb(35, 59, 49)"
+  }
+}

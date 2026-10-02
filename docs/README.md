@@ -13,6 +13,9 @@ agents.
 | Shared component contracts | [`../components/shared/design-system/README.md`](../components/shared/design-system/README.md) |
 | Retired Classic principles and migration checklist | [`CLASSIC_DESIGN_SYSTEM_ARCHIVE_2026-09-29.md`](./CLASSIC_DESIGN_SYSTEM_ARCHIVE_2026-09-29.md) |
 | Tools requirements and architecture | [`TOOLS_SYSTEM_SPECIFICATION.md`](./TOOLS_SYSTEM_SPECIFICATION.md) |
+| Tools precision-polish evidence (2 Oct 2026) | [`tools-polish-2026-10-02/`](./tools-polish-2026-10-02/) |
+| Current Muse Code takeover handoff | [`MUSE_HANDOFF_2026-10-01.md`](./MUSE_HANDOFF_2026-10-01.md) |
+| Paste-ready Muse Code continuation prompts | [`MUSE_PROMPTS_2026-10-01.md`](./MUSE_PROMPTS_2026-10-01.md) |
 | Current Claude takeover handoff | [`CLAUDE_HANDOFF_2026-09-30.md`](./CLAUDE_HANDOFF_2026-09-30.md) |
 | Paste-ready Claude continuation prompts | [`CLAUDE_PROMPTS_2026-09-30.md`](./CLAUDE_PROMPTS_2026-09-30.md) |
 | Test commands and scope | [`TESTING.md`](./TESTING.md) |

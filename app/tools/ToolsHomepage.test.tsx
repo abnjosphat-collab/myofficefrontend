@@ -14,13 +14,13 @@ const sections = [
   { value: 'register' as const, label: 'Equipment', icon: 'box' as const },
   { value: 'employees' as const, label: 'Employees', icon: 'user' as const },
 ];
-const contextLine = 'Showing All departments · Signed in as Audit Admin (Administrator)';
+const scopeLabel = 'Showing All departments';
 
 describe('ToolsHomepage', () => {
   it('navigates through stat cards and lists', async () => {
     const user = userEvent.setup();
     const onNavigate = vi.fn();
-    render(<ToolsHomepage stats={stats} attention={attention} movements={movements} historyFailed={false} sections={sections} contextLine={contextLine} onNavigate={onNavigate} onRetry={() => {}} />);
+    render(<ToolsHomepage stats={stats} attention={attention} movements={movements} historyFailed={false} attentionFailed={false} sections={sections} scopeLabel={scopeLabel} onNavigate={onNavigate} onRetry={() => {}} />);
     await user.click(screen.getByRole('button', { name: 'Equipment: 12' }));
     expect(onNavigate).toHaveBeenCalledWith('register', 'all');
     await user.click(screen.getByRole('button', { name: /Angle grinder overdue/ }));
@@ -33,7 +33,7 @@ describe('ToolsHomepage', () => {
     const user = userEvent.setup();
     const onNavigate = vi.fn();
     const onRetry = vi.fn();
-    render(<ToolsHomepage stats={stats} attention={[]} movements={[]} historyFailed={true} sections={[]} contextLine={contextLine} onNavigate={onNavigate} onRetry={onRetry} />);
+    render(<ToolsHomepage stats={stats} attention={[]} movements={[]} historyFailed={true} attentionFailed={false} sections={[]} scopeLabel={scopeLabel} onNavigate={onNavigate} onRetry={onRetry} />);
     expect(screen.getByLabelText('Employees unavailable')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Employees: 0' })).not.toBeInTheDocument();
     expect(screen.getByText('Everything is clear. No overdue returns, open incidents or due checks.')).toBeInTheDocument();
@@ -44,13 +44,19 @@ describe('ToolsHomepage', () => {
     expect(onNavigate).not.toHaveBeenCalled();
   });
 
+  it('never reports everything clear when the attention source failed', () => {
+    render(<ToolsHomepage stats={stats} attention={[]} movements={movements} historyFailed={false} attentionFailed={true} sections={[]} scopeLabel={scopeLabel} onNavigate={() => {}} onRetry={() => {}} />);
+    expect(screen.getByText('Needs-attention data is unavailable.')).toBeInTheDocument();
+    expect(screen.queryByText(/Everything is clear/)).not.toBeInTheDocument();
+  });
+
   it('introduces the system and links every passed section', async () => {
     const user = userEvent.setup();
     const onNavigate = vi.fn();
-    render(<ToolsHomepage stats={stats} attention={[]} movements={[]} historyFailed={false} sections={sections} contextLine={contextLine} onNavigate={onNavigate} onRetry={() => {}} />);
-    expect(screen.getByText(/Your equipment operation in one place/)).toBeInTheDocument();
-    expect(screen.getByText(contextLine)).toBeInTheDocument();
-    expect(screen.getByRole('navigation', { name: 'Sections' })).toBeInTheDocument();
+    render(<ToolsHomepage stats={stats} attention={[]} movements={[]} historyFailed={false} attentionFailed={false} sections={sections} scopeLabel={scopeLabel} onNavigate={onNavigate} onRetry={() => {}} />);
+    expect(screen.getByRole('heading', { name: 'Overview' })).toBeInTheDocument();
+    expect(screen.getByText(scopeLabel)).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: 'Workspace shortcuts' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Open Employees' }));
     expect(onNavigate).toHaveBeenCalledWith('employees', 'all');
   });

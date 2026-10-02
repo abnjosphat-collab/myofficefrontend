@@ -35,7 +35,7 @@ export function SuggestField({ label, options, value, onChange, onSelect, requir
       const left = Math.max(14, Math.min(rect.left, window.innerWidth - width - 14));
       const computed = root.current ? window.getComputedStyle(root.current) : null;
       const theme: Record<string, string> = {};
-      for (const property of ['--paper','--canvas','--ink','--muted-ink','--brand','--brand-soft','--data-accent','--line','--soft','--font-scale','--tools-font']) {
+      for (const property of ['--paper','--canvas','--ink','--muted-ink','--brand','--brand-soft','--data-accent','--line','--soft','--radius','--focus','--font-scale','--tools-font']) {
         const computedValue = computed?.getPropertyValue(property);
         if (computedValue) theme[property] = computedValue;
       }

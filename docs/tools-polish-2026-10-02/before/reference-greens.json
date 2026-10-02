@@ -1,0 +1,31 @@
+{
+  "tokens": {
+    "brand": "#233b31",
+    "brandSoft": "#e0ebe5",
+    "brandInk": "#f8fbf9",
+    "focus": "#4f806a",
+    "success": "#27705a",
+    "soft": "#e2e9e5",
+    "mutedInk": "#5b6d64",
+    "line": "#ccd7d1"
+  },
+  "issueButton": null,
+  "feedbackFab": {
+    "backgroundColor": "rgb(35, 59, 49)",
+    "borderColor": "rgb(35, 59, 49)",
+    "color": "rgb(248, 251, 249)"
+  },
+  "navRest": {
+    "color": "rgb(35, 59, 49)",
+    "backgroundColor": "rgb(226, 233, 229)"
+  },
+  "navIconColor": {
+    "color": "rgb(35, 59, 49)"
+  },
+  "viewToggleActive": {
+    "backgroundColor": "rgb(224, 235, 229)",
+    "color": "rgb(35, 59, 49)"
+  },
+  "homeStatIcon": null,
+  "selectCheck": null
+}

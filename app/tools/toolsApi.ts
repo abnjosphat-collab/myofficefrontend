@@ -26,6 +26,14 @@ export function toolsErrorMessage(detail: unknown, fallback = 'The change could 
   return fallback;
 }
 
+export function toolsLoginErrorMessage(error: unknown): string {
+  if (error instanceof ToolsApiError) {
+    if (error.status === 401) return 'The username or password does not match.';
+    return error.message;
+  }
+  return 'The sign-in server could not be reached. Check your connection and try again.';
+}
+
 async function request<T>(path: string, token?: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
   if (token) headers.set('Authorization', `Bearer ${token}`);

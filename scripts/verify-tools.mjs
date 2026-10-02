@@ -85,7 +85,7 @@ page.on('console',message=>{if(message.type()==='error') consoleErrors.push(mess
 const phase=message=>fs.writeSync(2,`[tools] ${message}\n`);
 const check=(condition,message)=>{if(!condition) throw new Error(message);};
 const bodyText=()=>page.locator('body').innerText();
-const waitForSettled=()=>page.waitForFunction(()=>!document.body.innerText.includes('Loading tools workspace')&&!document.body.innerText.includes('Loading equipment register')&&!document.body.innerText.includes('Loading homepage'),undefined,{timeout:360_000});
+const waitForSettled=()=>page.waitForFunction(()=>!document.body.innerText.includes('Loading tools workspace')&&!document.body.innerText.includes('Loading equipment register')&&!document.body.innerText.includes('Loading overview'),undefined,{timeout:360_000});
 const waitForText=text=>page.getByText(text,{exact:false}).first().waitFor({state:'visible',timeout:360_000});
 const overflow=locator=>locator.evaluate(element=>element.scrollWidth-element.clientWidth);
 const retry=async()=>{
@@ -132,7 +132,7 @@ try{
   phase('checking progressive equipment delivery');
   slowHistory=true;
   await page.reload({waitUntil:'domcontentloaded',timeout:120_000});
-  await waitForText('Loading homepage');
+  await waitForText('Loading overview');
   await page.getByRole('button',{name:'Equipment',exact:true}).first().click();
   await page.getByRole('button',{name:'View Torque wrench',exact:true}).first().waitFor({state:'visible',timeout:4000});
   await page.getByRole('button',{name:'History',exact:true}).first().click();
@@ -180,7 +180,7 @@ try{
   failTools=false;failNotifications=false;failAnalytics=false;wakeTools=true;
   const wakingReload=page.reload({waitUntil:'domcontentloaded',timeout:120_000});
   await wakingReload;
-  await waitForText('Loading homepage');
+  await waitForText('Loading overview');
   await page.getByRole('button',{name:'Equipment',exact:true}).first().click();
   await waitForText('Loading equipment register');
   const wakingText=await bodyText();
@@ -210,7 +210,7 @@ try{
   const profileVisible=await page.getByRole('dialog',{name:'Your profile'}).isVisible();
   await page.screenshot({path:path.join(os.tmpdir(),'myoffice-tools-profile.png'),fullPage:false});
   await page.keyboard.press('Escape');
-  await page.getByRole('button',{name:'Homepage',exact:true}).first().click();
+  await page.getByRole('button',{name:'Overview',exact:true}).first().click();
   await page.getByRole('button',{name:'Open Employees'}).click();
   const sectionNavigated=await page.locator('aside button[aria-current="page"]').getAttribute('aria-label')==='Employees';
   await page.getByRole('button',{name:'Equipment',exact:true}).first().click();

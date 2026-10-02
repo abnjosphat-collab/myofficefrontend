@@ -1,0 +1,92 @@
+{
+  "open": true,
+  "panel": {
+    "x": 1189.2,
+    "y": 66,
+    "w": 220,
+    "h": 192
+  },
+  "panelStyle": {
+    "boxSizing": "border-box",
+    "padding": "5px",
+    "border": "1px solid rgb(204, 215, 209)",
+    "borderRadius": "7px",
+    "overflowX": "hidden",
+    "overflowY": "auto",
+    "fontFamily": "Inter, \"Inter Fallback\", Inter, sans-serif",
+    "fontSize": "11px",
+    "bg": "rgb(251, 252, 251)"
+  },
+  "options": [
+    {
+      "label": "All departments",
+      "box": {
+        "x": 1195.2,
+        "y": 72,
+        "w": 208,
+        "h": 36
+      },
+      "boxSizing": "border-box",
+      "margin": "0px",
+      "padding": "8px 10px",
+      "borderRadius": "7px",
+      "bg": "rgb(224, 235, 229)"
+    },
+    {
+      "label": "Engineering",
+      "box": {
+        "x": 1195.2,
+        "y": 108,
+        "w": 208,
+        "h": 36
+      },
+      "boxSizing": "border-box",
+      "margin": "0px",
+      "padding": "8px 10px",
+      "borderRadius": "7px",
+      "bg": "rgba(0, 0, 0, 0)"
+    },
+    {
+      "label": "Mining",
+      "box": {
+        "x": 1195.2,
+        "y": 144,
+        "w": 208,
+        "h": 36
+      },
+      "boxSizing": "border-box",
+      "margin": "0px",
+      "padding": "8px 10px",
+      "borderRadius": "7px",
+      "bg": "rgba(0, 0, 0, 0)"
+    },
+    {
+      "label": "Mine Technical Services",
+      "box": {
+        "x": 1195.2,
+        "y": 180,
+        "w": 208,
+        "h": 36
+      },
+      "boxSizing": "border-box",
+      "margin": "0px",
+      "padding": "8px 10px",
+      "borderRadius": "7px",
+      "bg": "rgba(0, 0, 0, 0)"
+    },
+    {
+      "label": "IT",
+      "box": {
+        "x": 1195.2,
+        "y": 216,
+        "w": 208,
+        "h": 36
+      },
+      "boxSizing": "border-box",
+      "margin": "0px",
+      "padding": "8px 10px",
+      "borderRadius": "7px",
+      "bg": "rgba(0, 0, 0, 0)"
+    }
+  ]
+}

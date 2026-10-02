@@ -1,0 +1,9 @@
+{
+  "activeText": "Hand tools",
+  "outline": "oklab(0.557523 0.135022 -0.213353 / 0.5) none 3px",
+  "outlineOffset": "0px",
+  "boxShadow": "none",
+  "focusedInMenu": false,
+  "focusTag": "BUTTON",
+  "focusLabel": "Category filter"
+}

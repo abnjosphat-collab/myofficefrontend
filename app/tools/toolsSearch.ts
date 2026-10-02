@@ -20,7 +20,7 @@ export type WorkspaceSearchResult = {
 };
 
 const fixedResults: WorkspaceSearchResult[] = [
-  { id: 'page-home', kind: 'Page', title: 'Homepage', subtitle: 'Overview, attention list and recent movements', keywords: 'home overview dashboard start summary attention', icon: 'home', target: { type: 'tab', tab: 'homepage' } },
+  { id: 'page-home', kind: 'Page', title: 'Overview', subtitle: 'Attention list and recent movements', keywords: 'home homepage overview dashboard start summary attention', icon: 'home', target: { type: 'tab', tab: 'homepage' } },
   { id: 'page-equipment', kind: 'Page', title: 'Equipment register', subtitle: 'Browse every active and archived item', keywords: 'tools assets register inventory equipment', icon: 'box', target: { type: 'tab', tab: 'register' } },
   { id: 'page-loans', kind: 'Page', title: 'Equipment in use', subtitle: 'See current custody and overdue returns', keywords: 'issued borrowed loan handover custody overdue', icon: 'out', target: { type: 'tab', tab: 'loans' } },
   { id: 'page-employees', kind: 'Page', title: 'Employee register', subtitle: 'Find people who can receive equipment', keywords: 'staff personnel workers people employees', icon: 'user', target: { type: 'tab', tab: 'employees' } },
