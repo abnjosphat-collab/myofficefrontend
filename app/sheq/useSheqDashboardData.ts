@@ -10,6 +10,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/apiClient';
+import { retryTransient } from '@/lib/transientRetry';
 import { getAllPages } from '@/lib/paged';
 import { toast } from 'sonner';
 import type { RawData } from './types';
@@ -59,7 +60,7 @@ export function useSheqDashboardData() {
     if (hasLoadedRef.current) setRefreshing(true); else setLoading(true);
     setLoadError('');
     try {
-      const nextRaw = await fetchAllModules();
+      const nextRaw = await retryTransient(fetchAllModules);
       if (requestId !== requestRef.current) return;
       setRaw(nextRaw);
       setLastUpdated(new Date());

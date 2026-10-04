@@ -4,7 +4,7 @@ import { api } from '@/lib/apiClient';
 import { fetchAllEmployees, fetchPPERecords, usePPEMatrix } from './usePPEData';
 import { PPE_MATRIX_DEFAULTS } from './ppeMeta';
 
-vi.mock('@/lib/apiClient', () => ({ api: { get: vi.fn(), patch: vi.fn(), put: vi.fn(), post: vi.fn(), delete: vi.fn() } }));
+vi.mock('@/lib/apiClient', async importOriginal => ({ ...(await importOriginal<typeof import('@/lib/apiClient')>()), api: { get: vi.fn(), patch: vi.fn(), put: vi.fn(), post: vi.fn(), delete: vi.fn() } }));
 
 describe('PPE data', () => {
   beforeEach(() => vi.resetAllMocks());

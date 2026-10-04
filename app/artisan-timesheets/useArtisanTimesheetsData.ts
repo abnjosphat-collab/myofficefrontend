@@ -4,6 +4,7 @@
 'use client';
 
 import { api } from '@/lib/apiClient';
+import { retryTransient } from '@/lib/transientRetry';
 import { useApiList } from '@/lib/useApiList';
 import type { ShiftAssignment } from '@/app/shifts/types';
 import type { ApprovedLeaveRecord, ApprovedOvertimeRecord } from '@/app/timesheets/types';
@@ -23,10 +24,10 @@ export function useSavedTimesheets(filters: ArtisanTimesheetFilters) {
 }
 
 /** One saved timesheet in full (days and signatures), for opening it from the list. */
-export const fetchTimesheet = (id: number) => api.get<ArtisanTimesheetRecord>(`/api/artisan-timesheets/${id}`);
+export const fetchTimesheet = (id: number) => retryTransient(() => api.get<ArtisanTimesheetRecord>(`/api/artisan-timesheets/${id}`));
 
 /** The saved timesheet for one artisan and month, read fresh (the list on screen may be filtered). */
-export const fetchMonth = (employeeId: string, year: number, month: number) => api.get<ArtisanTimesheetRecord[]>(`/api/artisan-timesheets?employee_id=${encodeURIComponent(employeeId)}&year=${year}&month=${month}`);
+export const fetchMonth = (employeeId: string, year: number, month: number) => retryTransient(() => api.get<ArtisanTimesheetRecord[]>(`/api/artisan-timesheets?employee_id=${encodeURIComponent(employeeId)}&year=${year}&month=${month}`));
 
 export interface Reference { sources: Sources; settled: boolean; failed: string[]; refetch: () => void }
 /** The approved leave, overtime and standby a blank month is filled from. `settled` is true once each has answered, successfully or not. */

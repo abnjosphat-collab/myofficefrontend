@@ -6,12 +6,13 @@
 
 import { useCallback, useMemo } from 'react';
 import { api } from '@/lib/apiClient';
+import { retryTransient } from '@/lib/transientRetry';
 import { useApiList } from '@/lib/useApiList';
 import type { AvailRecord, Equipment } from './types';
 
 /** `query` scopes the breakdown-derived records (the form's prefill lookup). */
 export async function fetchBreakdownRecords(query?: string): Promise<AvailRecord[]> {
-  return api.get<AvailRecord[]>(`/api/availability-records/from-breakdowns${query ? `?${query}` : ''}`);
+  return retryTransient(() => api.get<AvailRecord[]>(`/api/availability-records/from-breakdowns${query ? `?${query}` : ''}`));
 }
 export const createAvailabilityRecord = (payload: Record<string, unknown>) => api.post<AvailRecord>('/api/availability-records', payload);
 export const updateAvailabilityRecord = (id: number | string, payload: Record<string, unknown>) => api.put<AvailRecord>(`/api/availability-records/${id}`, payload);

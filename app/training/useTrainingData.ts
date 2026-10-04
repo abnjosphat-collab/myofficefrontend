@@ -7,6 +7,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/apiClient';
+import { retryTransient } from '@/lib/transientRetry';
 import type { Certification, ComplianceReport, RefresherItem } from './types';
 
 export async function createCertification(fd: FormData) {
@@ -35,9 +36,9 @@ export function useTrainingData() {
     setRefreshing(true);
     try {
       const [certsRes, rateRes, refreshRes] = await Promise.allSettled([
-        api.get<Certification[]>('/api/training'),
-        api.get<ComplianceReport>('/api/training/reports/compliance_rate'),
-        api.get<RefresherItem[]>('/api/training/reports/due_refreshers'),
+        retryTransient(() => api.get<Certification[]>('/api/training')),
+        retryTransient(() => api.get<ComplianceReport>('/api/training/reports/compliance_rate')),
+        retryTransient(() => api.get<RefresherItem[]>('/api/training/reports/due_refreshers')),
       ]);
       if (certsRes.status === 'fulfilled') setCerts(certsRes.value);
       setRegisterUnavailable(certsRes.status === 'rejected');

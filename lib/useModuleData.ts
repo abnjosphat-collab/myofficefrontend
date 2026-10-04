@@ -1,7 +1,9 @@
 // lib/useModuleData.ts — generic CRUD hook for engineering module pages
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { API_BASE } from '@/lib/config';
 import { authFetch } from '@/lib/api';
+import { ApiError } from '@/lib/apiClient';
+import { retryTransient } from '@/lib/transientRetry';
 
 const BASE_URL = API_BASE;
 
@@ -11,20 +13,27 @@ export function useModuleData<T>(endpoint: string) {
   const [error,   setError]   = useState('');
   const url = `${BASE_URL}/api/${endpoint}`;
 
+  const latest = useRef(0);
+  // A read that fails because the service is slow, waking up or unreachable is retried (the page keeps loading); a refusal or a
+  // bad request is reported at once. The message keeps the "<HTTP status>: <body>" form the pages parse.
   const refetch = useCallback(async (params?: Record<string, string>) => {
+    const request = ++latest.current;
     setLoading(true);
     setError('');
     try {
       const q = params ? '?' + new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString() : '';
       // authFetch (not raw fetch) so the read carries the Supabase token — keeps GET
       // consistent with this hook's create/update/remove and lets read endpoints be guarded.
-      const r = await authFetch(`${url}${q}`);
-      if (!r.ok) throw new Error(`${r.status}: ${await r.text()}`);
-      setData(await r.json());
+      const rows = await retryTransient(async () => {
+        const r = await authFetch(`${url}${q}`);
+        if (!r.ok) throw new ApiError(`${r.status}: ${await r.text()}`, r.status);
+        return r.json();
+      }, { cancelled: () => request !== latest.current });
+      if (request === latest.current) setData(rows);
     } catch (e) {
-      setError((e as Error).message);
+      if (request === latest.current) setError((e as Error).message);
     } finally {
-      setLoading(false);
+      if (request === latest.current) setLoading(false);
     }
   }, [url]);
 

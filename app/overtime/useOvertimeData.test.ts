@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { api } from '@/lib/apiClient';
 import { fetchOT } from './useOvertimeData';
 
-vi.mock('@/lib/apiClient', () => ({ api: { get: vi.fn() } }));
+vi.mock('@/lib/apiClient', async importOriginal => ({ ...(await importOriginal<typeof import('@/lib/apiClient')>()), api: { get: vi.fn() } }));
 
 describe('fetchOT', () => {
   beforeEach(() => { vi.mocked(api.get).mockReset(); });

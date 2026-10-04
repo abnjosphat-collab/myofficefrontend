@@ -5,6 +5,7 @@
 import { api } from '@/lib/apiClient';
 import { API_BASE } from '@/lib/config';
 import { useApiList } from '@/lib/useApiList';
+import { timeoutError } from '@/lib/transientRetry';
 import { invalidateEmployeesCache } from '@/hooks/useLookups';
 import { normalizeEmployeeRoleFields, resolveDriverLicense } from '@/lib/employeeCatalog';
 import { normalizePhoneField } from '@/lib/phone';
@@ -30,7 +31,7 @@ export async function loadEmployees(timeoutMs = 20_000) {
       new Promise<never>((_, reject) => {
         timeout = setTimeout(() => {
           controller.abort();
-          reject(new Error('Personnel records are taking too long to load. Please retry.'));
+          reject(timeoutError('Personnel records'));
         }, timeoutMs);
       }),
     ]);

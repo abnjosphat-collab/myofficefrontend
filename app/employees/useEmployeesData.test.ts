@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { api } from '@/lib/apiClient';
 import { loadEmployees } from './useEmployeesData';
 
-vi.mock('@/lib/apiClient', () => ({ api: { get: vi.fn() } }));
+vi.mock('@/lib/apiClient', async importOriginal => ({ ...(await importOriginal<typeof import('@/lib/apiClient')>()), api: { get: vi.fn() } }));
 
 describe('personnel registry loading', () => {
   beforeEach(() => vi.resetAllMocks());

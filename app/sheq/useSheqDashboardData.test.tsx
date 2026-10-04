@@ -4,7 +4,7 @@ import { api } from '@/lib/apiClient';
 import { toast } from 'sonner';
 import { useSheqDashboardData } from './useSheqDashboardData';
 
-vi.mock('@/lib/apiClient', () => ({ api: { get: vi.fn(), post: vi.fn() } }));
+vi.mock('@/lib/apiClient', async importOriginal => ({ ...(await importOriginal<typeof import('@/lib/apiClient')>()), api: { get: vi.fn(), post: vi.fn() } }));
 vi.mock('sonner', () => ({ toast: { error: vi.fn() } }));
 
 const moduleRows = (marker: string) => [[{ id: `nm-${marker}` }], [{ id: `ws-${marker}` }], [{ id: `vfl-${marker}` }], [{ id: `pto-${marker}` }], [{ id: `insp-${marker}` }], [{ id: `pach-${marker}` }]];

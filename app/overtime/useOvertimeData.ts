@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/apiClient';
 import { useApiList } from '@/lib/useApiList';
+import { timeoutError } from '@/lib/transientRetry';
 import type { OTAnalysisResult, OTRecord, OTForm } from './types';
 
 export async function fetchOT(timeoutMs = 20_000): Promise<OTRecord[]> {
@@ -17,7 +18,7 @@ export async function fetchOT(timeoutMs = 20_000): Promise<OTRecord[]> {
         new Promise<never>((_, reject) => {
           timeout = setTimeout(() => {
             controller.abort();
-            reject(new Error('Overtime records are taking too long to load. Please retry.'));
+            reject(timeoutError('Overtime records'));
           }, timeoutMs);
         }),
       ]);

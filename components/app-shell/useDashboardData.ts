@@ -16,6 +16,8 @@
 import { useEffect, useState } from 'react';
 import { API_BASE } from '@/lib/config';
 import { authFetch } from '@/lib/api';
+import { ApiError } from '@/lib/apiClient';
+import { retryTransient } from '@/lib/transientRetry';
 import {
   ClipboardPlus, AlertTriangle, type LucideIcon,
 } from '@/components/ui-system';
@@ -62,9 +64,12 @@ export function timeAgo(iso?: string | null): string {
 // gated ones.
 async function safeJson(url: string): Promise<any> {
   try {
-    const r = await authFetch(url);
-    if (!r.ok) return null;
-    return await r.json();
+    // A slow or waking service is waited out (up to a minute and a half) so the figures appear instead of showing as unavailable.
+    return await retryTransient(async () => {
+      const r = await authFetch(url);
+      if (!r.ok) throw new ApiError(`HTTP ${r.status}`, r.status);
+      return r.json();
+    }, { maxWaitMs: 90_000 });
   } catch {
     return null;
   }

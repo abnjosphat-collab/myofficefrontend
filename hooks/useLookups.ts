@@ -8,6 +8,10 @@
 
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/apiClient';
+import { retryTransient } from '@/lib/transientRetry';
+
+/** A lookup read waits out a slow or waking service instead of leaving the picker empty. */
+const read = <T,>(path: string) => retryTransient(() => api.get<T>(path));
 import type { EquipmentBase } from '@/app/equipment/types';
 
 // Field sets are the union of what the consuming pages (maintenance, near_miss,
@@ -85,7 +89,7 @@ export function useEmployees(): EmployeeLookup[] {
   const all = useLookup<EmployeeLookup>(
     () => _emp, (v) => { _emp = v; },
     async () => {
-      const d = await api.get<unknown>('/api/employees');
+      const d = await read<unknown>('/api/employees');
       return Array.isArray(d) ? (d as EmployeeLookup[]) : [];
     },
     'employees',
@@ -106,7 +110,7 @@ export function useEquipment(): EquipmentLookup[] {
   return useLookup<EquipmentLookup>(
     () => _eq, (v) => { _eq = v; },
     async () => {
-      const d = await api.get<unknown>('/api/equipment');
+      const d = await read<unknown>('/api/equipment');
       return Array.isArray(d) ? (d as EquipmentLookup[]) : [];
     },
     'equipment',
@@ -117,7 +121,7 @@ export function useSpares(): SpareLookup[] {
   return useLookup<SpareLookup>(
     () => _sp, (v) => { _sp = v; },
     async () => {
-      const d = await api.get<unknown>('/api/spares?limit=500');
+      const d = await read<unknown>('/api/spares?limit=500');
       if (Array.isArray(d)) return d as SpareLookup[];
       const results = (d as { results?: SpareLookup[] })?.results;
       return Array.isArray(results) ? results : [];
@@ -136,7 +140,7 @@ export function useLookupList(listName: string): string[] {
   return useLookup<string>(
     () => _lookupLists.get(listName) ?? null, (v) => { _lookupLists.set(listName, v); },
     async () => {
-      const d = await api.get<unknown>(`/api/lookup-lists/${encodeURIComponent(listName)}`);
+      const d = await read<unknown>(`/api/lookup-lists/${encodeURIComponent(listName)}`);
       return Array.isArray(d) ? (d as { value: string }[]).map(x => x.value) : [];
     },
     `lookup:${listName}`,

@@ -60,4 +60,14 @@ describe('ToolsHomepage', () => {
     await user.click(screen.getByRole('button', { name: 'Open Employees' }));
     expect(onNavigate).toHaveBeenCalledWith('employees', 'all');
   });
+
+  it('opens before the movements and needs-attention records arrive, and says they are loading instead of "clear"', () => {
+    const loadingStats = [...stats.slice(0, 2), { ...stats[2], unavailable: false, loading: true }];
+    render(<ToolsHomepage stats={loadingStats} attention={[]} movements={[]} historyFailed={false} attentionFailed={false} historyLoading attentionLoading sections={sections} scopeLabel={scopeLabel} onNavigate={vi.fn()} onRetry={vi.fn()} />);
+    expect(screen.getByRole('button', { name: 'Equipment: 12' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Employees, loading')).toBeInTheDocument();
+    expect(screen.getAllByText('Loading the latest records…')).toHaveLength(2);
+    expect(screen.queryByText('Everything is clear. No overdue returns, open incidents or due checks.')).not.toBeInTheDocument();
+    expect(screen.queryByText('No movements recorded yet.')).not.toBeInTheDocument();
+  });
 });

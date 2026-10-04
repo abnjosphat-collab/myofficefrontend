@@ -1,5 +1,6 @@
 // /sheq: SHEQ safety dashboard (tiles, score, trend, weekly targets, modules, analytics, analysis, notes).
-const iso = offset => { const d = new Date(); d.setDate(d.getDate() + offset); return d.toISOString().slice(0, 10); };
+// The local calendar date (not UTC), because the page buckets records by the viewer's local week; a UTC date is the previous day for the first hours after local midnight.
+const iso = offset => { const d = new Date(); d.setDate(d.getDate() + offset); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 const data = {
   '/api/nearmiss/': [
     { id: 'n1', department: 'Mining', section: 'Mechanical', date: iso(0), submittedAt: iso(0) },

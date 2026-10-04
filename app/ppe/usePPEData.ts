@@ -5,6 +5,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/apiClient';
+import { retryTransient } from '@/lib/transientRetry';
 import { useApiList } from '@/lib/useApiList';
 import { normalizeDesignation } from '@/lib/employeeCatalog';
 import { sanitizeDisplayName } from './calcPPE';
@@ -61,7 +62,7 @@ export function usePPEMatrix() {
     const id = ++latest.current;
     setLoading(true); setError(null);
     try {
-      const data = await api.get<unknown>('/api/ppe/matrix');
+      const data = await retryTransient(() => api.get<unknown>('/api/ppe/matrix'));
       if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('PPE replacement matrix returned an invalid response.');
       if (id === latest.current) setMatrix({ ...PPE_MATRIX_DEFAULTS, ...(data as Record<string, number>) });
     } catch (e) { if (id === latest.current) setError(e instanceof Error ? e.message : 'The saved replacement matrix could not be loaded.'); }

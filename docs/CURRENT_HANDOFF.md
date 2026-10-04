@@ -131,6 +131,11 @@ Every route is migrated (4 Oct 2026; the last ones were `/breakdowns`, `/breakdo
 - Verified: tsc clean, eslint 0 errors, 892 unit tests, docs check, production build, every route spec (the sop-library spec's label queries updated), login and set-password screenshots at 1440 and 390.
 - **Open decision:** `/tools` still has its own component layer (`ToolsUI`, `AnimatedSelect`, `ToolsDateInput`, `ToolsDialog`, the 125 KB `tools.module.css`, about 2,500 lines). It shares the token layer and glyphs. Moving it onto `ui-system` is a rewrite of the page the owner calls the visual standard, so it was not done without a decision.
 
+**Loading, everywhere (owner, 5 Oct 2026: "keep loading until records appear, for all pages"), done:**
+- Overtime and Personnel had their own 20 s client timeout that raised a plain error, so a slow service showed "taking too long" at once; the timeout is now a transient 408 (`timeoutError`), so those pages keep loading. Every other read that kept its own state now waits out a slow or waking service with `retryTransient` (`lib/transientRetry.ts`): competency, training, SHEQ dashboard, PPE matrix, task comments, availability prefill, artisan timesheet reads, the employee/equipment/spares/lookup pickers, `useModuleData` (compliance register, job cards), and the home figures and bell alerts (capped at 90 s, they are secondary). Compressors still has its own per-section reads (page left alone by the owner's instruction).
+- `/tools` overview: it waited for four sources and each retried without a timeout, so one slow or hung request kept the whole overview on "Loading overview". It now opens as soon as the equipment has answered; the movements and needs-attention panels (and that figure) show their own loading, each request gives up after 45 s and retries, and errors show per panel. Spec `ToolsHomepage.test.tsx` covers it.
+- The sheq route spec's fixture dates are local, not UTC (it failed in the first hours after local midnight).
+
 **Decided by the owner on 4 Oct 2026 (later), and done:**
 - `/quotations` and `/inventory` stay as they are (the browser-only generator; the browser-local inventory with its notice).
 - `/timesheets` roster: PP288 is no longer excluded in code; everyone is on the roster by employment type like everyone else (hide or add a person by hand still works).

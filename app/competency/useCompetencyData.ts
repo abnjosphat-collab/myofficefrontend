@@ -7,6 +7,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '@/lib/apiClient';
+import { retryTransient } from '@/lib/transientRetry';
 import type { Employee, SkillLevel } from './types';
 
 export function pivotFromAPI(rows: any[]): Employee[] {
@@ -37,7 +38,7 @@ export function useCompetencyData() {
   const fetchEmployees = useCallback(async () => {
     setLoading(true);
     try {
-      const rows = await api.get<any[]>('/api/competency');
+      const rows = await retryTransient(() => api.get<any[]>('/api/competency'));
       setRawRows(rows); setEmployees(pivotFromAPI(rows));
       setLoaded(true); setError(null); setErrorStatus(null);
     } catch (e) {

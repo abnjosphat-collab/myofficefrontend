@@ -45,9 +45,20 @@ const wait=(milliseconds:number,signal?:AbortSignal)=>new Promise<void>((resolve
   signal?.addEventListener('abort',cancel,{once:true});
 });
 
+/** One request that gives up after REQUEST_TIMEOUT_MS (a hung connection is retried, not waited on forever) and still honours the caller's cancel. */
+const REQUEST_TIMEOUT_MS=45_000;
+async function getWithTimeout<T>(path:string,token:string,get:ToolsGet,signal?:AbortSignal):Promise<T> {
+  const attempt=new AbortController();
+  const cancel=()=>attempt.abort();
+  signal?.addEventListener('abort',cancel,{once:true});
+  const timer=window.setTimeout(cancel,REQUEST_TIMEOUT_MS);
+  try{return await get<T>(path,token,attempt.signal);}
+  finally{window.clearTimeout(timer);signal?.removeEventListener('abort',cancel);}
+}
+
 async function getAfterWake<T>(path:string,token:string,get:ToolsGet,retry:boolean,signal?:AbortSignal):Promise<T> {
   for(let attempt=0;;attempt+=1){
-    try{return await get<T>(path,token,signal);}catch(error){
+    try{return await (retry?getWithTimeout<T>(path,token,get,signal):get<T>(path,token,signal));}catch(error){
       if(signal?.aborted) throw error;
       const retryable=!error || !(error instanceof ToolsApiError) || [502,503,504].includes(error.status);
       if(!retry||!retryable) throw error;

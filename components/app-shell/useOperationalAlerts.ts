@@ -12,15 +12,20 @@
 import { useEffect, useState } from 'react';
 import { API_BASE } from '@/lib/config';
 import { authFetch } from '@/lib/api';
+import { ApiError } from '@/lib/apiClient';
+import { retryTransient } from '@/lib/transientRetry';
 import { useAuth } from '@/lib/auth-context';
 import { CalendarDays, Clock, ShieldAlert, AlertTriangle, ListTodo, type LucideIcon } from '@/components/ui-system';
 import { timeAgo, type ActivityItem } from './useDashboardData';
 
 async function safeJson(url: string, needsAuth = false): Promise<any> {
   try {
-    const r = needsAuth ? await authFetch(url) : await fetch(url);
-    if (!r.ok) return null;
-    return await r.json();
+    // A slow or waking service is waited out (up to a minute and a half) so the alerts appear instead of being reported as unavailable.
+    return await retryTransient(async () => {
+      const r = needsAuth ? await authFetch(url) : await fetch(url);
+      if (!r.ok) throw new ApiError(`HTTP ${r.status}`, r.status);
+      return r.json();
+    }, { maxWaitMs: 90_000 });
   } catch {
     return null;
   }

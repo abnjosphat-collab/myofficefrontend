@@ -4,6 +4,7 @@
 'use client';
 
 import { api } from '@/lib/apiClient';
+import { retryTransient } from '@/lib/transientRetry';
 import { useApiList } from '@/lib/useApiList';
 import type { TaskComment, TaskEvent, TaskEventFormData } from './types';
 
@@ -17,7 +18,7 @@ export const completeTaskEvent = (id: number, completedBy: string) => api.patch<
 export const reopenTaskEvent = (id: number) => api.patch<TaskEvent>(`/api/tasks-events/${id}`, { status: 'pending', completed_by: null, completed_at: null });
 
 export async function listComments(taskId: number): Promise<TaskComment[]> {
-  const data = await api.get<unknown>(`/api/tasks-events/${taskId}/comments`);
+  const data = await retryTransient(() => api.get<unknown>(`/api/tasks-events/${taskId}/comments`));
   if (!Array.isArray(data)) throw new Error('The comments came back in an unexpected form.');
   return data as TaskComment[];
 }
